@@ -1,8 +1,10 @@
 # APEX Skills — Agentic Platform Engineering eXperience
 
-> Curated EKS platform engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, delivered through agentic AI tools (Claude Code, Kiro CLI).
+> Curated EKS platform engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, delivered through agentic AI tools (Claude Code, Kiro CLI etc).
 
-**APEX** uses agentic AI (Amazon Bedrock + Claude) combined with curated "skills" to give engineers SSA-grade platform engineering output — without needing SSA-grade experience. Skills are stateless domain knowledge: no infrastructure state, no cluster access required. They follow the [Agent Skills open standard](https://agentskills.io/) and work with any compatible agent harness.
+**APEX** uses agentic AI (frontier models and agent harness like Claude Code) combined with curated "skills" to give engineers SSA-grade platform engineering output.
+
+Agent Skills are organized folders of instructions, scripts, and resources that frontier LLM models can discover and load dynamically to perform specialized tasks. By codifying expert platform engineering knowledge as Agent Skills, we amplify best practices and scale them across teams while reducing toil. They follow the Agent Skills [Agent Skills open standard](https://agentskills.io/) open standard and are compatible with any supported agent harness.
 
 ---
 
@@ -18,12 +20,12 @@ sample-apex-skills/
 
 | Directory | Purpose | Think of it as... |
 |-----------|---------|-------------------|
-| `skills/` | **What** the agent knows — reusable, stateless domain knowledge | An expert's brain |
+| `skills/` | **What** the agent knows — reusable domain knowledge | An expert's brain |
 | `steering/` | **How** the agent runs an engagement — questionnaires, checkpoints, routing | A senior SA's playbook |
 | `examples/` | **How** to try it — deploy, run APEX against it, see results | A workshop lab |
 | `misc/` | Maintenance tooling — keep skills in sync, update references | The toolbox |
 
-> **Key principle:** Skills provide the knowledge. Steering provides the structure. You can use skills without steering — but steering without skills has nothing to draw from.
+> **Key principle:** Skills provide the knowledge. Steering provides the structure.  
 
 ---
 
