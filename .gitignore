@@ -14,8 +14,10 @@ Thumbs.db
 # Temporary / working files
 tmp/
 
-# Validation checklist (internal use only)
+# Internal Use Markdown Files
 VALIDATE.md
+WORKSHOP_VISION.md
+PLAN.md
 
 # Python
 __pycache__/

@@ -119,7 +119,7 @@ kiro-cli chat
 
 | Steering File | Description |
 |--------------|-------------|
-| **[eks](steering/eks.md)** | EKS platform engineering hub. Routes to design, upgrade, and troubleshooting workflows. Use as the entry point for any EKS-related request. |
+| **[eks](steering/eks.md)** | EKS platform engineering hub. Routes to design and upgrade workflows. Use as the entry point for any EKS-related request. |
 | **[design](steering/workflows/design.md)** | Day 0 architecture design workflow. 8-phase questionnaire for EKS cluster design, architecture reviews, and option comparisons. |
 | **[upgrade](steering/workflows/upgrade.md)** | Day 2 upgrade workflow. Pre-flight validation, upgrade planning (Terraform or CLI path), execution with checkpoints, and post-upgrade validation. |
 <!-- STEERING_REFERENCE_END -->
