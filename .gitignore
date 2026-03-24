@@ -1,0 +1,38 @@
+# IDE / Editor
+.kiro
+.claude
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary / working files
+tmp/
+
+# Validation checklist (internal use only)
+VALIDATE.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Terraform (if running examples locally)
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+
+# Node (if any tooling uses it)
+node_modules/
+
+# Logs
+*.log
