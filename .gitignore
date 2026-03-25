@@ -18,6 +18,7 @@ tmp/
 VALIDATE.md
 WORKSHOP_VISION.md
 PLAN.md
+eks-best-practices-workspace
 
 # Python
 __pycache__/

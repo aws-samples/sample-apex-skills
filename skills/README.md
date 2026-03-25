@@ -33,10 +33,16 @@ Comprehensive Amazon EKS best practices for cluster architecture, security, netw
 | [autoscaling.md](./eks-best-practices/references/autoscaling.md) | Autoscaling |
 | [cluster-upgrades.md](./eks-best-practices/references/cluster-upgrades.md) | Cluster upgrades |
 | [container-registry.md](./eks-best-practices/references/container-registry.md) | Container registry |
-| [cost-scalability.md](./eks-best-practices/references/cost-scalability.md) | Cost scalability |
+| [cost-optimization.md](./eks-best-practices/references/cost-optimization.md) | Cost optimization |
+| [eks-auto-mode.md](./eks-best-practices/references/eks-auto-mode.md) | Eks auto mode |
+| [karpenter.md](./eks-best-practices/references/karpenter.md) | Karpenter |
+| [networking-ingress-dns.md](./eks-best-practices/references/networking-ingress-dns.md) | Networking ingress dns |
 | [networking.md](./eks-best-practices/references/networking.md) | Networking |
 | [observability.md](./eks-best-practices/references/observability.md) | Observability |
 | [reliability-resiliency.md](./eks-best-practices/references/reliability-resiliency.md) | Reliability resiliency |
+| [scalability.md](./eks-best-practices/references/scalability.md) | Scalability |
+| [security-runtime-network.md](./eks-best-practices/references/security-runtime-network.md) | Security runtime network |
+| [security-supply-chain.md](./eks-best-practices/references/security-supply-chain.md) | Security supply chain |
 | [security.md](./eks-best-practices/references/security.md) | Security |
 | [terraform-examples.md](./eks-best-practices/references/terraform-examples.md) | Terraform examples |
 
