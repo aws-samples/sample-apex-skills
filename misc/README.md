@@ -21,6 +21,13 @@ chmod +x update-steering-references.sh
 ./update-steering-references.sh
 ```
 
+**For Examples**  
+
+```bash
+chmod +x update-examples-references.sh  
+./update-examples-references.sh
+```
+
 ## Sync External Skills  
 
 Some skills are sourced from external upstream repos and treated as the source of truth. These sync scripts clone the upstream repo into a temp directory, wipe the local copy, and replace it entirely with the upstream version. They are idempotent — run them anytime to pull the latest.  

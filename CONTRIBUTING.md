@@ -155,8 +155,8 @@ If you removed all steering files, would the agent still *know* the right answer
 ### Structure
 
 ```
-examples/{scenario}/
-├── README.md              # Exercise guide: overview, prerequisites, steps, expected outcome
+examples/{scenario}/{variant}/
+├── README.md              # Required: frontmatter (name, description, workflow) + exercise guide
 ├── manifests/             # Kubernetes manifests (planted issues, test resources)
 ├── scripts/
 │   ├── deploy.sh          # Deploy the exercise environment
@@ -166,6 +166,20 @@ examples/{scenario}/
     ├── test-01.md         # Full conversation log from test run 1
     └── test-02.md         # Full conversation log from test run 2
 ```
+
+Each example's `README.md` must include YAML frontmatter:
+
+```yaml
+---
+name: In-Place EKS Upgrade
+description: Deploy an EKS 1.30 cluster with planted issues and upgrade to 1.33.
+workflow: steering/workflows/upgrade.md
+---
+```
+
+- `name` — short label (required)
+- `description` — one-line summary (required)
+- `workflow` — which steering workflow this example demonstrates (optional)
 
 ### What Belongs in Examples
 
@@ -271,11 +285,12 @@ See the `skill-creator` skill in `skills/skill-creator/SKILL.md` for the full gu
 ## Creating a New Example
 
 1. Create `examples/<scenario>/<variant>/`
-2. Add `README.md` with overview, prerequisites, setup, expected outcome
+2. Add `README.md` with frontmatter (`name`, `description`, `workflow`) and exercise guide (overview, prerequisites, setup, expected outcome)
 3. Add `scripts/deploy.sh` and `scripts/destroy.sh`
 4. Add planted issues in `manifests/` or infrastructure code
 5. Run the exercise with APEX and document results in `tests/`
 6. Use test results to iterate on the corresponding steering workflow
+7. Run `misc/update-examples-references.sh` to update the README
 
 ---
 

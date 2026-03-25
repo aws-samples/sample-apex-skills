@@ -48,6 +48,21 @@ Comprehensive Amazon EKS best practices for cluster architecture, security, netw
 
 ---
 
+### [eks-upgrader](./eks-upgrader/)
+
+EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other ecosystem tools. Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [blue-green-upgrade.md](./eks-upgrader/references/blue-green-upgrade.md) | Blue green upgrade |
+| [in-place-upgrade.md](./eks-upgrader/references/in-place-upgrade.md) | In place upgrade |
+| [istio.md](./eks-upgrader/references/istio.md) | Istio |
+| [karpenter.md](./eks-upgrader/references/karpenter.md) | Karpenter |
+
+---
+
 ### [skill-creator](./skill-creator/)
 
 Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.

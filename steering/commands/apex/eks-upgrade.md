@@ -11,5 +11,5 @@ Run the APEX EKS upgrade workflow -- structured pre-flight checks, upgrade plann
 </execution_context>
 
 <process>
-Follow the upgrade workflow end-to-end. Detect the user's mode (full upgrade, assessment, pre-flight, scoped, or rollback advisory) and route accordingly. Use the eks-best-practices skill for reference material, especially cluster-upgrades.md.
+Follow the upgrade workflow end-to-end. Detect the user's mode (full upgrade, assessment, pre-flight, scoped, or rollback advisory) and route accordingly. Use the eks-upgrader skill for upgrade procedures, pre-flight checks, and rollback guidance. Use eks-best-practices for Terraform examples and general architecture context.
 </process>
