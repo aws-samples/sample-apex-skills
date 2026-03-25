@@ -21,7 +21,7 @@ sample-apex-skills/
 | Directory | Purpose | Think of it as... |
 |-----------|---------|-------------------|
 | `skills/` | **What** the agent knows — reusable domain knowledge | An expert's brain |
-| `steering/` | **How** the agent runs an engagement — questionnaires, checkpoints, routing | A senior SA's playbook |
+| `steering/` | **How** the agent runs an engagement — slash commands, questionnaires, checkpoints, routing | A senior SA's playbook |
 | `examples/` | **How** to try it — deploy, run APEX against it, see results | A workshop lab |
 | `misc/` | Maintenance tooling — keep skills in sync, update references | The toolbox |
 
@@ -52,24 +52,24 @@ For a structured engagement experience — where the agent follows a questionnai
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-# Skills — symlink into .claude/skills/ (or your configured skills path)
+# Skills — symlink into .claude/skills/
 mkdir -p .claude/skills
 for skill in skills/*/; do
   name=$(basename "$skill")
   ln -sfn "../../skills/$name" ".claude/skills/$name"
 done
 
-# Steering — add as context when starting a session
-# Then in Claude Code, add steering/eks.md as context
+# Commands — symlink steering commands into .claude/commands/
+mkdir -p .claude/commands
+ln -sfn ../../steering/commands/apex .claude/commands/apex
 ```
 
 **Usage:**
 1. Start a Claude Code session in this directory
-2. Add `steering/eks.md` as context
-3. Ask anything:
-   - *"Help me design an EKS cluster"* → routes to Design workflow
-   - *"Upgrade my cluster"* → routes to Upgrade workflow
-   - *"Review this architecture"* → routes to Design review mode
+2. Use slash commands:
+   - `/apex:eks` — hub that auto-routes based on your request
+   - `/apex:eks-design` — *"Help me design an EKS cluster"*
+   - `/apex:eks-upgrade` — *"Upgrade my cluster from 1.30 to 1.33"*
 
 #### Kiro CLI
 
@@ -122,9 +122,17 @@ kiro-cli chat
 | **[eks](steering/eks.md)** | EKS platform engineering hub. Routes to design and upgrade workflows. Use as the entry point for any EKS-related request. |
 | **[design](steering/workflows/design.md)** | Day 0 architecture design workflow. 8-phase questionnaire for EKS cluster design, architecture reviews, and option comparisons. |
 | **[upgrade](steering/workflows/upgrade.md)** | Day 2 upgrade workflow. Pre-flight validation, upgrade planning (Terraform or CLI path), execution with checkpoints, and post-upgrade validation. |
+
+### Slash Commands (Claude Code)
+
+| Command | Description |
+|---------|-------------|
+| **[/apex:eks](steering/commands/apex/eks.md)** | EKS platform engineering hub. Routes to design or upgrade workflows based on your request. Use for any EKS-related task -- architecture design, cluster upgrades, reviews, comparisons, or general EKS questions. |
+| **[/apex:eks-design](steering/commands/apex/eks-design.md)** | Design a new EKS cluster architecture. 8-phase questionnaire covering compute, networking, security, observability, cost, reliability, and multi-tenancy. Also handles architecture reviews and option comparisons. |
+| **[/apex:eks-upgrade](steering/commands/apex/eks-upgrade.md)** | Plan and execute an EKS cluster upgrade. Pre-flight validation, Terraform or CLI path detection, step-by-step execution with checkpoints, and post-upgrade validation. Supports in-place and blue-green strategies. |
 <!-- STEERING_REFERENCE_END -->
 
-Steering files control how the agent runs an engagement — they don't contain domain knowledge (that's in skills), but define the interaction pattern. The hub (`eks.md`) is the entry point — it detects what the user wants and routes to the appropriate workflow. Each workflow follows a structured sequence with checkpoints and STOP gates.
+Steering files control how the agent runs an engagement — they don't contain domain knowledge (that's in skills), but define the interaction pattern. The hub (`eks.md`) is the entry point — it detects what the user wants and routes to the appropriate workflow. Each workflow follows a structured sequence with checkpoints and STOP gates. The `commands/` directory provides agent-harness-specific entry points (e.g., Claude Code slash commands) that map to the hub and workflows.
 
 **The key test:** If you removed all steering files, would the agent still know the right answers? **Yes** — skills provide the knowledge. But the agent wouldn't know how to run the engagement.
 

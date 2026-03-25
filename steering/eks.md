@@ -81,12 +81,20 @@ All workflows use these skills:
 |-----------|---------|
 | [cluster-upgrades.md](../skills/eks-best-practices/references/cluster-upgrades.md) | Upgrade workflow |
 | [security.md](../skills/eks-best-practices/references/security.md) | Design workflow (security domain) |
+| [security-runtime-network.md](../skills/eks-best-practices/references/security-runtime-network.md) | Design workflow (security domain) |
+| [security-supply-chain.md](../skills/eks-best-practices/references/security-supply-chain.md) | Design workflow (security domain) |
 | [networking.md](../skills/eks-best-practices/references/networking.md) | Design workflow (networking domain) |
+| [networking-ingress-dns.md](../skills/eks-best-practices/references/networking-ingress-dns.md) | Design workflow (networking domain) |
 | [reliability-resiliency.md](../skills/eks-best-practices/references/reliability-resiliency.md) | Design workflow, Upgrade workflow |
 | [terraform-examples.md](../skills/eks-best-practices/references/terraform-examples.md) | Design workflow, Upgrade workflow |
 | [autoscaling.md](../skills/eks-best-practices/references/autoscaling.md) | Design workflow |
-| [cost-scalability.md](../skills/eks-best-practices/references/cost-scalability.md) | Design workflow |
+| [karpenter.md](../skills/eks-best-practices/references/karpenter.md) | Design workflow, Upgrade workflow |
+| [eks-auto-mode.md](../skills/eks-best-practices/references/eks-auto-mode.md) | Design workflow |
+| [cost-optimization.md](../skills/eks-best-practices/references/cost-optimization.md) | Design workflow |
+| [scalability.md](../skills/eks-best-practices/references/scalability.md) | Design workflow |
 | [observability.md](../skills/eks-best-practices/references/observability.md) | Design workflow |
+| [argocd-patterns.md](../skills/eks-best-practices/references/argocd-patterns.md) | Design workflow |
+| [container-registry.md](../skills/eks-best-practices/references/container-registry.md) | Design workflow |
 
 ---
 

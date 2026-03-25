@@ -4,6 +4,7 @@
 # Reads frontmatter (name, description) from steering files:
 #   - steering/eks.md (hub)
 #   - steering/workflows/*.md (workflows)
+#   - steering/commands/**/*.md (slash commands)
 #
 # Rebuilds the Steering Reference table in README.md between
 # <!-- STEERING_REFERENCE_START --> and <!-- STEERING_REFERENCE_END --> markers.
@@ -82,6 +83,47 @@ build_table() {
     rel_path="${steering_file#$REPO_ROOT/}"
     echo "| **[$name]($rel_path)** | $description |"
   done
+
+  # Collect command files (hub first — shortest basename per directory, then rest sorted)
+  local command_files=() hub_files=() other_files=()
+  if [[ -d "$STEERING_DIR/commands" ]]; then
+    while IFS= read -r -d '' cmd; do
+      local base
+      base="$(basename "$cmd" .md)"
+      # Hub files have no hyphen (e.g., eks.md); sub-commands do (e.g., eks-design.md)
+      if [[ "$base" != *-* ]]; then
+        hub_files+=("$cmd")
+      else
+        other_files+=("$cmd")
+      fi
+    done < <(find "$STEERING_DIR/commands" -name '*.md' -print0 | sort -z)
+    command_files=("${hub_files[@]}" "${other_files[@]}")
+  fi
+
+  if [[ ${#command_files[@]} -gt 0 ]]; then
+    echo ''
+    echo '### Slash Commands (Claude Code)'
+    echo ''
+    echo '| Command | Description |'
+    echo '|---------|-------------|'
+
+    for cmd_file in "${command_files[@]}"; do
+      local cmd_name cmd_desc cmd_rel_path
+      cmd_name="$(parse_frontmatter "$cmd_file" "name")"
+      cmd_desc="$(parse_frontmatter "$cmd_file" "description")"
+
+      if [[ -z "$cmd_name" ]]; then
+        continue
+      fi
+
+      if [[ -z "$cmd_desc" ]]; then
+        cmd_desc="_(no description in frontmatter)_"
+      fi
+
+      cmd_rel_path="${cmd_file#$REPO_ROOT/}"
+      echo "| **[/$cmd_name]($cmd_rel_path)** | $cmd_desc |"
+    done
+  fi
 }
 
 # --- Replace the section in README.md ---
@@ -141,3 +183,12 @@ for f in "$STEERING_DIR/eks.md" "$STEERING_DIR/workflows"/*.md; do
     fi
   fi
 done
+if [[ -d "$STEERING_DIR/commands" ]]; then
+  echo "   Command files found:"
+  while IFS= read -r -d '' f; do
+    local_name="$(parse_frontmatter "$f" "name")"
+    if [[ -n "$local_name" ]]; then
+      echo "   - /$local_name (${f#$REPO_ROOT/})"
+    fi
+  done < <(find "$STEERING_DIR/commands" -name '*.md' -print0 | sort -z)
+fi

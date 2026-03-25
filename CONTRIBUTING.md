@@ -10,9 +10,11 @@ APEX EKS organizes content into three directories, each serving a distinct purpo
 
 ```
 apex-eks/
-├── steering/    → 🎯 HOW the agent behaves (conversation orchestration)
-├── skills/      → 📚 WHAT the agent knows (domain knowledge)
-└── examples/    → 🏗️ HOW to try it (hands-on exercises)
+├── steering/           → 🎯 HOW the agent behaves (conversation orchestration)
+│   ├── commands/       →   Slash command definitions (harness-specific entry points)
+│   └── workflows/      →   Structured engagement playbooks
+├── skills/             → 📚 WHAT the agent knows (domain knowledge)
+└── examples/           → 🏗️ HOW to try it (hands-on exercises)
 ```
 
 ---
@@ -90,6 +92,11 @@ skills/{skill-name}/
 ```
 steering/
 ├── eks.md                    # Hub: intent detection, routing, shared context
+├── commands/                 # Slash command wrappers (harness-specific entry points)
+│   └── apex/                 # Claude Code: symlinked into .claude/commands/apex/
+│       ├── eks.md            # /apex:eks → routes via steering/eks.md
+│       ├── eks-design.md     # /apex:eks-design → steering/workflows/design.md
+│       └── eks-upgrade.md    # /apex:eks-upgrade → steering/workflows/upgrade.md
 └── workflows/
     ├── design.md             # Day 0: Architecture questionnaire + quality check
     ├── upgrade.md            # Day 2: Pre-flight → plan → execute → validate
@@ -114,6 +121,7 @@ steering/
 | Checkpoint templates | "✅ Step N complete. Validation: ... Ready for Step N+1?" |
 | Mandatory warnings | "Once the control plane is upgraded, you CANNOT roll it back" |
 | Conditional branches | "Terraform detected? → Terraform path. CLI-managed? → CLI path." |
+| Slash command wrappers | Command files that map `/apex:eks-design` to the design workflow |
 
 ### What Does NOT Belong in Steering
 
@@ -256,7 +264,9 @@ See the `skill-creator` skill in `skills/skill-creator/SKILL.md` for the full gu
 3. Add an intent routing table at the top
 4. Structure as phases with numbered checklists and STOP gates
 5. Add the workflow to the hub's routing table in `steering/eks.md`
-6. Test with a real scenario and document results in `examples/`
+6. Create a corresponding command file in `steering/commands/apex/eks-<name>.md` with frontmatter (`name`, `description`) and an `@steering/workflows/<name>.md` execution context reference
+7. Run `misc/update-steering-references.sh` to update the README
+8. Test with a real scenario and document results in `examples/`
 
 ## Creating a New Example
 
