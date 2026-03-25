@@ -2,8 +2,11 @@
 # update-skills-references.sh
 #
 # Reads SKILL.md frontmatter (name, description) from every skill in skills/
-# and rebuilds the Skills Reference table in README.md between the
-# <!-- SKILLS_REFERENCE_START --> and <!-- SKILLS_REFERENCE_END --> markers.
+# and rebuilds:
+#   1. The Skills Reference table in README.md (between SKILLS_REFERENCE markers)
+#   2. The detailed Skills section in skills/README.md (between SKILLS_DETAIL markers)
+#
+# The skills/README.md detail includes references/, scripts/, and assets/ listings.
 #
 # Usage:
 #   ./misc/update-skills-references.sh          # run from repo root
@@ -13,6 +16,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 README="$REPO_ROOT/README.md"
+SKILLS_README="$REPO_ROOT/skills/README.md"
 SKILLS_DIR="$REPO_ROOT/skills"
 DRY_RUN=false
 
@@ -37,7 +41,20 @@ parse_frontmatter() {
   ' "$file"
 }
 
-# --- Build the new table ---
+# --- Convert filename to human-readable label ---
+# e.g. "ci-cd-workflows.md" -> "CI/CD workflows"
+#      "security-compliance.md" -> "Security compliance"
+humanize_filename() {
+  local filename="$1"
+  # Strip extension
+  local base="${filename%.*}"
+  # Replace hyphens with spaces
+  base="${base//-/ }"
+  # Capitalize first letter
+  echo "${base^}"
+}
+
+# --- Build the main README table ---
 build_table() {
   echo '## Skills Reference'
   echo ''
@@ -74,54 +91,223 @@ build_table() {
   done
 }
 
-# --- Replace the section in README.md ---
-START_MARKER='<!-- SKILLS_REFERENCE_START -->'
-END_MARKER='<!-- SKILLS_REFERENCE_END -->'
+# --- Build the detailed skills/README.md section ---
+build_skills_detail() {
+  local first=true
 
-if ! grep -q "$START_MARKER" "$README"; then
-  echo "ERROR: Could not find $START_MARKER in $README" >&2
+  for skill_dir in "$SKILLS_DIR"/*/; do
+    local skill_md="$skill_dir/SKILL.md"
+    if [[ ! -f "$skill_md" ]]; then
+      continue
+    fi
+
+    local name
+    local description
+    name="$(parse_frontmatter "$skill_md" "name")"
+    description="$(parse_frontmatter "$skill_md" "description")"
+
+    if [[ -z "$name" ]]; then
+      echo "  WARNING: No name found in $skill_md" >&2
+      continue
+    fi
+
+    if [[ -z "$description" ]]; then
+      description="_(no description in frontmatter)_"
+    fi
+
+    local folder_name
+    folder_name="$(basename "$skill_dir")"
+
+    # Add separator between skills (not before first)
+    if $first; then
+      first=false
+    else
+      echo ""
+      echo "---"
+      echo ""
+    fi
+
+    echo "### [$name](./$folder_name/)"
+    echo ""
+    echo "$description"
+
+    # --- References ---
+    local refs_dir="$skill_dir/references"
+    if [[ -d "$refs_dir" ]]; then
+      local ref_files=()
+      while IFS= read -r -d '' f; do
+        ref_files+=("$f")
+      done < <(find "$refs_dir" -maxdepth 1 -type f -name '*.md' -print0 | sort -z)
+
+      if [[ ${#ref_files[@]} -gt 0 ]]; then
+        echo ""
+        echo "**References** (loaded on demand):"
+        echo ""
+        echo "| Reference | Description |"
+        echo "|-----------|-------------|"
+        for ref_file in "${ref_files[@]}"; do
+          local ref_basename
+          ref_basename="$(basename "$ref_file")"
+          local ref_label
+          ref_label="$(humanize_filename "$ref_basename")"
+          echo "| [$ref_basename](./$folder_name/references/$ref_basename) | $ref_label |"
+        done
+      fi
+    fi
+
+    # --- Scripts ---
+    local scripts_dir="$skill_dir/scripts"
+    if [[ -d "$scripts_dir" ]]; then
+      local script_files=()
+      while IFS= read -r -d '' f; do
+        script_files+=("$f")
+      done < <(find "$scripts_dir" -maxdepth 1 -type f -print0 | sort -z)
+
+      if [[ ${#script_files[@]} -gt 0 ]]; then
+        echo ""
+        echo "**Scripts:**"
+        echo ""
+        echo "| Script | Description |"
+        echo "|--------|-------------|"
+        for script_file in "${script_files[@]}"; do
+          local script_basename
+          script_basename="$(basename "$script_file")"
+          local script_label
+          script_label="$(humanize_filename "$script_basename")"
+          echo "| [$script_basename](./$folder_name/scripts/$script_basename) | $script_label |"
+        done
+      fi
+    fi
+
+    # --- Assets ---
+    local assets_dir="$skill_dir/assets"
+    if [[ -d "$assets_dir" ]]; then
+      local asset_files=()
+      while IFS= read -r -d '' f; do
+        asset_files+=("$f")
+      done < <(find "$assets_dir" -maxdepth 1 \( -type f -o -type d \) ! -path "$assets_dir" -print0 | sort -z)
+
+      if [[ ${#asset_files[@]} -gt 0 ]]; then
+        echo ""
+        echo "**Assets:**"
+        echo ""
+        echo "| Asset | Description |"
+        echo "|-------|-------------|"
+        for asset_file in "${asset_files[@]}"; do
+          local asset_basename
+          asset_basename="$(basename "$asset_file")"
+          local asset_label
+          asset_label="$(humanize_filename "$asset_basename")"
+          if [[ -d "$asset_file" ]]; then
+            echo "| [$asset_basename/](./$folder_name/assets/$asset_basename/) | $asset_label |"
+          else
+            echo "| [$asset_basename](./$folder_name/assets/$asset_basename) | $asset_label |"
+          fi
+        done
+      fi
+    fi
+  done
+}
+
+# --- Replace a section between markers in a file ---
+replace_section() {
+  local file="$1"
+  local start_marker="$2"
+  local end_marker="$3"
+  local new_content="$4"
+
+  if ! grep -q "$start_marker" "$file"; then
+    echo "ERROR: Could not find $start_marker in $file" >&2
+    return 1
+  fi
+
+  if ! grep -q "$end_marker" "$file"; then
+    echo "ERROR: Could not find $end_marker in $file" >&2
+    return 1
+  fi
+
+  awk -v start="$start_marker" -v end="$end_marker" -v new_section="$new_content" '
+    $0 == start {
+      print start
+      print new_section
+      skip = 1
+      next
+    }
+    $0 == end {
+      print end
+      skip = 0
+      next
+    }
+    !skip { print }
+  ' "$file" > "$file.tmp"
+
+  mv "$file.tmp" "$file"
+}
+
+# =============================================
+# 1. Update main README.md — Skills Reference
+# =============================================
+
+README_START='<!-- SKILLS_REFERENCE_START -->'
+README_END='<!-- SKILLS_REFERENCE_END -->'
+
+if ! grep -q "$README_START" "$README"; then
+  echo "ERROR: Could not find $README_START in $README" >&2
   echo "Add the markers around the Skills Reference section first." >&2
   exit 1
 fi
 
-if ! grep -q "$END_MARKER" "$README"; then
-  echo "ERROR: Could not find $END_MARKER in $README" >&2
-  exit 1
-fi
-
-# Build the new content
-NEW_SECTION="$(build_table)"
+NEW_README_SECTION="$(build_table)"
 
 if $DRY_RUN; then
-  echo "=== DRY RUN — would replace Skills Reference with: ==="
+  echo "=== DRY RUN — README.md Skills Reference ==="
   echo ""
-  echo "$START_MARKER"
-  echo "$NEW_SECTION"
-  echo "$END_MARKER"
+  echo "$README_START"
+  echo "$NEW_README_SECTION"
+  echo "$README_END"
   echo ""
+fi
+
+# =============================================
+# 2. Update skills/README.md — Detailed Skills
+# =============================================
+
+SKILLS_START='<!-- SKILLS_DETAIL_START -->'
+SKILLS_END='<!-- SKILLS_DETAIL_END -->'
+
+NEW_SKILLS_SECTION=""
+if grep -q "$SKILLS_START" "$SKILLS_README" 2>/dev/null; then
+  NEW_SKILLS_SECTION="$(build_skills_detail)"
+
+  if $DRY_RUN; then
+    echo "=== DRY RUN — skills/README.md Detailed Skills ==="
+    echo ""
+    echo "$SKILLS_START"
+    echo "$NEW_SKILLS_SECTION"
+    echo "$SKILLS_END"
+    echo ""
+  fi
+fi
+
+# =============================================
+# Apply changes (unless dry run)
+# =============================================
+
+if $DRY_RUN; then
   echo "=== No changes written ==="
   exit 0
 fi
 
-# Use awk to replace everything between the markers (inclusive)
-awk -v start="$START_MARKER" -v end="$END_MARKER" -v new_section="$NEW_SECTION" '
-  $0 == start {
-    print start
-    print new_section
-    skip = 1
-    next
-  }
-  $0 == end {
-    print end
-    skip = 0
-    next
-  }
-  !skip { print }
-' "$README" > "$README.tmp"
-
-mv "$README.tmp" "$README"
-
+# Update main README.md
+replace_section "$README" "$README_START" "$README_END" "$NEW_README_SECTION"
 echo "✅ Skills Reference table updated in README.md"
+
+# Update skills/README.md (if markers exist)
+if [[ -n "$NEW_SKILLS_SECTION" ]]; then
+  replace_section "$SKILLS_README" "$SKILLS_START" "$SKILLS_END" "$NEW_SKILLS_SECTION"
+  echo "✅ Detailed skills section updated in skills/README.md"
+fi
+
 echo "   Skills found:"
 for skill_dir in "$SKILLS_DIR"/*/; do
   if [[ -f "$skill_dir/SKILL.md" ]]; then

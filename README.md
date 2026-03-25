@@ -106,7 +106,7 @@ kiro-cli chat
 | Skill | What It Covers |
 |-------|---------------|
 | **[eks-best-practices](skills/eks-best-practices/)** | Comprehensive Amazon EKS best practices for cluster architecture, security, networking, autoscaling, reliability, and operations. Use when (1) designing EKS cluster architecture, (2) choosing between compute options (Fargate, MNG, Karpenter, Auto Mode), (3) planning EKS networking or security, (4) reviewing EKS architecture decisions, (5) working with terraform-aws-modules/terraform-aws-eks examples, (6) planning cluster upgrades, or (7) optimizing EKS cost and scalability. |
-| **[skill-creator](skills/skill-creator/)** | Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations. |
+| **[skill-creator](skills/skill-creator/)** | Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy. |
 | **[terraform-skill](skills/terraform-skill/)** | Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions |
 <!-- SKILLS_REFERENCE_END -->
 
