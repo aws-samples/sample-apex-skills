@@ -7,7 +7,7 @@ Run the APEX EKS upgrade workflow -- structured pre-flight checks, upgrade plann
 </objective>
 
 <execution_context>
-@steering/workflows/upgrade.md
+@~/.claude/apex-steering/workflows/upgrade.md
 </execution_context>
 
 <process>

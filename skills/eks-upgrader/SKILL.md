@@ -23,6 +23,32 @@ Focused knowledge for upgrading EKS clusters and the ecosystem components that r
 | [karpenter.md](references/karpenter.md) | Cluster uses Karpenter -- compatibility matrix, Helm upgrade, CRD management, drift-based node replacement |
 | [istio.md](references/istio.md) | Cluster runs Istio -- canary/in-place upgrade, revision tags, sidecar rollout, ambient mode |
 
+## Using References
+
+When a component needs upgrading:
+
+1. Load its reference during **pre-flight** for compatibility checks
+2. Load its reference again during **plan generation** for the full procedure
+3. If the reference has a checklist, include every applicable item in the plan
+
+**Do not** generate a plan that only changes version numbers. The reference contains the procedure -- extract it.
+
+## Compute Upgrade Notes
+
+### Karpenter
+
+- **CRDs must be upgraded alongside the controller** -- the bundled Helm chart does not auto-upgrade CRDs after initial install. Use the independent `karpenter-crd` chart.
+- **Karpenter hosting:** If Karpenter runs on Fargate, refresh via `kubectl rollout restart`. If on MNG, include in node group rotation.
+- **Disruption budgets:** Percentage-based budgets with few nodes may block replacement (10% of 1 = 0). Ask user whether to wait or expedite.
+
+See [karpenter.md](references/karpenter.md) for full procedures.
+
+### MNG (Managed Node Groups)
+
+- Update launch template to new AMI before triggering node refresh
+- Use `aws eks update-nodegroup-version` or Terraform to rotate nodes
+- Respect PDBs -- nodes won't drain if PDBs block
+
 ## Upgrade Principles
 
 - EKS upgrades go one minor version at a time (control plane, then add-ons, then data plane)

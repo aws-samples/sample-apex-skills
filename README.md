@@ -52,20 +52,20 @@ For a structured engagement experience — where the agent follows a questionnai
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-# Skills — symlink into .claude/skills/
-mkdir -p .claude/skills
-for skill in skills/*/; do
-  name=$(basename "$skill")
-  ln -sfn "../../skills/$name" ".claude/skills/$name"
-done
-
-# Commands — symlink steering commands into .claude/commands/
-mkdir -p .claude/commands
+# One-time setup — symlink skills, steering + commands into .claude/
+mkdir -p .claude/skills .claude/commands
+for skill in skills/*/; do ln -sfn "../../$skill" ".claude/skills/$(basename $skill)"; done
 ln -sfn ../../steering/commands/apex .claude/commands/apex
+ln -sfn ../steering .claude/steering
+
+# Make steering available at a fixed absolute path for slash commands
+ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
+> Claude Code walks up to the git root to find `.claude/`, so commands work from **any subdirectory** in the repo. The `~/.claude/apex-steering` symlink gives slash commands an absolute path to load steering files instantly.
+
 **Usage:**
-1. Start a Claude Code session in this directory
+1. Start a Claude Code session from anywhere in the repo
 2. Use slash commands:
    - `/apex:eks` — hub that auto-routes based on your request
    - `/apex:eks-design` — *"Help me design an EKS cluster"*
@@ -146,7 +146,7 @@ Steering files control how the agent runs an engagement — they don't contain d
 
 | Example | Description | Workflow |
 |---------|-------------|----------|
-| **[In-Place EKS Upgrade](examples/eks-upgrades/in-place-karpenter/)** | Deploy an EKS 1.30 cluster with planted issues and upgrade to 1.33 using the APEX EKS upgrade workflow. Covers sequential hops, deprecated API detection, blocking PDB remediation, and Terraform-aware upgrades. | [upgrade](steering/workflows/upgrade.md) |
+| **[In-Place EKS Upgrade](examples/eks-upgrades/in-place-karpenter/)** | Deploy an EKS 1.32 cluster with planted issues and upgrade to 1.33 using the APEX EKS upgrade workflow. Covers deprecated API detection, blocking PDB remediation, and Terraform-aware upgrades. | [upgrade](steering/workflows/upgrade.md) |
 <!-- EXAMPLES_REFERENCE_END -->
 
 ---

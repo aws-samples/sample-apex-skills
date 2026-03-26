@@ -7,7 +7,7 @@ Run the APEX EKS design workflow -- a structured questionnaire that gathers requ
 </objective>
 
 <execution_context>
-@steering/workflows/design.md
+@~/.claude/apex-steering/workflows/design.md
 </execution_context>
 
 <process>

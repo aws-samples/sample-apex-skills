@@ -13,10 +13,11 @@
 4. [CRD Management](#crd-management)
 5. [API Migration Boundaries](#api-migration-boundaries)
 6. [Drift-Based Node Replacement](#drift-based-node-replacement)
-7. [Disruption Budgets](#disruption-budgets)
-8. [Version-Specific Breaking Changes](#version-specific-breaking-changes)
-9. [Rollback](#rollback)
-10. [Common Issues](#common-issues)
+7. [Karpenter Hosting](#karpenter-hosting)
+8. [Disruption Budgets](#disruption-budgets)
+9. [Version-Specific Breaking Changes](#version-specific-breaking-changes)
+10. [Rollback](#rollback)
+11. [Common Issues](#common-issues)
 
 ---
 
@@ -74,6 +75,22 @@ Before any Karpenter upgrade, review the [version-specific breaking changes](#ve
 ---
 
 ## Upgrade Procedure
+
+### Upgrade Checklist
+
+Before generating an upgrade plan, confirm all applicable items are included:
+
+- [ ] CRD upgrade step (BEFORE controller -- bundled chart does not auto-upgrade CRDs)
+- [ ] Controller upgrade step
+- [ ] Karpenter hosting compute refresh -- Karpenter pods run on Fargate or MNG, which don't auto-drift. Handle them like any other Fargate/MNG workload in the data plane step
+- [ ] Disruption budget review -- if budget may block node replacement (e.g., 10% of 1 node = 0), ask user:
+  - **Wait:** Let nodes replace naturally as workloads scale and budget allows
+  - **Expedite:** Temporarily adjust budget or `kubectl delete nodeclaim <name>`, then revert budget after
+- [ ] Post-upgrade validation
+
+Do not proceed with plan generation until all applicable items are addressed.
+
+### Overview
 
 Karpenter is installed via Helm. The upgrade follows a two-step process: CRDs first, then the controller.
 
@@ -237,6 +254,28 @@ spec:
   # Pinned AMI (drift only happens when you update this list):
   # amiSelectorTerms:
   # - id: ami-0123456789abcdef0
+```
+
+---
+
+## Karpenter Hosting
+
+Karpenter itself runs on compute that must be upgraded alongside the control plane.
+
+| Karpenter Runs On | Upgrade Method |
+|-------------------|----------------|
+| **Fargate** | `kubectl rollout restart deployment karpenter -n <namespace>` |
+| **MNG** | Include Karpenter nodes in MNG rotation (update launch template, refresh node group) |
+
+Fargate and MNG nodes are not managed by Karpenter, so they don't auto-drift. Refresh them **after** upgrading the Karpenter controller but **before** relying on Karpenter to replace data plane nodes.
+
+```bash
+# Fargate: restart to get new Fargate nodes at control plane version
+kubectl rollout restart deployment karpenter -n karpenter
+kubectl rollout status deployment karpenter -n karpenter
+
+# Verify Karpenter pods are running on upgraded nodes
+kubectl get pods -n karpenter -o wide
 ```
 
 ---

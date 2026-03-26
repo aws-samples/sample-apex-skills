@@ -7,7 +7,7 @@ Route the user's EKS request to the appropriate workflow using the APEX EKS stee
 </objective>
 
 <execution_context>
-@steering/eks.md
+@~/.claude/apex-steering/eks.md
 </execution_context>
 
 <process>
