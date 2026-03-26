@@ -1,0 +1,13 @@
+# Scales the istio-ingress gateway down to a single replica and removes
+# any PodDisruptionBudget. This causes 60-90 seconds of traffic loss
+# when the gateway pod restarts during an Istio or node upgrade.
+#
+# Fix: scale to >=2 replicas and create a PDB with maxUnavailable: 1.
+# See: skills/eks-upgrader/references/istio.md#ingress-gateway-availability
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istio-ingress
+  namespace: istio-ingress
+spec:
+  replicas: 1

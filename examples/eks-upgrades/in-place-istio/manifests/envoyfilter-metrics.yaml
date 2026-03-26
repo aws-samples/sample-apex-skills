@@ -1,0 +1,38 @@
+# EnvoyFilter for custom Prometheus metrics.
+#
+# This is a deprecated pattern -- EnvoyFilter is an alpha API tightly coupled
+# to Istio's xDS internals. It silently breaks when the Envoy config structure
+# changes between Istio versions.
+#
+# Migration: Replace with the Telemetry API before upgrading Istio.
+# See: skills/eks-upgrader/references/istio.md#envoyfilter-migration
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: custom-metrics
+  namespace: istio-system
+spec:
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: envoy.filters.network.http_connection_manager
+            subFilter:
+              name: envoy.filters.http.router
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: istio.stats
+        typed_config:
+          "@type": type.googleapis.com/udpa.type.v1.TypedStruct
+          type_url: type.googleapis.com/stats.PluginConfig
+          value:
+            metrics:
+            - name: requests_total
+              dimensions:
+                destination_port: string(destination.port)
+              tags_to_remove:
+              - request_protocol
