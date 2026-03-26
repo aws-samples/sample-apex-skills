@@ -146,7 +146,7 @@ Steering files control how the agent runs an engagement — they don't contain d
 
 | Example | Description | Workflow |
 |---------|-------------|----------|
-| **[In-Place EKS Upgrade](examples/eks-upgrades/in-place-karpenter/)** | Deploy an EKS 1.30 cluster with planted issues and upgrade to 1.33 using the APEX EKS upgrade workflow. Covers sequential hops, deprecated API detection, blocking PDB remediation, and Terraform-aware upgrades. | [upgrade](steering/workflows/upgrade.md) |
+| **[In-Place EKS Upgrade](examples/eks-upgrades/in-place-karpenter/)** | Deploy an EKS 1.32 cluster with planted issues and upgrade to 1.33 using the APEX EKS upgrade workflow. Covers deprecated API detection, blocking PDB remediation, and Terraform-aware upgrades. | [upgrade](steering/workflows/upgrade.md) |
 <!-- EXAMPLES_REFERENCE_END -->
 
 ---

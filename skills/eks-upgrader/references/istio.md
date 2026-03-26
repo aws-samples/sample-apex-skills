@@ -11,14 +11,15 @@
 2. [Pre-Upgrade Validation](#pre-upgrade-validation)
 3. [EnvoyFilter Migration](#envoyfilter-migration)
 4. [Upgrade Strategy Decision](#upgrade-strategy-decision)
-5. [Canary Upgrade (Recommended)](#canary-upgrade-recommended)
-6. [In-Place Upgrade](#in-place-upgrade)
-7. [Revision Tags for Production](#revision-tags-for-production)
-8. [Data Plane Rollout](#data-plane-rollout)
-9. [Gateway Upgrades](#gateway-upgrades)
-10. [Ambient Mode Upgrades](#ambient-mode-upgrades)
-11. [Rollback](#rollback)
-12. [Common Issues](#common-issues)
+5. [Upgrade Checklist](#upgrade-checklist)
+6. [Canary Upgrade (Recommended)](#canary-upgrade-recommended)
+7. [In-Place Upgrade](#in-place-upgrade)
+8. [Revision Tags for Production](#revision-tags-for-production)
+9. [Data Plane Rollout](#data-plane-rollout)
+10. [Gateway Upgrades](#gateway-upgrades)
+11. [Ambient Mode Upgrades](#ambient-mode-upgrades)
+12. [Rollback](#rollback)
+13. [Common Issues](#common-issues)
 
 ---
 
@@ -205,6 +206,23 @@ Before upgrading, run through this list:
 | **Tool support** | istioctl install --revision, Helm | istioctl upgrade, Helm upgrade |
 
 **Use canary** for production clusters. It lets you validate the new control plane with a subset of workloads before committing. **Use in-place** only for dev/test environments where speed matters more than safety.
+
+---
+
+## Upgrade Checklist
+
+Before generating an upgrade plan, confirm all applicable items are included:
+
+- [ ] EnvoyFilter audit and migration (BEFORE upgrading -- stale EnvoyFilters silently break when xDS structure changes between versions). See [EnvoyFilter Migration](#envoyfilter-migration)
+- [ ] CRD ownership fix if upgrading a Helm install from pre-1.23 (see [Common Issues](#crd-ownership-errors-with-helm))
+- [ ] Gateway replica count >= 2 with PDB -- a single-replica gateway drops all traffic during pod restart (60-90s outage)
+- [ ] Control plane upgrade step (canary or in-place)
+- [ ] Data plane rollout -- sidecars still run the old version until pods restart. Include namespace-by-namespace restart plan
+- [ ] If using revision tags: tag promotion step (retarget tag, then restart workloads)
+- [ ] If using ambient mode: ztunnel and CNI agent upgrade sequencing (ztunnel upgrade briefly disrupts all ambient traffic on the node)
+- [ ] Post-upgrade validation: `istioctl proxy-status` (all proxies SYNCED) + `istioctl analyze` (no warnings)
+
+Do not proceed with plan generation until all applicable items are addressed.
 
 ---
 

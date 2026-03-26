@@ -82,9 +82,7 @@ Before generating an upgrade plan, confirm all applicable items are included:
 
 - [ ] CRD upgrade step (BEFORE controller -- bundled chart does not auto-upgrade CRDs)
 - [ ] Controller upgrade step
-- [ ] Karpenter hosting refresh:
-  - **Fargate:** `kubectl rollout restart deployment karpenter -n <namespace>`
-  - **MNG:** Include in MNG node group rotation
+- [ ] Karpenter hosting compute refresh -- Karpenter pods run on Fargate or MNG, which don't auto-drift. Handle them like any other Fargate/MNG workload in the data plane step
 - [ ] Disruption budget review -- if budget may block node replacement (e.g., 10% of 1 node = 0), ask user:
   - **Wait:** Let nodes replace naturally as workloads scale and budget allows
   - **Expedite:** Temporarily adjust budget or `kubectl delete nodeclaim <name>`, then revert budget after
