@@ -235,7 +235,7 @@ Generate a customized markdown upgrade plan based on context from Phase 1 and fi
 
 ### What Goes in the Plan
 
-Pull exact commands and procedures from the `eks-upgrader` skill -- the plan is a curated, cluster-specific subset of:
+Pull exact commands and procedures from the `eks-upgrader` skill -- the plan is a curated, cluster-specific subset of the references below. **Load the full upgrade procedure from each reference, not just version numbers.** If the reference has a checklist, include every applicable item.
 - In-place (CLI): [in-place-upgrade.md](../../skills/eks-upgrader/references/in-place-upgrade.md)
 - In-place (Terraform): [in-place-upgrade.md](../../skills/eks-upgrader/references/in-place-upgrade.md) + [terraform-examples.md](../../skills/eks-best-practices/references/terraform-examples.md)
 - Blue-green: [blue-green-upgrade.md](../../skills/eks-upgrader/references/blue-green-upgrade.md)

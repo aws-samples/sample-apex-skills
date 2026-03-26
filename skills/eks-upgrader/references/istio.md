@@ -9,15 +9,16 @@
 
 1. [Version Compatibility](#version-compatibility)
 2. [Pre-Upgrade Validation](#pre-upgrade-validation)
-3. [Upgrade Strategy Decision](#upgrade-strategy-decision)
-4. [Canary Upgrade (Recommended)](#canary-upgrade-recommended)
-5. [In-Place Upgrade](#in-place-upgrade)
-6. [Revision Tags for Production](#revision-tags-for-production)
-7. [Data Plane Rollout](#data-plane-rollout)
-8. [Gateway Upgrades](#gateway-upgrades)
-9. [Ambient Mode Upgrades](#ambient-mode-upgrades)
-10. [Rollback](#rollback)
-11. [Common Issues](#common-issues)
+3. [EnvoyFilter Migration](#envoyfilter-migration)
+4. [Upgrade Strategy Decision](#upgrade-strategy-decision)
+5. [Canary Upgrade (Recommended)](#canary-upgrade-recommended)
+6. [In-Place Upgrade](#in-place-upgrade)
+7. [Revision Tags for Production](#revision-tags-for-production)
+8. [Data Plane Rollout](#data-plane-rollout)
+9. [Gateway Upgrades](#gateway-upgrades)
+10. [Ambient Mode Upgrades](#ambient-mode-upgrades)
+11. [Rollback](#rollback)
+12. [Common Issues](#common-issues)
 
 ---
 
@@ -39,6 +40,18 @@ Always verify your target Istio version supports your current (or target) K8s ve
 1. Upgrade Istio first if the current Istio version doesn't support the target K8s version
 2. Upgrade EKS first if the current Istio version already supports the target K8s version
 3. Check both the current and target Istio release notes for K8s version support
+
+**How to look up the matrix:** Fetch the supported releases page at `https://istio.io/latest/docs/releases/supported-releases/` and find the "Support status of Istio releases" table. It lists each Istio minor version and the K8s versions it supports. Cross-reference the cluster's current Istio version and the target K8s version to determine whether Istio must be upgraded first.
+
+For self-managed (Helm) installations, you can also check what the installed chart declares:
+
+```bash
+# Current Istio version
+istioctl version
+
+# Check the Helm chart's appVersion for the target Istio release
+helm search repo istio/istiod --versions | head -20
+```
 
 ### EKS-Managed Istio Add-on
 
@@ -85,6 +98,97 @@ istioctl proxy-status | grep -v "SYNCED"
 # Review any analyzer warnings
 istioctl analyze --all-namespaces
 ```
+
+---
+
+## EnvoyFilter Migration
+
+EnvoyFilter is an alpha API tightly coupled to Istio's xDS internals. It frequently breaks across upgrades because the Envoy config structure it patches can change between versions. Before upgrading, audit your EnvoyFilters and migrate to first-class APIs where replacements exist.
+
+### Telemetry API replaces metrics customization
+
+IstioOperator-based Prometheus metric customization relies on a template EnvoyFilter under the hood. Replace it with the Telemetry API -- the two approaches are incompatible and cannot be mixed.
+
+**Before (IstioOperator + EnvoyFilter):**
+
+```yaml
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  values:
+    telemetry:
+      v2:
+        prometheus:
+          configOverride:
+            inboundSidecar:
+              metrics:
+                - name: requests_total
+                  dimensions:
+                    destination_port: string(destination.port)
+```
+
+**After (Telemetry API):**
+
+```yaml
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: namespace-metrics
+spec:
+  metrics:
+  - providers:
+    - name: prometheus
+    overrides:
+    - match:
+        metric: REQUEST_COUNT
+      mode: SERVER
+      tagOverrides:
+        destination_port:
+          value: "string(destination.port)"
+```
+
+### WasmPlugin API replaces Wasm filter injection
+
+EnvoyFilter-based Wasm filter injection is replaced by the WasmPlugin API, which supports dynamic loading from artifact registries, URLs, or local files. The "Null" plugin runtime is no longer recommended.
+
+### Gateway topology replaces connection manager EnvoyFilters
+
+Two common EnvoyFilter patterns for ingress gateways now have first-class replacements via `gatewayTopology` in ProxyConfig:
+
+**Trusted hops** -- instead of patching `xff_num_trusted_hops` via EnvoyFilter:
+
+```yaml
+metadata:
+  annotations:
+    "proxy.istio.io/config": '{"gatewayTopology" : { "numTrustedProxies": 1 }}'
+```
+
+**PROXY protocol** -- instead of inserting a `proxy_protocol` listener filter via EnvoyFilter:
+
+```yaml
+metadata:
+  annotations:
+    "proxy.istio.io/config": '{"gatewayTopology" : { "proxyProtocol": {} }}'
+```
+
+### Proxy annotation replaces histogram bucket EnvoyFilter
+
+Custom histogram bucket sizes previously required an EnvoyFilter patching the bootstrap config. Use the pod annotation instead:
+
+```yaml
+metadata:
+  annotations:
+    "sidecar.istio.io/statsHistogramBuckets": '{"istiocustom":[1,5,50,500,5000,10000]}'
+```
+
+### Migration checklist
+
+Before upgrading, run through this list:
+
+1. `kubectl get envoyfilters --all-namespaces` -- inventory all EnvoyFilters
+2. For each, check if a first-class API replacement exists (Telemetry, WasmPlugin, gatewayTopology, proxy annotations)
+3. Deploy the replacement alongside the EnvoyFilter and validate behavior
+4. Remove the EnvoyFilter before upgrading -- stale EnvoyFilters silently break when the underlying xDS structure changes
 
 ---
 
@@ -336,6 +440,21 @@ All proxies should report `SYNCED` and show the new istiod pod name. Version mis
 ---
 
 ## Gateway Upgrades
+
+### Ingress gateway availability
+
+Before upgrading, ensure ingress gateways have at least 2 replicas and a PodDisruptionBudget. A single gateway pod means incoming traffic drops entirely when that pod restarts during the upgrade -- this commonly causes 60-90 seconds of downtime that's easily avoided:
+
+```bash
+# Check current replica count
+kubectl get deploy -n istio-ingress -l istio=ingress
+
+# Scale up if needed (or set in Helm values permanently)
+kubectl scale deploy istio-ingressgateway -n istio-ingress --replicas=2
+
+# Verify a PDB exists
+kubectl get pdb -n istio-ingress
+```
 
 ### Istio Ingress Gateway
 

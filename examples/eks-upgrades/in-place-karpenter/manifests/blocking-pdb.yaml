@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: singleton-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: singleton-app
+  template:
+    metadata:
+      labels:
+        app: singleton-app
+    spec:
+      containers:
+      - name: app
+        image: nginx:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: singleton-pdb
+  namespace: default
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: singleton-app
