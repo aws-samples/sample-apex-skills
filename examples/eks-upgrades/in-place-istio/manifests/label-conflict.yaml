@@ -1,0 +1,53 @@
+# Creates a namespace with conflicting Istio injection labels.
+#
+# Both istio-injection=enabled and istio.io/rev=default are set.
+# The istio-injection label takes precedence, which means pods will
+# silently connect to the wrong control plane revision after a
+# canary (revision-based) upgrade.
+#
+# Fix: remove the istio-injection label and use only istio.io/rev.
+# See: skills/eks-upgrader/references/istio.md#common-issues
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: conflicting-labels
+  labels:
+    istio-injection: enabled
+    istio.io/rev: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: conflicting-labels
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      containers:
+      - name: httpbin
+        image: kennethreitz/httpbin:latest
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: conflicting-labels
+spec:
+  selector:
+    app: httpbin
+  ports:
+  - port: 80
+    targetPort: 80
