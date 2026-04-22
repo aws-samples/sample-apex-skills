@@ -28,6 +28,8 @@ Read the user's request and match it to the appropriate workflow:
 
 **If the request doesn't match a workflow**, use the `eks-best-practices` skill directly to answer the question. Ask clarifying questions if needed.
 
+**If the user wants to interact with live clusters** (list clusters, read resources, troubleshoot pods) and MCP tools aren't working, use the `eks-mcp-server` skill to help them configure the EKS MCP Server.
+
 **If the user provides existing context** (architecture docs, Terraform files, cluster details), read it first and carry that context into whichever workflow is activated.
 
 ---
@@ -74,6 +76,7 @@ All workflows use these skills:
 |-------|-----------------|
 | **eks-best-practices** | Decision frameworks, compute selection, networking, security, reliability, autoscaling, cost, observability, ArgoCD patterns, container registry |
 | **eks-upgrader** | Upgrade procedures (in-place, blue-green), pre-flight checks, add-on upgrade guides (Karpenter, Istio), rollback, troubleshooting |
+| **eks-mcp-server** | Setup guide for EKS MCP Server (AWS-hosted or self-hosted) — enables live cluster operations via MCP tools |
 | **terraform-skill** | Terraform modules, testing, CI/CD, security scanning |
 
 ### Key Reference Files (Loaded on Demand)

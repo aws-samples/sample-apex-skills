@@ -48,6 +48,19 @@ Comprehensive Amazon EKS best practices for cluster architecture, security, netw
 
 ---
 
+### [eks-mcp-server](./eks-mcp-server/)
+
+Setup and configure the EKS MCP Server for live cluster operations. Use this skill when the user wants to interact with real EKS clusters (list clusters, read K8s resources, troubleshoot pods, deploy workloads, check upgrade insights) but MCP tools are not available or not working. Also activate if user mentions "eks mcp", "mcp server", or asks how to connect their AI assistant to EKS.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [aws-hosted-setup.md](./eks-mcp-server/references/aws-hosted-setup.md) | Aws hosted setup |
+| [self-hosted-setup.md](./eks-mcp-server/references/self-hosted-setup.md) | Self hosted setup |
+
+---
+
 ### [eks-upgrader](./eks-upgrader/)
 
 EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other ecosystem tools. Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.
