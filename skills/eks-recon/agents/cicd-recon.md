@@ -25,9 +25,10 @@ Detect the CI/CD pipelines and GitOps tooling for the specified EKS cluster and 
    - Check cluster for GitOps controllers (ArgoCD, Flux)
    - Check for GitOps CRDs (Applications, Kustomizations)
 
-3. **Handle errors gracefully**:
-   - If no workspace access, check cluster only
-   - If MCP returns 401, fall back to kubectl
+3. **Handle MCP 401 errors - IMPORTANT**:
+   - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl
+   - Run: `kubectl get deploy -n argocd`, `kubectl get kustomizations.kustomize.toolkit.fluxcd.io -A`
+   - Only report "unavailable" if kubectl also fails
 
 ## Output Format
 

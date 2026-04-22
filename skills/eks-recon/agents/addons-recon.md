@@ -23,9 +23,10 @@ Detect all add-ons and installed components for the specified EKS cluster and re
 
 2. **Run detections** following the reference guidance
 
-3. **Handle errors gracefully**:
-   - If MCP returns 401, fall back to kubectl/AWS CLI
-   - If helm unavailable, note the limitation
+3. **Handle MCP 401 errors - IMPORTANT**:
+   - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl/helm
+   - Run: `helm list -A`, `kubectl get crds`, `kubectl get deploy -n kube-system`
+   - Only report "unavailable" if kubectl/helm also fails
 
 ## Output Format
 

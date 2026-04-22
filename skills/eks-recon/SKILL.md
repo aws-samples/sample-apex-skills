@@ -299,11 +299,10 @@ When running full reconnaissance, delegate each module to a specialized subagent
 
 | Scenario | Mode | Reason |
 |----------|------|--------|
-| Full recon (all modules) | **USE subagents** | Parallel execution, isolated context, cleaner output |
-| Targeted query (1-2 modules) | Inline | Lower overhead for simple queries |
+| Any recon (1+ modules) | **USE subagents** | Isolated context, cleaner main conversation |
 | No Agent tool available | Inline | Subagents not supported |
 
-> **IMPORTANT:** For full reconnaissance, you MUST use subagent mode if the Agent tool is available. Do not fall back to inline mode just because MCP tools work — subagents provide better context isolation and let each module run independently with its own reference file loaded.
+> **IMPORTANT:** If the Agent tool is available, you MUST use subagent mode for ALL reconnaissance — even single-module targeted queries. Subagents keep detection context isolated from the main conversation. Do not fall back to inline mode just because "it's only one module" or "MCP tools work" — always delegate to subagents.
 
 ### Subagent Files
 
@@ -324,8 +323,9 @@ Each module has a corresponding subagent prompt in `agents/`:
 
 **Step 1: Check subagent availability**
 ```
-If Agent tool is available AND running full recon:
-  → MUST use subagent mode (do not skip even if MCP tools work)
+If Agent tool is available:
+  → MUST use subagent mode for ALL recon (full or targeted)
+  → Even single-module queries use subagents to isolate context
 Else:
   → Use inline mode (load references directly)
 ```

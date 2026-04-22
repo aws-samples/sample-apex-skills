@@ -24,9 +24,10 @@ Detect the observability setup for the specified EKS cluster and return structur
 
 2. **Run detections** following the reference guidance
 
-3. **Handle errors gracefully**:
-   - If MCP returns 401, fall back to kubectl/AWS CLI
-   - If kubectl unavailable, note the limitation
+3. **Handle MCP 401 errors - IMPORTANT**:
+   - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl
+   - Run: `kubectl get deploy -A | grep -E 'prometheus|grafana|fluent'`, `kubectl get daemonsets -A`
+   - Only report "unavailable" if kubectl also fails
 
 ## Output Format
 
