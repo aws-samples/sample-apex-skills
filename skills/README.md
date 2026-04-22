@@ -61,6 +61,26 @@ Setup and configure the EKS MCP Server for live cluster operations. Use this ski
 
 ---
 
+### [eks-recon](./eks-recon/)
+
+EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks "what version am I running", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say "reconnaissance" or "discovery". When in doubt about cluster state, run recon first.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [addons.md](./eks-recon/references/addons.md) | Addons |
+| [cicd.md](./eks-recon/references/cicd.md) | Cicd |
+| [cluster-basics.md](./eks-recon/references/cluster-basics.md) | Cluster basics |
+| [compute.md](./eks-recon/references/compute.md) | Compute |
+| [iac.md](./eks-recon/references/iac.md) | Iac |
+| [networking.md](./eks-recon/references/networking.md) | Networking |
+| [observability.md](./eks-recon/references/observability.md) | Observability |
+| [security.md](./eks-recon/references/security.md) | Security |
+| [workloads.md](./eks-recon/references/workloads.md) | Workloads |
+
+---
+
 ### [eks-upgrader](./eks-upgrader/)
 
 EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other ecosystem tools. Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.

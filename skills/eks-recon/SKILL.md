@@ -1,0 +1,262 @@
+---
+name: eks-recon
+description: EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks "what version am I running", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say "reconnaissance" or "discovery". When in doubt about cluster state, run recon first.
+---
+
+# EKS Reconnaissance
+
+Discover everything about an EKS cluster environment. Run this skill to gather comprehensive cluster context before making any decisions, changes, or recommendations.
+
+## When to Use This Skill
+
+**Run this skill when the user:**
+- Asks about their EKS cluster ("what's my cluster running?", "tell me about my setup")
+- Plans an upgrade, migration, or architecture change
+- Needs cluster context before any EKS-related decision
+- Wants to document or review their cluster state
+- Asks questions like "what version am I on?" or "am I using Karpenter?"
+- Is about to modify their cluster (recon first to understand current state)
+
+**Also trigger this skill when:**
+- User mentions an EKS cluster name and seems to need context
+- Another workflow needs cluster information as input
+- You need to understand the cluster before giving recommendations
+
+**Don't use for:**
+- Creating or modifying cluster resources (this is read-only)
+- Troubleshooting specific issues (use `eks-best-practices` or `eks-upgrader`)
+- Learning about EKS concepts (use `eks-best-practices`)
+
+## Prerequisites
+
+### MCP Server (Preferred)
+
+This skill works best with the **EKS MCP Server** configured. Check if MCP tools are available:
+
+```
+If tools like `list_eks_resources`, `describe_eks_resource`, `list_k8s_resources` are available:
+  -> MCP Mode: Use MCP tools (pre-authorized, richer output)
+  
+If MCP tools are NOT available:
+  -> CLI Mode: Fall back to AWS CLI + kubectl (requires explicit permission)
+```
+
+**MCP Mode benefits:**
+- Pre-authorized read-only operations (no permission prompts)
+- Richer output with better formatting
+- Single tool call instead of piped commands
+
+**CLI Mode limitations:**
+- Requires user permission for each command
+- May need kubeconfig setup
+- Some detection patterns are less reliable
+
+### Required for CLI Mode
+
+| Tool | Required For |
+|------|-------------|
+| `aws` CLI | Cluster-level detection (describe-cluster, list-nodegroups, list-addons) |
+| `kubectl` | K8s resource detection (deployments, CRDs, service accounts) |
+| `helm` | Helm release inventory (optional) |
+
+---
+
+## Reconnaissance Modes
+
+| Mode | When to Use | What Happens |
+|------|-------------|--------------|
+| **Full Recon** | First engagement with cluster | Runs all modules, generates complete report |
+| **Selective Recon** | Know what you need | Run specific modules (e.g., compute + iac) |
+| **Targeted Query** | Quick answer | "Is this cluster using Karpenter?" |
+
+### How to Invoke
+
+**Full reconnaissance:**
+> "Run EKS reconnaissance on cluster `my-cluster` in `us-west-2`"
+
+**Selective reconnaissance:**
+> "Run EKS recon but only check compute and IaC"
+
+**Targeted query:**
+> "What IaC tool manages cluster `my-cluster`?"
+
+---
+
+## Available Modules
+
+Each module is a reference file that can be run independently. Load the reference when running that module.
+
+| Module | Reference | What It Detects | Cluster Required |
+|--------|-----------|-----------------|------------------|
+| **Cluster Basics** | [cluster-basics.md](references/cluster-basics.md) | Name, region, version, platform version, endpoint | Yes |
+| **Compute** | [compute.md](references/compute.md) | Karpenter, MNG, Auto Mode, Fargate, self-managed | Yes |
+| **IaC** | [iac.md](references/iac.md) | Terraform, CloudFormation, CDK, eksctl, Pulumi | No (workspace) |
+| **CI/CD** | [cicd.md](references/cicd.md) | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux | Partial |
+| **Add-ons** | [addons.md](references/addons.md) | EKS-managed, Helm releases, manifest-installed | Yes |
+| **Networking** | [networking.md](references/networking.md) | VPC CNI, ingress controllers, service mesh | Yes |
+| **Security** | [security.md](references/security.md) | Pod Identity, IRSA, PSA, policy engines | Yes |
+| **Observability** | [observability.md](references/observability.md) | Container Insights, Prometheus, logging config | Yes |
+| **Workloads** | [workloads.md](references/workloads.md) | Running deployments, services, ingresses | Yes |
+
+---
+
+## Quick Detection Reference
+
+### MCP Commands (Preferred)
+
+| Detection | MCP Tool |
+|-----------|----------|
+| Cluster info | `describe_eks_resource(resource_type="cluster", cluster_name="<name>")` |
+| Node groups | `list_eks_resources(resource_type="nodegroup", cluster_name="<name>")` |
+| EKS add-ons | `list_eks_resources(resource_type="addon", cluster_name="<name>")` |
+| Karpenter | `list_k8s_resources(cluster_name="<name>", kind="NodePool", api_version="karpenter.sh/v1")` |
+| Deployments | `list_k8s_resources(cluster_name="<name>", kind="Deployment", api_version="apps/v1")` |
+| VPC config | `get_eks_vpc_config(cluster_name="<name>")` |
+| Insights | `get_eks_insights(cluster_name="<name>")` |
+
+### CLI Fallbacks
+
+| Detection | CLI Command |
+|-----------|-------------|
+| Cluster info | `aws eks describe-cluster --name <name> --region <region>` |
+| Node groups | `aws eks list-nodegroups --cluster-name <name>` |
+| EKS add-ons | `aws eks list-addons --cluster-name <name>` |
+| Fargate profiles | `aws eks list-fargate-profiles --cluster-name <name>` |
+| Auto Mode | `aws eks describe-cluster --name <name> --query 'cluster.computeConfig'` |
+| Karpenter | `kubectl get nodepools.karpenter.sh 2>/dev/null` |
+| Helm releases | `helm list -A` |
+
+---
+
+## Running Reconnaissance
+
+### Step 1: Gather Prerequisites
+
+```
+Required:
+- Cluster name
+- AWS region (or detect from context/kubeconfig)
+
+Optional:
+- Specific modules to run (default: all)
+- Output file path (default: .eks-recon-report.yaml)
+```
+
+### Step 2: Check MCP Availability
+
+If MCP tools are available, use them. Otherwise, inform the user:
+
+> "EKS MCP Server not detected. I'll use CLI commands instead, which will require your permission for each command. For a smoother experience, consider setting up the EKS MCP Server."
+
+### Step 3: Run Selected Modules
+
+For each module:
+1. Load the reference file
+2. Run detection commands (MCP-first, CLI-fallback)
+3. Collect output into report section
+
+### Step 4: Generate Report
+
+Write report to `.eks-recon-report.yaml` and present summary:
+
+```yaml
+# EKS Reconnaissance Report
+# Generated: 2026-04-22T14:30:00Z
+# Cluster: my-cluster
+# Region: us-west-2
+# Modules: cluster-basics, compute, iac, cicd, addons
+
+cluster:
+  name: my-cluster
+  region: us-west-2
+  version: "1.31"
+  platform_version: eks.5
+  endpoint: https://XXXXX.gr7.us-west-2.eks.amazonaws.com
+  
+compute:
+  strategy: Karpenter
+  auto_mode:
+    enabled: false
+  karpenter:
+    detected: true
+    version: "1.0.5"
+    nodepools: 2
+  mng:
+    detected: true
+    count: 1
+    names: [system]
+  fargate:
+    detected: false
+    
+iac:
+  tool: Terraform
+  confidence: high
+  evidence: "./infrastructure/eks/main.tf contains aws_eks_cluster"
+  
+cicd:
+  workspace:
+    - github_actions
+  gitops:
+    tool: ArgoCD
+    detected: true
+    namespace: argocd
+    
+addons:
+  eks_managed:
+    - name: vpc-cni
+      version: v1.18.1-eksbuild.1
+      status: ACTIVE
+    - name: coredns
+      version: v1.11.1-eksbuild.8
+      status: ACTIVE
+  helm_releases:
+    - name: karpenter
+      namespace: kube-system
+      version: 1.0.5
+```
+
+---
+
+## Integration with Other Workflows
+
+### Upgrade Workflow
+
+The upgrade workflow can invoke eks-recon to gather Phase 1 context:
+
+```
+1. Run eks-recon modules: cluster-basics, compute, iac, addons
+2. Extract:
+   - cluster.version -> Current version
+   - compute.strategy -> Determines upgrade approach
+   - iac.tool -> Terraform vs CLI upgrade path
+   - addons -> Compatibility matrix input
+```
+
+### Design Workflow
+
+The design workflow can use eks-recon for existing clusters:
+
+```
+1. Run eks-recon modules: all
+2. Pre-populate questionnaire from detected values
+3. Ask user: "I detected Karpenter + Terraform + ArgoCD. Correct?"
+4. Only ask questions for undetected values
+```
+
+---
+
+## Detailed References
+
+Load the appropriate reference file when running each module. Each reference contains detection commands, edge cases, and output schema for that domain.
+
+| Reference | Load When... |
+|-----------|--------------|
+| **[Cluster Basics](references/cluster-basics.md)** | Starting any recon (always load first) |
+| **[Compute](references/compute.md)** | User asks about nodes, scaling, Karpenter, Auto Mode, or upgrade planning |
+| **[IaC](references/iac.md)** | User asks how the cluster is managed, wants to make changes via IaC, or is troubleshooting state drift |
+| **[CI/CD](references/cicd.md)** | User asks about deployments, pipelines, GitOps, or how changes get applied |
+| **[Add-ons](references/addons.md)** | Upgrade planning, compatibility checks, or user asks "what's installed?" |
+| **[Networking](references/networking.md)** | User asks about connectivity, ingress, service mesh, or network troubleshooting |
+| **[Security](references/security.md)** | User asks about IAM, IRSA, Pod Identity, policies, or compliance review |
+| **[Observability](references/observability.md)** | User asks about logging, metrics, monitoring, or troubleshooting visibility |
+| **[Workloads](references/workloads.md)** | User wants to see what's running, capacity planning, or migration assessment |
