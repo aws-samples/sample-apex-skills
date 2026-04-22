@@ -59,6 +59,34 @@ If MCP tools are NOT available:
 | `kubectl` | K8s resource detection (deployments, CRDs, service accounts) |
 | `helm` | Helm release inventory (optional) |
 
+### MCP Troubleshooting
+
+**401 Unauthorized on K8s API calls** (`list_k8s_resources`, `read_k8s_resource`):
+
+The MCP server can access EKS APIs (clusters, nodegroups, addons) but may lack Kubernetes API access. This happens when the MCP server's IAM role doesn't have an EKS access entry.
+
+**Solutions (choose one):**
+
+1. **Grant MCP access**: Create an EKS access entry for the MCP server's IAM role
+   ```bash
+   aws eks create-access-entry \
+     --cluster-name <cluster> \
+     --principal-arn <mcp-server-role-arn> \
+     --type STANDARD
+   aws eks associate-access-policy \
+     --cluster-name <cluster> \
+     --principal-arn <mcp-server-role-arn> \
+     --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy \
+     --access-scope type=cluster
+   ```
+
+2. **Fall back to kubectl**: If user has local kubectl access, use CLI commands instead:
+   > "MCP K8s access returned 401. I'll use kubectl instead if you have it configured locally."
+
+**Empty results from EKS API calls**:
+- Verify cluster name and region are correct
+- Check if the cluster exists: `aws eks list-clusters --region <region>`
+
 ---
 
 ## Reconnaissance Modes
@@ -130,6 +158,18 @@ Each module is a reference file that can be run independently. Load the referenc
 
 ## Running Reconnaissance
 
+> **IMPORTANT: Load Reference Files**
+> 
+> Before running each module, you MUST read its reference file (e.g., `references/compute.md`).
+> References contain:
+> - Detection order and rationale (why check Auto Mode before Karpenter)
+> - Edge cases and how to handle them
+> - CLI fallback commands when MCP fails
+> - Output schema for structured reporting
+> 
+> Skipping references produces shallow results. The main skill provides orchestration;
+> the references provide detection intelligence.
+
 ### Step 1: Gather Prerequisites
 
 ```
@@ -151,9 +191,12 @@ If MCP tools are available, use them. Otherwise, inform the user:
 ### Step 3: Run Selected Modules
 
 For each module:
-1. Load the reference file
-2. Run detection commands (MCP-first, CLI-fallback)
-3. Collect output into report section
+1. **Load the reference file** (e.g., `references/compute.md`) - REQUIRED
+2. Run detection commands following the reference's guidance:
+   - Try MCP tool first
+   - If MCP returns error (401, empty), fall back to CLI from reference
+   - If CLI unavailable, note the limitation in report
+3. Collect output into report section using the reference's output schema
 
 ### Step 4: Generate Report
 
