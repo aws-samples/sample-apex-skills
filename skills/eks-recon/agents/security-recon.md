@@ -19,8 +19,9 @@ Detect the security posture for the specified EKS cluster and return structured 
    - IAM authentication mode detection
    - Pod Identity and IRSA detection
    - Pod Security Admission detection
-   - Secrets encryption detection
-   - Policy engine detection (OPA, Kyverno)
+   - Secrets management (ESO, Secrets Store CSI, KMS)
+   - Policy engine detection (Kyverno, OPA Gatekeeper)
+   - Admission webhooks
    - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
@@ -28,6 +29,7 @@ Detect the security posture for the specified EKS cluster and return structured 
 3. **Handle MCP 401 errors - IMPORTANT**:
    - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl
    - Run: `kubectl get sa -A`, `kubectl get clusterroles`, `kubectl get ns --show-labels`
+   - Run: `kubectl get validatingwebhookconfigurations`, `kubectl get mutatingwebhookconfigurations`
    - Only report "unavailable" if kubectl also fails
 
 ## Output Format
@@ -46,24 +48,49 @@ security:
     irsa:
       detected: <bool>
       service_accounts_with_irsa: <int>
-  secrets_encryption:
-    enabled: <bool>
-    kms_key_arn: <string or null>
+  secrets:
+    kms_encryption:
+      enabled: <bool>
+      kms_key_arn: <string or null>
+    external_secrets_operator:
+      detected: <bool>
+      version: <string or null>
+      external_secrets_count: <int>
+      secret_stores: <int>
+    secrets_store_csi:
+      detected: <bool>
+      aws_provider: <bool>
+      secret_provider_classes: <int>
   pod_security:
     psa_enabled: <bool>
     namespaces_with_labels: <int>
-    default_level: <privileged|baseline|restricted|none>
+    enforcement_levels:
+      restricted: <int>
+      baseline: <int>
+      privileged: <int>
   policy_engines:
-    opa_gatekeeper:
-      detected: <bool>
     kyverno:
       detected: <bool>
+      version: <string or null>
+      cluster_policies: <int>
+      policies: <int>
+    opa_gatekeeper:
+      detected: <bool>
+      version: <string or null>
+      constraints: <int>
+      constraint_templates: <int>
+  admission_webhooks:
+    validating_webhooks: <int>
+    mutating_webhooks: <int>
+    notable: [<list of non-system webhook names>]
   rbac:
     cluster_roles: <int>
     cluster_role_bindings: <int>
+    overly_permissive_roles: [<list of roles with wildcard permissions>]
 ```
 
 ## Important
 
 - Do NOT include recommendations or analysis - just facts
 - Be concise - the main agent will aggregate your findings
+- For webhooks, exclude system webhooks (eks.*, vpc-resource-controller, etc.)

@@ -479,6 +479,53 @@ aws guardduty get-detector --detector-id <id> \
   --query 'Features[?Name==`EKS_RUNTIME_MONITORING`]'
 ```
 
+### Admission Webhooks
+
+Identify validating and mutating admission webhooks to understand what policies are enforced at admission time. Webhooks can block or modify resources before they're persisted.
+
+**CLI:**
+```bash
+# List validating webhooks (exclude system webhooks)
+kubectl get validatingwebhookconfigurations -o json | jq '[
+  .items[] | 
+  select(.metadata.name | test("^(eks|vpc-resource|aws-)") | not) |
+  {name: .metadata.name, webhooks: [.webhooks[].name], failurePolicy: .webhooks[0].failurePolicy}
+]'
+
+# List mutating webhooks (exclude system webhooks)
+kubectl get mutatingwebhookconfigurations -o json | jq '[
+  .items[] | 
+  select(.metadata.name | test("^(eks|vpc-resource|aws-)") | not) |
+  {name: .metadata.name, webhooks: [.webhooks[].name], failurePolicy: .webhooks[0].failurePolicy}
+]'
+
+# Count all webhooks
+kubectl get validatingwebhookconfigurations --no-headers | wc -l
+kubectl get mutatingwebhookconfigurations --no-headers | wc -l
+```
+
+**Example output (validating webhooks):**
+```json
+[
+  {
+    "name": "kyverno-resource-validating-webhook-cfg",
+    "webhooks": ["validate.kyverno.svc"],
+    "failurePolicy": "Fail"
+  },
+  {
+    "name": "cert-manager-webhook",
+    "webhooks": ["webhook.cert-manager.io"],
+    "failurePolicy": "Fail"
+  }
+]
+```
+
+**Notable webhooks to look for:**
+- `kyverno-*` - Kyverno policy enforcement
+- `gatekeeper-*` - OPA Gatekeeper constraints
+- `cert-manager-webhook` - Certificate management
+- `aws-load-balancer-webhook` - ALB controller validation
+
 ---
 
 ## Recommendations Based on Findings
@@ -492,3 +539,4 @@ aws guardduty get-detector --detector-id <id> \
 | KMS encryption not enabled | Enable for compliance requirements |
 | No secrets solution | Implement ESO or Secrets Store CSI |
 | Overly permissive RBAC | Review and tighten role permissions |
+| Many mutating webhooks | Review for performance impact on API server |

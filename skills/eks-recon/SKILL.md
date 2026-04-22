@@ -124,6 +124,7 @@ Load only the reference files needed for the user's request. This keeps context 
 | Add-ons, Helm, plugins, what's installed | cluster-basics.md, addons.md |
 | Logging, metrics, monitoring, observability, Container Insights | cluster-basics.md, observability.md |
 | Workloads, deployments, pods, services, what's running | cluster-basics.md, workloads.md |
+| Storage, PVC, EBS, EFS, StorageClass, CSI, volumes | cluster-basics.md, storage.md |
 | Terraform, IaC, CloudFormation, CDK, eksctl, how is it managed | iac.md |
 | CI/CD, pipelines, GitOps, ArgoCD, Flux, GitHub Actions | cicd.md |
 | Full recon, deep dive, comprehensive, everything, all modules | ALL references |
@@ -149,8 +150,9 @@ Each module is a reference file that can be run independently. Load the referenc
 | **CI/CD** | [cicd.md](references/cicd.md) | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux | Partial |
 | **Add-ons** | [addons.md](references/addons.md) | EKS-managed, Helm releases, manifest-installed | Yes |
 | **Networking** | [networking.md](references/networking.md) | VPC CNI, ingress controllers, service mesh | Yes |
-| **Security** | [security.md](references/security.md) | Pod Identity, IRSA, PSA, policy engines | Yes |
+| **Security** | [security.md](references/security.md) | Pod Identity, IRSA, PSA, policy engines, secrets, webhooks | Yes |
 | **Observability** | [observability.md](references/observability.md) | Container Insights, Prometheus, logging config | Yes |
+| **Storage** | [storage.md](references/storage.md) | CSI drivers, StorageClasses, PVCs, snapshots | Yes |
 | **Workloads** | [workloads.md](references/workloads.md) | Running deployments, services, ingresses | Yes |
 
 ---
@@ -312,9 +314,10 @@ Each module has a corresponding subagent prompt in `agents/`:
 |----------|------|---------|
 | Compute | `agents/compute-recon.md` | Detect compute strategy |
 | Networking | `agents/networking-recon.md` | Detect network config |
-| Security | `agents/security-recon.md` | Detect security posture |
+| Security | `agents/security-recon.md` | Detect security posture, secrets, webhooks |
 | Add-ons | `agents/addons-recon.md` | Detect installed components |
 | Observability | `agents/observability-recon.md` | Detect monitoring/logging |
+| Storage | `agents/storage-recon.md` | Detect CSI, StorageClasses, PVCs |
 | Workloads | `agents/workloads-recon.md` | Detect running workloads |
 | IaC | `agents/iac-recon.md` | Detect IaC tooling |
 | CI/CD | `agents/cicd-recon.md` | Detect deployment pipelines |
@@ -406,6 +409,7 @@ Load the appropriate reference file when running each module. Each reference con
 | **[CI/CD](references/cicd.md)** | User asks about deployments, pipelines, GitOps, or how changes get applied |
 | **[Add-ons](references/addons.md)** | Upgrade planning, compatibility checks, or user asks "what's installed?" |
 | **[Networking](references/networking.md)** | User asks about connectivity, ingress, service mesh, or network troubleshooting |
-| **[Security](references/security.md)** | User asks about IAM, IRSA, Pod Identity, policies, or compliance review |
+| **[Security](references/security.md)** | User asks about IAM, IRSA, Pod Identity, secrets, policies, webhooks, or compliance review |
 | **[Observability](references/observability.md)** | User asks about logging, metrics, monitoring, or troubleshooting visibility |
+| **[Storage](references/storage.md)** | User asks about PVCs, EBS, EFS, StorageClasses, CSI drivers, or volume issues |
 | **[Workloads](references/workloads.md)** | User wants to see what's running, capacity planning, or migration assessment |
