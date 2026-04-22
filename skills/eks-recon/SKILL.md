@@ -291,17 +291,19 @@ addons:
 
 ---
 
-## Subagent Mode (Optional)
+## Subagent Mode
 
-When running full reconnaissance with subagent support available (Claude Code CLI, Cowork), you can delegate each module to a specialized subagent. This keeps each module's context isolated and enables parallel execution.
+When running full reconnaissance, delegate each module to a specialized subagent. This keeps each module's context isolated and enables true parallel execution.
 
 ### When to Use Subagents
 
-| Scenario | Recommended Mode |
-|----------|------------------|
-| Full recon (all modules) | Subagent mode - parallel execution, isolated context |
-| Targeted query (1-2 modules) | Inline mode - simpler, lower overhead |
-| No subagent support (Claude.ai web) | Inline mode only |
+| Scenario | Mode | Reason |
+|----------|------|--------|
+| Full recon (all modules) | **USE subagents** | Parallel execution, isolated context, cleaner output |
+| Targeted query (1-2 modules) | Inline | Lower overhead for simple queries |
+| No Agent tool available | Inline | Subagents not supported |
+
+> **IMPORTANT:** For full reconnaissance, you MUST use subagent mode if the Agent tool is available. Do not fall back to inline mode just because MCP tools work — subagents provide better context isolation and let each module run independently with its own reference file loaded.
 
 ### Subagent Files
 
@@ -323,7 +325,7 @@ Each module has a corresponding subagent prompt in `agents/`:
 **Step 1: Check subagent availability**
 ```
 If Agent tool is available AND running full recon:
-  → Use subagent mode
+  → MUST use subagent mode (do not skip even if MCP tools work)
 Else:
   → Use inline mode (load references directly)
 ```
