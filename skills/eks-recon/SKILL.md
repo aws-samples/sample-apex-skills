@@ -110,6 +110,33 @@ The MCP server can access EKS APIs (clusters, nodegroups, addons) but may lack K
 
 ---
 
+## Reference Loading Strategy
+
+Load only the reference files needed for the user's request. This keeps context focused and improves response quality.
+
+### Decision Matrix
+
+| If user mentions... | Load these references |
+|---------------------|----------------------|
+| Karpenter, nodes, scaling, compute, Auto Mode, node groups | cluster-basics.md, compute.md |
+| Networking, VPC, ingress, CNI, service mesh, load balancer | cluster-basics.md, networking.md |
+| Security, IAM, IRSA, Pod Identity, RBAC, policies, encryption | cluster-basics.md, security.md |
+| Add-ons, Helm, plugins, what's installed | cluster-basics.md, addons.md |
+| Logging, metrics, monitoring, observability, Container Insights | cluster-basics.md, observability.md |
+| Workloads, deployments, pods, services, what's running | cluster-basics.md, workloads.md |
+| Terraform, IaC, CloudFormation, CDK, eksctl, how is it managed | iac.md |
+| CI/CD, pipelines, GitOps, ArgoCD, Flux, GitHub Actions | cicd.md |
+| Full recon, deep dive, comprehensive, everything, all modules | ALL references |
+
+### Loading Rules
+
+1. **`cluster-basics.md` is always loaded first** — provides cluster context needed by all modules
+2. **For targeted queries** — load only the matching reference(s) from the matrix
+3. **For full recon** — load all references in parallel
+4. **When uncertain** — ask the user which aspects they want to explore, or default to full recon
+
+---
+
 ## Available Modules
 
 Each module is a reference file that can be run independently. Load the reference when running that module.
@@ -190,8 +217,12 @@ If MCP tools are available, use them. Otherwise, inform the user:
 
 ### Step 3: Run Selected Modules
 
-For each module:
+Determine which modules to run based on user intent (see [Reference Loading Strategy](#reference-loading-strategy)).
+
+For each selected module:
 1. **Load the reference file** (e.g., `references/compute.md`) - REQUIRED
+   - For targeted queries: load only the required reference(s) per decision matrix
+   - For full recon: load all references in parallel
 2. Run detection commands following the reference's guidance:
    - Try MCP tool first
    - If MCP returns error (401, empty), fall back to CLI from reference
@@ -257,6 +288,79 @@ addons:
       namespace: kube-system
       version: 1.0.5
 ```
+
+---
+
+## Subagent Mode (Optional)
+
+When running full reconnaissance with subagent support available (Claude Code CLI, Cowork), you can delegate each module to a specialized subagent. This keeps each module's context isolated and enables parallel execution.
+
+### When to Use Subagents
+
+| Scenario | Recommended Mode |
+|----------|------------------|
+| Full recon (all modules) | Subagent mode - parallel execution, isolated context |
+| Targeted query (1-2 modules) | Inline mode - simpler, lower overhead |
+| No subagent support (Claude.ai web) | Inline mode only |
+
+### Subagent Files
+
+Each module has a corresponding subagent prompt in `agents/`:
+
+| Subagent | File | Purpose |
+|----------|------|---------|
+| Compute | `agents/compute-recon.md` | Detect compute strategy |
+| Networking | `agents/networking-recon.md` | Detect network config |
+| Security | `agents/security-recon.md` | Detect security posture |
+| Add-ons | `agents/addons-recon.md` | Detect installed components |
+| Observability | `agents/observability-recon.md` | Detect monitoring/logging |
+| Workloads | `agents/workloads-recon.md` | Detect running workloads |
+| IaC | `agents/iac-recon.md` | Detect IaC tooling |
+| CI/CD | `agents/cicd-recon.md` | Detect deployment pipelines |
+
+### Orchestration Steps
+
+**Step 1: Check subagent availability**
+```
+If Agent tool is available AND running full recon:
+  → Use subagent mode
+Else:
+  → Use inline mode (load references directly)
+```
+
+**Step 2: Spawn module subagents in parallel**
+
+Spawn ALL module subagents in a SINGLE message for parallel execution:
+
+```
+Agent(
+  description: "EKS compute recon",
+  prompt: "Recon compute for cluster {cluster_name} in {region}. 
+           Read agents/compute-recon.md and references/compute.md.
+           Return YAML output only.",
+  subagent_type: "general-purpose"
+)
+
+Agent(
+  description: "EKS networking recon",
+  prompt: "Recon networking for cluster {cluster_name} in {region}.
+           Read agents/networking-recon.md and references/networking.md.
+           Return YAML output only.",
+  subagent_type: "general-purpose"
+)
+
+... (spawn all 8 in parallel)
+```
+
+**Step 3: Aggregate results**
+
+When all subagents complete:
+1. Collect each subagent's YAML output
+2. Merge into single report structure
+3. Add cross-module insights (e.g., "Karpenter detected but no IRSA for controller")
+4. Generate recommendations based on combined findings
+5. Write final report to `.eks-recon-report.yaml`
+6. Present summary to user
 
 ---
 
