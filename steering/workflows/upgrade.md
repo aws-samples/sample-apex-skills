@@ -23,6 +23,8 @@ All cluster mutations are executed by the user. The agent gathers intelligence, 
 
 Why: Cluster upgrades are high-impact, often irreversible operations. The agent adds value through analysis and guidance, not by running commands on the user's behalf. This keeps the user in control and avoids accidental state changes.
 
+**EKS MCP Server:** If MCP tools are available (e.g., `list_eks_resources`, `get_eks_insights`, `list_k8s_resources`), use them instead of CLI commands for read-only operations — they provide richer output and are pre-authorized. If MCP tools aren't configured, see the `eks-mcp-server` skill for setup.
+
 ---
 
 ## How to Route Requests
