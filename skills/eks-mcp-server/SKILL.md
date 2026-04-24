@@ -8,6 +8,10 @@ license: Apache-2.0
 
 This skill helps you configure the EKS MCP Server to enable live EKS cluster operations through your AI assistant.
 
+**Don't use this skill for:**
+- Operational cluster work (listing resources, troubleshooting pods, reading K8s state) — use the EKS MCP tools directly once configured, or the `eks-recon` skill for discovery context
+- EKS concept questions (architecture, best practices, upgrade planning) — use `eks-best-practices`, `eks-upgrader`, or `eks-recon`
+
 ## Quick Check: Is EKS MCP Already Configured?
 
 Before proceeding with setup, check if EKS MCP tools are already available:

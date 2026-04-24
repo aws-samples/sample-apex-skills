@@ -1,11 +1,17 @@
 ---
 name: eks-upgrader
-description: EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other ecosystem tools. Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.
+description: EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other EKS add-ons and ecosystem controllers (CoreDNS, kube-proxy, VPC CNI, ingress controllers, cluster-autoscaler). Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.
+license: Apache-2.0
 ---
 
 # EKS Upgrader
 
 Focused knowledge for upgrading EKS clusters and the ecosystem components that run on them. This skill complements `eks-best-practices` (which covers general cluster-upgrades knowledge) with deeper, component-specific upgrade guidance.
+
+**Don't use this skill for:**
+- Cluster reconnaissance / current-state discovery — use `eks-recon`
+- Architecture decisions / new cluster design — use `eks-best-practices`
+- Generic Kubernetes concepts (Claude knows these)
 
 ## When to Load References
 
@@ -141,7 +147,7 @@ If any Cluster Insight returns `"status": ERROR`, resolve it before proceeding.
 |-------|----------|------|
 | **Standard support** | 14 months from release | Standard pricing |
 | **Extended support** | +12 months | Additional per-hour fee |
-| **End of support** | N/A | Auto-upgrade to oldest supported version |
+| **End of support** | N/A | Auto-upgrade to next supported version |
 
 You can [disable extended support](https://docs.aws.amazon.com/eks/latest/userguide/disable-extended-support.html) so auto-upgrade happens at end of standard support instead.
 

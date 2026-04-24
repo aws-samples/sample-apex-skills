@@ -2,6 +2,8 @@
 
 > **Part of:** [eks-mcp-server](../SKILL.md)
 
+> **Note:** The AWS-Hosted EKS MCP Server is currently in preview.
+
 The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade capabilities with zero local maintenance.
 
 ## Prerequisites
@@ -34,9 +36,7 @@ Required IAM actions for the MCP proxy:
 
 Add the EKS MCP server to your assistant's MCP configuration. Replace `{region}` with your AWS region (e.g., `us-west-2`).
 
-### Amazon Q Developer CLI
-
-Config file: `~/.aws/amazonq/mcp.json`
+The same JSON below works for every supported assistant — only the config file path (or UI entry point) differs.
 
 ```json
 {
@@ -54,85 +54,15 @@ Config file: `~/.aws/amazonq/mcp.json`
 }
 ```
 
-### Claude Code
+### Config File Locations by Assistant
 
-Preferred: add to the project-scope `.mcp.json` (checked in with the repo, shared with teammates). For user scope, use `claude mcp add -s user` which writes to `~/.claude.json` — do not create that file manually.
-
-```json
-{
-  "mcpServers": {
-    "eks-mcp": {
-      "command": "uvx",
-      "args": [
-        "mcp-proxy-for-aws@latest",
-        "https://eks-mcp.{region}.api.aws/mcp",
-        "--service", "eks-mcp",
-        "--region", "{region}"
-      ]
-    }
-  }
-}
-```
-
-### Cursor IDE
-
-Settings → Cursor Settings → Tools & MCP → New MCP Server
-
-```json
-{
-  "mcpServers": {
-    "eks-mcp": {
-      "command": "uvx",
-      "args": [
-        "mcp-proxy-for-aws@latest",
-        "https://eks-mcp.{region}.api.aws/mcp",
-        "--service", "eks-mcp",
-        "--region", "{region}"
-      ]
-    }
-  }
-}
-```
-
-### Kiro IDE
-
-Config file: `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json`
-
-```json
-{
-  "mcpServers": {
-    "eks-mcp": {
-      "command": "uvx",
-      "args": [
-        "mcp-proxy-for-aws@latest",
-        "https://eks-mcp.{region}.api.aws/mcp",
-        "--service", "eks-mcp",
-        "--region", "{region}"
-      ]
-    }
-  }
-}
-```
-
-### VS Code (Cline Extension)
-
-Cmd/Ctrl+Shift+P → "MCP" → Add Server → Open User Configuration
-
-```json
-{
-  "mcpServers": {
-    "eks-mcp": {
-      "command": "uvx",
-      "args": [
-        "mcp-proxy-for-aws@latest",
-        "https://eks-mcp.{region}.api.aws/mcp",
-        "--service", "eks-mcp",
-        "--region", "{region}"
-      ]
-    }
-  }
-}
-```
+| Assistant | Config File / Entry Point | Notes |
+|-----------|---------------------------|-------|
+| Amazon Q Developer CLI | `~/.aws/amazonq/mcp.json` | — |
+| Claude Code | `.mcp.json` (project) or `~/.claude.json` (user) | Prefer project-scope `.mcp.json` (checked in, shared with teammates). For user scope, run `claude mcp add -s user` — do not hand-edit `~/.claude.json`. |
+| Cursor IDE | Settings → Cursor Settings → Tools & MCP → New MCP Server | — |
+| Kiro IDE | `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json` | — |
+| VS Code (Cline Extension) | Cmd/Ctrl+Shift+P → "MCP" → Add Server → Open User Configuration | — |
 
 ## Optional: Read-Only Mode
 
