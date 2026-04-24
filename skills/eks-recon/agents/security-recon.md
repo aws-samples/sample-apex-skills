@@ -15,14 +15,16 @@ Detect the security posture for the specified EKS cluster and return structured 
 
 ## Instructions
 
-1. **Read the reference file first**: `references/security.md` contains:
-   - IAM authentication mode detection
-   - Pod Identity and IRSA detection
-   - Pod Security Admission detection
-   - Secrets management (ESO, Secrets Store CSI, KMS)
-   - Policy engine detection (Kyverno, OPA Gatekeeper)
-   - Admission webhooks
-   - MCP and CLI commands
+1. **Read both reference files first**:
+   - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
+   - `references/security.md` — module-specific detection:
+     - IAM authentication mode detection
+     - Pod Identity and IRSA detection
+     - Pod Security Admission detection
+     - Secrets management (ESO, Secrets Store CSI, KMS)
+     - Policy engine detection (Kyverno, OPA Gatekeeper)
+     - Admission webhooks
+     - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
 
@@ -37,6 +39,16 @@ Detect the security posture for the specified EKS cluster and return structured 
 Return ONLY a YAML block with your findings:
 
 ```yaml
+cluster:
+  name: <string>
+  region: <string>
+  version: <string>
+  platform_version: <string>
+  endpoint: <string>
+  arn: <string>
+  status: <string>
+  created_at: <string>
+
 security:
   authentication:
     mode: <API|API_AND_CONFIG_MAP|CONFIG_MAP>

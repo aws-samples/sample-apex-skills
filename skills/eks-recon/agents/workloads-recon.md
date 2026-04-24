@@ -15,12 +15,14 @@ Detect all running workloads for the specified EKS cluster and return structured
 
 ## Instructions
 
-1. **Read the reference file first**: `references/workloads.md` contains:
-   - Namespace detection
-   - Deployment/StatefulSet/DaemonSet detection
-   - Service and Ingress detection
-   - PVC detection
-   - MCP and CLI commands
+1. **Read both reference files first**:
+   - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
+   - `references/workloads.md` — module-specific detection:
+     - Namespace detection
+     - Deployment/StatefulSet/DaemonSet detection
+     - Service and Ingress detection
+     - PVC detection
+     - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
 
@@ -34,6 +36,16 @@ Detect all running workloads for the specified EKS cluster and return structured
 Return ONLY a YAML block with your findings:
 
 ```yaml
+cluster:
+  name: <string>
+  region: <string>
+  version: <string>
+  platform_version: <string>
+  endpoint: <string>
+  arn: <string>
+  status: <string>
+  created_at: <string>
+
 workloads:
   namespaces:
     total: <int>

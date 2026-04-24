@@ -15,12 +15,14 @@ Detect the observability setup for the specified EKS cluster and return structur
 
 ## Instructions
 
-1. **Read the reference file first**: `references/observability.md` contains:
-   - Control plane logging detection
-   - Container Insights detection
-   - Prometheus/Grafana detection
-   - Fluent Bit/Fluentd detection
-   - MCP and CLI commands
+1. **Read both reference files first**:
+   - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
+   - `references/observability.md` — module-specific detection:
+     - Control plane logging detection
+     - Container Insights detection
+     - Prometheus/Grafana detection
+     - Fluent Bit/Fluentd detection
+     - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
 
@@ -34,6 +36,16 @@ Detect the observability setup for the specified EKS cluster and return structur
 Return ONLY a YAML block with your findings:
 
 ```yaml
+cluster:
+  name: <string>
+  region: <string>
+  version: <string>
+  platform_version: <string>
+  endpoint: <string>
+  arn: <string>
+  status: <string>
+  created_at: <string>
+
 observability:
   control_plane_logging:
     enabled_types:

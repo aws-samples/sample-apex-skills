@@ -15,13 +15,15 @@ Detect the Infrastructure-as-Code tooling used to manage the specified EKS clust
 
 ## Instructions
 
-1. **Read the reference file first**: `references/iac.md` contains:
-   - Terraform detection (state files, .tf files, tags)
-   - CloudFormation detection (stack tags, templates)
-   - CDK detection (cdk.json, constructs)
-   - eksctl detection (eksctl-created tags)
-   - Pulumi detection
-   - MCP and CLI commands
+1. **Read both reference files first**:
+   - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
+   - `references/iac.md` — module-specific detection:
+     - Terraform detection (state files, .tf files, tags)
+     - CloudFormation detection (stack tags, templates)
+     - CDK detection (cdk.json, constructs)
+     - eksctl detection (eksctl-created tags)
+     - Pulumi detection
+     - MCP and CLI commands
 
 2. **Detection order**:
    - First check workspace files (*.tf, cdk.json, etc.)
@@ -37,6 +39,16 @@ Detect the Infrastructure-as-Code tooling used to manage the specified EKS clust
 Return ONLY a YAML block with your findings:
 
 ```yaml
+cluster:
+  name: <string>
+  region: <string>
+  version: <string>
+  platform_version: <string>
+  endpoint: <string>
+  arn: <string>
+  status: <string>
+  created_at: <string>
+
 iac:
   tool: <Terraform|CloudFormation|CDK|eksctl|Pulumi|Unknown>
   confidence: <high|medium|low>

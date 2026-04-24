@@ -15,12 +15,14 @@ Detect the storage setup for the specified EKS cluster and return structured fin
 
 ## Instructions
 
-1. **Read the reference file first**: `references/storage.md` contains:
-   - CSI driver detection (EBS, EFS, S3)
-   - StorageClass enumeration
-   - PVC inventory
-   - Volume snapshot detection
-   - MCP and CLI commands
+1. **Read both reference files first**:
+   - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
+   - `references/storage.md` — module-specific detection:
+     - CSI driver detection (EBS, EFS, S3)
+     - StorageClass enumeration
+     - PVC inventory
+     - Volume snapshot detection
+     - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
 
@@ -36,6 +38,16 @@ Detect the storage setup for the specified EKS cluster and return structured fin
 Return ONLY a YAML block with your findings:
 
 ```yaml
+cluster:
+  name: <string>
+  region: <string>
+  version: <string>
+  platform_version: <string>
+  endpoint: <string>
+  arn: <string>
+  status: <string>
+  created_at: <string>
+
 storage:
   csi_drivers:
     ebs:

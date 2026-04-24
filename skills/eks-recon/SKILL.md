@@ -67,18 +67,25 @@ The MCP server can access EKS APIs (clusters, nodegroups, addons) but may lack K
 
 **Solutions (choose one):**
 
-1. **Grant MCP access**: Create an EKS access entry for the MCP server's IAM role
+1. **Grant MCP access**: Create an EKS access entry for the MCP server's IAM role.
+
+   **Surface these commands to the user — do NOT execute them. These are persistent IAM writes and violate the read-only contract of this skill.**
+
    ```bash
    aws eks create-access-entry \
      --cluster-name <cluster> \
+     --region <region> \
      --principal-arn <mcp-server-role-arn> \
      --type STANDARD
    aws eks associate-access-policy \
      --cluster-name <cluster> \
+     --region <region> \
      --principal-arn <mcp-server-role-arn> \
      --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy \
      --access-scope type=cluster
    ```
+
+   If the user confirms and has permission, they can run these themselves out-of-band.
 
 2. **Fall back to kubectl**: If user has local kubectl access, use CLI commands instead:
    > "MCP K8s access returned 401. I'll use kubectl instead if you have it configured locally."
@@ -110,50 +117,22 @@ The MCP server can access EKS APIs (clusters, nodegroups, addons) but may lack K
 
 ---
 
-## Reference Loading Strategy
+## Modules and Reference Loading
 
-Load only the reference files needed for the user's request. This keeps context focused and improves response quality.
+Load only the references needed for the user's request — this keeps context focused. `references/cluster-basics.md` is **always loaded first** by every module; it provides the shared cluster context all other modules depend on. For targeted queries, load only the matching row(s); for full recon, load all references in parallel. When uncertain, ask the user or default to full recon.
 
-### Decision Matrix
-
-| If user mentions... | Load these references |
-|---------------------|----------------------|
-| Karpenter, nodes, scaling, compute, Auto Mode, node groups | cluster-basics.md, compute.md |
-| Networking, VPC, ingress, CNI, service mesh, load balancer | cluster-basics.md, networking.md |
-| Security, IAM, IRSA, Pod Identity, RBAC, policies, encryption | cluster-basics.md, security.md |
-| Add-ons, Helm, plugins, what's installed | cluster-basics.md, addons.md |
-| Logging, metrics, monitoring, observability, Container Insights | cluster-basics.md, observability.md |
-| Workloads, deployments, pods, services, what's running | cluster-basics.md, workloads.md |
-| Storage, PVC, EBS, EFS, StorageClass, CSI, volumes | cluster-basics.md, storage.md |
-| Terraform, IaC, CloudFormation, CDK, eksctl, how is it managed | iac.md |
-| CI/CD, pipelines, GitOps, ArgoCD, Flux, GitHub Actions | cicd.md |
-| Full recon, deep dive, comprehensive, everything, all modules | ALL references |
-
-### Loading Rules
-
-1. **`cluster-basics.md` is always loaded first** — provides cluster context needed by all modules
-2. **For targeted queries** — load only the matching reference(s) from the matrix
-3. **For full recon** — load all references in parallel
-4. **When uncertain** — ask the user which aspects they want to explore, or default to full recon
-
----
-
-## Available Modules
-
-Each module is a reference file that can be run independently. Load the reference when running that module.
-
-| Module | Reference | What It Detects | Cluster Required |
-|--------|-----------|-----------------|------------------|
-| **Cluster Basics** | [cluster-basics.md](references/cluster-basics.md) | Name, region, version, platform version, endpoint | Yes |
-| **Compute** | [compute.md](references/compute.md) | Karpenter, MNG, Auto Mode, Fargate, self-managed | Yes |
-| **IaC** | [iac.md](references/iac.md) | Terraform, CloudFormation, CDK, eksctl, Pulumi | No (workspace) |
-| **CI/CD** | [cicd.md](references/cicd.md) | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux | Partial |
-| **Add-ons** | [addons.md](references/addons.md) | EKS-managed, Helm releases, manifest-installed | Yes |
-| **Networking** | [networking.md](references/networking.md) | VPC CNI, ingress controllers, service mesh | Yes |
-| **Security** | [security.md](references/security.md) | Pod Identity, IRSA, PSA, policy engines, secrets, webhooks | Yes |
-| **Observability** | [observability.md](references/observability.md) | Container Insights, Prometheus, logging config | Yes |
-| **Storage** | [storage.md](references/storage.md) | CSI drivers, StorageClasses, PVCs, snapshots | Yes |
-| **Workloads** | [workloads.md](references/workloads.md) | Running deployments, services, ingresses | Yes |
+| Module | Intent / when to use | Reference file | Agent file |
+|--------|----------------------|----------------|------------|
+| Cluster Basics | Always loaded first by every module (name, region, version, platform version, endpoint) | [cluster-basics.md](references/cluster-basics.md) | — |
+| Compute | Karpenter, nodes, scaling, Auto Mode, node groups, Fargate, self-managed | [compute.md](references/compute.md) | [compute-recon.md](agents/compute-recon.md) |
+| Networking | VPC, ingress, CNI, service mesh, load balancer, connectivity | [networking.md](references/networking.md) | [networking-recon.md](agents/networking-recon.md) |
+| Security | IAM, IRSA, Pod Identity, RBAC, policies, encryption, secrets, webhooks | [security.md](references/security.md) | [security-recon.md](agents/security-recon.md) |
+| Add-ons | EKS-managed add-ons, Helm releases, plugins, "what's installed?" | [addons.md](references/addons.md) | [addons-recon.md](agents/addons-recon.md) |
+| Observability | Logging, metrics, monitoring, Container Insights, Prometheus | [observability.md](references/observability.md) | [observability-recon.md](agents/observability-recon.md) |
+| Workloads | Deployments, pods, services, ingresses, "what's running?" | [workloads.md](references/workloads.md) | [workloads-recon.md](agents/workloads-recon.md) |
+| Storage | PVCs, EBS, EFS, StorageClasses, CSI drivers, volumes, snapshots | [storage.md](references/storage.md) | [storage-recon.md](agents/storage-recon.md) |
+| IaC | Terraform, CloudFormation, CDK, eksctl, Pulumi, "how is it managed?" | [iac.md](references/iac.md) | [iac-recon.md](agents/iac-recon.md) |
+| CI/CD | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd.md) | [cicd-recon.md](agents/cicd-recon.md) |
 
 ---
 
@@ -176,10 +155,10 @@ Each module is a reference file that can be run independently. Load the referenc
 | Detection | CLI Command |
 |-----------|-------------|
 | Cluster info | `aws eks describe-cluster --name <name> --region <region>` |
-| Node groups | `aws eks list-nodegroups --cluster-name <name>` |
-| EKS add-ons | `aws eks list-addons --cluster-name <name>` |
-| Fargate profiles | `aws eks list-fargate-profiles --cluster-name <name>` |
-| Auto Mode | `aws eks describe-cluster --name <name> --query 'cluster.computeConfig'` |
+| Node groups | `aws eks list-nodegroups --cluster-name <name> --region <region>` |
+| EKS add-ons | `aws eks list-addons --cluster-name <name> --region <region>` |
+| Fargate profiles | `aws eks list-fargate-profiles --cluster-name <name> --region <region>` |
+| Auto Mode | `aws eks describe-cluster --name <name> --region <region> --query 'cluster.computeConfig'` |
 | Karpenter | `kubectl get nodepools.karpenter.sh 2>/dev/null` |
 | Helm releases | `helm list -A` |
 
@@ -248,7 +227,10 @@ cluster:
   version: "1.31"
   platform_version: eks.5
   endpoint: https://XXXXX.gr7.us-west-2.eks.amazonaws.com
-  
+  arn: arn:aws:eks:us-west-2:<account-id>:cluster/my-cluster
+  status: ACTIVE
+  created_at: "2024-09-10T12:00:00Z"
+
 compute:
   strategy: Karpenter
   auto_mode:
@@ -257,38 +239,73 @@ compute:
     detected: true
     version: "1.0.5"
     nodepools: 2
+    nodepool_names: [default, gpu]
   mng:
     detected: true
     count: 1
-    names: [system]
+    groups:
+      - name: system
+        status: ACTIVE
+        instance_types: [m6i.large]
+        desired_size: 2
   fargate:
     detected: false
-    
+    profiles: 0
+  self_managed:
+    detected: false
+    node_count: 0
+
 iac:
   tool: Terraform
   confidence: high
-  evidence: "./infrastructure/eks/main.tf contains aws_eks_cluster"
-  
+  evidence:
+    type: workspace_files
+    details: "./infrastructure/eks/main.tf contains aws_eks_cluster"
+
 cicd:
   workspace:
-    - github_actions
+    github_actions:
+      detected: true
+      workflows: [.github/workflows/deploy.yml]
+    gitlab_ci:
+      detected: false
+    jenkins:
+      detected: false
+      jenkinsfile: false
+    other: null
   gitops:
-    tool: ArgoCD
-    detected: true
-    namespace: argocd
-    
+    argocd:
+      detected: true
+      namespace: argocd
+      applications: 12
+      app_projects: 3
+    flux:
+      detected: false
+      namespace: null
+      kustomizations: 0
+      helm_releases: 0
+      git_repositories: 0
+
 addons:
   eks_managed:
-    - name: vpc-cni
-      version: v1.18.1-eksbuild.1
-      status: ACTIVE
-    - name: coredns
-      version: v1.11.1-eksbuild.8
-      status: ACTIVE
+    count: 2
+    list:
+      - name: vpc-cni
+        version: v1.18.1-eksbuild.1
+        status: ACTIVE
+        configuration: null
+      - name: coredns
+        version: v1.11.1-eksbuild.8
+        status: ACTIVE
+        configuration: null
   helm_releases:
-    - name: karpenter
-      namespace: kube-system
-      version: 1.0.5
+    count: 1
+    list:
+      - name: karpenter
+        namespace: kube-system
+        chart: karpenter
+        version: 1.0.5
+        status: deployed
 ```
 
 ---
@@ -354,14 +371,17 @@ Agent(
   subagent_type: "general-purpose"
 )
 
-... (spawn all 8 in parallel)
+... (spawn all 9 in parallel)
 ```
 
 **Step 3: Aggregate results**
 
 When all subagents complete:
 1. Collect each subagent's YAML output
-2. Merge into single report structure
+2. Merge into single report structure, applying these normalization rules:
+   - Every subagent emits its own top-level `cluster:` block. Merge into a single top-level `cluster:` by deduplicating exact-match blocks (all subagents report the same cluster); if any field mismatches across subagents, flag it rather than silently picking one.
+   - Module outputs are already in their canonical agent-defined shapes. Preserve them verbatim under the matching top-level key: `compute:`, `iac:`, `cicd:`, `addons:`, `networking:`, `observability:`, `security:`, `storage:`, `workloads:`. Do not reshape, flatten, or rename keys.
+   - If a subagent fails to respond or errors out, set its key to `unavailable: true` with a short `reason:` string; do not omit the key.
 3. Add cross-module insights (e.g., "Karpenter detected but no IRSA for controller")
 4. Generate recommendations based on combined findings
 5. Write final report to `.eks-recon-report.yaml`
@@ -395,21 +415,3 @@ The design workflow can use eks-recon for existing clusters:
 4. Only ask questions for undetected values
 ```
 
----
-
-## Detailed References
-
-Load the appropriate reference file when running each module. Each reference contains detection commands, edge cases, and output schema for that domain.
-
-| Reference | Load When... |
-|-----------|--------------|
-| **[Cluster Basics](references/cluster-basics.md)** | Starting any recon (always load first) |
-| **[Compute](references/compute.md)** | User asks about nodes, scaling, Karpenter, Auto Mode, or upgrade planning |
-| **[IaC](references/iac.md)** | User asks how the cluster is managed, wants to make changes via IaC, or is troubleshooting state drift |
-| **[CI/CD](references/cicd.md)** | User asks about deployments, pipelines, GitOps, or how changes get applied |
-| **[Add-ons](references/addons.md)** | Upgrade planning, compatibility checks, or user asks "what's installed?" |
-| **[Networking](references/networking.md)** | User asks about connectivity, ingress, service mesh, or network troubleshooting |
-| **[Security](references/security.md)** | User asks about IAM, IRSA, Pod Identity, secrets, policies, webhooks, or compliance review |
-| **[Observability](references/observability.md)** | User asks about logging, metrics, monitoring, or troubleshooting visibility |
-| **[Storage](references/storage.md)** | User asks about PVCs, EBS, EFS, StorageClasses, CSI drivers, or volume issues |
-| **[Workloads](references/workloads.md)** | User wants to see what's running, capacity planning, or migration assessment |

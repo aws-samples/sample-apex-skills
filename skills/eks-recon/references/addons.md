@@ -126,7 +126,7 @@ Use this approach when Helm CLI is not installed but you still need to detect He
 
 ```bash
 # Helm stores releases as secrets with label owner=helm
-kubectl get secrets -A -l owner=helm -o json 2>/dev/null | \
+kubectl get secrets -A -l owner=helm,status=deployed -o json 2>/dev/null | \
   jq -r '.items[] | {
     name: .metadata.labels["name"],
     namespace: .metadata.namespace,

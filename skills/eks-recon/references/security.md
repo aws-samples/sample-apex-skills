@@ -70,7 +70,7 @@ aws eks describe-addon --cluster-name <cluster-name> --addon-name eks-pod-identi
 
 # List Pod Identity associations
 aws eks list-pod-identity-associations --cluster-name <cluster-name> \
-  --query 'associations[*].{namespace:namespace,serviceAccount:serviceAccount,roleArn:associationArn}'
+  --query 'associations[*].{namespace:namespace,serviceAccount:serviceAccount,roleArn:roleArn}'
 ```
 
 **Example output (Pod Identity enabled):**

@@ -15,11 +15,13 @@ Detect all add-ons and installed components for the specified EKS cluster and re
 
 ## Instructions
 
-1. **Read the reference file first**: `references/addons.md` contains:
-   - EKS-managed add-on detection
-   - Helm release detection
-   - Manifest-installed component detection
-   - MCP and CLI commands
+1. **Read both reference files first**:
+   - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
+   - `references/addons.md` — module-specific detection:
+     - EKS-managed add-on detection
+     - Helm release detection
+     - Manifest-installed component detection
+     - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
 
@@ -33,6 +35,16 @@ Detect all add-ons and installed components for the specified EKS cluster and re
 Return ONLY a YAML block with your findings:
 
 ```yaml
+cluster:
+  name: <string>
+  region: <string>
+  version: <string>
+  platform_version: <string>
+  endpoint: <string>
+  arn: <string>
+  status: <string>
+  created_at: <string>
+
 addons:
   eks_managed:
     count: <int>

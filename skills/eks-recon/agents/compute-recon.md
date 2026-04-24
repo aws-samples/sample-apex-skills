@@ -15,11 +15,13 @@ Detect the compute strategy for the specified EKS cluster and return structured 
 
 ## Instructions
 
-1. **Read the reference file first**: `references/compute.md` contains:
-   - Detection order (Auto Mode → Karpenter → MNG → Fargate → Self-managed)
-   - MCP and CLI commands for each detection
-   - Edge cases and how to handle them
-   - Output schema
+1. **Read both reference files first**:
+   - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
+   - `references/compute.md` — module-specific detection:
+     - Detection order (Auto Mode → Karpenter → MNG → Fargate → Self-managed)
+     - MCP and CLI commands for each detection
+     - Edge cases and how to handle them
+     - Output schema
 
 2. **Run detections in order** following the reference guidance
 
@@ -33,6 +35,16 @@ Detect the compute strategy for the specified EKS cluster and return structured 
 Return ONLY a YAML block with your findings:
 
 ```yaml
+cluster:
+  name: <string>
+  region: <string>
+  version: <string>
+  platform_version: <string>
+  endpoint: <string>
+  arn: <string>
+  status: <string>
+  created_at: <string>
+
 compute:
   strategy: <Karpenter|MNG|Auto Mode|Fargate|Mixed|Self-managed|Unknown>
   auto_mode:

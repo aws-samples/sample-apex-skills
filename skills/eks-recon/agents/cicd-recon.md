@@ -15,10 +15,12 @@ Detect the CI/CD pipelines and GitOps tooling for the specified EKS cluster and 
 
 ## Instructions
 
-1. **Read the reference file first**: `references/cicd.md` contains:
-   - Workspace CI/CD detection (GitHub Actions, GitLab CI, Jenkins)
-   - GitOps detection (ArgoCD, Flux)
-   - MCP and CLI commands
+1. **Read both reference files first**:
+   - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
+   - `references/cicd.md` — module-specific detection:
+     - Workspace CI/CD detection (GitHub Actions, GitLab CI, Jenkins)
+     - GitOps detection (ArgoCD, Flux)
+     - MCP and CLI commands
 
 2. **Detection approach**:
    - Check workspace for CI/CD config files (.github/workflows, .gitlab-ci.yml)
@@ -35,6 +37,16 @@ Detect the CI/CD pipelines and GitOps tooling for the specified EKS cluster and 
 Return ONLY a YAML block with your findings:
 
 ```yaml
+cluster:
+  name: <string>
+  region: <string>
+  version: <string>
+  platform_version: <string>
+  endpoint: <string>
+  arn: <string>
+  status: <string>
+  created_at: <string>
+
 cicd:
   workspace:
     github_actions:
