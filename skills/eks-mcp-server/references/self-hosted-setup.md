@@ -1,5 +1,7 @@
 # Self-Hosted EKS MCP Server Setup
 
+> **Part of:** [eks-mcp-server](../SKILL.md)
+
 The open-source EKS MCP server from [awslabs/mcp](https://github.com/awslabs/mcp) runs locally on your machine, providing full control over authentication and configuration.
 
 ## Prerequisites
@@ -42,7 +44,8 @@ For IAM authentication, attach these permissions to your IAM role/user:
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
       "iam:GetPolicy",
-      "iam:GetPolicyVersion"
+      "iam:GetPolicyVersion",
+      "eks-mcpserver:QueryKnowledgeBase"
     ],
     "Resource": "*"
   }]
@@ -120,8 +123,8 @@ Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 
 | Assistant | Config File |
 |-----------|-------------|
-| Amazon Q CLI | `~/.aws/q/mcp.json` |
-| Claude Code | `.mcp.json` or `~/.claude/mcp.json` |
+| Amazon Q CLI | `~/.aws/amazonq/mcp.json` |
+| Claude Code | `.mcp.json` (project) or `~/.claude.json` (user, via `claude mcp add -s user`) |
 | Cursor | Settings → Tools & MCP |
 | Kiro | `~/.kiro/settings/mcp.json` |
 | VS Code (Cline) | Cmd+Shift+P → MCP → User Config |

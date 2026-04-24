@@ -44,7 +44,7 @@ Always verify your target Istio version supports your current (or target) K8s ve
 
 **How to look up the matrix:** Fetch the supported releases page at `https://istio.io/latest/docs/releases/supported-releases/` and find the "Support status of Istio releases" table. It lists each Istio minor version and the K8s versions it supports. Cross-reference the cluster's current Istio version and the target K8s version to determine whether Istio must be upgraded first.
 
-For self-managed (Helm) installations, you can also check what the installed chart declares:
+Istio on EKS is always self-managed -- AWS does not publish an Amazon EKS add-on for Istio, so upgrades are driven through Helm or istioctl using the procedures in the rest of this guide. (A third-party `solo-io_istio-distro` listing exists in AWS Marketplace but is vendor-managed, not an AWS-built EKS add-on.) To check what the installed chart declares:
 
 ```bash
 # Current Istio version
@@ -53,23 +53,6 @@ istioctl version
 # Check the Helm chart's appVersion for the target Istio release
 helm search repo istio/istiod --versions | head -20
 ```
-
-### EKS-Managed Istio Add-on
-
-If Istio is installed as an [EKS add-on](https://docs.aws.amazon.com/eks/latest/userguide/istio.html), the add-on lifecycle is managed through the EKS API:
-
-```bash
-# Check current Istio add-on version
-aws eks describe-addon --cluster-name my-cluster --addon-name adot
-
-# List compatible Istio versions for target K8s version
-aws eks describe-addon-versions \
-  --addon-name amazon-eks-istio \
-  --kubernetes-version 1.31 \
-  --query 'addons[0].addonVersions[*].addonVersion'
-```
-
-For EKS-managed Istio, the upgrade is handled via `aws eks update-addon` and the rest of this guide's manual procedures don't apply. The sections below cover self-managed Istio installations using Helm or istioctl.
 
 ---
 

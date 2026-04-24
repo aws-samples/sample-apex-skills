@@ -1,5 +1,7 @@
 # AWS-Hosted EKS MCP Server Setup
 
+> **Part of:** [eks-mcp-server](../SKILL.md)
+
 The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade capabilities with zero local maintenance.
 
 ## Prerequisites
@@ -34,7 +36,7 @@ Add the EKS MCP server to your assistant's MCP configuration. Replace `{region}`
 
 ### Amazon Q Developer CLI
 
-Config file: `~/.aws/q/mcp.json`
+Config file: `~/.aws/amazonq/mcp.json`
 
 ```json
 {
@@ -54,7 +56,7 @@ Config file: `~/.aws/q/mcp.json`
 
 ### Claude Code
 
-Config file: `.mcp.json` (project) or `~/.claude/mcp.json` (global)
+Preferred: add to the project-scope `.mcp.json` (checked in with the repo, shared with teammates). For user scope, use `claude mcp add -s user` which writes to `~/.claude.json` — do not create that file manually.
 
 ```json
 {
