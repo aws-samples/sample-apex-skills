@@ -45,7 +45,7 @@ Each pod receives one secondary private IP from an ENI attached to the node. The
 | m5.2xlarge | 4 | 15 | 58 |
 | m5.4xlarge | 8 | 30 | 234 |
 
-Use the [max-pod-calculator.sh](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/al2/runtime/max-pods-calculator.sh) script to calculate EKS's recommended max pods for any instance type:
+Use the [max-pods-calculator.sh](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/al2/runtime/max-pods-calculator.sh) script to calculate EKS's recommended max pods for any instance type:
 
 ```bash
 ./max-pods-calculator.sh --instance-type m5.large --cni-version 1.9.0

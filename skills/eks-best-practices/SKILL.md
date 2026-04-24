@@ -24,6 +24,7 @@ Comprehensive guidance for designing, deploying, and operating Amazon EKS cluste
 - Generic Kubernetes concepts (Claude knows these)
 - Provider-specific API reference (link to AWS docs)
 - Non-EKS container orchestration (ECS, Lambda)
+- *Executing* an EKS upgrade — step-by-step procedures and add-on compatibility matrices live in the `eks-upgrader` skill. This skill covers upgrade strategy and architectural decisions.
 
 ## EKS Architecture Decision Framework
 
