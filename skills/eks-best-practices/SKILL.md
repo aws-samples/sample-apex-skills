@@ -210,7 +210,7 @@ topologySpreadConstraints:
   whenUnsatisfiable: DoNotSchedule
 ```
 
-**For detailed reliability guidance, see:** [Reliability & Resiliency Reference](references/reliability-resiliency.md)
+**For detailed reliability guidance, see:** [Reliability & Resiliency — Core](references/reliability-core.md) (see also [reliability-advanced.md](references/reliability-advanced.md) for DR, deployment strategies, and large-cluster guidance)
 
 ## Cluster Upgrade Strategy
 
@@ -363,7 +363,8 @@ This skill uses **progressive disclosure** — essential guidance is in this mai
 - **[Security — Supply Chain & Compliance](references/security-supply-chain.md)** — Image security (SBOMs, attestations, ECR hardening), infrastructure hardening (Bottlerocket, CIS benchmarks), regulatory compliance, incident response
 - **[Networking](references/networking.md)** — VPC CNI modes (secondary IP, prefix delegation, custom networking), subnet/CIDR planning, IPv4 vs IPv6, Security Groups for Pods, IP address management
 - **[Networking — Ingress & DNS](references/networking-ingress-dns.md)** — Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity
-- **[Reliability & Resiliency](references/reliability-resiliency.md)** — HA patterns, PDBs, health probes, load balancer health checks, lifecycle hooks, topology spread, resource management, disaster recovery, deployment strategies, large cluster guidance
+- **[Reliability & Resiliency — Core](references/reliability-core.md)** — HA patterns, PDBs, health probes, load balancer health checks, lifecycle hooks, topology spread, resource management
+- **[Reliability & Resiliency — Advanced](references/reliability-advanced.md)** — disaster recovery, zonal shift, deployment strategies, large cluster guidance, chaos engineering, admission-controller topology enforcement
 - **[Autoscaling](references/autoscaling.md)** — Autoscaler selection, Cluster Autoscaler (IAM, Spot, overprovisioning, parameter tuning), HPA, VPA, KEDA, CoreDNS autoscaling
 - **[Karpenter](references/karpenter.md)** — Operational best practices, NodePools, EC2NodeClass, Spot/interruption handling, consolidation, multiple NodePool strategy, cost controls, resource management, private clusters, CoreDNS with Karpenter
 - **[Cluster Upgrades](references/cluster-upgrades.md)** — In-place and blue-green upgrades, pre-upgrade validation, add-on management, API deprecation detection, version skew policy, Bottlerocket updates, rollback procedures

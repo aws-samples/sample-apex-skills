@@ -94,7 +94,8 @@ All workflows use these skills:
 | [security-supply-chain.md](../skills/eks-best-practices/references/security-supply-chain.md) | Design workflow (security domain) |
 | [networking.md](../skills/eks-best-practices/references/networking.md) | Design workflow (networking domain) |
 | [networking-ingress-dns.md](../skills/eks-best-practices/references/networking-ingress-dns.md) | Design workflow (networking domain) |
-| [reliability-resiliency.md](../skills/eks-best-practices/references/reliability-resiliency.md) | Design workflow, Upgrade workflow |
+| [reliability-core.md](../skills/eks-best-practices/references/reliability-core.md) | Design workflow, Upgrade workflow |
+| [reliability-advanced.md](../skills/eks-best-practices/references/reliability-advanced.md) | Design workflow, Upgrade workflow |
 | [terraform-examples.md](../skills/eks-best-practices/references/terraform-examples.md) | Design workflow, Upgrade workflow (Terraform path) |
 | [autoscaling.md](../skills/eks-best-practices/references/autoscaling.md) | Design workflow |
 | [karpenter.md (best-practices)](../skills/eks-best-practices/references/karpenter.md) | Design workflow (Karpenter operational config) |

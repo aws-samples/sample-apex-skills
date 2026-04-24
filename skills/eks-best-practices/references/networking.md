@@ -38,14 +38,7 @@ Each pod receives one secondary private IP from an ENI attached to the node. The
 
 **Max pods per node** = (Number of ENIs × IPs per ENI) - 1
 
-| Instance Type | ENIs | IPs/ENI | Max Pods |
-|--------------|------|---------|----------|
-| m5.large | 3 | 10 | 29 |
-| m5.xlarge | 4 | 15 | 58 |
-| m5.2xlarge | 4 | 15 | 58 |
-| m5.4xlarge | 8 | 30 | 234 |
-
-Use the [max-pods-calculator.sh](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/al2/runtime/max-pods-calculator.sh) script to calculate EKS's recommended max pods for any instance type:
+ENI counts and IPs-per-ENI vary by instance type and change over time — use the live [max-pods-calculator.sh](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/al2/runtime/max-pods-calculator.sh) script as the source of truth rather than relying on a static table:
 
 ```bash
 ./max-pods-calculator.sh --instance-type m5.large --cni-version 1.9.0

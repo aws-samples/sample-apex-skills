@@ -39,7 +39,8 @@ Comprehensive Amazon EKS best practices for cluster architecture, security, netw
 | [networking-ingress-dns.md](./eks-best-practices/references/networking-ingress-dns.md) | Networking ingress dns |
 | [networking.md](./eks-best-practices/references/networking.md) | Networking |
 | [observability.md](./eks-best-practices/references/observability.md) | Observability |
-| [reliability-resiliency.md](./eks-best-practices/references/reliability-resiliency.md) | Reliability resiliency |
+| [reliability-advanced.md](./eks-best-practices/references/reliability-advanced.md) | Reliability advanced |
+| [reliability-core.md](./eks-best-practices/references/reliability-core.md) | Reliability core |
 | [scalability.md](./eks-best-practices/references/scalability.md) | Scalability |
 | [security-runtime-network.md](./eks-best-practices/references/security-runtime-network.md) | Security runtime network |
 | [security-supply-chain.md](./eks-best-practices/references/security-supply-chain.md) | Security supply chain |
@@ -77,13 +78,14 @@ EKS cluster reconnaissance and environment discovery. Detects compute strategy (
 | [networking.md](./eks-recon/references/networking.md) | Networking |
 | [observability.md](./eks-recon/references/observability.md) | Observability |
 | [security.md](./eks-recon/references/security.md) | Security |
+| [storage.md](./eks-recon/references/storage.md) | Storage |
 | [workloads.md](./eks-recon/references/workloads.md) | Workloads |
 
 ---
 
 ### [eks-upgrader](./eks-upgrader/)
 
-EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other ecosystem tools. Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.
+EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other EKS add-ons and ecosystem controllers (CoreDNS, kube-proxy, VPC CNI, ingress controllers, cluster-autoscaler). Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.
 
 **References** (loaded on demand):
 
