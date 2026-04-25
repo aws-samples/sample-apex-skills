@@ -9,9 +9,11 @@
 #   make triggering-eks-recon MODEL=claude-sonnet-4-5
 #   make benchmark-eks-recon BENCHMARK_DIR=/abs/path/to/run-dir
 
-SKILLS         := eks-recon eks-best-practices eks-upgrader eks-mcp-server
+SHELL          := /bin/bash
+
 EVALS_ROOT     := $(CURDIR)
 REPO_ROOT      := $(abspath $(CURDIR)/../..)
+SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name '.*' -printf '%f\n' | sort)
 SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 MODEL          ?= claude-sonnet-4-5
 NUM_WORKERS    ?= 10
@@ -33,6 +35,7 @@ PACKAGE_T    := $(addprefix package-,$(SKILLS))
 REVIEW_T     := $(addprefix review-,$(SKILLS))
 
 .PHONY: help list-skills validate-all triggering-all \
+        init-evals check-evals-coverage \
         $(VALIDATE_T) $(TRIGGERING_T) $(OPTIMIZE_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T)
 
@@ -48,6 +51,10 @@ help:
 	@echo ""
 	@echo "Meta targets:"
 	@echo "  validate-all, triggering-all"
+	@echo ""
+	@echo "New-skill onboarding:"
+	@echo "  init-evals SKILL=<name>    scaffold misc/evals/<name>/ from _template/"
+	@echo "  check-evals-coverage       verify every skills/*/ has a misc/evals/*/ entry"
 	@echo ""
 	@echo "Overrides: MODEL, NUM_WORKERS, MAX_ITER, RUNS_PER_QUERY, WORKSPACE, BENCHMARK_DIR"
 
@@ -125,3 +132,45 @@ $(REVIEW_T): review-%:
 	  python3 $(SC_DIR)/eval-viewer/generate_review.py "$$WORKSPACE" \
 	    --skill-name $* \
 	    --static $(call workspace_dir,$*)/review.html
+
+# ---------- init-evals (scaffold a new misc/evals/<skill>/ from _template/) ----
+init-evals:
+	@if [ -z "$(SKILL)" ]; then \
+	  echo "usage: make init-evals SKILL=<skill-name>"; \
+	  exit 1; \
+	fi
+	@if [ -e "$(EVALS_ROOT)/$(SKILL)" ]; then \
+	  echo "error: $(EVALS_ROOT)/$(SKILL) already exists"; \
+	  exit 1; \
+	fi
+	@if [ ! -d "$(EVALS_ROOT)/_template" ]; then \
+	  echo "error: template dir not found: $(EVALS_ROOT)/_template"; \
+	  exit 1; \
+	fi
+	cp -r $(EVALS_ROOT)/_template $(EVALS_ROOT)/$(SKILL)
+	find $(EVALS_ROOT)/$(SKILL) -type f ! -name '.gitkeep' -exec sed -i.bak 's/<REPLACE>/$(SKILL)/g' {} +
+	find $(EVALS_ROOT)/$(SKILL) -name '*.bak' -delete
+	@echo ""
+	@echo "✓ Scaffolded $(EVALS_ROOT)/$(SKILL)/"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Edit $(EVALS_ROOT)/$(SKILL)/triggering.json — add 16+ trigger prompts"
+	@echo "  2. Edit $(EVALS_ROOT)/$(SKILL)/evals.json      — add 2-4 task prompts"
+	@echo "  3. Edit $(EVALS_ROOT)/$(SKILL)/README.md       — document the eval set"
+	@echo "  4. Run: make validate-$(SKILL)"
+
+# ---------- check-evals-coverage (every skills/*/ has a misc/evals/*/ entry) --
+check-evals-coverage:
+	@expected=$$(find $(REPO_ROOT)/skills -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
+	  | grep -vx skill-creator | grep -vx terraform-skill | sort); \
+	 found=$$(find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
+	  | grep -vx _template | grep -vx workspace | sort); \
+	 missing=$$(comm -23 <(echo "$$expected") <(echo "$$found")); \
+	 if [ -n "$$missing" ]; then \
+	   echo "Missing misc/evals/ entries for:"; \
+	   echo "$$missing" | sed 's/^/  - /'; \
+	   echo ""; \
+	   echo "Run: make init-evals SKILL=<name>"; \
+	   exit 1; \
+	 fi; \
+	 echo "✓ All skills have misc/evals/ entries"

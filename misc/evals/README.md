@@ -28,6 +28,32 @@ misc/evals/<skill>/
 pip install pyyaml
 ```
 
+## Adding evals for a new skill
+
+Every skill in `skills/` must have a matching entry in `misc/evals/` (except upstream-synced skills: `skill-creator` and `terraform-skill`, which are maintained externally). The onboarding path is scripted:
+
+```bash
+cd misc/evals
+make init-evals SKILL=<your-skill>
+```
+
+This copies `_template/` to `misc/evals/<your-skill>/` and substitutes `<REPLACE>` → `<your-skill>` across every file. The resulting directory has:
+
+- `triggering.json` — 2-entry skeleton (1 positive + 1 negative). Expand to ≥16 prompts with balanced positives and near-miss negatives.
+- `evals.json` — 1-entry skeleton; add 2–4 realistic task prompts. Every assertion is tagged `TODO: human review` until a human tunes it.
+- `README.md` — fill in the four `<REPLACE>` sections (scope, neighbor-skill disambiguation, live-MCP caveat, how to run).
+- `files/` — empty; drop input fixtures here as prompts demand.
+
+To verify every skill has an eval entry:
+
+```bash
+make check-evals-coverage
+```
+
+Fails with a list of missing skills. Exits 0 when every `skills/<name>/` (minus the upstream-synced pair) has a corresponding `misc/evals/<name>/`.
+
+See `CONTRIBUTING.md` for the full new-skill workflow including when in the PR lifecycle these pieces land.
+
 ## The working-directory quirk
 
 `skills/skill-creator/scripts/__init__.py` exists (it marks `scripts/` as a Python package) and intra-package imports use `from scripts.xxx import yyy`. That forces **module-mode invocation** with cwd set to `skills/skill-creator/`:

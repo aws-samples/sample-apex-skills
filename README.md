@@ -15,7 +15,9 @@ sample-apex-skills/
 ├── skills/       → 📚 Domain knowledge (EKS best practices, Terraform, skill creation)
 ├── steering/     → 🎯 Guided workflows (optional — structured engagement playbooks)
 ├── examples/     → 🏗️ Hands-on exercises (deployable labs with planted issues)
-└── misc/         → 🔧 Maintenance scripts (sync skills from sources, update cross-references)
+└── misc/         → 🔧 Maintenance and tooling
+    ├── evals/    → 🧪 Per-skill evaluation inputs (triggering + task prompts)
+    └── (scripts) → Sync skills from sources, update cross-references
 ```
 
 | Directory | Purpose | Think of it as... |
@@ -23,7 +25,7 @@ sample-apex-skills/
 | `skills/` | **What** the agent knows — reusable domain knowledge | An expert's brain |
 | `steering/` | **How** the agent runs an engagement — slash commands, questionnaires, checkpoints, routing | A senior SA's playbook |
 | `examples/` | **How** to try it — deploy, run APEX against it, see results | A workshop lab |
-| `misc/` | Maintenance tooling — keep skills in sync, update references | The toolbox |
+| `misc/` | Maintenance tooling and per-skill evaluation inputs | The toolbox |
 
 > **Key principle:** Skills provide the knowledge. Steering provides the structure.  
 
@@ -160,6 +162,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
 - How to create a new skill
 - How to create a new steering workflow
 - How to create a new example
+- How to add evals for a new skill
 
 ---
 
