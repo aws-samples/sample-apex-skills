@@ -23,7 +23,7 @@ my-skill/
 <!-- SKILLS_DETAIL_START -->
 ### [eks-best-practices](./eks-best-practices/)
 
-Comprehensive Amazon EKS best practices for cluster architecture, security, networking, autoscaling, reliability, and operations. Use when (1) designing EKS cluster architecture, (2) choosing between compute options (Fargate, MNG, Karpenter, Auto Mode), (3) planning EKS networking or security, (4) reviewing EKS architecture decisions, (5) working with terraform-aws-modules/terraform-aws-eks examples, (6) planning cluster upgrades, or (7) optimizing EKS cost and scalability.
+Use this skill whenever someone is making an Amazon EKS design, architecture, or configuration decision — even phrased casually as "how should we set up...", "what's the right way to...", "should we use X or Y", "we're about to redesign/consolidate/migrate...", or "is this reasonable?". Covers: compute strategy (Karpenter, MNG, Fargate, Auto Mode, self-managed), consolidation or migration between compute models, multi-tenant platform design and tenant isolation (namespaces, node pools, RBAC, network policies, quotas), VPC/IP planning, ingress, IAM/Pod Identity/IRSA, pod security, PDBs and reliability, upgrade strategy (in-place vs blue-green), cost (Spot, Graviton, consolidation), autoscaling, and observability. Also triggers for Terraform with terraform-aws-modules/terraform-aws-eks (access entries, addons, node groups, IRSA). Trigger even if "best practice" is never said — any EKS planning or architectural judgment call qualifies. Skip for step-by-step upgrade execution (eks-upgrader) or pure Kubernetes questions unrelated to EKS.
 
 **References** (loaded on demand):
 
@@ -119,7 +119,9 @@ Create new skills, modify and improve existing skills, and measure skill perform
 | [package_skill.py](./skill-creator/scripts/package_skill.py) | Package_skill |
 | [quick_validate.py](./skill-creator/scripts/quick_validate.py) | Quick_validate |
 | [run_eval.py](./skill-creator/scripts/run_eval.py) | Run_eval |
+| [run_eval_real.py](./skill-creator/scripts/run_eval_real.py) | Run_eval_real |
 | [run_loop.py](./skill-creator/scripts/run_loop.py) | Run_loop |
+| [run_loop_real.py](./skill-creator/scripts/run_loop_real.py) | Run_loop_real |
 | [utils.py](./skill-creator/scripts/utils.py) | Utils |
 
 **Assets:**
