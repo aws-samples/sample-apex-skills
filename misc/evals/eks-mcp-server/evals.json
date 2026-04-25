@@ -1,0 +1,30 @@
+{
+  "skill_name": "eks-mcp-server",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Walk me through installing the self-hosted EKS MCP Server for Claude Code on my laptop. I'm on macOS, my AWS profile is `dev-admin`, and I only want read access for now — no write or sensitive-data tools. Where does the config file go and what exactly should it contain?",
+      "expected_output": "A step-by-step setup that covers prerequisites (Python 3.10+, uv/uvx), the Claude Code config file path (.mcp.json project-scope or ~/.claude/mcp.json user-scope), a concrete mcpServers JSON block invoking uvx awslabs.eks-mcp-server@latest with AWS_PROFILE=dev-admin, explicit omission of --allow-write and --allow-sensitive-data-access for read-only mode, and the restart-then-verify step.",
+      "expectations": [
+        "The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or `~/.claude/mcp.json` (user scope). TODO: human review",
+        "The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that invokes `uvx` with `awslabs.eks-mcp-server@latest` and sets `AWS_PROFILE` to `dev-admin`. TODO: human review",
+        "The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the args array (or equivalently tells the user to leave them out) to satisfy the read-only requirement. TODO: human review",
+        "The output mentions prerequisites: Python 3.10+ and the `uv`/`uvx` package manager (installable via the astral.sh/uv script). TODO: human review",
+        "The output tells the user to restart Claude Code after editing the config and verify by asking to list EKS clusters or available MCP tools. TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I set up the AWS-hosted EKS MCP Server (mcp-proxy-for-aws) in my Amazon Q CLI config, but every tool call fails with `AccessDenied: User is not authorized to perform eks-mcp:InvokeMcp`. The tools show up in the list but none of them work. What's wrong and how do I fix it?",
+      "expected_output": "A diagnosis that this is an IAM permissions problem on the caller principal, not an MCP config bug — the AWS-hosted proxy requires specific eks-mcp:* actions (InvokeMcp for discovery, CallReadOnlyTool for reads, CallPrivilegedTool for writes). The fix is to attach the AmazonEKSMCPReadOnlyAccess managed policy (or a custom policy granting those actions) to the IAM user/role and retry.",
+      "expectations": [
+        "The output identifies the root cause as missing IAM permissions on the caller principal for the `eks-mcp:*` action family, not a client-config bug. TODO: human review",
+        "The output names the `AmazonEKSMCPReadOnlyAccess` AWS managed policy as the standard read-only fix and/or lists the required actions `eks-mcp:InvokeMcp`, `eks-mcp:CallReadOnlyTool`, and `eks-mcp:CallPrivilegedTool`. TODO: human review",
+        "The output gives a concrete remediation step such as `aws iam attach-user-policy` (or attach-role-policy) using the `AmazonEKSMCPReadOnlyAccess` policy ARN. TODO: human review",
+        "The output notes that `CallPrivilegedTool` is only required if the user needs write operations, so read-only access is sufficient to unblock tool calls. TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}
