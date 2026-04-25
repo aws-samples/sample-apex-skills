@@ -119,9 +119,7 @@ Create new skills, modify and improve existing skills, and measure skill perform
 | [package_skill.py](./skill-creator/scripts/package_skill.py) | Package_skill |
 | [quick_validate.py](./skill-creator/scripts/quick_validate.py) | Quick_validate |
 | [run_eval.py](./skill-creator/scripts/run_eval.py) | Run_eval |
-| [run_eval_real.py](./skill-creator/scripts/run_eval_real.py) | Run_eval_real |
 | [run_loop.py](./skill-creator/scripts/run_loop.py) | Run_loop |
-| [run_loop_real.py](./skill-creator/scripts/run_loop_real.py) | Run_loop_real |
 | [utils.py](./skill-creator/scripts/utils.py) | Utils |
 
 **Assets:**

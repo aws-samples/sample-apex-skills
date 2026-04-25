@@ -1,12 +1,13 @@
 ---
 name: eks-upgrader
 description: EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other EKS add-ons and ecosystem controllers (CoreDNS, kube-proxy, VPC CNI, ingress controllers, cluster-autoscaler). Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.
-license: Apache-2.0
 ---
 
 # EKS Upgrader
 
-Focused knowledge for upgrading EKS clusters and the ecosystem components that run on them. This skill complements `eks-best-practices` (which covers general cluster-upgrades knowledge) with deeper, component-specific upgrade guidance.
+Focused knowledge for upgrading EKS clusters and the ecosystem components that run on them.
+
+## When to Use This Skill
 
 **Don't use this skill for:**
 - Cluster reconnaissance / current-state discovery — use `eks-recon`

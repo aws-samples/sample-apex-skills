@@ -1,7 +1,6 @@
 ---
 name: eks-best-practices
 description: Use this skill whenever someone is making an Amazon EKS design, architecture, or configuration decision — even phrased casually as "how should we set up...", "what's the right way to...", "should we use X or Y", "we're about to redesign/consolidate/migrate...", or "is this reasonable?". Covers: compute strategy (Karpenter, MNG, Fargate, Auto Mode, self-managed), consolidation or migration between compute models, multi-tenant platform design and tenant isolation (namespaces, node pools, RBAC, network policies, quotas), VPC/IP planning, ingress, IAM/Pod Identity/IRSA, pod security, PDBs and reliability, upgrade strategy (in-place vs blue-green), cost (Spot, Graviton, consolidation), autoscaling, and observability. Also triggers for Terraform with terraform-aws-modules/terraform-aws-eks (access entries, addons, node groups, IRSA). Trigger even if "best practice" is never said — any EKS planning or architectural judgment call qualifies. Skip for step-by-step upgrade execution (eks-upgrader) or pure Kubernetes questions unrelated to EKS.
-license: Apache-2.0
 ---
 
 # EKS Best Practices
@@ -378,10 +377,7 @@ This skill uses **progressive disclosure** — essential guidance is in this mai
 
 **How to use:** When you need detailed information on a topic, reference the appropriate guide. Claude will load it on demand.
 
-## License
+## Sources
 
-This skill is licensed under the **Apache License 2.0**.
-
-**Sources:**
 - [AWS EKS Best Practices Guide](https://docs.aws.amazon.com/eks/latest/best-practices/)
 - [terraform-aws-modules/terraform-aws-eks](https://github.com/terraform-aws-modules/terraform-aws-eks)

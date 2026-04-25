@@ -22,7 +22,7 @@ Discover everything about an EKS cluster environment. Run this skill to gather c
 - Another workflow needs cluster information as input
 - You need to understand the cluster before giving recommendations
 
-**Don't use for:**
+**Don't use this skill for:**
 - Creating or modifying cluster resources (this is read-only)
 - Troubleshooting specific issues (use `eks-best-practices` or `eks-upgrader`)
 - Learning about EKS concepts (use `eks-best-practices`)
@@ -226,7 +226,7 @@ cluster:
   region: us-west-2
   version: "1.31"
   platform_version: eks.5
-  endpoint: https://XXXXX.gr7.us-west-2.eks.amazonaws.com
+  endpoint: https://<cluster-id>.gr7.us-west-2.eks.amazonaws.com
   arn: arn:aws:eks:us-west-2:<account-id>:cluster/my-cluster
   status: ACTIVE
   created_at: "2024-09-10T12:00:00Z"

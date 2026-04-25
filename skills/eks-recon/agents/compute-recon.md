@@ -1,8 +1,6 @@
 ---
 name: eks-recon-compute
 description: EKS compute strategy reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS Compute Reconnaissance Agent

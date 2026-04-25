@@ -348,3 +348,9 @@ If you discover a potential security issue in this project we ask that you notif
 ## Licensing
 
 See the [LICENSE](LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+
+### Per-skill `license:` frontmatter
+
+Most skills in this repo are authored in-house under Amazon copyright and are governed by the repo's root [LICENSE](LICENSE) file (MIT-0). These skills MUST NOT declare a `license:` field in their `SKILL.md` frontmatter — the repo LICENSE governs.
+
+Only skills synced from an upstream project carry their own `license:` field and a sibling `LICENSE` file in the skill directory, and MUST be accompanied by an entry in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). See `skills/terraform-skill/` (Apache-2.0, synced from `antonbabenko/terraform-skill`) and `skills/skill-creator/` (Apache-2.0, synced from `anthropics/skills`) for examples. Do not edit these skills directly — changes belong upstream, and the local copy is overwritten on the next sync (see `misc/sync-*.sh`).

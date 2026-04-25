@@ -1,8 +1,6 @@
 ---
 name: eks-recon-workloads
 description: EKS workloads reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS Workloads Reconnaissance Agent
