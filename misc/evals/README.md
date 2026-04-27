@@ -14,7 +14,136 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 ## Scorecard
 
-_Not yet run. Run `make score` from `misc/evals/` to populate._
+*Last updated: 2026-04-27T09:22Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 1 · git HEAD: 17de0dd*
+
+| Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Hygiene |
+|---|---|---|---|---|---|---|---|
+| eks-best-practices | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | — | — | ⚠ |
+| eks-mcp-server | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | — | — | ✓ |
+| eks-recon | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | — | — | ⚠ |
+| eks-upgrader | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | — | — | ✓ |
+
+> Hygiene warnings (`⚠`) render only when `quick_validate` fails, `triggering.json` has fewer than 8 positives/negatives, `evals.json` has fewer than 2 prompts or <3 expectations on any prompt, or the sibling-map parser reports unattributed negatives. When a row is `⚠`, the detail block surfaces the specific warnings.
+
+<details><summary>eks-best-practices detail</summary>
+
+**Hygiene warnings:**
+
+- quick_validate failed: Invalid YAML in frontmatter: mapping values are not allowed here
+  in "<unicode string>", line 2, column 308:
+     ... or "is this reasonable?". Covers: compute strategy (Karpenter, M ... 
+                                         ^
+
+**Per-sibling leakage** (negatives where we triggered when we shouldn't):
+
+| Decoy sibling | Leak rate |
+|---|---|
+| eks-mcp-server | 0/1 |
+| eks-recon | 0/3 |
+| eks-upgrader | 0/2 |
+| other | 0/2 |
+
+**Threshold sweep:**
+
+| Threshold | Overall | Positive | Negative |
+|---|---|---|---|
+| 0.33 | 8/16 | 0/8 | 8/8 |
+| 0.50 | 8/16 | 0/8 | 8/8 |
+| 0.67 | 8/16 | 0/8 | 8/8 |
+
+**Run history** (last 1, sourced from `misc/evals/history/eks-best-practices.jsonl`):
+
+| UTC | Overall | TPR | TNR | Model |
+|---|---|---|---|---|
+| 2026-04-27T09:18:02Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+
+</details>
+
+<details><summary>eks-mcp-server detail</summary>
+
+**Per-sibling leakage** (negatives where we triggered when we shouldn't):
+
+| Decoy sibling | Leak rate |
+|---|---|
+| eks-best-practices | 0/1 |
+| eks-recon | 0/4 |
+| eks-upgrader | 0/2 |
+| other | 0/1 |
+
+**Threshold sweep:**
+
+| Threshold | Overall | Positive | Negative |
+|---|---|---|---|
+| 0.33 | 8/16 | 0/8 | 8/8 |
+| 0.50 | 8/16 | 0/8 | 8/8 |
+| 0.67 | 8/16 | 0/8 | 8/8 |
+
+**Run history** (last 1, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
+
+| UTC | Overall | TPR | TNR | Model |
+|---|---|---|---|---|
+| 2026-04-27T09:18:44Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+
+</details>
+
+<details><summary>eks-recon detail</summary>
+
+**Hygiene warnings:**
+
+- sibling map does not attribute negative indices: [14, 15]
+
+**Unattributed negatives** (not found in sibling map — bucketed as `other`): 14, 15
+
+**Per-sibling leakage** (negatives where we triggered when we shouldn't):
+
+| Decoy sibling | Leak rate |
+|---|---|
+| eks-best-practices | 0/3 |
+| eks-upgrader | 0/3 |
+| other | 0/2 |
+
+**Threshold sweep:**
+
+| Threshold | Overall | Positive | Negative |
+|---|---|---|---|
+| 0.33 | 8/16 | 0/8 | 8/8 |
+| 0.50 | 8/16 | 0/8 | 8/8 |
+| 0.67 | 8/16 | 0/8 | 8/8 |
+
+**Run history** (last 1, sourced from `misc/evals/history/eks-recon.jsonl`):
+
+| UTC | Overall | TPR | TNR | Model |
+|---|---|---|---|---|
+| 2026-04-27T09:19:55Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+
+</details>
+
+<details><summary>eks-upgrader detail</summary>
+
+**Per-sibling leakage** (negatives where we triggered when we shouldn't):
+
+| Decoy sibling | Leak rate |
+|---|---|
+| eks-best-practices | 0/3 |
+| eks-mcp-server | 0/1 |
+| eks-recon | 0/3 |
+| other | 0/1 |
+
+**Threshold sweep:**
+
+| Threshold | Overall | Positive | Negative |
+|---|---|---|---|
+| 0.33 | 8/16 | 0/8 | 8/8 |
+| 0.50 | 8/16 | 0/8 | 8/8 |
+| 0.67 | 8/16 | 0/8 | 8/8 |
+
+**Run history** (last 1, sourced from `misc/evals/history/eks-upgrader.jsonl`):
+
+| UTC | Overall | TPR | TNR | Model |
+|---|---|---|---|---|
+| 2026-04-27T09:20:53Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+
+</details>
 
 <!-- SCORECARD_END -->
 
