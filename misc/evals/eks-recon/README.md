@@ -6,9 +6,11 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 
 ## Neighbour-skill disambiguation
 
+<!-- SIBLING_MAP_START -->
 - **`eks-best-practices`** — owns architectural / design judgement calls ("should we use X or Y", tenant isolation, ingress placement). Negatives at items 9–11 (`should_trigger: false`) are phrased as design questions and must route there, not to recon.
 - **`eks-upgrader`** — owns executing upgrades and component-specific upgrade procedures (in-place, blue-green, Karpenter bumps). Negatives at items 12–14 ask for step-by-step upgrade runbooks and belong to the upgrader, not recon. Note: item 2 in the positives ("about to upgrade, give me context first") IS recon because it asks for pre-upgrade discovery rather than upgrade execution.
 - **`eks-mcp-server`** — owns setup/configuration of the EKS MCP server itself. Item 15 asks how to install the MCP server locally, which is a meta-tooling question, not a cluster recon request.
+<!-- SIBLING_MAP_END -->
 
 Item 16 is a pure Kubernetes-internals question with no EKS hook — a sanity negative.
 
