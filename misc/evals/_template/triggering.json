@@ -1,0 +1,4 @@
+[
+  { "query": "<REPLACE: positive prompt that should trigger this skill>", "should_trigger": true },
+  { "query": "<REPLACE: near-miss negative prompt that should NOT trigger this skill>", "should_trigger": false }
+]

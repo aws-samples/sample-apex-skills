@@ -1,0 +1,14 @@
+{
+  "skill_name": "<REPLACE>",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "<REPLACE: realistic task prompt>",
+      "expected_output": "<REPLACE: what a correct response looks like>",
+      "expectations": [
+        "<REPLACE: grader-checkable assertion> — TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}

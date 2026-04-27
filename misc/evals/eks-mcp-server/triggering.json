@@ -1,0 +1,19 @@
+[
+  {"query": "I want to connect Claude Code to my EKS clusters. Should I use the self-hosted EKS MCP Server or the AWS-hosted one?", "should_trigger": true},
+  {"query": "Walk me through installing the awslabs eks-mcp-server locally with uvx and an AWS profile.", "should_trigger": true},
+  {"query": "What IAM policy do I need to attach to run the self-hosted EKS MCP Server in IAM mode?", "should_trigger": true},
+  {"query": "I added the eks-mcp config to my mcp.json but when I restart Claude Code no EKS tools show up. What's wrong?", "should_trigger": true},
+  {"query": "Where does the mcp.json file live for Amazon Q CLI vs Claude Code vs Cursor? I want the EKS MCP server available in all of them.", "should_trigger": true},
+  {"query": "My EKS MCP Server keeps failing with an AccessDenied on eks-mcp:InvokeMcp. How do I fix this?", "should_trigger": true},
+  {"query": "Should I put the EKS MCP server config in project-scope .mcp.json or user-scope ~/.claude/mcp.json?", "should_trigger": true},
+  {"query": "How do I configure the self-hosted EKS MCP Server in kubeconfig mode so I don't need AWS IAM credentials?", "should_trigger": true},
+
+  {"query": "List all the node groups and Karpenter NodePools in my prod-use1 cluster and tell me what instance families they use.", "should_trigger": false},
+  {"query": "What version is my EKS cluster on and which add-ons are installed?", "should_trigger": false},
+  {"query": "Do a full inventory of my EKS cluster — compute, networking, add-ons, observability — I need context before an upgrade.", "should_trigger": false},
+  {"query": "Check whether my clusters are using IMDSv2 and report any nodes still on v1.", "should_trigger": false},
+  {"query": "Upgrade my EKS cluster from 1.29 to 1.30 — walk me through the in-place procedure.", "should_trigger": false},
+  {"query": "My Karpenter 0.37 install needs to move to 1.x before the EKS 1.31 upgrade. How do I do that?", "should_trigger": false},
+  {"query": "We're building a new multi-tenant EKS platform. Should we use Karpenter, managed node groups, or Auto Mode for the tenant workloads?", "should_trigger": false},
+  {"query": "How do I write my own MCP server in Python using the official SDK? I want to expose an internal API as tools.", "should_trigger": false}
+]

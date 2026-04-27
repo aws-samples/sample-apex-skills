@@ -1,0 +1,31 @@
+{
+  "skill_name": "eks-best-practices",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We run ~40 microservices across 3 product teams on EC2 today and we're moving to EKS. Traffic is spiky, teams want autonomy, and we expect the service count to double in 12 months. Should we run one shared EKS cluster or split per team, and what compute model (Karpenter, MNG, Fargate, Auto Mode) should we default to? Explain the tradeoffs.",
+      "expected_output": "A recommendation that favors a shared multi-tenant cluster with per-team namespace isolation (RBAC, NetworkPolicy, ResourceQuota) unless a concrete isolation driver argues otherwise, and recommends Karpenter (or EKS Auto Mode for minimal ops) as the default data plane given the spiky, varied workload mix. Should cover tradeoffs and call out system components on a stable MNG.",
+      "expectations": [
+        "The output recommends a shared multi-tenant EKS cluster as the default over per-team clusters for this scale, with per-team namespace isolation (at least two of: RBAC, NetworkPolicy, ResourceQuota) called out explicitly. TODO: human review",
+        "The output recommends Karpenter (or EKS Auto Mode) as the default compute model over pure MNG or Fargate, citing at least one concrete reason such as consolidation, instance flexibility, or faster scale-up for spiky traffic. TODO: human review",
+        "The output recommends running system/platform components (e.g. CoreDNS, Karpenter controller, ingress controller) on a stable managed node group or Fargate rather than on Karpenter-managed workload nodes. TODO: human review",
+        "The output names at least one concrete trigger that would justify splitting into multiple clusters (e.g. strict compliance/data-residency boundary, blast-radius isolation for a critical workload, or drastically different upgrade cadences). TODO: human review",
+        "The output mentions a path for tenant autonomy that is not cluster-per-team (e.g. namespace-as-a-service, GitOps per-team app-of-apps, or platform abstractions) so teams can move fast on a shared cluster. TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Review this EKS setup for production readiness. We have a single managed node group of 2 m5.large on-demand nodes in one AZ, no Pod Disruption Budgets defined, no ingress controller installed yet (we're hitting pods via NodePort), and application IAM permissions are attached directly to the node IAM role. What should we fix, in priority order?",
+      "expected_output": "A prioritized review flagging the single-AZ node group as the top reliability risk, missing PDBs as a disruption/upgrade hazard, NodePort as an ingress anti-pattern (recommend AWS Load Balancer Controller with ALB/NLB or Gateway API), and node-role IAM as a security anti-pattern (recommend Pod Identity or IRSA). Should suggest multi-AZ spread and topology spread constraints.",
+      "expectations": [
+        "The output identifies the single-AZ / two-node configuration as a high-priority reliability issue and recommends spreading nodes across at least 3 AZs (or 2 at minimum) with topology spread constraints or equivalent. TODO: human review",
+        "The output recommends adding Pod Disruption Budgets for production workloads with more than one replica, with at least one concrete example target (e.g. minAvailable 50% for stateless, maxUnavailable 1 for stateful quorum). TODO: human review",
+        "The output flags NodePort as inappropriate for production ingress and recommends the AWS Load Balancer Controller with ALB or NLB (or Gateway API) as the replacement. TODO: human review",
+        "The output flags attaching application IAM permissions to the node role as a security anti-pattern and recommends migrating to EKS Pod Identity (preferred) or IRSA per workload. TODO: human review",
+        "The output presents the fixes in a prioritized order (e.g. reliability first, then security, then ingress) rather than as an unordered list. TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}
