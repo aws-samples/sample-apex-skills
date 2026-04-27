@@ -9,6 +9,19 @@ This directory hosts evaluation inputs for the four in-scope skills so every cap
 
 There is **no custom harness here.** The only new code is the top-level `Makefile`, which encodes the exact invocation patterns for `skill-creator`'s existing scripts. All eval logic lives upstream at `skills/skill-creator/`.
 
+## Current status
+
+Last updated: not yet run — populate as evals complete.
+
+| Skill                | Triggering accuracy | Task pass rate | Last run |
+|----------------------|---------------------|----------------|----------|
+| `eks-recon`          | —                   | —              | —        |
+| `eks-best-practices` | —                   | —              | —        |
+| `eks-upgrader`       | —                   | —              | —        |
+| `eks-mcp-server`     | —                   | —              | —        |
+
+Refresh after a run: copy triggering `N/M` and accuracy from `run_eval` / `run_loop` output; copy task pass rate from the `benchmark.md` produced by `make benchmark-<skill>`. Bump `Last updated:` above.
+
 ## Per-skill layout
 
 ```
