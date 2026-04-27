@@ -6,8 +6,13 @@
 # paths as absolute paths ($(EVALS_ROOT)/…) so the cwd change is invisible to callers.
 #
 # Override on the command line:
-#   make triggering-eks-recon MODEL=claude-sonnet-4-5
+#   make triggering-eks-recon MODEL=claude-opus-4-7
 #   make benchmark-eks-recon BENCHMARK_DIR=/abs/path/to/run-dir
+#
+# MODEL default is the current Claude flagship. The `claude` CLI has no cheap
+# availability probe (`--help` accepts any --model string, including bogus
+# ones), so we don't try to auto-detect — override if your env exposes a
+# different alias.
 
 SHELL          := /bin/bash
 

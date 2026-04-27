@@ -23,4 +23,4 @@ The key discriminators for `eks-best-practices`: the prompt asks for a *decision
 
 ## How to run
 
-See `/workspace/sample-apex-skills/misc/evals/README.md` for the full workflow, and the top-level `Makefile` targets (`make trigger-eks-best-practices`, `make eval-eks-best-practices`) for the exact invocations.
+See `/workspace/sample-apex-skills/misc/evals/README.md` for the full workflow. Per-skill Makefile targets: `make triggering-eks-best-practices` (triggering accuracy), `make optimize-eks-best-practices` (iterative description optimizer), `make benchmark-eks-best-practices BENCHMARK_DIR=…` (aggregate `grading.json` files into `benchmark.md`).

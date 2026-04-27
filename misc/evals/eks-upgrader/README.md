@@ -19,4 +19,4 @@ These evals exercise the `eks-upgrader` skill's declared scope: **executing** EK
 
 ## How to run
 
-See `/workspace/sample-apex-skills/misc/evals/README.md` for the eval harness and the relevant `Makefile` targets (`make triggering` and `make evals`, typically scoped by skill name).
+See `/workspace/sample-apex-skills/misc/evals/README.md` for the eval harness. Per-skill Makefile targets: `make triggering-eks-upgrader` (triggering accuracy), `make optimize-eks-upgrader` (iterative description optimizer), `make benchmark-eks-upgrader BENCHMARK_DIR=…` (aggregate `grading.json` files into `benchmark.md`).
