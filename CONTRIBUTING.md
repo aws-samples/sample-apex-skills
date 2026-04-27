@@ -266,10 +266,17 @@ See the `skill-creator` skill in `skills/skill-creator/SKILL.md` for the full gu
 
 1. Understand the skill with concrete examples
 2. Plan reusable contents (scripts, references, assets)
-3. Initialize: `python skills/skill-creator/scripts/init_skill.py <name> --path skills/`
-4. Edit SKILL.md and add references
-5. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`
-6. Iterate based on real usage
+3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists)
+4. Set up evals: `cd misc/evals && make init-evals SKILL=<name>`, then fill in the `<REPLACE>` markers in `triggering.json`, `evals.json`, and `README.md` — see [`misc/evals/README.md`](misc/evals/README.md)
+5. Validate: `make validate-<name>` (from `misc/evals/`) and `make check-evals-coverage`
+6. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`
+7. Iterate based on real usage
+
+### Pre-PR checklist for new skills
+
+- [ ] `make validate-<name>` passes
+- [ ] `misc/evals/<name>/` has `triggering.json` (≥16 prompts, balanced), `evals.json` (≥2 task prompts), and a filled-in `README.md`
+- [ ] `make check-evals-coverage` exits 0
 
 ## Creating a New Steering Workflow
 

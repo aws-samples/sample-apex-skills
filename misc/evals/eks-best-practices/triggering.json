@@ -1,0 +1,19 @@
+[
+  {"query": "We're standing up a new EKS cluster for a growing platform team. Should we default to Karpenter, managed node groups, or EKS Auto Mode for the data plane?", "should_trigger": true},
+  {"query": "Three product teams want to share one EKS cluster. What's the right approach for tenant isolation across namespaces, node pools, and network policies?", "should_trigger": true},
+  {"query": "Our VPC is running short on IPs and we expect 50+ pods per node. How should we plan subnets and VPC CNI mode for a new EKS cluster?", "should_trigger": true},
+  {"query": "For a new EKS workload that needs AWS permissions, should we use IRSA or EKS Pod Identity? Any reason to still pick IRSA for new stuff?", "should_trigger": true},
+  {"query": "We're about to roll out our first production services on EKS. What PDBs, probes, and topology spread settings should we put in place for reliability?", "should_trigger": true},
+  {"query": "We have a critical production EKS cluster and an upgrade coming up. Should we do in-place or blue-green? How do we decide?", "should_trigger": true},
+  {"query": "EKS bill is creeping up. What are the highest-leverage cost levers — Graviton, Spot, Karpenter consolidation — and in what order?", "should_trigger": true},
+  {"query": "Here's our node group setup: 2 m5.large on-demand nodes in one AZ, no PDBs, no ingress controller yet. Is this reasonable for prod?", "should_trigger": true},
+
+  {"query": "What version of Kubernetes is my EKS cluster currently running, and which add-ons are installed?", "should_trigger": false},
+  {"query": "Can you inventory what's in my EKS cluster right now — node groups, Karpenter, ingress, CI/CD tooling — before I plan an upgrade?", "should_trigger": false},
+  {"query": "I need a snapshot of everything running in the cluster: workloads, namespaces, IAM associations. Discovery only, no recommendations yet.", "should_trigger": false},
+  {"query": "Walk me through the exact steps to upgrade my EKS control plane from 1.29 to 1.30 in place, including the aws CLI commands.", "should_trigger": false},
+  {"query": "My Karpenter upgrade from v0.37 to 1.0 is failing with a webhook error during the CRD migration. How do I fix it?", "should_trigger": false},
+  {"query": "How do I install the EKS MCP server and wire it up to Claude Code so I can query live clusters?", "should_trigger": false},
+  {"query": "What's the difference between a Kubernetes Deployment and a StatefulSet, and when would I use each?", "should_trigger": false},
+  {"query": "We're evaluating AKS vs GKE for a new workload. Which managed Kubernetes service has better node autoscaling out of the box?", "should_trigger": false}
+]

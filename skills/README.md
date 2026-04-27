@@ -202,4 +202,8 @@ This simple format has some key advantages:
 * [Read authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) for writing effective skills.
 * [Use the reference library](https://github.com/agentskills/agentskills/tree/main/skills-ref) to validate skills and generate prompt XML.
 
+### Evaluating skills
+
+Every in-repo skill has a matching evaluation entry under [`misc/evals/`](../misc/evals/) — a `triggering.json` for trigger-accuracy tests and an `evals.json` for end-to-end task-usefulness tests, both runnable via the tooling in [`skills/skill-creator/`](./skill-creator/). See [`misc/evals/README.md`](../misc/evals/README.md) for the capability catalogue and how to run each eval type.
+
 ---

@@ -1,0 +1,22 @@
+[
+  {"query": "What version is my EKS cluster prod-use1 running right now?", "should_trigger": true},
+  {"query": "I'm about to upgrade cluster foo from 1.29 to 1.30 — can you pull together everything you know about it first so I have context?", "should_trigger": true},
+  {"query": "Take a look at my EKS cluster `payments-prod` in us-east-1 and tell me what's going on in there.", "should_trigger": true},
+  {"query": "Am I using Karpenter or managed node groups on the platform cluster?", "should_trigger": true},
+  {"query": "How is cluster bar-staging managed? Is it Terraform, CDK, eksctl, something else?", "should_trigger": true},
+  {"query": "Give me an inventory of every EKS add-on and Helm release installed on cluster apex-prod.", "should_trigger": true},
+  {"query": "Document the networking and security posture of our dev cluster for the new platform engineer starting Monday.", "should_trigger": true},
+  {"query": "Before I touch anything, walk me through what's deployed in the cluster and how CI/CD gets things there.", "should_trigger": true},
+
+  {"query": "We're designing a new EKS cluster from scratch — should we go with Karpenter or Auto Mode for the compute layer?", "should_trigger": false},
+  {"query": "What's the recommended way to do tenant isolation on a shared EKS platform — separate node pools, namespaces, network policies?", "should_trigger": false},
+  {"query": "Is it a better practice to run my ingress controller on Fargate or on Karpenter-managed nodes?", "should_trigger": false},
+
+  {"query": "Execute the in-place upgrade of cluster prod-use1 from 1.29 to 1.30 and walk me through each step.", "should_trigger": false},
+  {"query": "Give me the exact procedure to upgrade Karpenter from 0.37 to 1.0 on an EKS cluster.", "should_trigger": false},
+  {"query": "I need the blue-green upgrade runbook for moving a production EKS cluster two minor versions forward.", "should_trigger": false},
+
+  {"query": "How do I install and configure the EKS MCP server locally so Claude can reach my clusters?", "should_trigger": false},
+
+  {"query": "Explain how Kubernetes StatefulSet rolling updates work at the controller level.", "should_trigger": false}
+]

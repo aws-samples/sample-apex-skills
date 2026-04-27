@@ -1,0 +1,19 @@
+[
+  {"query": "Walk me through upgrading my EKS cluster from 1.29 to 1.30. What's the procedure?", "should_trigger": true},
+  {"query": "We're on Karpenter 0.37 and I need to move to Karpenter 1.x before our next EKS upgrade. What are the breaking changes and how do I do the migration?", "should_trigger": true},
+  {"query": "Is CoreDNS 1.11.3 compatible with EKS 1.31? And what about kube-proxy and the VPC CNI add-on versions I should target?", "should_trigger": true},
+  {"query": "Give me the step-by-step blue-green cluster migration procedure for EKS. We need to move workloads from a 1.27 cluster to a fresh 1.31 one.", "should_trigger": true},
+  {"query": "My EKS control plane upgrade from 1.28 to 1.29 is stuck in UPDATING for 45 minutes. How do I debug this?", "should_trigger": true},
+  {"query": "We still have workloads using PodDisruptionBudget policy/v1beta1 and flowcontrol v1beta2. What EKS version removes those and how do I assess the blast radius before upgrading?", "should_trigger": true},
+  {"query": "Our Istio control plane is on 1.20 installed via Helm. We want to upgrade EKS to 1.31 — what's the recommended Istio upgrade sequence, including revision tags and sidecar rollout?", "should_trigger": true},
+  {"query": "EKS 1.27 goes into extended support next month. Walk me through the upgrade path to get to a supported version, including cluster-autoscaler and ingress-nginx compatibility along the way.", "should_trigger": true},
+
+  {"query": "What version of EKS am I running and which add-ons do we have installed? I just inherited this cluster.", "should_trigger": false},
+  {"query": "Can you do a discovery pass on our EKS environment — compute strategy, IaC tool, CI/CD setup — so we know what we're working with?", "should_trigger": false},
+  {"query": "Before we plan anything, tell me what's deployed in the cluster: node groups, Karpenter NodePools, ingress controllers, observability stack.", "should_trigger": false},
+  {"query": "We're debating in-place vs blue-green for our EKS upgrade strategy. Given we're a regulated fintech with tight rollback requirements, which approach should we choose?", "should_trigger": false},
+  {"query": "Is blue-green cluster migration worth the 2x cost for us? We run mostly stateless services on Karpenter.", "should_trigger": false},
+  {"query": "We're redesigning our EKS platform for multi-tenancy and upgrades come up a lot — what's the right architecture to make upgrades less painful long-term?", "should_trigger": false},
+  {"query": "How do I install and configure the EKS MCP server so my AI assistant can actually talk to my cluster?", "should_trigger": false},
+  {"query": "What's the upgrade procedure for a self-managed vanilla Kubernetes cluster running on bare metal from 1.28 to 1.30?", "should_trigger": false}
+]

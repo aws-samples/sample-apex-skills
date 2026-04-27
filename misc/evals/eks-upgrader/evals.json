@@ -1,0 +1,30 @@
+{
+  "skill_name": "eks-upgrader",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Walk me through upgrading a production EKS cluster from 1.29 to 1.30. We use Karpenter 0.37 for compute and have Istio 1.20 installed via Helm. Give me a concrete procedure, not generic advice.",
+      "expected_output": "A sequenced in-place upgrade plan covering pre-flight checks (Cluster Insights, subnet IPs, deprecated APIs), control-plane upgrade, add-on compatibility (CoreDNS, kube-proxy, VPC CNI) pinned to 1.30, Karpenter controller + CRD upgrade via the karpenter-crd chart, Istio canary/revision-tag upgrade, and data-plane (Karpenter-managed) node rotation — with explicit mention of non-prod-first and irreversibility of the control-plane step.",
+      "expectations": [
+        "The output enumerates pre-flight checks including Cluster Insights, subnet IP capacity, and a deprecated-API scan (Pluto, kubent, or apiserver_requested_deprecated_apis metric) before touching the control plane. TODO: human review",
+        "The output specifies the correct upgrade order: control plane -> core add-ons (CoreDNS, kube-proxy, VPC CNI) -> Karpenter and Istio -> data-plane node rotation, and notes the control-plane upgrade is irreversible. TODO: human review",
+        "The output addresses Karpenter CRDs specifically — stating the bundled Helm chart does not auto-upgrade CRDs and that the independent karpenter-crd chart must be applied alongside the controller. TODO: human review",
+        "The output gives an Istio-specific upgrade approach (canary/in-place via revision tags, sidecar rollout) rather than a generic 'helm upgrade' one-liner. TODO: human review",
+        "The output recommends non-prod first and includes at least one rollback or validation checkpoint (e.g. verifying node health, PDB behaviour, or add-on readiness) between steps. TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We're on Karpenter 0.37 and need to upgrade to Karpenter 1.x. What breaks, and what's the migration procedure?",
+      "expected_output": "A Karpenter 0.37 -> 1.x migration plan citing the official migration guide, identifying concrete API/CRD/behaviour changes, describing CRD upgrade via the karpenter-crd chart, and noting disruption-budget and drift-replacement considerations plus how Karpenter's own hosting (Fargate vs MNG) affects the upgrade.",
+      "expectations": [
+        "The output references the Karpenter 1.x migration guide or identifies at least 2 concrete behaviour or API changes between 0.37 and 1.x (e.g. NodePool/NodeClaim API stability, removed v1beta1 fields, disruption controls). TODO: human review",
+        "The output explicitly calls out that Karpenter CRDs must be upgraded alongside the controller using the independent karpenter-crd Helm chart, not the bundled one. TODO: human review",
+        "The output warns about percentage-based disruption budgets blocking node replacement (e.g. 10% of 1 node = 0) and suggests how to handle it. TODO: human review",
+        "The output distinguishes Karpenter-on-Fargate vs Karpenter-on-MNG hosting and gives the correct refresh step for each (kubectl rollout restart vs node-group rotation). TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}
