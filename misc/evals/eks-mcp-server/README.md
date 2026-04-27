@@ -17,4 +17,4 @@ The two eval prompts in `evals.json` are about **talking about** the EKS MCP Ser
 
 ## How to run
 
-See `misc/evals/README.md` for the full harness description and the Makefile targets (`make eval-triggering SKILL=eks-mcp-server`, `make eval-tasks SKILL=eks-mcp-server`).
+See `misc/evals/README.md` for the full harness description. Per-skill Makefile targets: `make triggering-eks-mcp-server` (triggering accuracy), `make optimize-eks-mcp-server` (iterative description optimizer), `make benchmark-eks-mcp-server BENCHMARK_DIR=…` (aggregate `grading.json` files into `benchmark.md`).
