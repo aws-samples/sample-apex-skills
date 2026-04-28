@@ -14,18 +14,22 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 ## Scorecard
 
-*Last updated: 2026-04-27T14:59Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: df0334b*
+*Last updated: 2026-04-28T11:02Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: 35cf67d*
 
 | Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Hygiene |
 |---|---|---|---|---|---|---|---|
-| eks-best-practices | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | +0pp | — | ✓ |
-| eks-mcp-server | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | +0pp | — | ✓ |
-| eks-recon | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | +0pp | — | ✓ |
-| eks-upgrader | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | +0pp | — | ✓ |
+| eks-best-practices | 15/16 (94%, CI 72%–99%) | 8/8 | 7/8 | 1 | +44pp | — | ✓ |
+| eks-mcp-server | 11/16 (69%, CI 44%–86%) | 6/8 | 5/8 | 2 | +19pp | — | ✓ |
+| eks-recon | 14/16 (88%, CI 64%–97%) | 8/8 | 6/8 | 4 | +38pp | — | ✓ |
+| eks-upgrader | 13/16 (81%, CI 57%–93%) | 8/8 | 5/8 | 0 | +31pp | — | ✓ |
 
 > Hygiene warnings (`⚠`) render only when `quick_validate` fails, `triggering.json` has fewer than 8 positives/negatives, `evals.json` has fewer than 2 prompts or <3 expectations on any prompt, or the sibling-map parser reports unattributed negatives. When a row is `⚠`, the detail block surfaces the specific warnings.
 
 <details><summary>eks-best-practices detail</summary>
+
+**Flaky queries** (trigger rate strictly between 0 and 1):
+
+- `0.67`  ❌ neg `"My Karpenter upgrade from v0.37 to 1.0 is failing with a webhook error during the CRD migration. …"`
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
 
@@ -33,21 +37,22 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 |---|---|
 | eks-mcp-server | 0/1 |
 | eks-recon | 0/3 |
-| eks-upgrader | 0/2 |
+| eks-upgrader | 1/2 |
 | other | 0/2 |
 
 **Threshold sweep:**
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 8/16 | 0/8 | 8/8 |
-| 0.50 | 8/16 | 0/8 | 8/8 |
-| 0.67 | 8/16 | 0/8 | 8/8 |
+| 0.33 | 15/16 | 8/8 | 7/8 |
+| 0.50 | 15/16 | 8/8 | 7/8 |
+| 0.67 | 16/16 | 8/8 | 8/8 |
 
-**Run history** (last 3, sourced from `misc/evals/history/eks-best-practices.jsonl`):
+**Run history** (last 4, sourced from `misc/evals/history/eks-best-practices.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-04-28T10:52:09Z | 15/16 | 8/8 | 7/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:49:01Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:41:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:18:02Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
@@ -56,12 +61,17 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 <details><summary>eks-mcp-server detail</summary>
 
+**Flaky queries** (trigger rate strictly between 0 and 1):
+
+- `0.33`  ❌ pos `"My EKS MCP Server keeps failing with an AccessDenied on eks-mcp:InvokeMcp. How do I fix this?"`
+- `0.33`  ❌ pos `"Should I put the EKS MCP server config in project-scope .mcp.json or user-scope ~/.claude/mcp.json?"`
+
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
 
 | Decoy sibling | Leak rate |
 |---|---|
 | eks-best-practices | 0/1 |
-| eks-recon | 0/4 |
+| eks-recon | 3/4 |
 | eks-upgrader | 0/2 |
 | other | 0/1 |
 
@@ -69,14 +79,15 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 8/16 | 0/8 | 8/8 |
-| 0.50 | 8/16 | 0/8 | 8/8 |
-| 0.67 | 8/16 | 0/8 | 8/8 |
+| 0.33 | 13/16 | 8/8 | 5/8 |
+| 0.50 | 11/16 | 6/8 | 5/8 |
+| 0.67 | 11/16 | 6/8 | 5/8 |
 
-**Run history** (last 3, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
+**Run history** (last 4, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-04-28T10:54:36Z | 11/16 | 6/8 | 5/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:50:01Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:42:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:18:44Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
@@ -85,27 +96,35 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 <details><summary>eks-recon detail</summary>
 
+**Flaky queries** (trigger rate strictly between 0 and 1):
+
+- `0.67`  ✅ pos `"I'm about to upgrade cluster foo from 1.29 to 1.30 — can you pull together everything you know ab…"`
+- `0.67`  ✅ pos `"Give me an inventory of every EKS add-on and Helm release installed on cluster apex-prod."`
+- `0.33`  ✅ neg `"Is it a better practice to run my ingress controller on Fargate or on Karpenter-managed nodes?"`
+- `0.67`  ❌ neg `"Give me the exact procedure to upgrade Karpenter from 0.37 to 1.0 on an EKS cluster."`
+
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
 
 | Decoy sibling | Leak rate |
 |---|---|
 | eks-best-practices | 0/3 |
 | eks-mcp-server | 0/1 |
-| eks-upgrader | 0/3 |
+| eks-upgrader | 2/3 |
 | other | 0/1 |
 
 **Threshold sweep:**
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 8/16 | 0/8 | 8/8 |
-| 0.50 | 8/16 | 0/8 | 8/8 |
-| 0.67 | 8/16 | 0/8 | 8/8 |
+| 0.33 | 13/16 | 8/8 | 5/8 |
+| 0.50 | 14/16 | 8/8 | 6/8 |
+| 0.67 | 13/16 | 6/8 | 7/8 |
 
-**Run history** (last 2, sourced from `misc/evals/history/eks-recon.jsonl`):
+**Run history** (last 3, sourced from `misc/evals/history/eks-recon.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-04-28T10:57:31Z | 14/16 | 8/8 | 6/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:51:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:19:55Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
@@ -117,7 +136,7 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 | Decoy sibling | Leak rate |
 |---|---|
-| eks-best-practices | 0/3 |
+| eks-best-practices | 3/3 |
 | eks-mcp-server | 0/1 |
 | eks-recon | 0/3 |
 | other | 0/1 |
@@ -126,14 +145,15 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 8/16 | 0/8 | 8/8 |
-| 0.50 | 8/16 | 0/8 | 8/8 |
-| 0.67 | 8/16 | 0/8 | 8/8 |
+| 0.33 | 13/16 | 8/8 | 5/8 |
+| 0.50 | 13/16 | 8/8 | 5/8 |
+| 0.67 | 13/16 | 8/8 | 5/8 |
 
-**Run history** (last 2, sourced from `misc/evals/history/eks-upgrader.jsonl`):
+**Run history** (last 3, sourced from `misc/evals/history/eks-upgrader.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-04-28T11:00:24Z | 13/16 | 8/8 | 5/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:52:19Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:20:53Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
