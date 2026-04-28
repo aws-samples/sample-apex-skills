@@ -14,12 +14,12 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 ## Scorecard
 
-*Last updated: 2026-04-27T14:59Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: df0334b*
+*Last updated: 2026-04-28T06:39Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: 85e9d4b*
 
 | Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Hygiene |
 |---|---|---|---|---|---|---|---|
 | eks-best-practices | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | +0pp | — | ✓ |
-| eks-mcp-server | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | +0pp | — | ✓ |
+| eks-mcp-server | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 1 | +0pp | — | ✓ |
 | eks-recon | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | +0pp | — | ✓ |
 | eks-upgrader | 8/16 (50%, CI 28%–72%) | 0/8 | 8/8 | 0 | +0pp | — | ✓ |
 
@@ -44,10 +44,12 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 | 0.50 | 8/16 | 0/8 | 8/8 |
 | 0.67 | 8/16 | 0/8 | 8/8 |
 
-**Run history** (last 3, sourced from `misc/evals/history/eks-best-practices.jsonl`):
+**Run history** (last 5, sourced from `misc/evals/history/eks-best-practices.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-04-28T06:32:38Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+| 2026-04-28T05:39:54Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:49:01Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:41:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:18:02Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
@@ -55,6 +57,10 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 </details>
 
 <details><summary>eks-mcp-server detail</summary>
+
+**Flaky queries** (trigger rate strictly between 0 and 1):
+
+- `0.33`  ❌ pos `"I want to connect Claude Code to my EKS clusters. Should I use the self-hosted EKS MCP Server or …"`
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
 
@@ -69,14 +75,16 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 8/16 | 0/8 | 8/8 |
+| 0.33 | 9/16 | 1/8 | 8/8 |
 | 0.50 | 8/16 | 0/8 | 8/8 |
 | 0.67 | 8/16 | 0/8 | 8/8 |
 
-**Run history** (last 3, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
+**Run history** (last 5, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-04-28T06:34:16Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+| 2026-04-28T05:41:13Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:50:01Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:42:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:18:44Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
@@ -102,10 +110,12 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 | 0.50 | 8/16 | 0/8 | 8/8 |
 | 0.67 | 8/16 | 0/8 | 8/8 |
 
-**Run history** (last 2, sourced from `misc/evals/history/eks-recon.jsonl`):
+**Run history** (last 4, sourced from `misc/evals/history/eks-recon.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-04-28T06:36:03Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+| 2026-04-28T05:42:19Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:51:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:19:55Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
@@ -130,10 +140,12 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 | 0.50 | 8/16 | 0/8 | 8/8 |
 | 0.67 | 8/16 | 0/8 | 8/8 |
 
-**Run history** (last 2, sourced from `misc/evals/history/eks-upgrader.jsonl`):
+**Run history** (last 4, sourced from `misc/evals/history/eks-upgrader.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-04-28T06:37:45Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+| 2026-04-28T05:43:36Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:52:19Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:20:53Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
@@ -186,6 +198,24 @@ make triggering-eks-best-practices RUNS_PER_QUERY=1 NUM_WORKERS=4
 ### When a default stops working
 
 `claude -p` returns a 400 with a suggested inference-profile when the model ID doesn't exist in the caller's region — switch `MODEL` to whatever it suggests. For Anthropic API users whose access tier doesn't include Opus, override to Sonnet. These defaults live only in `misc/evals/Makefile`; don't duplicate them into `scripts/run_all_evals.py` (it has no own defaults, on purpose — see `PLAN.md` §1.2).
+
+### How the subprocess environment is isolated
+
+Live targets (`triggering-*`, `optimize-*`, `score`, `score-dry`) run through a `with_clean_home` helper in `Makefile`. Before each run it:
+
+1. Creates a temp `HOME` — so user-level skills and plugin-registered skills under `~/.claude/` are invisible to the subprocess.
+2. Temporarily moves `<repo>/.claude/skills/` into `/tmp/evals-skills-stash.*` — so project-level skills aren't discoverable either.
+3. Moves any `<repo>/.claude/commands/*-skill-*.md` into `/tmp/evals-commands-stash.*` — these are leftover ephemeral files from prior crashed `run_eval.py` runs; they advertise stale descriptions that pollute the subprocess's tool list. `run_eval.py` still creates its own fresh ephemeral file per query as normal.
+
+All three are restored on normal exit, Ctrl-C, or SIGTERM via a shell `trap`. Without this, `run_eval.py`'s detector — which only matches on the ephemeral project-level command file `.claude/commands/<skill>-skill-<uuid>.md` it just created — loses against the real installed skill (or a stale competitor) and records 0 triggers on clearly-positive prompts. See `PLAN.md` §1.5 for the full story.
+
+AWS credentials pass through:
+
+- **EC2 instance role** (default on AWS hosts): IAM role discovery doesn't touch `HOME`, so nothing needs forwarding.
+- **`~/.aws/credentials` (laptop path)**: the helper symlinks `$HOME/.aws` → `$tmphome/.aws`, so the AWS SDK inside the subprocess still finds the shared creds file.
+- **`ANTHROPIC_API_KEY` / `CLAUDE_CODE_USE_BEDROCK`**: env vars, inherited normally.
+
+> ⚠  **Do not run another `claude` or `make score` session in this repo while an eval is in flight.** The stash-and-restore is global to `<repo>/.claude/skills/` and `<repo>/.claude/commands/*-skill-*.md`, so a concurrent session would see missing skills and missing slash-commands; a SIGKILL or host reboot during the window would leave the directory moved (manually restorable from `/tmp/evals-skills-stash.*` and `/tmp/evals-commands-stash.*`). `run_all_evals.py` prints this warning and prompts for confirmation (`y/N`) before every live run; `--yes` / `-y` or `EVALS_ASSUME_YES=1` skips the prompt for CI.
 
 ## Per-skill layout
 

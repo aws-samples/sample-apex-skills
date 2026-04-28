@@ -44,6 +44,99 @@ NUM_WORKERS    ?= 10
 MAX_ITER       ?= 5
 RUNS_PER_QUERY ?= 3
 
+# ---------- subprocess isolation for live `claude -p` runs -------------------
+# The `claude -p` subprocess discovers installed skills and commands from
+# three places:
+#
+#   1. $HOME/.claude/                          — user/plugin skills
+#   2. <project>/.claude/skills/               — project-level skills (this
+#                                                repo symlinks here)
+#   3. <project>/.claude/commands/<name>.md    — slash-command / ephemeral
+#                                                skill command files
+#
+# When any of the skills under test are visible to the subprocess via paths
+# (1) or (2), the model triggers the *installed* skill and run_eval.py's
+# detector — which only matches on the ephemeral command file it creates
+# at (3) with an uuid-suffixed name — records `False`. See PLAN §1.5.1.
+#
+# Path (3) has its own hazard: run_eval.py deletes its ephemeral command
+# file in a `finally:` clause, but that cleanup is skipped on SIGKILL,
+# worker crash, or OOM. Stale `<skill>-skill-<hash>.md` files accumulate
+# in .claude/commands/ across failed runs, each advertising its own
+# description. The model happily triggers one of the stale files; the
+# detector sees the tool_use carries `<hash>` that isn't the current
+# clean_name, and records `False`.
+#
+# Fix, three parts — all restored on normal exit, Ctrl-C, or SIGTERM via
+# a single shell `trap`:
+#
+#  (a) Point HOME at an empty temp dir → hides user/plugin skills.
+#      AWS creds on the laptop path reach the subprocess via a
+#      "$HOME/.aws" → "$tmphome/.aws" symlink. EC2 instance-role auth
+#      doesn't touch HOME and passes through unchanged.
+#      ANTHROPIC_API_KEY / CLAUDE_CODE_USE_BEDROCK inherit normally.
+#
+#  (b) Temporarily move <repo>/.claude/skills/ to /tmp/evals-skills-stash.*
+#      → hides project-level skills from find_project_root() discovery.
+#      No-op if the dir doesn't exist.
+#
+#  (c) Temporarily move every <repo>/.claude/commands/*-skill-*.md into
+#      /tmp/evals-commands-stash.* → removes any stale ephemeral files a
+#      prior crashed run left behind. run_eval.py creates its own
+#      ephemeral file per query inside the live .claude/commands/ dir as
+#      normal; the trap moves the stashed files back at the end.
+#
+# EVALS_HOME_CLEAN=1 is set inside the clean subshell so nested make calls
+# (e.g. `make score` → `make triggering-<skill>`) skip the setup/teardown —
+# one layer of isolation is enough, and nested stashes would race.
+#
+# **If this wrapper is killed with SIGKILL (or the host reboots) while a
+# stash is active, the moved state stays in /tmp/evals-*-stash.* until
+# manually restored.** run_all_evals.py prints a warning and prompts for
+# confirmation before each live run so the user knows not to SIGKILL it
+# or run concurrent sessions in the same repo.
+PROJECT_CLAUDE_DIR := $(REPO_ROOT)/.claude
+PROJECT_SKILLS_DIR := $(PROJECT_CLAUDE_DIR)/skills
+PROJECT_COMMANDS_DIR := $(PROJECT_CLAUDE_DIR)/commands
+
+define with_clean_home
+set -e; \
+if [ "$$EVALS_HOME_CLEAN" = "1" ]; then \
+  $(1); \
+else \
+  tmphome=$$(mktemp -d -t evals-home.XXXXXX); \
+  stash=$$(mktemp -d -t evals-skills-stash.XXXXXX); \
+  cstash=$$(mktemp -d -t evals-commands-stash.XXXXXX); \
+  stashed_skills=0; \
+  cleanup() { \
+    if [ "$$stashed_skills" = "1" ] && [ -e "$$stash/skills" ]; then \
+      rm -rf "$(PROJECT_SKILLS_DIR)"; \
+      mv "$$stash/skills" "$(PROJECT_SKILLS_DIR)"; \
+    fi; \
+    if [ -d "$(PROJECT_COMMANDS_DIR)" ] && [ -d "$$cstash" ]; then \
+      for f in "$$cstash"/*; do \
+        [ -e "$$f" ] || continue; \
+        mv "$$f" "$(PROJECT_COMMANDS_DIR)/"; \
+      done; \
+    fi; \
+    rm -rf "$$tmphome" "$$stash" "$$cstash"; \
+  }; \
+  trap cleanup EXIT INT TERM; \
+  if [ -d "$$HOME/.aws" ]; then ln -s "$$HOME/.aws" "$$tmphome/.aws"; fi; \
+  if [ -e "$(PROJECT_SKILLS_DIR)" ]; then \
+    mv "$(PROJECT_SKILLS_DIR)" "$$stash/skills"; \
+    stashed_skills=1; \
+  fi; \
+  if [ -d "$(PROJECT_COMMANDS_DIR)" ]; then \
+    find "$(PROJECT_COMMANDS_DIR)" -maxdepth 1 -type f -name '*-skill-*.md' \
+      -exec mv {} "$$cstash/" \; ; \
+  fi; \
+  export EVALS_HOME_CLEAN=1; \
+  export HOME="$$tmphome"; \
+  $(1); \
+fi
+endef
+
 # Per-skill default locations (override with WORKSPACE=… / BENCHMARK_DIR=…)
 workspace_dir   = $(EVALS_ROOT)/$(1)/workspace
 benchmark_dir   = $(EVALS_ROOT)/$(1)/workspace
@@ -95,32 +188,38 @@ $(VALIDATE_T): validate-%:
 validate-all: $(VALIDATE_T)
 
 # ---------- B  run_eval (LIVE) ------------------------------------------------
+# Wrapped in with_clean_home so the `claude -p` subprocess doesn't see the
+# user's installed skills (see the with_clean_home define above).
 $(TRIGGERING_T): triggering-%:
 	@test -f $(call triggering_json,$*) || \
 	  { echo "missing: $(call triggering_json,$*)"; exit 1; }
-	cd $(SC_DIR) && python3 -m scripts.run_eval \
-	  --eval-set   $(call triggering_json,$*) \
-	  --skill-path $(REPO_ROOT)/skills/$* \
-	  --num-workers $(NUM_WORKERS) \
-	  --runs-per-query $(RUNS_PER_QUERY) \
-	  --model $(MODEL)
+	@$(call with_clean_home, \
+	  cd $(SC_DIR) && python3 -m scripts.run_eval \
+	    --eval-set   $(call triggering_json,$*) \
+	    --skill-path $(REPO_ROOT)/skills/$* \
+	    --num-workers $(NUM_WORKERS) \
+	    --runs-per-query $(RUNS_PER_QUERY) \
+	    --model $(MODEL))
 
 triggering-all: $(TRIGGERING_T)
 
 # ---------- D  run_loop (LIVE; iterative description optimizer) ---------------
+# Wrapped for the same reason as triggering-%: without HOME isolation the
+# installed clone's old description pollutes every optimizer iteration.
 $(OPTIMIZE_T): optimize-%:
 	@test -f $(call triggering_json,$*) || \
 	  { echo "missing: $(call triggering_json,$*)"; exit 1; }
 	mkdir -p $(call workspace_dir,$*)
-	cd $(SC_DIR) && python3 -m scripts.run_loop \
-	  --eval-set   $(call triggering_json,$*) \
-	  --skill-path $(REPO_ROOT)/skills/$* \
-	  --model $(MODEL) \
-	  --max-iterations $(MAX_ITER) \
-	  --num-workers $(NUM_WORKERS) \
-	  --runs-per-query $(RUNS_PER_QUERY) \
-	  --results-dir $(call workspace_dir,$*) \
-	  --report none
+	@$(call with_clean_home, \
+	  cd $(SC_DIR) && python3 -m scripts.run_loop \
+	    --eval-set   $(call triggering_json,$*) \
+	    --skill-path $(REPO_ROOT)/skills/$* \
+	    --model $(MODEL) \
+	    --max-iterations $(MAX_ITER) \
+	    --num-workers $(NUM_WORKERS) \
+	    --runs-per-query $(RUNS_PER_QUERY) \
+	    --results-dir $(call workspace_dir,$*) \
+	    --report none)
 
 # ---------- E  aggregate_benchmark (deterministic) ----------------------------
 # Expects BENCHMARK_DIR to contain eval-*/<config>/run-*/grading.json.
@@ -196,10 +295,10 @@ init-evals:
 # with those overrides when the user passed them on its own CLI. The Makefile
 # is the single source of truth for defaults — including PROVIDER / MODEL.
 score:
-	python3 $(EVALS_ROOT)/scripts/run_all_evals.py
+	@$(call with_clean_home, python3 $(EVALS_ROOT)/scripts/run_all_evals.py)
 
 score-dry:
-	python3 $(EVALS_ROOT)/scripts/run_all_evals.py --dry-run
+	@$(call with_clean_home, python3 $(EVALS_ROOT)/scripts/run_all_evals.py --dry-run)
 
 # ---------- check-evals-coverage (every skills/*/ has a misc/evals/*/ entry) --
 check-evals-coverage:
