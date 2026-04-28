@@ -520,10 +520,9 @@ def run_triggering(
 
 
 def extract_run_eval_json(stdout: str) -> dict:
-    """`make` echoes the recipe before the Python script's JSON; peel the
-    trailing JSON object out of stdout. `run_eval.py` prints it with
-    `indent=2`, so it always starts with `{` on a dedicated line."""
-    # Find the last opening brace at column zero.
+    """`make` prints the recipe echo, then the script's indented JSON, then
+    `make: Leaving directory '…'` after. Use `raw_decode` so a trailing
+    non-JSON line doesn't make `json.loads` raise `Extra data`."""
     lines = stdout.splitlines()
     start = None
     for i, line in enumerate(lines):
@@ -533,7 +532,8 @@ def extract_run_eval_json(stdout: str) -> dict:
     if start is None:
         raise RuntimeError("no JSON object found in `make triggering-…` stdout")
     blob = "\n".join(lines[start:])
-    return json.loads(blob)
+    obj, _end = json.JSONDecoder().raw_decode(blob)
+    return obj
 
 
 # ---------- resolved model (for the scorecard metadata) -----------------------

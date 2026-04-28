@@ -66,7 +66,7 @@ REVIEW_T     := $(addprefix review-,$(SKILLS))
 help:
 	@echo "Per-skill targets (SKILL in: $(SKILLS)):"
 	@echo "  validate-<skill>    A  quick_validate.py          (deterministic)"
-	@echo "  triggering-<skill>  B  run_eval.py                 (LIVE — needs claude -p)"
+	@echo "  triggering-<skill>  B  run_triggering.py            (LIVE — needs claude -p)"
 	@echo "  optimize-<skill>    D  run_loop.py                 (LIVE)"
 	@echo "  benchmark-<skill>   E  aggregate_benchmark.py      (deterministic)"
 	@echo "  report-<skill>      F  generate_report.py          (deterministic)"
@@ -94,11 +94,16 @@ $(VALIDATE_T): validate-%:
 
 validate-all: $(VALIDATE_T)
 
-# ---------- B  run_eval (LIVE) ------------------------------------------------
+# ---------- B  run_triggering (LIVE) ------------------------------------------
+# Local replacement for skill-creator/scripts/run_eval.py (PLAN §1.5). Stages
+# one skill per query into a mktemp sandbox with a clean HOME so plugin-level
+# and user-level skill clones can't compete for trigger routing. Detects
+# triggering by parsing stream-json Skill tool_use events on the canonical
+# skill name. See misc/evals/scripts/run_triggering.py for the full design.
 $(TRIGGERING_T): triggering-%:
 	@test -f $(call triggering_json,$*) || \
 	  { echo "missing: $(call triggering_json,$*)"; exit 1; }
-	cd $(SC_DIR) && python3 -m scripts.run_eval \
+	python3 $(EVALS_ROOT)/scripts/run_triggering.py \
 	  --eval-set   $(call triggering_json,$*) \
 	  --skill-path $(REPO_ROOT)/skills/$* \
 	  --num-workers $(NUM_WORKERS) \
