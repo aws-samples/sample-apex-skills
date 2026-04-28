@@ -18,9 +18,28 @@ SHELL          := /bin/bash
 
 EVALS_ROOT     := $(CURDIR)
 REPO_ROOT      := $(abspath $(CURDIR)/../..)
-SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name '.*' -printf '%f\n' | sort)
+SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name 'scripts' ! -name 'history' ! -name '.*' -printf '%f\n' | sort)
 SC_DIR         := $(REPO_ROOT)/skills/skill-creator
-MODEL          ?= claude-opus-4-7
+
+# ---------- model / provider configuration ------------------------------------
+# PROVIDER selects how `claude -p` reaches a model:
+#   bedrock    (default) — sets CLAUDE_CODE_USE_BEDROCK=1 and uses a Bedrock
+#                          inference-profile ID. Required on AWS-only setups.
+#   anthropic            — uses the Anthropic API. Expects ANTHROPIC_API_KEY
+#                          to be exported in the caller's environment.
+# Override per invocation: `make score PROVIDER=anthropic MODEL=claude-opus-4-7`.
+# Defaults for MODEL are provider-aware; explicit MODEL= always wins.
+PROVIDER       ?= bedrock
+
+ifeq ($(PROVIDER),bedrock)
+  MODEL        ?= global.anthropic.claude-opus-4-7
+  export CLAUDE_CODE_USE_BEDROCK := 1
+else ifeq ($(PROVIDER),anthropic)
+  MODEL        ?= claude-opus-4-7
+else
+  $(error PROVIDER must be 'bedrock' or 'anthropic', got '$(PROVIDER)')
+endif
+
 NUM_WORKERS    ?= 10
 MAX_ITER       ?= 5
 RUNS_PER_QUERY ?= 3
@@ -40,14 +59,14 @@ PACKAGE_T    := $(addprefix package-,$(SKILLS))
 REVIEW_T     := $(addprefix review-,$(SKILLS))
 
 .PHONY: help list-skills validate-all triggering-all \
-        init-evals check-evals-coverage \
+        init-evals check-evals-coverage score score-dry \
         $(VALIDATE_T) $(TRIGGERING_T) $(OPTIMIZE_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T)
 
 help:
 	@echo "Per-skill targets (SKILL in: $(SKILLS)):"
 	@echo "  validate-<skill>    A  quick_validate.py          (deterministic)"
-	@echo "  triggering-<skill>  B  run_eval.py                 (LIVE — needs claude -p)"
+	@echo "  triggering-<skill>  B  run_triggering.py            (LIVE — needs claude -p)"
 	@echo "  optimize-<skill>    D  run_loop.py                 (LIVE)"
 	@echo "  benchmark-<skill>   E  aggregate_benchmark.py      (deterministic)"
 	@echo "  report-<skill>      F  generate_report.py          (deterministic)"
@@ -56,12 +75,15 @@ help:
 	@echo ""
 	@echo "Meta targets:"
 	@echo "  validate-all, triggering-all"
+	@echo "  score               run triggering for every skill and rewrite README scorecard"
+	@echo "  score-dry           render the scorecard to stdout without editing README"
 	@echo ""
 	@echo "New-skill onboarding:"
 	@echo "  init-evals SKILL=<name>    scaffold misc/evals/<name>/ from _template/"
 	@echo "  check-evals-coverage       verify every skills/*/ has a misc/evals/*/ entry"
 	@echo ""
-	@echo "Overrides: MODEL, NUM_WORKERS, MAX_ITER, RUNS_PER_QUERY, WORKSPACE, BENCHMARK_DIR"
+	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, MAX_ITER, RUNS_PER_QUERY, WORKSPACE, BENCHMARK_DIR"
+	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
 
 list-skills:
 	@echo $(SKILLS)
@@ -72,11 +94,16 @@ $(VALIDATE_T): validate-%:
 
 validate-all: $(VALIDATE_T)
 
-# ---------- B  run_eval (LIVE) ------------------------------------------------
+# ---------- B  run_triggering (LIVE) ------------------------------------------
+# Local replacement for skill-creator/scripts/run_eval.py (PLAN §1.5). Stages
+# one skill per query into a mktemp sandbox with a clean HOME so plugin-level
+# and user-level skill clones can't compete for trigger routing. Detects
+# triggering by parsing stream-json Skill tool_use events on the canonical
+# skill name. See misc/evals/scripts/run_triggering.py for the full design.
 $(TRIGGERING_T): triggering-%:
 	@test -f $(call triggering_json,$*) || \
 	  { echo "missing: $(call triggering_json,$*)"; exit 1; }
-	cd $(SC_DIR) && python3 -m scripts.run_eval \
+	python3 $(EVALS_ROOT)/scripts/run_triggering.py \
 	  --eval-set   $(call triggering_json,$*) \
 	  --skill-path $(REPO_ROOT)/skills/$* \
 	  --num-workers $(NUM_WORKERS) \
@@ -164,12 +191,27 @@ init-evals:
 	@echo "  3. Edit $(EVALS_ROOT)/$(SKILL)/README.md       — document the eval set"
 	@echo "  4. Run: make validate-$(SKILL)"
 
+# ---------- score (Phase 1 — triggering scorecard) ----------------------------
+# Runs triggering evals for every skill, enriches the metrics, appends a row
+# to misc/evals/history/<skill>.jsonl (committed), and rewrites the scorecard
+# between <!-- SCORECARD_START/END --> in misc/evals/README.md.
+#
+# No flag-forwarding here: the Python runner has no own defaults for model /
+# runs-per-query / num-workers and only shells out to `make triggering-<skill>`
+# with those overrides when the user passed them on its own CLI. The Makefile
+# is the single source of truth for defaults — including PROVIDER / MODEL.
+score:
+	python3 $(EVALS_ROOT)/scripts/run_all_evals.py
+
+score-dry:
+	python3 $(EVALS_ROOT)/scripts/run_all_evals.py --dry-run
+
 # ---------- check-evals-coverage (every skills/*/ has a misc/evals/*/ entry) --
 check-evals-coverage:
 	@expected=$$(find $(REPO_ROOT)/skills -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
 	  | grep -vx skill-creator | grep -vx terraform-skill | sort); \
 	 found=$$(find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
-	  | grep -vx _template | grep -vx workspace | sort); \
+	  | grep -vx _template | grep -vx workspace | grep -vx scripts | grep -vx history | sort); \
 	 missing=$$(comm -23 <(echo "$$expected") <(echo "$$found")); \
 	 if [ -n "$$missing" ]; then \
 	   echo "Missing misc/evals/ entries for:"; \
