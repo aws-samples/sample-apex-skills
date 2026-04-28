@@ -52,52 +52,6 @@ SIBLING_MAP_START = "<!-- SIBLING_MAP_START -->"
 SIBLING_MAP_END = "<!-- SIBLING_MAP_END -->"
 
 
-# ---------- preflight warning -------------------------------------------------
-
-
-def preflight_confirm(assume_yes: bool) -> None:
-    """Warn the user about the HOME / project-skills isolation side-effect
-    before any live `claude -p` call. See PLAN §1.5 for background.
-
-    Why this matters: the Makefile wrapper moves `<repo>/.claude/skills/`
-    into a temp stash for the duration of the run and restores it via a
-    shell `trap` on EXIT/INT/TERM. Ctrl-C, `kill -TERM`, and normal exit
-    all restore correctly. SIGKILL, hard reboots, or a parallel
-    `claude`/`make score` session in the same repo will either leave the
-    project-level skills moved, or race on the restore. Surface this so
-    the user knows to close other sessions first.
-
-    `--yes` / `-y`, a non-tty stdin, or `EVALS_ASSUME_YES=1` skip the prompt.
-    """
-    msg = (
-        "\n"
-        "⚠  misc/evals uses a HOME-isolation wrapper around `claude -p` that\n"
-        "   temporarily moves <repo>/.claude/skills/ to /tmp/evals-skills-stash.*\n"
-        "   for the duration of each eval. It is restored on normal exit or\n"
-        "   Ctrl-C via a shell trap.\n"
-        "\n"
-        "   Do NOT run another `claude` or `make score` session in this repo\n"
-        "   while this run is in flight — the concurrent session will see the\n"
-        "   stashed skills, and a SIGKILL or reboot during the window would\n"
-        "   leave the project's .claude/skills/ moved (manually restorable\n"
-        "   from the /tmp/evals-skills-stash.* dir).\n"
-    )
-    print(msg, file=sys.stderr)
-    if assume_yes or os.environ.get("EVALS_ASSUME_YES") == "1":
-        return
-    if not sys.stdin.isatty():
-        # Non-interactive (CI, piped) — refuse rather than guess.
-        print(
-            "Non-interactive stdin detected; pass --yes to acknowledge and proceed.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    answer = input("   Proceed? [y/N] ").strip().lower()
-    if answer not in {"y", "yes"}:
-        print("aborted.", file=sys.stderr)
-        sys.exit(1)
-
-
 # ---------- discovery ---------------------------------------------------------
 
 
@@ -566,12 +520,10 @@ def run_triggering(
 
 
 def extract_run_eval_json(stdout: str) -> dict:
-    """`make` echoes the recipe before the Python script's JSON, and when
-    invoked as `make -C <dir>` it also prints `Entering directory` /
-    `Leaving directory` lines *after* the JSON. Peel the embedded JSON
-    object out using json's incremental decoder so trailing noise is
-    harmless. `run_eval.py` prints the object with `indent=2`, so it
-    always starts with `{` on a dedicated line."""
+    """`make` echoes the recipe before the Python script's JSON; peel the
+    trailing JSON object out of stdout. `run_eval.py` prints it with
+    `indent=2`, so it always starts with `{` on a dedicated line."""
+    # Find the last opening brace at column zero.
     lines = stdout.splitlines()
     start = None
     for i, line in enumerate(lines):
@@ -581,9 +533,7 @@ def extract_run_eval_json(stdout: str) -> dict:
     if start is None:
         raise RuntimeError("no JSON object found in `make triggering-…` stdout")
     blob = "\n".join(lines[start:])
-    decoder = json.JSONDecoder()
-    obj, _ = decoder.raw_decode(blob)
-    return obj
+    return json.loads(blob)
 
 
 # ---------- resolved model (for the scorecard metadata) -----------------------
@@ -962,23 +912,7 @@ def main() -> int:
         default=None,
         help="Exit 2 if any skill's overall accuracy dropped by > N percentage points vs its previous run",
     )
-    parser.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="Skip the parallel-session confirmation prompt (for CI / non-interactive use)",
-    )
     args = parser.parse_args()
-
-    # Parallel-session guard: the Makefile wrapper temporarily moves
-    # <repo>/.claude/skills/ out of the way so the subject subprocess can't
-    # see project-level skills (see PLAN §1.5 + the Makefile's
-    # `with_clean_home` define). A concurrent `claude` session in this repo
-    # during that window would see the same missing skills — and on abnormal
-    # exit (SIGKILL, host reboot) the restore never runs. Warn the user
-    # before shelling out to live targets.
-    if not args.dry_run and not args.skip_triggering:
-        preflight_confirm(args.yes)
 
     skills = discover_skills()
     if args.skill:
