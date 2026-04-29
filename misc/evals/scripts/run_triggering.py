@@ -75,7 +75,7 @@ def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
     Both dirs are mktemp'd; both are removed when the block exits, including
     on exception. Safe against Ctrl-C during the run. Callers may also use
     this from Phase 2's task runner — `with_skill` config points here;
-    `without_skill` config should use a separate empty-cwd helper.
+    `without_skill` config should use stage_empty_sandbox() below.
     """
     sandbox = Path(tempfile.mkdtemp(prefix="evals-sandbox-"))
     clean_home = Path(tempfile.mkdtemp(prefix="evals-home-"))
@@ -92,6 +92,37 @@ def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
     finally:
         shutil.rmtree(sandbox, ignore_errors=True)
         shutil.rmtree(clean_home, ignore_errors=True)
+
+
+@contextlib.contextmanager
+def stage_empty_sandbox():
+    """Yield (sandbox, home) with no skills staged — the `without_skill`
+    config for Phase 2's task-axis runner. Same HOME isolation as
+    stage_skill_sandbox (clean HOME with ~/.aws symlinked through), but
+    no `.claude/` dir at all so the subject subprocess sees zero skills.
+    """
+    sandbox = Path(tempfile.mkdtemp(prefix="evals-sandbox-"))
+    clean_home = Path(tempfile.mkdtemp(prefix="evals-home-"))
+    try:
+        host_aws = Path.home() / ".aws"
+        if host_aws.exists():
+            (clean_home / ".aws").symlink_to(host_aws)
+        yield sandbox, clean_home
+    finally:
+        shutil.rmtree(sandbox, ignore_errors=True)
+        shutil.rmtree(clean_home, ignore_errors=True)
+
+
+def build_subprocess_env(home: Path, extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Build the env dict for a `claude -p` subprocess. Strips CLAUDECODE so
+    a session-local parent doesn't confuse the child, sets HOME to the clean
+    temp dir, and merges caller-supplied overrides (KUBECONFIG, AWS_* for the
+    read-only session policy, etc.)."""
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    env["HOME"] = str(home)
+    if extra:
+        env.update(extra)
+    return env
 
 
 # ---------- stream parser -----------------------------------------------------
@@ -286,8 +317,7 @@ def run_single_query(
     Caller maps `triggered` to a pass/fail count.
     """
     with stage_skill_sandbox(skill_name, repo_skill_dir) as (sandbox, home):
-        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-        env["HOME"] = str(home)
+        env = build_subprocess_env(home)
 
         cmd = [
             "claude",

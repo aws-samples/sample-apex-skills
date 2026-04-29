@@ -24,6 +24,7 @@ eks-best-practices-workspace
 # tracked so regression detection has shared signal (see misc/evals/PLAN.md §1.2).
 misc/evals/*/workspace/
 misc/evals/**/*.html
+misc/evals/.secrets/
 
 # Python
 __pycache__/

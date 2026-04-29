@@ -1,0 +1,52 @@
+# Read-only cluster access for misc/evals/ task-axis runs.
+#
+# Applied by setup/bootstrap-readonly.sh. Idempotent — re-applying refreshes
+# the token Secret without churning the SA or bindings.
+#
+# Scope: every verb is get/list/watch across every apiGroup/resource. No
+# create/update/patch/delete. Enforcement is at the API-server, not at the
+# script level — a misbehaving subject subprocess physically cannot mutate
+# cluster state under this SA.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: evals-readonly
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: evals-readonly
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["*"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: evals-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: evals-readonly
+subjects:
+  - kind: ServiceAccount
+    name: evals-readonly
+    namespace: kube-system
+---
+# Long-lived SA token. TokenRequest-issued tokens cap at ~24h; a Secret-bound
+# token lives alongside the SA, which is what we want for a task runner that
+# may take 2h per run. The Secret is k8s-internal — it never leaves the
+# cluster's etcd until bootstrap-readonly.sh reads it into a kubeconfig.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: evals-readonly-token
+  namespace: kube-system
+  annotations:
+    kubernetes.io/service-account.name: evals-readonly
+type: kubernetes.io/service-account-token

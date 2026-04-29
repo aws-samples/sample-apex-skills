@@ -13,11 +13,11 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 - **Generic / non-EKS** — pure Kubernetes-internals questions with no EKS hook. Negative at item 16 is a sanity check that recon does not fire on controller-level Kubernetes questions.
 <!-- SIBLING_MAP_END -->
 
-## Live-MCP caveat
+## Live-cluster caveat
 
-The two prompts in `evals.json` describe realistic recon tasks against named clusters (`payments-prod`, `data-platform-staging`). Running them end-to-end expects EKS MCP tooling (or AWS CLI + kubectl fallback) pointed at real clusters, and `files: []` is intentional — no static fixtures have been authored yet. Running the grader against a live model without MCP access will produce shallow answers; a follow-up pass should either stage fixture YAML under `files/` or flag these as MCP-required in the eval harness.
+Both prompts in `evals.json` describe realistic recon tasks against whichever EKS cluster the sandbox is pointed at via `KUBECONFIG` + AWS creds. They carry `"live_only": true` and the task runner skips them unless `--include-live-only` is passed along with a read-only `KUBECONFIG` and a scoped AWS session (Describe/List/Get only). The sandbox denies writes at the API-server level, not via convention, so running these evals is safe against a real cluster.
 
-The `triggering.json` evals (run via `run_eval` / `run_loop`) are unaffected — they test description-fit only and never invoke EKS tooling.
+The `triggering.json` evals (run via `run_triggering.py`) are unaffected — they test description-fit only and never invoke cluster tooling.
 
 ## How to run
 

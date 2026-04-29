@@ -575,6 +575,114 @@ def fmt_delta_pp(current: float, previous: float | None) -> str:
     return f"{sign}{delta:.0f}pp"
 
 
+def load_task_benchmark(skill: str) -> dict | None:
+    """Read <skill>/workspace/latest/benchmark.json if present."""
+    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    if not latest.exists():
+        return None
+    bench = latest / "benchmark.json"
+    if not bench.exists():
+        return None
+    try:
+        return json.loads(bench.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def previous_task_mean(skill: str) -> float | None:
+    """Latest prior 'task' entry from history/<skill>.jsonl, excluding the
+    row we just appended (if any). Used for the Task regression column.
+    """
+    rows = read_history(skill)
+    task_rows = [r for r in rows if r.get("kind") == "task"]
+    if len(task_rows) < 2:
+        return None
+    return task_rows[-2].get("with_skill_mean")
+
+
+def format_task_cell(benchmark: dict | None) -> str:
+    if not benchmark:
+        return "—"
+    rs = benchmark.get("run_summary", {})
+    w = rs.get("with_skill", {}).get("pass_rate", {})
+    wo = rs.get("without_skill", {}).get("pass_rate", {})
+    if not w or not wo:
+        return "—"
+    delta = w.get("mean", 0) - wo.get("mean", 0)
+    return (
+        f"{w.get('mean', 0)*100:.0f}% ± {w.get('stddev', 0)*100:.0f}% / "
+        f"{wo.get('mean', 0)*100:.0f}% ± {wo.get('stddev', 0)*100:.0f}% / "
+        f"{delta*100:+.0f}pp"
+    )
+
+
+def format_task_regression(benchmark: dict | None, previous: float | None) -> str:
+    if not benchmark:
+        return "—"
+    if previous is None:
+        return "—"
+    current = (
+        benchmark.get("run_summary", {})
+        .get("with_skill", {})
+        .get("pass_rate", {})
+        .get("mean", 0)
+    )
+    delta = (current - previous) * 100
+    sign = "+" if delta >= 0 else ""
+    return f"{sign}{delta:.0f}pp"
+
+
+def aggregate_expectations(benchmark: dict) -> list[dict]:
+    """Per-expectation pass rate across runs of a benchmark."""
+    by_text: dict[str, dict[str, int]] = {}
+    for run in benchmark.get("runs", []):
+        for exp in run.get("expectations", []) or []:
+            text = exp.get("text", "")
+            if not text:
+                continue
+            slot = by_text.setdefault(
+                text, {"total": 0, "passed": 0, "with_passed": 0, "with_total": 0}
+            )
+            slot["total"] += 1
+            if exp.get("passed"):
+                slot["passed"] += 1
+            if run.get("configuration") == "with_skill":
+                slot["with_total"] += 1
+                if exp.get("passed"):
+                    slot["with_passed"] += 1
+    out = []
+    for text, slot in by_text.items():
+        out.append(
+            {
+                "text": text,
+                "passed": slot["passed"],
+                "total": slot["total"],
+                "with_passed": slot["with_passed"],
+                "with_total": slot["with_total"],
+            }
+        )
+    return out
+
+
+def collect_eval_feedback(benchmark_dir: Path) -> list[dict]:
+    """Walk eval-*/<config>/run-*/grading.json; collect eval_feedback.suggestions."""
+    out: list[dict] = []
+    seen: set[str] = set()
+    for grading in benchmark_dir.glob("eval-*/*/run-*/grading.json"):
+        try:
+            data = json.loads(grading.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        fb = data.get("eval_feedback") or {}
+        for s in fb.get("suggestions", []) or []:
+            key = json.dumps(s, sort_keys=True)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(s)
+    return out
+
+
 def render_scorecard(
     per_skill: list[dict],
     *,
@@ -598,14 +706,14 @@ def render_scorecard(
     )
     lines.append("")
     lines.append(
-        "| Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Hygiene |"
+        "| Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|")
+    lines.append("|---|---|---|---|---|---|---|---|---|")
 
     for s in per_skill:
         if s.get("error"):
             lines.append(
-                f"| {s['skill']} | ERROR | — | — | — | — | — | ⚠ |"
+                f"| {s['skill']} | ERROR | — | — | — | — | — | — | ⚠ |"
             )
             continue
         m = s["metrics"]
@@ -617,10 +725,13 @@ def render_scorecard(
         tpr = f"{m['positive']['passed']}/{m['positive']['total']}"
         tnr = f"{m['negative']['passed']}/{m['negative']['total']}"
         delta_cell = fmt_delta_pp(ov["accuracy"], s.get("previous_accuracy"))
-        task_cell = "—"  # Phase 2 fills this.
+        task_cell = format_task_cell(s.get("task_benchmark"))
+        task_delta_cell = format_task_regression(
+            s.get("task_benchmark"), s.get("previous_task_mean")
+        )
         hygiene_cell = "✓" if s["hygiene"].ok else "⚠"
         lines.append(
-            f"| {s['skill']} | {overall_cell} | {tpr} | {tnr} | {m['flake_count']} | {delta_cell} | {task_cell} | {hygiene_cell} |"
+            f"| {s['skill']} | {overall_cell} | {tpr} | {tnr} | {m['flake_count']} | {delta_cell} | {task_cell} | {task_delta_cell} | {hygiene_cell} |"
         )
 
     lines.append("")
@@ -707,12 +818,14 @@ def _render_skill_detail(s: dict) -> list[str]:
         out.append("")
 
     history = s.get("history_recent") or []
-    if history:
-        out.append(f"**Run history** (last {len(history)}, sourced from `misc/evals/history/{s['skill']}.jsonl`):")
+    # Triggering-only rows (kind absent or not "task") for the trigger history table.
+    trig_history = [r for r in history if r.get("kind") != "task"]
+    if trig_history:
+        out.append(f"**Run history** (last {len(trig_history)}, sourced from `misc/evals/history/{s['skill']}.jsonl`):")
         out.append("")
         out.append("| UTC | Overall | TPR | TNR | Model |")
         out.append("|---|---|---|---|---|")
-        for row in history:
+        for row in trig_history:
             o = row.get("overall", {})
             p = row.get("positive", {})
             n = row.get("negative", {})
@@ -722,6 +835,60 @@ def _render_skill_detail(s: dict) -> list[str]:
                 f"{n.get('passed', '—')}/{n.get('total', '—')} | {row.get('model', '—')} |"
             )
         out.append("")
+
+    bench = s.get("task_benchmark")
+    if bench:
+        rs = bench.get("run_summary", {})
+        w = rs.get("with_skill", {}).get("pass_rate", {})
+        wo = rs.get("without_skill", {}).get("pass_rate", {})
+        out.append("**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):")
+        out.append("")
+        out.append(
+            f"- with_skill: {w.get('mean', 0)*100:.0f}% ± {w.get('stddev', 0)*100:.0f}% "
+            f"(min {w.get('min', 0)*100:.0f}%, max {w.get('max', 0)*100:.0f}%)"
+        )
+        out.append(
+            f"- without_skill: {wo.get('mean', 0)*100:.0f}% ± {wo.get('stddev', 0)*100:.0f}% "
+            f"(min {wo.get('min', 0)*100:.0f}%, max {wo.get('max', 0)*100:.0f}%)"
+        )
+        out.append(
+            f"- lift: {(w.get('mean', 0) - wo.get('mean', 0))*100:+.0f}pp"
+        )
+        runs_per_prompt = bench.get("metadata", {}).get("runs_per_configuration", "?")
+        out.append(f"- runs per (prompt × config): {runs_per_prompt}")
+        out.append("")
+
+        exp_rows = aggregate_expectations(bench)
+        if exp_rows:
+            out.append("**Per-expectation pass rate** (with_skill only):")
+            out.append("")
+            out.append("| Pass rate | Expectation |")
+            out.append("|---|---|")
+            for row in sorted(exp_rows, key=lambda r: (r["with_passed"] / r["with_total"]) if r["with_total"] else 0):
+                wt = row["with_total"]
+                wp = row["with_passed"]
+                rate_s = f"{wp}/{wt}" if wt else "—"
+                text = row["text"]
+                if len(text) > 120:
+                    text = text[:117] + "…"
+                out.append(f"| {rate_s} | {text} |")
+            out.append("")
+
+        # Grader feedback aggregated from this run.
+        latest = EVALS_ROOT / s["skill"] / "workspace" / "latest"
+        if latest.exists():
+            suggestions = collect_eval_feedback(latest.resolve())
+            if suggestions:
+                out.append("**Grader suggestions** (deduplicated across runs):")
+                out.append("")
+                for sug in suggestions[:10]:
+                    assertion = sug.get("assertion")
+                    reason = sug.get("reason", "")
+                    if assertion:
+                        out.append(f"- on `\"{assertion[:90]}…\"`: {reason}")
+                    else:
+                        out.append(f"- {reason}")
+                out.append("")
 
     out.append("</details>")
     return out
@@ -741,7 +908,10 @@ def splice_readme(readme_path: Path, rendered: str) -> None:
             f"SCORECARD markers missing in {readme_path}; add both "
             f"{SCORECARD_START} and {SCORECARD_END} before running score."
         )
-    new_text = pattern.sub(rendered, text, count=1)
+    # Use a lambda so regex-metacharacters in `rendered` (e.g. \d coming from
+    # a grader-produced regex in a suggestion) don't get interpreted as
+    # replacement-string backreferences.
+    new_text = pattern.sub(lambda _m: rendered, text, count=1)
     readme_path.write_text(new_text)
 
 
@@ -813,9 +983,14 @@ def process_skill(
         )
 
     history = read_history(skill)
+    # Find the last triggering row — task rows don't have overall/positive/negative.
+    trig_rows = [r for r in history if r.get("kind") != "task"]
     prev_accuracy: float | None = None
-    if history:
-        prev_accuracy = history[-1].get("overall", {}).get("accuracy")
+    if trig_rows:
+        prev_accuracy = trig_rows[-1].get("overall", {}).get("accuracy")
+
+    task_benchmark = load_task_benchmark(skill)
+    prev_task_mean = previous_task_mean(skill)
 
     if skip_triggering:
         metrics = latest_workspace_metrics(skill)
@@ -831,6 +1006,8 @@ def process_skill(
             "metrics": metrics,
             "previous_accuracy": prev_accuracy,
             "history_recent": list(reversed(history[-5:])),
+            "task_benchmark": task_benchmark,
+            "previous_task_mean": prev_task_mean,
         }
 
     snapshot = build_snapshot(
@@ -878,6 +1055,8 @@ def process_skill(
         "previous_accuracy": prev_accuracy,
         "history_recent": list(reversed(history_after[-5:])),
         "run_dir": str(run_dir),
+        "task_benchmark": task_benchmark,
+        "previous_task_mean": prev_task_mean,
     }
 
 
@@ -958,15 +1137,30 @@ def main() -> int:
         if row.get("make_failure"):
             make_failed = True
 
-        # Regression check.
+        # Regression check — trigger axis.
         if args.fail_on_regression is not None and row.get("metrics") and row.get("previous_accuracy") is not None:
             current = row["metrics"]["overall"]["accuracy"]
             delta_pp = (current - row["previous_accuracy"]) * 100
             if delta_pp < -abs(args.fail_on_regression):
                 regression_breach = True
                 print(
-                    f"[run_all_evals] regression on {skill}: "
+                    f"[run_all_evals] triggering regression on {skill}: "
                     f"{delta_pp:.1f}pp (threshold {-abs(args.fail_on_regression)}pp)",
+                    file=sys.stderr,
+                )
+
+        # Regression check — task axis.
+        if args.fail_on_regression is not None and row.get("task_benchmark") and row.get("previous_task_mean") is not None:
+            current_task = (
+                row["task_benchmark"].get("run_summary", {})
+                .get("with_skill", {}).get("pass_rate", {}).get("mean", 0)
+            )
+            task_delta_pp = (current_task - row["previous_task_mean"]) * 100
+            if task_delta_pp < -abs(args.fail_on_regression):
+                regression_breach = True
+                print(
+                    f"[run_all_evals] task regression on {skill}: "
+                    f"{task_delta_pp:.1f}pp (threshold {-abs(args.fail_on_regression)}pp)",
                     file=sys.stderr,
                 )
 
