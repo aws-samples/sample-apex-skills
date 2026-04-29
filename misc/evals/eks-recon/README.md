@@ -24,5 +24,5 @@ The `triggering.json` evals (run via `run_triggering.py`) are unaffected — the
 See `misc/evals/README.md` for the full invocation surface. From `misc/evals/` the relevant Makefile targets are:
 
 ```bash
-make validate-eks-recon triggering-eks-recon optimize-eks-recon
+make validate-eks-recon triggering-eks-recon
 ```

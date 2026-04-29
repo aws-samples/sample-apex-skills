@@ -137,7 +137,11 @@ def _match_skill_in_input(raw_json: str, skill_name: str) -> bool:
     and unique across the staged sandbox (only one skill is visible to the
     subprocess at all).
     """
-    return f'"skill":"{skill_name}"' in raw_json.replace(" ", "")
+    compact = raw_json.replace(" ", "")
+    return (
+        f'"skill":"{skill_name}"' in compact
+        or f'"name":"{skill_name}"' in compact
+    )
 
 
 def parse_stream_for_trigger(
@@ -291,7 +295,12 @@ def _handle_line(
                 continue
             if c.get("name") != "Skill":
                 continue
-            if (c.get("input") or {}).get("skill") == skill_name:
+            # Accept either `input.skill` or `input.name` — current Claude Code
+            # emits `skill`, but the field has moved before and a rename would
+            # silently zero TPR on this fallback path. The delta path above
+            # substring-matches the raw JSON and is unaffected.
+            inp = c.get("input") or {}
+            if inp.get("skill") == skill_name or inp.get("name") == skill_name:
                 out["triggered"] = True
                 return None
         return pending_block

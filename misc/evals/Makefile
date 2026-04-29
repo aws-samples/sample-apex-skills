@@ -41,7 +41,6 @@ else
 endif
 
 NUM_WORKERS    ?= 10
-MAX_ITER       ?= 5
 RUNS_PER_QUERY ?= 3
 
 # Per-skill default locations (override with WORKSPACE=… / BENCHMARK_DIR=…)
@@ -52,7 +51,6 @@ evals_json      = $(EVALS_ROOT)/$(1)/evals.json
 
 VALIDATE_T   := $(addprefix validate-,$(SKILLS))
 TRIGGERING_T := $(addprefix triggering-,$(SKILLS))
-OPTIMIZE_T   := $(addprefix optimize-,$(SKILLS))
 BENCHMARK_T  := $(addprefix benchmark-,$(SKILLS))
 REPORT_T     := $(addprefix report-,$(SKILLS))
 PACKAGE_T    := $(addprefix package-,$(SKILLS))
@@ -73,14 +71,13 @@ AWS_REGION        ?= us-west-2
 .PHONY: help list-skills validate-all triggering-all task-all score-full \
         init-evals init-evals-finalize check-evals-coverage hygiene \
         score score-dry \
-        $(VALIDATE_T) $(TRIGGERING_T) $(OPTIMIZE_T) \
+        $(VALIDATE_T) $(TRIGGERING_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T)
 
 help:
 	@echo "Per-skill targets (SKILL in: $(SKILLS)):"
 	@echo "  validate-<skill>    A  quick_validate.py          (deterministic)"
 	@echo "  triggering-<skill>  B  run_triggering.py            (LIVE — needs claude -p)"
-	@echo "  optimize-<skill>    D  run_loop.py                 (LIVE)"
 	@echo "  benchmark-<skill>   E  aggregate_benchmark.py      (deterministic)"
 	@echo "  report-<skill>      F  generate_report.py          (deterministic)"
 	@echo "  package-<skill>     G  package_skill.py            (deterministic)"
@@ -99,7 +96,7 @@ help:
 	@echo "  check-evals-coverage                          verify every skills/*/ has a misc/evals/*/ entry"
 	@echo "  hygiene                                       pre-flight every misc/evals/*/ (no model calls)"
 	@echo ""
-	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, MAX_ITER, RUNS_PER_QUERY,"
+	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
 	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, AWS_POLICY_RO, WORKSPACE, BENCHMARK_DIR"
 	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
 	@echo "           RUNS_PER_PROMPT=$(RUNS_PER_PROMPT) INCLUDE_LIVE_ONLY=$(INCLUDE_LIVE_ONLY)"
@@ -131,20 +128,13 @@ $(TRIGGERING_T): triggering-%:
 
 triggering-all: $(TRIGGERING_T)
 
-# ---------- D  run_loop (LIVE; iterative description optimizer) ---------------
-$(OPTIMIZE_T): optimize-%:
-	@test -f $(call triggering_json,$*) || \
-	  { echo "missing: $(call triggering_json,$*)"; exit 1; }
-	mkdir -p $(call workspace_dir,$*)
-	cd $(SC_DIR) && python3 -m scripts.run_loop \
-	  --eval-set   $(call triggering_json,$*) \
-	  --skill-path $(REPO_ROOT)/skills/$* \
-	  --model $(MODEL) \
-	  --max-iterations $(MAX_ITER) \
-	  --num-workers $(NUM_WORKERS) \
-	  --runs-per-query $(RUNS_PER_QUERY) \
-	  --results-dir $(call workspace_dir,$*) \
-	  --report none
+# ---------- D  run_loop — not wired (PLAN §1.5) -------------------------------
+# skill-creator/scripts/run_loop.py drives its inner eval via the upstream
+# detector that run_triggering.py replaced; invoking it here would feed noise
+# into the optimizer. The optimize-% target has been removed on purpose. If
+# description optimization becomes load-bearing, build a local replacement
+# under misc/evals/scripts/ that reuses stage_skill_sandbox + the Skill
+# tool_use parser from run_triggering.py.
 
 # ---------- E  aggregate_benchmark (deterministic) ----------------------------
 # Expects BENCHMARK_DIR to contain eval-*/<config>/run-*/grading.json.
@@ -157,8 +147,10 @@ $(BENCHMARK_T): benchmark-%:
 	    --skill-name $* \
 	    --skill-path $(REPO_ROOT)/skills/$*
 
-# ---------- F  generate_report (deterministic; reads run_loop results JSON) ---
-# Expects RESULTS_JSON=<path to run_loop results.json>.
+# ---------- F  generate_report — orphaned (reads run_loop results JSON) -------
+# F depends on D's output layout; with D unwired, this target has no fresh
+# input. Kept for symmetry with the upstream catalogue but not used in CI
+# or the scorecard flow.
 $(REPORT_T): report-%:
 	@: $${RESULTS_JSON:=$(call workspace_dir,$*)/results.json} ; \
 	  test -f "$$RESULTS_JSON" || \
@@ -174,12 +166,12 @@ $(PACKAGE_T): package-%:
 	cd $(SC_DIR) && python3 -m scripts.package_skill $(REPO_ROOT)/skills/$* $(EVALS_ROOT)/$*/workspace
 
 # ---------- K  eval-viewer/generate_review --static (deterministic) -----------
-# Expects WORKSPACE to be a directory created by run_loop / run_eval.
+# Expects WORKSPACE to be a directory created by run_loop (orphaned — see D).
 $(REVIEW_T): review-%:
 	@: $${WORKSPACE:=$(call workspace_dir,$*)} ; \
 	  test -d "$$WORKSPACE" || \
 	    { echo "workspace not found: $$WORKSPACE"; \
-	      echo "pass WORKSPACE=<dir> from a prior optimize-$* run"; exit 1; } ; \
+	      echo "pass WORKSPACE=<dir> (no current producer; see Makefile D note)"; exit 1; } ; \
 	  python3 $(SC_DIR)/eval-viewer/generate_review.py "$$WORKSPACE" \
 	    --skill-name $* \
 	    --static $(call workspace_dir,$*)/review.html
