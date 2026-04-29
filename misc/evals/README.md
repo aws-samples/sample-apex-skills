@@ -11,15 +11,15 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 ## Scorecard
 
-*Last updated: 2026-04-29T05:42Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: 832556e*
+*Last updated: 2026-04-29T06:43Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: 743120d*
 
 | Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |
 |---|---|---|---|---|---|---|---|---|
-| eks-best-practices | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 1 | +6pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
+| eks-best-practices | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
 | eks-mcp-server | 11/16 (69%, CI 44%–86%) | 6/8 | 5/8 | 1 | +0pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
 | eks-recon | 14/16 (88%, CI 64%–97%) | 8/8 | 6/8 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
 | eks-upgrader | 13/16 (81%, CI 57%–93%) | 8/8 | 5/8 | 0 | +0pp | 80% ± 28% / 45% ± 7% / +35pp | — | ✓ |
-| steering-workflow-creator | 15/16 (94%, CI 72%–99%) | 8/8 | 7/8 | 0 | — | — | — | ✓ |
+| steering-workflow-creator | 15/16 (94%, CI 72%–99%) | 8/8 | 7/8 | 0 | +0pp | 100% ± 0% / 10% ± 11% / +90pp | — | ✓ |
 
 > Hygiene warnings (`⚠`) render only when `quick_validate` fails, `triggering.json` has fewer than 8 positives/negatives, `evals.json` has fewer than 2 prompts or <3 expectations on any prompt, or the sibling-map parser reports unattributed negatives. When a row is `⚠`, the detail block surfaces the specific warnings.
 
@@ -318,6 +318,42 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
 | 2026-04-29T05:40:05Z | 15/16 | 8/8 | 7/8 | global.anthropic.claude-opus-4-7 |
+
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 100% ± 0% (min 100%, max 100%)
+- without_skill: 10% ± 11% (min 0%, max 20%)
+- lift: +90pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 3/3 | Lists exactly two required frontmatter keys: `name` and `description`. — TODO: human review |
+| 3/3 | Explicitly states that `inclusion:` must not appear on workflow files (it is reserved for hub files). — TODO: human r… |
+| 3/3 | Names all four header-block labels in the correct order: Part of, Lifecycle, Skill, Access Model. — TODO: human review |
+| 3/3 | Lists the five required H2 sections in exactly this order: How to Route Requests, Phases, Defaults, Quality Checklist… |
+| 3/3 | Produces a complete workflow skeleton including frontmatter, H1 title, four-line header block, and all five H2 sectio… |
+| 3/3 | Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose. — TODO: human review |
+| 3/3 | Identifies the describe-db-instances phase as Source: live. — TODO: human review |
+| 3/3 | States that a Source: live phase must include a named CLI fallback inline. — TODO: human review |
+| 3/3 | Identifies the decision-framework phase as Source: knowledge or Source: either, with reasoning. — TODO: human review |
+| 3/3 | Recommends Access Model: advisory or read-only (not mutating) with reasoning grounded in the workflow producing a pla… |
+| 3/3 | Does not invent a fourth Source value — uses only knowledge, live, or either. — TODO: human review |
+
+**Grader suggestions** (deduplicated across runs):
+
+- on `"Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose.…"`: The assertion is ambiguous about CLI flags in code blocks (which legitimately use `--`). A stricter check would verify that prose outside fenced code blocks contains zero `--` occurrences, or explicitly scope the check to prose and table cells.
+- No assertion verifies that the skeleton's Phases section actually contains STOP gates or Source: annotations, which are called out in the convention summary. A wrong-but-plausible skeleton could omit these and still pass all six current assertions.
+- No assertion verifies that the frontmatter `name` matches the filename stem (`cost-review`), which is a hard convention rule and an easy place for a model to drift.
+- on `"Produces a complete workflow skeleton including frontmatter, H1 title, four-line header bl…"`: This passes if the skeleton merely contains those H2 strings. Consider also asserting that each Phase carries a `Source:` annotation and that at least one `**STOP.** ` gate appears — those are the structural rules that make a workflow actually usable, and the convention explicitly requires them.
+- No assertion checks that the skeleton's `description` front-loads the lifecycle phase (e.g., begins with 'Day 2') and names concrete user intents. The convention treats this as load-bearing for routing, and a skeleton with a generic description would still pass every current assertion.
+- No assertion covers the Access Model CAN/CANNOT expansion, which the convention mandates whenever Access Model is `read-only` or `mutating`. A skeleton that omitted it would currently pass.
+- on `"Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose.…"`: The rule intent is clear but the assertion as written is ambiguous about code blocks — CLI flags like `--name` legitimately contain `--`. Tightening the assertion to 'outside fenced code blocks' would make the judgment reproducible.
+- on `"Produces a complete workflow skeleton including frontmatter, H1 title, four-line header bl…"`: This assertion passes as long as the five H2 headings exist somewhere, even if the skeleton interleaves extra H2s before the required order. The generated skeleton inserts an extra '## Access Model' H2 BEFORE '## How to Route Requests', which appears to violate the convention's 'additional H2s may follow but must not interleave' rule. Consider an assertion that explicitly checks the five required H2s appear in contiguous order with no other H2s interleaved.
+- No assertion verifies the Access Model line uses one of the allowed values (read-only | advisory | mutating (with gates)). A skeleton could hallucinate a different access model and still pass every current check.
+- No assertion checks that the description is front-loaded with the lifecycle phase (e.g., 'Day 2 ...') as required by the convention — this is a meaningful correctness check distinct from mere presence.
 
 </details>
 
