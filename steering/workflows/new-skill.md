@@ -141,7 +141,7 @@ Steps:
 
 1. **Baseline triggering.** Run `make triggering-<name>` from `misc/evals/` to produce a first live-model score. The row lands under `misc/evals/<name>/workspace/runs/<UTC>/metrics.json`. Commit nothing from `workspace/` — it is gitignored.
 2. **Append history row.** Run `make score` to refresh the scorecard, which appends a compact row to `misc/evals/history/<name>.jsonl` (committed; 50-entry cap). The readme scorecard re-renders between its markers. Commit the updated `misc/evals/README.md` and the new history row as part of the PR.
-3. **Baseline task axis (if applicable).** For skills that do not require a live cluster, run `make task-<name>` to produce the first `benchmark.json` and a `kind="task"` history row. Skills that require a live cluster (eks-recon-like) need the two-layer sandbox from `misc/evals/setup/bootstrap-readonly.sh` first; if that is not set up in the contributor's environment, skip this step and note it in the PR body.
+3. **Baseline task axis.** Run `make task-<name>` to produce the first `benchmark.json` and a `kind="task"` history row. There is no blanket exemption. If any prompt in `evals.json` has `"live_only": true`, bootstrap the read-only sandbox first (`misc/evals/setup/bootstrap-readonly.sh` → populates `misc/evals/.secrets/`) and add `INCLUDE_LIVE_ONLY=1` to the invocation. The runner auto-skips `live_only` prompts when the sandbox is absent, so a non-live skill that legitimately has zero `live_only` prompts still produces a baseline from this step — only the case where every prompt is `live_only` and no sandbox is feasible is a valid skip, and that must be named in the PR body with the reason.
 4. **Run the Quality Checklist below.** Self-grade the work produced across all phases.
 5. **Prepare the PR.** Walk the author through the Pre-PR checklist in `../../CONTRIBUTING.md` (the items are the same artefacts this workflow produces; the checklist exists so a hand-crafted path lands the same shape). Fill in the PR template checkbox confirming the workflow was followed.
 
@@ -169,7 +169,7 @@ Self-grade before handing off to the author. Each item is binary — passes or f
 - [ ] Phase 3 sibling list has explicit rationale per candidate, and non-neighbours that a reader would expect to see are explicitly ruled out.
 - [ ] Phase 4 fan-out diff is concrete — every entry names a file, a line, and a before/after — not a generic "update the catalogue" bullet.
 - [ ] Phase 5 `make init-evals-finalize SKILL=<name>` exited 0. The hygiene gate is the floor; no advancing on warnings.
-- [ ] Phase 6 produced a `history/<name>.jsonl` row and (if applicable) a `benchmark.json`. The scorecard in `misc/evals/README.md` re-rendered cleanly.
+- [ ] Phase 6 produced a triggering `history/<name>.jsonl` row, ran `make task-<name>` (or named a specific live-only-blocker reason for skipping), and the scorecard in `misc/evals/README.md` re-rendered cleanly.
 - [ ] No redundant knowledge skill was authored "behind" this workflow. The only new skill in the PR is `<name>`.
 - [ ] Sibling-map updates to neighbours are in this PR, not split off. Adding `rds-best-practices` means `eks-best-practices`'s SIBLING_MAP and triggering.json are updated in the same review unit.
 
