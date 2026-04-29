@@ -65,11 +65,7 @@ skills/{skill-name}/
 
 ### Current Skills
 
-| Skill | What It Covers |
-|-------|---------------|
-| `eks-best-practices` | EKS architecture decisions, compute, networking, security, reliability, autoscaling, upgrades, cost, observability, ArgoCD, container registry, EKS Capabilities |
-| `terraform-skill` | Terraform modules, testing (native + Terratest), CI/CD, security scanning |
-| `skill-creator` | Meta-skill: how to create and package new skills |
+See the auto-generated [Skills Reference](README.md#skills-reference) in `README.md` — regenerated from each `skills/<name>/SKILL.md` frontmatter by `misc/update-skills-references.sh` (and enforced by CI via `misc/update-all-references.sh`), so it can't fall out of sync with the repo.
 
 ---
 

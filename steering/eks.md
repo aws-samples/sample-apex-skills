@@ -70,41 +70,9 @@ When routing between workflows, carry forward any known context. This is critica
 
 ## Skills Reference
 
-All workflows use these skills:
+These EKS workflows draw on the skills in the repo-level [Skills Reference](../README.md#skills-reference) — primarily `eks-best-practices` (architecture, compute, networking, security, reliability, observability), `eks-upgrader` (in-place and blue-green upgrade procedures, add-on upgrade guides), `eks-mcp-server` (live-cluster MCP setup), and `terraform-skill` (IaC patterns). The authoritative table is auto-generated from each skill's frontmatter; enumerate here only intent, not the skill set.
 
-| Skill | What It Provides |
-|-------|-----------------|
-| **eks-best-practices** | Decision frameworks, compute selection, networking, security, reliability, autoscaling, cost, observability, ArgoCD patterns, container registry |
-| **eks-upgrader** | Upgrade procedures (in-place, blue-green), pre-flight checks, add-on upgrade guides (Karpenter, Istio), rollback, troubleshooting |
-| **eks-mcp-server** | Setup guide for EKS MCP Server (AWS-hosted or self-hosted) — enables live cluster operations via MCP tools |
-| **terraform-skill** | Terraform modules, testing, CI/CD, security scanning |
-
-### Key Reference Files (Loaded on Demand)
-
-| Reference | Used By |
-|-----------|---------|
-| **eks-upgrader** | |
-| [in-place-upgrade.md](../skills/eks-upgrader/references/in-place-upgrade.md) | Upgrade workflow |
-| [blue-green-upgrade.md](../skills/eks-upgrader/references/blue-green-upgrade.md) | Upgrade workflow |
-| [karpenter.md (upgrader)](../skills/eks-upgrader/references/karpenter.md) | Upgrade workflow (Karpenter upgrade procedures) |
-| [istio.md](../skills/eks-upgrader/references/istio.md) | Upgrade workflow (Istio upgrade procedures) |
-| **eks-best-practices** | |
-| [security.md](../skills/eks-best-practices/references/security.md) | Design workflow (security domain) |
-| [security-runtime-network.md](../skills/eks-best-practices/references/security-runtime-network.md) | Design workflow (security domain) |
-| [security-supply-chain.md](../skills/eks-best-practices/references/security-supply-chain.md) | Design workflow (security domain) |
-| [networking.md](../skills/eks-best-practices/references/networking.md) | Design workflow (networking domain) |
-| [networking-ingress-dns.md](../skills/eks-best-practices/references/networking-ingress-dns.md) | Design workflow (networking domain) |
-| [reliability-core.md](../skills/eks-best-practices/references/reliability-core.md) | Design workflow, Upgrade workflow |
-| [reliability-advanced.md](../skills/eks-best-practices/references/reliability-advanced.md) | Design workflow, Upgrade workflow |
-| [terraform-examples.md](../skills/eks-best-practices/references/terraform-examples.md) | Design workflow, Upgrade workflow (Terraform path) |
-| [autoscaling.md](../skills/eks-best-practices/references/autoscaling.md) | Design workflow |
-| [karpenter.md (best-practices)](../skills/eks-best-practices/references/karpenter.md) | Design workflow (Karpenter operational config) |
-| [eks-auto-mode.md](../skills/eks-best-practices/references/eks-auto-mode.md) | Design workflow |
-| [cost-optimization.md](../skills/eks-best-practices/references/cost-optimization.md) | Design workflow |
-| [scalability.md](../skills/eks-best-practices/references/scalability.md) | Design workflow |
-| [observability.md](../skills/eks-best-practices/references/observability.md) | Design workflow |
-| [argocd-patterns.md](../skills/eks-best-practices/references/argocd-patterns.md) | Design workflow |
-| [container-registry.md](../skills/eks-best-practices/references/container-registry.md) | Design workflow |
+Each skill's progressive-disclosure block in its `SKILL.md` lists the individual reference files under `skills/<skill>/references/` and when each is loaded — do not mirror that list here.
 
 ---
 

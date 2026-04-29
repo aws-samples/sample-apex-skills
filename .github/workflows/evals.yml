@@ -14,7 +14,11 @@ on:
   pull_request:
     paths:
       - "skills/**"
-      - "misc/evals/**"
+      - "steering/**"
+      - "examples/**"
+      - "misc/**"
+      - "README.md"
+      - "CONTRIBUTING.md"
       - ".github/workflows/evals.yml"
   push:
     branches:
@@ -52,3 +56,11 @@ jobs:
         run: pip install pyyaml
       - name: Hygiene pre-flight (no model, no cluster)
         run: make -C misc/evals hygiene
+
+  docs-sync:
+    name: docs auto-gen blocks are in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regenerate and fail on diff
+        run: ./misc/update-all-references.sh --check
