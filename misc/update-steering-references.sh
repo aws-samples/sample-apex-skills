@@ -48,13 +48,17 @@ build_table() {
   echo '| Steering File | Description |'
   echo '|--------------|-------------|'
 
-  # Collect steering files: hub first, then workflows
+  # Collect steering files: hubs first (any steering/*.md), then workflows
   local steering_files=()
 
-  # Hub file first
-  if [[ -f "$STEERING_DIR/eks.md" ]]; then
-    steering_files+=("$STEERING_DIR/eks.md")
-  fi
+  # Hub files: every top-level steering/*.md (alphabetical). Historically only
+  # steering/eks.md existed; as more hubs appear (steering/apex.md, future
+  # steering/rds.md, ...) they each get a row here.
+  while IFS= read -r -d '' hub; do
+    if [[ -f "$hub" ]]; then
+      steering_files+=("$hub")
+    fi
+  done < <(find "$STEERING_DIR" -maxdepth 1 -type f -name '*.md' -print0 | sort -z)
 
   # Then workflow files (sorted)
   if [[ -d "$STEERING_DIR/workflows" ]]; then
@@ -175,7 +179,15 @@ mv "$README.tmp" "$README"
 
 echo "✅ Steering Reference table updated in README.md"
 echo "   Steering files found:"
-for f in "$STEERING_DIR/eks.md" "$STEERING_DIR/workflows"/*.md; do
+while IFS= read -r -d '' f; do
+  if [[ -f "$f" ]]; then
+    local_name="$(parse_frontmatter "$f" "name")"
+    if [[ -n "$local_name" ]]; then
+      echo "   - $local_name (${f#$REPO_ROOT/})"
+    fi
+  fi
+done < <(find "$STEERING_DIR" -maxdepth 1 -type f -name '*.md' -print0 | sort -z)
+for f in "$STEERING_DIR/workflows"/*.md; do
   if [[ -f "$f" ]]; then
     local_name="$(parse_frontmatter "$f" "name")"
     if [[ -n "$local_name" ]]; then

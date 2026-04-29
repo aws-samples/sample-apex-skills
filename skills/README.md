@@ -23,7 +23,7 @@ my-skill/
 <!-- SKILLS_DETAIL_START -->
 ### [eks-best-practices](./eks-best-practices/)
 
-Use this skill whenever someone is making an Amazon EKS design, architecture, or configuration decision — even phrased casually as "how should we set up...", "what's the right way to...", "should we use X or Y", "we're about to redesign/consolidate/migrate...", or "is this reasonable?". Covers: compute strategy (Karpenter, MNG, Fargate, Auto Mode, self-managed), consolidation or migration between compute models, multi-tenant platform design and tenant isolation (namespaces, node pools, RBAC, network policies, quotas), VPC/IP planning, ingress, IAM/Pod Identity/IRSA, pod security, PDBs and reliability, upgrade strategy (in-place vs blue-green), cost (Spot, Graviton, consolidation), autoscaling, and observability. Also triggers for Terraform with terraform-aws-modules/terraform-aws-eks (access entries, addons, node groups, IRSA). Trigger even if "best practice" is never said — any EKS planning or architectural judgment call qualifies. Skip for step-by-step upgrade execution (eks-upgrader) or pure Kubernetes questions unrelated to EKS.
+Use this skill whenever someone is making an Amazon EKS design, architecture, or configuration decision — even phrased casually as "how should we set up...", "what's the right way to...", "should we use X or Y", "we're about to redesign/consolidate/migrate...", or "is this reasonable?". Covers compute strategy (Karpenter, MNG, Fargate, Auto Mode, self-managed), multi-tenant platform design and tenant isolation (namespaces, node pools, RBAC, network policies, quotas), VPC/IP planning, ingress, IAM/Pod Identity/IRSA, pod security, PDBs and reliability, upgrade strategy (in-place vs blue-green), cost (Spot, Graviton, consolidation), autoscaling, and observability. Also triggers for Terraform with terraform-aws-modules/terraform-aws-eks (access entries, addons, node groups, IRSA). Trigger even if "best practice" is never said — any EKS planning or architectural judgment call qualifies. Skip for step-by-step upgrade execution (eks-upgrader) or pure Kubernetes questions unrelated to EKS.
 
 **References** (loaded on demand):
 
@@ -127,6 +127,33 @@ Create new skills, modify and improve existing skills, and measure skill perform
 | Asset | Description |
 |-------|-------------|
 | [eval_review.html](./skill-creator/assets/eval_review.html) | Eval_review |
+
+---
+
+### [steering-workflow-creator](./steering-workflow-creator/)
+
+Author a new steering workflow for any AWS service and pair it with a matching slash-command shim. Use when the user asks to create a steering workflow, add a workflow to apex, standardize steering, write a new workflow for EKS / RDS / Lambda / IAM / any AWS service, or build a phased playbook that plugs into a service hub. Covers the convention (frontmatter, header block, required sections), tool routing (knowledge vs. live MCP vs. setup-bridge), and the lint pass before handoff.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [anti-patterns.md](./steering-workflow-creator/references/anti-patterns.md) | Anti patterns |
+| [convention.md](./steering-workflow-creator/references/convention.md) | Convention |
+| [tool-routing.md](./steering-workflow-creator/references/tool-routing.md) | Tool routing |
+
+**Scripts:**
+
+| Script | Description |
+|--------|-------------|
+| [quick_validate.py](./steering-workflow-creator/scripts/quick_validate.py) | Quick_validate |
+
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [command-shim-skeleton.md](./steering-workflow-creator/assets/command-shim-skeleton.md) | Command shim skeleton |
+| [workflow-skeleton.md](./steering-workflow-creator/assets/workflow-skeleton.md) | Workflow skeleton |
 
 ---
 

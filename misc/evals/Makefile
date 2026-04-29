@@ -18,7 +18,7 @@ SHELL          := /bin/bash
 
 EVALS_ROOT     := $(CURDIR)
 REPO_ROOT      := $(abspath $(CURDIR)/../..)
-SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name 'scripts' ! -name 'history' ! -name '.*' -printf '%f\n' | sort)
+SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name 'scripts' ! -name 'history' ! -name 'setup' ! -name '.*' -printf '%f\n' | sort)
 SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 
 # ---------- model / provider configuration ------------------------------------
@@ -71,7 +71,8 @@ AWS_POLICY_RO     ?= $(READONLY_SECRETS)/readonly-session-policy.json
 AWS_REGION        ?= us-west-2
 
 .PHONY: help list-skills validate-all triggering-all task-all score-full \
-        init-evals check-evals-coverage score score-dry \
+        init-evals init-evals-finalize check-evals-coverage hygiene \
+        score score-dry \
         $(VALIDATE_T) $(TRIGGERING_T) $(OPTIMIZE_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T)
 
@@ -93,8 +94,10 @@ help:
 	@echo "  score-full          task-all + score (full task + triggering refresh)"
 	@echo ""
 	@echo "New-skill onboarding:"
-	@echo "  init-evals SKILL=<name>    scaffold misc/evals/<name>/ from _template/"
-	@echo "  check-evals-coverage       verify every skills/*/ has a misc/evals/*/ entry"
+	@echo "  init-evals SKILL=<name> [SIBLINGS=\"a,b,c\"]   scaffold misc/evals/<name>/ from _template/"
+	@echo "  init-evals-finalize SKILL=<name>              hygiene floor before PR (same checks CI runs)"
+	@echo "  check-evals-coverage                          verify every skills/*/ has a misc/evals/*/ entry"
+	@echo "  hygiene                                       pre-flight every misc/evals/*/ (no model calls)"
 	@echo ""
 	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, MAX_ITER, RUNS_PER_QUERY,"
 	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, AWS_POLICY_RO, WORKSPACE, BENCHMARK_DIR"
@@ -182,9 +185,20 @@ $(REVIEW_T): review-%:
 	    --static $(call workspace_dir,$*)/review.html
 
 # ---------- init-evals (scaffold a new misc/evals/<skill>/ from _template/) ----
+# Usage:
+#   make init-evals SKILL=<name>                         — 2-entry template copy (legacy path)
+#   make init-evals SKILL=<name> SIBLINGS="a,b,c"        — pre-fills SIBLING_MAP placeholders
+#                                                          (agent still fills in scope + negatives)
+#
+# The SIBLINGS= arg renders the new skill's README.md with one placeholder bullet per
+# sibling between the SIBLING_MAP markers. The `- **\`sibling\`**` shape matches what
+# run_all_evals.py's parser expects; the agent (or author) then fills in the scope
+# blurb, adds negative-prompt entries via update_sibling_map.py, and splices the
+# negative indices into each bullet. Empty SIBLINGS= falls back to the default
+# 2-sibling placeholder already in _template/README.md.
 init-evals:
 	@if [ -z "$(SKILL)" ]; then \
-	  echo "usage: make init-evals SKILL=<skill-name>"; \
+	  echo "usage: make init-evals SKILL=<skill-name> [SIBLINGS=\"a,b,c\"]"; \
 	  exit 1; \
 	fi
 	@if [ -e "$(EVALS_ROOT)/$(SKILL)" ]; then \
@@ -198,14 +212,30 @@ init-evals:
 	cp -r $(EVALS_ROOT)/_template $(EVALS_ROOT)/$(SKILL)
 	find $(EVALS_ROOT)/$(SKILL) -type f ! -name '.gitkeep' -exec sed -i.bak 's/<REPLACE>/$(SKILL)/g' {} +
 	find $(EVALS_ROOT)/$(SKILL) -name '*.bak' -delete
+	@if [ -n "$(SIBLINGS)" ]; then \
+	  python3 $(EVALS_ROOT)/scripts/render_siblings.py \
+	    --readme $(EVALS_ROOT)/$(SKILL)/README.md \
+	    --siblings "$(SIBLINGS)"; \
+	fi
 	@echo ""
 	@echo "✓ Scaffolded $(EVALS_ROOT)/$(SKILL)/"
 	@echo ""
 	@echo "Next steps:"
-	@echo "  1. Edit $(EVALS_ROOT)/$(SKILL)/triggering.json — add 16+ trigger prompts"
-	@echo "  2. Edit $(EVALS_ROOT)/$(SKILL)/evals.json      — add 2-4 task prompts"
-	@echo "  3. Edit $(EVALS_ROOT)/$(SKILL)/README.md       — document the eval set"
-	@echo "  4. Run: make validate-$(SKILL)"
+	@echo "  1. Edit $(EVALS_ROOT)/$(SKILL)/triggering.json — add 16+ trigger prompts (≥8 positives, ≥8 negatives)"
+	@echo "  2. Edit $(EVALS_ROOT)/$(SKILL)/evals.json      — add ≥2 task prompts with ≥3 expectations each"
+	@echo "  3. Edit $(EVALS_ROOT)/$(SKILL)/README.md       — fill in <REPLACE> markers; update SIBLING_MAP bullets"
+	@echo "  4. Run: make init-evals-finalize SKILL=$(SKILL)  — hygiene floor; same checks CI runs"
+
+# ---------- init-evals-finalize (local mirror of the CI hygiene gate) ----------
+# Runs the same hygiene pre-flight that .github/workflows/evals.yml enforces,
+# scoped to one skill. No model calls, no cluster. Exits 0 when the eval set is
+# ready to open a PR. Exits 1 with actionable diagnostics otherwise.
+init-evals-finalize:
+	@if [ -z "$(SKILL)" ]; then \
+	  echo "usage: make init-evals-finalize SKILL=<skill-name>"; \
+	  exit 1; \
+	fi
+	python3 $(EVALS_ROOT)/scripts/check_hygiene.py --skill $(SKILL)
 
 # ---------- H  run_task_evals (LIVE; subject + grader per prompt × config) ----
 # Executes evals.json prompts under with_skill / without_skill, grades each run,
@@ -253,6 +283,13 @@ score:
 
 score-dry:
 	python3 $(EVALS_ROOT)/scripts/run_all_evals.py --dry-run
+
+# ---------- hygiene (deterministic pre-flight; no model, no cluster) ----------
+# Runs quick_validate + schema checks (triggering.json positives/negatives,
+# evals.json prompt/expectation counts, SIBLING_MAP parseability and negative
+# attribution) for every skill under misc/evals/. Exits non-zero on warnings.
+hygiene:
+	python3 $(EVALS_ROOT)/scripts/check_hygiene.py
 
 # ---------- check-evals-coverage (every skills/*/ has a misc/evals/*/ entry) --
 check-evals-coverage:

@@ -1,0 +1,54 @@
+name: evals
+
+# Deterministic, offline gate for skill + eval hygiene. No Bedrock, no EKS
+# cluster, no `claude -p` calls — those run locally or on a scheduled job,
+# not per PR.
+#
+# Job 1 (coverage): every skills/<name>/ has a matching misc/evals/<name>/.
+# Job 2 (hygiene):  every misc/evals/<name>/ passes quick_validate, has the
+#                   minimum positives/negatives in triggering.json, has ≥2
+#                   prompts with ≥3 expectations in evals.json, and every
+#                   negative index is attributed in the SIBLING_MAP block.
+
+on:
+  pull_request:
+    paths:
+      - "skills/**"
+      - "misc/evals/**"
+      - ".github/workflows/evals.yml"
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: evals coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install PyYAML (used by skill-creator/quick_validate.py)
+        run: pip install pyyaml
+      - name: Check every skill has a misc/evals/ entry
+        run: make -C misc/evals check-evals-coverage
+
+  hygiene:
+    name: evals hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install PyYAML (used by skill-creator/quick_validate.py)
+        run: pip install pyyaml
+      - name: Hygiene pre-flight (no model, no cluster)
+        run: make -C misc/evals hygiene
