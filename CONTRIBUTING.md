@@ -91,16 +91,18 @@ skills/{skill-name}/
 
 ```
 steering/
-├── eks.md                    # Hub: intent detection, routing, shared context
+├── eks.md                    # Service hub: EKS intent detection + routing
+├── apex.md                   # Meta hub: repo-wide contributor actions (new-skill, …)
 ├── commands/                 # Slash command wrappers (harness-specific entry points)
 │   └── apex/                 # Claude Code: symlinked into .claude/commands/apex/
 │       ├── eks.md            # /apex:eks → routes via steering/eks.md
 │       ├── eks-design.md     # /apex:eks-design → steering/workflows/design.md
-│       └── eks-upgrade.md    # /apex:eks-upgrade → steering/workflows/upgrade.md
+│       ├── eks-upgrade.md    # /apex:eks-upgrade → steering/workflows/upgrade.md
+│       └── new-skill.md      # /apex:new-skill → steering/workflows/new-skill.md
 └── workflows/
     ├── design.md             # Day 0: Architecture questionnaire + quality check
     ├── upgrade.md            # Day 2: Pre-flight → plan → execute → validate
-    └── troubleshoot.md       # Day 2: (future) Diagnosis workflows
+    └── new-skill.md          # Meta: onboard a new skill end-to-end
 ```
 
 ### Why Hub + Workflows (Not Monolithic)
