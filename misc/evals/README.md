@@ -420,7 +420,7 @@ Full `make task-all` at `RUNS_PER_PROMPT=1` is ~60–90 minutes and ~30 model ca
 
 ## Model & provider configuration
 
-Live targets (`triggering-*`, `optimize-*`, `score`, `score-dry`) shell out to `claude -p`. Both how it reaches a model (provider) and which model it asks for (model ID) are Makefile variables you can override per-invocation:
+Live targets (`triggering-*`, `task-*`, `score`, `score-dry`, `score-full`) shell out to `claude -p`. Both how it reaches a model (provider) and which model it asks for (model ID) are Makefile variables you can override per-invocation:
 
 | Variable | Default | Values | Notes |
 |---|---|---|---|
@@ -568,9 +568,9 @@ Two exceptions:
 | Capability | Needs live model? |
 |---|---|
 | A `quick_validate` | deterministic |
-| B `run_eval` | **live** (`claude -p`) |
-| C `improve_description` | **live** |
-| D `run_loop` | **live** |
+| B `run_triggering` | **live** (`claude -p`) |
+| C `improve_description` | **live** (not wired — see D) |
+| D `run_loop` | **not wired** — upstream detector mismatch (PLAN §1.5) |
 | E `aggregate_benchmark` | deterministic |
 | F `generate_report` | deterministic |
 | G `package_skill` | deterministic |
@@ -600,17 +600,17 @@ make validate-<skill>
 
 Output: one-line verdict on stdout. Exit 0 valid / 1 invalid. No disk writes. Plain script-mode — no `cd` needed because `quick_validate.py` doesn't import from the `scripts.` package.
 
-### B — `run_eval.py` (triggering score)
+### B — `run_triggering.py` (triggering score)
 
 ```bash
-make triggering-<skill>  [MODEL=claude-sonnet-4-5] [NUM_WORKERS=10] [RUNS_PER_QUERY=3]
-# → cd <repo>/skills/skill-creator && python3 -m scripts.run_eval \
+make triggering-<skill>  [MODEL=…] [NUM_WORKERS=10] [RUNS_PER_QUERY=3]
+# → python3 <repo>/misc/evals/scripts/run_triggering.py \
 #       --eval-set   <repo>/misc/evals/<skill>/triggering.json \
 #       --skill-path <repo>/skills/<skill> \
 #       --num-workers 10 --runs-per-query 3 --model <MODEL>
 ```
 
-Output: full results JSON on stdout (redirect to save). Writes nothing to disk itself; creates/deletes ephemeral files under `<repo>/.claude/commands/` during each query.
+Output: full results JSON on stdout (redirect to save). `make triggering-<skill>` is the dev-time target — it prints and exits; nothing is persisted under `workspace/`. Per-run artefacts (`{raw,triggering,metrics}.json` under `<skill>/workspace/runs/<UTC>/`) are written by `run_all_evals.py` / `make score`, which is the orchestration entry point. Each query stages a throwaway sandbox (`mktemp` project dir + `.claude/skills/<name>` symlink + clean `HOME`) and removes it after the subprocess exits; the repo's real `.claude/` is never touched.
 
 ### C — `improve_description.py` (propose a description rewrite)
 
@@ -626,19 +626,9 @@ python3 -m scripts.improve_description \
 
 Output: `{"description": "...", "history": [...]}` on stdout.
 
-### D — `run_loop.py` (iterative description optimizer)
+### D — `run_loop.py` (iterative description optimizer) — **not wired**
 
-```bash
-make optimize-<skill>  [MODEL=…] [MAX_ITER=5] [NUM_WORKERS=10] [RUNS_PER_QUERY=3]
-# → cd <repo>/skills/skill-creator && python3 -m scripts.run_loop \
-#       --eval-set   <repo>/misc/evals/<skill>/triggering.json \
-#       --skill-path <repo>/skills/<skill> \
-#       --model <MODEL> --max-iterations 5 --num-workers 10 --runs-per-query 3 \
-#       --results-dir <repo>/misc/evals/<skill>/workspace \
-#       --report none
-```
-
-Output: final JSON on stdout plus `<workspace>/<TIMESTAMP>/{results.json,report.html,logs/improve_iter_*.json}`. The Makefile passes `--report none` to suppress the auto-opened browser.
+No Makefile target. `skill-creator/scripts/run_loop.py` drives its inner eval via the upstream detector that `run_triggering.py` replaced (PLAN §1.5); running it against the repo's current skills would produce noise, so the `optimize-<skill>` target has been removed. If description optimization becomes load-bearing, build a local equivalent under `misc/evals/scripts/` that shells through `run_triggering.py` — hand-edits have been sufficient through Phase 3.
 
 ### E — `aggregate_benchmark.py` (aggregate grading.json stats across runs)
 
@@ -652,7 +642,9 @@ Output: `<BENCHMARK_DIR>/benchmark.json` + `benchmark.md`. Supports both `<dir>/
 
 `BENCHMARK_DIR` defaults to `<skill>/workspace/` — override when the grading runs live elsewhere.
 
-### F — `generate_report.py` (HTML viz of `run_loop` results.json)
+### F — `generate_report.py` (HTML viz of `run_loop` results.json) — orphaned
+
+Reads `run_loop`'s output layout. With D unwired this target has no fresh input; kept for completeness.
 
 ```bash
 make report-<skill>  [RESULTS_JSON=<path>]
@@ -696,7 +688,7 @@ Writes a self-contained HTML file. No server, no `webbrowser.open()`.
 
 ## Score interpretation cheat sheet
 
-- **Triggering (B/D)**: reported as `passed/total` in `run_eval` output; `run_loop` also reports a train/holdout split (default holdout = 0.4) and per-iteration deltas.
+- **Triggering (B)**: reported as `passed/total` in `run_triggering` output; the scorecard in this README adds stratified TPR/TNR, flake counts, threshold sweep, and per-sibling leakage.
 - **Task evals (H → E)**: `aggregate_benchmark` reports mean ± stddev of pass-rate across runs, plus per-expectation hit rate. `benchmark.md` renders a summary table.
 
 ## Workspace hygiene

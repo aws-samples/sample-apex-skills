@@ -14,7 +14,11 @@ on:
   pull_request:
     paths:
       - "skills/**"
-      - "misc/evals/**"
+      - "steering/**"
+      - "examples/**"
+      - "misc/**"
+      - "README.md"
+      - "CONTRIBUTING.md"
       - ".github/workflows/evals.yml"
   push:
     branches:
@@ -38,6 +42,29 @@ jobs:
         run: pip install pyyaml
       - name: Check every skill has a misc/evals/ entry
         run: make -C misc/evals check-evals-coverage
+      - name: How to fix (shown on failure)
+        if: failure()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Evals coverage failed
+
+          A skill under `skills/` has no matching `misc/evals/<name>/` directory.
+
+          **Fix — recommended (walks the full onboarding workflow):**
+          ```
+          /apex:new-skill
+          ```
+
+          **Fix — manual:**
+          ```bash
+          cd misc/evals
+          make init-evals SKILL=<name> [SIBLINGS="a,b,c"]
+          # edit triggering.json, evals.json, README.md
+          make init-evals-finalize SKILL=<name>
+          ```
+
+          Full details: [`misc/evals/README.md` → Adding evals for a new skill](../blob/${{ github.head_ref || github.ref_name }}/misc/evals/README.md#adding-evals-for-a-new-skill).
+          EOF
 
   hygiene:
     name: evals hygiene
@@ -52,3 +79,48 @@ jobs:
         run: pip install pyyaml
       - name: Hygiene pre-flight (no model, no cluster)
         run: make -C misc/evals hygiene
+      - name: How to fix (shown on failure)
+        if: failure()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Evals hygiene failed
+
+          At least one `misc/evals/<skill>/` entry failed the pre-flight checks (frontmatter, positives/negatives count, SIBLING_MAP attribution, `evals.json` prompt/expectation count, …). The specific warnings are in the job log above.
+
+          **Fix — single skill:**
+          ```bash
+          make -C misc/evals init-evals-finalize SKILL=<name>
+          ```
+
+          **Fix — every skill (same checks CI runs):**
+          ```bash
+          make -C misc/evals hygiene
+          ```
+
+          The structure the checks enforce is documented in [`misc/evals/README.md` → Adding evals for a new skill](../blob/${{ github.head_ref || github.ref_name }}/misc/evals/README.md#adding-evals-for-a-new-skill).
+          EOF
+
+  docs-sync:
+    name: docs auto-gen blocks are in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regenerate and fail on diff
+        run: ./misc/update-all-references.sh --check
+      - name: How to fix (shown on failure)
+        if: failure()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Docs auto-gen blocks are stale
+
+          One of the marker-delimited catalogues in `README.md` or `skills/README.md` (Skills Reference, Steering Reference, Examples Reference) diverged from the source of truth (`skills/*/SKILL.md`, `steering/**/*.md`, or `examples/**/README.md` frontmatter). The exact diff is in the job log above.
+
+          **Fix:**
+          ```bash
+          ./misc/update-all-references.sh
+          git add README.md skills/README.md
+          git commit -m "docs: regenerate reference tables"
+          ```
+
+          Full details: [`CONTRIBUTING.md` → Keeping docs in sync](../blob/${{ github.head_ref || github.ref_name }}/CONTRIBUTING.md#keeping-docs-in-sync-auto-generated-catalogues).
+          EOF
