@@ -313,6 +313,26 @@ Each item is something `/apex:new-skill` will have produced by the end of Phase 
 7. Run `misc/update-steering-references.sh` to update the README
 8. Test with a real scenario and document results in `examples/`
 
+## Keeping docs in sync (auto-generated catalogues)
+
+Three catalogues in the repo are **auto-generated** from each entry's frontmatter and must not be edited by hand:
+
+| Block | Rendered in | Source of truth | Regenerator |
+|---|---|---|---|
+| Skills Reference | `README.md`, `skills/README.md` | `skills/<name>/SKILL.md` frontmatter | `misc/update-skills-references.sh` |
+| Steering Reference | `README.md` | `steering/**/*.md` frontmatter | `misc/update-steering-references.sh` |
+| Examples Reference | `README.md` | `examples/**/README.md` frontmatter | `misc/update-examples-references.sh` |
+
+Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` / `<!-- SKILLS_REFERENCE_END -->`. The regenerator owns everything between the markers; anything outside them is free.
+
+**One-shot refresh** (run this whenever you add a skill, workflow, or example, or change a frontmatter field):
+
+```bash
+./misc/update-all-references.sh
+```
+
+**CI enforcement.** The `docs-sync` job in `.github/workflows/evals.yml` runs `./misc/update-all-references.sh --check` on every PR. If the rendered blocks diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run the command above locally, commit the result.
+
 ## Creating a New Example
 
 1. Create `examples/<scenario>/<variant>/`
