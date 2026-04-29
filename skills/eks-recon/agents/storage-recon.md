@@ -1,8 +1,6 @@
 ---
 name: eks-recon-storage
 description: EKS storage reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS Storage Reconnaissance Agent

@@ -6,10 +6,12 @@ These evals exercise the `eks-upgrader` skill's declared scope: **executing** EK
 
 ## Neighbour-skill disambiguation
 
-- **eks-recon** (discovery / "what do we have?"): negatives 9–11 in `triggering.json` — inherited-cluster inventory, environment discovery pass, pre-planning "tell me what's deployed". **This is the single most important boundary for `eks-upgrader`**: many users plan upgrades by first asking what they're running, and the skill must *not* fire on discovery intent. The rule: if the user hasn't yet committed to an upgrade action or compatibility question, it's recon.
-- **eks-best-practices** (strategy / architecture): negatives 12–14 — in-place-vs-blue-green decision, 2x-cost worth-it question, platform redesign where upgrades are a theme but not the task. **This is the second most important boundary**: `eks-upgrader` owns the *procedure* for a chosen strategy; `eks-best-practices` owns the *choice between* strategies and upgrade-friendly architecture. The rule: if the user is still deciding, it's best-practices; if they've decided and want steps, it's upgrader.
-- **eks-mcp-server** (tooling setup): negative 15 — configuring the MCP server itself so the assistant can talk to a live cluster. Not an upgrade task.
-- **Unrelated / non-EKS**: negative 16 — vanilla self-managed Kubernetes upgrade on bare metal. EKS-specific procedure is the skill's remit; generic k8s upgrades aren't.
+<!-- SIBLING_MAP_START -->
+- **`eks-recon`** (discovery / "what do we have?") — negatives 9, 10, 11 ("what version am I running", "discovery pass on our EKS environment", "tell me what's deployed"). **The single most important boundary for `eks-upgrader`**: many users plan upgrades by first asking what they're running, and the skill must *not* fire on discovery intent. The rule: if the user hasn't yet committed to an upgrade action or compatibility question, it's recon.
+- **`eks-best-practices`** (strategy / architecture) — negatives 12, 13, 14 ("in-place vs blue-green, which should we choose", "is blue-green worth the 2x cost", "redesigning our EKS platform for multi-tenancy"). **The second most important boundary**: `eks-upgrader` owns the *procedure* for a chosen strategy; `eks-best-practices` owns the *choice between* strategies and upgrade-friendly architecture. The rule: if the user is still deciding, it's best-practices; if they've decided and want steps, it's upgrader.
+- **`eks-mcp-server`** (tooling setup) — negative 15 ("install and configure the EKS MCP server so my AI assistant can talk to my cluster"). Not an upgrade task.
+- **Unrelated / non-EKS** — negative 16 ("upgrade procedure for self-managed vanilla Kubernetes on bare metal"). EKS-specific procedure is the skill's remit; generic k8s upgrades aren't.
+<!-- SIBLING_MAP_END -->
 
 ## Live-MCP caveat
 
@@ -17,4 +19,4 @@ These evals exercise the `eks-upgrader` skill's declared scope: **executing** EK
 
 ## How to run
 
-See `/workspace/sample-apex-skills/misc/evals/README.md` for the eval harness and the relevant `Makefile` targets (`make triggering` and `make evals`, typically scoped by skill name).
+See `misc/evals/README.md` for the eval harness. Per-skill Makefile targets: `make triggering-eks-upgrader` (triggering accuracy), `make benchmark-eks-upgrader BENCHMARK_DIR=…` (aggregate `grading.json` files into `benchmark.md`).

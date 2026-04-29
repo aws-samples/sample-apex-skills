@@ -1,8 +1,6 @@
 ---
 name: eks-recon-security
 description: EKS security posture reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS Security Reconnaissance Agent

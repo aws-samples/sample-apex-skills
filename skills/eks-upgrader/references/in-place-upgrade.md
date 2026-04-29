@@ -120,7 +120,7 @@ for ADDON in vpc-cni kube-proxy coredns aws-ebs-csi-driver aws-efs-csi-driver ek
   aws eks describe-addon-versions \
     --addon-name ${ADDON} \
     --kubernetes-version ${TARGET_VERSION} \
-    --query 'addons[0].addonVersions[0:3].{Version:addonVersion,Default:compatibilities[0].defaultVersion}' \
+    --query 'addons[0].addonVersions[?compatibilities[0].defaultVersion==`true`].addonVersion | [0:3]' \
     --output table 2>/dev/null || echo "  Not installed or not available"
 done
 ```
@@ -206,7 +206,7 @@ aws eks update-nodegroup-config \
 
 ### Karpenter-Managed Nodes
 
-Karpenter handles data plane upgrades automatically through drift detection. After the control plane upgrade, Karpenter detects that node AMIs no longer match the latest EKS-optimized AMI and replaces nodes within disruption budget limits.
+Karpenter handles data plane upgrades automatically through drift detection. After the control plane upgrade, Karpenter detects that node AMIs no longer match the latest EKS-optimized AMI and replaces nodes within disruption budget limits. Automatic drift assumes AMI auto-discovery (`amiFamily` or `amiSelectorTerms` with aliases); if you use pinned `amiSelectorTerms` with specific AMI IDs, drift is opt-in — you must update the EC2NodeClass to the new AMI. See [Control drift with EC2NodeClass](karpenter.md#control-drift-with-ec2nodeclass).
 
 ```bash
 # Check for drifted nodes

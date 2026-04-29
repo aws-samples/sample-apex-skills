@@ -1,8 +1,6 @@
 ---
 name: eks-recon-observability
 description: EKS observability reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS Observability Reconnaissance Agent

@@ -1,5 +1,7 @@
 # Self-Hosted EKS MCP Server Setup
 
+> **Part of:** [eks-mcp-server](../SKILL.md)
+
 The open-source EKS MCP server from [awslabs/mcp](https://github.com/awslabs/mcp) runs locally on your machine, providing full control over authentication and configuration.
 
 ## Prerequisites
@@ -42,7 +44,8 @@ For IAM authentication, attach these permissions to your IAM role/user:
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
       "iam:GetPolicy",
-      "iam:GetPolicyVersion"
+      "iam:GetPolicyVersion",
+      "eks-mcpserver:QueryKnowledgeBase"
     ],
     "Resource": "*"
   }]
@@ -120,8 +123,8 @@ Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 
 | Assistant | Config File |
 |-----------|-------------|
-| Amazon Q CLI | `~/.aws/q/mcp.json` |
-| Claude Code | `.mcp.json` or `~/.claude/mcp.json` |
+| Amazon Q CLI | `~/.aws/amazonq/mcp.json` |
+| Claude Code | `.mcp.json` (project) or `~/.claude.json` (user, via `claude mcp add -s user`) |
 | Cursor | Settings → Tools & MCP |
 | Kiro | `~/.kiro/settings/mcp.json` |
 | VS Code (Cline) | Cmd+Shift+P → MCP → User Config |
@@ -145,18 +148,21 @@ Use this format for the args array:
 |----------|-------------|
 | `--allow-write` | Enable create/update/delete operations |
 | `--allow-sensitive-data-access` | Enable logs, events, secrets access |
-| `--auth-mode kubeconfig` | Use kubeconfig instead of IAM |
+
+To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see Environment Variables below) — the JSON examples above use this approach.
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `AWS_PROFILE` | AWS credentials profile | default |
-| `AWS_REGION` | AWS region for EKS | us-east-1 |
+| `AWS_REGION` | AWS region for EKS | None (uses default AWS region) |
 | `EKS_AUTH_MODE` | `iam` or `kubeconfig` | iam |
 | `KUBECONFIG` | Path to kubeconfig file | ~/.kube/config |
 | `FASTMCP_LOG_LEVEL` | Log verbosity | WARNING |
 | `HTTP_PROXY` / `HTTPS_PROXY` | Proxy settings | none |
+
+> **Region pitfall:** When used with the AWS-hosted proxy, `mcp-proxy-for-aws` signs SigV4 against `us-west-2` by default while the proxy's `--region` flag falls back to `us-east-1` when unset — always set `--region` (and `AWS_REGION`) explicitly to the region of your clusters to avoid a region-mismatch failure.
 
 ## Step 3: Verify Setup
 
@@ -166,7 +172,7 @@ Use this format for the args array:
 ## Available Tools
 
 ### Always Available
-- `list_k8s_resources`, `read_k8s_resource`, `manage_k8s_resource`
+- `list_k8s_resources`, `manage_k8s_resource` (supports `create`, `read`, `update`, `delete` operations — `read` replaces the older standalone `read_k8s_resource` tool)
 - `apply_yaml`, `generate_app_manifest`
 - `get_pod_logs`, `get_k8s_events`
 - `list_api_versions`

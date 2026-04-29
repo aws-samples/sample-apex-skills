@@ -20,6 +20,12 @@ WORKSHOP_VISION.md
 PLAN*
 eks-best-practices-workspace
 
+# Eval artefacts (misc/evals/) — per-run ephemera. history/ is intentionally
+# tracked so regression detection has shared signal across contributors.
+misc/evals/*/workspace/
+misc/evals/**/*.html
+misc/evals/.secrets/
+
 # Python
 __pycache__/
 *.pyc

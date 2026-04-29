@@ -1,8 +1,6 @@
 ---
 name: eks-recon-cicd
 description: EKS CI/CD and GitOps reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS CI/CD Reconnaissance Agent

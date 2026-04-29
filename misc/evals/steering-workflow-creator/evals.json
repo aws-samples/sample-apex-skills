@@ -1,0 +1,32 @@
+{
+  "skill_name": "steering-workflow-creator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to author a new steering workflow at steering/workflows/cost-review.md for a Day 2 EKS cost review engagement. Walk me through the convention — what the frontmatter must contain, what the header block looks like, and which H2 sections are required in what order. Then produce a conforming skeleton I can paste into the file.",
+      "expected_output": "A response that names the two required frontmatter keys (name, description) and explicitly says `inclusion:` must NOT appear on a workflow file; describes the four-line blockquote header block with the exact labels in order (Part of, Lifecycle, Skill, Access Model); lists the five required H2 sections in exactly this order — How to Route Requests, Phases, Defaults, Quality Checklist, Conversation Style; and produces a conforming skeleton that the linter would accept.",
+      "expectations": [
+        "Lists exactly two required frontmatter keys: `name` and `description`. — TODO: human review",
+        "Explicitly states that `inclusion:` must not appear on workflow files (it is reserved for hub files). — TODO: human review",
+        "Names all four header-block labels in the correct order: Part of, Lifecycle, Skill, Access Model. — TODO: human review",
+        "Lists the five required H2 sections in exactly this order: How to Route Requests, Phases, Defaults, Quality Checklist, Conversation Style. — TODO: human review",
+        "Produces a complete workflow skeleton including frontmatter, H1 title, four-line header block, and all five H2 sections. — TODO: human review",
+        "Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose. — TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I'm drafting a Day 2 blue-green cutover workflow for RDS. One phase needs to run `aws rds describe-db-instances` against the target account to check current engine versions, another phase presents a decision framework for the cutover window. What `Source:` annotations should I use on each phase, and what else must each one include? Also, what Access Model should the workflow declare in its header block, given that the workflow itself only reads state and produces a plan?",
+      "expected_output": "A response that names `Source: live` for the describe-db-instances phase and requires it carry a CLI fallback line (naming the exact aws rds command is the fallback); names `Source: knowledge` or `Source: either` for the decision-framework phase and explains why; and recommends `Access Model: advisory` (or `read-only`) in the header, with reasoning that the workflow emits a plan rather than mutating.",
+      "expectations": [
+        "Identifies the describe-db-instances phase as Source: live. — TODO: human review",
+        "States that a Source: live phase must include a named CLI fallback inline. — TODO: human review",
+        "Identifies the decision-framework phase as Source: knowledge or Source: either, with reasoning. — TODO: human review",
+        "Recommends Access Model: advisory or read-only (not mutating) with reasoning grounded in the workflow producing a plan, not a change. — TODO: human review",
+        "Does not invent a fourth Source value — uses only knowledge, live, or either. — TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}

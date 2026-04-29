@@ -65,11 +65,7 @@ skills/{skill-name}/
 
 ### Current Skills
 
-| Skill | What It Covers |
-|-------|---------------|
-| `eks-best-practices` | EKS architecture decisions, compute, networking, security, reliability, autoscaling, upgrades, cost, observability, ArgoCD, container registry, EKS Capabilities |
-| `terraform-skill` | Terraform modules, testing (native + Terratest), CI/CD, security scanning |
-| `skill-creator` | Meta-skill: how to create and package new skills |
+See the auto-generated [Skills Reference](README.md#skills-reference) in `README.md` — regenerated from each `skills/<name>/SKILL.md` frontmatter by `misc/update-skills-references.sh` (and enforced by CI via `misc/update-all-references.sh`), so it can't fall out of sync with the repo.
 
 ---
 
@@ -91,16 +87,18 @@ skills/{skill-name}/
 
 ```
 steering/
-├── eks.md                    # Hub: intent detection, routing, shared context
+├── eks.md                    # Service hub: EKS intent detection + routing
+├── apex.md                   # Meta hub: repo-wide contributor actions (new-skill, …)
 ├── commands/                 # Slash command wrappers (harness-specific entry points)
 │   └── apex/                 # Claude Code: symlinked into .claude/commands/apex/
 │       ├── eks.md            # /apex:eks → routes via steering/eks.md
 │       ├── eks-design.md     # /apex:eks-design → steering/workflows/design.md
-│       └── eks-upgrade.md    # /apex:eks-upgrade → steering/workflows/upgrade.md
+│       ├── eks-upgrade.md    # /apex:eks-upgrade → steering/workflows/upgrade.md
+│       └── new-skill.md      # /apex:new-skill → steering/workflows/new-skill.md
 └── workflows/
     ├── design.md             # Day 0: Architecture questionnaire + quality check
     ├── upgrade.md            # Day 2: Pre-flight → plan → execute → validate
-    └── troubleshoot.md       # Day 2: (future) Diagnosis workflows
+    └── new-skill.md          # Meta: onboard a new skill end-to-end
 ```
 
 ### Why Hub + Workflows (Not Monolithic)
@@ -262,21 +260,47 @@ When adding new content to the repo, follow this flowchart:
 
 ## Creating a New Skill
 
-See the `skill-creator` skill in `skills/skill-creator/SKILL.md` for the full guide. Summary:
+The happy path is the `/apex:new-skill` workflow — it onboards a skill end-to-end, including the obligations to the rest of the repo (catalogues, sibling disambiguation, eval scaffold, baseline run) that are easy to skip when hand-authoring. Running it produces exactly the artefacts the [Pre-PR checklist](#pre-pr-checklist-for-new-skills) below enumerates, so you do not need to cross-check two lists at review time.
 
-1. Understand the skill with concrete examples
-2. Plan reusable contents (scripts, references, assets)
-3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists)
-4. Set up evals: `cd misc/evals && make init-evals SKILL=<name>`, then fill in the `<REPLACE>` markers in `triggering.json`, `evals.json`, and `README.md` — see [`misc/evals/README.md`](misc/evals/README.md)
-5. Validate: `make validate-<name>` (from `misc/evals/`) and `make check-evals-coverage`
-6. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`
-7. Iterate based on real usage
+```
+/apex:new-skill
+```
+
+The workflow is bimodal:
+
+- **Greenfield** — `skills/<name>/` does not exist. Phase 2 invokes the [`skill-creator`](skills/skill-creator/SKILL.md) skill to draft `SKILL.md` + references.
+- **Retrofit** — `skills/<name>/` already exists (the skill was authored outside the workflow). Phase 2 is skipped; the workflow still walks sibling survey, fan-out, eval scaffold, and baseline so the skill catches up on its repo obligations.
+
+Both modes converge on Phase 3 (sibling survey) → Phase 4 (repo fan-out) → Phase 5 (eval scaffold + `make init-evals-finalize`) → Phase 6 (baseline + PR prep). Full spec at [`steering/workflows/new-skill.md`](steering/workflows/new-skill.md).
+
+### Manual path
+
+If you prefer to drive the steps yourself without the workflow:
+
+1. Understand the skill with concrete examples.
+2. Plan reusable contents (scripts, references, assets).
+3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists — see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
+4. Scaffold the eval set: `cd misc/evals && make init-evals SKILL=<name>` (add `SIBLINGS="a,b,c"` when the skill has neighbours). Fill in the `<REPLACE>` markers in `triggering.json`, `evals.json`, and `README.md`.
+5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py` — one call per neighbour.
+6. Fan out across the repo: update `skills/README.md`, `CONTRIBUTING.md`, the relevant service hub (`steering/<service>.md`) if service-scoped, and any other catalogue that lists skills.
+7. Finalize: `make init-evals-finalize SKILL=<name>` — mirrors the CI hygiene gate.
+8. Baseline: `make triggering-<name>` and (if applicable) `make task-<name>` from `misc/evals/`.
+9. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`.
+
+Both paths land the same artefacts; the workflow just orchestrates and surfaces a fan-out diff you can review as a single unit.
 
 ### Pre-PR checklist for new skills
 
-- [ ] `make validate-<name>` passes
-- [ ] `misc/evals/<name>/` has `triggering.json` (≥16 prompts, balanced), `evals.json` (≥2 task prompts), and a filled-in `README.md`
+Each item is something `/apex:new-skill` will have produced by the end of Phase 6. If you took the manual path, verify each one before opening the PR.
+
+- [ ] `skills/<name>/SKILL.md` passes `make validate-<name>` (run from `misc/evals/`)
+- [ ] `misc/evals/<name>/triggering.json` has ≥16 prompts (≥8 positives, ≥8 negatives)
+- [ ] `misc/evals/<name>/evals.json` has ≥2 realistic task prompts with ≥3 grader-checkable expectations each
+- [ ] `misc/evals/<name>/README.md` has `<REPLACE>` markers resolved and the SIBLING_MAP block populated (or explicitly empty if the skill has no siblings)
+- [ ] Every neighbour's `SIBLING_MAP` block in `misc/evals/<neighbour>/README.md` lists this new skill, and the corresponding negatives are in `misc/evals/<neighbour>/triggering.json`
+- [ ] `make init-evals-finalize SKILL=<name>` exits 0
 - [ ] `make check-evals-coverage` exits 0
+- [ ] Catalogue entries landed: `skills/README.md`, `CONTRIBUTING.md`, and (if service-scoped) the relevant service hub
 
 ## Creating a New Steering Workflow
 
@@ -288,6 +312,26 @@ See the `skill-creator` skill in `skills/skill-creator/SKILL.md` for the full gu
 6. Create a corresponding command file in `steering/commands/apex/eks-<name>.md` with frontmatter (`name`, `description`) and an `@steering/workflows/<name>.md` execution context reference
 7. Run `misc/update-steering-references.sh` to update the README
 8. Test with a real scenario and document results in `examples/`
+
+## Keeping docs in sync (auto-generated catalogues)
+
+Three catalogues in the repo are **auto-generated** from each entry's frontmatter and must not be edited by hand:
+
+| Block | Rendered in | Source of truth | Regenerator |
+|---|---|---|---|
+| Skills Reference | `README.md`, `skills/README.md` | `skills/<name>/SKILL.md` frontmatter | `misc/update-skills-references.sh` |
+| Steering Reference | `README.md` | `steering/**/*.md` frontmatter | `misc/update-steering-references.sh` |
+| Examples Reference | `README.md` | `examples/**/README.md` frontmatter | `misc/update-examples-references.sh` |
+
+Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` / `<!-- SKILLS_REFERENCE_END -->`. The regenerator owns everything between the markers; anything outside them is free.
+
+**One-shot refresh** (run this whenever you add a skill, workflow, or example, or change a frontmatter field):
+
+```bash
+./misc/update-all-references.sh
+```
+
+**CI enforcement.** The `docs-sync` job in `.github/workflows/evals.yml` runs `./misc/update-all-references.sh --check` on every PR. If the rendered blocks diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run the command above locally, commit the result.
 
 ## Creating a New Example
 
@@ -355,3 +399,9 @@ If you discover a potential security issue in this project we ask that you notif
 ## Licensing
 
 See the [LICENSE](LICENSE) file for our project's licensing. We will ask you to confirm the licensing of your contribution.
+
+### Per-skill `license:` frontmatter
+
+Most skills in this repo are authored in-house under Amazon copyright and are governed by the repo's root [LICENSE](LICENSE) file (MIT-0). These skills MUST NOT declare a `license:` field in their `SKILL.md` frontmatter — the repo LICENSE governs.
+
+Only skills synced from an upstream project carry their own `license:` field and a sibling `LICENSE` file in the skill directory, and MUST be accompanied by an entry in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). See `skills/terraform-skill/` (Apache-2.0, synced from `antonbabenko/terraform-skill`) and `skills/skill-creator/` (Apache-2.0, synced from `anthropics/skills`) for examples. Do not edit these skills directly — changes belong upstream, and the local copy is overwritten on the next sync (see `misc/sync-*.sh`).

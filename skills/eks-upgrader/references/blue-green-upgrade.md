@@ -208,7 +208,8 @@ Run comprehensive validation before sending any real traffic:
 ```bash
 # 1. Cluster health
 kubectl --context green get nodes -o wide
-kubectl --context green get cs
+# Control plane readiness (componentstatuses is deprecated and empty on modern EKS)
+kubectl --context green get --raw '/readyz?verbose'
 
 # 2. DNS resolution
 kubectl --context green run dns-test --image=busybox:1.36 --rm -it --restart=Never -- \

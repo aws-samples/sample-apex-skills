@@ -1,8 +1,6 @@
 ---
 name: eks-recon-iac
 description: EKS Infrastructure-as-Code reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS IaC Reconnaissance Agent

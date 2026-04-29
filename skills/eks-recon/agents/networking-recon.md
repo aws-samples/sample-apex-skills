@@ -1,8 +1,6 @@
 ---
 name: eks-recon-networking
 description: EKS networking reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS Networking Reconnaissance Agent

@@ -4,14 +4,16 @@
 
 <REPLACE: 1-3 sentence scope description — which slice of the skill's declared scope these inputs exercise, and what `triggering.json` vs `evals.json` each check.>
 
-## Neighbor-skill disambiguation
+## Neighbour-skill disambiguation
 
-<REPLACE: table or bullet-list mapping each negative prompt in `triggering.json` to the sibling skill it targets, plus the key discriminator that keeps this skill from firing on it. Example shape:
+<REPLACE: 1-2 sentences framing the boundary with sibling skills. Then fill in the sibling map below.>
 
+<!-- SIBLING_MAP_START -->
 - **`sibling-skill-a`** (one-line scope) — negatives N, M ("short quoted near-miss phrase").
 - **`sibling-skill-b`** (one-line scope) — negative K ("short quoted near-miss phrase").
+<!-- SIBLING_MAP_END -->
 
-Close with a sentence naming the discriminator that separates this skill from its neighbors.>
+<REPLACE: close with a sentence naming the discriminator that separates this skill from its neighbours. The `make score` parser reads only what's between the SIBLING_MAP markers — keep each bullet shaped `- **`sibling-name`** ... negatives N, M ...` (ranges like `9-11` or `9–11` also work) so the sibling-leakage attribution matches every negative in `triggering.json`. Prose outside the markers is free.>
 
 ## Live-MCP caveat
 

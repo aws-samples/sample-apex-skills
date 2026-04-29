@@ -1,8 +1,6 @@
 ---
 name: eks-recon-addons
 description: EKS add-ons reconnaissance subagent
-tools: Read, Bash, Grep, Glob
-model: opus
 ---
 
 # EKS Add-ons Reconnaissance Agent

@@ -1,5 +1,0 @@
-# Ephemeral eval runs — never commit these
-*/workspace/
-*/workspace
-# Generated HTML reports
-*.html

@@ -1,7 +1,6 @@
 ---
 name: eks-best-practices
-description: Comprehensive Amazon EKS best practices for cluster architecture, security, networking, autoscaling, reliability, and operations. Use when (1) designing EKS cluster architecture, (2) choosing between compute options (Fargate, MNG, Karpenter, Auto Mode), (3) planning EKS networking or security, (4) reviewing EKS architecture decisions, (5) working with terraform-aws-modules/terraform-aws-eks examples, (6) planning cluster upgrades, or (7) optimizing EKS cost and scalability.
-license: Apache-2.0
+description: Use this skill whenever someone is making an Amazon EKS design, architecture, or configuration decision — even phrased casually as "how should we set up...", "what's the right way to...", "should we use X or Y", "we're about to redesign/consolidate/migrate...", or "is this reasonable?". Covers compute strategy (Karpenter, MNG, Fargate, Auto Mode, self-managed), multi-tenant platform design and tenant isolation (namespaces, node pools, RBAC, network policies, quotas), VPC/IP planning, ingress, IAM/Pod Identity/IRSA, pod security, PDBs and reliability, upgrade strategy (in-place vs blue-green), cost (Spot, Graviton, consolidation), autoscaling, and observability. Also triggers for Terraform with terraform-aws-modules/terraform-aws-eks (access entries, addons, node groups, IRSA). Trigger even if "best practice" is never said — any EKS planning or architectural judgment call qualifies. Skip for step-by-step upgrade execution (eks-upgrader) or pure Kubernetes questions unrelated to EKS.
 ---
 
 # EKS Best Practices
@@ -24,6 +23,7 @@ Comprehensive guidance for designing, deploying, and operating Amazon EKS cluste
 - Generic Kubernetes concepts (Claude knows these)
 - Provider-specific API reference (link to AWS docs)
 - Non-EKS container orchestration (ECS, Lambda)
+- *Executing* an EKS upgrade — step-by-step procedures and add-on compatibility matrices live in the `eks-upgrader` skill. This skill covers upgrade strategy and architectural decisions.
 
 ## EKS Architecture Decision Framework
 
@@ -209,7 +209,7 @@ topologySpreadConstraints:
   whenUnsatisfiable: DoNotSchedule
 ```
 
-**For detailed reliability guidance, see:** [Reliability & Resiliency Reference](references/reliability-resiliency.md)
+**For detailed reliability guidance, see:** [Reliability & Resiliency — Core](references/reliability-core.md) (see also [reliability-advanced.md](references/reliability-advanced.md) for DR, deployment strategies, and large-cluster guidance)
 
 ## Cluster Upgrade Strategy
 
@@ -362,7 +362,8 @@ This skill uses **progressive disclosure** — essential guidance is in this mai
 - **[Security — Supply Chain & Compliance](references/security-supply-chain.md)** — Image security (SBOMs, attestations, ECR hardening), infrastructure hardening (Bottlerocket, CIS benchmarks), regulatory compliance, incident response
 - **[Networking](references/networking.md)** — VPC CNI modes (secondary IP, prefix delegation, custom networking), subnet/CIDR planning, IPv4 vs IPv6, Security Groups for Pods, IP address management
 - **[Networking — Ingress & DNS](references/networking-ingress-dns.md)** — Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity
-- **[Reliability & Resiliency](references/reliability-resiliency.md)** — HA patterns, PDBs, health probes, load balancer health checks, lifecycle hooks, topology spread, resource management, disaster recovery, deployment strategies, large cluster guidance
+- **[Reliability & Resiliency — Core](references/reliability-core.md)** — HA patterns, PDBs, health probes, load balancer health checks, lifecycle hooks, topology spread, resource management
+- **[Reliability & Resiliency — Advanced](references/reliability-advanced.md)** — disaster recovery, zonal shift, deployment strategies, large cluster guidance, chaos engineering, admission-controller topology enforcement
 - **[Autoscaling](references/autoscaling.md)** — Autoscaler selection, Cluster Autoscaler (IAM, Spot, overprovisioning, parameter tuning), HPA, VPA, KEDA, CoreDNS autoscaling
 - **[Karpenter](references/karpenter.md)** — Operational best practices, NodePools, EC2NodeClass, Spot/interruption handling, consolidation, multiple NodePool strategy, cost controls, resource management, private clusters, CoreDNS with Karpenter
 - **[Cluster Upgrades](references/cluster-upgrades.md)** — In-place and blue-green upgrades, pre-upgrade validation, add-on management, API deprecation detection, version skew policy, Bottlerocket updates, rollback procedures
@@ -376,10 +377,7 @@ This skill uses **progressive disclosure** — essential guidance is in this mai
 
 **How to use:** When you need detailed information on a topic, reference the appropriate guide. Claude will load it on demand.
 
-## License
+## Sources
 
-This skill is licensed under the **Apache License 2.0**.
-
-**Sources:**
 - [AWS EKS Best Practices Guide](https://docs.aws.amazon.com/eks/latest/best-practices/)
 - [terraform-aws-modules/terraform-aws-eks](https://github.com/terraform-aws-modules/terraform-aws-eks)
