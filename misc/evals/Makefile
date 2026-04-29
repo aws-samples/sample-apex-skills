@@ -18,7 +18,7 @@ SHELL          := /bin/bash
 
 EVALS_ROOT     := $(CURDIR)
 REPO_ROOT      := $(abspath $(CURDIR)/../..)
-SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name 'scripts' ! -name 'history' ! -name '.*' -printf '%f\n' | sort)
+SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name 'scripts' ! -name 'history' ! -name 'setup' ! -name '.*' -printf '%f\n' | sort)
 SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 
 # ---------- model / provider configuration ------------------------------------
@@ -71,7 +71,7 @@ AWS_POLICY_RO     ?= $(READONLY_SECRETS)/readonly-session-policy.json
 AWS_REGION        ?= us-west-2
 
 .PHONY: help list-skills validate-all triggering-all task-all score-full \
-        init-evals check-evals-coverage score score-dry \
+        init-evals check-evals-coverage hygiene score score-dry \
         $(VALIDATE_T) $(TRIGGERING_T) $(OPTIMIZE_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T)
 
@@ -95,6 +95,7 @@ help:
 	@echo "New-skill onboarding:"
 	@echo "  init-evals SKILL=<name>    scaffold misc/evals/<name>/ from _template/"
 	@echo "  check-evals-coverage       verify every skills/*/ has a misc/evals/*/ entry"
+	@echo "  hygiene                    pre-flight every misc/evals/*/ (no model calls)"
 	@echo ""
 	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, MAX_ITER, RUNS_PER_QUERY,"
 	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, AWS_POLICY_RO, WORKSPACE, BENCHMARK_DIR"
@@ -253,6 +254,13 @@ score:
 
 score-dry:
 	python3 $(EVALS_ROOT)/scripts/run_all_evals.py --dry-run
+
+# ---------- hygiene (deterministic pre-flight; no model, no cluster) ----------
+# Runs quick_validate + schema checks (triggering.json positives/negatives,
+# evals.json prompt/expectation counts, SIBLING_MAP parseability and negative
+# attribution) for every skill under misc/evals/. Exits non-zero on warnings.
+hygiene:
+	python3 $(EVALS_ROOT)/scripts/check_hygiene.py
 
 # ---------- check-evals-coverage (every skills/*/ has a misc/evals/*/ entry) --
 check-evals-coverage:

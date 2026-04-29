@@ -61,7 +61,7 @@ def discover_skills() -> list[str]:
     for child in sorted(EVALS_ROOT.iterdir()):
         if not child.is_dir():
             continue
-        if child.name in {"_template", "workspace", "scripts", "history"}:
+        if child.name in {"_template", "workspace", "scripts", "history", "setup"}:
             continue
         if child.name.startswith("."):
             continue
