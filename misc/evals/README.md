@@ -313,29 +313,40 @@ The runner never caches — every `make score` / `make task-<skill>` is a fresh 
 
 ### Running the task axis
 
+**Fixture-free skills only** (no prereqs — just `pip install pyyaml` and valid `claude -p` auth):
+
 ```bash
-# All fixture-free skills (skips live_only=true prompts):
 make task-all RUNS_PER_PROMPT=1     # dev iteration
 make task-all RUNS_PER_PROMPT=3     # 3× for meaningful stddev
-
-# Include prompts that need a real cluster (currently just eks-recon):
-make task-eks-recon INCLUDE_LIVE_ONLY=1 RUNS_PER_PROMPT=1
-
-# Full triggering + task refresh + scorecard rewrite:
-make score-full
+make score-full                     # task-all + triggering + scorecard rewrite
 ```
 
-Live-cluster prompts run against whatever cluster `KUBECONFIG_RO` points at under an AWS session policy that only allows `Describe*`/`List*`/`Get*`. The enforcement is at the API-server and IAM boundaries — writes are impossible regardless of what the model tries.
+This skips every prompt tagged `"live_only": true` in the skills' `evals.json`. Currently that's just the two `eks-recon` prompts that need a real cluster.
 
-Before the first live-cluster run, bootstrap the read-only artefacts into `misc/evals/.secrets/` (gitignored):
+**Including live-cluster prompts** (one-time setup, then one command per run):
 
 ```bash
-# Make sure your current kubectl context points at the cluster you want
-# to run evals against, and your AWS credentials can call sts:GetFederationToken.
+# One-time setup — applies RBAC to whichever cluster `kubectl` currently
+# points at, writes the read-only kubeconfig and AWS session policy into
+# misc/evals/.secrets/ (gitignored). Idempotent; re-run to rotate the token
+# or switch clusters. Requires: kubectl context set, AWS creds with
+# sts:GetFederationToken.
 ./misc/evals/setup/bootstrap-readonly.sh
+
+# Per-run — pass INCLUDE_LIVE_ONLY=1 to opt in:
+make task-eks-recon  INCLUDE_LIVE_ONLY=1 RUNS_PER_PROMPT=1   # one skill
+make task-all        INCLUDE_LIVE_ONLY=1 RUNS_PER_PROMPT=1   # every skill, live prompts too
+make score-full      INCLUDE_LIVE_ONLY=1                     # everything + scorecard rewrite
 ```
 
-The script is idempotent — re-run it to rotate the token, switch clusters, or refresh after a clone. The declarative sources it reads from (`setup/readonly-rbac.yaml`, `setup/readonly-session-policy.json`) are committed; the generated outputs under `.secrets/` are not.
+The `Makefile` reads `KUBECONFIG_RO` and `AWS_POLICY_RO` from `.secrets/` by default; when `INCLUDE_LIVE_ONLY=1` is set it passes both to the runner. Without `INCLUDE_LIVE_ONLY=1`, `.secrets/` doesn't need to exist.
+
+**How read-only safety works.** Live-cluster prompts run against the cluster `KUBECONFIG_RO` points at, with two enforcement layers:
+
+1. Kubernetes: `kubeconfig.readonly` authenticates as a `ServiceAccount` whose `ClusterRole` allows only `get`/`list`/`watch`. The API server rejects any write verb with `forbidden`.
+2. AWS: the runner mints an STS federation token scoped by `readonly-session-policy.json`, which allows `Describe*`/`List*`/`Get*` + `bedrock:Invoke*`. IAM rejects any other action with `AccessDenied`.
+
+Writes are impossible regardless of what the model tries — the enforcement is at the service boundary, not in the script. The declarative sources (`setup/readonly-rbac.yaml`, `setup/readonly-session-policy.json`) are committed; the generated `.secrets/` outputs are not.
 
 ### Cost profile
 
