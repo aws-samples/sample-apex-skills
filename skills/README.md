@@ -130,6 +130,33 @@ Create new skills, modify and improve existing skills, and measure skill perform
 
 ---
 
+### [steering-workflow-creator](./steering-workflow-creator/)
+
+Author a new steering workflow for any AWS service and pair it with a matching slash-command shim. Use when the user asks to create a steering workflow, add a workflow to apex, standardize steering, write a new workflow for EKS / RDS / Lambda / IAM / any AWS service, or build a phased playbook that plugs into a service hub. Covers the convention (frontmatter, header block, required sections), tool routing (knowledge vs. live MCP vs. setup-bridge), and the lint pass before handoff.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [anti-patterns.md](./steering-workflow-creator/references/anti-patterns.md) | Anti patterns |
+| [convention.md](./steering-workflow-creator/references/convention.md) | Convention |
+| [tool-routing.md](./steering-workflow-creator/references/tool-routing.md) | Tool routing |
+
+**Scripts:**
+
+| Script | Description |
+|--------|-------------|
+| [quick_validate.py](./steering-workflow-creator/scripts/quick_validate.py) | Quick_validate |
+
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [command-shim-skeleton.md](./steering-workflow-creator/assets/command-shim-skeleton.md) | Command shim skeleton |
+| [workflow-skeleton.md](./steering-workflow-creator/assets/workflow-skeleton.md) | Workflow skeleton |
+
+---
+
 ### [terraform-skill](./terraform-skill/)
 
 Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions
