@@ -414,29 +414,75 @@ pip install pyyaml
 
 ## Adding evals for a new skill
 
-Every skill in `skills/` must have a matching entry in `misc/evals/` (except upstream-synced skills: `skill-creator` and `terraform-skill`, which are maintained externally). The onboarding path is scripted:
+Every skill in `skills/` must have a matching entry in `misc/evals/` (except upstream-synced skills: `skill-creator` and `terraform-skill`, which are maintained externally). CI enforces this — see [The CI gate](#the-ci-gate) below.
+
+### Happy path — `/apex:new-skill`
+
+Run the onboarding workflow. It walks scope intake, drafts the skill (or detects a retrofit), surveys the sibling graph, produces a fan-out diff across catalogues and sibling eval sets, scaffolds the eval dir, applies the fan-out, and runs the hygiene gate locally before you open a PR.
+
+```
+/apex:new-skill
+```
+
+The workflow itself is at [`steering/workflows/new-skill.md`](../../steering/workflows/new-skill.md); the slash-command shim at `steering/commands/apex/new-skill.md`. Six phases with STOP gates:
+
+1. Scope intake and mode detection (greenfield vs retrofit).
+2. Draft via `skill-creator` (greenfield only — skipped if the skill already exists).
+3. Survey sibling graph. Zero siblings is a legitimate outcome — do not pad.
+4. Fan out across the repo. Proposes a single diff across catalogues, hubs, and sibling eval sets.
+5. Scaffold evals, apply fan-out, finalize. `make init-evals-finalize SKILL=<name>` must exit 0.
+6. Baseline and PR prep.
+
+### Manual path — `make init-evals`
+
+If you want to drive the steps yourself without the workflow:
 
 ```bash
 cd misc/evals
-make init-evals SKILL=<your-skill>
+make init-evals SKILL=<your-skill>                          # 2-entry template copy
+make init-evals SKILL=<your-skill> SIBLINGS="a,b,c"         # pre-filled SIBLING_MAP placeholders
 ```
 
-This copies `_template/` to `misc/evals/<your-skill>/` and substitutes `<REPLACE>` → `<your-skill>` across every file. The resulting directory has:
+This copies `_template/` to `misc/evals/<your-skill>/` and substitutes `<REPLACE>` → `<your-skill>`. With `SIBLINGS=` the README's SIBLING_MAP block gets one placeholder bullet per sibling — you still fill in the scope blurb and (via `update_sibling_map.py`, see below) the negative indices.
 
-- `triggering.json` — 2-entry skeleton (1 positive + 1 negative). Expand to ≥16 prompts with balanced positives and near-miss negatives.
-- `evals.json` — 1-entry skeleton; add 2–4 realistic task prompts. Every assertion is tagged `TODO: human review` until a human tunes it.
-- `README.md` — fill in the four `<REPLACE>` sections (scope, neighbor-skill disambiguation, live-MCP caveat, how to run).
+The resulting directory has:
+
+- `triggering.json` — 2-entry skeleton. Expand to ≥16 prompts (≥8 positives, ≥8 negatives).
+- `evals.json` — 1-entry skeleton; add ≥2 realistic task prompts with ≥3 grader-checkable expectations each. Every assertion tagged `TODO: human review` until a human tunes it.
+- `README.md` — fill in the four `<REPLACE>` sections (scope, neighbour-skill disambiguation, live-MCP caveat, how to run).
 - `files/` — empty; drop input fixtures here as prompts demand.
 
-To verify every skill has an eval entry:
+When the new skill is a neighbour of an existing skill, the existing skill's eval set needs a sibling-map bullet + one or two new negative prompts. The helper script handles the mechanical insertion:
 
 ```bash
-make check-evals-coverage
+python scripts/update_sibling_map.py \
+  --new-skill <new> \
+  --target-sibling <sibling> \
+  --scope "<one-line scope>" \
+  --negative-prompt "<prompt routing to <new>>" \
+  --negative-prompt "<optional second prompt>"
 ```
 
-Fails with a list of missing skills. Exits 0 when every `skills/<name>/` (minus the upstream-synced pair) has a corresponding `misc/evals/<name>/`.
+It appends the negatives to the sibling's `triggering.json`, splices the new indices into a new SIBLING_MAP bullet, and refuses to run if the markers are missing or the bullet already exists. You still decide who is a sibling (agent + author judgment in Phase 3 of the workflow) and compose the scope + near-miss prompts (these are the creative parts).
 
-See `CONTRIBUTING.md` for the full new-skill workflow including when in the PR lifecycle these pieces land.
+Before opening a PR, run the local mirror of the CI gate:
+
+```bash
+make init-evals-finalize SKILL=<your-skill>   # single skill
+make hygiene                                  # every skill
+make check-evals-coverage                     # coverage parity (skills/ vs misc/evals/)
+```
+
+All three are deterministic, no model calls. `init-evals-finalize` is scoped to one skill and runs the same checks CI runs — use it as the pre-PR floor.
+
+### The CI gate
+
+`.github/workflows/evals.yml` runs two jobs on every PR that touches `skills/**`, `misc/evals/**`, or the workflow file itself:
+
+- **coverage** — `make check-evals-coverage`. Fails when a new `skills/<name>/` has no matching `misc/evals/<name>/`.
+- **hygiene** — `make hygiene`. Fails on malformed `triggering.json`, malformed `evals.json`, missing or unparseable SIBLING_MAP blocks, under-count positives/negatives, and frontmatter issues (`quick_validate` failures).
+
+No Bedrock, no EKS cluster, no model calls — the gate is offline and cheap. The live-model `make score` run is a local / scheduled action, not per-PR.
 
 ## The working-directory quirk
 

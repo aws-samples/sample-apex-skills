@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic hygiene pre-flight for every misc/evals/<skill>/ entry.
+"""Deterministic hygiene pre-flight for misc/evals/<skill>/ entries.
 
 Reuses the pre-flight logic already embedded in run_all_evals.py — runs
 quick_validate, checks triggering.json positive/negative counts, checks
@@ -10,6 +10,10 @@ SIBLING_MAP block.
 No model calls, no Makefile shell-outs, no live cluster. Safe for a
 per-PR CI gate.
 
+Usage:
+  check_hygiene.py               — every skill under misc/evals/
+  check_hygiene.py --skill NAME  — single skill (used by make init-evals-finalize)
+
 Exit codes:
   0  every skill is clean
   1  one or more skills have hygiene warnings
@@ -17,6 +21,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import sys
 from pathlib import Path
@@ -39,9 +44,26 @@ def _load_run_all_evals():
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument(
+        "--skill",
+        help="Check only this skill (used by `make init-evals-finalize`). "
+        "Default: every skill under misc/evals/.",
+    )
+    args = parser.parse_args()
+
     rae = _load_run_all_evals()
 
     skills = rae.discover_skills()
+    if args.skill:
+        if args.skill not in skills:
+            print(
+                f"unknown skill: {args.skill} (known: {', '.join(skills) or 'none'})",
+                file=sys.stderr,
+            )
+            return 1
+        skills = [args.skill]
+
     if not skills:
         print("no skills discovered under misc/evals/", file=sys.stderr)
         return 1
