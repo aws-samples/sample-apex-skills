@@ -57,11 +57,23 @@ BENCHMARK_T  := $(addprefix benchmark-,$(SKILLS))
 REPORT_T     := $(addprefix report-,$(SKILLS))
 PACKAGE_T    := $(addprefix package-,$(SKILLS))
 REVIEW_T     := $(addprefix review-,$(SKILLS))
+TASK_T       := $(addprefix task-,$(SKILLS))
 
-.PHONY: help list-skills validate-all triggering-all \
+# Task-axis defaults (PLAN §2). RUNS_PER_PROMPT=1 is cheap dev; bump to 3
+# for stddev. INCLUDE_LIVE_ONLY=1 enables prompts that require a real
+# cluster (eks-recon currently). KUBECONFIG and AWS_SESSION_POLICY feed
+# the sandbox so those live prompts run against a read-only scope.
+RUNS_PER_PROMPT   ?= 1
+INCLUDE_LIVE_ONLY ?= 0
+READONLY_SECRETS  := $(EVALS_ROOT)/.secrets
+KUBECONFIG_RO     ?= $(READONLY_SECRETS)/kubeconfig.readonly
+AWS_POLICY_RO     ?= $(READONLY_SECRETS)/readonly-session-policy.json
+AWS_REGION        ?= us-west-2
+
+.PHONY: help list-skills validate-all triggering-all task-all score-full \
         init-evals check-evals-coverage score score-dry \
         $(VALIDATE_T) $(TRIGGERING_T) $(OPTIMIZE_T) \
-        $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T)
+        $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T)
 
 help:
 	@echo "Per-skill targets (SKILL in: $(SKILLS)):"
@@ -72,18 +84,22 @@ help:
 	@echo "  report-<skill>      F  generate_report.py          (deterministic)"
 	@echo "  package-<skill>     G  package_skill.py            (deterministic)"
 	@echo "  review-<skill>      K  eval-viewer/generate_review --static  (deterministic)"
+	@echo "  task-<skill>        H  run_task_evals.py           (LIVE — subject + grader)"
 	@echo ""
 	@echo "Meta targets:"
-	@echo "  validate-all, triggering-all"
+	@echo "  validate-all, triggering-all, task-all"
 	@echo "  score               run triggering for every skill and rewrite README scorecard"
 	@echo "  score-dry           render the scorecard to stdout without editing README"
+	@echo "  score-full          task-all + score (full task + triggering refresh)"
 	@echo ""
 	@echo "New-skill onboarding:"
 	@echo "  init-evals SKILL=<name>    scaffold misc/evals/<name>/ from _template/"
 	@echo "  check-evals-coverage       verify every skills/*/ has a misc/evals/*/ entry"
 	@echo ""
-	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, MAX_ITER, RUNS_PER_QUERY, WORKSPACE, BENCHMARK_DIR"
+	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, MAX_ITER, RUNS_PER_QUERY,"
+	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, AWS_POLICY_RO, WORKSPACE, BENCHMARK_DIR"
 	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
+	@echo "           RUNS_PER_PROMPT=$(RUNS_PER_PROMPT) INCLUDE_LIVE_ONLY=$(INCLUDE_LIVE_ONLY)"
 
 list-skills:
 	@echo $(SKILLS)
@@ -190,6 +206,38 @@ init-evals:
 	@echo "  2. Edit $(EVALS_ROOT)/$(SKILL)/evals.json      — add 2-4 task prompts"
 	@echo "  3. Edit $(EVALS_ROOT)/$(SKILL)/README.md       — document the eval set"
 	@echo "  4. Run: make validate-$(SKILL)"
+
+# ---------- H  run_task_evals (LIVE; subject + grader per prompt × config) ----
+# Executes evals.json prompts under with_skill / without_skill, grades each run,
+# aggregates via aggregate_benchmark. Results land under <skill>/workspace/runs/
+# and the workspace/latest symlink is updated. Appends a kind="task" row to
+# misc/evals/history/<skill>.jsonl.
+#
+# Live-cluster prompts (live_only=true in evals.json) are skipped unless
+# INCLUDE_LIVE_ONLY=1. When enabled, the runner also needs a read-only
+# kubeconfig + an AWS session-policy file to scope what the subject can see.
+$(TASK_T): task-%:
+	@test -f $(call evals_json,$*) || \
+	  { echo "missing: $(call evals_json,$*)"; exit 1; }
+	@extra="" ; \
+	 if [ "$(INCLUDE_LIVE_ONLY)" = "1" ]; then \
+	   extra="$$extra --include-live-only" ; \
+	   if [ -f "$(KUBECONFIG_RO)" ]; then \
+	     extra="$$extra --kubeconfig $(KUBECONFIG_RO)" ; \
+	   fi ; \
+	   if [ -f "$(AWS_POLICY_RO)" ]; then \
+	     extra="$$extra --aws-session-policy $(AWS_POLICY_RO) --aws-region $(AWS_REGION)" ; \
+	   fi ; \
+	 fi ; \
+	 python3 $(EVALS_ROOT)/scripts/run_task_evals.py \
+	   --skill $* \
+	   --runs $(RUNS_PER_PROMPT) \
+	   --model $(MODEL) \
+	   $$extra
+
+task-all: $(TASK_T)
+
+score-full: task-all score
 
 # ---------- score (Phase 1 — triggering scorecard) ----------------------------
 # Runs triggering evals for every skill, enriches the metrics, appends a row

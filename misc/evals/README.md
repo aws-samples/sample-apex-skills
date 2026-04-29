@@ -14,14 +14,14 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 ## Scorecard
 
-*Last updated: 2026-04-28T11:02Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: 35cf67d*
+*Last updated: 2026-04-29T00:51Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: 9186d17*
 
-| Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Hygiene |
-|---|---|---|---|---|---|---|---|
-| eks-best-practices | 15/16 (94%, CI 72%–99%) | 8/8 | 7/8 | 1 | +44pp | — | ✓ |
-| eks-mcp-server | 11/16 (69%, CI 44%–86%) | 6/8 | 5/8 | 2 | +19pp | — | ✓ |
-| eks-recon | 14/16 (88%, CI 64%–97%) | 8/8 | 6/8 | 4 | +38pp | — | ✓ |
-| eks-upgrader | 13/16 (81%, CI 57%–93%) | 8/8 | 5/8 | 0 | +31pp | — | ✓ |
+| Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |
+|---|---|---|---|---|---|---|---|---|
+| eks-best-practices | 15/16 (94%, CI 72%–99%) | 8/8 | 7/8 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
+| eks-mcp-server | 11/16 (69%, CI 44%–86%) | 6/8 | 5/8 | 2 | +0pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
+| eks-recon | 14/16 (88%, CI 64%–97%) | 8/8 | 6/8 | 4 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
+| eks-upgrader | 13/16 (81%, CI 57%–93%) | 8/8 | 5/8 | 0 | +0pp | 80% ± 28% / 45% ± 7% / +35pp | — | ✓ |
 
 > Hygiene warnings (`⚠`) render only when `quick_validate` fails, `triggering.json` has fewer than 8 positives/negatives, `evals.json` has fewer than 2 prompts or <3 expectations on any prompt, or the sibling-map parser reports unattributed negatives. When a row is `⚠`, the detail block surfaces the specific warnings.
 
@@ -57,6 +57,41 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 | 2026-04-27T09:41:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:18:02Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 100% ± 0% (min 100%, max 100%)
+- without_skill: 100% ± 0% (min 100%, max 100%)
+- lift: +0pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 1/1 | The output recommends a shared multi-tenant EKS cluster as the default over per-team clusters for this scale, with pe… |
+| 1/1 | The output recommends Karpenter (or EKS Auto Mode) as the default compute model over pure MNG or Fargate, citing at l… |
+| 1/1 | The output recommends running system/platform components (e.g. CoreDNS, Karpenter controller, ingress controller) on … |
+| 1/1 | The output names at least one concrete trigger that would justify splitting into multiple clusters (e.g. strict compl… |
+| 1/1 | The output mentions a path for tenant autonomy that is not cluster-per-team (e.g. namespace-as-a-service, GitOps per-… |
+| 1/1 | The output identifies the single-AZ / two-node configuration as a high-priority reliability issue and recommends spre… |
+| 1/1 | The output recommends adding Pod Disruption Budgets for production workloads with more than one replica, with at leas… |
+| 1/1 | The output flags NodePort as inappropriate for production ingress and recommends the AWS Load Balancer Controller wit… |
+| 1/1 | The output flags attaching application IAM permissions to the node role as a security anti-pattern and recommends mig… |
+| 1/1 | The output presents the fixes in a prioritized order (e.g. reliability first, then security, then ingress) rather tha… |
+
+**Grader suggestions** (deduplicated across runs):
+
+- on `"The output recommends a shared multi-tenant EKS cluster as the default over per-team clust…"`: The assertion is satisfied by merely listing the keywords. A stronger check would require the output to explain *why* these mechanisms provide isolation (e.g., 'NetworkPolicy with default-deny limits blast radius', 'ResourceQuota prevents noisy-neighbor CPU/memory exhaustion') — this rules out outputs that name-drop the right primitives without understanding them.
+- on `"The output recommends running system/platform components on a stable managed node group or…"`: Consider also checking the rationale is given (avoid chicken-and-egg where Karpenter controller can't schedule itself; stable capacity for cluster-critical pods). A bare recommendation passes today without the reader learning why.
+- No assertion covers cost/Spot/Graviton mentions or stateful workload guidance (PDBs, quorum systems), both of which the output actually addresses well and are material for a 40-service migration. Consider adding one assertion about cost-optimization levers (Spot, Graviton, consolidation) since that is a common differentiator between a surface-level and a substantive EKS recommendation.
+- No assertion checks whether the output warns about Fargate-specific limitations (no DaemonSets, no GPU, per-pod pricing). This is a commonly-missed nuance in EKS compute recommendations and would be a discriminating check.
+- on `"The output recommends a shared multi-tenant EKS cluster as the default over per-team clust…"`: The assertion accepts any 'shared' topology but the output actually recommended multiple shared clusters split by environment (prod/non-prod) rather than one single shared cluster. That's a defensible and arguably better answer, but the assertion as written would also pass a 'one giant shared cluster' answer that ignores prod/non-prod blast radius. Consider tightening to check whether the output distinguishes shared-per-environment vs truly single-cluster, since that's a meaningful EKS best-practices nuance.
+- No assertion checks whether the output addresses IAM/identity isolation (IRSA or EKS Pod Identity) for per-team workloads on a shared cluster. On a multi-tenant cluster, per-team IAM is arguably as load-bearing as NetworkPolicy/ResourceQuota for real isolation, and the output happens to mention it — but a weaker answer that skipped IAM entirely would still pass.
+- No assertion checks whether the output warns about Fargate's concrete limitations (no DaemonSets, cost at sustained load, cold-start) when ruling it out as default. A shallow answer that says 'Fargate isn't the default' without the reasoning would pass the Karpenter-focused assertion #2 but miss important substance.
+- on `"The output presents the fixes in a prioritized order (e.g. reliability first, then securit…"`: This assertion is fairly easy to satisfy with any numbered list. A stronger check would verify the ordering reflects actual risk (availability/reliability first, then security/IAM, then PDBs, then ingress) — i.e., that the #1 item is the AZ/node problem and ingress is not placed above IAM.
+- No assertion checks whether the response addresses the '2 nodes is too few' dimension distinct from single-AZ. The output correctly flagged bumping min size to 3 and recommended Cluster Autoscaler/Karpenter, which is a meaningful best-practice that goes unverified.
+- No assertion checks for hardening adjacent to the IAM finding (IMDSv2 / hop-limit=1, blocking pod access to node credentials). The response surfaced these but a skill that missed them would still pass IAM.
+
 </details>
 
 <details><summary>eks-mcp-server detail</summary>
@@ -91,6 +126,40 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 | 2026-04-27T14:50:01Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:42:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:18:44Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 100% ± 0% (min 100%, max 100%)
+- without_skill: 22% ± 4% (min 20%, max 25%)
+- lift: +78pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 1/1 | The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or `~/.claude/mcp.json` (user scope… |
+| 1/1 | The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that invokes `uvx` with `awslabs.… |
+| 1/1 | The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the args array (or equivalently … |
+| 1/1 | The output mentions prerequisites: Python 3.10+ and the `uv`/`uvx` package manager (installable via the astral.sh/uv … |
+| 1/1 | The output tells the user to restart Claude Code after editing the config and verify by asking to list EKS clusters o… |
+| 1/1 | The output identifies the root cause as missing IAM permissions on the caller principal for the `eks-mcp:*` action fa… |
+| 1/1 | The output names the `AmazonEKSMCPReadOnlyAccess` AWS managed policy as the standard read-only fix and/or lists the r… |
+| 1/1 | The output gives a concrete remediation step such as `aws iam attach-user-policy` (or attach-role-policy) using the `… |
+| 1/1 | The output notes that `CallPrivilegedTool` is only required if the user needs write operations, so read-only access i… |
+
+**Grader suggestions** (deduplicated across runs):
+
+- on `"The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or `~/.c…"`: The user-scope path in this assertion appears incorrect — Claude Code's user-scope MCP servers are stored in `~/.claude.json` (a single consolidated config), not `~/.claude/mcp.json`. A model that parrots the assertion's path would be more wrong than this run's output, which caught the distinction. Consider rewording to accept either `~/.claude.json` or the `claude mcp add -s user ...` CLI, and also allow local project scope at `./.mcp.json`.
+- on `"The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that i…"`: Passes on structural presence but does not require the `command` to be exactly `uvx` nor that the JSON be valid/parseable. A response that put `awslabs.eks-mcp-server@latest` under `command` with an empty `args` would arguably satisfy the wording. Consider a stricter check: `command == "uvx"` AND `args` array contains `awslabs.eks-mcp-server@latest`.
+- No assertion verifies the read-only IAM policy recommendation — a critical part of a read-only setup. The output includes a detailed `eks:Describe*`/`ec2:Describe*`/`iam:Get*` policy, but a response that omitted IAM entirely or proposed overly broad permissions would still pass all five current assertions.
+- No assertion checks that the response warns about the EKS access-entry requirement (IAM alone is insufficient for reading in-cluster K8s resources). This run surfaced it; a weaker response that omitted it would go uncaught.
+- on `"The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or `~/.c…"`: The user-scope path in this expectation (`~/.claude/mcp.json`) does not match Claude Code's actual user config layout, which is `~/.claude.json` with a top-level `mcpServers` key. A correct answer will fail this expectation. Verify the true path and update the assertion — otherwise the eval penalizes correct outputs.
+- on `"The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the a…"`: This assertion conflates two reasonable strategies: (a) omit the flags and rely on defaults, or (b) set them to `false` explicitly. Explicitly setting them to `false` is arguably safer (survives default-changes) and is what the output does. Consider reframing the assertion as 'the resulting configuration does not grant write or sensitive-data access' so both strategies pass.
+- on `"The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` ...…"`: The server key name is arbitrary (user-chosen). Pinning the assertion to `awslabs.eks-mcp-server` rather than e.g. `eks-mcp-server` makes the assertion fail on a stylistic difference. Consider relaxing to 'a server entry under mcpServers whose command/args launch awslabs.eks-mcp-server via uvx'.
+- No assertion checks that the config actually resolves AWS region, or that kubectl / aws CLI prerequisites are called out (the server shells out to both). The output covers these — a future wrong output could omit them and still pass the current assertions.
+- on `"The output notes that `CallPrivilegedTool` is only required if the user needs write operat…"`: The assertion is satisfied here by a parenthetical '(optional)' on CallPrivilegedTool plus a later mention of 'write operations too'. A stricter assertion would require an explicit statement that attaching only AmazonEKSMCPReadOnlyAccess unblocks InvokeMcp/CallReadOnlyTool without needing CallPrivilegedTool — otherwise a response that simply lists all three actions without distinguishing could pass.
+- No assertion checks that the response correctly explains the user-observed paradox (tools list but calls fail). The assistant offered a caching explanation that is plausible but not in the skill's reference material; an assertion targeting this symptom would catch responses that ignore or misexplain it.
 
 </details>
 
@@ -128,6 +197,40 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 | 2026-04-27T14:51:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:19:55Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 100% ± 0% (min 100%, max 100%)
+- without_skill: 100% ± 0% (min 100%, max 100%)
+- lift: +0pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 1/1 | The output reports the current cluster version and platform version. TODO: human review |
+| 1/1 | The output identifies whether Karpenter, managed node groups, Auto Mode, or Fargate is the primary compute strategy. … |
+| 1/1 | The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns, kube-proxy). TODO: human r… |
+| 1/1 | The output identifies the IaC tool managing the cluster (Terraform, CloudFormation, CDK, eksctl, or unknown with reas… |
+| 1/1 | The output calls out at least one upgrade-relevant finding (e.g. add-on version compatibility, Karpenter version, dep… |
+| 1/1 | The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as ap… |
+| 1/1 | The output identifies the IaC tool and, where possible, evidence (workspace files, stack names, module references). T… |
+| 1/1 | The output reports on workspace CI pipelines (GitHub Actions / GitLab CI / Jenkins) with detection evidence. TODO: hu… |
+| 1/1 | The output reports on GitOps tooling (ArgoCD or Flux) including namespace and rough application / kustomization count… |
+
+**Grader suggestions** (deduplicated across runs):
+
+- on `"The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns,…"`: The 'e.g.' examples (vpc-cni/coredns/kube-proxy) are misleading on Auto Mode clusters, where those components are not user-installed addons and correctly do not appear in the EKS-managed addon list. Consider rewording to 'lists EKS-managed add-ons with versions, OR explicitly documents that none are user-managed (e.g. because Auto Mode owns them)' so the assertion doesn't ambiguously fail/pass for Auto Mode topologies.
+- on `"The output calls out at least one upgrade-relevant finding.…"`: Bar is very low — any single non-trivial finding passes. A more discriminating check would verify the report addresses specific upgrade domains (addon version drift, deprecated APIs, PDB coverage, node/AZ rescheduling risk) since a thorough recon should cover several.
+- No assertion verifies the report identifies the target/next Kubernetes version or frames findings in upgrade context. The prompt explicitly asks about 'upgrade to the next minor version' — an assertion like 'output distinguishes current vs target K8s version and bases compatibility claims on the target' would catch reports that merely enumerate state without upgrade reasoning.
+- No assertion checks correctness of the IaC confidence reasoning. A fabricated 'Terraform' claim with no supporting evidence would pass expectation 4 as written; consider requiring the reasoning to cite concrete artifacts (tags, file presence, naming patterns).
+- on `"The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns,…"`: The 'e.g.' examples (vpc-cni, coredns, kube-proxy) are misleading for Auto Mode clusters where these aren't installed as add-ons — a good response must *not* list them and should explain why. Consider rewriting to require listing whatever add-ons exist AND (if Auto Mode / non-standard) explaining absences, so the assertion discriminates between a parroted list and genuine understanding.
+- on `"The output reports the current cluster version and platform version.…"`: The expected platform version (e.g. eks.19) is not easily verifiable from a surface read of the transcript since describe-cluster output was elided. Consider also asserting the specific version value (1.34) to catch responses that report the wrong cluster or hallucinate.
+- No assertion checks whether the report correctly identifies that the cluster is on 1.34 (not yet upgraded to 1.35). The executor briefly mis-stated 'cluster is already on 1.34, which is currently the latest released minor' before correcting itself — a more precise assertion on the target upgrade path (1.34 → 1.35) would catch this kind of mis-framing.
+- No assertion covers whether the report flags risks to upgrade safety beyond add-ons (e.g. single-replica stateful workloads with PDBs, orphan webhooks, endpoint exposure). These are arguably the most valuable findings in this transcript and none are required.
+- on `"The output describes the compute topology of the cluster (node groups, Karpenter nodepools…"`: A report that merely mentioned 'nodepools' or 'node groups' in passing would also pass. For this cluster, consider asserting specific, verifiable facts: strategy should be 'Auto Mode', 4 Karpenter NodePools including names {default, general-purpose, gpu, vsc}, MNG count 0, Fargate profiles 0. That discriminates a real detection from a hallucination.
+- on `"The output identifies the IaC tool and, where possible, evidence (workspace files, stack n…"`: Consider asserting the tool is specifically 'Terraform' (not just any IaC tool) and that confidence is not 'high' — since the workspace had no .tf files, a high-confidence answer would indicate fabrication. Also worth asserting the evidence cites the terraform-aws-modules fingerprint or the find-my-agents-76e6 CFN stack, to prevent the assertion passing with bare claims.
+
 </details>
 
 <details><summary>eks-upgrader detail</summary>
@@ -157,6 +260,40 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 | 2026-04-27T14:52:19Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T09:20:53Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 80% ± 28% (min 60%, max 100%)
+- without_skill: 45% ± 7% (min 40%, max 50%)
+- lift: +35pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 0/1 | The output addresses Karpenter CRDs specifically — stating the bundled Helm chart does not auto-upgrade CRDs and that… |
+| 0/1 | The output recommends non-prod first and includes at least one rollback or validation checkpoint (e.g. verifying node… |
+| 1/1 | The output enumerates pre-flight checks including Cluster Insights, subnet IP capacity, and a deprecated-API scan (Pl… |
+| 1/1 | The output specifies the correct upgrade order: control plane -> core add-ons (CoreDNS, kube-proxy, VPC CNI) -> Karpe… |
+| 1/1 | The output gives an Istio-specific upgrade approach (canary/in-place via revision tags, sidecar rollout) rather than … |
+| 1/1 | The output references the Karpenter 1.x migration guide or identifies at least 2 concrete behaviour or API changes be… |
+| 1/1 | The output explicitly calls out that Karpenter CRDs must be upgraded alongside the controller using the independent k… |
+| 1/1 | The output warns about percentage-based disruption budgets blocking node replacement (e.g. 10% of 1 node = 0) and sug… |
+| 1/1 | The output distinguishes Karpenter-on-Fargate vs Karpenter-on-MNG hosting and gives the correct refresh step for each… |
+
+**Grader suggestions** (deduplicated across runs):
+
+- on `"The output specifies the correct upgrade order: control plane -> core add-ons (CoreDNS, ku…"`: The baked-in order in this assertion is wrong for the prompt's own scenario: Istio 1.20 does not support K8s 1.30, so a correct answer must upgrade Istio *before* the control plane. The assertion therefore penalizes the right answer and rewards a mechanical order-of-operations recital. Consider splitting into (a) 'control-plane upgrade is irreversible' and (b) 'verifies Istio/Karpenter K8s-version compatibility and sequences accordingly' so the eval rewards reasoning, not rote ordering.
+- on `"The output addresses Karpenter CRDs specifically — stating the bundled Helm chart does not…"`: In this scenario Karpenter 0.37 already supports 1.30, so there's no Karpenter Helm upgrade at all — the CRD guidance is genuinely irrelevant. The assertion should either be scoped to cases where Karpenter is actually upgraded, or rephrased as 'if Karpenter is upgraded, ...' so the grader can mark it N/A rather than fail.
+- on `"The output recommends non-prod first and includes at least one rollback or validation chec…"`: This assertion bundles two loosely-related requirements with an 'and'. The output has strong rollback + checkpoint coverage but no separate non-prod rehearsal recommendation, so it failed on a technicality. Split into two assertions, or drop the non-prod-cluster requirement (the output does canary at the namespace level, which is arguably the right granularity for a single-cluster question).
+- No assertion checks whether the response correctly handled the *specific* version pairing in the prompt (Istio 1.20 is incompatible with K8s 1.30). That is the single most important judgment call in this scenario and the output got it right — but a wrong answer (e.g. 'upgrade EKS first, then Istio') would still pass every current assertion.
+- No assertion requires add-on version pinning / compatibility lookup for the target K8s version (the output correctly uses `aws eks describe-addon-versions --kubernetes-version 1.30`). An answer that told the user to 'helm upgrade everything' would pass the current set.
+- on `"The output specifies the correct upgrade order: control plane -> core add-ons (CoreDNS, ku…"`: This assertion bundles two independently reasonable orderings into a single pass/fail. The transcript argues (correctly, per Istio's support matrix) that Istio 1.20 must be upgraded BEFORE the control plane because Istio 1.20 is not supported on Kubernetes 1.30 — doing Istio after the control-plane bump would leave the cluster on an unsupported mesh. A grader will fail this assertion even when the response makes a technically superior choice. Consider either splitting the order check from the irreversibility check, or allowing Istio-before-control-plane when the Istio version is out of support for the target k8s version.
+- on `"The output enumerates pre-flight checks including Cluster Insights, subnet IP capacity, an…"`: The assertion ANDs three distinct items into one pass/fail. The response performs a strong deprecated-API scan (two tools plus the metric) but misses Cluster Insights and subnet IP. Consider splitting into three assertions so partial-but-substantial coverage is visible, and so regressions on any single item can be attributed.
+- No assertion checks that the response flags the Istio 1.20 / Kubernetes 1.30 incompatibility — a cluster-breaking issue specific to the stack described in the prompt. An unskilled generic response that omits this would still pass the existing Istio-approach assertion as long as it describes revisioned canary. Consider an assertion like: 'The output identifies that Istio 1.20 is not supported on Kubernetes 1.30 and must be upgraded first.'
+- No assertion checks AMI / node-image handling for the Karpenter-managed data plane (EC2NodeClass amiSelectorTerms, drift-driven rolling replacement, disruption budgets). This is the mechanical core of data-plane rotation under Karpenter and is where most real upgrades fail. Consider adding an assertion on EC2NodeClass AMI strategy and drift-based rollout pacing.
+- on `"The output references the Karpenter 1.x migration guide or identifies at least 2 concrete …"`: This assertion is easy to pass with a generic answer. Consider requiring specific, high-signal facts like 'v1beta1 removed at 1.1 (not 1.0)' or 'nodeClassRef.group/kind become strictly required' — these distinguish a genuine understanding of the 1.0→1.1 boundary from a generic 'there are API changes' answer.
+
 </details>
 
 <!-- SCORECARD_END -->
@@ -165,11 +302,49 @@ There is **no custom harness here.** The only new code is the top-level `Makefil
 
 - **Overall / Positive (TPR) / Negative (TNR)** — triggering accuracy (`passed/total`), then the stratified recall/specificity. Undertriggering (low TPR) and overtriggering (low TNR) are different failure modes; split them.
 - **Flakes** — queries with a non-deterministic `trigger_rate` across `runs_per_query`. These are the highest-signal targets for description tuning.
-- **∆ vs prev** — change in overall accuracy since the previous `make score` run, sourced from `misc/evals/history/<skill>.jsonl`. Renders `—` on a cold start (no prior history).
-- **Task pass rate** — populated in Phase 2 (`with_skill` mean ± stddev / `without_skill` mean ± stddev / delta). Until then, this column is `—`.
+- **∆ vs prev** — change in overall triggering accuracy since the previous `make score` run, sourced from triggering rows in `misc/evals/history/<skill>.jsonl`. Renders `—` on a cold start (no prior triggering history).
+- **Task pass rate** — `with_skill_mean ± stddev / without_skill_mean ± stddev / lift`. Sourced from `<skill>/workspace/latest/benchmark.json`, populated by `make task-<skill>`. The lift is what matters: a skill that scores 80% where the no-skill baseline already scores 78% is worthless.
+- **Task Δ vs prev** — regression signal on `with_skill` pass rate, computed against the previous `kind: "task"` row in the skill's history file. Renders `—` until at least two task runs are recorded.
 - **Hygiene** — `✓` when the eval inputs pass the pre-flight (≥8 positives, ≥8 negatives, `evals.json` ≥2 prompts with ≥3 expectations each, and every negative index is attributed to a sibling in `<!-- SIBLING_MAP_START/END -->`). `⚠` when any check fires — expand the detail block for specifics.
 
-The runner never caches — every `make score` is a fresh evaluation — and regression detection only works because `misc/evals/history/<skill>.jsonl` is committed. See `misc/evals/PLAN.md` §1 for the full design.
+Expand each skill's `<details>` section for: flaky queries, per-sibling leakage, threshold sweep (triggering); per-expectation pass rate and grader suggestions (task). Grader suggestions are deduplicated across runs — they surface eval-quality problems (trivially-passing assertions, uncovered outcomes) that a pure pass/fail number can't show.
+
+The runner never caches — every `make score` / `make task-<skill>` is a fresh evaluation — and regression detection only works because `misc/evals/history/<skill>.jsonl` is committed. See `misc/evals/PLAN.md` §1 and §2 for the full design.
+
+### Running the task axis
+
+```bash
+# All fixture-free skills (skips live_only=true prompts):
+make task-all RUNS_PER_PROMPT=1     # dev iteration
+make task-all RUNS_PER_PROMPT=3     # 3× for meaningful stddev
+
+# Include prompts that need a real cluster (currently just eks-recon):
+make task-eks-recon INCLUDE_LIVE_ONLY=1 RUNS_PER_PROMPT=1
+
+# Full triggering + task refresh + scorecard rewrite:
+make score-full
+```
+
+Live-cluster prompts run against whatever cluster `KUBECONFIG_RO` points at under an AWS session policy that only allows `Describe*`/`List*`/`Get*`. The enforcement is at the API-server and IAM boundaries — writes are impossible regardless of what the model tries.
+
+Before the first live-cluster run, bootstrap the read-only artefacts into `misc/evals/.secrets/` (gitignored):
+
+```bash
+# Make sure your current kubectl context points at the cluster you want
+# to run evals against, and your AWS credentials can call sts:GetFederationToken.
+./misc/evals/setup/bootstrap-readonly.sh
+```
+
+The script is idempotent — re-run it to rotate the token, switch clusters, or refresh after a clone. The declarative sources it reads from (`setup/readonly-rbac.yaml`, `setup/readonly-session-policy.json`) are committed; the generated outputs under `.secrets/` are not.
+
+### Cost profile
+
+Per eval prompt, one `make task-<skill> RUNS_PER_PROMPT=N` run costs roughly:
+
+- 2 configs × N runs × (1 subject + 1 grader) = 4N `claude -p` calls
+- Wallclock: ~25 min per skill at N=1 for the 2-prompt skills; longer for live-cluster prompts (subject spends ~10 min on recon).
+
+Full `make task-all` at `RUNS_PER_PROMPT=1` is ~60–90 minutes and ~30 model calls. Triple that for N=3.
 
 ## Model & provider configuration
 

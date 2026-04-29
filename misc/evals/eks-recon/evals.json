@@ -3,28 +3,30 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "I'm about to upgrade cluster `payments-prod` in us-east-1 from 1.29 to 1.30. Before I start, run full reconnaissance on that cluster and give me a complete picture — current version, compute strategy, add-on inventory, and anything else that would matter for an upgrade.",
-      "expected_output": "A structured reconnaissance report for cluster payments-prod covering cluster-basics (name, region, version, platform version), compute strategy, EKS-managed add-ons with versions, and IaC tool — with upgrade-relevant observations surfaced.",
+      "prompt": "I'm about to upgrade my production EKS cluster to the next minor Kubernetes version. Before I start, run full reconnaissance on the cluster I'm currently pointed at and give me a complete picture — current version, compute strategy, add-on inventory, and anything else that would matter for an upgrade.",
+      "expected_output": "A structured reconnaissance report for the currently-configured EKS cluster covering cluster-basics (name, region, version, platform version), compute strategy, EKS-managed add-ons with versions, and IaC tool — with upgrade-relevant observations surfaced.",
       "expectations": [
-        "The output reports the current cluster version and platform version for payments-prod. TODO: human review",
+        "The output reports the current cluster version and platform version. TODO: human review",
         "The output identifies whether Karpenter, managed node groups, Auto Mode, or Fargate is the primary compute strategy. TODO: human review",
         "The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns, kube-proxy). TODO: human review",
         "The output identifies the IaC tool managing the cluster (Terraform, CloudFormation, CDK, eksctl, or unknown with reasoning). TODO: human review",
         "The output calls out at least one upgrade-relevant finding (e.g. add-on version compatibility, Karpenter version, deprecated API usage). TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "live_only": true
     },
     {
       "id": 2,
-      "prompt": "A new platform engineer is taking over cluster `data-platform-staging` in us-west-2 next week. Document the compute layout, IaC setup, and CI/CD pipelines so I can hand it off cleanly.",
-      "expected_output": "A handoff-oriented report for data-platform-staging that focuses on compute (nodepools / node groups / Fargate profiles), IaC provenance, and CI/CD — both workspace pipelines (GitHub Actions, GitLab CI, Jenkins) and GitOps (ArgoCD, Flux).",
+      "prompt": "A new platform engineer is taking over the EKS cluster my kubectl is currently pointed at. Run a full handoff-focused reconnaissance on that cluster: document the compute layout, IaC setup (with evidence from workspace files if available), and any CI/CD or GitOps tooling (workspace pipelines like GitHub Actions / GitLab / Jenkins, plus in-cluster ArgoCD / Flux if present). Produce the report, don't ask me for cluster details first.",
+      "expected_output": "A handoff-oriented report for the currently-configured EKS cluster that focuses on compute (nodepools / node groups / Fargate profiles), IaC provenance, and CI/CD — both workspace pipelines (GitHub Actions, GitLab CI, Jenkins) and GitOps (ArgoCD, Flux).",
       "expectations": [
-        "The output describes the compute topology of data-platform-staging (node groups, Karpenter nodepools, or Fargate profiles as applicable). TODO: human review",
+        "The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as applicable). TODO: human review",
         "The output identifies the IaC tool and, where possible, evidence (workspace files, stack names, module references). TODO: human review",
         "The output reports on workspace CI pipelines (GitHub Actions / GitLab CI / Jenkins) with detection evidence. TODO: human review",
         "The output reports on GitOps tooling (ArgoCD or Flux) including namespace and rough application / kustomization counts when available. TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "live_only": true
     }
   ]
 }
