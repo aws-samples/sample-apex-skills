@@ -1,0 +1,19 @@
+[
+  { "query": "I want to create a new steering workflow for RDS upgrades — walk me through it.", "should_trigger": true },
+  { "query": "Help me author a workflow file under steering/workflows/ for a Lambda cost-review engagement.", "should_trigger": true },
+  { "query": "How do I add a phased playbook to apex? I need the convention for the frontmatter and the required sections.", "should_trigger": true },
+  { "query": "What's the right shape for a new steering workflow? I want to make sure it passes the linter before I open a PR.", "should_trigger": true },
+  { "query": "I'm writing a workflow for an IAM Access Analyzer review. Which H2 sections are required and in what order?", "should_trigger": true },
+  { "query": "Can you help me pair a new workflow with its matching slash-command shim under steering/commands/apex/?", "should_trigger": true },
+  { "query": "I need to annotate each phase with its Source. Explain the knowledge vs live vs either routing tree.", "should_trigger": true },
+  { "query": "Author a new steering workflow for standardizing an S3 cross-account access review and wire in the Access Model.", "should_trigger": true },
+
+  { "query": "I want to add a new skill to this repo — walk me through the end-to-end onboarding.", "should_trigger": false },
+  { "query": "Help me create a new skill for RDS best practices, including its eval scaffold and sibling map.", "should_trigger": false },
+  { "query": "Design a new EKS cluster for a multi-tenant production environment.", "should_trigger": false },
+  { "query": "Upgrade my EKS cluster from 1.30 to 1.33 — walk me through the pre-flight.", "should_trigger": false },
+  { "query": "Review the SKILL.md frontmatter for my new skill and tell me if the description will trigger cleanly.", "should_trigger": false },
+  { "query": "What's the decision framework for picking between Karpenter and managed node groups?", "should_trigger": false },
+  { "query": "Set up the EKS MCP Server — my cluster MCP tools aren't showing up.", "should_trigger": false },
+  { "query": "Explain Kubernetes PDB semantics — why do pods survive eviction in some cases and not others?", "should_trigger": false }
+]
