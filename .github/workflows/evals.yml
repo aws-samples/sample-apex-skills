@@ -34,6 +34,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Install PyYAML (used by skill-creator/quick_validate.py)
+        run: pip install pyyaml
       - name: Check every skill has a misc/evals/ entry
         run: make -C misc/evals check-evals-coverage
 
@@ -46,5 +48,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Install PyYAML (used by skill-creator/quick_validate.py)
+        run: pip install pyyaml
       - name: Hygiene pre-flight (no model, no cluster)
         run: make -C misc/evals hygiene
