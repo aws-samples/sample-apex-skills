@@ -71,7 +71,7 @@ MUST gather ALL before proceeding to Phase 2:
 [ ] 6. Upgrade strategy: in-place (default) or blue-green
 [ ] 7. Environment: production / staging / development
 [ ] 8. Non-prod upgraded first? If no -> recommend it
-[ ] 9. Version validation (see below)
+[ ] 9. Version support status (run aws eks describe-cluster-versions -- see Version Support Awareness section; do NOT compute from release dates)
 ```
 
 ### IaC Detection (Item 5)
@@ -431,12 +431,24 @@ When upgrading across multiple minor versions (e.g., 1.29 -> 1.32):
 
 ## Version Support Awareness
 
-| Phase | Duration | Cost Impact |
-|-------|----------|-------------|
-| Standard support | 14 months | Standard pricing |
-| Extended support | +12 months | Additional per-hour fee |
-| End of support | Auto-upgrade by AWS | N/A |
+**Do not guess support status from "X months from release" math -- always query the API.**
 
-If on extended support, flag the extra cost. If near end of support, warn about auto-upgrade.
+```bash
+aws eks describe-cluster-versions --region <region> \
+  --query 'clusterVersions[*].[clusterVersion,status,endOfStandardSupportDate,endOfExtendedSupportDate]' \
+  --output table
+```
 
-For full details, see [eks-upgrader SKILL.md -- Version Support Lifecycle](../../skills/eks-upgrader/SKILL.md#version-support-lifecycle). You can [disable extended support](https://docs.aws.amazon.com/eks/latest/userguide/disable-extended-support.html) so auto-upgrade happens at end of standard support.
+For each upgrade, during Phase 1 Context, check:
+
+1. Current cluster version -- is it in `STANDARD_SUPPORT` or `EXTENDED_SUPPORT`?
+2. Target version -- is it in standard support today, or already in extended?
+3. How much standard-support runway does the target buy (difference between target's `endOfStandardSupportDate` and today)?
+
+If the cluster is on `EXTENDED_SUPPORT`, the user is paying the extended-support surcharge (roughly **$0.50/hr** per cluster on top of the standard $0.10/hr, us-east-1 pricing -- verify current pricing if quoting dollar figures). Quantify the monthly impact when presenting the upgrade case.
+
+If the target is also in `EXTENDED_SUPPORT`, **say so explicitly** -- upgrading to it does NOT stop the surcharge. Recommend a version in `STANDARD_SUPPORT` to fully exit extended support.
+
+If `endOfExtendedSupportDate` is within the next 60 days, warn the user about auto-upgrade risk. Option to [disable extended support](https://docs.aws.amazon.com/eks/latest/userguide/disable-extended-support.html) so auto-upgrade happens at end of standard support instead.
+
+For the general lifecycle model (standard -> extended -> auto-upgrade), see [eks-upgrader SKILL.md -- Version Support Lifecycle](../../skills/eks-upgrader/SKILL.md#version-support-lifecycle).

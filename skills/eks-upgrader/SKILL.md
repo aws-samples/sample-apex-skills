@@ -144,13 +144,25 @@ If any Cluster Insight returns `"status": ERROR`, resolve it before proceeding.
 
 ## Version Support Lifecycle
 
-| Phase | Duration | Cost |
-|-------|----------|------|
-| **Standard support** | 14 months from release | Standard pricing |
-| **Extended support** | +12 months | Additional per-hour fee |
-| **End of support** | N/A | Auto-upgrade to next supported version |
+EKS versions transition through three phases:
 
-You can [disable extended support](https://docs.aws.amazon.com/eks/latest/userguide/disable-extended-support.html) so auto-upgrade happens at end of standard support instead.
+| Phase | Cost | Auto-upgrade? |
+|-------|------|----------------|
+| **Standard support** | Standard cluster pricing | No |
+| **Extended support** | Additional per-hour surcharge (~6x standard cluster fee) | No |
+| **End of extended support** | N/A | Yes -- AWS auto-upgrades at a time it chooses |
+
+**Always get exact dates from the EKS API -- do not compute them from release dates.**
+
+```bash
+aws eks describe-cluster-versions --region <region> \
+  --query 'clusterVersions[*].[clusterVersion,status,endOfStandardSupportDate,endOfExtendedSupportDate]' \
+  --output table
+```
+
+Typical durations are ~14 months standard and ~12 months extended, but AWS has historically adjusted these -- the API is the only trustworthy source. Use it every time.
+
+You can [disable extended support](https://docs.aws.amazon.com/eks/latest/userguide/disable-extended-support.html) so auto-upgrade happens at end of standard support instead of end of extended support.
 
 Upgrade every 3-4 months to stay within standard support. Budget one upgrade cycle per quarter. Review upcoming K8s releases early to identify breaking changes before they arrive.
 
