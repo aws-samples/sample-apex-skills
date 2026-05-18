@@ -532,19 +532,27 @@ For nodes deployed outside the EKS managed service, use your provisioning tool:
 
 ### EKS Version Lifecycle
 
-| Phase | Duration | Patching | Cost |
-|-------|----------|----------|------|
-| **Standard support** | 14 months | Security + bug fixes | Standard pricing |
-| **Extended support** | +12 months | Critical security only | Additional per-hour fee |
-| **End of support** | N/A | Auto-upgrade to oldest supported | N/A |
+| Phase | Patching | Cost | Auto-upgrade? |
+|-------|----------|------|----------------|
+| **Standard support** | Security + bug fixes | Standard pricing | No |
+| **Extended support** | Critical security only | Additional per-hour surcharge | No |
+| **End of extended support** | None | N/A | Yes — AWS auto-upgrades at a time it chooses |
 
-You can [disable extended support](https://docs.aws.amazon.com/eks/latest/userguide/disable-extended-support.html) — in which case, auto-upgrade happens at end of standard support.
+**Always get exact dates from the EKS API — do not compute them from release dates.** Standard and extended support windows have historically shifted; the API is the only trustworthy source.
+
+```bash
+aws eks describe-cluster-versions --region <region> \
+  --query 'clusterVersions[*].[clusterVersion,status,endOfStandardSupportDate,endOfExtendedSupportDate]' \
+  --output table
+```
+
+You can [disable extended support](https://docs.aws.amazon.com/eks/latest/userguide/disable-extended-support.html) so auto-upgrade happens at end of standard support instead.
 
 ### Planning Timeline
 
-- **Month 0:** New K8s version available on EKS (~3 releases per year)
-- **Month 14:** Standard support ends
-- **Month 26:** Extended support ends
+- **New K8s minor on EKS:** ~3 releases per year
+- **End of standard support:** query the API per cluster version
+- **End of extended support:** query the API per cluster version
 - **After:** EKS auto-upgrades your cluster (may disrupt workloads)
 
 **Recommendation:** Upgrade every 3-4 months to stay within standard support. Budget one upgrade cycle per quarter. Look beyond the next version — review upcoming K8s releases to identify major changes early (e.g., Dockershim removal was announced well before 1.25).
