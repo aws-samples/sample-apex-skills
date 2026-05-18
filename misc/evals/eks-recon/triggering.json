@@ -12,10 +12,6 @@
   {"query": "What's the recommended way to do tenant isolation on a shared EKS platform — separate node pools, namespaces, network policies?", "should_trigger": false},
   {"query": "Is it a better practice to run my ingress controller on Fargate or on Karpenter-managed nodes?", "should_trigger": false},
 
-  {"query": "Execute the in-place upgrade of cluster prod-use1 from 1.29 to 1.30 and walk me through each step.", "should_trigger": false},
-  {"query": "Give me the exact procedure to upgrade Karpenter from 0.37 to 1.0 on an EKS cluster.", "should_trigger": false},
-  {"query": "I need the blue-green upgrade runbook for moving a production EKS cluster two minor versions forward.", "should_trigger": false},
-
   {"query": "How do I install and configure the EKS MCP server locally so Claude can reach my clusters?", "should_trigger": false},
 
   {"query": "Explain how Kubernetes StatefulSet rolling updates work at the controller level.", "should_trigger": false}

@@ -8,8 +8,8 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 
 <!-- SIBLING_MAP_START -->
 - **`eks-best-practices`** — owns architectural / design judgement calls ("should we use X or Y", tenant isolation, ingress placement). Negatives at items 9–11 (`should_trigger: false`) are phrased as design questions and must route there, not to recon.
-- **`eks-mcp-server`** — owns setup/configuration of the EKS MCP server itself. Negative at item 15 asks how to install the MCP server locally, which is a meta-tooling question, not a cluster recon request.
-- **Generic / non-EKS** — pure Kubernetes-internals questions with no EKS hook. Negative at item 16 is a sanity check that recon does not fire on controller-level Kubernetes questions.
+- **`eks-mcp-server`** — owns setup/configuration of the EKS MCP server itself. Negative at item 12 asks how to install the MCP server locally, which is a meta-tooling question, not a cluster recon request.
+- **Generic / non-EKS** — pure Kubernetes-internals questions with no EKS hook. Negative at item 13 is a sanity check that recon does not fire on controller-level Kubernetes questions.
 <!-- SIBLING_MAP_END -->
 
 ## Live-cluster caveat

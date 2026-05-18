@@ -11,7 +11,6 @@
   { "query": "I want to add a new skill to this repo — walk me through the end-to-end onboarding.", "should_trigger": false },
   { "query": "Help me create a new skill for RDS best practices, including its eval scaffold and sibling map.", "should_trigger": false },
   { "query": "Design a new EKS cluster for a multi-tenant production environment.", "should_trigger": false },
-  { "query": "Upgrade my EKS cluster from 1.30 to 1.33 — walk me through the pre-flight.", "should_trigger": false },
   { "query": "Review the SKILL.md frontmatter for my new skill and tell me if the description will trigger cleanly.", "should_trigger": false },
   { "query": "What's the decision framework for picking between Karpenter and managed node groups?", "should_trigger": false },
   { "query": "Set up the EKS MCP Server — my cluster MCP tools aren't showing up.", "should_trigger": false },

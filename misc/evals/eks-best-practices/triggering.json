@@ -11,8 +11,6 @@
   {"query": "What version of Kubernetes is my EKS cluster currently running, and which add-ons are installed?", "should_trigger": false},
   {"query": "Can you inventory what's in my EKS cluster right now — node groups, Karpenter, ingress, CI/CD tooling — before I plan an upgrade?", "should_trigger": false},
   {"query": "I need a snapshot of everything running in the cluster: workloads, namespaces, IAM associations. Discovery only, no recommendations yet.", "should_trigger": false},
-  {"query": "Walk me through the exact steps to upgrade my EKS control plane from 1.29 to 1.30 in place, including the aws CLI commands.", "should_trigger": false},
-  {"query": "My Karpenter upgrade from v0.37 to 1.0 is failing with a webhook error during the CRD migration. How do I fix it?", "should_trigger": false},
   {"query": "How do I install the EKS MCP server and wire it up to Claude Code so I can query live clusters?", "should_trigger": false},
   {"query": "What's the difference between a Kubernetes Deployment and a StatefulSet, and when would I use each?", "should_trigger": false},
   {"query": "We're evaluating AKS vs GKE for a new workload. Which managed Kubernetes service has better node autoscaling out of the box?", "should_trigger": false}
