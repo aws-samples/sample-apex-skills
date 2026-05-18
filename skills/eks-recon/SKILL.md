@@ -24,7 +24,7 @@ Discover everything about an EKS cluster environment. Run this skill to gather c
 
 **Don't use this skill for:**
 - Creating or modifying cluster resources (this is read-only)
-- Troubleshooting specific issues (use `eks-best-practices` or `eks-upgrader`)
+- Troubleshooting specific issues (use `eks-best-practices`)
 - Learning about EKS concepts (use `eks-best-practices`)
 
 ## Prerequisites

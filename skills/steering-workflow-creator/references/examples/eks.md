@@ -13,7 +13,7 @@ Three skills in this repo map onto the three information sources:
 | Role | Skill | What it is |
 |---|---|---|
 | Discovery / Phase 1 context | `eks-recon` | Reads cluster state and emits a structured YAML report. Works against MCP if available, CLI if not. |
-| Advisory knowledge | `eks-best-practices`, `eks-upgrader` | Static authored references — decision frameworks, upgrade procedures, add-on compatibility notes. |
+| Advisory knowledge | `eks-best-practices` | Static authored references — decision frameworks, add-on compatibility notes, architecture guidance. |
 | Setup-bridge | `eks-mcp-server` | Walks the user through configuring the EKS MCP Server when it isn't already wired up. |
 
 An EKS workflow author should assume all three exist and route into them. Do not reinvent reconnaissance logic inline, do not duplicate best-practice content, do not write your own MCP setup guide.
@@ -80,17 +80,17 @@ Why named commands, not "use the AWS CLI": the agent invents bad CLI syntax surp
 
 ## Phase 3 — `Source: either`
 
-A decision-framing phase that helps the user pick between two paths — say, in-place versus blue-green upgrade. The framework for the decision (trade-offs, criteria, reversibility) is authored knowledge. The inputs to the decision (current version, compute strategy, deployed add-ons) are live.
+A decision-framing phase that helps the user pick between two paths — say, Karpenter versus managed node groups, or single-tenant versus multi-tenant cluster topology. The framework for the decision (trade-offs, criteria, fit signals) is authored knowledge. The inputs to the decision (current compute strategy, workload count, deployed add-ons) are live.
 
 **Annotation:**
 
 ```
-Source: either (framework from eks-upgrader; cluster specifics from live / Phase 1 report)
+Source: either (framework from eks-best-practices; cluster specifics from live / Phase 1 report)
 ```
 
 **What the phase looks like in practice:**
 
-- Load `../../skills/eks-upgrader/SKILL.md` for the in-place-vs-blue-green decision framework.
+- Load the relevant `eks-best-practices` reference for the decision framework.
 - Pull the cluster specifics from the Phase 1 `eks-recon` report (or from live MCP calls if Phase 1 was skipped).
 - Present the trade-off table with this cluster's values filled in — don't give the user a generic trade-off table they have to interpret themselves.
 
@@ -106,8 +106,8 @@ A quick lookup for the annotation you'd pick for common EKS phase types:
 |---|---|---|
 | Gather cluster context | `knowledge` with `eks-recon` discovery | Framework authored; values live through the recon skill |
 | Pre-flight / current-state checks | `live` | CLI fallback required |
-| Pick an upgrade path / architecture option | `either` | Framework from knowledge; inputs from live |
-| Generate a customized runbook | `knowledge` | Templates and procedures come from `eks-upgrader` references |
+| Pick an architecture option | `either` | Framework from knowledge; inputs from live |
+| Generate a customized recommendation | `knowledge` | Templates and procedures come from `eks-best-practices` references |
 | Execute mutations | n/a | Workflows in this repo don't mutate directly — they advise. Access Model says why. |
 | Post-action validation | `live` | CLI fallback required |
 
@@ -131,7 +131,7 @@ For EKS workflows:
 
 - Phase 1 uses `eks-recon` as the discovery skill.
 - `live` phases prefer the EKS MCP Server, fall back to `eks-mcp-server` as the setup-bridge, fall back to named CLI commands.
-- Advisory content comes from `eks-best-practices` and `eks-upgrader`.
+- Advisory content comes from `eks-best-practices`.
 - No phase writes its own reconnaissance logic, best-practice content, or MCP setup guide — all three already exist as skills.
 
 For other AWS services, swap the skill names and the MCP server, keep the structure. Add a sibling file in this directory when you do.

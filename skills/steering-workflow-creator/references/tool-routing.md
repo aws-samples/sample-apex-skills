@@ -10,7 +10,7 @@ The tree doesn't care whether the service is EKS, RDS, Lambda, IAM, or something
 
 ### Knowledge skill
 
-Static domain knowledge, authored by a human, versioned in git, read from a skill's `SKILL.md` or `references/`. The `eks-best-practices` and `eks-upgrader` skills are current examples; every AWS service this repo eventually covers is expected to grow at least one knowledge skill of its own.
+Static domain knowledge, authored by a human, versioned in git, read from a skill's `SKILL.md` or `references/`. The `eks-best-practices` skill is the current example; every AWS service this repo eventually covers is expected to grow at least one knowledge skill of its own.
 
 **Characteristics:**
 

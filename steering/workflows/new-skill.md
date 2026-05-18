@@ -83,7 +83,7 @@ Steps:
 
 1. Enumerate every `skills/<peer>/SKILL.md` in the repo. Read each frontmatter `description:` line only — that's what the triggering eval sees.
 2. For each peer, score overlap against `<name>`'s description on two axes: shared vocabulary (does a user prompt for `<name>` plausibly mention the peer's verbs?) and shared domain (same AWS service, same lifecycle phase). Ignore upstream-synced skills — `skill-creator` and `terraform-skill` are maintained externally and are excluded from this repo's eval matrix.
-3. Propose a ranked list of candidates with a one-line rationale per candidate. Example: `- eks-upgrader — same service (EKS), adjacent lifecycle (Day 2), a prompt mentioning "upgrade" could land on either.`
+3. Propose a ranked list of candidates with a one-line rationale per candidate. Example: `- eks-best-practices — same service (EKS), adjacent decision space (architecture), a prompt mentioning "design" could land on either.`
 4. Explicitly call out non-neighbours that a reader might expect to see on the list but are not siblings — this prevents the author from adding them reflexively. Example: `steering-workflow-creator is not a sibling of eks-best-practices — different domain (meta-authoring vs EKS knowledge), no vocabulary overlap.`
 
 Heuristics for how many siblings to pick:

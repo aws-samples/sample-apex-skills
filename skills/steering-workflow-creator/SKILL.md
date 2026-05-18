@@ -84,7 +84,7 @@ Phase-four work: emit the matching `steering/commands/apex/<name>.md` slash-comm
 
 Start from `@assets/command-shim-skeleton.md`. The shim is a thin file: two-key YAML frontmatter plus three tags — `<objective>`, `<execution_context>`, `<process>`. The tag names are fixed; the Claude Code runtime looks for exactly those three. Inventing a fourth tag doesn't break anything, but it adds variance across shims, so don't.
 
-Cross-reference the real shims under `steering/commands/apex/` for tone — `eks-design.md`, `eks-upgrade.md`, `eks.md` are the current examples. Mirror their action-oriented description style and their one-paragraph `<process>` block.
+Cross-reference the real shims under `steering/commands/apex/` for tone — `eks-design.md` and `eks.md` are the current examples. Mirror their action-oriented description style and their one-paragraph `<process>` block.
 
 One small note: the existing shims in the repo use `--` rather than the em-dash `—` in a few places. That is drift; the convention going forward is em-dash everywhere, in both the workflow and the shim. New shims conform to the convention, not to the drift.
 

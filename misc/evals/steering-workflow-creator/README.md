@@ -11,7 +11,6 @@ This skill has **no true siblings** in the eval sense. It is meta (about authori
 <!-- SIBLING_MAP_START -->
 - **Meta workflow routing (not a sibling skill)** — the `/apex:new-skill` steering workflow onboards a new *skill*, while this skill authors new *workflows*. Negatives at items 9, 10 phrase the request as adding a skill and must route to the new-skill workflow, not here.
 - **`eks-best-practices`** — Day 0/Day 1 EKS architecture + decision frameworks. Negatives at items 11, 14 ("design an EKS cluster", "Karpenter vs MNG") must route there.
-- **`eks-upgrader`** — Day 2 EKS upgrade procedures. Negative at item 12 ("upgrade my EKS cluster") must route there.
 - **`skill-creator`** — upstream-synced meta-skill for drafting SKILL.md frontmatter + references. Negative at item 13 is a pure frontmatter-review request that belongs to skill-creator, not to this workflow-authoring skill.
 - **`eks-mcp-server`** — setup-bridge skill for the EKS MCP server. Negative at item 15 asks how to configure MCP tooling.
 - **Generic / non-repo** — pure Kubernetes-internals questions with no authoring hook. Negative at item 16 ("Kubernetes PDB semantics") is a sanity check that this skill does not fire on off-topic K8s content.

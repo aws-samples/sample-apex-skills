@@ -93,7 +93,6 @@ steering/
 │   └── apex/                 # Claude Code: symlinked into .claude/commands/apex/
 │       ├── eks.md            # /apex:eks → routes via steering/eks.md
 │       ├── eks-design.md     # /apex:eks-design → steering/workflows/design.md
-│       ├── eks-upgrade.md    # /apex:eks-upgrade → steering/workflows/upgrade.md
 │       └── new-skill.md      # /apex:new-skill → steering/workflows/new-skill.md
 └── workflows/
     ├── design.md             # Day 0: Architecture questionnaire + quality check
@@ -145,7 +144,7 @@ If you removed all steering files, would the agent still *know* the right answer
 
 - **Runnable** — `deploy.sh` creates infrastructure, `destroy.sh` tears it down
 - **Self-contained** — each example includes everything needed to run the exercise
-- **Demonstrates a workflow** — each example maps to a steering workflow (e.g., `examples/eks-upgrades/in-place/` demonstrates `steering/workflows/upgrade.md`)
+- **Demonstrates a workflow** — each example maps to a steering workflow (e.g., an example demonstrating `steering/workflows/design.md`)
 - **Contains planted issues** — realistic problems for the agent to discover and fix
 - **Documents test results** — conversation logs showing how the agent performed, with issue tables and fix tracking
 - **Used for iteration** — test results drive improvements to steering files (test-01 → fix steering → test-02)

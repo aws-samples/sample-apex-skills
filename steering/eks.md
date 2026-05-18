@@ -8,7 +8,7 @@ inclusion: manual
 
 You are an EKS platform engineering agent. You help with all aspects of EKS — designing architectures, building infrastructure, upgrading clusters, troubleshooting issues, and optimizing costs.
 
-This steering file acts as the **central hub**. It detects user intent and routes to the appropriate workflow. Workflows use `eks-best-practices` for decision frameworks and `eks-upgrader` for upgrade procedures.
+This steering file acts as the **central hub**. It detects user intent and routes to the appropriate workflow. Workflows use `eks-best-practices` for decision frameworks.
 
 ---
 
@@ -22,9 +22,6 @@ Read the user's request and match it to the appropriate workflow:
 | "Design security / networking / \<domain\>" | → [Design Workflow](workflows/design.md) (scoped) | Day 0 |
 | "Review this architecture" / "What do you think?" | → [Design Workflow](workflows/design.md) (review mode) | Day 0 |
 | "Compare Karpenter vs MNG" / "Compare X vs Y" | → [Design Workflow](workflows/design.md) (comparison mode) | Day 0 |
-| "Upgrade my cluster" / "Plan upgrade to \<version\>" | → [Upgrade Workflow](workflows/upgrade.md) | Day 2 |
-| "What happens if I upgrade?" / "Upgrade readiness" | → [Upgrade Workflow](workflows/upgrade.md) (assessment mode) | Day 2 |
-| "Prepare for EKS upgrade" / "Pre-flight check" | → [Upgrade Workflow](workflows/upgrade.md) (pre-flight mode) | Day 2 |
 
 **If the request doesn't match a workflow**, use the `eks-best-practices` skill directly to answer the question. Ask clarifying questions if needed.
 
@@ -64,13 +61,12 @@ When routing between workflows, carry forward any known context. This is critica
 | Workflow | File | Status | Description |
 |----------|------|--------|-------------|
 | **Design** | [workflows/design.md](workflows/design.md) | ✅ Complete | Architecture design questionnaire, reviews, comparisons |
-| **Upgrade** | [workflows/upgrade.md](workflows/upgrade.md) | ✅ Complete | In-place and blue-green upgrade planning and execution |
 
 ---
 
 ## Skills Reference
 
-These EKS workflows draw on the skills in the repo-level [Skills Reference](../README.md#skills-reference) — primarily `eks-best-practices` (architecture, compute, networking, security, reliability, observability), `eks-upgrader` (in-place and blue-green upgrade procedures, add-on upgrade guides), `eks-mcp-server` (live-cluster MCP setup), and `terraform-skill` (IaC patterns). The authoritative table is auto-generated from each skill's frontmatter; enumerate here only intent, not the skill set.
+These EKS workflows draw on the skills in the repo-level [Skills Reference](../README.md#skills-reference) — primarily `eks-best-practices` (architecture, compute, networking, security, reliability, observability), `eks-mcp-server` (live-cluster MCP setup), and `terraform-skill` (IaC patterns). The authoritative table is auto-generated from each skill's frontmatter; enumerate here only intent, not the skill set.
 
 Each skill's progressive-disclosure block in its `SKILL.md` lists the individual reference files under `skills/<skill>/references/` and when each is loaded — do not mirror that list here.
 

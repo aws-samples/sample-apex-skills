@@ -1,6 +1,6 @@
 # Anti-Patterns in Steering Workflows
 
-A catalogue of drift observed between `steering/workflows/design.md` and `steering/workflows/upgrade.md` — the two existing workflows in this repo — plus a few more the convention was designed to head off before they appeared. Each entry shows a bad fragment, a good fragment, and one sentence on why.
+A catalogue of drift observed in `steering/workflows/design.md` — the existing workflow in this repo — plus a few more the convention was designed to head off before they appeared. Each entry shows a bad fragment, a good fragment, and one sentence on why.
 
 Authors: read this file when you finish a draft. The linter will quote these entries in its error messages, so fixing them once here is a fix everywhere.
 
@@ -10,7 +10,7 @@ A note on tone: "bad" doesn't mean "the author was wrong." Some of these inconsi
 
 ## 1. `--` instead of em-dash
 
-**Bad** (from `upgrade.md`):
+**Bad:**
 
 ```
 > **Lifecycle:** Day 2 -- Operate
@@ -36,7 +36,7 @@ Why: `--` is a typewriter-era workaround. Modern markdown renderers and terminal
 > **Skill:** `eks-best-practices`
 ```
 
-**Good** (pattern from `upgrade.md`, applied):
+**Good:**
 
 ```
 > Part of: [APEX EKS Hub](../eks.md)
@@ -51,7 +51,7 @@ Why: Access Model is a contract with the user about what the agent will and won'
 
 ## 3. Missing `## Defaults` section
 
-**Bad** (from `upgrade.md`): no `## Defaults` section exists. Default behaviors are scattered throughout phases.
+**Bad:** no `## Defaults` section exists. Default behaviors are scattered throughout phases.
 
 **Good** (from `design.md`):
 
@@ -71,7 +71,7 @@ Why: when defaults live inside phases, two phases can silently disagree about wh
 
 ## 4. Missing `## Quality Checklist` section
 
-**Bad** (from `upgrade.md`): no self-grading rubric. The workflow produces plans and reports but never scores them before handoff.
+**Bad:** no self-grading rubric. The workflow produces plans and reports but never scores them before handoff.
 
 **Good** (from `design.md`):
 
@@ -91,13 +91,13 @@ Why: when defaults live inside phases, two phases can silently disagree about wh
 | 60-79% | Gaps found | Fix identified gaps, re-check |
 ```
 
-Why: workflows produce recommendations the user acts on. Without a scoring pass, the agent has no forcing function to catch its own weakly-justified output. `design.md` has one; `upgrade.md` ought to.
+Why: workflows produce recommendations the user acts on. Without a scoring pass, the agent has no forcing function to catch its own weakly-justified output. `design.md` has one; every workflow ought to.
 
 ---
 
 ## 5. Inconsistent STOP-gate syntax
 
-**Bad** (from `upgrade.md`):
+**Bad:**
 
 ```
 STOP on ERROR findings -- present them and ask user to resolve before continuing.
@@ -115,17 +115,7 @@ Why: a consistent bold-STOP-period marker makes gates greppable for the linter a
 
 ## 6. Unicode-vs-ASCII arrow drift inside the same repo
 
-**Bad** (both exist, inside the same repo):
-
-```
-# design.md
-→ Single platform team? Platform + tenant teams? Federated?
-```
-
-```
-# upgrade.md
-Phase 1: Gather Context        -> Read cluster state, detect IaC
-```
+**Bad:** both forms appearing inside the same repo, e.g. prose using `→` while ASCII-art diagrams use `->` — or worse, the inverse.
 
 **Good:** pick one per medium. In prose and user-facing tables, use `→` (U+2192). In ASCII-art diagrams inside code blocks, `->` is acceptable because terminal fonts render `→` inconsistently. The convention pins: prose = `→`, code-block diagrams = `->`.
 
@@ -135,7 +125,7 @@ Why: readers flipping between workflows notice the inconsistency before they not
 
 ## 7. Phase structure without a `Source:` annotation
 
-**Bad** (both `design.md` and `upgrade.md`): phases don't declare whether they draw from knowledge, live data, or both. The agent has to infer.
+**Bad:** phases don't declare whether they draw from knowledge, live data, or both. The agent has to infer.
 
 **Good** (convention):
 

@@ -1,6 +1,6 @@
 # Steering Workflow Convention
 
-This is the canonical spec every steering workflow in this repo must satisfy. It distills the latent shape of `steering/workflows/design.md` and `steering/workflows/upgrade.md` into a single, strict contract so new workflows stop drifting.
+This is the canonical spec every steering workflow in this repo must satisfy. It distills the latent shape of `steering/workflows/design.md` into a single, strict contract so new workflows stop drifting.
 
 Treat this file as authoritative. Where the two existing workflows disagree, convention picks the stricter of the two — on the theory that the next author will read this, not the old files. If you find yourself arguing with a rule, read the "why" note attached to it before overriding — most drift is good intentions reinventing an inconsistency.
 
