@@ -129,6 +129,7 @@ kiro-cli chat
 | **[apex](steering/apex.md)** | APEX meta hub. Routes contributor requests about the repo itself — adding a new skill, authoring a new steering workflow, and other maintenance actions that are not tied to a specific AWS service. |
 | **[eks](steering/eks.md)** | EKS platform engineering hub. Routes to design and upgrade workflows. Use as the entry point for any EKS-related request. |
 | **[design](steering/workflows/design.md)** | Day 0 architecture design workflow. 8-phase questionnaire for EKS cluster design, architecture reviews, and option comparisons. |
+| **[eks-upgrade-check](steering/workflows/eks-upgrade-check.md)** | Day 2 upgrade-readiness assessment workflow. Runs the eks-upgrade-check skill end-to-end — 8 automated checks, 0-100 readiness score, markdown/HTML report with remediation steps. |
 | **[new-skill](steering/workflows/new-skill.md)** | Meta contributor workflow. Onboards a new skill end-to-end — scope intake, optional skill-creator drafting, sibling-graph survey, repo fan-out diff, eval scaffold and finalization, and baseline PR prep. Bimodal — greenfield authoring or retrofit on an existing skill that skipped the process. |
 | **[upgrade](steering/workflows/upgrade.md)** | Day 2 upgrade workflow. Pre-flight validation, upgrade planning, guided execution with checkpoints, and post-upgrade validation. |
 
@@ -138,6 +139,7 @@ kiro-cli chat
 |---------|-------------|
 | **[/apex:eks](steering/commands/apex/eks.md)** | EKS platform engineering hub. Routes to design or upgrade workflows based on your request. Use for any EKS-related task -- architecture design, cluster upgrades, reviews, comparisons, or general EKS questions. |
 | **[/apex:eks-design](steering/commands/apex/eks-design.md)** | Design a new EKS cluster architecture. 8-phase questionnaire covering compute, networking, security, observability, cost, reliability, and multi-tenancy. Also handles architecture reviews and option comparisons. |
+| **[/apex:eks-upgrade-check](steering/commands/apex/eks-upgrade-check.md)** | Assess EKS cluster upgrade readiness — automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), a 0-100 readiness score, and a markdown/HTML report with prioritized remediation. Use for upgrade-readiness assessments before running an actual upgrade. |
 | **[/apex:eks-upgrade](steering/commands/apex/eks-upgrade.md)** | Plan and execute an EKS cluster upgrade. Pre-flight validation, Terraform or CLI path detection, step-by-step execution with checkpoints, and post-upgrade validation. Supports in-place and blue-green strategies. |
 | **[/apex:new-skill](steering/commands/apex/new-skill.md)** | Onboard a new skill end-to-end — draft it, survey siblings, fan out the repo edits, scaffold and finalize the eval set, and baseline the scorecard. Bimodal — greenfield authoring or retrofit on an existing skill. |
 <!-- STEERING_REFERENCE_END -->
