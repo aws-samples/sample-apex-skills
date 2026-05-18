@@ -208,6 +208,50 @@ build_skills_detail() {
         done
       fi
     fi
+
+    # --- Other subdirectories (e.g. data/, tools/, agents/, eval-viewer/) ---
+    # The Anthropic skill spec allows any subdirectory under a skill root.
+    # Surface anything not already handled above so vendored or richer-layout
+    # skills are not invisible in the catalog.
+    local other_dirs=()
+    while IFS= read -r -d '' d; do
+      local d_name
+      d_name="$(basename "$d")"
+      case "$d_name" in
+        references|scripts|assets) continue ;;
+      esac
+      other_dirs+=("$d")
+    done < <(find "$skill_dir" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
+
+    for other_dir in "${other_dirs[@]}"; do
+      local other_name
+      other_name="$(basename "$other_dir")"
+      local other_files=()
+      while IFS= read -r -d '' f; do
+        other_files+=("$f")
+      done < <(find "$other_dir" -maxdepth 1 \( -type f -o -type d \) ! -path "$other_dir" -print0 | sort -z)
+
+      if [[ ${#other_files[@]} -gt 0 ]]; then
+        local other_heading
+        other_heading="$(humanize_filename "$other_name")"
+        echo ""
+        echo "**$other_heading:**"
+        echo ""
+        echo "| File | Description |"
+        echo "|------|-------------|"
+        for other_file in "${other_files[@]}"; do
+          local other_basename
+          other_basename="$(basename "$other_file")"
+          local other_label
+          other_label="$(humanize_filename "$other_basename")"
+          if [[ -d "$other_file" ]]; then
+            echo "| [$other_basename/](./$folder_name/$other_name/$other_basename/) | $other_label |"
+          else
+            echo "| [$other_basename](./$folder_name/$other_name/$other_basename) | $other_label |"
+          fi
+        done
+      fi
+    done
   done
 }
 

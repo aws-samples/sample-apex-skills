@@ -81,6 +81,20 @@ EKS cluster reconnaissance and environment discovery. Detects compute strategy (
 | [storage.md](./eks-recon/references/storage.md) | Storage |
 | [workloads.md](./eks-recon/references/workloads.md) | Workloads |
 
+**Agents:**
+
+| File | Description |
+|------|-------------|
+| [addons-recon.md](./eks-recon/agents/addons-recon.md) | Addons recon |
+| [cicd-recon.md](./eks-recon/agents/cicd-recon.md) | Cicd recon |
+| [compute-recon.md](./eks-recon/agents/compute-recon.md) | Compute recon |
+| [iac-recon.md](./eks-recon/agents/iac-recon.md) | Iac recon |
+| [networking-recon.md](./eks-recon/agents/networking-recon.md) | Networking recon |
+| [observability-recon.md](./eks-recon/agents/observability-recon.md) | Observability recon |
+| [security-recon.md](./eks-recon/agents/security-recon.md) | Security recon |
+| [storage-recon.md](./eks-recon/agents/storage-recon.md) | Storage recon |
+| [workloads-recon.md](./eks-recon/agents/workloads-recon.md) | Workloads recon |
+
 ---
 
 ### [skill-creator](./skill-creator/)
@@ -112,6 +126,21 @@ Create new skills, modify and improve existing skills, and measure skill perform
 | Asset | Description |
 |-------|-------------|
 | [eval_review.html](./skill-creator/assets/eval_review.html) | Eval_review |
+
+**Agents:**
+
+| File | Description |
+|------|-------------|
+| [analyzer.md](./skill-creator/agents/analyzer.md) | Analyzer |
+| [comparator.md](./skill-creator/agents/comparator.md) | Comparator |
+| [grader.md](./skill-creator/agents/grader.md) | Grader |
+
+**Eval viewer:**
+
+| File | Description |
+|------|-------------|
+| [generate_review.py](./skill-creator/eval-viewer/generate_review.py) | Generate_review |
+| [viewer.html](./skill-creator/eval-viewer/viewer.html) | Viewer |
 
 ---
 
