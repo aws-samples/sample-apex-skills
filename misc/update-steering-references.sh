@@ -32,6 +32,8 @@ parse_frontmatter() {
     /^---$/ { block++; next }
     block == 1 && $0 ~ "^" key ":" {
       sub("^" key ":[ ]*", "")
+      sub("^\"", ""); sub("\"$", "")
+      sub("^'\''", ""); sub("'\''$", "")
       print
       exit
     }
