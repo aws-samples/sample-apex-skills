@@ -43,5 +43,10 @@ venv/
 # Node (if any tooling uses it)
 node_modules/
 
+# Docusaurus (misc/website/) — generated wrappers + manifest are tracked,
+# but local dev caches and build output are not.
+misc/website/.docusaurus/
+misc/website/build/
+
 # Logs
 *.log

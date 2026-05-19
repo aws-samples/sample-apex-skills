@@ -1,0 +1,39 @@
+/**
+ * APEX Skills site theme.
+ * Default Docusaurus Infima vars overridden lightly to match AWS palette.
+ */
+
+:root {
+  --ifm-color-primary: #ff9900;
+  --ifm-color-primary-dark: #e68a00;
+  --ifm-color-primary-darker: #d98200;
+  --ifm-color-primary-darkest: #b36b00;
+  --ifm-color-primary-light: #ffa31a;
+  --ifm-color-primary-lighter: #ffa826;
+  --ifm-color-primary-lightest: #ffb84d;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #ff9900;
+  --ifm-color-primary-dark: #e68a00;
+  --ifm-color-primary-darker: #d98200;
+  --ifm-color-primary-darkest: #b36b00;
+  --ifm-color-primary-light: #ffa31a;
+  --ifm-color-primary-lighter: #ffa826;
+  --ifm-color-primary-lightest: #ffb84d;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+.hero {
+  background: linear-gradient(135deg, #232f3e 0%, #131a22 100%);
+}
+
+.hero__title {
+  color: #ff9900;
+}
+
+.hero__subtitle {
+  color: #ffffff;
+}

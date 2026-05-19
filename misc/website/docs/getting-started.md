@@ -1,0 +1,43 @@
+---
+sidebar_position: 2
+title: Getting Started
+---
+
+# Getting Started
+
+APEX skills are plain folders of markdown + scripts. Any agent harness that supports the [Agent Skills](https://agentskills.io/) standard can load them.
+
+## Claude Code
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+mkdir -p ~/.claude/skills
+cp -r skills/* ~/.claude/skills/
+```
+
+Restart Claude Code; the skills become available via `/<skill-name>`.
+
+## Kiro CLI
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+mkdir -p ~/.kiro/skills
+cp -r skills/* ~/.kiro/skills/
+```
+
+## Verify
+
+In your harness, run:
+
+```
+/eks-recon
+```
+
+You should see the EKS reconnaissance skill prompt for cluster context.
+
+## Next steps
+
+- Browse the [Skills](./skills) catalog.
+- Try a [Steering](./steering) workflow for a phased engagement.
