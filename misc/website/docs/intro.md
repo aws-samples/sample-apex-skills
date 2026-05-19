@@ -5,9 +5,9 @@ title: What is APEX
 
 # What is APEX
 
-**APEX** — *Agentic Platform Engineering eXperience* — is a curated set of EKS platform-engineering skills, authored by senior AWS Solutions Architects and delivered through agentic AI coding agents (Claude Code, Kiro CLI, and any harness compatible with the [Agent Skills](https://agentskills.io/) open standard).
+**APEX** — *Agentic Platform Engineering eXperience* — is how we teach platform engineering through AI coding agents. It's a curated set of skills authored by AWS Solutions Architects, Technical Account Managers, and ProServe consultants, delivered through any agentic harness compatible with the [Agent Skills](https://agentskills.io/) open standard (Claude Code, Kiro CLI, and others).
 
-Each skill is a self-contained folder of instructions, scripts, and references that an LLM can discover and load on demand. Together they compress EKS onboarding from months to weeks by giving engineers SSA-grade output for the decisions they're already making.
+Each skill is a self-contained folder of instructions, scripts, and references that a frontier LLM can discover and load on demand. Together they compress onboarding from months to weeks by giving engineers expert-grade output for the decisions they're already making.
 
 ## What's in this repo
 

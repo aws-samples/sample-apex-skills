@@ -48,8 +48,8 @@ function StatStrip() {
           </p>
         </div>
         <div className="col col--4 text--center">
-          <Heading as="h2">EKS-focused</Heading>
-          <p>Curated by senior AWS Solutions Architects.</p>
+          <Heading as="h2">AWS-curated</Heading>
+          <p>Authored by AWS Solutions Architects, TAMs, and ProServe.</p>
         </div>
       </div>
     </section>

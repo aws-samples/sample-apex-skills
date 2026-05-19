@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'APEX Skills',
-  tagline: 'Curated EKS platform-engineering skills, delivered through your AI coding agent',
+  tagline: 'Platform engineering with agents — curated AWS skills delivered through your AI coding agent',
   favicon: 'img/favicon.ico',
 
   url: 'https://aws-samples.github.io',
@@ -106,7 +106,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Built by AWS Solutions Architects · MIT-0 License · Copyright © ${new Date().getFullYear()} Amazon.com, Inc. or its affiliates.`,
+      copyright: `Built by AWS Solutions Architects, TAMs, and ProServe · MIT-0 License · Copyright © ${new Date().getFullYear()} Amazon.com, Inc. or its affiliates.`,
     },
     prism: {
       theme: prismThemes.github,
