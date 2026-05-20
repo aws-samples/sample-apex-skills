@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Upward chevron/apex shape -->
+  <path d="M16 4 L28 20 L24 20 L16 9 L8 20 L4 20 Z" fill="#FF9900"/>
+  <!-- Platform base with circuit nodes -->
+  <rect x="6" y="24" width="20" height="3" rx="1.5" fill="#232F3E"/>
+  <!-- Circuit nodes on the platform -->
+  <circle cx="10" cy="25.5" r="1.2" fill="#FF9900"/>
+  <circle cx="16" cy="25.5" r="1.2" fill="#FF9900"/>
+  <circle cx="22" cy="25.5" r="1.2" fill="#FF9900"/>
+  <!-- Connector lines from apex to nodes -->
+  <line x1="16" y1="12" x2="16" y2="24" stroke="#232F3E" stroke-width="1" stroke-opacity="0.4"/>
+  <line x1="12" y1="16" x2="10" y2="24" stroke="#232F3E" stroke-width="0.8" stroke-opacity="0.3"/>
+  <line x1="20" y1="16" x2="22" y2="24" stroke="#232F3E" stroke-width="0.8" stroke-opacity="0.3"/>
+</svg>

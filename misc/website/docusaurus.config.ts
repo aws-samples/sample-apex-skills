@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'APEX Skills',
   tagline: 'Platform engineering with agents — curated AWS skills delivered through your AI coding agent',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   url: 'https://aws-samples.github.io',
   baseUrl: '/sample-apex-skills/',

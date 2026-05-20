@@ -37,3 +37,55 @@
 .hero__subtitle {
   color: #ffffff;
 }
+
+.copy-page-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.25rem;
+}
+
+.copy-page-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.copy-page-button:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.copy-page-button:active {
+  background: #e5e7eb;
+}
+
+.copy-page-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .copy-page-button {
+  color: #d1d5db;
+  background: #1f2937;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .copy-page-button:hover {
+  background: #374151;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme='dark'] .copy-page-button:active {
+  background: #4b5563;
+}

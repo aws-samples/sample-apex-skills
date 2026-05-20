@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Simplified apex chevron for favicon -->
+  <path d="M16 4 L28 20 L24 20 L16 9 L8 20 L4 20 Z" fill="#FF9900"/>
+  <!-- Platform base -->
+  <rect x="6" y="24" width="20" height="3" rx="1.5" fill="#232F3E"/>
+  <!-- Center node -->
+  <circle cx="16" cy="25.5" r="1.5" fill="#FF9900"/>
+</svg>
