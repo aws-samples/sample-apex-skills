@@ -1,6 +1,5 @@
 import type {ReactNode} from 'react';
 import Link from '@docusaurus/Link';
-import Heading from '@theme/Heading';
 import skills from '@site/static/manifests/skills.json';
 
 type Skill = {
@@ -17,24 +16,13 @@ function firstSentence(text: string): string {
 
 function SkillCard({skill}: {skill: Skill}): ReactNode {
   return (
-    <div className="col col--4 margin-bottom--lg">
-      <div className="card" style={{height: '100%'}}>
-        <div className="card__header">
-          <Heading as="h3" style={{marginBottom: 0}}>
-            <code>{skill.name}</code>
-          </Heading>
-        </div>
-        <div className="card__body">
-          <p>{firstSentence(skill.description)}</p>
-        </div>
-        <div className="card__footer">
-          <Link
-            className="button button--primary button--block"
-            to={skill.path}
-          >
-            Open
-          </Link>
-        </div>
+    <div className="apex-card">
+      <div className="apex-card__header">{skill.name}</div>
+      <div className="apex-card__body">{firstSentence(skill.description)}</div>
+      <div className="apex-card__footer">
+        <Link to={skill.path} className="apex-card__btn">
+          Open →
+        </Link>
       </div>
     </div>
   );
@@ -42,11 +30,9 @@ function SkillCard({skill}: {skill: Skill}): ReactNode {
 
 export default function SkillGrid(): ReactNode {
   return (
-    <section className="container margin-bottom--xl">
-      <Heading as="h2" className="text--center margin-bottom--lg">
-        Skills
-      </Heading>
-      <div className="row">
+    <section className="apex-section">
+      <h2 className="apex-section__title">Skills</h2>
+      <div className="apex-section__grid">
         {(skills as Skill[]).map((skill) => (
           <SkillCard key={skill.name} skill={skill} />
         ))}

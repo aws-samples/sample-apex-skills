@@ -31,3 +31,7 @@ Author a new steering workflow for any AWS service and pair it with a matching s
 
 Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions
 
+## [update-docs](./update-docs/)
+
+Audit and update every documentation surface in the APEX repo against the current state of skills, steering workflows, README marker tables, and the Docusaurus site under misc/website/. After any change to a skill (rename, retire, add, edit description), walk the repo, re-run script-managed surfaces if their --check fails, and reason through every tracked prose *.md to catch references that need updating. Use after adding/removing/renaming a skill, after editing SKILL.md frontmatter, after editing README marker blocks, or before publishing a docs change. Also use when the user says "update docs", "sync docs", "check docs", "run update-docs", or mentions that documentation might be stale.
+
