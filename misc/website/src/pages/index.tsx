@@ -38,7 +38,7 @@ function StatStrip() {
       <div className="row">
         <div className="col col--4 text--center">
           <Heading as="h2">{skillCount} skills</Heading>
-          <p>Curated EKS platform-engineering knowledge, ready to load.</p>
+          <p>Curated platform-engineering knowledge, ready to load.</p>
         </div>
         <div className="col col--4 text--center">
           <Heading as="h2">Agent Skills</Heading>

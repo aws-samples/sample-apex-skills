@@ -1,5 +1,5 @@
 ---
-title: eks-mcp-server
+title: "eks-mcp-server"
 description: "Setup and configure the EKS MCP Server for live cluster operations. Use this skill when the user wants to interact with real EKS clusters (list clusters, read K8s resources, troubleshoot pods, deploy workloads, check upgrade insights) but MCP tools are not available or not working. Also activate if user mentions \"eks mcp\", \"mcp server\", or asks how to connect their AI assistant to EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/SKILL.md
 format: md
@@ -45,8 +45,8 @@ If MCP tools are available and working, **skip this skill** and proceed with you
 
 Setup instructions are in separate reference files to avoid loading unnecessary content:
 
-- **AWS-Hosted setup**: See [references/aws-hosted-setup.md](references/aws-hosted-setup.md)
-- **Self-Hosted setup**: See [references/self-hosted-setup.md](references/self-hosted-setup.md)
+- **AWS-Hosted setup**: See [references/aws-hosted-setup.md](references/aws-hosted-setup)
+- **Self-Hosted setup**: See [references/self-hosted-setup.md](references/self-hosted-setup)
 
 Read the appropriate reference file based on the user's chosen option, then guide them through configuration.
 

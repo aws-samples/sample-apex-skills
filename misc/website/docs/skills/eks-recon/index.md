@@ -1,5 +1,5 @@
 ---
-title: eks-recon
+title: "eks-recon"
 description: "EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks \"what version am I running\", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say \"reconnaissance\" or \"discovery\". When in doubt about cluster state, run recon first."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/SKILL.md
 format: md
@@ -130,16 +130,16 @@ Load only the references needed for the user's request — this keeps context fo
 
 | Module | Intent / when to use | Reference file | Agent file |
 |--------|----------------------|----------------|------------|
-| Cluster Basics | Always loaded first by every module (name, region, version, platform version, endpoint) | [cluster-basics.md](references/cluster-basics.md) | — |
-| Compute | Karpenter, nodes, scaling, Auto Mode, node groups, Fargate, self-managed | [compute.md](references/compute.md) | [compute-recon.md](agents/compute-recon.md) |
-| Networking | VPC, ingress, CNI, service mesh, load balancer, connectivity | [networking.md](references/networking.md) | [networking-recon.md](agents/networking-recon.md) |
-| Security | IAM, IRSA, Pod Identity, RBAC, policies, encryption, secrets, webhooks | [security.md](references/security.md) | [security-recon.md](agents/security-recon.md) |
-| Add-ons | EKS-managed add-ons, Helm releases, plugins, "what's installed?" | [addons.md](references/addons.md) | [addons-recon.md](agents/addons-recon.md) |
-| Observability | Logging, metrics, monitoring, Container Insights, Prometheus | [observability.md](references/observability.md) | [observability-recon.md](agents/observability-recon.md) |
-| Workloads | Deployments, pods, services, ingresses, "what's running?" | [workloads.md](references/workloads.md) | [workloads-recon.md](agents/workloads-recon.md) |
-| Storage | PVCs, EBS, EFS, StorageClasses, CSI drivers, volumes, snapshots | [storage.md](references/storage.md) | [storage-recon.md](agents/storage-recon.md) |
-| IaC | Terraform, CloudFormation, CDK, eksctl, Pulumi, "how is it managed?" | [iac.md](references/iac.md) | [iac-recon.md](agents/iac-recon.md) |
-| CI/CD | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd.md) | [cicd-recon.md](agents/cicd-recon.md) |
+| Cluster Basics | Always loaded first by every module (name, region, version, platform version, endpoint) | [cluster-basics.md](references/cluster-basics) | — |
+| Compute | Karpenter, nodes, scaling, Auto Mode, node groups, Fargate, self-managed | [compute.md](references/compute) | [compute-recon.md](agents/compute-recon) |
+| Networking | VPC, ingress, CNI, service mesh, load balancer, connectivity | [networking.md](references/networking) | [networking-recon.md](agents/networking-recon) |
+| Security | IAM, IRSA, Pod Identity, RBAC, policies, encryption, secrets, webhooks | [security.md](references/security) | [security-recon.md](agents/security-recon) |
+| Add-ons | EKS-managed add-ons, Helm releases, plugins, "what's installed?" | [addons.md](references/addons) | [addons-recon.md](agents/addons-recon) |
+| Observability | Logging, metrics, monitoring, Container Insights, Prometheus | [observability.md](references/observability) | [observability-recon.md](agents/observability-recon) |
+| Workloads | Deployments, pods, services, ingresses, "what's running?" | [workloads.md](references/workloads) | [workloads-recon.md](agents/workloads-recon) |
+| Storage | PVCs, EBS, EFS, StorageClasses, CSI drivers, volumes, snapshots | [storage.md](references/storage) | [storage-recon.md](agents/storage-recon) |
+| IaC | Terraform, CloudFormation, CDK, eksctl, Pulumi, "how is it managed?" | [iac.md](references/iac) | [iac-recon.md](agents/iac-recon) |
+| CI/CD | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd) | [cicd-recon.md](agents/cicd-recon) |
 
 ---
 

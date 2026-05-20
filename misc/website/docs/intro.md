@@ -22,7 +22,7 @@ Each skill is a self-contained folder of instructions, scripts, and references t
 
 ## Where to go next
 
-- [Getting Started](./getting-started.md) — install APEX in Claude Code or Kiro CLI.
+- [Getting Started](./getting-started) — install APEX in Claude Code or Kiro CLI.
 - [Skills](./skills) — browse the catalog.
 - [Steering](./steering) — phased workflows that combine multiple skills.
-- [Contributing](./contributing.md) — add or improve a skill.
+- [Contributing](./contributing) — add or improve a skill.

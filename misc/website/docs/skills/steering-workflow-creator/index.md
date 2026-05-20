@@ -1,5 +1,5 @@
 ---
-title: steering-workflow-creator
+title: "steering-workflow-creator"
 description: "Author a new steering workflow for any AWS service and pair it with a matching slash-command shim. Use when the user asks to create a steering workflow, add a workflow to apex, standardize steering, write a new workflow for EKS / RDS / Lambda / IAM / any AWS service, or build a phased playbook that plugs into a service hub. Covers the convention (frontmatter, header block, required sections), tool routing (knowledge vs. live MCP vs. setup-bridge), and the lint pass before handoff."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/steering-workflow-creator/SKILL.md
 format: md

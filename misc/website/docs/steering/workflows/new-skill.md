@@ -1,5 +1,5 @@
 ---
-title: new-skill
+title: "new-skill"
 description: "Meta contributor workflow. Onboards a new skill end-to-end — scope intake, optional skill-creator drafting, sibling-graph survey, repo fan-out diff, eval scaffold and finalization, and baseline PR prep. Bimodal — greenfield authoring or retrofit on an existing skill that skipped the process."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/new-skill.md
 format: md
@@ -12,7 +12,7 @@ This page is generated from [steering/workflows/new-skill.md](https://github.com
 
 # New-Skill Onboarding Workflow
 
-> Part of: [APEX Meta Hub](../apex.md)
+> Part of: [APEX Meta Hub](../apex)
 > Lifecycle: Day 0 — Architect
 > Skill: steering-workflow-creator | ../../skills/skill-creator/SKILL.md
 > Access Model: mutating (with gates)

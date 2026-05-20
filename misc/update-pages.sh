@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # update-pages.sh
 #
-# Generates Docusaurus wrappers for skills/*/SKILL.md and
-# steering/workflows/*.md under misc/website/docs/, plus the
-# misc/website/static/manifests/skills.json manifest consumed by the
-# homepage SkillGrid.
+# Generates Docusaurus wrappers for every tracked *.md under skills/ and
+# steering/ into misc/website/docs/, plus the skills.json manifest consumed
+# by the homepage SkillGrid.
 #
 # Inputs (sources of truth):
-#   skills/*/SKILL.md
-#   steering/workflows/*.md
+#   skills/**/*.md   (except skills/README.md — marker-generated)
+#   steering/**/*.md
 #
 # Outputs (regenerated; tracked in git):
-#   misc/website/docs/skills/<name>.md      one wrapper per skill
-#   misc/website/docs/skills/index.md       card grid (overwritten each run)
-#   misc/website/docs/steering/<name>.md    one wrapper per workflow
+#   misc/website/docs/skills/<name>/index.md       wrapper for SKILL.md
+#   misc/website/docs/skills/<name>/<sub>/<f>.md   wrapper for sub-files
+#   misc/website/docs/skills/index.md              card grid (overwritten)
+#   misc/website/docs/steering/<rel-path>.md       wrappers for steering
 #   misc/website/static/manifests/skills.json
 #
 # misc/website/docs/steering/index.md is HAND-WRITTEN and never touched.
@@ -41,11 +41,10 @@ fi
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-SKILLS_DIR="$REPO_ROOT/skills"
-WORKFLOWS_DIR="$REPO_ROOT/steering/workflows"
 SKILLS_OUT="$REPO_ROOT/misc/website/docs/skills"
 STEERING_OUT="$REPO_ROOT/misc/website/docs/steering"
 MANIFEST="$REPO_ROOT/misc/website/static/manifests/skills.json"
+SKILLS_DIR="$REPO_ROOT/skills"
 
 GH_BASE="https://github.com/aws-samples/sample-apex-skills/blob/main"
 
@@ -57,9 +56,6 @@ TOUCHED_PATHS=(
 )
 
 # --- Parse one frontmatter key from a markdown file -----------------------
-# Mirrors parse_frontmatter() in update-skills-references.sh so both scripts
-# accept the same input shape. Single-line values only; quoted (single or
-# double) values are unwrapped.
 parse_frontmatter() {
   local file="$1"
   local key="$2"
@@ -76,8 +72,24 @@ parse_frontmatter() {
   ' "$file"
 }
 
+# --- Extract first # heading from a markdown file -------------------------
+first_heading() {
+  local file="$1"
+  awk '
+    /^---$/ { block++; next }
+    block == 1 { next }
+    /^# / { sub(/^# */, ""); print; exit }
+  ' "$file"
+}
+
+# --- Derive title from filename -------------------------------------------
+title_from_filename() {
+  local base="$1"
+  base="${base%.md}"
+  echo "$base" | sed 's/-/ /g; s/\b\(.\)/\u\1/g'
+}
+
 # --- Strip leading YAML frontmatter from a markdown file ------------------
-# Files without frontmatter are passed through unchanged.
 strip_frontmatter() {
   local file="$1"
   awk '
@@ -90,62 +102,183 @@ strip_frontmatter() {
   ' "$file"
 }
 
-# --- YAML-safe scalar via JSON encoding (JSON is a subset of YAML) --------
-# Handles embedded quotes, colons, em dashes, etc. without hand-rolling
-# YAML escape rules.
+# --- YAML-safe scalar via JSON encoding -----------------------------------
 yaml_scalar() {
   python3 -c 'import json, sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "$1"
 }
 
-# --- Build a per-skill wrapper to stdout ----------------------------------
-build_skill_wrapper() {
-  local folder="$1"
-  local name="$2"
-  local description="$3"
-  local skill_md="$SKILLS_DIR/$folder/SKILL.md"
-  local desc_yaml
-  desc_yaml="$(yaml_scalar "$description")"
+# --- Link rewriting filter (stdin → stdout) -------------------------------
+# Rewrites:
+#   - SKILL.md → index.md in relative .md links
+#   - non-.md relative targets → GitHub blob URL
+#   - external URLs and anchors → pass through
+rewrite_links() {
+  local src="$1"
+  python3 -c '
+import re, sys, os, signal
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
-  cat <<EOF
----
-title: $name
-description: $desc_yaml
-custom_edit_url: $GH_BASE/skills/$folder/SKILL.md
-format: md
----
+src = sys.argv[1]
+GH_BASE = sys.argv[2]
+src_dir = os.path.dirname(src)
 
-:::info[Source]
-This page is generated from [skills/$folder/SKILL.md]($GH_BASE/skills/$folder/SKILL.md). Edit the source, not this page.
-:::
+def rewrite(m):
+    text, target = m.group(1), m.group(2)
+    if target.startswith(("http://", "https://", "#", "mailto:")):
+        return m.group(0)
+    anchor = ""
+    if "#" in target:
+        target, anchor = target.rsplit("#", 1)
+        anchor = "#" + anchor
+    if not target:
+        return m.group(0)
+    resolved = os.path.normpath(os.path.join(src_dir, target))
+    if resolved.startswith(".."):
+        return f"[{text}]({GH_BASE}/{target}{anchor})"
+    if not resolved.startswith(("skills/", "steering/")):
+        return f"[{text}]({GH_BASE}/{resolved}{anchor})"
+    if not target.endswith(".md"):
+        return f"[{text}]({GH_BASE}/{resolved}{anchor})"
+    if os.path.basename(resolved) == "SKILL.md":
+        resolved = os.path.join(os.path.dirname(resolved), "index.md")
+    new_target = os.path.relpath(resolved, src_dir)
+    # Strip .md extension for Docusaurus routing
+    if new_target.endswith(".md"):
+        new_target = new_target[:-3]
+    # index → directory path
+    if new_target.endswith("/index"):
+        new_target = new_target[:-5]
+    elif new_target == "index":
+        new_target = "."
+    return f"[{text}]({new_target}{anchor})"
 
-EOF
-  strip_frontmatter "$skill_md"
+for line in sys.stdin:
+    sys.stdout.write(re.sub(r"\[([^\]]*)\]\(([^)]+)\)", rewrite, line))
+' "$src" "$GH_BASE"
 }
 
-# --- Build a per-workflow wrapper to stdout -------------------------------
-build_workflow_wrapper() {
-  local file="$1"     # path to steering/workflows/foo.md
-  local name="$2"
+# --- Detect vendored skill and emit appropriate admonition ----------------
+# A vendored skill has a LICENSE* file in its directory.
+# Team-owned (source URL matches aws-samples/aws/awslabs/amazon orgs) gets
+# an info admonition. External third-party gets a caution admonition.
+vendored_skill_admonition() {
+  local src="$1"
+  # Only applies to files under skills/<name>/
+  [[ "$src" == skills/*/SKILL.md || "$src" == skills/*/* ]] || return 0
+  local skill_name="${src#skills/}"
+  skill_name="${skill_name%%/*}"
+  local skill_dir="$REPO_ROOT/skills/$skill_name"
+
+  # Check for LICENSE* file
+  local license_file=""
+  for f in "$skill_dir"/LICENSE*; do
+    [[ -f "$f" ]] && license_file="$f" && break
+  done
+  [[ -n "$license_file" ]] || return 0
+
+  # Extract metadata from THIRD_PARTY_NOTICES.md (authoritative source)
+  local notices="$REPO_ROOT/THIRD_PARTY_NOTICES.md"
+  local author license_id source_url
+  if [[ -f "$notices" ]]; then
+    source_url="$(awk -v name="$skill_name" '
+      $0 ~ "^## " name { found=1; next }
+      found && /Source:/ { sub(/.*Source:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
+    ' "$notices")"
+    author="$(awk -v name="$skill_name" '
+      $0 ~ "^## " name { found=1; next }
+      found && /Copyright:/ { sub(/.*Copyright:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
+    ' "$notices")"
+  fi
+  # Fallback: frontmatter metadata
+  if [[ -z "$author" ]]; then
+    local skill_md="$skill_dir/SKILL.md"
+    author="$(awk '/author:/{sub(/.*author: */, ""); print; exit}' "$skill_md" 2>/dev/null)"
+  fi
+  license_id="$(parse_frontmatter "$skill_dir/SKILL.md" "license" 2>/dev/null)"
+  [[ -z "$license_id" ]] && license_id="Apache-2.0"
+  [[ -z "$source_url" ]] && source_url="$GH_BASE/skills/$skill_name"
+  [[ -z "$author" ]] && author="third party"
+
+  # Determine ownership: team-owned if source URL matches AWS orgs
+  local is_team=false
+  if [[ "$source_url" == *github.com/aws-samples/* || \
+        "$source_url" == *github.com/aws/* || \
+        "$source_url" == *github.com/awslabs/* || \
+        "$source_url" == *github.com/amazon* ]]; then
+    is_team=true
+  fi
+
+  if $is_team; then
+    local repo_name="${source_url##*/}"
+    cat <<EOF
+
+:::info[Vendored skill]
+This skill is sourced from [$repo_name]($source_url), also maintained by the APEX team.
+:::
+
+EOF
+  else
+    cat <<EOF
+
+:::caution[Third-party skill]
+This skill is maintained by **$author** under the $license_id license. Upstream: [$source_url]($source_url)
+:::
+
+EOF
+  fi
+}
+
+# --- Build a generic wrapper to stdout ------------------------------------
+build_wrapper() {
+  local src="$1"
+  local title="$2"
   local description="$3"
-  local base
-  base="$(basename "$file")"
-  local desc_yaml
+  local title_yaml desc_yaml
+  title_yaml="$(yaml_scalar "$title")"
   desc_yaml="$(yaml_scalar "$description")"
 
   cat <<EOF
 ---
-title: $name
+title: $title_yaml
 description: $desc_yaml
-custom_edit_url: $GH_BASE/steering/workflows/$base
+custom_edit_url: $GH_BASE/$src
 format: md
 ---
 
 :::info[Source]
-This page is generated from [steering/workflows/$base]($GH_BASE/steering/workflows/$base). Edit the source, not this page.
+This page is generated from [$src]($GH_BASE/$src). Edit the source, not this page.
 :::
 
 EOF
-  strip_frontmatter "$file"
+  vendored_skill_admonition "$src"
+  strip_frontmatter "$REPO_ROOT/$src" | rewrite_links "$src"
+}
+
+# --- Compute output path for a source file --------------------------------
+compute_out_path() {
+  local src="$1"
+  if [[ "$src" == skills/*/SKILL.md ]]; then
+    local folder="${src#skills/}"
+    folder="${folder%/SKILL.md}"
+    echo "$SKILLS_OUT/$folder/index.md"
+  elif [[ "$src" == skills/* ]]; then
+    local rel="${src#skills/}"
+    echo "$SKILLS_OUT/$rel"
+  elif [[ "$src" == steering/* ]]; then
+    local rel="${src#steering/}"
+    echo "$STEERING_OUT/$rel"
+  fi
+}
+
+# --- Derive title for any source file -------------------------------------
+derive_title() {
+  local file="$1"
+  local t
+  t="$(parse_frontmatter "$file" "name")"
+  if [[ -n "$t" ]]; then echo "$t"; return; fi
+  t="$(first_heading "$file")"
+  if [[ -n "$t" ]]; then echo "$t"; return; fi
+  title_from_filename "$(basename "$file")"
 }
 
 # --- Build skills/index.md card grid to stdout ----------------------------
@@ -170,7 +303,7 @@ EOF
     description="$(parse_frontmatter "$skill_md" "description")"
     [[ -n "$name" ]] || continue
     [[ -n "$description" ]] || description="_(no description in frontmatter)_"
-    echo "## [$name](./$folder.md)"
+    echo "## [$name](./$folder/)"
     echo ""
     echo "$description"
     echo ""
@@ -224,26 +357,21 @@ print(json.dumps(out, indent=2, ensure_ascii=False))
 PY
 }
 
-# --- Remove wrappers for skills/workflows that no longer exist ------------
-cleanup_stale() {
-  local dir="$1"
+# --- Recursive cleanup: remove wrappers not in the expected set -----------
+cleanup_stale_tree() {
+  local base_dir="$1"
   shift
-  local -a keep=("$@")
-  [[ -d "$dir" ]] || return 0
-  shopt -s nullglob
-  for existing in "$dir"/*.md; do
-    local base
-    base="$(basename "$existing")"
-    local should_keep=false
-    for k in "${keep[@]}"; do
-      if [[ "$base" == "$k" ]]; then
-        should_keep=true
-        break
-      fi
-    done
-    $should_keep || rm "$existing"
-  done
-  shopt -u nullglob
+  local -A keep_set
+  for p in "$@"; do keep_set["$p"]=1; done
+
+  [[ -d "$base_dir" ]] || return 0
+  while IFS= read -r -d '' f; do
+    local rel="${f#"$base_dir"/}"
+    if [[ -z "${keep_set[$rel]:-}" ]]; then
+      rm "$f"
+    fi
+  done < <(find "$base_dir" -name '*.md' -print0)
+  find "$base_dir" -type d -empty -delete 2>/dev/null || true
 }
 
 # =========================================================================
@@ -254,32 +382,38 @@ if [[ "$MODE" == "dry-run" ]]; then
   echo "=== DRY RUN — would write the following ==="
 fi
 
+# Collect all tracked .md under skills/ and steering/
+mapfile -t ALL_MD < <(git ls-files -- 'skills/**/*.md' 'steering/*.md' 'steering/**/*.md')
+
 declare -a EXPECTED_SKILL_FILES=("index.md")
-declare -a EXPECTED_STEERING_FILES=("index.md")  # hand-written index is preserved
+declare -a EXPECTED_STEERING_FILES=("index.md")
 
-# --- Per-skill wrappers ---
-for skill_dir in "$SKILLS_DIR"/*/; do
-  skill_md="$skill_dir/SKILL.md"
-  [[ -f "$skill_md" ]] || continue
+# --- Per-file wrappers ---
+for src in "${ALL_MD[@]}"; do
+  # Skip skills/README.md (marker-generated, not a docs page)
+  [[ "$src" == "skills/README.md" ]] && continue
 
-  folder="$(basename "$skill_dir")"
-  name="$(parse_frontmatter "$skill_md" "name")"
-  description="$(parse_frontmatter "$skill_md" "description")"
-  if [[ -z "$name" ]]; then
-    echo "  WARNING: No name in $skill_md — skipping" >&2
-    continue
+  out_file="$(compute_out_path "$src")"
+  [[ -n "$out_file" ]] || continue
+
+  # Track expected file for cleanup
+  if [[ "$src" == skills/* ]]; then
+    EXPECTED_SKILL_FILES+=("${out_file#"$SKILLS_OUT"/}")
+  elif [[ "$src" == steering/* ]]; then
+    EXPECTED_STEERING_FILES+=("${out_file#"$STEERING_OUT"/}")
   fi
 
-  out_file="$SKILLS_OUT/$folder.md"
-  EXPECTED_SKILL_FILES+=("$folder.md")
+  title="$(derive_title "$REPO_ROOT/$src")"
+  description="$(parse_frontmatter "$REPO_ROOT/$src" "description")"
 
   if [[ "$MODE" == "dry-run" ]]; then
     echo "--- $out_file ---"
-    build_skill_wrapper "$folder" "$name" "$description"
+    build_wrapper "$src" "$title" "${description:-}" | head -10
+    echo "  [... body truncated ...]"
     echo ""
   else
-    mkdir -p "$SKILLS_OUT"
-    build_skill_wrapper "$folder" "$name" "$description" > "$out_file.tmp"
+    mkdir -p "$(dirname "$out_file")"
+    build_wrapper "$src" "$title" "${description:-}" > "$out_file.tmp"
     mv "$out_file.tmp" "$out_file"
   fi
 done
@@ -287,40 +421,13 @@ done
 # --- Skills index (card grid) ---
 if [[ "$MODE" == "dry-run" ]]; then
   echo "--- $SKILLS_OUT/index.md ---"
-  build_skills_index
+  build_skills_index | head -20
+  echo "  [... truncated ...]"
   echo ""
 else
   mkdir -p "$SKILLS_OUT"
   build_skills_index > "$SKILLS_OUT/index.md.tmp"
   mv "$SKILLS_OUT/index.md.tmp" "$SKILLS_OUT/index.md"
-fi
-
-# --- Per-workflow wrappers ---
-if [[ -d "$WORKFLOWS_DIR" ]]; then
-  shopt -s nullglob
-  for wf_file in "$WORKFLOWS_DIR"/*.md; do
-    name="$(parse_frontmatter "$wf_file" "name")"
-    description="$(parse_frontmatter "$wf_file" "description")"
-    if [[ -z "$name" ]]; then
-      echo "  WARNING: No name in $wf_file — skipping" >&2
-      continue
-    fi
-
-    base="$(basename "$wf_file")"
-    out_file="$STEERING_OUT/$base"
-    EXPECTED_STEERING_FILES+=("$base")
-
-    if [[ "$MODE" == "dry-run" ]]; then
-      echo "--- $out_file ---"
-      build_workflow_wrapper "$wf_file" "$name" "$description"
-      echo ""
-    else
-      mkdir -p "$STEERING_OUT"
-      build_workflow_wrapper "$wf_file" "$name" "$description" > "$out_file.tmp"
-      mv "$out_file.tmp" "$out_file"
-    fi
-  done
-  shopt -u nullglob
 fi
 
 # --- Manifest ---
@@ -336,8 +443,8 @@ fi
 
 # --- Stale-wrapper cleanup (only in real-write mode) ---
 if [[ "$MODE" != "dry-run" ]]; then
-  cleanup_stale "$SKILLS_OUT" "${EXPECTED_SKILL_FILES[@]}"
-  cleanup_stale "$STEERING_OUT" "${EXPECTED_STEERING_FILES[@]}"
+  cleanup_stale_tree "$SKILLS_OUT" "${EXPECTED_SKILL_FILES[@]}"
+  cleanup_stale_tree "$STEERING_OUT" "${EXPECTED_STEERING_FILES[@]}"
 fi
 
 # --- Dry-run exits here ---
@@ -376,7 +483,9 @@ if [[ "$MODE" == "check" ]]; then
 fi
 
 # --- Run mode summary ---
+skill_count="$(find "$SKILLS_OUT" -name '*.md' | wc -l)"
+steering_count="$(find "$STEERING_OUT" -name '*.md' | wc -l)"
 echo "✅ Generated Docusaurus wrappers and manifest:"
-echo "   Skills:   $(find "$SKILLS_OUT" -maxdepth 1 -name '*.md' | wc -l) files in misc/website/docs/skills/"
-echo "   Steering: $(find "$STEERING_OUT" -maxdepth 1 -name '*.md' | wc -l) files in misc/website/docs/steering/"
+echo "   Skills:   $skill_count files in misc/website/docs/skills/"
+echo "   Steering: $steering_count files in misc/website/docs/steering/"
 echo "   Manifest: misc/website/static/manifests/skills.json"

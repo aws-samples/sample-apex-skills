@@ -1,5 +1,5 @@
 ---
-title: skill-creator
+title: "skill-creator"
 description: "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/skill-creator/SKILL.md
 format: md
@@ -7,6 +7,11 @@ format: md
 
 :::info[Source]
 This page is generated from [skills/skill-creator/SKILL.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/skill-creator/SKILL.md). Edit the source, not this page.
+:::
+
+
+:::caution[Third-party skill]
+This skill is maintained by **Anthropic** under the Apache-2.0 license. Upstream: [https://github.com/anthropics/skills](https://github.com/anthropics/skills)
 :::
 
 
