@@ -6,10 +6,10 @@ These evals exercise the `eks-upgrade-check` skill's declared scope: **assessing
 
 ## Neighbour-skill disambiguation
 
-The skill's nearest neighbour is `eks-upgrader` — both deal with EKS upgrades. The boundary: this skill answers *"is it safe to upgrade?"* and produces a score; `eks-upgrader` answers *"how do I actually upgrade?"* and produces a step-by-step procedure. The discriminator is **assess vs execute**: assessment-shaped requests (readiness, score, blockers, go/no-go) route here; procedure-shaped requests (steps, commands, mid-upgrade troubleshooting) route to `eks-upgrader`.
+The most common confusion this skill needs to disambiguate is "assess my readiness to upgrade" vs. "run my upgrade." Both are EKS-upgrade phrasings; this skill owns the assessment side only — it produces a structured verdict (score, blockers, remediation) but never executes the upgrade itself.
 
 <!-- SIBLING_MAP_START -->
-- **`eks-upgrader`** (executing the upgrade / mid-upgrade troubleshooting) — negatives 9, 10, 11 ("walk me through actually upgrading", "stuck mid-flight at the data-plane phase", "blue-green migration procedure"). The single most important boundary — most upgrade-related queries land near this line. The rule: if the user wants steps to run, it's upgrader; if they want a verdict to read, it's upgrade-check.
+- **Upgrade execution and recovery** — negatives 9, 10, 11 ("walk me through actually upgrading", "stuck mid-flight at the data-plane phase", "blue-green migration procedure"). This is the most important boundary for `eks-upgrade-check`: questions about *running* an upgrade, *executing* steps, or *recovering* from a stalled upgrade are out of scope for the readiness assessment. The discriminator: if the user wants commands to run or a procedure to follow, route elsewhere; if they want a structured verdict on whether the cluster is ready, this skill is the right fit.
 - **`eks-recon`** (discovery / "what do we have?") — negatives 12, 13 ("what version am I running", "full reconnaissance — compute strategy, IaC, CI/CD, observability stack"). The rule: if the user is still figuring out *what's there*, it's recon; once they're asking whether they can move it forward safely, it's upgrade-check.
 - **`eks-best-practices`** (architectural choices) — negative 14 ("Karpenter vs MNG for a new cluster"). Architectural decisions are best-practices; readiness assessments are upgrade-check.
 - **`eks-mcp-server`** (tooling setup) — negative 15 ("install and configure the EKS MCP server"). Not an upgrade question.
