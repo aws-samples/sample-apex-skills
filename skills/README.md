@@ -23,7 +23,7 @@ my-skill/
 <!-- SKILLS_DETAIL_START -->
 ### [eks-best-practices](./eks-best-practices/)
 
-Use this skill whenever someone is making an Amazon EKS design, architecture, or configuration decision — even phrased casually as "how should we set up...", "what's the right way to...", "should we use X or Y", "we're about to redesign/consolidate/migrate...", or "is this reasonable?". Covers compute strategy (Karpenter, MNG, Fargate, Auto Mode, self-managed), multi-tenant platform design and tenant isolation (namespaces, node pools, RBAC, network policies, quotas), VPC/IP planning, ingress, IAM/Pod Identity/IRSA, pod security, PDBs and reliability, upgrade strategy (in-place vs blue-green), cost (Spot, Graviton, consolidation), autoscaling, and observability. Also triggers for Terraform with terraform-aws-modules/terraform-aws-eks (access entries, addons, node groups, IRSA). Trigger even if "best practice" is never said — any EKS planning or architectural judgment call qualifies. Skip for step-by-step upgrade execution (eks-upgrader) or pure Kubernetes questions unrelated to EKS.
+Use this skill whenever someone is making an Amazon EKS design, architecture, or configuration decision — even phrased casually as "how should we set up...", "what's the right way to...", "should we use X or Y", "we're about to redesign/consolidate/migrate...", or "is this reasonable?". Covers compute strategy (Karpenter, MNG, Fargate, Auto Mode, self-managed), multi-tenant platform design and tenant isolation (namespaces, node pools, RBAC, network policies, quotas), VPC/IP planning, ingress, IAM/Pod Identity/IRSA, pod security, PDBs and reliability, upgrade strategy (in-place vs blue-green), cost (Spot, Graviton, consolidation), autoscaling, and observability. Also triggers for Terraform with terraform-aws-modules/terraform-aws-eks (access entries, addons, node groups, IRSA). Trigger even if "best practice" is never said — any EKS planning or architectural judgment call qualifies. Skip for pure Kubernetes questions unrelated to EKS.
 
 **References** (loaded on demand):
 
@@ -81,26 +81,50 @@ EKS cluster reconnaissance and environment discovery. Detects compute strategy (
 | [storage.md](./eks-recon/references/storage.md) | Storage |
 | [workloads.md](./eks-recon/references/workloads.md) | Workloads |
 
+**Agents:**
+
+| File | Description |
+|------|-------------|
+| [addons-recon.md](./eks-recon/agents/addons-recon.md) | Addons recon |
+| [cicd-recon.md](./eks-recon/agents/cicd-recon.md) | Cicd recon |
+| [compute-recon.md](./eks-recon/agents/compute-recon.md) | Compute recon |
+| [iac-recon.md](./eks-recon/agents/iac-recon.md) | Iac recon |
+| [networking-recon.md](./eks-recon/agents/networking-recon.md) | Networking recon |
+| [observability-recon.md](./eks-recon/agents/observability-recon.md) | Observability recon |
+| [security-recon.md](./eks-recon/agents/security-recon.md) | Security recon |
+| [storage-recon.md](./eks-recon/agents/storage-recon.md) | Storage recon |
+| [workloads-recon.md](./eks-recon/agents/workloads-recon.md) | Workloads recon |
+
 ---
 
 ### [eks-upgrade-check](./eks-upgrade-check/)
 
-"Assess EKS cluster upgrade readiness - run automated checks across 8 areas, calculate a readiness score (0-100%), and generate a report with remediation steps. Use when: EKS upgrade, cluster upgrade, upgrade readiness, deprecated API, version skew, addon compatibility, Karpenter, node upgrade, control plane upgrade."
+Assess EKS cluster upgrade readiness - run automated checks across 8 areas, calculate a readiness score (0-100%), and generate a report with remediation steps. Use when: EKS upgrade, cluster upgrade, upgrade readiness, deprecated API, version skew, addon compatibility, Karpenter, node upgrade, control plane upgrade.
 
----
+**Data:**
 
-### [eks-upgrader](./eks-upgrader/)
+| File | Description |
+|------|-------------|
+| [oss_addon_registry.json](./eks-upgrade-check/data/oss_addon_registry.json) | Oss_addon_registry |
 
-EKS cluster upgrade companion. Add-on compatibility matrices, upgrade procedures (in-place and blue-green), and component-specific guidance for Karpenter, Istio, and other EKS add-ons and ecosystem controllers (CoreDNS, kube-proxy, VPC CNI, ingress controllers, cluster-autoscaler). Use when planning or executing an EKS version upgrade, checking add-on compatibility, or troubleshooting upgrade issues.
+**Steering:**
 
-**References** (loaded on demand):
+| File | Description |
+|------|-------------|
+| [addon-compatibility.md](./eks-upgrade-check/steering/addon-compatibility.md) | Addon compatibility |
+| [breaking-changes.md](./eks-upgrade-check/steering/breaking-changes.md) | Breaking changes |
+| [deprecated-apis.md](./eks-upgrade-check/steering/deprecated-apis.md) | Deprecated apis |
+| [node-readiness.md](./eks-upgrade-check/steering/node-readiness.md) | Node readiness |
+| [report-generation.md](./eks-upgrade-check/steering/report-generation.md) | Report generation |
+| [upgrade-insights.md](./eks-upgrade-check/steering/upgrade-insights.md) | Upgrade insights |
+| [version-validation.md](./eks-upgrade-check/steering/version-validation.md) | Version validation |
+| [workload-risks.md](./eks-upgrade-check/steering/workload-risks.md) | Workload risks |
 
-| Reference | Description |
-|-----------|-------------|
-| [blue-green-upgrade.md](./eks-upgrader/references/blue-green-upgrade.md) | Blue green upgrade |
-| [in-place-upgrade.md](./eks-upgrader/references/in-place-upgrade.md) | In place upgrade |
-| [istio.md](./eks-upgrader/references/istio.md) | Istio |
-| [karpenter.md](./eks-upgrader/references/karpenter.md) | Karpenter |
+**Tools:**
+
+| File | Description |
+|------|-------------|
+| [md_to_html.py](./eks-upgrade-check/tools/md_to_html.py) | Md_to_html |
 
 ---
 
@@ -133,6 +157,21 @@ Create new skills, modify and improve existing skills, and measure skill perform
 | Asset | Description |
 |-------|-------------|
 | [eval_review.html](./skill-creator/assets/eval_review.html) | Eval_review |
+
+**Agents:**
+
+| File | Description |
+|------|-------------|
+| [analyzer.md](./skill-creator/agents/analyzer.md) | Analyzer |
+| [comparator.md](./skill-creator/agents/comparator.md) | Comparator |
+| [grader.md](./skill-creator/agents/grader.md) | Grader |
+
+**Eval viewer:**
+
+| File | Description |
+|------|-------------|
+| [generate_review.py](./skill-creator/eval-viewer/generate_review.py) | Generate_review |
+| [viewer.html](./skill-creator/eval-viewer/viewer.html) | Viewer |
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: eks
-description: EKS platform engineering hub. Routes to design and upgrade workflows. Use as the entry point for any EKS-related request.
+description: EKS platform engineering hub. Routes to design and upgrade-readiness workflows. Use as the entry point for any EKS-related request.
 inclusion: manual
 ---
 

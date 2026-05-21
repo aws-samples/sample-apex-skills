@@ -11,5 +11,5 @@ Run the APEX EKS upgrade-readiness assessment — a structured, read-only evalua
 </execution_context>
 
 <process>
-Follow the eks-upgrade-check workflow. Hand off to the `eks-upgrade-check` skill for the 8-step assessment, scoring, and report generation. The skill is self-contained — the workflow's job is to set the access model, route to the skill, and clarify how this differs from `/apex:eks-upgrade` (which plans and guides the actual upgrade).
+Follow the eks-upgrade-check workflow. Hand off to the `eks-upgrade-check` skill for the 8-step assessment, scoring, and report generation. The skill is self-contained — the workflow's job is to set the access model and route to the skill.
 </process>
