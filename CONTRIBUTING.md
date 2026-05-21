@@ -301,6 +301,10 @@ Each item is something `/apex:new-skill` will have produced by the end of Phase 
 - [ ] `make check-evals-coverage` exits 0
 - [ ] Catalogue entries landed: `skills/README.md`, `CONTRIBUTING.md`, and (if service-scoped) the relevant service hub
 
+### Keeping skill docs in sync after changes
+
+Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter description — should be followed by running the `update-docs` skill so wrappers, marker blocks, and prose references stay in sync. The skill walks both script-managed surfaces (`update-all-references.sh`, `update-pages.sh`) and hand-written prose, proposing diffs for anything stale.
+
 ## Creating a New Steering Workflow
 
 1. Create `steering/workflows/<name>.md`

@@ -1,5 +1,7 @@
 # APEX Skills — Agentic Platform Engineering eXperience
 
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aws-samples.github.io/sample-apex-skills/)
+
 > Curated EKS platform engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, delivered through agentic AI tools (Claude Code, Kiro CLI etc).
 
 **APEX** uses agentic AI (frontier models and agent harness like Claude Code) combined with curated "skills" to give engineers SSA-grade platform engineering output.

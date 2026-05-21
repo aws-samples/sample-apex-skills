@@ -81,3 +81,12 @@ After syncing, run `./update-skills-references.sh` to regenerate the skills READ
 
 **What gets synced:** Core skill components only — `SKILL.md`, `LICENSE`, `references/*.md`  
 **What gets excluded:** Everything else (README, CLAUDE.md, CONTRIBUTING.md, CHANGELOG.md, tests/, `.github/`, `.claude-plugin/`)
+
+## Docs site
+
+The Docusaurus site lives at `misc/website/`. Key commands:
+
+- Preview: `cd misc/website && npm install && npm run start`
+- Build: `cd misc/website && npm run build && npm run serve`
+- Regenerate wrappers + manifest: `./misc/update-pages.sh`
+- Check freshness: `./misc/update-pages.sh --check`

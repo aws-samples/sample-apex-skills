@@ -106,7 +106,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Regenerate and fail on diff
-        run: ./misc/update-all-references.sh --check
+        run: |
+          ./misc/update-all-references.sh --check
+          ./misc/update-pages.sh --check
       - name: How to fix (shown on failure)
         if: failure()
         run: |
@@ -117,9 +119,8 @@ jobs:
 
           **Fix:**
           ```bash
-          ./misc/update-all-references.sh
-          git add README.md skills/README.md
-          git commit -m "docs: regenerate reference tables"
+          ./misc/update-all-references.sh && ./misc/update-pages.sh && git add -A
+          git commit -m "docs: regenerate reference tables and pages"
           ```
 
           Full details: [`CONTRIBUTING.md` → Keeping docs in sync](../blob/${{ github.head_ref || github.ref_name }}/CONTRIBUTING.md#keeping-docs-in-sync-auto-generated-catalogues).
