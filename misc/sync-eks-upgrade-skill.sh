@@ -37,6 +37,15 @@
 #    cross-refs from `steering/` to `references/` inside SKILL.md and the
 #    8 progressive-disclosure files.
 #
+# 3. Pushy description — Upstream's SKILL.md frontmatter description is a
+#    keyword list ("EKS upgrade, cluster upgrade, upgrade readiness, ..."),
+#    which under-triggers in the apex harness. After copy, this script
+#    replaces the description with one that includes natural-question
+#    phrasings ("can I upgrade my cluster?", "is my cluster ready for
+#    1.32?", etc.) so the skill activates on casual user wording, not just
+#    technical keywords. Matches the convention used by sibling skills
+#    (eks-best-practices, eks-recon).
+#
 # Usage:
 #   chmod +x misc/sync-eks-upgrade-skill.sh
 #   ./misc/sync-eks-upgrade-skill.sh
@@ -161,7 +170,35 @@ mv "$SKILL_MD_TMP" "$SKILL_MD"
 
 echo ""
 
-# --- Step 6: Write UPSTREAM.md provenance file ---
+# --- Step 6: Rewrite the SKILL.md description (apex-flavored, "pushy") ---
+echo "Rewriting SKILL.md description with natural-question phrasings..."
+
+# Upstream's description is a keyword list ("EKS upgrade, cluster upgrade,
+# upgrade readiness, ..."). The apex review feedback (#36) calls for a
+# pushier wording that mirrors how sibling skills like eks-best-practices
+# and eks-recon advertise themselves — listing literal natural-question
+# phrasings ("can I upgrade my cluster?", "is my cluster ready for
+# 1.32?", etc.) so the skill triggers on casual user wording instead of
+# only matching technical keywords.
+#
+# We replace the entire `description:` line in the YAML frontmatter. Awk
+# matches the first `^description:` line and substitutes; the rest of the
+# file passes through untouched.
+awk -v new_desc='description: Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Use this skill whenever someone asks "can I upgrade my cluster?", "is my cluster ready for 1.32?", "are we good to go to 1.33?", "what is blocking my upgrade?", or "should we move to the next version?" — even if they do not say "readiness" or "score". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable.' '
+  BEGIN { replaced = 0 }
+  /^description:/ && !replaced {
+    print new_desc
+    replaced = 1
+    next
+  }
+  { print }
+' "$SKILL_MD" > "$SKILL_MD_TMP"
+
+mv "$SKILL_MD_TMP" "$SKILL_MD"
+
+echo ""
+
+# --- Step 7: Write UPSTREAM.md provenance file ---
 echo "Writing UPSTREAM.md provenance..."
 cat > "$LOCAL_DIR/UPSTREAM.md" <<EOF
 # Upstream Provenance
@@ -177,10 +214,11 @@ This skill is **vendored** from an upstream repo. Do not edit files here directl
 
 ## Local modifications applied at sync time
 
-The sync script applies two deterministic edits to upstream content:
+The sync script applies three deterministic edits to upstream content:
 
 1. **\`### MCP Server Setup\` section is replaced.** Apex does not ship a project-root \`.mcp.json\`; MCP setup is delegated to the \`eks-mcp-server\` skill in this repo. The upstream's fallback note ("falls back to AWS CLI and kubectl") is preserved.
 2. **\`steering/\` -> \`references/\` rename.** Upstream's progressive-disclosure docs live under \`steering/\`, but apex already uses a top-level \`steering/\` directory at the repo root for workflow orchestration (different concept). The sync script renames the directory on copy and rewrites all internal cross-refs from \`steering/\` to \`references/\` inside \`SKILL.md\` and the 8 progressive-disclosure files. This aligns the layout with the Anthropic skill spec's canonical name for "additional documentation agents read on demand."
+3. **\`description:\` frontmatter is replaced with a "pushy" wording.** Upstream's description is a keyword list. Apex review feedback (#36) calls for natural-question phrasings ("can I upgrade my cluster?", "is my cluster ready for 1.32?", etc.) that mirror sibling skills like \`eks-best-practices\` and \`eks-recon\`. The sync script replaces the whole \`description:\` line on every run.
 
 Everything else is byte-for-byte from upstream.
 

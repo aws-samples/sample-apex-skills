@@ -1,6 +1,6 @@
 ---
 name: eks-upgrade-check
-description: "Assess EKS cluster upgrade readiness - run automated checks across 8 areas, calculate a readiness score (0-100%), and generate a report with remediation steps. Use when: EKS upgrade, cluster upgrade, upgrade readiness, deprecated API, version skew, addon compatibility, Karpenter, node upgrade, control plane upgrade."
+description: Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Use this skill whenever someone asks "can I upgrade my cluster?", "is my cluster ready for 1.32?", "are we good to go to 1.33?", "what is blocking my upgrade?", or "should we move to the next version?" — even if they do not say "readiness" or "score". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable.
 allowed-tools: Bash, Read, Write, Grep, Glob, WebFetch, WebSearch
 ---
 
