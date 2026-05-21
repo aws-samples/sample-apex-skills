@@ -11,15 +11,15 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 ## Scorecard
 
-*Last updated: 2026-04-29T06:43Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: 743120d*
+*Last updated: 2026-05-21T02:25Z · provider: bedrock · model: global.anthropic.claude-opus-4-7 · runs_per_query: 3 · git HEAD: 2f0bb84*
 
 | Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |
 |---|---|---|---|---|---|---|---|---|
-| eks-best-practices | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
-| eks-mcp-server | 11/16 (69%, CI 44%–86%) | 6/8 | 5/8 | 1 | +0pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
-| eks-recon | 14/16 (88%, CI 64%–97%) | 8/8 | 6/8 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
-| eks-upgrader | 13/16 (81%, CI 57%–93%) | 8/8 | 5/8 | 0 | +0pp | 80% ± 28% / 45% ± 7% / +35pp | — | ✓ |
+| eks-best-practices | 14/14 (100%, CI 78%–100%) | 8/8 | 6/6 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
+| eks-mcp-server | 11/14 (79%, CI 52%–92%) | 8/8 | 3/6 | 1 | +10pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
+| eks-recon | 13/13 (100%, CI 77%–100%) | 8/8 | 5/5 | 1 | +12pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
 | steering-workflow-creator | 15/16 (94%, CI 72%–99%) | 8/8 | 7/8 | 0 | +0pp | 100% ± 0% / 10% ± 11% / +90pp | — | ✓ |
+| update-docs | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 0 | — | 0% ± 0% / 0% ± 0% / +0pp | — | ✓ |
 
 > Hygiene warnings (`⚠`) render only when `quick_validate` fails, `triggering.json` has fewer than 8 positives/negatives, `evals.json` has fewer than 2 prompts or <3 expectations on any prompt, or the sibling-map parser reports unattributed negatives. When a row is `⚠`, the detail block surfaces the specific warnings.
 
@@ -27,7 +27,7 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Flaky queries** (trigger rate strictly between 0 and 1):
 
-- `0.33`  ✅ neg `"My Karpenter upgrade from v0.37 to 1.0 is failing with a webhook error during the CRD migration. …"`
+- `0.33`  ✅ neg `"Can you inventory what's in my EKS cluster right now — node groups, Karpenter, ingress, CI/CD too…"`
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
 
@@ -35,25 +35,24 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 |---|---|
 | eks-mcp-server | 0/1 |
 | eks-recon | 0/3 |
-| eks-upgrader | 0/2 |
 | other | 0/2 |
 
 **Threshold sweep:**
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 15/16 | 8/8 | 7/8 |
-| 0.50 | 16/16 | 8/8 | 8/8 |
-| 0.67 | 16/16 | 8/8 | 8/8 |
+| 0.33 | 13/14 | 8/8 | 5/6 |
+| 0.50 | 14/14 | 8/8 | 6/6 |
+| 0.67 | 14/14 | 8/8 | 6/6 |
 
 **Run history** (last 4, sourced from `misc/evals/history/eks-best-practices.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-05-21T02:17:11Z | 14/14 | 8/8 | 6/6 | global.anthropic.claude-opus-4-7 |
 | 2026-04-29T05:34:14Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-28T10:52:09Z | 15/16 | 8/8 | 7/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:49:01Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
-| 2026-04-27T09:41:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
@@ -96,7 +95,7 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Flaky queries** (trigger rate strictly between 0 and 1):
 
-- `0.33`  ❌ pos `"My EKS MCP Server keeps failing with an AccessDenied on eks-mcp:InvokeMcp. How do I fix this?"`
+- `0.33`  ✅ neg `"What version is my EKS cluster on and which add-ons are installed?"`
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
 
@@ -104,25 +103,24 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 |---|---|
 | eks-best-practices | 0/1 |
 | eks-recon | 3/4 |
-| eks-upgrader | 0/2 |
 | other | 0/1 |
 
 **Threshold sweep:**
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 12/16 | 7/8 | 5/8 |
-| 0.50 | 11/16 | 6/8 | 5/8 |
-| 0.67 | 11/16 | 6/8 | 5/8 |
+| 0.33 | 10/14 | 8/8 | 2/6 |
+| 0.50 | 11/14 | 8/8 | 3/6 |
+| 0.67 | 11/14 | 8/8 | 3/6 |
 
 **Run history** (last 4, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-05-21T02:18:56Z | 11/14 | 8/8 | 3/6 | global.anthropic.claude-opus-4-7 |
 | 2026-04-29T05:36:03Z | 11/16 | 6/8 | 5/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-28T10:54:36Z | 11/16 | 6/8 | 5/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:50:01Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
-| 2026-04-27T09:42:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
@@ -164,33 +162,32 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Flaky queries** (trigger rate strictly between 0 and 1):
 
-- `0.33`  ✅ neg `"Give me the exact procedure to upgrade Karpenter from 0.37 to 1.0 on an EKS cluster."`
+- `0.33`  ✅ neg `"Is it a better practice to run my ingress controller on Fargate or on Karpenter-managed nodes?"`
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
 
 | Decoy sibling | Leak rate |
 |---|---|
-| eks-best-practices | 1/3 |
+| eks-best-practices | 0/3 |
 | eks-mcp-server | 0/1 |
-| eks-upgrader | 1/3 |
 | other | 0/1 |
 
 **Threshold sweep:**
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 13/16 | 8/8 | 5/8 |
-| 0.50 | 14/16 | 8/8 | 6/8 |
-| 0.67 | 14/16 | 8/8 | 6/8 |
+| 0.33 | 12/13 | 8/8 | 4/5 |
+| 0.50 | 13/13 | 8/8 | 5/5 |
+| 0.67 | 13/13 | 8/8 | 5/5 |
 
 **Run history** (last 4, sourced from `misc/evals/history/eks-recon.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-05-21T02:19:41Z | 13/13 | 8/8 | 5/5 | global.anthropic.claude-opus-4-7 |
 | 2026-04-29T05:37:18Z | 14/16 | 8/8 | 6/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-28T10:57:31Z | 14/16 | 8/8 | 6/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-27T14:51:10Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
-| 2026-04-27T09:19:55Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
@@ -228,70 +225,6 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 </details>
 
-<details><summary>eks-upgrader detail</summary>
-
-**Per-sibling leakage** (negatives where we triggered when we shouldn't):
-
-| Decoy sibling | Leak rate |
-|---|---|
-| eks-best-practices | 3/3 |
-| eks-mcp-server | 0/1 |
-| eks-recon | 0/3 |
-| other | 0/1 |
-
-**Threshold sweep:**
-
-| Threshold | Overall | Positive | Negative |
-|---|---|---|---|
-| 0.33 | 13/16 | 8/8 | 5/8 |
-| 0.50 | 13/16 | 8/8 | 5/8 |
-| 0.67 | 13/16 | 8/8 | 5/8 |
-
-**Run history** (last 4, sourced from `misc/evals/history/eks-upgrader.jsonl`):
-
-| UTC | Overall | TPR | TNR | Model |
-|---|---|---|---|---|
-| 2026-04-29T05:38:18Z | 13/16 | 8/8 | 5/8 | global.anthropic.claude-opus-4-7 |
-| 2026-04-28T11:00:24Z | 13/16 | 8/8 | 5/8 | global.anthropic.claude-opus-4-7 |
-| 2026-04-27T14:52:19Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
-| 2026-04-27T09:20:53Z | 8/16 | 0/8 | 8/8 | global.anthropic.claude-opus-4-7 |
-
-**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
-
-- with_skill: 80% ± 28% (min 60%, max 100%)
-- without_skill: 45% ± 7% (min 40%, max 50%)
-- lift: +35pp
-- runs per (prompt × config): 3
-
-**Per-expectation pass rate** (with_skill only):
-
-| Pass rate | Expectation |
-|---|---|
-| 0/1 | The output addresses Karpenter CRDs specifically — stating the bundled Helm chart does not auto-upgrade CRDs and that… |
-| 0/1 | The output recommends non-prod first and includes at least one rollback or validation checkpoint (e.g. verifying node… |
-| 1/1 | The output enumerates pre-flight checks including Cluster Insights, subnet IP capacity, and a deprecated-API scan (Pl… |
-| 1/1 | The output specifies the correct upgrade order: control plane -> core add-ons (CoreDNS, kube-proxy, VPC CNI) -> Karpe… |
-| 1/1 | The output gives an Istio-specific upgrade approach (canary/in-place via revision tags, sidecar rollout) rather than … |
-| 1/1 | The output references the Karpenter 1.x migration guide or identifies at least 2 concrete behaviour or API changes be… |
-| 1/1 | The output explicitly calls out that Karpenter CRDs must be upgraded alongside the controller using the independent k… |
-| 1/1 | The output warns about percentage-based disruption budgets blocking node replacement (e.g. 10% of 1 node = 0) and sug… |
-| 1/1 | The output distinguishes Karpenter-on-Fargate vs Karpenter-on-MNG hosting and gives the correct refresh step for each… |
-
-**Grader suggestions** (deduplicated across runs):
-
-- on `"The output specifies the correct upgrade order: control plane -> core add-ons (CoreDNS, ku…"`: The baked-in order in this assertion is wrong for the prompt's own scenario: Istio 1.20 does not support K8s 1.30, so a correct answer must upgrade Istio *before* the control plane. The assertion therefore penalizes the right answer and rewards a mechanical order-of-operations recital. Consider splitting into (a) 'control-plane upgrade is irreversible' and (b) 'verifies Istio/Karpenter K8s-version compatibility and sequences accordingly' so the eval rewards reasoning, not rote ordering.
-- on `"The output addresses Karpenter CRDs specifically — stating the bundled Helm chart does not…"`: In this scenario Karpenter 0.37 already supports 1.30, so there's no Karpenter Helm upgrade at all — the CRD guidance is genuinely irrelevant. The assertion should either be scoped to cases where Karpenter is actually upgraded, or rephrased as 'if Karpenter is upgraded, ...' so the grader can mark it N/A rather than fail.
-- on `"The output recommends non-prod first and includes at least one rollback or validation chec…"`: This assertion bundles two loosely-related requirements with an 'and'. The output has strong rollback + checkpoint coverage but no separate non-prod rehearsal recommendation, so it failed on a technicality. Split into two assertions, or drop the non-prod-cluster requirement (the output does canary at the namespace level, which is arguably the right granularity for a single-cluster question).
-- No assertion checks whether the response correctly handled the *specific* version pairing in the prompt (Istio 1.20 is incompatible with K8s 1.30). That is the single most important judgment call in this scenario and the output got it right — but a wrong answer (e.g. 'upgrade EKS first, then Istio') would still pass every current assertion.
-- No assertion requires add-on version pinning / compatibility lookup for the target K8s version (the output correctly uses `aws eks describe-addon-versions --kubernetes-version 1.30`). An answer that told the user to 'helm upgrade everything' would pass the current set.
-- on `"The output specifies the correct upgrade order: control plane -> core add-ons (CoreDNS, ku…"`: This assertion bundles two independently reasonable orderings into a single pass/fail. The transcript argues (correctly, per Istio's support matrix) that Istio 1.20 must be upgraded BEFORE the control plane because Istio 1.20 is not supported on Kubernetes 1.30 — doing Istio after the control-plane bump would leave the cluster on an unsupported mesh. A grader will fail this assertion even when the response makes a technically superior choice. Consider either splitting the order check from the irreversibility check, or allowing Istio-before-control-plane when the Istio version is out of support for the target k8s version.
-- on `"The output enumerates pre-flight checks including Cluster Insights, subnet IP capacity, an…"`: The assertion ANDs three distinct items into one pass/fail. The response performs a strong deprecated-API scan (two tools plus the metric) but misses Cluster Insights and subnet IP. Consider splitting into three assertions so partial-but-substantial coverage is visible, and so regressions on any single item can be attributed.
-- No assertion checks that the response flags the Istio 1.20 / Kubernetes 1.30 incompatibility — a cluster-breaking issue specific to the stack described in the prompt. An unskilled generic response that omits this would still pass the existing Istio-approach assertion as long as it describes revisioned canary. Consider an assertion like: 'The output identifies that Istio 1.20 is not supported on Kubernetes 1.30 and must be upgraded first.'
-- No assertion checks AMI / node-image handling for the Karpenter-managed data plane (EC2NodeClass amiSelectorTerms, drift-driven rolling replacement, disruption budgets). This is the mechanical core of data-plane rotation under Karpenter and is where most real upgrades fail. Consider adding an assertion on EC2NodeClass AMI strategy and drift-based rollout pacing.
-- on `"The output references the Karpenter 1.x migration guide or identifies at least 2 concrete …"`: This assertion is easy to pass with a generic answer. Consider requiring specific, high-signal facts like 'v1beta1 removed at 1.1 (not 1.0)' or 'nodeClassRef.group/kind become strictly required' — these distinguish a genuine understanding of the 1.0→1.1 boundary from a generic 'there are API changes' answer.
-
-</details>
-
 <details><summary>steering-workflow-creator detail</summary>
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
@@ -300,10 +233,10 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 |---|---|
 | eks-best-practices | 0/2 |
 | eks-mcp-server | 0/1 |
-| eks-upgrader | 0/1 |
 | non-repo | 0/1 |
 | other | 1/2 |
 | skill-creator | 0/1 |
+| update-docs | 0/1 |
 
 **Threshold sweep:**
 
@@ -313,10 +246,11 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 15/16 | 8/8 | 7/8 |
 | 0.67 | 15/16 | 8/8 | 7/8 |
 
-**Run history** (last 1, sourced from `misc/evals/history/steering-workflow-creator.jsonl`):
+**Run history** (last 2, sourced from `misc/evals/history/steering-workflow-creator.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-05-21T02:20:33Z | 15/16 | 8/8 | 7/8 | global.anthropic.claude-opus-4-7 |
 | 2026-04-29T05:40:05Z | 15/16 | 8/8 | 7/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
@@ -354,6 +288,65 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 - on `"Produces a complete workflow skeleton including frontmatter, H1 title, four-line header bl…"`: This assertion passes as long as the five H2 headings exist somewhere, even if the skeleton interleaves extra H2s before the required order. The generated skeleton inserts an extra '## Access Model' H2 BEFORE '## How to Route Requests', which appears to violate the convention's 'additional H2s may follow but must not interleave' rule. Consider an assertion that explicitly checks the five required H2s appear in contiguous order with no other H2s interleaved.
 - No assertion verifies the Access Model line uses one of the allowed values (read-only | advisory | mutating (with gates)). A skeleton could hallucinate a different access model and still pass every current check.
 - No assertion checks that the description is front-loaded with the lifecycle phase (e.g., 'Day 2 ...') as required by the convention — this is a meaningful correctness check distinct from mere presence.
+
+</details>
+
+<details><summary>update-docs detail</summary>
+
+**Per-sibling leakage** (negatives where we triggered when we shouldn't):
+
+| Decoy sibling | Leak rate |
+|---|---|
+| service-scoped | 0/3 |
+| skill-creator | 0/4 |
+| steering-workflow-creator | 0/1 |
+
+**Threshold sweep:**
+
+| Threshold | Overall | Positive | Negative |
+|---|---|---|---|
+| 0.33 | 16/16 | 8/8 | 8/8 |
+| 0.50 | 16/16 | 8/8 | 8/8 |
+| 0.67 | 16/16 | 8/8 | 8/8 |
+
+**Run history** (last 1, sourced from `misc/evals/history/update-docs.jsonl`):
+
+| UTC | Overall | TPR | TNR | Model |
+|---|---|---|---|---|
+| 2026-05-21T02:22:50Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-7 |
+
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 0% ± 0% (min 0%, max 0%)
+- without_skill: 0% ± 0% (min 0%, max 0%)
+- lift: +0pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 0/1 | Runs ./misc/update-all-references.sh --check to detect marker-block staleness — TODO: human review |
+| 0/1 | Runs ./misc/update-pages.sh --check to detect Docusaurus wrapper staleness — TODO: human review |
+| 0/1 | Identifies prose references to the old name 'eks-recon' in tracked markdown files — TODO: human review |
+| 0/1 | Produces the final Surface | Status | Action taken | Confirm? markdown table — TODO: human review |
+| 0/1 | Checks Tier 1 surfaces by running both --check scripts and reporting their status — TODO: human review |
+| 0/1 | Scans Tier 2 prose surfaces for references to the new skill that might need adding — TODO: human review |
+| 0/1 | Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns — TODO: human review |
+| 0/1 | Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits) — TODO: human review |
+
+**Grader suggestions** (deduplicated across runs):
+
+- The eval setup did not actually rename skills/eks-recon → skills/eks-discovery before launching the executor. The prompt asserts the rename happened, but the workspace shows eks-recon/ still in place with unchanged frontmatter. A correctly-behaving agent (this one) refuses to fix references to a name that's still the source of truth, which makes every assertion fail through no fault of the skill. Either pre-stage the rename in the harness fixture, or change the prompt to instruct the agent to perform the rename and then sync docs.
+- on `"Runs ./misc/update-all-references.sh --check to detect marker-block staleness…"`: Asserting that a specific helper script is invoked is brittle — if update-docs evolves to use a different mechanism (e.g., direct grep, a Python tool) the eval fails even when the outcome is correct. Consider asserting on the *outcome* (marker blocks identified as stale, with file paths) rather than the exact script name.
+- on `"Produces the final Surface | Status | Action taken | Confirm? markdown table…"`: Checking for the literal table headers is a useful structural check, but a hallucinated table with those headers and bogus rows would also pass. Consider also asserting that the table references at least one real file path that contains the stale name, so coincidental compliance is harder.
+- No assertion covers the agent's pre-flight verification step — confirming the rename actually happened before fixing references. This run shows that behavior is valuable (it caught a broken eval setup). Worth an explicit assertion like 'Verifies the source rename is reflected in the working tree before editing references' so the skill keeps that property as it evolves.
+- All four assertions are end-state checks that require the work to be done. In the without_skill arm, the executor stopped early to ask permission, so every assertion fails by default. That's the right outcome here, but it means this run only measures 'did the agent take any action,' not 'did the agent produce something close to what the skill would have produced.' Consider adding a discriminating assertion such as whether the agent at least identifies the correct surfaces to update (marker blocks, Docusaurus wrappers, prose references) — that would distinguish 'asked for permission' from 'did the wrong thing' from 'did the right thing without the skill.'
+- on `"Identifies prose references to the old name 'eks-recon' in tracked markdown files…"`: This assertion is satisfied by listing matches, but doesn't check whether the agent distinguishes prose mentions from auto-generated marker blocks or wrapper pages — which is the central value-add of the skill. A stronger version would verify that the agent's prose-reference list excludes content that would be regenerated by the helper scripts.
+- The eval setup appears broken or the prompt is intentionally adversarial: the prompt claims the user added a skill `rds-best-practices` and ran the new-skill workflow, but no such skill exists in the staged repo state (no skills/rds-best-practices directory, nothing in git status hinting at it). If the eval is meant to test the happy path, the harness needs to actually stage the skill before invoking update-docs. If the eval is meant to test how update-docs reacts to a missing target, the expectations should reward the executor for detecting this and asking for clarification — the current expectations all assume a full audit will run and therefore guarantee a 0/4 score even when the executor behaves correctly.
+- on `"Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns…"`: Surface presence alone is a weak check — a hallucinated table with fabricated rows would also pass. Consider requiring specific surfaces (e.g., README.md skills section, skills/README.md, CONTRIBUTING.md, misc/website/docs/intro.md) to appear with PASS/STALE verdicts so correctness is testable.
+- on `"Checks Tier 1 surfaces by running both --check scripts and reporting their status…"`: This expectation is unverifiable from output files alone (outputs/ is empty); it relies on the transcript showing specific tool calls. Consider asserting on script names that appear in Bash invocations, e.g. presence of `check_index.sh` or whatever the Tier 1 --check scripts are named, so a grader can mechanically verify.
+- This is a without_skill baseline run, so all expectations are essentially measuring whether the agent can perform the update-docs workflow without the skill present. The assistant correctly identified the skill was missing and asked for clarification rather than hallucinating the workflow. Consider whether the without_skill arm should expect the agent to attempt a best-effort version of the workflow (grep for skill mentions, etc.) or correctly punt — current expectations imply the former but the agent's behavior of stopping to clarify could be reasonable. An expectation explicitly labeled 'graceful degradation: agent declines or asks rather than hallucinating' could differentiate good baseline behavior from bad.
 
 </details>
 

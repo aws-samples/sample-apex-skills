@@ -1,0 +1,19 @@
+[
+  { "query": "Run update-docs — I just added a new skill and need all references synced.", "should_trigger": true },
+  { "query": "The docs look stale after I renamed eks-recon to eks-discovery. Can you audit and fix all the references?", "should_trigger": true },
+  { "query": "Check if all documentation surfaces are in sync with the current skill set.", "should_trigger": true },
+  { "query": "I edited the description frontmatter in my SKILL.md — update the docs to reflect it.", "should_trigger": true },
+  { "query": "Sync docs. I retired a steering workflow and want to make sure nothing still references it.", "should_trigger": true },
+  { "query": "Are the marker blocks and Docusaurus wrappers up to date? Run the check.", "should_trigger": true },
+  { "query": "I added a new skill, update all the README tables and the website.", "should_trigger": true },
+  { "query": "Audit the repo docs for stale references before I open my PR.", "should_trigger": true },
+
+  { "query": "Create a new skill for RDS best practices — walk me through the SKILL.md frontmatter and references.", "should_trigger": false },
+  { "query": "Help me optimize my skill's description so it triggers more accurately in evals.", "should_trigger": false },
+  { "query": "I want to benchmark my skill's triggering score — run the variance analysis.", "should_trigger": false },
+  { "query": "Draft a SKILL.md for a new observability skill, including the progressive-disclosure structure.", "should_trigger": false },
+  { "query": "Design a multi-tenant EKS cluster with Karpenter node pools per team.", "should_trigger": false },
+  { "query": "Author a new steering workflow for RDS upgrades with the correct H2 sections and STOP gates.", "should_trigger": false },
+  { "query": "Set up the EKS MCP Server so I can list clusters from my AI assistant.", "should_trigger": false },
+  { "query": "What Terraform module should I use for EKS access entries and pod identity?", "should_trigger": false }
+]
