@@ -9,14 +9,14 @@ These evals exercise the `eks-upgrade-check` skill's declared scope: **assessing
 The most common confusion this skill needs to disambiguate is "assess my readiness to upgrade" vs. "run my upgrade." Both are EKS-upgrade phrasings; this skill owns the assessment side only — it produces a structured verdict (score, blockers, remediation) but never executes the upgrade itself.
 
 <!-- SIBLING_MAP_START -->
-- **Upgrade execution and recovery** — negatives 9, 10, 11 ("walk me through actually upgrading", "stuck mid-flight at the data-plane phase", "blue-green migration procedure"). This is the most important boundary for `eks-upgrade-check`: questions about *running* an upgrade, *executing* steps, or *recovering* from a stalled upgrade are out of scope for the readiness assessment. The discriminator: if the user wants commands to run or a procedure to follow, route elsewhere; if they want a structured verdict on whether the cluster is ready, this skill is the right fit.
-- **`eks-recon`** (discovery / "what do we have?") — negatives 12, 13 ("what version am I running", "full reconnaissance — compute strategy, IaC, CI/CD, observability stack"). The rule: if the user is still figuring out *what's there*, it's recon; once they're asking whether they can move it forward safely, it's upgrade-check.
-- **`eks-best-practices`** (architectural choices) — negative 14 ("Karpenter vs MNG for a new cluster"). Architectural decisions are best-practices; readiness assessments are upgrade-check.
-- **`eks-mcp-server`** (tooling setup) — negative 15 ("install and configure the EKS MCP server"). Not an upgrade question.
-- **Generic / non-EKS** — negative 16 ("self-managed vanilla Kubernetes on bare metal"). EKS-specific assessment is the skill's remit.
+- **Upgrade execution and recovery** — negatives 11, 12, 13 ("walk me through actually upgrading", "stuck mid-flight at the data-plane phase", "blue-green migration procedure"). This is the most important boundary for `eks-upgrade-check`: questions about *running* an upgrade, *executing* steps, or *recovering* from a stalled upgrade are out of scope for the readiness assessment. The discriminator: if the user wants commands to run or a procedure to follow, route elsewhere; if they want a structured verdict on whether the cluster is ready, this skill is the right fit.
+- **`eks-recon`** (discovery / "what do we have?") — negatives 14, 15 ("what version am I running", "full reconnaissance — compute strategy, IaC, CI/CD, observability stack"). The rule: if the user is still figuring out *what's there*, it's recon; once they're asking whether they can move it forward safely, it's upgrade-check.
+- **`eks-best-practices`** (architectural choices) — negative 16 ("Karpenter vs MNG for a new cluster"). Architectural decisions are best-practices; readiness assessments are upgrade-check.
+- **`eks-mcp-server`** (tooling setup) — negative 17 ("install and configure the EKS MCP server"). Not an upgrade question.
+- **Generic / non-EKS** — negative 18 ("self-managed vanilla Kubernetes on bare metal"). EKS-specific assessment is the skill's remit.
 <!-- SIBLING_MAP_END -->
 
-The `triggering.json` positives are deliberately worded around assessment language ("readiness", "score", "is it safe", "blockers", "go/no-go"); the negatives are worded around procedure, discovery, design, or non-EKS targets — all common phrasings that could ambiguously pull the skill if its description over-reaches.
+The `triggering.json` positives mix two phrasing styles: assessment-language requests ("readiness", "score", "is it safe", "blockers") and natural-question forms ("can I upgrade my cluster?", "are we good to go to 1.33?") that mirror the wording in `SKILL.md`'s description. Both styles must trigger the skill. The negatives are worded around procedure, discovery, design, or non-EKS targets — all common phrasings that could ambiguously pull the skill if its description over-reaches.
 
 ## Live-MCP caveat
 
