@@ -107,7 +107,7 @@ AWS documentation unavailable" with MEDIUM severity. Do NOT assume no breaking c
 
 ## Score Impact
 
-> **Canonical scoring is defined in `steering/report-generation.md` §Category 1 (Breaking Changes).**
+> **Canonical scoring is defined in `references/report-generation.md` §Category 1 (Breaking Changes).**
 
 | Severity | Per-item Deduction | Max Category |
 |----------|-------------------|--------------|

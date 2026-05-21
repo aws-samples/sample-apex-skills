@@ -43,5 +43,5 @@ AWS Upgrade Insights checks multiple versions ahead, not just the immediate targ
 
 ## Score Impact
 
-> **Canonical scoring is defined in `steering/report-generation.md` §Category 7.**
+> **Canonical scoring is defined in `references/report-generation.md` §Category 7.**
 > Quick reference: FAILING = 5 pts, ERROR = 3 pts, WARNING = 2 pts. Max category = 10 pts.

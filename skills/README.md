@@ -101,24 +101,24 @@ EKS cluster reconnaissance and environment discovery. Detects compute strategy (
 
 Assess EKS cluster upgrade readiness - run automated checks across 8 areas, calculate a readiness score (0-100%), and generate a report with remediation steps. Use when: EKS upgrade, cluster upgrade, upgrade readiness, deprecated API, version skew, addon compatibility, Karpenter, node upgrade, control plane upgrade.
 
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [addon-compatibility.md](./eks-upgrade-check/references/addon-compatibility.md) | Addon compatibility |
+| [breaking-changes.md](./eks-upgrade-check/references/breaking-changes.md) | Breaking changes |
+| [deprecated-apis.md](./eks-upgrade-check/references/deprecated-apis.md) | Deprecated apis |
+| [node-readiness.md](./eks-upgrade-check/references/node-readiness.md) | Node readiness |
+| [report-generation.md](./eks-upgrade-check/references/report-generation.md) | Report generation |
+| [upgrade-insights.md](./eks-upgrade-check/references/upgrade-insights.md) | Upgrade insights |
+| [version-validation.md](./eks-upgrade-check/references/version-validation.md) | Version validation |
+| [workload-risks.md](./eks-upgrade-check/references/workload-risks.md) | Workload risks |
+
 **Data:**
 
 | File | Description |
 |------|-------------|
 | [oss_addon_registry.json](./eks-upgrade-check/data/oss_addon_registry.json) | Oss_addon_registry |
-
-**Steering:**
-
-| File | Description |
-|------|-------------|
-| [addon-compatibility.md](./eks-upgrade-check/steering/addon-compatibility.md) | Addon compatibility |
-| [breaking-changes.md](./eks-upgrade-check/steering/breaking-changes.md) | Breaking changes |
-| [deprecated-apis.md](./eks-upgrade-check/steering/deprecated-apis.md) | Deprecated apis |
-| [node-readiness.md](./eks-upgrade-check/steering/node-readiness.md) | Node readiness |
-| [report-generation.md](./eks-upgrade-check/steering/report-generation.md) | Report generation |
-| [upgrade-insights.md](./eks-upgrade-check/steering/upgrade-insights.md) | Upgrade insights |
-| [version-validation.md](./eks-upgrade-check/steering/version-validation.md) | Version validation |
-| [workload-risks.md](./eks-upgrade-check/steering/workload-risks.md) | Workload risks |
 
 **Tools:**
 

@@ -60,7 +60,7 @@ For each finding, report:
 
 ## Score Impact
 
-> **Canonical scoring is defined in `steering/report-generation.md` §Category 2 (Deprecated APIs).**
+> **Canonical scoring is defined in `references/report-generation.md` §Category 2 (Deprecated APIs).**
 
 | Finding | Deduction |
 |---------|-----------|

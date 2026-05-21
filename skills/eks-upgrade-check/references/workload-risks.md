@@ -166,7 +166,7 @@ This makes the count verifiable. If the count doesn't match the listed row numbe
 
 ## Score Impact
 
-> **Canonical scoring is defined in `steering/report-generation.md` §Category 6 (Workload Risks).**
+> **Canonical scoring is defined in `references/report-generation.md` §Category 6 (Workload Risks).**
 
 | Finding | Deduction |
 |---------|-----------|

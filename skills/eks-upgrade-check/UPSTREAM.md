@@ -11,9 +11,10 @@ This skill is **vendored** from an upstream repo. Do not edit files here directl
 
 ## Local modifications applied at sync time
 
-The sync script applies one deterministic edit to the upstream `SKILL.md`:
+The sync script applies two deterministic edits to upstream content:
 
-- The `### MCP Server Setup` section is replaced. Apex does not ship a project-root `.mcp.json`; MCP setup is delegated to the `eks-mcp-server` skill in this repo.
+1. **`### MCP Server Setup` section is replaced.** Apex does not ship a project-root `.mcp.json`; MCP setup is delegated to the `eks-mcp-server` skill in this repo. The upstream's fallback note ("falls back to AWS CLI and kubectl") is preserved.
+2. **`steering/` -> `references/` rename.** Upstream's progressive-disclosure docs live under `steering/`, but apex already uses a top-level `steering/` directory at the repo root for workflow orchestration (different concept). The sync script renames the directory on copy and rewrites all internal cross-refs from `steering/` to `references/` inside `SKILL.md` and the 8 progressive-disclosure files. This aligns the layout with the Anthropic skill spec's canonical name for "additional documentation agents read on demand."
 
 Everything else is byte-for-byte from upstream.
 

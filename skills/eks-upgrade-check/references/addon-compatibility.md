@@ -204,7 +204,7 @@ You MUST perform a web search to verify compatibility:
 
 ## Score Impact
 
-> **Canonical scoring is defined in `steering/report-generation.md` §Category 4 (Add-on Compatibility) and §Category 5 (Karpenter).**
+> **Canonical scoring is defined in `references/report-generation.md` §Category 4 (Add-on Compatibility) and §Category 5 (Karpenter).**
 
 | Finding | Deduction |
 |---------|-----------|

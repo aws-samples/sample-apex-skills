@@ -138,7 +138,7 @@ to verify capacity is sufficient for their instance type and CNI config.
 
 ## Score Impact
 
-> **Canonical scoring is defined in `steering/report-generation.md` §Category 3 (Node Readiness) and §Category 8 (AL2 Nodes).**
+> **Canonical scoring is defined in `references/report-generation.md` §Category 3 (Node Readiness) and §Category 8 (AL2 Nodes).**
 
 | Finding | Deduction |
 |---------|-----------|

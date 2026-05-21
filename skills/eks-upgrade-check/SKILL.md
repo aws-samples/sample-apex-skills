@@ -43,7 +43,7 @@ The skill calculates a weighted readiness score:
 
 **Hard Blocker Override:** If any hard blocker is detected (e.g., incompatible Karpenter, critical
 add-on DEGRADED, subnet IPs < 5, cluster not ACTIVE), the score is capped at ≤ 59% (NOT READY)
-regardless of other findings. See `steering/report-generation.md` for the full list.
+regardless of other findings. See `references/report-generation.md` for the full list.
 
 **Score Interpretation:**
 - 90-100: **READY** — Safe to proceed
@@ -139,7 +139,7 @@ If the user specifies a version more than 1 minor version ahead, explain that EK
 
 ### Steps 1-8: Run Assessment
 
-Read each steering file in order from `${CLAUDE_SKILL_DIR}/steering/`. For each section:
+Read each steering file in order from `${CLAUDE_SKILL_DIR}/references/`. For each section:
 1. Read the steering file
 2. Execute the checks described in it using AWS CLI and kubectl commands
 3. Collect findings with severity ratings
@@ -149,18 +149,18 @@ Read each steering file in order from `${CLAUDE_SKILL_DIR}/steering/`. For each 
 | User Request | Steering File(s) |
 |---|---|
 | Full upgrade assessment | ALL files in order |
-| Version / upgrade path | `steering/version-validation.md` |
-| Breaking changes / API removals | `steering/breaking-changes.md` |
-| Deprecated APIs | `steering/deprecated-apis.md` |
-| Add-on compatibility / Karpenter | `steering/addon-compatibility.md` |
-| Node readiness / AL2 / AMI | `steering/node-readiness.md` |
-| Workload risks / PDB / probes | `steering/workload-risks.md` |
-| AWS Insights | `steering/upgrade-insights.md` |
-| Generate report | `steering/report-generation.md` |
+| Version / upgrade path | `references/version-validation.md` |
+| Breaking changes / API removals | `references/breaking-changes.md` |
+| Deprecated APIs | `references/deprecated-apis.md` |
+| Add-on compatibility / Karpenter | `references/addon-compatibility.md` |
+| Node readiness / AL2 / AMI | `references/node-readiness.md` |
+| Workload risks / PDB / probes | `references/workload-risks.md` |
+| AWS Insights | `references/upgrade-insights.md` |
+| Generate report | `references/report-generation.md` |
 
 ### Step 9: Calculate Score & Generate Report
 
-Read `${CLAUDE_SKILL_DIR}/steering/report-generation.md` and produce the report.
+Read `${CLAUDE_SKILL_DIR}/references/report-generation.md` and produce the report.
 
 ---
 

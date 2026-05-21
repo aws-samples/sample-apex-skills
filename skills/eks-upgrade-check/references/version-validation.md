@@ -125,7 +125,7 @@ If the cluster version's Extended Support Until date has passed:
 
 ## Score Impact
 
-> **Canonical scoring is defined in `steering/report-generation.md` §Category 3 (Node Readiness) and §Category 10 (Unsupported Version).**
+> **Canonical scoring is defined in `references/report-generation.md` §Category 3 (Node Readiness) and §Category 10 (Unsupported Version).**
 
 | Finding | Severity | Quick Reference |
 |---------|----------|-----------------|

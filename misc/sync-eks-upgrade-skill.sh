@@ -10,7 +10,7 @@
 # our local eks-upgrade-check folder with ONLY the core skill components:
 #   - SKILL.md           (the skill itself)
 #   - LICENSE            (license compliance)
-#   - steering/*.md      (8 progressive-disclosure steering docs)
+#   - references/*.md    (8 progressive-disclosure docs — RENAMED from upstream's `steering/` for apex compatibility, see Apex-flavored deviations below)
 #   - data/*.json        (OSS add-on registry)
 #   - tools/*.py         (markdown-to-HTML converter)
 #
@@ -20,12 +20,22 @@
 #   - Generated *.html and *.md report artifacts at upstream root
 #   - README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
 #
-# Apex MCP rewrite:
-# Upstream's "MCP Server Setup" section assumes a project-root .mcp.json
-# (which apex deliberately does not ship). After copy, this script replaces
-# that section with apex-flavored guidance pointing users at the
-# eks-mcp-server skill. The fallback note ("falls back to AWS CLI and
-# kubectl") is preserved.
+# Apex-flavored deviations (deterministic edits applied at sync time):
+#
+# 1. MCP Server Setup section — Upstream's section assumes a project-root
+#    .mcp.json (which apex deliberately does not ship). After copy, this
+#    script replaces that section with apex-flavored guidance pointing
+#    users at the eks-mcp-server skill. The fallback note ("falls back
+#    to AWS CLI and kubectl") is preserved.
+#
+# 2. steering/ -> references/ rename — Upstream's progressive-disclosure
+#    docs live under steering/, but apex already uses a top-level steering/
+#    directory at the repo root for workflow orchestration (different
+#    concept). To avoid the collision and align with the Anthropic skill
+#    spec's canonical name for "additional documentation agents read on
+#    demand," we rename the directory on copy and rewrite all internal
+#    cross-refs from `steering/` to `references/` inside SKILL.md and the
+#    8 progressive-disclosure files.
 #
 # Usage:
 #   chmod +x misc/sync-eks-upgrade-skill.sh
@@ -72,7 +82,10 @@ echo ""
 
 # --- Step 3: Copy only allowlisted skill components ---
 echo "Copying core skill components to local..."
-mkdir -p "$LOCAL_DIR/steering" "$LOCAL_DIR/data" "$LOCAL_DIR/tools"
+# NOTE: upstream's progressive-disclosure docs live under `steering/`;
+# we rename to `references/` here (see Apex-flavored deviation #2 in
+# the header). Cross-refs are rewritten in Step 5.
+mkdir -p "$LOCAL_DIR/references" "$LOCAL_DIR/data" "$LOCAL_DIR/tools"
 
 # Core skill file
 cp "$UPSTREAM_DIR/SKILL.md" "$LOCAL_DIR/SKILL.md"
@@ -84,8 +97,8 @@ else
     echo "WARNING: Upstream LICENSE not found at repo root — skipping"
 fi
 
-# Steering files
-cp "$UPSTREAM_DIR/steering/"*.md "$LOCAL_DIR/steering/"
+# Progressive-disclosure files (upstream `steering/` -> local `references/`)
+cp "$UPSTREAM_DIR/steering/"*.md "$LOCAL_DIR/references/"
 
 # Data files
 cp "$UPSTREAM_DIR/data/"*.json "$LOCAL_DIR/data/"
@@ -95,7 +108,23 @@ cp "$UPSTREAM_DIR/tools/"*.py "$LOCAL_DIR/tools/"
 
 echo ""
 
-# --- Step 4: Rewrite the MCP Server Setup section (apex-flavored) ---
+# --- Step 4: Rewrite cross-refs `steering/` -> `references/` (apex-flavored) ---
+echo "Rewriting 'steering/' cross-refs to 'references/' inside the vendored skill..."
+
+# Files that may contain cross-refs: SKILL.md and every .md under references/.
+# We rewrite all literal `steering/` substrings to `references/`. Scope is
+# limited to files INSIDE the vendored skill dir, so it cannot affect any
+# other apex content.
+#
+# Use `sed -i.bak` for portability across BSD (macOS) and GNU sed; remove
+# the .bak files immediately after.
+find "$LOCAL_DIR" -type f \( -name "SKILL.md" -o -path "$LOCAL_DIR/references/*.md" \) \
+    -exec sed -i.bak 's|steering/|references/|g' {} +
+find "$LOCAL_DIR" -name "*.bak" -delete
+
+echo ""
+
+# --- Step 5: Rewrite the MCP Server Setup section (apex-flavored) ---
 echo "Rewriting 'MCP Server Setup' section to point at apex eks-mcp-server skill..."
 
 SKILL_MD="$LOCAL_DIR/SKILL.md"
@@ -132,7 +161,7 @@ mv "$SKILL_MD_TMP" "$SKILL_MD"
 
 echo ""
 
-# --- Step 5: Write UPSTREAM.md provenance file ---
+# --- Step 6: Write UPSTREAM.md provenance file ---
 echo "Writing UPSTREAM.md provenance..."
 cat > "$LOCAL_DIR/UPSTREAM.md" <<EOF
 # Upstream Provenance
@@ -148,9 +177,10 @@ This skill is **vendored** from an upstream repo. Do not edit files here directl
 
 ## Local modifications applied at sync time
 
-The sync script applies one deterministic edit to the upstream \`SKILL.md\`:
+The sync script applies two deterministic edits to upstream content:
 
-- The \`### MCP Server Setup\` section is replaced. Apex does not ship a project-root \`.mcp.json\`; MCP setup is delegated to the \`eks-mcp-server\` skill in this repo.
+1. **\`### MCP Server Setup\` section is replaced.** Apex does not ship a project-root \`.mcp.json\`; MCP setup is delegated to the \`eks-mcp-server\` skill in this repo. The upstream's fallback note ("falls back to AWS CLI and kubectl") is preserved.
+2. **\`steering/\` -> \`references/\` rename.** Upstream's progressive-disclosure docs live under \`steering/\`, but apex already uses a top-level \`steering/\` directory at the repo root for workflow orchestration (different concept). The sync script renames the directory on copy and rewrites all internal cross-refs from \`steering/\` to \`references/\` inside \`SKILL.md\` and the 8 progressive-disclosure files. This aligns the layout with the Anthropic skill spec's canonical name for "additional documentation agents read on demand."
 
 Everything else is byte-for-byte from upstream.
 
@@ -164,7 +194,7 @@ EOF
 
 echo ""
 
-# --- Step 6: Show what we got ---
+# --- Step 7: Show what we got ---
 echo "=== Synced files ==="
 find "$LOCAL_DIR" -type f | sort | while read -r f; do
     echo "  ${f#$REPO_ROOT/}"
