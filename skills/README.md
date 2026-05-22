@@ -97,6 +97,37 @@ EKS cluster reconnaissance and environment discovery. Detects compute strategy (
 
 ---
 
+### [eks-upgrade-check](./eks-upgrade-check/)
+
+Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Use this skill whenever someone asks "can I upgrade my cluster?", "is my cluster ready for 1.32?", "are we good to go to 1.33?", "what is blocking my upgrade?", or "should we move to the next version?" — even if they do not say "readiness" or "score". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [addon-compatibility.md](./eks-upgrade-check/references/addon-compatibility.md) | Addon compatibility |
+| [breaking-changes.md](./eks-upgrade-check/references/breaking-changes.md) | Breaking changes |
+| [deprecated-apis.md](./eks-upgrade-check/references/deprecated-apis.md) | Deprecated apis |
+| [node-readiness.md](./eks-upgrade-check/references/node-readiness.md) | Node readiness |
+| [report-generation.md](./eks-upgrade-check/references/report-generation.md) | Report generation |
+| [upgrade-insights.md](./eks-upgrade-check/references/upgrade-insights.md) | Upgrade insights |
+| [version-validation.md](./eks-upgrade-check/references/version-validation.md) | Version validation |
+| [workload-risks.md](./eks-upgrade-check/references/workload-risks.md) | Workload risks |
+
+**Data:**
+
+| File | Description |
+|------|-------------|
+| [oss_addon_registry.json](./eks-upgrade-check/data/oss_addon_registry.json) | Oss_addon_registry |
+
+**Tools:**
+
+| File | Description |
+|------|-------------|
+| [md_to_html.py](./eks-upgrade-check/tools/md_to_html.py) | Md_to_html |
+
+---
+
 ### [skill-creator](./skill-creator/)
 
 Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.

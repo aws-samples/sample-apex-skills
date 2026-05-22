@@ -1,0 +1,21 @@
+[
+  {"query": "Is my EKS cluster ready to upgrade from 1.31 to 1.32? Run a readiness assessment and give me a score.", "should_trigger": true},
+  {"query": "Score my upgrade readiness for EKS — I need to know what's blocking us before we touch the control plane.", "should_trigger": true},
+  {"query": "Run an upgrade readiness check on cluster `payment-prod`. We're considering moving to 1.32 next sprint and want a go/no-go report.", "should_trigger": true},
+  {"query": "Generate a pre-upgrade EKS assessment report — flag any deprecated APIs, add-on incompatibility, Karpenter issues, and subnet IP problems.", "should_trigger": true},
+  {"query": "We're on EKS 1.30 and Karpenter 0.37. Is this combination going to block us if we try upgrading the control plane to 1.31?", "should_trigger": true},
+  {"query": "Audit our cluster for upgrade blockers — single-replica deployments, drain-blocking PDBs, AL2 nodes, anything that would stall a node-group rolling update.", "should_trigger": true},
+  {"query": "I want a readiness score (0-100) for upgrading staging-cluster to the next minor version. Include remediation steps for anything that fails.", "should_trigger": true},
+  {"query": "Produce an HTML upgrade-assessment report I can share with the platform team — cover the 8 standard areas (version, breaking changes, deprecated APIs, add-ons, nodes, workloads, AWS Insights, plan).", "should_trigger": true},
+  {"query": "Can I upgrade my cluster to 1.32? Need to know before I plan a maintenance window.", "should_trigger": true},
+  {"query": "Are we good to go to 1.33 next sprint, or is something going to blow up?", "should_trigger": true},
+
+  {"query": "Walk me through actually upgrading my EKS cluster from 1.30 to 1.31 — give me the full step-by-step procedure including control-plane and node-group commands.", "should_trigger": false},
+  {"query": "My EKS upgrade is stuck mid-flight at the data-plane phase — nodes won't drain. How do I debug this and is it safe to roll back?", "should_trigger": false},
+  {"query": "Give me the blue-green migration procedure for moving workloads from EKS 1.27 to a fresh 1.31 cluster, including DNS cutover steps.", "should_trigger": false},
+  {"query": "What version of EKS am I running and which add-ons do we have installed? Just inherited the cluster and need a discovery pass.", "should_trigger": false},
+  {"query": "Do a full reconnaissance on our EKS environment — compute strategy, IaC tooling, CI/CD, observability stack — so we know what we're working with.", "should_trigger": false},
+  {"query": "Should we use Karpenter or Managed Node Groups for our new EKS cluster? Need an architectural recommendation, not an upgrade plan.", "should_trigger": false},
+  {"query": "How do I install and configure the EKS MCP server so my AI assistant can actually query the cluster?", "should_trigger": false},
+  {"query": "What's the upgrade procedure for self-managed vanilla Kubernetes on bare metal from 1.28 to 1.30?", "should_trigger": false}
+]

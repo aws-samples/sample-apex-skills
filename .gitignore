@@ -20,6 +20,10 @@ WORKSHOP_VISION.md
 PLAN*
 eks-best-practices-workspace
 
+# eks-upgrade-check skill outputs (per-run, not source)
+EKS-Upgrade-Assessment-*.md
+EKS-Upgrade-Assessment-*.html
+
 # Eval artefacts (misc/evals/) — per-run ephemera. history/ is intentionally
 # tracked so regression detection has shared signal across contributors.
 misc/evals/*/workspace/
