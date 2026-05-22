@@ -7,10 +7,10 @@ These artifacts exercise the `eks-mcp-server` skill, which is **meta**: it is ab
 ## Neighbour-skill disambiguation
 
 <!-- SIBLING_MAP_START -->
-- **eks-recon (most important edge — the recon-boundary):** "inventory my cluster", "what version am I running", "list my node groups", "check IMDSv2" all *use* the MCP tools and route to `eks-recon`. Only "configure the MCP server so Claude can see my cluster" (or "tools aren't appearing", "AccessDenied on eks-mcp:InvokeMcp", "where does mcp.json go") routes here. This boundary is the highest overmapping risk and negative cases 1–4 in `triggering.json` enforce it.
-- **eks-best-practices:** Architecture and design decisions ("should we use Karpenter or Auto Mode", multi-tenant platform design) are best-practices territory. Negative 5 enforces this.
+- **`eks-recon`** (most important edge — the recon-boundary) — "inventory my cluster", "what version am I running", "list my node groups", "check IMDSv2" all *use* the MCP tools and route to `eks-recon`. Only "configure the MCP server so Claude can see my cluster" (or "tools aren't appearing", "AccessDenied on eks-mcp:InvokeMcp", "where does mcp.json go") routes here. Negatives at items 9, 10, 11, 12 enforce this boundary.
+- **`eks-best-practices`** — architecture and design decisions ("should we use Karpenter or Auto Mode", multi-tenant platform design). Negative at item 13.
 - **`eks-upgrade-check`** — owns upgrade-readiness assessments (scoring, blocker detection, remediation). Negative at item 15 asks for an upgrade readiness check with add-on compatibility analysis — that's an assessment question, not an MCP-server setup question.
-- **Generic MCP / unrelated:** "How do I build my own MCP server in Python" is about MCP-the-protocol, not the EKS MCP Server — it should not trigger this skill. Negative 6 enforces this.
+- **Generic MCP / unrelated** — "How do I build my own MCP server in Python" is about MCP-the-protocol, not the EKS MCP Server. Negative at item 14.
 <!-- SIBLING_MAP_END -->
 
 ## Live-MCP caveat
