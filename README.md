@@ -73,7 +73,7 @@ ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 2. Use slash commands:
    - `/apex:eks` — hub that auto-routes based on your request
    - `/apex:eks-design` — *"Help me design an EKS cluster"*
-   - `/apex:eks-upgrade` — *"Upgrade my cluster from 1.30 to 1.33"*
+   - `/apex:eks-upgrade-check` — *"Is my cluster ready to upgrade to 1.32?"*
 
 #### Kiro CLI
 
