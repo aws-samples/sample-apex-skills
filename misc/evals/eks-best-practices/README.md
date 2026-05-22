@@ -11,6 +11,7 @@ The 6 negative prompts in `triggering.json` (entries 9–14, 0-indexed 8–13) a
 <!-- SIBLING_MAP_START -->
 - **`eks-recon`** (discovery / "what's currently running" / pre-upgrade inventory) — negatives 9, 10, 11 ("what version am I running", "inventory what's in my EKS cluster", "snapshot of everything running").
 - **`eks-mcp-server`** (installing / wiring up the MCP server itself) — negative 12 ("install the EKS MCP server and wire it up to Claude Code").
+- **`eks-upgrade-check`** — owns structured upgrade-readiness assessments (readiness score, hard-blocker override, remediation report). Negative at item 15 asks for a scored assessment with blocker detection, which is an upgrade-readiness question, not an architectural best-practice question. The discriminator: if the user wants a go/no-go verdict for a specific version hop, route to `eks-upgrade-check`; if they want design guidance about upgrade strategy (in-place vs blue-green), it's best-practices.
 - **Generic / non-EKS** (no architectural judgement about EKS) — negatives 13, 14 (pure Kubernetes concepts: Deployment vs StatefulSet; non-EKS managed-K8s: AKS vs GKE).
 <!-- SIBLING_MAP_END -->
 

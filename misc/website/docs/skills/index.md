@@ -19,6 +19,10 @@ Setup and configure the EKS MCP Server for live cluster operations. Use this ski
 
 EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks "what version am I running", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say "reconnaissance" or "discovery". When in doubt about cluster state, run recon first.
 
+## [eks-upgrade-check](./eks-upgrade-check/)
+
+Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Use this skill whenever someone asks "can I upgrade my cluster?", "is my cluster ready for 1.32?", "are we good to go to 1.33?", "what is blocking my upgrade?", or "should we move to the next version?" — even if they do not say "readiness" or "score". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable.
+
 ## [skill-creator](./skill-creator/)
 
 Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.

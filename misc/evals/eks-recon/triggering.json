@@ -14,5 +14,7 @@
 
   {"query": "How do I install and configure the EKS MCP server locally so Claude can reach my clusters?", "should_trigger": false},
 
-  {"query": "Explain how Kubernetes StatefulSet rolling updates work at the controller level.", "should_trigger": false}
+  {"query": "Explain how Kubernetes StatefulSet rolling updates work at the controller level.", "should_trigger": false},
+
+  {"query": "Is my cluster ready to upgrade to 1.32? Give me a readiness score and list any blockers before I schedule the maintenance window.", "should_trigger": false}
 ]

@@ -15,6 +15,11 @@
     "path": "/docs/skills/eks-recon"
   },
   {
+    "name": "eks-upgrade-check",
+    "description": "Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Use this skill whenever someone asks \"can I upgrade my cluster?\", \"is my cluster ready for 1.32?\", \"are we good to go to 1.33?\", \"what is blocking my upgrade?\", or \"should we move to the next version?\" — even if they do not say \"readiness\" or \"score\". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable.",
+    "path": "/docs/skills/eks-upgrade-check"
+  },
+  {
     "name": "skill-creator",
     "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.",
     "path": "/docs/skills/skill-creator"
