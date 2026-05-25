@@ -18,6 +18,7 @@ if [ -z "$CLUSTER_NAME" ]; then
 fi
 
 echo "Destroying cluster: ${CLUSTER_NAME} in ${REGION}"
+echo "All operations scoped to resources tagged with this cluster name."
 echo ""
 
 echo "==> Step 1: Configuring kubectl..."
@@ -27,34 +28,48 @@ KUBECTL_OK=true
 kubectl cluster-info 2>/dev/null || KUBECTL_OK=false
 
 if [ "$KUBECTL_OK" = true ]; then
-  echo "==> Step 2: Draining workloads (prevents orphaned AWS resources)..."
-
-  echo "    Deleting planted manifests..."
+  echo "==> Step 2: Deleting resources planted by this example..."
   kubectl delete -f "$EXAMPLE_DIR/manifests/blocking-pdb.yaml" --ignore-not-found 2>/dev/null || true
   kubectl delete -f "$EXAMPLE_DIR/manifests/endpoints-watcher.yaml" --ignore-not-found 2>/dev/null || true
+  kubectl delete deployment inflate --ignore-not-found 2>/dev/null || true
 
-  echo "    Deleting all Ingresses (triggers ALB cleanup)..."
-  kubectl delete ingress --all --all-namespaces --ignore-not-found 2>/dev/null || true
+  echo "==> Step 3: Deleting cluster-scoped Ingresses and LB Services..."
+  INGRESSES=$(kubectl get ingress --all-namespaces -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+  if [ -n "$INGRESSES" ]; then
+    echo "    Deleting Ingresses (triggers ALB Controller cleanup)..."
+    kubectl delete ingress --all --all-namespaces --ignore-not-found 2>/dev/null || true
+  fi
 
-  echo "    Deleting all LoadBalancer Services (triggers NLB/CLB cleanup)..."
-  kubectl delete svc --field-selector spec.type=LoadBalancer --all-namespaces --ignore-not-found 2>/dev/null || true
+  LB_SVCS=$(kubectl get svc --all-namespaces -o jsonpath='{range .items[?(@.spec.type=="LoadBalancer")]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+  if [ -n "$LB_SVCS" ]; then
+    echo "    Deleting LoadBalancer Services (triggers NLB/CLB cleanup)..."
+    kubectl delete svc --field-selector spec.type=LoadBalancer --all-namespaces --ignore-not-found 2>/dev/null || true
+  fi
 
-  echo "    Deleting all PVCs (triggers EBS/EFS cleanup)..."
-  kubectl delete pvc --all --all-namespaces --ignore-not-found 2>/dev/null || true
+  PVCS=$(kubectl get pvc --all-namespaces -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+  if [ -n "$PVCS" ]; then
+    echo "    Deleting PVCs (triggers EBS/EFS cleanup)..."
+    kubectl delete pvc --all --all-namespaces --ignore-not-found 2>/dev/null || true
+  fi
 
-  echo "    Waiting 30s for AWS resource cleanup (ALB Controller, CSI drivers)..."
-  sleep 30
+  if [ -n "$INGRESSES" ] || [ -n "$LB_SVCS" ] || [ -n "$PVCS" ]; then
+    echo "    Waiting 60s for AWS controllers to finish cleanup..."
+    sleep 60
+  fi
 
-  echo "==> Step 3: Removing Karpenter K8s resources (triggers node termination)..."
+  echo "==> Step 4: Removing Karpenter K8s resources (triggers graceful node termination)..."
   kubectl delete nodepools --all --ignore-not-found 2>/dev/null || true
   kubectl delete nodeclaims --all --ignore-not-found 2>/dev/null || true
   kubectl delete ec2nodeclasses --all --ignore-not-found 2>/dev/null || true
+
+  echo "    Waiting 30s for Karpenter to terminate nodes..."
+  sleep 30
 else
   echo "    kubectl unavailable — cluster may already be partially destroyed"
   echo "    Proceeding with AWS-side cleanup..."
 fi
 
-echo "==> Step 4: Terminating Karpenter EC2 instances via AWS API..."
+echo "==> Step 5: Terminating EC2 instances owned by ${CLUSTER_NAME}..."
 INSTANCE_IDS=$(aws ec2 describe-instances \
   --region "$REGION" \
   --filters "Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}" \
@@ -63,7 +78,7 @@ INSTANCE_IDS=$(aws ec2 describe-instances \
 
 if [ -n "$INSTANCE_IDS" ] && [ "$INSTANCE_IDS" != "None" ]; then
   INSTANCE_COUNT=$(echo "$INSTANCE_IDS" | wc -w)
-  echo "    Terminating ${INSTANCE_COUNT} instance(s)..."
+  echo "    Terminating ${INSTANCE_COUNT} instance(s) tagged karpenter.sh/discovery=${CLUSTER_NAME}..."
   aws ec2 terminate-instances --region "$REGION" --instance-ids $INSTANCE_IDS > /dev/null 2>&1 || true
 
   echo "    Waiting for instances to terminate..."
@@ -88,23 +103,37 @@ else
   echo "    No Karpenter instances found"
 fi
 
-echo "==> Step 5: Running terraform destroy..."
+echo "==> Step 6: Running terraform destroy..."
 NAME_SUFFIX="${CLUSTER_NAME#ex-karpenter-}"
 terraform destroy -var="name_suffix=${NAME_SUFFIX}" --auto-approve
 
-echo "==> Step 6: Post-destroy orphan check..."
-echo "    Checking for orphaned resources tagged with ${CLUSTER_NAME}..."
+echo "==> Step 7: Post-destroy orphan check (scoped to ${CLUSTER_NAME} tags only)..."
+HAS_ORPHANS=false
+
+ORPHAN_TGS=$(aws elbv2 describe-target-groups --region "$REGION" \
+  --query "TargetGroups[].TargetGroupArn" --output text 2>/dev/null || true)
+if [ -n "$ORPHAN_TGS" ] && [ "$ORPHAN_TGS" != "None" ]; then
+  for tg_arn in $ORPHAN_TGS; do
+    MATCH=$(aws elbv2 describe-tags --region "$REGION" --resource-arns "$tg_arn" \
+      --query "TagDescriptions[].Tags[?(Key=='elbv2.k8s.aws/cluster'&&Value=='${CLUSTER_NAME}')||(Key=='kubernetes.io/cluster/${CLUSTER_NAME}')].Value" \
+      --output text 2>/dev/null || true)
+    if [ -n "$MATCH" ] && [ "$MATCH" != "None" ]; then
+      echo "    WARNING: Orphaned Target Group: ${tg_arn}"
+      HAS_ORPHANS=true
+    fi
+  done
+fi
 
 ORPHAN_LBS=$(aws elbv2 describe-load-balancers --region "$REGION" \
   --query "LoadBalancers[].LoadBalancerArn" --output text 2>/dev/null || true)
-TAGGED_LBS=""
 if [ -n "$ORPHAN_LBS" ] && [ "$ORPHAN_LBS" != "None" ]; then
   for lb_arn in $ORPHAN_LBS; do
-    TAGS=$(aws elbv2 describe-tags --region "$REGION" --resource-arns "$lb_arn" \
-      --query "TagDescriptions[].Tags[?Key=='kubernetes.io/cluster/${CLUSTER_NAME}'].Value" \
+    MATCH=$(aws elbv2 describe-tags --region "$REGION" --resource-arns "$lb_arn" \
+      --query "TagDescriptions[].Tags[?(Key=='elbv2.k8s.aws/cluster'&&Value=='${CLUSTER_NAME}')||(Key=='kubernetes.io/cluster/${CLUSTER_NAME}')].Value" \
       --output text 2>/dev/null || true)
-    if [ -n "$TAGS" ] && [ "$TAGS" != "None" ]; then
-      TAGGED_LBS="$TAGGED_LBS $lb_arn"
+    if [ -n "$MATCH" ] && [ "$MATCH" != "None" ]; then
+      echo "    WARNING: Orphaned Load Balancer: ${lb_arn}"
+      HAS_ORPHANS=true
     fi
   done
 fi
@@ -113,27 +142,26 @@ ORPHAN_VOLS=$(aws ec2 describe-volumes --region "$REGION" \
   --filters "Name=tag:kubernetes.io/cluster/${CLUSTER_NAME},Values=owned" \
             "Name=status,Values=available" \
   --query "Volumes[].VolumeId" --output text 2>/dev/null || true)
-
-ORPHAN_SGS=$(aws ec2 describe-security-groups --region "$REGION" \
-  --filters "Name=tag:kubernetes.io/cluster/${CLUSTER_NAME},Values=owned" \
-  --query "SecurityGroups[].GroupId" --output text 2>/dev/null || true)
-
-HAS_ORPHANS=false
-if [ -n "$TAGGED_LBS" ] && [ "$TAGGED_LBS" != " " ]; then
-  echo "    WARNING: Orphaned Load Balancers:${TAGGED_LBS}"
-  HAS_ORPHANS=true
-fi
 if [ -n "$ORPHAN_VOLS" ] && [ "$ORPHAN_VOLS" != "None" ]; then
   echo "    WARNING: Orphaned EBS Volumes: ${ORPHAN_VOLS}"
   HAS_ORPHANS=true
 fi
+
+ORPHAN_SGS=$(aws ec2 describe-security-groups --region "$REGION" \
+  --filters "Name=tag:kubernetes.io/cluster/${CLUSTER_NAME},Values=owned" \
+  --query "SecurityGroups[].GroupId" --output text 2>/dev/null || true)
 if [ -n "$ORPHAN_SGS" ] && [ "$ORPHAN_SGS" != "None" ]; then
   echo "    WARNING: Orphaned Security Groups: ${ORPHAN_SGS}"
   HAS_ORPHANS=true
 fi
 
-if [ "$HAS_ORPHANS" = false ]; then
-  echo "    No orphaned resources detected"
+if [ "$HAS_ORPHANS" = true ]; then
+  echo ""
+  echo "    Orphaned resources found! These were created by K8s controllers"
+  echo "    for cluster ${CLUSTER_NAME} but not cleaned up. Delete manually:"
+  echo "    https://console.aws.amazon.com/resource-groups/tag-editor"
+else
+  echo "    No orphaned resources detected for ${CLUSTER_NAME}"
 fi
 
 echo ""
