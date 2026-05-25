@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EKS Upgrade Readiness Assessment</title>
+    <style>
+
+:root {
+    --color-bg: #ffffff;
+    --color-text: #16191f;
+    --color-heading: #0972d3;
+    --color-border: #e9ebed;
+    --color-code-bg: #f2f3f3;
+    --color-table-header: #f2f3f3;
+    --color-green: #037f0c;
+    --color-amber: #8d6605;
+    --color-red: #d91515;
+    --color-green-bg: #f2fcf3;
+    --color-amber-bg: #fffce9;
+    --color-red-bg: #fff7f7;
+    --color-link: #0972d3;
+    --color-blockquote-border: #0972d3;
+    --color-blockquote-bg: #f2f8fd;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Amazon Ember", "Helvetica Neue", Roboto, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text);
+    background: var(--color-bg);
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-heading);
+    margin: 32px 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--color-heading);
+}
+
+h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-heading);
+    margin: 28px 0 12px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 20px 0 8px 0;
+}
+
+h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 16px 0 6px 0;
+}
+
+p {
+    margin: 8px 0;
+}
+
+a {
+    color: var(--color-link);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+}
+
+th {
+    background: var(--color-table-header);
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+}
+
+td {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    vertical-align: top;
+}
+
+tr:nth-child(even) {
+    background: #fafafa;
+}
+
+code {
+    font-family: "Monaco", "Menlo", "Consolas", monospace;
+    font-size: 12px;
+    background: var(--color-code-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+pre {
+    background: #1b2028;
+    color: #d4d4d4;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 12px 0;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+blockquote {
+    border-left: 4px solid var(--color-blockquote-border);
+    background: var(--color-blockquote-bg);
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 0 4px 4px 0;
+}
+
+ul, ol {
+    margin: 8px 0 8px 24px;
+}
+
+li {
+    margin: 4px 0;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 24px 0;
+}
+
+/* Score styling */
+.score-ready { color: var(--color-green); font-weight: 700; }
+.score-good { color: var(--color-green); font-weight: 700; }
+.score-fair { color: var(--color-amber); font-weight: 700; }
+.score-risky { color: var(--color-red); font-weight: 700; }
+.score-not-ready { color: var(--color-red); font-weight: 700; }
+
+/* Severity badges */
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.badge-high { background: var(--color-red-bg); color: var(--color-red); }
+.badge-medium { background: var(--color-amber-bg); color: var(--color-amber); }
+.badge-low { background: var(--color-green-bg); color: var(--color-green); }
+
+/* Checkbox styling */
+input[type="checkbox"] {
+    margin-right: 6px;
+}
+
+/* Print styles */
+@media print {
+    body { max-width: 100%; padding: 20px; }
+    pre { white-space: pre-wrap; word-wrap: break-word; }
+    h1, h2, h3 { page-break-after: avoid; }
+    table { page-break-inside: avoid; }
+}
+
+/* Status icons in tables */
+td:first-child {
+    white-space: nowrap;
+}
+
+.timestamp {
+    color: #687078;
+    font-size: 12px;
+    margin-top: -8px;
+}
+
+    </style>
+</head>
+<body>
+<h1>EKS Upgrade Readiness Assessment</h1>
+<table><tr><th>Field</th><th>Value</th></tr><tr><td>Cluster</td><td>ex-karpenter-test</td></tr><tr><td>Region</td><td>us-west-2</td></tr><tr><td>Account</td><td>123456789012</td></tr><tr><td>Current Version</td><td>1.32 (Extended Support)</td></tr><tr><td>Target Version</td><td>1.33</td></tr><tr><td>Assessment Date</td><td>2026-05-25</td></tr></table>
+<hr>
+<h2>Readiness Score: 59% — NOT <span class="score-ready">READY</span></h2>
+<p><strong>Karpenter 1.0.2 is incompatible with Kubernetes 1.33 (requires &gt;= 1.5).</strong> This is a hard blocker — node provisioning will break after the control plane upgrade. You must upgrade Karpenter to &gt;= 1.5 before upgrading the control plane. All other checks pass cleanly; once Karpenter is resolved, this cluster is in good shape.</p>
+<h3>Score Breakdown</h3>
+<table><tr><th>Category</th><th>Status</th><th>Deduction</th><th>Details</th></tr><tr><td>Breaking Changes</td><td>✅</td><td>-0 pts</td><td>None detected for 1.33 target</td></tr><tr><td>Deprecated APIs</td><td>✅</td><td>-0 pts</td><td>All resources on current API versions</td></tr><tr><td>Node Readiness</td><td>✅</td><td>-0 pts</td><td>All nodes on 1.32, subnets have 4000+ IPs</td></tr><tr><td>Add-on Compatibility</td><td>✅</td><td>-0 pts</td><td>vpc-cni, kube-proxy, pod-identity-agent all healthy</td></tr><tr><td>Karpenter</td><td>❌</td><td>-10 pts</td><td>v1.0.2 installed, requires &gt;= 1.5 for K8s 1.33</td></tr><tr><td>Workload Risks</td><td>⚠️</td><td>-7 pts</td><td>1 single-replica, missing probes, missing PDB</td></tr><tr><td>AWS Upgrade Insights</td><td>✅</td><td>-0 pts</td><td>All 5 insights PASSING</td></tr><tr><td>AL2 / AMI</td><td>✅</td><td>-0 pts</td><td>No AL2 nodes (Fargate + Bottlerocket)</td></tr><tr><td>Behavioral Changes</td><td>✅</td><td>-0 pts</td><td>Endpoints deprecation is informational only</td></tr><tr><td><strong>Total</strong></td><td></td><td><strong>-17 pts</strong></td><td><strong>Arithmetic: 83%, capped to 59% (hard blocker)</strong></td></tr></table>
+<p><strong>Hard Blocker:</strong> Karpenter 1.0.2 incompatible with target → score capped at 59%</p>
+<hr>
+<h2>Blockers &amp; Critical Actions</h2>
+<h3>Karpenter 1.0.2 Incompatible with Kubernetes 1.33</h3>
+<ul><li><strong>Severity:</strong> CRITICAL (Hard Blocker)</li><li><strong>What we found:</strong> Karpenter v1.0.2 is deployed in the <code>karpenter</code> namespace. The official compatibility matrix requires Karpenter &gt;= 1.5 for Kubernetes 1.33.</li><li><strong>Impact if not addressed:</strong> After the control plane upgrades to 1.33, Karpenter will fail to provision new nodes. Existing nodes continue running but new capacity requests (scale-up, spot interruption replacements, consolidation) will fail. The cluster will effectively lose autoscaling.</li><li><strong>Remediation:</strong></li></ul>
+<p>Upgrade Karpenter <strong>before</strong> the control plane upgrade. The 1.0.x → 1.5+ jump crosses the v1 API boundary — verify your NodePool and EC2NodeClass CRDs are on v1 APIs (not v1beta1):</p>
+<pre><code class="language-bash">  # 1. Check current Karpenter version
+  kubectl get deployment karpenter -n karpenter -o jsonpath=&#x27;{.spec.template.spec.containers[0].image}&#x27;
+
+  # 2. Verify NodePool CRDs are v1 (not v1beta1)
+  kubectl get nodepools.karpenter.sh -o yaml | grep apiVersion
+
+  # 3. Upgrade Karpenter via Helm (adjust version to latest &gt;= 1.5)
+  helm upgrade karpenter oci://public.ecr.aws/karpenter/karpenter \
+    --namespace karpenter \
+    --version 1.5.0 \
+    --set clusterName=ex-karpenter-test \
+    --set clusterEndpoint=$(aws eks describe-cluster --name ex-karpenter-test --query cluster.endpoint --output text --region us-west-2) \
+    --wait
+
+  # 4. Verify Karpenter is healthy after upgrade
+  kubectl get pods -n karpenter
+  kubectl logs -n karpenter -l app.kubernetes.io/name=karpenter --tail=20</code></pre>
+<ul><li><strong>Reference:</strong> https://karpenter.sh/docs/upgrading/compatibility/</li></ul>
+<h3>Extended Support Cost Impact</h3>
+<ul><li><strong>Severity:</strong> HIGH</li><li><strong>What we found:</strong> Cluster is on v1.32 which entered Extended Support on March 23, 2026. You are currently paying the extended support rate.</li><li><strong>Impact:</strong> Extended support costs $0.60/hr vs $0.10/hr for standard support. Monthly cost: $0.60 x 730 = $438/month (vs $73/month on standard). Extra cost: $0.50 x 730 = $365/month.</li><li><strong>Remediation:</strong> Upgrading to 1.33 (standard support until July 29, 2026) returns you to standard pricing.</li></ul>
+<hr>
+<h2>Recommended Actions</h2>
+<h3>Single-Replica Deployment: singleton-app</h3>
+<ul><li><strong>Severity:</strong> MEDIUM</li><li><strong>What we found:</strong> <code>default/singleton-app</code> runs with 1 replica. During node drain (Karpenter consolidation or upgrade), this workload will experience downtime.</li><li><strong>Remediation:</strong> Scale to 2+ replicas if the workload requires availability, or accept brief downtime during upgrades.</li></ul>
+<h3>Missing Readiness Probes</h3>
+<ul><li><strong>Severity:</strong> MEDIUM</li><li><strong>What we found:</strong> 2 workloads lack readiness probes:</li><li><code>default/inflate</code> (3 replicas)</li><li><code>default/singleton-app</code> (1 replica)</li><li><strong>Remediation:</strong> Add readiness probes so Kubernetes knows when pods are ready to receive traffic. Without probes, traffic may be sent to pods that aren&#x27;t ready after rescheduling.</li></ul>
+<h3>Missing PDB for Multi-Replica Deployment: inflate</h3>
+<ul><li><strong>Severity:</strong> MEDIUM</li><li><strong>What we found:</strong> <code>default/inflate</code> has 3 replicas but no PodDisruptionBudget. During node drain, all 3 pods could be evicted simultaneously.</li><li><strong>Remediation:</strong></li></ul>
+<pre><code class="language-bash">  kubectl create pdb inflate-pdb --namespace default \
+    --selector app=inflate --min-available 2</code></pre>
+<h3>Missing Memory Request: inflate</h3>
+<ul><li><strong>Severity:</strong> MEDIUM</li><li><strong>What we found:</strong> The <code>inflate</code> container in <code>default/inflate</code> has a CPU request but no memory request. Without memory requests, the scheduler cannot make optimal placement decisions during rescheduling.</li><li><strong>Remediation:</strong> Add <code>resources.requests.memory</code> to the container spec.</li></ul>
+<hr>
+<h2>Informational Findings</h2>
+<ul><li><strong>Endpoints API deprecated in 1.33:</strong> The Endpoints API is deprecated in favor of EndpointSlices (<code>discovery.k8s.io/v1</code>). The 3 endpoints found (<code>karpenter/karpenter</code>, <code>kube-system/eks-extension-metrics-api</code>, <code>kube-system/kube-dns</code>) are auto-managed by their Services — no user action needed.</li><li><strong>Containerd 1.7.x on Bottlerocket node:</strong> Node <code>ip-10-0-x-x</code> runs containerd 1.7.31. This is fine for 1.33 but containerd 1.x support ends in Kubernetes 1.35. Plan to update before targeting 1.35.</li><li><strong>Extended Support:</strong> Cluster is on Extended Support ($365/month premium). Upgrading to 1.33 returns to standard pricing.</li></ul>
+<hr>
+<h2>Evidence</h2>
+<h3>Add-on Inventory</h3>
+<table><tr><th>Add-on</th><th>Type</th><th>Version</th><th>Status</th><th>Verdict</th><th>Source</th></tr><tr><td>vpc-cni</td><td>Managed</td><td>v1.20.5-eksbuild.1</td><td>ACTIVE</td><td>COMPATIBLE</td><td>EKS managed</td></tr><tr><td>kube-proxy</td><td>Managed</td><td>v1.32.13-eksbuild.5</td><td>ACTIVE</td><td>COMPATIBLE</td><td>EKS managed</td></tr><tr><td>eks-pod-identity-agent</td><td>Managed</td><td>v1.3.10-eksbuild.3</td><td>ACTIVE</td><td>COMPATIBLE</td><td>EKS managed</td></tr><tr><td>Karpenter</td><td>OSS (Helm)</td><td>1.0.2</td><td>Running</td><td>INCOMPATIBLE</td><td>karpenter.sh/docs/upgrading/compatibility</td></tr></table>
+<h3>Node Group Summary</h3>
+<table><tr><th>Node</th><th>Type</th><th>Version</th><th>OS</th><th>Runtime</th><th>Skew vs 1.33</th><th>Status</th></tr><tr><td>fargate-ip-10-0-x-x</td><td>Fargate</td><td>v1.32.13</td><td>Minimal</td><td>containerd 2.2.3</td><td>1</td><td>✅</td></tr><tr><td>fargate-ip-10-0-x-x</td><td>Fargate</td><td>v1.32.13</td><td>Minimal</td><td>containerd 2.2.3</td><td>1</td><td>✅</td></tr><tr><td>ip-10-0-x-x</td><td>Karpenter (c8g.xlarge)</td><td>v1.32.12</td><td>Bottlerocket 1.61.0</td><td>containerd 1.7.31</td><td>1</td><td>✅</td></tr></table>
+<p><strong>Karpenter NodePools:</strong></p>
+<table><tr><th>NodePool</th><th>CPU Limit</th><th>Disruption</th><th>NodeClass</th></tr><tr><td>default</td><td>1000</td><td>WhenEmpty, 30s</td><td>EC2NodeClass/default</td></tr><tr><td>graviton-nodepool</td><td>1000</td><td>WhenEmptyOrUnderutilized, 60s</td><td>NodeClass/graviton-nodeclass</td></tr><tr><td>spot-nodepool</td><td>1000</td><td>WhenEmptyOrUnderutilized, 60s</td><td>NodeClass/spot-nodeclass</td></tr></table>
+<p><strong>Subnet Capacity:</strong></p>
+<table><tr><th>Subnet</th><th>AZ</th><th>CIDR</th><th>Available IPs</th><th>Status</th></tr><tr><td>subnet-0aaaaaaaaaaaaaaaa</td><td>us-west-2a</td><td>10.0.0.0/20</td><td>4090</td><td>✅</td></tr><tr><td>subnet-0bbbbbbbbbbbbbbbb</td><td>us-west-2c</td><td>10.0.32.0/20</td><td>4089</td><td>✅</td></tr><tr><td>subnet-0cccccccccccccccc</td><td>us-west-2b</td><td>10.0.16.0/20</td><td>4060</td><td>✅</td></tr></table>
+<h3>Workload Risk Summary</h3>
+<p><strong>Master Workload Table (non-system namespaces):</strong></p>
+<table><tr><th>#</th><th>Name</th><th>Kind</th><th>NS</th><th>Replicas</th><th>Strategy</th><th>Probes</th><th>Requests</th><th>Findings</th></tr><tr><td>1</td><td>inflate</td><td>Deployment</td><td>default</td><td>3</td><td>RollingUpdate</td><td>❌ none</td><td>cpu only</td><td>Missing probes, missing memory request, no PDB</td></tr><tr><td>2</td><td>singleton-app</td><td>Deployment</td><td>default</td><td>1</td><td>RollingUpdate</td><td>❌ none</td><td>✅ cpu+mem</td><td>Single replica, missing probes</td></tr></table>
+<p><strong>Risk Findings:</strong></p>
+<table><tr><th>Finding</th><th>Severity</th><th>Workloads (by row #)</th><th>Count</th><th>Pts</th></tr><tr><td>Single replica</td><td>HIGH</td><td>#2</td><td>1</td><td>3</td></tr><tr><td>Missing readiness probes</td><td>MEDIUM</td><td>#1, #2</td><td>2</td><td>1</td></tr><tr><td>Missing memory request</td><td>MEDIUM</td><td>#1</td><td>1</td><td>1</td></tr><tr><td>Missing PDB (multi-replica)</td><td>MEDIUM</td><td>#1</td><td>1</td><td>1</td></tr><tr><td>Drain-blocking PDB (singleton-pdb)</td><td>MEDIUM</td><td>#2</td><td>1</td><td>2</td></tr><tr><td><strong>HIGH sub-total</strong></td><td></td><td></td><td></td><td>3 (cap 8)</td></tr><tr><td><strong>MEDIUM sub-total</strong></td><td></td><td></td><td></td><td>6 → capped 4</td></tr><tr><td><strong>Category total</strong></td><td></td><td></td><td></td><td><strong>7</strong> (cap 10)</td></tr></table>
+<h3>AWS Upgrade Insights</h3>
+<table><tr><th>Insight</th><th>Status</th><th>Description</th></tr><tr><td>EKS add-on version compatibility</td><td>✅ PASSING</td><td>All add-on versions compatible with 1.33</td></tr><tr><td>Cluster health issues</td><td>✅ PASSING</td><td>No cluster health issues detected</td></tr><tr><td>Amazon Linux 2 compatibility</td><td>✅ PASSING</td><td>No AL2 nodes detected</td></tr><tr><td>kube-proxy version skew</td><td>✅ PASSING</td><td>kube-proxy versions match control plane</td></tr><tr><td>Kubelet version skew</td><td>✅ PASSING</td><td>Node kubelet versions match control plane</td></tr></table>
+<hr>
+<h2>Upgrade Plan</h2>
+<blockquote><p><strong>Do NOT proceed until the Karpenter blocker is resolved.</strong></p></blockquote>
+<h3>Pre-Upgrade Checklist</h3>
+<ul><li>[ ] <strong>Upgrade Karpenter to &gt;= 1.5</strong> (hard blocker)</li><li>[ ] Verify NodePool/EC2NodeClass CRDs are on v1 APIs after Karpenter upgrade</li><li>[ ] Add readiness probes to inflate and singleton-app</li><li>[ ] Add PDB for inflate deployment</li><li>[ ] Consider scaling singleton-app to 2+ replicas</li><li>[ ] Take etcd snapshot / backup</li></ul>
+<h3>Step 1: Upgrade Karpenter (MUST DO FIRST)</h3>
+<pre><code class="language-bash"># Check current CRD API versions
+kubectl get nodepools.karpenter.sh -o yaml | grep apiVersion
+kubectl get ec2nodeclasses.karpenter.k8s.aws -o yaml | grep apiVersion
+
+# Upgrade Karpenter (adjust to latest stable &gt;= 1.5)
+helm upgrade karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --namespace karpenter \
+  --version 1.5.0 \
+  --set clusterName=ex-karpenter-test \
+  --set clusterEndpoint=$(aws eks describe-cluster --name ex-karpenter-test --query cluster.endpoint --output text --region us-west-2) \
+  --wait
+
+# Verify Karpenter is healthy
+kubectl get pods -n karpenter
+kubectl get nodepools.karpenter.sh</code></pre>
+<h3>Step 2: Update EKS Managed Add-ons (optional, already compatible)</h3>
+<pre><code class="language-bash"># Check for latest compatible versions
+aws eks describe-addon-versions --addon-name vpc-cni --kubernetes-version 1.33 --query &#x27;addons[0].addonVersions[0].addonVersion&#x27; --region us-west-2
+aws eks describe-addon-versions --addon-name kube-proxy --kubernetes-version 1.33 --query &#x27;addons[0].addonVersions[0].addonVersion&#x27; --region us-west-2
+aws eks describe-addon-versions --addon-name eks-pod-identity-agent --kubernetes-version 1.33 --query &#x27;addons[0].addonVersions[0].addonVersion&#x27; --region us-west-2</code></pre>
+<h3>Step 3: Upgrade Control Plane</h3>
+<pre><code class="language-bash">aws eks update-cluster-version \
+  --name ex-karpenter-test \
+  --kubernetes-version 1.33 \
+  --region us-west-2</code></pre>
+<h3>Step 4: Monitor Upgrade Progress</h3>
+<pre><code class="language-bash"># Get the update ID from the output of Step 3, then:
+aws eks describe-update \
+  --name ex-karpenter-test \
+  --update-id &lt;UPDATE_ID&gt; \
+  --region us-west-2
+
+# Or watch cluster status
+watch -n 30 &#x27;aws eks describe-cluster --name ex-karpenter-test --query &quot;cluster.{status:status,version:version}&quot; --output table --region us-west-2&#x27;</code></pre>
+<h3>Step 5: Update Node Groups (Karpenter-managed)</h3>
+<p>Karpenter nodes will be replaced automatically based on your NodePool <code>expireAfter</code> (720h) and disruption settings. To force immediate rotation:</p>
+<pre><code class="language-bash"># Option A: Trigger drift detection (Karpenter detects version mismatch and replaces nodes)
+# This happens automatically after control plane upgrade
+
+# Option B: Force immediate replacement
+kubectl delete node &lt;node-name&gt;</code></pre>
+<h3>Step 6: Update Fargate Pods</h3>
+<p>Fargate pods must be recycled to pick up the new platform version:</p>
+<pre><code class="language-bash"># Delete and let the controller recreate them
+kubectl rollout restart deployment -n &lt;namespace&gt; &lt;deployment-name&gt;</code></pre>
+<h3>Step 7: Verify</h3>
+<pre><code class="language-bash">kubectl get nodes -o wide
+kubectl get pods -A | grep -v Running | grep -v Completed
+aws eks describe-cluster --name ex-karpenter-test --query &quot;cluster.version&quot; --region us-west-2</code></pre>
+<hr>
+<h2>AWS Reference Links</h2>
+<ul><li>EKS Kubernetes Versions: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html</li><li>EKS Add-on Versions: https://docs.aws.amazon.com/eks/latest/userguide/managing-add-ons.html</li><li>Karpenter Compatibility: https://karpenter.sh/docs/upgrading/compatibility/</li><li>Karpenter Upgrade Guide: https://karpenter.sh/docs/upgrading/upgrade-guide/</li><li>EKS Best Practices — Upgrades: https://docs.aws.amazon.com/eks/latest/best-practices/cluster-upgrades.html</li><li>EKS Platform Versions: https://docs.aws.amazon.com/eks/latest/userguide/platform-versions.html</li></ul>
+</body>
+</html>

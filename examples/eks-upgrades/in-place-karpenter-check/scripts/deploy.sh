@@ -76,6 +76,16 @@ echo ""
 echo "Configuring kubectl..."
 aws eks --region "$REGION" update-kubeconfig --name "$CLUSTER_NAME"
 
+echo "Waiting for Fargate profile to activate..."
+aws eks wait fargate-profile-active --cluster-name "$CLUSTER_NAME" --fargate-profile-name karpenter --region "$REGION" 2>/dev/null || true
+
+echo "Bouncing system pods if stuck in Pending (Fargate race condition)..."
+kubectl delete pods -n karpenter --field-selector=status.phase=Pending 2>/dev/null || true
+kubectl delete pods -n kube-system -l k8s-app=kube-dns --field-selector=status.phase=Pending 2>/dev/null || true
+
+echo "Waiting for Karpenter to become ready..."
+kubectl wait -n karpenter deployment/karpenter --for=condition=Available --timeout=300s
+
 echo "Applying Karpenter resources..."
 KARPENTER_MANIFESTS=$(terraform output -raw karpenter_manifests_path)
 kubectl apply --server-side -f "$KARPENTER_MANIFESTS"

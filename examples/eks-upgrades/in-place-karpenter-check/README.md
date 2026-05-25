@@ -120,6 +120,24 @@ Then ask: **"Is my cluster ready to upgrade to 1.33?"**
 
 </details>
 
+## Walkthrough (Claude Code)
+
+| Step | Screenshot |
+|------|-----------|
+| Skill triggers on upgrade question | ![Skill trigger](static/cc/01-skill-trigger.png) |
+| Discovers clusters in your region | ![Cluster discovery](static/cc/02-cluster-discovery.png) |
+| Shows cluster summary table | ![Cluster summary](static/cc/03-cluster-summary.png) |
+| Assessment result with score | ![Assessment result](static/cc/04-assessment-result.png) |
+| HTML report view | ![HTML report](static/cc/05-html-report.png) |
+
+The assessment correctly identified all 3 planted issues:
+
+1. **Karpenter v1.0.2 incompatible** — hard blocker, score capped at 59%
+2. **Blocking PDB on singleton-app** — drain-blocking PDB flagged under workload risks
+3. **Endpoints API deprecation** — detected as a behavioral change for 1.33
+
+Full sample output: [`sample-report.md`](static/cc/sample-report.md) | [`sample-report.html`](static/cc/sample-report.html)
+
 ## Expected Outcome
 
 By the end of this exercise, you should have:
