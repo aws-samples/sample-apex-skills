@@ -120,7 +120,10 @@ Then ask: **"Is my cluster ready to upgrade to 1.33?"**
 
 </details>
 
-## Walkthrough (Claude Code)
+## Walkthrough
+
+<details>
+<summary><strong>Claude Code</strong></summary>
 
 | Step | Screenshot |
 |------|-----------|
@@ -137,6 +140,28 @@ The assessment correctly identified all 3 planted issues:
 3. **Endpoints API deprecation** — detected as a behavioral change for 1.33
 
 Full sample output: [`sample-report.md`](static/cc/sample-report.md) | [`sample-report.html`](static/cc/sample-report.html)
+
+</details>
+
+<details>
+<summary><strong>Kiro</strong></summary>
+
+| Step | Screenshot |
+|------|-----------|
+| Discovers clusters and asks which to assess | ![Cluster discovery](static/kiro/01-cluster-discovery.png) |
+| Compiles findings summary | ![Findings summary](static/kiro/02-findings-summary.png) |
+| Assessment result with score | ![Assessment result](static/kiro/03-assessment-result.png) |
+| HTML report view | ![HTML report](static/kiro/04-html-report.png) |
+
+The assessment correctly identified all 3 planted issues:
+
+1. **Karpenter v1.0.2 incompatible** — hard blocker, score capped at 47%
+2. **Drain-blocking PDB on singleton-app** — flagged under workload risks
+3. **Single-replica deployment** — singleton-app flagged as availability risk
+
+Full sample output: [`sample-report.md`](static/kiro/sample-report.md) | [`sample-report.html`](static/kiro/sample-report.html)
+
+</details>
 
 ## Expected Outcome
 
