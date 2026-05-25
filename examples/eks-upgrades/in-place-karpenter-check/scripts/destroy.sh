@@ -58,11 +58,11 @@ if [ "$KUBECTL_OK" = true ]; then
   fi
 
   echo "==> Step 4: Removing Karpenter K8s resources (triggers graceful node termination)..."
-  kubectl delete nodepools --all --ignore-not-found 2>/dev/null || true
-  kubectl delete nodeclaims --all --ignore-not-found 2>/dev/null || true
-  kubectl delete ec2nodeclasses --all --ignore-not-found 2>/dev/null || true
+  kubectl delete nodepools --all --ignore-not-found --wait=false 2>/dev/null || true
+  kubectl delete nodeclaims --all --ignore-not-found --wait=false 2>/dev/null || true
+  kubectl delete ec2nodeclasses --all --ignore-not-found --wait=false 2>/dev/null || true
 
-  echo "    Waiting 30s for Karpenter to terminate nodes..."
+  echo "    Giving Karpenter 30s to start terminating nodes..."
   sleep 30
 else
   echo "    kubectl unavailable — cluster may already be partially destroyed"
