@@ -154,6 +154,7 @@ Steering files control how the agent runs an engagement — they don't contain d
 
 | Example | Description | Workflow |
 |---------|-------------|----------|
+| **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](steering/workflows/eks-upgrade-check.md) |
 <!-- EXAMPLES_REFERENCE_END -->
 
 ---
