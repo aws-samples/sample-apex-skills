@@ -12,3 +12,8 @@ output "region" {
   description = "AWS region"
   value       = local.region
 }
+
+output "karpenter_manifests_path" {
+  description = "Path to rendered Karpenter manifests (cluster name substituted)"
+  value       = local_file.karpenter_manifests.filename
+}

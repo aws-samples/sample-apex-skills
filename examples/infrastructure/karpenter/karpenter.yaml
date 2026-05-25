@@ -6,15 +6,15 @@ metadata:
 spec:
   amiSelectorTerms:
     - alias: bottlerocket@latest
-  role: CLUSTER_NAME_PLACEHOLDER
+  role: ${cluster_name}
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: CLUSTER_NAME_PLACEHOLDER
+        karpenter.sh/discovery: ${cluster_name}
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: CLUSTER_NAME_PLACEHOLDER
+        karpenter.sh/discovery: ${cluster_name}
   tags:
-    karpenter.sh/discovery: CLUSTER_NAME_PLACEHOLDER
+    karpenter.sh/discovery: ${cluster_name}
 ---
 apiVersion: karpenter.sh/v1
 kind: NodePool

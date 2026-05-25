@@ -77,7 +77,8 @@ echo "Configuring kubectl..."
 aws eks --region "$REGION" update-kubeconfig --name "$CLUSTER_NAME"
 
 echo "Applying Karpenter resources..."
-sed "s/CLUSTER_NAME_PLACEHOLDER/${CLUSTER_NAME}/g" karpenter.yaml | kubectl apply --server-side -f -
+KARPENTER_MANIFESTS=$(terraform output -raw karpenter_manifests_path)
+kubectl apply --server-side -f "$KARPENTER_MANIFESTS"
 
 echo "Applying example workload..."
 kubectl apply --server-side -f example.yaml

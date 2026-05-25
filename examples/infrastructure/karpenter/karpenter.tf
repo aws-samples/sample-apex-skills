@@ -2,6 +2,13 @@ locals {
   namespace = "karpenter"
 }
 
+resource "local_file" "karpenter_manifests" {
+  content = templatefile("${path.module}/karpenter.yaml", {
+    cluster_name = local.name
+  })
+  filename = "${path.module}/rendered/karpenter.yaml"
+}
+
 module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
   version = "~> 20.24"
