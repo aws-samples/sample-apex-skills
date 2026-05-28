@@ -14,6 +14,7 @@ This skill has **no true siblings** in the eval sense. It is meta (about authori
 - **`skill-creator`** — upstream-synced meta-skill for drafting SKILL.md frontmatter + references. Negative at item 12 is a pure frontmatter-review request that belongs to skill-creator, not to this workflow-authoring skill.
 - **`eks-mcp-server`** — setup-bridge skill for the EKS MCP server. Negative at item 14 asks how to configure MCP tooling.
 - **Generic / non-repo** — pure Kubernetes-internals questions with no authoring hook. Negative at item 15 ("Kubernetes PDB semantics") is a sanity check that this skill does not fire on off-topic K8s content.
+- **`eks-operation-review`** — "run the operational review" executes an existing workflow, not authors a new one. Negative at item 16 enforces this.
 <!-- SIBLING_MAP_END -->
 
 The `make score` parser reads only what's between the SIBLING_MAP markers — keep each bullet shaped `- **...** ... negatives N, M ...` (ranges like `11-14` or `11–14` also work) so the sibling-leakage attribution matches every negative. Prose outside the markers is free.

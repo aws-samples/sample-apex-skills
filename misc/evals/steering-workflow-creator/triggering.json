@@ -14,5 +14,6 @@
   { "query": "Review the SKILL.md frontmatter for my new skill and tell me if the description will trigger cleanly.", "should_trigger": false },
   { "query": "What's the decision framework for picking between Karpenter and managed node groups?", "should_trigger": false },
   { "query": "Set up the EKS MCP Server — my cluster MCP tools aren't showing up.", "should_trigger": false },
-  { "query": "Explain Kubernetes PDB semantics — why do pods survive eviction in some cases and not others?", "should_trigger": false }
+  { "query": "Explain Kubernetes PDB semantics — why do pods survive eviction in some cases and not others?", "should_trigger": false },
+  {"query": "Run the EKS operational review workflow against my production cluster and show me the scored results.", "should_trigger": false}
 ]

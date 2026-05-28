@@ -168,9 +168,9 @@ Each example's `README.md` must include YAML frontmatter:
 
 ```yaml
 ---
-name: In-Place EKS Upgrade
-description: Deploy an EKS 1.30 cluster with planted issues and upgrade to 1.33.
-workflow: steering/workflows/upgrade.md
+name: EKS Upgrade Readiness
+description: Assess cluster upgrade readiness across 8 dimensions with a scored report.
+workflow: steering/workflows/eks-upgrade-check.md
 ---
 ```
 

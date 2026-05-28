@@ -112,8 +112,8 @@ def hygiene_check(skill: str) -> Hygiene:
     neg = sum(1 for e in triggering if e.get("should_trigger") is False)
     if pos < 8:
         warnings.append(f"triggering.json has {pos} positives (<8)")
-    if neg < 5:
-        warnings.append(f"triggering.json has {neg} negatives (<5)")
+    if neg < 8:
+        warnings.append(f"triggering.json has {neg} negatives (<8)")
 
     # evals.json shape.
     try:
