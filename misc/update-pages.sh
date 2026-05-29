@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
 # update-pages.sh
 #
-# Generates Docusaurus wrappers for every tracked *.md under skills/ and
-# steering/ into misc/website/docs/, plus the skills.json manifest consumed
-# by the homepage SkillGrid.
+# Generates Docusaurus wrappers for every tracked *.md under skills/,
+# steering/, and examples/ into misc/website/docs/, plus manifests consumed
+# by the homepage SkillGrid and examples grid.
 #
 # Inputs (sources of truth):
-#   skills/**/*.md   (except skills/README.md — marker-generated)
+#   skills/**/*.md     (except skills/README.md — marker-generated)
 #   steering/**/*.md
+#   examples/**/*.md   (README.md → index.md wrappers)
+#   examples/**/*.html (copied to static/)
+#   examples/**/*.png  (copied to static/)
 #
 # Outputs (regenerated; tracked in git):
 #   misc/website/docs/skills/<name>/index.md       wrapper for SKILL.md
 #   misc/website/docs/skills/<name>/<sub>/<f>.md   wrapper for sub-files
 #   misc/website/docs/skills/index.md              card grid (overwritten)
 #   misc/website/docs/steering/<rel-path>.md       wrappers for steering
+#   misc/website/docs/examples/<path>/index.md     wrapper for README.md
+#   misc/website/docs/examples/index.md            card grid (overwritten)
+#   misc/website/static/examples/                  .html + .png assets
 #   misc/website/static/manifests/skills.json
+#   misc/website/static/manifests/examples.json
 #
 # misc/website/docs/steering/index.md is HAND-WRITTEN and never touched.
 #
@@ -43,8 +50,12 @@ cd "$REPO_ROOT"
 
 SKILLS_OUT="$REPO_ROOT/misc/website/docs/skills"
 STEERING_OUT="$REPO_ROOT/misc/website/docs/steering"
+EXAMPLES_OUT="$REPO_ROOT/misc/website/docs/examples"
 MANIFEST="$REPO_ROOT/misc/website/static/manifests/skills.json"
+EXAMPLES_MANIFEST="$REPO_ROOT/misc/website/static/manifests/examples.json"
 SKILLS_DIR="$REPO_ROOT/skills"
+EXAMPLES_DIR="$REPO_ROOT/examples"
+EXAMPLES_STATIC="$REPO_ROOT/misc/website/static/examples"
 
 GH_BASE="https://github.com/aws-samples/sample-apex-skills/blob/main"
 
@@ -52,7 +63,9 @@ GH_BASE="https://github.com/aws-samples/sample-apex-skills/blob/main"
 TOUCHED_PATHS=(
   "misc/website/docs/skills"
   "misc/website/docs/steering"
+  "misc/website/docs/examples"
   "misc/website/static/manifests"
+  "misc/website/static/examples"
 )
 
 # --- Parse one frontmatter key from a markdown file -----------------------
@@ -121,9 +134,11 @@ signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 src = sys.argv[1]
 GH_BASE = sys.argv[2]
 src_dir = os.path.dirname(src)
+is_example = src.startswith("examples/")
 
 def rewrite(m):
-    text, target = m.group(1), m.group(2)
+    prefix = m.group(1)  # "!" for images, "" for links
+    text, target = m.group(2), m.group(3)
     if target.startswith(("http://", "https://", "#", "mailto:")):
         return m.group(0)
     anchor = ""
@@ -133,13 +148,36 @@ def rewrite(m):
     if not target:
         return m.group(0)
     resolved = os.path.normpath(os.path.join(src_dir, target))
+
+    # For examples/ sources: static assets (.png, .html) resolve to /sample-apex-skills/examples/...
+    if is_example and resolved.startswith("examples/") and not target.endswith(".md"):
+        examples_prefix = "examples/"
+        static_url = "/sample-apex-skills/examples/" + resolved[len(examples_prefix):]
+        if target.endswith(".png"):
+            return f"![{text}](pathname://{static_url})"
+        elif target.endswith(".html"):
+            # Emit both a link and an iframe embed
+            link = f"[{text}](pathname://{static_url})"
+            iframe = (
+                "\n\n<iframe src=\"" + static_url + "\" "
+                "width=\"100%\" height=\"600px\" "
+                "style={{border:\"1px solid var(--ifm-color-emphasis-300)\", borderRadius:\"8px\"}}>"
+                "</iframe>\n"
+            )
+            return link + iframe
+        else:
+            return f"[{text}]({GH_BASE}/{resolved}{anchor})"
+
     if resolved.startswith(".."):
         return f"[{text}]({GH_BASE}/{target}{anchor})"
-    if not resolved.startswith(("skills/", "steering/")):
+    if not resolved.startswith(("skills/", "steering/", "examples/")):
         return f"[{text}]({GH_BASE}/{resolved}{anchor})"
     if not target.endswith(".md"):
         return f"[{text}]({GH_BASE}/{resolved}{anchor})"
+    # .md links within skills/steering/examples — rewrite for Docusaurus
     if os.path.basename(resolved) == "SKILL.md":
+        resolved = os.path.join(os.path.dirname(resolved), "index.md")
+    elif os.path.basename(resolved) == "README.md" and resolved.startswith("examples/"):
         resolved = os.path.join(os.path.dirname(resolved), "index.md")
     new_target = os.path.relpath(resolved, src_dir)
     # Strip .md extension for Docusaurus routing
@@ -153,7 +191,7 @@ def rewrite(m):
     return f"[{text}]({new_target}{anchor})"
 
 for line in sys.stdin:
-    sys.stdout.write(re.sub(r"\[([^\]]*)\]\(([^)]+)\)", rewrite, line))
+    sys.stdout.write(re.sub(r"(!?)\[([^\]]*)\]\(([^)]+)\)", rewrite, line))
 ' "$src" "$GH_BASE"
 }
 
@@ -267,6 +305,13 @@ compute_out_path() {
   elif [[ "$src" == steering/* ]]; then
     local rel="${src#steering/}"
     echo "$STEERING_OUT/$rel"
+  elif [[ "$src" == examples/*/README.md ]]; then
+    local rel="${src#examples/}"
+    rel="${rel%/README.md}"
+    echo "$EXAMPLES_OUT/$rel/index.md"
+  elif [[ "$src" == examples/* ]]; then
+    local rel="${src#examples/}"
+    echo "$EXAMPLES_OUT/$rel"
   fi
 }
 
@@ -374,6 +419,101 @@ cleanup_stale_tree() {
   find "$base_dir" -type d -empty -delete 2>/dev/null || true
 }
 
+# --- Build examples/index.md card grid to stdout --------------------------
+build_examples_index() {
+  cat <<'EOF'
+---
+sidebar_position: 1
+title: Examples
+---
+
+# Examples
+
+> _This page is auto-generated by [`misc/update-pages.sh`](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/update-pages.sh). Do not edit manually._
+
+Examples are self-contained walkthroughs demonstrating APEX skills against real infrastructure. Each example deploys resources, runs an APEX workflow, and shows expected results.
+
+EOF
+  while IFS= read -r -d '' readme; do
+    local rel="${readme#"$EXAMPLES_DIR"/}"
+    local dir_rel="${rel%/README.md}"
+    local name description
+    name="$(parse_frontmatter "$readme" "name")"
+    description="$(parse_frontmatter "$readme" "description")"
+    [[ -n "$name" ]] || continue
+    [[ -n "$description" ]] || description="_(no description in frontmatter)_"
+    echo "## [$name](./$dir_rel/)"
+    echo ""
+    echo "$description"
+    echo ""
+  done < <(find "$EXAMPLES_DIR" -name 'README.md' -print0 | sort -z)
+}
+
+# --- Build examples.json manifest to stdout --------------------------------
+build_examples_manifest() {
+  python3 - "$EXAMPLES_DIR" <<'PY'
+import json, os, re, sys
+
+examples_dir = sys.argv[1]
+
+
+def parse_fm(path):
+    with open(path, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    fm = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$', line)
+        if not m:
+            continue
+        k, v = m.group(1), m.group(2).strip()
+        if (v.startswith('"') and v.endswith('"')) or (
+            v.startswith("'") and v.endswith("'")
+        ):
+            v = v[1:-1]
+        fm[k] = v
+    return fm
+
+
+out = []
+for root, dirs, files in sorted(os.walk(examples_dir)):
+    dirs.sort()
+    if "README.md" not in files:
+        continue
+    readme_path = os.path.join(root, "README.md")
+    fm = parse_fm(readme_path)
+    name = fm.get("name")
+    if not name:
+        continue
+    rel_dir = os.path.relpath(root, examples_dir)
+    out.append({
+        "name": name,
+        "description": fm.get("description", ""),
+        "path": f"/docs/examples/{rel_dir}",
+    })
+
+print(json.dumps(out, indent=2, ensure_ascii=False))
+PY
+}
+
+# --- Copy examples static assets (.html, .png) to website/static/examples/ -
+copy_examples_static() {
+  mapfile -t STATIC_FILES < <(git ls-files -- 'examples/**/*.html' 'examples/**/*.png')
+  for asset in "${STATIC_FILES[@]}"; do
+    local rel="${asset#examples/}"
+    local dest="$EXAMPLES_STATIC/$rel"
+    if [[ "$MODE" == "dry-run" ]]; then
+      echo "COPY $asset → $dest"
+    else
+      mkdir -p "$(dirname "$dest")"
+      cp "$REPO_ROOT/$asset" "$dest"
+    fi
+  done
+}
+
 # =========================================================================
 # Generate
 # =========================================================================
@@ -383,10 +523,11 @@ if [[ "$MODE" == "dry-run" ]]; then
 fi
 
 # Collect all tracked .md under skills/ and steering/
-mapfile -t ALL_MD < <(git ls-files -- 'skills/**/*.md' 'steering/*.md' 'steering/**/*.md')
+mapfile -t ALL_MD < <(git ls-files -- 'skills/**/*.md' 'steering/*.md' 'steering/**/*.md' 'examples/**/*.md')
 
 declare -a EXPECTED_SKILL_FILES=("index.md")
 declare -a EXPECTED_STEERING_FILES=("index.md")
+declare -a EXPECTED_EXAMPLES_FILES=("index.md")
 
 # --- Per-file wrappers ---
 for src in "${ALL_MD[@]}"; do
@@ -401,6 +542,8 @@ for src in "${ALL_MD[@]}"; do
     EXPECTED_SKILL_FILES+=("${out_file#"$SKILLS_OUT"/}")
   elif [[ "$src" == steering/* ]]; then
     EXPECTED_STEERING_FILES+=("${out_file#"$STEERING_OUT"/}")
+  elif [[ "$src" == examples/* ]]; then
+    EXPECTED_EXAMPLES_FILES+=("${out_file#"$EXAMPLES_OUT"/}")
   fi
 
   title="$(derive_title "$REPO_ROOT/$src")"
@@ -441,10 +584,37 @@ else
   mv "$MANIFEST.tmp" "$MANIFEST"
 fi
 
+# --- Examples index (card grid) ---
+if [[ "$MODE" == "dry-run" ]]; then
+  echo "--- $EXAMPLES_OUT/index.md ---"
+  build_examples_index | head -20
+  echo "  [... truncated ...]"
+  echo ""
+else
+  mkdir -p "$EXAMPLES_OUT"
+  build_examples_index > "$EXAMPLES_OUT/index.md.tmp"
+  mv "$EXAMPLES_OUT/index.md.tmp" "$EXAMPLES_OUT/index.md"
+fi
+
+# --- Examples manifest ---
+if [[ "$MODE" == "dry-run" ]]; then
+  echo "--- $EXAMPLES_MANIFEST ---"
+  build_examples_manifest
+  echo ""
+else
+  mkdir -p "$(dirname "$EXAMPLES_MANIFEST")"
+  build_examples_manifest > "$EXAMPLES_MANIFEST.tmp"
+  mv "$EXAMPLES_MANIFEST.tmp" "$EXAMPLES_MANIFEST"
+fi
+
+# --- Examples static assets (.html, .png) ---
+copy_examples_static
+
 # --- Stale-wrapper cleanup (only in real-write mode) ---
 if [[ "$MODE" != "dry-run" ]]; then
   cleanup_stale_tree "$SKILLS_OUT" "${EXPECTED_SKILL_FILES[@]}"
   cleanup_stale_tree "$STEERING_OUT" "${EXPECTED_STEERING_FILES[@]}"
+  cleanup_stale_tree "$EXAMPLES_OUT" "${EXPECTED_EXAMPLES_FILES[@]}"
 fi
 
 # --- Dry-run exits here ---
@@ -478,14 +648,18 @@ if [[ "$MODE" == "check" ]]; then
     echo "Fix: run ./misc/update-pages.sh locally, commit the result."
     exit 1
   fi
-  echo "✓ Docusaurus wrappers + manifest are in sync with skills/ and steering/"
+  echo "✓ Docusaurus wrappers + manifests are in sync with skills/, steering/, and examples/"
   exit 0
 fi
 
 # --- Run mode summary ---
 skill_count="$(find "$SKILLS_OUT" -name '*.md' | wc -l)"
 steering_count="$(find "$STEERING_OUT" -name '*.md' | wc -l)"
-echo "✅ Generated Docusaurus wrappers and manifest:"
-echo "   Skills:   $skill_count files in misc/website/docs/skills/"
-echo "   Steering: $steering_count files in misc/website/docs/steering/"
-echo "   Manifest: misc/website/static/manifests/skills.json"
+examples_count="$(find "$EXAMPLES_OUT" -name '*.md' | wc -l)"
+examples_static_count="$(find "$EXAMPLES_STATIC" -type f 2>/dev/null | wc -l)"
+echo "✅ Generated Docusaurus wrappers and manifests:"
+echo "   Skills:    $skill_count files in misc/website/docs/skills/"
+echo "   Steering:  $steering_count files in misc/website/docs/steering/"
+echo "   Examples:  $examples_count files in misc/website/docs/examples/"
+echo "   Static:    $examples_static_count files in misc/website/static/examples/"
+echo "   Manifests: misc/website/static/manifests/{skills,examples}.json"

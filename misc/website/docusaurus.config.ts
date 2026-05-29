@@ -69,6 +69,11 @@ const config: Config = {
           label: 'Steering',
         },
         {
+          to: '/docs/examples',
+          position: 'left',
+          label: 'Examples',
+        },
+        {
           to: '/docs/contributing',
           position: 'left',
           label: 'Contributing',

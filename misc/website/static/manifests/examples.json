@@ -1,0 +1,7 @@
+[
+  {
+    "name": "EKS Upgrade Readiness Check",
+    "description": "Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status.",
+    "path": "/docs/examples/eks-upgrades/in-place-karpenter-check"
+  }
+]
