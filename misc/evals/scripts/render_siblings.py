@@ -65,7 +65,7 @@ def main() -> int:
     parser.add_argument(
         "--siblings",
         required=True,
-        help='Comma-separated slugs, e.g. "eks-best-practices,eks-upgrader".',
+        help='Comma-separated slugs, e.g. "eks-best-practices,eks-recon".',
     )
     args = parser.parse_args()
 

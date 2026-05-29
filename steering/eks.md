@@ -1,6 +1,6 @@
 ---
 name: eks
-description: EKS platform engineering hub. Routes to design and upgrade-readiness workflows. Use as the entry point for any EKS-related request.
+description: EKS platform engineering hub. Routes to design, upgrade-readiness, and operational-review workflows. Use as the entry point for any EKS-related request.
 inclusion: manual
 ---
 
@@ -23,6 +23,8 @@ Read the user's request and match it to the appropriate workflow:
 | "Review this architecture" / "What do you think?" | → [Design Workflow](workflows/design.md) (review mode) | Day 0 |
 | "Compare Karpenter vs MNG" / "Compare X vs Y" | → [Design Workflow](workflows/design.md) (comparison mode) | Day 0 |
 | "Is my cluster ready to upgrade?" / "Run upgrade readiness check" / "Score my upgrade readiness" | → [Upgrade-Readiness Assessment](workflows/eks-upgrade-check.md) | Day 2 |
+| "Run an EKS operational review" / "Audit my cluster" / "EKS health check" / "Review my EKS posture" | → [Operational Review](workflows/eks-operation-review.md) | Day 2 |
+| "Check my EKS networking" / "Review RBAC on my cluster" / "Audit observability on my cluster" | → [Operational Review](workflows/eks-operation-review.md) (section-scoped) | Day 2 |
 
 **If the request doesn't match a workflow**, use the `eks-best-practices` skill directly to answer the question. Ask clarifying questions if needed.
 
@@ -63,6 +65,7 @@ When routing between workflows, carry forward any known context. This is critica
 |----------|------|--------|-------------|
 | **Design** | [workflows/design.md](workflows/design.md) | ✅ Complete | Architecture design questionnaire, reviews, comparisons |
 | **Upgrade-Readiness Assessment** | [workflows/eks-upgrade-check.md](workflows/eks-upgrade-check.md) | ✅ Complete | Pre-upgrade readiness scoring and remediation report (vendored skill) |
+| **Operational Review** | [workflows/eks-operation-review.md](workflows/eks-operation-review.md) | ✅ Complete | 10-section operational excellence audit with GREEN/AMBER/RED ratings (vendored skill) |
 
 ---
 

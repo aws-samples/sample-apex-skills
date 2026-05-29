@@ -11,6 +11,8 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 - **`eks-mcp-server`** — owns setup/configuration of the EKS MCP server itself. Negative at item 12 asks how to install the MCP server locally, which is a meta-tooling question, not a cluster recon request.
 - **`eks-upgrade-check`** — owns structured upgrade-readiness assessments (score, blockers, remediation report). Negative at item 14 asks for a readiness score and blocker list, which is an assessment request, not a discovery pass. The discriminator: if the user wants a scored go/no-go verdict, route to `eks-upgrade-check`; if they want to understand what's deployed first, it's recon.
 - **Generic / non-EKS** — pure Kubernetes-internals questions with no EKS hook. Negative at item 13 is a sanity check that recon does not fire on controller-level Kubernetes questions.
+- **`eks-upgrade-check`** — owns upgrade readiness scoring ("score my upgrade readiness" wants a scored report, not a discovery inventory). Negatives at items 14, 16 enforce this.
+- **`eks-operation-review`** — owns operational maturity scoring ("rate my ops posture GREEN/AMBER/RED" is a structured review, not reconnaissance). Negative at item 15 enforces this.
 <!-- SIBLING_MAP_END -->
 
 ## Live-cluster caveat

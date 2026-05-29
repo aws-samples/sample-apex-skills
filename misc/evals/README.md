@@ -15,9 +15,9 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 | Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |
 |---|---|---|---|---|---|---|---|---|
-| eks-best-practices | 14/14 (100%, CI 78%–100%) | 8/8 | 6/6 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
-| eks-mcp-server | 11/14 (79%, CI 52%–92%) | 8/8 | 3/6 | 1 | +10pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
-| eks-recon | 13/13 (100%, CI 77%–100%) | 8/8 | 5/5 | 1 | +12pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
+| eks-best-practices | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
+| eks-mcp-server | 11/16 (69%, CI 44%–86%) | 6/8 | 5/8 | 1 | +0pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
+| eks-recon | 14/16 (88%, CI 64%–97%) | 8/8 | 6/8 | 1 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
 | steering-workflow-creator | 15/16 (94%, CI 72%–99%) | 8/8 | 7/8 | 0 | +0pp | 100% ± 0% / 10% ± 11% / +90pp | — | ✓ |
 | update-docs | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 0 | — | 0% ± 0% / 0% ± 0% / +0pp | — | ✓ |
 

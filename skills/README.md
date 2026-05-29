@@ -62,6 +62,34 @@ Setup and configure the EKS MCP Server for live cluster operations. Use this ski
 
 ---
 
+### [eks-operation-review](./eks-operation-review/)
+
+Run a structured EKS operational excellence assessment against a live cluster. Only activate when the user explicitly requests an EKS operational review, EKS health check, EKS audit, or EKS assessment. Do NOT activate for general Kubernetes questions, AWS troubleshooting, EKS setup/creation, or ad-hoc kubectl commands.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [access-identity.md](./eks-operation-review/references/access-identity.md) | Access identity |
+| [addon-management.md](./eks-operation-review/references/addon-management.md) | Addon management |
+| [autoscaling.md](./eks-operation-review/references/autoscaling.md) | Autoscaling |
+| [cluster-lifecycle.md](./eks-operation-review/references/cluster-lifecycle.md) | Cluster lifecycle |
+| [deployment-practices.md](./eks-operation-review/references/deployment-practices.md) | Deployment practices |
+| [infrastructure-as-code.md](./eks-operation-review/references/infrastructure-as-code.md) | Infrastructure as code |
+| [networking.md](./eks-operation-review/references/networking.md) | Networking |
+| [observability.md](./eks-operation-review/references/observability.md) | Observability |
+| [operational-processes.md](./eks-operation-review/references/operational-processes.md) | Operational processes |
+| [report-generation.md](./eks-operation-review/references/report-generation.md) | Report generation |
+| [workload-configuration.md](./eks-operation-review/references/workload-configuration.md) | Workload configuration |
+
+**Tools:**
+
+| File | Description |
+|------|-------------|
+| [report_to_html.py](./eks-operation-review/tools/report_to_html.py) | Report_to_html |
+
+---
+
 ### [eks-recon](./eks-recon/)
 
 EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks "what version am I running", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say "reconnaissance" or "discovery". When in doubt about cluster state, run recon first.

@@ -14,6 +14,6 @@
   {"query": "How do I install the EKS MCP server and wire it up to Claude Code so I can query live clusters?", "should_trigger": false},
   {"query": "What's the difference between a Kubernetes Deployment and a StatefulSet, and when would I use each?", "should_trigger": false},
   {"query": "We're evaluating AKS vs GKE for a new workload. Which managed Kubernetes service has better node autoscaling out of the box?", "should_trigger": false},
-
-  {"query": "Score my EKS cluster's upgrade readiness — I need a 0-100 assessment with hard-blocker detection before we commit to the 1.31→1.32 jump.", "should_trigger": false}
+  {"query": "Is my EKS cluster ready to move from 1.29 to 1.30? Run the readiness checks and give me a score.", "should_trigger": false},
+  {"query": "Audit my EKS cluster's operational posture — score each area GREEN/AMBER/RED and produce a maturity report.", "should_trigger": false}
 ]

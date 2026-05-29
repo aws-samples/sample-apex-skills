@@ -1,0 +1,19 @@
+[
+  {"query": "Run an EKS operational review on `payment-prod` — I want a full audit across all 10 sections with prioritized actions.", "should_trigger": true},
+  {"query": "Audit my cluster's operational posture and produce a maturity score.", "should_trigger": true},
+  {"query": "EKS health check on staging-cluster, please. Walk through the standard sections and rate everything GREEN/AMBER/RED.", "should_trigger": true},
+  {"query": "Review my EKS posture — operational excellence, the whole thing — and write me a report I can share with leadership.", "should_trigger": true},
+  {"query": "Check my EKS networking — subnet IPs, CoreDNS, NetworkPolicies. Score it the way an operational review would.", "should_trigger": true},
+  {"query": "Review RBAC and IAM on my cluster — IRSA, Pod Identity, RBAC bindings, API server endpoint exposure.", "should_trigger": true},
+  {"query": "Audit observability on my cluster — control plane logs, metrics stack, alerting coverage.", "should_trigger": true},
+  {"query": "Do an operational assessment on `data-platform` and tell me what's RED.", "should_trigger": true},
+
+  {"query": "Is my cluster ready to upgrade from 1.31 to 1.32? Run a readiness assessment and give me a score.", "should_trigger": false},
+  {"query": "Score my upgrade readiness for EKS — I need to know what's blocking us before we touch the control plane.", "should_trigger": false},
+  {"query": "What version of EKS am I running and which add-ons do we have installed? Just inherited the cluster and need a discovery pass.", "should_trigger": false},
+  {"query": "Do a full reconnaissance on our EKS environment — compute strategy, IaC tooling, CI/CD, observability stack — so we know what we're working with.", "should_trigger": false},
+  {"query": "Should we use Karpenter or Managed Node Groups for our new EKS cluster? Need an architectural recommendation.", "should_trigger": false},
+  {"query": "How do I install and configure the EKS MCP server so my AI assistant can actually query the cluster?", "should_trigger": false},
+  {"query": "Walk me through actually upgrading my EKS cluster from 1.30 to 1.31 — give me the full step-by-step procedure.", "should_trigger": false},
+  {"query": "Audit my AWS account's overall security posture — IAM policies, S3 bucket settings, CloudTrail coverage.", "should_trigger": false}
+]

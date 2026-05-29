@@ -1,0 +1,33 @@
+{
+  "skill_name": "eks-operation-review",
+  "evals": [
+    {
+      "id": 1,
+      "name": "full-review-test-old-cluster",
+      "prompt": "Run a full EKS operational review against `test-old-cluster` in us-east-1. Activate the eks-operation-review skill, run the pre-flight (list clusters, describe the chosen cluster, verify MCP connectivity, confirm with the user), then walk through all 10 sections in order (cluster-lifecycle, infrastructure-as-code, access-identity, observability, workload-configuration, networking, autoscaling, deployment-practices, operational-processes, addon-management) by reading each reference file and executing its checks. Rate each item GREEN/AMBER/RED/UNKNOWN per the rubric. End by reading `references/report-generation.md` and producing a markdown report at `reports/EKS-Operation-Review-test-old-cluster-<YYYY-MM-DD>-<HHMM>.md` with executive summary, maturity score, all 10 finding sections, prioritized actions (Critical/Important/Quick Wins), items to investigate manually, and AWS reference links. Do NOT fabricate findings — only rate based on what was actually observed; if a check returns no data, mark UNKNOWN.",
+      "expected_output": "A markdown report with executive summary, maturity score, 10 sections of findings with consistent ratings, prioritized actions ordered by severity, items to investigate manually, and AWS reference links sourced from the pre-verified reference map.",
+      "expectations": [
+        "The report contains all required top-level sections in this order: Executive Summary, Maturity Score, Findings (with all 10 numbered sections present), Prioritized Actions (Critical, Important, Quick Wins), Items to Investigate Manually, AWS Reference Links. TODO: human review",
+        "Every finding rated RED appears in the Critical actions table, and every finding rated AMBER appears in either Important or Quick Wins — no RED/AMBER finding is missing from Prioritized Actions. TODO: human review",
+        "Ratings are consistent across the report: a finding rated RED in the Findings table is also called out as RED in the Executive Summary and named with its finding ID (e.g., '4.1 — Control Plane Logging RED') in Prioritized Actions. TODO: human review",
+        "Critical actions are ordered by blast radius (security > availability > cost) — security-flagged RED findings appear before availability- or cost-flagged ones. TODO: human review",
+        "Every RED finding has a specific, actionable recommendation (not boilerplate like 'enable logging'); UNKNOWN items are explained in 'Items to Investigate Manually' with a question the user can answer. TODO: human review",
+        "All AWS reference URLs come from the pre-verified reference map in `references/report-generation.md` Step 7 — no fabricated deep-link URLs. TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "section-scoped-networking-review",
+      "prompt": "Review just the EKS networking section of `test-old-cluster` in us-east-1. Activate the eks-operation-review skill, run pre-flight (list clusters, describe, verify MCP), then load only `references/networking.md` and execute its checks (IP capacity in cluster subnets, CoreDNS pod health, NetworkPolicy resource presence). Rate each networking item GREEN/AMBER/RED/UNKNOWN. Produce a focused report covering only Section 06 (Networking) with the same rating consistency rules as a full review.",
+      "expected_output": "A focused report containing only the networking section findings, with consistent ratings, prioritized actions for any networking RED/AMBER findings, and AWS reference links scoped to networking topics.",
+      "expectations": [
+        "The report focuses on Section 06 (Networking) only — does NOT include findings from other sections like Cluster Lifecycle, Access & Identity, etc. TODO: human review",
+        "The skill loaded `references/networking.md` as the source for checks (visible from the assessment narrative or the report's reference links section). TODO: human review",
+        "Networking findings are rated only on observed data: subnet IP capacity is checked against actual subnets, CoreDNS health against actual pod state, NetworkPolicy presence against actual cluster resources. TODO: human review",
+        "If any networking check fails (e.g., MCP unable to list resources, missing permissions), the corresponding item is marked UNKNOWN with a specific reason — not silently skipped or guessed. TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}

@@ -6,13 +6,15 @@ These inputs exercise the `eks-best-practices` skill's declared scope: EKS archi
 
 ## Neighbour-skill disambiguation
 
-The 6 negative prompts in `triggering.json` (entries 9–14, 0-indexed 8–13) are deliberate near-misses targeting sibling skills:
+The 8 negative prompts in `triggering.json` (entries 9–16, 0-indexed 8–15) are deliberate near-misses targeting sibling skills:
 
 <!-- SIBLING_MAP_START -->
 - **`eks-recon`** (discovery / "what's currently running" / pre-upgrade inventory) — negatives 9, 10, 11 ("what version am I running", "inventory what's in my EKS cluster", "snapshot of everything running").
 - **`eks-mcp-server`** (installing / wiring up the MCP server itself) — negative 12 ("install the EKS MCP server and wire it up to Claude Code").
 - **`eks-upgrade-check`** — owns structured upgrade-readiness assessments (readiness score, hard-blocker override, remediation report). Negative at item 15 asks for a scored assessment with blocker detection, which is an upgrade-readiness question, not an architectural best-practice question. The discriminator: if the user wants a go/no-go verdict for a specific version hop, route to `eks-upgrade-check`; if they want design guidance about upgrade strategy (in-place vs blue-green), it's best-practices.
 - **Generic / non-EKS** (no architectural judgement about EKS) — negatives 13, 14 (pure Kubernetes concepts: Deployment vs StatefulSet; non-EKS managed-K8s: AKS vs GKE).
+- **`eks-upgrade-check`** (upgrade readiness scoring) — negative 15 ("is my cluster ready for 1.32?" asks for a readiness *score*, not design advice).
+- **`eks-operation-review`** (operational excellence audit) — negative 16 ("audit my cluster operations" is a live-cluster review, not an architecture decision).
 <!-- SIBLING_MAP_END -->
 
 The key discriminators for `eks-best-practices`: the prompt asks for a *decision*, *recommendation*, *tradeoff*, or *sanity check* about an EKS design surface — not a discovery scan, not an executable upgrade runbook, and not MCP tooling setup.

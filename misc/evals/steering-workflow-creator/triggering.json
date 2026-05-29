@@ -15,5 +15,6 @@
   { "query": "What's the decision framework for picking between Karpenter and managed node groups?", "should_trigger": false },
   { "query": "Set up the EKS MCP Server — my cluster MCP tools aren't showing up.", "should_trigger": false },
   { "query": "Explain Kubernetes PDB semantics — why do pods survive eviction in some cases and not others?", "should_trigger": false },
+  {"query": "Run the EKS operational review workflow against my production cluster and show me the scored results.", "should_trigger": false},
   { "query": "The docs look stale after I renamed a skill — can you audit and fix all the markdown references?", "should_trigger": false }
 ]
