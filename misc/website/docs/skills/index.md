@@ -15,6 +15,10 @@ Use this skill whenever someone is making an Amazon EKS design, architecture, or
 
 Setup and configure the EKS MCP Server for live cluster operations. Use this skill when the user wants to interact with real EKS clusters (list clusters, read K8s resources, troubleshoot pods, deploy workloads, check upgrade insights) but MCP tools are not available or not working. Also activate if user mentions "eks mcp", "mcp server", or asks how to connect their AI assistant to EKS.
 
+## [eks-operation-review](./eks-operation-review/)
+
+Run a structured EKS operational excellence assessment against a live cluster. Only activate when the user explicitly requests an EKS operational review, EKS health check, EKS audit, or EKS assessment. Do NOT activate for general Kubernetes questions, AWS troubleshooting, EKS setup/creation, or ad-hoc kubectl commands.
+
 ## [eks-recon](./eks-recon/)
 
 EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks "what version am I running", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say "reconnaissance" or "discovery". When in doubt about cluster state, run recon first.

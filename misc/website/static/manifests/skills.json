@@ -10,6 +10,11 @@
     "path": "/docs/skills/eks-mcp-server"
   },
   {
+    "name": "eks-operation-review",
+    "description": "Run a structured EKS operational excellence assessment against a live cluster. Only activate when the user explicitly requests an EKS operational review, EKS health check, EKS audit, or EKS assessment. Do NOT activate for general Kubernetes questions, AWS troubleshooting, EKS setup/creation, or ad-hoc kubectl commands.",
+    "path": "/docs/skills/eks-operation-review"
+  },
+  {
     "name": "eks-recon",
     "description": "EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks \"what version am I running\", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say \"reconnaissance\" or \"discovery\". When in doubt about cluster state, run recon first.",
     "path": "/docs/skills/eks-recon"
