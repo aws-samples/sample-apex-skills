@@ -330,7 +330,7 @@ derive_title() {
 build_skills_index() {
   cat <<'EOF'
 ---
-sidebar_position: 1
+sidebar_position: 3
 title: Skills
 ---
 
@@ -423,7 +423,7 @@ cleanup_stale_tree() {
 build_examples_index() {
   cat <<'EOF'
 ---
-sidebar_position: 1
+sidebar_position: 5
 title: Examples
 ---
 

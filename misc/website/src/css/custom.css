@@ -50,7 +50,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 60vh;
+  min-height: 100vh;
   padding: 4rem 2rem;
   text-align: center;
   background:
@@ -209,14 +209,58 @@
   animation: float 6s ease-in-out infinite;
 }
 
+/* Landing page scroll-snap container */
+.landing-main {
+  scroll-snap-type: y proximity;
+  overflow-y: auto;
+  height: calc(100vh - 60px);
+}
+
+.landing-main > section,
+.landing-main > header {
+  scroll-snap-align: start;
+}
+
 /* Value props */
 .apex-values {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 5rem 2rem;
+  min-height: 100vh;
+}
+
+.apex-values__title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--apex-text);
+}
+
+.apex-values__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 2rem;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 3.5rem 2rem;
+  width: 100%;
+}
+
+.apex-values__item {
+  background: var(--apex-surface);
+  border: 1px solid var(--apex-border);
+  border-radius: 16px;
+  padding: 2.5rem;
+  backdrop-filter: blur(8px);
+  transition: var(--apex-transition);
+}
+
+.apex-values__item:hover {
+  border-color: rgba(255, 153, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(255, 153, 0, 0.08);
+  transform: translateY(-4px);
 }
 
 .apex-values__item h3 {
@@ -235,25 +279,65 @@
 
 /* How it works steps */
 .apex-steps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  min-height: 100vh;
+  background: var(--apex-surface);
+}
+
+.apex-steps__title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 3rem;
+  color: var(--apex-text);
+}
+
+.apex-steps__timeline {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 2rem;
+  width: 100%;
   max-width: 1000px;
-  margin: 0 auto;
-  padding: 3.5rem 2rem;
+  position: relative;
 }
 
 .apex-steps__item {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+/* Connecting line between steps */
+.apex-steps__item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 24px;
+  left: calc(50% + 36px);
+  width: calc(100% - 72px);
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 153, 0, 0.6), rgba(255, 153, 0, 0.2));
+  pointer-events: none;
 }
 
 .apex-steps__number {
-  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff9900, #ffb84d);
+  color: #0a0e17;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
   font-weight: 800;
-  color: #ff9900;
-  line-height: 1;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .apex-steps__item h3 {
@@ -276,6 +360,12 @@
   position: relative;
   text-align: center;
   padding: 3rem 2rem 5rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .apex-cta-section::before {
@@ -290,11 +380,25 @@
   background: linear-gradient(90deg, transparent, rgba(255, 153, 0, 0.5), transparent);
 }
 
+.apex-cta-section::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(ellipse, rgba(255, 153, 0, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
 .apex-cta-section__headline {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 2.5rem;
+  font-weight: 800;
   color: var(--apex-text);
   margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
 }
 
 .apex-cta-section__actions {
@@ -302,6 +406,8 @@
   gap: 1rem;
   justify-content: center;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
 }
 
 .apex-cta-section__link {
@@ -576,6 +682,53 @@
 [data-theme='dark'] .footer {
   background: #060910;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Landing page mobile responsive */
+@media (max-width: 768px) {
+  .landing-main {
+    scroll-snap-type: none;
+    height: auto;
+  }
+
+  .landing-main > section,
+  .landing-main > header {
+    min-height: auto;
+    scroll-snap-align: none;
+    padding: 4rem 1.5rem;
+  }
+
+  .apex-hero {
+    min-height: auto;
+    padding: 6rem 1.5rem 4rem;
+  }
+
+  .apex-values,
+  .apex-steps {
+    min-height: auto;
+  }
+
+  .apex-values__title,
+  .apex-steps__title {
+    font-size: 2rem;
+  }
+
+  .apex-cta-section {
+    min-height: auto;
+  }
+
+  .apex-cta-section__headline {
+    font-size: 1.8rem;
+  }
+
+  .apex-steps__item:not(:last-child)::after {
+    display: none;
+  }
+
+  .apex-steps__timeline {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
 }
 
 /* Interactive element transitions */
