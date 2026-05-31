@@ -90,6 +90,28 @@ Run a structured EKS operational excellence assessment against a live cluster. O
 
 ---
 
+### [eks-platform-engineering](./eks-platform-engineering/)
+
+Use whenever someone is designing or building an Internal Developer Platform (IDP) or doing platform engineering on Amazon EKS — phrased as "build a developer platform", "self-service for developers", "golden paths", "IDP", or "set up Backstage / ArgoCD / Kargo". Covers the opinionated platform stack — developer portal (Backstage), GitOps delivery (ArgoCD, Argo Workflows), progressive delivery (Argo Rollouts canary with quality gates) and multi-stage promotion (Kargo), infrastructure abstraction (ACK, kro), application modeling (KubeVela/OAM), self-service provisioning, hub-and-spoke topology with the GitOps Bridge, identity/SSO (Keycloak, Pod Identity), measuring platform success (DORA, Apache DevLake), GenAI with Amazon Q Developer, and golden paths for AI/ML and data engineering. Trigger even if "platform engineering" is never said. Skip for single-cluster EKS architecture or cost/ops tuning with no platform angle (use eks-best-practices); for standalone Terraform use terraform-skill.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [aiml-data-platform.md](./eks-platform-engineering/references/aiml-data-platform.md) | Aiml data platform |
+| [application-model-oam.md](./eks-platform-engineering/references/application-model-oam.md) | Application model oam |
+| [developer-portal-backstage.md](./eks-platform-engineering/references/developer-portal-backstage.md) | Developer portal backstage |
+| [genai-platform-engineering.md](./eks-platform-engineering/references/genai-platform-engineering.md) | Genai platform engineering |
+| [gitops-delivery.md](./eks-platform-engineering/references/gitops-delivery.md) | Gitops delivery |
+| [golden-paths.md](./eks-platform-engineering/references/golden-paths.md) | Golden paths |
+| [identity-and-tenancy.md](./eks-platform-engineering/references/identity-and-tenancy.md) | Identity and tenancy |
+| [idp-architecture.md](./eks-platform-engineering/references/idp-architecture.md) | Idp architecture |
+| [infrastructure-abstraction.md](./eks-platform-engineering/references/infrastructure-abstraction.md) | Infrastructure abstraction |
+| [measuring-success.md](./eks-platform-engineering/references/measuring-success.md) | Measuring success |
+| [progressive-delivery.md](./eks-platform-engineering/references/progressive-delivery.md) | Progressive delivery |
+
+---
+
 ### [eks-recon](./eks-recon/)
 
 EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks "what version am I running", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say "reconnaissance" or "discovery". When in doubt about cluster state, run recon first.

@@ -1,0 +1,31 @@
+{
+  "skill_name": "eks-platform-engineering",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We're a platform team standing up an Internal Developer Platform on Amazon EKS so our app teams can self-serve. Lay out the reference architecture and the opinionated tool stack — what runs where, how clusters are organized, and how a developer goes from idea to running service. We don't want to manage nodes and we want GitOps end to end.",
+      "expected_output": "An opinionated IDP reference architecture: hub-and-spoke EKS on Auto Mode (hub = control plane, spokes = dev/prod workloads), the named tool stack (Backstage portal, Keycloak SSO, ArgoCD CD, Argo Workflows CI, Argo Rollouts, Kargo, ACK, kro, KubeVela/OAM, External Secrets, Pod Identity, DevLake/Grafana), and the Backstage to Git to ArgoCD to controllers self-service flow, with the GitOps Bridge connecting infra metadata to clusters.",
+      "expectations": [
+        "Recommends a hub-and-spoke topology with EKS Auto Mode (hub for the platform control plane, spokes for workloads). TODO: human review",
+        "Names Backstage as the developer portal/self-service front door and ArgoCD as the GitOps CD engine. TODO: human review",
+        "Describes the end-to-end self-service flow: Backstage template to Git to ArgoCD sync to controller reconciliation (KubeVela/ACK). TODO: human review",
+        "Identifies that EKS Auto Mode removes node management, matching the 'we don't want to manage nodes' requirement. TODO: human review",
+        "Covers identity (Keycloak SSO) and credential-free workload IAM (EKS Pod Identity / IRSA). TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I want a golden path for app teams on our EKS platform: a developer should only provide a Dockerfile and a simple app definition, then get a CI/CD pipeline and a safe rollout to dev and prod. Walk me through how to design this — the developer contract, how the pipeline is provisioned, how the app is described without raw Kubernetes YAML, and how we promote to prod safely.",
+      "expected_output": "A golden-path design centered on a narrow developer contract (Dockerfile + an OAM Application manifest), a Backstage template that emits a kro CICDPipeline (Argo Workflows CI + ArgoCD CD), an OAM/KubeVela app abstraction (components + traits, no raw Deployments), Argo Rollouts canary with functional/performance/metrics gates and auto-rollback in dev, and Kargo same-artifact promotion to prod with a manual approval gate.",
+      "expectations": [
+        "Defines a narrow developer contract: the developer provides a Dockerfile and an OAM Application manifest, the platform handles the rest. TODO: human review",
+        "Uses a Backstage template that provisions the pipeline via a kro CICDPipeline (Argo Workflows for CI, ArgoCD for CD). TODO: human review",
+        "Explains the app is described with OAM/KubeVela components and traits rather than raw Kubernetes manifests. TODO: human review",
+        "Specifies Argo Rollouts canary with quality gates (functional, performance, and/or metrics) that auto-rollback on failure. TODO: human review",
+        "Uses Kargo for multi-stage promotion of the same validated artifact, with auto-promotion to dev and manual approval for prod. TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}

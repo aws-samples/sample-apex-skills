@@ -14,6 +14,7 @@ The 8 negative prompts in `triggering.json` (entries 9–16, 0-indexed 8–15) a
 - **Generic / non-EKS** (no architectural judgement about EKS) — negatives 13, 14 (pure Kubernetes concepts: Deployment vs StatefulSet; non-EKS managed-K8s: AKS vs GKE).
 - **`eks-upgrade-check`** (upgrade readiness scoring) — negative 15 ("is my cluster ready for 1.32?" asks for a readiness *score*, not design advice).
 - **`eks-operation-review`** (operational excellence audit) — negative 16 ("audit my cluster operations" is a live-cluster review, not an architecture decision).
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service platform on EKS) — negatives 17, 18 ("We want app teams to self-serve deploym…").
 <!-- SIBLING_MAP_END -->
 
 The key discriminators for `eks-best-practices`: the prompt asks for a *decision*, *recommendation*, *tradeoff*, or *sanity check* about an EKS design surface — not a discovery scan, not an executable upgrade runbook, and not MCP tooling setup.

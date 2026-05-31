@@ -14,6 +14,7 @@ The most common confusion this skill needs to disambiguate is "assess my readine
 - **`eks-best-practices`** (architectural choices) — negative 16 ("Karpenter vs MNG for a new cluster"). Architectural decisions are best-practices; readiness assessments are upgrade-check.
 - **`eks-mcp-server`** (tooling setup) — negative 17 ("install and configure the EKS MCP server"). Not an upgrade question.
 - **Generic / non-EKS** — negative 18 ("self-managed vanilla Kubernetes on bare metal"). EKS-specific assessment is the skill's remit.
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 19 ("Set up golden paths so app teams can sh…").
 <!-- SIBLING_MAP_END -->
 
 The `triggering.json` positives mix two phrasing styles: assessment-language requests ("readiness", "score", "is it safe", "blockers") and natural-question forms ("can I upgrade my cluster?", "are we good to go to 1.33?") that mirror the wording in `SKILL.md`'s description. Both styles must trigger the skill. The negatives are worded around procedure, discovery, design, or non-EKS targets — all common phrasings that could ambiguously pull the skill if its description over-reaches.

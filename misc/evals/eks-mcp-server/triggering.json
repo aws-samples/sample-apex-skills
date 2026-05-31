@@ -15,5 +15,6 @@
   {"query": "We're building a new multi-tenant EKS platform. Should we use Karpenter, managed node groups, or Auto Mode for the tenant workloads?", "should_trigger": false},
   {"query": "How do I write my own MCP server in Python using the official SDK? I want to expose an internal API as tools.", "should_trigger": false},
   {"query": "Assess my cluster's upgrade readiness and produce a scored report with blockers — can we move to 1.32?", "should_trigger": false},
-  {"query": "Give me an operational review of my EKS cluster across all 10 standard areas with a maturity score.", "should_trigger": false}
+  {"query": "Give me an operational review of my EKS cluster across all 10 standard areas with a maturity score.", "should_trigger": false},
+  {"query": "Wire up a self-service portal so developers can provision AWS resources via ACK without raising infra tickets.", "should_trigger": false}
 ]

@@ -17,5 +17,6 @@
   {"query": "Explain how Kubernetes StatefulSet rolling updates work at the controller level.", "should_trigger": false},
   {"query": "Score my EKS cluster's upgrade readiness — are there deprecated APIs or breaking changes that would block a version bump?", "should_trigger": false},
   {"query": "Run an operational excellence audit on my cluster and rate each area GREEN, AMBER, or RED.", "should_trigger": false},
-  {"query": "Check whether my cluster can safely upgrade to 1.33 — I want a readiness score, not just an inventory.", "should_trigger": false}
+  {"query": "Check whether my cluster can safely upgrade to 1.33 — I want a readiness score, not just an inventory.", "should_trigger": false},
+  {"query": "Catalog our services in a Backstage developer portal so app teams can see what's deployed and self-serve new ones.", "should_trigger": false}
 ]

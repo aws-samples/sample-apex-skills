@@ -15,5 +15,7 @@
   {"query": "What's the difference between a Kubernetes Deployment and a StatefulSet, and when would I use each?", "should_trigger": false},
   {"query": "We're evaluating AKS vs GKE for a new workload. Which managed Kubernetes service has better node autoscaling out of the box?", "should_trigger": false},
   {"query": "Is my EKS cluster ready to move from 1.29 to 1.30? Run the readiness checks and give me a score.", "should_trigger": false},
-  {"query": "Audit my EKS cluster's operational posture — score each area GREEN/AMBER/RED and produce a maturity report.", "should_trigger": false}
+  {"query": "Audit my EKS cluster's operational posture — score each area GREEN/AMBER/RED and produce a maturity report.", "should_trigger": false},
+  {"query": "We want app teams to self-serve deployments to EKS through a developer portal with golden paths — how do we stand up that platform?", "should_trigger": false},
+  {"query": "Set up Backstage, ArgoCD, and Kargo so our developers get a paved self-service CI/CD path on our EKS platform.", "should_trigger": false}
 ]

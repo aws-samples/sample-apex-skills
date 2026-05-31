@@ -15,5 +15,6 @@
   {"query": "Should we use Karpenter or Managed Node Groups for our new EKS cluster? Need an architectural recommendation.", "should_trigger": false},
   {"query": "How do I install and configure the EKS MCP server so my AI assistant can actually query the cluster?", "should_trigger": false},
   {"query": "Walk me through actually upgrading my EKS cluster from 1.30 to 1.31 — give me the full step-by-step procedure.", "should_trigger": false},
-  {"query": "Audit my AWS account's overall security posture — IAM policies, S3 bucket settings, CloudTrail coverage.", "should_trigger": false}
+  {"query": "Audit my AWS account's overall security posture — IAM policies, S3 bucket settings, CloudTrail coverage.", "should_trigger": false},
+  {"query": "How do we measure whether our internal developer platform is healthy, and what DORA metrics should the platform team track?", "should_trigger": false}
 ]

@@ -12,6 +12,7 @@ These artifacts exercise the `eks-mcp-server` skill, which is **meta**: it is ab
 - **Generic MCP / unrelated:** "How do I build my own MCP server in Python" is about MCP-the-protocol, not the EKS MCP Server — it should not trigger this skill. Negative 6 enforces this.
 - **`eks-upgrade-check`** — "can I upgrade to 1.32?" runs readiness checks, not MCP server setup. Negative 7 enforces this.
 - **`eks-operation-review`** — "run an operational review" executes an assessment, not MCP configuration. Negative 8 enforces this.
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 9 ("Wire up a self-service portal so develo…").
 <!-- SIBLING_MAP_END -->
 
 ## Live-MCP caveat
