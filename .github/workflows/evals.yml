@@ -24,6 +24,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 concurrency:
   group: evals-${{ github.ref }}
   cancel-in-progress: true
