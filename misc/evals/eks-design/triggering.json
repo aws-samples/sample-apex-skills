@@ -17,5 +17,7 @@
   {"query": "What are best practices for configuring Karpenter consolidation policies to reduce Spot interruption impact?", "should_trigger": false},
   {"query": "Can you inventory the node groups, namespaces, and IRSA roles in my production EKS cluster before I start the upgrade?", "should_trigger": false},
   {"query": "Write the ArgoCD ApplicationSet and Kustomize overlays to deploy our platform add-ons to the new EKS cluster.", "should_trigger": false},
-  {"query": "Is it better to run CoreDNS on Fargate or on dedicated managed nodes? Just a quick recommendation, no doc needed.", "should_trigger": false}
+  {"query": "Is it better to run CoreDNS on Fargate or on dedicated managed nodes? Just a quick recommendation, no doc needed.", "should_trigger": false},
+  {"query": "Run a structured operational review on my EKS cluster and produce a GREEN/AMBER/RED rated report", "should_trigger": false},
+  {"query": "Help me build an Internal Developer Platform with Backstage portal, golden paths, and progressive delivery on EKS", "should_trigger": false}
 ]

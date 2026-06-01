@@ -16,5 +16,7 @@
   { "query": "Review my Terraform code for style issues and ensure it follows conventional commit messages", "should_trigger": false },
   { "query": "Discover all EKS clusters in my AWS account and list their addon versions", "should_trigger": false },
   { "query": "What security group rules should I use for EKS pod-to-pod communication?", "should_trigger": false },
-  { "query": "Create a Terratest integration test for my generic VPC module", "should_trigger": false }
+  { "query": "Create a Terratest integration test for my generic VPC module", "should_trigger": false },
+  { "query": "Audit my EKS cluster's operational posture across networking, RBAC, observability, and workload config", "should_trigger": false },
+  { "query": "Set up an Internal Developer Platform with Backstage, Keycloak SSO, and DORA metrics on our EKS cluster", "should_trigger": false }
 ]

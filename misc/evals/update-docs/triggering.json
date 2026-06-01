@@ -15,5 +15,9 @@
   { "query": "Design a multi-tenant EKS cluster with Karpenter node pools per team.", "should_trigger": false },
   { "query": "Author a new steering workflow for RDS upgrades with the correct H2 sections and STOP gates.", "should_trigger": false },
   { "query": "Set up the EKS MCP Server so I can list clusters from my AI assistant.", "should_trigger": false },
-  { "query": "What Terraform module should I use for EKS access entries and pod identity?", "should_trigger": false }
+  { "query": "What Terraform module should I use for EKS access entries and pod identity?", "should_trigger": false },
+  { "query": "We need to build an Internal Developer Platform on EKS with Backstage, golden paths, and GitOps delivery", "should_trigger": false },
+  { "query": "Generate the architecture decision records and Mermaid diagrams for our new EKS cluster design", "should_trigger": false },
+  { "query": "Create a production-ready Terraform project for EKS with ArgoCD integration and 29 addons", "should_trigger": false },
+  { "query": "Run a structured operational excellence assessment on my EKS cluster and score the 10 areas", "should_trigger": false }
 ]
