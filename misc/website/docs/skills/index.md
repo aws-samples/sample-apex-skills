@@ -11,13 +11,25 @@ title: Skills
 
 Use this skill whenever someone is making an Amazon EKS design, architecture, or configuration decision — even phrased casually as "how should we set up...", "what's the right way to...", "should we use X or Y", "we're about to redesign/consolidate/migrate...", or "is this reasonable?". Covers compute strategy (Karpenter, MNG, Fargate, Auto Mode, self-managed), multi-tenant platform design and tenant isolation (namespaces, node pools, RBAC, network policies, quotas), VPC/IP planning, ingress, IAM/Pod Identity/IRSA, pod security, PDBs and reliability, upgrade strategy (in-place vs blue-green), cost (Spot, Graviton, consolidation), autoscaling, and observability. Also triggers for Terraform with terraform-aws-modules/terraform-aws-eks (access entries, addons, node groups, IRSA). Trigger even if "best practice" is never said — any EKS planning or architectural judgment call qualifies. Skip for pure Kubernetes questions unrelated to EKS.
 
+## [eks-build](./eks-build/)
+
+Use when building EKS clusters. Generates complete, production-ready Terraform projects with optional ArgoCD GitOps integration. Handles environment-specific constraints: air-gapped/VPC-endpoint-only networks, enterprise proxies, private container registries, compliance requirements. Supports 3 patterns: full Terraform, ArgoCD+Terraform, ArgoCD+ACK/KRO. Includes validated modules, two-phase webhook ordering, IRSA/Pod Identity, and 29+ addon configurations. Ask interactive questions or accept requirements YAML. Also use when (1) generating EKS Terraform code from scratch, (2) creating GitOps-managed EKS addons with ArgoCD, (3) scaffolding EKS projects with compliance constraints, (4) implementing two-phase webhook ordering for EKS addons, (5) configuring IRSA or Pod Identity for EKS workloads, or (6) generating ArgoCD ApplicationSets for EKS addon management.
+
+## [eks-design](./eks-design/)
+
+Use when designing EKS architecture. Generates architecture design documents including system architecture with Mermaid diagrams, Architecture Decision Records (ADRs), security architecture, and architecture validation reports. Translates requirements into tailored EKS architecture designs guided by AWS Well-Architected best practices. Output populates the project design folder and feeds into eks-build for code generation. Covers cluster architecture, compute strategy, networking model, security posture, addon selection, observability, cost optimization, and upgrade strategy. Also use when (1) reviewing EKS architecture decisions, (2) choosing between EKS compute options, (3) planning EKS networking or security, (4) evaluating EKS deployment models, (5) optimizing EKS cost and scalability, or (6) generating architecture documentation for an EKS project.
+
 ## [eks-mcp-server](./eks-mcp-server/)
 
 Setup and configure the EKS MCP Server for live cluster operations. Use this skill when the user wants to interact with real EKS clusters (list clusters, read K8s resources, troubleshoot pods, deploy workloads, check upgrade insights) but MCP tools are not available or not working. Also activate if user mentions "eks mcp", "mcp server", or asks how to connect their AI assistant to EKS.
 
 ## [eks-operation-review](./eks-operation-review/)
 
-Run a structured EKS operational excellence assessment against a live cluster. Only activate when the user explicitly requests an EKS operational review, EKS health check, EKS audit, or EKS assessment. Do NOT activate for general Kubernetes questions, AWS troubleshooting, EKS setup/creation, or ad-hoc kubectl commands.
+Run a structured EKS operational excellence assessment against a live cluster. Covers 10 areas — networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, operational processes — and produces a GREEN/AMBER/RED rated report with prioritized recommendations. Activate for any request to audit, review, health-check, or score an EKS cluster's operational posture, including section-scoped reviews of individual areas. Not for upgrade readiness, cluster discovery, or architectural design advice.
+
+## [eks-platform-engineering](./eks-platform-engineering/)
+
+Use whenever someone is designing or building an Internal Developer Platform (IDP) or doing platform engineering on Amazon EKS — phrased as "build a developer platform", "self-service for developers", "golden paths", "IDP", or "set up Backstage / ArgoCD / Kargo". Covers the opinionated platform stack — developer portal (Backstage), GitOps delivery (ArgoCD, Argo Workflows), progressive delivery (Argo Rollouts canary with quality gates) and multi-stage promotion (Kargo), infrastructure abstraction (ACK, kro), application modeling (KubeVela/OAM), self-service provisioning, hub-and-spoke topology with the GitOps Bridge, identity/SSO (Keycloak, Pod Identity), measuring platform success (DORA, Apache DevLake), GenAI with Amazon Q Developer, and golden paths for AI/ML and data engineering. Trigger even if "platform engineering" is never said. Skip for single-cluster EKS architecture or cost/ops tuning with no platform angle (use eks-best-practices); for standalone Terraform use terraform-skill.
 
 ## [eks-recon](./eks-recon/)
 

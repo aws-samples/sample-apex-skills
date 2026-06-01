@@ -47,7 +47,7 @@ An architecture review is a **scoped task** — evaluate what the user provides,
 
 ---
 
-# Design Questionnaire
+## Design Questionnaire
 
 Use this questionnaire when generating a new EKS architecture design. Walk through the phases to gather requirements, confirm the summary, then generate.
 

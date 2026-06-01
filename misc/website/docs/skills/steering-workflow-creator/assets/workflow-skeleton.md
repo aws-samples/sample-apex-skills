@@ -23,7 +23,7 @@ description: <Day N {intent} workflow. Front-load the lifecycle phase and the co
 
 # <Workflow Title>
 
-> Part of: [<Hub Workflow>](../<hub>)
+> Part of: \[`<Hub Workflow>`\](../\<hub\>.md)
 > Lifecycle: Day 0 | Day 1 | Day 2
 > Skill: <primary-knowledge-skill>
 > Access Model: read-only | advisory | mutating (with gates)

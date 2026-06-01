@@ -198,7 +198,7 @@ If MCP tools are available, use them. Otherwise, inform the user:
 
 ### Step 3: Run Selected Modules
 
-Determine which modules to run based on user intent (see [Reference Loading Strategy](#reference-loading-strategy)).
+Determine which modules to run based on user intent (see [Modules and Reference Loading](#modules-and-reference-loading)).
 
 For each selected module:
 1. **Load the reference file** (e.g., `references/compute.md`) - REQUIRED

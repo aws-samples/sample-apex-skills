@@ -1,11 +1,18 @@
 ---
-name: eks-build
-description: Day 1 infrastructure build workflow. Multi-phase questionnaire gathering requirements then generating production-ready Terraform code for EKS clusters.
+title: "eks-build"
+description: "Day 1 infrastructure build workflow. Multi-phase questionnaire gathering requirements then generating production-ready Terraform code for EKS clusters."
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/eks-build.md
+format: md
 ---
+
+:::info[Source]
+This page is generated from [steering/workflows/eks-build.md](https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/eks-build.md). Edit the source, not this page.
+:::
+
 
 # Build Workflow
 
-> **Part of:** [APEX EKS Hub](../eks.md)
+> **Part of:** [APEX EKS Hub](../eks)
 > **Lifecycle:** Day 1 — Build
 > **Skill:** `eks-build`
 
