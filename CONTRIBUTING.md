@@ -1,4 +1,4 @@
-# Contributing to APEX EKS  
+# Contributing to APEX
 
 This guide explains how the repository is organized, where new content should go, and the process for submitting contributions.
 
@@ -6,10 +6,10 @@ This guide explains how the repository is organized, where new content should go
 
 ## Repository Architecture
 
-APEX EKS organizes content into three directories, each serving a distinct purpose in the agentic workflow. Understanding the distinction is critical — putting content in the wrong place degrades the agent's performance.
+APEX organizes content into three directories, each serving a distinct purpose in the agentic workflow. Understanding the distinction is critical — putting content in the wrong place degrades the agent's performance.
 
 ```
-apex-eks/
+sample-apex-skills/
 ├── steering/           → 🎯 HOW the agent behaves (conversation orchestration)
 │   ├── commands/       →   Slash command definitions (harness-specific entry points)
 │   └── workflows/      →   Structured engagement playbooks

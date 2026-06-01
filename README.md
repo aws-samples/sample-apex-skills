@@ -2,7 +2,7 @@
 
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aws-samples.github.io/sample-apex-skills/)
 
-> Curated EKS platform engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, delivered through agentic AI tools (Claude Code, Kiro CLI etc).
+> Curated platform-engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, TAMs, and ProServe, delivered through agentic AI tools (Claude Code, Kiro CLI etc).
 
 **APEX** uses agentic AI (frontier models and agent harness like Claude Code) combined with curated "skills" to give engineers SSA-grade platform engineering output.
 
@@ -14,7 +14,7 @@ Agent Skills are organized folders of instructions, scripts, and resources that 
 
 ```
 sample-apex-skills/
-├── skills/       → 📚 Domain knowledge (EKS best practices, Terraform, skill creation)
+├── skills/       → 📚 Domain knowledge (platform-engineering best practices, Terraform, skill creation)
 ├── steering/     → 🎯 Guided workflows (optional — structured engagement playbooks)
 ├── examples/     → 🏗️ Hands-on exercises (deployable labs with planted issues)
 └── misc/         → 🔧 Maintenance and tooling
