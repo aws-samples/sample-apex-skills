@@ -64,7 +64,7 @@ Setup and configure the EKS MCP Server for live cluster operations. Use this ski
 
 ### [eks-operation-review](./eks-operation-review/)
 
-Run a structured EKS operational excellence assessment against a live cluster. Only activate when the user explicitly requests an EKS operational review, EKS health check, EKS audit, or EKS assessment. Do NOT activate for general Kubernetes questions, AWS troubleshooting, EKS setup/creation, or ad-hoc kubectl commands.
+Run a structured EKS operational excellence assessment against a live cluster. Covers 10 areas — networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, operational processes — and produces a GREEN/AMBER/RED rated report with prioritized recommendations. Activate for any request to audit, review, health-check, or score an EKS cluster's operational posture, including section-scoped reviews of individual areas. Not for upgrade readiness, cluster discovery, or architectural design advice.
 
 **References** (loaded on demand):
 
