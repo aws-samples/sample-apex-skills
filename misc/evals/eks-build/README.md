@@ -13,6 +13,8 @@ eks-build focuses on producing deployable infrastructure code; neighbouring skil
 - **`eks-best-practices`** (operational recommendations, upgrade strategies, and security posture guidance for running EKS clusters) — negatives 13, 17 ("best practices for EKS cluster upgrades and version skew", "security group rules for pod-to-pod communication").
 - **`terraform-skill`** (generic Terraform/OpenTofu module development, testing frameworks, and CI/CD pipelines unrelated to EKS) — negatives 14, 15, 18 ("generic Terraform module for an S3 bucket", "Review my Terraform code for style issues", "Terratest integration test for my generic VPC module").
 - **`eks-recon`** (discovering existing EKS clusters, enumerating addons, and auditing live cluster state) — negative 16 ("Discover all EKS clusters in my AWS account").
+- **`eks-operation-review`** (structured operational posture assessment with GREEN/AMBER/RED ratings) — negative 19 ("Audit my EKS cluster's operational posture across networking, RBAC, observability, and workload config").
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 20 ("Set up an Internal Developer Platform with Backstage, Keycloak SSO, and DORA metrics on our EKS cluster").
 <!-- SIBLING_MAP_END -->
 
 The key discriminator is intent to generate deployable EKS infrastructure code. If the prompt asks to produce Terraform, Helm values, or ArgoCD manifests specifically for building an EKS cluster or its addons, it belongs here. If it asks about architecture choices, operational advice, non-EKS IaC, engineering process, or cluster discovery, it routes elsewhere.

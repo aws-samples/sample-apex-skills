@@ -16,6 +16,8 @@ This skill has explicit-trigger semantics — it deliberately does NOT auto-acti
 - **Upgrade execution and recovery** — negative 15 ("walk me through actually upgrading my EKS cluster"). Out of scope for the assessment skill; users wanting steps to run route elsewhere.
 - **Generic / non-EKS** — negative 16 ("audit my AWS account's overall security posture — IAM, S3, CloudTrail"). EKS-specific operational review is the skill's remit; broader AWS audits are out of scope.
 - **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 17 ("How do we measure whether our internal…").
+- **`eks-build`** (generating Terraform modules, Helm charts, ArgoCD manifests, and executable IaC) — negative 18 ("Generate a production-ready Terraform project for a new EKS cluster with Karpenter, VPC CNI, and ArgoCD bootstrap").
+- **`eks-design`** (architecture design documents, ADRs, and system diagrams for EKS solutions) — negative 19 ("Create architecture decision records and Mermaid topology diagrams for our planned EKS cluster migration").
 <!-- SIBLING_MAP_END -->
 
 The `triggering.json` positives mix two phrasing styles: assessment-language requests ("run an operational review", "audit my cluster", "EKS health check") and section-scoped natural-question forms ("check my EKS networking", "review RBAC on my cluster"). Both styles must trigger the skill. The negatives are deliberately drawn from neighbouring apex skills' territory, plus one non-EKS distractor.

@@ -13,6 +13,8 @@ The boundary between `eks-design` and its neighbours hinges on whether the promp
 - **`eks-build`** (generating Terraform modules, Helm charts, ArgoCD manifests, and executable IaC from a finalized design) — negatives 12, 17 ("Generate the Terraform modules", "Write the ArgoCD ApplicationSet and Kustomize overlays").
 - **`terraform-skill`** (generic Terraform/OpenTofu code review and CI/CD unrelated to EKS architecture design) — negative 13 ("Review my Terraform PR for the EKS module").
 - **`eks-recon`** (live cluster discovery, inventory, and pre-upgrade reconnaissance) — negatives 14, 16 ("What version of Kubernetes is my EKS cluster running", "inventory the node groups, namespaces, and IRSA roles").
+- **`eks-operation-review`** (structured operational posture assessment with GREEN/AMBER/RED ratings) — negative 19 ("Run a structured operational review on my EKS cluster and produce a GREEN/AMBER/RED rated report").
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 20 ("Help me build an Internal Developer Platform with Backstage portal, golden paths, and progressive delivery on EKS").
 <!-- SIBLING_MAP_END -->
 
 The key discriminator: `eks-design` fires when the prompt requests a **persistent design artifact** (architecture document, ADR, Mermaid diagram, validation report, or design-for-handoff-to-build) rather than a verbal recommendation, executable code, live cluster query, or process/standards check.
