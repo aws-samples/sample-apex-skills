@@ -16,9 +16,9 @@ PASS=0
 FAIL=0
 WARN=0
 
-pass() { echo -e "${GREEN}✓${NC} $1"; ((PASS++)); }
-fail() { echo -e "${RED}✗${NC} $1"; ((FAIL++)); }
-warn() { echo -e "${YELLOW}!${NC} $1"; ((WARN++)); }
+pass() { echo -e "${GREEN}✓${NC} $1"; (( PASS++ )) || true; }
+fail() { echo -e "${RED}✗${NC} $1"; (( FAIL++ )) || true; }
+warn() { echo -e "${YELLOW}!${NC} $1"; (( WARN++ )) || true; }
 
 PROJECT_DIR="${1:?Usage: $0 <project-directory>}"
 
@@ -69,16 +69,8 @@ if command -v terraform &>/dev/null; then
         fail "terraform fmt -check found unformatted files:"
         echo "$FMT_OUTPUT" | head -10
     fi
-elif command -v tofu &>/dev/null; then
-    FMT_OUTPUT=$(tofu fmt -check -recursive "$PROJECT_DIR" 2>&1) || true
-    if [ -z "$FMT_OUTPUT" ]; then
-        pass "tofu fmt -check passes"
-    else
-        fail "tofu fmt -check found unformatted files:"
-        echo "$FMT_OUTPUT" | head -10
-    fi
 else
-    warn "Neither terraform nor tofu found — skipping fmt check"
+    warn "terraform not found — skipping fmt check"
 fi
 
 # --- 4. before_compute check ---
@@ -165,8 +157,14 @@ echo ""
 echo "7. GitOps artifacts"
 echo "-------------------------------------------"
 
-GITOPS_DIR="$PROJECT_DIR/../gitops"
-if [ -d "$GITOPS_DIR" ]; then
+GITOPS_DIR=""
+if [ -d "$PROJECT_DIR/gitops" ]; then
+    GITOPS_DIR="$PROJECT_DIR/gitops"
+elif [ -d "$PROJECT_DIR/../gitops" ]; then
+    GITOPS_DIR="$PROJECT_DIR/../gitops"
+fi
+
+if [ -n "$GITOPS_DIR" ]; then
     for f in addons/applicationset.yaml bootstrap/argocd-projects.yaml; do
         if [ -f "$GITOPS_DIR/$f" ]; then
             pass "gitops/$f exists"
@@ -175,7 +173,7 @@ if [ -d "$GITOPS_DIR" ]; then
         fi
     done
 elif grep -q 'argocd\|gitops' "$MAIN_TF" 2>/dev/null; then
-    fail "Pattern 2 detected but gitops/ directory not found at $GITOPS_DIR"
+    fail "Pattern 2 detected but gitops/ directory not found"
 else
     pass "Pattern 1 — gitops/ not required"
 fi

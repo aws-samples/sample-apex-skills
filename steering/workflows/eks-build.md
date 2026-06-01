@@ -116,9 +116,9 @@ Source: knowledge
 Present the full list, ask for changes. See the `eks-build` skill for addon details.
 
 ```
-19. Standard addons (all enabled by default) — confirm or adjust:
+19. Standard addons — confirm or adjust (★ = on by default):
 
-    CORE:        ALB Controller | External DNS | Metrics Server
+    CORE:        ALB Controller ★ | External DNS | Metrics Server ★
     SECURITY:    Cert-Manager | External Secrets
     CAPABILITIES: ACK | KRO
 

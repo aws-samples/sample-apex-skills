@@ -147,7 +147,7 @@ Generate design -> Score (Stage 3) -> Below 85? -> Fix gaps -> Re-score
 - [ ] Architecture documents generated — `architecture/system-architecture.md` (or `architecture/<focus>-architecture.md` for focused designs) exists with narrative prose + diagrams
 - [ ] ADRs generated — `architecture/architecture-decision-records/ADR-*.md` files exist (minimum 6 for comprehensive, domain-relevant for focused)
 - [ ] Security architecture generated — `architecture/security-architecture.md` exists (if applicable)
-- [ ] Stage 3 validation scored — `appendices/iterations/score-sheet-iteration-1.md` exists with score >= 85/100
+- [ ] Stage 3 validation scored — `appendices/architecture-integration-validation.md` exists with score >= 85/100
 - [ ] Stage 4 quality review scored — `appendices/iterations/score-sheet-iteration-*.md` exists with Stage 4 score >= 90/100
 - [ ] Every section has narrative prose — no table-only or bullet-only sections (0/5 narrative = auto-fail)
 - [ ] Mermaid diagrams rendered to PNG — `diagrams/*.png` files exist (high-res, 4x scale, white background)

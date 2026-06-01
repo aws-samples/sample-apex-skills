@@ -25,7 +25,7 @@ Read the user's request and match it to the appropriate workflow:
 | "Build an EKS cluster" / "Generate Terraform" / "Create infrastructure" | → [Build Workflow](workflows/eks-build.md) | Day 1 |
 | "Resume build" / "Modify existing build" | → [Build Workflow](workflows/eks-build.md) (resume/modify) | Day 1 |
 | "Which pattern — Terraform vs ArgoCD?" | → [Build Workflow](workflows/eks-build.md) (pattern selection) | Day 1 |
-| "Build an IDP" / "developer self-service" / "golden paths" / "Backstage portal" / "GitOps + progressive delivery" | → [Platform Engineering](workflows/eks-platform-engineering.md) | Day 2 |
+| "Build an IDP" / "developer self-service" / "golden paths" / "Backstage portal" / "GitOps + progressive delivery" | → [Platform Engineering](workflows/eks-platform-engineering.md) | Day 1 |
 | "Is my cluster ready to upgrade?" / "Run upgrade readiness check" / "Score my upgrade readiness" | → [Upgrade-Readiness Assessment](workflows/eks-upgrade-check.md) | Day 2 |
 | "Run an EKS operational review" / "Audit my cluster" / "EKS health check" / "Review my EKS posture" | → [Operational Review](workflows/eks-operation-review.md) | Day 2 |
 | "Check my EKS networking" / "Review RBAC on my cluster" / "Audit observability on my cluster" | → [Operational Review](workflows/eks-operation-review.md) (section-scoped) | Day 2 |

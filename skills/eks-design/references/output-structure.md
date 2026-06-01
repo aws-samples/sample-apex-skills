@@ -128,3 +128,19 @@ projects/<project-name>/design/
 | `appendices/iterations/score-sheet-iteration-X.md` | 4 | Quality Review |
 | `AGENTS.md` | 5 | Finalize & Handoff |
 | `README.md` | 5 | Finalize & Handoff |
+
+## Optional Artifacts
+
+When document export is requested, the following are generated alongside the core structure:
+
+```
+projects/<project-name>/design/
+├── scripts/                                     # Optional: document generators
+│   ├── generate-docx.sh                         # Word export script
+│   └── generate-pptx.sh                         # PowerPoint export script
+└── exports/                                     # Optional: generated documents
+    ├── architecture-document.docx
+    └── architecture-presentation.pptx
+```
+
+These are NOT part of the core design output and are only created on explicit user request.

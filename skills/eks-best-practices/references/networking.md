@@ -411,15 +411,25 @@ Multus acts as a meta-plugin that delegates to the primary CNI (VPC CNI) for the
 
 ### Enabling Multus
 
-Deploy Multus as a DaemonSet using the upstream thick-plugin manifests into `kube-system`:
+> **WARNING:** The thick-plugin variant has a known pod-lookup race condition that can break ALL pod creation cluster-wide. Only enable Multus after verifying your version includes the fix (v4.1.1+), or use thin-plugin mode instead.
+
+Deploy Multus as a DaemonSet using the upstream manifests into `kube-system`:
 
 ```yaml
 multus:
-  enabled: true
+  # WARNING: thick-plugin has a pod-lookup race that breaks ALL pod creation.
+  # Only enable after verifying your Multus version includes the fix,
+  # or use thin-plugin mode instead.
+  enabled: false
   image: ghcr.io/k8snetworkplumbingwg/multus-cni:v4.1.0-thick
 ```
 
 Multus is deployed via `kubectl_manifest` resources that apply the upstream thick-plugin DaemonSet manifests directly into `kube-system` (not via Helm). The only config keys that matter are `enabled` and `image`.
+
+**When it is safe to enable:**
+- You are using thin-plugin mode (`multus-cni:v4.1.0-thin` or later) which avoids the race entirely
+- You have confirmed your thick-plugin version includes the pod-lookup race fix (v4.1.1+)
+- You have tested in a non-production cluster first and validated pod creation is not affected
 
 ### NetworkAttachmentDefinition Example
 
