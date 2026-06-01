@@ -1,0 +1,42 @@
+{
+  "skill_name": "eks-build",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Generate a complete production-ready EKS Terraform project for a customer in us-west-2. Requirements: EKS 1.30, Karpenter for autoscaling, AWS Load Balancer Controller, CoreDNS, VPC-CNI with prefix delegation enabled, and cert-manager. The cluster should use private endpoint access only with VPC endpoints for ECR, S3, STS, and SSM. Use IRSA for all addon service accounts. Output the full project structure.",
+      "expected_output": "A complete Terraform project with main.tf, variables.tf, outputs.tf, versions.tf, and addon configurations. Includes EKS module invocation with private endpoint, VPC endpoint resources, IRSA roles for each addon, Karpenter NodePool and EC2NodeClass, and proper dependency ordering with two-phase webhook handling for cert-manager.",
+      "expectations": [
+        "Generates a versions.tf with required_providers block pinning aws, kubernetes, and helm provider versions TODO: human review",
+        "Creates IRSA IAM roles with proper trust policies for at least aws-load-balancer-controller and Karpenter TODO: human review",
+        "Configures EKS cluster with endpoint_private_access = true and endpoint_public_access = false TODO: human review",
+        "Includes VPC endpoint resources for at minimum ecr.api, ecr.dkr, s3, sts TODO: human review",
+        "Karpenter configuration includes an EC2NodeClass and at least one NodePool resource TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Add Kyverno and external-secrets-operator as custom addons to my existing EKS Terraform project. Kyverno needs two-phase webhook ordering (install CRDs first, then policies). External-secrets needs IRSA with access to AWS Secrets Manager. The project uses Pattern 2a (ArgoCD managing addons). Generate the ArgoCD Application manifests and any supporting Terraform for IAM.",
+      "expected_output": "ArgoCD Application YAML manifests for both Kyverno and external-secrets-operator, plus Terraform code for the external-secrets IRSA role. Kyverno uses two-phase ordering with a separate CRD Application that has a lower sync-wave. External-secrets Application references the IRSA role ARN via values override.",
+      "expectations": [
+        "Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies with sync-wave annotations ensuring CRDs deploy first TODO: human review",
+        "Creates an IAM role with trust policy for the external-secrets-operator service account with secretsmanager:GetSecretValue permission TODO: human review",
+        "ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override TODO: human review",
+        "Both addons specify a target namespace and create-namespace sync option TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I need to choose between Pattern 1 (full Terraform), Pattern 2a (ArgoCD+Terraform), and Pattern 2b (ArgoCD+ACK/KRO) for my customer. They have: 5 EKS clusters across 3 environments, a platform team of 2 people, no existing GitOps tooling, and a requirement for SOC2 compliance with drift detection. Generate the project scaffold for your recommended pattern.",
+      "expected_output": "Recommendation of Pattern 2a with justification based on team size, multi-cluster needs, and compliance requirements. Generates a project scaffold with Terraform for base infrastructure and ArgoCD ApplicationSets for addon management across environments, including drift detection via ArgoCD sync status.",
+      "expectations": [
+        "Recommends Pattern 2a (or provides a clear rationale if choosing differently) based on the stated constraints of small team and drift detection needs TODO: human review",
+        "Generates a directory structure separating base infrastructure Terraform from ArgoCD addon manifests TODO: human review",
+        "Includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments TODO: human review",
+        "Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status or OPA/Kyverno policies TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}

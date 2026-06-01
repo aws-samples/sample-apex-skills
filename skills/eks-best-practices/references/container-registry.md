@@ -486,6 +486,35 @@ Use this for:
 
 ---
 
+## Helm Chart Management
+
+### ECR OCI Support vs S3 Helm Repository
+
+| Factor | ECR OCI Helm Charts | S3-Based Helm Repo (ChartMuseum) |
+|--------|--------------------|---------------------------------|
+| **Protocol** | OCI registry (standard) | HTTP(S) Helm repo |
+| **Authentication** | ECR IAM (same as images) | S3 IAM + Helm repo plugin |
+| **Versioning** | OCI tags + digests | Chart index.yaml |
+| **Replication** | ECR cross-account/region replication | S3 replication |
+| **Scanning** | Not applicable (charts are templates) | Not applicable |
+| **Recommendation** | Preferred — native, no extra infra | Legacy or non-AWS Helm consumers |
+
+### Pushing and Consuming Helm Charts via ECR
+
+The workflow for Helm charts stored in ECR OCI follows three steps:
+
+1. **Authenticate:** Obtain an ECR authorization token and pass it to `helm registry login`. The same ECR IAM credentials used for container images work for Helm charts.
+2. **Package and push:** Package the chart directory into a `.tgz` archive, then push it to an OCI URI in ECR (e.g., `oci://<account-id>.dkr.ecr.<region>.amazonaws.com/charts/`).
+3. **Install from ECR:** Reference the OCI URI directly in `helm install` or in ArgoCD Application source configuration with a specific version tag.
+
+**Design considerations:**
+- Use a dedicated `charts/` prefix in ECR to separate Helm charts from container images
+- Apply the same ECR lifecycle policies to chart repositories to clean up old versions
+- ECR cross-account replication works for Helm charts — spoke accounts get chart replicas automatically
+- ArgoCD natively supports OCI Helm sources — no extra configuration needed beyond ECR auth
+
+---
+
 **Sources:**
 - [Amazon ECR Documentation](https://docs.aws.amazon.com/AmazonECR/latest/userguide/)
 - [Designing a secure container image registry](https://aws.amazon.com/blogs/containers/designing-a-secure-container-image-registry/)

@@ -1,0 +1,31 @@
+# Evals — eks-design
+
+## What these evals target
+
+These inputs exercise the `eks-design` skill's declared scope: generating architecture design documents, Architecture Decision Records (ADRs), Mermaid diagrams, security architecture docs, and architecture validation/scoring reports for EKS deployments. `triggering.json` checks that the skill fires on prompts requesting design artifacts (documents, diagrams, ADRs, validation reports) and stays quiet for advisory questions, Terraform generation, cluster discovery, and code review prompts. `evals.json` checks the quality of two representative design tasks: full architecture document generation and architecture validation/scoring.
+
+## Neighbour-skill disambiguation
+
+The boundary between `eks-design` and its neighbours hinges on whether the prompt asks for a **design artifact** (document, diagram, ADR, validation report) versus a quick recommendation, executable code, cluster discovery, or engineering process guidance.
+
+<!-- SIBLING_MAP_START -->
+- **`eks-best-practices`** (advisory recommendations, tradeoff analysis, and quick architecture judgement calls without document generation) — negatives 11, 15, 18 ("Should I use Karpenter or MNG", "best practices for Karpenter consolidation", "quick recommendation, no doc needed").
+- **`eks-build`** (generating Terraform modules, Helm charts, ArgoCD manifests, and executable IaC from a finalized design) — negatives 12, 17 ("Generate the Terraform modules", "Write the ArgoCD ApplicationSet and Kustomize overlays").
+- **`terraform-skill`** (generic Terraform/OpenTofu code review and CI/CD unrelated to EKS architecture design) — negative 13 ("Review my Terraform PR for the EKS module").
+- **`eks-recon`** (live cluster discovery, inventory, and pre-upgrade reconnaissance) — negatives 14, 16 ("What version of Kubernetes is my EKS cluster running", "inventory the node groups, namespaces, and IRSA roles").
+<!-- SIBLING_MAP_END -->
+
+The key discriminator: `eks-design` fires when the prompt requests a **persistent design artifact** (architecture document, ADR, Mermaid diagram, validation report, or design-for-handoff-to-build) rather than a verbal recommendation, executable code, live cluster query, or process/standards check.
+
+## Live-MCP caveat
+
+Both `evals.json` tasks are self-contained — all required context is embedded in the prompt text (requirements for eval 1, existing architecture description for eval 2). Running these evals does **not** require a live EKS cluster or the EKS MCP server. Triggering evals (`triggering.json`) are matched against the skill's `description` frontmatter only and are never affected by MCP availability.
+
+## How to run
+
+From `misc/evals/`:
+- `make validate-eks-design` — frontmatter + 64/1024-char limits
+- `make triggering-eks-design` — triggering accuracy score
+- `make benchmark-eks-design` — aggregate task-eval stats
+
+See `misc/evals/README.md` for the full capability catalogue (A-K).

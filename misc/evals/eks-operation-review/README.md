@@ -15,6 +15,7 @@ This skill has explicit-trigger semantics — it deliberately does NOT auto-acti
 - **`eks-mcp-server`** (tooling setup) — negative 14 ("install and configure the EKS MCP server"). Setting up the MCP server is a prerequisite to running the operational review, not the review itself.
 - **Upgrade execution and recovery** — negative 15 ("walk me through actually upgrading my EKS cluster"). Out of scope for the assessment skill; users wanting steps to run route elsewhere.
 - **Generic / non-EKS** — negative 16 ("audit my AWS account's overall security posture — IAM, S3, CloudTrail"). EKS-specific operational review is the skill's remit; broader AWS audits are out of scope.
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 17 ("How do we measure whether our internal…").
 <!-- SIBLING_MAP_END -->
 
 The `triggering.json` positives mix two phrasing styles: assessment-language requests ("run an operational review", "audit my cluster", "EKS health check") and section-scoped natural-question forms ("check my EKS networking", "review RBAC on my cluster"). Both styles must trigger the skill. The negatives are deliberately drawn from neighbouring apex skills' territory, plus one non-EKS distractor.

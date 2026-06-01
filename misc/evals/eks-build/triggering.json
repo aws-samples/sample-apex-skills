@@ -1,0 +1,20 @@
+[
+  { "query": "Generate a production-ready EKS Terraform project for us-east-1 with Karpenter and CoreDNS", "should_trigger": true },
+  { "query": "Build an air-gapped EKS cluster with VPC endpoints and a private ECR registry", "should_trigger": true },
+  { "query": "Scaffold an EKS project using Pattern 2a with ArgoCD managing all addons via ApplicationSets", "should_trigger": true },
+  { "query": "Create the Terraform code for an EKS cluster with two-phase webhook ordering for cert-manager and Kyverno", "should_trigger": true },
+  { "query": "Set up IRSA for the aws-load-balancer-controller addon in my EKS Terraform project", "should_trigger": true },
+  { "query": "I need a complete EKS infrastructure with Pod Identity, Bottlerocket nodes, and Prisma Cloud admission controller", "should_trigger": true },
+  { "query": "Generate ArgoCD ApplicationSets for managing EKS blueprints addons across dev, staging, and prod clusters", "should_trigger": true },
+  { "query": "Add a custom New Relic addon to my existing EKS Terraform project with the proper IRSA configuration", "should_trigger": true },
+  { "query": "Help me pick between Pattern 1 (full Terraform) and Pattern 2b (ArgoCD+ACK/KRO) for my customer's EKS deployment", "should_trigger": true },
+  { "query": "Create a Ralph loop validation config for my EKS build project to verify addon health", "should_trigger": true },
+  { "query": "Design an EKS architecture that balances cost and reliability for a multi-AZ deployment", "should_trigger": false },
+  { "query": "Write an Architecture Decision Record for choosing Fargate vs managed node groups", "should_trigger": false },
+  { "query": "What are the best practices for EKS cluster upgrades and version skew policies?", "should_trigger": false },
+  { "query": "Write a generic Terraform module for an S3 bucket with versioning and lifecycle rules", "should_trigger": false },
+  { "query": "Review my Terraform code for style issues and ensure it follows conventional commit messages", "should_trigger": false },
+  { "query": "Discover all EKS clusters in my AWS account and list their addon versions", "should_trigger": false },
+  { "query": "What security group rules should I use for EKS pod-to-pod communication?", "should_trigger": false },
+  { "query": "Create a Terratest integration test for my generic VPC module", "should_trigger": false }
+]

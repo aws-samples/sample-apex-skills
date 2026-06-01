@@ -1,0 +1,19 @@
+[
+  {"query": "We want to give our app teams a self-service way to ship to EKS without filing infra tickets. How do we build an Internal Developer Platform?", "should_trigger": true},
+  {"query": "Set up Backstage software templates so developers can scaffold a new service with a CI/CD pipeline on our EKS platform.", "should_trigger": true},
+  {"query": "We're standardizing how teams deploy — I want golden paths with ArgoCD and a canary rollout that auto-rolls-back. How should the platform be wired?", "should_trigger": true},
+  {"query": "How do I let developers self-provision a DynamoDB table from a portal without touching AWS directly? Thinking ACK + Backstage.", "should_trigger": true},
+  {"query": "We need multi-stage promotion from dev to prod for the same image with a manual approval gate. Should we use Kargo, and how does it fit with ArgoCD?", "should_trigger": true},
+  {"query": "Our platform team wants developers to describe apps without learning Kubernetes YAML. How do we use OAM/KubeVela components and traits?", "should_trigger": true},
+  {"query": "How do we actually measure whether our internal developer platform is working — what DORA metrics and tooling should we put in place?", "should_trigger": true},
+  {"query": "Extend our EKS platform so ML engineers can self-serve model serving with Ray and data engineers can run Spark jobs from Backstage.", "should_trigger": true},
+
+  {"query": "We're standing up a new EKS cluster. Should the data plane be Karpenter, managed node groups, or EKS Auto Mode?", "should_trigger": false},
+  {"query": "What PDBs, probes, and topology spread constraints should we set for production reliability on our EKS workloads?", "should_trigger": false},
+  {"query": "What Kubernetes version is my EKS cluster on right now, and which add-ons are installed?", "should_trigger": false},
+  {"query": "Is my cluster ready to upgrade to 1.33? Give me a readiness score and tell me what's blocking it.", "should_trigger": false},
+  {"query": "Audit my EKS cluster's operational posture and rate each area GREEN, AMBER, or RED.", "should_trigger": false},
+  {"query": "How do I install the EKS MCP server and connect it to my AI assistant so I can query live clusters?", "should_trigger": false},
+  {"query": "Explain how Kubernetes StatefulSet rolling updates work at the controller level.", "should_trigger": false},
+  {"query": "Write a standalone Terraform module with native tests for provisioning an S3 bucket.", "should_trigger": false}
+]

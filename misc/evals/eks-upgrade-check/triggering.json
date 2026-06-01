@@ -17,5 +17,6 @@
   {"query": "Do a full reconnaissance on our EKS environment — compute strategy, IaC tooling, CI/CD, observability stack — so we know what we're working with.", "should_trigger": false},
   {"query": "Should we use Karpenter or Managed Node Groups for our new EKS cluster? Need an architectural recommendation, not an upgrade plan.", "should_trigger": false},
   {"query": "How do I install and configure the EKS MCP server so my AI assistant can actually query the cluster?", "should_trigger": false},
-  {"query": "What's the upgrade procedure for self-managed vanilla Kubernetes on bare metal from 1.28 to 1.30?", "should_trigger": false}
+  {"query": "What's the upgrade procedure for self-managed vanilla Kubernetes on bare metal from 1.28 to 1.30?", "should_trigger": false},
+  {"query": "Set up golden paths so app teams can ship new versions themselves with automated canary rollout and rollback.", "should_trigger": false}
 ]

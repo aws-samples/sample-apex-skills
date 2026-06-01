@@ -401,6 +401,85 @@ aws eks describe-cluster --name CLUSTER_NAME \
 
 ---
 
+## Multus CNI
+
+Multus enables multiple network interfaces on pods, required for workloads such as telco, DPDK, and SR-IOV applications.
+
+### How It Works
+
+Multus acts as a meta-plugin that delegates to the primary CNI (VPC CNI) for the default interface and to additional CNI plugins for secondary interfaces. Pods define their network attachments through annotations referencing NetworkAttachmentDefinition CRDs.
+
+### Enabling Multus
+
+> **WARNING:** The thick-plugin variant has a known pod-lookup race condition that can break ALL pod creation cluster-wide. Only enable Multus after verifying your version includes the fix (v4.1.1+), or use thin-plugin mode instead.
+
+Deploy Multus as a DaemonSet using the upstream manifests into `kube-system`:
+
+```yaml
+multus:
+  # WARNING: thick-plugin has a pod-lookup race that breaks ALL pod creation.
+  # Only enable after verifying your Multus version includes the fix,
+  # or use thin-plugin mode instead.
+  enabled: false
+  image: ghcr.io/k8snetworkplumbingwg/multus-cni:v4.1.0-thick
+```
+
+Multus is deployed via `kubectl_manifest` resources that apply the upstream thick-plugin DaemonSet manifests directly into `kube-system` (not via Helm). The only config keys that matter are `enabled` and `image`.
+
+**When it is safe to enable:**
+- You are using thin-plugin mode (`multus-cni:v4.1.0-thin` or later) which avoids the race entirely
+- You have confirmed your thick-plugin version includes the pod-lookup race fix (v4.1.1+)
+- You have tested in a non-production cluster first and validated pod creation is not affected
+
+### NetworkAttachmentDefinition Example
+
+After Multus is installed, create NetworkAttachmentDefinitions for secondary interfaces:
+
+```yaml
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: macvlan-conf
+  namespace: my-app
+spec:
+  config: |
+    {
+      "cniVersion": "0.3.1",
+      "type": "macvlan",
+      "master": "eth1",
+      "mode": "bridge",
+      "ipam": {
+        "type": "host-local",
+        "subnet": "10.10.0.0/16"
+      }
+    }
+```
+
+Reference it in a pod annotation:
+
+```yaml
+metadata:
+  annotations:
+    k8s.v1.cni.cncf.io/networks: macvlan-conf
+```
+
+### Node Security Group for Multus
+
+If Multus secondary interfaces need access to specific network resources, add additional node security group rules:
+
+```yaml
+node_sg_additional_rules:
+  multus_traffic:
+    description: "Allow Multus secondary interface traffic"
+    protocol: -1
+    from_port: 0
+    to_port: 0
+    type: ingress
+    cidr_blocks: ["10.10.0.0/16"]
+```
+
+---
+
 **Sources:**
 - [AWS EKS Best Practices Guide — Amazon VPC CNI](https://docs.aws.amazon.com/eks/latest/best-practices/vpc-cni.html)
 - [AWS EKS Best Practices Guide — Prefix Mode](https://docs.aws.amazon.com/eks/latest/best-practices/prefix-mode-linux.html)

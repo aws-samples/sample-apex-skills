@@ -17,6 +17,7 @@
 8. [Common VPC Pattern](#common-vpc-pattern)
 9. [Add-on Management](#add-on-management)
 10. [Deployment Topology Patterns](#deployment-topology-patterns)
+11. [Terraform State Management](#terraform-state-management)
 
 ---
 
@@ -664,6 +665,73 @@ module "eks" {
     }
   }
 }
+```
+
+---
+
+## Terraform State Management
+
+### S3 Backend
+
+Use an empty partial backend configuration in `backend.tf`:
+
+```hcl
+terraform {
+  backend "s3" {}
+}
+```
+
+All backend values are supplied via `-backend-config` at init time:
+
+```hcl
+# backend.hcl
+bucket  = "my-state-bucket"
+key     = "eks/terraform.tfstate"
+region  = "us-east-1"
+encrypt = true
+```
+
+```bash
+terraform init -backend-config=backend.hcl
+```
+
+### State Locking
+
+Add DynamoDB-based state locking by including `dynamodb_table` in `backend.hcl`:
+
+```hcl
+bucket         = "my-state-bucket"
+key            = "eks/terraform.tfstate"
+region         = "us-east-1"
+encrypt        = true
+dynamodb_table = "terraform-locks"
+```
+
+Create the DynamoDB table with a `LockID` string partition key.
+
+### State Separation
+
+Each pattern and environment should use a separate state file:
+
+| Pattern | Environment | Recommended Key |
+|---|---|---|
+| EKS cluster | dev | `eks/dev/terraform.tfstate` |
+| EKS cluster | prod | `eks/prod/terraform.tfstate` |
+| ArgoCD + EKS | single-tenant | `eks/argocd/single-tenant/terraform.tfstate` |
+
+### Recovering from State Issues
+
+If state becomes corrupted or out of sync:
+
+```bash
+# List resources in state
+terraform state list
+
+# Import a resource that exists in AWS but not in state
+terraform import 'module.eks_cluster.module.eks.aws_eks_cluster.this[0]' my-eks-cluster
+
+# Remove a resource from state without destroying it
+terraform state rm 'module.eks_tenants[0].kubernetes_namespace_v1.tenant["team-alpha"]'
 ```
 
 ---
