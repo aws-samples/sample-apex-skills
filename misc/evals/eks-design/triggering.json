@@ -1,0 +1,21 @@
+[
+  {"query": "Design a production-ready EKS architecture for our fintech platform. We need multi-AZ, strict PCI compliance, and the design doc should include Mermaid diagrams and ADRs.", "should_trigger": true},
+  {"query": "Generate an architecture design document for our new EKS cluster. We're running 20 microservices with GPU workloads and need to decide on networking model, compute strategy, and security posture.", "should_trigger": true},
+  {"query": "Create ADRs for our EKS deployment decisions: why we chose Karpenter over MNG, why we picked VPC CNI in prefix delegation mode, and why we're using Gateway API instead of ALB Ingress.", "should_trigger": true},
+  {"query": "Review and score our current EKS architecture against Well-Architected best practices. Here's our design: single cluster, 3 AZs, Karpenter with Spot, IRSA for all workloads, Istio service mesh.", "should_trigger": true},
+  {"query": "We need to choose between EKS Standard with Karpenter, EKS Auto Mode, and EKS on Outposts for our manufacturing edge use case. Generate an architecture comparison document with pros/cons and a recommendation.", "should_trigger": true},
+  {"query": "Create a security architecture document for our EKS cluster covering network policies, pod security standards, encryption at rest/transit, IRSA vs Pod Identity, and image signing.", "should_trigger": true},
+  {"query": "Generate a Mermaid architecture diagram showing our EKS cluster topology: VPC layout, subnet tiers, load balancer placement, node groups, and pod networking flow.", "should_trigger": true},
+  {"query": "Validate our EKS design for a healthcare SaaS platform. Requirements: HIPAA compliance, multi-region DR, 99.99% availability. Produce a validation report with gap analysis and risk scores.", "should_trigger": true},
+  {"query": "We're planning an EKS architecture for our ML training platform. Design the compute strategy covering GPU node pools, Karpenter provisioners, Spot interruption handling, and storage (EBS vs FSx). Output should be a design doc that feeds into Terraform generation.", "should_trigger": true},
+  {"query": "Create an architecture decision record for choosing between IPv4 prefix delegation and IPv6 for our EKS cluster networking, considering our 500-pod-per-node density requirement.", "should_trigger": true},
+
+  {"query": "Should I use Karpenter or managed node groups for my EKS cluster? We have bursty batch jobs and want to minimize cost.", "should_trigger": false},
+  {"query": "Generate the Terraform modules and Helm values for our EKS cluster based on the architecture design we finalized last week.", "should_trigger": false},
+  {"query": "Review my Terraform PR for the EKS module. Check naming conventions, variable validation, and whether I'm following conventional commits.", "should_trigger": false},
+  {"query": "What version of Kubernetes is my EKS cluster running? List all installed add-ons and their versions.", "should_trigger": false},
+  {"query": "What are best practices for configuring Karpenter consolidation policies to reduce Spot interruption impact?", "should_trigger": false},
+  {"query": "Can you inventory the node groups, namespaces, and IRSA roles in my production EKS cluster before I start the upgrade?", "should_trigger": false},
+  {"query": "Write the ArgoCD ApplicationSet and Kustomize overlays to deploy our platform add-ons to the new EKS cluster.", "should_trigger": false},
+  {"query": "Is it better to run CoreDNS on Fargate or on dedicated managed nodes? Just a quick recommendation, no doc needed.", "should_trigger": false}
+]

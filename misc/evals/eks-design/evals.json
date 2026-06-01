@@ -1,0 +1,33 @@
+{
+  "skill_name": "eks-design",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Design a production-ready EKS architecture for a B2B SaaS platform with these requirements: 3 product teams sharing one cluster, PCI-DSS scope for the payments service, 200+ microservices expected within 12 months, bursty traffic with 10x spikes during business hours, multi-AZ in us-east-1, and a hard requirement for GitOps-based deployments. Produce the full architecture design document including system architecture with Mermaid diagrams, ADRs for key decisions, security architecture, and a validation summary.",
+      "expected_output": "A structured architecture design document with sections covering: cluster architecture (single shared cluster with namespace isolation), compute strategy (Karpenter with NodePools per tenant class plus a stable MNG for system components), networking model (VPC CNI with prefix delegation for pod density, tiered subnets, network policies for PCI isolation), security posture (Pod Identity, OPA/Kyverno policies, pod security standards, encryption), addon selection (AWS LB Controller, external-dns, cert-manager, ArgoCD), observability stack, and cost optimization. Should include at least one Mermaid diagram, at least two ADRs, and a Well-Architected validation summary with scores.",
+      "expectations": [
+        "The output contains a Mermaid diagram depicting the VPC/subnet layout, EKS cluster, and traffic flow (at minimum a cluster topology or networking diagram) TODO: human review",
+        "The output includes at least two Architecture Decision Records (ADRs) with status, context, decision, and consequences sections covering key choices like compute model or networking mode TODO: human review",
+        "The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace with network policies, encryption requirements, audit logging) rather than generic security advice TODO: human review",
+        "The output recommends a compute strategy that combines Karpenter (or Auto Mode) for workload flexibility with a stable managed node group for critical system components TODO: human review",
+        "The output includes a validation or scoring section that maps design choices to AWS Well-Architected pillars (at least reliability, security, and cost optimization) TODO: human review",
+        "The output is structured as a design document with clear sections and headings suitable for handoff to eks-build for Terraform code generation TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Validate and score this existing EKS architecture design against Well-Architected best practices. Current design: Single EKS 1.29 cluster in ap-southeast-1, 2 AZs, one Karpenter NodePool with only m5.xlarge on-demand instances, VPC CNI in default mode (secondary IPs), no network policies, all workloads use the node IAM role for AWS access, ALB Ingress Controller with a single public ALB for all services, no pod security standards enforced, CloudWatch Container Insights for observability, no PDBs defined, manual kubectl deployments. Produce a validation report with risk scores per Well-Architected pillar and a prioritized remediation plan.",
+      "expected_output": "A validation report scoring each Well-Architected pillar (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability) with identified gaps. Should flag: 2-AZ as a reliability risk, single instance type as a capacity/cost issue, no network policies as a security gap, node IAM role sharing as a critical security anti-pattern, lack of PDBs as an upgrade hazard, manual deployments as operational risk. Remediation plan should be prioritized with security (IAM, network policies) and reliability (3-AZ, PDBs) before cost optimization (Spot, instance diversity).",
+      "expectations": [
+        "The output provides explicit scores or risk ratings for at least 4 of the 6 Well-Architected pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability) TODO: human review",
+        "The output flags the node IAM role sharing as a critical/high security finding and recommends migration to Pod Identity or IRSA with per-workload roles TODO: human review",
+        "The output identifies the 2-AZ configuration as a reliability risk and recommends expanding to 3 AZs with topology spread constraints TODO: human review",
+        "The output flags the single instance type (m5.xlarge on-demand only) as both a cost and availability risk, recommending instance diversification and Spot for non-critical workloads TODO: human review",
+        "The output presents remediation items in a prioritized order with security and reliability fixes ranked above cost optimization TODO: human review",
+        "The output identifies the lack of GitOps (manual kubectl) as an operational excellence gap and recommends a GitOps tool (ArgoCD, Flux) for declarative deployments TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}

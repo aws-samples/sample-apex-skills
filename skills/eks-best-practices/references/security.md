@@ -343,6 +343,80 @@ spec:
     persistentvolumeclaims: "20"
 ```
 
+### ArgoCD-Managed Tenants
+
+Tenants can be managed through ArgoCD using a directory-based ApplicationSet pattern.
+
+**How It Works:**
+
+1. Create a directory per tenant under a `tenants/workloads/` path:
+
+```
+tenants/workloads/
+├── team-alpha/
+│   ├── namespace.yaml
+│   ├── resource-quota.yaml
+│   └── network-policy.yaml
+└── team-beta/
+    ├── namespace.yaml
+    ├── resource-quota.yaml
+    └── network-policy.yaml
+```
+
+2. The ApplicationSet uses a Git directory generator to discover each tenant directory and create an ArgoCD Application for it.
+
+3. ArgoCD applies the manifests with automated sync, prune, and self-heal enabled.
+
+**Example Tenant Manifest:**
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-alpha
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    tenant: team-alpha
+```
+
+Cross-account IAM roles for ArgoCD-managed tenants are still created by Terraform or managed externally, since ArgoCD cannot create IAM resources.
+
+### Cross-Account IAM
+
+When a tenant specifies an `account_id`, the tenant module creates two IAM roles:
+
+**Admin Role:**
+
+- **Name**: `<cluster>-<tenant>-admin`
+- **Trust policy**: Allows `sts:AssumeRole` from `arn:aws:iam::<account_id>:root`
+- **Condition**: Requires `sts:ExternalId` matching the tenant key (e.g., `team-beta`)
+- **EKS access**: `AmazonEKSEditPolicy` scoped to the tenant's namespace
+
+**Readonly Role:**
+
+- **Name**: `<cluster>-<tenant>-readonly`
+- **Trust policy**: Same as admin role (same account, same ExternalId)
+- **EKS access**: `AmazonEKSViewPolicy` scoped to the tenant's namespace
+
+**Usage from the Tenant Account:**
+
+The tenant's AWS account assumes the role with the external ID:
+
+```bash
+aws sts assume-role \
+  --role-arn arn:aws:iam::<cluster-account>:role/my-eks-cluster-team-beta-admin \
+  --role-session-name team-beta-session \
+  --external-id team-beta
+```
+
+Then configure kubectl with the assumed credentials:
+
+```bash
+aws eks update-kubeconfig --name my-eks-cluster --region us-east-1 --role-arn arn:aws:iam::<cluster-account>:role/my-eks-cluster-team-beta-admin
+```
+
+The ExternalId requirement mitigates confused-deputy attacks by ensuring only the intended tenant account can assume the role.
+
 ---
 
 ## Secrets Management
@@ -424,6 +498,75 @@ fields @timestamp, @message
 - Don't store secrets in ConfigMaps
 - Don't commit secrets to Git (even base64-encoded)
 - Don't rely on default Kubernetes encryption (base64 only, not encrypted at rest)
+
+### Secrets Operating Models
+
+Choose an operating model based on team structure, compliance requirements, and existing investment:
+
+| Factor | Model A: Centralized External Vault | Model B: Centralized AWS Secrets Manager | Model C: Tenant-Managed Secrets Manager |
+|--------|-------------------------------------|------------------------------------------|----------------------------------------|
+| **Secret store** | CyberArk, HashiCorp Vault | AWS Secrets Manager (platform-managed) | AWS Secrets Manager (per-tenant account) |
+| **K8s integration** | ESO with Vault provider | ESO or Secrets Store CSI with AWS provider | ESO with cross-account IAM |
+| **Who creates secrets** | Security team or vault admins | Platform team | Tenant teams |
+| **Who rotates secrets** | Vault auto-rotation or security team | Lambda rotation function (platform team) | Tenant teams |
+| **Compliance** | Strong — centralized audit, enterprise-grade | Good — CloudTrail + Secrets Manager audit | Per-tenant — each tenant owns compliance |
+| **Best for** | Enterprise with existing vault, strict compliance | AWS-native platform, centralized operations | Federated teams, regulatory tenant isolation |
+
+**Model A: Centralized External Vault**
+- Enterprise vault (CyberArk, HashiCorp Vault) is single source of truth
+- ESO syncs secrets from vault to Kubernetes Secrets
+- Platform team manages ESO `ClusterSecretStore` pointing to vault
+- Tenant teams reference secrets via `ExternalSecret` in their namespace
+
+**Model B: Centralized AWS Secrets Manager**
+- Platform team creates and manages secrets in a central AWS account
+- ESO `ClusterSecretStore` configured with cross-account IAM role
+- Secrets organized by path convention: `/<environment>/<tenant>/<secret-name>`
+- Lambda rotation functions managed by platform team
+
+**Model C: Tenant-Managed Secrets Manager**
+- Each tenant manages secrets in their own AWS account
+- ESO `SecretStore` (namespace-scoped) per tenant with tenant's IAM role
+- Platform provides ESO infrastructure; tenants own secret lifecycle
+- Cross-account access via Pod Identity or IRSA
+
+### Secret Lifecycle
+
+**Promotion workflow:**
+
+```
+Developer creates secret in dev
+     |
+     v
+Dev Secrets Manager: /<dev>/<tenant>/<secret>
+     | (manual or automated promotion)
+     v
+Staging Secrets Manager: /<staging>/<tenant>/<secret>
+     | (approval gate — change management)
+     v
+Prod Secrets Manager: /<prod>/<tenant>/<secret>
+     |
+     v
+ESO syncs to K8s Secret in target namespace
+```
+
+**Rotation strategies by model:**
+
+| Model | Rotation Method | Frequency | Automation |
+|-------|----------------|-----------|------------|
+| **A (External Vault)** | Vault dynamic secrets or scheduled rotation | Per secret policy | Vault-managed |
+| **B (Centralized SM)** | Secrets Manager Lambda rotation | 30-90 days | Platform team configures |
+| **C (Tenant-Managed SM)** | Tenant configures rotation | Per tenant policy | Tenant-managed |
+
+**RACI Matrix:**
+
+| Activity | Model A | Model B | Model C |
+|----------|---------|---------|---------|
+| **Create secrets** | Security team (R), Tenant (C) | Platform team (R), Tenant (C) | Tenant (R/A) |
+| **Rotate secrets** | Vault / Security team (R) | Platform team (R) | Tenant (R/A) |
+| **Audit access** | Security team (R/A) | Platform team (R/A) | Tenant (R), Platform (A) |
+| **Delete secrets** | Security team (R), Tenant (I) | Platform team (R), Tenant (C) | Tenant (R/A) |
+| **Manage ESO infra** | Platform team (R/A) | Platform team (R/A) | Platform team (R/A) |
 
 ---
 

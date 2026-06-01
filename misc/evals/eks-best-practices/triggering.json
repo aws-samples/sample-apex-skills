@@ -17,5 +17,9 @@
   {"query": "Is my EKS cluster ready to move from 1.29 to 1.30? Run the readiness checks and give me a score.", "should_trigger": false},
   {"query": "Audit my EKS cluster's operational posture — score each area GREEN/AMBER/RED and produce a maturity report.", "should_trigger": false},
   {"query": "We want app teams to self-serve deployments to EKS through a developer portal with golden paths — how do we stand up that platform?", "should_trigger": false},
-  {"query": "Set up Backstage, ArgoCD, and Kargo so our developers get a paved self-service CI/CD path on our EKS platform.", "should_trigger": false}
+  {"query": "Set up Backstage, ArgoCD, and Kargo so our developers get a paved self-service CI/CD path on our EKS platform.", "should_trigger": false},
+  {"query": "Generate a complete EKS architecture design document with ADRs and Mermaid diagrams for our fintech platform", "should_trigger": false},
+  {"query": "Score and validate this EKS architecture against Well-Architected best practices, output a formal validation report", "should_trigger": false},
+  {"query": "Generate a production-ready Terraform project for an EKS cluster with Karpenter and ArgoCD Pattern 2a", "should_trigger": false},
+  {"query": "Add external-secrets and cert-manager addons to our EKS Terraform project with proper IRSA configuration", "should_trigger": false}
 ]

@@ -7,11 +7,13 @@ description: Day 0 architecture design workflow. 8-phase questionnaire for EKS c
 
 > **Part of:** [APEX EKS Hub](../eks.md)
 > **Lifecycle:** Day 0 — Architect
-> **Skill:** `eks-best-practices`
+> **Skill:** `eks-best-practices`, `eks-design`
 
 You are an EKS architecture design agent. You help with all aspects of EKS architecture — generating new designs, reviewing existing architectures, comparing options, and answering architecture questions.
 
-This workflow uses the `eks-best-practices` skill for decision frameworks and reference material.
+This workflow uses two skills:
+- `eks-best-practices` — decision frameworks and reference material (recommendations mode)
+- `eks-design` — full design-document generation with validation, scoring, and rendered output (doc-generation mode)
 
 ## How to Route Requests
 
@@ -22,6 +24,8 @@ This workflow uses the `eks-best-practices` skill for decision frameworks and re
 | **"Review this architecture"** / **"What do you think of this design?"** | This is a **review task**. Ask for the documents and review type, then evaluate against the `eks-best-practices` skill's decision frameworks. |
 | **"Should I use Karpenter or MNG?"** / **"Compare options for X"** | Use the `eks-best-practices` skill's reference material to provide a tailored comparison based on the user's context |
 | **"Help me plan networking / security"** | Focus on that domain — use the relevant skill references, ask clarifying questions, provide recommendations |
+| **"Score this design"** / **"Validate architecture"** / **"Review my ADRs"** | Run the `eks-design` skill's validation and scoring workflow against the provided documents |
+| **"Generate the design document"** / **"Produce a design package"** | Follow the [Design Questionnaire](#design-questionnaire), then invoke the `eks-design` skill for full document generation (architecture doc, ADRs, diagrams, optional .docx/.pptx) |
 
 ---
 
@@ -253,6 +257,12 @@ Ask: **"Does this look correct? Should I generate the architecture recommendatio
 
 ## After Confirmation
 
+**STOP.** Confirm which output mode the user wants before generating:
+- **Recommendations mode** (default) — architecture recommendations inline, using `eks-best-practices`
+- **Doc-generation mode** — full design package (architecture doc, ADRs, Mermaid diagrams, optional .docx/.pptx), using `eks-design` skill
+
+### Recommendations Mode (default)
+
 1. **Search internet for latest versions (MANDATORY)** — before writing any content, search for the latest EKS version, tool versions (Karpenter, ArgoCD, Kyverno, ESO, etc.), and verify the chosen EKS version is in standard support. Never rely on cached knowledge for version numbers. Also search for any recent AWS announcements that affect the chosen architecture (new features, deprecations, pricing changes).
 
 2. **Generate architecture recommendations** using the `eks-best-practices` skill's reference material. For each decision area, explain:
@@ -264,6 +274,10 @@ Ask: **"Does this look correct? Should I generate the architecture recommendatio
 3. **For focused requests** (e.g., "security design"), go deep on the requested domain with domain-relevant recommendations only.
 
 4. **Run the quality check (MANDATORY)** — after generating recommendations, score the output against the [Quality Checklist](#quality-checklist) below. If the score is below 80%, fix the gaps before presenting to the user.
+
+### Doc-Generation Mode
+
+Hand off to the `eks-design` skill with the confirmed requirements. The skill handles the full workflow: document structure, ADR generation, validation scoring, Mermaid diagram rendering, and optional .docx/.pptx output via the `docx` and `aws-pptx` skills.
 
 ---
 

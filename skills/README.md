@@ -49,6 +49,43 @@ Use this skill whenever someone is making an Amazon EKS design, architecture, or
 
 ---
 
+### [eks-build](./eks-build/)
+
+Use when building EKS clusters. Generates complete, production-ready Terraform projects with optional ArgoCD GitOps integration. Handles environment-specific constraints: air-gapped/VPC-endpoint-only networks, enterprise proxies, private container registries, compliance requirements. Supports 3 patterns: full Terraform, ArgoCD+Terraform, ArgoCD+ACK/KRO. Includes validated modules, two-phase webhook ordering, IRSA/Pod Identity, and 29+ addon configurations. Ask interactive questions or accept requirements YAML. Also use when (1) generating EKS Terraform code from scratch, (2) creating GitOps-managed EKS addons with ArgoCD, (3) scaffolding EKS projects with compliance constraints, (4) implementing two-phase webhook ordering for EKS addons, (5) configuring IRSA or Pod Identity for EKS workloads, or (6) generating ArgoCD ApplicationSets for EKS addon management.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [addon-catalog.md](./eks-build/references/addon-catalog.md) | Addon catalog |
+| [baseline-defaults.md](./eks-build/references/baseline-defaults.md) | Baseline defaults |
+| [checkov-config.md](./eks-build/references/checkov-config.md) | Checkov config |
+| [customization-guide.md](./eks-build/references/customization-guide.md) | Customization guide |
+| [lessons-learned.md](./eks-build/references/lessons-learned.md) | Lessons learned |
+| [pattern-guide.md](./eks-build/references/pattern-guide.md) | Pattern guide |
+| [version-matrix.md](./eks-build/references/version-matrix.md) | Version matrix |
+
+**Scripts:**
+
+| Script | Description |
+|--------|-------------|
+| [validate_project.sh](./eks-build/scripts/validate_project.sh) | Validate_project |
+
+---
+
+### [eks-design](./eks-design/)
+
+Use when designing EKS architecture. Generates architecture design documents including system architecture with Mermaid diagrams, Architecture Decision Records (ADRs), security architecture, and architecture validation reports. Translates requirements into tailored EKS architecture designs guided by AWS Well-Architected best practices. Output populates the project design folder and feeds into eks-build for code generation. Covers cluster architecture, compute strategy, networking model, security posture, addon selection, observability, cost optimization, and upgrade strategy. Also use when (1) reviewing EKS architecture decisions, (2) choosing between EKS compute options, (3) planning EKS networking or security, (4) evaluating EKS deployment models, (5) optimizing EKS cost and scalability, or (6) generating architecture documentation for an EKS project.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [architecture-validation.md](./eks-design/references/architecture-validation.md) | Architecture validation |
+| [output-structure.md](./eks-design/references/output-structure.md) | Output structure |
+
+---
+
 ### [eks-mcp-server](./eks-mcp-server/)
 
 Setup and configure the EKS MCP Server for live cluster operations. Use this skill when the user wants to interact with real EKS clusters (list clusters, read K8s resources, troubleshoot pods, deploy workloads, check upgrade insights) but MCP tools are not available or not working. Also activate if user mentions "eks mcp", "mcp server", or asks how to connect their AI assistant to EKS.

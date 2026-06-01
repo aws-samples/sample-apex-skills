@@ -401,6 +401,75 @@ aws eks describe-cluster --name CLUSTER_NAME \
 
 ---
 
+## Multus CNI
+
+Multus enables multiple network interfaces on pods, required for workloads such as telco, DPDK, and SR-IOV applications.
+
+### How It Works
+
+Multus acts as a meta-plugin that delegates to the primary CNI (VPC CNI) for the default interface and to additional CNI plugins for secondary interfaces. Pods define their network attachments through annotations referencing NetworkAttachmentDefinition CRDs.
+
+### Enabling Multus
+
+Deploy Multus as a DaemonSet using the upstream thick-plugin manifests into `kube-system`:
+
+```yaml
+multus:
+  enabled: true
+  image: ghcr.io/k8snetworkplumbingwg/multus-cni:v4.1.0-thick
+```
+
+Multus is deployed via `kubectl_manifest` resources that apply the upstream thick-plugin DaemonSet manifests directly into `kube-system` (not via Helm). The only config keys that matter are `enabled` and `image`.
+
+### NetworkAttachmentDefinition Example
+
+After Multus is installed, create NetworkAttachmentDefinitions for secondary interfaces:
+
+```yaml
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: macvlan-conf
+  namespace: my-app
+spec:
+  config: |
+    {
+      "cniVersion": "0.3.1",
+      "type": "macvlan",
+      "master": "eth1",
+      "mode": "bridge",
+      "ipam": {
+        "type": "host-local",
+        "subnet": "10.10.0.0/16"
+      }
+    }
+```
+
+Reference it in a pod annotation:
+
+```yaml
+metadata:
+  annotations:
+    k8s.v1.cni.cncf.io/networks: macvlan-conf
+```
+
+### Node Security Group for Multus
+
+If Multus secondary interfaces need access to specific network resources, add additional node security group rules:
+
+```yaml
+node_sg_additional_rules:
+  multus_traffic:
+    description: "Allow Multus secondary interface traffic"
+    protocol: -1
+    from_port: 0
+    to_port: 0
+    type: ingress
+    cidr_blocks: ["10.10.0.0/16"]
+```
+
+---
+
 **Sources:**
 - [AWS EKS Best Practices Guide — Amazon VPC CNI](https://docs.aws.amazon.com/eks/latest/best-practices/vpc-cni.html)
 - [AWS EKS Best Practices Guide — Prefix Mode](https://docs.aws.amazon.com/eks/latest/best-practices/prefix-mode-linux.html)

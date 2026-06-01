@@ -583,6 +583,26 @@ You can [disable extended support](https://docs.aws.amazon.com/eks/latest/usergu
 
 ---
 
+## Test Cluster Validation Phase
+
+Before upgrading production, validate the target Kubernetes version in a dedicated test cluster.
+
+### 9-Step Test Procedure
+
+| Step | Action | Pass Criteria | What It Validates |
+|------|--------|--------------|-------------------|
+| 1. Deploy test cluster | Create EKS cluster at target K8s version with same config (VPC CNI mode, add-on set, Karpenter/MNG) | Cluster reaches `ACTIVE` status | Cluster provisioning and configuration compatibility |
+| 2. Upgrade control plane (if testing in-place) | Initiate control plane upgrade on test cluster | Control plane upgrade completes without errors | Upgrade process for the specific version transition |
+| 3. Verify control plane | Check node status, cluster info, API server responsiveness | All API endpoints healthy, no error responses | API server availability after upgrade |
+| 4. Verify add-ons | Check all EKS add-ons and self-managed add-ons are running | All add-on pods Running/Ready, no CrashLoopBackOff | Add-on compatibility with new K8s version |
+| 5. Verify workloads | Deploy representative workloads (same Helm charts, same configs) | All deployments reach desired replica count | Application manifest compatibility, scheduling |
+| 6. Verify networking | Test ingress, service-to-service communication, DNS resolution, network policies | All connectivity tests pass, DNS resolves within SLA | CNI, CoreDNS, kube-proxy, ingress controller behavior |
+| 7. Verify storage | Create PVCs, write/read data, test volume expansion | PVCs bind, data persists across pod restarts | CSI driver compatibility, StorageClass behavior |
+| 8. Performance test | Run load test at expected production traffic levels | Latency and throughput within acceptable thresholds | No performance regressions from version change |
+| 9. Document results | Record all findings, regressions, and workarounds | Test report reviewed and approved | Formal sign-off for production upgrade |
+
+---
+
 ## Bottlerocket-Specific Guidance
 
 ### Bottlerocket Update Operator (BUO)

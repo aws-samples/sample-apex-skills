@@ -18,6 +18,7 @@
 9. [Complete Reliable Deployment Template](#complete-reliable-deployment-template)
 10. [PDB Configuration](#pdb-configuration)
 11. [Probe Configuration Guidance](#probe-configuration-guidance)
+12. [Disaster Recovery](#disaster-recovery)
 
 ---
 
@@ -690,7 +691,58 @@ Use startup probes for applications with slow initialization (>10 seconds). The 
 
 ---
 
-For disaster recovery, deployment strategies, zonal shift, large-cluster guidance, admission-controller topology enforcement, and chaos engineering, see [reliability-advanced.md](reliability-advanced.md).
+## Disaster Recovery
+
+### Cluster Recovery
+
+The Terraform state file is the primary recovery artifact. If the cluster is destroyed:
+
+1. Ensure the S3 state bucket has versioning enabled.
+2. Re-run `terraform apply` with the same configuration to recreate the cluster.
+3. Restore workloads from backups (Velero, if enabled).
+
+### State Backup
+
+Enable S3 versioning on the state bucket:
+
+```bash
+aws s3api put-bucket-versioning \
+  --bucket my-state-bucket \
+  --versioning-configuration Status=Enabled
+```
+
+To recover a previous state version:
+
+```bash
+aws s3api list-object-versions --bucket my-state-bucket --prefix eks/terraform.tfstate
+aws s3api get-object --bucket my-state-bucket --key eks/terraform.tfstate --version-id <version-id> terraform.tfstate.backup
+```
+
+### Velero Backups
+
+If Velero is enabled, schedule regular cluster backups:
+
+```bash
+velero schedule create daily-backup --schedule="0 2 * * *" --ttl 168h0m0s
+```
+
+Restore from backup:
+
+```bash
+velero restore create --from-backup daily-backup-<timestamp>
+```
+
+### Multi-Region Considerations
+
+For multi-region disaster recovery:
+
+1. Replicate the S3 state bucket to a secondary region.
+2. Maintain a parallel config directory for the DR region with the appropriate VPC and subnet values.
+3. Test the recovery procedure periodically by applying the DR config to a fresh region.
+
+---
+
+For deployment strategies, zonal shift, large-cluster guidance, admission-controller topology enforcement, and chaos engineering, see [reliability-advanced.md](reliability-advanced.md).
 
 ---
 

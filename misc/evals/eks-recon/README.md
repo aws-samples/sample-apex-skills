@@ -13,6 +13,8 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 - **`eks-upgrade-check`** — owns upgrade readiness scoring ("score my upgrade readiness" wants a scored report, not a discovery inventory). Negatives at items 14, 16 enforce this.
 - **`eks-operation-review`** — owns operational maturity scoring ("rate my ops posture GREEN/AMBER/RED" is a structured review, not reconnaissance). Negative at item 15 enforces this.
 - **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 17 ("Catalog our services in a Backstage dev…").
+- **`eks-design`** (design document generation — ADRs, Mermaid diagrams, architecture scoring) — negatives 18, 19 ("Design a new EKS architecture…", "Create a security architecture document…").
+- **`eks-build`** (EKS Terraform code generation — full project scaffold, Pattern 2a/2b) — negatives 20, 21 ("Generate Terraform code for…", "Build an EKS Terraform project…").
 <!-- SIBLING_MAP_END -->
 
 ## Live-cluster caveat

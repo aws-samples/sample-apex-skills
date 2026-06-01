@@ -19,6 +19,8 @@
 10. [Detective Controls](#detective-controls)
 11. [Alerting Patterns](#alerting-patterns)
 12. [Monitoring High Availability](#monitoring-high-availability)
+13. [Multi-Tenant Observability Isolation](#multi-tenant-observability-isolation)
+14. [Tiered Log Retention Architecture](#tiered-log-retention-architecture)
 
 ---
 
@@ -574,6 +576,99 @@ If running self-managed Prometheus (not AMP), pair it with Thanos or Cortex for:
 - Deduplication of metrics from HA pairs
 
 AMP eliminates this complexity -- it handles replication, storage, and HA automatically.
+
+---
+
+## Multi-Tenant Observability Isolation
+
+In multi-tenant EKS platforms, each tenant needs isolated observability data to prevent cross-tenant visibility and enable accurate cost attribution.
+
+### OTEL Routing Processor
+
+Use the OpenTelemetry routing processor to direct telemetry to tenant-specific backends based on resource attributes. The routing processor inspects an attribute on incoming telemetry (typically `k8s.namespace.name`) and routes matching data to the appropriate exporter. Each tenant maps to a dedicated AMP workspace (or other backend), while unmatched data falls through to a default platform exporter.
+
+**Routing configuration pattern:**
+
+| Routing Attribute | Match Pattern | Target Backend | Purpose |
+|-------------------|--------------|----------------|---------|
+| `k8s.namespace.name` | `team-a-*` | AMP workspace for Team A | Isolate Team A metrics |
+| `k8s.namespace.name` | `team-b-*` | AMP workspace for Team B | Isolate Team B metrics |
+| (default) | All other namespaces | Platform AMP workspace | Platform/shared metrics |
+
+### Per-Tenant CloudWatch Isolation
+
+| Data Type | Isolation Method | Naming Convention |
+|-----------|-----------------|-------------------|
+| **Log groups** | Separate log group per tenant | `/eks/<cluster>/<tenant>/application` |
+| **Metric namespaces** | Metric dimensions by tenant | `EKS/Tenant/<tenant-name>` |
+| **Dashboards** | Grafana workspace per tenant or folder-based RBAC | `<tenant>-overview`, `<tenant>-alerts` |
+| **Alerts** | Per-tenant SNS topics | `eks-<tenant>-critical`, `eks-<tenant>-warning` |
+
+### Isolated Grafana Dashboards
+
+**Option A: Amazon Managed Grafana with workspace-per-tenant**
+- Each tenant gets their own AMG workspace
+- IAM Identity Center groups control access
+- Highest isolation but highest cost
+
+**Option B: Single AMG workspace with folder-based RBAC**
+- One workspace with per-tenant folders
+- Grafana Teams map to IAM Identity Center groups
+- Team permissions scoped to their folder only
+- Lower cost, moderate isolation
+
+---
+
+## Tiered Log Retention Architecture
+
+For cost-effective log management, implement a tiered retention strategy that balances query performance with storage costs.
+
+### Tier Architecture
+
+```
+Application Logs
+     |
+     v
+CloudWatch Logs (Hot Tier)
+  |-- Retention: 7-14 days
+  |-- Use: Real-time debugging, recent incident investigation
+  +-- Cost: ~$0.50/GB ingestion + $0.03/GB/month storage
+     |
+     v (Subscription Filter)
+Kinesis Data Firehose
+     |
+     v
+S3 Bucket (Warm Tier)
+  |-- Storage class: S3 Intelligent-Tiering
+  |-- Retention: 30-90 days
+  |-- Use: Historical analysis, compliance queries via Athena
+  +-- Cost: ~$0.023/GB/month (Frequent) -> $0.0125/GB/month (Infrequent)
+     |
+     v (Lifecycle Rule)
+S3 Glacier (Cold Tier)
+  |-- Storage class: Glacier Flexible Retrieval
+  |-- Retention: 90 days - 7 years (per compliance)
+  |-- Use: Compliance archive, audit, legal hold
+  +-- Cost: ~$0.004/GB/month
+```
+
+### CloudWatch Subscription Filter
+
+To stream logs from CloudWatch to S3 for archival, create a subscription filter on each log group. The filter forwards matching log events to a Kinesis Data Firehose delivery stream, which batches and writes them to an S3 bucket. Use an empty filter pattern to forward all events, or specify a pattern to selectively archive (e.g., only ERROR-level logs).
+
+### Retention Policy by Log Type
+
+| Log Type | Hot (CloudWatch) | Warm (S3 Standard) | Cold (Glacier) | Total Retention |
+|----------|------------------|-------------------|----------------|-----------------|
+| **Application logs** | 7 days | 23 days | 335 days | 1 year |
+| **Audit logs** | 30 days | 60 days | 275 days | 1 year |
+| **Security logs** | 30 days | 60 days | 6+ years | 7 years (compliance) |
+| **Control plane logs** | 14 days | 76 days | — | 90 days |
+| **Access logs (ALB)** | 14 days | 76 days | — | 90 days |
+
+### Querying Archived Logs
+
+For warm-tier logs stored in S3, use Amazon Athena with partition projection for efficient queries. Create an Athena table partitioned by year, month, day, and optionally tenant namespace. Athena can then query the archived logs using standard SQL, filtering by time range, namespace, log level, and other fields. Partition projection eliminates the need to run `MSCK REPAIR TABLE` as new partitions arrive automatically.
 
 ---
 
