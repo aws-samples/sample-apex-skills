@@ -11,19 +11,19 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 ## Scorecard
 
-*Last updated: 2026-06-01T17:27Z · provider: bedrock · model: global.anthropic.claude-opus-4-6-v1 · runs_per_query: 3 · git HEAD: 1c695f3*
+*Last updated: 2026-06-02T01:53Z · provider: bedrock · model: global.anthropic.claude-opus-4-6-v1 · runs_per_query: 3 · git HEAD: c7ce8c5*
 
 | Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |
 |---|---|---|---|---|---|---|---|---|
-| eks-best-practices | 16/22 (73%, CI 52%–87%) | 8/8 | 8/14 | 2 | +9pp | 100% ± 0% / 100% ± 0% / +0pp | +0pp | ✓ |
+| eks-best-practices | 15/22 (68%, CI 47%–84%) | 8/8 | 7/14 | 1 | -5pp | 100% ± 0% / 100% ± 0% / +0pp | +0pp | ✓ |
 | eks-build | 18/20 (90%, CI 70%–97%) | 8/10 | 10/10 | 0 | +0pp | 33% ± 58% / 100% ± 0% / -67pp | — | ✓ |
 | eks-design | 18/20 (90%, CI 70%–97%) | 9/10 | 9/10 | 1 | +0pp | 0% ± 0% / 75% ± 11% / -75pp | — | ✓ |
-| eks-mcp-server | 10/17 (59%, CI 36%–78%) | 6/8 | 4/9 | 1 | -6pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
+| eks-mcp-server | 9/17 (53%, CI 31%–74%) | 5/8 | 4/9 | 3 | -6pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
 | eks-operation-review | 19/19 (100%, CI 83%–100%) | 8/8 | 11/11 | 0 | +0pp | — | — | ✓ |
 | eks-platform-engineering | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 0 | +0pp | — | — | ✓ |
 | eks-recon | 17/21 (81%, CI 60%–92%) | 8/8 | 9/13 | 0 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
-| eks-upgrade-check | 20/21 (95%, CI 77%–99%) | 9/10 | 11/11 | 1 | -5pp | — | — | ✓ |
-| steering-workflow-creator | 16/17 (94%, CI 73%–99%) | 7/8 | 9/9 | 0 | +6pp | 100% ± 0% / 10% ± 11% / +90pp | — | ✓ |
+| eks-upgrade-check | 21/21 (100%, CI 85%–100%) | 10/10 | 11/11 | 1 | +5pp | — | — | ✓ |
+| steering-workflow-creator | 16/17 (94%, CI 73%–99%) | 7/8 | 9/9 | 0 | +0pp | 100% ± 0% / 10% ± 11% / +90pp | — | ✓ |
 | update-docs | 20/20 (100%, CI 84%–100%) | 8/8 | 12/12 | 0 | +0pp | 0% ± 0% / 0% ± 0% / +0pp | — | ✓ |
 
 > Hygiene warnings (`⚠`) render only when `quick_validate` fails, `triggering.json` has fewer than 8 positives/negatives, `evals.json` has fewer than 2 prompts or <3 expectations on any prompt, or the sibling-map parser reports unattributed negatives. When a row is `⚠`, the detail block surfaces the specific warnings.
@@ -32,7 +32,6 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Flaky queries** (trigger rate strictly between 0 and 1):
 
-- `0.33`  ✅ neg `"How do I install the EKS MCP server and wire it up to Claude Code so I can query live clusters?"`
 - `0.33`  ✅ neg `"Audit my EKS cluster's operational posture — score each area GREEN/AMBER/RED and produce a maturi…"`
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
@@ -41,7 +40,7 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 |---|---|
 | eks-build | 2/2 |
 | eks-design | 1/2 |
-| eks-mcp-server | 0/1 |
+| eks-mcp-server | 1/1 |
 | eks-operation-review | 0/1 |
 | eks-platform-engineering | 2/2 |
 | eks-recon | 0/3 |
@@ -53,17 +52,17 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
 | 0.33 | 14/22 | 8/8 | 6/14 |
-| 0.50 | 16/22 | 8/8 | 8/14 |
-| 0.67 | 16/22 | 8/8 | 8/14 |
+| 0.50 | 15/22 | 8/8 | 7/14 |
+| 0.67 | 15/22 | 8/8 | 7/14 |
 
 **Run history** (last 4, sourced from `misc/evals/history/eks-best-practices.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:25:38Z | 15/22 | 8/8 | 7/14 | global.anthropic.claude-opus-4-6-v1 |
+| 2026-06-02T00:47:51Z | 16/22 | 8/8 | 8/14 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T16:59:01Z | 16/22 | 8/8 | 8/14 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:15:47Z | 14/22 | 8/8 | 6/14 | global.anthropic.claude-opus-4-7 |
-| 2026-06-01T14:02:15Z | 15/22 | 8/8 | 7/14 | global.anthropic.claude-opus-4-7 |
-| 2026-05-21T02:17:11Z | 14/14 | 8/8 | 6/6 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
@@ -123,10 +122,11 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 18/20 | 8/10 | 10/10 |
 | 0.67 | 18/20 | 8/10 | 10/10 |
 
-**Run history** (last 3, sourced from `misc/evals/history/eks-build.jsonl`):
+**Run history** (last 4, sourced from `misc/evals/history/eks-build.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:27:05Z | 18/20 | 8/10 | 10/10 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:00:42Z | 18/20 | 8/10 | 10/10 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:18:36Z | 18/20 | 9/10 | 9/10 | global.anthropic.claude-opus-4-7 |
 | 2026-06-01T14:05:22Z | 17/20 | 9/10 | 8/10 | global.anthropic.claude-opus-4-7 |
@@ -175,7 +175,7 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Flaky queries** (trigger rate strictly between 0 and 1):
 
-- `0.67`  ✅ pos `"Review and score our current EKS architecture against Well-Architected best practices. Here's our…"`
+- `0.67`  ❌ neg `"Help me build an Internal Developer Platform with Backstage portal, golden paths, and progressive…"`
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
 
@@ -194,12 +194,13 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 |---|---|---|---|
 | 0.33 | 18/20 | 9/10 | 9/10 |
 | 0.50 | 18/20 | 9/10 | 9/10 |
-| 0.67 | 17/20 | 8/10 | 9/10 |
+| 0.67 | 19/20 | 9/10 | 10/10 |
 
-**Run history** (last 2, sourced from `misc/evals/history/eks-design.jsonl`):
+**Run history** (last 3, sourced from `misc/evals/history/eks-design.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:29:44Z | 18/20 | 9/10 | 9/10 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:03:22Z | 18/20 | 9/10 | 9/10 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:22:41Z | 18/20 | 10/10 | 8/10 | global.anthropic.claude-opus-4-7 |
 
@@ -244,6 +245,8 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Flaky queries** (trigger rate strictly between 0 and 1):
 
+- `0.33`  ❌ pos `"My EKS MCP Server keeps failing with an AccessDenied on eks-mcp:InvokeMcp. How do I fix this?"`
+- `0.67`  ❌ neg `"List all the node groups and Karpenter NodePools in my prod-use1 cluster and tell me what instanc…"`
 - `0.33`  ✅ neg `"What version is my EKS cluster on and which add-ons are installed?"`
 
 **Per-sibling leakage** (negatives where we triggered when we shouldn't):
@@ -262,13 +265,14 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
 | 0.33 | 9/17 | 6/8 | 3/9 |
-| 0.50 | 10/17 | 6/8 | 4/9 |
-| 0.67 | 10/17 | 6/8 | 4/9 |
+| 0.50 | 9/17 | 5/8 | 4/9 |
+| 0.67 | 10/17 | 5/8 | 5/9 |
 
-**Run history** (last 4, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
+**Run history** (last 5, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:32:27Z | 9/17 | 5/8 | 4/9 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:06:09Z | 10/17 | 6/8 | 4/9 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:25:47Z | 11/17 | 6/8 | 5/9 | global.anthropic.claude-opus-4-7 |
 | 2026-05-21T02:18:56Z | 11/14 | 8/8 | 3/6 | global.anthropic.claude-opus-4-7 |
@@ -333,10 +337,11 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 19/19 | 8/8 | 11/11 |
 | 0.67 | 19/19 | 8/8 | 11/11 |
 
-**Run history** (last 2, sourced from `misc/evals/history/eks-operation-review.jsonl`):
+**Run history** (last 3, sourced from `misc/evals/history/eks-operation-review.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:34:45Z | 19/19 | 8/8 | 11/11 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:08:25Z | 19/19 | 8/8 | 11/11 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:28:50Z | 19/19 | 8/8 | 11/11 | global.anthropic.claude-opus-4-7 |
 
@@ -363,10 +368,11 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 16/16 | 8/8 | 8/8 |
 | 0.67 | 16/16 | 8/8 | 8/8 |
 
-**Run history** (last 2, sourced from `misc/evals/history/eks-platform-engineering.jsonl`):
+**Run history** (last 3, sourced from `misc/evals/history/eks-platform-engineering.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:37:57Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:12:01Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:32:35Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
@@ -395,10 +401,11 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 17/21 | 8/8 | 9/13 |
 | 0.67 | 17/21 | 8/8 | 9/13 |
 
-**Run history** (last 4, sourced from `misc/evals/history/eks-recon.jsonl`):
+**Run history** (last 5, sourced from `misc/evals/history/eks-recon.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:40:06Z | 17/21 | 8/8 | 9/13 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:14:27Z | 17/21 | 8/8 | 9/13 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:35:35Z | 17/21 | 8/8 | 9/13 | global.anthropic.claude-opus-4-7 |
 | 2026-05-21T02:19:41Z | 13/13 | 8/8 | 5/5 | global.anthropic.claude-opus-4-7 |
@@ -462,14 +469,15 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 | Threshold | Overall | Positive | Negative |
 |---|---|---|---|
-| 0.33 | 20/21 | 9/10 | 11/11 |
-| 0.50 | 20/21 | 9/10 | 11/11 |
-| 0.67 | 19/21 | 8/10 | 11/11 |
+| 0.33 | 21/21 | 10/10 | 11/11 |
+| 0.50 | 21/21 | 10/10 | 11/11 |
+| 0.67 | 20/21 | 9/10 | 11/11 |
 
-**Run history** (last 2, sourced from `misc/evals/history/eks-upgrade-check.jsonl`):
+**Run history** (last 3, sourced from `misc/evals/history/eks-upgrade-check.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:42:46Z | 21/21 | 10/10 | 11/11 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:17:09Z | 20/21 | 9/10 | 11/11 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:39:21Z | 21/21 | 10/10 | 11/11 | global.anthropic.claude-opus-4-7 |
 
@@ -501,10 +509,10 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:46:06Z | 16/17 | 7/8 | 9/9 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:20:38Z | 16/17 | 7/8 | 9/9 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:43:21Z | 15/17 | 7/8 | 8/9 | global.anthropic.claude-opus-4-7 |
 | 2026-05-21T02:20:33Z | 15/16 | 8/8 | 7/8 | global.anthropic.claude-opus-4-7 |
-| 2026-04-29T05:40:05Z | 15/16 | 8/8 | 7/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
@@ -566,10 +574,11 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 20/20 | 8/8 | 12/12 |
 | 0.67 | 20/20 | 8/8 | 12/12 |
 
-**Run history** (last 4, sourced from `misc/evals/history/update-docs.jsonl`):
+**Run history** (last 5, sourced from `misc/evals/history/update-docs.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
+| 2026-06-02T01:49:23Z | 20/20 | 8/8 | 12/12 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:23:23Z | 20/20 | 8/8 | 12/12 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:46:47Z | 20/20 | 8/8 | 12/12 | global.anthropic.claude-opus-4-7 |
 | 2026-05-21T01:55:00Z | —/— | —/— | —/— | global.anthropic.claude-opus-4-7 |
