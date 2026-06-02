@@ -1,0 +1,39 @@
+# APEX Skills (Agentic Platform Engineering eXperience)
+
+> Curated agentic AI skills for AWS platform engineering, delivered through any coding agent
+
+## About
+
+- Repository: https://github.com/aws-samples/sample-apex-skills
+- Documentation: https://aws-samples.github.io/sample-apex-skills/
+- License: MIT-0
+- Spec: https://agentskills.io
+
+## Installation
+
+### Claude Code
+```
+claude mcp add-from-apex-skills
+```
+
+### Kiro CLI
+```
+kiro skills add apex
+```
+
+See the documentation site for full installation instructions.
+
+## Skills Catalog
+
+- **eks-best-practices**: EKS design, architecture, and configuration decisions — compute strategy, multi-tenant isolation, networking, IAM, security, cost, and observability
+- **eks-build**: Generate complete production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support, and 29+ addon configurations
+- **eks-design**: Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture, and Well-Architected validation
+- **eks-mcp-server**: Setup and configure the EKS MCP Server for live cluster operations — list clusters, read resources, troubleshoot pods, check upgrade insights
+- **eks-operation-review**: Structured EKS operational excellence assessment across 10 areas with GREEN/AMBER/RED ratings and prioritized recommendations
+- **eks-platform-engineering**: Internal Developer Platform design on EKS — Backstage, ArgoCD, Kargo, progressive delivery, golden paths, and DORA metrics
+- **eks-recon**: EKS cluster reconnaissance and environment discovery — compute strategy, IaC tooling, CI/CD, add-ons, networking, and security posture
+- **eks-upgrade-check**: Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility, and workload risks
+- **skill-creator**: Create new skills, modify existing skills, run evals, benchmark performance, and optimize triggering accuracy
+- **steering-workflow-creator**: Author steering workflows for any AWS service with matching slash-command shims and tool routing
+- **terraform-skill**: Terraform and OpenTofu — modules, native tests, Terratest, CI/CD pipelines, state debugging, and security scanning
+- **update-docs**: Audit and sync all documentation surfaces after skill changes — README markers, Docusaurus site, and prose references

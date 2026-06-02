@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aws-samples.github.io/sample-apex-skills/sitemap.xml

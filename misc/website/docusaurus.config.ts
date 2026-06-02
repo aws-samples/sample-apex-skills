@@ -27,6 +27,37 @@ const config: Config = {
     locales: ['en'],
   },
 
+  headTags: [
+    {
+      tagName: 'script',
+      attributes: {type: 'application/ld+json'},
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'WebSite',
+            name: 'APEX Skills',
+            url: 'https://aws-samples.github.io/sample-apex-skills/',
+            description: 'Curated agentic AI skills for AWS platform engineering, delivered through any coding agent.',
+          },
+          {
+            '@type': 'Organization',
+            name: 'AWS Samples',
+            url: 'https://github.com/aws-samples',
+          },
+          {
+            '@type': 'SoftwareSourceCode',
+            name: 'sample-apex-skills',
+            codeRepository: 'https://github.com/aws-samples/sample-apex-skills',
+            programmingLanguage: ['TypeScript', 'Python', 'Bash', 'HCL'],
+            license: 'https://opensource.org/licenses/MIT-0',
+            runtimePlatform: 'Claude Code, Kiro CLI',
+          },
+        ],
+      }),
+    },
+  ],
+
   presets: [
     [
       'classic',
@@ -34,16 +65,28 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/aws-samples/sample-apex-skills/edit/main/misc/website/',
+          showLastUpdateTime: true,
         },
         blog: false,
         theme: {
           customCss: './src/css/custom.css',
+        },
+        sitemap: {
+          lastmod: 'date',
+          changefreq: null,
+          priority: null,
         },
       } satisfies Preset.Options,
     ],
   ],
 
   themeConfig: {
+    metadata: [
+      {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
+      {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
+      {name: 'twitter:card', content: 'summary_large_image'},
+      {name: 'keywords', content: 'AWS, EKS, platform engineering, AI agent skills, Claude Code, Kiro CLI, Kubernetes, infrastructure as code, agentic AI, DevOps automation'},
+    ],
     navbar: {
       title: 'APEX Skills',
       logo: {

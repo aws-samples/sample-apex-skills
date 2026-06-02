@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Examples
+description: "Hands-on walkthroughs demonstrating APEX skills against real AWS infrastructure — deploy, run, and assess platform engineering workflows."
 ---
 
 # Examples

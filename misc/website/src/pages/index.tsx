@@ -37,7 +37,7 @@ function HeroBanner() {
 function ValueProps() {
   return (
     <section className="apex-values">
-      <h2 className="apex-values__title">Why APEX?</h2>
+      <h2 className="apex-values__title">Why Platform Engineers Use APEX Skills</h2>
       <div className="apex-values__grid">
         <div className="apex-values__item">
           <h3>Agent-native skills</h3>
@@ -67,10 +67,64 @@ function ValueProps() {
   );
 }
 
+function FeaturedSkills() {
+  const skills = [
+    {
+      name: 'EKS Best Practices',
+      path: '/docs/skills/eks-best-practices/',
+      description:
+        'Architecture and design guidance for Amazon EKS clusters. Covers compute strategy with Karpenter and Auto Mode, multi-tenant isolation, VPC planning, Pod Identity, upgrade strategies, and cost optimization for production Kubernetes workloads.',
+    },
+    {
+      name: 'EKS Upgrade Check',
+      path: '/docs/skills/eks-upgrade-check/',
+      description:
+        'Automated readiness assessment for EKS version upgrades. Checks deprecated APIs, add-on compatibility, node health, and workload risks across 8 categories, producing a 0–100 readiness score with prioritized remediation steps.',
+    },
+    {
+      name: 'Terraform Skill',
+      path: '/docs/skills/terraform-skill/',
+      description:
+        'Infrastructure as Code expertise for AWS with Terraform and OpenTofu. Module creation, native test framework, CI/CD pipelines, state management, security scanning with Trivy and Checkov, and architecture decisions.',
+    },
+    {
+      name: 'EKS Reconnaissance',
+      path: '/docs/skills/eks-recon/',
+      description:
+        'Cluster discovery and environment mapping for Amazon EKS. Detects compute strategy, IaC tooling, CI/CD pipelines, add-on inventory, networking topology, security posture, and observability configuration automatically.',
+    },
+    {
+      name: 'Skill Creator',
+      path: '/docs/skills/skill-creator/',
+      description:
+        'Author new agentic skills following the agentskills.io specification. Handles frontmatter constraints, progressive disclosure, eval scaffolding, and the iterate-with-evals loop for quality assurance.',
+    },
+    {
+      name: 'Steering Workflow Creator',
+      path: '/docs/skills/steering-workflow-creator/',
+      description:
+        'Build phased multi-skill workflows for complex platform operations. Covers workflow conventions, tool routing between knowledge and live MCP, and automated lint validation before deployment.',
+    },
+  ];
+  return (
+    <section className="apex-featured">
+      <h2 className="apex-featured__title">Featured Platform Engineering Skills</h2>
+      <div className="apex-featured__grid">
+        {skills.map((s) => (
+          <Link key={s.name} className="apex-featured__card" to={s.path}>
+            <h3>{s.name}</h3>
+            <p>{s.description}</p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function HowItWorks() {
   return (
     <section className="apex-steps">
-      <h2 className="apex-steps__title">How it works</h2>
+      <h2 className="apex-steps__title">How APEX Skills Work with Your AI Coding Agent</h2>
       <div className="apex-steps__timeline">
         <div className="apex-steps__item">
           <span className="apex-steps__number">1</span>
@@ -111,10 +165,11 @@ function CtaSection() {
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
-    <Layout title={siteConfig.title} description={siteConfig.tagline}>
+    <Layout title="APEX Skills — AWS Platform Engineering for AI Agents" description="Curated agentic AI skills for AWS platform engineering. 12 open-source skills for EKS, Terraform, and infrastructure workflows, delivered through any coding agent.">
       <main className="landing-main">
         <HeroBanner />
         <ValueProps />
+        <FeaturedSkills />
         <HowItWorks />
         <CtaSection />
       </main>

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Skills
+description: "Browse all APEX skills for AWS platform engineering — EKS architecture, Terraform modules, upgrade readiness, cluster operations, and more."
 ---
 
 # Skills

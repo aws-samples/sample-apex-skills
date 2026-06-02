@@ -336,6 +336,7 @@ build_skills_index() {
 ---
 sidebar_position: 3
 title: Skills
+description: "Browse all APEX skills for AWS platform engineering — EKS architecture, Terraform modules, upgrade readiness, cluster operations, and more."
 ---
 
 # Skills
@@ -429,6 +430,7 @@ build_examples_index() {
 ---
 sidebar_position: 5
 title: Examples
+description: "Hands-on walkthroughs demonstrating APEX skills against real AWS infrastructure — deploy, run, and assess platform engineering workflows."
 ---
 
 # Examples

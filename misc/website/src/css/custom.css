@@ -731,6 +731,53 @@
   }
 }
 
+/* Featured skills grid */
+.apex-featured {
+  padding: 4rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.apex-featured__title {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 2rem;
+}
+
+.apex-featured__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.apex-featured__card {
+  display: block;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.apex-featured__card:hover {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-decoration: none;
+  color: inherit;
+}
+
+.apex-featured__card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.apex-featured__card p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
 /* Interactive element transitions */
 a, button, .navbar__link, .menu__link {
   transition: var(--apex-transition);
