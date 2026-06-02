@@ -146,8 +146,8 @@ def format_transcript(events: list[dict], prompt: str, skill_name: str | None) -
             lines.append("")
             continue
         if etype == "assistant":
-            msg = evt.get("message", {})
-            for c in msg.get("content", []) or []:
+            msg = evt.get("message") or {}
+            for c in msg.get("content") or []:
                 ctype = c.get("type")
                 if ctype == "text":
                     text = (c.get("text") or "").strip()
@@ -170,8 +170,8 @@ def format_transcript(events: list[dict], prompt: str, skill_name: str | None) -
                     lines.append(f"_(thinking: {len(c.get('thinking') or '')} chars elided)_")
                     lines.append("")
         elif etype == "user":
-            msg = evt.get("message", {})
-            for c in msg.get("content", []) or []:
+            msg = evt.get("message") or {}
+            for c in msg.get("content") or []:
                 if c.get("type") == "tool_result":
                     content = c.get("content")
                     if isinstance(content, list):
@@ -205,9 +205,9 @@ def compute_metrics(events: list[dict], transcript_text: str, outputs_dir: Path)
 
     for evt in events:
         if evt.get("type") == "assistant":
-            msg = evt.get("message", {})
+            msg = evt.get("message") or {}
             had_tool = False
-            for c in msg.get("content", []) or []:
+            for c in msg.get("content") or []:
                 if c.get("type") == "tool_use":
                     had_tool = True
                     name = c.get("name", "?")
@@ -219,8 +219,8 @@ def compute_metrics(events: list[dict], transcript_text: str, outputs_dir: Path)
             if had_tool:
                 steps += 1
         elif evt.get("type") == "user":
-            msg = evt.get("message", {})
-            for c in msg.get("content", []) or []:
+            msg = evt.get("message") or {}
+            for c in msg.get("content") or []:
                 if c.get("type") == "tool_result" and c.get("is_error"):
                     errors += 1
 
@@ -250,8 +250,8 @@ def extract_result_summary(events: list[dict]) -> dict:
         if evt.get("type") == "result":
             return {
                 "total_tokens": (
-                    evt.get("usage", {}).get("input_tokens", 0)
-                    + evt.get("usage", {}).get("output_tokens", 0)
+                    (evt.get("usage") or {}).get("input_tokens", 0)
+                    + (evt.get("usage") or {}).get("output_tokens", 0)
                 ) or evt.get("total_tokens", 0),
                 "duration_ms": evt.get("duration_ms", 0),
                 "num_turns": evt.get("num_turns", 0),
@@ -467,7 +467,7 @@ def run_grader(
         # final assistant message for a JSON blob.
         for evt in reversed(events):
             if evt.get("type") == "assistant":
-                for c in (evt.get("message", {}).get("content") or []):
+                for c in ((evt.get("message") or {}).get("content") or []):
                     if c.get("type") == "text":
                         text = c.get("text") or ""
                         m = re.search(r"\{.*\}", text, re.DOTALL)
@@ -502,7 +502,7 @@ def run_grader(
             return {"error": f"grading.json expectation missing required fields: {exp}"}
 
     # Ensure summary is present — aggregate_benchmark reads it.
-    if "summary" not in grading or "pass_rate" not in grading.get("summary", {}):
+    if "summary" not in grading or "pass_rate" not in (grading.get("summary") or {}):
         passed = sum(1 for e in expectations_raw if e.get("passed"))
         total = len(expectations_raw)
         grading["summary"] = {
@@ -612,7 +612,7 @@ def run_skill(
         return {"skill": skill, "error": f"missing {evals_json}"}
 
     evals_data = json.loads(evals_json.read_text())
-    prompts = evals_data.get("evals", [])
+    prompts = evals_data.get("evals") or []
     if not include_live_only:
         prompts = [p for p in prompts if not p.get("live_only")]
     if not prompts:
@@ -731,9 +731,9 @@ def run_skill(
     update_latest_symlink(skill, runs_dir)
 
     benchmark = json.loads((runs_dir / "benchmark.json").read_text())
-    rs = benchmark.get("run_summary", {})
-    with_pr = rs.get("with_skill", {}).get("pass_rate", {})
-    wo_pr = rs.get("without_skill", {}).get("pass_rate", {})
+    rs = benchmark.get("run_summary") or {}
+    with_pr = (rs.get("with_skill") or {}).get("pass_rate") or {}
+    wo_pr = (rs.get("without_skill") or {}).get("pass_rate") or {}
     delta = with_pr.get("mean", 0) - wo_pr.get("mean", 0)
 
     entry = {
@@ -797,7 +797,7 @@ def main() -> int:
             return 2
         skills = [args.skill]
 
-    model = args.model or _resolve_makefile_default("MODEL") or "global.anthropic.claude-opus-4-7"
+    model = args.model or _resolve_makefile_default("MODEL") or "global.anthropic.claude-opus-4-6-v1"
 
     extra_env: dict[str, str] = {}
     if args.kubeconfig:

@@ -125,11 +125,11 @@ def hygiene_check(skill: str) -> Hygiene:
         warnings.append(f"evals.json is not valid JSON: {e}")
         evals = {"evals": []}
 
-    prompts = evals.get("evals", [])
+    prompts = evals.get("evals") or []
     if len(prompts) < 2:
         warnings.append(f"evals.json has {len(prompts)} prompts (<2)")
     for p in prompts:
-        exp = p.get("expectations", [])
+        exp = p.get("expectations") or []
         if len(exp) < 3:
             warnings.append(
                 f"evals.json prompt id={p.get('id', '?')} has {len(exp)} expectations (<3)"
@@ -302,7 +302,7 @@ def enrich_metrics(
     """Compute everything the scorecard and history need from the raw
     `run_eval` output.
     """
-    results = run_eval_json.get("results", [])
+    results = run_eval_json.get("results") or []
 
     # Map query text -> index in triggering.json (stable; ProcessPoolExecutor
     # can return results in any order).
@@ -603,9 +603,9 @@ def previous_task_mean(skill: str) -> float | None:
 def format_task_cell(benchmark: dict | None) -> str:
     if not benchmark:
         return "—"
-    rs = benchmark.get("run_summary", {})
-    w = rs.get("with_skill", {}).get("pass_rate", {})
-    wo = rs.get("without_skill", {}).get("pass_rate", {})
+    rs = benchmark.get("run_summary") or {}
+    w = (rs.get("with_skill") or {}).get("pass_rate") or {}
+    wo = (rs.get("without_skill") or {}).get("pass_rate") or {}
     if not w or not wo:
         return "—"
     delta = w.get("mean", 0) - wo.get("mean", 0)
@@ -622,11 +622,10 @@ def format_task_regression(benchmark: dict | None, previous: float | None) -> st
     if previous is None:
         return "—"
     current = (
-        benchmark.get("run_summary", {})
-        .get("with_skill", {})
-        .get("pass_rate", {})
-        .get("mean", 0)
-    )
+        ((benchmark.get("run_summary") or {})
+        .get("with_skill") or {})
+        .get("pass_rate") or {}
+    ).get("mean", 0)
     delta = (current - previous) * 100
     sign = "+" if delta >= 0 else ""
     return f"{sign}{delta:.0f}pp"
@@ -635,7 +634,7 @@ def format_task_regression(benchmark: dict | None, previous: float | None) -> st
 def aggregate_expectations(benchmark: dict) -> list[dict]:
     """Per-expectation pass rate across runs of a benchmark."""
     by_text: dict[str, dict[str, int]] = {}
-    for run in benchmark.get("runs", []):
+    for run in benchmark.get("runs") or []:
         for exp in run.get("expectations", []) or []:
             text = exp.get("text", "")
             if not text:
@@ -826,9 +825,9 @@ def _render_skill_detail(s: dict) -> list[str]:
         out.append("| UTC | Overall | TPR | TNR | Model |")
         out.append("|---|---|---|---|---|")
         for row in trig_history:
-            o = row.get("overall", {})
-            p = row.get("positive", {})
-            n = row.get("negative", {})
+            o = row.get("overall") or {}
+            p = row.get("positive") or {}
+            n = row.get("negative") or {}
             out.append(
                 f"| {row.get('ts', '—')} | {o.get('passed', '—')}/{o.get('total', '—')} | "
                 f"{p.get('passed', '—')}/{p.get('total', '—')} | "
@@ -838,9 +837,9 @@ def _render_skill_detail(s: dict) -> list[str]:
 
     bench = s.get("task_benchmark")
     if bench:
-        rs = bench.get("run_summary", {})
-        w = rs.get("with_skill", {}).get("pass_rate", {})
-        wo = rs.get("without_skill", {}).get("pass_rate", {})
+        rs = bench.get("run_summary") or {}
+        w = (rs.get("with_skill") or {}).get("pass_rate") or {}
+        wo = (rs.get("without_skill") or {}).get("pass_rate") or {}
         out.append("**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):")
         out.append("")
         out.append(
@@ -854,7 +853,7 @@ def _render_skill_detail(s: dict) -> list[str]:
         out.append(
             f"- lift: {(w.get('mean', 0) - wo.get('mean', 0))*100:+.0f}pp"
         )
-        runs_per_prompt = bench.get("metadata", {}).get("runs_per_configuration", "?")
+        runs_per_prompt = (bench.get("metadata") or {}).get("runs_per_configuration", "?")
         out.append(f"- runs per (prompt × config): {runs_per_prompt}")
         out.append("")
 
@@ -987,7 +986,7 @@ def process_skill(
     trig_rows = [r for r in history if r.get("kind") != "task"]
     prev_accuracy: float | None = None
     if trig_rows:
-        prev_accuracy = trig_rows[-1].get("overall", {}).get("accuracy")
+        prev_accuracy = (trig_rows[-1].get("overall") or {}).get("accuracy")
 
     task_benchmark = load_task_benchmark(skill)
     prev_task_mean = previous_task_mean(skill)
@@ -1109,7 +1108,7 @@ def main() -> int:
 
     # Resolve Makefile defaults once so the scorecard metadata is accurate.
     resolved_provider = resolve_makefile_default("PROVIDER") or "bedrock"
-    default_model = "global.anthropic.claude-opus-4-7" if resolved_provider == "bedrock" else "claude-opus-4-7"
+    default_model = "global.anthropic.claude-opus-4-6-v1" if resolved_provider == "bedrock" else "claude-opus-4-6-v1"
     resolved_model = args.model or resolve_makefile_default("MODEL") or default_model
     resolved_runs = (
         args.runs_per_query
@@ -1152,9 +1151,9 @@ def main() -> int:
         # Regression check — task axis.
         if args.fail_on_regression is not None and row.get("task_benchmark") and row.get("previous_task_mean") is not None:
             current_task = (
-                row["task_benchmark"].get("run_summary", {})
-                .get("with_skill", {}).get("pass_rate", {}).get("mean", 0)
-            )
+                ((row["task_benchmark"].get("run_summary") or {})
+                .get("with_skill") or {}).get("pass_rate") or {}
+            ).get("mean", 0)
             task_delta_pp = (current_task - row["previous_task_mean"]) * 100
             if task_delta_pp < -abs(args.fail_on_regression):
                 regression_breach = True

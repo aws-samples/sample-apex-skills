@@ -369,6 +369,6 @@ This simple format has some key advantages:
 
 ### Evaluating skills
 
-Every in-repo skill has a matching evaluation entry under [`misc/evals/`](../misc/evals/) — a `triggering.json` for trigger-accuracy tests and an `evals.json` for end-to-end task-usefulness tests, both runnable via the tooling in [`skills/skill-creator/`](./skill-creator/). See [`misc/evals/README.md`](../misc/evals/README.md) for the capability catalogue and how to run each eval type.
+Every team-owned skill has a matching evaluation entry under [`misc/evals/`](../misc/evals/) — a `triggering.json` for trigger-accuracy tests and an `evals.json` for end-to-end task-usefulness tests, both runnable via the tooling in [`skills/skill-creator/`](./skill-creator/). Vendored skills (`skill-creator`, `terraform-skill`) are excluded since they're maintained upstream. See [`misc/evals/README.md`](../misc/evals/README.md) for the capability catalogue and how to run each eval type.
 
 ---

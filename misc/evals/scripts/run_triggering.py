@@ -253,11 +253,11 @@ def _handle_line(
         return pending_block
 
     if etype == "stream_event":
-        se = evt.get("event", {})
+        se = evt.get("event") or {}
         se_type = se.get("type", "")
 
         if se_type == "content_block_start":
-            cb = se.get("content_block", {})
+            cb = se.get("content_block") or {}
             if cb.get("type") == "tool_use":
                 name = cb.get("name", "")
                 # input may already be populated; check immediately.
@@ -269,7 +269,7 @@ def _handle_line(
             return None
 
         if se_type == "content_block_delta" and pending_block:
-            delta = se.get("delta", {})
+            delta = se.get("delta") or {}
             if delta.get("type") == "input_json_delta":
                 pending_block["input_json"] += delta.get("partial_json", "")
                 if pending_block["name"] == "Skill" and _match_skill_in_input(
@@ -289,7 +289,7 @@ def _handle_line(
         return pending_block
 
     if etype == "assistant":
-        msg = evt.get("message", {})
+        msg = evt.get("message") or {}
         for c in msg.get("content", []) or []:
             if c.get("type") != "tool_use":
                 continue

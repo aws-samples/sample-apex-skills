@@ -44,7 +44,6 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/apex-social-card.png',
     navbar: {
       title: 'APEX Skills',
       logo: {

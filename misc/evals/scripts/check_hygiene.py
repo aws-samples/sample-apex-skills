@@ -23,8 +23,10 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import sys
 from pathlib import Path
+from typing import Any
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 
@@ -80,8 +82,6 @@ def main() -> int:
         readme_path = rae.EVALS_ROOT / skill / "README.md"
         triggering_path = rae.EVALS_ROOT / skill / "triggering.json"
         try:
-            import json
-
             triggering = json.loads(triggering_path.read_text())
         except FileNotFoundError:
             triggering = []
@@ -105,6 +105,56 @@ def main() -> int:
                 warnings.append(
                     f"sibling map does not attribute negative indices: {sorted(unmatched)}"
                 )
+
+        # --- New checks (errors = fail hygiene) ---
+
+        # 1. skill_name in evals.json must match the directory name.
+        evals_path = rae.EVALS_ROOT / skill / "evals.json"
+        try:
+            evals_data = json.loads(evals_path.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            evals_data = {}
+
+        evals_skill_name = evals_data.get("skill_name")
+        if evals_skill_name and evals_skill_name != skill:
+            warnings.append(
+                f"evals.json skill_name '{evals_skill_name}' does not match directory name '{skill}'"
+            )
+
+        # 2. Duplicate id values within evals.json.
+        prompts = evals_data.get("evals") or []
+        seen_ids: dict[Any, int] = {}
+        for idx, p in enumerate(prompts):
+            pid = p.get("id")
+            if pid is None:
+                continue
+            if pid in seen_ids:
+                warnings.append(
+                    f"evals.json has duplicate id={pid} (indices {seen_ids[pid]} and {idx})"
+                )
+            else:
+                seen_ids[pid] = idx
+
+        # --- New checks (warnings only = non-breaking) ---
+
+        # 3. live_only field (if present) must be boolean.
+        for p in prompts:
+            if "live_only" in p and not isinstance(p["live_only"], bool):
+                warnings.append(
+                    f"evals.json prompt id={p.get('id', '?')} has non-boolean live_only: {type(p['live_only']).__name__}"
+                )
+
+        # 4. Referenced files entries (if non-empty) must exist on disk.
+        files_dir = rae.EVALS_ROOT / skill / "files"
+        for p in prompts:
+            for f in p.get("files") or []:
+                if not f:
+                    continue
+                file_path = files_dir / f
+                if not file_path.exists():
+                    warnings.append(
+                        f"evals.json prompt id={p.get('id', '?')} references file '{f}' but {file_path} does not exist"
+                    )
 
         if warnings:
             any_fail = True

@@ -142,9 +142,13 @@ def rewrite(m):
     if target.startswith(("http://", "https://", "#", "mailto:")):
         return m.group(0)
     anchor = ""
+    query = ""
     if "#" in target:
         target, anchor = target.rsplit("#", 1)
         anchor = "#" + anchor
+    if "?" in target:
+        target, query = target.split("?", 1)
+        query = "?" + query
     if not target:
         return m.group(0)
     resolved = os.path.normpath(os.path.join(src_dir, target))
@@ -154,26 +158,26 @@ def rewrite(m):
         examples_prefix = "examples/"
         static_url = "/sample-apex-skills/examples/" + resolved[len(examples_prefix):]
         if target.endswith(".png"):
-            return f"![{text}](pathname://{static_url})"
+            return f"![{text}](pathname://{static_url}{query}{anchor})"
         elif target.endswith(".html"):
             # Emit both a link and an iframe embed
-            link = f"[{text}](pathname://{static_url})"
+            link = f"[{text}](pathname://{static_url}{query}{anchor})"
             iframe = (
-                "\n\n<iframe src=\"" + static_url + "\" "
+                "\n\n<iframe src=\"" + static_url + query + "\" "
                 "width=\"100%\" height=\"600px\" "
                 "style={{border:\"1px solid var(--ifm-color-emphasis-300)\", borderRadius:\"8px\"}}>"
                 "</iframe>\n"
             )
             return link + iframe
         else:
-            return f"[{text}]({GH_BASE}/{resolved}{anchor})"
+            return f"[{text}]({GH_BASE}/{resolved}{query}{anchor})"
 
     if resolved.startswith(".."):
-        return f"[{text}]({GH_BASE}/{target}{anchor})"
+        return f"[{text}]({GH_BASE}/{target}{query}{anchor})"
     if not resolved.startswith(("skills/", "steering/", "examples/")):
-        return f"[{text}]({GH_BASE}/{resolved}{anchor})"
+        return f"[{text}]({GH_BASE}/{resolved}{query}{anchor})"
     if not target.endswith(".md"):
-        return f"[{text}]({GH_BASE}/{resolved}{anchor})"
+        return f"[{text}]({GH_BASE}/{resolved}{query}{anchor})"
     # .md links within skills/steering/examples — rewrite for Docusaurus
     if os.path.basename(resolved) == "SKILL.md":
         resolved = os.path.join(os.path.dirname(resolved), "index.md")
@@ -188,7 +192,7 @@ def rewrite(m):
         new_target = new_target[:-5]
     elif new_target == "index":
         new_target = "."
-    return f"[{text}]({new_target}{anchor})"
+    return f"[{text}]({new_target}{query}{anchor})"
 
 for line in sys.stdin:
     sys.stdout.write(re.sub(r"(!?)\[([^\]]*)\]\(([^)]+)\)", rewrite, line))
@@ -610,8 +614,8 @@ fi
 # --- Examples static assets (.html, .png) ---
 copy_examples_static
 
-# --- Stale-wrapper cleanup (only in real-write mode) ---
-if [[ "$MODE" != "dry-run" ]]; then
+# --- Stale-wrapper cleanup (only in real-write mode, not --check) ---
+if [[ "$MODE" == "run" ]]; then
   cleanup_stale_tree "$SKILLS_OUT" "${EXPECTED_SKILL_FILES[@]}"
   cleanup_stale_tree "$STEERING_OUT" "${EXPECTED_STEERING_FILES[@]}"
   cleanup_stale_tree "$EXAMPLES_OUT" "${EXPECTED_EXAMPLES_FILES[@]}"
@@ -642,7 +646,7 @@ if [[ "$MODE" == "check" ]]; then
     if [[ -n "$untracked" ]]; then
       echo ""
       echo "Untracked (newly generated) files:"
-      printf '  %s\n' $untracked
+      printf '  %s\n' "$untracked"
     fi
     echo ""
     echo "Fix: run ./misc/update-pages.sh locally, commit the result."

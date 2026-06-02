@@ -6,7 +6,7 @@
 # paths as absolute paths ($(EVALS_ROOT)/…) so the cwd change is invisible to callers.
 #
 # Override on the command line:
-#   make triggering-eks-recon MODEL=claude-opus-4-7
+#   make triggering-eks-recon MODEL=claude-opus-4-6-v1
 #   make benchmark-eks-recon BENCHMARK_DIR=/abs/path/to/run-dir
 #
 # MODEL default is the current Claude flagship. The `claude` CLI has no cheap
@@ -27,15 +27,15 @@ SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 #                          inference-profile ID. Required on AWS-only setups.
 #   anthropic            — uses the Anthropic API. Expects ANTHROPIC_API_KEY
 #                          to be exported in the caller's environment.
-# Override per invocation: `make score PROVIDER=anthropic MODEL=claude-opus-4-7`.
+# Override per invocation: `make score PROVIDER=anthropic MODEL=claude-opus-4-6-v1`.
 # Defaults for MODEL are provider-aware; explicit MODEL= always wins.
 PROVIDER       ?= bedrock
 
 ifeq ($(PROVIDER),bedrock)
-  MODEL        ?= global.anthropic.claude-opus-4-7
+  MODEL        ?= global.anthropic.claude-opus-4-6-v1
   export CLAUDE_CODE_USE_BEDROCK := 1
 else ifeq ($(PROVIDER),anthropic)
-  MODEL        ?= claude-opus-4-7
+  MODEL        ?= claude-opus-4-6-v1
 else
   $(error PROVIDER must be 'bedrock' or 'anthropic', got '$(PROVIDER)')
 endif
