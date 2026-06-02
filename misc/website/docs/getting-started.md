@@ -9,6 +9,8 @@ APEX skills are plain folders of markdown + scripts. Any agent harness that supp
 
 ## Quick Install (recommended)
 
+> **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/) must be installed.
+
 ```bash
 npx apex-skills
 ```

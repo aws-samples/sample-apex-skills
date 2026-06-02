@@ -37,6 +37,8 @@ sample-apex-skills/
 
 ### NPX Installer (recommended)
 
+> **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/) must be installed.
+
 ```bash
 npx apex-skills
 ```
