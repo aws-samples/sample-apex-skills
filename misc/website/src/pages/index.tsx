@@ -105,6 +105,18 @@ function FeaturedSkills() {
       description:
         'Architecture and design guidance — compute strategy with Karpenter and Auto Mode, multi-tenant isolation, VPC planning, Pod Identity, upgrade strategies, and cost optimization.',
     },
+    {
+      name: 'EKS Reconnaissance',
+      path: '/docs/skills/eks-recon/',
+      description:
+        'Cluster discovery and environment mapping. Detects compute strategy, IaC tooling, CI/CD pipelines, add-on inventory, networking topology, security posture, and observability automatically.',
+    },
+    {
+      name: 'EKS MCP Server',
+      path: '/docs/skills/eks-mcp-server/',
+      description:
+        'Live cluster operations via Model Context Protocol. List clusters, read Kubernetes resources, troubleshoot pods, deploy workloads, and check upgrade insights in real time.',
+    },
   ];
   return (
     <section className="apex-featured">
