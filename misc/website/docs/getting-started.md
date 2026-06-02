@@ -7,7 +7,17 @@ title: Getting Started
 
 APEX skills are plain folders of markdown + scripts. Any agent harness that supports the [Agent Skills](https://agentskills.io/) standard can load them.
 
-## Claude Code
+## Quick Install (recommended)
+
+```bash
+npx apex-skills
+```
+
+The installer detects which tools you have (Claude Code, Kiro CLI, or both), clones the repo to `~/.apex-skills/`, and symlinks all skills + steering workflows into the right locations. Run `npx apex-skills --update` later to pull the latest skills.
+
+## Manual Install
+
+### Claude Code
 
 ```bash
 git clone https://github.com/aws-samples/sample-apex-skills.git
@@ -18,7 +28,7 @@ cp -r skills/* ~/.claude/skills/
 
 Restart Claude Code; the skills become available via `/<skill-name>`.
 
-## Kiro CLI
+### Kiro CLI
 
 ```bash
 git clone https://github.com/aws-samples/sample-apex-skills.git
