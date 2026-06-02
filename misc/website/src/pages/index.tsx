@@ -70,40 +70,40 @@ function ValueProps() {
 function FeaturedSkills() {
   const skills = [
     {
-      name: 'EKS Best Practices',
-      path: '/docs/skills/eks-best-practices/',
+      name: 'EKS Design',
+      path: '/docs/skills/eks-design/',
       description:
-        'Architecture and design guidance for Amazon EKS clusters. Covers compute strategy with Karpenter and Auto Mode, multi-tenant isolation, VPC planning, Pod Identity, upgrade strategies, and cost optimization for production Kubernetes workloads.',
+        'Architecture design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices.',
+    },
+    {
+      name: 'EKS Build',
+      path: '/docs/skills/eks-build/',
+      description:
+        'Generate production-ready EKS Terraform projects with optional ArgoCD GitOps. Handles air-gapped networks, enterprise proxies, compliance requirements, and 29+ addon configurations.',
     },
     {
       name: 'EKS Upgrade Check',
       path: '/docs/skills/eks-upgrade-check/',
       description:
-        'Automated readiness assessment for EKS version upgrades. Checks deprecated APIs, add-on compatibility, node health, and workload risks across 8 categories, producing a 0–100 readiness score with prioritized remediation steps.',
+        'Automated readiness assessment across 8 categories — deprecated APIs, add-on compatibility, node health, workload risks — producing a 0–100 score with prioritized remediation.',
     },
     {
-      name: 'Terraform Skill',
-      path: '/docs/skills/terraform-skill/',
+      name: 'EKS Operation Review',
+      path: '/docs/skills/eks-operation-review/',
       description:
-        'Infrastructure as Code expertise for AWS with Terraform and OpenTofu. Module creation, native test framework, CI/CD pipelines, state management, security scanning with Trivy and Checkov, and architecture decisions.',
+        'Structured operational excellence assessment covering 10 areas with GREEN/AMBER/RED ratings and prioritized recommendations for production clusters.',
     },
     {
-      name: 'EKS Reconnaissance',
-      path: '/docs/skills/eks-recon/',
+      name: 'EKS Platform Engineering',
+      path: '/docs/skills/eks-platform-engineering/',
       description:
-        'Cluster discovery and environment mapping for Amazon EKS. Detects compute strategy, IaC tooling, CI/CD pipelines, add-on inventory, networking topology, security posture, and observability configuration automatically.',
+        'Internal Developer Platform design — Backstage portal, ArgoCD delivery, progressive rollouts with Kargo, infrastructure abstraction, golden paths, and DORA measurement.',
     },
     {
-      name: 'Skill Creator',
-      path: '/docs/skills/skill-creator/',
+      name: 'EKS Best Practices',
+      path: '/docs/skills/eks-best-practices/',
       description:
-        'Author new agentic skills following the agentskills.io specification. Handles frontmatter constraints, progressive disclosure, eval scaffolding, and the iterate-with-evals loop for quality assurance.',
-    },
-    {
-      name: 'Steering Workflow Creator',
-      path: '/docs/skills/steering-workflow-creator/',
-      description:
-        'Build phased multi-skill workflows for complex platform operations. Covers workflow conventions, tool routing between knowledge and live MCP, and automated lint validation before deployment.',
+        'Architecture and design guidance — compute strategy with Karpenter and Auto Mode, multi-tenant isolation, VPC planning, Pod Identity, upgrade strategies, and cost optimization.',
     },
   ];
   return (
