@@ -18,6 +18,7 @@ This skill has explicit-trigger semantics — it deliberately does NOT auto-acti
 - **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 17 ("How do we measure whether our internal…").
 - **`eks-build`** (generating Terraform modules, Helm charts, ArgoCD manifests, and executable IaC) — negative 18 ("Generate a production-ready Terraform project for a new EKS cluster with Karpenter, VPC CNI, and ArgoCD bootstrap").
 - **`eks-design`** (architecture design documents, ADRs, and system diagrams for EKS solutions) — negative 19 ("Create architecture decision records and Mermaid topology diagrams for our planned EKS cluster migration").
+- **`eks-cost-intelligence`** (live cost assessment) — negatives 20, 21 ("cost audit", "cost efficiency score", "dollar waste per dimension"). The discriminator: cost-intelligence quantifies dollar waste and produces a scored cost report; operational-review rates 10 areas of operational practice GREEN/AMBER/RED regardless of cost.
 <!-- SIBLING_MAP_END -->
 
 The `triggering.json` positives mix two phrasing styles: assessment-language requests ("run an operational review", "audit my cluster", "EKS health check") and section-scoped natural-question forms ("check my EKS networking", "review RBAC on my cluster"). Both styles must trigger the skill. The negatives are deliberately drawn from neighbouring apex skills' territory, plus one non-EKS distractor.
