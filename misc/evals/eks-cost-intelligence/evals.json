@@ -1,0 +1,54 @@
+{
+  "skill_name": "eks-cost-intelligence",
+  "evals": [
+    {
+      "id": 1,
+      "name": "optimized-cluster-high-score",
+      "prompt": "Run a full EKS cost intelligence assessment against `prod-optimized` in us-west-2. Activate the eks-cost-intelligence skill, run pre-flight (list clusters, describe the chosen cluster, verify connectivity, confirm with user), then walk through all 6 cost dimensions (compute-efficiency, spot-graviton-adoption, networking-costs, storage-costs, observability-costs, idle-resources) by reading each reference file and executing its checks.\n\nMock cluster data:\n- Cluster: prod-optimized, version 1.31, ACTIVE, us-west-2\n- Node groups: 3 Karpenter NodePools (general, compute, memory)\n- Instance types: 80% Graviton (m7g, c7g, r7g), 20% x86 (m6i for legacy)\n- Spot adoption: 65% Spot across stateless workloads, On-Demand for stateful only\n- Karpenter consolidation: enabled, consolidateAfter: 30s\n- CPU utilization P95: 72% cluster-wide, no node below 55%\n- Memory utilization P95: 68% cluster-wide\n- All workloads have resource requests and limits defined\n- Storage: 100% gp3, no unused PVCs, EFS with Intelligent-Tiering\n- Networking: topology-aware routing enabled, VPC endpoints for ECR/S3/STS, IP mode on ALBs\n- Observability: control plane logging limited to audit+authenticator, FluentBit with log sampling at INFO level\n- Idle resources: no zero-scale deployments, all LBs have healthy endpoints, no empty namespaces\n- Total estimated spend: $12,400/month\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-prod-optimized-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table, prioritized recommendations (if any), per-dimension findings, and methodology notes. Do NOT fabricate findings — only report based on mock data provided.",
+      "expected_output": "A markdown report with Cost Score between 90-100 classified as OPTIMIZED, showing minimal or no findings across all 6 dimensions, with all dimensions assessed (none SKIPPED), and a score breakdown table showing low deductions per dimension.",
+      "expectations": [
+        "The Cost Score is between 90 and 100 (inclusive) and the classification is OPTIMIZED. TODO: human review",
+        "All 6 dimensions are marked as ASSESSED (not SKIPPED) in the score breakdown table: Compute Efficiency, Spot/Graviton Adoption, Networking Costs, Storage Costs, Observability Costs, Idle Resources. TODO: human review",
+        "The total deductions across all dimensions sum to 10 or fewer points (score >= 90). TODO: human review",
+        "The report contains all required sections: Executive Summary, Cost Score with classification, Score Breakdown table, Prioritized Recommendations (may be empty or minimal), Per-dimension Findings, and Methodology notes. TODO: human review",
+        "No CRITICAL or HIGH severity findings are reported — at most MEDIUM or LOW findings exist given the well-optimized cluster configuration. TODO: human review",
+        "The executive summary correctly identifies the cluster as cost-optimized and highlights Graviton adoption (80%), Spot usage (65%), and high utilization as positive signals. TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "high-waste-cluster-critical-score",
+      "prompt": "Run a full EKS cost intelligence assessment against `dev-legacy` in us-east-1. Activate the eks-cost-intelligence skill, run pre-flight (list clusters, describe the chosen cluster, verify connectivity, confirm with user), then walk through all 6 cost dimensions (compute-efficiency, spot-graviton-adoption, networking-costs, storage-costs, observability-costs, idle-resources) by reading each reference file and executing its checks.\n\nMock cluster data:\n- Cluster: dev-legacy, version 1.28, ACTIVE, us-east-1\n- Node groups: 2 self-managed ASGs (m5.2xlarge On-Demand only), no Karpenter\n- Instance types: 100% x86 (m5.2xlarge), 0% Graviton, 0% Spot\n- CPU utilization P95: 18% cluster-wide, 4 nodes below 10% utilization\n- Memory utilization P95: 22% cluster-wide\n- 12 workloads without resource requests or limits defined\n- Storage: 85% gp2 volumes (42 PVCs), 8 PVCs bound but not mounted, 3 oversized volumes (100Gi provisioned, <5Gi used)\n- Networking: no topology-aware routing, instance mode on all NLBs, no VPC endpoints for ECR/S3/STS, estimated 2TB/month cross-AZ traffic\n- Observability: all 5 control plane log types enabled, FluentBit logging at DEBUG in 3 production namespaces, no log sampling\n- Idle resources: 5 Deployments scaled to 0 for >30 days, 3 LoadBalancer Services with 0 healthy endpoints, 2 namespaces with quotas but no running pods\n- Total estimated spend: $28,600/month\n- Estimated waste: $14,200/month\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-dev-legacy-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table, prioritized recommendations, per-dimension findings with dollar-quantified waste, and methodology notes. Do NOT fabricate findings — only report based on mock data provided.",
+      "expected_output": "A markdown report with Cost Score below 40 classified as CRITICAL, showing multiple CRITICAL and HIGH severity findings across all 6 dimensions, with significant dollar waste quantified and prioritized recommendations sorted by savings impact.",
+      "expectations": [
+        "The Cost Score is below 40 and the classification is CRITICAL. TODO: human review",
+        "All 6 dimensions are marked as ASSESSED (not SKIPPED) in the score breakdown table. TODO: human review",
+        "Multiple CRITICAL severity findings are reported, including: over-provisioned compute (18% CPU utilization), 0% Spot adoption with On-Demand-only nodes, and idle LoadBalancer Services. TODO: human review",
+        "Dollar-quantified waste estimates are included for findings — the total estimated monthly waste is in the range of $10,000-$15,000/month. TODO: human review",
+        "Prioritized recommendations are sorted by severity (CRITICAL first, then HIGH, MEDIUM, LOW) and within each severity by estimated monthly savings descending. TODO: human review",
+        "The report includes actionable remediation snippets (kubectl commands, Terraform/YAML configs) for at least the top 3 recommendations. TODO: human review",
+        "The Compute Efficiency dimension shows maximum or near-maximum deduction (close to 25 points) given the severe over-provisioning and missing resource requests. TODO: human review",
+        "The storage section identifies gp2→gp3 migration opportunity for 42 PVCs and flags the 8 unmounted PVCs and 3 oversized volumes. TODO: human review"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "partial-data-skipped-dimensions",
+      "prompt": "Run a full EKS cost intelligence assessment against `staging-restricted` in eu-west-1. Activate the eks-cost-intelligence skill, run pre-flight (list clusters, describe the chosen cluster, verify connectivity, confirm with user), then walk through all 6 cost dimensions (compute-efficiency, spot-graviton-adoption, networking-costs, storage-costs, observability-costs, idle-resources) by reading each reference file and executing its checks.\n\nMock cluster data:\n- Cluster: staging-restricted, version 1.30, ACTIVE, eu-west-1\n- Node groups: 2 Managed Node Groups (m6i.xlarge On-Demand + c6g.large Spot)\n- Instance types: 40% Graviton (c6g), 60% x86 (m6i), Spot on Graviton nodes only\n- metrics-server: NOT installed (no pod-level CPU/memory utilization data available)\n- Container Insights: NOT enabled (no CloudWatch utilization metrics)\n- Cost Explorer: permission denied (ce:GetCostAndUsage returns AccessDenied)\n- Kubernetes API: accessible (can list pods, PVCs, services, deployments)\n- Storage: 60% gp3, 40% gp2 (18 PVCs), 2 unmounted PVCs, no EFS\n- Networking: topology-aware routing on 2 of 5 services, VPC endpoints for S3 only (missing ECR, STS), IP mode on ALBs\n- Observability: audit+api-server logs enabled, no FluentBit installed\n- Idle resources: 1 Deployment scaled to 0 for 45 days, 1 LB with no endpoints\n- Total estimated spend: unknown (Cost Explorer unavailable, fall back to node-based estimation)\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-staging-restricted-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table (showing SKIPPED dimensions), prioritized recommendations, per-dimension findings, graceful degradation notes, and methodology notes. Do NOT fabricate findings — only report based on what is observable from the available data sources.",
+      "expected_output": "A markdown report where the Compute Efficiency dimension is marked SKIPPED (no metrics-server or Container Insights), scoring excludes the skipped dimension, remaining dimensions are assessed with findings, and the report clearly documents which data sources were unavailable and their impact.",
+      "expectations": [
+        "The Compute Efficiency dimension is marked as SKIPPED in the score breakdown table with a clear reason (metrics-server unavailable, Container Insights not enabled). TODO: human review",
+        "The SKIPPED dimension contributes zero deduction to the final Cost Score — the score is calculated from the 5 remaining assessed dimensions only. TODO: human review",
+        "The report includes a graceful degradation section or methodology note explaining which data sources are unavailable (metrics-server, Container Insights, Cost Explorer) and their impact on the assessment. TODO: human review",
+        "Cost estimation falls back to node-based estimation (using instance types and counts) since Cost Explorer is unavailable, and the report notes reduced confidence in dollar figures. TODO: human review",
+        "The storage section still identifies the 40% gp2 volumes (18 PVCs) and 2 unmounted PVCs as findings despite Cost Explorer being unavailable. TODO: human review",
+        "The networking section flags missing VPC endpoints for ECR and STS as MEDIUM findings and notes partial topology-aware routing coverage. TODO: human review",
+        "The idle resources section identifies the zero-scale deployment and orphaned LB despite the absence of utilization metrics. TODO: human review",
+        "The final Cost Score reflects only the 5 assessed dimensions and the classification is consistent with the scoring algorithm (SKIPPED dimensions excluded from total). TODO: human review"
+      ],
+      "files": []
+    }
+  ]
+}
