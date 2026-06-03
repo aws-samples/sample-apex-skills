@@ -44,6 +44,7 @@ git clone --depth 1 "$UPSTREAM_REPO" "$TEMP_DIR/terraform-skill" 2>&1
 echo ""
 
 UPSTREAM_DIR="$TEMP_DIR/terraform-skill"
+UPSTREAM_ROOT="$UPSTREAM_DIR"
 
 # Upstream restructured: skill now lives under skills/terraform-skill/
 if [ -f "$UPSTREAM_DIR/skills/terraform-skill/SKILL.md" ]; then
@@ -67,8 +68,8 @@ mkdir -p "$LOCAL_DIR/references"
 # Core skill file
 cp "$UPSTREAM_DIR/SKILL.md" "$LOCAL_DIR/SKILL.md"
 
-# License (required for Apache 2.0 compliance)
-cp "$UPSTREAM_DIR/LICENSE" "$LOCAL_DIR/LICENSE"
+# License (required for Apache 2.0 compliance) — always at repo root
+cp "$UPSTREAM_ROOT/LICENSE" "$LOCAL_DIR/LICENSE"
 
 # Progressive disclosure reference files
 cp "$UPSTREAM_DIR/references/"*.md "$LOCAL_DIR/references/"

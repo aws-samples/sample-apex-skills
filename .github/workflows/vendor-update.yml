@@ -154,41 +154,47 @@ jobs:
             vendor-update
             automated
 
-      - name: Open issue on sync failure
+      - name: Record new SHA on sync failure
         if: steps.sync.outcome == 'failure'
-        uses: actions/github-script@v7
+        run: |
+          echo "${{ steps.check.outputs.upstream_sha }}" > "${{ matrix.skill.path }}/.vendor-sha"
+
+      - name: Create PR on sync failure
+        if: steps.sync.outcome == 'failure'
+        uses: peter-evans/create-pull-request@v7
         with:
-          script: |
-            const title = `Vendor sync failed: ${{ matrix.skill.name }}`;
-            const existing = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'vendor-sync-failure',
-            });
-            if (existing.data.some(i => i.title === title)) {
-              console.log('Issue already exists, skipping');
-              return;
-            }
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body: [
-                `## Vendor sync script failed`,
-                ``,
-                `**Skill:** \`${{ matrix.skill.name }}\``,
-                `**Script:** \`${{ matrix.skill.script }}\``,
-                `**Upstream:** ${{ matrix.skill.upstream }}`,
-                `**Upstream SHA:** \`${{ steps.check.outputs.upstream_sha }}\``,
-                ``,
-                `The sync script exited non-zero. This usually means upstream restructured ` +
-                `their repo and the sync script paths need updating.`,
-                ``,
-                `### Next steps`,
-                `1. Check the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for error details`,
-                `2. Fix the sync script at \`${{ matrix.skill.script }}\``,
-                `3. Run manually: \`gh workflow run vendor-update.yml -f skill=${{ matrix.skill.name }}\``,
-              ].join('\n'),
-              labels: ['vendor-sync-failure', 'automated'],
-            });
+          branch: chore/vendor-update-${{ matrix.skill.name }}
+          delete-branch: true
+          title: "chore(vendor): update ${{ matrix.skill.name }} (sync script failed)"
+          body: |
+            ## ⚠️ Sync script failed — manual intervention needed
+
+            **Skill:** `${{ matrix.skill.name }}`
+            **Script:** `${{ matrix.skill.script }}`
+            **Upstream:** ${{ matrix.skill.upstream }}
+            **Previous SHA:** `${{ steps.check.outputs.local_sha }}`
+            **New SHA:** `${{ steps.check.outputs.upstream_sha }}`
+
+            ---
+
+            Upstream has new changes but the sync script exited non-zero. This usually
+            means upstream restructured how the skill is organized (moved files, renamed
+            directories, changed layout).
+
+            ### What to do
+
+            1. Check the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) logs for the exact error
+            2. Fix the sync script at `${{ matrix.skill.script }}`
+            3. Run the fixed script locally and push the result to this branch
+            4. Or close this PR and re-trigger: `gh workflow run vendor-update.yml -f skill=${{ matrix.skill.name }}`
+
+            ### This PR only updates `.vendor-sha`
+
+            The SHA file is updated so the workflow won't re-fire on the same upstream
+            commit every week. Once the sync script is fixed and re-run, the actual
+            skill content will be updated.
+          commit-message: "chore(vendor): flag ${{ matrix.skill.name }} upstream update (sync script failed)"
+          labels: |
+            vendor-update
+            sync-failed
+            automated
