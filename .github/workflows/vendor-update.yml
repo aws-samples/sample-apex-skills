@@ -114,6 +114,9 @@ jobs:
           if [ -x misc/update-all-references.sh ]; then
             ./misc/update-all-references.sh || true
           fi
+          if [ -x misc/update-pages.sh ]; then
+            ./misc/update-pages.sh || true
+          fi
 
       - name: Check for actual diff
         id: diff

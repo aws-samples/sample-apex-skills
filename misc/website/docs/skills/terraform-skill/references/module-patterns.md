@@ -40,8 +40,6 @@ This document provides detailed guidance on creating reusable, maintainable Terr
 
 ### Module Type Classification
 
-Terraform modules can be organized into three distinct types, each serving a specific purpose:
-
 | Type | When to Use | Scope | Example |
 |------|-------------|-------|---------|
 | **Resource Module** | Single logical group of connected resources | Tightly coupled resources that always work together | VPC + subnets, Security group + rules, IAM role + policies |
@@ -174,11 +172,7 @@ data.tf           # Optional: Data sources (if main.tf gets large)
 backend.tf        # ONLY at composition level (remote state config)
 ```
 
-**Why separate files?**
-- **Consistency:** Same structure across all modules
-- **Discoverability:** Know where to find specific types of configuration
-- **Maintainability:** Easier to navigate and modify
-- **Terraform Registry:** Required structure for publishing
+Required structure for Terraform Registry publishing; keeps navigation consistent across modules.
 
 ---
 
@@ -186,11 +180,7 @@ backend.tf        # ONLY at composition level (remote state config)
 
 ### 1. Smaller Scopes = Better Performance + Reduced Blast Radius
 
-**Benefits:**
-- Faster `terraform plan` and `terraform apply` operations
-- Isolated failures don't affect unrelated infrastructure
-- Easier to reason about changes
-- Parallel development by multiple teams
+Faster `plan`/`apply`, isolated failures, parallel team development.
 
 **Example:**
 
@@ -212,43 +202,42 @@ environments/prod/
 
 ### 2. Always Use Remote State
 
-**Why:**
-- **Prevents race conditions** with multiple developers
-- **Provides disaster recovery** (state versioning)
-- **Enables team collaboration** (shared access)
-- **Supports state locking** (prevents concurrent modifications)
+- ❌ local `terraform.tfstate` — no locking, no backup, no team access
+- ✅ remote backend — locking, versioning, encryption, audit log
 
-**Never:**
 ```hcl
-# ❌ BAD - Local state (default)
-# State stored in local terraform.tfstate file
-# Lost if computer crashes
-# Can't share with team
-```
-
-**Always:**
-```hcl
-# ✅ GOOD - Remote state
 terraform {
   backend "s3" {
-    bucket         = "my-terraform-state"
-    key            = "prod/networking/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-locks"  # State locking
-    encrypt        = true                # Encryption at rest
+    bucket       = "my-terraform-state"
+    key          = "prod/networking/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true   # Terraform 1.10+; native S3 locking
+    # Pre-1.10 runtime: use dynamodb_table = "terraform-locks" instead
   }
 }
 ```
 
-### 3. Use terraform_remote_state as Glue
+### 3. Use terraform_remote_state Sparingly — Only at True Ownership Boundaries
 
-**Pattern:** Connect compositions via remote state data sources
+**Pattern:** Connect separately-owned compositions via remote state data sources. Reserve it for genuine team/lifecycle boundaries, not as convenient glue inside a single-team stack.
 
-**Why:**
-- Loose coupling between infrastructure components
-- Teams can work independently
-- Changes to one stack don't require rebuilding others
-- Outputs from one stack become inputs to another
+**Use it when ALL of these are true:**
+- Consumer and producer are owned by **different teams** or have **different release cadences**
+- The producer's state is already split for lifecycle reasons (networking vs. compute vs. data)
+- You cannot reasonably pass the same values as module inputs
+
+**Do NOT use it when:**
+- You control both stacks and can wire via module outputs
+- You're reading values that would be better served by a cloud data source (e.g., `aws_vpc` by tag)
+- You're reaching across >2 remote states in one composition — that is a signal to reshape boundaries, not add more wiring
+
+**Common LLM mistakes:**
+- reaches for `terraform_remote_state` as default integration pattern
+- chains many `terraform_remote_state` reads, creating hidden cross-stack coupling
+- reads values that can drift at the provider level (use cloud data sources instead)
+
+At real boundaries, outputs from one stack become typed inputs to another — teams release independently without shared mutable state.
 
 **Example:**
 
@@ -282,11 +271,8 @@ module "ec2" {
 }
 ```
 
-**Best practices:**
-- Use remote state for cross-team dependencies
-- Document which outputs are consumed by other stacks
-- Version outputs (don't break downstream consumers)
-- Consider using data sources instead for provider-managed resources
+- ✅ document which outputs are consumed externally; version outputs, never break downstream consumers silently
+- ✅ prefer cloud data sources (`aws_vpc` by tag) over `terraform_remote_state` for provider-managed resources
 
 ### 4. Keep Resource Modules Simple
 
@@ -329,6 +315,16 @@ resource "aws_instance" "web" {
   tags = var.tags
 }
 ```
+
+### Cross-cloud resource map
+
+| Resource | AWS | Azure | GCP |
+|----------|-----|-------|-----|
+| Network | `aws_vpc` | `azurerm_virtual_network` | `google_compute_network` |
+| Subnet | `aws_subnet` | `azurerm_subnet` | `google_compute_subnetwork` |
+| Compute instance | `aws_instance` | `azurerm_linux_virtual_machine` | `google_compute_instance` |
+| Managed relational DB | `aws_db_instance` / `aws_rds_cluster` | `azurerm_*_flexible_server` | `google_sql_database_instance` |
+| Object storage | `aws_s3_bucket` | `azurerm_storage_account` + `azurerm_storage_container` | `google_storage_bucket` |
 
 ### 5. Composition Layer: Environment-Specific Values Only
 
@@ -392,74 +388,46 @@ my-module/
     └── module_test.tftest.hcl  # Or .go
 ```
 
-### Why This Structure?
+### File Role
 
-- **README.md** - First thing users see, should explain module purpose
-- **LICENSE** - Legal terms for public modules (MIT or Apache 2.0)
-- **.pre-commit-config.yaml** - Automated validation before commits
-- **main.tf** - Primary resources, keep focused
-- **variables.tf** - All inputs in one place with descriptions
-- **outputs.tf** - All outputs documented
-- **versions.tf** - Lock provider versions for stability
-- **examples/** - Serve as both documentation and test fixtures
-- **tests/** - Automated testing
+- `README.md` — module purpose, first file users see
+- `LICENSE` — legal terms for public modules (MIT or Apache 2.0)
+- `.pre-commit-config.yaml` — automated validation before commits
+- `main.tf` — primary resources, keep focused
+- `variables.tf` — all inputs, with descriptions
+- `outputs.tf` — all outputs, with descriptions
+- `versions.tf` — pinned provider versions
+- `examples/` — docs + test fixtures
+- `tests/` — automated tests
 
 ### License Files
 
-For public modules, always include a LICENSE file:
-- **MIT License** - Simple, permissive (common for public modules)
-- **Apache 2.0** - Permissive with patent grant protection
-
-**Important:** Do NOT store LICENSE templates in this skill. Generate them during module creation using user preference.
-
-**When to include:**
-- ✅ Public modules (GitHub, Terraform Registry)
-- ✅ Open-source projects
-- ❌ Private internal modules (optional)
-- ❌ Environment-specific configurations
+- ✅ Public modules / open-source projects — include LICENSE (MIT = permissive; Apache 2.0 = permissive + patent grant)
+- ❌ Private internal modules / environment-specific configs — optional
+- ❌ Do NOT store LICENSE templates in this skill; generate them on demand from user preference
 
 ### Terraform vs OpenTofu Preference
 
-**Before generating any module or configuration:**
+HCL is identical; choice affects commands, README, CI invocations, binary references only. Ask before generating if not specified.
 
-1. **Ask the user:** "Will this be for Terraform or OpenTofu? (Both are supported equally)"
+**Inference signals (when a project already exists):**
+- `required_version` constraint or comments pinning the runtime
+- CI pipelines invoking `terraform` vs `tofu` explicitly
+- `.terraform.lock.hcl` provenance (check commit history / init script)
+- ❌ `.terraform/` working directory — both runtimes share it, not a differentiator
 
-2. **Use the preference throughout:**
-   - Command examples: `terraform` vs `tofu`
-   - README documentation
-   - CI/CD workflow templates
-   - Version constraints
-   - Binary references
+If signals are mixed, ask the user rather than guessing, or show both command variants in docs.
 
-3. **Document the choice:**
-   ```markdown
-   ## Requirements
+Document the chosen runtime in the module README:
 
-   | Name | Version |
-   |------|---------|
-   | [terraform/tofu] | >= 1.7.0 |
-   | aws | >= 6.0 |
-   ```
+```markdown
+## Requirements
 
-4. **Example command variations:**
-   ```bash
-   # Terraform
-   terraform init
-   terraform test
-   terraform plan
-
-   # OpenTofu
-   tofu init
-   tofu test
-   tofu plan
-   ```
-
-**Note:** The choice is primarily about commands and documentation. The HCL code itself is identical.
-
-**Default behavior:**
-- If user doesn't specify: Ask explicitly
-- If project already exists: Detect from existing files (`.terraform/` or `.tofu/`)
-- If still unclear: Default to showing both options in documentation
+| Name | Version |
+|------|---------|
+| [terraform/tofu] | >= 1.7.0 |
+| aws | ~> 5.0 |
+```
 
 ---
 
@@ -514,6 +482,55 @@ var.type
 var.value
 ```
 
+### Provider Requirements and Alias Passing
+
+- ✅ Child module declares aliased providers: `configuration_aliases = [aws.primary, aws.replica]`
+- ✅ Caller passes them explicitly: `providers = { aws.primary = aws.<caller-alias> }` on the `module` block
+- ❌ Default provider inheritance applies ONLY to a single unaliased provider — never for aliases
+
+Child module — declare aliases in `versions.tf`, bind per resource:
+
+```hcl
+# modules/replicated-s3/versions.tf
+terraform {
+  required_providers {
+    aws = {
+      source                = "hashicorp/aws"
+      version               = "~> 5.0"
+      configuration_aliases = [aws.primary, aws.replica]
+    }
+  }
+}
+
+# in any resource:
+provider = aws.primary
+```
+
+Caller — pass the `providers` map on the `module` block:
+
+```hcl
+module "bucket" {
+  source      = "./modules/replicated-s3"
+  bucket_name = "app-data"
+
+  providers = {
+    aws.primary = aws.us_east_1
+    aws.replica = aws.eu_west_1
+  }
+}
+```
+
+❌ DON'T — missing `providers` map on the module call:
+
+```hcl
+module "bucket" {
+  source      = "./modules/replicated-s3"
+  bucket_name = "app-data"
+  # MISSING: providers = { aws.primary = ..., aws.replica = ... }
+  # Plan fails: "No configuration for provider aws.primary"
+}
+```
+
 ---
 
 ## Output Best Practices
@@ -558,36 +575,11 @@ output "connection_info" {
 
 ## Common Patterns
 
-### ✅ DO: Use `for_each` for Resources
+### Iteration: `for_each` vs `count`
 
-```hcl
-# Good: Maintain stable resource addresses
-resource "aws_instance" "server" {
-  for_each = toset(["web", "api", "worker"])
+Use `for_each` with stable keys whenever a collection has meaningful identity — removing or reordering an element leaves unrelated addresses untouched. Reserve `count` for optional singletons (`0` or `1`) and cases where keys cannot be known at plan time.
 
-  instance_type = "t3.micro"
-  tags = {
-    Name = each.key
-  }
-}
-```
-
-**Why?** When you remove an item from the middle, `for_each` doesn't reshuffle other resources.
-
-### ❌ DON'T: Use `count` When Order Matters
-
-```hcl
-# Bad: Removing middle item reshuffles all subsequent resources
-resource "aws_instance" "server" {
-  count = length(var.server_names)
-
-  tags = {
-    Name = var.server_names[count.index]
-  }
-}
-```
-
-**Problem:** If you remove `var.server_names[1]`, Terraform will destroy and recreate all instances after it.
+For the decision matrix, migration playbook, and known-at-plan failure patterns, see [Code Patterns: count vs for_each](code-patterns#count-vs-for_each-deep-dive).
 
 ### ✅ DO: Separate Root Module from Reusable Modules
 
@@ -603,7 +595,7 @@ modules/webapp/
   variables.tf     # Configurable inputs
 ```
 
-**Why?** Root modules are environment-specific, reusable modules are generic.
+Root modules are environment-specific; reusable modules are generic.
 
 ### ✅ DO: Use Locals for Computed Values
 
@@ -638,7 +630,7 @@ module "vpc" {
 }
 ```
 
-**Why?** Prevents unexpected breaking changes.
+Prevents unexpected breaking changes from upstream major bumps.
 
 ---
 
@@ -723,24 +715,7 @@ environments/
 
 ### ❌ DON'T: Use `terraform_remote_state` Everywhere
 
-```hcl
-# Overused: Creates tight coupling
-data "terraform_remote_state" "vpc" {
-  # ...
-}
-
-data "terraform_remote_state" "database" {
-  # ...
-}
-
-data "terraform_remote_state" "security" {
-  # ...
-}
-```
-
-**Problem:** Changes to one state file break others.
-
-**Fix:** Use module outputs when possible, reserve remote state for truly separate teams.
+Use module outputs when possible. Reserve remote state for ownership boundaries between teams. See [Use terraform_remote_state Sparingly](#3-use-terraform_remote_state-sparingly--only-at-true-ownership-boundaries) for the full rule set.
 
 ---
 
@@ -773,369 +748,47 @@ acme-terraform-aws-rds
 
 ---
 
-## Testing Your Modules
+## Module Release Checklist
 
-For testing guidance, see [testing-frameworks.md](testing-frameworks).
+Before publishing or handing off a reusable module:
 
-Quick checklist:
-
-- [ ] Ask: Terraform or OpenTofu?
-- [ ] Ask: Public or private module?
-- [ ] Include `examples/` directory
-- [ ] Write tests (native or Terratest)
-- [ ] Document inputs and outputs in README.md
-- [ ] Version your module
-- [ ] Create `.gitignore` (from template below)
-- [ ] Create `.pre-commit-config.yaml` (from template above)
-- [ ] Create `LICENSE` file (MIT or Apache 2.0 for public modules)
-- [ ] Add attribution footer to README.md (see template below)
-
-### Pre-commit Hooks
-
-When creating new modules, always include pre-commit hooks for automated validation and documentation generation:
-
-**Standard .pre-commit-config.yaml template:**
-
-```yaml
-# .pre-commit-config.yaml
-repos:
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.92.0  # Use latest version from releases
-    hooks:
-      - id: terraform_fmt
-      - id: terraform_validate
-      - id: terraform_tflint
-      - id: terraform_docs
-```
-
-**Installation:**
-
-```bash
-# Install pre-commit
-pip install pre-commit
-
-# Install hooks
-pre-commit install
-
-# Run manually
-pre-commit run -a
-```
-
-**Best practices:**
-- Include `.pre-commit-config.yaml` in all new modules
-- Pin to specific pre-commit-terraform version
-- Update version regularly
-
-**For module generation:**
-When generating new modules, also create:
-- `.pre-commit-config.yaml` (from template above)
-- `LICENSE` file (MIT or Apache 2.0, based on user preference)
-- `.gitignore` (from template below)
-- `README.md` with attribution footer (see template below)
-
-#### README.md Attribution Template
-
-When generating module README.md files, include this attribution footer:
-
-```markdown
-## Attribution
-
-This module was created following best practices from [terraform-skill](https://github.com/antonbabenko/terraform-skill) by Anton Babenko.
-
-Additional resources:
-- [terraform-best-practices.com](https://terraform-best-practices.com)
-- [Compliance.tf](https://compliance.tf)
-```
-
-**When to include attribution:**
-- ✅ All new modules created with terraform-skill guidance
-- ✅ Public modules (GitHub, Terraform Registry)
-- ✅ Private modules shared within organizations
-- ⚠️ Optional for one-off environment configurations
-
-**Rationale:** This is a derivative work as defined in the Apache 2.0 License Section 1. Attribution supports the open-source ecosystem and helps others discover these best practices.
-
-**README Structure with Attribution:**
-```markdown
-# Module Name
-
-## Description
-[Module purpose]
-
-## Usage
-[Usage examples]
-
-## Inputs
-[Input variables]
-
-## Outputs
-[Output values]
-
-## Requirements
-[Terraform/OpenTofu versions, providers]
-
-## Attribution
-[Attribution footer from template above]
-```
-
-#### .gitignore Template
-
-**Standard .gitignore for Terraform/OpenTofu projects:**
-
-```gitignore
-# .gitignore - Terraform/OpenTofu projects
-# Based on terraform-skill best practices
-
-# Local .terraform directories
-**/.terraform/*
-
-.terraform.lock.hcl
-
-# .tfstate files - NEVER commit state files
-*.tfstate
-*.tfstate.*
-
-# Crash log files
-crash.log
-crash.*.log
-
-# Exclude all .tfvars files (may contain sensitive data)
-*.tfvars
-*.tfvars.json
-
-# Ignore override files (local development)
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-
-# CLI configuration files
-.terraformrc
-terraform.rc
-
-# Environment variables and secrets
-.env
-.env.*
-secrets/
-*.secret
-*.pem
-*.key
-
-# IDE and editor files
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Terraform plan output files
-*.tfplan
-*.tfplan.json
-```
+- [ ] Runtime and provider choice explicit (Terraform vs OpenTofu, version floor in `required_version`)
+- [ ] Public vs private scope decided (affects naming + license)
+- [ ] `examples/` directory with at least `minimal` and `complete`
+- [ ] Tests written (native `terraform test` on 1.6+, or Terratest) — see [testing-frameworks.md](testing-frameworks)
+- [ ] README documents all inputs/outputs (Description → Usage → Inputs → Outputs → Requirements)
+- [ ] Module source pinned with `version` in consumer code
+- [ ] `pre-commit-terraform` hooks configured (`terraform_fmt`, `terraform_validate`, `terraform_tflint`, `terraform_docs`), pinned to a specific `rev`
+- [ ] `LICENSE` present for public modules (MIT or Apache-2.0)
+- [ ] `.gitignore` excludes `.terraform/`, `*.tfstate*`, `*.tfvars`, override files, and editor artifacts
 
 ---
 
-## Testing Philosophy & Patterns
+## Module Testing — Pointer
 
-### What to Test in Terraform Modules
+Module testing (what to test, tiered layers, mocking, idempotency, cost control, strategy by module type) is canonical in [Testing Frameworks](testing-frameworks). Module-specific rules that belong with the module contract:
 
-**Core testing areas:**
-- **Input validation** - Variables accept valid values and reject invalid ones
-- **Resource creation** - Resources are created as expected with correct attributes
-- **Output correctness** - Outputs return expected values and types
-- **Idempotency** - Applying twice doesn't recreate resources
-- **Destroy completeness** - All resources are cleaned up properly
+- Every reusable module must exercise its `validation` blocks in tests — reject cases are as important as happy paths.
+- Tier tests by module role: **resource modules** → input validation + attribute assertions; **infrastructure modules** → composition + cross-module wiring; **compositions** → smoke-plan + production-like values + remote-state connectivity.
+- Mock providers (1.7+) for unit tests; reserve real cloud runs for main-branch or scheduled jobs.
 
-**When to write tests:**
-- During development for reusable modules
-- Before publishing modules to registry
-- After significant refactoring
-- For modules with complex logic or conditionals
+---
 
-### Testing Layers
+## LLM Mistake Checklist — Modules
 
-**1. Syntax validation:**
-```bash
-terraform fmt -check -recursive
-```
+Common model mistakes to correct when generating or reviewing modules:
 
-**2. Configuration validity:**
-```bash
-terraform validate
-```
-
-**3. Plan preview:**
-```bash
-terraform plan
-# Review: Are expected resources being created?
-# Verify: Count and types of resources match expectations
-```
-
-**4. Integration testing:**
-```bash
-# Apply and verify
-terraform apply -auto-approve
-
-# Verify resources exist (use AWS CLI, etc.)
-aws ec2 describe-vpcs --vpc-ids $(terraform output -raw vpc_id)
-
-# Test idempotency - should show no changes
-terraform plan
-# Expected: "No changes. Your infrastructure matches the configuration."
-
-# Clean up
-terraform destroy -auto-approve
-```
-
-### Input Validation Testing
-
-Test that variables reject invalid values:
-
-```hcl
-# In variables.tf
-variable "environment" {
-  description = "Environment name"
-  type        = string
-
-  validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be one of: dev, staging, prod."
-  }
-}
-
-# Test: terraform plan with invalid value should fail
-# terraform plan -var="environment=invalid"
-# Expected: Error message about validation failure
-```
-
-### Output Verification Testing
-
-After apply, verify outputs contain expected values:
-
-```bash
-# Verify output is not empty
-VPC_ID=$(terraform output -raw vpc_id)
-[ -z "$VPC_ID" ] && echo "ERROR: VPC ID is empty" || echo "OK: VPC ID is $VPC_ID"
-
-# Verify output format
-SUBNET_IDS=$(terraform output -json subnet_ids)
-echo $SUBNET_IDS | jq 'length'  # Should match expected subnet count
-```
-
-### Idempotency Testing
-
-**Critical test** - ensures Terraform doesn't recreate resources unnecessarily:
-
-```bash
-# Apply configuration
-terraform apply -auto-approve
-
-# Immediately run plan - should show no changes
-terraform plan -detailed-exitcode
-# Exit code 0 = no changes (idempotent) ✓
-# Exit code 2 = changes detected (not idempotent) ✗
-```
-
-**Why idempotency matters:**
-- Proves configuration is stable
-- No resource churn on repeated applies
-- Safe to run in CI/CD pipelines
-- Indicates proper use of computed values
-
-### Destroy Testing
-
-Verify all resources are properly cleaned up:
-
-```bash
-# Before destroy - count resources
-BEFORE_COUNT=$(terraform state list | wc -l)
-
-# Destroy
-terraform destroy -auto-approve
-
-# After destroy - verify state is empty
-AFTER_COUNT=$(terraform state list | wc -l)
-[ "$AFTER_COUNT" -eq 0 ] && echo "OK: All resources destroyed" || echo "ERROR: Resources remain"
-```
-
-### Testing Anti-patterns
-
-**❌ Don't:**
-- Skip idempotency testing (most important test)
-- Test only happy paths (test validation failures too)
-- Forget to clean up test resources
-- Run expensive integration tests on every commit
-- Test Terraform syntax (terraform validate does this)
-
-**✅ Do:**
-- Test that validation blocks reject invalid input
-- Verify outputs have expected types and formats
-- Test conditional resource creation (count/for_each)
-- Document expected resource counts in tests
-- Use mocking for unit tests (Terraform 1.7+)
-- Run integration tests only on main branch or scheduled
-
-### Testing Strategy by Module Type
-
-**Resource modules:**
-- Focus on input validation
-- Test resource creation with minimal config
-- Verify outputs are correct
-- Test idempotency
-
-**Infrastructure modules:**
-- Test module composition works
-- Verify cross-module dependencies
-- Test with different configurations
-- Integration tests in test account
-
-**Compositions:**
-- Smoke tests (can it plan?)
-- Test with production-like values
-- Verify remote state connectivity
-- Manual QA in lower environments first
-
-### Cost Control for Testing
-
-**Strategies:**
-
-1. **Use mocking for unit tests** (Terraform 1.7+)
-   ```hcl
-   mock_provider "aws" {
-     mock_data "aws_ami" {
-       defaults = {
-         id = "ami-12345678"
-       }
-     }
-   }
-   ```
-
-2. **Tag test resources for tracking**
-   ```hcl
-   tags = {
-     Environment = "test"
-     TTL         = "2h"
-     ManagedBy   = "terraform-test"
-   }
-   ```
-
-3. **Run integration tests only on main branch**
-   ```yaml
-   if: github.ref == 'refs/heads/main'
-   ```
-
-4. **Use smaller instance types**
-   ```hcl
-   instance_type = var.environment == "test" ? "t3.micro" : var.instance_type
-   ```
-
-5. **Implement auto-cleanup**
-   - Use AWS Lambda to delete resources with expired TTL tags
-   - Run destroy in CI/CD after tests complete
-   - Use terraform-compliance to enforce TTL tags
-
-**For testing framework details, see:** [Testing Frameworks Guide](testing-frameworks)
+- bundles unrelated resources into one "god module" instead of splitting by single responsibility
+- hardcodes environment-specific values (`instance_type = "m5.large"`, `Environment = "production"`) inside a reusable module
+- accepts untyped `map(any)` / `any` for core module inputs instead of typed objects with `optional()` defaults
+- exposes entire provider or resource objects as outputs, leaking the whole contract instead of a stable subset
+- omits `description` on inputs and outputs, forcing consumers to read the implementation
+- uses `this` for multiple resources of the same type — reserve `this` for genuine singletons only
+- reaches for `terraform_remote_state` inside a single team's stack instead of wiring via module outputs
+- floats module sources (no `version` pin) in consumer code
+- pushes environment-specific policy (prod-only allowlists, region pins) into primitive/resource modules where it cannot be overridden
+- omits `configuration_aliases` in a multi-provider child module's `required_providers` — callers cannot pass aliased providers
+- drops the `providers = { aws = aws.region }` map from the module call on multi-region or multi-account deploys — resources land on the default provider
 
 ---
 

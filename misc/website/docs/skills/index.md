@@ -50,7 +50,7 @@ Author a new steering workflow for any AWS service and pair it with a matching s
 
 ## [terraform-skill](./terraform-skill/)
 
-Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions
+Use when writing, reviewing, or debugging Terraform/OpenTofu modules, tests, CI, scans, or state ops - diagnoses failure mode (identity churn, secrets, blast radius, CI drift, state corruption) with version-aware guards.
 
 ## [update-docs](./update-docs/)
 
