@@ -18,9 +18,15 @@ from pathlib import Path
 
 
 def parse_args():
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print("Usage: python3 report_to_html.py <input.md> [--output <output.html>]")
-        sys.exit(1)
+        print()
+        print("Convert an EKS Cost Intelligence markdown report to a self-contained HTML file.")
+        print()
+        print("Arguments:")
+        print("  input.md              Path to the markdown report file")
+        print("  --output <file.html>  Optional custom output filename (default: replaces .md with .html)")
+        sys.exit(0 if "--help" in sys.argv or "-h" in sys.argv else 1)
 
     input_file = sys.argv[1]
     output_file = None

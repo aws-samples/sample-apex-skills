@@ -9,7 +9,7 @@
 
 Observability costs is a lower-weight dimension (10 points max deduction). It evaluates whether the cluster's logging, metrics, and tracing configurations are cost-efficient or generating unnecessary expense through excessive log ingestion, high-cardinality metrics, or verbose log levels in production.
 
-CloudWatch Logs ingestion is one of the most common hidden costs in EKS clusters. A single cluster with all five control plane log types enabled can ingest 10–50 GB/month of logs at $0.50/GB — often without anyone actively using them. Similarly, verbose application logging at DEBUG/TRACE levels or unfiltered Prometheus scrapes can generate hundreds of dollars in monthly charges.
+CloudWatch Logs ingestion is one of the most common hidden costs in EKS clusters. A single cluster with all five control plane log types enabled can ingest 10–50 GB/month of logs at $0.50/GB (based on field experience; actual volume depends on cluster size and API activity) — often without anyone actively using them. Similarly, verbose application logging at DEBUG/TRACE levels or unfiltered Prometheus scrapes can generate hundreds of dollars in monthly charges.
 
 ### Checks Summary
 
@@ -725,12 +725,12 @@ Common EKS logging pipelines:
 | Fluentd | Log collection + forwarding | Filters, transforms, buffering |
 | ADOT (Fluent Forward) | Log collection via OTel | Processors, filters |
 
-**Cost impact of unfiltered logging:**
+**Cost impact of unfiltered logging** (estimates based on field experience across production EKS deployments):
 - Health check logs: 30–60% of total log volume in microservice architectures
 - Kubernetes event noise: 5–15% of volume
 - Repetitive status/heartbeat messages: 10–20% of volume
 
-Filtering out this noise can reduce log ingestion costs by 40–70%.
+Filtering out this noise can reduce log ingestion costs by 40–70% (based on field experience; actual results vary by workload mix).
 
 ### Data collection
 

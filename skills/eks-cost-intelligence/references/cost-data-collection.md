@@ -497,7 +497,7 @@ response = cw.get_metric_data(
     EndTime=datetime.utcnow()
 )
 
-# Idle node threshold: average CPU < 10% AND memory < 15% for 7 days
+# Idle node threshold: average CPU < 10% AND memory < 20% for 7 days
 for result in response["MetricDataResults"]:
     values = result["Values"]
     if values:
@@ -508,8 +508,8 @@ for result in response["MetricDataResults"]:
 
 **Idle node detection thresholds:**
 - Average CPU < 10% for 7 days = idle node candidate
-- Average memory < 15% for 7 days = under-utilized node
-- Both CPU < 10% AND memory < 15% = strong consolidation signal
+- Average memory < 20% for 7 days = under-utilized node
+- Both CPU < 10% AND memory < 20% = strong consolidation signal
 
 ---
 
