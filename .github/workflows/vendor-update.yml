@@ -13,6 +13,7 @@ on:
       skill:
         description: 'Sync a specific skill (blank = all)'
         required: false
+        default: all
         type: choice
         options:
           - all
@@ -54,6 +55,7 @@ jobs:
         if: >-
           github.event_name == 'workflow_dispatch' &&
           inputs.skill != 'all' &&
+          inputs.skill != '' &&
           inputs.skill != matrix.skill.name
         run: echo "Skipping ${{ matrix.skill.name }} (not selected)" && exit 0
 
@@ -61,6 +63,7 @@ jobs:
         if: >-
           github.event_name != 'workflow_dispatch' ||
           inputs.skill == 'all' ||
+          inputs.skill == '' ||
           inputs.skill == matrix.skill.name
 
       - name: Check upstream for new commits
@@ -68,6 +71,7 @@ jobs:
         if: >-
           github.event_name != 'workflow_dispatch' ||
           inputs.skill == 'all' ||
+          inputs.skill == '' ||
           inputs.skill == matrix.skill.name
         run: |
           # Get upstream HEAD
