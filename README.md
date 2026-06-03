@@ -43,22 +43,18 @@ sample-apex-skills/
 npx apex-skills
 ```
 
-Detects Claude Code and/or Kiro CLI, clones the repo, and symlinks all skills + steering into the right locations. Run `npx apex-skills --update` to pull the latest.
-
-### Option A: Just the Skills
-
-Use the skills with any agent that supports the [Agent Skills standard](https://agentskills.io/). Skills are self-contained — clone and point your tool at them.
+Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and symlinks all skills + steering into the right locations.
 
 ```bash
-git clone https://github.com/aws-samples/sample-apex-skills.git
-cd sample-apex-skills
+npx apex-skills --update              # Pull latest skills
+npx apex-skills --version v1.0.0      # Pin to a specific release
+npx apex-skills --branch feat/new-eks # Install from a branch
+npx apex-skills --help                # See all options
 ```
 
-Each skill lives in `skills/{skill-name}/` with a `SKILL.md` (frontmatter + instructions) and optional `references/`, `scripts/`, and `assets/` directories. See [skills/README.md](skills/README.md) for details.
+### Manual Install
 
-### Option B: Skills + Steering (Guided Experience)
-
-For a structured engagement experience — where the agent follows a questionnaire, enforces checkpoints, and validates output quality — add the steering files.
+If you prefer not to use npx, clone the repo and copy skills directly.
 
 #### Claude Code
 
@@ -66,24 +62,16 @@ For a structured engagement experience — where the agent follows a questionnai
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-# One-time setup — symlink skills, steering + commands into .claude/
-mkdir -p .claude/skills .claude/commands
-for skill in skills/*/; do ln -sfn "../../$skill" ".claude/skills/$(basename $skill)"; done
-ln -sfn ../../steering/commands/apex .claude/commands/apex
-ln -sfn ../steering .claude/steering
-
-# Make steering available at a fixed absolute path for slash commands
+mkdir -p ~/.claude/skills ~/.claude/commands
+cp -r skills/* ~/.claude/skills/
+ln -sfn "$(pwd)/steering/commands/apex" ~/.claude/commands/apex
 ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
-> Claude Code walks up to the git root to find `.claude/`, so commands work from **any subdirectory** in the repo. The `~/.claude/apex-steering` symlink gives slash commands an absolute path to load steering files instantly.
-
-**Usage:**
-1. Start a Claude Code session from anywhere in the repo
-2. Use slash commands:
-   - `/apex:eks` — hub that auto-routes based on your request
-   - `/apex:eks-design` — *"Help me design an EKS cluster"*
-   - `/apex:eks-upgrade-check` — *"Is my cluster ready to upgrade to 1.32?"*
+**Usage:** Start a Claude Code session and use slash commands:
+- `/apex:eks` — hub that auto-routes based on your request
+- `/apex:eks-design` — *"Help me design an EKS cluster"*
+- `/apex:eks-upgrade-check` — *"Is my cluster ready to upgrade to 1.32?"*
 
 #### Kiro CLI
 
@@ -91,26 +79,14 @@ ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-# Skills — symlink into .kiro/skills/
-mkdir -p .kiro/skills
-for skill in skills/*/; do
-  name=$(basename "$skill")
-  ln -sfn "../../skills/$name" ".kiro/skills/$name"
-done
-
-# Steering — copy for Kiro IDE slash commands
-mkdir -p .kiro/steering
-cp steering/eks.md .kiro/steering/eks.md
+mkdir -p ~/.kiro/skills ~/.kiro/steering
+cp -r skills/* ~/.kiro/skills/
+cp steering/workflows/*.md ~/.kiro/steering/
 ```
 
-**Usage:**
-```bash
-kiro-cli chat
-# Then in the session:
-/model claude-opus-4.5
-/context add steering/eks.md
-# Ask: "Help me design an EKS cluster"
-```
+#### Other Agent Harnesses
+
+Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill lives in `skills/{skill-name}/` with a `SKILL.md` and optional `references/`, `scripts/`, and `assets/` directories. Clone and point your tool at them — see [skills/README.md](skills/README.md) for the layout.
 
 <!-- SKILLS_REFERENCE_START -->
 ## Skills Reference

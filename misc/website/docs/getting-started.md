@@ -7,7 +7,7 @@ title: Getting Started
 
 APEX skills are plain folders of markdown + scripts. Any agent harness that supports the [Agent Skills](https://agentskills.io/) standard can load them.
 
-## Quick Install (recommended)
+## NPX Installer (recommended)
 
 > **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/) must be installed.
 
@@ -15,29 +15,47 @@ APEX skills are plain folders of markdown + scripts. Any agent harness that supp
 npx apex-skills
 ```
 
-The installer detects which tools you have (Claude Code, Kiro CLI, or both), clones the repo to `~/.apex-skills/`, and symlinks all skills + steering workflows into the right locations. Run `npx apex-skills --update` later to pull the latest skills.
+The installer detects which tools you have (Claude Code, Kiro CLI, or both), clones the repo to `~/.apex-skills/`, and symlinks all skills + steering workflows into the right locations.
+
+```bash
+npx apex-skills --update              # Pull latest skills
+npx apex-skills --version v1.0.0      # Pin to a specific release
+npx apex-skills --branch feat/new-eks # Install from a branch
+npx apex-skills --help                # See all options
+```
 
 ## Manual Install
+
+If you prefer not to use npx, clone the repo and copy skills directly.
 
 ### Claude Code
 
 ```bash
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
-mkdir -p ~/.claude/skills
+
+mkdir -p ~/.claude/skills ~/.claude/commands
 cp -r skills/* ~/.claude/skills/
+ln -sfn "$(pwd)/steering/commands/apex" ~/.claude/commands/apex
+ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
-Restart Claude Code; the skills become available via `/<skill-name>`.
+Restart Claude Code; skills become available via `/<skill-name>` and steering via `/apex:*`.
 
 ### Kiro CLI
 
 ```bash
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
-mkdir -p ~/.kiro/skills
+
+mkdir -p ~/.kiro/skills ~/.kiro/steering
 cp -r skills/* ~/.kiro/skills/
+cp steering/workflows/*.md ~/.kiro/steering/
 ```
+
+### Other Agent Harnesses
+
+Skills follow the [Agent Skills](https://agentskills.io/) standard. Clone and point your tool at `skills/{skill-name}/` — each contains a `SKILL.md` and optional `references/` directory.
 
 ## Verify
 

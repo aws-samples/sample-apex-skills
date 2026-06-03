@@ -140,8 +140,8 @@ function HowItWorks() {
       <div className="apex-steps__timeline">
         <div className="apex-steps__item">
           <span className="apex-steps__number">1</span>
-          <h3>Add the skill</h3>
-          <p>skills:<br />&nbsp;&nbsp;- /path/to/sample-apex-skills/skills/eks-recon</p>
+          <h3>Install</h3>
+          <p>npx apex-skills</p>
         </div>
         <div className="apex-steps__item">
           <span className="apex-steps__number">2</span>
