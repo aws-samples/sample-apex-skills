@@ -291,17 +291,19 @@ Author a new steering workflow for any AWS service and pair it with a matching s
 
 ### [terraform-skill](./terraform-skill/)
 
-Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework, Terratest), setting up CI/CD pipelines, reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions
+Use when writing, reviewing, or debugging Terraform/OpenTofu modules, tests, CI, scans, or state ops - diagnoses failure mode (identity churn, secrets, blast radius, CI drift, state corruption) with version-aware guards.
 
 **References** (loaded on demand):
 
 | Reference | Description |
 |-----------|-------------|
 | [ci-cd-workflows.md](./terraform-skill/references/ci-cd-workflows.md) | Ci cd workflows |
+| [code-intelligence-lsp.md](./terraform-skill/references/code-intelligence-lsp.md) | Code intelligence lsp |
 | [code-patterns.md](./terraform-skill/references/code-patterns.md) | Code patterns |
 | [module-patterns.md](./terraform-skill/references/module-patterns.md) | Module patterns |
 | [quick-reference.md](./terraform-skill/references/quick-reference.md) | Quick reference |
 | [security-compliance.md](./terraform-skill/references/security-compliance.md) | Security compliance |
+| [state-management.md](./terraform-skill/references/state-management.md) | State management |
 | [testing-frameworks.md](./terraform-skill/references/testing-frameworks.md) | Testing frameworks |
 
 ---

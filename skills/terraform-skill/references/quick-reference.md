@@ -61,6 +61,70 @@ terraform show -json tfplan | jq -r '.' > tfplan.json
 terraform show tfplan | grep "will be created"
 ```
 
+### State Management
+
+```bash
+# View all resources in state
+terraform state list
+
+# Show specific resource details
+terraform state show aws_instance.web
+
+# Move/rename resource in state (refactoring)
+terraform state mv aws_instance.old aws_instance.new
+terraform state mv aws_instance.app module.compute.aws_instance.app
+
+# Remove resource from state (keeps actual resource)
+terraform state rm aws_instance.temporary
+
+# Import existing resource into state
+terraform import aws_instance.web i-1234567890abcdef0
+
+# Import using import blocks (1.5+)
+# Define in .tf: import { to = aws_instance.web, id = "i-123..." }
+# Note: File must not exist — Terraform refuses to overwrite.
+terraform plan -generate-config-out=imported.tf
+
+# Detect configuration drift
+terraform plan -refresh-only
+
+# Update state to match reality (no infrastructure changes)
+terraform apply -refresh-only
+
+# Backup state to file
+terraform state pull > backup-$(date +%Y%m%d).tfstate
+
+# Restore state from backup (DANGEROUS)
+terraform state push backup.tfstate
+
+# Force unlock stuck state lock
+# Default: prompts for y/N confirmation
+terraform force-unlock LOCK_ID
+
+# CI-friendly (skips prompt):
+terraform force-unlock -force LOCK_ID
+```
+
+### State Backend Migration
+
+```bash
+# Migrate from local to remote backend
+# 1. Add backend config to backend.tf
+# 2. Run migration
+terraform init -migrate-state
+
+# Change backend without migrating state
+terraform init -reconfigure
+
+# Pass backend config at runtime
+terraform init \
+  -backend-config="key=prod/terraform.tfstate" \
+  -backend-config="dynamodb_table=terraform-locks"
+
+# Or use config file
+terraform init -backend-config=backend-prod.hcl
+```
+
 ---
 
 ## Decision Flowchart
@@ -133,10 +197,10 @@ Need to test Terraform/OpenTofu code?
 
 ### Terraform 1.6+ / OpenTofu 1.6+
 
-- ✅ NEW: Native `terraform test` / `tofu test`
+- ✅ NEW: Native `terraform test` / `tofu test` framework with `.tftest.hcl` files
 - ✅ Consider migrating simple tests from Terratest
 - ✅ Keep Terratest for complex integration
-- ✅ All Terraform 1.0+ features available
+- ✅ Import blocks from 1.5 available for declarative imports with `-generate-config-out`
 
 ### Terraform 1.7+ / OpenTofu 1.7+
 
@@ -147,39 +211,22 @@ Need to test Terraform/OpenTofu code?
 
 ### Terraform vs OpenTofu Comparison
 
-Both Terraform and OpenTofu are fully supported by this skill. The choice depends on your requirements:
-
-**Quick Decision Matrix:**
-
 | Factor | Terraform | OpenTofu |
 |--------|-----------|----------|
-| **Licensing** | Business Source License (BSL) 1.1 | Mozilla Public License 2.0 (MPL 2.0) |
+| **Licensing** | Business Source License 1.1 (BUSL-1.1) | Mozilla Public License 2.0 (MPL 2.0) |
 | **Governance** | HashiCorp (single vendor) | Linux Foundation (community-driven) |
 | **Latest Version** | 1.14+ | 1.11+ |
 | **Native Testing** | 1.6+ | 1.6+ |
 | **Mock Providers** | 1.7+ | 1.7+ |
 | **Feature Parity** | Reference implementation | Compatible fork with some additions |
 | **Enterprise Support** | HCP Terraform, Terraform Cloud | Multiple vendors |
-| **Migration Path** | N/A | Drop-in replacement for Terraform ≤1.5 |
+| **Migration Path** | N/A | Drop-in replacement for Terraform ≤1.5.x; feature-compatible fork thereafter with divergence on encryption, mock providers, provider functions, and other post-1.6 additions. Verify specific feature availability per version. |
 
-**When to choose Terraform:**
-- Using HashiCorp Terraform Cloud or HCP Terraform
-- Enterprise support contract with HashiCorp
-- Need absolute latest features first
+**Choose Terraform for:** HCP Terraform / Terraform Cloud, HashiCorp enterprise support, first access to latest features.
 
-**When to choose OpenTofu:**
-- Prefer open-source governance model
-- Want to avoid vendor lock-in concerns
-- Building on community-driven development
-- BSL 1.1 license doesn't fit your use case
+**Choose OpenTofu for:** open-source governance, vendor-lock-in avoidance, BUSL-1.1 incompatibility.
 
-**For this skill:**
-- Commands are shown for both: `terraform` and `tofu`
-- Most patterns work identically, though differences exist (see release notes)
-- Version-specific features noted (1.6+, 1.7+, etc.)
-- **Note:** Since OpenTofu 1.6, the platforms have diverged with unique features
-
-**When creating modules, Claude will ask your preference** to generate appropriate commands and documentation.
+Since OpenTofu 1.6 the platforms have diverged — this skill notes version floors explicitly and shows both `terraform` and `tofu` commands. When creating modules, Claude asks preference to pick commands/docs.
 
 ---
 
@@ -267,6 +314,148 @@ bucketName := fmt.Sprintf("test-bucket-%s", uniqueId)
    - VPCs, security groups (rarely change)
    - Don't share: instances, databases (change often)
 
+### Issue: State lock is stuck
+
+**Symptoms:**
+```
+Error: Error acquiring the state lock
+Lock Info:
+  ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+  Who: user@hostname
+  Created: 2026-01-20 12:00:00
+```
+
+**Common Causes:**
+1. Terraform process crashed or was killed
+2. Network interruption during operation
+3. CI/CD job terminated unexpectedly
+
+**Solution:**
+
+```bash
+# 1. Verify the operation is NOT actually running
+# Check the host mentioned in lock info
+ssh user@hostname "ps aux | grep terraform"
+
+# Or check CI/CD job status
+# GitHub Actions: Check workflow runs
+# GitLab CI: Check pipeline jobs
+
+# 2. Only if confirmed the operation is not running:
+terraform force-unlock LOCK_ID
+
+# 3. Document why you unlocked
+echo "Force-unlocked due to CI job timeout" > unlock-notes.txt
+```
+
+**Prevention:**
+```yaml
+# GitHub Actions - Use concurrency control
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false  # Wait, don't cancel
+```
+
+### Issue: State file is corrupted or lost
+
+**Symptoms:**
+- Error: "state snapshot was created by Terraform v1.8.0"
+- Error: "Failed to load state"
+- State file missing or unreadable
+
+**Solutions:**
+
+**If versioning enabled (S3):**
+```bash
+# List versions
+aws s3api list-object-versions \
+  --bucket my-terraform-state \
+  --prefix prod/terraform.tfstate
+
+# Restore previous version
+aws s3api get-object \
+  --bucket my-terraform-state \
+  --key prod/terraform.tfstate \
+  --version-id PREVIOUS_VERSION_ID \
+  terraform.tfstate.restored
+
+# Push restored state
+terraform state push terraform.tfstate.restored
+```
+
+**If no backup exists:**
+```bash
+# Recreate state by importing all resources
+terraform import aws_vpc.main vpc-12345678
+terraform import aws_subnet.private[0] subnet-abcd1234
+# ... continue for all resources
+
+# Or use import blocks (1.5+)
+# In .tf file:
+# import { to = aws_vpc.main, id = "vpc-12345678" }
+# Note: File must not exist — Terraform refuses to overwrite.
+terraform plan -generate-config-out=imported.tf
+```
+
+### Issue: Configuration drift detected
+
+**Symptoms:**
+```
+Note: Objects have changed outside of Terraform
+```
+
+**Cause:** Manual changes in console or by other tools
+
+**Solutions:**
+
+```bash
+# View drift
+terraform plan -refresh-only
+
+# Accept drift (update state to match reality)
+terraform apply -refresh-only
+
+# Or fix drift (update resources to match config)
+terraform apply
+
+# Prevent drift with detective controls
+# - Enable CloudTrail
+# - Use AWS Config rules
+# - Regular terraform plan in CI
+```
+
+### Issue: Cannot migrate state between backends
+
+**Symptoms:**
+- `terraform init -migrate-state` fails
+- Backend authentication errors
+
+**Solutions:**
+
+```bash
+# Ensure credentials are configured
+export AWS_PROFILE=terraform
+# or
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+
+# Try migration again
+terraform init -migrate-state
+
+# If still failing, manual migration:
+# 1. Pull state from old backend
+terraform state pull > old-state.json
+
+# 2. Switch backend config
+# Edit backend.tf
+
+# 3. Initialize new backend
+terraform init -reconfigure
+
+# 4. Push state to new backend
+terraform state push old-state.json
+```
+
 ---
 
 ## Migration Paths
@@ -324,29 +513,11 @@ tests/
 
 ### From Terraform → OpenTofu
 
-**Good news:** OpenTofu is a drop-in replacement!
+OpenTofu is a drop-in replacement for Terraform ≤1.5.x; a feature-compatible fork thereafter with divergence on encryption, mock providers, provider functions, and other post-1.6 additions. See the [Terraform vs OpenTofu Comparison](#terraform-vs-opentofu-comparison) and verify per-version feature availability.
 
-1. **No code changes needed**
-   - All Terraform syntax works
-   - Same provider ecosystem
-   - Compatible state files
-
-2. **Update CI/CD:**
-   ```bash
-   # Replace
-   terraform init
-   terraform plan
-   terraform apply
-
-   # With
-   tofu init
-   tofu plan
-   tofu apply
-   ```
-
-3. **Update documentation:**
-   - README mentions OpenTofu compatibility
-   - CI/CD workflows use `tofu` command
+1. **HCL ≤1.5.x** — no code changes; providers and state files compatible. Verify post-1.6 features per version.
+2. **CI/CD** — swap `terraform` for `tofu` in `init`/`plan`/`apply` invocations.
+3. **Docs** — note OpenTofu compatibility in README; update workflow templates to the `tofu` binary.
 
 ---
 
@@ -420,8 +591,8 @@ Required documentation for all modules:
 | Syntax | Meaning | Use Case |
 |--------|---------|----------|
 | `"5.0.0"` | Exact version | Avoid (inflexible) |
-| `"~> 5.0"` | Pessimistic (5.0.x) | Recommended for stability |
-| `"~> 5.0.1"` | Pessimistic (5.0.x where x >= 1) | Specific patch minimum |
+| `"~> 5.0"` | Pessimistic (>= 5.0, < 6.0 — any 5.x) | Allow minor and patch updates within 5.x |
+| `"~> 5.0.1"` | Pessimistic (>= 5.0.1, < 5.1.0 — 5.0.x patches) | Lock to 5.0.x patch updates only |
 | `">= 5.0, < 6.0"` | Range | Any 5.x version |
 | `">= 5.0"` | Minimum | Risky (breaking changes) |
 

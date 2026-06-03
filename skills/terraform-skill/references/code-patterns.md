@@ -68,6 +68,8 @@ resource "aws_nat_gateway" "this" {
 }
 ```
 
+> Pattern applies identically on Azure/GCP; for resource equivalents see [Module Patterns: Cross-cloud resource map](module-patterns.md#cross-cloud-resource-map).
+
 ### Variable Definition Structure
 
 **Variable block ordering:**
@@ -237,11 +239,9 @@ variable "environments" {
   default = {
     dev = {
       instance_type = "t3.micro"
-      instance_count = 1
     }
     prod = {
       instance_type = "t3.large"
-      instance_count = 3
     }
   }
 }
@@ -250,7 +250,6 @@ resource "aws_instance" "app" {
   for_each = var.environments
 
   instance_type = each.value.instance_type
-  count         = each.value.instance_count
 
   tags = {
     Environment = each.key  # "dev" or "prod"
@@ -325,16 +324,81 @@ moved {
 # terraform plan should show "moved" operations, not destroy/create
 ```
 
-**Benefits after migration:**
-- Removing "us-east-1b" only destroys that subnet (not c)
-- Adding new AZ doesn't affect existing subnets
-- Resources have stable addresses by AZ name
+After migration: removing `us-east-1b` destroys only that subnet; adding an AZ does not churn existing resources; addresses are stable by AZ name.
+
+### `for_each` keys must be known at plan time
+
+`for_each` (0.12+) requires its key set resolvable during plan.
+
+| Case | Use | Why |
+|------|-----|-----|
+| stable key set known at plan | `for_each` over static map/var | avoids count index churn on insert/remove |
+| key set unknowable at plan | `count = bool ? 1 : 0` for singleton | keys derived from values unknown until apply |
+
+- ❌ `depends_on` does NOT fix `Invalid for_each argument` — it orders applies, not plan-time value resolution
+- ❌ deriving `for_each` keys from another resource's computed attrs (IDs, ARNs)
+- ✅ drive `for_each` from user-supplied variables or static locals
+
+```hcl
+# ❌ BAD - keys derived from computed IDs; plan fails
+resource "aws_eip" "web" {
+  for_each = toset([for i in aws_instance.web : i.id])
+  instance = each.key
+}
+
+# ✅ GOOD - drive for_each from user-supplied keys
+variable "instances" {
+  type = map(object({ instance_type = string }))
+}
+
+resource "aws_instance" "web" {
+  for_each      = var.instances
+  ami           = "ami-0123"
+  instance_type = each.value.instance_type
+}
+
+resource "aws_eip" "web" {
+  for_each = var.instances
+  instance = aws_instance.web[each.key].id
+}
+
+# ✅ GOOD - singleton when exact ID not known at plan
+resource "aws_eip" "bastion" {
+  count    = var.create_bastion ? 1 : 0
+  instance = aws_instance.bastion[0].id
+}
+```
 
 ---
 
 ## Modern Terraform Features (1.0+)
 
-### try() Function (Terraform 0.13+)
+### Feature Guard Table — Version Floor & Common LLM Errors
+
+Before emitting a feature, verify the runtime floor. Each feature here is also a known hallucination surface — the error pattern column names the mistake to avoid.
+
+| Feature | Min version | Common LLM error pattern |
+|---------|-------------|--------------------------|
+| `for_each` over `count` for stable identities | 0.12+ | defaults to `count` for every collection, causing index churn |
+| `try()` function | 0.12.20+ | falls back to `element(concat())` legacy pattern |
+| `nonsensitive()` function | 0.15+ | used to 'unwrap' sensitive outputs into plan artifacts, effectively laundering secrets into logs |
+| `nullable = false` | 1.1+ | omits it, letting `null` silently override defaults |
+| `moved` blocks | 1.1+ | omitted during refactor, causing destroy/create |
+| `optional()` with defaults | 1.3+ | emits wrapper variables and loose `map(any)` contracts |
+| declarative `import` blocks | 1.5+ | recommends ad-hoc CLI `terraform import` only |
+| `check` blocks | 1.5+ | ignores runtime assertions entirely |
+| native `terraform test` | 1.6+ | treats mocked-provider tests as full integration coverage |
+| mock providers | 1.7+ | asserts computed values in `command = plan` mode |
+| `removed` blocks | 1.7+ | deletes resources with no lifecycle transition |
+| provider-defined functions | 1.8+ | overuses data sources for simple transformations |
+| cross-variable validation | 1.9+ | pushes checks into postconditions only |
+| S3 native lock-file | 1.10+ | recommends DynamoDB lock table even on 1.10+ |
+| `ephemeral` values | 1.10+ | treats as interchangeable with `sensitive`; ephemeral values are scrubbed from state, `sensitive` only masks display |
+| `write_only` arguments | 1.11+ | uses `sensitive = true` and assumes state is safe |
+
+If target runtime is below a feature floor, emit the pre-floor fallback explicitly instead of silently downgrading.
+
+### try() Function (Terraform 0.12.20+)
 
 **Use try() instead of element(concat()):**
 
@@ -356,7 +420,7 @@ output "first_subnet_id" {
 
 # ❌ BAD - Legacy pattern
 output "security_group_id" {
-  value = element(concat(aws_security_group.this.*.id, [""]), 0)
+  value = element(concat(aws_security_group.this[*].id, [""]), 0)
 }
 ```
 
@@ -403,7 +467,7 @@ database_config = {
 
 ### Moved Blocks (Terraform 1.1+)
 
-**Rename resources without destroy/recreate:**
+**Rename resources without destroy/recreate.** Omitting `moved` during a refactor is one of the most common LLM mistakes — the model renames the address and silently turns the rename into destroy/create. Always emit `moved` in the same change as the rename, then verify `terraform plan` shows a move operation, not replacement.
 
 ```hcl
 # Rename a resource
@@ -425,17 +489,47 @@ moved {
 }
 ```
 
+**Limits of `moved` (1.1+):**
+
+| Limit | Can `moved` cross this? | Alternative |
+|-------|-------------------------|-------------|
+| Provider boundary | No | use `removed` (1.7+) + `import` (1.5+) |
+| State file / backend key | No | `state mv` across backends + pre-migration backup |
+| Module removal (module deleted from config) | `moved` block inside removed module silently stops working | add `moved` in the **parent**, not the removed module |
+
+### ignore_changes (Lifecycle Escape Hatch)
+
+- ✅ attribute-level `ignore_changes = [tags["X"]]` with a comment naming the external system
+- ❌ `ignore_changes = all` — hides real drift, turns every attribute unmanaged
+- ❌ use `ignore_changes` to silence noisy plans instead of diagnosing root cause
+
+```hcl
+# ❌ BAD - blanket ignore hides all drift
+resource "aws_db_instance" "this" {
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
+# ✅ GOOD - narrow ignore with justification
+resource "aws_db_instance" "this" {
+  lifecycle {
+    # External compliance scanner rewrites this tag hourly
+    ignore_changes = [tags["LastScanned"]]
+  }
+}
+```
+
 ### Provider-Defined Functions (Terraform 1.8+)
 
 **Use provider-specific functions for data transformation:**
 
 ```hcl
 # AWS provider function example
-data "aws_region" "current" {}
-
 locals {
-  # Provider function (Terraform 1.8+)
-  bucket_name = provider::aws::arn_build("s3", "my-bucket", data.aws_region.current.name)
+  # provider::aws::arn_build(partition, service, region, account_id, resource)
+  # S3 ARNs are global: region and account_id are empty strings.
+  bucket_arn = provider::aws::arn_build("aws", "s3", "", "", "my-bucket")
 }
 
 # Check provider documentation for available functions
@@ -485,9 +579,20 @@ variable "backup_retention" {
 }
 ```
 
+### Validation Mechanism Timing
+
+Four mechanisms look similar and are routinely confused. Only three actually gate apply.
+
+| Mechanism | When it runs | Can reference | Blocks apply? |
+|-----------|--------------|---------------|---------------|
+| `validation` (in `variable`) | var evaluation, before plan | the variable's own value; other vars on 1.9+ | yes |
+| `precondition` (in `lifecycle`) | before resource create/update | other resources, data sources, vars | yes |
+| `postcondition` (in `lifecycle`) | after apply | the resource's own computed attrs | yes |
+| `check` block (1.5+) | every plan + apply | anything | **NO — advisory only, warnings not errors** |
+
 ### Write-Only Arguments (Terraform 1.11+)
 
-**Always use write-only arguments or external secret management:**
+**Always use write-only arguments or external secret management.** A common LLM mistake is to mark a variable `sensitive = true` and assume the value is kept out of state — it is not. `sensitive` only masks display; write-only arguments (or external secret lookups at runtime) are what actually keep material out of state. Verify on 1.11+: prefer `*_wo` arguments for credentials; on older runtimes, source secrets from a secret manager and never store them in variables or tfvars.
 
 ```hcl
 # ✅ GOOD - External secret with write-only argument
@@ -504,7 +609,10 @@ resource "aws_db_instance" "this" {
   instance_class = "db.t3.micro"
   username       = "admin"
 
-  # write-only: Terraform sends to AWS then forgets it (not in state)
+  # password_wo keeps the resource argument out of state (1.11+),
+  # but the data source still reads secret_string into state on refresh.
+  # For true state exclusion: use ephemeral (1.10+), manage_master_user_password,
+  # or inject via CI env var outside Terraform.
   password_wo = data.aws_secretsmanager_secret_version.db_password.secret_string
 }
 
@@ -523,6 +631,111 @@ resource "aws_db_instance" "this" {
 }
 ```
 
+### nonsensitive() and ephemeral (Terraform 0.15+ / 1.10+)
+
+| Goal | Use | Tradeoff |
+|------|-----|----------|
+| derived non-secret incorrectly inferred as sensitive | `nonsensitive()` (0.15+) | only safe when provably not secret; value enters plan |
+| short-lived credential that must never persist | `ephemeral` (1.10+) | never in state or plan; provider/resource must support it |
+| value must persist but not display | `sensitive = true` | still in state; masks terminal only |
+
+```hcl
+# ✅ GOOD - ephemeral keeps short-lived creds out of state (1.10+)
+# requires random provider >= 3.7.0
+ephemeral "random_password" "session" {
+  length = 32
+}
+
+# ❌ BAD - unwrapping a real secret to silence a warning
+output "db_endpoint" {
+  value = nonsensitive(aws_db_instance.this.password)
+}
+```
+
+### Dynamic Blocks — Iterator Shadowing + Set Ordering
+
+| Gotcha | Cause | Fix |
+|--------|-------|-----|
+| outer `each.*` inside nested `dynamic` | block-name iterator shadows `each` | `iterator = rule` rename |
+| non-deterministic block order | `for_each = toset([...])` on a map/object | use map keyed by stable field |
+
+- ❌ bare `dynamic "ingress"` inside outer `for_each` — `ingress.value` shadows `each.value`
+- ✅ rename inner iterator with `iterator = rule`; reference outer via `each.*`
+
+```hcl
+# ✅ GOOD - explicit iterator rename removes ambiguity
+resource "aws_security_group" "this" {
+  for_each = var.security_groups
+
+  name = each.key
+
+  dynamic "ingress" {
+    for_each = each.value.rules
+    iterator = rule
+    content {
+      from_port   = rule.value.from_port
+      to_port     = rule.value.to_port
+      protocol    = rule.value.protocol
+      description = each.value.description  # outer iterator clear
+    }
+  }
+}
+```
+
+---
+
+## Provisioners as Last Resort
+
+| Goal | Use |
+|------|-----|
+| Instance bootstrap | `user_data` + cloud-init via `templatefile()` |
+| Orchestration with explicit re-run (1.4+) | `terraform_data` + `triggers_replace` (list; `null_resource` uses `triggers` map) |
+| Ongoing OS config | External: Ansible / SSM Run Command / SSM State Manager |
+| Last-resort one-shot | `terraform_data` + `provisioner` (1.4+) or `null_resource` (pre-1.4) |
+
+**Provisioner costs (`local-exec` + `remote-exec`):**
+
+- ❌ Non-idempotent — re-runs duplicate side effects
+- ❌ Create-only — updates don't re-run; `when = destroy` is fragile
+- ❌ `remote-exec` needs SSH/WinRM from runner to target
+- ❌ No drift detection — Terraform can't observe what scripts changed
+- ❌ Script stdout/stderr leaks to CI logs; `sensitive` won't redact it
+
+**❌ DON'T — `null_resource` for bootstrap on 1.4+:**
+
+```hcl
+resource "null_resource" "bootstrap" {
+  provisioner "local-exec" {
+    command = "ssh ec2-user@${aws_instance.web.public_ip} 'bash setup.sh'"
+  }
+}
+```
+
+**✅ DO — bootstrap via `user_data` + cloud-init:**
+
+```hcl
+resource "aws_instance" "web" {
+  ami           = data.aws_ami.al2023.id
+  instance_type = "t3.small"
+  user_data = templatefile("${path.module}/cloud-init.yaml", {
+    app_version = var.app_version
+  })
+  user_data_replace_on_change = true
+}
+```
+
+**✅ DO — declarative orchestration on 1.4+:**
+
+```hcl
+resource "terraform_data" "migration" {
+  triggers_replace = [aws_rds_cluster.this.id, var.schema_version]
+
+  provisioner "local-exec" {
+    command = "./run-migration.sh"
+  }
+}
+```
+
 ---
 
 ## Version Management
@@ -534,9 +747,9 @@ resource "aws_db_instance" "this" {
 version = "5.0.0"
 
 # Pessimistic constraint (recommended for stability)
-# Allows patch updates only
-version = "~> 5.0"      # Allows 5.0.x (any x), but not 5.1.0
-version = "~> 5.0.1"    # Allows 5.0.x where x >= 1, but not 5.1.0
+# The rightmost component is the one that's allowed to increment.
+version = "~> 5.0"      # 5.x: >= 5.0, < 6.0 — allows 5.1, 5.2, 5.99
+version = "~> 5.0.1"    # 5.0.x patches only: >= 5.0.1, < 5.1.0
 
 # Range constraints
 version = ">= 5.0, < 6.0"     # Any 5.x version
@@ -692,7 +905,7 @@ terraform {
 ```hcl
 # Before (0.12 style)
 output "security_group_id" {
-  value = element(concat(aws_security_group.this.*.id, [""]), 0)
+  value = element(concat(aws_security_group.this[*].id, [""]), 0)
 }
 
 variable "config" {
@@ -720,87 +933,55 @@ variable "config" {
 
 ### Secrets Remediation
 
-**Pattern:** Move secrets out of Terraform state into external secret management.
+Move secret material out of state into external secret management. Canonical depth lives in [security-compliance.md](security-compliance.md) — patterns below are the minimum refactor shape.
 
-#### Before - Secrets in State
+❌ BAD — both shapes land the secret in state:
 
 ```hcl
-# ❌ BAD - Secret generated and stored in state
+# random_password.result lives in state
 resource "random_password" "db" {
   length  = 16
   special = true
 }
-
 resource "aws_db_instance" "this" {
-  engine   = "mysql"
-  username = "admin"
-  password = random_password.db.result  # In state!
+  password = random_password.db.result
 }
 
-# OR
-
-# ❌ BAD - Secret passed via variable and stored in state
+# var + sensitive = true still writes to state (sensitive only masks display)
 variable "db_password" {
-  description = "Database password"
-  type        = string
-  sensitive   = true  # Marked sensitive but still in state!
+  type      = string
+  sensitive = true
 }
-
 resource "aws_db_instance" "this" {
-  password = var.db_password  # In state!
+  password = var.db_password
 }
 ```
 
-#### After - External Secret Management
-
-**Option 1: Write-only arguments (Terraform 1.11+)**
+✅ GOOD — 1.11+ write-only argument, secret created outside Terraform:
 
 ```hcl
-# ✅ GOOD - Fetch from AWS Secrets Manager
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
-}
-
 data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
+  secret_id = "prod-database-password"
 }
 
 resource "aws_db_instance" "this" {
   engine   = "mysql"
   username = "admin"
-
-  # write-only: Sent to AWS, not stored in state
+  # password_wo: resource argument stays out of state (1.11+).
+  # Data source still reads secret_string into state on refresh.
+  # For true state exclusion: ephemeral (1.10+), manage_master_user_password, or CI env var.
   password_wo = data.aws_secretsmanager_secret_version.db_password.secret_string
 }
 ```
 
-**Option 2: Separate secret creation (if Terraform 1.11+ not available)**
-
-```hcl
-# ✅ GOOD - Reference pre-existing secret
-# Secret created outside Terraform (manually or separate process)
-
-data "aws_secretsmanager_secret" "db_password" {
-  name = "prod-database-password"
-}
-
-data "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = data.aws_secretsmanager_secret.db_password.id
-}
-
-# Note: Without write-only, you may need to handle secret rotation
-# outside Terraform or accept that the secret value appears in state
-# during initial creation but not after rotation
-```
+Pre-1.11 fallback: use the same data source without `password_wo`; rotation must happen outside Terraform.
 
 **Migration steps:**
 
-1. Create secret in AWS Secrets Manager (outside Terraform)
-2. Update Terraform to use data sources
-3. Use write-only argument (if Terraform 1.11+)
-4. Remove `random_password` resource or variable
-5. Run `terraform apply` to update
-6. Verify secret not in state: `terraform show` should not display password
+1. Create secret in AWS Secrets Manager outside Terraform
+2. Replace `random_password` / variable with `data "aws_secretsmanager_secret_version"`
+3. On 1.11+: use `password_wo`
+4. Apply, then `terraform show | grep -i password` — must be empty
 
 ---
 
@@ -844,15 +1025,39 @@ resource "aws_subnet" "public" {
 # With local: Subnets deleted first, then CIDR association, then VPC ✓
 ```
 
-**Why this matters:**
-- Prevents deletion errors when destroying infrastructure
-- Ensures correct dependency order without explicit `depends_on`
-- Particularly useful for complex VPC configurations with secondary CIDR blocks
-
 **Common use cases:**
 - VPC with secondary CIDR blocks
-- Resources that depend on optional configurations
-- Complex deletion order requirements
+- Resources depending on optional configurations
+- Complex deletion-order requirements
+
+---
+
+## LLM Mistake Checklist — Code Patterns
+
+Common model mistakes when generating HCL. Correct these before returning code:
+
+- defaults to `count` for every collection — prefer `for_each` with stable keys whenever identity matters
+- omits `moved` blocks during rename/refactor, silently turning the change into destroy/create
+- builds `for_each` keys from computed IDs not known until apply — planning will fail
+- uses list index as long-lived identity (`count.index`) instead of business-meaningful keys
+- marks variables `sensitive = true` and assumes the value stays out of state — on 1.11+ use `write_only` / `*_wo` arguments
+- falls back to `element(concat(...))` instead of `try()` on 0.12.20+
+- accepts untyped `map(any)` / `any` for long-lived module contracts instead of `optional()` with typed defaults (1.3+)
+- suggests `terraform state mv` where `moved` blocks are safer and reviewable
+- recommends ad-hoc CLI `terraform import` instead of declarative `import` blocks (1.5+)
+- emits an exact `version = "5.0.0"` pin where `~> 5.0` would be more maintainable
+- silently emits 1.11+ features (S3 native lock, `write_only`, `removed`) without checking the runtime floor
+- uses `nonsensitive()` to "fix" a sensitive value appearing in plan output — this leaks secrets into CI artifacts
+- conflates `sensitive = true` with `ephemeral` (1.10+); only `ephemeral` actually stays out of state
+- writes a `moved` block expecting it to cross provider boundaries; it cannot
+- leaves `moved` blocks inside a module that itself is being removed — the moves silently no-op, resources get destroyed
+- emits CLI `terraform import` in automation when declarative `import` blocks (1.5+) give a reviewable, VCS-tracked alternative
+- emits `ignore_changes = all` or broad ignore lists to silence plan output instead of diagnosing drift root cause
+- uses `check` block expecting it to block apply; `check` is advisory, emits warnings only. Use `precondition`/`postcondition` to gate.
+- uses `each.value` inside a `dynamic` block intending the outer iterator — shadowed by the inner block name; rename with `iterator = ...`
+- emits hardcoded cloud IDs/ARNs (`vpc-0abc...`, pattern-matched `arn:aws:iam::` patterns) from training data instead of using data sources or input variables
+- pairs `password_wo` with `aws_secretsmanager_secret_version` — the data source still reads `secret_string` into state on refresh. Use `ephemeral` (1.10+) or CI-injected env var.
+- iterates `dynamic` blocks over `toset(...)` of maps/objects — the set's undefined ordering causes non-deterministic block ordering in the plan diff; sort the list or use a map keyed by a stable field
 
 ---
 
