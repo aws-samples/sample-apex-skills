@@ -156,6 +156,44 @@ def main() -> int:
                         f"evals.json prompt id={p.get('id', '?')} references file '{f}' but {file_path} does not exist"
                     )
 
+        # 5. artifact_assertions schema validation (if present).
+        VALID_STRUCTURAL_TYPES = {
+            "file-exists", "file-not-exists", "contains", "not-contains",
+            "yaml-valid", "json-valid", "file-count", "hcl-resource-exists",
+            "json-schema", "mermaid-valid",
+        }
+        VALID_VALIDATOR_TYPES = {
+            "terraform-fmt", "terraform-validate", "checkov", "shellcheck",
+            "markdownlint", "kubectl-dry-run", "script",
+        }
+        for p in prompts:
+            aa = p.get("artifact_assertions")
+            if not aa:
+                continue
+            pid = p.get("id", "?")
+            if not isinstance(aa, dict):
+                warnings.append(f"evals.json prompt id={pid}: artifact_assertions must be a dict")
+                continue
+            for key in aa:
+                if key not in ("root_glob", "validators", "structural"):
+                    warnings.append(f"evals.json prompt id={pid}: unknown artifact_assertions key '{key}'")
+            for i, s in enumerate(aa.get("structural") or []):
+                stype = s.get("type")
+                if stype not in VALID_STRUCTURAL_TYPES:
+                    warnings.append(
+                        f"evals.json prompt id={pid}: structural[{i}] has unknown type '{stype}'"
+                    )
+            for i, v in enumerate(aa.get("validators") or []):
+                vtype = v.get("type")
+                if vtype not in VALID_VALIDATOR_TYPES:
+                    warnings.append(
+                        f"evals.json prompt id={pid}: validators[{i}] has unknown type '{vtype}'"
+                    )
+                if vtype == "script" and "path" not in v:
+                    warnings.append(
+                        f"evals.json prompt id={pid}: validators[{i}] type=script requires 'path'"
+                    )
+
         if warnings:
             any_fail = True
             print(f"✗ {skill}")

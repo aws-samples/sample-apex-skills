@@ -54,6 +54,7 @@ from run_triggering import (
 )
 from parse_trajectory import parse_events
 from process_assertions import evaluate
+from artifact_validation import validate_run as validate_artifacts
 from elicitation import ElicitationConfig, run_multiturn_subject
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
@@ -737,6 +738,28 @@ def run_skill(
                         )
                         print(
                             f"[task]   process assertions: {pa_results.passed}/{pa_results.total} passed",
+                            file=sys.stderr,
+                        )
+
+                # --- Layer 2: Artifact validation (deterministic, no LLM) ---
+                artifact_assertion_defs = p.get("artifact_assertions")
+                if artifact_assertion_defs:
+                    outputs_path = Path(subj["outputs_dir"])
+                    if outputs_path.exists():
+                        repo_root = Path(__file__).resolve().parent.parent.parent
+                        av_results = validate_artifacts(
+                            outputs_dir=outputs_path,
+                            assertions_config=artifact_assertion_defs,
+                            repo_root=repo_root,
+                        )
+                        (run_dir / "artifact-validation.json").write_text(
+                            json.dumps(av_results.to_dict(), indent=2)
+                        )
+                        av_passed = av_results.structural_passed + av_results.validators_passed
+                        av_failed = av_results.structural_failed + av_results.validators_failed
+                        print(
+                            f"[task]   artifact validation: {av_passed}/{av_passed + av_failed} passed"
+                            f" ({av_results.overall_pass_rate:.0%})",
                             file=sys.stderr,
                         )
 
