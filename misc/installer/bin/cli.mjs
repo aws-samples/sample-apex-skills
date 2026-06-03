@@ -5,7 +5,7 @@ import { homedir, platform } from 'os';
 import { execSync } from 'child_process';
 import { createInterface } from 'readline';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const REPO_URL = 'https://github.com/aws-samples/sample-apex-skills.git';
 const HOME = homedir();
 const INSTALL_DIR = join(HOME, '.apex-skills');

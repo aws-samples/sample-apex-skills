@@ -1,6 +1,6 @@
 {
   "name": "apex-skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Install APEX platform engineering skills for Claude Code and Kiro CLI",
   "bin": {
     "apex-skills": "./bin/cli.mjs"
