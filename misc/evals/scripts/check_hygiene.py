@@ -194,6 +194,37 @@ def main() -> int:
                         f"evals.json prompt id={pid}: validators[{i}] type=script requires 'path'"
                     )
 
+        # 6. knowledge_assertions schema validation (if present).
+        VALID_KNOWLEDGE_TYPES = {
+            "must-contain", "must-not-contain", "must-contain-one-of", "regex-match",
+        }
+        for p in prompts:
+            ka = p.get("knowledge_assertions")
+            if not ka:
+                continue
+            pid = p.get("id", "?")
+            if not isinstance(ka, list):
+                warnings.append(f"evals.json prompt id={pid}: knowledge_assertions must be a list")
+                continue
+            for i, a in enumerate(ka):
+                atype = a.get("type")
+                if atype not in VALID_KNOWLEDGE_TYPES:
+                    warnings.append(
+                        f"evals.json prompt id={pid}: knowledge_assertions[{i}] has unknown type '{atype}'"
+                    )
+                if not a.get("source"):
+                    warnings.append(
+                        f"evals.json prompt id={pid}: knowledge_assertions[{i}] missing required 'source' field"
+                    )
+                if atype in ("must-contain", "must-not-contain", "regex-match") and not a.get("pattern"):
+                    warnings.append(
+                        f"evals.json prompt id={pid}: knowledge_assertions[{i}] type={atype} requires 'pattern'"
+                    )
+                if atype == "must-contain-one-of" and not isinstance(a.get("patterns"), list):
+                    warnings.append(
+                        f"evals.json prompt id={pid}: knowledge_assertions[{i}] type={atype} requires 'patterns' list"
+                    )
+
         if warnings:
             any_fail = True
             print(f"✗ {skill}")

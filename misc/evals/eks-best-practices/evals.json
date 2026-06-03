@@ -12,6 +12,56 @@
         "The output names at least one concrete trigger that would justify splitting into multiple clusters (e.g. strict compliance/data-residency boundary, blast-radius isolation for a critical workload, or drastically different upgrade cadences). TODO: human review",
         "The output mentions a path for tenant autonomy that is not cluster-per-team (e.g. namespace-as-a-service, GitOps per-team app-of-apps, or platform abstractions) so teams can move fast on a shared cluster. TODO: human review"
       ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "Karpenter",
+          "context": "Must recommend Karpenter as primary compute engine for spiky workloads",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["NetworkPolicy", "network.?polic"],
+          "context": "Namespace isolation must include network policies",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/network-security.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["ResourceQuota", "resource.?quota"],
+          "context": "Multi-tenant clusters need resource quotas per namespace",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/multi-tenancy.html"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "RBAC",
+          "context": "RBAC is foundational for multi-tenant namespace isolation",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["managed.?node.?group", "MNG", "system.*(node|pool)"],
+          "context": "System components should run on stable managed nodes, not Karpenter-managed",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["consolidat", "bin.?pack", "instance.?flex"],
+          "context": "Must cite a concrete Karpenter benefit (consolidation, bin-packing, or instance flexibility)",
+          "source": "https://karpenter.sh/docs/concepts/disruption/#consolidation"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["compliance", "regulatory", "PCI", "data.?residency", "blast.?radius"],
+          "context": "Must name a concrete trigger for cluster splitting",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/multi-tenancy.html"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "kube2iam",
+          "context": "kube2iam is deprecated; must not recommend it",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
+        }
+      ],
       "files": []
     },
     {
@@ -24,6 +74,69 @@
         "The output flags NodePort as inappropriate for production ingress and recommends the AWS Load Balancer Controller with ALB or NLB (or Gateway API) as the replacement. TODO: human review",
         "The output flags attaching application IAM permissions to the node role as a security anti-pattern and recommends migrating to EKS Pod Identity (preferred) or IRSA per workload. TODO: human review",
         "The output presents the fixes in a prioritized order (e.g. reliability first, then security, then ingress) rather than as an unordered list. TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Pod.?Identity", "EKS Pod Identity"],
+          "context": "Must recommend Pod Identity as the preferred IAM approach for EKS 1.24+",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "IRSA",
+          "context": "Must mention IRSA as alternative/predecessor to Pod Identity",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["topologySpreadConstraint", "topology.kubernetes.io/zone"],
+          "context": "Multi-AZ spread should use topology spread constraints",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["PodDisruptionBudget", "PDB", "Pod Disruption Budget"],
+          "context": "Must recommend PDBs for production workloads",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["minAvailable", "maxUnavailable"],
+          "context": "PDB recommendation must include a concrete spec example",
+          "source": "https://kubernetes.io/docs/tasks/run-application/configure-pdb/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["AWS Load Balancer Controller", "ALB.?Controller", "aws-load-balancer-controller"],
+          "context": "Must recommend AWS LBC over NodePort for production ingress",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "NodePort",
+          "context": "Must explicitly flag NodePort as the anti-pattern being replaced",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/network-security.html"
+        },
+        {
+          "type": "regex-match",
+          "pattern": "3000[0-9]|3[12][0-9]{3}",
+          "context": "Should mention NodePort high port range (30000-32767) as a concrete detail",
+          "source": "https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport",
+          "flags": ""
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["privilege.?escalat", "security.*(anti.?pattern|risk|issue)"],
+          "context": "Must frame node-role IAM as a security risk, not just a recommendation",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "kube2iam",
+          "context": "kube2iam is deprecated; must not recommend it",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
+        }
       ],
       "files": []
     }

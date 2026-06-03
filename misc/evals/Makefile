@@ -70,12 +70,13 @@ AWS_REGION        ?= us-west-2
 
 PROCESS_T    := $(addprefix process-,$(SKILLS))
 ARTIFACT_T   := $(addprefix artifact-,$(SKILLS))
+KNOWLEDGE_T  := $(addprefix knowledge-,$(SKILLS))
 
 .PHONY: help list-skills validate-all triggering-all task-all score-full \
         init-evals init-evals-finalize check-evals-coverage hygiene \
-        score score-dry process-all artifact-all \
+        score score-dry process-all artifact-all knowledge-all \
         $(VALIDATE_T) $(TRIGGERING_T) \
-        $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T)
+        $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T) $(KNOWLEDGE_T)
 
 help:
 	@echo "Per-skill targets (SKILL in: $(SKILLS)):"
@@ -287,6 +288,18 @@ $(ARTIFACT_T): artifact-%:
 	  --skill $*
 
 artifact-all: $(ARTIFACT_T)
+
+# ---------- E  knowledge assertions (deterministic; checks text output) -------
+# Runs knowledge_assertions.py against the latest events.jsonl files for a skill.
+# No model calls — purely deterministic. Reads assertions from evals.json
+# knowledge_assertions field; evaluates against workspace/latest/ run data.
+$(KNOWLEDGE_T): knowledge-%:
+	@test -f $(call evals_json,$*) || \
+	  { echo "missing: $(call evals_json,$*)"; exit 1; }
+	python3 $(EVALS_ROOT)/scripts/run_knowledge_assertions.py \
+	  --skill $*
+
+knowledge-all: $(KNOWLEDGE_T)
 
 score-full: task-all score
 
