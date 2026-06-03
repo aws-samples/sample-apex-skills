@@ -45,7 +45,10 @@ echo ""
 
 UPSTREAM_DIR="$TEMP_DIR/terraform-skill"
 
-if [ ! -f "$UPSTREAM_DIR/SKILL.md" ]; then
+# Upstream restructured: skill now lives under skills/terraform-skill/
+if [ -f "$UPSTREAM_DIR/skills/terraform-skill/SKILL.md" ]; then
+    UPSTREAM_DIR="$UPSTREAM_DIR/skills/terraform-skill"
+elif [ ! -f "$UPSTREAM_DIR/SKILL.md" ]; then
     echo "ERROR: Upstream terraform-skill not found (no SKILL.md)"
     exit 1
 fi

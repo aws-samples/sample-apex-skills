@@ -1,0 +1,190 @@
+name: Vendor Skill Updates
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # Every Monday at 09:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vendor-update.yml'
+      - 'misc/sync-*.sh'
+  workflow_dispatch:
+    inputs:
+      skill:
+        description: 'Sync a specific skill (blank = all)'
+        required: false
+        type: choice
+        options:
+          - all
+          - skill-creator
+          - terraform-skill
+          - eks-upgrade-check
+          - eks-operation-review
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        skill:
+          - name: skill-creator
+            script: misc/sync-skill-creator.sh
+            upstream: https://github.com/anthropics/skills.git
+            path: skills/skill-creator
+          - name: terraform-skill
+            script: misc/sync-terraform-skill.sh
+            upstream: https://github.com/antonbabenko/terraform-skill.git
+            path: skills/terraform-skill
+          - name: eks-upgrade-check
+            script: misc/sync-eks-upgrade-skill.sh
+            upstream: https://github.com/aws-samples/sample-eks-upgrade-skill.git
+            path: skills/eks-upgrade-check
+          - name: eks-operation-review
+            script: misc/sync-eks-operation-review-skill.sh
+            upstream: https://github.com/aws-samples/sample-eks-operation-review-skill.git
+            path: skills/eks-operation-review
+    steps:
+      - name: Skip if single-skill dispatch doesn't match
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          inputs.skill != 'all' &&
+          inputs.skill != matrix.skill.name
+        run: echo "Skipping ${{ matrix.skill.name }} (not selected)" && exit 0
+
+      - uses: actions/checkout@v4
+        if: >-
+          github.event_name != 'workflow_dispatch' ||
+          inputs.skill == 'all' ||
+          inputs.skill == matrix.skill.name
+
+      - name: Check upstream for new commits
+        id: check
+        if: >-
+          github.event_name != 'workflow_dispatch' ||
+          inputs.skill == 'all' ||
+          inputs.skill == matrix.skill.name
+        run: |
+          # Get upstream HEAD
+          UPSTREAM_SHA=$(git ls-remote "${{ matrix.skill.upstream }}" HEAD | cut -f1)
+          echo "upstream_sha=${UPSTREAM_SHA}" >> "$GITHUB_OUTPUT"
+
+          # Compare with last synced SHA (stored in UPSTREAM.md or .vendor-sha)
+          SHA_FILE="${{ matrix.skill.path }}/.vendor-sha"
+          if [ -f "$SHA_FILE" ]; then
+            LOCAL_SHA=$(cat "$SHA_FILE")
+          else
+            LOCAL_SHA="unknown"
+          fi
+          echo "local_sha=${LOCAL_SHA}" >> "$GITHUB_OUTPUT"
+
+          if [ "$UPSTREAM_SHA" = "$LOCAL_SHA" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "✓ ${{ matrix.skill.name }} is up to date ($LOCAL_SHA)"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "⬆ ${{ matrix.skill.name }} has upstream changes ($LOCAL_SHA → $UPSTREAM_SHA)"
+          fi
+
+      - name: Run sync script
+        id: sync
+        if: steps.check.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          chmod +x "${{ matrix.skill.script }}"
+          ./${{ matrix.skill.script }}
+
+      - name: Record upstream SHA
+        if: steps.sync.outcome == 'success'
+        run: |
+          echo "${{ steps.check.outputs.upstream_sha }}" > "${{ matrix.skill.path }}/.vendor-sha"
+
+      - name: Regenerate docs
+        if: steps.sync.outcome == 'success'
+        run: |
+          if [ -x misc/update-all-references.sh ]; then
+            ./misc/update-all-references.sh || true
+          fi
+
+      - name: Check for actual diff
+        id: diff
+        if: steps.sync.outcome == 'success'
+        run: |
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/vendor-update-${{ matrix.skill.name }}
+          delete-branch: true
+          title: "chore(vendor): update ${{ matrix.skill.name }}"
+          body: |
+            ## Automated vendor sync
+
+            **Skill:** `${{ matrix.skill.name }}`
+            **Upstream:** ${{ matrix.skill.upstream }}
+            **Previous SHA:** `${{ steps.check.outputs.local_sha }}`
+            **New SHA:** `${{ steps.check.outputs.upstream_sha }}`
+
+            ---
+
+            This PR was created automatically by the vendor-update workflow.
+            Review the diff to ensure the sync script transforms applied correctly.
+
+            ### Checklist
+            - [ ] Sync script transforms applied cleanly
+            - [ ] No unexpected file deletions
+            - [ ] Evals still pass (CI will verify)
+          commit-message: "chore(vendor): sync ${{ matrix.skill.name }} from upstream"
+          labels: |
+            vendor-update
+            automated
+
+      - name: Open issue on sync failure
+        if: steps.sync.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Vendor sync failed: ${{ matrix.skill.name }}`;
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'vendor-sync-failure',
+            });
+            if (existing.data.some(i => i.title === title)) {
+              console.log('Issue already exists, skipping');
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body: [
+                `## Vendor sync script failed`,
+                ``,
+                `**Skill:** \`${{ matrix.skill.name }}\``,
+                `**Script:** \`${{ matrix.skill.script }}\``,
+                `**Upstream:** ${{ matrix.skill.upstream }}`,
+                `**Upstream SHA:** \`${{ steps.check.outputs.upstream_sha }}\``,
+                ``,
+                `The sync script exited non-zero. This usually means upstream restructured ` +
+                `their repo and the sync script paths need updating.`,
+                ``,
+                `### Next steps`,
+                `1. Check the [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for error details`,
+                `2. Fix the sync script at \`${{ matrix.skill.script }}\``,
+                `3. Run manually: \`gh workflow run vendor-update.yml -f skill=${{ matrix.skill.name }}\``,
+              ].join('\n'),
+              labels: ['vendor-sync-failure', 'automated'],
+            });
