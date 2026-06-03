@@ -27,6 +27,10 @@ breaking_changes_deduction = min(breaking_changes_deduction, 25)
 # COUNTING UNIT: each distinct API path (e.g., flowschemas and prioritylevelconfigurations
 # are 2 separate API paths even though they share the same API group).
 # Count API paths, NOT individual resources using that path.
+#
+# An API path is "found in cluster" if surfaced by EITHER Step 2a (live object
+# apiVersion) OR Step 2b (any entry in metadata.managedFields[].apiVersion) in
+# references/deprecated-apis.md. A path is counted ONCE regardless of step.
 deprecated_apis_deduction = 0
 for each deprecated_api_path found in cluster:
     if removed_in_target_version:    deprecated_apis_deduction += 5
