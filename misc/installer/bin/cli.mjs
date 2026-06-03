@@ -35,6 +35,10 @@ function banner() {
 
 function parseArgs() {
   const args = process.argv.slice(2);
+  const getVal = (flag) => {
+    const i = args.indexOf(flag);
+    return i !== -1 && i + 1 < args.length ? args[i + 1] : null;
+  };
   return {
     claudeOnly: args.includes('--claude-only'),
     kiroOnly: args.includes('--kiro-only'),
@@ -43,6 +47,8 @@ function parseArgs() {
     update: args.includes('--update'),
     uninstall: args.includes('--uninstall'),
     help: args.includes('--help') || args.includes('-h'),
+    branch: getVal('--branch'),
+    version: getVal('--version') || getVal('-v'),
   };
 }
 
@@ -64,21 +70,36 @@ function hasGit() {
   } catch { return false; }
 }
 
-function cloneOrUpdate() {
+function cloneOrUpdate(flags) {
+  const ref = flags.version || flags.branch;
   if (existsSync(INSTALL_DIR)) {
-    info('Updating existing installation...');
-    try {
-      execSync('git pull --ff-only', { cwd: INSTALL_DIR, stdio: 'pipe' });
-      success('Updated to latest version');
-    } catch (e) {
-      warn('Git pull failed — try removing ~/.apex-skills and re-running');
-      throw e;
+    if (ref) {
+      info(`Switching to ${flags.version ? `version ${ref}` : `branch ${ref}`}...`);
+      try {
+        execSync('git fetch --tags --force', { cwd: INSTALL_DIR, stdio: 'pipe' });
+        execSync(`git checkout ${ref}`, { cwd: INSTALL_DIR, stdio: 'pipe' });
+        if (flags.branch) execSync('git pull --ff-only', { cwd: INSTALL_DIR, stdio: 'pipe' });
+        success(`Now on ${ref}`);
+      } catch (e) {
+        error(`Failed to checkout ${ref}. Run: git -C ~/.apex-skills tag -l`);
+        throw e;
+      }
+    } else {
+      info('Updating existing installation...');
+      try {
+        execSync('git pull --ff-only', { cwd: INSTALL_DIR, stdio: 'pipe' });
+        success('Updated to latest version');
+      } catch (e) {
+        warn('Git pull failed — try removing ~/.apex-skills and re-running');
+        throw e;
+      }
     }
   } else {
     info('Cloning APEX skills repository...');
+    const branchFlag = ref ? ` --branch ${ref}` : '';
     try {
-      execSync(`git clone --depth 1 ${REPO_URL} "${INSTALL_DIR}"`, { stdio: 'pipe' });
-      success('Repository cloned');
+      execSync(`git clone --depth 1${branchFlag} ${REPO_URL} "${INSTALL_DIR}"`, { stdio: 'pipe' });
+      success(`Repository cloned${ref ? ` (${ref})` : ''}`);
     } catch (e) {
       error('Failed to clone repository. Check your internet connection and git access.');
       throw e;
@@ -194,24 +215,33 @@ function showHelp() {
   banner();
   log(`${c.bold}Usage:${c.reset}  npx apex-skills [flags]\n`);
   log(`${c.bold}Flags:${c.reset}`);
-  log(`  --claude-only    Install for Claude Code only`);
-  log(`  --kiro-only      Install for Kiro CLI only`);
-  log(`  --project        Install to current project instead of global`);
-  log(`  --no-steering    Skip steering/commands setup`);
-  log(`  --update         Pull latest and re-symlink (non-interactive)`);
-  log(`  --uninstall      Remove symlinks (keeps cloned repo)`);
-  log(`  -h, --help       Show this help\n`);
+  log(`  --claude-only        Install for Claude Code only`);
+  log(`  --kiro-only          Install for Kiro CLI only`);
+  log(`  --project            Install to current project instead of global`);
+  log(`  --no-steering        Skip steering/commands setup`);
+  log(`  --update             Pull latest and re-symlink (non-interactive)`);
+  log(`  --version <tag>      Pin to a specific release (e.g. v1.0.0)`);
+  log(`  --branch <name>      Use a specific branch instead of main`);
+  log(`  --uninstall          Remove symlinks (keeps cloned repo)`);
+  log(`  -h, --help           Show this help\n`);
   log(`${c.bold}Examples:${c.reset}`);
-  log(`  npx apex-skills                   Interactive install`);
-  log(`  npx apex-skills --update          Update to latest skills`);
-  log(`  npx apex-skills --claude-only     Install for Claude Code only`);
-  log(`  npx apex-skills --project         Install into current project\n`);
+  log(`  npx apex-skills                        Interactive install`);
+  log(`  npx apex-skills --update               Update to latest skills`);
+  log(`  npx apex-skills --version v1.0.0       Pin to release v1.0.0`);
+  log(`  npx apex-skills --branch feat/new-eks  Install from a branch`);
+  log(`  npx apex-skills --claude-only          Install for Claude Code only`);
+  log(`  npx apex-skills --project              Install into current project\n`);
 }
 
 async function main() {
   const flags = parseArgs();
 
   if (flags.help) { showHelp(); process.exit(0); }
+
+  if (flags.branch && flags.version) {
+    error('Cannot use --branch and --version together. Pick one.');
+    process.exit(1);
+  }
 
   if (platform() === 'win32') {
     error('Windows is not supported (symlinks require elevated permissions).');
@@ -246,7 +276,7 @@ async function main() {
   if (flags.kiroOnly && !existsSync(kiroDir)) { ensureDir(kiroDir); installKiro = true; }
 
   // Clone or update
-  cloneOrUpdate();
+  cloneOrUpdate(flags);
 
   const skills = getSkills();
   if (skills.length === 0) { error('No skills found in repository.'); process.exit(1); }
