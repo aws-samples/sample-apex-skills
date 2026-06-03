@@ -19,7 +19,27 @@
         {"type": "step-count", "min": 5, "max": 30},
         {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
         {"type": "no-tool-called", "tool": "Read"}
-      ]
+      ],
+      "artifact_assertions": {
+        "root_glob": "**/code",
+        "validators": [
+          {"type": "terraform-fmt", "paths": ["**/*.tf"]},
+          {"type": "script", "path": "skills/eks-build/scripts/validate_project.sh", "args": ["{root}"]}
+        ],
+        "structural": [
+          {"type": "file-exists", "path": "main.tf"},
+          {"type": "file-exists", "path": "variables.tf"},
+          {"type": "file-exists", "path": "versions.tf"},
+          {"type": "file-exists", "path": "outputs.tf"},
+          {"type": "file-exists", "path": "providers.tf"},
+          {"type": "contains", "file": "versions.tf", "pattern": "required_providers"},
+          {"type": "contains", "file": "**/*.tf", "pattern": "aws_eks_cluster|terraform-aws-modules/eks"},
+          {"type": "contains", "file": "**/*.tf", "pattern": "[Kk]arpenter"},
+          {"type": "yaml-valid", "paths": ["configs/*.yaml"]},
+          {"type": "not-contains", "file": "**/*.tf", "pattern": "kube2iam"},
+          {"type": "file-count", "glob": "**/*.tf", "min": 3, "max": 30}
+        ]
+      }
     },
     {
       "id": 2,
@@ -38,7 +58,18 @@
         {"type": "step-count", "min": 5, "max": 25},
         {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
         {"type": "no-tool-called", "tool": "Read"}
-      ]
+      ],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "file-exists", "path": "**/*kyverno*"},
+          {"type": "file-exists", "path": "**/*external-secrets*"},
+          {"type": "yaml-valid", "paths": ["**/*.yaml"]},
+          {"type": "contains", "file": "**/*.yaml", "pattern": "argoproj"},
+          {"type": "contains", "file": "**/*.yaml", "pattern": "sync-wave|syncPolicy"}
+        ]
+      }
     },
     {
       "id": 3,
@@ -70,6 +101,20 @@
           {"question_match": "budget|cost", "answer": "Standard, no specific budget constraints"}
         ],
         "max_turns": 8
+      },
+      "artifact_assertions": {
+        "root_glob": "**/code",
+        "validators": [
+          {"type": "terraform-fmt", "paths": ["**/*.tf"]}
+        ],
+        "structural": [
+          {"type": "file-exists", "path": "main.tf"},
+          {"type": "file-exists", "path": "variables.tf"},
+          {"type": "file-exists", "path": "versions.tf"},
+          {"type": "yaml-valid", "paths": ["configs/*.yaml"]},
+          {"type": "file-count", "glob": "**/*.tf", "min": 3},
+          {"type": "file-count", "glob": "environments/**/*.tfvars", "min": 2}
+        ]
       }
     }
   ]

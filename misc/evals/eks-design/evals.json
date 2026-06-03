@@ -13,7 +13,17 @@
         "The output includes a validation or scoring section that maps design choices to AWS Well-Architected pillars (at least reliability, security, and cost optimization) TODO: human review",
         "The output is structured as a design document with clear sections and headings suitable for handoff to eks-build for Terraform code generation TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "artifact_assertions": {
+        "root_glob": "**/design",
+        "validators": [],
+        "structural": [
+          {"type": "file-exists", "path": "**/*architecture*"},
+          {"type": "file-count", "glob": "**/*.md", "min": 2},
+          {"type": "contains", "file": "**/*.md", "pattern": "```mermaid"},
+          {"type": "not-contains", "file": "**/*.md", "pattern": "PLACEHOLDER"}
+        ]
+      }
     },
     {
       "id": 2,
@@ -27,7 +37,16 @@
         "The output presents remediation items in a prioritized order with security and reliability fixes ranked above cost optimization TODO: human review",
         "The output identifies the lack of GitOps (manual kubectl) as an operational excellence gap and recommends a GitOps tool (ArgoCD, Flux) for declarative deployments TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "file-count", "glob": "**/*.md", "min": 1},
+          {"type": "contains", "file": "**/*.md", "pattern": "(Security|Reliability|Cost|Operational)"},
+          {"type": "contains", "file": "**/*.md", "pattern": "(Critical|High|Medium|Low|RED|AMBER|GREEN)"}
+        ]
+      }
     }
   ]
 }

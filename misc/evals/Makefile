@@ -69,18 +69,20 @@ AWS_POLICY_RO     ?= $(READONLY_SECRETS)/readonly-session-policy.json
 AWS_REGION        ?= us-west-2
 
 PROCESS_T    := $(addprefix process-,$(SKILLS))
+ARTIFACT_T   := $(addprefix artifact-,$(SKILLS))
 
 .PHONY: help list-skills validate-all triggering-all task-all score-full \
         init-evals init-evals-finalize check-evals-coverage hygiene \
-        score score-dry process-all \
+        score score-dry process-all artifact-all \
         $(VALIDATE_T) $(TRIGGERING_T) \
-        $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T)
+        $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T)
 
 help:
 	@echo "Per-skill targets (SKILL in: $(SKILLS)):"
 	@echo "  validate-<skill>    A  quick_validate.py          (deterministic)"
 	@echo "  triggering-<skill>  B  run_triggering.py            (LIVE — needs claude -p)"
 	@echo "  process-<skill>     C  process_assertions.py       (deterministic — runs against latest events.jsonl)"
+	@echo "  artifact-<skill>    D  artifact_validation.py       (deterministic — validates outputs/ files)"
 	@echo "  benchmark-<skill>   E  aggregate_benchmark.py      (deterministic)"
 	@echo "  report-<skill>      F  generate_report.py          (deterministic)"
 	@echo "  package-<skill>     G  package_skill.py            (deterministic)"
@@ -88,7 +90,7 @@ help:
 	@echo "  task-<skill>        H  run_task_evals.py           (LIVE — subject + grader)"
 	@echo ""
 	@echo "Meta targets:"
-	@echo "  validate-all, triggering-all, process-all, task-all"
+	@echo "  validate-all, triggering-all, process-all, artifact-all, task-all"
 	@echo "  score               run triggering for every skill and rewrite README scorecard"
 	@echo "  score-dry           render the scorecard to stdout without editing README"
 	@echo "  score-full          task-all + score (full task + triggering refresh)"
@@ -273,6 +275,18 @@ $(PROCESS_T): process-%:
 	  --skill $*
 
 process-all: $(PROCESS_T)
+
+# ---------- D  artifact validation (deterministic; validates outputs/ files) --
+# Runs artifact_validation.py against the latest outputs/ directories for a skill.
+# No model calls — purely deterministic. Reads assertions from evals.json
+# artifact_assertions field; evaluates against workspace/latest/ run data.
+$(ARTIFACT_T): artifact-%:
+	@test -f $(call evals_json,$*) || \
+	  { echo "missing: $(call evals_json,$*)"; exit 1; }
+	python3 $(EVALS_ROOT)/scripts/run_artifact_validation.py \
+	  --skill $*
+
+artifact-all: $(ARTIFACT_T)
 
 score-full: task-all score
 
