@@ -11,7 +11,15 @@
         "Identifies prose references to the old name 'eks-recon' in tracked markdown files — TODO: human review",
         "Produces the final Surface | Status | Action taken | Confirm? markdown table — TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "update-docs"}},
+        {"type": "tool-called", "tool": "Read", "min": 1},
+        {"type": "tool-called", "tool": "Bash", "min": 2},
+        {"type": "tool-sequence", "sequence": ["Skill", "Bash", "Read"]},
+        {"type": "step-count", "min": 5, "max": 30},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ]
     },
     {
       "id": 2,
@@ -23,7 +31,16 @@
         "Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns — TODO: human review",
         "Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits) — TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "update-docs"}},
+        {"type": "tool-called", "tool": "Read", "min": 1},
+        {"type": "tool-called", "tool": "Bash", "min": 2},
+        {"type": "tool-sequence", "sequence": ["Skill", "Bash"]},
+        {"type": "no-tool-called", "tool": "Write"},
+        {"type": "step-count", "min": 3, "max": 25},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ]
     }
   ]
 }

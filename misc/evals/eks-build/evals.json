@@ -12,7 +12,14 @@
         "Includes VPC endpoint resources for at minimum ecr.api, ecr.dkr, s3, sts TODO: human review",
         "Karpenter configuration includes an EC2NodeClass and at least one NodePool resource TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Write", "min": 4},
+        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
+        {"type": "step-count", "min": 5, "max": 30},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
+        {"type": "no-tool-called", "tool": "Read"}
+      ]
     },
     {
       "id": 2,
@@ -24,7 +31,14 @@
         "ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override TODO: human review",
         "Both addons specify a target namespace and create-namespace sync option TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Write", "min": 2},
+        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
+        {"type": "step-count", "min": 5, "max": 25},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
+        {"type": "no-tool-called", "tool": "Read"}
+      ]
     },
     {
       "id": 3,
@@ -36,7 +50,27 @@
         "Includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments TODO: human review",
         "Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status or OPA/Kyverno policies TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Write", "min": 3},
+        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
+        {"type": "step-count", "min": 5, "max": 30},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ],
+      "elicitation": {
+        "strategy": "canned-multiturn",
+        "turns": [
+          {"question_match": "region", "answer": "us-west-2"},
+          {"question_match": "environ", "answer": "3 (dev, staging, prod)"},
+          {"question_match": "cluster.?name|naming", "answer": "myapp"},
+          {"question_match": "team|org", "answer": "Platform team, 2 engineers"},
+          {"question_match": "exist|current|already", "answer": "No existing infrastructure, greenfield"},
+          {"question_match": "network|vpc|cidr", "answer": "Use 10.0.0.0/16 for the VPC"},
+          {"question_match": "instance|node|compute", "answer": "Mixed x86 instances, m5.xlarge and m5.2xlarge"},
+          {"question_match": "budget|cost", "answer": "Standard, no specific budget constraints"}
+        ],
+        "max_turns": 8
+      }
     }
   ]
 }

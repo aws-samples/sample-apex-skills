@@ -13,7 +13,15 @@
         "The output calls out at least one upgrade-relevant finding (e.g. add-on version compatibility, Karpenter version, deprecated API usage). TODO: human review"
       ],
       "files": [],
-      "live_only": true
+      "live_only": true,
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-recon"}},
+        {"type": "tool-called", "tool": "Bash", "min": 3},
+        {"type": "no-tool-called", "tool": "Write"},
+        {"type": "no-tool-called", "tool": "Edit"},
+        {"type": "step-count", "min": 3, "max": 20},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 2}
+      ]
     },
     {
       "id": 2,
@@ -26,7 +34,15 @@
         "The output reports on GitOps tooling (ArgoCD or Flux) including namespace and rough application / kustomization counts when available. TODO: human review"
       ],
       "files": [],
-      "live_only": true
+      "live_only": true,
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-recon"}},
+        {"type": "tool-called", "tool": "Bash", "min": 3},
+        {"type": "no-tool-called", "tool": "Write"},
+        {"type": "no-tool-called", "tool": "Edit"},
+        {"type": "step-count", "min": 3, "max": 20},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 2}
+      ]
     }
   ]
 }

@@ -104,9 +104,14 @@ assertions:
     max: 20
   - type: no-tool-called
     tool: Write  # should not create new files
+  - type: tool-effectiveness
+    description: "Each tool call after the first must advance toward goal"
+    max_consecutive_no_progress: 2
 ```
 
 **Implementation:** Parse stream-json events, extract tool_use blocks, run assertions against the sequence. Returns pass/fail per assertion with evidence (the matching tool call or its absence).
+
+**Per-turn marginal gain (from MINT research):** Beyond bounding step count, measure whether each tool call advances state. The `tool-effectiveness` assertion catches the "agent loops without progress" failure mode common in RLHF-tuned models. MINT showed single-turn performance does not predict multi-turn performance — a model that performs well on isolated tool calls may degrade across a multi-step trajectory.
 
 **Applicable to:** All skills. Multi-step skills (eks-build, eks-design) get process assertions that verify the expected workflow happened.
 
@@ -169,6 +174,19 @@ knowledge_assertions:
   - type: regex-match
     pattern: "Karpenter.*consolidat"
     context: "Should mention Karpenter consolidation"
+  # Hierarchical assertions (group-level scoring with conditional checks)
+  - group: "compute_strategy"
+    weight: 0.3
+    assertions:
+      - type: must-contain-one-of
+        patterns: ["Karpenter", "managed node groups", "Auto Mode"]
+        context: "Must recommend a compute strategy"
+        source: "https://docs.aws.amazon.com/eks/latest/best-practices/compute.html"
+      - type: must-contain
+        pattern: "consolidat"
+        when_parent_matches: "Karpenter"
+        context: "Karpenter requires consolidation policy discussion"
+        source: "https://karpenter.sh/docs/concepts/disruption/"
 ```
 
 **Key design decisions:**
@@ -176,6 +194,7 @@ knowledge_assertions:
 - `must-not-contain` catches knowledge regression when best practices change
 - Assertions are versioned — when AWS deprecates something, add a must-not + remove the must-contain
 - Humans write these. They are the expert ground truth. Not auto-generated.
+- Hierarchical assertions allow group-level partial credit and conditional checks (`when_parent_matches`) — prevents flat assertion lists from growing unwieldy for knowledge-heavy skills (inspired by Agent-as-a-Judge's hierarchical requirement decomposition)
 
 **Applicable to:** Knowledge-heavy skills (eks-best-practices, eks-platform-engineering, terraform-skill). Not meaningful for process-heavy skills (eks-recon, update-docs).
 
@@ -246,6 +265,51 @@ Run each eval K times (default K=3). Report:
 
 Skills with high flake rate need attention regardless of absolute score.
 
+### Failure Taxonomy
+
+Classify assertion failures into named categories (inspired by tau-bench's fault diagnosis). Every failed assertion produces a `failure_class` enabling fast regression debugging:
+
+| Failure Class | Layer | Meaning |
+|---------------|-------|---------|
+| `missed_tool` | 1 | Expected tool never called |
+| `wrong_sequence` | 1 | Tools called in wrong order |
+| `excess_steps` | 1 | Too many tool calls (efficiency regression) |
+| `no_progress_loop` | 1 | Consecutive tool calls without state advancement |
+| `artifact_invalid` | 2 | Static analysis failure (syntax, lint, policy) |
+| `artifact_missing` | 2 | Expected output file not produced |
+| `knowledge_gap` | 3 | Must-contain assertion failed (never knew it) |
+| `knowledge_regression` | 3 | Must-not-contain triggered OR previously-passing must-contain now fails |
+| `quality_decline` | 4 | LLM grader score dropped below threshold |
+
+Failure classes enable:
+- **Prioritized debugging** — `knowledge_regression` is more urgent than `knowledge_gap` (it worked before)
+- **Trend analysis** — track which failure classes increase across versions
+- **Targeted remediation** — `excess_steps` → optimize prompting; `artifact_invalid` → fix templates
+
+### Elicitation Strategy
+
+Borrowed from Inspect AI's Solver/Scorer separation: explicitly name how the agent is prompted during eval, separate from how the output is scored.
+
+| Strategy | Description | When to use |
+|----------|-------------|-------------|
+| `single-shot` | One prompt, evaluate first response | Simple skills, triggering evals |
+| `canned-multiturn` | Pre-scripted follow-up answers | Skills that ask clarifying questions (eks-build, eks-design) |
+| `user-simulator` | LLM-driven user with persona/goal | Complex multi-turn workflows needing realistic interaction |
+
+Configured in `.skilleval.yaml`:
+
+```yaml
+elicitation:
+  strategy: canned-multiturn
+  turns:
+    - question_match: "which region"
+      answer: "us-west-2"
+    - question_match: "how many environments"
+      answer: "3 (dev, staging, prod)"
+```
+
+This resolves the "multi-step timeout" open question — skills that ask clarifying questions get pre-canned answers, making eval reproducible and deterministic.
+
 ## Scoring Model
 
 ### Per-Layer Scores
@@ -290,6 +354,14 @@ Per-skill configuration, discovered by walking up from eval directory:
 skill_name: eks-build
 artifact_type: terraform
 
+artifacts:
+  - glob: "**/*.tf"
+    type: terraform
+  - glob: "design/**/*.md"
+    type: markdown
+  - glob: "**/*.mermaid"
+    type: mermaid
+
 layers:
   triggering:
     enabled: true
@@ -323,6 +395,8 @@ model: claude-sonnet-4-6-20250514
 ```
 
 Layering: `.skilleval.yaml` in skill dir < project-level `misc/evals/.skilleval.yaml` < CLI flags.
+
+**Artifact extraction** uses declared globs rather than heuristic workspace scanning. This makes extraction deterministic — the skill author declares what outputs are expected, and the framework knows exactly where to find them. Resolves Open Question #5.
 
 ## Migration Path
 
@@ -391,9 +465,7 @@ Layering: `.skilleval.yaml` in skill dir < project-level `misc/evals/.skilleval.
 
 1. **Sandbox for artifact validation** — terraform validate needs provider plugins. Pre-bake a Docker image? Or validate structure only (HCL parse)?
 2. **Knowledge assertion authoring UX** — Writing 20+ assertions per skill is tedious. Should we scaffold from existing skill references?
-3. **Multi-step timeout** — Expert skills ask clarifying questions. Do we feed pre-canned answers, or accept the first response as the artifact?
-4. **Cost budget** — Full eval suite across 10 skills at K=3 is 60+ Claude calls. Run nightly? Per-PR only for changed skills?
-5. **Artifact extraction** — How do we reliably capture output files from a sandboxed claude session? Current approach (scan workspace/) works but is fragile.
+3. **Cost budget** — Full eval suite across 10 skills at K=3 is 60+ Claude calls. Run nightly? Per-PR only for changed skills?
 
 ## References
 
@@ -404,3 +476,24 @@ Layering: `.skilleval.yaml` in skill dir < project-level `misc/evals/.skilleval.
 - Promptfoo trajectory assertions: https://www.promptfoo.dev/docs/configuration/expected-outputs/deterministic/#trajectory
 - DeepEval agentic metrics: https://docs.confident-ai.com/docs/metrics-tool-correctness
 - Zheng et al. LLM-as-Judge: https://arxiv.org/abs/2306.05685
+
+### Research Papers (2023-2026)
+
+- Agent-as-a-Judge (Zhuge et al. 2024): https://arxiv.org/abs/2410.10934 — agentic evaluators with hierarchical requirements
+- tau-bench (Yao et al. 2024): https://arxiv.org/abs/2406.12045 — pass^k reliability, deterministic state evaluation
+- AgentBench (Liu et al. 2023): https://arxiv.org/abs/2308.03688 — multi-environment capability profiling
+- MINT (Wang et al. 2023): https://arxiv.org/abs/2309.10691 — per-turn marginal gain, multi-turn ≠ single-turn
+- WebArena (Zhou et al. 2023): https://arxiv.org/abs/2307.13854 — functional correctness via environment state
+
+### Eval Framework Repos
+
+- promptfoo/promptfoo (21.8k★) — YAML-driven trajectory assertions, CI/CD regression gates
+- confident-ai/deepeval (15.8k★) — pytest-style agent metrics, tool correctness scoring
+- UKGovernmentBEIS/inspect_ai (2.1k★) — Solver/Scorer separation, 200+ evals, Docker sandboxing
+- SWE-bench/SWE-bench (5k★) — deterministic test-suite validation, Docker per task
+- sierra-research/tau-bench (1.2k★) — pass^k metric, fault classification, three-party simulation
+- THUDM/AgentBench (3.4k★) — multi-environment deterministic scoring
+- braintrustdata/autoevals (910★) — composable Score(0-1) interface, experiment comparison
+- langfuse/langfuse (28.4k★) — versioned dataset baselines, trace-level scoring
+- Arize-ai/phoenix (9.9k★) — experiment tracking, OpenTelemetry-native traces
+- open-policy-agent/conftest (3.1k★) — Rego policy-as-code for structured artifact validation

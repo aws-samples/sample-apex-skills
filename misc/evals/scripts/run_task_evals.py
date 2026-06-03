@@ -52,6 +52,9 @@ from run_triggering import (
     stage_skill_sandbox,
     read_skill_meta,
 )
+from parse_trajectory import parse_events
+from process_assertions import evaluate
+from elicitation import ElicitationConfig, run_multiturn_subject
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = EVALS_ROOT.parent.parent
@@ -291,6 +294,7 @@ def run_subject(
     timeout: int,
     run_dir: Path,
     extra_env: dict[str, str] | None,
+    elicitation: ElicitationConfig | None = None,
 ) -> dict:
     """Execute the subject and persist transcript/outputs/metrics/timing.
 
@@ -308,31 +312,53 @@ def run_subject(
     start_iso = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     t0 = time.time()
 
+    elicitation = elicitation or ElicitationConfig.from_dict(None)
+
     with ctx as (sandbox, home):
         env = build_subprocess_env(home, extra=extra_env)
-        cmd = [
-            "claude",
-            "-p", prompt,
-            "--output-format", "stream-json",
-            "--verbose",
-            "--include-partial-messages",
-            "--permission-mode", "bypassPermissions",
-            "--model", model,
-        ]
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=str(sandbox),
-            env=env,
-        )
-        events, timed_out = drain_stream(process, timeout=timeout)
-        stderr = b""
-        if process.stderr:
-            try:
-                stderr = process.stderr.read() or b""
-            except Exception:
-                stderr = b""
+
+        if elicitation.strategy == "canned-multiturn" and elicitation.turns:
+            cmd_base = [
+                "claude",
+                "--output-format", "stream-json",
+                "--verbose",
+                "--include-partial-messages",
+                "--permission-mode", "bypassPermissions",
+                "--model", model,
+            ]
+            events, timed_out, _ = run_multiturn_subject(
+                initial_prompt=prompt,
+                elicitation=elicitation,
+                cmd_base=cmd_base,
+                cwd=str(sandbox),
+                env=env,
+                timeout_per_turn=timeout,
+            )
+            stderr = b""
+        else:
+            cmd = [
+                "claude",
+                "-p", prompt,
+                "--output-format", "stream-json",
+                "--verbose",
+                "--include-partial-messages",
+                "--permission-mode", "bypassPermissions",
+                "--model", model,
+            ]
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=str(sandbox),
+                env=env,
+            )
+            events, timed_out = drain_stream(process, timeout=timeout)
+            stderr = b""
+            if process.stderr:
+                try:
+                    stderr = process.stderr.read() or b""
+                except Exception:
+                    stderr = b""
 
         snapshot_sandbox_outputs(sandbox, outputs_dir)
 
@@ -368,16 +394,17 @@ def run_subject(
             "outputs_dir": str(outputs_dir),
             "ok": False,
             "reason": f"subject timed out after {timeout}s",
-            "stderr": stderr.decode("utf-8", errors="replace")[-400:],
+            "stderr": stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
         }
-    if process.returncode != 0:
-        return {
-            "transcript_path": str(transcript_path),
-            "outputs_dir": str(outputs_dir),
-            "ok": False,
-            "reason": f"subject exited {process.returncode}",
-            "stderr": stderr.decode("utf-8", errors="replace")[-400:],
-        }
+    if not (elicitation.strategy == "canned-multiturn" and elicitation.turns):
+        if process.returncode != 0:
+            return {
+                "transcript_path": str(transcript_path),
+                "outputs_dir": str(outputs_dir),
+                "ok": False,
+                "reason": f"subject exited {process.returncode}",
+                "stderr": stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
+            }
     return {
         "transcript_path": str(transcript_path),
         "outputs_dir": str(outputs_dir),
@@ -650,6 +677,7 @@ def run_skill(
                     f"[task] {skill} eval-{eval_id} {config} run-{k} (subject)",
                     file=sys.stderr,
                 )
+                eval_elicitation = ElicitationConfig.from_dict(p.get("elicitation"))
                 subj = run_subject(
                     prompt=p["prompt"],
                     skill_name=skill_name,
@@ -659,6 +687,7 @@ def run_skill(
                     timeout=subject_timeout,
                     run_dir=run_dir,
                     extra_env=extra_env,
+                    elicitation=eval_elicitation,
                 )
                 if not subj["ok"]:
                     print(
@@ -688,6 +717,28 @@ def run_skill(
                         )
                     )
                     continue
+
+                # --- Layer 1: Process assertions (deterministic, no LLM) ---
+                process_assertion_defs = p.get("process_assertions")
+                if process_assertion_defs:
+                    events_file = run_dir / "events.jsonl"
+                    if events_file.exists():
+                        run_events = []
+                        for line in events_file.read_text().splitlines():
+                            if line.strip():
+                                try:
+                                    run_events.append(json.loads(line))
+                                except json.JSONDecodeError:
+                                    continue
+                        trajectory = parse_events(run_events)
+                        pa_results = evaluate(trajectory, process_assertion_defs)
+                        (run_dir / "process-assertions.json").write_text(
+                            json.dumps(pa_results.to_dict(), indent=2)
+                        )
+                        print(
+                            f"[task]   process assertions: {pa_results.passed}/{pa_results.total} passed",
+                            file=sys.stderr,
+                        )
 
                 print(
                     f"[task] {skill} eval-{eval_id} {config} run-{k} (grader)",
