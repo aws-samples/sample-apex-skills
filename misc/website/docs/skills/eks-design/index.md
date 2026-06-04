@@ -1,6 +1,6 @@
 ---
 title: "eks-design"
-description: "Use when designing EKS architecture. Generates architecture design documents including system architecture with Mermaid diagrams, Architecture Decision Records (ADRs), security architecture, and architecture validation reports. Translates requirements into tailored EKS architecture designs guided by AWS Well-Architected best practices. Output populates the project design folder and feeds into eks-build for code generation. Covers cluster architecture, compute strategy, networking model, security posture, addon selection, observability, cost optimization, and upgrade strategy. Also use when (1) reviewing EKS architecture decisions, (2) choosing between EKS compute options, (3) planning EKS networking or security, (4) evaluating EKS deployment models, (5) optimizing EKS cost and scalability, or (6) generating architecture documentation for an EKS project."
+description: "Use when designing EKS architecture. Generates design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices. Covers cluster architecture, compute, networking, security, addons, observability, cost, and upgrade strategy. Also use when reviewing or validating existing EKS architectures, planning networking or security, evaluating deployment models, or generating architecture diagrams. Skip for short advisory recommendations without a formal document (eks-best-practices) and Internal Developer Platforms or progressive delivery (eks-platform-engineering)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-design/SKILL.md
 format: md
 ---
@@ -23,6 +23,7 @@ Generate architecture design documents for production-ready EKS deployments. All
 - Evaluating EKS deployment models (Standard, Auto Mode, Outposts, Anywhere)
 - Optimizing EKS cost and scalability
 - Generating architecture documentation, ADRs, or Mermaid diagrams for EKS
+- Generating standalone Mermaid architecture diagrams (EKS topology, VPC layout, subnet tiers, node groups, pod networking flows, load balancer placement)
 - Creating design artifacts that feed into `eks-build` for implementation
 
 ## Don't Use
@@ -31,6 +32,7 @@ Generate architecture design documents for production-ready EKS deployments. All
 - EKS cluster reconnaissance or discovery (use `eks-recon`)
 - Terraform module design or testing (use `terraform-skill`)
 - Detailed reference material on autoscaling, networking, security, observability, cost, reliability, or upgrades (use `eks-best-practices`)
+- Internal Developer Platforms, Backstage portals, golden paths, progressive delivery, or developer self-service (use `eks-platform-engineering`)
 
 ## Design Output Format
 

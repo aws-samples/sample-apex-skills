@@ -1,6 +1,6 @@
 ---
 title: "eks-recon"
-description: "EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks \"what version am I running\", mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say \"reconnaissance\" or \"discovery\". When in doubt about cluster state, run recon first."
+description: "EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks what version am I running, mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say reconnaissance or discovery. When in doubt about cluster state, run recon first. Skip for upgrade readiness scoring or deprecated API checks (eks-upgrade-check), operational audits with GREEN/AMBER/RED ratings (eks-operation-review), and architecture design documents or Mermaid diagrams (eks-design)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/SKILL.md
 format: md
 ---
@@ -29,7 +29,10 @@ Discover everything about an EKS cluster environment. Run this skill to gather c
 - Another workflow needs cluster information as input
 - You need to understand the cluster before giving recommendations
 
-**Don't use this skill for:**
+**Do NOT use this skill for:**
+- **Upgrade readiness scoring or deprecated API checks** — questions like "score my upgrade readiness", "are there deprecated APIs blocking my upgrade", "can I safely upgrade to 1.33", "readiness score", or "breaking changes that would block a version bump" belong to `eks-upgrade-check`. Recon discovers *what version you're on*; it does NOT assess whether you're *ready* to move to the next version.
+- **Operational audits with maturity ratings** — questions like "run an operational excellence audit", "rate each area GREEN/AMBER/RED", or "audit my cluster's operational posture" belong to `eks-operation-review`. Recon inventories what exists; it does NOT score operational maturity or produce rated assessments.
+- **Architecture design documents or Mermaid diagrams** — questions like "create a security architecture document", "generate Mermaid diagrams for our EKS cluster", or "design document" belong to `eks-design`. Recon discovers current state; it does NOT produce design artifacts or architectural diagrams.
 - Creating or modifying cluster resources (this is read-only)
 - Troubleshooting specific issues (use `eks-best-practices`)
 - Learning about EKS concepts (use `eks-best-practices`)
@@ -189,13 +192,28 @@ Load only the references needed for the user's request — this keeps context fo
 
 ```
 Required:
-- Cluster name
-- AWS region (or detect from context/kubeconfig)
+- Cluster name (or auto-discover — see below)
+- AWS region (or detect from context/kubeconfig/CLI)
 
 Optional:
 - Specific modules to run (default: all)
 - Output file path (default: .eks-recon-report.yaml)
 ```
+
+**Auto-discovery when cluster name is not explicit:**
+
+When the user says "my cluster", "current cluster", or does not name a specific cluster, discover it:
+
+1. `kubectl config current-context` — if set, extract cluster name from the context ARN
+2. If no kubeconfig context, try **AWS CLI directly** (credentials may come from `~/.aws/` config files, instance profile, or env vars — don't assume env vars are the only source):
+   ```bash
+   aws sts get-caller-identity  # verify we have working AWS access
+   aws eks list-clusters --region ${AWS_DEFAULT_REGION:-us-west-2}
+   ```
+3. If exactly one cluster is found, use it. If multiple clusters across regions, try common regions (us-west-2, us-east-1, the region in any ARN visible in kubeconfig).
+4. Only ask the user to specify a cluster if discovery yields multiple candidates and the prompt is ambiguous.
+
+**IMPORTANT:** Never give up after checking only environment variables. AWS credentials can come from `~/.aws/credentials`, `~/.aws/config`, instance metadata, or ECS task roles — none of which appear in `env | grep AWS_`. Always try `aws sts get-caller-identity` before concluding credentials are unavailable.
 
 ### Step 2: Check MCP Availability
 

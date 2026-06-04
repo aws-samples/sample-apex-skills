@@ -1,6 +1,6 @@
 ---
 title: "eks-mcp-server"
-description: "Setup and configure the EKS MCP Server for live cluster operations. Use this skill when the user wants to interact with real EKS clusters (list clusters, read K8s resources, troubleshoot pods, deploy workloads, check upgrade insights) but MCP tools are not available or not working. Also activate if user mentions \"eks mcp\", \"mcp server\", or asks how to connect their AI assistant to EKS."
+description: "Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Amazon Q CLI, Cursor). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions \"eks mcp\", \"mcp server\", \"mcp.json\", or \"mcp tools not showing\". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/SKILL.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "eks-build"
-description: "Use when building EKS clusters. Generates complete, production-ready Terraform projects with optional ArgoCD GitOps integration. Handles environment-specific constraints: air-gapped/VPC-endpoint-only networks, enterprise proxies, private container registries, compliance requirements. Supports 3 patterns: full Terraform, ArgoCD+Terraform, ArgoCD+ACK/KRO. Includes validated modules, two-phase webhook ordering, IRSA/Pod Identity, and 29+ addon configurations. Ask interactive questions or accept requirements YAML. Also use when (1) generating EKS Terraform code from scratch, (2) creating GitOps-managed EKS addons with ArgoCD, (3) scaffolding EKS projects with compliance constraints, (4) implementing two-phase webhook ordering for EKS addons, (5) configuring IRSA or Pod Identity for EKS workloads, or (6) generating ArgoCD ApplicationSets for EKS addon management."
+description: "Use when building EKS clusters. Generates complete, production-ready Terraform projects with optional ArgoCD GitOps integration. Handles environment-specific constraints: air-gapped/VPC-endpoint-only networks, enterprise proxies, private container registries, compliance requirements. Supports 3 patterns: full Terraform, ArgoCD+Terraform, ArgoCD+ACK/KRO. Includes validated modules, two-phase webhook ordering, IRSA/Pod Identity, and 29+ addon configurations. Ask interactive questions or accept requirements YAML. Also use when (1) generating EKS Terraform code from scratch, (2) creating GitOps-managed EKS addons with ArgoCD, (3) scaffolding EKS projects with compliance constraints, (4) implementing two-phase webhook ordering for EKS addons, (5) configuring IRSA or Pod Identity for EKS workloads, (6) generating ArgoCD ApplicationSets for EKS addon management, or (7) comparing deployment patterns for implementation decisions."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/SKILL.md
 format: md
 ---
@@ -28,6 +28,7 @@ All generated Terraform code MUST follow the conventions from these companion sk
 - Generating ArgoCD ApplicationSets for addon lifecycle
 - Creating Ralph loop validation configurations for EKS projects
 - Adding custom addons (Kyverno, Prisma, New Relic) to an EKS project
+- Choosing between or comparing deployment patterns (full Terraform vs ArgoCD+Terraform vs ArgoCD+ACK/KRO) for an actual build
 
 ## Don't Use
 

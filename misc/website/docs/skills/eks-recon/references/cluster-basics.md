@@ -16,7 +16,7 @@ This page is generated from [skills/eks-recon/references/cluster-basics.md](http
 
 ## Prerequisites
 
-- **Cluster name required:** Yes
+- **Cluster name required:** Yes (auto-discover if not provided — see SKILL.md Step 1)
 - **MCP tools used:** `describe_eks_resource`
 - **CLI fallback:** `aws eks describe-cluster`
 
