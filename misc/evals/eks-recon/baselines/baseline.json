@@ -1,8 +1,8 @@
 {
   "version": 2,
   "skill": "eks-recon",
-  "created_at": "2026-06-04T06:48:52.749728+00:00",
-  "git_head": "027d0b5",
+  "created_at": "2026-06-04T08:42:01.666928+00:00",
+  "git_head": "8526b13",
   "eval_set_hash": "f77c45b0f20c94385e7959549dfd1bfd8b6a133430ecaf8aa2507d7bb4d0aa7b",
   "model": "global.anthropic.claude-opus-4-6-v1",
   "pass_k": 3,

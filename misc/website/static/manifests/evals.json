@@ -129,9 +129,9 @@
     "skill": "eks-recon",
     "score": 96.3,
     "grade": "A",
-    "created_at": "2026-06-04T06:48:52.749728+00:00",
+    "created_at": "2026-06-04T08:42:01.666928+00:00",
     "model": "global.anthropic.claude-opus-4-6-v1",
-    "git_head": "027d0b5",
+    "git_head": "8526b13",
     "pass_k_rate": null,
     "effective_weights": {
       "triggering": 0.15,
@@ -255,11 +255,11 @@
   },
   {
     "skill": "eks-design",
-    "score": 92.3,
+    "score": 90.8,
     "grade": "A",
-    "created_at": "2026-06-04T06:48:52.783149+00:00",
+    "created_at": "2026-06-04T08:42:01.671532+00:00",
     "model": "global.anthropic.claude-opus-4-6-v1",
-    "git_head": "027d0b5",
+    "git_head": "8526b13",
     "pass_k_rate": null,
     "effective_weights": {
       "triggering": 0.15,
@@ -270,9 +270,9 @@
     },
     "layers": {
       "triggering": {
-        "raw_score": 1.0,
+        "raw_score": 0.9,
         "weight": 0.1,
-        "contribution": 15.0
+        "contribution": 13.5
       },
       "process": {
         "raw_score": 0.7,
