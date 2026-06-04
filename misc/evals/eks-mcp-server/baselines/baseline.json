@@ -1,8 +1,8 @@
 {
   "version": 2,
   "skill": "eks-mcp-server",
-  "created_at": "2026-06-04T06:06:11.432066+00:00",
-  "git_head": "027d0b5",
+  "created_at": "2026-06-04T10:00:37.918269+00:00",
+  "git_head": "bc47ab2",
   "eval_set_hash": "d20824ace56fc7173fe3ff03571a19c1ad188056a2c64d877435ba88b9fcf1be",
   "model": "global.anthropic.claude-opus-4-6-v1",
   "pass_k": 3,

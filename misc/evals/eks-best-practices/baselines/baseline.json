@@ -1,8 +1,8 @@
 {
   "version": 2,
   "skill": "eks-best-practices",
-  "created_at": "2026-06-04T06:48:52.779932+00:00",
-  "git_head": "027d0b5",
+  "created_at": "2026-06-04T10:00:37.803841+00:00",
+  "git_head": "bc47ab2",
   "eval_set_hash": "5393bd45c3a1fda2cfa3484009da4b44d6874aa5e6ac00313a8fad6a1d468d59",
   "model": "global.anthropic.claude-opus-4-6-v1",
   "pass_k": 3,
