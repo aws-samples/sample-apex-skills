@@ -27,7 +27,7 @@ SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 #                          inference-profile ID. Required on AWS-only setups.
 #   anthropic            — uses the Anthropic API. Expects ANTHROPIC_API_KEY
 #                          to be exported in the caller's environment.
-# Override per invocation: `make score PROVIDER=anthropic MODEL=claude-opus-4-6-v1`.
+# Override per invocation: `make triggering-all PROVIDER=anthropic MODEL=claude-opus-4-6-v1`.
 # Defaults for MODEL are provider-aware; explicit MODEL= always wins.
 PROVIDER       ?= bedrock
 
@@ -76,9 +76,9 @@ SNAPSHOT_T   := $(addprefix snapshot-,$(SKILLS))
 REGRESSION_T := $(addprefix regression-,$(SKILLS))
 COMPOSITE_T  := $(addprefix composite-,$(SKILLS))
 
-.PHONY: help list-skills validate-all triggering-all task-all task-all-parallel score-full \
+.PHONY: help list-skills validate-all triggering-all task-all task-all-parallel \
         init-evals init-evals-finalize check-evals-coverage hygiene \
-        score score-dry process-all artifact-all knowledge-all composite-all \
+        process-all artifact-all knowledge-all composite-all \
         $(VALIDATE_T) $(TRIGGERING_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T) $(KNOWLEDGE_T) $(COMPOSITE_T)
 
@@ -98,9 +98,6 @@ help:
 	@echo ""
 	@echo "Meta targets:"
 	@echo "  validate-all, triggering-all, process-all, artifact-all, composite-all, task-all"
-	@echo "  score               run triggering for every skill and rewrite README scorecard"
-	@echo "  score-dry           render the scorecard to stdout without editing README"
-	@echo "  score-full          task-all + score (full task + triggering refresh)"
 	@echo ""
 	@echo "New-skill onboarding:"
 	@echo "  init-evals SKILL=<name> [SIBLINGS=\"a,b,c\"]   scaffold misc/evals/<name>/ from _template/"
@@ -354,23 +351,6 @@ $(COMPOSITE_T): composite-%:
 	python3 $(EVALS_ROOT)/scripts/composite_score.py --skill $*
 
 composite-all: $(COMPOSITE_T)
-
-score-full: task-all score
-
-# ---------- score (Phase 1 — triggering scorecard) ----------------------------
-# Runs triggering evals for every skill, enriches the metrics, appends a row
-# to misc/evals/history/<skill>.jsonl (committed), and rewrites the scorecard
-# between <!-- SCORECARD_START/END --> in misc/evals/README.md.
-#
-# No flag-forwarding here: the Python runner has no own defaults for model /
-# runs-per-query / num-workers and only shells out to `make triggering-<skill>`
-# with those overrides when the user passed them on its own CLI. The Makefile
-# is the single source of truth for defaults — including PROVIDER / MODEL.
-score:
-	python3 $(EVALS_ROOT)/scripts/run_all_evals.py
-
-score-dry:
-	python3 $(EVALS_ROOT)/scripts/run_all_evals.py --dry-run
 
 # ---------- hygiene (deterministic pre-flight; no model, no cluster) ----------
 # Runs quick_validate + schema checks (triggering.json positives/negatives,
