@@ -11,64 +11,36 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 ## Scorecard
 
-*Last updated: 2026-06-02T01:53Z · provider: bedrock · model: global.anthropic.claude-opus-4-6-v1 · runs_per_query: 3 · git HEAD: c7ce8c5*
+*Last updated: 2026-06-04T09:30Z · provider: bedrock · model: global.anthropic.claude-opus-4-6-v1 · runs_per_query: 3 · git HEAD: effe90b*
 
-| Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |
-|---|---|---|---|---|---|---|---|---|
-| eks-best-practices | 15/22 (68%, CI 47%–84%) | 8/8 | 7/14 | 1 | -5pp | 100% ± 0% / 100% ± 0% / +0pp | +0pp | ✓ |
-| eks-build | 18/20 (90%, CI 70%–97%) | 8/10 | 10/10 | 0 | +0pp | 33% ± 58% / 100% ± 0% / -67pp | — | ✓ |
-| eks-design | 18/20 (90%, CI 70%–97%) | 9/10 | 9/10 | 1 | +0pp | 0% ± 0% / 75% ± 11% / -75pp | — | ✓ |
-| eks-mcp-server | 9/17 (53%, CI 31%–74%) | 5/8 | 4/9 | 3 | -6pp | 100% ± 0% / 22% ± 4% / +78pp | — | ✓ |
-| eks-operation-review | 19/19 (100%, CI 83%–100%) | 8/8 | 11/11 | 0 | +0pp | — | — | ✓ |
-| eks-platform-engineering | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 0 | +0pp | — | — | ✓ |
-| eks-recon | 17/21 (81%, CI 60%–92%) | 8/8 | 9/13 | 0 | +0pp | 100% ± 0% / 100% ± 0% / +0pp | — | ✓ |
-| eks-upgrade-check | 21/21 (100%, CI 85%–100%) | 10/10 | 11/11 | 1 | +5pp | — | — | ✓ |
-| steering-workflow-creator | 16/17 (94%, CI 73%–99%) | 7/8 | 9/9 | 0 | +0pp | 100% ± 0% / 10% ± 11% / +90pp | — | ✓ |
-| update-docs | 20/20 (100%, CI 84%–100%) | 8/8 | 12/12 | 0 | +0pp | 0% ± 0% / 0% ± 0% / +0pp | — | ✓ |
+| Skill | Grade | Overall | Positive (TPR) | Negative (TNR) | Flakes | Δ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |
+|---|---|---|---|---|---|---|---|---|---|
+| eks-best-practices | A (93.1) | 20/22 (91%, CI 100%–100%) | 8/8 | 12/14 | 0 | +18pp | 100% ± 0% / 90% ± 14% / +10pp | +0pp | ✓ |
+| eks-build | A (90.7) | 19/20 (95%, CI 90%–100%) | 9/10 | 10/10 | 0 | +5pp | 100% ± 0% / 75% ± 25% / +25pp | +0pp | ✓ |
+| eks-design | A (90.8) | 19/20 (95%, CI 90%–100%) | 9/10 | 10/10 | 0 | +5pp | 94% ± 9% / 59% ± 23% / +35pp | +1pp | ✓ |
+| eks-mcp-server | A (100.0) | 17/17 (100%, CI 100%–100%) | 8/8 | 9/9 | 0 | +41pp | 100% ± 0% / 22% ± 4% / +78pp | +0pp | ✓ |
+| eks-operation-review | A (95.0) | 19/19 (100%, CI 83%–100%) | 8/8 | 11/11 | 0 | +0pp | 88% ± 18% / 25% ± 35% / +62pp | +34pp | ✓ |
+| eks-platform-engineering | A (98.8) | 16/16 (100%, CI 81%–100%) | 8/8 | 8/8 | 0 | +0pp | 100% ± 0% / 20% ± 0% / +80pp | +0pp | ✓ |
+| eks-recon | A (96.3) | 20/21 (95%, CI 100%–100%) | 8/8 | 12/13 | 0 | +14pp | 90% ± 14% / 88% ± 18% / +3pp | +90pp | ✓ |
+| eks-upgrade-check | A (97.0) | 21/21 (100%, CI 85%–100%) | 10/10 | 11/11 | 1 | +5pp | 100% ± 0% / 35% ± 34% / +65pp | +20pp | ✓ |
+| steering-workflow-creator | D (64.9) | 16/17 (94%, CI 73%–99%) | 7/8 | 9/9 | 0 | +6pp | 94% ± 10% / 7% ± 12% / +88pp | +28pp | ✓ |
+| update-docs | B (82.6) | 20/20 (100%, CI 84%–100%) | 8/8 | 12/12 | 0 | +0pp | 88% ± 18% / 12% ± 18% / +75pp | +75pp | ✓ |
 
 > Hygiene warnings (`⚠`) render only when `quick_validate` fails, `triggering.json` has fewer than 8 positives/negatives, `evals.json` has fewer than 2 prompts or <3 expectations on any prompt, or the sibling-map parser reports unattributed negatives. When a row is `⚠`, the detail block surfaces the specific warnings.
 
 <details><summary>eks-best-practices detail</summary>
 
-**Flaky queries** (trigger rate strictly between 0 and 1):
-
-- `0.33`  ✅ neg `"Audit my EKS cluster's operational posture — score each area GREEN/AMBER/RED and produce a maturi…"`
-
-**Per-sibling leakage** (negatives where we triggered when we shouldn't):
-
-| Decoy sibling | Leak rate |
-|---|---|
-| eks-build | 2/2 |
-| eks-design | 1/2 |
-| eks-mcp-server | 1/1 |
-| eks-operation-review | 0/1 |
-| eks-platform-engineering | 2/2 |
-| eks-recon | 0/3 |
-| eks-upgrade-check | 1/1 |
-| other | 0/2 |
-
-**Threshold sweep:**
-
-| Threshold | Overall | Positive | Negative |
-|---|---|---|---|
-| 0.33 | 14/22 | 8/8 | 6/14 |
-| 0.50 | 15/22 | 8/8 | 7/14 |
-| 0.67 | 15/22 | 8/8 | 7/14 |
-
-**Run history** (last 4, sourced from `misc/evals/history/eks-best-practices.jsonl`):
+**Run history** (last 1, sourced from `misc/evals/history/eks-best-practices.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
-| 2026-06-02T01:25:38Z | 15/22 | 8/8 | 7/14 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-02T00:47:51Z | 16/22 | 8/8 | 8/14 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T16:59:01Z | 16/22 | 8/8 | 8/14 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T14:15:47Z | 14/22 | 8/8 | 6/14 | global.anthropic.claude-opus-4-7 |
+| 2026-06-04T09:25:00Z | 20/22 | 8/8 | 12/14 | global.anthropic.claude-opus-4-6-v1 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
 - with_skill: 100% ± 0% (min 100%, max 100%)
-- without_skill: 100% ± 0% (min 100%, max 100%)
-- lift: +0pp
+- without_skill: 90% ± 14% (min 80%, max 100%)
+- lift: +10pp
 - runs per (prompt × config): 3
 
 **Per-expectation pass rate** (with_skill only):
@@ -88,195 +60,128 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Grader suggestions** (deduplicated across runs):
 
-- on `"The output recommends a shared multi-tenant EKS cluster as the default over per-team clust…"`: The assertion checks that the words RBAC/NetworkPolicy/ResourceQuota appear, but not that prod/non-prod separation is preserved. The skill correctly carved that out ('keep prod and non-prod as separate clusters') — a model that recommended a single cluster for everything would still pass. Consider asserting that prod and non-prod are kept separate even within the 'shared' recommendation.
-- No assertion checks that the output addresses the spiky-traffic and 2× growth specifics from the prompt. The skill output ties recommendations to those facts (e.g., bin-packing absorbing bursts, NodePool flexibility for growth), but a generic 'shared cluster + Karpenter' answer that ignored the prompt''s specifics would also pass every current assertion.
-- The Karpenter assertion accepts 'consolidation, instance flexibility, or faster scale-up' as valid reasoning, but doesn''t require linkage to the user''s spiky traffic. A discriminating version would require the reasoning to connect to the spiky-traffic context the prompt provides.
-- on `"The output recommends Karpenter (or EKS Auto Mode) as the default compute model over pure …"`: The assertion accepts any one of three reasons. A high-quality answer should also explain when NOT to use Karpenter (e.g. workloads intolerant of node disruption, system pods). Consider requiring acknowledgement of disruption/PDB tradeoffs to discriminate shallow recommendations.
-- No assertion checks whether the answer addresses prod vs. non-prod cluster separation, which is arguably the most important topology decision and was correctly raised by the model. Adding an assertion on environment separation would catch answers that conflate 'one cluster' with 'one cluster total'.
-- No assertion checks Fargate's cost/constraint tradeoffs. The output correctly named no-DaemonSet and slower pod startup as Fargate constraints, which matters for an org evaluating it; an assertion on naming at least one Fargate constraint would catch answers that recommend Fargate naively.
-- No assertion checks for any policy/governance layer (Gatekeeper/Kyverno, IRSA, golden-path templates). For a multi-team shared cluster these are load-bearing for safe tenancy, and the output volunteered them — an answer that omits them should not pass cleanly.
-- on `"The output presents the fixes in a prioritized order (e.g. reliability first, then securit…"`: This assertion would pass for any output with numbered/labeled sections regardless of whether the prioritization is sensible. Consider asserting on a specific high-priority item being placed before a specific lower-priority one (e.g., 'AZ spread / IAM hardening appear before Karpenter or capacity-tuning recommendations').
-- No assertion checks that Pod Identity is recommended as preferred over IRSA — the expectation text says '(preferred)' but the assertion would pass even if only IRSA were mentioned. The current output explicitly leads with Pod Identity, which is the modern AWS-recommended approach, but the eval doesn't actually require that ordering.
-- No assertion checks that the 2-node capacity floor itself is flagged as fragile — the first expectation bundles AZ spread and 2-node together, but an output that addressed only AZ spread without mentioning the capacity risk would still pass.
+- on `"The output mentions a path for tenant autonomy that is not cluster-per-team (e.g. namespac…"`: This assertion is borderline — the output describes per-team namespace RBAC and per-team NodePools which is effectively namespace-as-a-service, but it never uses that term or describes an explicit self-service mechanism (e.g., a platform API, a GitOps template repo, or a developer portal). A stronger assertion would require the output to name a specific delivery mechanism for autonomy (e.g., 'teams can create their own namespaces via X' or 'teams manage deploys via their own ArgoCD ApplicationSet').
+- No assertion checks whether the output addresses observability or monitoring in the shared cluster context — the output does mention 'shared Prometheus/Grafana' and 'enable audit logging and monitor API server latency via CloudWatch' which are valuable best practices for multi-tenant EKS but go unverified.
+- on `"The output recommends running system/platform components (e.g. CoreDNS, Karpenter controll…"`: The assertion is somewhat rigid — a dedicated on-demand Karpenter NodePool for system components achieves the same stability goal as an MNG. The real concern is the Karpenter controller bootstrapping problem (it can't manage its own host node). Consider rewording to: 'system components are isolated from workload node churn' and separately check 'Karpenter controller runs on infrastructure not managed by Karpenter itself'.
+- No assertion checks whether the output addresses cost optimization strategies (spot instances, consolidation policies, right-sizing). The output covers this well but it goes unverified by the eval.
+- on `"The output identifies the single-AZ / two-node configuration as a high-priority reliabilit…"`: The assertion is well-constructed — it requires identifying the problem, recommending a specific minimum AZ count, AND recommending a mechanism (topology spread constraints). Hard to satisfy without genuine expertise.
+- No assertion checks whether the output includes actionable YAML/code examples. The output provides Terraform and Kubernetes manifests for every recommendation, which significantly increases actionability — an assertion verifying at least N concrete code examples would capture this quality dimension.
+- No assertion checks the P4 recommendation (instance type diversification / Karpenter) which the output provides as bonus value beyond what was asked. This is a minor gap since it wasn't in the original prompt's problem list.
+- on `"The output identifies the single-AZ / two-node configuration as a high-priority reliabilit…"`: The assertion asks for 'topology spread constraints or equivalent' — the output recommends subnet configuration which addresses node placement but not pod scheduling. Topology spread constraints ensure pods land on nodes in different AZs; without them, all pods could still schedule onto nodes in one AZ even if nodes exist in multiple AZs. Consider separating these into two assertions: one for multi-AZ nodes, one for pod topology awareness.
+- on `"The output flags attaching application IAM permissions to the node role as a security anti…"`: The assertion encodes a preference (Pod Identity preferred over IRSA) but the output recommends them in reverse order. For a without-skill baseline this still passes, but the assertion's 'preferred' wording suggests this should be graded more strictly — consider making the preference part a separate assertion or removing it if both are acceptable.
 
 </details>
 
 <details><summary>eks-build detail</summary>
 
-**Per-sibling leakage** (negatives where we triggered when we shouldn't):
-
-| Decoy sibling | Leak rate |
-|---|---|
-| eks-best-practices | 0/2 |
-| eks-design | 0/2 |
-| eks-operation-review | 0/1 |
-| eks-platform-engineering | 0/1 |
-| eks-recon | 0/1 |
-| terraform-skill | 0/3 |
-
-**Threshold sweep:**
-
-| Threshold | Overall | Positive | Negative |
-|---|---|---|---|
-| 0.33 | 18/20 | 8/10 | 10/10 |
-| 0.50 | 18/20 | 8/10 | 10/10 |
-| 0.67 | 18/20 | 8/10 | 10/10 |
-
-**Run history** (last 4, sourced from `misc/evals/history/eks-build.jsonl`):
+**Run history** (last 1, sourced from `misc/evals/history/eks-build.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
-| 2026-06-02T01:27:05Z | 18/20 | 8/10 | 10/10 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T17:00:42Z | 18/20 | 8/10 | 10/10 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T14:18:36Z | 18/20 | 9/10 | 9/10 | global.anthropic.claude-opus-4-7 |
-| 2026-06-01T14:05:22Z | 17/20 | 9/10 | 8/10 | global.anthropic.claude-opus-4-7 |
+| 2026-06-04T09:25:00Z | 19/20 | 9/10 | 10/10 | global.anthropic.claude-opus-4-6-v1 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
-- with_skill: 33% ± 58% (min 0%, max 100%)
-- without_skill: 100% ± 0% (min 100%, max 100%)
-- lift: -67pp
+- with_skill: 100% ± 0% (min 100%, max 100%)
+- without_skill: 75% ± 25% (min 50%, max 100%)
+- lift: +25pp
 - runs per (prompt × config): 3
 
 **Per-expectation pass rate** (with_skill only):
 
 | Pass rate | Expectation |
 |---|---|
-| 0/1 | Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies with sync-wave annotations ensu… |
-| 0/1 | Creates an IAM role with trust policy for the external-secrets-operator service account with secretsmanager:GetSecret… |
-| 0/1 | ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override TODO: human review |
-| 0/1 | Both addons specify a target namespace and create-namespace sync option TODO: human review |
-| 0/1 | Recommends Pattern 2a (or provides a clear rationale if choosing differently) based on the stated constraints of smal… |
-| 0/1 | Generates a directory structure separating base infrastructure Terraform from ArgoCD addon manifests TODO: human review |
-| 0/1 | Includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments TODO: human r… |
-| 0/1 | Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status or OPA/Kyverno polici… |
 | 1/1 | Generates a versions.tf with required_providers block pinning aws, kubernetes, and helm provider versions TODO: human… |
 | 1/1 | Creates IRSA IAM roles with proper trust policies for at least aws-load-balancer-controller and Karpenter TODO: human… |
 | 1/1 | Configures EKS cluster with endpoint_private_access = true and endpoint_public_access = false TODO: human review |
 | 1/1 | Includes VPC endpoint resources for at minimum ecr.api, ecr.dkr, s3, sts TODO: human review |
 | 1/1 | Karpenter configuration includes an EC2NodeClass and at least one NodePool resource TODO: human review |
+| 1/1 | Uses two-phase module architecture or separate webhook addon module to handle dependency ordering between cert-manage… |
+| 1/1 | Sets before_compute = true for vpc-cni or eks-pod-identity-agent to prevent NodeCreationFailure TODO: human review |
+| 1/1 | Uses terraform-aws-modules/eks community module as the cluster foundation (not raw aws_eks_cluster resource) TODO: hu… |
+| 1/1 | Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies with sync-wave annotations ensu… |
+| 1/1 | Creates an IAM role with trust policy for the external-secrets-operator service account with secretsmanager:GetSecret… |
+| 1/1 | ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override TODO: human review |
+| 1/1 | Both addons specify a target namespace and create-namespace sync option TODO: human review |
+| 1/1 | Recommends Pattern 2a (or provides a clear rationale if choosing differently) based on the stated constraints of smal… |
+| 1/1 | If Pattern 2a chosen, generates a directory structure separating base infrastructure Terraform from ArgoCD addon mani… |
+| 1/1 | If Pattern 2a chosen, includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/envi… |
+| 1/1 | Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status, terraform plan -deta… |
 
 **Grader suggestions** (deduplicated across runs):
 
-- on `"Creates IRSA IAM roles with proper trust policies for at least aws-load-balancer-controlle…"`: The assertion conflicts with the skill's own guidance, which prescribes Pod Identity (not IRSA) for Karpenter. The current run intentionally uses Pod Identity for Karpenter and IRSA for LBC — both create IAM roles with trust policies, but a strict reading of 'IRSA' would mark Karpenter as failing. Either rewrite the assertion as 'IAM role with appropriate trust policy (IRSA or Pod Identity per skill guidance) for LBC and Karpenter', or split it into two assertions reflecting the divergent auth methods. As written, a graderless reviewer cannot tell whether Pod Identity counts.
-- on `"Configures EKS cluster with endpoint_private_access = true and endpoint_public_access = fa…"`: The check would also pass for a project that only set these in a YAML config file but never wired them into the actual module. Strengthen by asserting the values appear on the EKS module/resource block in HCL (e.g., 'cluster_endpoint_private_access = true' is set as a Terraform argument on the cluster resource), not just in a config doc.
-- on `"Karpenter configuration includes an EC2NodeClass and at least one NodePool resource…"`: Existence of the resource names alone could be satisfied by stub manifests with no useful spec. Consider asserting that EC2NodeClass has a non-empty subnetSelectorTerms and NodePool has a nodeClassRef pointing at the EC2NodeClass and at least one requirement — that's what fails when the skill produces a syntactically valid but non-functional manifest.
-- No assertion verifies the user's explicit prompt requirement that VPC-CNI have prefix delegation enabled. The current expectations cover endpoints/IRSA/NodePool but skip ENABLE_PREFIX_DELEGATION, which is a load-bearing networking config the prompt called out. An assertion checking that aws_eks_addon.vpc_cni's configuration_values include ENABLE_PREFIX_DELEGATION='true' would close that gap.
-- No assertion verifies the user's prompt requirement that VPC endpoints include SSM (the prompt asked for ECR, S3, STS, AND SSM). The current ssm endpoint exists but if a future run dropped it the eval would still pass.
-- on `"Generates a versions.tf with required_providers block pinning aws, kubernetes, and helm pr…"`: The assertion is satisfied by environments/prod/versions.tf, but the root versions.tf has no required_providers — would pass even with a partial pin scheme. Consider tightening to require pinning in the actual init-able root module of an environment, or specifying that the kubernetes/helm/aws provider source addresses (hashicorp/*) and an explicit version constraint each appear together.
-- on `"Creates IRSA IAM roles with proper trust policies for at least aws-load-balancer-controlle…"`: Checking 'proper trust policies' is subjective. Consider asserting specific structural elements: the trust policy must use AssumeRoleWithWebIdentity, restrict the OIDC :sub claim to the exact service-account namespace/name (system:serviceaccount:kube-system:aws-load-balancer-controller and system:serviceaccount:karpenter:karpenter), and constrain :aud to sts.amazonaws.com. Without these, a trust policy that allows any SA in the OIDC provider would still pass.
-- No assertion verifies that VPC CNI prefix delegation is actually configured (ENABLE_PREFIX_DELEGATION=true), even though it was a primary requirement in the prompt. A solution that adds the addon without the prefix-delegation env var would silently pass.
-- No assertion verifies the Karpenter NodePool/EC2NodeClass are coherent — e.g., the EC2NodeClass references a node IAM role, and subnet/security-group selectors point at resources tagged karpenter.sh/discovery. A NodePool with empty requirements or a NodeClass with no role would pass the existence check.
-- No assertion checks that AWS Load Balancer Controller and cert-manager are actually installed (Helm releases or equivalent). The prompt explicitly required them; the IRSA assertion only covers the IAM side.
+- on `"Creates IRSA IAM roles with proper trust policies for at least aws-load-balancer-controlle…"`: The assertion conflates IRSA with Pod Identity. Karpenter's recommended auth mechanism is Pod Identity (not IRSA), which the executor correctly implemented. The assertion should distinguish between 'proper IAM authentication for service accounts' (which includes both IRSA and Pod Identity) vs specifically 'IRSA'. Consider rewording to 'Creates proper IAM roles with trust policies (IRSA or Pod Identity) for addon controllers'.
+- No assertion verifies that the Terraform code is syntactically valid (e.g., terraform validate or fmt check). Given this is generated code, a syntax validation step would catch structural errors that pass all current assertions.
+- on `"Generates a versions.tf with required_providers block pinning aws, kubernetes, and helm pr…"`: The assertion checks for the 'kubernetes' provider but a valid EKS project can use the 'kubectl' provider (alber70g/kubectl) instead of hashicorp/kubernetes. Consider allowing either kubernetes or kubectl provider as acceptable, or clarify whether the requirement is specifically hashicorp/kubernetes.
+- on `"Sets before_compute = true for vpc-cni or eks-pod-identity-agent to prevent NodeCreationFa…"`: This assertion is tightly coupled to the terraform-aws-modules/eks module's specific 'before_compute' parameter. If the project doesn't use that module (as checked by another assertion), this assertion will necessarily fail. Consider making this check for the underlying behavior (ensuring VPC-CNI is ready before nodes launch) rather than a module-specific parameter name.
+- No assertion checks whether the cert-manager helm_release has a depends_on relationship to the LBC (or vice versa). The two-phase/webhook assertion is the closest but is very architecture-specific. A simpler assertion checking for explicit ordering between cert-manager and LBC would catch the real issue.
+- on `"Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies with…"`: The assertion doesn't verify that the CRDs application actually installs Kyverno CRDs (vs controller+policies). In this output the 'kyverno-crds' chart installs the full Kyverno controller (crds.install: true) — which is correct — but a manifest that only named the file 'kyverno-crds' without actually enabling CRD installation would still pass.
+- No assertion checks that the external-secrets chart version used in the output matches the fetched version from ArtifactHub. The executor fetched version 2.5.0 but the Chart.yaml declares 0.17.0 — this discrepancy goes uncaught by any expectation.
+- No assertion verifies that the Terraform IRSA module uses the correct OIDC trust relationship pattern (e.g., terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks). A manually-written IAM role without the OIDC trust condition would fail at runtime but pass these assertions.
+- on `"ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override…"`: The role ARN is a literal placeholder string '${external_secrets_role_arn}' in the YAML — there's no templating mechanism (Terraform templatefile, Kustomize, ArgoCD plugin) actually wiring the Terraform output to this manifest. A stricter assertion would check that the wiring is functional, not just that the placeholder pattern exists.
+- on `"Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies with…"`: The assertion doesn't verify that the CRD manifest actually only installs CRDs (not controllers). The executor's approach disables controllers via replicas:0, which is clever but someone could also pass this assertion by creating two identical manifests with different sync-waves — consider asserting that the CRD app has crds.install:true with controllers disabled.
 
 </details>
 
 <details><summary>eks-design detail</summary>
 
-**Flaky queries** (trigger rate strictly between 0 and 1):
-
-- `0.67`  ❌ neg `"Help me build an Internal Developer Platform with Backstage portal, golden paths, and progressive…"`
-
-**Per-sibling leakage** (negatives where we triggered when we shouldn't):
-
-| Decoy sibling | Leak rate |
-|---|---|
-| eks-best-practices | 0/3 |
-| eks-build | 0/2 |
-| eks-operation-review | 0/1 |
-| eks-platform-engineering | 1/1 |
-| eks-recon | 0/2 |
-| terraform-skill | 0/1 |
-
-**Threshold sweep:**
-
-| Threshold | Overall | Positive | Negative |
-|---|---|---|---|
-| 0.33 | 18/20 | 9/10 | 9/10 |
-| 0.50 | 18/20 | 9/10 | 9/10 |
-| 0.67 | 19/20 | 9/10 | 10/10 |
-
-**Run history** (last 3, sourced from `misc/evals/history/eks-design.jsonl`):
+**Run history** (last 2, sourced from `misc/evals/history/eks-design.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
-| 2026-06-02T01:29:44Z | 18/20 | 9/10 | 9/10 | global.anthropic.claude-opus-4-6-v1 |
+| 2026-06-04T09:20:00Z | 19/20 | 9/10 | 10/10 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:03:22Z | 18/20 | 9/10 | 9/10 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T14:22:41Z | 18/20 | 10/10 | 8/10 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
-- with_skill: 0% ± 0% (min 0%, max 0%)
-- without_skill: 75% ± 11% (min 67%, max 83%)
-- lift: -75pp
+- with_skill: 94% ± 9% (min 88%, max 100%)
+- without_skill: 59% ± 23% (min 43%, max 75%)
+- lift: +35pp
 - runs per (prompt × config): 3
 
 **Per-expectation pass rate** (with_skill only):
 
 | Pass rate | Expectation |
 |---|---|
-| 0/1 | The output contains a Mermaid diagram depicting the VPC/subnet layout, EKS cluster, and traffic flow (at minimum a cl… |
-| 0/1 | The output includes at least two Architecture Decision Records (ADRs) with status, context, decision, and consequence… |
-| 0/1 | The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace wit… |
-| 0/1 | The output recommends a compute strategy that combines Karpenter (or Auto Mode) for workload flexibility with a stabl… |
-| 0/1 | The output includes a validation or scoring section that maps design choices to AWS Well-Architected pillars (at leas… |
-| 0/1 | The output is structured as a design document with clear sections and headings suitable for handoff to eks-build for … |
-| 0/1 | The output provides explicit scores or risk ratings for at least 4 of the 6 Well-Architected pillars (Operational Exc… |
-| 0/1 | The output flags the node IAM role sharing as a critical/high security finding and recommends migration to Pod Identi… |
-| 0/1 | The output identifies the 2-AZ configuration as a reliability risk and recommends expanding to 3 AZs with topology sp… |
-| 0/1 | The output flags the single instance type (m5.xlarge on-demand only) as both a cost and availability risk, recommendi… |
-| 0/1 | The output presents remediation items in a prioritized order with security and reliability fixes ranked above cost op… |
-| 0/1 | The output identifies the lack of GitOps (manual kubectl) as an operational excellence gap and recommends a GitOps to… |
+| 0/1 | The output recommends topology spread constraints or pod anti-affinity for distributing workloads across AZs TODO: hu… |
+| 1/1 | Output creates at least 5 markdown files using the Write tool in a structured directory TODO: human review |
+| 1/1 | Output includes at least one .mmd file or Mermaid code block with `subgraph` or `flowchart` syntax TODO: human review |
+| 1/1 | Output creates at least 2 Architecture Decision Records as separate files with Status/Context/Decision/Consequences s… |
+| 1/1 | Output produces a machine-readable handoff artifact (AGENTS.md or similar) suitable for feeding to eks-build TODO: hu… |
+| 1/1 | The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace wit… |
+| 1/1 | The output recommends a compute strategy that combines Karpenter (or Auto Mode) for workload flexibility with a stabl… |
+| 1/1 | The output includes a validation or scoring section that maps design choices to AWS Well-Architected pillars (at leas… |
+| 1/1 | Output creates at least 1 file using the Write tool (not just inline conversation text) TODO: human review |
+| 1/1 | The output provides explicit scores or risk ratings for at least 4 of the 6 Well-Architected pillars (Operational Exc… |
+| 1/1 | The output flags the node IAM role sharing as a critical/high security finding and recommends migration to Pod Identi… |
+| 1/1 | The output identifies the 2-AZ configuration as a reliability risk and recommends expanding to 3 AZs TODO: human review |
+| 1/1 | The output flags the single instance type (m5.xlarge on-demand only) as both a cost and availability risk, recommendi… |
+| 1/1 | The output presents remediation items in a prioritized order with security and reliability fixes ranked above cost op… |
+| 1/1 | The output identifies the lack of GitOps (manual kubectl) as an operational excellence gap and recommends a GitOps to… |
 
 **Grader suggestions** (deduplicated across runs):
 
-- on `"The output recommends a compute strategy that combines Karpenter (or Auto Mode) for worklo…"`: This expectation is good and discriminating — it caught a real gap in this output (Karpenter's chicken-and-egg dependency on a Karpenter-managed 'system' nodepool). However, the assertion couples 'managed node group' and 'system components' tightly; an output that uses EKS Auto Mode (which the parenthetical allows for compute flexibility) would not separately need an MNG. Consider clarifying whether MNG is required when Auto Mode is used, or rephrase as 'a stable bootstrap mechanism (managed node group, Auto Mode, or Fargate) for system-critical components like Karpenter/CoreDNS'.
-- on `"The output includes a validation or scoring section that maps design choices to AWS Well-A…"`: This output has substantive coverage of reliability (DR/BCP, SLOs, PDBs), security (Section 4), and cost optimization (Section 8) — just not labeled with the Well-Architected vocabulary. The current assertion treats the literal phrase as the bar, which may reward keyword stuffing over real engineering. Consider checking that each pillar is addressed by named subsections AND that at least one trade-off / scoring statement exists per pillar.
-- on `"The output contains a Mermaid diagram depicting the VPC/subnet layout, EKS cluster, and tr…"`: Passed easily here, but the assertion would also pass for a single trivial cluster box. Consider adding 'shows ≥3 AZs and distinguishes public vs. private subnets' — those are concrete fidelity markers a hand-wavy diagram would miss. (This output's diagram does mention 3 AZs but does not actually depict public/private subnet separation; that gap went uncaught.)
-- No assertion verifies that the design responds to the specific brief constraints — three teams, 10× bursty traffic, 200+ microservices in 12 months, GitOps mandate. An output could include all the listed sections without sizing for these specifics. Consider an assertion like 'The document explicitly addresses bursty 10× traffic with a concrete mechanism (e.g., overprovisioner, KEDA, predictive scaling)' and 'The GitOps tool (Argo CD or Flux) is specified with multi-cluster/multi-tenant scaling considerations'.
-- on `"The output identifies the 2-AZ configuration as a reliability risk and recommends expandin…"`: This assertion bundles two things (3-AZ expansion AND topology spread constraints) under a single AND-style check. The output correctly identified the AZ risk and recommended a 3rd AZ, but skipped topology spread constraints — arguably a defensible omission since simply expanding to 3 AZs doesn't strictly require topologySpreadConstraints (pod-anti-affinity also works). Consider splitting into two assertions or relaxing to 'recommends expanding to 3 AZs and a workload distribution mechanism (topology spread, anti-affinity, or PDB+replicas)'.
-- on `"The output presents remediation items in a prioritized order with security and reliability…"`: This passes trivially when the output uses any tiering (P0/P1/P2). A more discriminating check would verify specific high-impact items (e.g., 'node IAM role fix is in the top tier' AND 'Compute Savings Plans is not in the top tier'). Without that, an output that just lists 'security fixes' at top without naming the specific issues would also pass.
-- No assertion checks for the EKS 1.29 extended support cost issue, which is a notable finding the output flagged. Also no assertion covers VPC CNI prefix delegation, network policies, Pod Security Standards, or PDBs — all of which are well-architected gaps a strong validator should surface. Consider adding 1-2 of these to broaden coverage.
-- No assertion verifies that scoring is calibrated correctly (e.g., that Security is rated higher risk than Performance, given the IAM role sharing issue). An output that scored every pillar identically would still pass the 'at least 4 pillars rated' check.
+- on `"The output includes a validation or scoring section that maps design choices to AWS Well-A…"`: The output's scoring dimensions (Security, Reliability & Operations, Cost & Scalability) functionally correspond to Well-Architected pillars but never explicitly reference 'AWS Well-Architected Framework' by name. Consider tightening the assertion to require explicit reference to the framework, or relaxing it to 'evaluates design choices across reliability, security, and cost dimensions' — the current wording is ambiguous about whether explicit labeling is required.
+- on `"Output creates at least 5 markdown files using the Write tool in a structured directory…"`: This is trivially satisfied — 16 markdown files were created. A more discriminating assertion might check for minimum content quality (e.g., 'each architecture document exceeds 2000 words') or structural completeness (e.g., 'system architecture contains sections for compute, networking, and observability').
+- No assertion checks whether the design correctly addresses all 6 stated requirements from the prompt (3 teams, PCI-DSS, 200+ microservices, 10x bursts, multi-AZ, GitOps). An assertion like 'The system architecture document provides specific solutions for each of the 6 input requirements in a requirements traceability table' would ensure nothing is overlooked.
+- on `"Output creates at least 5 markdown files using the Write tool in a structured directory TO…"`: This is a process/format assertion, not a content one. The executor produced an excellent architecture document as inline text — it contains all the substance expected from 5+ markdown files but failed because it didn't use the Write tool. Consider whether the eval should also accept inline output that covers all expected sections, or make the Write tool requirement more prominent in the eval prompt.
+- on `"Output includes at least one .mmd file or Mermaid code block with `subgraph` or `flowchart…"`: This assertion is trivially satisfied by any Mermaid block — even a meaningless 'graph TB; subgraph X; A-->B; end' would pass. Consider checking that the diagram models a meaningful architecture topology (e.g., includes at least 3 named AWS services or Kubernetes components).
+- No assertion checks the quality or depth of the PCI-DSS coverage beyond 'concrete isolation mechanisms' — the output here provides detailed requirement-by-requirement mapping (Req 1-11) which is significantly above the bar, but a vague mention of 'dedicated namespace + network policies' would also pass.
+- on `"The output recommends topology spread constraints or pod anti-affinity for distributing wo…"`: This is a good discriminating assertion — it caught a genuine gap in the output. The executor recommended 3 AZs but never specified the mechanism (topologySpreadConstraints/podAntiAffinity) to ensure pods actually distribute across them. This tests for depth of Kubernetes-native knowledge beyond just AWS infrastructure.
+- No assertion checks whether the output addresses the VPC CNI 'no network policies' gap with specific enforcement recommendations (e.g., Calico, Cilium, or VPC CNI network policy feature). The report does mention this (Calico or VPC CNI network policy in Phase 1.2) but it goes untested.
+- on `"Output creates at least 1 file using the Write tool (not just inline conversation text) TO…"`: This assertion tests process (file creation) rather than outcome quality. The executor produced an excellent report inline — the file-creation requirement penalizes a valid approach. Consider making this a bonus criterion or rephrasing as 'produces a report that could be saved and shared' regardless of delivery mechanism.
+- on `"The output recommends topology spread constraints or pod anti-affinity for distributing wo…"`: This is quite specific — the executor recommended expanding to 3 AZs and adding PDBs (which addresses availability), but missed the Kubernetes scheduling primitive. The assertion is valid and discriminating, but could be softened to 'recommends a mechanism for ensuring workloads are distributed across AZs' since multi-AZ NodePool configuration also achieves this.
 
 </details>
 
 <details><summary>eks-mcp-server detail</summary>
 
-**Flaky queries** (trigger rate strictly between 0 and 1):
-
-- `0.33`  ❌ pos `"My EKS MCP Server keeps failing with an AccessDenied on eks-mcp:InvokeMcp. How do I fix this?"`
-- `0.67`  ❌ neg `"List all the node groups and Karpenter NodePools in my prod-use1 cluster and tell me what instanc…"`
-- `0.33`  ✅ neg `"What version is my EKS cluster on and which add-ons are installed?"`
-
-**Per-sibling leakage** (negatives where we triggered when we shouldn't):
-
-| Decoy sibling | Leak rate |
-|---|---|
-| eks-best-practices | 0/1 |
-| eks-operation-review | 1/1 |
-| eks-platform-engineering | 0/1 |
-| eks-recon | 3/4 |
-| eks-upgrade-check | 1/1 |
-| other | 0/1 |
-
-**Threshold sweep:**
-
-| Threshold | Overall | Positive | Negative |
-|---|---|---|---|
-| 0.33 | 9/17 | 6/8 | 3/9 |
-| 0.50 | 9/17 | 5/8 | 4/9 |
-| 0.67 | 10/17 | 5/8 | 5/9 |
-
-**Run history** (last 5, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
+**Run history** (last 2, sourced from `misc/evals/history/eks-mcp-server.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
-| 2026-06-02T01:32:27Z | 9/17 | 5/8 | 4/9 | global.anthropic.claude-opus-4-6-v1 |
+| 2026-06-04T09:25:00Z | 17/17 | 8/8 | 9/9 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:06:09Z | 10/17 | 6/8 | 4/9 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T14:25:47Z | 11/17 | 6/8 | 5/9 | global.anthropic.claude-opus-4-7 |
-| 2026-05-21T02:18:56Z | 11/14 | 8/8 | 3/6 | global.anthropic.claude-opus-4-7 |
-| 2026-04-29T05:36:03Z | 11/16 | 6/8 | 5/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
@@ -289,7 +194,7 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 | Pass rate | Expectation |
 |---|---|
-| 1/1 | The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or `~/.claude/mcp.json` (user scope… |
+| 1/1 | The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or mentions a user-scope MCP config… |
 | 1/1 | The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that invokes `uvx` with `awslabs.… |
 | 1/1 | The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the args array (or equivalently … |
 | 1/1 | The output mentions prerequisites: Python 3.10+ and the `uv`/`uvx` package manager (installable via the astral.sh/uv … |
@@ -301,16 +206,14 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Grader suggestions** (deduplicated across runs):
 
-- on `"The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or `~/.c…"`: The user-scope path in this assertion appears incorrect — Claude Code's user-scope MCP servers are stored in `~/.claude.json` (a single consolidated config), not `~/.claude/mcp.json`. A model that parrots the assertion's path would be more wrong than this run's output, which caught the distinction. Consider rewording to accept either `~/.claude.json` or the `claude mcp add -s user ...` CLI, and also allow local project scope at `./.mcp.json`.
-- on `"The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that i…"`: Passes on structural presence but does not require the `command` to be exactly `uvx` nor that the JSON be valid/parseable. A response that put `awslabs.eks-mcp-server@latest` under `command` with an empty `args` would arguably satisfy the wording. Consider a stricter check: `command == "uvx"` AND `args` array contains `awslabs.eks-mcp-server@latest`.
-- No assertion verifies the read-only IAM policy recommendation — a critical part of a read-only setup. The output includes a detailed `eks:Describe*`/`ec2:Describe*`/`iam:Get*` policy, but a response that omitted IAM entirely or proposed overly broad permissions would still pass all five current assertions.
-- No assertion checks that the response warns about the EKS access-entry requirement (IAM alone is insufficient for reading in-cluster K8s resources). This run surfaced it; a weaker response that omitted it would go uncaught.
-- on `"The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or `~/.c…"`: The user-scope path in this expectation (`~/.claude/mcp.json`) does not match Claude Code's actual user config layout, which is `~/.claude.json` with a top-level `mcpServers` key. A correct answer will fail this expectation. Verify the true path and update the assertion — otherwise the eval penalizes correct outputs.
-- on `"The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the a…"`: This assertion conflates two reasonable strategies: (a) omit the flags and rely on defaults, or (b) set them to `false` explicitly. Explicitly setting them to `false` is arguably safer (survives default-changes) and is what the output does. Consider reframing the assertion as 'the resulting configuration does not grant write or sensitive-data access' so both strategies pass.
-- on `"The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` ...…"`: The server key name is arbitrary (user-chosen). Pinning the assertion to `awslabs.eks-mcp-server` rather than e.g. `eks-mcp-server` makes the assertion fail on a stylistic difference. Consider relaxing to 'a server entry under mcpServers whose command/args launch awslabs.eks-mcp-server via uvx'.
-- No assertion checks that the config actually resolves AWS region, or that kubectl / aws CLI prerequisites are called out (the server shells out to both). The output covers these — a future wrong output could omit them and still pass the current assertions.
-- on `"The output notes that `CallPrivilegedTool` is only required if the user needs write operat…"`: The assertion is satisfied here by a parenthetical '(optional)' on CallPrivilegedTool plus a later mention of 'write operations too'. A stricter assertion would require an explicit statement that attaching only AmazonEKSMCPReadOnlyAccess unblocks InvokeMcp/CallReadOnlyTool without needing CallPrivilegedTool — otherwise a response that simply lists all three actions without distinguishing could pass.
-- No assertion checks that the response correctly explains the user-observed paradox (tools list but calls fail). The assistant offered a caching explanation that is plausible but not in the skill's reference material; an assertion targeting this symptom would catch responses that ignore or misexplain it.
+- on `"The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that i…"`: The assertion doesn't check whether the JSON is syntactically valid or whether the structure matches the actual schema expected by Claude Code (e.g., the 'command' + 'args' + 'env' shape). A slightly malformed block would still pass.
+- No assertion checks whether the output correctly explains the difference between IAM mode and kubeconfig mode, which was covered in the response and could be misleading if wrong.
+- on `"The output tells the user to restart Claude Code after editing the config and verify by as…"`: This assertion passed despite the rest of the answer being fundamentally wrong (wrong package manager, wrong config location, wrong package name). A passing grade on 'mentions restart and verify' gives false confidence when the config itself wouldn't work. Consider making this assertion conditional on the config being correct, or adding a gating assertion that checks overall correctness first.
+- No assertion checks whether the tool names listed in allowedTools are real/correct. Since the assistant fabricated tool names (eks_list_clusters, eks_describe_cluster, etc.), an assertion verifying tool names against the actual server's capabilities would catch this hallucination.
+- No assertion checks that the output correctly explains WHY tools appear in the list but calls fail (connection vs authorization distinction). This is a key diagnostic insight that distinguishes a good answer from one that just recites the fix without explaining the mechanism.
+- The output has no output files (output_chars: 0) — the entire answer lives in the transcript as assistant text. If a future executor produced an empty response but happened to read the right reference file, all assertions could still pass based on the reference content alone. Consider checking the assistant's final response text explicitly.
+- on `"The output identifies the root cause as missing IAM permissions on the caller principal fo…"`: This assertion is somewhat easy to pass because the error message in the prompt itself mentions 'eks-mcp:InvokeMcp' — any model that reads the error and doesn't hallucinate a config issue will pass. Consider a harder variant: the error message could be more ambiguous (e.g., a generic 403) to test whether the model correctly deduces the IAM permission cause.
+- on `"The output gives a concrete remediation step such as `aws iam attach-user-policy` (or atta…"`: The 'such as' phrasing creates ambiguity — a custom inline policy is also a concrete remediation step. If the expectation specifically requires the managed policy, remove 'such as' and state it as a hard requirement. If any valid fix is acceptable, the assertion should not name a specific policy ARN.
 
 </details>
 
@@ -337,13 +240,47 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 19/19 | 8/8 | 11/11 |
 | 0.67 | 19/19 | 8/8 | 11/11 |
 
-**Run history** (last 3, sourced from `misc/evals/history/eks-operation-review.jsonl`):
+**Run history** (last 2, sourced from `misc/evals/history/eks-operation-review.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
 | 2026-06-02T01:34:45Z | 19/19 | 8/8 | 11/11 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:08:25Z | 19/19 | 8/8 | 11/11 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T14:28:50Z | 19/19 | 8/8 | 11/11 | global.anthropic.claude-opus-4-7 |
+
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 88% ± 18% (min 75%, max 100%)
+- without_skill: 25% ± 35% (min 0%, max 50%)
+- lift: +62pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 0/1 | If any networking check fails (e.g., MCP unable to list resources, missing permissions), the corresponding item is ma… |
+| 1/1 | The report contains all required top-level sections in this order: Executive Summary, Maturity Score, Findings (with … |
+| 1/1 | Every finding rated RED appears in the Critical actions table, and every finding rated AMBER appears in either Import… |
+| 1/1 | Ratings are consistent across the report: a finding rated RED in the Findings table is also called out as RED in the … |
+| 1/1 | Critical actions are ordered by blast radius (security > availability > cost) — security-flagged RED findings appear … |
+| 1/1 | Every RED finding has a specific, actionable recommendation (not boilerplate like 'enable logging'); UNKNOWN items ar… |
+| 1/1 | All AWS reference URLs come from the pre-verified reference map in `references/report-generation.md` Step 7 — no fabr… |
+| 1/1 | The report focuses on Section 06 (Networking) only — does NOT include findings from other sections like Cluster Lifec… |
+| 1/1 | The skill loaded `references/networking.md` as the source for checks (visible from the assessment narrative or the re… |
+| 1/1 | Networking findings are rated only on observed data: subnet IP capacity is checked against actual subnets, CoreDNS he… |
+
+**Grader suggestions** (deduplicated across runs):
+
+- on `"Every finding rated RED appears in the Critical actions table, and every finding rated AMB…"`: This assertion doesn't check the maturity score counts are consistent with the actual findings — the report claims 10 GREEN / 8 AMBER but actual count is 12 GREEN / 10 AMBER. Consider adding an assertion that the maturity score arithmetic matches the findings tables.
+- No assertion checks whether recommendations are actually grounded in the cluster data collected. For example, verifying that the items named as lacking health probes actually lack them per the kubectl output. A spot-check assertion would catch hallucinated findings.
+- on `"The report contains all required top-level sections in this order: Executive Summary, Matu…"`: This assertion requires a very specific report format (RED/AMBER/GREEN, finding IDs, specific section names) that is only achievable when the skill's report-generation template is available. Without the skill, the executor has no way to know this format. This is appropriate as a 'with skill vs without skill' discriminator, but the 'TODO: human review' tag suggests uncertainty about automated grading. Consider splitting into sub-assertions: one for the 10 findings sections (which passed even without the skill) and one for the structured output format.
+- on `"All AWS reference URLs come from the pre-verified reference map in `references/report-gene…"`: This expectation is vacuously true when no URLs are included (as in this run). It cannot distinguish between 'correctly sourced URLs' and 'no URLs at all'. Consider adding a companion assertion that checks for the presence of at least N reference URLs, so this assertion tests correctness while the other tests completeness.
+- No assertion checks whether the report was written to a file (the skill's expected behavior). In this run, output_chars is 0 and files_created is empty — the entire report exists only in the chat transcript. An assertion like 'The report is saved to a markdown file in the outputs directory' would catch this important distinction.
+- The data-gathering quality is high (26 tool calls covering security, HA, cost, networking, etc.) and findings are factually accurate, but no expectation evaluates the accuracy or depth of the cluster analysis itself. Consider an assertion verifying that specific real findings (e.g., public API endpoint, missing backups) are identified.
+- on `"If any networking check fails (e.g., MCP unable to list resources, missing permissions), t…"`: This assertion conflates two behaviors: (1) not silently skipping/guessing, and (2) using the UNKNOWN rating label. The executor was transparent about limitations (good) but used AMBER/RED with documented caveats rather than the UNKNOWN label. Consider splitting into: 'limitations are documented, not silently skipped' (passes here) and 'items where data cannot be observed use the UNKNOWN rating per the reference criteria' (fails here). The current assertion is hard to grade because the spirit is met but the letter is not.
+- No assertion checks the factual accuracy of counts in the report. The report claims '7/11 namespaces have zero policies' but the actual list shows 9 namespaces without policies (only langfuse and litellm have them out of 11 total). This arithmetic error went uncaught by any expectation.
+- No assertion verifies that the report includes prioritized actions and quick wins — a key deliverable of the skill's report-generation reference. The report does include them, but a weaker execution that stopped at findings would also pass all current assertions.
+- on `"The report focuses on Section 06 (Networking) only…"`: The 'Section 06' framing assumes a specific section-numbering system from a skill/reference document. Since this is a without_skill run, there is no section structure. The assertion trivially passes because the executor naturally focused on networking (as prompted), but isn't testing whether a structured framework was followed. Consider reframing: 'The report does not include non-networking findings like RBAC, node AMI upgrades, or pod security standards.'
 
 </details>
 
@@ -368,64 +305,73 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 16/16 | 8/8 | 8/8 |
 | 0.67 | 16/16 | 8/8 | 8/8 |
 
-**Run history** (last 3, sourced from `misc/evals/history/eks-platform-engineering.jsonl`):
+**Run history** (last 2, sourced from `misc/evals/history/eks-platform-engineering.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
 | 2026-06-02T01:37:57Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:12:01Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T14:32:35Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-7 |
-
-</details>
-
-<details><summary>eks-recon detail</summary>
-
-**Per-sibling leakage** (negatives where we triggered when we shouldn't):
-
-| Decoy sibling | Leak rate |
-|---|---|
-| eks-best-practices | 0/3 |
-| eks-build | 0/2 |
-| eks-design | 1/2 |
-| eks-mcp-server | 0/1 |
-| eks-operation-review | 1/1 |
-| eks-platform-engineering | 0/1 |
-| eks-upgrade-check | 2/2 |
-| other | 0/1 |
-
-**Threshold sweep:**
-
-| Threshold | Overall | Positive | Negative |
-|---|---|---|---|
-| 0.33 | 17/21 | 8/8 | 9/13 |
-| 0.50 | 17/21 | 8/8 | 9/13 |
-| 0.67 | 17/21 | 8/8 | 9/13 |
-
-**Run history** (last 5, sourced from `misc/evals/history/eks-recon.jsonl`):
-
-| UTC | Overall | TPR | TNR | Model |
-|---|---|---|---|---|
-| 2026-06-02T01:40:06Z | 17/21 | 8/8 | 9/13 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T17:14:27Z | 17/21 | 8/8 | 9/13 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T14:35:35Z | 17/21 | 8/8 | 9/13 | global.anthropic.claude-opus-4-7 |
-| 2026-05-21T02:19:41Z | 13/13 | 8/8 | 5/5 | global.anthropic.claude-opus-4-7 |
-| 2026-04-29T05:37:18Z | 14/16 | 8/8 | 6/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
 - with_skill: 100% ± 0% (min 100%, max 100%)
-- without_skill: 100% ± 0% (min 100%, max 100%)
-- lift: +0pp
+- without_skill: 20% ± 0% (min 20%, max 20%)
+- lift: +80pp
 - runs per (prompt × config): 3
 
 **Per-expectation pass rate** (with_skill only):
 
 | Pass rate | Expectation |
 |---|---|
+| 1/1 | Recommends a hub-and-spoke topology with EKS Auto Mode (hub for the platform control plane, spokes for workloads). TO… |
+| 1/1 | Names Backstage as the developer portal/self-service front door and ArgoCD as the GitOps CD engine. TODO: human review |
+| 1/1 | Describes the end-to-end self-service flow: Backstage template to Git to ArgoCD sync to controller reconciliation (Ku… |
+| 1/1 | Identifies that EKS Auto Mode removes node management, matching the 'we don't want to manage nodes' requirement. TODO… |
+| 1/1 | Covers identity (Keycloak SSO) and credential-free workload IAM (EKS Pod Identity / IRSA). TODO: human review |
+| 1/1 | Defines a narrow developer contract: the developer provides a Dockerfile and an OAM Application manifest, the platfor… |
+| 1/1 | Uses a Backstage template that provisions the pipeline via a kro CICDPipeline (Argo Workflows for CI, ArgoCD for CD).… |
+| 1/1 | Explains the app is described with OAM/KubeVela components and traits rather than raw Kubernetes manifests. TODO: hum… |
+| 1/1 | Specifies Argo Rollouts canary with quality gates (functional, performance, and/or metrics) that auto-rollback on fai… |
+| 1/1 | Uses Kargo for multi-stage promotion of the same validated artifact, with auto-promotion to dev and manual approval f… |
+
+**Grader suggestions** (deduplicated across runs):
+
+- on `"Describes the end-to-end self-service flow: Backstage template to Git to ArgoCD sync to co…"`: The assertion checks that these components are mentioned in sequence, but doesn't verify correctness of the described interactions. An output that names the tools in the right order but mischaracterizes how they connect would also pass. Consider asserting a specific detail like 'ArgoCD syncs an OAM Application resource that KubeVela reconciles into lower-level Kubernetes objects'.
+- No assertion checks the quality or correctness of the architecture diagram, repo structure, or OAM manifest example — yet these are substantial parts of the output that could be wrong (e.g., invalid YAML, nonsensical folder layout) while all current assertions still pass.
+- on `"Recommends a hub-and-spoke topology with EKS Auto Mode (hub for the platform control plane…"`: This assertion conflates two independent decisions: cluster topology (hub-and-spoke) and compute mode (Auto Mode). The executor got the topology right but chose Karpenter over Auto Mode. Consider splitting into separate assertions: one for hub-and-spoke topology and one for EKS Auto Mode specifically. This would better diagnose whether the model understands the topology vs. whether it knows the latest EKS features.
+- on `"Describes the end-to-end self-service flow: Backstage template to Git to ArgoCD sync to co…"`: The expectation names KubeVela/ACK as the controller layer, but Crossplane is an equally valid (arguably more common) choice for this pattern. The flow itself (portal → git → gitops → controller) was described correctly. Consider whether the assertion should test for the pattern or for specific tools. If specific tools matter, state why KubeVela/ACK is preferred over Crossplane.
+- on `"Covers identity (Keycloak SSO) and credential-free workload IAM (EKS Pod Identity / IRSA).…"`: Bundling human identity (Keycloak) with workload identity (IRSA/Pod Identity) in one assertion makes it harder to credit partial coverage. The executor nailed workload IAM but missed human SSO entirely — two separate assertions would surface this distinction.
+- All five expectations are marked 'TODO: human review' — since the output is a design walkthrough (not code), automated assertions can only confirm topic coverage, not correctness of architectural advice. The expectations effectively measure 'did it mention these concepts' rather than 'is the advice sound'. Consider adding assertions about coherence (e.g., 'the described flow forms a consistent end-to-end sequence with no contradictions') or specificity (e.g., 'provides a concrete YAML example for the OAM manifest').
+- on `"Defines a narrow developer contract: the developer provides a Dockerfile and an OAM Applic…"`: Any response that merely mentions 'Dockerfile' and 'OAM manifest' would pass — the assertion doesn't check whether the contract is actually narrow (e.g., that additional hidden requirements aren't introduced elsewhere in the response).
+- on `"Specifies Argo Rollouts canary with quality gates (functional, performance, and/or metrics…"`: This is the only expectation that passed, and it checks for a relatively common pattern. It might pass for any generic EKS platform design answer that mentions progressive delivery. Consider also checking for specific integration details (e.g., how the AnalysisTemplate connects to the platform's metrics provider).
+- The expectations are tightly coupled to a specific toolchain (OAM, kro, KubeVela, Kargo) that is relatively niche. A strong architectural answer using alternative tools (Crossplane, custom CRDs, ArgoCD promotion) fails 4/5 expectations despite being a reasonable design. The eval may be testing 'did you recommend our specific stack' rather than 'did you design a good golden path.' Consider splitting expectations into architecture-pattern expectations (abstraction layer, progressive delivery, multi-stage promotion) vs. specific-tool expectations (must use Kargo, must use OAM).
+
+</details>
+
+<details><summary>eks-recon detail</summary>
+
+**Run history** (last 2, sourced from `misc/evals/history/eks-recon.jsonl`):
+
+| UTC | Overall | TPR | TNR | Model |
+|---|---|---|---|---|
+| 2026-06-04T09:20:00Z | 20/21 | 8/8 | 12/13 | global.anthropic.claude-opus-4-6-v1 |
+| 2026-06-01T17:14:27Z | 17/21 | 8/8 | 9/13 | global.anthropic.claude-opus-4-6-v1 |
+
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 90% ± 14% (min 80%, max 100%)
+- without_skill: 88% ± 18% (min 75%, max 100%)
+- lift: +3pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 0/1 | The output identifies the IaC tool managing the cluster (Terraform, CloudFormation, CDK, eksctl, or unknown with reas… |
 | 1/1 | The output reports the current cluster version and platform version. TODO: human review |
 | 1/1 | The output identifies whether Karpenter, managed node groups, Auto Mode, or Fargate is the primary compute strategy. … |
 | 1/1 | The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns, kube-proxy). TODO: human r… |
-| 1/1 | The output identifies the IaC tool managing the cluster (Terraform, CloudFormation, CDK, eksctl, or unknown with reas… |
 | 1/1 | The output calls out at least one upgrade-relevant finding (e.g. add-on version compatibility, Karpenter version, dep… |
 | 1/1 | The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as ap… |
 | 1/1 | The output identifies the IaC tool and, where possible, evidence (workspace files, stack names, module references). T… |
@@ -434,16 +380,16 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 
 **Grader suggestions** (deduplicated across runs):
 
-- on `"The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns,…"`: The 'e.g.' examples (vpc-cni/coredns/kube-proxy) are misleading on Auto Mode clusters, where those components are not user-installed addons and correctly do not appear in the EKS-managed addon list. Consider rewording to 'lists EKS-managed add-ons with versions, OR explicitly documents that none are user-managed (e.g. because Auto Mode owns them)' so the assertion doesn't ambiguously fail/pass for Auto Mode topologies.
-- on `"The output calls out at least one upgrade-relevant finding.…"`: Bar is very low — any single non-trivial finding passes. A more discriminating check would verify the report addresses specific upgrade domains (addon version drift, deprecated APIs, PDB coverage, node/AZ rescheduling risk) since a thorough recon should cover several.
-- No assertion verifies the report identifies the target/next Kubernetes version or frames findings in upgrade context. The prompt explicitly asks about 'upgrade to the next minor version' — an assertion like 'output distinguishes current vs target K8s version and bases compatibility claims on the target' would catch reports that merely enumerate state without upgrade reasoning.
-- No assertion checks correctness of the IaC confidence reasoning. A fabricated 'Terraform' claim with no supporting evidence would pass expectation 4 as written; consider requiring the reasoning to cite concrete artifacts (tags, file presence, naming patterns).
-- on `"The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns,…"`: The 'e.g.' examples (vpc-cni, coredns, kube-proxy) are misleading for Auto Mode clusters where these aren't installed as add-ons — a good response must *not* list them and should explain why. Consider rewriting to require listing whatever add-ons exist AND (if Auto Mode / non-standard) explaining absences, so the assertion discriminates between a parroted list and genuine understanding.
-- on `"The output reports the current cluster version and platform version.…"`: The expected platform version (e.g. eks.19) is not easily verifiable from a surface read of the transcript since describe-cluster output was elided. Consider also asserting the specific version value (1.34) to catch responses that report the wrong cluster or hallucinate.
-- No assertion checks whether the report correctly identifies that the cluster is on 1.34 (not yet upgraded to 1.35). The executor briefly mis-stated 'cluster is already on 1.34, which is currently the latest released minor' before correcting itself — a more precise assertion on the target upgrade path (1.34 → 1.35) would catch this kind of mis-framing.
-- No assertion covers whether the report flags risks to upgrade safety beyond add-ons (e.g. single-replica stateful workloads with PDBs, orphan webhooks, endpoint exposure). These are arguably the most valuable findings in this transcript and none are required.
-- on `"The output describes the compute topology of the cluster (node groups, Karpenter nodepools…"`: A report that merely mentioned 'nodepools' or 'node groups' in passing would also pass. For this cluster, consider asserting specific, verifiable facts: strategy should be 'Auto Mode', 4 Karpenter NodePools including names {default, general-purpose, gpu, vsc}, MNG count 0, Fargate profiles 0. That discriminates a real detection from a hallucination.
-- on `"The output identifies the IaC tool and, where possible, evidence (workspace files, stack n…"`: Consider asserting the tool is specifically 'Terraform' (not just any IaC tool) and that confidence is not 'high' — since the workspace had no .tf files, a high-confidence answer would indicate fabrication. Also worth asserting the evidence cites the terraform-aws-modules fingerprint or the find-my-agents-76e6 CFN stack, to prevent the assertion passing with bare claims.
+- on `"The output identifies the IaC tool managing the cluster (Terraform, CloudFormation, CDK, e…"`: This expectation tests a capability not present in the skill's reference modules. The skill has modules for cluster-basics, compute, and addons — but no IaC detection module. Either add an IaC detection module to the skill, or remove this expectation.
+- on `"The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns,…"`: The examples (vpc-cni, coredns, kube-proxy) are misleading for an Auto Mode cluster where those are internally managed. Consider rephrasing to 'lists EKS-managed add-ons with their installed versions' without specific examples, or adding a note that the cluster may not have the example add-ons.
+- No assertion checks whether the output correctly identifies Helm releases or CRDs — these were substantial findings that demonstrate the skill's thoroughness but go unverified by the expectations.
+- No assertion checks whether the executor produced a persistent output file (e.g. a markdown report or JSON). Currently all findings are only in the conversation transcript, which means the 'output' is the transcript itself. If the eval intends recon results to be saved to a file, an assertion should require it.
+- on `"The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns,…"`: The examples (vpc-cni, coredns, kube-proxy) are actually NOT present as managed addons because Auto Mode handles them implicitly. This could confuse grading — consider rephrasing to 'lists all EKS-managed add-ons returned by the API with their versions' to avoid implying specific addons must appear.
+- No assertion verifies that the executor checked for deprecated Kubernetes APIs (e.g. via kubectl deprecations or pluto). The prompt mentions 'upgrade-relevant' focus, and deprecated API detection is a high-value recon step that could be explicitly tested.
+- All four expectations would pass even if the cluster had no compute topology, no IaC, no CI/CD, and no GitOps — reporting 'none detected' satisfies the letter of 'reports on X.' Consider adding conditional assertions: e.g., if Karpenter is present, verify the report includes pool names and instance constraints; if Terraform is detected, verify module name or state backend is identified.
+- on `"The output reports on workspace CI pipelines (GitHub Actions / GitLab CI / Jenkins) with d…"`: The phrase 'with detection evidence' is vague. The detection evidence lives in the transcript (find commands returning empty), not in the output file itself. The output just says 'detected: false'. Consider specifying whether evidence must be in the output file or if transcript evidence suffices.
+- No assertion checks overall report quality — e.g., that the output is valid YAML, that all sections are present, or that the report is structured for handoff readability. The report is excellent here, but a malformed file with correct section headers would pass all assertions.
+- on `"The output reports on workspace CI pipelines (GitHub Actions / GitLab CI / Jenkins) with d…"`: The working directory was empty (no git repo), making CI pipeline detection nearly impossible. The eval environment may need to include a git repository with CI config for this assertion to be meaningfully testable. Alternatively, the assertion could be scoped to 'reports on CI pipeline detection attempts and findings (including absence).'
 
 </details>
 
@@ -473,13 +419,55 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 21/21 | 10/10 | 11/11 |
 | 0.67 | 20/21 | 9/10 | 11/11 |
 
-**Run history** (last 3, sourced from `misc/evals/history/eks-upgrade-check.jsonl`):
+**Run history** (last 2, sourced from `misc/evals/history/eks-upgrade-check.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
 | 2026-06-02T01:42:46Z | 21/21 | 10/10 | 11/11 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:17:09Z | 20/21 | 9/10 | 11/11 | global.anthropic.claude-opus-4-6-v1 |
-| 2026-06-01T14:39:21Z | 21/21 | 10/10 | 11/11 | global.anthropic.claude-opus-4-7 |
+
+**Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
+
+- with_skill: 100% ± 0% (min 100%, max 100%)
+- without_skill: 35% ± 34% (min 0%, max 75%)
+- lift: +65pp
+- runs per (prompt × config): 3
+
+**Per-expectation pass rate** (with_skill only):
+
+| Pass rate | Expectation |
+|---|---|
+| 1/1 | The report shows a readiness score of 90 or higher and the rating READY. TODO: human review |
+| 1/1 | The Blockers & Critical Actions section is empty or contains exactly the phrase 'No blockers identified'. TODO: human… |
+| 1/1 | The report contains all required top-level sections in order: Readiness Score, Blockers & Critical Actions, Recommend… |
+| 1/1 | The Upgrade Plan references the cluster name `clean-prod`, region `us-west-2`, current version 1.31, and target versi… |
+| 3/3 | The readiness score is 59 or lower and the rating is NOT READY. TODO: human review |
+| 1/1 | The Blockers & Critical Actions section explicitly names Karpenter as a blocker and references the installed version … |
+| 1/1 | The Upgrade Plan sequences the Karpenter upgrade to v1.0.5 or later before the control-plane upgrade — not after. TOD… |
+| 1/1 | The report explains that the score cap is the result of a hard-blocker override and would otherwise have been higher … |
+| 1/1 | The Blockers & Critical Actions section names aws-ebs-csi-driver (or 'EBS CSI driver') as a blocker and identifies it… |
+| 1/1 | The blocker section includes a remediation step that addresses the IAM-credentials root cause (e.g., verify IRSA / po… |
+| 1/1 | Findings about the FlowSchema v1beta3 removal (a valid hard blocker — removed API in target version with resources fo… |
+| 1/1 | The Blockers & Critical Actions section names the subnet IP exhaustion as the blocker and identifies subnet-aaa as th… |
+| 1/1 | The blocker entry offers at least one remediation path (free unused ENIs, expand the subnet CIDR, add a new subnet) a… |
+| 1/1 | The report still treats subnet-bbb (12 IPs) as a non-blocker but raises it as a Recommended Action / warning given th… |
+| 1/1 | The readiness score falls between 60 and 89 (no hard-blocker override applied) and the rating is one of FAIR / RISKY … |
+| 1/1 | The Blockers & Critical Actions section is empty (or contains 'No blockers identified') because the FlowSchema APIs a… |
+| 1/1 | The Recommended Actions section is populated with multiple MEDIUM-severity workload risks — including the single-repl… |
+| 1/1 | The Score Breakdown table shows the workload-risks deduction at the 10-point category cap rather than the raw uncappe… |
+
+**Grader suggestions** (deduplicated across runs):
+
+- No assertion checks that the report was written to an output file. The executor generated it inline in the transcript only (output_chars: 0, files_created: []). If the eval intends the report to be a persistent artifact, add an assertion like 'An output file exists containing the report'.
+- on `"The report shows a readiness score of 90 or higher and the rating READY. TODO: human revie…"`: For a 'clean cluster' eval scenario with zero issues, the expected score should be exactly 100 (per the deterministic algorithm). Tightening to 'score of exactly 100' would catch partial-credit bugs in the scoring logic that '>= 90' would miss.
+- No assertion verifies that the score breakdown table matches the input findings (e.g., that each category shows -0 pts for a clean cluster). A wrong deduction that still totals >= 90 would pass all current assertions.
+- The eval's expectations assume the report-generation.md template file is available to the executor, but in this 'without_skill' configuration the file doesn't exist. All four expectations fail because the executor couldn't access the template defining the required section names and rating labels ('READY' vs the improvised 'GO'). This makes the without_skill run structurally unable to pass — consider whether these expectations should only apply to the with_skill run, or provide the template file in both configurations.
+- on `"The report shows a readiness score of 90 or higher and the rating READY.…"`: The expected rating label 'READY' is specific to the skill's template. An executor without the template reasonably uses 'GO' or 'PASS'. Consider accepting synonymous ratings (GO, READY, PROCEED) or make the expected label discoverable without the skill file.
+- No expectation checks whether the scoring logic is correct (e.g., that a clean cluster with zero findings actually gets 100 and not some other score). The score of 100 is verifiable from the input data, and a wrong score would be a meaningful failure undetected by current assertions.
+- on `"The readiness score is 59 or lower and the rating is NOT READY.…"`: The assertion says '59 or lower' but the algorithm deterministically produces exactly 59 given these inputs. A tighter assertion ('exactly 59') would catch scoring bugs that happen to undershoot. Also, a model that simply outputs 'Score: 50% — NOT READY' without doing arithmetic would pass.
+- No assertion checks whether the deduction arithmetic is correct (10+3+1=14, 100-14=86). A model that produced 59% via wrong intermediate math (e.g., claiming arithmetic score of 75% capped to 59%) would still pass all four assertions. Adding an expectation like 'the arithmetic total deduction is 14 points' would catch this.
+- on `"The readiness score is 59 or lower and the rating is NOT READY.…"`: This eval depends entirely on the executor having access to the report-generation.md reference file which defines the hard-blocker cap. Without that file staged in the workspace, a without_skill run has no way to know the scoring algorithm caps scores when blockers exist. The eval may be testing whether the skill's reference files are necessary rather than the model's general capability.
+- on `"The report explains that the score cap is the result of a hard-blocker override and would …"`: Same issue — without the reference file defining the cap mechanism, no model can reasonably invent this specific scoring behavior. This expectation essentially tests whether the reference file was available, making it a near-guaranteed FAIL for without_skill runs.
 
 </details>
 
@@ -505,50 +493,54 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 16/17 | 7/8 | 9/9 |
 | 0.67 | 16/17 | 7/8 | 9/9 |
 
-**Run history** (last 4, sourced from `misc/evals/history/steering-workflow-creator.jsonl`):
+**Run history** (last 2, sourced from `misc/evals/history/steering-workflow-creator.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
-| 2026-06-02T01:46:06Z | 16/17 | 7/8 | 9/9 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:20:38Z | 16/17 | 7/8 | 9/9 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:43:21Z | 15/17 | 7/8 | 8/9 | global.anthropic.claude-opus-4-7 |
-| 2026-05-21T02:20:33Z | 15/16 | 8/8 | 7/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
-- with_skill: 100% ± 0% (min 100%, max 100%)
-- without_skill: 10% ± 11% (min 0%, max 20%)
-- lift: +90pp
+- with_skill: 94% ± 10% (min 83%, max 100%)
+- without_skill: 7% ± 12% (min 0%, max 20%)
+- lift: +88pp
 - runs per (prompt × config): 3
 
 **Per-expectation pass rate** (with_skill only):
 
 | Pass rate | Expectation |
 |---|---|
-| 3/3 | Lists exactly two required frontmatter keys: `name` and `description`. — TODO: human review |
-| 3/3 | Explicitly states that `inclusion:` must not appear on workflow files (it is reserved for hub files). — TODO: human r… |
-| 3/3 | Names all four header-block labels in the correct order: Part of, Lifecycle, Skill, Access Model. — TODO: human review |
-| 3/3 | Lists the five required H2 sections in exactly this order: How to Route Requests, Phases, Defaults, Quality Checklist… |
-| 3/3 | Produces a complete workflow skeleton including frontmatter, H1 title, four-line header block, and all five H2 sectio… |
-| 3/3 | Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose. — TODO: human review |
-| 3/3 | Identifies the describe-db-instances phase as Source: live. — TODO: human review |
-| 3/3 | States that a Source: live phase must include a named CLI fallback inline. — TODO: human review |
-| 3/3 | Identifies the decision-framework phase as Source: knowledge or Source: either, with reasoning. — TODO: human review |
-| 3/3 | Recommends Access Model: advisory or read-only (not mutating) with reasoning grounded in the workflow producing a pla… |
-| 3/3 | Does not invent a fourth Source value — uses only knowledge, live, or either. — TODO: human review |
+| 0/1 | Workflow header block contains all four labels in order: Part of, Lifecycle, Skill, Access Model. — TODO: human review |
+| 1/1 | Lists exactly two required frontmatter keys: `name` and `description`. — TODO: human review |
+| 1/1 | Explicitly states that `inclusion:` must not appear on workflow files (it is reserved for hub files). — TODO: human r… |
+| 1/1 | Names all four header-block labels in the correct order: Part of, Lifecycle, Skill, Access Model. — TODO: human review |
+| 1/1 | Lists the five required H2 sections in exactly this order: How to Route Requests, Phases, Defaults, Quality Checklist… |
+| 1/1 | Produces a complete workflow skeleton including frontmatter, H1 title, four-line header block, and all five H2 sectio… |
+| 1/1 | Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose. — TODO: human review |
+| 1/1 | Identifies the describe-db-instances phase as Source: live. — TODO: human review |
+| 1/1 | States that a Source: live phase must include a named CLI fallback inline. — TODO: human review |
+| 1/1 | Identifies the decision-framework phase as Source: knowledge or Source: either, with reasoning. — TODO: human review |
+| 1/1 | Recommends Access Model: advisory or read-only (not mutating) with reasoning grounded in the workflow producing a pla… |
+| 1/1 | Does not invent a fourth Source value — uses only knowledge, live, or either. — TODO: human review |
+| 1/1 | Creates the workflow file with valid YAML frontmatter containing name and description keys. — TODO: human review |
+| 1/1 | All five required H2 sections present in correct order. — TODO: human review |
+| 1/1 | At least one STOP gate spelled exactly as **STOP.** appears in the phases. — TODO: human review |
+| 1/1 | Creates a matching command shim with objective, execution_context, and process tags. — TODO: human review |
+| 1/1 | Source annotations appear on at least two phases. — TODO: human review |
 
 **Grader suggestions** (deduplicated across runs):
 
-- on `"Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose.…"`: The assertion is ambiguous about CLI flags in code blocks (which legitimately use `--`). A stricter check would verify that prose outside fenced code blocks contains zero `--` occurrences, or explicitly scope the check to prose and table cells.
-- No assertion verifies that the skeleton's Phases section actually contains STOP gates or Source: annotations, which are called out in the convention summary. A wrong-but-plausible skeleton could omit these and still pass all six current assertions.
-- No assertion verifies that the frontmatter `name` matches the filename stem (`cost-review`), which is a hard convention rule and an easy place for a model to drift.
-- on `"Produces a complete workflow skeleton including frontmatter, H1 title, four-line header bl…"`: This passes if the skeleton merely contains those H2 strings. Consider also asserting that each Phase carries a `Source:` annotation and that at least one `**STOP.** ` gate appears — those are the structural rules that make a workflow actually usable, and the convention explicitly requires them.
-- No assertion checks that the skeleton's `description` front-loads the lifecycle phase (e.g., begins with 'Day 2') and names concrete user intents. The convention treats this as load-bearing for routing, and a skeleton with a generic description would still pass every current assertion.
-- No assertion covers the Access Model CAN/CANNOT expansion, which the convention mandates whenever Access Model is `read-only` or `mutating`. A skeleton that omitted it would currently pass.
-- on `"Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose.…"`: The rule intent is clear but the assertion as written is ambiguous about code blocks — CLI flags like `--name` legitimately contain `--`. Tightening the assertion to 'outside fenced code blocks' would make the judgment reproducible.
-- on `"Produces a complete workflow skeleton including frontmatter, H1 title, four-line header bl…"`: This assertion passes as long as the five H2 headings exist somewhere, even if the skeleton interleaves extra H2s before the required order. The generated skeleton inserts an extra '## Access Model' H2 BEFORE '## How to Route Requests', which appears to violate the convention's 'additional H2s may follow but must not interleave' rule. Consider an assertion that explicitly checks the five required H2s appear in contiguous order with no other H2s interleaved.
-- No assertion verifies the Access Model line uses one of the allowed values (read-only | advisory | mutating (with gates)). A skeleton could hallucinate a different access model and still pass every current check.
-- No assertion checks that the description is front-loaded with the lifecycle phase (e.g., 'Day 2 ...') as required by the convention — this is a meaningful correctness check distinct from mere presence.
+- on `"Produces a complete workflow skeleton including frontmatter, H1 title, four-line header bl…"`: This assertion could be more discriminating by checking that the skeleton also includes STOP gates (convention requires them) and Source: annotations on phases. A skeleton missing those would still pass this assertion despite being non-conforming.
+- No assertion checks that the skeleton includes named CLI fallbacks for live-source phases, which convention.md requires and the linter enforces. The output does include them, but a weaker output that omitted fallbacks would pass all current assertions.
+- This is a 'without_skill' baseline run where the assistant has no access to steering workflow conventions. All six expectations are domain-specific knowledge that requires either a skill or reference material. The eval correctly demonstrates the skill's value by showing 0% pass rate without it. No assertion changes needed — this is the expected baseline behavior.
+- on `"States that a Source: live phase must include a named CLI fallback inline.…"`: The assertion checks that the concept is stated but not whether the CLI fallback is actually correct/functional for the use case. A response could state a bogus command and still pass. Consider verifying the command includes the correct AWS service and action.
+- No assertion checks the completeness of 'what else each phase must include' — the response covers STOP gates, preamble, required inputs, and setup-bridge skills. These are substantive guidance items that could be wrong or missing without any assertion catching it.
+- on `"Recommends Access Model: advisory or read-only (not mutating) with reasoning grounded in t…"`: This assertion accepts 'read-only' which is a fairly natural answer anyone would give. The eval might distinguish better by checking whether the assistant uses the exact term 'advisory' (from the skill's vocabulary) vs. the generic 'read-only'. The assistant said 'Read-Only' which is close but may not match the skill's specific taxonomy.
+- The eval expects specific vocabulary (Source: live, Source: knowledge, Source: either) but the prompt doesn't hint at this vocabulary. Without the skill providing these terms, any LLM would invent reasonable-sounding alternatives. This makes the without_skill baseline predictably fail on vocabulary expectations — which is by design for a with/without comparison, but the eval could note this is testing skill adherence rather than reasoning quality.
+- on `"Workflow header block contains all four labels in order: Part of, Lifecycle, Skill, Access…"`: The label naming is ambiguous — the assertion says 'Skill' but the output uses 'Primary skill'. Consider specifying the exact expected label text (e.g., 'Skill' or 'Primary skill') in addition to the ordering requirement, so grading is unambiguous.
+- on `"All five required H2 sections present in correct order.…"`: This assertion doesn't name the five required sections, making it impossible to verify objectively without access to the skill spec. The output has 8 H2 sections — it's unclear which 5 are 'required'. Consider enumerating them (e.g., 'How to Route Requests, at least 2 Phase sections, Quality Checklist, ...').
+- No assertion checks whether the workflow content is substantively correct for a Lambda deployment review (e.g., that it covers memory, timeout, concurrency, and VPC as requested in the prompt). A structurally perfect workflow about the wrong topic would pass all current assertions.
 
 </details>
 
@@ -574,48 +566,45 @@ The harness code lives at two levels: the reusable bits (`quick_validate.py`, `a
 | 0.50 | 20/20 | 8/8 | 12/12 |
 | 0.67 | 20/20 | 8/8 | 12/12 |
 
-**Run history** (last 5, sourced from `misc/evals/history/update-docs.jsonl`):
+**Run history** (last 2, sourced from `misc/evals/history/update-docs.jsonl`):
 
 | UTC | Overall | TPR | TNR | Model |
 |---|---|---|---|---|
-| 2026-06-02T01:49:23Z | 20/20 | 8/8 | 12/12 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T17:23:23Z | 20/20 | 8/8 | 12/12 | global.anthropic.claude-opus-4-6-v1 |
 | 2026-06-01T14:46:47Z | 20/20 | 8/8 | 12/12 | global.anthropic.claude-opus-4-7 |
-| 2026-05-21T01:55:00Z | —/— | —/— | —/— | global.anthropic.claude-opus-4-7 |
-| 2026-05-21T02:22:50Z | 16/16 | 8/8 | 8/8 | global.anthropic.claude-opus-4-7 |
 
 **Task axis** (per-prompt averages from `workspace/latest/benchmark.json`):
 
-- with_skill: 0% ± 0% (min 0%, max 0%)
-- without_skill: 0% ± 0% (min 0%, max 0%)
-- lift: +0pp
+- with_skill: 88% ± 18% (min 75%, max 100%)
+- without_skill: 12% ± 18% (min 0%, max 25%)
+- lift: +75pp
 - runs per (prompt × config): 3
 
 **Per-expectation pass rate** (with_skill only):
 
 | Pass rate | Expectation |
 |---|---|
-| 0/1 | Runs ./misc/update-all-references.sh --check to detect marker-block staleness — TODO: human review |
-| 0/1 | Runs ./misc/update-pages.sh --check to detect Docusaurus wrapper staleness — TODO: human review |
-| 0/1 | Identifies prose references to the old name 'eks-recon' in tracked markdown files — TODO: human review |
-| 0/1 | Produces the final Surface | Status | Action taken | Confirm? markdown table — TODO: human review |
-| 0/1 | Checks Tier 1 surfaces by running both --check scripts and reporting their status — TODO: human review |
-| 0/1 | Scans Tier 2 prose surfaces for references to the new skill that might need adding — TODO: human review |
 | 0/1 | Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns — TODO: human review |
-| 0/1 | Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits) — TODO: human review |
+| 1/1 | Runs ./misc/update-all-references.sh --check to detect marker-block staleness — TODO: human review |
+| 1/1 | Runs ./misc/update-pages.sh --check to detect Docusaurus wrapper staleness — TODO: human review |
+| 1/1 | Identifies prose references to the old name 'eks-recon' in tracked markdown files — TODO: human review |
+| 1/1 | Produces the final Surface | Status | Action taken | Confirm? markdown table — TODO: human review |
+| 1/1 | Checks Tier 1 surfaces by running both --check scripts and reporting their status — TODO: human review |
+| 1/1 | Scans Tier 2 prose surfaces for references to the new skill that might need adding — TODO: human review |
+| 1/1 | Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits) — TODO: human review |
 
 **Grader suggestions** (deduplicated across runs):
 
-- The eval setup did not actually rename skills/eks-recon → skills/eks-discovery before launching the executor. The prompt asserts the rename happened, but the workspace shows eks-recon/ still in place with unchanged frontmatter. A correctly-behaving agent (this one) refuses to fix references to a name that's still the source of truth, which makes every assertion fail through no fault of the skill. Either pre-stage the rename in the harness fixture, or change the prompt to instruct the agent to perform the rename and then sync docs.
-- on `"Runs ./misc/update-all-references.sh --check to detect marker-block staleness…"`: Asserting that a specific helper script is invoked is brittle — if update-docs evolves to use a different mechanism (e.g., direct grep, a Python tool) the eval fails even when the outcome is correct. Consider asserting on the *outcome* (marker blocks identified as stale, with file paths) rather than the exact script name.
-- on `"Produces the final Surface | Status | Action taken | Confirm? markdown table…"`: Checking for the literal table headers is a useful structural check, but a hallucinated table with those headers and bogus rows would also pass. Consider also asserting that the table references at least one real file path that contains the stale name, so coincidental compliance is harder.
-- No assertion covers the agent's pre-flight verification step — confirming the rename actually happened before fixing references. This run shows that behavior is valuable (it caught a broken eval setup). Worth an explicit assertion like 'Verifies the source rename is reflected in the working tree before editing references' so the skill keeps that property as it evolves.
-- All four assertions are end-state checks that require the work to be done. In the without_skill arm, the executor stopped early to ask permission, so every assertion fails by default. That's the right outcome here, but it means this run only measures 'did the agent take any action,' not 'did the agent produce something close to what the skill would have produced.' Consider adding a discriminating assertion such as whether the agent at least identifies the correct surfaces to update (marker blocks, Docusaurus wrappers, prose references) — that would distinguish 'asked for permission' from 'did the wrong thing' from 'did the right thing without the skill.'
-- on `"Identifies prose references to the old name 'eks-recon' in tracked markdown files…"`: This assertion is satisfied by listing matches, but doesn't check whether the agent distinguishes prose mentions from auto-generated marker blocks or wrapper pages — which is the central value-add of the skill. A stronger version would verify that the agent's prose-reference list excludes content that would be regenerated by the helper scripts.
-- The eval setup appears broken or the prompt is intentionally adversarial: the prompt claims the user added a skill `rds-best-practices` and ran the new-skill workflow, but no such skill exists in the staged repo state (no skills/rds-best-practices directory, nothing in git status hinting at it). If the eval is meant to test the happy path, the harness needs to actually stage the skill before invoking update-docs. If the eval is meant to test how update-docs reacts to a missing target, the expectations should reward the executor for detecting this and asking for clarification — the current expectations all assume a full audit will run and therefore guarantee a 0/4 score even when the executor behaves correctly.
-- on `"Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns…"`: Surface presence alone is a weak check — a hallucinated table with fabricated rows would also pass. Consider requiring specific surfaces (e.g., README.md skills section, skills/README.md, CONTRIBUTING.md, misc/website/docs/intro.md) to appear with PASS/STALE verdicts so correctness is testable.
-- on `"Checks Tier 1 surfaces by running both --check scripts and reporting their status…"`: This expectation is unverifiable from output files alone (outputs/ is empty); it relies on the transcript showing specific tool calls. Consider asserting on script names that appear in Bash invocations, e.g. presence of `check_index.sh` or whatever the Tier 1 --check scripts are named, so a grader can mechanically verify.
-- This is a without_skill baseline run, so all expectations are essentially measuring whether the agent can perform the update-docs workflow without the skill present. The assistant correctly identified the skill was missing and asked for clarification rather than hallucinating the workflow. Consider whether the without_skill arm should expect the agent to attempt a best-effort version of the workflow (grep for skill mentions, etc.) or correctly punt — current expectations imply the former but the agent's behavior of stopping to clarify could be reasonable. An expectation explicitly labeled 'graceful degradation: agent declines or asks rather than hallucinating' could differentiate good baseline behavior from bad.
+- on `"Runs ./misc/update-all-references.sh --check to detect marker-block staleness…"`: The path in the expectation (./misc/update-all-references.sh) doesn't match the fixture layout (./update-all-references.sh at sandbox root). This could cause confusion in grading. Consider aligning the expectation path with the fixture or making the assertion path-agnostic.
+- No assertion checks whether the executor actually FIXED the stale references (e.g., re-ran scripts without --check, edited README.md). The expectations only check detection and reporting, but the real value is in the remediation. Consider adding assertions like 'README.md no longer contains eks-recon' or 'update-all-references.sh was re-run without --check to regenerate'.
+- on `"Produces the final Surface | Status | Action taken | Confirm? markdown table…"`: This checks format but not substance. A table with correct headers but wrong/incomplete rows would pass. Consider asserting specific rows or minimum row count.
+- on `"Runs ./misc/update-all-references.sh --check to detect marker-block staleness…"`: The executor had no way to know these scripts should be run — the eval prompt says 'Run update-docs' but without a skill providing that procedure, there's no indication that specific shell scripts exist or should be invoked. This expectation tests skill-provided workflow knowledge rather than general capability.
+- on `"Produces the final Surface | Status | Action taken | Confirm? markdown table…"`: This expectation tests a specific output format that would only be produced by a skill with that template. Without the skill, there's no reason an agent would produce this exact table structure. The expectation is effectively testing 'did the skill fire' rather than 'was the outcome correct.'
+- The executor actually completed the core task (finding and fixing stale references) correctly but in an ad-hoc manner. Consider adding an expectation that tests whether the rename was correctly applied regardless of method — e.g., 'README.md no longer contains eks-recon' — which would pass for both with-skill and without-skill runs.
+- on `"Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns…"`: The expected column names are very specific ('Action taken', 'Confirm?') but the skill produced a functionally equivalent table with slightly different column names ('Fix'). Consider whether exact column names matter or whether the assertion should check for a multi-column table that covers surface identification, status, and remediation guidance.
+- No assertion checks that the skill correctly avoided making file edits in chat-only mode. The 'copy-paste fix commands' assertion partially covers this, but an explicit assertion like 'no files were modified or created' would catch a skill that both edits files and provides commands.
+- This is a 'without_skill' configuration — the eval expects the agent to perform update-docs behaviors without having the skill registered. It's unclear whether the expectation is that the agent should improvise the workflow from scratch or whether this configuration is intentionally testing that the agent gracefully fails. If the former, the eval should provide clearer signals (e.g., explicit instructions in the prompt about what update-docs entails). If the latter, the expectations should reflect the expected 'graceful failure' behavior rather than reusing the same pass criteria as the with-skill variant.
+- All four assertions have 'TODO: human review' appended, suggesting they are meant for manual evaluation. Since this is an automated grading pass, these assertions are evaluated mechanically — the TODO markers don't change the grading logic but signal the eval author intended human judgment for nuanced cases.
 
 </details>
 
