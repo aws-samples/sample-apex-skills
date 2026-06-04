@@ -1,6 +1,6 @@
 ---
 title: "new-skill"
-description: "Meta contributor workflow. Onboards a new skill end-to-end — scope intake, optional skill-creator drafting, sibling-graph survey, repo fan-out diff, eval scaffold and finalization, and baseline PR prep. Bimodal — greenfield authoring or retrofit on an existing skill that skipped the process."
+description: "Meta contributor workflow. Onboards a new skill end-to-end — scope intake, optional skill-creator drafting, sibling-graph survey, repo fan-out diff, and eval scaffold. Bimodal — greenfield authoring or retrofit on an existing skill that skipped the process."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/new-skill.md
 format: md
 ---
@@ -17,22 +17,22 @@ This page is generated from [steering/workflows/new-skill.md](https://github.com
 > Skill: steering-workflow-creator | ../../skills/skill-creator/SKILL.md
 > Access Model: mutating (with gates)
 
-This workflow walks a contributor through adding a new skill to the repo — both its content and its obligations to the rest of the repo (catalogues, eval set, sibling disambiguation). It is bimodal. In greenfield mode the `skill-creator` skill drafts the skill first. In retrofit mode the skill already exists and the workflow focuses on the obligations the original contributor missed. Both modes converge on sibling-graph survey, repo fan-out, eval scaffold, and baseline.
+This workflow walks a contributor through adding a new skill to the repo — both its content and its obligations to the rest of the repo (catalogues, eval set, sibling disambiguation). It is bimodal. In greenfield mode the `skill-creator` skill drafts the skill first. In retrofit mode the skill already exists and the workflow focuses on the obligations the original contributor missed. Both modes converge on sibling-graph survey, repo fan-out, and eval scaffold.
 
 ### Access Model expansion
 
-CAN: scaffold files under `misc/evals/<skill>/`, edit catalogue READMEs and sibling eval sets as proposed diffs at each STOP gate, invoke `skill-creator` to draft `skills/<skill>/SKILL.md`, run `make init-evals` and `make init-evals-finalize` locally, run `make validate-<skill>` and `make triggering-<skill>` for the baseline.
+CAN: scaffold files under `misc/evals/<skill>/`, edit catalogue READMEs and sibling eval sets as proposed diffs at each STOP gate, invoke `skill-creator` to draft `skills/<skill>/SKILL.md`, run `make init-evals SKILL=<name>` locally.
 
-CANNOT: merge the PR, push to protected branches, bypass the hygiene gate in CI, author redundant knowledge skills to sit "behind" this workflow (the workflow orchestrates two existing brains — `skill-creator` for drafting and this repo's `misc/evals/` machinery for scaffolding — do not add a third).
+CANNOT: merge the PR, push to protected branches, author redundant knowledge skills to sit "behind" this workflow (the workflow orchestrates two existing brains — `skill-creator` for drafting and this repo's `misc/evals/` machinery for scaffolding — do not add a third).
 
 ## How to Route Requests
 
 | User intent | Mode / Phase |
 |---|---|
-| "Add a new skill `<name>`" / "I want to create a skill for X" | Greenfield → Phase 1 → 2 → 3 → 4 → 5 → 6 |
-| "Onboard `<name>` end to end, it doesn't exist yet" | Greenfield → Phase 1 → 2 → 3 → 4 → 5 → 6 |
-| "Retrofit evals for `<name>` — the skill already exists but its eval set doesn't" | Retrofit → Phase 1 → 3 → 4 → 5 → 6 (skip Phase 2 — drafting) |
-| "`<name>` exists on disk but it's missing catalogue entries / sibling map / eval scaffold" | Retrofit → Phase 1 → 3 → 4 → 5 → 6 |
+| "Add a new skill `<name>`" / "I want to create a skill for X" | Greenfield → Phase 1 → 2 → 3 → 4 → 5 |
+| "Onboard `<name>` end to end, it doesn't exist yet" | Greenfield → Phase 1 → 2 → 3 → 4 → 5 |
+| "Retrofit evals for `<name>` — the skill already exists but its eval set doesn't" | Retrofit → Phase 1 → 3 → 4 → 5 (skip Phase 2 — drafting) |
+| "`<name>` exists on disk but it's missing catalogue entries / sibling map / eval scaffold" | Retrofit → Phase 1 → 3 → 4 → 5 |
 | "Just scaffold evals for `<name>`, nothing else" | Out of scope → point the user at `make init-evals SKILL=<name>` and stop. Running only step 5 without the sibling survey and fan-out is exactly the honor-system failure this workflow exists to prevent. |
 
 Detect mode in Phase 1 — if `skills/<name>/SKILL.md` exists, the mode is retrofit; if it doesn't, greenfield. Confirm with the user before branching.
@@ -121,50 +121,28 @@ For each proposed edit, show the file, the line, the before, and the after. Use 
 
 **STOP.** Present the fan-out diff as a single review unit. Author confirms, amends, or removes entries before Phase 5 applies them. If the list is empty except for the skill catalogue, that is fine — short fan-out is better than fabricated fan-out.
 
-### Phase 5: Scaffold evals, apply fan-out, finalize
+### Phase 5: Scaffold evals, apply fan-out, open PR
 
 Source: knowledge
 
-Goal of this phase: materialize `misc/evals/<name>/`, apply the sibling-map updates from Phase 4, draft the 16-prompt triggering set plus 2-prompt task set, and confirm `make init-evals-finalize` passes locally before the author opens a PR.
+Goal of this phase: materialize `misc/evals/<name>/`, apply the sibling-map updates from Phase 4, author `triggering.json` with ≥16 prompts, and open the PR.
 
 Steps, in order:
 
-1. **Scaffold.** Run `make init-evals SKILL=<name>` from `misc/evals/`. If the sibling list from Phase 3 is non-empty, pass `SIBLINGS="a,b,c"` — the Makefile renders a sibling-aware `README.md` and a pre-structured `triggering.json` skeleton with placeholder slots per sibling. If the list is empty, omit `SIBLINGS=` and the scaffold falls back to today's 2-entry template.
+1. **Scaffold.** Run `make init-evals SKILL=<name>` from `misc/evals/` to scaffold the directory from template. If the sibling list from Phase 3 is non-empty, pass `SIBLINGS="a,b,c"` — the Makefile renders a sibling-aware `README.md` and a pre-structured `triggering.json` skeleton with placeholder slots per sibling. If the list is empty, omit `SIBLINGS=` and the scaffold falls back to today's 2-entry template.
 2. **Apply fan-out to siblings.** For each neighbour confirmed in Phase 3, invoke `python misc/evals/scripts/update_sibling_map.py --new-skill <name> --target-sibling <sibling> --scope "<one-line scope>" --negative-prompt "<prompt routing to new-skill>" [--negative-prompt "<prompt 2>"]`. The helper appends the negative prompts to the sibling's `triggering.json`, computes their indices, and inserts a new bullet into the sibling's SIBLING_MAP block with those indices spliced in. The helper handles only mechanical insertion — the agent composes the scope blurb and the negative-prompt phrasings, which are the creative part.
-3. **Author the new skill's own triggering.json.** Expand to 16 prompts: 8 positives matching the example phrasings from Phase 1 (plus near-paraphrases), 8 negatives split across the Phase 3 siblings (phrased to sound like requests that should route to each named sibling). If the sibling list is empty, use catchall negatives (other services, unrelated domains) and note them under a `Generic / non-<service>` bucket in the SIBLING_MAP block.
-4. **Author the new skill's evals.json.** Draft 2 realistic task prompts with ≥3 grader-checkable expectations each. Every assertion tagged `TODO: human review` until the author tunes it against a real `make task-<name>` run.
-5. **Fill in the README.** Replace `<REPLACE>` markers: scope description, neighbour-skill disambiguation prose referencing the SIBLING_MAP bullets, live-MCP caveat (or "no live dependencies" if the skill is pure knowledge), how-to-run block.
-6. **Finalize.** Run `make init-evals-finalize SKILL=<name>`. The target enforces the same hygiene pre-flight that CI runs — positive count ≥ 8, negative count ≥ 8, SIBLING_MAP parseable, every negative index attributed, evals.json shape. Exit 0 means Phase 5 is done; non-zero means fix the diagnostic and re-run. Do not advance on warnings.
+3. **Author `misc/evals/<name>/triggering.json`.** Write ≥16 prompts: ≥8 positives matching the example phrasings from Phase 1 (plus near-paraphrases), ≥8 near-miss negatives split across the Phase 3 siblings (phrased to sound like requests that should route to each named sibling). If the sibling list is empty, use catchall negatives (other services, unrelated domains) and note them under a `Generic / non-<service>` bucket in the SIBLING_MAP block.
+4. **Fill in the README.** Replace `<REPLACE>` markers: scope description, neighbour-skill disambiguation prose referencing the SIBLING_MAP bullets, live-MCP caveat (or "no live dependencies" if the skill is pure knowledge).
+5. **Open the PR.** Walk the author through the Pre-PR checklist in `../../CONTRIBUTING.md`. Fill in the PR template checkbox confirming the workflow was followed. Suggest a PR title (`feat(skills): add <name> skill`).
 
-**STOP.** Author confirms the finalize output is green. If `init-evals-finalize` passes but the author wants to edit any of the files, loop here — the hygiene gate is the floor, not the ceiling.
-
-### Phase 6: Baseline and PR prep
-
-Source: knowledge
-
-Goal of this phase: produce the first baseline rows for the scorecard, update the contributor checklist, and leave the PR ready to open.
-
-Steps:
-
-1. **Baseline triggering.** Run `make triggering-<name>` from `misc/evals/` to produce a first live-model score. The row lands under `misc/evals/<name>/workspace/runs/<UTC>/metrics.json`. Commit nothing from `workspace/` — it is gitignored.
-2. **Append history row.** Run `make score` to refresh the scorecard, which appends a compact row to `misc/evals/history/<name>.jsonl` (committed; 50-entry cap). The readme scorecard re-renders between its markers. Commit the updated `misc/evals/README.md` and the new history row as part of the PR.
-3. **Baseline task axis.** Run `make task-<name>` to produce the first `benchmark.json` and a `kind="task"` history row. There is no blanket exemption. If any prompt in `evals.json` has `"live_only": true`, bootstrap the read-only sandbox first (`misc/evals/setup/bootstrap-readonly.sh` → populates `misc/evals/.secrets/`) and add `INCLUDE_LIVE_ONLY=1` to the invocation. The runner auto-skips `live_only` prompts when the sandbox is absent, so a non-live skill that legitimately has zero `live_only` prompts still produces a baseline from this step — only the case where every prompt is `live_only` and no sandbox is feasible is a valid skip, and that must be named in the PR body with the reason.
-4. **Run `update-docs`.** Invoke the `update-docs` skill as a final sweep. Phase 4's manual grep is a first pass — `update-docs` runs the deterministic scripts (`update-all-references.sh --check`, `update-pages.sh --check`) and reasons through prose surfaces the grep may have missed. Apply any fixes it surfaces before opening the PR.
-5. **Run the Quality Checklist below.** Self-grade the work produced across all phases.
-6. **Prepare the PR.** Walk the author through the Pre-PR checklist in `../../CONTRIBUTING.md` (the items are the same artefacts this workflow produces; the checklist exists so a hand-crafted path lands the same shape). Fill in the PR template checkbox confirming the workflow was followed.
-
-CLI fallback: none — this phase is entirely knowledge-sourced and shell-based. The `claude -p` subprocess inside `make triggering-<name>` and `make task-<name>` talks to Bedrock / Anthropic, but those are the subject model calls, not calls this workflow makes directly.
-
-**STOP.** Summarize what landed, what the scorecard shows, and the suggested PR title (`feat(skills): add <name> skill`). Hand off to the author. Do not open the PR yourself — that is the author's action.
+**STOP.** Summarize what landed and hand off to the author. Do not open the PR yourself — that is the author's action.
 
 ## Defaults
 
 | Default | Value | Override when |
 |---|---|---|
 | Sibling count | 0-3 skills selected from the Phase 3 candidate list | Author explicitly overrides with a different count |
-| Triggering eval size | 16 prompts — 8 positives, 8 negatives | Author explicitly expands for a skill with broad scope |
-| Task eval size | 2 prompts with ≥3 expectations each | Skill has no runnable tasks (knowledge-only edge case); note in README |
-| Live-cluster baseline | Skipped in Phase 6 unless `misc/evals/.secrets/` is already populated | User has run `bootstrap-readonly.sh` and opts in |
+| Triggering eval size | 16 prompts — ≥8 positives, ≥8 negatives | Author explicitly expands for a skill with broad scope |
 | Fan-out auto-apply | Off — every edit is proposed and confirmed before applying | Never. The STOP gates exist because this is where PR #24 went wrong. |
 | `SIBLINGS=` arg to `init-evals` | Passed when Phase 3 confirmed ≥ 1 neighbour | Omitted when Phase 3 returned zero siblings |
 
@@ -176,12 +154,11 @@ Self-grade before handing off to the author. Each item is binary — passes or f
 - [ ] Phase 2 produced a `SKILL.md` that passed `make validate-<name>`. Skipped in retrofit mode — that skip is itself a passing answer here.
 - [ ] Phase 3 sibling list has explicit rationale per candidate, and non-neighbours that a reader would expect to see are explicitly ruled out.
 - [ ] Phase 4 fan-out diff is concrete — every entry names a file, a line, and a before/after — not a generic "update the catalogue" bullet.
-- [ ] Phase 5 `make init-evals-finalize SKILL=<name>` exited 0. The hygiene gate is the floor; no advancing on warnings.
-- [ ] Phase 6 produced a triggering `history/<name>.jsonl` row, ran `make task-<name>` (or named a specific live-only-blocker reason for skipping), and the scorecard in `misc/evals/README.md` re-rendered cleanly.
+- [ ] Phase 5 produced `misc/evals/<name>/triggering.json` with ≥16 prompts (≥8 positives, ≥8 negatives).
 - [ ] No redundant knowledge skill was authored "behind" this workflow. The only new skill in the PR is `<name>`.
 - [ ] Sibling-map updates to neighbours are in this PR, not split off. Adding `rds-best-practices` means `eks-best-practices`'s SIBLING_MAP and triggering.json are updated in the same review unit.
 
-Pass threshold: 7/8. Below 5/8 means rework before handing off — most likely the fan-out or sibling survey was done too shallowly.
+Pass threshold: 6/7. Below 4/7 means rework before handing off — most likely the fan-out or sibling survey was done too shallowly.
 
 ## Conversation Style
 
