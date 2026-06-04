@@ -1,0 +1,27 @@
+skill_name: eks-best-practices
+artifact_type: null
+
+layers:
+  triggering:
+    enabled: true
+  process:
+    enabled: true
+  artifact:
+    enabled: false
+    validators: []
+  knowledge:
+    enabled: true
+  quality:
+    enabled: true
+
+weights:
+  triggering: 0.20
+  process: 0.10
+  knowledge: 0.40
+  quality: 0.30
+
+regression:
+  threshold: 5.0
+  pass_k: 3
+
+timeout: 1800

@@ -56,6 +56,7 @@ from parse_trajectory import parse_events
 from process_assertions import evaluate
 from artifact_validation import validate_run as validate_artifacts
 from elicitation import ElicitationConfig, run_multiturn_subject
+from skilleval_config import load_config as load_skilleval_config
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = EVALS_ROOT.parent.parent
@@ -264,6 +265,46 @@ def extract_result_summary(events: list[dict]) -> dict:
     return {"total_tokens": 0, "duration_ms": 0, "num_turns": 0, "subtype": None}
 
 
+# ---------- fixture staging ----------------------------------------------------
+
+
+def stage_fixture_files(
+    sandbox: Path,
+    skill_eval_dir: Path,
+    eval_id: int | str,
+    files: list[str] | None,
+) -> None:
+    """Copy fixture files into the sandbox before the subject runs.
+
+    Convention:
+      <skill_eval_dir>/files/shared/   -> copied for ALL eval cases
+      <skill_eval_dir>/files/eval-<id>/ -> copied only for this eval case
+
+    Both are merged into the sandbox root (shared first, then eval-specific
+    overlays so per-eval files can override shared ones).
+
+    Only stages files if:
+      1. The eval case declares a non-empty "files" array, AND
+      2. The <skill_eval_dir>/files/ directory actually exists on disk.
+    """
+    if not files:
+        return
+
+    files_root = skill_eval_dir / "files"
+    if not files_root.is_dir():
+        return
+
+    # Stage shared/ first (base layer)
+    shared_dir = files_root / "shared"
+    if shared_dir.is_dir():
+        shutil.copytree(shared_dir, sandbox, symlinks=False, dirs_exist_ok=True)
+
+    # Stage eval-specific overlay (can override shared files)
+    eval_specific_dir = files_root / f"eval-{eval_id}"
+    if eval_specific_dir.is_dir():
+        shutil.copytree(eval_specific_dir, sandbox, symlinks=False, dirs_exist_ok=True)
+
+
 # ---------- sandbox snapshot --------------------------------------------------
 
 
@@ -296,6 +337,9 @@ def run_subject(
     run_dir: Path,
     extra_env: dict[str, str] | None,
     elicitation: ElicitationConfig | None = None,
+    skill_eval_dir: Path | None = None,
+    eval_id: int | str | None = None,
+    fixture_files: list[str] | None = None,
 ) -> dict:
     """Execute the subject and persist transcript/outputs/metrics/timing.
 
@@ -316,6 +360,10 @@ def run_subject(
     elicitation = elicitation or ElicitationConfig.from_dict(None)
 
     with ctx as (sandbox, home):
+        # Stage fixture files into the sandbox before running the subject.
+        if skill_eval_dir and eval_id is not None and fixture_files:
+            stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
+
         env = build_subprocess_env(home, extra=extra_env)
 
         if elicitation.strategy == "canned-multiturn" and elicitation.turns:
@@ -629,7 +677,7 @@ def run_skill(
     model: str,
     runs: int,
     include_live_only: bool,
-    subject_timeout: int,
+    subject_timeout: int | None,
     grader_timeout: int,
     extra_env: dict[str, str] | None,
 ) -> dict:
@@ -638,6 +686,13 @@ def run_skill(
     evals_json = skill_eval_dir / "evals.json"
     if not evals_json.exists():
         return {"skill": skill, "error": f"missing {evals_json}"}
+
+    # Resolve effective subject timeout: CLI override > .skilleval.yaml > 600
+    if subject_timeout is not None:
+        effective_timeout = subject_timeout
+    else:
+        skill_config = load_skilleval_config(skill)
+        effective_timeout = skill_config.timeout
 
     evals_data = json.loads(evals_json.read_text())
     prompts = evals_data.get("evals") or []
@@ -685,10 +740,13 @@ def run_skill(
                     repo_skill_dir=skill_repo_dir,
                     with_skill=(config == "with_skill"),
                     model=model,
-                    timeout=subject_timeout,
+                    timeout=effective_timeout,
                     run_dir=run_dir,
                     extra_env=extra_env,
                     elicitation=eval_elicitation,
+                    skill_eval_dir=skill_eval_dir,
+                    eval_id=eval_id,
+                    fixture_files=p.get("files"),
                 )
                 if not subj["ok"]:
                     print(
@@ -850,7 +908,9 @@ def main() -> int:
                         help="Include prompts marked live_only=true")
     parser.add_argument("--model", default=None,
                         help="Model ID. Default comes from the Makefile.")
-    parser.add_argument("--subject-timeout", type=int, default=600)
+    parser.add_argument("--subject-timeout", type=int, default=None,
+                        help="Subject timeout in seconds. Overrides per-skill .skilleval.yaml timeout. "
+                             "If not set, uses .skilleval.yaml timeout (default 600).")
     parser.add_argument("--grader-timeout", type=int, default=600)
     parser.add_argument("--kubeconfig", default=None,
                         help="KUBECONFIG path exported into the subject subprocess")

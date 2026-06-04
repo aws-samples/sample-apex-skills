@@ -21,6 +21,14 @@ from knowledge_assertions import evaluate
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
 
+# File extensions considered text-readable for output artifact scanning
+_TEXT_EXTENSIONS = {
+    ".tf", ".md", ".yaml", ".yml", ".json", ".hcl", ".toml",
+    ".txt", ".mmd", ".py", ".sh", ".bash", ".zsh", ".ts", ".js",
+    ".html", ".css", ".xml", ".csv", ".ini", ".cfg", ".conf",
+    ".gitignore", ".env", ".tfvars",
+}
+
 
 def extract_assistant_text(events_path: Path) -> str:
     """Extract all assistant text content from an events.jsonl file."""
@@ -42,6 +50,32 @@ def extract_assistant_text(events_path: Path) -> str:
                     text = block.get("text", "").strip()
                     if text:
                         texts.append(text)
+    return "\n\n".join(texts)
+
+
+def extract_output_files_text(outputs_dir: Path) -> str:
+    """Read all text files from the outputs/ directory and return concatenated content.
+
+    Skips binary files and handles encoding errors gracefully.
+    """
+    if not outputs_dir.is_dir():
+        return ""
+
+    texts: list[str] = []
+    for filepath in sorted(outputs_dir.rglob("*")):
+        if not filepath.is_file():
+            continue
+        # Skip files that are clearly binary based on extension
+        suffix = filepath.suffix.lower()
+        # Allow extensionless files (like .gitignore) if name starts with dot
+        if suffix and suffix not in _TEXT_EXTENSIONS:
+            continue
+        try:
+            content = filepath.read_text(encoding="utf-8", errors="ignore").strip()
+            if content:
+                texts.append(content)
+        except (OSError, PermissionError):
+            continue
     return "\n\n".join(texts)
 
 
@@ -95,6 +129,8 @@ def main() -> int:
 
     any_failed = False
     total_passed = 0
+    total_failed = 0
+    total_skipped = 0
     total_assertions = 0
 
     for run_dir in run_dirs:
@@ -109,9 +145,11 @@ def main() -> int:
             continue
 
         rel = run_dir.relative_to(EVALS_ROOT / args.skill / "workspace")
-        text = extract_assistant_text(events_file)
+        assistant_text = extract_assistant_text(events_file)
+        outputs_text = extract_output_files_text(run_dir / "outputs")
+        text = "\n\n".join(filter(None, [assistant_text, outputs_text]))
         if not text:
-            print(f"[knowledge] {args.skill} {rel}: SKIP (no assistant text)", file=sys.stderr)
+            print(f"[knowledge] {args.skill} {rel}: SKIP (no assistant text or output files)", file=sys.stderr)
             continue
 
         results = evaluate(text, assertions_by_id[eval_id])
@@ -124,13 +162,31 @@ def main() -> int:
         if results.failed > 0:
             any_failed = True
         total_passed += results.passed
+        total_failed += results.failed
+        total_skipped += results.skipped
         total_assertions += results.total
 
+        # Build summary line with score
+        score_str = f"{results.pass_rate:.0%}" if results.pass_rate < 1.0 else "100%"
+        skipped_str = f", {results.skipped} skipped" if results.skipped > 0 else ""
         print(
             f"[knowledge] {args.skill} {rel}: {status} "
-            f"({results.passed}/{results.total})",
+            f"({results.passed}/{results.total - results.skipped} evaluated{skipped_str}, score={score_str})",
             file=sys.stderr,
         )
+
+        # Report group-level results
+        if results.groups:
+            for gr in results.groups:
+                gr_status = "PASS" if gr.failed == 0 else "FAIL"
+                gr_skipped_str = f", {gr.skipped} skipped" if gr.skipped > 0 else ""
+                print(
+                    f"[knowledge]   group '{gr.name}': {gr_status} "
+                    f"({gr.passed}/{gr.passed + gr.failed} evaluated{gr_skipped_str}, "
+                    f"score={gr.score:.0%}, weight={gr.weight})",
+                    file=sys.stderr,
+                )
+
         if results.failure_classes:
             for fc, count in sorted(results.failure_classes.items()):
                 print(f"[knowledge]   {fc}: {count}", file=sys.stderr)
@@ -139,8 +195,10 @@ def main() -> int:
         print(f"[knowledge] {args.skill}: no matching eval runs found for configured assertions", file=sys.stderr)
         return 2
 
+    evaluated_total = total_assertions - total_skipped
+    skipped_summary = f", {total_skipped} skipped" if total_skipped > 0 else ""
     print(
-        f"[knowledge] {args.skill} TOTAL: {total_passed}/{total_assertions} "
+        f"[knowledge] {args.skill} TOTAL: {total_passed}/{evaluated_total} evaluated{skipped_summary} "
         f"({'PASS' if not any_failed else 'FAIL'})",
         file=sys.stderr,
     )

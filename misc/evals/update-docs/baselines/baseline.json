@@ -1,0 +1,93 @@
+{
+  "version": 2,
+  "skill": "update-docs",
+  "created_at": "2026-06-04T04:18:51.752385+00:00",
+  "git_head": "027d0b5",
+  "eval_set_hash": "846006669b0f01122171d7397a5376d6ed3535003e8e0335f5c12ed8d6f615b2",
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "pass_k": 3,
+  "triggering": {
+    "accuracy": 1.0,
+    "ci_lo": 0.8388698745050667,
+    "ci_hi": 0.9999999999999998,
+    "tpr": 1.0,
+    "tnr": 1.0,
+    "flake_count": 0
+  },
+  "task": {
+    "with_skill_mean": 0.875,
+    "with_skill_stddev": 0.1768,
+    "without_skill_mean": 0.125,
+    "pass_k_rate": null,
+    "runs_per_prompt": 3
+  },
+  "process_assertions": {
+    "pass_rate": 0.6153846153846154,
+    "passed": 16,
+    "total": 26
+  },
+  "artifact_validation": null,
+  "knowledge_assertions": {
+    "pass_rate": 0.84375,
+    "passed": 27,
+    "total": 32
+  },
+  "per_eval_cases": {
+    "eval-1": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "total": 8
+      },
+      "process_assertions": {
+        "pass_rate": 0.8333333333333334,
+        "passed": 5,
+        "total": 6
+      }
+    },
+    "eval-2": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "total": 8
+      },
+      "process_assertions": {
+        "pass_rate": 0.8571428571428571,
+        "passed": 6,
+        "total": 7
+      }
+    }
+  },
+  "composite": {
+    "score": 82.6,
+    "grade": "B",
+    "contributions": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 20.0
+      },
+      "process": {
+        "raw_score": 0.6153846153846154,
+        "weight": 0.25,
+        "contribution": 15.384615384615385
+      },
+      "knowledge": {
+        "raw_score": 0.84375,
+        "weight": 0.3,
+        "contribution": 25.3125
+      },
+      "quality": {
+        "raw_score": 0.875,
+        "weight": 0.25,
+        "contribution": 21.875
+      }
+    },
+    "effective_weights": {
+      "triggering": 0.2,
+      "process": 0.25,
+      "knowledge": 0.3,
+      "quality": 0.25
+    }
+  }
+}

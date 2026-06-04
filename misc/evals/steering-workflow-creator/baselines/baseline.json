@@ -1,0 +1,125 @@
+{
+  "version": 2,
+  "skill": "steering-workflow-creator",
+  "created_at": "2026-06-04T04:18:51.786061+00:00",
+  "git_head": "027d0b5",
+  "eval_set_hash": "891fd7df3bd4d8b344e21382de319a056ab4f9bfa2a2029e277b9c6fc5c59c02",
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "pass_k": 3,
+  "triggering": {
+    "accuracy": 0.9411764705882353,
+    "ci_lo": 0.730174547964372,
+    "ci_hi": 0.9895398693548358,
+    "tpr": 0.875,
+    "tnr": 1.0,
+    "flake_count": 0
+  },
+  "task": {
+    "with_skill_mean": 0.9433,
+    "with_skill_stddev": 0.0981,
+    "without_skill_mean": 0.0667,
+    "pass_k_rate": null,
+    "runs_per_prompt": 3
+  },
+  "process_assertions": {
+    "pass_rate": 0.45454545454545453,
+    "passed": 10,
+    "total": 22
+  },
+  "artifact_validation": {
+    "pass_rate": 0.5,
+    "passed": 27,
+    "total": 54
+  },
+  "knowledge_assertions": {
+    "pass_rate": 0.5454545454545454,
+    "passed": 24,
+    "total": 44
+  },
+  "per_eval_cases": {
+    "eval-1": {
+      "knowledge_assertions": {
+        "pass_rate": 0.9090909090909091,
+        "passed": 10,
+        "total": 11
+      },
+      "process_assertions": {
+        "pass_rate": 0.3333333333333333,
+        "passed": 1,
+        "total": 3
+      },
+      "artifact_validation": {
+        "pass_rate": 1.0,
+        "passed": 11,
+        "total": 11
+      }
+    },
+    "eval-2": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5
+      },
+      "process_assertions": {
+        "pass_rate": 0.3333333333333333,
+        "passed": 1,
+        "total": 3
+      }
+    },
+    "eval-3": {
+      "knowledge_assertions": {
+        "pass_rate": 0.8333333333333334,
+        "passed": 5,
+        "total": 6
+      },
+      "process_assertions": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "total": 5
+      },
+      "artifact_validation": {
+        "pass_rate": 0.75,
+        "passed": 12,
+        "total": 16
+      }
+    }
+  },
+  "composite": {
+    "score": 64.9,
+    "grade": "D",
+    "contributions": {
+      "triggering": {
+        "raw_score": 0.875,
+        "weight": 0.15,
+        "contribution": 13.125
+      },
+      "process": {
+        "raw_score": 0.45454545454545453,
+        "weight": 0.15,
+        "contribution": 6.8181818181818175
+      },
+      "artifact": {
+        "raw_score": 0.5,
+        "weight": 0.25,
+        "contribution": 12.5
+      },
+      "knowledge": {
+        "raw_score": 0.5454545454545454,
+        "weight": 0.25,
+        "contribution": 13.636363636363635
+      },
+      "quality": {
+        "raw_score": 0.9433,
+        "weight": 0.2,
+        "contribution": 18.866000000000003
+      }
+    },
+    "effective_weights": {
+      "triggering": 0.15,
+      "process": 0.15,
+      "artifact": 0.25,
+      "knowledge": 0.25,
+      "quality": 0.2
+    }
+  }
+}

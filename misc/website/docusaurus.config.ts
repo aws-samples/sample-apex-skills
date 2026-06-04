@@ -121,6 +121,11 @@ const config: Config = {
           label: 'Contributing',
         },
         {
+          to: '/docs/evals',
+          position: 'left',
+          label: 'Skill Evaluations',
+        },
+        {
           href: 'https://github.com/aws-samples/sample-apex-skills',
           label: 'GitHub',
           position: 'right',

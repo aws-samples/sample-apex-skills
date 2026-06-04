@@ -794,3 +794,262 @@
 a, button, .navbar__link, .menu__link {
   transition: var(--apex-transition);
 }
+
+/* Eval page */
+
+.apex-eval {
+  padding: 4rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.apex-eval__header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.apex-eval__title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--apex-text);
+  margin-bottom: 0.5rem;
+}
+
+.apex-eval__subtitle {
+  font-size: 1.1rem;
+  color: var(--apex-text-muted);
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.apex-eval__methodology {
+  margin-bottom: 5rem;
+}
+
+.apex-eval__pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 600px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.apex-eval__layer {
+  background: var(--apex-surface);
+  border: 1px solid var(--apex-border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 1rem;
+  align-items: center;
+  transition: var(--apex-transition);
+}
+
+.apex-eval__layer:hover {
+  border-color: rgba(255, 153, 0, 0.3);
+  transform: translateX(4px);
+}
+
+.apex-eval__layer-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff9900, #ffb84d);
+  color: #0a0e17;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.apex-eval__layer-content {
+  flex: 1;
+}
+
+.apex-eval__layer-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--apex-text);
+  margin-bottom: 2px;
+}
+
+.apex-eval__layer-weight {
+  font-size: 0.75rem;
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+.apex-eval__layer-desc {
+  font-size: 0.85rem;
+  color: var(--apex-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.apex-eval__connector {
+  width: 2px;
+  height: 20px;
+  background: linear-gradient(180deg, rgba(255, 153, 0, 0.5), rgba(255, 153, 0, 0.2));
+  margin: 0 auto;
+  display: block;
+}
+
+.apex-eval__note {
+  text-align: center;
+  margin-top: 2rem;
+  font-size: 0.85rem;
+  color: var(--apex-text-muted);
+  font-style: italic;
+}
+
+.apex-eval__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.5rem;
+}
+
+.apex-eval__card {
+  background: var(--apex-surface);
+  border: 1px solid var(--apex-border);
+  border-radius: 16px;
+  padding: 1.75rem;
+  backdrop-filter: blur(8px);
+  transition: var(--apex-transition);
+}
+
+.apex-eval__card:hover {
+  border-color: rgba(255, 153, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(255, 153, 0, 0.1);
+  transform: translateY(-4px);
+}
+
+.apex-eval__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.apex-eval__skill-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--apex-text);
+}
+
+.apex-eval__grade {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.apex-eval__grade--A {
+  color: #10b981;
+}
+
+.apex-eval__grade--B {
+  color: #3b82f6;
+}
+
+.apex-eval__grade--C {
+  color: #f59e0b;
+}
+
+.apex-eval__grade--D {
+  color: #ef4444;
+}
+
+.apex-eval__grade--F {
+  color: #dc2626;
+}
+
+.apex-eval__score {
+  font-size: 0.8rem;
+  color: var(--apex-text-muted);
+  margin-bottom: 1rem;
+}
+
+.apex-eval__layers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apex-eval__bar-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 40px;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.75rem;
+}
+
+.apex-eval__bar-label {
+  color: var(--apex-text-muted);
+  text-transform: capitalize;
+}
+
+.apex-eval__bar-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+[data-theme='light'] .apex-eval__bar-track {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.apex-eval__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.apex-eval__bar-fill--triggering {
+  background: #818cf8;
+}
+
+.apex-eval__bar-fill--process {
+  background: #34d399;
+}
+
+.apex-eval__bar-fill--artifact {
+  background: #fbbf24;
+}
+
+.apex-eval__bar-fill--knowledge {
+  background: #60a5fa;
+}
+
+.apex-eval__bar-fill--quality {
+  background: #f472b6;
+}
+
+.apex-eval__bar-value {
+  color: var(--apex-text-muted);
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@media (max-width: 768px) {
+  .apex-eval__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .apex-eval__title {
+    font-size: 2rem;
+  }
+
+  .apex-eval__layer {
+    grid-template-columns: 36px 1fr;
+  }
+}

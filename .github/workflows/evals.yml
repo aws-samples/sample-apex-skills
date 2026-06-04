@@ -128,3 +128,58 @@ jobs:
 
           Full details: [`CONTRIBUTING.md` → Keeping docs in sync](../blob/${{ github.head_ref || github.ref_name }}/CONTRIBUTING.md#keeping-docs-in-sync-auto-generated-catalogues).
           EOF
+
+  regression:
+    name: regression gate
+    runs-on: ubuntu-latest
+    needs: [hygiene]
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Detect changed skills
+        id: changes
+        run: |
+          changed=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+            | grep -oP '(?<=skills/)[^/]+' | sort -u | tr '\n' ',' | sed 's/,$//')
+          echo "skills=${changed}" >> "$GITHUB_OUTPUT"
+      - name: Run regression check
+        if: steps.changes.outputs.skills != ''
+        run: |
+          IFS=',' read -ra SKILLS <<< "${{ steps.changes.outputs.skills }}"
+          exit_code=0
+          for skill in "${SKILLS[@]}"; do
+            baseline="misc/evals/${skill}/baselines/baseline.json"
+            if [ ! -f "$baseline" ]; then
+              echo "::notice::No baseline for ${skill} — skipping regression check"
+              continue
+            fi
+            python3 misc/evals/scripts/regression.py \
+              --skill "$skill" \
+              --threshold 5 \
+              --from-history || exit_code=$?
+          done
+          exit $exit_code
+      - name: How to fix (shown on failure)
+        if: failure()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Regression gate failed
+
+          At least one skill's eval scores regressed beyond the 5pp threshold
+          compared to its committed baseline.
+
+          **Fix options:**
+          1. Fix the regression in your skill code
+          2. If the regression is intentional (e.g. tightened description), update the baseline:
+             ```bash
+             make -C misc/evals task-<skill> RUNS_PER_PROMPT=3
+             make -C misc/evals snapshot SKILL=<skill>
+             git add misc/evals/<skill>/baselines/baseline.json
+             ```
+          EOF

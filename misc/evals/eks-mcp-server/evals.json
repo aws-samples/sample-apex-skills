@@ -6,11 +6,68 @@
       "prompt": "Walk me through installing the self-hosted EKS MCP Server for Claude Code on my laptop. I'm on macOS, my AWS profile is `dev-admin`, and I only want read access for now — no write or sensitive-data tools. Where does the config file go and what exactly should it contain?",
       "expected_output": "A step-by-step setup that covers prerequisites (Python 3.10+, uv/uvx), the Claude Code config file path (.mcp.json project-scope or ~/.claude/mcp.json user-scope), a concrete mcpServers JSON block invoking uvx awslabs.eks-mcp-server@latest with AWS_PROFILE=dev-admin, explicit omission of --allow-write and --allow-sensitive-data-access for read-only mode, and the restart-then-verify step.",
       "expectations": [
-        "The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or `~/.claude/mcp.json` (user scope). TODO: human review",
+        "The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or mentions a user-scope MCP configuration location (e.g., ~/.claude.json or via claude mcp add). TODO: human review",
         "The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that invokes `uvx` with `awslabs.eks-mcp-server@latest` and sets `AWS_PROFILE` to `dev-admin`. TODO: human review",
         "The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the args array (or equivalently tells the user to leave them out) to satisfy the read-only requirement. TODO: human review",
         "The output mentions prerequisites: Python 3.10+ and the `uv`/`uvx` package manager (installable via the astral.sh/uv script). TODO: human review",
         "The output tells the user to restart Claude Code after editing the config and verify by asking to list EKS clusters or available MCP tools. TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "\\.mcp\\.json",
+          "context": "Must mention the project-scope config file path for Claude Code",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#claude-code"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "awslabs\\.eks-mcp-server@latest",
+          "context": "Must specify the correct PyPI package name for uvx invocation",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#installation"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "uvx",
+          "context": "Must use uvx as the command to run the self-hosted server",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#installation"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "dev-admin",
+          "context": "Must reference the user's specified AWS_PROFILE name",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#environment-variables"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "3\\.10",
+          "context": "Must state the minimum Python version prerequisite",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#prerequisites"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["--allow-write", "allow.write"],
+          "context": "Must mention the --allow-write flag (even if to say omit it for read-only)",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#command-line-arguments"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["restart", "reload"],
+          "context": "Must instruct user to restart/reload the AI assistant after config change",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#verify-setup"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "mcp-proxy-for-aws",
+          "context": "Self-hosted setup should not reference the AWS-hosted proxy package",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server"
+        }
+      ],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Read", "min": 1},
+        {"type": "step-count", "min": 2, "max": 12},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
+        {"type": "no-tool-called", "tool": "Write"},
+        {"type": "no-tool-called", "tool": "Bash"}
       ],
       "files": []
     },
@@ -23,6 +80,57 @@
         "The output names the `AmazonEKSMCPReadOnlyAccess` AWS managed policy as the standard read-only fix and/or lists the required actions `eks-mcp:InvokeMcp`, `eks-mcp:CallReadOnlyTool`, and `eks-mcp:CallPrivilegedTool`. TODO: human review",
         "The output gives a concrete remediation step such as `aws iam attach-user-policy` (or attach-role-policy) using the `AmazonEKSMCPReadOnlyAccess` policy ARN. TODO: human review",
         "The output notes that `CallPrivilegedTool` is only required if the user needs write operations, so read-only access is sufficient to unblock tool calls. TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "AmazonEKSMCPReadOnlyAccess",
+          "context": "Must name the AWS managed policy for read-only EKS MCP access",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "eks-mcp:InvokeMcp",
+          "context": "Must reference the specific IAM action from the error message",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["eks-mcp:CallReadOnlyTool", "CallReadOnlyTool"],
+          "context": "Must mention the read-only tool-call IAM action",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["eks-mcp:CallPrivilegedTool", "CallPrivilegedTool"],
+          "context": "Must mention the privileged/write tool-call IAM action",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["attach-user-policy", "attach-role-policy", "attach.*policy"],
+          "context": "Must provide a concrete IAM remediation command or action",
+          "source": "https://docs.aws.amazon.com/cli/latest/reference/iam/attach-user-policy.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["IAM", "permission", "policy"],
+          "context": "Must frame the issue as an IAM/permissions problem",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "reinstall|uninstall",
+          "context": "Should not suggest reinstalling the MCP server — this is an IAM issue, not a client bug",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html"
+        }
+      ],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Read", "min": 1},
+        {"type": "step-count", "min": 2, "max": 12},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
+        {"type": "no-tool-called", "tool": "Write"},
+        {"type": "no-tool-called", "tool": "Bash"}
       ],
       "files": []
     }

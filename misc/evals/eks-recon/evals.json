@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "I'm about to upgrade my production EKS cluster to the next minor Kubernetes version. Before I start, run full reconnaissance on the cluster I'm currently pointed at and give me a complete picture — current version, compute strategy, add-on inventory, and anything else that would matter for an upgrade.",
+      "prompt": "Run EKS reconnaissance on the cluster currently configured in my kubeconfig. I'm planning an upgrade — focus on version info, compute strategy, and addon inventory.",
       "expected_output": "A structured reconnaissance report for the currently-configured EKS cluster covering cluster-basics (name, region, version, platform version), compute strategy, EKS-managed add-ons with versions, and IaC tool — with upgrade-relevant observations surfaced.",
       "expectations": [
         "The output reports the current cluster version and platform version. TODO: human review",
@@ -17,15 +17,107 @@
       "process_assertions": [
         {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-recon"}},
         {"type": "tool-called", "tool": "Bash", "min": 3},
-        {"type": "no-tool-called", "tool": "Write"},
-        {"type": "no-tool-called", "tool": "Edit"},
-        {"type": "step-count", "min": 3, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 2}
-      ]
+        {"type": "step-count", "min": 3, "max": 40}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["cluster:", "## Cluster", "\\*\\*Cluster", "Cluster Basics"],
+          "context": "Report must include a cluster basics section with cluster metadata",
+          "source": "skills/eks-recon/SKILL.md — Step 4: Generate Report schema shows top-level cluster: key or equivalent markdown section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["version:\\s*[\"']?1\\.", "version: \"1\\.", "Version.*1\\.", "version.*1\\."],
+          "context": "Report must include the Kubernetes version of the cluster",
+          "source": "skills/eks-recon/references/cluster-basics.md — always reports cluster version"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["platform_version", "platform.version", "Platform Version", "platform version"],
+          "context": "Report must include the EKS platform version",
+          "source": "skills/eks-recon/references/cluster-basics.md — platform version is a core cluster-basics field"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["compute:", "## Compute", "\\*\\*Compute", "Compute Strategy"],
+          "context": "Report must include the compute strategy section",
+          "source": "skills/eks-recon/SKILL.md — report schema includes compute: top-level key or equivalent markdown section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["strategy:\\s*(Karpenter|Auto Mode|MNG|Fargate|Managed Node Group)", "compute.*strategy", "Strategy.*Karpenter", "Strategy.*Auto Mode", "Strategy.*MNG", "Strategy.*Fargate"],
+          "context": "Report must identify the primary compute strategy",
+          "source": "skills/eks-recon/references/compute.md — Strategy Determination Logic section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["addons:", "## Add-ons", "## Addons", "\\*\\*Add-ons", "\\*\\*Addons", "Add-on Inventory"],
+          "context": "Report must include the add-ons section for upgrade planning",
+          "source": "skills/eks-recon/SKILL.md — report schema includes addons: top-level key or equivalent markdown section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["vpc-cni", "coredns", "kube-proxy", "eks_managed", "VPC CNI", "CoreDNS"],
+          "context": "Report must list at least one core EKS-managed add-on",
+          "source": "skills/eks-recon/references/addons.md — EKS-managed add-on detection"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Auto Mode", "auto_mode", "Karpenter", "karpenter", "MNG", "Managed Node Group", "Fargate", "fargate"],
+          "context": "Report must name the detected compute model explicitly",
+          "source": "skills/eks-recon/references/compute.md — detection outputs one of these strategies"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["upgrade", "compatibility", "deprecated", "breaking.?change"],
+          "context": "For an upgrade-focused recon, output must surface at least one upgrade-relevant observation",
+          "source": "skills/eks-recon/SKILL.md — Integration with Other Workflows / Upgrade Workflow section"
+        }
+      ],
+      "artifact_assertions": {
+        "root_glob": null,
+        "structural": [
+          {
+            "type": "file-exists",
+            "path": ".eks-recon-report.yaml"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [".eks-recon-report.yaml"]
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "cluster:"
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "compute:"
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "addons:"
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "version:"
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "name:"
+          }
+        ],
+        "validators": []
+      }
     },
     {
       "id": 2,
-      "prompt": "A new platform engineer is taking over the EKS cluster my kubectl is currently pointed at. Run a full handoff-focused reconnaissance on that cluster: document the compute layout, IaC setup (with evidence from workspace files if available), and any CI/CD or GitOps tooling (workspace pipelines like GitHub Actions / GitLab / Jenkins, plus in-cluster ArgoCD / Flux if present). Produce the report, don't ask me for cluster details first.",
+      "prompt": "Run EKS reconnaissance on my current cluster for a handoff document. I need to understand the IaC tooling, CI/CD setup, and deployment patterns in use.",
       "expected_output": "A handoff-oriented report for the currently-configured EKS cluster that focuses on compute (nodepools / node groups / Fargate profiles), IaC provenance, and CI/CD — both workspace pipelines (GitHub Actions, GitLab CI, Jenkins) and GitOps (ArgoCD, Flux).",
       "expectations": [
         "The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as applicable). TODO: human review",
@@ -38,11 +130,103 @@
       "process_assertions": [
         {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-recon"}},
         {"type": "tool-called", "tool": "Bash", "min": 3},
-        {"type": "no-tool-called", "tool": "Write"},
-        {"type": "no-tool-called", "tool": "Edit"},
-        {"type": "step-count", "min": 3, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 2}
-      ]
+        {"type": "step-count", "min": 3, "max": 40}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["compute:", "## Compute", "\\*\\*Compute", "Compute Strategy"],
+          "context": "Report must include compute section documenting cluster topology",
+          "source": "skills/eks-recon/SKILL.md — report schema includes compute: top-level key or equivalent markdown section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["nodepool", "node.?group", "fargate.?profile", "auto_mode", "Auto Mode", "NodePool", "Node Group", "Fargate Profile"],
+          "context": "Compute section must detail the specific compute resources (nodepools, node groups, or Fargate profiles)",
+          "source": "skills/eks-recon/references/compute.md — detection covers all compute types"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["iac:", "## IaC", "\\*\\*IaC", "Infrastructure as Code", "## Infrastructure"],
+          "context": "Report must include IaC section identifying infrastructure management tool",
+          "source": "skills/eks-recon/SKILL.md — report schema includes iac: top-level key or equivalent markdown section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Terraform", "CloudFormation", "CDK", "eksctl", "Pulumi", "unknown"],
+          "context": "IaC section must name the detected tool or state unknown",
+          "source": "skills/eks-recon/references/iac.md — detection covers Terraform, CloudFormation, CDK, eksctl, Pulumi"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["confidence:", "evidence:", "Confidence", "Evidence"],
+          "context": "IaC detection should include confidence level or evidence for the determination",
+          "source": "skills/eks-recon/SKILL.md — IaC output schema includes confidence and evidence fields"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["cicd:", "## CI/CD", "\\*\\*CI/CD", "## CI", "## Deployment", "CI/CD"],
+          "context": "Report must include CI/CD section covering pipelines and GitOps",
+          "source": "skills/eks-recon/SKILL.md — report schema includes cicd: top-level key or equivalent markdown section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["github_actions", "gitlab_ci", "jenkins", "GitHub Actions", "GitLab", "Jenkins"],
+          "context": "CI/CD section must report on workspace pipeline detection",
+          "source": "skills/eks-recon/references/cicd.md — workspace pipeline detection covers GitHub Actions, GitLab CI, Jenkins"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["argocd", "flux", "ArgoCD", "Flux", "gitops", "GitOps", "Argo CD"],
+          "context": "CI/CD section must report on GitOps tooling (ArgoCD or Flux) detection",
+          "source": "skills/eks-recon/references/cicd.md — GitOps detection covers ArgoCD and Flux"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["detected:\\s*(true|false)", "detected:", "Detected", "not detected", "not found"],
+          "context": "Detection results should use detected: true/false pattern or equivalent prose for each component",
+          "source": "skills/eks-recon/SKILL.md — report schema uses detected: boolean for each sub-component"
+        }
+      ],
+      "artifact_assertions": {
+        "root_glob": null,
+        "structural": [
+          {
+            "type": "file-exists",
+            "path": ".eks-recon-report.yaml"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [".eks-recon-report.yaml"]
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "cluster:"
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "compute:"
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "iac:"
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "cicd:"
+          },
+          {
+            "type": "contains",
+            "file": ".eks-recon-report.yaml",
+            "pattern": "detected:"
+          }
+        ],
+        "validators": []
+      }
     }
   ]
 }

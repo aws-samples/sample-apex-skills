@@ -1,0 +1,93 @@
+{
+  "version": 2,
+  "skill": "eks-best-practices",
+  "created_at": "2026-06-04T06:48:52.779932+00:00",
+  "git_head": "027d0b5",
+  "eval_set_hash": "5393bd45c3a1fda2cfa3484009da4b44d6874aa5e6ac00313a8fad6a1d468d59",
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "pass_k": 3,
+  "triggering": {
+    "accuracy": 0.9090909090909091,
+    "ci_lo": 1.0,
+    "ci_hi": 1.0,
+    "tpr": 1.0,
+    "tnr": 0.8571428571428571,
+    "flake_count": 0
+  },
+  "task": {
+    "with_skill_mean": 1.0,
+    "with_skill_stddev": 0.0,
+    "without_skill_mean": 0.9,
+    "pass_k_rate": null,
+    "runs_per_prompt": 3
+  },
+  "process_assertions": {
+    "pass_rate": 1.0,
+    "passed": 6,
+    "total": 6
+  },
+  "artifact_validation": null,
+  "knowledge_assertions": {
+    "pass_rate": 0.9,
+    "passed": 18,
+    "total": 20
+  },
+  "per_eval_cases": {
+    "eval-1": {
+      "knowledge_assertions": {
+        "pass_rate": 0.8,
+        "passed": 8,
+        "total": 10
+      },
+      "process_assertions": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "eval-2": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 10,
+        "total": 10
+      },
+      "process_assertions": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "total": 3
+      }
+    }
+  },
+  "composite": {
+    "score": 93.1,
+    "grade": "A",
+    "contributions": {
+      "triggering": {
+        "raw_score": 0.8571428571428571,
+        "weight": 0.2,
+        "contribution": 17.142857142857142
+      },
+      "process": {
+        "raw_score": 1.0,
+        "weight": 0.1,
+        "contribution": 10.0
+      },
+      "knowledge": {
+        "raw_score": 0.9,
+        "weight": 0.4,
+        "contribution": 36.00000000000001
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      }
+    },
+    "effective_weights": {
+      "triggering": 0.2,
+      "process": 0.1,
+      "knowledge": 0.4,
+      "quality": 0.3
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "version": 2,
+  "skill": "eks-platform-engineering",
+  "created_at": "2026-06-04T04:53:42.836032+00:00",
+  "git_head": "027d0b5",
+  "eval_set_hash": "fc4d10d72cfefe95cb2386c45decb52c1ac8bd09b0ef6d6cebd47550b54caf87",
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "pass_k": 3,
+  "triggering": {
+    "accuracy": 1.0,
+    "ci_lo": 0.8063865817272801,
+    "ci_hi": 1.0,
+    "tpr": 1.0,
+    "tnr": 1.0,
+    "flake_count": 0
+  },
+  "task": {
+    "with_skill_mean": 1.0,
+    "with_skill_stddev": 0.0,
+    "without_skill_mean": 0.2,
+    "pass_k_rate": null,
+    "runs_per_prompt": 3
+  },
+  "process_assertions": {
+    "pass_rate": 0.75,
+    "passed": 6,
+    "total": 8
+  },
+  "artifact_validation": null,
+  "knowledge_assertions": {
+    "pass_rate": 1.0,
+    "passed": 21,
+    "total": 21
+  },
+  "per_eval_cases": {
+    "eval-1": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 10,
+        "total": 10
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      }
+    },
+    "eval-2": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 11,
+        "total": 11
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      }
+    }
+  },
+  "composite": {
+    "score": 98.8,
+    "grade": "A",
+    "contributions": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 20.0
+      },
+      "process": {
+        "raw_score": 0.75,
+        "weight": 0.05,
+        "contribution": 3.7500000000000004
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.45,
+        "contribution": 45.0
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      }
+    },
+    "effective_weights": {
+      "triggering": 0.2,
+      "process": 0.05,
+      "knowledge": 0.45,
+      "quality": 0.3
+    }
+  }
+}

@@ -12,6 +12,74 @@
         "Identifies that EKS Auto Mode removes node management, matching the 'we don't want to manage nodes' requirement. TODO: human review",
         "Covers identity (Keycloak SSO) and credential-free workload IAM (EKS Pod Identity / IRSA). TODO: human review"
       ],
+      "process_assertions": [
+        {"type": "step-count", "min": 2, "max": 20},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5},
+        {"type": "no-tool-called", "tool": "Write"},
+        {"type": "no-tool-called", "tool": "Bash"}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["hub.and.spoke", "hub.*spoke", "hub cluster"],
+          "context": "Must recommend hub-and-spoke cluster topology as the default architecture",
+          "source": "https://github.com/aws-samples/platform-engineering-on-eks"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Auto.?Mode", "EKS Auto Mode"],
+          "context": "Must recommend EKS Auto Mode as the default cluster type for zero node management",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/automode.html"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Backstage",
+          "context": "Backstage is the opinionated developer portal choice in this stack",
+          "source": "https://backstage.io/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Argo.?CD", "ArgoCD", "Argo CD"],
+          "context": "ArgoCD is the opinionated GitOps CD engine in this stack",
+          "source": "https://argoproj.github.io/cd/"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Keycloak",
+          "context": "Keycloak provides SSO/OIDC across all platform tools",
+          "source": "https://github.com/aws-samples/platform-engineering-on-eks"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Kargo", "kargo", "promotion"],
+          "context": "Kargo is the multi-stage promotion tool in the opinionated stack",
+          "source": "https://kargo.io/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["ACK", "AWS Controllers for Kubernetes"],
+          "context": "ACK provides self-service AWS resource provisioning as Kubernetes CRDs",
+          "source": "https://aws-controllers-k8s.github.io/community/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["GitOps.?Bridge", "gitops.?bridge", "gitops bridge", "metadata.*cluster"],
+          "context": "The GitOps Bridge pattern connects infrastructure metadata to clusters",
+          "source": "https://github.com/aws-samples/platform-engineering-on-eks"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Pod.?Identity", "IRSA"],
+          "context": "Workload IAM should use Pod Identity or IRSA for credential-free access",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["KubeVela", "OAM", "Open Application Model"],
+          "context": "The application model layer uses KubeVela/OAM for developer-facing abstractions",
+          "source": "https://kubevela.io/"
+        }
+      ],
       "files": []
     },
     {
@@ -24,6 +92,80 @@
         "Explains the app is described with OAM/KubeVela components and traits rather than raw Kubernetes manifests. TODO: human review",
         "Specifies Argo Rollouts canary with quality gates (functional, performance, and/or metrics) that auto-rollback on failure. TODO: human review",
         "Uses Kargo for multi-stage promotion of the same validated artifact, with auto-promotion to dev and manual approval for prod. TODO: human review"
+      ],
+      "process_assertions": [
+        {"type": "step-count", "min": 2, "max": 20},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5},
+        {"type": "no-tool-called", "tool": "Write"},
+        {"type": "no-tool-called", "tool": "Bash"}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Dockerfile", "docker.?file"],
+          "context": "The developer contract includes providing a Dockerfile",
+          "source": "https://github.com/aws-samples/platform-engineering-on-eks"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["OAM", "Application.*manifest", "KubeVela"],
+          "context": "The developer contract uses OAM Application manifests as the app definition",
+          "source": "https://kubevela.io/"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Backstage",
+          "context": "Backstage templates are the front door for the golden path",
+          "source": "https://backstage.io/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Argo.?Workflows", "Argo Workflows"],
+          "context": "Argo Workflows provides the CI pipeline in the golden path",
+          "source": "https://argoproj.github.io/workflows/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Argo.?Rollouts", "canary"],
+          "context": "Progressive delivery uses Argo Rollouts canary strategy with quality gates",
+          "source": "https://argoproj.github.io/rollouts/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["quality.?gate", "functional.?gate", "performance.?gate", "metrics.?gate"],
+          "context": "Canary rollout must include quality gates (functional/performance/metrics)",
+          "source": "https://github.com/aws-samples/platform-engineering-on-eks"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["auto.?rollback", "roll.?back"],
+          "context": "Quality gates trigger automatic rollback on failure",
+          "source": "https://argoproj.github.io/rollouts/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Kargo", "kargo", "promotion"],
+          "context": "Kargo orchestrates multi-stage promotion from dev to prod",
+          "source": "https://kargo.io/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["manual.?approv", "approval.?gate"],
+          "context": "Prod promotion requires manual approval while dev is auto-promoted",
+          "source": "https://kargo.io/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["component", "trait"],
+          "context": "OAM model uses components and traits to abstract raw Kubernetes resources",
+          "source": "https://kubevela.io/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["kro", "CICDPipeline", "resource.?compos"],
+          "context": "kro composes the CI/CD pipeline as a single CRD (CICDPipeline)",
+          "source": "https://kro.run/"
+        }
       ],
       "files": []
     }

@@ -42,6 +42,7 @@ endif
 
 NUM_WORKERS    ?= 10
 RUNS_PER_QUERY ?= 3
+THRESHOLD      ?= 5
 
 # Per-skill default locations (override with WORKSPACE=… / BENCHMARK_DIR=…)
 workspace_dir   = $(EVALS_ROOT)/$(1)/workspace
@@ -71,12 +72,15 @@ AWS_REGION        ?= us-west-2
 PROCESS_T    := $(addprefix process-,$(SKILLS))
 ARTIFACT_T   := $(addprefix artifact-,$(SKILLS))
 KNOWLEDGE_T  := $(addprefix knowledge-,$(SKILLS))
+SNAPSHOT_T   := $(addprefix snapshot-,$(SKILLS))
+REGRESSION_T := $(addprefix regression-,$(SKILLS))
+COMPOSITE_T  := $(addprefix composite-,$(SKILLS))
 
-.PHONY: help list-skills validate-all triggering-all task-all score-full \
+.PHONY: help list-skills validate-all triggering-all task-all task-all-parallel score-full \
         init-evals init-evals-finalize check-evals-coverage hygiene \
-        score score-dry process-all artifact-all knowledge-all \
+        score score-dry process-all artifact-all knowledge-all composite-all \
         $(VALIDATE_T) $(TRIGGERING_T) \
-        $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T) $(KNOWLEDGE_T)
+        $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T) $(KNOWLEDGE_T) $(COMPOSITE_T)
 
 help:
 	@echo "Per-skill targets (SKILL in: $(SKILLS)):"
@@ -90,8 +94,10 @@ help:
 	@echo "  review-<skill>      K  eval-viewer/generate_review --static  (deterministic)"
 	@echo "  task-<skill>        H  run_task_evals.py           (LIVE — subject + grader)"
 	@echo ""
+	@echo "  composite-<skill>  I  composite_score.py          (deterministic — weighted score + grade)"
+	@echo ""
 	@echo "Meta targets:"
-	@echo "  validate-all, triggering-all, process-all, artifact-all, task-all"
+	@echo "  validate-all, triggering-all, process-all, artifact-all, composite-all, task-all"
 	@echo "  score               run triggering for every skill and rewrite README scorecard"
 	@echo "  score-dry           render the scorecard to stdout without editing README"
 	@echo "  score-full          task-all + score (full task + triggering refresh)"
@@ -265,6 +271,9 @@ $(TASK_T): task-%:
 
 task-all: $(TASK_T)
 
+task-all-parallel:
+	$(MAKE) -j10 $(TASK_T)
+
 # ---------- C  process assertions (deterministic; replay against existing runs) -
 # Runs process_assertions.py against the latest events.jsonl files for a skill.
 # No model calls — purely deterministic. Reads assertions from evals.json
@@ -300,6 +309,51 @@ $(KNOWLEDGE_T): knowledge-%:
 	  --skill $*
 
 knowledge-all: $(KNOWLEDGE_T)
+
+# ---------- snapshot (freeze current workspace scores into baselines/) --------
+# No model calls — reads from workspace/latest/ and workspace/runs/.
+# Usage: make snapshot SKILL=eks-best-practices
+#        make snapshot-eks-best-practices
+#        make snapshot-all
+snapshot:
+	@if [ -z "$(SKILL)" ]; then \
+	  echo "usage: make snapshot SKILL=<skill-name>"; exit 1; fi
+	python3 $(EVALS_ROOT)/scripts/snapshot.py --skill $(SKILL)
+
+$(SNAPSHOT_T): snapshot-%:
+	python3 $(EVALS_ROOT)/scripts/snapshot.py --skill $*
+
+snapshot-all: $(SNAPSHOT_T)
+
+# ---------- regression (compare baseline vs current, gate on threshold) -------
+# No model calls — deterministic comparison. Exits 2 on regression.
+# Usage: make regression SKILL=eks-best-practices [THRESHOLD=5]
+#        make regression-eks-best-practices
+#        make regression-all
+regression:
+	@if [ -z "$(SKILL)" ]; then \
+	  echo "usage: make regression SKILL=<skill-name> [THRESHOLD=5]"; exit 1; fi
+	python3 $(EVALS_ROOT)/scripts/regression.py --skill $(SKILL) --threshold $(THRESHOLD)
+
+$(REGRESSION_T): regression-%:
+	python3 $(EVALS_ROOT)/scripts/regression.py --skill $* --threshold $(THRESHOLD)
+
+regression-all: $(REGRESSION_T)
+
+# ---------- composite score (deterministic; reads workspace + .skilleval.yaml) -
+# Computes weighted composite score from all available layers. No model calls.
+# Usage: make composite SKILL=eks-best-practices
+#        make composite-eks-best-practices
+#        make composite-all
+composite:
+	@if [ -z "$(SKILL)" ]; then \
+	  echo "usage: make composite SKILL=<skill-name>"; exit 1; fi
+	python3 $(EVALS_ROOT)/scripts/composite_score.py --skill $(SKILL)
+
+$(COMPOSITE_T): composite-%:
+	python3 $(EVALS_ROOT)/scripts/composite_score.py --skill $*
+
+composite-all: $(COMPOSITE_T)
 
 score-full: task-all score
 
@@ -340,3 +394,7 @@ check-evals-coverage:
 	   exit 1; \
 	 fi; \
 	 echo "✓ All skills have misc/evals/ entries"
+
+# ---------- eval-manifest (deterministic; generates website manifest) ---------
+eval-manifest:
+	python3 $(EVALS_ROOT)/scripts/generate_eval_manifest.py

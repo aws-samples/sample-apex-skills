@@ -1,0 +1,342 @@
+[
+  {
+    "skill": "eks-mcp-server",
+    "score": 100.0,
+    "grade": "A",
+    "created_at": "2026-06-04T06:06:11.432066+00:00",
+    "model": "global.anthropic.claude-opus-4-6-v1",
+    "git_head": "027d0b5",
+    "pass_k_rate": null,
+    "effective_weights": {
+      "triggering": 0.35,
+      "process": 0.1,
+      "knowledge": 0.3,
+      "quality": 0.25
+    },
+    "layers": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 35.0
+      },
+      "process": {
+        "raw_score": 1.0,
+        "weight": 0.1,
+        "contribution": 10.0
+      },
+      "artifact": {
+        "raw_score": null,
+        "weight": 0,
+        "contribution": 0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 25.0
+      }
+    }
+  },
+  {
+    "skill": "eks-platform-engineering",
+    "score": 98.8,
+    "grade": "A",
+    "created_at": "2026-06-04T04:53:42.836032+00:00",
+    "model": "global.anthropic.claude-opus-4-6-v1",
+    "git_head": "027d0b5",
+    "pass_k_rate": null,
+    "effective_weights": {
+      "triggering": 0.2,
+      "process": 0.05,
+      "knowledge": 0.45,
+      "quality": 0.3
+    },
+    "layers": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 20.0
+      },
+      "process": {
+        "raw_score": 0.8,
+        "weight": 0.1,
+        "contribution": 3.8
+      },
+      "artifact": {
+        "raw_score": null,
+        "weight": 0,
+        "contribution": 0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.5,
+        "contribution": 45.0
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      }
+    }
+  },
+  {
+    "skill": "eks-upgrade-check",
+    "score": 97.0,
+    "grade": "A",
+    "created_at": "2026-06-04T04:53:42.823458+00:00",
+    "model": "global.anthropic.claude-opus-4-6-v1",
+    "git_head": "027d0b5",
+    "pass_k_rate": null,
+    "effective_weights": {
+      "triggering": 0.25,
+      "process": 0.15,
+      "knowledge": 0.35,
+      "quality": 0.25
+    },
+    "layers": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 25.0
+      },
+      "process": {
+        "raw_score": 0.8,
+        "weight": 0.1,
+        "contribution": 12.0
+      },
+      "artifact": {
+        "raw_score": null,
+        "weight": 0,
+        "contribution": 0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 35.0
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 25.0
+      }
+    }
+  },
+  {
+    "skill": "eks-recon",
+    "score": 96.3,
+    "grade": "A",
+    "created_at": "2026-06-04T06:48:52.749728+00:00",
+    "model": "global.anthropic.claude-opus-4-6-v1",
+    "git_head": "027d0b5",
+    "pass_k_rate": null,
+    "effective_weights": {
+      "triggering": 0.15,
+      "process": 0.1,
+      "artifact": 0.3,
+      "knowledge": 0.2,
+      "quality": 0.25
+    },
+    "layers": {
+      "triggering": {
+        "raw_score": 0.9,
+        "weight": 0.1,
+        "contribution": 13.8
+      },
+      "process": {
+        "raw_score": 1.0,
+        "weight": 0.1,
+        "contribution": 10.0
+      },
+      "artifact": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 20.0
+      },
+      "quality": {
+        "raw_score": 0.9,
+        "weight": 0.2,
+        "contribution": 22.5
+      }
+    }
+  },
+  {
+    "skill": "eks-operation-review",
+    "score": 95.0,
+    "grade": "A",
+    "created_at": "2026-06-04T04:53:42.813046+00:00",
+    "model": "global.anthropic.claude-opus-4-6-v1",
+    "git_head": "027d0b5",
+    "pass_k_rate": null,
+    "effective_weights": {
+      "triggering": 0.25,
+      "process": 0.1,
+      "artifact": 0.15,
+      "knowledge": 0.2,
+      "quality": 0.3
+    },
+    "layers": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 25.0
+      },
+      "process": {
+        "raw_score": 0.9,
+        "weight": 0.1,
+        "contribution": 8.8
+      },
+      "artifact": {
+        "raw_score": 1.0,
+        "weight": 0.1,
+        "contribution": 15.0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 20.0
+      },
+      "quality": {
+        "raw_score": 0.9,
+        "weight": 0.3,
+        "contribution": 26.2
+      }
+    }
+  },
+  {
+    "skill": "eks-best-practices",
+    "score": 93.1,
+    "grade": "A",
+    "created_at": "2026-06-04T06:48:52.779932+00:00",
+    "model": "global.anthropic.claude-opus-4-6-v1",
+    "git_head": "027d0b5",
+    "pass_k_rate": null,
+    "effective_weights": {
+      "triggering": 0.2,
+      "process": 0.1,
+      "knowledge": 0.4,
+      "quality": 0.3
+    },
+    "layers": {
+      "triggering": {
+        "raw_score": 0.9,
+        "weight": 0.2,
+        "contribution": 17.1
+      },
+      "process": {
+        "raw_score": 1.0,
+        "weight": 0.1,
+        "contribution": 10.0
+      },
+      "artifact": {
+        "raw_score": null,
+        "weight": 0,
+        "contribution": 0
+      },
+      "knowledge": {
+        "raw_score": 0.9,
+        "weight": 0.4,
+        "contribution": 36.0
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      }
+    }
+  },
+  {
+    "skill": "eks-design",
+    "score": 92.3,
+    "grade": "A",
+    "created_at": "2026-06-04T06:48:52.783149+00:00",
+    "model": "global.anthropic.claude-opus-4-6-v1",
+    "git_head": "027d0b5",
+    "pass_k_rate": null,
+    "effective_weights": {
+      "triggering": 0.15,
+      "process": 0.15,
+      "artifact": 0.2,
+      "knowledge": 0.2,
+      "quality": 0.3
+    },
+    "layers": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.1,
+        "contribution": 15.0
+      },
+      "process": {
+        "raw_score": 0.7,
+        "weight": 0.1,
+        "contribution": 10.0
+      },
+      "artifact": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 20.0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 19.2
+      },
+      "quality": {
+        "raw_score": 0.9,
+        "weight": 0.3,
+        "contribution": 28.1
+      }
+    }
+  },
+  {
+    "skill": "eks-build",
+    "score": 90.7,
+    "grade": "A",
+    "created_at": "2026-06-04T06:48:52.768569+00:00",
+    "model": "global.anthropic.claude-opus-4-6-v1",
+    "git_head": "027d0b5",
+    "pass_k_rate": null,
+    "effective_weights": {
+      "triggering": 0.15,
+      "process": 0.1,
+      "artifact": 0.2,
+      "knowledge": 0.25,
+      "quality": 0.3
+    },
+    "layers": {
+      "triggering": {
+        "raw_score": 0.9,
+        "weight": 0.1,
+        "contribution": 13.5
+      },
+      "process": {
+        "raw_score": 0.8,
+        "weight": 0.1,
+        "contribution": 7.5
+      },
+      "artifact": {
+        "raw_score": 0.8,
+        "weight": 0.2,
+        "contribution": 16.5
+      },
+      "knowledge": {
+        "raw_score": 0.9,
+        "weight": 0.2,
+        "contribution": 23.2
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      }
+    }
+  }
+]

@@ -1,0 +1,28 @@
+skill_name: steering-workflow-creator
+artifact_type: markdown
+
+layers:
+  triggering:
+    enabled: true
+  process:
+    enabled: true
+  artifact:
+    enabled: true
+    validators: [structural, script]
+  knowledge:
+    enabled: true
+  quality:
+    enabled: true
+
+weights:
+  triggering: 0.15
+  process: 0.15
+  artifact: 0.25
+  knowledge: 0.25
+  quality: 0.20
+
+regression:
+  threshold: 5.0
+  pass_k: 3
+
+timeout: 1800

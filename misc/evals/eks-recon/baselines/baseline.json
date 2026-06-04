@@ -1,0 +1,113 @@
+{
+  "version": 2,
+  "skill": "eks-recon",
+  "created_at": "2026-06-04T06:48:52.749728+00:00",
+  "git_head": "027d0b5",
+  "eval_set_hash": "f77c45b0f20c94385e7959549dfd1bfd8b6a133430ecaf8aa2507d7bb4d0aa7b",
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "pass_k": 3,
+  "triggering": {
+    "accuracy": 0.9523809523809523,
+    "ci_lo": 1.0,
+    "ci_hi": 1.0,
+    "tpr": 1.0,
+    "tnr": 0.9230769230769231,
+    "flake_count": 0
+  },
+  "task": {
+    "with_skill_mean": 0.9,
+    "with_skill_stddev": 0.1414,
+    "without_skill_mean": 0.875,
+    "pass_k_rate": null,
+    "runs_per_prompt": 3
+  },
+  "process_assertions": {
+    "pass_rate": 1.0,
+    "passed": 6,
+    "total": 6
+  },
+  "artifact_validation": {
+    "pass_rate": 1.0,
+    "passed": 14,
+    "total": 14
+  },
+  "knowledge_assertions": {
+    "pass_rate": 1.0,
+    "passed": 18,
+    "total": 18
+  },
+  "per_eval_cases": {
+    "eval-1": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "total": 9
+      },
+      "process_assertions": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "total": 3
+      },
+      "artifact_validation": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "total": 7
+      }
+    },
+    "eval-2": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "total": 9
+      },
+      "process_assertions": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "total": 3
+      },
+      "artifact_validation": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "total": 7
+      }
+    }
+  },
+  "composite": {
+    "score": 96.3,
+    "grade": "A",
+    "contributions": {
+      "triggering": {
+        "raw_score": 0.9230769230769231,
+        "weight": 0.15,
+        "contribution": 13.846153846153847
+      },
+      "process": {
+        "raw_score": 1.0,
+        "weight": 0.1,
+        "contribution": 10.0
+      },
+      "artifact": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.2,
+        "contribution": 20.0
+      },
+      "quality": {
+        "raw_score": 0.9,
+        "weight": 0.25,
+        "contribution": 22.5
+      }
+    },
+    "effective_weights": {
+      "triggering": 0.15,
+      "process": 0.1,
+      "artifact": 0.3,
+      "knowledge": 0.2,
+      "quality": 0.25
+    }
+  }
+}

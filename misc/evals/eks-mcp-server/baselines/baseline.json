@@ -1,0 +1,93 @@
+{
+  "version": 2,
+  "skill": "eks-mcp-server",
+  "created_at": "2026-06-04T06:06:11.432066+00:00",
+  "git_head": "027d0b5",
+  "eval_set_hash": "d20824ace56fc7173fe3ff03571a19c1ad188056a2c64d877435ba88b9fcf1be",
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "pass_k": 3,
+  "triggering": {
+    "accuracy": 1.0,
+    "ci_lo": 1.0,
+    "ci_hi": 1.0,
+    "tpr": 1.0,
+    "tnr": 1.0,
+    "flake_count": 0
+  },
+  "task": {
+    "with_skill_mean": 1.0,
+    "with_skill_stddev": 0.0,
+    "without_skill_mean": 0.225,
+    "pass_k_rate": null,
+    "runs_per_prompt": 3
+  },
+  "process_assertions": {
+    "pass_rate": 1.0,
+    "passed": 10,
+    "total": 10
+  },
+  "artifact_validation": null,
+  "knowledge_assertions": {
+    "pass_rate": 1.0,
+    "passed": 15,
+    "total": 15
+  },
+  "per_eval_cases": {
+    "eval-1": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "total": 8
+      },
+      "process_assertions": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5
+      }
+    },
+    "eval-2": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "total": 7
+      },
+      "process_assertions": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "total": 5
+      }
+    }
+  },
+  "composite": {
+    "score": 100.0,
+    "grade": "A",
+    "contributions": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.35,
+        "contribution": 35.0
+      },
+      "process": {
+        "raw_score": 1.0,
+        "weight": 0.1,
+        "contribution": 10.0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.25,
+        "contribution": 25.0
+      }
+    },
+    "effective_weights": {
+      "triggering": 0.35,
+      "process": 0.1,
+      "knowledge": 0.3,
+      "quality": 0.25
+    }
+  }
+}

@@ -39,6 +39,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from composite_score import compute_from_workspace
+from skilleval_config import load_config
+
 EVALS_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = EVALS_ROOT.parent.parent
 HISTORY_DIR = EVALS_ROOT / "history"
@@ -705,14 +708,14 @@ def render_scorecard(
     )
     lines.append("")
     lines.append(
-        "| Skill | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |"
+        "| Skill | Grade | Overall | Positive (TPR) | Negative (TNR) | Flakes | ∆ vs prev | Task pass rate (with / without / Δ) | Task Δ vs prev | Hygiene |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|---|")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|")
 
     for s in per_skill:
         if s.get("error"):
             lines.append(
-                f"| {s['skill']} | ERROR | — | — | — | — | — | — | ⚠ |"
+                f"| {s['skill']} | — | ERROR | — | — | — | — | — | — | ⚠ |"
             )
             continue
         m = s["metrics"]
@@ -729,8 +732,9 @@ def render_scorecard(
             s.get("task_benchmark"), s.get("previous_task_mean")
         )
         hygiene_cell = "✓" if s["hygiene"].ok else "⚠"
+        grade_cell = s.get("composite_grade", "—")
         lines.append(
-            f"| {s['skill']} | {overall_cell} | {tpr} | {tnr} | {m['flake_count']} | {delta_cell} | {task_cell} | {task_delta_cell} | {hygiene_cell} |"
+            f"| {s['skill']} | {grade_cell} | {overall_cell} | {tpr} | {tnr} | {m['flake_count']} | {delta_cell} | {task_cell} | {task_delta_cell} | {hygiene_cell} |"
         )
 
     lines.append("")
@@ -999,6 +1003,7 @@ def process_skill(
                 "hygiene": hygiene,
                 "error": "--skip-triggering but no prior workspace/runs/ artefacts",
             }
+        composite = compute_from_workspace(skill, load_config(skill))
         return {
             "skill": skill,
             "hygiene": hygiene,
@@ -1007,6 +1012,7 @@ def process_skill(
             "history_recent": list(reversed(history[-5:])),
             "task_benchmark": task_benchmark,
             "previous_task_mean": prev_task_mean,
+            "composite_grade": f"{composite['grade']} ({composite['score']})" if composite else "—",
         }
 
     snapshot = build_snapshot(
@@ -1047,6 +1053,8 @@ def process_skill(
     # Re-read history after append so the detail block reflects the row we just wrote.
     history_after = read_history(skill)
 
+    composite = compute_from_workspace(skill, load_config(skill))
+
     return {
         "skill": skill,
         "hygiene": hygiene,
@@ -1056,6 +1064,7 @@ def process_skill(
         "run_dir": str(run_dir),
         "task_benchmark": task_benchmark,
         "previous_task_mean": prev_task_mean,
+        "composite_grade": f"{composite['grade']} ({composite['score']})" if composite else "—",
     }
 
 

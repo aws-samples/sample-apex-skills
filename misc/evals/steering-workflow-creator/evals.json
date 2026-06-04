@@ -13,7 +13,99 @@
         "Produces a complete workflow skeleton including frontmatter, H1 title, four-line header block, and all five H2 sections. — TODO: human review",
         "Uses em-dashes (—) rather than double-hyphens (--) in the skeleton's prose. — TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Read", "min": 1},
+        {"type": "step-count", "min": 2, "max": 20},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "name",
+          "context": "Workflow frontmatter requires the 'name' key (lowercase, hyphenated, matches filename)",
+          "source": "skills/steering-workflow-creator/references/convention.md — Frontmatter section"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "description",
+          "context": "Workflow frontmatter requires the 'description' key (one-sentence trigger-optimized)",
+          "source": "skills/steering-workflow-creator/references/convention.md — Frontmatter section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["inclusion.*must not", "inclusion.*must NOT", "inclusion.*reserved", "Do not.*inclusion", "do not.*include.*inclusion"],
+          "context": "Must explicitly warn that inclusion: key must NOT appear on workflow files",
+          "source": "skills/steering-workflow-creator/references/convention.md — Frontmatter section"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Part of",
+          "context": "Header block must include 'Part of:' as its first line",
+          "source": "skills/steering-workflow-creator/references/convention.md — Header block section"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Lifecycle",
+          "context": "Header block must include 'Lifecycle:' as its second line",
+          "source": "skills/steering-workflow-creator/references/convention.md — Header block section"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Access Model",
+          "context": "Header block must include 'Access Model:' as its fourth line",
+          "source": "skills/steering-workflow-creator/references/convention.md — Header block section"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "How to Route Requests",
+          "context": "First required H2 section is 'How to Route Requests'",
+          "source": "skills/steering-workflow-creator/references/convention.md — Required H2 sections"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Quality Checklist",
+          "context": "Fourth required H2 section is 'Quality Checklist'",
+          "source": "skills/steering-workflow-creator/references/convention.md — Required H2 sections"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Conversation Style",
+          "context": "Fifth required H2 section is 'Conversation Style'",
+          "source": "skills/steering-workflow-creator/references/convention.md — Required H2 sections"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Defaults",
+          "context": "Third required H2 section is 'Defaults'",
+          "source": "skills/steering-workflow-creator/references/convention.md — Required H2 sections"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "(?<![-|`])--(?![-|>`])",
+          "context": "Em-dash (U+2014) must be used, not double-hyphen (--). Excludes YAML frontmatter (---), table separators (|---|), backtick-wrapped literals, and arrows (-->).",
+          "source": "skills/steering-workflow-creator/references/convention.md — Style rules",
+          "flags": "m"
+        }
+      ],
+      "artifact_assertions": {
+        "root_glob": "**/steering/workflows",
+        "structural": [
+          {"type": "file-exists", "path": "**/cost-review.md"},
+          {"type": "contains", "file": "**/cost-review.md", "pattern": "^---\\s*\\nname:"},
+          {"type": "contains", "file": "**/cost-review.md", "pattern": "## How to Route Requests"},
+          {"type": "contains", "file": "**/cost-review.md", "pattern": "## Phases"},
+          {"type": "contains", "file": "**/cost-review.md", "pattern": "## Defaults"},
+          {"type": "contains", "file": "**/cost-review.md", "pattern": "## Quality Checklist"},
+          {"type": "contains", "file": "**/cost-review.md", "pattern": "## Conversation Style"},
+          {"type": "contains", "file": "**/cost-review.md", "pattern": "Part of:"},
+          {"type": "contains", "file": "**/cost-review.md", "pattern": "Access Model:"},
+          {"type": "not-contains", "file": "**/cost-review.md", "pattern": "^inclusion:"}
+        ],
+        "validators": [
+          {"type": "script", "path": "skills/steering-workflow-creator/scripts/quick_validate.py", "args": ["{root}/cost-review.md"]}
+        ]
+      }
     },
     {
       "id": 2,
@@ -26,7 +118,125 @@
         "Recommends Access Model: advisory or read-only (not mutating) with reasoning grounded in the workflow producing a plan, not a change. — TODO: human review",
         "Does not invent a fourth Source value — uses only knowledge, live, or either. — TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Read", "min": 1},
+        {"type": "step-count", "min": 2, "max": 15},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "Source:\\s*live",
+          "context": "The describe-db-instances phase must be annotated Source: live because it queries current cluster state",
+          "source": "skills/steering-workflow-creator/references/tool-routing.md — The three information sources: Live MCP tools"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Source:\\s*knowledge", "Source:\\s*either"],
+          "context": "The decision-framework phase should be Source: knowledge (advisory framework) or Source: either",
+          "source": "skills/steering-workflow-creator/references/tool-routing.md — The decision tree: Step 1"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["CLI fallback", "cli fallback", "fallback.*aws rds", "aws rds.*fallback"],
+          "context": "Every Source: live phase must document a named CLI fallback inline",
+          "source": "skills/steering-workflow-creator/references/tool-routing.md — What the workflow author must do, point 3"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Access Model:\\s*advisory", "Access Model:\\s*read-only", "advisory", "read.only"],
+          "context": "A workflow that only reads state and emits a plan should use advisory or read-only access model",
+          "source": "skills/steering-workflow-creator/references/convention.md — Header block: Access Model"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "Source:\\s*(?!live|knowledge|either)[a-z]+",
+          "context": "Only three Source values are valid: knowledge, live, either. No fourth value should be invented.",
+          "source": "skills/steering-workflow-creator/references/tool-routing.md — The three information sources"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Create a complete steering workflow for a Day 1 Lambda deployment review. The workflow should help teams validate their Lambda configuration (memory, timeout, concurrency, VPC placement) before going to production. It plugs into a hypothetical steering/lambda.md hub and uses a lambda-best-practices knowledge skill. Write the full workflow file to steering/workflows/lambda-deploy-review.md and its matching command shim to steering/commands/apex/lambda-deploy-review.md.",
+      "expected_output": "Two complete files: a conforming workflow at steering/workflows/lambda-deploy-review.md with proper frontmatter (name, description), header block (Part of, Lifecycle, Skill, Access Model), all five required H2 sections, Source annotations on phases, STOP gates, and a matching command shim at steering/commands/apex/lambda-deploy-review.md with frontmatter plus objective/execution_context/process tags.",
+      "expectations": [
+        "Creates the workflow file with valid YAML frontmatter containing name and description keys. — TODO: human review",
+        "Workflow header block contains all four labels in order: Part of, Lifecycle, Skill, Access Model. — TODO: human review",
+        "All five required H2 sections present in correct order. — TODO: human review",
+        "At least one STOP gate spelled exactly as **STOP.** appears in the phases. — TODO: human review",
+        "Creates a matching command shim with objective, execution_context, and process tags. — TODO: human review",
+        "Source annotations appear on at least two phases. — TODO: human review"
+      ],
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Write", "min": 2},
+        {"type": "tool-called", "tool": "Read", "min": 1},
+        {"type": "tool-sequence", "sequence": ["Read", "Write"]},
+        {"type": "step-count", "min": 3, "max": 25},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "\\*\\*STOP\\.\\*\\*",
+          "context": "STOP gates must be spelled exactly **STOP.** — bold, period, close bold, space",
+          "source": "skills/steering-workflow-creator/references/convention.md — Required H2 sections: Phases"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Source:\\s*knowledge", "Source:\\s*live", "Source:\\s*either"],
+          "context": "Every phase should have a Source annotation declaring its information source",
+          "source": "skills/steering-workflow-creator/references/tool-routing.md — What the workflow author must do, point 2"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "<objective>",
+          "context": "Command shims must include the <objective> tag",
+          "source": "skills/steering-workflow-creator/assets/command-shim-skeleton.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "<execution_context>",
+          "context": "Command shims must include the <execution_context> tag",
+          "source": "skills/steering-workflow-creator/assets/command-shim-skeleton.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "<process>",
+          "context": "Command shims must include the <process> tag",
+          "source": "skills/steering-workflow-creator/assets/command-shim-skeleton.md"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "inclusion:",
+          "context": "Workflow files must not include the inclusion: frontmatter key",
+          "source": "skills/steering-workflow-creator/references/convention.md — Frontmatter section"
+        }
+      ],
+      "artifact_assertions": {
+        "root_glob": "**/steering",
+        "structural": [
+          {"type": "file-exists", "path": "**/workflows/lambda-deploy-review.md"},
+          {"type": "file-exists", "path": "**/commands/apex/lambda-deploy-review.md"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "^---\\s*\\nname:"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "## How to Route Requests"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "## Phases"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "## Defaults"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "## Quality Checklist"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "## Conversation Style"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "\\*\\*STOP\\.\\*\\*"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "Source:"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "Part of:"},
+          {"type": "contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "Access Model:"},
+          {"type": "not-contains", "file": "**/workflows/lambda-deploy-review.md", "pattern": "^inclusion:"},
+          {"type": "contains", "file": "**/commands/apex/lambda-deploy-review.md", "pattern": "<objective>"},
+          {"type": "contains", "file": "**/commands/apex/lambda-deploy-review.md", "pattern": "<execution_context>"},
+          {"type": "contains", "file": "**/commands/apex/lambda-deploy-review.md", "pattern": "<process>"}
+        ],
+        "validators": []
+      }
     }
   ]
 }

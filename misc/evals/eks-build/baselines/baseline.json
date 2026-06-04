@@ -1,0 +1,130 @@
+{
+  "version": 2,
+  "skill": "eks-build",
+  "created_at": "2026-06-04T06:48:52.768569+00:00",
+  "git_head": "027d0b5",
+  "eval_set_hash": "140d7225f89bf75a7cc50ce67ccc4df51fa86bf72ac68e4704232ad4a5abef40",
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "pass_k": 3,
+  "triggering": {
+    "accuracy": 0.95,
+    "ci_lo": 0.9,
+    "ci_hi": 1.0,
+    "tpr": 0.9,
+    "tnr": 1.0,
+    "flake_count": 0
+  },
+  "task": {
+    "with_skill_mean": 1.0,
+    "with_skill_stddev": 0.0,
+    "without_skill_mean": 0.75,
+    "pass_k_rate": null,
+    "runs_per_prompt": 3
+  },
+  "process_assertions": {
+    "pass_rate": 0.75,
+    "passed": 9,
+    "total": 12
+  },
+  "artifact_validation": {
+    "pass_rate": 0.8260869565217391,
+    "passed": 19,
+    "total": 23
+  },
+  "knowledge_assertions": {
+    "pass_rate": 0.9285714285714286,
+    "passed": 39,
+    "total": 42
+  },
+  "per_eval_cases": {
+    "eval-1": {
+      "knowledge_assertions": {
+        "pass_rate": 0.8888888888888888,
+        "passed": 16,
+        "total": 18
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      },
+      "artifact_validation": {
+        "pass_rate": 0.8333333333333334,
+        "passed": 10,
+        "total": 12
+      }
+    },
+    "eval-2": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 11,
+        "total": 11
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      },
+      "artifact_validation": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "total": 5
+      }
+    },
+    "eval-3": {
+      "knowledge_assertions": {
+        "pass_rate": 0.9230769230769231,
+        "passed": 12,
+        "total": 13
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      },
+      "artifact_validation": {
+        "pass_rate": 0.8333333333333334,
+        "passed": 5,
+        "total": 6
+      }
+    }
+  },
+  "composite": {
+    "score": 90.7,
+    "grade": "A",
+    "contributions": {
+      "triggering": {
+        "raw_score": 0.9,
+        "weight": 0.15,
+        "contribution": 13.5
+      },
+      "process": {
+        "raw_score": 0.75,
+        "weight": 0.1,
+        "contribution": 7.500000000000001
+      },
+      "artifact": {
+        "raw_score": 0.8260869565217391,
+        "weight": 0.2,
+        "contribution": 16.521739130434785
+      },
+      "knowledge": {
+        "raw_score": 0.9285714285714286,
+        "weight": 0.25,
+        "contribution": 23.214285714285715
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.3,
+        "contribution": 30.0
+      }
+    },
+    "effective_weights": {
+      "triggering": 0.15,
+      "process": 0.1,
+      "artifact": 0.2,
+      "knowledge": 0.25,
+      "quality": 0.3
+    }
+  }
+}

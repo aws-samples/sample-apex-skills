@@ -1,0 +1,27 @@
+skill_name: eks-mcp-server
+artifact_type: null
+
+layers:
+  triggering:
+    enabled: true
+  process:
+    enabled: true
+  artifact:
+    enabled: false
+    validators: []
+  knowledge:
+    enabled: true
+  quality:
+    enabled: true
+
+weights:
+  triggering: 0.35
+  process: 0.10
+  knowledge: 0.30
+  quality: 0.25
+
+regression:
+  threshold: 5.0
+  pass_k: 3
+
+timeout: 1800

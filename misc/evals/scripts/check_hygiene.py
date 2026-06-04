@@ -194,7 +194,38 @@ def main() -> int:
                         f"evals.json prompt id={pid}: validators[{i}] type=script requires 'path'"
                     )
 
-        # 6. knowledge_assertions schema validation (if present).
+        # 6. .skilleval.yaml presence and basic structure.
+        skilleval_path = rae.EVALS_ROOT / skill / ".skilleval.yaml"
+        if not skilleval_path.exists():
+            warnings.append(f"missing .skilleval.yaml at {skilleval_path}")
+        else:
+            try:
+                import yaml
+                skilleval_raw = yaml.safe_load(skilleval_path.read_text()) or {}
+                if not isinstance(skilleval_raw, dict):
+                    warnings.append(".skilleval.yaml must be a YAML mapping")
+                else:
+                    if "skill_name" not in skilleval_raw:
+                        warnings.append(".skilleval.yaml missing 'skill_name' field")
+                    elif skilleval_raw["skill_name"] != skill:
+                        warnings.append(
+                            f".skilleval.yaml skill_name '{skilleval_raw['skill_name']}' "
+                            f"does not match directory name '{skill}'"
+                        )
+                    if "weights" not in skilleval_raw:
+                        warnings.append(".skilleval.yaml missing 'weights' field")
+                    elif isinstance(skilleval_raw["weights"], dict):
+                        wsum = sum(float(v) for v in skilleval_raw["weights"].values())
+                        if abs(wsum - 1.0) > 0.01:
+                            warnings.append(
+                                f".skilleval.yaml weights sum to {wsum:.3f} (expected ~1.0)"
+                            )
+            except ImportError:
+                pass  # PyYAML not available — skip validation
+            except Exception as e:
+                warnings.append(f".skilleval.yaml parse error: {e}")
+
+        # 7. knowledge_assertions schema validation (if present).
         VALID_KNOWLEDGE_TYPES = {
             "must-contain", "must-not-contain", "must-contain-one-of", "regex-match",
         }

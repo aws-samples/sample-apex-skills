@@ -1,0 +1,129 @@
+{
+  "version": 2,
+  "skill": "eks-upgrade-check",
+  "created_at": "2026-06-04T04:53:42.823458+00:00",
+  "git_head": "027d0b5",
+  "eval_set_hash": "00d4c072d6d6155b1937cbd051194a553afec8c1b3b875e256d64ee4158eb4f6",
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "pass_k": 3,
+  "triggering": {
+    "accuracy": 1.0,
+    "ci_lo": 0.8453561767357979,
+    "ci_hi": 0.9999999999999998,
+    "tpr": 1.0,
+    "tnr": 1.0,
+    "flake_count": 1
+  },
+  "task": {
+    "with_skill_mean": 1.0,
+    "with_skill_stddev": 0.0,
+    "without_skill_mean": 0.35,
+    "pass_k_rate": null,
+    "runs_per_prompt": 3
+  },
+  "process_assertions": {
+    "pass_rate": 0.8,
+    "passed": 16,
+    "total": 20
+  },
+  "artifact_validation": null,
+  "knowledge_assertions": {
+    "pass_rate": 1.0,
+    "passed": 38,
+    "total": 38
+  },
+  "per_eval_cases": {
+    "eval-1": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "total": 7
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      }
+    },
+    "eval-2": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "total": 8
+      },
+      "process_assertions": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "total": 4
+      }
+    },
+    "eval-3": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "total": 8
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      }
+    },
+    "eval-4": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "total": 8
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      }
+    },
+    "eval-5": {
+      "knowledge_assertions": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "total": 7
+      },
+      "process_assertions": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "total": 4
+      }
+    }
+  },
+  "composite": {
+    "score": 97.0,
+    "grade": "A",
+    "contributions": {
+      "triggering": {
+        "raw_score": 1.0,
+        "weight": 0.25,
+        "contribution": 25.0
+      },
+      "process": {
+        "raw_score": 0.8,
+        "weight": 0.15,
+        "contribution": 12.0
+      },
+      "knowledge": {
+        "raw_score": 1.0,
+        "weight": 0.35,
+        "contribution": 35.0
+      },
+      "quality": {
+        "raw_score": 1.0,
+        "weight": 0.25,
+        "contribution": 25.0
+      }
+    },
+    "effective_weights": {
+      "triggering": 0.25,
+      "process": 0.15,
+      "knowledge": 0.35,
+      "quality": 0.25
+    }
+  }
+}

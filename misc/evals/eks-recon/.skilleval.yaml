@@ -1,0 +1,28 @@
+skill_name: eks-recon
+artifact_type: yaml
+
+layers:
+  triggering:
+    enabled: true
+  process:
+    enabled: true
+  artifact:
+    enabled: true
+    validators: [structural]
+  knowledge:
+    enabled: true
+  quality:
+    enabled: true
+
+weights:
+  triggering: 0.15
+  process: 0.10
+  artifact: 0.30
+  knowledge: 0.20
+  quality: 0.25
+
+regression:
+  threshold: 5.0
+  pass_k: 3
+
+timeout: 1800

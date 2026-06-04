@@ -4,7 +4,8 @@
     {
       "id": 1,
       "name": "full-review-test-old-cluster",
-      "prompt": "Run a full EKS operational review against `test-old-cluster` in us-east-1. Activate the eks-operation-review skill, run the pre-flight (list clusters, describe the chosen cluster, verify MCP connectivity, confirm with the user), then walk through all 10 sections in order (cluster-lifecycle, infrastructure-as-code, access-identity, observability, workload-configuration, networking, autoscaling, deployment-practices, operational-processes, addon-management) by reading each reference file and executing its checks. Rate each item GREEN/AMBER/RED/UNKNOWN per the rubric. End by reading `references/report-generation.md` and producing a markdown report at `reports/EKS-Operation-Review-test-old-cluster-<YYYY-MM-DD>-<HHMM>.md` with executive summary, maturity score, all 10 finding sections, prioritized actions (Critical/Important/Quick Wins), items to investigate manually, and AWS reference links. Do NOT fabricate findings — only rate based on what was actually observed; if a check returns no data, mark UNKNOWN.",
+      "prompt": "Run a full operational excellence assessment on the EKS cluster currently configured in my kubeconfig. Cover all 10 sections and produce the rated report.",
+      "live_only": true,
       "expected_output": "A markdown report with executive summary, maturity score, 10 sections of findings with consistent ratings, prioritized actions ordered by severity, items to investigate manually, and AWS reference links sourced from the pre-verified reference map.",
       "expectations": [
         "The report contains all required top-level sections in this order: Executive Summary, Maturity Score, Findings (with all 10 numbered sections present), Prioritized Actions (Critical, Important, Quick Wins), Items to Investigate Manually, AWS Reference Links. TODO: human review",
@@ -14,12 +15,112 @@
         "Every RED finding has a specific, actionable recommendation (not boilerplate like 'enable logging'); UNKNOWN items are explained in 'Items to Investigate Manually' with a question the user can answer. TODO: human review",
         "All AWS reference URLs come from the pre-verified reference map in `references/report-generation.md` Step 7 — no fabricated deep-link URLs. TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Read", "min": 10},
+        {"type": "tool-called", "tool": "Write", "min": 1},
+        {"type": "tool-sequence", "sequence": ["Read", "Read", "Write"]},
+        {"type": "step-count", "min": 15, "max": 60}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "Executive Summary",
+          "context": "Report must include an Executive Summary section",
+          "source": "skills/eks-operation-review/references/report-generation.md Step 3"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Maturity Score",
+          "context": "Report must include a Maturity Score section",
+          "source": "skills/eks-operation-review/references/report-generation.md Step 2"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Prioritized Actions", "Prioriti[sz]ed.?Action"],
+          "context": "Report must include Prioritized Actions section with Critical/Important/Quick Wins",
+          "source": "skills/eks-operation-review/references/report-generation.md Step 5"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["GREEN", "AMBER", "RED", "UNKNOWN"],
+          "context": "Findings must use the standard rating vocabulary",
+          "source": "skills/eks-operation-review/references/cluster-lifecycle.md Rating section"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Cluster Lifecycle",
+          "context": "Section 01 (Cluster Lifecycle & Upgrades) must be present in a full review",
+          "source": "skills/eks-operation-review/references/cluster-lifecycle.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Access.*Identity", "Access & Identity"],
+          "context": "Section 03 (Access & Identity) must be present in a full review",
+          "source": "skills/eks-operation-review/references/access-identity.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Observability",
+          "context": "Section 04 (Observability) must be present in a full review",
+          "source": "skills/eks-operation-review/references/observability.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Networking",
+          "context": "Section 06 (Networking) must be present in a full review",
+          "source": "skills/eks-operation-review/references/networking.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Autoscaling",
+          "context": "Section 07 (Autoscaling) must be present in a full review",
+          "source": "skills/eks-operation-review/references/autoscaling.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Add-on Management", "Add.on Management", "Addon Management"],
+          "context": "Section 10 (Add-on Management) must be present in a full review",
+          "source": "skills/eks-operation-review/references/addon-management.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["docs\\.aws\\.amazon\\.com/eks", "https://docs.aws.amazon.com/eks"],
+          "context": "Report must include AWS reference links from the pre-verified reference map",
+          "source": "skills/eks-operation-review/references/report-generation.md Step 7"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "sample code for educational and demonstration purposes only",
+          "context": "Report must include the sample-code disclaimer footer",
+          "source": "skills/eks-operation-review/references/report-generation.md Step 8b"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "kube2iam",
+          "context": "Must not recommend deprecated kube2iam for IAM",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
+        }
+      ],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "file-exists", "path": "**/EKS-Operation-Review-*.md"},
+          {"type": "file-count", "glob": "**/EKS-Operation-Review-*.md", "min": 1},
+          {"type": "contains", "file": "**/EKS-Operation-Review-*.md", "pattern": "Executive Summary"},
+          {"type": "contains", "file": "**/EKS-Operation-Review-*.md", "pattern": "Maturity Score"},
+          {"type": "contains", "file": "**/EKS-Operation-Review-*.md", "pattern": "(GREEN|AMBER|RED|UNKNOWN)"},
+          {"type": "contains", "file": "**/EKS-Operation-Review-*.md", "pattern": "(Critical|Important|Quick Wins)"},
+          {"type": "contains", "file": "**/EKS-Operation-Review-*.md", "pattern": "docs\\.aws\\.amazon\\.com"}
+        ]
+      }
     },
     {
       "id": 2,
       "name": "section-scoped-networking-review",
-      "prompt": "Review just the EKS networking section of `test-old-cluster` in us-east-1. Activate the eks-operation-review skill, run pre-flight (list clusters, describe, verify MCP), then load only `references/networking.md` and execute its checks (IP capacity in cluster subnets, CoreDNS pod health, NetworkPolicy resource presence). Rate each networking item GREEN/AMBER/RED/UNKNOWN. Produce a focused report covering only Section 06 (Networking) with the same rating consistency rules as a full review.",
+      "prompt": "Run a networking-scoped operational review on the EKS cluster in my current kubeconfig context.",
+      "live_only": true,
       "expected_output": "A focused report containing only the networking section findings, with consistent ratings, prioritized actions for any networking RED/AMBER findings, and AWS reference links scoped to networking topics.",
       "expectations": [
         "The report focuses on Section 06 (Networking) only — does NOT include findings from other sections like Cluster Lifecycle, Access & Identity, etc. TODO: human review",
@@ -27,7 +128,78 @@
         "Networking findings are rated only on observed data: subnet IP capacity is checked against actual subnets, CoreDNS health against actual pod state, NetworkPolicy presence against actual cluster resources. TODO: human review",
         "If any networking check fails (e.g., MCP unable to list resources, missing permissions), the corresponding item is marked UNKNOWN with a specific reason — not silently skipped or guessed. TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Read", "min": 2},
+        {"type": "tool-called", "tool": "Write", "min": 1},
+        {"type": "tool-sequence", "sequence": ["Read", "Write"]},
+        {"type": "step-count", "min": 5, "max": 60}
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "Networking",
+          "context": "Report must cover the Networking section",
+          "source": "skills/eks-operation-review/references/networking.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["GREEN", "AMBER", "RED", "UNKNOWN"],
+          "context": "Findings must use the standard rating vocabulary",
+          "source": "skills/eks-operation-review/references/networking.md Rating section"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["IP capacity", "IP headroom", "subnet", "available IP"],
+          "context": "Networking review must assess VPC subnet IP capacity",
+          "source": "skills/eks-operation-review/references/networking.md check 6.1"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["CoreDNS", "coredns", "kube-dns"],
+          "context": "Networking review must assess CoreDNS health",
+          "source": "skills/eks-operation-review/references/networking.md check 6.2"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["NetworkPolicy", "network.?polic"],
+          "context": "Networking review must check for NetworkPolicy presence",
+          "source": "skills/eks-operation-review/references/networking.md check 6.3"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["VPC CNI", "vpc-cni", "amazon-vpc-cni"],
+          "context": "Networking review must reference VPC CNI as the networking plugin",
+          "source": "skills/eks-operation-review/references/networking.md check 6.1"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["prefix.?delegation", "ENABLE_PREFIX_DELEGATION"],
+          "context": "Networking review should check for prefix delegation configuration",
+          "source": "skills/eks-operation-review/references/networking.md check 6.1"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "Cluster Lifecycle.*Upgrades",
+          "context": "Section-scoped review must NOT include other sections like Cluster Lifecycle",
+          "source": "skills/eks-operation-review/SKILL.md section-scoped review behavior"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["docs\\.aws\\.amazon\\.com/eks", "https://docs.aws.amazon.com/eks"],
+          "context": "Report must include AWS reference links for networking topics",
+          "source": "skills/eks-operation-review/references/report-generation.md Step 7 Section 06"
+        }
+      ],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "file-exists", "path": "**/*Review*.md"},
+          {"type": "contains", "file": "**/*Review*.md", "pattern": "[Nn]etwork"},
+          {"type": "contains", "file": "**/*Review*.md", "pattern": "(GREEN|AMBER|RED|UNKNOWN)"}
+        ]
+      }
     }
   ]
 }

@@ -433,6 +433,333 @@ def _eval_hcl_resource_exists(root: Path, assertion: dict) -> ArtifactAssertionR
     )
 
 
+def _eval_hcl_attribute_check(root: Path, assertion: dict) -> ArtifactAssertionResult:
+    """Check that a specific attribute exists (or matches a value) within an HCL resource block.
+
+    Schema:
+        type: hcl-attribute-check
+        resource: aws_eks_cluster          # resource type
+        resource_name: main                # optional; if omitted checks all instances
+        attribute: encryption_config.provider.key_arn  # dot-separated path
+        exists: true                       # or "value": "regex_pattern"
+        file: main.tf                      # optional; if omitted searches all .tf files
+    """
+    resource_type = assertion["resource"]
+    resource_name = assertion.get("resource_name")  # optional
+    attribute_path = assertion["attribute"]
+    check_exists = assertion.get("exists")  # bool or None
+    value_pattern = assertion.get("value")  # regex string or None
+    file_filter = assertion.get("file")  # optional filename
+
+    # Determine which .tf files to search
+    if file_filter:
+        tf_files = _resolve_glob(root, f"**/{file_filter}")
+    else:
+        tf_files = _resolve_glob(root, "**/*.tf")
+
+    if not tf_files:
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="skipped",
+            evidence=f"No .tf files found" + (f" matching '{file_filter}'" if file_filter else ""),
+            failure_class=None,
+            file_matched=None,
+        )
+
+    # Try to use python-hcl2 for accurate parsing
+    hcl2_available = False
+    try:
+        import hcl2 as _hcl2
+        hcl2_available = True
+    except ImportError:
+        pass
+
+    if hcl2_available:
+        return _hcl_attribute_check_parsed(root, assertion, tf_files, resource_type, resource_name, attribute_path, check_exists, value_pattern)
+    else:
+        return _hcl_attribute_check_regex(root, assertion, tf_files, resource_type, resource_name, attribute_path, check_exists, value_pattern)
+
+
+def _navigate_attribute_path(obj: Any, path_parts: list[str]) -> tuple[bool, Any]:
+    """Navigate a nested dict/list structure following dot-separated path parts.
+
+    Returns (found: bool, value: Any).
+    """
+    current = obj
+    for part in path_parts:
+        if isinstance(current, dict):
+            if part in current:
+                current = current[part]
+            else:
+                return False, None
+        elif isinstance(current, list):
+            # HCL2 parser wraps blocks in lists; search each element
+            found_in_list = False
+            for item in current:
+                found, val = _navigate_attribute_path(item, [part])
+                if found:
+                    current = val
+                    found_in_list = True
+                    break
+            if not found_in_list:
+                return False, None
+        else:
+            return False, None
+    return True, current
+
+
+def _hcl_attribute_check_parsed(
+    root: Path,
+    assertion: dict,
+    tf_files: list[Path],
+    resource_type: str,
+    resource_name: str | None,
+    attribute_path: str,
+    check_exists: bool | None,
+    value_pattern: str | None,
+) -> ArtifactAssertionResult:
+    """HCL attribute check using python-hcl2 parser."""
+    import hcl2
+
+    path_parts = attribute_path.split(".")
+
+    for f in tf_files:
+        try:
+            with open(f, "r") as fh:
+                parsed = hcl2.load(fh)
+        except Exception as e:
+            rel = f.relative_to(root)
+            return ArtifactAssertionResult(
+                assertion=assertion,
+                status="failed",
+                evidence=f"HCL parse error in {rel}: {e}",
+                failure_class="artifact_invalid",
+                file_matched=str(rel),
+            )
+
+        # hcl2.load returns {"resource": [{"aws_eks_cluster": {"main": {...}}}], ...}
+        resources = parsed.get("resource", [])
+        for resource_block in resources:
+            if not isinstance(resource_block, dict):
+                continue
+            if resource_type not in resource_block:
+                continue
+            type_block = resource_block[resource_type]
+            if not isinstance(type_block, dict):
+                continue
+
+            # Determine which resource names to check
+            names_to_check = [resource_name] if resource_name else list(type_block.keys())
+
+            for name in names_to_check:
+                if name not in type_block:
+                    continue
+                body = type_block[name]
+
+                found, value = _navigate_attribute_path(body, path_parts)
+                rel = f.relative_to(root)
+
+                if check_exists is True and found:
+                    return ArtifactAssertionResult(
+                        assertion=assertion,
+                        status="passed",
+                        evidence=f"Attribute '{attribute_path}' exists in {resource_type}.{name} ({rel})",
+                        failure_class=None,
+                        file_matched=str(rel),
+                    )
+                elif check_exists is False and not found:
+                    return ArtifactAssertionResult(
+                        assertion=assertion,
+                        status="passed",
+                        evidence=f"Attribute '{attribute_path}' absent from {resource_type}.{name} ({rel}) as required",
+                        failure_class=None,
+                        file_matched=str(rel),
+                    )
+                elif value_pattern is not None and found:
+                    str_value = str(value) if not isinstance(value, str) else value
+                    if re.search(value_pattern, str_value):
+                        return ArtifactAssertionResult(
+                            assertion=assertion,
+                            status="passed",
+                            evidence=f"Attribute '{attribute_path}' in {resource_type}.{name} matches pattern '{value_pattern}' ({rel})",
+                            failure_class=None,
+                            file_matched=str(rel),
+                        )
+
+    # Nothing matched — determine correct failure message
+    name_label = f".{resource_name}" if resource_name else ""
+    if check_exists is True:
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="failed",
+            evidence=f"Attribute '{attribute_path}' not found in any {resource_type}{name_label} resource across {len(tf_files)} .tf files",
+            failure_class="artifact_invalid",
+            file_matched=None,
+        )
+    elif check_exists is False:
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="failed",
+            evidence=f"Attribute '{attribute_path}' unexpectedly present in {resource_type}{name_label}",
+            failure_class="artifact_invalid",
+            file_matched=None,
+        )
+    elif value_pattern is not None:
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="failed",
+            evidence=f"Attribute '{attribute_path}' in {resource_type}{name_label} did not match pattern '{value_pattern}' (or attribute/resource not found)",
+            failure_class="artifact_invalid",
+            file_matched=None,
+        )
+    else:
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="failed",
+            evidence=f"No matching assertion condition for {resource_type}{name_label}.{attribute_path}",
+            failure_class="artifact_invalid",
+            file_matched=None,
+        )
+
+
+def _hcl_attribute_check_regex(
+    root: Path,
+    assertion: dict,
+    tf_files: list[Path],
+    resource_type: str,
+    resource_name: str | None,
+    attribute_path: str,
+    check_exists: bool | None,
+    value_pattern: str | None,
+) -> ArtifactAssertionResult:
+    """Regex-based fallback for HCL attribute check (when python-hcl2 is unavailable).
+
+    Best-effort heuristic — locates the resource block by regex, then searches for
+    the leaf attribute name within it.
+    """
+    import warnings
+    warnings.warn("python-hcl2 not available; hcl-attribute-check using regex fallback (results may be imprecise)", stacklevel=2)
+
+    # Build regex for the resource block header
+    if resource_name:
+        block_pattern = rf'resource\s+"{re.escape(resource_type)}"\s+"{re.escape(resource_name)}"\s*\{{'
+    else:
+        block_pattern = rf'resource\s+"{re.escape(resource_type)}"\s+"[^"]+"\s*\{{'
+
+    # The leaf attribute is the last segment of the dot path
+    leaf_attr = attribute_path.split(".")[-1]
+
+    for f in tf_files:
+        try:
+            content = f.read_text(errors="replace")
+        except OSError:
+            continue
+
+        for match in re.finditer(block_pattern, content):
+            # Extract the block body by counting braces
+            start = match.start()
+            brace_count = 0
+            block_body = ""
+            for i in range(match.end() - 1, len(content)):
+                ch = content[i]
+                if ch == "{":
+                    brace_count += 1
+                elif ch == "}":
+                    brace_count -= 1
+                    if brace_count == 0:
+                        block_body = content[match.end():i]
+                        break
+
+            if not block_body:
+                continue
+
+            # Search for the leaf attribute in the block
+            # Match attribute assignment (=) or block label
+            attr_found = re.search(
+                rf'(?:^|\n)\s*{re.escape(leaf_attr)}\s*[=\{{]', block_body
+            )
+
+            rel = f.relative_to(root)
+
+            if check_exists is True:
+                if attr_found:
+                    return ArtifactAssertionResult(
+                        assertion=assertion,
+                        status="passed",
+                        evidence=f"Attribute '{attribute_path}' found in {resource_type} block ({rel}) [regex heuristic]",
+                        failure_class=None,
+                        file_matched=str(rel),
+                    )
+            elif check_exists is False:
+                if not attr_found:
+                    return ArtifactAssertionResult(
+                        assertion=assertion,
+                        status="passed",
+                        evidence=f"Attribute '{attribute_path}' absent from {resource_type} block ({rel}) as required [regex heuristic]",
+                        failure_class=None,
+                        file_matched=str(rel),
+                    )
+                else:
+                    return ArtifactAssertionResult(
+                        assertion=assertion,
+                        status="failed",
+                        evidence=f"Attribute '{attribute_path}' unexpectedly present in {resource_type} block ({rel}) [regex heuristic]",
+                        failure_class="artifact_invalid",
+                        file_matched=str(rel),
+                    )
+            elif value_pattern is not None:
+                if attr_found:
+                    # Try to extract the value after the attribute
+                    value_match = re.search(
+                        rf'{re.escape(leaf_attr)}\s*=\s*["\']?([^"\'\n\r]*)["\']?',
+                        block_body,
+                    )
+                    if value_match and re.search(value_pattern, value_match.group(1)):
+                        return ArtifactAssertionResult(
+                            assertion=assertion,
+                            status="passed",
+                            evidence=f"Attribute '{attribute_path}' matches pattern '{value_pattern}' in {resource_type} block ({rel}) [regex heuristic]",
+                            failure_class=None,
+                            file_matched=str(rel),
+                        )
+
+    # Nothing matched
+    name_label = f".{resource_name}" if resource_name else ""
+    if check_exists is True:
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="failed",
+            evidence=f"Attribute '{attribute_path}' not found in any {resource_type}{name_label} resource [regex heuristic]",
+            failure_class="artifact_invalid",
+            file_matched=None,
+        )
+    elif check_exists is False:
+        # If we didn't find the resource at all, it's effectively absent
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="passed",
+            evidence=f"No {resource_type}{name_label} resource found, so attribute is absent [regex heuristic]",
+            failure_class=None,
+            file_matched=None,
+        )
+    elif value_pattern is not None:
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="failed",
+            evidence=f"Attribute '{attribute_path}' in {resource_type}{name_label} did not match pattern '{value_pattern}' (or not found) [regex heuristic]",
+            failure_class="artifact_invalid",
+            file_matched=None,
+        )
+    else:
+        return ArtifactAssertionResult(
+            assertion=assertion,
+            status="failed",
+            evidence=f"No matching assertion condition for {resource_type}{name_label}.{attribute_path} [regex heuristic]",
+            failure_class="artifact_invalid",
+            file_matched=None,
+        )
+
+
 def _eval_mermaid_valid(root: Path, assertion: dict) -> ArtifactAssertionResult:
     paths_patterns = assertion["paths"]
     all_files: list[Path] = []
@@ -502,6 +829,7 @@ _STRUCTURAL_EVALUATORS = {
     "json-valid": _eval_json_valid,
     "file-count": _eval_file_count,
     "hcl-resource-exists": _eval_hcl_resource_exists,
+    "hcl-attribute-check": _eval_hcl_attribute_check,
     "mermaid-valid": _eval_mermaid_valid,
 }
 

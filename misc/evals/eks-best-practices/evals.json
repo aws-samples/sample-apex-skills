@@ -45,9 +45,21 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["consolidat", "bin.?pack", "instance.?flex"],
-          "context": "Must cite a concrete Karpenter benefit (consolidation, bin-packing, or instance flexibility)",
+          "patterns": ["consolidat", "WhenEmptyOrUnderutilized", "consolidateAfter"],
+          "context": "Must cite Karpenter disruption-specific consolidation mechanics, not just generic benefits",
           "source": "https://karpenter.sh/docs/concepts/disruption/#consolidation"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["topologySpreadConstraint", "topology.kubernetes.io/zone"],
+          "context": "Multi-tenant scheduling must reference topology spread constraints for AZ balance",
+          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["Pod.?Identity", "EKS Pod Identity"],
+          "context": "Must recommend modern EKS Pod Identity (not just IRSA) for workload IAM",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html"
         },
         {
           "type": "must-contain-one-of",
@@ -61,6 +73,11 @@
           "context": "kube2iam is deprecated; must not recommend it",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         }
+      ],
+      "process_assertions": [
+        {"type": "step-count", "min": 1, "max": 15},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "files": []
     },
@@ -120,14 +137,14 @@
         },
         {
           "type": "regex-match",
-          "pattern": "3000[0-9]|3[12][0-9]{3}",
+          "pattern": "3000[0-9]|3[12][0-9]{3}|30000.*32767|NodePort.*range|high.?(number|port)|expose.*every.?node|open.*on.*(all|every).?node",
           "context": "Should mention NodePort high port range (30000-32767) as a concrete detail",
           "source": "https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport",
-          "flags": ""
+          "flags": "i"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["privilege.?escalat", "security.*(anti.?pattern|risk|issue)"],
+          "patterns": ["privilege.?escalat", "blast.?radius", "lateral.?mov", "compromis", "attack.?surface", "security.*(anti.?pattern|risk|issue)"],
           "context": "Must frame node-role IAM as a security risk, not just a recommendation",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         },
@@ -137,6 +154,11 @@
           "context": "kube2iam is deprecated; must not recommend it",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         }
+      ],
+      "process_assertions": [
+        {"type": "step-count", "min": 1, "max": 15},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "files": []
     }

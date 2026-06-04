@@ -9,9 +9,17 @@ from __future__ import annotations
 
 import json
 import sys
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+try:
+    import jsonschema
+
+    _HAS_JSONSCHEMA = True
+except ImportError:
+    _HAS_JSONSCHEMA = False
 
 from parse_trajectory import Trajectory, ToolCall, parse_events_file
 
@@ -299,6 +307,85 @@ def _eval_tool_effectiveness(trajectory: Trajectory, assertion: dict) -> Asserti
     )
 
 
+def _validate_against_schema(instance: dict, schema: dict) -> bool:
+    """Validate instance against JSON Schema. Falls back to basic checks if jsonschema unavailable."""
+    if _HAS_JSONSCHEMA:
+        try:
+            jsonschema.validate(instance, schema)
+            return True
+        except jsonschema.ValidationError:
+            return False
+    # Fallback: basic type + required checking
+    warnings.warn("jsonschema package not installed; using basic type/required validation only")
+    if schema.get("type") == "object" and not isinstance(instance, dict):
+        return False
+    for req in schema.get("required", []):
+        if req not in instance:
+            return False
+    return True
+
+
+def _eval_tool_args_schema(trajectory: Trajectory, assertion: dict) -> AssertionResult:
+    tool = assertion["tool"]
+    schema = assertion["schema"]
+    require_all = assertion.get("all", False)
+    min_matches = assertion.get("min")
+
+    all_calls = _all_tool_calls(trajectory)
+    tool_calls = [tc for tc in all_calls if tc.name == tool]
+
+    if not tool_calls:
+        return AssertionResult(
+            assertion=assertion,
+            passed=False,
+            evidence=f"Tool '{tool}' was never called",
+            failure_class="invalid_tool_args",
+            matching_calls=[],
+        )
+
+    matching: list[int] = []
+    for tc in tool_calls:
+        if _validate_against_schema(tc.input, schema):
+            matching.append(tc.index)
+
+    if require_all and len(matching) != len(tool_calls):
+        non_matching = [tc.index for tc in tool_calls if tc.index not in matching]
+        return AssertionResult(
+            assertion=assertion,
+            passed=False,
+            evidence=f"Tool '{tool}': {len(matching)}/{len(tool_calls)} calls match schema; "
+            f"non-matching indices: {non_matching}",
+            failure_class="invalid_tool_args",
+            matching_calls=matching,
+        )
+
+    if min_matches is not None and len(matching) < min_matches:
+        return AssertionResult(
+            assertion=assertion,
+            passed=False,
+            evidence=f"Tool '{tool}': {len(matching)} calls match schema, expected min {min_matches}",
+            failure_class="invalid_tool_args",
+            matching_calls=matching,
+        )
+
+    if not matching:
+        return AssertionResult(
+            assertion=assertion,
+            passed=False,
+            evidence=f"Tool '{tool}': 0/{len(tool_calls)} calls match schema",
+            failure_class="invalid_tool_args",
+            matching_calls=[],
+        )
+
+    return AssertionResult(
+        assertion=assertion,
+        passed=True,
+        evidence=f"Tool '{tool}': {len(matching)}/{len(tool_calls)} calls match schema",
+        failure_class=None,
+        matching_calls=matching,
+    )
+
+
 _EVALUATORS = {
     "tool-called": _eval_tool_called,
     "tool-sequence": _eval_tool_sequence,
@@ -306,6 +393,7 @@ _EVALUATORS = {
     "step-count": _eval_step_count,
     "no-tool-called": _eval_no_tool_called,
     "tool-effectiveness": _eval_tool_effectiveness,
+    "tool-args-schema": _eval_tool_args_schema,
 }
 
 
