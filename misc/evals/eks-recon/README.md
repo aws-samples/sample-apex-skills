@@ -26,8 +26,14 @@ The `triggering.json` evals (run via `run_triggering.py`) are unaffected — the
 
 ## How to run
 
-See `misc/evals/README.md` for the full invocation surface. From `misc/evals/` the relevant Makefile targets are:
+From `misc/evals/`:
+- `make validate-eks-recon` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-recon` — triggering accuracy score (LIVE)
+- `make task-eks-recon` — task evals with grader (LIVE)
+- `make process-eks-recon` — process assertions against latest trajectory (deterministic)
+- `make artifact-eks-recon` — artifact validation against outputs/ (deterministic)
+- `make composite-eks-recon` — weighted composite score + letter grade (deterministic)
+- `make snapshot-eks-recon` — freeze current scores as baseline
+- `make regression-eks-recon` — compare against baseline, report delta
 
-```bash
-make validate-eks-recon triggering-eks-recon
-```
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

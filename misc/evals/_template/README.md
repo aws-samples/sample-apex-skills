@@ -22,8 +22,11 @@
 ## How to run
 
 From `misc/evals/`:
-- `make validate-<REPLACE>` — frontmatter + 64/1024-char limits
-- `make triggering-<REPLACE>` — triggering accuracy score
-- `make benchmark-<REPLACE>` — aggregate task-eval stats
+- `make validate-<REPLACE>` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-<REPLACE>` — triggering accuracy score (LIVE)
+- `make task-<REPLACE>` — task evals with grader (LIVE)
+- `make process-<REPLACE>` — process assertions against latest trajectory (deterministic)
+- `make artifact-<REPLACE>` — artifact validation against outputs/ (deterministic)
+- `make composite-<REPLACE>` — weighted composite score + letter grade (deterministic)
 
-See `misc/evals/README.md` for the full capability catalogue (A–K).
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

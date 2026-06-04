@@ -18,7 +18,7 @@ sample-apex-skills/
 ├── steering/     → 🎯 Guided workflows (optional — structured engagement playbooks)
 ├── examples/     → 🏗️ Hands-on exercises (deployable labs with planted issues)
 └── misc/         → 🔧 Maintenance and tooling
-    ├── evals/    → 🧪 Per-skill evaluation inputs (triggering + task prompts)
+    ├── evals/    → 🧪 5-layer skill evaluation framework (triggering, process, artifact, knowledge, quality)
     └── (scripts) → Sync skills from sources, update cross-references
 ```
 

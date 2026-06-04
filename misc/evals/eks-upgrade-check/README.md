@@ -28,8 +28,13 @@ The five `evals.json` tasks are **fully self-contained mock-data prompts**: each
 ## How to run
 
 From `misc/evals/`:
-- `make validate-eks-upgrade-check` — frontmatter + 64/1024-char limits
-- `make triggering-eks-upgrade-check` — triggering accuracy score
-- `make benchmark-eks-upgrade-check` — aggregate task-eval stats
+- `make validate-eks-upgrade-check` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-upgrade-check` — triggering accuracy score (LIVE)
+- `make task-eks-upgrade-check` — task evals with grader (LIVE)
+- `make process-eks-upgrade-check` — process assertions against latest trajectory (deterministic)
+- `make artifact-eks-upgrade-check` — artifact validation against outputs/ (deterministic)
+- `make composite-eks-upgrade-check` — weighted composite score + letter grade (deterministic)
+- `make snapshot-eks-upgrade-check` — freeze current scores as baseline
+- `make regression-eks-upgrade-check` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K).
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

@@ -1,6 +1,6 @@
-# `misc/evals/` — per-skill evaluation home
+# `misc/evals/` — 5-layer skill evaluation framework
 
-This directory hosts evaluation inputs for every in-repo skill that this repo owns (i.e. everything under `skills/` except the upstream-synced `skill-creator` and `terraform-skill`). Each entry has the shape `misc/evals/<skill>/{triggering.json, evals.json, README.md, files/}`. The scorecard below renders from live triggering runs; the authoritative list of currently-covered skills is the scorecard's row set, which re-generates every time `make score` runs.
+This directory hosts the 5-layer evaluation framework for all 10 maintained skills (everything under `skills/` except upstream-synced `skill-creator` and `terraform-skill`). Layers: triggering → process → artifact → knowledge → quality, with composite scoring and letter grades. Each skill entry has the shape `misc/evals/<skill>/{triggering.json, evals.json, .skilleval.yaml, README.md, files/, baselines/}`. The scorecard below renders from live runs; the authoritative skill list is the scorecard's row set.
 
 The harness code lives at two levels: the reusable bits (`quick_validate.py`, `aggregate_benchmark.py`, `run_loop.py`, grader/comparator/analyzer agents) are upstream under `skills/skill-creator/` and are invoked via the top-level `Makefile`; the repo-specific runners (`run_all_evals.py`, `run_triggering.py`, `run_task_evals.py`, `check_hygiene.py`, `update_sibling_map.py`, `render_siblings.py`) live in `scripts/` here.
 
@@ -787,14 +787,6 @@ make check-evals-coverage                     # coverage parity (skills/ vs misc
 
 All three are deterministic, no model calls. `init-evals-finalize` is scoped to one skill and runs the same checks CI runs — use it as the pre-PR floor.
 
-### The CI gate
-
-`.github/workflows/evals.yml` runs two jobs on every PR that touches `skills/**`, `misc/evals/**`, or the workflow file itself:
-
-- **coverage** — `make check-evals-coverage`. Fails when a new `skills/<name>/` has no matching `misc/evals/<name>/`.
-- **hygiene** — `make hygiene`. Fails on malformed `triggering.json`, malformed `evals.json`, missing or unparseable SIBLING_MAP blocks, under-count positives/negatives, and frontmatter issues (`quick_validate` failures).
-
-No Bedrock, no EKS cluster, no model calls — the gate is offline and cheap. The live-model `make score` run is a local / scheduled action, not per-PR.
 
 ## The working-directory quirk
 

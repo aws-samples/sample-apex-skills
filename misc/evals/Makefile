@@ -1,4 +1,4 @@
-# misc/evals/Makefile — drives skill-creator eval machinery for the 4 in-scope skills.
+# misc/evals/Makefile — drives skill-creator eval machinery for all maintained skills.
 #
 # All module-mode scripts require cwd = skills/skill-creator/ (scripts/ is a Python
 # package with an empty __init__.py, so `python3 -m scripts.<name>` is mandatory).

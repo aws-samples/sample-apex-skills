@@ -29,8 +29,13 @@ Neither `evals.json` task needs a live cluster, MCP server, or AWS credentials. 
 ## How to run
 
 From `misc/evals/`:
-- `make validate-steering-workflow-creator` — frontmatter + 64/1024-char limits
-- `make triggering-steering-workflow-creator` — triggering accuracy score
-- `make benchmark-steering-workflow-creator` — aggregate task-eval stats
+- `make validate-steering-workflow-creator` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-steering-workflow-creator` — triggering accuracy score (LIVE)
+- `make task-steering-workflow-creator` — task evals with grader (LIVE)
+- `make process-steering-workflow-creator` — process assertions against latest trajectory (deterministic)
+- `make artifact-steering-workflow-creator` — artifact validation against outputs/ (deterministic)
+- `make composite-steering-workflow-creator` — weighted composite score + letter grade (deterministic)
+- `make snapshot-steering-workflow-creator` — freeze current scores as baseline
+- `make regression-steering-workflow-creator` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K).
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

@@ -26,8 +26,13 @@ These evals do not require a live EKS cluster or MCP server. All prompts carry s
 ## How to run
 
 From `misc/evals/`:
-- `make validate-eks-build` — frontmatter + 64/1024-char limits
-- `make triggering-eks-build` — triggering accuracy score
-- `make benchmark-eks-build` — aggregate task-eval stats
+- `make validate-eks-build` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-build` — triggering accuracy score (LIVE)
+- `make task-eks-build` — task evals with grader (LIVE)
+- `make process-eks-build` — process assertions against latest trajectory (deterministic)
+- `make artifact-eks-build` — artifact validation against outputs/ (deterministic)
+- `make composite-eks-build` — weighted composite score + letter grade (deterministic)
+- `make snapshot-eks-build` — freeze current scores as baseline
+- `make regression-eks-build` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K).
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

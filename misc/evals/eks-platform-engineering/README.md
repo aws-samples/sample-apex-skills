@@ -26,8 +26,13 @@ The key discriminator: the prompt asks how to build or operate a *platform* that
 ## How to run
 
 From `misc/evals/`:
-- `make validate-eks-platform-engineering` — frontmatter + 64/1024-char limits
-- `make triggering-eks-platform-engineering` — triggering accuracy score
-- `make benchmark-eks-platform-engineering BENCHMARK_DIR=…` — aggregate task-eval stats
+- `make validate-eks-platform-engineering` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-platform-engineering` — triggering accuracy score (LIVE)
+- `make task-eks-platform-engineering` — task evals with grader (LIVE)
+- `make process-eks-platform-engineering` — process assertions against latest trajectory (deterministic)
+- `make artifact-eks-platform-engineering` — artifact validation against outputs/ (deterministic)
+- `make composite-eks-platform-engineering` — weighted composite score + letter grade (deterministic)
+- `make snapshot-eks-platform-engineering` — freeze current scores as baseline
+- `make regression-eks-platform-engineering` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K).
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

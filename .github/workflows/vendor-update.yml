@@ -151,7 +151,6 @@ jobs:
             ### Checklist
             - [ ] Sync script transforms applied cleanly
             - [ ] No unexpected file deletions
-            - [ ] Evals still pass (CI will verify)
           commit-message: "chore(vendor): sync ${{ matrix.skill.name }} from upstream"
           labels: |
             vendor-update

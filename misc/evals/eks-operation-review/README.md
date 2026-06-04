@@ -31,8 +31,13 @@ If MCP is unavailable, the skill stops cleanly at pre-flight Action 3 with troub
 ## How to run
 
 From `misc/evals/`:
-- `make validate-eks-operation-review` — frontmatter + 64/1024-char limits
-- `make triggering-eks-operation-review` — triggering accuracy score
-- `make benchmark-eks-operation-review` — aggregate task-eval stats
+- `make validate-eks-operation-review` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-operation-review` — triggering accuracy score (LIVE)
+- `make task-eks-operation-review` — task evals with grader (LIVE)
+- `make process-eks-operation-review` — process assertions against latest trajectory (deterministic)
+- `make artifact-eks-operation-review` — artifact validation against outputs/ (deterministic)
+- `make composite-eks-operation-review` — weighted composite score + letter grade (deterministic)
+- `make snapshot-eks-operation-review` — freeze current scores as baseline
+- `make regression-eks-operation-review` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K).
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

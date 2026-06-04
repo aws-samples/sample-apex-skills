@@ -26,8 +26,13 @@ Both `evals.json` tasks are self-contained — all required context is embedded 
 ## How to run
 
 From `misc/evals/`:
-- `make validate-eks-design` — frontmatter + 64/1024-char limits
-- `make triggering-eks-design` — triggering accuracy score
-- `make benchmark-eks-design` — aggregate task-eval stats
+- `make validate-eks-design` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-design` — triggering accuracy score (LIVE)
+- `make task-eks-design` — task evals with grader (LIVE)
+- `make process-eks-design` — process assertions against latest trajectory (deterministic)
+- `make artifact-eks-design` — artifact validation against outputs/ (deterministic)
+- `make composite-eks-design` — weighted composite score + letter grade (deterministic)
+- `make snapshot-eks-design` — freeze current scores as baseline
+- `make regression-eks-design` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A-K).
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

@@ -28,4 +28,14 @@ The key discriminators for `eks-best-practices`: the prompt asks for a *decision
 
 ## How to run
 
-See `misc/evals/README.md` for the full workflow. Per-skill Makefile targets: `make triggering-eks-best-practices` (triggering accuracy), `make benchmark-eks-best-practices BENCHMARK_DIR=…` (aggregate `grading.json` files into `benchmark.md`).
+From `misc/evals/`:
+- `make validate-eks-best-practices` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-best-practices` — triggering accuracy score (LIVE)
+- `make task-eks-best-practices` — task evals with grader (LIVE)
+- `make process-eks-best-practices` — process assertions against latest trajectory (deterministic)
+- `make artifact-eks-best-practices` — artifact validation against outputs/ (deterministic)
+- `make composite-eks-best-practices` — weighted composite score + letter grade (deterministic)
+- `make snapshot-eks-best-practices` — freeze current scores as baseline
+- `make regression-eks-best-practices` — compare against baseline, report delta
+
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

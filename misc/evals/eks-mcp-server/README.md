@@ -21,4 +21,14 @@ The two eval prompts in `evals.json` are about **talking about** the EKS MCP Ser
 
 ## How to run
 
-See `misc/evals/README.md` for the full harness description. Per-skill Makefile targets: `make triggering-eks-mcp-server` (triggering accuracy), `make benchmark-eks-mcp-server BENCHMARK_DIR=…` (aggregate `grading.json` files into `benchmark.md`).
+From `misc/evals/`:
+- `make validate-eks-mcp-server` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-mcp-server` — triggering accuracy score (LIVE)
+- `make task-eks-mcp-server` — task evals with grader (LIVE)
+- `make process-eks-mcp-server` — process assertions against latest trajectory (deterministic)
+- `make artifact-eks-mcp-server` — artifact validation against outputs/ (deterministic)
+- `make composite-eks-mcp-server` — weighted composite score + letter grade (deterministic)
+- `make snapshot-eks-mcp-server` — freeze current scores as baseline
+- `make regression-eks-mcp-server` — compare against baseline, report delta
+
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

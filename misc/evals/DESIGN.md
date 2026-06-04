@@ -1,7 +1,7 @@
 # Eval Framework v2 — Design Document
 
 **Issue:** #29
-**Status:** Draft
+**Status:** Active
 **Date:** 2026-06-03
 
 ## Problem Statement

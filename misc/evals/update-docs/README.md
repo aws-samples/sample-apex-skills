@@ -27,8 +27,13 @@ Neither `evals.json` task needs a live cluster, MCP server, or AWS credentials. 
 ## How to run
 
 From `misc/evals/`:
-- `make validate-update-docs` — frontmatter + 64/1024-char limits
-- `make triggering-update-docs` — triggering accuracy score
-- `make benchmark-update-docs` — aggregate task-eval stats
+- `make validate-update-docs` — frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-update-docs` — triggering accuracy score (LIVE)
+- `make task-update-docs` — task evals with grader (LIVE)
+- `make process-update-docs` — process assertions against latest trajectory (deterministic)
+- `make artifact-update-docs` — artifact validation against outputs/ (deterministic)
+- `make composite-update-docs` — weighted composite score + letter grade (deterministic)
+- `make snapshot-update-docs` — freeze current scores as baseline
+- `make regression-update-docs` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K).
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.

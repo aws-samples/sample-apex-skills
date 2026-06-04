@@ -24,7 +24,7 @@ make validate-all      # frontmatter + 64/1024-char limits (deterministic, no li
 make triggering-all    # triggering accuracy (requires live `claude -p` session)
 ```
 
-`validate-all` is safe to run anywhere. `triggering-all` fans out across all 4 in-scope skills and takes minutes per skill — see [`evals/README.md`](./evals/README.md) for cost/time notes, per-skill targets, the full capability catalogue (A–K), and the onboarding path for adding a new skill.
+`validate-all` is safe to run anywhere. `triggering-all` fans out across all 10 maintained skills and takes minutes per skill. The eval framework uses a 5-layer architecture (triggering → process → artifact → knowledge → quality) with composite scoring and letter grades — see [`evals/README.md`](./evals/README.md) for the full capability catalogue (A–K) and the onboarding path for adding a new skill.
 
 ## Update README - Skills and Steering  
 
