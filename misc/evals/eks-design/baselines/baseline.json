@@ -1,8 +1,8 @@
 {
   "version": 2,
   "skill": "eks-design",
-  "created_at": "2026-06-04T08:42:01.671532+00:00",
-  "git_head": "8526b13",
+  "created_at": "2026-06-04T09:17:34.019695+00:00",
+  "git_head": "0562112",
   "eval_set_hash": "d20390c9e4544386d5b14429d8d07e6ae979b3f76c8ffade38c938726bfe7dae",
   "model": "global.anthropic.claude-opus-4-6-v1",
   "pass_k": 3,
