@@ -5,26 +5,7 @@ This folder contains miscellaneous scripts to help maintain this repo.
 
 ## Evaluate Skills
 
-Per-skill evaluation inputs (triggering tests and task prompts) live under [`evals/`](./evals/). These feed the tooling in [`skills/skill-creator/`](../skills/skill-creator/).
-
-**Check that every skill has an eval entry** (coverage — no live model needed):
-
-```bash
-cd evals
-make check-evals-coverage
-```
-
-Fails with a list of missing skills and a hint to run `make init-evals SKILL=<name>`. Exits 0 when every `skills/<name>/` (minus upstream-synced `skill-creator` and `terraform-skill`) has a matching `evals/<name>/`.
-
-**Evaluate all skills**:
-
-```bash
-cd evals
-make validate-all      # frontmatter + 64/1024-char limits (deterministic, no live model)
-make triggering-all    # triggering accuracy (requires live `claude -p` session)
-```
-
-`validate-all` is safe to run anywhere. `triggering-all` fans out across all 10 maintained skills and takes minutes per skill. The eval framework uses a 5-layer architecture (triggering → process → artifact → knowledge → quality) with composite scoring and letter grades — see [`evals/README.md`](./evals/README.md) for the full capability catalogue (A–K) and the onboarding path for adding a new skill.
+Per-skill evaluation inputs live under [`evals/`](./evals/). The eval framework uses a 5-layer architecture (triggering → process → artifact → knowledge → quality) with composite scoring and letter grades. Evals are maintainer-run — see [`evals/README.md`](./evals/README.md) for the manual update workflow.
 
 ## Update README - Skills and Steering  
 

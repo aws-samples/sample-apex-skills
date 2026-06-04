@@ -116,6 +116,11 @@ const config: Config = {
           label: 'Examples',
         },
         {
+          to: '/docs/workshop',
+          position: 'left',
+          label: 'Workshop',
+        },
+        {
           to: '/docs/contributing',
           position: 'left',
           label: 'Contributing',
