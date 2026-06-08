@@ -124,18 +124,17 @@ def load_run_results(benchmark_dir: Path) -> dict:
                     continue
 
                 # Extract metrics
-                summary = grading.get("summary") or {}
                 result = {
                     "eval_id": eval_id,
                     "run_number": run_number,
-                    "pass_rate": summary.get("pass_rate", 0.0),
-                    "passed": summary.get("passed", 0),
-                    "failed": summary.get("failed", 0),
-                    "total": summary.get("total", 0),
+                    "pass_rate": grading.get("summary", {}).get("pass_rate", 0.0),
+                    "passed": grading.get("summary", {}).get("passed", 0),
+                    "failed": grading.get("summary", {}).get("failed", 0),
+                    "total": grading.get("summary", {}).get("total", 0),
                 }
 
                 # Extract timing — check grading.json first, then sibling timing.json
-                timing = grading.get("timing") or {}
+                timing = grading.get("timing", {})
                 result["time_seconds"] = timing.get("total_duration_seconds", 0.0)
                 timing_file = run_dir / "timing.json"
                 if result["time_seconds"] == 0.0 and timing_file.exists():
@@ -148,25 +147,25 @@ def load_run_results(benchmark_dir: Path) -> dict:
                         pass
 
                 # Extract metrics if available
-                metrics = grading.get("execution_metrics") or {}
+                metrics = grading.get("execution_metrics", {})
                 result["tool_calls"] = metrics.get("total_tool_calls", 0)
                 if not result.get("tokens"):
                     result["tokens"] = metrics.get("output_chars", 0)
                 result["errors"] = metrics.get("errors_encountered", 0)
 
                 # Extract expectations — viewer requires fields: text, passed, evidence
-                raw_expectations = grading.get("expectations") or []
+                raw_expectations = grading.get("expectations", [])
                 for exp in raw_expectations:
                     if "text" not in exp or "passed" not in exp:
                         print(f"Warning: expectation in {grading_file} missing required fields (text, passed, evidence): {exp}")
                 result["expectations"] = raw_expectations
 
                 # Extract notes from user_notes_summary
-                notes_summary = grading.get("user_notes_summary") or {}
+                notes_summary = grading.get("user_notes_summary", {})
                 notes = []
-                notes.extend(notes_summary.get("uncertainties") or [])
-                notes.extend(notes_summary.get("needs_review") or [])
-                notes.extend(notes_summary.get("workarounds") or [])
+                notes.extend(notes_summary.get("uncertainties", []))
+                notes.extend(notes_summary.get("needs_review", []))
+                notes.extend(notes_summary.get("workarounds", []))
                 result["notes"] = notes
 
                 results[config].append(result)
@@ -206,15 +205,15 @@ def aggregate_results(results: dict) -> dict:
 
     # Calculate delta between the first two configs (if two exist)
     if len(configs) >= 2:
-        primary = run_summary.get(configs[0]) or {}
-        baseline = run_summary.get(configs[1]) or {}
+        primary = run_summary.get(configs[0], {})
+        baseline = run_summary.get(configs[1], {})
     else:
-        primary = (run_summary.get(configs[0]) or {}) if configs else {}
+        primary = run_summary.get(configs[0], {}) if configs else {}
         baseline = {}
 
-    delta_pass_rate = (primary.get("pass_rate") or {}).get("mean", 0) - (baseline.get("pass_rate") or {}).get("mean", 0)
-    delta_time = (primary.get("time_seconds") or {}).get("mean", 0) - (baseline.get("time_seconds") or {}).get("mean", 0)
-    delta_tokens = (primary.get("tokens") or {}).get("mean", 0) - (baseline.get("tokens") or {}).get("mean", 0)
+    delta_pass_rate = primary.get("pass_rate", {}).get("mean", 0) - baseline.get("pass_rate", {}).get("mean", 0)
+    delta_time = primary.get("time_seconds", {}).get("mean", 0) - baseline.get("time_seconds", {}).get("mean", 0)
+    delta_tokens = primary.get("tokens", {}).get("mean", 0) - baseline.get("tokens", {}).get("mean", 0)
 
     run_summary["delta"] = {
         "pass_rate": f"{delta_pass_rate:+.2f}",
@@ -304,23 +303,23 @@ def generate_markdown(benchmark: dict) -> str:
         "|--------|------------|---------------|-------|",
     ]
 
-    a_summary = run_summary.get(config_a) or {}
-    b_summary = run_summary.get(config_b) or {}
-    delta = run_summary.get("delta") or {}
+    a_summary = run_summary.get(config_a, {})
+    b_summary = run_summary.get(config_b, {})
+    delta = run_summary.get("delta", {})
 
     # Format pass rate
-    a_pr = a_summary.get("pass_rate") or {}
-    b_pr = b_summary.get("pass_rate") or {}
+    a_pr = a_summary.get("pass_rate", {})
+    b_pr = b_summary.get("pass_rate", {})
     lines.append(f"| Pass Rate | {a_pr.get('mean', 0)*100:.0f}% ± {a_pr.get('stddev', 0)*100:.0f}% | {b_pr.get('mean', 0)*100:.0f}% ± {b_pr.get('stddev', 0)*100:.0f}% | {delta.get('pass_rate', '—')} |")
 
     # Format time
-    a_time = a_summary.get("time_seconds") or {}
-    b_time = b_summary.get("time_seconds") or {}
+    a_time = a_summary.get("time_seconds", {})
+    b_time = b_summary.get("time_seconds", {})
     lines.append(f"| Time | {a_time.get('mean', 0):.1f}s ± {a_time.get('stddev', 0):.1f}s | {b_time.get('mean', 0):.1f}s ± {b_time.get('stddev', 0):.1f}s | {delta.get('time_seconds', '—')}s |")
 
     # Format tokens
-    a_tokens = a_summary.get("tokens") or {}
-    b_tokens = b_summary.get("tokens") or {}
+    a_tokens = a_summary.get("tokens", {})
+    b_tokens = b_summary.get("tokens", {})
     lines.append(f"| Tokens | {a_tokens.get('mean', 0):.0f} ± {a_tokens.get('stddev', 0):.0f} | {b_tokens.get('mean', 0):.0f} ± {b_tokens.get('stddev', 0):.0f} | {delta.get('tokens', '—')} |")
 
     # Notes section
@@ -388,7 +387,7 @@ def main():
     # Print summary
     run_summary = benchmark["run_summary"]
     configs = [k for k in run_summary if k != "delta"]
-    delta = run_summary.get("delta") or {}
+    delta = run_summary.get("delta", {})
 
     print(f"\nSummary:")
     for config in configs:
