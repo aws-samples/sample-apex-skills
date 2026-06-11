@@ -215,21 +215,6 @@ Assess EKS cluster upgrade readiness — run automated checks across 8 areas (ve
 
 ---
 
-### [pptx](./pptx/)
-
-Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations; reading, parsing, or extracting text from any .pptx file (even if the extracted content will be used elsewhere, like in an email or summary); editing, modifying, or updating existing presentations; combining or splitting slide files; working with templates, layouts, speaker notes, or comments. Trigger whenever the user mentions "deck," "slides," "presentation," or references a .pptx filename, regardless of what they plan to do with the content afterward. If a .pptx file needs to be opened, created, or touched, use this skill.
-
-**Scripts:**
-
-| Script | Description |
-|--------|-------------|
-| [__init__.py](./pptx/scripts/__init__.py) | __init__ |
-| [add_slide.py](./pptx/scripts/add_slide.py) | Add_slide |
-| [clean.py](./pptx/scripts/clean.py) | Clean |
-| [thumbnail.py](./pptx/scripts/thumbnail.py) | Thumbnail |
-
----
-
 ### [skill-creator](./skill-creator/)
 
 Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
