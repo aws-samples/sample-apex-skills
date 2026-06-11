@@ -1,6 +1,6 @@
 ---
 name: eks-mcp-server
-description: Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Amazon Q CLI, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions "eks mcp", "mcp server", "mcp.json", or "mcp tools not showing". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades).
+description: Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions "eks mcp", "mcp server", "mcp.json", or "mcp tools not showing". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades).
 ---
 
 # EKS MCP Server Setup
@@ -50,7 +50,6 @@ Ask which AI assistant they're configuring. Supported options and their config l
 | Assistant | Config location |
 |-----------|----------------|
 | Claude Code | `.mcp.json` (project-scope) or `~/.claude.json` (user-scope) |
-| Amazon Q Developer CLI | `~/.aws/amazonq/mcp.json` |
 | Cursor IDE | Settings → Cursor Settings → Tools & MCP → New MCP Server |
 | Kiro IDE | `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json` |
 | VS Code (Cline) | Cmd/Ctrl+Shift+P → "MCP" → Add Server → Open User Configuration |

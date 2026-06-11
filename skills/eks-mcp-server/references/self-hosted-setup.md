@@ -123,7 +123,6 @@ Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 
 | Assistant | Config File |
 |-----------|-------------|
-| Amazon Q CLI | `~/.aws/amazonq/mcp.json` |
 | Claude Code | `.mcp.json` (project) or `~/.claude.json` (user, via `claude mcp add -s user`) |
 | Cursor | Settings → Tools & MCP |
 | Kiro | `~/.kiro/settings/mcp.json` |

@@ -58,7 +58,6 @@ The same JSON below works for every supported assistant — only the config file
 
 | Assistant | Config File / Entry Point | Notes |
 |-----------|---------------------------|-------|
-| Amazon Q Developer CLI | `~/.aws/amazonq/mcp.json` | — |
 | Claude Code | `.mcp.json` (project) or `~/.claude.json` (user) | Prefer project-scope `.mcp.json` (checked in, shared with teammates). For user scope, run `claude mcp add -s user` — do not hand-edit `~/.claude.json`. |
 | Cursor IDE | Settings → Cursor Settings → Tools & MCP → New MCP Server | — |
 | Kiro IDE | `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json` | — |
