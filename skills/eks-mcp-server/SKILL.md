@@ -29,14 +29,7 @@ If MCP tools are available and working, **stop here** — skip this skill and pr
 
 ### Step 1: Hosting Mode
 
-Ask the user:
-
-> **Which hosting mode do you want?**
->
-> 1. **AWS-Hosted (Managed)** — fully managed by AWS, zero local maintenance, requires AWS credentials and IAM permissions, CloudTrail audit logging included
-> 2. **Self-Hosted (Open Source)** — runs locally via `uvx`, supports kubeconfig/OIDC auth, works in air-gapped environments, you manage updates
->
-> *Choose AWS-Hosted if you have AWS credentials and want the simplest setup. Choose Self-Hosted if you need OIDC/kubeconfig auth, air-gapped support, or want to run without AWS IAM.*
+Ask which hosting mode: **AWS-Hosted** (managed by AWS, requires IAM, CloudTrail audit logging) or **Self-Hosted** (local via `uvx`, supports kubeconfig/OIDC, works air-gapped). Explain the trade-off: AWS-Hosted is simplest if you have credentials; Self-Hosted if you need OIDC/kubeconfig auth or air-gapped support.
 
 Wait for the user's answer before proceeding.
 
@@ -44,14 +37,7 @@ Wait for the user's answer before proceeding.
 
 ### Step 2: Access Level
 
-Ask the user:
-
-> **What access level do you need?**
->
-> 1. **Read-only** — list clusters, describe resources, view logs, read K8s state. Cannot create, modify, or delete anything. Recommended to start.
-> 2. **Full access** — everything in read-only plus create/update/delete operations on K8s resources, CloudFormation stacks, and IAM policies.
->
-> *Start with read-only if you're unsure. You can upgrade later by changing one flag.*
+Ask what access level: **Read-only** (list, describe, view — cannot modify anything) or **Full access** (read-only plus create/update/delete on K8s resources, CloudFormation, IAM). Recommend read-only to start — can upgrade later by changing one flag.
 
 Wait for the user's answer before proceeding.
 
@@ -59,15 +45,15 @@ Wait for the user's answer before proceeding.
 
 ### Step 3: AI Assistant
 
-Ask the user:
+Ask which AI assistant they're configuring. Supported options and their config locations:
 
-> **Which AI assistant are you configuring?**
->
-> 1. **Claude Code** — `.mcp.json` (project-scope, shareable) or `~/.claude.json` (user-scope)
-> 2. **Amazon Q Developer CLI** — `~/.aws/amazonq/mcp.json`
-> 3. **Cursor IDE** — Settings → Cursor Settings → Tools & MCP → New MCP Server
-> 4. **Kiro IDE** — `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json`
-> 5. **VS Code (Cline Extension)** — Cmd/Ctrl+Shift+P → "MCP" → Add Server → Open User Configuration
+| Assistant | Config location |
+|-----------|----------------|
+| Claude Code | `.mcp.json` (project-scope) or `~/.claude.json` (user-scope) |
+| Amazon Q Developer CLI | `~/.aws/amazonq/mcp.json` |
+| Cursor IDE | Settings → Cursor Settings → Tools & MCP → New MCP Server |
+| Kiro IDE | `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json` |
+| VS Code (Cline) | Cmd/Ctrl+Shift+P → "MCP" → Add Server → Open User Configuration |
 
 Wait for the user's answer before proceeding.
 
@@ -75,11 +61,7 @@ Wait for the user's answer before proceeding.
 
 ### Step 4: Region & Profile
 
-Ask the user:
-
-> **Which AWS region are your EKS clusters in?** (e.g., `us-west-2`, `eu-west-1`)
->
-> **Optional:** Do you use a named AWS profile? If so, which one? (default: `default`)
+Ask which AWS region their EKS clusters are in (e.g., `us-west-2`, `eu-west-1`). Also ask if they use a named AWS profile (default: `default`). Region and profile can be asked together — they're a single decision point.
 
 Wait for the user's answer before proceeding.
 
@@ -87,14 +69,19 @@ Wait for the user's answer before proceeding.
 
 ### Step 5: Configure
 
-Based on the answers from Steps 1–4, read the appropriate reference file and generate the exact configuration:
+**Action 1 — Load reference file**
 
 | Hosting mode | Reference file |
 |---|---|
 | AWS-Hosted | `${CLAUDE_SKILL_DIR}/references/aws-hosted-setup.md` |
 | Self-Hosted | `${CLAUDE_SKILL_DIR}/references/self-hosted-setup.md` |
 
-After reading the reference file:
+- Success → Proceed to Action 2.
+- Failure (file not found) → STOP. Show: "Cannot read reference file at `<path>`. Verify the skill is installed correctly (`npx apex-skills` or check `skills/eks-mcp-server/references/`)." Wait for the user to resolve.
+
+**Action 2 — Generate config**
+
+Based on the answers from Steps 1–4 and the reference file content:
 
 1. Generate the complete JSON config block tailored to the user's choices (hosting mode, access level, region, profile, assistant)
 2. Show the user exactly where to paste it (file path or UI location from Step 3)
@@ -113,7 +100,14 @@ Guide the user through verification:
 2. **Test** — Ask the user to try: "List my EKS clusters" or "What EKS MCP tools are available?"
 3. **Confirm** — Ask if the tools appeared and the command worked
 
-If verification fails, read the Troubleshooting section from the reference file loaded in Step 5 and walk through the relevant fix.
+**If verification fails**, diagnose in this order:
+
+1. **Config location** — Is the JSON file in the correct path for the chosen assistant (Step 3 table)? Ask the user to confirm.
+2. **JSON validity** — Ask the user to check for syntax errors (trailing commas, missing braces). Provide a quick validation command: `python3 -c "import json; json.load(open('<path>'))"`.
+3. **Credentials** — Ask the user to run `aws sts get-caller-identity` to confirm AWS credentials are working.
+4. **Permissions** — If credentials work but MCP tools fail, check IAM permissions per the Troubleshooting section of the reference file loaded in Step 5.
+
+If none of the above resolve it, read the full Troubleshooting section from the reference file and walk through remaining scenarios.
 
 ---
 
@@ -121,10 +115,11 @@ If verification fails, read the Troubleshooting section from the reference file 
 
 1. **Do NOT call any tools when this skill is first activated.** Start by checking Step 0, then ask questions.
 2. **Do NOT assume hosting mode, access level, or assistant.** Always ask explicitly.
-3. **Do NOT skip steps or combine multiple questions into one.** One decision per step.
-4. **If the user provides choices up front** (e.g., "set up AWS-hosted read-only for Claude Code in us-west-2"), acknowledge each choice back to them for confirmation before generating the config. Do not silently accept — confirm.
+3. **One decision per step.** If the user has already provided an answer (explicitly in their message or from prior context), confirm it instead of re-asking — but never silently skip.
+4. **If the user provides all choices up front** (e.g., "set up AWS-hosted read-only for Claude Code in us-west-2"), summarize the choices back and ask for a single confirmation before generating config.
 5. **Do NOT generate config until all 4 choices are confirmed** (hosting mode, access level, assistant, region).
 6. **Always read the relevant reference file** before generating config — do not rely on memory for exact args, env vars, or paths.
+7. **Do NOT retry a failed file read or command more than once.** STOP and surface the error to the user.
 
 ---
 
