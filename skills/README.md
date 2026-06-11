@@ -88,7 +88,7 @@ Use when designing EKS architecture. Generates design documents with Mermaid dia
 
 ### [eks-mcp-server](./eks-mcp-server/)
 
-Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Amazon Q CLI, Cursor). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions "eks mcp", "mcp server", "mcp.json", or "mcp tools not showing". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades).
+Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions "eks mcp", "mcp server", "mcp.json", or "mcp tools not showing". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades).
 
 **References** (loaded on demand):
 
@@ -212,6 +212,21 @@ Assess EKS cluster upgrade readiness — run automated checks across 8 areas (ve
 | File | Description |
 |------|-------------|
 | [md_to_html.py](./eks-upgrade-check/tools/md_to_html.py) | Md_to_html |
+
+---
+
+### [pptx](./pptx/)
+
+Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations; reading, parsing, or extracting text from any .pptx file (even if the extracted content will be used elsewhere, like in an email or summary); editing, modifying, or updating existing presentations; combining or splitting slide files; working with templates, layouts, speaker notes, or comments. Trigger whenever the user mentions "deck," "slides," "presentation," or references a .pptx filename, regardless of what they plan to do with the content afterward. If a .pptx file needs to be opened, created, or touched, use this skill.
+
+**Scripts:**
+
+| Script | Description |
+|--------|-------------|
+| [__init__.py](./pptx/scripts/__init__.py) | __init__ |
+| [add_slide.py](./pptx/scripts/add_slide.py) | Add_slide |
+| [clean.py](./pptx/scripts/clean.py) | Clean |
+| [thumbnail.py](./pptx/scripts/thumbnail.py) | Thumbnail |
 
 ---
 
