@@ -5,6 +5,10 @@ title: Getting Started
 
 # Getting Started
 
+:::warning Disclaimer
+This project provides sample code for **educational and demonstration purposes only**. It is not intended for direct production use without proper review, testing, and validation. Always test generated infrastructure artifacts (Terraform, Helm charts, kubectl commands) in non-production environments first. Use at your own risk — the authors are not responsible for any issues, damages, or losses that may result from using this code in production.
+:::
+
 APEX skills are plain folders of markdown + scripts. Any agent harness that supports the [Agent Skills](https://agentskills.io/) standard can load them.
 
 ## NPX Installer (recommended)
