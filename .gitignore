@@ -62,3 +62,4 @@ misc/website/build/
 # Logs
 *.log
 HISTORY.md
+*.code-workspace

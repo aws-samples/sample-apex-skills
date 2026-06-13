@@ -238,6 +238,20 @@ The skill calculates a weighted cost efficiency score:
 
 ---
 
+## Out of Scope (v1)
+
+The following are intentionally excluded from the initial release and may be added in future versions:
+
+| Area | Rationale |
+|------|-----------|
+| **Savings Plans / RI coverage scoring** | Data is collected (see `cost-data-collection.md`) but not scored as a dimension. SP/RI decisions are account-level purchasing decisions, not cluster-level configuration. Findings are surfaced as informational notes when coverage < 70%, but do not contribute to the Cost Score. |
+| **Namespace/team cost attribution as a scored dimension** | The skill reports namespace cost allocation (via Split Cost Allocation Data or request-based estimation) in the report's methodology section, but does not score attribution quality. Attribution is an observability concern, not a waste indicator. |
+| **GPU utilization efficiency** | Only relevant for ML-heavy clusters. Deferred to a future enhancement. |
+| **Non-prod time-based downscaling** | High-ROI quick win but requires time-series analysis beyond a point-in-time assessment. Planned for Idle Resources dimension enhancement. |
+| **Internet egress optimization** | Covered partially by NAT Gateway analysis; full egress optimization is out of scope. |
+
+---
+
 ## Tool Usage Rules
 
 1. **Do NOT call any tools when this skill is first activated.** Wait for the user to explicitly ask for a cost assessment.

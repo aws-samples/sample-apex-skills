@@ -775,6 +775,8 @@ kubectl get pods -n <namespace> -l app=<app-label> -o wide | \
 
 Estimated NAT Gateway costs for AWS service traffic that could be eliminated with VPC endpoints. NAT Gateways charge $0.045/GB for data processing plus $0.045/hour (~$32.40/month) per gateway.
 
+> **Note:** NAT Gateway data processing is $0.045/GB for the first 10 TB/month, then tiered lower ($0.04/GB for next 30 TB, $0.035/GB thereafter). The skill uses $0.045/GB as a conservative estimate suitable for most EKS clusters under 10 TB/month of NAT traffic.
+
 ### Cost model
 
 | NAT Gateway Component | Cost |

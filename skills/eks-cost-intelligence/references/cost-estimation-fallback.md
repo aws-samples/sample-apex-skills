@@ -43,7 +43,9 @@ The EKS control plane cost depends on the cluster's Kubernetes version support s
 ```python
 # Determine control plane hourly cost based on K8s version support status
 # Versions in extended support as of June 2026: 1.25, 1.26, 1.27, 1.28
-# Check https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html for current list
+# NOTE: This list is illustrative and rotates as new K8s versions release.
+# Always verify against: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
+# In production, query `aws eks describe-cluster` and compare the version against the EKS calendar.
 EXTENDED_SUPPORT_VERSIONS = ["1.23", "1.24", "1.25", "1.26", "1.27", "1.28"]
 
 def get_control_plane_hourly_rate(k8s_version: str) -> float:

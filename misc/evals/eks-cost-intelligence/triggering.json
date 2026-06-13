@@ -3,7 +3,7 @@
   {"query": "Run a cost audit on my production EKS cluster.", "should_trigger": true},
   {"query": "How much am I spending on my EKS cluster and where can I save? I need hard numbers.", "should_trigger": true},
   {"query": "Score my cluster's cost posture — I need a report for our FinOps review.", "should_trigger": true},
-  {"query": "Show me cost attribution by namespace so I can do internal chargebacks.", "should_trigger": true},
+  {"query": "Show me which namespaces are spending the most so I can identify waste hotspots.", "should_trigger": true},
   {"query": "Do a spending assessment on `data-platform` — break it down by compute, networking, and storage.", "should_trigger": true},
   {"query": "What's my biggest cost driver on EKS right now? I want to know where the money is going.", "should_trigger": true},
   {"query": "I need to justify optimization work to leadership — run a cost intelligence report with projected savings.", "should_trigger": true},
