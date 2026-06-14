@@ -73,6 +73,34 @@ Use when building EKS clusters. Generates complete, production-ready Terraform p
 
 ---
 
+### [eks-cost-intelligence](./eks-cost-intelligence/)
+
+Run a live EKS cluster cost efficiency assessment — analyze spending across 6 dimensions (compute efficiency, Spot/Graviton adoption, networking, storage, observability, idle resources), calculate a weighted 0-100 Cost Score, and generate a prioritized report with dollar-quantified findings and ready-to-apply remediation snippets. Use this skill when someone asks "how much am I wasting on EKS?", "run a cost audit on my cluster", "what's my biggest cost driver?", "analyze my cluster's cost efficiency", or needs dollar-denominated findings for a FinOps review — even if they don't say "cost intelligence" or "score". Combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis. Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable. Distinct from eks-best-practices (static advisory guidance), eks-operation-review (operational health), and eks-recon (cluster discovery).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [compute-efficiency.md](./eks-cost-intelligence/references/compute-efficiency.md) | Compute efficiency |
+| [cost-data-collection.md](./eks-cost-intelligence/references/cost-data-collection.md) | Cost data collection |
+| [cost-estimation-fallback.md](./eks-cost-intelligence/references/cost-estimation-fallback.md) | Cost estimation fallback |
+| [findings-format.md](./eks-cost-intelligence/references/findings-format.md) | Findings format |
+| [idle-resources.md](./eks-cost-intelligence/references/idle-resources.md) | Idle resources |
+| [networking-costs.md](./eks-cost-intelligence/references/networking-costs.md) | Networking costs |
+| [observability-costs.md](./eks-cost-intelligence/references/observability-costs.md) | Observability costs |
+| [report-generation.md](./eks-cost-intelligence/references/report-generation.md) | Report generation |
+| [spot-graviton-adoption.md](./eks-cost-intelligence/references/spot-graviton-adoption.md) | Spot graviton adoption |
+| [storage-costs.md](./eks-cost-intelligence/references/storage-costs.md) | Storage costs |
+| [waste-calculation.md](./eks-cost-intelligence/references/waste-calculation.md) | Waste calculation |
+
+**Tools:**
+
+| File | Description |
+|------|-------------|
+| [report_to_html.py](./eks-cost-intelligence/tools/report_to_html.py) | Report_to_html |
+
+---
+
 ### [eks-design](./eks-design/)
 
 Use when designing EKS architecture. Generates design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices. Covers cluster architecture, compute, networking, security, addons, observability, cost, and upgrade strategy. Also use when reviewing or validating existing EKS architectures, planning networking or security, evaluating deployment models, or generating architecture diagrams. Skip for short advisory recommendations without a formal document (eks-best-practices) and Internal Developer Platforms or progressive delivery (eks-platform-engineering).
