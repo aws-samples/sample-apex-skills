@@ -10,6 +10,11 @@
     "path": "/docs/skills/eks-build"
   },
   {
+    "name": "eks-cost-intelligence",
+    "description": "Run a live EKS cluster cost efficiency assessment — analyze spending across 6 dimensions (compute efficiency, Spot/Graviton adoption, networking, storage, observability, idle resources), calculate a weighted 0-100 Cost Score, and generate a prioritized report with dollar-quantified findings and ready-to-apply remediation snippets. Use this skill when someone asks \"how much am I wasting on EKS?\", \"run a cost audit on my cluster\", \"what's my biggest cost driver?\", \"analyze my cluster's cost efficiency\", or needs dollar-denominated findings for a FinOps review — even if they don't say \"cost intelligence\" or \"score\". Combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis. Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable. Distinct from eks-best-practices (static advisory guidance), eks-operation-review (operational health), and eks-recon (cluster discovery).",
+    "path": "/docs/skills/eks-cost-intelligence"
+  },
+  {
     "name": "eks-design",
     "description": "Use when designing EKS architecture. Generates design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices. Covers cluster architecture, compute, networking, security, addons, observability, cost, and upgrade strategy. Also use when reviewing or validating existing EKS architectures, planning networking or security, evaluating deployment models, or generating architecture diagrams. Skip for short advisory recommendations without a formal document (eks-best-practices) and Internal Developer Platforms or progressive delivery (eks-platform-engineering).",
     "path": "/docs/skills/eks-design"
