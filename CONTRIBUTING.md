@@ -336,7 +336,7 @@ Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` /
 ./misc/update-all-references.sh
 ```
 
-**CI enforcement.** The `docs-sync` job in `.github/workflows/evals.yml` runs `./misc/update-all-references.sh --check` on every PR. If the rendered blocks diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run the command above locally, commit the result.
+**CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` runs `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check` on every PR. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
 
 ## Creating a New Example
 
