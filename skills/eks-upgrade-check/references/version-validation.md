@@ -3,7 +3,7 @@
 ## Purpose
 Validate the upgrade path, determine support status, and enforce EKS upgrade rules.
 
-## EKS Version Support Calendar (fallback reference, as of March 2026)
+## EKS Version Support Calendar (fallback reference, as of June 2026)
 
 > **Freshness gate — apply BEFORE using this table:**
 > 1. If the cluster version or target version is **NOT in the table below** → fetch live
@@ -16,13 +16,13 @@ Validate the upgrade path, determine support status, and enforce EKS upgrade rul
 
 | Version | Standard Support Until | Extended Support Until | Status |
 |---------|----------------------|----------------------|--------|
-| 1.35 | March 27, 2027 | March 27, 2028 | ✅ STANDARD (latest in this table) |
+| 1.36 | August 2, 2027 | August 2, 2028 | ✅ STANDARD (latest in this table) |
+| 1.35 | March 27, 2027 | March 27, 2028 | ✅ STANDARD |
 | 1.34 | December 2, 2026 | December 2, 2027 | ✅ STANDARD |
 | 1.33 | July 29, 2026 | July 29, 2027 | ✅ STANDARD |
-| 1.32 | March 23, 2026 | March 23, 2027 | ✅ STANDARD |
+| 1.32 | March 23, 2026 | March 23, 2027 | ⚠️ EXTENDED |
 | 1.31 | November 26, 2025 | November 26, 2026 | ⚠️ EXTENDED |
 | 1.30 | July 23, 2025 | July 23, 2026 | ⚠️ EXTENDED |
-| 1.29 | March 23, 2025 | March 23, 2026 | 🔴 EXTENDED (ending soon) |
 
 **CRITICAL:** The `upgradePolicy.supportType` field from the API is a CONFIGURATION PREFERENCE, not the current billing status. Always determine actual support status from the calendar above or from live AWS documentation.
 

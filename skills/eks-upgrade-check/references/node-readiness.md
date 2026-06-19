@@ -54,14 +54,31 @@ Assess node groups, AMI types, version alignment, and migration requirements for
 
 ### 5.3 — Container Runtime Version
 
+**Why this matters:** Kubernetes 1.35 is the LAST release supporting containerd 1.x. The 1.36
+kubelet will not operate against a containerd 1.x runtime. How this surfaces depends on node type:
+EKS-managed node groups (and Bottlerocket) pull containerd 2.0+ automatically when you upgrade the
+node group to 1.36, so they self-heal. Self-managed nodes and custom AMIs that pin containerd 1.x
+do NOT — their 1.36 kubelet will fail to run.
+
 **How to check:**
 1. List nodes → `status.nodeInfo.containerRuntimeVersion`
 2. Check for containerd 1.x vs 2.x
+3. For any node on containerd 1.x, determine whether it is **managed** (part of an EKS managed
+   node group / Bottlerocket) or **self-managed / custom AMI** — reuse the classification from
+   check 5.4.
 
 **Rating:**
 - All nodes on containerd 2.x → PASS
 - Any node on containerd 1.x, target < 1.35 → WARN (plan upgrade)
-- Any node on containerd 1.x, target >= 1.35 → WARN (last supported version, next will block)
+- Any node on containerd 1.x, target == 1.35 → WARN (last version supporting containerd 1.x;
+  the next version, 1.36, requires 2.0+)
+- Any node on containerd 1.x, target >= 1.36:
+  - **Managed node group / Bottlerocket** → INFO. Upgrading the node group to 1.36 replaces the
+    AMI and pulls containerd 2.0+ automatically. No manual action, but call it out so the user
+    knows the runtime jump happens during node rotation.
+  - **Self-managed / custom AMI** → FAIL (HIGH) — hard blocker. The 1.36 kubelet will not run on
+    containerd 1.x. The AMI must be rebuilt with containerd 2.0+ BEFORE upgrading the node.
+    See report-generation.md hard blocker list.
 
 ### 5.4 — Self-Managed Nodes
 
@@ -146,6 +163,7 @@ to verify capacity is sufficient for their instance type and CNI config.
 | Subnet IPs 5–15 (warning) | 2 pts |
 | AL2 nodes (target < 1.33) | 2-5 pts |
 | AL2 nodes (target >= 1.33) | 10-15 pts |
-| Containerd 1.x | 2 pts |
+| Containerd 1.x (target < 1.36, or managed node on any target) | 2 pts |
+| Containerd 1.x on self-managed/custom AMI (target >= 1.36) | 5 pts + hard blocker override (caps score ≤ 59%) |
 | Self-managed nodes | 3 pts |
 | Max category (combined with version-validation skew) | 20 pts |

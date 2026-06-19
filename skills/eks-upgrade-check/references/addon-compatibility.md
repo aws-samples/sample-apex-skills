@@ -181,9 +181,9 @@ came from (or which URL failed to load) and lets them verify it.
 
 **Official Karpenter Compatibility Matrix (source: karpenter.sh):**
 
-| Kubernetes | 1.29 | 1.30 | 1.31 | 1.32 | 1.33 | 1.34 | 1.35 |
+| Kubernetes | 1.30 | 1.31 | 1.32 | 1.33 | 1.34 | 1.35 | 1.36 |
 |------------|------|------|------|------|------|------|------|
-| Karpenter  | >= 0.34 | >= 0.37 | >= 1.0.5 | >= 1.2 | >= 1.5 | >= 1.6 | >= 1.9 |
+| Karpenter  | >= 0.37 | >= 1.0.5 | >= 1.2 | >= 1.5 | >= 1.6 | >= 1.9 | >= 1.13 |
 
 **IMPORTANT:** Do NOT rely on the approximate ranges previously listed here. Always use the
 matrix above. Note the jump from 0.37 (for 1.30) to 1.0.5 (for 1.31) — this is a major

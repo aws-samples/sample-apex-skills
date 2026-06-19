@@ -38,8 +38,8 @@ for each deprecated_api_path found in cluster:
 deprecated_apis_deduction = min(deprecated_apis_deduction, 20)
 
 # --- Category 3: Node Readiness (max deduction: 20) ---
-# Includes version skew AND subnet IP capacity.
-# COUNTING UNIT: each node group (skew) + each subnet (IP check).
+# Includes version skew, subnet IP capacity, AND containerd runtime.
+# COUNTING UNIT: each node group (skew) + each subnet (IP check) + containerd runtime.
 node_skew_deduction = 0
 for each node_group:
     skew = target_minor_version - node_group_minor_version
@@ -48,6 +48,12 @@ for each node_group:
 for each subnet in cluster_subnets:
     if subnet.available_ips < 5:   node_skew_deduction += 5   # hard blocker
     elif subnet.available_ips <= 15: node_skew_deduction += 2  # warning
+# Containerd 1.x runtime (see node-readiness.md 5.3 for node-type classification):
+if any node on containerd 1.x:
+    if target >= 1.36 and any such node is self-managed/custom-AMI:
+        node_skew_deduction += 5   # hard blocker (managed nodes exempt — they self-heal)
+    else:
+        node_skew_deduction += 2   # warning (pre-1.36, or managed node that auto-upgrades)
 node_skew_deduction = min(node_skew_deduction, 20)
 
 # --- Category 4: Add-on Compatibility (max deduction: 15) ---
@@ -175,6 +181,9 @@ score = max(0, 100 - total_deductions)
 #   6. Cluster status != ACTIVE (EKS API rejects update-cluster-version)
 #   7. AL2-only node groups AND target >= 1.33 (no AL2 AMI available for target)
 #   8. Any cluster subnet has < 5 available IPs (EKS API rejects update-cluster-version)
+#   9. Self-managed / custom-AMI node on containerd 1.x AND target >= 1.36 (1.36 kubelet
+#      won't run on containerd 1.x). Managed node groups / Bottlerocket are EXEMPT —
+#      their node-group upgrade pulls containerd 2.0+ automatically.
 #
 # NOTE: "Critical add-on" = vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver
 has_hard_blocker = False
@@ -186,6 +195,8 @@ if any api_removed_in_target_and_in_use:              has_hard_blocker = True
 if cluster_status != "ACTIVE":                        has_hard_blocker = True
 if al2_only_node_groups and target >= 1.33:           has_hard_blocker = True
 if any subnet.available_ips < 5:                      has_hard_blocker = True
+if any (node.containerd_major == 1 and node.is_self_managed) and target >= 1.36:
+    has_hard_blocker = True
 
 if has_hard_blocker:
     score = min(score, 59)
