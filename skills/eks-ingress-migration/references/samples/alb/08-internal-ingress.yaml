@@ -1,0 +1,47 @@
+# Internal-only Ingress — should map to scheme: internal on ALB
+# Also uses proxy timeout annotations
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-api
+  namespace: platform
+  labels:
+    app: internal-api
+spec:
+  type: ClusterIP
+  selector:
+    app: internal-api
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
+---
+# REMOVED: nginx.ingress.kubernetes.io/proxy-body-size: "100m" — no direct ALB annotation; configure at application level
+# REMOVED: nginx.ingress.kubernetes.io/whitelist-source-range — use ALB security groups for IP restriction
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: internal-api-ingress
+  namespace: platform
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/transforms.internal-api: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/v1\\\\/(.*)$\"\
+      ,\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
+    alb.ingress.kubernetes.io/target-group-attributes: idle_timeout.timeout_seconds=300
+spec:
+  ingressClassName: alb
+  rules:
+  - host: internal-api.corp.local
+    http:
+      paths:
+      - path: /v1
+        pathType: Prefix
+        backend:
+          service:
+            name: internal-api
+            port:
+              number: 80

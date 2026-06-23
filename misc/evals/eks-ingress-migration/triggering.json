@@ -1,0 +1,20 @@
+[
+  { "query": "How hard would it be to move my EKS cluster off the nginx ingress controller? Score it for me.", "should_trigger": true },
+  { "query": "Run an ingress migration assessment for account 123456789012 — I want to know what it takes to reach Gateway API.", "should_trigger": true },
+  { "query": "We're on ingress-nginx and want to migrate to the AWS Load Balancer Controller. Assess our setup and what changes.", "should_trigger": true },
+  { "query": "Audit my ingress controllers and tell me which routes move cleanly to ALB and which need a redesign.", "should_trigger": true },
+  { "query": "Plan our nginx ingress retirement — what breaks, what's a clean annotation swap, what needs re-architecture?", "should_trigger": true },
+  { "query": "Map our nginx Ingress resources to HTTPRoute and flag the ones with no Gateway API equivalent.", "should_trigger": true },
+  { "query": "Generate ready-to-apply Gateway API and ALB manifests from our current nginx ingresses.", "should_trigger": true },
+  { "query": "Give me a migration difficulty score for leaving nginx ingress on the prod cluster.", "should_trigger": true },
+  { "query": "Can AWS Transform (ATX) auto-convert our nginx ingress annotations to ALB? Assess it.", "should_trigger": true },
+
+  { "query": "Run an EKS operational review on payment-prod — a full GREEN/AMBER/RED audit across all 10 sections.", "should_trigger": false },
+  { "query": "Audit my cluster's operational posture and give me a maturity score with prioritized actions.", "should_trigger": false },
+  { "query": "What version of EKS am I running, and which add-ons and compute strategy do we have? Just inherited the cluster.", "should_trigger": false },
+  { "query": "Do a full reconnaissance of our EKS environment — IaC tooling, CI/CD, and observability stack.", "should_trigger": false },
+  { "query": "Is my cluster ready to upgrade from 1.31 to 1.32? Give me a readiness score and the blockers.", "should_trigger": false },
+  { "query": "What deprecated APIs will break when I move to the next Kubernetes version?", "should_trigger": false },
+  { "query": "Should we use Karpenter or Managed Node Groups for our new EKS cluster?", "should_trigger": false },
+  { "query": "What's the best practice for Pod Security Standards and network policies on EKS?", "should_trigger": false }
+]

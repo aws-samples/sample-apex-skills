@@ -29,6 +29,7 @@ Read the user's request and match it to the appropriate workflow:
 | "Is my cluster ready to upgrade?" / "Run upgrade readiness check" / "Score my upgrade readiness" | → [Upgrade-Readiness Assessment](workflows/eks-upgrade-check.md) | Day 2 |
 | "Run an EKS operational review" / "Audit my cluster" / "EKS health check" / "Review my EKS posture" | → [Operational Review](workflows/eks-operation-review.md) | Day 2 |
 | "Check my EKS networking" / "Review RBAC on my cluster" / "Audit observability on my cluster" | → [Operational Review](workflows/eks-operation-review.md) (section-scoped) | Day 2 |
+| "Assess my ingress" / "migrate off nginx ingress" / "move to Gateway API or ALB" / "ingress controller audit" / "how hard is it to leave nginx?" | → use the `eks-ingress-migration` skill | Day 2 |
 
 **If the request doesn't match a workflow**, use the `eks-best-practices` skill directly to answer the question. Ask clarifying questions if needed.
 

@@ -1,0 +1,76 @@
+# Multi-path Ingress with different rewrites per service
+# Demonstrates multiple backend services with regex rewrites
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-svc
+  namespace: default
+  labels:
+    app: api-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: api-svc
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+  namespace: default
+  labels:
+    app: frontend-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend-svc
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: multi-path
+  namespace: default
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/transforms.api-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/api\\\\/(.*)$\",\n\
+      \          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
+    alb.ingress.kubernetes.io/transforms.frontend-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/web\\\\/(.*)$\"\
+      ,\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:ACCOUNT_ID:certificate/CERTIFICATE_ID
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+    alb.ingress.kubernetes.io/target-group-attributes: idle_timeout.timeout_seconds=120
+spec:
+  ingressClassName: alb
+  rules:
+  - host: app.example.com
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: api-svc
+            port:
+              number: 80
+      - path: /web
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-svc
+            port:
+              number: 80

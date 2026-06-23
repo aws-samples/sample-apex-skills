@@ -1,0 +1,8 @@
+skill_name: eks-ingress-migration
+weights:
+  triggering: 0.20
+  process: 0.15
+  artifact: 0.25
+  knowledge: 0.25
+  quality: 0.15
+timeout: 1800

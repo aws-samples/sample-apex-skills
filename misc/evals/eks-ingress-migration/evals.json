@@ -1,0 +1,31 @@
+{
+  "skill_name": "eks-ingress-migration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Here is a cluster's ingress inventory: 18 Ingress resources — 6 already on the AWS Load Balancer Controller (ingressClassName: alb), 2 nginx ingresses that are plain annotation-only rewrites, and 10 nginx ingresses including one with an nginx.ingress.kubernetes.io/configuration-snippet Lua block on /checkout, three with rewrite-target, CORS + rate-limit + IP-allowlist on the API ingress, and cert-manager TLS. Produce the Migration Difficulty Score and Score Breakdown.",
+      "expected_output": "A Migration Difficulty Score (0-100) with a Score Breakdown table whose category deductions sum to (100 - score), a separate Re-architecture Gate of 1 (the /checkout snippet), CORS/rate-limit/IP-allowlist rated Impact 2-3 (not 4-5), Scale/Volume counted on 10 routes needing work (not 18), and the 6 ALB routes shown at 0 effort.",
+      "expectations": [
+        "Reports a single Migration Difficulty Score between 0 and 100 with a band label (TRIVIAL/EASY/MODERATE/HARD/VERY HARD)",
+        "Score Breakdown deductions sum to (100 - score); arithmetic is shown and consistent",
+        "The /checkout configuration-snippet is flagged as a no-equivalent Tier-A item and raises the Re-architecture Gate (gate >= 1), reported separately from the numeric score (no hard cap applied)",
+        "CORS, rate-limit, and IP-allowlist are each scored Impact 2 or 3 — never 4 or 5",
+        "Scale/Volume is computed from the 10 routes needing work, and the 6 ALB-served routes are listed at 0 effort, not counted as migration work",
+        "No GREEN/AMBER/RED rating language is used — only Impact 1-5"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "An nginx Ingress uses nginx.ingress.kubernetes.io/server-snippet to inject a /healthz location and a deny rule for /internal/. Generate the target ALB and Gateway API manifests and explain how to treat this ingress during export.",
+      "expected_output": "The export flags this ingress as INCOMPLETE because snippet-injected locations (/healthz, deny /internal/) cannot be represented in declarative ALB/Gateway-API manifests, instructs the user to hand-port those routes rather than blind-apply, and surfaces it as a re-architecture-gate item.",
+      "expectations": [
+        "Identifies server-snippet as having no faithful ALB/Gateway-API equivalent (Tier-A, no workaround)",
+        "Marks the generated target manifest for this ingress as INCOMPLETE / not safe to blind-apply, naming the hidden /healthz and /internal/ paths",
+        "Tells the user to hand-port the snippet-injected routes before applying",
+        "Counts this ingress toward the Re-architecture Gate, not as a clean annotation swap"
+      ],
+      "files": []
+    }
+  ]
+}

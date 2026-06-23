@@ -23,5 +23,6 @@
   {"query": "Design a new EKS architecture for our healthcare platform and generate ADRs for each decision", "should_trigger": false},
   {"query": "Create a security architecture document with Mermaid diagrams for our EKS cluster", "should_trigger": false},
   {"query": "Generate Terraform code for a new air-gapped EKS cluster with private ECR and VPC endpoints", "should_trigger": false},
-  {"query": "Build an EKS Terraform project using Pattern 2b with ACK controllers", "should_trigger": false}
+  {"query": "Build an EKS Terraform project using Pattern 2b with ACK controllers", "should_trigger": false},
+  {"query": "Map our nginx Ingress resources to HTTPRoute and flag annotations with no Gateway API equivalent.", "should_trigger": false}
 ]

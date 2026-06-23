@@ -17,6 +17,7 @@ The most common confusion this skill needs to disambiguate is "assess my readine
 - **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 19 ("Set up golden paths so app teams can sh…").
 - **`eks-design`** (architecture design documents, ADRs, and system diagrams for EKS solutions) — negative 20 ("Generate architecture decision records and validate the design for our new EKS cluster").
 - **`eks-operation-review`** (structured operational posture assessment with GREEN/AMBER/RED ratings) — negative 21 ("Run an operational excellence assessment on my EKS cluster covering networking, autoscaling, and observability").
+- **`eks-ingress-migration`** (assesses/plans migrating off the NGINX ingress controller to Gateway API / ALB / ATX) — negative 23 ("plan nginx ingress retirement, generate Gateway API/ALB manifests"). Both emit a 0–100 score, but upgrade-check scores Kubernetes version-upgrade readiness; ingress-migration scores the difficulty of leaving nginx.
 <!-- SIBLING_MAP_END -->
 
 The `triggering.json` positives mix two phrasing styles: assessment-language requests ("readiness", "score", "is it safe", "blockers") and natural-question forms ("can I upgrade my cluster?", "are we good to go to 1.33?") that mirror the wording in `SKILL.md`'s description. Both styles must trigger the skill. The negatives are worded around procedure, discovery, design, or non-EKS targets — all common phrasings that could ambiguously pull the skill if its description over-reaches.

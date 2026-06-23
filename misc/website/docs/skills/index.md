@@ -24,6 +24,10 @@ Run a live EKS cluster cost efficiency assessment — analyze spending across 6 
 
 Use when designing EKS architecture. Generates design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices. Covers cluster architecture, compute, networking, security, addons, observability, cost, and upgrade strategy. Also use when reviewing or validating existing EKS architectures, planning networking or security, evaluating deployment models, or generating architecture diagrams. Skip for short advisory recommendations without a formal document (eks-best-practices) and Internal Developer Platforms or progressive delivery (eks-platform-engineering).
 
+## [eks-ingress-migration](./eks-ingress-migration/)
+
+Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller (ALB Ingress), or AWS Transform (ATX). Discovers ingress controllers and routes, scores migration difficulty 0–100 with a separate re-architecture gate, and generates per-cluster reports plus ready-to-apply manifests. Use when someone asks "how hard is it to move off nginx ingress?", "assess my ingress migration", "migrate nginx to ALB or Gateway API", "ingress controller audit", or "nginx ingress retirement plan". Not for upgrade readiness (eks-upgrade-check), operational audits (eks-operation-review), or general cluster discovery (eks-recon).
+
 ## [eks-mcp-server](./eks-mcp-server/)
 
 Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions "eks mcp", "mcp server", "mcp.json", or "mcp tools not showing". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades).

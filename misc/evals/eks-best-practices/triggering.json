@@ -23,5 +23,6 @@
   {"query": "Generate a complete EKS architecture design document with ADRs and Mermaid diagrams for our fintech platform", "should_trigger": false},
   {"query": "Score and validate this EKS architecture against Well-Architected best practices, output a formal validation report", "should_trigger": false},
   {"query": "Generate a production-ready Terraform project for an EKS cluster with Karpenter and ArgoCD Pattern 2a", "should_trigger": false},
-  {"query": "Add external-secrets and cert-manager addons to our EKS Terraform project with proper IRSA configuration", "should_trigger": false}
+  {"query": "Add external-secrets and cert-manager addons to our EKS Terraform project with proper IRSA configuration", "should_trigger": false},
+  {"query": "Audit our ingress controllers and score the migration off nginx to ALB.", "should_trigger": false}
 ]

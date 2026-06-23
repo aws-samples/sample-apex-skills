@@ -114,6 +114,33 @@ Use when designing EKS architecture. Generates design documents with Mermaid dia
 
 ---
 
+### [eks-ingress-migration](./eks-ingress-migration/)
+
+Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller (ALB Ingress), or AWS Transform (ATX). Discovers ingress controllers and routes, scores migration difficulty 0–100 with a separate re-architecture gate, and generates per-cluster reports plus ready-to-apply manifests. Use when someone asks "how hard is it to move off nginx ingress?", "assess my ingress migration", "migrate nginx to ALB or Gateway API", "ingress controller audit", or "nginx ingress retirement plan". Not for upgrade readiness (eks-upgrade-check), operational audits (eks-operation-review), or general cluster discovery (eks-recon).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [alb-migration.md](./eks-ingress-migration/references/alb-migration.md) | Alb migration |
+| [atx-guide.md](./eks-ingress-migration/references/atx-guide.md) | Atx guide |
+| [dns-certificates.md](./eks-ingress-migration/references/dns-certificates.md) | Dns certificates |
+| [gateway-api.md](./eks-ingress-migration/references/gateway-api.md) | Gateway api |
+| [ingress-discovery.md](./eks-ingress-migration/references/ingress-discovery.md) | Ingress discovery |
+| [ingress-resources.md](./eks-ingress-migration/references/ingress-resources.md) | Ingress resources |
+| [migration-plan.md](./eks-ingress-migration/references/migration-plan.md) | Migration plan |
+| [migration-risk.md](./eks-ingress-migration/references/migration-risk.md) | Migration risk |
+| [report-generation.md](./eks-ingress-migration/references/report-generation.md) | Report generation |
+| [traffic-routing.md](./eks-ingress-migration/references/traffic-routing.md) | Traffic routing |
+
+**Tools:**
+
+| File | Description |
+|------|-------------|
+| [report_to_html.py](./eks-ingress-migration/tools/report_to_html.py) | Report_to_html |
+
+---
+
 ### [eks-mcp-server](./eks-mcp-server/)
 
 Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions "eks mcp", "mcp server", "mcp.json", or "mcp tools not showing". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades).

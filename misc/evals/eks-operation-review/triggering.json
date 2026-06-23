@@ -20,5 +20,6 @@
   {"query": "How much am I wasting on my EKS cluster? Run a cost intelligence assessment with savings projections.", "should_trigger": false},
   {"query": "How do we measure whether our internal developer platform is healthy, and what DORA metrics should the platform team track?", "should_trigger": false},
   {"query": "Generate a production-ready Terraform project for a new EKS cluster with Karpenter, VPC CNI, and ArgoCD bootstrap", "should_trigger": false},
-  {"query": "Create architecture decision records and Mermaid topology diagrams for our planned EKS cluster migration", "should_trigger": false}
+  {"query": "Create architecture decision records and Mermaid topology diagrams for our planned EKS cluster migration", "should_trigger": false},
+  {"query": "Assess how hard it is to migrate our nginx ingress to ALB and score the effort.", "should_trigger": false}
 ]

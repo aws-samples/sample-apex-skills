@@ -1,0 +1,44 @@
+# Basic URI rewrite with AWS Load Balancer Controller
+# Routes rewrite.bar.com/something/* to backend at /*
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: http-svc
+  namespace: default
+  labels:
+    app: http-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: http-svc
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rewrite-basic
+  namespace: default
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/transforms.http-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/something\\\\/(.*)$\"\
+      ,\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
+spec:
+  ingressClassName: alb
+  rules:
+  - host: rewrite.bar.com
+    http:
+      paths:
+      - path: /something
+        pathType: Prefix
+        backend:
+          service:
+            name: http-svc
+            port:
+              number: 80

@@ -1,0 +1,79 @@
+# Multi-host Ingress with separate TLS certs per host
+# Good candidate for IngressGroup and certificate-discovery
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storefront-svc
+  namespace: ecommerce
+  labels:
+    app: storefront
+spec:
+  type: ClusterIP
+  selector:
+    app: storefront
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-svc
+  namespace: ecommerce
+  labels:
+    app: admin-panel
+spec:
+  type: ClusterIP
+  selector:
+    app: admin-panel
+  ports:
+  - name: http
+    port: 80
+    targetPort: 9090
+    protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: multi-host-store
+  namespace: ecommerce
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/transforms.storefront-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/catalog\\\\\
+      /(.*)$\",\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
+    alb.ingress.kubernetes.io/transforms.admin-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/dashboard\\\\/(.*)$\"\
+      ,\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
+    alb.ingress.kubernetes.io/certificate-discovery: 'true'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+    alb.ingress.kubernetes.io/target-group-attributes: idle_timeout.timeout_seconds=60
+spec:
+  ingressClassName: alb
+  rules:
+  - host: store.example.com
+    http:
+      paths:
+      - path: /catalog
+        pathType: Prefix
+        backend:
+          service:
+            name: storefront-svc
+            port:
+              number: 80
+  - host: admin.example.com
+    http:
+      paths:
+      - path: /dashboard
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-svc
+            port:
+              number: 80
