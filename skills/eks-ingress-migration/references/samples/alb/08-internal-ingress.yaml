@@ -31,7 +31,7 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/transforms.internal-api: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/v1\\\\/(.*)$\"\
       ,\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
-    alb.ingress.kubernetes.io/target-group-attributes: idle_timeout.timeout_seconds=300
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=300
 spec:
   ingressClassName: alb
   rules:

@@ -100,6 +100,8 @@ Example: `HTTPRoute/nginx-app-route: parentRef=main-gateway, hostnames=[app.exam
 
 ### Phase 3: Traffic Cutover (Week 4)
 
+> **Validate the full cutover procedure in a non-production cluster before executing against production.** "Lowest-risk routes" and keeping the old Ingress as fallback are mitigations, not a substitute for a non-prod gate — a low-risk production route is still production, and path-matching semantic changes can silently route traffic to the wrong backend (see `references/traffic-routing.md`).
+
 1. Update DNS to point to new Gateway ALB (or use weighted DNS for gradual shift)
 2. Monitor error rates, latency, 5xx responses
 3. Keep old Ingress resources running as fallback

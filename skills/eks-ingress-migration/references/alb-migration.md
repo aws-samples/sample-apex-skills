@@ -75,7 +75,7 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 
 | Before (NGINX) | After (ALB) |
 |----------------|-------------|
-| `nginx...proxy-read-timeout: "120"` | `alb.ingress.kubernetes.io/target-group-attributes: idle_timeout.timeout_seconds=120` |
+| `nginx...proxy-read-timeout: "120"` | `alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=120` |
 | `nginx...proxy-send-timeout: "120"` | (same — ALB uses single idle timeout) |
 
 ### CORS
