@@ -394,7 +394,7 @@ Stay on the Ingress API but swap NGINX annotations for ALB annotations. Gets you
 | `nginx...rewrite-target: /$2` | `alb...transforms.<svc>` (url-rewrite JSON) |
 | `spec.tls[].secretName` | `alb...certificate-arn` or `certificate-discovery: "true"` |
 | `nginx...ssl-redirect: "true"` | `alb...ssl-redirect: "443"` |
-| `nginx...proxy-read-timeout` | `alb...target-group-attributes: idle_timeout.timeout_seconds=N` |
+| `nginx...proxy-read-timeout` | `alb...load-balancer-attributes: idle_timeout.timeout_seconds=N` |
 | `nginx...auth-url` | `alb...auth-type: oidc` + `auth-idp-oidc` JSON |
 | `nginx...enable-cors` | Remove — use AWS WAF or app-level |
 | `nginx...whitelist-source-range` | `alb...scheme: internal` + security groups |
