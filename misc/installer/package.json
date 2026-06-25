@@ -1,6 +1,6 @@
 {
   "name": "apex-skills",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Install APEX platform engineering skills for Claude Code and Kiro CLI",
   "bin": {
     "apex-skills": "./bin/cli.mjs"
@@ -11,7 +11,15 @@
     "type": "git",
     "url": "https://github.com/aws-samples/sample-apex-skills"
   },
-  "keywords": ["aws", "eks", "platform-engineering", "ai-agent", "claude-code", "kiro", "skills"],
+  "keywords": [
+    "aws",
+    "eks",
+    "platform-engineering",
+    "ai-agent",
+    "claude-code",
+    "kiro",
+    "skills"
+  ],
   "engines": {
     "node": ">=18"
   }
