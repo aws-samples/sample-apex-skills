@@ -220,14 +220,14 @@ function showHelp() {
   log(`  --project            Install to current project instead of global`);
   log(`  --no-steering        Skip steering/commands setup`);
   log(`  --update             Pull latest and re-symlink (non-interactive)`);
-  log(`  --version <tag>      Pin to a specific release (e.g. v1.0.0)`);
+  log(`  --version <tag>      Pin to a specific release (e.g. v1.1.0)`);
   log(`  --branch <name>      Use a specific branch instead of main`);
   log(`  --uninstall          Remove symlinks (keeps cloned repo)`);
   log(`  -h, --help           Show this help\n`);
   log(`${c.bold}Examples:${c.reset}`);
   log(`  npx apex-skills                        Interactive install`);
   log(`  npx apex-skills --update               Update to latest skills`);
-  log(`  npx apex-skills --version v1.0.0       Pin to release v1.0.0`);
+  log(`  npx apex-skills --version v1.1.0       Pin to release v1.1.0`);
   log(`  npx apex-skills --branch feat/new-eks  Install from a branch`);
   log(`  npx apex-skills --claude-only          Install for Claude Code only`);
   log(`  npx apex-skills --project              Install into current project\n`);
