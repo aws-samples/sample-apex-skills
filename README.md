@@ -90,6 +90,10 @@ cp steering/workflows/*.md ~/.kiro/steering/
 
 Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill lives in `skills/{skill-name}/` with a `SKILL.md` and optional `references/`, `scripts/`, and `assets/` directories. Clone and point your tool at them — see [skills/README.md](skills/README.md) for the layout.
 
+#### Agent Rules (optional)
+
+`rules/AGENTS.md` contains project-level guardrails — verification habits, source-checking, safety boundaries. These are personal to each user's workflow, so they are **not** auto-loaded by the installer. To activate them, copy the contents into whatever file your agent harness reads for project instructions (e.g., `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `kiro.md`).
+
 <!-- SKILLS_REFERENCE_START -->
 ## Skills Reference
 
