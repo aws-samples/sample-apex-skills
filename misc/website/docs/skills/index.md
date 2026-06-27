@@ -38,7 +38,7 @@ Install, configure, and troubleshoot the EKS MCP Server connection in your AI as
 
 ## [eks-operation-review](./eks-operation-review/)
 
-Run a structured EKS operational excellence assessment against a live cluster. Covers 10 areas — networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, operational processes — and produces a GREEN/AMBER/RED rated report with prioritized recommendations. Activate for any request to audit, review, health-check, or score an EKS cluster's operational posture, including section-scoped reviews of individual areas. Not for upgrade readiness, cluster discovery, architectural design advice, or compliance-regime hardening and audit prep (HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing — use eks-security).
+Run a structured EKS operational excellence assessment against a live cluster. Covers 10 areas — networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, operational processes — and produces a GREEN/AMBER/RED rated report with prioritized recommendations. Activate for any request to audit, review, health-check, or score an EKS cluster's operational posture, including section-scoped reviews of individual areas. Not for upgrade readiness, cluster discovery, or architectural design advice.
 
 ## [eks-platform-engineering](./eks-platform-engineering/)
 
