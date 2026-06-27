@@ -92,7 +92,7 @@ Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill l
 
 #### Agent Rules (optional)
 
-`rules/AGENTS.md` contains project-level guardrails — verification habits, source-checking, safety boundaries. These are personal to each user's workflow, so they are **not** auto-loaded by the installer. To activate them, add the contents to whatever file your agent harness reads for project instructions (e.g., `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.kiro/steering/project.md`).
+[AGENTS.md](./rules/AGENTS.md) contains project-level guardrails — verification habits, source-checking, safety boundaries. These are personal to each user's workflow, so they are **not** auto-loaded by the installer. To activate them, add the contents to whatever file your agent harness reads for project instructions (e.g., `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.kiro/steering/project.md`).
 
 <!-- SKILLS_REFERENCE_START -->
 ## Skills Reference
