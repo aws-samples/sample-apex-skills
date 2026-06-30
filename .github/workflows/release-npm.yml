@@ -62,9 +62,4 @@ jobs:
 
       - name: Publish
         if: steps.check.outputs.already_published == 'false'
-        # M3: remove --dry-run after OIDC trusted publisher is configured
-        run: npm publish --dry-run --provenance --tag ${{ steps.dist-tag.outputs.tag }}
-        # M3: when enabling OIDC trusted publisher, remove this env block —
-        # provenance uses OIDC automatically; NPM_TOKEN + --provenance = error
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --tag ${{ steps.dist-tag.outputs.tag }}
