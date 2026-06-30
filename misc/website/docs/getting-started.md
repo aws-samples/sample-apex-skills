@@ -23,7 +23,7 @@ The installer detects which tools you have (Claude Code, Kiro CLI, or both), clo
 
 ```bash
 npx apex-skills --update              # Pull latest skills
-npx apex-skills --version v1.1.3      # Pin to a specific release
+npx apex-skills --version v1.2.0      # Pin to a specific release
 npx apex-skills --branch feat/new-eks # Install from a branch
 npx apex-skills --help                # See all options
 ```
