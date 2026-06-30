@@ -385,6 +385,20 @@ GitHub provides additional document on [forking a repository](https://help.githu
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
 
+## Releasing to npm
+
+1. Run `./misc/bump-version.sh <version>` (e.g. `./misc/bump-version.sh 1.2.0`)
+2. Commit the version bump
+3. Push to main
+4. Create a GitHub Release tagged `v<version>` targeting main
+5. The `release-npm.yml` workflow auto-publishes to npm via OIDC trusted publisher
+6. Verify: `npm view apex-skills` shows the new version
+
+**Pre-releases:** Tags containing `-` (e.g. `1.2.0-rc.1`) publish to the `next` dist-tag.
+
+**Rollback:** `npm deprecate apex-skills@<version> "reason"` + publish a patch.
+
+
 ## Finding Contributions to Work On
 
 Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any 'help wanted' issues is a great place to start.
