@@ -63,3 +63,4 @@ misc/website/build/
 *.log
 HISTORY.md
 *.code-workspace
+PLAN-npm-release.md
