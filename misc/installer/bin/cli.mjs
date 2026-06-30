@@ -245,6 +245,13 @@ async function main() {
     process.exit(1);
   }
 
+  const SAFE_REF = /^[a-zA-Z0-9][a-zA-Z0-9._\-\/]*$/;
+  const ref = flags.version || flags.branch;
+  if (ref && !SAFE_REF.test(ref)) {
+    error(`Invalid ref: "${ref}". Only alphanumeric, dots, hyphens, slashes, and underscores are allowed.`);
+    process.exit(1);
+  }
+
   if (platform() === 'win32') {
     error('Windows is not supported (symlinks require elevated permissions).');
     error('Use WSL (Windows Subsystem for Linux) instead.');
