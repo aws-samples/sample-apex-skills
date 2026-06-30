@@ -28,6 +28,9 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
+      - name: Upgrade npm for OIDC provenance support
+        run: npm install -g npm@11
+
       - name: Verify version matches tag
         run: |
           TAG="${GITHUB_REF_NAME#v}"

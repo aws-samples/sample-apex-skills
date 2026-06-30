@@ -29,7 +29,7 @@ npx apex-skills --update
 | `--project` | Install to current project directory instead of global |
 | `--no-steering` | Skip steering/commands setup |
 | `--update` | Pull latest and re-symlink (non-interactive) |
-| `--version <tag>` | Pin to a specific release (e.g. `v1.1.2`) |
+| `--version <tag>` | Pin to a specific release (e.g. `v1.1.3`) |
 | `--branch <name>` | Use a specific branch instead of main |
 | `--uninstall` | Remove symlinks (keeps cloned repo) |
 | `-h, --help` | Show help |
