@@ -48,10 +48,12 @@ Goal of this phase: get crisp answers to the five scope questions below and deci
 Required inputs — ask for all five in a single turn:
 
 1. **Skill slug** (`<name>`) — lowercase, hyphenated, matches the target `skills/<name>/` directory.
+   - **Naming convention:** Prefix with the target AWS service (`eks-`, `ecs-`). This controls auto-grouping in README, docs, and sidebar. If your skill spans multiple services or is repo meta-tooling, omit the prefix (it lands in "General").
+   - **New service?** If your skill targets a service without existing skills in this repo (i.e., no existing `<service>-` prefix in `skills/`), create a GitHub issue requesting service onboarding first. This requires maintainer-side changes to grouping logic, a new steering hub, and a docs sidebar category. **STOP** — do not proceed until the issue is resolved and onboarding is confirmed.
 2. **One-sentence scope** — what the skill covers and for whom. This becomes the seed for the `description:` frontmatter that the triggering eval scores against.
 3. **Five example prompts the skill should trigger on** — positives. Ask for the phrasings a real user would type, not a tidy canonical form.
 4. **Which kind of skill** — knowledge (static references), setup-bridge (one-shot env configuration), or discovery (reads live state and emits a structured report). Matches the three classes in `../../skills/steering-workflow-creator/references/tool-routing.md`.
-5. **Target service and nearest service hub** — EKS, RDS, Lambda, or "service-agnostic / meta." Drives later fan-out (which service hub picks up the routing, which example file under `steering-workflow-creator/references/examples/` applies).
+5. **Target service and nearest service hub** — EKS, ECS, or another AWS service, or "service-agnostic / meta." Drives later fan-out (which service hub picks up the routing, which example file under `steering-workflow-creator/references/examples/` applies).
 
 Mode detection:
 
@@ -147,7 +149,7 @@ Steps, in order:
    ```
    Now assert the wrapper was actually generated — if you ran the scripts before `git add`, `update-pages.sh` reads an index without the new skill and silently emits no pages, which fails `docs-sync` CI later:
    ```bash
-   ls misc/website/docs/skills/<name>/index.md \
+   ls misc/website/docs/skills/*/<name>/index.md \
      || { echo "ERROR: wrapper not generated — 'git add' the skill BEFORE running update-pages.sh"; exit 1; }
    ```
    Stage all generated output and commit:
