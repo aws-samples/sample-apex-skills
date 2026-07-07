@@ -10,11 +10,11 @@ description: "Browse all APEX skills for AWS platform engineering — EKS archit
 
 ## EKS Skills
 
-| | | | |
-|---|---|---|---|
-| [eks-best-practices](./eks/eks-best-practices/) | [eks-build](./eks/eks-build/) | [eks-cost-intelligence](./eks/eks-cost-intelligence/) | [eks-design](./eks/eks-design/) |
-| [eks-genai](./eks/eks-genai/) | [eks-ingress-migration](./eks/eks-ingress-migration/) | [eks-mcp-server](./eks/eks-mcp-server/) | [eks-operation-review](./eks/eks-operation-review/) |
-| [eks-platform-engineering](./eks/eks-platform-engineering/) | [eks-recon](./eks/eks-recon/) | [eks-security](./eks/eks-security/) | [eks-upgrade-check](./eks/eks-upgrade-check/) |
+<table>
+<tr><td><a href="./eks/eks-best-practices/"><b>eks-best-practices</b></a></td><td><a href="./eks/eks-build/"><b>eks-build</b></a></td><td><a href="./eks/eks-cost-intelligence/"><b>eks-cost-intelligence</b></a></td><td><a href="./eks/eks-design/"><b>eks-design</b></a></td></tr>
+<tr><td><a href="./eks/eks-genai/"><b>eks-genai</b></a></td><td><a href="./eks/eks-ingress-migration/"><b>eks-ingress-migration</b></a></td><td><a href="./eks/eks-mcp-server/"><b>eks-mcp-server</b></a></td><td><a href="./eks/eks-operation-review/"><b>eks-operation-review</b></a></td></tr>
+<tr><td><a href="./eks/eks-platform-engineering/"><b>eks-platform-engineering</b></a></td><td><a href="./eks/eks-recon/"><b>eks-recon</b></a></td><td><a href="./eks/eks-security/"><b>eks-security</b></a></td><td><a href="./eks/eks-upgrade-check/"><b>eks-upgrade-check</b></a></td></tr>
+</table>
 
 ## ECS Skills
 
@@ -22,6 +22,6 @@ _(coming soon)_
 
 ## General
 
-| | | | |
-|---|---|---|---|
-| [skill-creator](./general/skill-creator/) | [steering-workflow-creator](./general/steering-workflow-creator/) | [terraform-skill](./general/terraform-skill/) | [update-docs](./general/update-docs/) |
+<table>
+<tr><td><a href="./general/skill-creator/"><b>skill-creator</b></a></td><td><a href="./general/steering-workflow-creator/"><b>steering-workflow-creator</b></a></td><td><a href="./general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="./general/update-docs/"><b>update-docs</b></a></td></tr>
+</table>

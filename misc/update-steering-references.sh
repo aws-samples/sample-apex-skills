@@ -53,41 +53,37 @@ _pick_cols() {
   fi
 }
 
-# --- Emit a grid table from a list of name|path pairs ---
+# --- Emit a grid table from a list of "[name](path)" items ---
 _emit_grid() {
-  local -a items=()
   local cols="$1"
   shift
-  items=("$@")
+  local items=("$@")
 
-  local header="|" separator="|"
-  local i=0
-  while [ "$i" -lt "$cols" ]; do
-    header="$header |"
-    separator="$separator---|"
-    i=$((i + 1))
-  done
-  echo "$header"
-  echo "$separator"
-
-  local col=0 row="|"
+  echo '<table>'
+  local col=0
   for item in "${items[@]}"; do
-    row="$row $item |"
+    if [ "$col" -eq 0 ]; then
+      echo -n '<tr>'
+    fi
+    # item is like "[name](path)" - convert to HTML
+    local name path
+    name="$(echo "$item" | sed 's/\[//;s/\](.*)//')"
+    path="$(echo "$item" | sed 's/.*](\(.*\))/\1/')"
+    echo -n "<td><a href=\"${path}\"><b>${name}</b></a></td>"
     col=$((col + 1))
     if [ "$col" -eq "$cols" ]; then
-      echo "$row"
-      row="|"
+      echo '</tr>'
       col=0
     fi
   done
-
   if [ "$col" -gt 0 ]; then
     while [ "$col" -lt "$cols" ]; do
-      row="$row |"
+      echo -n '<td></td>'
       col=$((col + 1))
     done
-    echo "$row"
+    echo '</tr>'
   fi
+  echo '</table>'
 }
 
 # --- Build the Steering Reference table ---

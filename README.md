@@ -88,11 +88,11 @@ Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill l
 
 ### EKS Skills
 
-| | | | |
-|---|---|---|---|
-| [eks-best-practices](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/) | [eks-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-build/) | [eks-cost-intelligence](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/) | [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/) |
-| [eks-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/) | [eks-ingress-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/) | [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/) | [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/) |
-| [eks-platform-engineering](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-platform-engineering/) | [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/) | [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/) | [eks-upgrade-check](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-upgrade-check/) |
+<table>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/"><b>eks-best-practices</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-build/"><b>eks-build</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/"><b>eks-cost-intelligence</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/"><b>eks-design</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/"><b>eks-genai</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/"><b>eks-ingress-migration</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/"><b>eks-mcp-server</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/"><b>eks-operation-review</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-platform-engineering/"><b>eks-platform-engineering</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/"><b>eks-recon</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/"><b>eks-security</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-upgrade-check/"><b>eks-upgrade-check</b></a></td></tr>
+</table>
 
 ### ECS Skills
 
@@ -100,9 +100,9 @@ _(coming soon)_
 
 ### General
 
-| | | | |
-|---|---|---|---|
-| [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/) | [steering-workflow-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/steering-workflow-creator/) | [terraform-skill](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/) | [update-docs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/) |
+<table>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/"><b>skill-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/steering-workflow-creator/"><b>steering-workflow-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/"><b>update-docs</b></a></td></tr>
+</table>
 <!-- SKILLS_REFERENCE_END -->
 
 ---
@@ -114,20 +114,24 @@ _(coming soon)_
 
 ### Workflows
 
-| | | | |
-|---|---|---|---|
-| [apex](steering/apex.md) | [eks](steering/eks.md) | [design](steering/workflows/design.md) | [eks-build](steering/workflows/eks-build.md) |
-| [eks-genai](steering/workflows/eks-genai.md) | [eks-operation-review](steering/workflows/eks-operation-review.md) | [eks-platform-engineering](steering/workflows/eks-platform-engineering.md) | [eks-security](steering/workflows/eks-security.md) |
-| [eks-upgrade-check](steering/workflows/eks-upgrade-check.md) | [new-skill](steering/workflows/new-skill.md) | | |
+<table>
+<tr><td><a href="steering/apex.md"><b>apex</b></a></td><td><a href="steering/eks.md"><b>eks</b></a></td><td><a href="steering/workflows/design.md"><b>design</b></a></td><td><a href="steering/workflows/eks-build.md"><b>eks-build</b></a></td></tr>
+<tr><td><a href="steering/workflows/eks-genai.md"><b>eks-genai</b></a></td><td><a href="steering/workflows/eks-operation-review.md"><b>eks-operation-review</b></a></td><td><a href="steering/workflows/eks-platform-engineering.md"><b>eks-platform-engineering</b></a></td><td><a href="steering/workflows/eks-security.md"><b>eks-security</b></a></td></tr>
+<tr><td><a href="steering/workflows/eks-upgrade-check.md"><b>eks-upgrade-check</b></a></td><td><a href="steering/workflows/new-skill.md"><b>new-skill</b></a></td><td></td><td></td></tr>
+</table>
 
 ### Slash Commands
 
-| | | |
-|---|---|---|
-| [/apex:eks-build](steering/commands/apex/eks-build.md) | [/apex:eks-design](steering/commands/apex/eks-design.md) | [/apex:eks-genai](steering/commands/apex/eks-genai.md) |
-| [/apex:eks-operation-review](steering/commands/apex/eks-operation-review.md) | [/apex:eks-platform-engineering](steering/commands/apex/eks-platform-engineering.md) | [/apex:eks-security](steering/commands/apex/eks-security.md) |
-| [/apex:eks-upgrade-check](steering/commands/apex/eks-upgrade-check.md) | [/apex:eks](steering/commands/apex/eks.md) | [/apex:new-skill](steering/commands/apex/new-skill.md) |
+<table>
+<tr><td><a href="steering/commands/apex/eks-build.md"><b>/apex:eks-build</b></a></td><td><a href="steering/commands/apex/eks-design.md"><b>/apex:eks-design</b></a></td><td><a href="steering/commands/apex/eks-genai.md"><b>/apex:eks-genai</b></a></td></tr>
+<tr><td><a href="steering/commands/apex/eks-operation-review.md"><b>/apex:eks-operation-review</b></a></td><td><a href="steering/commands/apex/eks-platform-engineering.md"><b>/apex:eks-platform-engineering</b></a></td><td><a href="steering/commands/apex/eks-security.md"><b>/apex:eks-security</b></a></td></tr>
+<tr><td><a href="steering/commands/apex/eks-upgrade-check.md"><b>/apex:eks-upgrade-check</b></a></td><td><a href="steering/commands/apex/eks.md"><b>/apex:eks</b></a></td><td><a href="steering/commands/apex/new-skill.md"><b>/apex:new-skill</b></a></td></tr>
+</table>
 <!-- STEERING_REFERENCE_END -->
+
+Steering files define **how** the agent runs an engagement. Structured sequences with questionnaires, checkpoints, and routing. The hub (`/apex:eks`) detects what you want and routes to the right workflow. Slash commands (e.g., `/apex:eks-design`) are agent-harness entry points that trigger these workflows.
+
+**The key test:** Remove all steering files and the agent still knows the right answers (skills provide knowledge). But it wouldn't know how to run the engagement.
 
 ---
 

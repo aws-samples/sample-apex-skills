@@ -460,37 +460,27 @@ _emit_skills_index_grid() {
     cols=4
   fi
 
-  # Header
-  local header="|" separator="|"
-  local i=0
-  while [ "$i" -lt "$cols" ]; do
-    header="$header |"
-    separator="$separator---|"
-    i=$((i + 1))
-  done
-  echo "$header"
-  echo "$separator"
-
-  # Rows
-  local col=0 row="|"
+  echo '<table>'
+  local col=0
   for skill in $skills_str; do
-    row="$row [$skill](./$group/$skill/) |"
+    if [ "$col" -eq 0 ]; then
+      echo -n '<tr>'
+    fi
+    echo -n "<td><a href=\"./$group/$skill/\"><b>${skill}</b></a></td>"
     col=$((col + 1))
     if [ "$col" -eq "$cols" ]; then
-      echo "$row"
-      row="|"
+      echo '</tr>'
       col=0
     fi
   done
-
-  # Pad final row
   if [ "$col" -gt 0 ]; then
     while [ "$col" -lt "$cols" ]; do
-      row="$row |"
+      echo -n '<td></td>'
       col=$((col + 1))
     done
-    echo "$row"
+    echo '</tr>'
   fi
+  echo '</table>'
 }
 
 # --- Build skills.json manifest to stdout ---------------------------------
