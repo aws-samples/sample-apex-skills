@@ -45,6 +45,8 @@ skills/{skill-name}/
 └── assets/               # Optional: files used in output (templates, etc.)
 ```
 
+> **Naming:** Prefix skill names with the target service (`eks-`, `ecs-`) for auto-grouping in docs and README. Non-service skills use a descriptive name without prefix.
+
 ### What Belongs in Skills
 
 | ✅ Belongs | Example |

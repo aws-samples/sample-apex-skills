@@ -41,6 +41,8 @@ Goal of this phase: get crisp answers to the five scope questions below and deci
 Required inputs — ask for all five in a single turn:
 
 1. **Skill slug** (`<name>`) — lowercase, hyphenated, matches the target `skills/<name>/` directory.
+   - **Naming convention:** Prefix the skill name with the target AWS service (e.g., `eks-`, `ecs-`). This prefix controls auto-grouping in the README, docs site, and sidebar. Skills without a service prefix (cross-cutting or meta/tooling) land in the "General" group.
+   - **New service?** If your skill targets a service that doesn't have existing skills in this repo (i.e., not `eks-` or `ecs-`), create a GitHub issue requesting service onboarding first. This requires updating the `classify_skill()` function in the auto-gen scripts, creating a steering hub, and adding a docs category.
 2. **One-sentence scope** — what the skill covers and for whom. This becomes the seed for the `description:` frontmatter that the triggering eval scores against.
 3. **Five example prompts the skill should trigger on** — positives. Ask for the phrasings a real user would type, not a tidy canonical form.
 4. **Which kind of skill** — knowledge (static references), setup-bridge (one-shot env configuration), or discovery (reads live state and emits a structured report). Matches the three classes in `../../skills/steering-workflow-creator/references/tool-routing.md`.
