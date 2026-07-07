@@ -14,7 +14,7 @@ This page is generated from [examples/eks-upgrades/in-place-karpenter-check/READ
 
 A hands-on exercise that demonstrates the APEX EKS [Upgrade Check Workflow](../../../steering/workflows/eks-upgrade-check) in practice. Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
 
-The upgrade-check workflow uses the [`eks-upgrade-check`](../../../skills/eks-upgrade-check/) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
+The upgrade-check workflow uses the [`eks-upgrade-check`](../../../skills/eks/eks-upgrade-check/) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
 
 ## Overview
 
@@ -198,10 +198,10 @@ The destroy script: deletes planted manifests, terminates Karpenter EC2 instance
 ## Further Reading
 
 - [APEX EKS Upgrade Check Workflow](../../../steering/workflows/eks-upgrade-check)
-- [EKS Upgrade Check Skill](../../../skills/eks-upgrade-check/)
-  - [Version Validation Reference](../../../skills/eks-upgrade-check/references/version-validation)
-  - [Add-on Compatibility Reference](../../../skills/eks-upgrade-check/references/addon-compatibility)
-  - [Workload Risks Reference](../../../skills/eks-upgrade-check/references/workload-risks)
-  - [Report Generation Reference](../../../skills/eks-upgrade-check/references/report-generation)
+- [EKS Upgrade Check Skill](../../../skills/eks/eks-upgrade-check/)
+  - [Version Validation Reference](../../../skills/eks/eks-upgrade-check/references/version-validation)
+  - [Add-on Compatibility Reference](../../../skills/eks/eks-upgrade-check/references/addon-compatibility)
+  - [Workload Risks Reference](../../../skills/eks/eks-upgrade-check/references/workload-risks)
+  - [Report Generation Reference](../../../skills/eks/eks-upgrade-check/references/report-generation)
 - [Karpenter Compatibility Matrix](https://karpenter.sh/docs/upgrading/compatibility/)
 - [EKS Version Release Notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html)

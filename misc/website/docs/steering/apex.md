@@ -24,8 +24,8 @@ This steering file is the central meta-hub. It detects contributor intent and ro
 |---|---|---|
 | "Add a new skill" / "Onboard `<skill-name>`" / "Scaffold evals for my new skill" | → [new-skill workflow](workflows/new-skill) | meta — contributor action |
 | "Retrofit evals for an existing skill that skipped the process" | → [new-skill workflow](workflows/new-skill) (retrofit mode) | meta — contributor action |
-| "Author a new steering workflow" / "Add a workflow to apex" | Use the [`steering-workflow-creator`](../skills/steering-workflow-creator/) skill directly | meta — contributor action |
-| "Update docs" / "Sync docs" / "Check docs" / "Are the docs stale?" | Invoke the [`update-docs`](../skills/update-docs/) skill directly | meta — maintenance action |
+| "Author a new steering workflow" / "Add a workflow to apex" | Use the [`steering-workflow-creator`](../skills/general/steering-workflow-creator/) skill directly | meta — contributor action |
+| "Update docs" / "Sync docs" / "Check docs" / "Are the docs stale?" | Invoke the [`update-docs`](../skills/general/update-docs/) skill directly | meta — maintenance action |
 
 If the request doesn't match a row here, check whether it's a service-scoped action (route to `steering/eks.md` and kin) or a pure question about a skill's content (invoke the skill directly).
 

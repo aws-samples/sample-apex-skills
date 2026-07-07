@@ -14,7 +14,7 @@ This page is generated from [steering/workflows/eks-operation-review.md](https:/
 
 > **Part of:** [APEX EKS Hub](../eks)
 > **Lifecycle:** Day 2 — Operate
-> **Skill:** `eks-operation-review` — [SKILL.md](../../skills/eks-operation-review/)
+> **Skill:** `eks-operation-review` — [SKILL.md](../../skills/eks/eks-operation-review/)
 
 ---
 
@@ -69,7 +69,7 @@ Read the maturity score and use the rating distribution to set tone:
 - **Several AMBER, some RED**: typical state for production clusters. Walk the user through the Critical (RED) and Important (AMBER) priorities tables in the report.
 - **Many RED**: significant gaps. Recommend addressing the security-flagged RED findings first (per the report's blast-radius prioritization). Do not route to upgrade workflows until critical operational gaps are addressed.
 
-For full rating rules and the consistency contract, see [eks-operation-review SKILL.md](../../skills/eks-operation-review/).
+For full rating rules and the consistency contract, see [eks-operation-review SKILL.md](../../skills/eks/eks-operation-review/).
 
 ---
 

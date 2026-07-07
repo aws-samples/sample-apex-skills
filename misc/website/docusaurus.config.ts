@@ -80,6 +80,23 @@ const config: Config = {
     ],
   ],
 
+  plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        createRedirects(existingPath) {
+          // Redirect old flat skill paths to new grouped paths
+          const groupedMatch = existingPath.match(/^\/docs\/skills\/(eks|ecs|general)\/(.+)/);
+          if (groupedMatch) {
+            const skillName = groupedMatch[2].replace(/\/$/, '');
+            return [`/docs/skills/${skillName}`];
+          }
+          return undefined;
+        },
+      },
+    ],
+  ],
+
   themeConfig: {
     metadata: [
       {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},

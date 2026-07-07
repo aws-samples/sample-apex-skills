@@ -71,49 +71,49 @@ function FeaturedSkills() {
   const skills = [
     {
       name: 'EKS Design',
-      path: '/docs/skills/eks-design/',
+      path: '/docs/skills/eks/eks-design/',
       description:
         'Architecture design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices.',
     },
     {
       name: 'EKS Build',
-      path: '/docs/skills/eks-build/',
+      path: '/docs/skills/eks/eks-build/',
       description:
         'Generate production-ready EKS Terraform projects with optional ArgoCD GitOps. Handles air-gapped networks, enterprise proxies, compliance requirements, and 29+ addon configurations.',
     },
     {
       name: 'EKS Upgrade Check',
-      path: '/docs/skills/eks-upgrade-check/',
+      path: '/docs/skills/eks/eks-upgrade-check/',
       description:
         'Automated readiness assessment across 8 categories — deprecated APIs, add-on compatibility, node health, workload risks — producing a 0–100 score with prioritized remediation.',
     },
     {
       name: 'EKS Operation Review',
-      path: '/docs/skills/eks-operation-review/',
+      path: '/docs/skills/eks/eks-operation-review/',
       description:
         'Structured operational excellence assessment covering 10 areas with GREEN/AMBER/RED ratings and prioritized recommendations for production clusters.',
     },
     {
       name: 'EKS Platform Engineering',
-      path: '/docs/skills/eks-platform-engineering/',
+      path: '/docs/skills/eks/eks-platform-engineering/',
       description:
         'Internal Developer Platform design — Backstage portal, ArgoCD delivery, progressive rollouts with Kargo, infrastructure abstraction, golden paths, and DORA measurement.',
     },
     {
       name: 'EKS Best Practices',
-      path: '/docs/skills/eks-best-practices/',
+      path: '/docs/skills/eks/eks-best-practices/',
       description:
         'Architecture and design guidance — compute strategy with Karpenter and Auto Mode, multi-tenant isolation, VPC planning, Pod Identity, upgrade strategies, and cost optimization.',
     },
     {
       name: 'EKS Reconnaissance',
-      path: '/docs/skills/eks-recon/',
+      path: '/docs/skills/eks/eks-recon/',
       description:
         'Cluster discovery and environment mapping. Detects compute strategy, IaC tooling, CI/CD pipelines, add-on inventory, networking topology, security posture, and observability automatically.',
     },
     {
       name: 'EKS MCP Server',
-      path: '/docs/skills/eks-mcp-server/',
+      path: '/docs/skills/eks/eks-mcp-server/',
       description:
         'Live cluster operations via Model Context Protocol. List clusters, read Kubernetes resources, troubleshoot pods, deploy workloads, and check upgrade insights in real time.',
     },

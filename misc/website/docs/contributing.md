@@ -11,4 +11,4 @@ See [`CONTRIBUTING.md`](https://github.com/aws-samples/sample-apex-skills/blob/m
 
 ## Running `update-docs`
 
-Adding, renaming, or removing a skill — or editing a `SKILL.md` frontmatter description — should be followed by running the [`update-docs`](./skills/update-docs) skill so wrappers, marker blocks, and prose references stay in sync.
+Adding, renaming, or removing a skill — or editing a `SKILL.md` frontmatter description — should be followed by running the [`update-docs`](./skills/general/update-docs) skill so wrappers, marker blocks, and prose references stay in sync.
