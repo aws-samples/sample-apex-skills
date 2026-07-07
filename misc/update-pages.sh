@@ -452,8 +452,11 @@ _emit_skills_index_grid() {
   local count cols
 
   count="$(echo "$skills_str" | wc -w | tr -d ' ')"
-  cols=3
-  if [ "$count" -gt 9 ]; then
+  if [ "$count" -le 4 ]; then
+    cols="$count"
+  elif [ "$count" -le 9 ]; then
+    cols=3
+  else
     cols=4
   fi
 

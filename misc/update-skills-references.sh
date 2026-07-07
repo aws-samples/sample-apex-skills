@@ -114,27 +114,19 @@ build_table() {
   echo '### EKS Skills'
   echo ''
   local eks_count
-  eks_count="$(echo "$eks_skills" | wc -w)"
-  local eks_cols=3
-  if [ "$eks_count" -gt 9 ]; then
-    eks_cols=4
-  fi
-  _emit_grid "$eks_skills" "$eks_cols" "$base_url/eks"
+  eks_count="$(echo "$eks_skills" | wc -w | tr -d ' ')"
+  _emit_grid "$eks_skills" "$(_pick_cols "$eks_count")" "$base_url/eks"
 
   # --- ECS Skills ---
   echo ''
   echo '### ECS Skills'
   echo ''
   local ecs_count
-  ecs_count="$(echo "$ecs_skills" | wc -w)"
+  ecs_count="$(echo "$ecs_skills" | wc -w | tr -d ' ')"
   if [ "$ecs_count" -eq 0 ]; then
-    _emit_placeholder_grid 3
+    echo '_(coming soon)_'
   else
-    local ecs_cols=3
-    if [ "$ecs_count" -gt 9 ]; then
-      ecs_cols=4
-    fi
-    _emit_grid "$ecs_skills" "$ecs_cols" "$base_url/ecs"
+    _emit_grid "$ecs_skills" "$(_pick_cols "$ecs_count")" "$base_url/ecs"
   fi
 
   # --- General ---
@@ -142,12 +134,20 @@ build_table() {
   echo '### General'
   echo ''
   local gen_count
-  gen_count="$(echo "$general_skills" | wc -w)"
-  local gen_cols=3
-  if [ "$gen_count" -gt 9 ]; then
-    gen_cols=4
+  gen_count="$(echo "$general_skills" | wc -w | tr -d ' ')"
+  _emit_grid "$general_skills" "$(_pick_cols "$gen_count")" "$base_url/general"
+}
+
+# --- Pick column count based on item count ---
+_pick_cols() {
+  local count="$1"
+  if [ "$count" -le 4 ]; then
+    echo "$count"
+  elif [ "$count" -le 9 ]; then
+    echo 3
+  else
+    echo 4
   fi
-  _emit_grid "$general_skills" "$gen_cols" "$base_url/general"
 }
 
 # --- Emit a grid table from a space-separated list of skill names ---
@@ -191,27 +191,6 @@ _emit_grid() {
   fi
 }
 
-# --- Emit a placeholder grid for empty groups ---
-_emit_placeholder_grid() {
-  local cols="$1"
-  local header="|"
-  local separator="|"
-  local i=0
-  while [ "$i" -lt "$cols" ]; do
-    header="$header |"
-    separator="$separator---|"
-    i=$((i + 1))
-  done
-  echo "$header"
-  echo "$separator"
-  local row="| _(coming soon)_ |"
-  i=1
-  while [ "$i" -lt "$cols" ]; do
-    row="$row |"
-    i=$((i + 1))
-  done
-  echo "$row"
-}
 
 # --- Build the detailed skills/README.md section ---
 build_skills_detail() {

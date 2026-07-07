@@ -22,7 +22,6 @@ _(coming soon)_
 
 ## General
 
-| | | |
-|---|---|---|
-| [skill-creator](./general/skill-creator/) | [steering-workflow-creator](./general/steering-workflow-creator/) | [terraform-skill](./general/terraform-skill/) |
-| [update-docs](./general/update-docs/) | | |
+| | | | |
+|---|---|---|---|
+| [skill-creator](./general/skill-creator/) | [steering-workflow-creator](./general/steering-workflow-creator/) | [terraform-skill](./general/terraform-skill/) | [update-docs](./general/update-docs/) |
