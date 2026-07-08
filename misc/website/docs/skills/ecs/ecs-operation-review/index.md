@@ -1,7 +1,14 @@
 ---
-name: ecs-operation-review
-description: Run a structured Amazon ECS operational-excellence assessment against a live estate and score it GREEN/AMBER/RED. Covers 8 domains — clusters & capacity (scale-in correctness), networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (health-check grace period, connection draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for "audit my ECS estate", "ECS health check", "score my ECS posture", "review my ECS services", "GREEN/AMBER/RED my clusters", including section-scoped reviews of a single domain. For Day-0 deployment-model design and selection use ecs-architect; for deep security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for deployment/CI-CD engineering use ecs-devops; for read-only inventory/discovery use ecs-recon (once available).
+title: "ecs-operation-review"
+description: "Run a structured Amazon ECS operational-excellence assessment against a live estate and score it GREEN/AMBER/RED. Covers 8 domains — clusters & capacity (scale-in correctness), networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (health-check grace period, connection draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for \"audit my ECS estate\", \"ECS health check\", \"score my ECS posture\", \"review my ECS services\", \"GREEN/AMBER/RED my clusters\", including section-scoped reviews of a single domain. For Day-0 deployment-model design and selection use ecs-architect; for deep security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for deployment/CI-CD engineering use ecs-devops; for read-only inventory/discovery use ecs-recon (once available)."
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/SKILL.md
+format: md
 ---
+
+:::info[Source]
+This page is generated from [skills/ecs-operation-review/SKILL.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/SKILL.md). Edit the source, not this page.
+:::
+
 
 # ECS Operation Review
 
