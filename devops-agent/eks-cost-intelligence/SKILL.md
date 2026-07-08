@@ -72,22 +72,12 @@ The following permissions must be attached to the Agent Space execution role:
 - Asks which workloads are over-provisioned relative to actual usage
 - Wants to know their cluster's cost efficiency score
 
-**Do NOT activate when the user:**
-- Asks general cost optimization best practices → use `eks-best-practices` (static advisory)
-- Asks "how should I design my cluster for cost efficiency?" → use `eks-best-practices`
-- Requests an operational review or health check → use `eks-operation-review`
-- Wants cluster discovery or reconnaissance → use `eks-recon`
-- Asks about upgrade readiness → use `eks-upgrade-check`
-
-### Sibling Skill Disambiguation
-
-| User Intent | Correct Skill | Why |
-|---|---|---|
-| "How should I optimize EKS costs?" | `eks-best-practices` | Advisory/design question — no live cluster needed |
-| "Analyze my cluster's cost efficiency" | `eks-cost-intelligence` | Live assessment against a specific cluster |
-| "Run an operational review" | `eks-operation-review` | Operational health, not cost-specific |
-| "What version am I running?" | `eks-recon` | Cluster discovery, not cost analysis |
-| "Is my cluster ready to upgrade?" | `eks-upgrade-check` | Upgrade readiness, not cost posture |
+**Out of scope (do not assess):**
+- General cost optimization best practices without a live cluster — advisory guidance, not a live assessment
+- Cluster design for cost efficiency — architecture decisions, not point-in-time measurement
+- Operational health reviews — configuration quality, not cost posture
+- Cluster discovery or reconnaissance — topology mapping, not cost analysis
+- Upgrade readiness — version compatibility, not spending efficiency
 
 ---
 
