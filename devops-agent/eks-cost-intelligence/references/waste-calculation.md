@@ -146,16 +146,8 @@ monthly_waste = node_waste_ratio * node_monthly_cost
 | r7g.xlarge | 4 | 32 GiB | $0.214 |
 
 For instance types not in this table, use the AWS Price List API:
-```bash
-aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
-  --filters "Type=TERM_MATCH,Field=instanceType,Value=<INSTANCE_TYPE>" \
-            "Type=TERM_MATCH,Field=operatingSystem,Value=Linux" \
-            "Type=TERM_MATCH,Field=location,Value=US East (N. Virginia)" \
-            "Type=TERM_MATCH,Field=tenancy,Value=Shared" \
-            "Type=TERM_MATCH,Field=preInstalledSw,Value=NA" \
-            "Type=TERM_MATCH,Field=capacitystatus,Value=Used" \
-  --query 'PriceList[0]' --output text | jq -r '.terms.OnDemand | to_entries[0].value.priceDimensions | to_entries[0].value.pricePerUnit.USD'
-```
+
+Use the AWS Price List GetProducts API to look up hourly instance rates for types not in the reference table.
 
 #### Detection Criteria
 
@@ -497,15 +489,7 @@ A workload is Spot-eligible if ALL of:
 
 The default 65% discount is a conservative estimate. For **production-grade findings**, query actual Spot prices for the customer's instance types and region:
 
-```bash
-# Get current Spot prices for the instance types in use
-aws ec2 describe-spot-price-history \
-  --instance-types m5.xlarge m6g.xlarge c5.xlarge c7g.xlarge \
-  --product-descriptions "Linux/UNIX" \
-  --start-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
-  --query 'SpotPriceHistory[].{Type:InstanceType,AZ:AvailabilityZone,Price:SpotPrice}' \
-  --output table
-```
+Use the EC2 DescribeSpotPriceHistory API to get current Spot pricing for the target instance types and AZs in the customer's region.
 
 When live Spot pricing is available:
 - Use `actual_spot_discount = 1 - (spot_price / on_demand_price)` per instance type
@@ -615,14 +599,7 @@ total_graviton_opportunity = sum(w.monthly_savings for w in graviton_eligible)
 
 #### Checking arm64 Support
 
-```bash
-# Check if image has arm64 manifest
-docker manifest inspect nginx:1.25 | jq '.manifests[] | select(.platform.architecture == "arm64")'
-
-# For ECR images:
-aws ecr batch-get-image --repository-name my-app --image-ids imageTag=latest \
-  --query 'images[].imageManifest' | jq -r '.' | jq '.manifests[].platform.architecture'
-```
+Check container image manifest for multi-architecture support (arm64 availability) via the container registry API or ECR BatchGetImage API to inspect the image manifest list.
 
 #### Worked Example
 
@@ -809,15 +786,7 @@ def determine_confidence(data_sources: list[str]) -> str:
 ## Notes
 
 - All prices are US East (N. Virginia) On-Demand rates. **Use the AWS Price List API for region-specific pricing** (see `cost-estimation-fallback.md` Step 2).
-- Spot discounts vary by instance type and region (40–90%). Use 65% as conservative default. **For production accuracy, query live Spot prices:**
-  ```bash
-  aws ec2 describe-spot-price-history \
-    --instance-types <type1> <type2> \
-    --product-descriptions "Linux/UNIX" \
-    --start-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
-    --query 'SpotPriceHistory[].{Type:InstanceType,AZ:AvailabilityZone,Price:SpotPrice}' \
-    --output table
-  ```
+- Spot discounts vary by instance type and region (40–90%). Use 65% as conservative default. **For production accuracy:** Use the EC2 DescribeSpotPriceHistory API to get current Spot pricing for the customer's instance types and region.
 - Graviton savings vary by instance family (15–40%). Use 20% as conservative default.
 - Cross-AZ pricing is consistent across regions ($0.01/GiB each direction).
 - NAT Gateway pricing is consistent across regions ($0.045/GiB processed).

@@ -201,81 +201,9 @@ Common high-cardinality sources in EKS:
 
 Use the Kubernetes API to list ConfigMaps containing Prometheus scrape configs (names matching prometheus/prom-/monitoring patterns). List ServiceMonitor and PodMonitor CRDs (monitoring.coreos.com/v1) across all namespaces. For each, check spec.endpoints[].metricRelabelings and scrape intervals.
 
-**Check CloudWatch agent configuration:**
+Use the Kubernetes API to list ConfigMaps in the amazon-cloudwatch namespace for CloudWatch agent configuration. Check for OpenTelemetryCollector CRDs to detect ADOT collectors and their configuration.
 
-```bash
-# Find CloudWatch agent ConfigMap
-kubectl get configmap -n amazon-cloudwatch -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.name | test("cloudwatch|cwagent")) |
-    "\(.metadata.namespace)/\(.metadata.name)"
-  '
-
-# Get CloudWatch agent configuration detail
-kubectl get configmap -n amazon-cloudwatch cloudwatch-agent-config -o yaml 2>/dev/null || \
-kubectl get configmap -n amazon-cloudwatch cwagent-config -o yaml 2>/dev/null
-```
-
-```bash
-# Check for ADOT (AWS Distro for OpenTelemetry) collector configs
-kubectl get opentelemetrycollectors --all-namespaces -o json 2>/dev/null | \
-  jq -r '
-    .items[] | {
-      namespace: .metadata.namespace,
-      name: .metadata.name,
-      mode: .spec.mode,
-      config_length: (.spec.config | length)
-    } |
-    "\(.namespace)/\(.name) mode=\(.mode)"
-  '
-
-# Get ADOT collector config
-kubectl get opentelemetrycollectors -n <namespace> <name> -o yaml 2>/dev/null
-```
-
-**Check custom metrics volume via CloudWatch:**
-
-```bash
-# Count custom metrics in the cluster namespace
-aws cloudwatch list-metrics \
-  --namespace "ContainerInsights" \
-  --dimensions "Name=ClusterName,Value=<cluster>" \
-  --query 'Metrics | length(@)' \
-  --output text
-
-# Check for high-cardinality EKS-specific metric namespaces
-aws cloudwatch list-metrics \
-  --namespace "ContainerInsights/Prometheus" \
-  --dimensions "Name=ClusterName,Value=<cluster>" \
-  --query 'Metrics | length(@)' \
-  --output text 2>/dev/null
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="ConfigMap",
-  api_version="v1",
-  namespace="amazon-cloudwatch"
-)
-
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="ServiceMonitor",
-  api_version="monitoring.coreos.com/v1",
-  namespace="all"
-)
-
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="PodMonitor",
-  api_version="monitoring.coreos.com/v1",
-  namespace="all"
-)
-```
+Use the CloudWatch ListMetrics API to count custom metrics in the ContainerInsights and ContainerInsights/Prometheus namespaces for the cluster, assessing metric cardinality volume.
 
 ### Analysis logic
 
@@ -424,81 +352,7 @@ Log volume impact by level:
 
 ### Data collection
 
-**Via kubectl — check environment variables and config:**
-
-```bash
-# Find workloads with DEBUG/TRACE log level in environment variables
-kubectl get deployments --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    . as $dep |
-    .spec.template.spec.containers[] |
-    select(.env != null) |
-    select(.env[] | 
-      select(.name | test("LOG_LEVEL|LOGGING_LEVEL|LOG_LVL|RUST_LOG|LOGLEVEL|VERBOSE|DEBUG"; "i")) |
-      select(.value | test("debug|trace|verbose|all"; "i"))
-    ) |
-    "\($dep.metadata.namespace)/\($dep.metadata.name) container=\(.name) \(.env[] | select(.name | test("LOG_LEVEL|LOGGING_LEVEL|LOG_LVL|RUST_LOG|LOGLEVEL|VERBOSE|DEBUG"; "i")) | "\(.name)=\(.value)")"
-  '
-
-# Also check StatefulSets
-kubectl get statefulsets --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    . as $sts |
-    .spec.template.spec.containers[] |
-    select(.env != null) |
-    select(.env[] | 
-      select(.name | test("LOG_LEVEL|LOGGING_LEVEL|LOG_LVL|RUST_LOG|LOGLEVEL|VERBOSE|DEBUG"; "i")) |
-      select(.value | test("debug|trace|verbose|all"; "i"))
-    ) |
-    "\($sts.metadata.namespace)/\($sts.metadata.name) container=\(.name) \(.env[] | select(.name | test("LOG_LEVEL|LOGGING_LEVEL|LOG_LVL|RUST_LOG|LOGLEVEL|VERBOSE|DEBUG"; "i")) | "\(.name)=\(.value)")"
-  '
-```
-
-```bash
-# Check for DEBUG log levels in ConfigMaps used by workloads
-kubectl get configmaps --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    select(.data != null) |
-    . as $cm |
-    (.data | to_entries[] | 
-      select(.value | test("level.*=.*debug|level.*=.*trace|logLevel.*debug|logLevel.*trace|log_level.*debug|log_level.*trace"; "i"))
-    ) |
-    "\($cm.metadata.namespace)/\($cm.metadata.name) key=\(.key)"
-  '
-```
-
-```bash
-# Check command-line args for verbose flags
-kubectl get deployments --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    . as $dep |
-    .spec.template.spec.containers[] |
-    select(.args != null) |
-    select(.args[] | test("-v=5|-v=6|-v=7|-v=8|-v=9|--debug|--verbose|--trace|--log-level=debug|--log-level=trace"; "i")) |
-    "\($dep.metadata.namespace)/\($dep.metadata.name) container=\(.name) args=\([.args[] | select(test("-v=[5-9]|--debug|--verbose|--trace|--log-level"; "i"))] | join(" "))"
-  '
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Deployment",
-  api_version="apps/v1",
-  namespace="all"
-)
-# Parse containers[].env for LOG_LEVEL=debug/trace patterns
-# Parse containers[].args for --debug/--verbose/--trace flags
-```
+Use the Kubernetes API to list all Deployments and StatefulSets in non-system namespaces. Inspect spec.template.spec.containers[].env for log level variables (LOG_LEVEL, LOGGING_LEVEL, LOG_LVL, RUST_LOG, LOGLEVEL) with values matching debug/trace/verbose. Check spec.template.spec.containers[].args for verbose flags (-v=5+, --debug, --verbose, --trace, --log-level=debug). Also inspect ConfigMaps referenced by workloads for log level settings.
 
 ### Analysis logic
 
@@ -602,104 +456,11 @@ Filtering out this noise can reduce log ingestion costs by 40–70% (based on fi
 
 ### Data collection
 
-**Check FluentBit configuration:**
+Use the Kubernetes API to read ConfigMaps for FluentBit (names matching fluent-bit/fluentbit patterns) and check DaemonSets for FluentBit deployment status. Parse the configuration data for [FILTER] sections, grep/exclude/throttle/sampling directives.
 
-```bash
-# Find FluentBit ConfigMaps or DaemonSets
-kubectl get configmaps --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.name | test("fluent-bit|fluentbit|fluent"; "i")) |
-    "\(.metadata.namespace)/\(.metadata.name)"
-  '
+Use the Kubernetes API to read the CloudWatch agent ConfigMap in the amazon-cloudwatch namespace. Check for log_filters, exclude patterns, and namespace exclusion rules in the configuration.
 
-# Get FluentBit DaemonSet to confirm it's running
-kubectl get daemonsets --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.name | test("fluent-bit|fluentbit"; "i")) |
-    "\(.metadata.namespace)/\(.metadata.name) ready=\(.status.numberReady)/\(.status.desiredNumberScheduled)"
-  '
-
-# Get FluentBit config content
-kubectl get configmap -n <logging-namespace> <fluent-bit-config> -o json | \
-  jq -r '.data'
-```
-
-```bash
-# Check FluentBit config for FILTER sections
-kubectl get configmap -n <logging-namespace> <fluent-bit-config> -o json | \
-  jq -r '.data["fluent-bit.conf"] // .data["fluent-bit-config"] // empty' | \
-  grep -A5 -i "\[FILTER\]"
-
-# Look for Kubernetes filter with Exclude or Grep
-kubectl get configmap -n <logging-namespace> <fluent-bit-config> -o json | \
-  jq -r '.data["fluent-bit.conf"] // .data["fluent-bit-config"] // empty' | \
-  grep -ci "exclude\|grep\|throttle\|sampling"
-```
-
-**Check CloudWatch agent log filtering:**
-
-```bash
-# Get CloudWatch agent config
-kubectl get configmap -n amazon-cloudwatch \
-  $(kubectl get configmap -n amazon-cloudwatch -o name | grep -i "cwagent\|cloudwatch-agent" | head -1 | cut -d'/' -f2) \
-  -o json | jq -r '.data'
-
-# Check for log_filters or exclusion patterns
-kubectl get configmap -n amazon-cloudwatch cloudwatch-agent-config -o json 2>/dev/null | \
-  jq -r '.data[] | select(test("exclude|filter|blacklist"; "i"))' 
-```
-
-```bash
-# Check for Fluentd (alternative to FluentBit)
-kubectl get configmaps --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.name | test("fluentd"; "i")) |
-    "\(.metadata.namespace)/\(.metadata.name)"
-  '
-
-kubectl get daemonsets --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.name | test("fluentd"; "i")) |
-    "\(.metadata.namespace)/\(.metadata.name) ready=\(.status.numberReady)/\(.status.desiredNumberScheduled)"
-  '
-```
-
-```bash
-# Check if any log pipeline exists at all
-echo "--- Logging pipeline detection ---"
-echo "FluentBit:"
-kubectl get ds -A -l app.kubernetes.io/name=fluent-bit --no-headers 2>/dev/null | wc -l
-echo "Fluentd:"
-kubectl get ds -A -l app=fluentd --no-headers 2>/dev/null | wc -l
-echo "CloudWatch agent:"
-kubectl get ds -A -l app.kubernetes.io/name=cloudwatch-agent --no-headers 2>/dev/null | wc -l
-echo "ADOT:"
-kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers 2>/dev/null | wc -l
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="DaemonSet",
-  api_version="apps/v1",
-  namespace="all"
-)
-# Filter for fluent-bit, fluentd, cloudwatch-agent, adot-collector
-
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="ConfigMap",
-  api_version="v1",
-  namespace="<logging-namespace>"
-)
-# Parse config for filter/exclude/sampling directives
-```
+Check for Fluentd ConfigMaps and DaemonSets via the Kubernetes API. Detect the overall logging pipeline by listing DaemonSets with known labels (fluent-bit, fluentd, cloudwatch-agent, adot-collector) to determine which log collection system is active.
 
 ### Analysis logic
 

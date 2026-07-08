@@ -18,27 +18,80 @@ Only Day 2 operational skills that benefit from autonomous execution are ported:
 |-------|--------|--------|
 | [eks-upgrade-check](eks-upgrade-check/) | Placeholder (vendored from upstream) | [sample-eks-upgrade-skill](https://github.com/aws-samples/sample-eks-upgrade-skill) |
 | [eks-operation-review](eks-operation-review/) | Placeholder (vendored from upstream) | [sample-eks-operation-review-skill](https://github.com/aws-samples/sample-eks-operation-review-skill) |
-| [eks-cost-intelligence](eks-cost-intelligence/) | Placeholder (authored in-place) | — |
-| [eks-security](eks-security/) | Placeholder (authored in-place) | — |
+| [eks-cost-intelligence](eks-cost-intelligence/) | Active | — |
+| [eks-security](eks-security/) | Active | — |
 
-## How to install into an Agent Space
+## Quick Start — Automated Setup
 
-### Option A — Import from repository (recommended)
+The setup script provisions everything end-to-end via CLI: IAM roles, Agent Space, AWS association, EKS access entry, Operator Web App, and skill upload.
+
+```bash
+bash devops-agent/setup.sh \
+  --space-name "my-eks-ops" \
+  --region us-west-2 \
+  --cluster-name my-cluster \
+  --cluster-region us-west-2
+```
+
+This creates the Agent Space, uploads all skills, and prints the Operator Web App URL. To tear down:
+
+```bash
+bash devops-agent/setup.sh --teardown --space-id <id> --region us-west-2 --cluster-name my-cluster
+```
+
+**Prerequisites:** AWS CLI v2, Python 3, `zip`, and IAM permissions to create roles and agent spaces.
+
+**Supported regions:** us-east-1, us-west-2, ap-southeast-2, ap-northeast-1, eu-central-1, eu-west-1. The Agent Space can reach EKS clusters in any region via cross-region access entries.
+
+## Manual Installation
+
+### Option A — Import from repository
 
 1. In the Agent Space Operator Web App, go to **Knowledge → Skills → Add skill → Import from repository**.
-2. Enter the GitHub directory URL pointing at the skill folder (e.g., `https://github.com/aws-samples/sample-apex-skills/tree/main/devops-agent/eks-upgrade-check`).
-3. Select the agent type(s). **On-demand** is a good fit for user-invoked assessments.
+2. Enter the GitHub directory URL pointing at the skill folder (e.g., `https://github.com/aws-samples/sample-apex-skills/tree/main/devops-agent/eks-cost-intelligence`).
+3. Select agent type **CHAT** for on-demand assessments.
 
 ### Option B — Upload as a zip
 
 1. From **inside** the skill folder, zip its contents so `SKILL.md` sits at the zip root:
 
    ```bash
-   cd devops-agent/eks-upgrade-check
-   zip -r ../../eks-upgrade-check-skill.zip .
+   cd devops-agent/eks-cost-intelligence
+   zip -r ../../eks-cost-intelligence-skill.zip .
    ```
 
 2. In the Operator Web App, go to **Knowledge → Skills → Add skill → Upload skill** and upload the zip (ZIP only, ≤ 6 MB).
+
+### EKS Access Setup
+
+The Agent Space role needs an EKS access entry on each cluster you want to assess:
+
+```bash
+aws eks create-access-entry \
+  --cluster-name <cluster> \
+  --principal-arn arn:aws:iam::<account>:role/DevOpsAgentRole-AgentSpace \
+  --type STANDARD \
+  --region <cluster-region>
+
+aws eks associate-access-policy \
+  --cluster-name <cluster> \
+  --principal-arn arn:aws:iam::<account>:role/DevOpsAgentRole-AgentSpace \
+  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonAIOpsAssistantPolicy \
+  --access-scope type=cluster \
+  --region <cluster-region>
+```
+
+The cluster authentication mode must include `API` or `API_AND_CONFIG_MAP`.
+
+Each skill also includes a `references/iam-policy.json` with the specific AWS API permissions needed — attach these to the Agent Space role for full functionality.
+
+## Invoking Skills
+
+Skills activate automatically when the agent determines they are relevant (matched via the `description` field in SKILL.md frontmatter). Start a chat in the Operator Web App and ask naturally:
+
+- *"Run a cost efficiency assessment on my EKS cluster"*
+- *"Review the security posture of my cluster — no compliance regime, internal workloads, open to AWS defaults"*
+- *"How much am I wasting on EKS?"*
 
 ## Differences from Claude Code skills
 

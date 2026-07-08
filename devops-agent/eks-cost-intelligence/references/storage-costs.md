@@ -51,78 +51,9 @@ PersistentVolumes (PVs) and PersistentVolumeClaims (PVCs) using the `gp2` storag
 
 ### Data collection
 
-**Via kubectl:**
+Use the Kubernetes API to list PersistentVolumeClaims across all namespaces. Filter for storageClassName == "gp2" or null (which defaults to the cluster's default StorageClass). Also list StorageClasses to identify the default and check if a gp3 class exists. Extract capacity from spec.resources.requests.storage.
 
-```bash
-# Find all PVCs using gp2 storage class
-kubectl get pvc --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.spec.storageClassName == "gp2" or 
-           (.spec.storageClassName == null and .metadata.annotations["volume.beta.kubernetes.io/storage-class"] == "gp2")) |
-    {
-      namespace: .metadata.namespace,
-      name: .metadata.name,
-      storage_class: (.spec.storageClassName // .metadata.annotations["volume.beta.kubernetes.io/storage-class"]),
-      capacity_gb: (.spec.resources.requests.storage | 
-        if endswith("Gi") then (rtrimstr("Gi") | tonumber)
-        elif endswith("Ti") then (rtrimstr("Ti") | tonumber * 1024)
-        else 0 end),
-      status: .status.phase,
-      volume_name: .spec.volumeName
-    }'
-
-# Check the default StorageClass (may be gp2)
-kubectl get storageclass -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.annotations["storageclass.kubernetes.io/is-default-class"] == "true") |
-    {name: .metadata.name, provisioner: .provisioner, parameters: .parameters}'
-
-# List all StorageClasses to see what's available
-kubectl get storageclass -o custom-columns=NAME:.metadata.name,PROVISIONER:.provisioner,DEFAULT:.metadata.annotations."storageclass\.kubernetes\.io/is-default-class"
-```
-
-**Via AWS CLI (cross-reference EBS volumes):**
-
-```bash
-# Get EBS volumes tagged with the cluster and check volume type
-aws ec2 describe-volumes \
-  --filters "Name=tag:kubernetes.io/cluster/<cluster>,Values=owned" \
-  --query 'Volumes[?VolumeType==`gp2`].{
-    VolumeId: VolumeId,
-    Size: Size,
-    VolumeType: VolumeType,
-    State: State,
-    Tags: Tags[?Key==`kubernetes.io/created-for/pvc/name`].Value | [0]
-  }' \
-  --output table
-
-# Count gp2 vs gp3 volumes for the cluster
-aws ec2 describe-volumes \
-  --filters "Name=tag:kubernetes.io/cluster/<cluster>,Values=owned" \
-  --query 'Volumes[].VolumeType' \
-  --output text | tr '\t' '\n' | sort | uniq -c
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="PersistentVolumeClaim",
-  api_version="v1",
-  namespace="all"
-)
-# Filter results for storageClassName == "gp2"
-
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="StorageClass",
-  api_version="storage.k8s.io/v1"
-)
-# Check which StorageClass is default and whether gp3 exists
-```
+Use the EC2 DescribeVolumes API filtered by the cluster tag (`kubernetes.io/cluster/<cluster>=owned`) to verify volume types and get actual sizes. Count gp2 vs gp3 volumes for the cluster.
 
 ### Analysis logic
 
@@ -200,99 +131,7 @@ PersistentVolumeClaims that are in `Bound` state (an EBS volume exists and is be
 
 ### Data collection
 
-**Via kubectl:**
-
-```bash
-# Step 1: Get all bound PVCs
-kubectl get pvc --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.status.phase == "Bound") |
-    {
-      namespace: .metadata.namespace,
-      name: .metadata.name,
-      capacity: .spec.resources.requests.storage,
-      storage_class: .spec.storageClassName,
-      volume_name: .spec.volumeName
-    }' > /tmp/all_bound_pvcs.json
-
-# Step 2: Get all PVCs currently mounted by running pods
-kubectl get pods --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.status.phase == "Running") |
-    .metadata.namespace as $ns |
-    .spec.volumes[]? |
-    select(.persistentVolumeClaim != null) |
-    "\($ns)/\(.persistentVolumeClaim.claimName)"
-  ' | sort -u > /tmp/mounted_pvcs.txt
-
-# Step 3: Find PVCs that are bound but NOT mounted
-kubectl get pvc --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.status.phase == "Bound") |
-    "\(.metadata.namespace)/\(.metadata.name)"
-  ' | while read pvc; do
-    if ! grep -q "^${pvc}$" /tmp/mounted_pvcs.txt; then
-      echo "UNMOUNTED: ${pvc}"
-    fi
-  done
-
-# Combined single command (no temp files):
-kubectl get pods --all-namespaces -o json | \
-  jq -r '[
-    .items[] |
-    select(.status.phase == "Running") |
-    .metadata.namespace as $ns |
-    .spec.volumes[]? |
-    select(.persistentVolumeClaim != null) |
-    "\($ns)/\(.persistentVolumeClaim.claimName)"
-  ] | unique | .[]' | sort > /tmp/mounted.txt && \
-kubectl get pvc --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.status.phase == "Bound") |
-    {
-      key: "\(.metadata.namespace)/\(.metadata.name)",
-      namespace: .metadata.namespace,
-      name: .metadata.name,
-      capacity: .spec.resources.requests.storage,
-      storage_class: .spec.storageClassName
-    }' | \
-  jq -s --slurpfile mounted <(jq -R . /tmp/mounted.txt | jq -s .) '
-    [.[] | select(.key as $k | $mounted[0] | index($k) | not)]'
-```
-
-**Via kubectl (simplified — single pipeline):**
-
-```bash
-# Get unmounted PVCs in one pass
-comm -23 \
-  <(kubectl get pvc -A -o jsonpath='{range .items[?(@.status.phase=="Bound")]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' | sort) \
-  <(kubectl get pods -A -o json | jq -r '.items[] | select(.status.phase=="Running") | .metadata.namespace as $ns | .spec.volumes[]? | select(.persistentVolumeClaim) | "\($ns)/\(.persistentVolumeClaim.claimName)"' | sort -u)
-```
-
-**Via EKS MCP Server:**
-
-```
-# Step 1: Get all PVCs
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="PersistentVolumeClaim",
-  api_version="v1",
-  namespace="all"
-)
-
-# Step 2: Get all running pods to check volume mounts
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Pod",
-  api_version="v1",
-  namespace="all"
-)
-# Cross-reference: find PVCs in Bound state not referenced by any running pod's spec.volumes
-```
+Use the Kubernetes API to list all PersistentVolumeClaims and all running Pods. Cross-reference spec.volumes[].persistentVolumeClaim.claimName across all running pods to build a set of mounted PVCs. Identify PVCs in Bound state that are not in the mounted set.
 
 ### Analysis logic
 
@@ -362,95 +201,13 @@ Flag a volume as over-provisioned if:
 
 ### Data collection
 
-**Via kubectl (kubelet volume stats — requires metrics-server or direct kubelet access):**
+Use the Kubernetes API kubelet stats endpoint (`/api/v1/nodes/<node>/proxy/stats/summary`) to get volume usage statistics including capacityBytes, usedBytes, and availableBytes per PVC. Aggregate across all nodes to build a utilization map.
 
-```bash
-# Get volume usage stats from kubelet (via kubectl proxy or metrics API)
-# Note: This requires the kubelet to expose volume stats
-kubectl get --raw "/api/v1/nodes/<node-name>/proxy/stats/summary" | \
-  jq '.pods[].volume[]? | select(.pvcRef != null) | {
-    namespace: .pvcRef.namespace,
-    pvc_name: .pvcRef.name,
-    capacity_bytes: .capacityBytes,
-    used_bytes: .usedBytes,
-    available_bytes: .availableBytes,
-    usage_pct: ((.usedBytes / .capacityBytes) * 100 | floor)
-  }'
-
-# Aggregate across all nodes (requires iterating nodes)
-kubectl get nodes -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | \
-  while read node; do
-    kubectl get --raw "/api/v1/nodes/${node}/proxy/stats/summary" 2>/dev/null | \
-      jq --arg node "$node" '.pods[].volume[]? | select(.pvcRef != null) | {
-        node: $node,
-        namespace: .pvcRef.namespace,
-        pvc_name: .pvcRef.name,
-        capacity_bytes: .capacityBytes,
-        used_bytes: .usedBytes,
-        usage_pct: ((.usedBytes / .capacityBytes) * 100 | floor)
-      }'
-  done
-```
-
-**Via CloudWatch EBS Metrics:**
-
-```bash
-# Get volume utilization from CloudWatch (requires volume ID)
-# First, map PVC → EBS volume ID
-kubectl get pv -o json | \
-  jq -r '.items[] | select(.spec.csi.driver == "ebs.csi.aws.com") | {
-    pv_name: .metadata.name,
-    volume_id: .spec.csi.volumeHandle,
-    capacity: .spec.capacity.storage,
-    claim: "\(.spec.claimRef.namespace)/\(.spec.claimRef.name)"
-  }'
-
-# Then query CloudWatch for volume bytes used (requires VolumeId dimension)
-aws cloudwatch get-metric-data \
-  --metric-data-queries '[
-    {
-      "Id": "vol_used",
-      "MetricStat": {
-        "Metric": {
-          "Namespace": "EBS",
-          "MetricName": "VolumeTotalWriteTime",
-          "Dimensions": [{"Name": "VolumeId", "Value": "<vol-id>"}]
-        },
-        "Period": 86400,
-        "Stat": "Sum"
-      }
-    }
-  ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
-  --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
-  --region <region>
-```
+Alternatively, use the CloudWatch GetMetricData API for EBS VolumeReadBytes/VolumeWriteBytes to assess I/O activity. Map PVCs to EBS volume IDs via PersistentVolume spec.csi.volumeHandle.
 
 > **Note:** CloudWatch does not directly expose "bytes used on filesystem" for EBS. The most reliable source for filesystem usage is kubelet volume stats (above) or a monitoring agent (Prometheus node-exporter with filesystem collector).
 
-**Via Prometheus (if available):**
-
-```promql
-# Filesystem usage per PVC (via kubelet metrics exposed by node-exporter)
-kubelet_volume_stats_used_bytes{namespace!~"kube-.*|amazon-.*|aws-.*"}
-  / kubelet_volume_stats_capacity_bytes{namespace!~"kube-.*|amazon-.*|aws-.*"}
-  < 0.5
-```
-
-**Via EKS MCP Server:**
-
-```
-# Get PV details including CSI volume handles
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="PersistentVolume",
-  api_version="v1"
-)
-# Extract spec.csi.volumeHandle for each PV to get EBS volume IDs
-
-# Then use AWS CLI to describe volumes for size information
-# Kubelet stats are not available via MCP — fall back to kubectl proxy
-```
+If Prometheus is available, query `kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes` to identify volumes with usage below 50% of provisioned capacity.
 
 ### Analysis logic
 
@@ -536,87 +293,9 @@ Amazon EFS file systems used by the cluster that do not have Intelligent-Tiering
 
 ### Data collection
 
-**Via kubectl (identify EFS-backed PVCs):**
+Use the Kubernetes API to list PersistentVolumes with CSI driver `efs.csi.aws.com`. Extract the filesystem ID from the volume handle (spec.csi.volumeHandle, split on "::" taking the first element).
 
-```bash
-# Find PVCs using EFS storage classes
-kubectl get pvc --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.spec.storageClassName | test("efs"; "i")) |
-    {
-      namespace: .metadata.namespace,
-      name: .metadata.name,
-      storage_class: .spec.storageClassName,
-      volume_name: .spec.volumeName
-    }'
-
-# Get EFS file system IDs from PersistentVolumes
-kubectl get pv -o json | \
-  jq -r '
-    .items[] |
-    select(.spec.csi.driver == "efs.csi.aws.com") |
-    {
-      pv_name: .metadata.name,
-      efs_id: (.spec.csi.volumeHandle | split("::")[0]),
-      claim: "\(.spec.claimRef.namespace)/\(.spec.claimRef.name)"
-    }'
-```
-
-**Via AWS CLI (check lifecycle configuration):**
-
-```bash
-# List EFS file systems in the region
-aws efs describe-file-systems \
-  --query 'FileSystems[].{
-    FileSystemId: FileSystemId,
-    Name: Name,
-    SizeInBytes: SizeInBytes.Value,
-    LifeCycleState: LifeCycleState,
-    ThroughputMode: ThroughputMode
-  }' --output table
-
-# Check lifecycle policies for each EFS file system
-aws efs describe-lifecycle-configuration \
-  --file-system-id <fs-id> \
-  --query 'LifecyclePolicies'
-
-# Example output when NO lifecycle policy is set:
-# { "LifecyclePolicies": [] }
-
-# Example output WITH lifecycle policy:
-# { "LifecyclePolicies": [
-#     {"TransitionToIA": "AFTER_30_DAYS"},
-#     {"TransitionToArchive": "AFTER_90_DAYS"},
-#     {"TransitionToPrimaryStorageClass": "AFTER_1_ACCESS"}
-# ]}
-
-# Get EFS storage breakdown (Standard vs IA vs Archive)
-aws efs describe-file-systems \
-  --file-system-id <fs-id> \
-  --query 'FileSystems[0].SizeInBytes.{
-    TotalBytes: Value,
-    StandardBytes: ValueInStandard,
-    IABytes: ValueInIA,
-    ArchiveBytes: ValueInArchive
-  }'
-```
-
-**Via EKS MCP Server:**
-
-```
-# Step 1: Get EFS-backed PVs
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="PersistentVolume",
-  api_version="v1"
-)
-# Filter for spec.csi.driver == "efs.csi.aws.com"
-# Extract file system IDs from spec.csi.volumeHandle
-
-# Step 2: Use AWS CLI for EFS lifecycle configuration (no MCP equivalent)
-# Fall back to: aws efs describe-lifecycle-configuration --file-system-id <fs-id>
-```
+Use the EFS DescribeFileSystems API to get filesystem details including size. Use the EFS DescribeLifecycleConfiguration API to check if Intelligent-Tiering lifecycle policies (TransitionToIA, TransitionToArchive, TransitionToPrimaryStorageClass) are configured.
 
 ### Analysis logic
 

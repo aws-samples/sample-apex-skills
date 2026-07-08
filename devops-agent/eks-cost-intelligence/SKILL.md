@@ -25,7 +25,9 @@ This skill is focused on **live cost assessment** — answering the question: "W
 
 ### Required IAM Permissions (Agent Space Role)
 
-The following permissions must be attached to the Agent Space execution role:
+A ready-to-use IAM policy document is available at [`references/iam-policy.json`](references/iam-policy.json) — attach it directly to your Agent Space execution role.
+
+The following permissions are included:
 
 **EKS (required):**
 - `eks:ListClusters`
@@ -368,20 +370,6 @@ The report includes:
 - Per-dimension findings with remediation snippets
 - Methodology and confidence notes
 - Disclaimer footer
-
----
-
-## Differences from Claude Code Version
-
-| Aspect | Claude Code (`skills/eks-cost-intelligence/`) | DevOps Agent (this skill) |
-|--------|-----------------------------------------------|---------------------------|
-| Execution model | Interactive — asks user to confirm cluster, waits for responses | Fully autonomous — hard-stop decision tables, no interactive prompts |
-| Tool access | `aws` CLI, `kubectl`, optional MCP server | AWS APIs and Kubernetes APIs available in Agent Space |
-| Report generation | Markdown + optional HTML via `tools/report_to_html.py` | Markdown only, generated directly |
-| MCP configuration | Local `.mcp.json` with `eks-mcp-server` skill for setup | Configured at Agent Space level (no setup instructions needed) |
-| Reference file paths | `skills/eks-cost-intelligence/references/` | `references/` (relative to skill root) |
-| Script dependencies | Python script for HTML conversion | None — no scripts permitted |
-| Cluster selection | Shows list, asks user to choose | Auto-selects single cluster; HARD STOP on ambiguity |
 
 ---
 

@@ -41,71 +41,9 @@ The ratio of nodes running on Graviton (arm64) architecture versus x86 (amd64), 
 
 ### Data collection
 
-**Via kubectl:**
+Use the Kubernetes API to list Nodes and extract the `kubernetes.io/arch` label (or status.nodeInfo.architecture). Calculate the percentage of arm64 vs amd64 nodes. Group results by nodegroup/nodepool label.
 
-```bash
-# Count nodes by architecture
-kubectl get nodes -o json | \
-  jq -r '
-    .items[] | {
-      name: .metadata.name,
-      arch: .status.nodeInfo.architecture,
-      instance_type: .metadata.labels["node.kubernetes.io/instance-type"],
-      capacity_type: (.metadata.labels["karpenter.sh/capacity-type"] // 
-                      .metadata.labels["eks.amazonaws.com/capacityType"] // "on-demand"),
-      nodegroup: (.metadata.labels["eks.amazonaws.com/nodegroup"] // 
-                  .metadata.labels["karpenter.sh/nodepool"] // "unknown")
-    }' | jq -s '
-    {
-      total: length,
-      arm64: [.[] | select(.arch == "arm64")] | length,
-      amd64: [.[] | select(.arch == "amd64")] | length,
-      arm64_pct: (([.[] | select(.arch == "arm64")] | length) * 100 / length),
-      by_nodegroup: (group_by(.nodegroup) | map({
-        nodegroup: .[0].nodegroup,
-        total: length,
-        arm64: [.[] | select(.arch == "arm64")] | length,
-        amd64: [.[] | select(.arch == "amd64")] | length
-      }))
-    }'
-```
-
-**Via AWS CLI (node group level):**
-
-```bash
-# List node groups and their instance types
-CLUSTER="<cluster>"
-for NG in $(aws eks list-nodegroups --cluster-name $CLUSTER --query 'nodegroups[]' --output text); do
-  echo "=== $NG ==="
-  aws eks describe-nodegroup --cluster-name $CLUSTER --nodegroup-name $NG \
-    --query '{name: nodegroup.nodegroupName, instanceTypes: nodegroup.instanceTypes, capacityType: nodegroup.capacityType}' \
-    --output json
-done
-
-# Check if instance types are Graviton (contain 'g' suffix in family)
-# Graviton families: t4g, m6g, m7g, c6g, c7g, r6g, r7g, m6gd, c6gd, etc.
-aws ec2 describe-instance-types \
-  --instance-types m6g.large m6i.large c6g.xlarge c6i.xlarge \
-  --query 'InstanceTypes[].{Type: InstanceType, Arch: ProcessorInfo.SupportedArchitectures[0]}' \
-  --output table
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Node",
-  api_version="v1"
-)
-# Parse .status.nodeInfo.architecture and .metadata.labels for each node
-
-list_eks_resources(
-  cluster_name="<cluster>",
-  resource_type="nodegroups"
-)
-# Check instanceTypes in each nodegroup configuration
-```
+Use the EKS ListNodegroups and DescribeNodegroup APIs to get instance type families for each node group. Identify Graviton instance types (families containing 'g' suffix like m6g, c7g, r6g).
 
 ### Analysis logic
 
@@ -177,65 +115,9 @@ Node groups or Karpenter NodePools that are configured to only launch x86 (amd64
 
 ### Data collection
 
-**Via kubectl (Karpenter NodePools):**
+Use the Kubernetes API to list NodePool resources (Karpenter) and check spec.template.spec.requirements for the `kubernetes.io/arch` key. Identify NodePools where the operator is "In" with only "amd64" in values, or "NotIn" with "arm64" in values.
 
-```bash
-# Check NodePool architecture requirements
-kubectl get nodepools -o json | \
-  jq '.items[] | {
-    name: .metadata.name,
-    arch_requirement: (
-      .spec.template.spec.requirements[] | 
-      select(.key == "kubernetes.io/arch") | 
-      {operator: .operator, values: .values}
-    )
-  }'
-
-# NodePools that explicitly exclude arm64 or only allow amd64
-kubectl get nodepools -o json | \
-  jq '[.items[] | 
-    select(
-      .spec.template.spec.requirements[] | 
-      select(.key == "kubernetes.io/arch") |
-      ((.operator == "In" and (.values | contains(["arm64"]) | not)) or
-       (.operator == "NotIn" and (.values | contains(["arm64"]))))
-    ) | .metadata.name]'
-```
-
-**Via AWS CLI (Managed Node Groups):**
-
-```bash
-# Check instance types in each node group — identify non-Graviton-only groups
-CLUSTER="<cluster>"
-for NG in $(aws eks list-nodegroups --cluster-name $CLUSTER --query 'nodegroups[]' --output text); do
-  TYPES=$(aws eks describe-nodegroup --cluster-name $CLUSTER --nodegroup-name $NG \
-    --query 'nodegroup.instanceTypes' --output json)
-  
-  # Check if any instance type is Graviton (contains 'g' before the dot)
-  HAS_GRAVITON=$(echo "$TYPES" | jq '[.[] | select(test("\\d+g[de]?\\."))] | length > 0')
-  
-  if [ "$HAS_GRAVITON" = "false" ]; then
-    echo "NO_GRAVITON: $NG uses only x86 types: $TYPES"
-  fi
-done
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="NodePool",
-  api_version="karpenter.sh/v1"
-)
-# Check spec.template.spec.requirements for kubernetes.io/arch
-
-list_eks_resources(
-  cluster_name="<cluster>",
-  resource_type="nodegroups"
-)
-# Check instanceTypes for Graviton families
-```
+Use the EKS DescribeNodegroup API to check instance types for each node group. Identify non-Graviton-only groups by checking if any instance type matches the Graviton pattern (families with 'g' suffix before the dot).
 
 ### Analysis logic
 
@@ -307,55 +189,7 @@ Workloads (Deployments, StatefulSets) that have explicit node affinity or node s
 
 ### Data collection
 
-**Via kubectl:**
-
-```bash
-# Find workloads with explicit amd64 node selector
-kubectl get deployments,statefulsets --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    select(
-      (.spec.template.spec.nodeSelector // {} | .["kubernetes.io/arch"] == "amd64") or
-      (.spec.template.spec.nodeSelector // {} | .["beta.kubernetes.io/arch"] == "amd64")
-    ) |
-    "\(.metadata.namespace)/\(.metadata.name) (kind: \(.kind)) — nodeSelector pins to amd64"
-  '
-
-# Find workloads with amd64 node affinity
-kubectl get deployments,statefulsets --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    select(
-      .spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[]?.matchExpressions[]? |
-      select(.key == "kubernetes.io/arch" or .key == "beta.kubernetes.io/arch") |
-      select(.operator == "In" and (.values | contains(["arm64"]) | not))
-    ) |
-    "\(.metadata.namespace)/\(.metadata.name) (kind: \(.kind)) — nodeAffinity pins to amd64"
-  '
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Deployment",
-  api_version="apps/v1",
-  namespace="all"
-)
-# Filter for spec.template.spec.nodeSelector["kubernetes.io/arch"] == "amd64"
-# or nodeAffinity expressions restricting to amd64
-
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="StatefulSet",
-  api_version="apps/v1",
-  namespace="all"
-)
-# Same filtering logic
-```
+Use the Kubernetes API to list Deployments and StatefulSets in non-system namespaces. Check spec.template.spec.nodeSelector for `kubernetes.io/arch: amd64` constraints. Also check spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution for matchExpressions restricting to amd64 only.
 
 ### Analysis logic
 
@@ -428,63 +262,9 @@ The ratio of nodes running on Spot instances versus On-Demand, identifying clust
 
 ### Data collection
 
-**Via kubectl:**
+Use the Kubernetes API to list Nodes and check labels `karpenter.sh/capacity-type` or `eks.amazonaws.com/capacityType`. Classify nodes as Spot or On-Demand and calculate the percentage of each.
 
-```bash
-# Count nodes by capacity type
-kubectl get nodes -o json | \
-  jq -r '
-    .items[] | {
-      name: .metadata.name,
-      capacity_type: (.metadata.labels["karpenter.sh/capacity-type"] // 
-                      .metadata.labels["eks.amazonaws.com/capacityType"] // "ON_DEMAND"),
-      instance_type: .metadata.labels["node.kubernetes.io/instance-type"],
-      nodegroup: (.metadata.labels["eks.amazonaws.com/nodegroup"] // 
-                  .metadata.labels["karpenter.sh/nodepool"] // "unknown")
-    }' | jq -s '
-    {
-      total: length,
-      spot: [.[] | select(.capacity_type == "spot" or .capacity_type == "SPOT")] | length,
-      on_demand: [.[] | select(.capacity_type == "on-demand" or .capacity_type == "ON_DEMAND")] | length,
-      spot_pct: (([.[] | select(.capacity_type == "spot" or .capacity_type == "SPOT")] | length) * 100 / (if length == 0 then 1 else length end)),
-      by_nodegroup: (group_by(.nodegroup) | map({
-        nodegroup: .[0].nodegroup,
-        capacity_type: .[0].capacity_type,
-        count: length
-      }))
-    }'
-```
-
-**Via AWS CLI:**
-
-```bash
-# Get capacity type from EC2 instances backing the cluster
-CLUSTER="<cluster>"
-INSTANCE_IDS=$(kubectl get nodes -o json | \
-  jq -r '.items[].spec.providerID' | sed 's|.*/||')
-
-aws ec2 describe-instances \
-  --instance-ids $INSTANCE_IDS \
-  --query 'Reservations[].Instances[].{
-    Id: InstanceId,
-    Type: InstanceType,
-    Lifecycle: InstanceLifecycle,
-    State: State.Name
-  }' --output table
-# InstanceLifecycle: "spot" for Spot, null/absent for On-Demand
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Node",
-  api_version="v1"
-)
-# Parse labels: karpenter.sh/capacity-type or eks.amazonaws.com/capacityType
-# Values: "spot" / "on-demand" (Karpenter) or "SPOT" / "ON_DEMAND" (EKS MNG)
-```
+Use the EC2 DescribeInstances API to cross-reference instance lifecycle. InstanceLifecycle value of "spot" indicates Spot instances; null/absent indicates On-Demand.
 
 ### Analysis logic
 
@@ -581,78 +361,7 @@ Optional positive signals (increase confidence):
 
 ### Data collection
 
-**Via kubectl:**
-
-```bash
-# Step 1: Find Deployments with replicas >= 2 in non-system namespaces
-kubectl get deployments --all-namespaces -o json | \
-  jq '[.items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    select(.spec.replicas >= 2) |
-    {
-      namespace: .metadata.namespace,
-      name: .metadata.name,
-      replicas: .spec.replicas,
-      has_topology_spread: (.spec.template.spec.topologySpreadConstraints != null),
-      node_selector: .spec.template.spec.nodeSelector,
-      tolerations: [.spec.template.spec.tolerations[]?.key]
-    }]'
-
-# Step 2: Check which of those have PDBs
-kubectl get pdb --all-namespaces -o json | \
-  jq '[.items[] | {
-    namespace: .metadata.namespace,
-    name: .metadata.name,
-    selector: .spec.selector.matchLabels,
-    minAvailable: .spec.minAvailable,
-    maxUnavailable: .spec.maxUnavailable
-  }]'
-
-# Step 3: Check which pods are running on On-Demand nodes
-kubectl get pods --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    select(.status.phase == "Running") |
-    {
-      namespace: .metadata.namespace,
-      pod: .metadata.name,
-      node: .spec.nodeName,
-      owner: (.metadata.ownerReferences[0].name // "none")
-    }' | jq -s '.'
-
-# Cross-reference with node capacity types
-kubectl get nodes -o json | \
-  jq '[.items[] | {
-    name: .metadata.name,
-    capacity_type: (.metadata.labels["karpenter.sh/capacity-type"] // 
-                    .metadata.labels["eks.amazonaws.com/capacityType"] // "ON_DEMAND")
-  }]'
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Deployment",
-  api_version="apps/v1",
-  namespace="all"
-)
-
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="PodDisruptionBudget",
-  api_version="policy/v1",
-  namespace="all"
-)
-
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Node",
-  api_version="v1"
-)
-```
+Use the Kubernetes API to list Deployments with replicas >= 2 in non-system namespaces. Check for PodDisruptionBudgets matching each deployment's labels. Cross-reference running pods' node assignments with node capacity-type labels to identify deployments running entirely on On-Demand nodes that have PDBs and could tolerate Spot interruptions.
 
 ### Analysis logic
 
@@ -746,66 +455,9 @@ Spot node groups or NodePools configured with too few instance types, which incr
 
 ### Data collection
 
-**Via kubectl (Karpenter NodePools):**
+Use the Kubernetes API to list NodePool resources and check spec.template.spec.requirements for instance categories (`karpenter.k8s.aws/instance-category`), instance families (`karpenter.k8s.aws/instance-family`), and instance sizes. Assess diversity of allowed instance types for Spot-enabled NodePools.
 
-```bash
-# Check instance type diversity in Spot NodePools
-kubectl get nodepools -o json | \
-  jq '.items[] | 
-    select(.spec.template.spec.requirements[] | 
-      select(.key == "karpenter.sh/capacity-type") |
-      .values | contains(["spot"])) |
-    {
-      name: .metadata.name,
-      instance_categories: ([.spec.template.spec.requirements[] | 
-        select(.key == "karpenter.k8s.aws/instance-category") | .values] | flatten),
-      instance_families: ([.spec.template.spec.requirements[] | 
-        select(.key == "karpenter.k8s.aws/instance-family") | .values] | flatten),
-      instance_sizes: ([.spec.template.spec.requirements[] | 
-        select(.key == "karpenter.k8s.aws/instance-size") | .values] | flatten),
-      excluded_types: ([.spec.template.spec.requirements[] | 
-        select(.key == "node.kubernetes.io/instance-type" and .operator == "NotIn") | .values] | flatten)
-    }'
-```
-
-**Via AWS CLI (Managed Node Groups):**
-
-```bash
-# Check instance type count in Spot node groups
-CLUSTER="<cluster>"
-for NG in $(aws eks list-nodegroups --cluster-name $CLUSTER --query 'nodegroups[]' --output text); do
-  CAPACITY=$(aws eks describe-nodegroup --cluster-name $CLUSTER --nodegroup-name $NG \
-    --query 'nodegroup.capacityType' --output text)
-  
-  if [ "$CAPACITY" = "SPOT" ]; then
-    TYPES=$(aws eks describe-nodegroup --cluster-name $CLUSTER --nodegroup-name $NG \
-      --query 'nodegroup.instanceTypes' --output json)
-    COUNT=$(echo "$TYPES" | jq 'length')
-    echo "SPOT group $NG: $COUNT instance types — $TYPES"
-    
-    if [ "$COUNT" -lt 5 ]; then
-      echo "  WARNING: Fewer than 5 instance types (recommended minimum for Spot)"
-    fi
-  fi
-done
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="NodePool",
-  api_version="karpenter.sh/v1"
-)
-# Check requirements for capacity-type == spot, then count instance diversity
-
-list_eks_resources(
-  cluster_name="<cluster>",
-  resource_type="nodegroups"
-)
-# Filter for capacityType == SPOT, check instanceTypes array length
-```
+Use the EKS DescribeNodegroup API to check the instanceTypes array length for Spot-capacity node groups. Flag groups with fewer than 5 instance types and check family diversity.
 
 ### Analysis logic
 
@@ -898,83 +550,13 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 
 ### Data collection
 
-**Step 1: Check if Spot nodes exist**
+**Step 1:** Use the Kubernetes API to list Nodes and count those with `karpenter.sh/capacity-type=spot` or `eks.amazonaws.com/capacityType=SPOT` labels.
 
-```bash
-# Quick check for any Spot nodes
-SPOT_COUNT=$(kubectl get nodes -o json | \
-  jq '[.items[] | select(
-    .metadata.labels["karpenter.sh/capacity-type"] == "spot" or
-    .metadata.labels["eks.amazonaws.com/capacityType"] == "SPOT"
-  )] | length')
+**Step 2:** Use the Kubernetes API to check for aws-node-termination-handler as a Deployment or DaemonSet in kube-system namespace, or search by label `app.kubernetes.io/name=aws-node-termination-handler`.
 
-echo "Spot nodes: $SPOT_COUNT"
-```
+**Step 3:** Use the Kubernetes API to check for the Karpenter Deployment in kube-system and its version label. For Karpenter v0.30+, interruption handling is built-in. Check ConfigMaps and environment variables for interruption queue configuration.
 
-**Step 2: Check for AWS Node Termination Handler (NTH)**
-
-```bash
-# Check for NTH deployment (common names and namespaces)
-kubectl get deployment -n kube-system aws-node-termination-handler 2>/dev/null || \
-kubectl get daemonset -n kube-system aws-node-termination-handler 2>/dev/null || \
-kubectl get deployment --all-namespaces -l app.kubernetes.io/name=aws-node-termination-handler 2>/dev/null
-
-# Check for NTH via Helm release
-kubectl get configmap -n kube-system -l app.kubernetes.io/name=aws-node-termination-handler 2>/dev/null
-```
-
-**Step 3: Check Karpenter interruption handling**
-
-```bash
-# Karpenter natively handles Spot interruptions (v0.30+)
-# Verify Karpenter is running and has the interruption controller
-kubectl get deployment -n kube-system karpenter -o json 2>/dev/null | \
-  jq '{
-    name: .metadata.name,
-    replicas: .status.readyReplicas,
-    version: .metadata.labels["app.kubernetes.io/version"]
-  }'
-
-# Check Karpenter settings for interruption handling
-kubectl get configmap -n kube-system karpenter-global-settings -o json 2>/dev/null | \
-  jq '.data'
-
-# For Karpenter v1+, interruption is always enabled (built-in)
-# For older versions, check if aws.interruptionQueue is configured
-kubectl get deployment -n kube-system karpenter -o json 2>/dev/null | \
-  jq '.spec.template.spec.containers[0].env[] | select(.name | test("INTERRUPTION"))'
-```
-
-**Step 4: Check for SQS queue (Karpenter interruption queue)**
-
-```bash
-# Karpenter uses an SQS queue for Spot interruption events
-aws sqs list-queues --queue-name-prefix "karpenter" --output json 2>/dev/null
-
-# Or check via Karpenter EC2NodeClass
-kubectl get ec2nodeclasses -o json 2>/dev/null | \
-  jq '.items[].spec | {amiFamily, role: .role}'
-```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Deployment",
-  api_version="apps/v1",
-  namespace="kube-system"
-)
-# Look for "aws-node-termination-handler" or "karpenter"
-
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="DaemonSet",
-  api_version="apps/v1",
-  namespace="kube-system"
-)
-# Look for "aws-node-termination-handler" DaemonSet mode
-```
+**Step 4:** Use the SQS ListQueues API filtered by naming convention (queue name prefix "karpenter") to verify the interruption queue exists. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
 
 ### Analysis logic
 

@@ -18,7 +18,9 @@ Two AWS-published guides are the canonical foundation and every recommendation m
 
 ## Prerequisites — Agent Space IAM Permissions
 
-The following read-only permissions are required in the Agent Space for this skill to gather cluster context when available:
+A ready-to-use IAM policy document is available at [`references/iam-policy.json`](references/iam-policy.json) — attach it directly to your Agent Space execution role.
+
+The following read-only permissions are included:
 
 | Service | Required Actions | Purpose |
 |---------|-----------------|---------|
@@ -183,16 +185,4 @@ Progressive disclosure — the essentials are above; load a reference only when 
 - [AWS Compliance Programs](https://aws.amazon.com/compliance/programs/) · [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) · [AWS Artifact](https://aws.amazon.com/artifact/)
 - [aws/aws-eks-best-practices](https://github.com/aws/aws-eks-best-practices) · [EKS Security Immersion Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/165b0729-2791-4452-8920-53b734419050) · [kube-bench](https://github.com/aquasecurity/kube-bench)
 
----
-
-## Differences from Claude Code Version
-
-| Aspect | Claude Code version | DevOps Agent version |
-|--------|--------------------|--------------------|
-| **Execution model** | Interactive — asks 8 discovery questions conversationally | Autonomous with HARD STOP gates — proceeds if context is sufficient, stops only for critical missing items |
-| **Discovery** | 8 interactive questions before any recommendation | 3 mandatory context gates (compliance regime, workload sensitivity, OS/AMI preference); 5 additional context items gathered opportunistically |
-| **Tool access** | Uses Bash, kubectl, AWS CLI via MCP server for live cluster inspection | Uses AWS APIs and Kubernetes APIs available in the Agent Space (read-only) |
-| **Escalation** | References internal SpecReq / Specialist processes | Recommends engaging AWS Professional Services or Solutions Architects |
-| **Skill routing** | Routes to sibling skills (`eks-genai`, `eks-build`, `eks-design`) | Self-contained; notes alternative guidance domains without routing |
-| **Script execution** | Can run kube-bench, generate shell commands | Advisory only — recommends commands for the user to execute |
-| **MCP dependencies** | References eks-mcp-server for live data | No MCP dependencies; uses Agent Space APIs directly |
+For porting notes, see [references/porting-notes.md](references/porting-notes.md).

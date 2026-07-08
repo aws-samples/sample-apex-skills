@@ -462,49 +462,27 @@ Whether the required metrics sources (metrics-server, Container Insights, or Pro
 
 **Step 1: Check metrics-server availability**
 
-```bash
-# Test if metrics-server is responding
-kubectl top nodes --no-headers 2>&1 | head -1
-# If output contains "error" or "Metrics API not available" → unavailable
+```
+Use the Kubernetes Metrics API (nodes endpoint). If the API returns an error
+or "Metrics API not available", metrics-server is unavailable.
 ```
 
 **Step 2: Check Container Insights availability**
 
-```bash
-# Check if amazon-cloudwatch-observability add-on is installed
-aws eks describe-addon --cluster-name <cluster> \
-  --addon-name amazon-cloudwatch-observability \
-  --query 'addon.status' 2>/dev/null
-
-# Alternative: check for CloudWatch agent pods
-kubectl get pods -n amazon-cloudwatch -l app.kubernetes.io/name=cloudwatch-agent \
-  --no-headers 2>/dev/null | wc -l
+```
+Use the EKS DescribeAddon API to check if amazon-cloudwatch-observability is installed and ACTIVE.
+Alternatively, use the Kubernetes API to list pods in the amazon-cloudwatch namespace
+with label app.kubernetes.io/name=cloudwatch-agent.
 ```
 
 **Step 3: Check Prometheus availability**
 
-```bash
-# Check for Prometheus/AMP (common deployment patterns)
-kubectl get pods --all-namespaces -l app=prometheus --no-headers 2>/dev/null | wc -l
-kubectl get pods --all-namespaces -l app.kubernetes.io/name=prometheus --no-headers 2>/dev/null | wc -l
-
-# Check for Amazon Managed Prometheus (AMP) via ADOT collector
-kubectl get pods --all-namespaces -l app.kubernetes.io/name=adot-collector \
-  --no-headers 2>/dev/null | wc -l
 ```
-
-**Via EKS MCP Server:**
-
-```
-list_k8s_resources(
-  cluster_name="<cluster>",
-  kind="Pod",
-  api_version="v1",
-  namespace="amazon-cloudwatch"
-)
-
-list_eks_addons(cluster_name="<cluster>")
-# Check for "amazon-cloudwatch-observability" in the list
+Use the Kubernetes API to list pods across all namespaces with labels:
+- app=prometheus
+- app.kubernetes.io/name=prometheus
+- app.kubernetes.io/name=adot-collector
+If any matching pods are running, Prometheus/AMP is available.
 ```
 
 ### Degradation behavior
