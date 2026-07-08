@@ -318,7 +318,20 @@ Assess EKS cluster upgrade readiness — run automated checks across 8 areas (ve
 
 ## ECS Skills
 
-_(coming soon)_
+### [ecs-architect](./ecs-architect/)
+
+Use when choosing and architecting an Amazon ECS deployment model for a new workload — Fargate vs ECS on EC2 vs ECS Managed Instances vs ECS Express Mode vs ECS Anywhere/External, capacity-provider strategy, task sizing, awsvpc/ENI density, networking, and service parameters — and when planning launch-type or topology migration (EC2 launch type → capacity providers / Managed Instances, Service Discovery → Service Connect). Triggers on "which ECS launch type", "Fargate or EC2", "should I use Managed Instances", "ECS capacity provider strategy", "how do I size my ECS tasks", "Fargate vs Fargate Spot", "migrate off EC2 launch type", "Service Discovery to Service Connect", "App Mesh to Service Connect on ECS", "ECS on-prem". Also the shared ECS best-practices knowledge corpus for design decisions. Skip for: existing-application replatform/refactor (use ecs-modernize); auditing or scoring a live estate (use ecs-operation-review); dollar-denominated cost/TCO analysis (use ecs-cost-intelligence); discovering what is already running (use ecs-recon); security/compliance hardening (use ecs-security); deployment strategy and CI/CD pipelines (use ecs-devops); observability stack selection (use ecs-observability); GPU/ML workload design (use ecs-genai); and Kubernetes/EKS (use eks-design).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [architecture-design.md](./ecs-architect/references/architecture-design.md) | Architecture design |
+| [best-practices-corpus.md](./ecs-architect/references/best-practices-corpus.md) | Best practices corpus |
+| [capacity-and-scaling.md](./ecs-architect/references/capacity-and-scaling.md) | Capacity and scaling |
+| [launch-type-migration.md](./ecs-architect/references/launch-type-migration.md) | Launch type migration |
+| [model-selection-framework.md](./ecs-architect/references/model-selection-framework.md) | Model selection framework |
+| [networking-and-eni-density.md](./ecs-architect/references/networking-and-eni-density.md) | Networking and eni density |
 
 ## General
 

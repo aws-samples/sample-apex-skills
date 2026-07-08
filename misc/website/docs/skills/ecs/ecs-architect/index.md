@@ -1,7 +1,14 @@
 ---
-name: ecs-architect
-description: Use when choosing and architecting an Amazon ECS deployment model for a new workload — Fargate vs ECS on EC2 vs ECS Managed Instances vs ECS Express Mode vs ECS Anywhere/External, capacity-provider strategy, task sizing, awsvpc/ENI density, networking, and service parameters — and when planning launch-type or topology migration (EC2 launch type → capacity providers / Managed Instances, Service Discovery → Service Connect). Triggers on "which ECS launch type", "Fargate or EC2", "should I use Managed Instances", "ECS capacity provider strategy", "how do I size my ECS tasks", "Fargate vs Fargate Spot", "migrate off EC2 launch type", "Service Discovery to Service Connect", "App Mesh to Service Connect on ECS", "ECS on-prem". Also the shared ECS best-practices knowledge corpus for design decisions. Skip for: existing-application replatform/refactor (use ecs-modernize); auditing or scoring a live estate (use ecs-operation-review); dollar-denominated cost/TCO analysis (use ecs-cost-intelligence); discovering what is already running (use ecs-recon); security/compliance hardening (use ecs-security); deployment strategy and CI/CD pipelines (use ecs-devops); observability stack selection (use ecs-observability); GPU/ML workload design (use ecs-genai); and Kubernetes/EKS (use eks-design).
+title: "ecs-architect"
+description: "Use when choosing and architecting an Amazon ECS deployment model for a new workload — Fargate vs ECS on EC2 vs ECS Managed Instances vs ECS Express Mode vs ECS Anywhere/External, capacity-provider strategy, task sizing, awsvpc/ENI density, networking, and service parameters — and when planning launch-type or topology migration (EC2 launch type → capacity providers / Managed Instances, Service Discovery → Service Connect). Triggers on \"which ECS launch type\", \"Fargate or EC2\", \"should I use Managed Instances\", \"ECS capacity provider strategy\", \"how do I size my ECS tasks\", \"Fargate vs Fargate Spot\", \"migrate off EC2 launch type\", \"Service Discovery to Service Connect\", \"App Mesh to Service Connect on ECS\", \"ECS on-prem\". Also the shared ECS best-practices knowledge corpus for design decisions. Skip for: existing-application replatform/refactor (use ecs-modernize); auditing or scoring a live estate (use ecs-operation-review); dollar-denominated cost/TCO analysis (use ecs-cost-intelligence); discovering what is already running (use ecs-recon); security/compliance hardening (use ecs-security); deployment strategy and CI/CD pipelines (use ecs-devops); observability stack selection (use ecs-observability); GPU/ML workload design (use ecs-genai); and Kubernetes/EKS (use eks-design)."
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/SKILL.md
+format: md
 ---
+
+:::info[Source]
+This page is generated from [skills/ecs-architect/SKILL.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/SKILL.md). Edit the source, not this page.
+:::
+
 
 # Amazon ECS Deployment-Model Design and Selection
 
@@ -64,7 +71,7 @@ Wants EC2 instance flexibility, zero lifecycle ops? -> ECS Managed Instances (AW
 Serverless, no instance management, standard sizes? -> AWS Fargate (default for most services).
 ```
 
-Full criteria matrix, per-model deep dives, and the exact GA/Region/pricing facts (each cited): **[references/model-selection-framework.md](references/model-selection-framework.md)**.
+Full criteria matrix, per-model deep dives, and the exact GA/Region/pricing facts (each cited): **[references/model-selection-framework.md](references/model-selection-framework)**.
 
 ## The Five Deployment Models (at a glance)
 
@@ -76,7 +83,7 @@ Full criteria matrix, per-model deep dives, and the exact GA/Region/pricing fact
 | **ECS Express Mode** | ALB, ACM cert, target groups, SGs, autoscaling, cluster | Container image + 2 IAM roles | No (Fargate-backed) | Fast-path web apps/APIs, demos, internal tools | Fine-grained infra control from day one |
 | **ECS Anywhere (EXTERNAL)** | Control plane (in AWS) | On-prem/VM external instances, agents | Depends on host | Hybrid, edge, on-prem, data-processing/outbound | Inbound-heavy apps (no ELB support) |
 
-Read the deep dive before recommending: **[references/model-selection-framework.md](references/model-selection-framework.md)**.
+Read the deep dive before recommending: **[references/model-selection-framework.md](references/model-selection-framework)**.
 
 ## Capacity-Provider Strategy
 
@@ -89,7 +96,7 @@ Key correctness facts (verified — see reference for citations):
 - **FARGATE_SPOT** gives interruption-tolerant capacity at a discount; combine with a `FARGATE` base for resilience via `base`/`weight`. Managed Instances also supports Spot (`capacityOptionType: spot`, Dec 2025) and Capacity Reservations (`reserved`, Feb 2026).
 - **Bin-pack on memory, not CPU**, on EC2/Managed Instances: CPU is a soft/burstable limit so overcommit is invisible, whereas memory is a hard limit and OOM-kills tasks — memory bin-packing gives a predictable, safe density guarantee.
 
-Strategy design, base/weight math, scale-in edge cases, and the `CapacityProviderReservation` metric: **[references/capacity-and-scaling.md](references/capacity-and-scaling.md)**.
+Strategy design, base/weight math, scale-in edge cases, and the `CapacityProviderReservation` metric: **[references/capacity-and-scaling.md](references/capacity-and-scaling)**.
 
 ## Architecture Design
 
@@ -99,7 +106,7 @@ Once the model is chosen, design the task and service:
 - **Networking** — `awsvpc` task ENIs, ENI density and trunking on EC2 (`awsvpcTrunking`), subnet/SG placement, load-balancer choice (ALB/NLB), Service Connect vs Service Discovery.
 - **Service parameters** — deployment min/max healthy percent, health-check grace period, deployment controller choice, placement strategies/constraints.
 
-Design deep dive: **[references/architecture-design.md](references/architecture-design.md)** · Networking + ENI density: **[references/networking-and-eni-density.md](references/networking-and-eni-density.md)**.
+Design deep dive: **[references/architecture-design.md](references/architecture-design)** · Networking + ENI density: **[references/networking-and-eni-density.md](references/networking-and-eni-density)**.
 
 ## Launch-Type and Topology Migration
 
@@ -108,11 +115,11 @@ Folded into this skill because "should I move off EC2 launch type?" is the same 
 - **EC2 launch type → capacity providers / Managed Instances** — how to transition, and the **immutability trap**: `launchType` cannot be changed on an existing service via update, so switching from a launch type to a capacity-provider strategy through CloudFormation/CDK **replaces** (deletes + recreates) the service unless you use the documented escape hatch. The `UpdateService` API does support specific launch-type ↔ capacity-provider transitions directly.
 - **Service Discovery (Cloud Map DNS) → Service Connect** — why Service Connect is the recommended target, and how the cutover works (config changes apply at deployment, connection draining).
 
-Migration playbook with exact supported transitions and citations: **[references/launch-type-migration.md](references/launch-type-migration.md)**.
+Migration playbook with exact supported transitions and citations: **[references/launch-type-migration.md](references/launch-type-migration)**.
 
 ## Shared ECS Best-Practices Corpus
 
-The "what good looks like" knowledge that this skill, `ecs-operation-review`, and `ecs-cost-intelligence` all draw on — task-definition hygiene, image/SOCI, capacity correctness, deployment safety, health checks, and the shared-responsibility split per model. Factor-out to a standalone skill is deferred; it lives here as the single source of truth: **[references/best-practices-corpus.md](references/best-practices-corpus.md)**.
+The "what good looks like" knowledge that this skill, `ecs-operation-review`, and `ecs-cost-intelligence` all draw on — task-definition hygiene, image/SOCI, capacity correctness, deployment safety, health checks, and the shared-responsibility split per model. Factor-out to a standalone skill is deferred; it lives here as the single source of truth: **[references/best-practices-corpus.md](references/best-practices-corpus)**.
 
 ## Output Discipline
 
@@ -125,12 +132,12 @@ The "what good looks like" knowledge that this skill, `ecs-operation-review`, an
 
 Progressive disclosure — essential guidance is above; load a reference when the task needs it:
 
-- **[references/model-selection-framework.md](references/model-selection-framework.md)** — Read when choosing the compute/launch model. Full criteria matrix; per-model deep dives (Fargate, ECS on EC2, Managed Instances, Express Mode, ECS Anywhere) with GA/Region/pricing facts, each cited.
-- **[references/capacity-and-scaling.md](references/capacity-and-scaling.md)** — Read when designing capacity-provider strategy or cluster auto scaling. Base/weight, managed scaling, mixed-ASG constraint, scale-in edge cases, Spot.
-- **[references/networking-and-eni-density.md](references/networking-and-eni-density.md)** — Read when planning task networking. awsvpc, task ENIs, ENI trunking on EC2, subnet/SG design, ALB vs NLB, Service Connect vs Service Discovery.
-- **[references/architecture-design.md](references/architecture-design.md)** — Read when sizing tasks and setting service parameters. Fargate CPU/memory table, ephemeral storage, deployment percentages, health-check grace period, placement.
-- **[references/launch-type-migration.md](references/launch-type-migration.md)** — Read when moving off EC2 launch type or from Service Discovery to Service Connect. Supported transitions, the launchType-immutability trap, cutover steps.
-- **[references/best-practices-corpus.md](references/best-practices-corpus.md)** — Read for the shared "what good looks like" knowledge. Task-def hygiene, images/SOCI, deployment safety, health, shared responsibility per model.
+- **[references/model-selection-framework.md](references/model-selection-framework)** — Read when choosing the compute/launch model. Full criteria matrix; per-model deep dives (Fargate, ECS on EC2, Managed Instances, Express Mode, ECS Anywhere) with GA/Region/pricing facts, each cited.
+- **[references/capacity-and-scaling.md](references/capacity-and-scaling)** — Read when designing capacity-provider strategy or cluster auto scaling. Base/weight, managed scaling, mixed-ASG constraint, scale-in edge cases, Spot.
+- **[references/networking-and-eni-density.md](references/networking-and-eni-density)** — Read when planning task networking. awsvpc, task ENIs, ENI trunking on EC2, subnet/SG design, ALB vs NLB, Service Connect vs Service Discovery.
+- **[references/architecture-design.md](references/architecture-design)** — Read when sizing tasks and setting service parameters. Fargate CPU/memory table, ephemeral storage, deployment percentages, health-check grace period, placement.
+- **[references/launch-type-migration.md](references/launch-type-migration)** — Read when moving off EC2 launch type or from Service Discovery to Service Connect. Supported transitions, the launchType-immutability trap, cutover steps.
+- **[references/best-practices-corpus.md](references/best-practices-corpus)** — Read for the shared "what good looks like" knowledge. Task-def hygiene, images/SOCI, deployment safety, health, shared responsibility per model.
 
 ## Sources
 

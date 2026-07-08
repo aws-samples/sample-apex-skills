@@ -18,7 +18,9 @@ description: "Browse all APEX skills for AWS platform engineering — EKS archit
 
 ## ECS Skills
 
-_(coming soon)_
+<table>
+<tr><td><a href="./ecs/ecs-architect/"><b>ecs-architect</b></a></td></tr>
+</table>
 
 ## General
 

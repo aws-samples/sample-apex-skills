@@ -1,6 +1,17 @@
+---
+title: "ECS Launch-Type and Topology Migration"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/launch-type-migration.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [skills/ecs-architect/references/launch-type-migration.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/launch-type-migration.md). Edit the source, not this page.
+:::
+
 # ECS Launch-Type and Topology Migration
 
-> **Part of:** [ecs-architect](../SKILL.md)
+> **Part of:** [ecs-architect](../)
 > **Purpose:** Plan the transition from an older ECS topology to a modern one — EC2 launch type → capacity providers / Managed Instances, and Service Discovery → Service Connect. Covers exactly which transitions the API supports, the `launchType`-immutability trap, and cutover steps. Facts verified against AWS docs on 2026-07-08.
 >
 > **Scope note:** This is *topology* migration for an ECS estate you already understand. For assessing an existing *application* and choosing replatform vs refactor, use `ecs-modernize`. To inventory the estate first, use the `ecs-recon` skill once available (or `aws ecs list-*`/`describe-*`).
@@ -68,7 +79,7 @@ AWS documents this as **service mutability** — `UpdateService` can move a serv
 
 ## Service Discovery → Service Connect
 
-Service Connect is the recommended target for service-to-service connectivity (see [networking-and-eni-density.md](networking-and-eni-density.md#service-connect-vs-service-discovery)). The main win over Cloud Map DNS-based discovery is controlled cutover: DNS TTL means clients keep resolving old IPs until the TTL expires, whereas Service Connect applies config changes during a normal deployment (replacing client tasks) with automatic connection draining, so no traffic errors during endpoint version changes. ([Networking between ECS services in a VPC](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/networking-connecting-services.html))
+Service Connect is the recommended target for service-to-service connectivity (see [networking-and-eni-density.md](networking-and-eni-density#service-connect-vs-service-discovery)). The main win over Cloud Map DNS-based discovery is controlled cutover: DNS TTL means clients keep resolving old IPs until the TTL expires, whereas Service Connect applies config changes during a normal deployment (replacing client tasks) with automatic connection draining, so no traffic errors during endpoint version changes. ([Networking between ECS services in a VPC](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/networking-connecting-services.html))
 
 **Cutover approach:**
 1. Add Service Connect configuration to each service and task definition (logical name + port name mapping).
@@ -83,10 +94,10 @@ Because config changes take effect only during deployments, gate the rollout wit
 ## Migration Playbook
 
 1. **Inventory first** (use the `ecs-recon` skill once available, or `aws ecs describe-*`): current launch types, ASG/capacity-provider config, network mode, service discovery mechanism.
-2. **Decide the target model** ([model-selection-framework.md](model-selection-framework.md)): capacity providers on your ASG, or Managed Instances to shed fleet ops.
+2. **Decide the target model** ([model-selection-framework.md](model-selection-framework)): capacity providers on your ASG, or Managed Instances to shed fleet ops.
 3. **Choose the mechanism**: API/CLI (supported-transition list, no recreation) vs IaC (accept replacement or use the escape hatch). Never let an unplanned IaC apply silently delete-and-recreate a production service.
-4. **Design capacity** ([capacity-and-scaling.md](capacity-and-scaling.md)): base/weight, one resource profile per ASG, managed scaling + draining.
-5. **Migrate connectivity**: Service Discovery → Service Connect via the cutover steps above (and App Mesh → Service Connect if applicable — App Mesh is discontinued Sept 30, 2026; see [networking-and-eni-density.md](networking-and-eni-density.md#service-connect-vs-service-discovery)). If any tasks are still on Fargate PV 1.3.0, fold in the PV 1.4.0 migration (task-ENI traffic + VPC-endpoint prep) before its June 30, 2026 end of support.
+4. **Design capacity** ([capacity-and-scaling.md](capacity-and-scaling)): base/weight, one resource profile per ASG, managed scaling + draining.
+5. **Migrate connectivity**: Service Discovery → Service Connect via the cutover steps above (and App Mesh → Service Connect if applicable — App Mesh is discontinued Sept 30, 2026; see [networking-and-eni-density.md](networking-and-eni-density#service-connect-vs-service-discovery)). If any tasks are still on Fargate PV 1.3.0, fold in the PV 1.4.0 migration (task-ENI traffic + VPC-endpoint prep) before its June 30, 2026 end of support.
 6. **Validate** with `ecs-operation-review`; quantify the cost delta with `ecs-cost-intelligence`.
 
 ---

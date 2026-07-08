@@ -97,7 +97,9 @@ Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill l
 
 ### ECS Skills
 
-_(coming soon)_
+<table>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/"><b>ecs-architect</b></a></td></tr>
+</table>
 
 ### General
 
