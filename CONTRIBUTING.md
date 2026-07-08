@@ -15,6 +15,7 @@ sample-apex-skills/
 │   └── workflows/      →   Structured engagement playbooks
 ├── skills/             → 📚 WHAT the agent knows (domain knowledge)
 ├── rules/              → 📏 Project-level agent rules (AGENTS.md for consumers)
+├── devops-agent/       → Non-executable ports for AWS DevOps Agent
 └── examples/           → 🏗️ HOW to try it (hands-on exercises)
 ```
 
@@ -46,6 +47,8 @@ skills/{skill-name}/
 ```
 
 > **Naming:** Prefix skill names with the target service (`eks-`, `ecs-`) for auto-grouping in docs and README. Non-service skills use a descriptive name without prefix.
+
+> **DevOps Agent ports:** DevOps Agent ports retain the same skill name and live under `devops-agent/` (not `skills/`). Constraints: no scripts, no Bash — markdown only.
 
 ### What Belongs in Skills
 
@@ -258,12 +261,24 @@ When adding new content to the repo, follow this flowchart:
                                                YES             NO
                                                 │              │
                                                 ▼              ▼
-                                          ┌──────────┐  ┌──────────────┐
-                                          │ examples/ │  │ Root level   │
-                                          └──────────┘  │ (README.md,  │
-                                                        │  PLAN.md,    │
-                                                        │  etc.)       │
-                                                        └──────────────┘
+                                          ┌──────────┐  ┌─────────────────────┐
+                                          │ examples/ │  │ Is it a non-        │
+                                          └──────────┘  │ executable port of   │
+                                                        │ a Day 2 skill for    │
+                                                        │ AWS DevOps Agent?    │
+                                                        │ (Markdown only, no   │
+                                                        │  scripts, no Bash)   │
+                                                        └──────────┬──────────┘
+                                                          │              │
+                                                         YES             NO
+                                                          │              │
+                                                          ▼              ▼
+                                                    ┌──────────────┐  ┌──────────────┐
+                                                    │ devops-agent/ │  │ Root level   │
+                                                    └──────────────┘  │ (README.md,  │
+                                                                      │  PLAN.md,    │
+                                                                      │  etc.)       │
+                                                                      └──────────────┘
 ```
 
 ---

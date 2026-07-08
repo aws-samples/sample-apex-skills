@@ -19,6 +19,7 @@ Agent Skills are organized folders of instructions, scripts, and resources that 
 | `rules/` | **How** the agent behaves — verification, source-checking, guardrails |
 | `examples/` | **How** to try it — deployable labs with planted issues |
 | `misc/` | Maintenance tooling and evaluation framework |
+| `devops-agent/` | Non-executable skill ports for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/) — Day 2 operational skills repackaged for managed autonomous execution |
 
 ---
 
