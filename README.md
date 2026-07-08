@@ -1,4 +1,4 @@
-# APEX Skills — Agentic Platform Engineering eXperience
+# APEX Skills - Agentic Platform Engineering eXperience
 
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aws-samples.github.io/sample-apex-skills/)
 
