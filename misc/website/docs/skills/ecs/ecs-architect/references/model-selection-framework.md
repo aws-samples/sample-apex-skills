@@ -12,7 +12,7 @@ This page is generated from [skills/ecs-architect/references/model-selection-fra
 # ECS Deployment-Model Selection Framework
 
 > **Part of:** [ecs-architect](../)
-> **Purpose:** The full criteria matrix and per-model deep dives for choosing an Amazon ECS compute/launch model. Every GA-status, Region-availability, and pricing claim is cited to an AWS doc URL and was verified live at authoring time (2026-07-08). Re-verify fast-moving facts before asserting them to a customer.
+> **Purpose:** The full criteria matrix and per-model deep dives for choosing an Amazon ECS compute/launch model. Every GA-status, Region-availability, and pricing claim is cited to an AWS doc URL and was verified live against the AWS docs on **2026-07-09**. Re-verify fast-moving facts before asserting them to a customer.
 
 ---
 
@@ -43,9 +43,9 @@ Score the workload against each criterion, then read the model that wins the mos
 | **Spot / discount** | FARGATE_SPOT | EC2 Spot in ASG | Spot (`capacityOptionType: spot`) + Capacity Reservations (`reserved`) | Fargate pricing | N/A |
 | **Speed to first deploy** | Fast | Slow | Medium | Fastest (URL out of the box) | Slow |
 | **Fine-grained infra control** | Low | Highest | Medium | Lowest | High |
-| **Data residency / air-gap / on-prem** | No | No | No | No | Yes |
+| **Air-gap / on-prem** | No | No | No | No | Yes |
 | **Region breadth** | All | All | All commercial + GovCloud (US); **not** the China Regions | All | All (agent-based) |
-| **Billing model** | Per-vCPU/GB/sec | Per EC2 instance | Per EC2 instance **+** management fee | Underlying resources | Per external instance vCPU-hour |
+| **Billing model** | Per-vCPU/GB/sec | Per EC2 instance | Per EC2 instance **+** management fee | Underlying resources | $0.01025 per managed instance-hour (capacity-independent) |
 
 **Hard constraints that end the discussion early:**
 - Need GPU → not Fargate, not Express Mode.
@@ -80,7 +80,7 @@ You register EC2 instances (via Auto Scaling groups) to the cluster and run task
 
 **Choose ECS on EC2 when:**
 - **GPU** or other specialized hardware is required (GPU-optimized AMIs, g/p instance families).
-- You need a **custom AMI or kernel**, privileged containers, host device/volume access, or specific instance families not otherwise reachable.
+- You need a **custom AMI or kernel**, privileged containers, host device/volume access, or specific instance families not otherwise reachable. **Caveat on privileged mode:** it is a significant security-posture decision, not a neutral capability — `ecs-security` treats `privileged: false` as the default and requires explicit justification to enable it. Route the decision there; needing privileged mode is a *reason it lands on EC2*, not an endorsement of turning it on.
 - You want the **densest bin-packing** and are willing to run ENI trunking (see [networking-and-eni-density.md](networking-and-eni-density)).
 - You have deep, steady utilization where per-instance economics (with Savings Plans/Spot/Graviton) beat per-task billing (quantify with `ecs-cost-intelligence`).
 
@@ -95,14 +95,14 @@ A fully managed compute option (GA) that runs EC2 instances in your account whil
 **Status / availability (verify before quoting):**
 - Announced **Sept 2025**; initially six Regions. ([Announcing Amazon ECS Managed Instances](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/))
 - Extended to **all commercial AWS Regions Oct 2025**. ([Managed Instances now in all commercial Regions](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-ecs-managed-instances-commercial-regions/))
-- Now in **AWS GovCloud (US-East / US-West) since Nov 2025**, with FIPS-certified Graviton and GPU support added Mar 2026. ([GovCloud availability](https://aws.amazon.com/about-aws/whats-new/2025/11/ecs-managed-instances-govcloud-us-regions/))
+- Now in **AWS GovCloud (US-East / US-West) since Nov 2025** ([GovCloud availability](https://aws.amazon.com/about-aws/whats-new/2025/11/ecs-managed-instances-govcloud-us-regions/)). Separately, **from March 26, 2026** MI in the GovCloud (US) Regions supports **FIPS-certified workloads on Graviton-based and GPU-accelerated instances** (FIPS-compliant endpoints, kernel booted in FIPS mode) ([FIPS on Graviton/GPU in GovCloud](https://aws.amazon.com/about-aws/whats-new/2026/03/amazon-ecs-mi-supports-fips-graviron-gpu/)).
 - **Not available in the China Regions.** ([ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/) — "all AWS Regions, except AWS GovCloud (US) and the China Regions"; note the FAQ text lags the GovCloud launch, so treat GovCloud as supported and re-verify.)
 
 **How it works:**
 - By default ECS selects the most cost-optimized instance types by grouping pending tasks; you can constrain by attributes (20+ available: vCPU, memory, and more) or specify explicit instance types in the **Managed Instances Capacity Provider** configuration. ([Announcing Amazon ECS Managed Instances — News Blog](https://aws.amazon.com/blogs/aws/announcing-amazon-ecs-managed-instances-for-containerized-applications/))
 - **Purchase options** via `capacityOptionType`: `on-demand` (default), `spot` (up to 90% off, two-minute interruption warning — added Dec 2025), or `reserved` (EC2 Capacity Reservations — added Feb 2026). ([Managed Instances + Spot](https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-ecs-managed-instances-ec2-spot-instances/) · [Managed Instances + Capacity Reservations](https://aws.amazon.com/about-aws/whats-new/2026/02/ecs-mi-ec2-capacity-reservations/))
-- AWS performs **security patching every 14 days**, schedulable via EC2 event windows. ([Managed Instances launch post](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/))
-- **`awsvpc` and `host` network modes only** — no `bridge`. AWS fully controls the instances: no SSH/SSM access, no instance-role/root-volume changes, and **ENI trunking is on by default** (unlike self-managed EC2, which needs an opt-in). ENI-density planning is therefore automatic here.
+- AWS performs **security patching every 14 days**: an instance's maximum lifetime is capped at 14 days, after which ECS **drains the instance and reschedules its tasks** onto a freshly patched replacement. This is both a security benefit and an operational side-effect — tasks *will* be cycled, so design for graceful draining and schedule the disruption with **EC2 event windows** (maintenance windows you configure). ([MI security / patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-security.html) · [Managed Instances launch post](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/))
+- **`awsvpc` and `host` network modes only** — no `bridge` ([MI task networking](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instance-networking.html)). AWS fully controls the instances: **no SSH access** to the host, an immutable root filesystem, SELinux, and no instance-role/root-volume changes ([MI security](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-security.html)). This is host-level lockdown only — **ECS Exec still works** to shell into your running tasks (it uses SSM Session Manager into the *container*, not the host). **ENI trunking is on by default** on supported instance types (unlike self-managed EC2, which needs an opt-in), so ENI-density planning is automatic here ([MI awsvpc mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-awsvpc-mode.html)).
 - Enabled on new or existing clusters via Console, ECS MCP Server, or IaC. It is a **capacity-provider strategy**, so services using it must set `capacityProviderStrategy` (not a `launchType`). ([update-service CLI reference](https://docs.aws.amazon.com/cli/v1/reference/ecs/update-service.html))
 
 **Pricing:** regular EC2 costs **plus** a per-instance management fee for the compute provisioned. At low task-per-instance density this can exceed Fargate per-task billing — Managed Instances wins at moderate-to-high density. Model TCO with `ecs-cost-intelligence`. ([Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/))
@@ -121,13 +121,13 @@ An opinionated fast path (launched **Nov 2025**) that deploys a production-ready
 - An **AWS-provided domain name** and **HTTPS/TLS termination at the ALB with an AWS-managed ACM certificate** — no manual cert handling. ([Copilot end-of-support / Express Mode migration](https://aws.amazon.com/blogs/containers/announcing-the-end-of-support-for-the-aws-copilot-cli/))
 - **Up to 25 Express Mode services behind one ALB** via rule-based routing, keeping services isolated while sharing load-balancer cost. ([Announcing Amazon ECS Express Mode](https://aws.amazon.com/about-aws/whats-new/2025/11/announcing-amazon-ecs-express-mode/))
 - Autoscaling on `AVERAGE_CPU`, `AVERAGE_MEMORY`, or `REQUEST_COUNT_PER_TARGET`; canary deployments managed for you.
-- Available in **all Regions at no additional charge** — you pay only for the underlying resources. Deployable via Console, SDK, CLI, CloudFormation, CDK, and Terraform.
+- Available in **all Regions at no additional charge** — you pay only for the underlying resources. Deployable via the **ECS Console, AWS CLI, AWS SDKs, CloudFormation, Terraform, and the AWS Labs MCP Server for Amazon ECS** ([Express Mode overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)). CDK is not a first-class option in the docs — you can reach Express Mode from CDK only indirectly via a CloudFormation resource.
 
 **API:** `aws ecs create-express-gateway-service`. You can pass a `primaryContainer` (image + port) for the simplest path, or your own `taskDefinition` for full task-level control (the task def must have a container named `Main` with a single TCP port mapping and `FARGATE` compatibility; `taskDefinitionArn` cannot be combined with `primaryContainer`/role/cpu/memory in the same call). ([Create your first Express Mode service (CLI)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-getting-started.html) · [create_express_gateway_service API](https://docs.aws.amazon.com/cli/latest/reference/ecs/create-express-gateway-service.html))
 
 **Choose Express Mode when:** a team wants a web app/API online quickly with AWS best-practice defaults (HTTPS, autoscaling, shared ALB), and is happy to hand off infrastructure decisions. It is also the recommended migration path for **AWS Copilot CLI users — Copilot reaches end of support June 12, 2026** (migrate to Express Mode or CDK L3 constructs). ([Copilot end-of-support](https://aws.amazon.com/blogs/containers/announcing-the-end-of-support-for-the-aws-copilot-cli/))
 
-**Do not choose it when:** you need fine-grained control over the ALB/network/task from day one, non-HTTP protocols (batch, gRPC, NLB-fronted services), or a model other than Fargate. Note the **25-services-per-ALB** consolidation limit — beyond 25 same-subnet services Express Mode provisions additional ALBs, so factor ALB cost into TCO for large service counts. Because it exposes the underlying resources, teams can graduate to standard ECS later by managing those resources directly.
+**Do not choose it when:** you need fine-grained control over the ALB/network/task from day one, non-HTTP protocols (batch, gRPC, NLB-fronted services), or a model other than Fargate. Note the ALB is shared: Express Mode **consolidates up to 25 services onto one ALB when appropriate** ([launch announcement](https://aws.amazon.com/about-aws/whats-new/2025/11/announcing-amazon-ecs-express-mode/)). The exact behavior beyond 25 same-subnet services is not documented in a way we can cite — assume additional ALBs may be created and confirm/factor ALB cost into TCO for large service counts (hand $ modeling to `ecs-cost-intelligence`). Because it exposes the underlying resources, teams can graduate to standard ECS later by managing those resources directly.
 
 ---
 
@@ -153,7 +153,7 @@ ECS Anywhere registers an **external instance** — an on-prem server or VM (inc
 → ECS on EC2 with Graviton + Spot in a capacity-provider strategy, or Managed Instances if they want to shed fleet ops. Quantify with `ecs-cost-intelligence`; design capacity in [capacity-and-scaling.md](capacity-and-scaling).
 
 **"Regulated workload in GovCloud (US)."**
-→ All of Fargate, ECS on EC2, and Managed Instances are available in GovCloud (US) (Managed Instances since Nov 2025, incl. FIPS on Graviton/GPU since Mar 2026). Choose on the usual ops/control axis. In the **China Regions**, Managed Instances is not available — fall back to Fargate or ECS on EC2. Take hardening to `ecs-security`.
+→ All of Fargate, ECS on EC2, and Managed Instances are available in GovCloud (US) (Managed Instances since Nov 2025; FIPS-certified workloads on Graviton/GPU instances since March 26, 2026). Choose on the usual ops/control axis. In the **China Regions**, Managed Instances is not available — fall back to Fargate or ECS on EC2. Take hardening to `ecs-security`.
 
 **"Legacy app on VMs in our own datacenter, can't move yet."**
 → ECS Anywhere (EXTERNAL) for a consistent control plane on-prem; plan the eventual cloud move with `ecs-modernize`.
@@ -171,3 +171,7 @@ ECS Anywhere registers an **external instance** — an on-prem server or VM (inc
 - [Fargate Linux platform version deprecation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/platform-versions-retired.html) · [Migrating to Linux PV 1.4.0](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/platform-version-migration.html) · [PV 1.4.0 launch — traffic-flow change](https://aws.amazon.com/blogs/containers/aws-fargate-launches-platform-version-1-4/)
 - [External (Amazon ECS Anywhere)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/launch-type-external.html) · [ECS clusters for external instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html)
 - [Announcing the end-of-support for the AWS Copilot CLI](https://aws.amazon.com/blogs/containers/announcing-the-end-of-support-for-the-aws-copilot-cli/)
+- [Amazon ECS Express Mode overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html) — deploy methods (Console/CLI/SDK/CFN/Terraform/MCP), shared ALB
+- [Architect for Amazon ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html) · [MI security](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-security.html) · [MI task networking](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instance-networking.html) · [MI awsvpc mode / trunking-by-default](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-awsvpc-mode.html)
+- [MI FIPS on Graviton/GPU in GovCloud (US) (Mar 2026)](https://aws.amazon.com/about-aws/whats-new/2026/03/amazon-ecs-mi-supports-fips-graviron-gpu/)
+- [Amazon ECS Anywhere pricing](https://aws.amazon.com/ecs/anywhere/pricing/) · [ECS Anywhere FAQs](https://aws.amazon.com/ecs/anywhere/faqs/) — $0.01025 per managed instance-hour

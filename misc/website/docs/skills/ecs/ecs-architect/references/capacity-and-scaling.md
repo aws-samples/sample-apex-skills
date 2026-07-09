@@ -12,7 +12,7 @@ This page is generated from [skills/ecs-architect/references/capacity-and-scalin
 # ECS Capacity Providers and Scaling
 
 > **Part of:** [ecs-architect](../)
-> **Purpose:** Design a capacity-provider strategy and cluster auto scaling correctly. Covers the base/weight model, managed scaling, the mixed-instance-type ASG constraint, scale-in edge cases, and Spot. Facts verified against AWS docs on 2026-07-08.
+> **Purpose:** Design a capacity-provider strategy and cluster auto scaling correctly. Covers the base/weight model, managed scaling, the mixed-instance-type ASG constraint, scale-in edge cases, and Spot. Facts verified against AWS docs on **2026-07-09**.
 
 ---
 
@@ -54,7 +54,7 @@ Supported transitions between launch types and capacity providers (and the immut
 
 ## Base and Weight
 
-- **`base`** — a minimum number of tasks to run on that provider before weight is applied. Only one provider in a strategy can have a non-zero base.
+- **`base`** — a minimum number of tasks to run on that provider before weight is applied. **Only one capacity provider in a strategy can have a (non-zero) `base` defined**; the default is `0`, valid range 0–100,000. ([CapacityProviderStrategyItem — base](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-service-capacityproviderstrategyitem.html))
 - **`weight`** — the relative share of *remaining* tasks across providers after base is satisfied.
 
 **Common resilient pattern (Fargate + Spot):**
@@ -96,7 +96,7 @@ When an ASG has multiple instance types, ECS sorts them by vCPU, memory, ENIs, p
 
 **Practical rule:** one resource profile per ASG + capacity provider. Don't mix a `c5.large` and a `c5.24xlarge` in one managed-scaling ASG expecting large tasks to land — they'll hang. This is also the basis of the **separate-ASG-per-GPU-type** pattern (see `ecs-genai`).
 
-**Bin-pack on the hard limit — memory, not CPU.** When you do pack tasks onto EC2/Managed Instances, drive placement off **memory**: CPU on EC2 is a soft/burstable limit, so CPU overcommit is invisible and tasks still get placed even when CPU looks "full," whereas memory is a hard limit and exceeding it OOM-kills the container. Memory bin-packing (`binpack` on `memory`) gives a predictable, safe density guarantee; combine with `spread` across `availabilityZone` for AZ resilience (see [architecture-design.md](architecture-design#task-placement-ec2)).
+**Bin-pack on the hard limit — memory, not CPU** (field heuristic). When you pack tasks onto EC2/Managed Instances, drive placement off **memory**: container-level `cpu` is a *soft* share (containers burst into unused CPU), so CPU overcommit is invisible and tasks still get placed even when CPU looks "full," whereas the container `memory` hard limit OOM-kills on breach. Note the softness is at the container-share level — the **task-level `cpu` value is itself a hard ceiling** for the whole task. Memory bin-packing (`binpack` on `memory`) gives a predictable, safe density guarantee; combine with `spread` across `availabilityZone` for AZ resilience (see [architecture-design.md](architecture-design#task-placement-ec2)). ([task definition CPU/memory parameters](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html))
 
 ---
 
@@ -114,7 +114,7 @@ Deeper scale-in scoring for a *live* estate belongs to `ecs-operation-review`; t
 
 ## Fargate Spot
 
-`FARGATE_SPOT` provides interruptible Fargate capacity at a discount. Interruptions come with a two-minute warning (SIGTERM), so pair it with graceful shutdown and, for services, a `FARGATE` base for a resilient floor (see the base/weight table above). Suitable for stateless, retry-tolerant, and batch workloads. Quantify the discount and blast-radius trade-off with `ecs-cost-intelligence`.
+`FARGATE_SPOT` provides interruptible Fargate capacity at a discount. Like EC2 Spot, interruptions come with a **two-minute warning** before reclamation (surfaced as task state change / SIGTERM), so pair it with graceful shutdown and, for services, a `FARGATE` base for a resilient floor (see the base/weight table above). Suitable for stateless, retry-tolerant, and batch workloads. Quantify the discount and blast-radius trade-off with `ecs-cost-intelligence`. ([EC2 Spot two-minute interruption notice](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-instance-termination-notices.html))
 
 ---
 
@@ -132,3 +132,6 @@ The Managed Instances capacity provider lets you constrain instance selection by
 - [Configure capacity provider to retain instances with running tasks](https://repost.aws/knowledge-center/ecs-retain-instances-running-tasks-auto-scaling) — scale-in protection, task protection
 - [update-service CLI reference](https://docs.aws.amazon.com/cli/v1/reference/ecs/update-service.html) — capacity-provider strategy for Managed Instances, valid transitions
 - [Amazon ECS Managed Instances now supports EC2 Spot Instances (Dec 2025)](https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-ecs-managed-instances-ec2-spot-instances/) · [Managed Instances + EC2 Capacity Reservations (Feb 2026)](https://aws.amazon.com/about-aws/whats-new/2026/02/ecs-mi-ec2-capacity-reservations/) — `capacityOptionType`
+- [AWS::ECS::Service CapacityProviderStrategyItem — `base`](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ecs-service-capacityproviderstrategyitem.html) — only one provider may define a non-zero base
+- [EC2 Spot Instance interruption notices](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-instance-termination-notices.html) — two-minute warning
+- [Amazon ECS task definition parameters](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html) — soft container CPU share vs hard task-level CPU ceiling
