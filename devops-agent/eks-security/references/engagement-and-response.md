@@ -1,10 +1,10 @@
 # Engagement & Response Framework
 
-How to run an EKS security/compliance conversation: the full discovery question set, the adoption-challenge archetypes, the 8-step response structure, and escalation criteria.
+Autonomous context-discovery protocol for EKS security/compliance engagements: the required discovery checks, the adoption-challenge archetypes, the 8-step response structure, and escalation criteria.
 
-## Discovery — Required questions (the minimum for a defensible recommendation)
+## Discovery — Required checks (the minimum for a defensible recommendation)
 
-Do NOT proceed to a recommendation without these. The first four determine ~80% of the answer.
+Do NOT proceed to a recommendation without these. The first four determine ~80% of the answer. Gather from cluster state, IAM context, compliance metadata, and available documentation.
 
 1. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001/27017/27018 / HITRUST / NIST 800-53/171 / CJIS / DISA IL2-IL5 / industry-specific — rank primary/secondary if multiple.
 2. **Workload sensitivity?** Public / internal-confidential / PII / PHI (HIPAA) / cardholder data (PCI) / federal-classified / mixed.
@@ -15,7 +15,7 @@ Do NOT proceed to a recommendation without these. The first four determine ~80% 
 7. **Operational-overhead tolerance?** Zero (managed-only) / low / moderate / high.
 8. **Current security tooling baseline?** None / AWS-native / third-party CNAPP / OSS / hybrid / heritage on-prem.
 
-## Discovery — Recommended questions (sharpen the answer when depth allows)
+## Discovery — Recommended checks (sharpen the answer when depth allows)
 
 Org standardization mandate (AWS-native / vendor-OS / OSS / CNAPP-vendor / none) · cluster scale envelope (the **5,000 Pod-Identity-association** hard limit matters >~ that many SAs) · data residency / sovereignty · encryption posture (default KMS / CMK / FIPS 140-3 / BYOK / CloudHSM) · image-supply-chain posture · runtime-tooling preference · secrets-management posture · audit-log retention requirement · SIEM in use · network topology constraints · existing pentest/red-team findings · customer segment (XS–XXL+, drives escalation).
 
@@ -23,7 +23,7 @@ Org standardization mandate (AWS-native / vendor-OS / OSS / CNAPP-vendor / none)
 
 ## The 5 adoption-challenge archetypes
 
-Identify the customer's #1 concern early — it shapes every subsequent step:
+Identify the primary adoption challenge early — it shapes every subsequent step:
 1. **Compliance audit panic** — audit imminent, posture gap unclear → lead with the priority-ordered hardening roadmap + `kube-bench` baseline.
 2. **OS/AMI standardization conflict** — customer vendor-OS mandate vs AWS-canonical defaults → lead with the Layer-1 decision matrix; respect the mandate.
 3. **Skills gap** — no kube-bench/PSA/Kyverno experience → lead with managed services (Bottlerocket + GuardDuty + Inspector) and a staged rollout.

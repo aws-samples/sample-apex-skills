@@ -19,9 +19,9 @@ Only Day 2 operational skills that benefit from autonomous execution are ported:
 
 | Skill | Status | Description |
 |-------|--------|-------------|
-| [eks-cost-intelligence](./eks-cost-intelligence/) | Active | Run a live EKS cluster cost efficiency assessment — analyze spending across 6 dimensions (compute efficiency, Spot/Graviton adoption, networking, storage, observability, idle resources), calculate ... |
+| [eks-cost-intelligence](./eks-cost-intelligence/) | Active | EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report. Analyzes compute efficiency, Spot/Graviton adoption, networking, storage,... |
 | [eks-operation-review](./eks-operation-review/) | Placeholder | Run a structured EKS operational excellence assessment across 10 areas (networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, ope... |
-| [eks-security](./eks-security/) | Active | Use whenever someone needs security or compliance guidance for Amazon EKS — phrased as "CIS Benchmark for EKS", "HIPAA / PCI-DSS / FedRAMP / SOC 2 / GDPR on EKS", "harden my EKS cluster", "Bottlero... |
+| [eks-security](./eks-security/) | Active | EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap. Covers OS/AMI selection (Bottlerocket, AL2023, RHEL, Ubuntu), ide... |
 | [eks-upgrade-check](./eks-upgrade-check/) | Placeholder | Assess EKS cluster upgrade readiness by running automated checks across 8 areas (version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upg... |
 <!-- DEVOPS_AGENT_REFERENCE_END -->
 
@@ -61,7 +61,7 @@ bash devops-agent/setup.sh --teardown --space-id <id> --region us-west-2 --clust
 
    ```bash
    cd devops-agent/eks-cost-intelligence
-   zip -r ../../eks-cost-intelligence-skill.zip .
+   zip -r ../eks-cost-intelligence-skill.zip . -x './references/porting-notes.md'
    ```
 
 2. In the Operator Web App, go to **Knowledge > Skills > Add skill > Upload skill** and upload the zip (ZIP only, 6 MB max).

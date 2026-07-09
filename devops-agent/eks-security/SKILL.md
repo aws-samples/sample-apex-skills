@@ -1,6 +1,15 @@
 ---
 name: eks-security
-description: Use whenever someone needs security or compliance guidance for Amazon EKS — phrased as "CIS Benchmark for EKS", "HIPAA / PCI-DSS / FedRAMP / SOC 2 / GDPR on EKS", "harden my EKS cluster", "Bottlerocket vs AL2023 vs RHEL/Ubuntu AMI", "EKS Pod Identity vs IRSA", "Access Entries vs aws-auth", "GuardDuty for EKS", "Pod Security Admission / Kyverno / OPA", "NetworkPolicy / Security Groups for Pods", "ECR scanning / image signing (Cosign / Notation)", "EKS audit logging", "etcd / secrets encryption", or regulated-workload / audit-prep guidance. Walks the discovery-driven 7-layer security stack (OS/AMI → identity → workload → image → runtime → audit → compliance accelerators), the compliance-regime scope view, the AWS-canonical baseline, and a 30/60/90 hardening roadmap. Trigger even if "compliance" is never said — any EKS hardening, audit-prep, or regulated-workload decision qualifies. Skip for non-EKS (ECS/ROSA), account-level security with no EKS angle, or GenAI-workload security (use eks-genai).
+description: EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap.
+  Covers OS/AMI selection (Bottlerocket, AL2023, RHEL, Ubuntu), identity (EKS Pod Identity
+  vs IRSA, Access Entries vs aws-auth), workload security (Pod Security Admission,
+  Kyverno/OPA, NetworkPolicy, Security Groups for Pods), image supply chain (ECR scanning,
+  Cosign/Notation signing), runtime detection (GuardDuty, Falco), audit logging, etcd /
+  secrets encryption, and compliance accelerators (Audit Manager, Config, Security Hub).
+  Triggers on CIS Benchmark, HIPAA, PCI-DSS, FedRAMP, SOC 2, GDPR compliance, cluster
+  hardening, audit-prep, or any regulated-workload assessment. Does not cover non-EKS
+  platforms (ECS/ROSA), account-level security with no EKS angle, or GenAI-workload
+  security.
 ---
 
 # EKS Security & Compliance
@@ -38,7 +47,7 @@ The following read-only permissions are included:
 
 ## When to Use This Skill
 
-**Activate when the user wants to:**
+**Activate when the goal involves:**
 - Harden an EKS cluster or prepare for a first-time compliance audit (HIPAA, PCI-DSS, FedRAMP, SOC 2, ISO 27001, GDPR, HITRUST, NIST 800-53/171)
 - Choose an OS / AMI strategy for security (Bottlerocket vs AL2023-with-CIS vs Ubuntu Pro vs RHEL vs Auto Mode)
 - Decide identity & access (EKS Pod Identity vs IRSA; Access Entries vs `aws-auth`)
@@ -186,4 +195,3 @@ Progressive disclosure — the essentials are above; load a reference only when 
 - [AWS Compliance Programs](https://aws.amazon.com/compliance/programs/) · [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) · [AWS Artifact](https://aws.amazon.com/artifact/)
 - [aws/aws-eks-best-practices](https://github.com/aws/aws-eks-best-practices) · [EKS Security Immersion Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/165b0729-2791-4452-8920-53b734419050) · [kube-bench](https://github.com/aquasecurity/kube-bench)
 
-For porting notes, see [references/porting-notes.md](references/porting-notes.md).

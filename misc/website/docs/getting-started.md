@@ -63,18 +63,18 @@ Skills follow the [Agent Skills](https://agentskills.io/) standard. Clone and po
 
 ### AWS DevOps Agent
 
-A subset of skills are ported for fully autonomous execution on the [AWS DevOps Agent](https://docs.aws.amazon.com/devops-agent/). These live in the `devops-agent/` directory and run without interactive prompts.
+A subset of skills are ported for fully autonomous execution on the [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/). These live in the `devops-agent/` directory and run without interactive prompts.
 
 ```bash
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
 # Automated setup (creates Agent Space, uploads skills, configures EKS access)
-./devops-agent/setup.sh --cluster-name <your-cluster> --region <region>
+./devops-agent/setup.sh --space-name <your-space> --cluster-name <your-cluster> --region <region>
 
 # Or upload a single skill manually
 cd devops-agent/eks-cost-intelligence
-zip -r /tmp/eks-cost-intelligence.zip . -x '*.zip'
+zip -r /tmp/eks-cost-intelligence.zip . -x '*.zip' -x './references/porting-notes.md'
 # Upload via AWS Console → Amazon Q → DevOps Agent → Agent Skills
 ```
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'rm -f /tmp/*-skill.zip /tmp/*-payload.json 2>/dev/null' EXIT
 
 # DevOps Agent Setup Script
 # Automates: IAM roles, Agent Space creation, AWS association, EKS access, skill upload
@@ -157,11 +158,14 @@ for skill_dir in "$SCRIPT_DIR"/*/; do
   fi
   echo "  Packaging $skill_name..."
   ZIP_FILE="/tmp/${skill_name}-skill.zip"
-  (cd "$skill_dir" && zip -qr "$ZIP_FILE" .)
-  ENCODED=$(python3 -c "import base64,json,sys; zf=sys.argv[1]; sid=sys.argv[2]; z=open(zf,'rb').read(); print(json.dumps({'agentSpaceId':sid,'assetType':'skill','metadata':{'agent_types':['CHAT']},'content':{'zip':{'zipFile':base64.b64encode(z).decode()}}}))" "$ZIP_FILE" "$SPACE_ID")
-  ASSET_ID=$(aws devops-agent create-asset --cli-input-json "$ENCODED" --region "$REGION" --query 'asset.assetId' --output text)
+  rm -f "$ZIP_FILE"
+  (cd "$skill_dir" && zip -qr "$ZIP_FILE" . -x './references/porting-notes.md')
+  JSON_FILE="/tmp/${skill_name}-payload.json"
+  python3 -c "import base64,json,sys; zf=sys.argv[1]; sid=sys.argv[2]; z=open(zf,'rb').read(); open(sys.argv[3],'w').write(json.dumps({'agentSpaceId':sid,'assetType':'skill','metadata':{'agent_types':['CHAT']},'content':{'zip':{'zipFile':base64.b64encode(z).decode()}}}))" "$ZIP_FILE" "$SPACE_ID" "$JSON_FILE"
+  ASSET_ID=$(aws devops-agent create-asset --cli-input-json "file://$JSON_FILE" --region "$REGION" --query 'asset.assetId' --output text)
   echo "  Uploaded: $skill_name ($ASSET_ID)"
   rm -f "$ZIP_FILE"
+  rm -f "$JSON_FILE"
   UPLOADED=$((UPLOADED + 1))
 done
 

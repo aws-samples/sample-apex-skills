@@ -76,7 +76,7 @@ jobs:
             # Report result
             if [ -n "$errors" ]; then
               echo "FAIL: $skill"
-              printf "%s" "$errors"
+              printf "%b" "$errors"
               EXIT_CODE=1
             else
               echo "PASS: $skill"

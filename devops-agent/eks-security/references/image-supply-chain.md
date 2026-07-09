@@ -29,7 +29,7 @@ Kyverno's `verifyImages` rule blocks unsigned or high-severity images **at admis
 | **Prisma Cloud** (Palo Alto) | Comprehensive CSPM + workload protection | AWS Marketplace |
 | **Trivy** | Open-source, fast, broad CVE coverage | Self-hosted (CI/CD) |
 
-Position AWS-native (ECR Enhanced Scanning + Inspector + Security Hub) as the default; third-party CNAPP suits customers with an existing enterprise contract or multi-cloud posture. When a customer already runs a CNAPP, the conversation is coexistence-vs-displacement — escalate to Security guidance rather than reflexively recommending replacement.
+Position AWS-native (ECR Enhanced Scanning + Inspector + Security Hub) as the default; third-party CNAPP suits customers with an existing enterprise contract or multi-cloud posture. When a customer already runs a CNAPP, the key decision axis is coexistence-vs-displacement — escalate to Security guidance rather than reflexively recommending replacement.
 
 ## Hardening the images themselves
 

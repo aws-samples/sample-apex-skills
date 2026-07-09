@@ -1,16 +1,11 @@
 ---
 name: eks-cost-intelligence
-description: Run a live EKS cluster cost efficiency assessment — analyze spending across
-  6 dimensions (compute efficiency, Spot/Graviton adoption, networking, storage,
-  observability, idle resources), calculate a weighted 0-100 Cost Score, and generate
-  a prioritized report with dollar-quantified findings and ready-to-apply remediation
-  snippets. Use this skill when someone asks "how much am I wasting on EKS?", "run
-  a cost audit on my cluster", "what's my biggest cost driver?", "analyze my cluster's
-  cost efficiency", or needs dollar-denominated findings for a FinOps review — even
-  if they don't say "cost intelligence" or "score". Combines live Cost Explorer data,
-  CloudWatch utilization metrics, and Kubernetes resource analysis. Distinct from
-  eks-best-practices (static advisory guidance), eks-operation-review (operational
-  health), and eks-recon (cluster discovery).
+description: EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report.
+  Analyzes compute efficiency, Spot/Graviton adoption, networking, storage, observability,
+  and idle resources. Triggers on cost audit, cost review, cost driver analysis, FinOps
+  assessment, spending efficiency, waste identification, over-provisioned workloads, or
+  cost attribution by namespace. Combines live Cost Explorer data, CloudWatch utilization
+  metrics, and Kubernetes resource analysis.
 ---
 
 # EKS Cost Intelligence — DevOps Agent Port
@@ -65,14 +60,13 @@ The following permissions are included:
 
 ## When to Use
 
-**Activate when the user:**
-- Asks "how much am I wasting?" or "what's my biggest cost driver?"
-- Requests a cost audit, cost review, or spending assessment on a live cluster
-- Needs dollar-denominated findings to justify optimization work to leadership
-- Wants cost attribution by namespace, team, or workload
-- Is preparing a FinOps review or cost reduction initiative
-- Asks which workloads are over-provisioned relative to actual usage
-- Wants to know their cluster's cost efficiency score
+**Activate when the goal involves:**
+- Identifying waste — "what's the biggest cost driver?" or "where am I over-provisioned?"
+- Running a cost audit, cost review, or spending assessment against a live cluster
+- Producing dollar-denominated findings to justify optimization work
+- Cost attribution by namespace, team, or workload
+- Preparing a FinOps review or cost reduction initiative
+- Measuring a cluster's cost efficiency score (0-100)
 
 **Out of scope (do not assess):**
 - General cost optimization best practices without a live cluster — advisory guidance, not a live assessment
@@ -330,7 +324,7 @@ The following are intentionally excluded from the initial release and may be add
 1. **Do NOT hardcode or guess cluster names.** Always discover clusters by listing them first.
 2. **Do NOT retry a failed API call more than once.** If it fails twice, log the failure, skip that check, and continue.
 3. **Always read the relevant reference file before executing checks for that dimension.**
-4. **Do NOT duplicate advisory content from eks-best-practices.** Reference it in recommendations where relevant.
+4. **Do NOT duplicate general advisory content.** Keep recommendations specific to cost findings with actionable remediation steps.
 5. **Emit findings as structured output** following the schema in `references/findings-format.md`.
 
 ---
