@@ -85,18 +85,19 @@ The following permissions are included:
 
 ## Assessment Workflow
 
-> **Execution model — autonomous with hard stops.** This skill runs autonomously
-> and does NOT pause for interactive input. It proceeds only when the target cluster
-> is unambiguous. If any gating criterion below is not met, it performs a
-> **HARD STOP**: emits a structured stop message and ends.
+> **Execution model — fully autonomous.** This skill runs autonomously with no
+> interactive prompts. It proceeds through discovery and assessment without pausing
+> for user input. When the target cluster is ambiguous, it assesses all discovered
+> clusters. When a non-recoverable error occurs (API permission failure, no clusters
+> found, cluster in failed state), it logs the error in the report and terminates.
 
-**HARD STOP output format:**
+**Error output format:**
 
 ```
-## Assessment Halted — <one-line reason>
-**Criterion not met:** <which check failed>
+## Assessment Error — <one-line reason>
+**Condition:** <which check failed>
 **What was found:** <observed state>
-**To proceed:** <specific input needed>
+**Recommendation:** <remediation guidance for next run>
 ```
 
 ### Step 0: Pre-flight — Cluster Discovery and Validation
@@ -109,11 +110,11 @@ Use the EKS ListClusters API to discover available clusters in the current regio
 
 | Condition | Action |
 |-----------|--------|
-| API call fails (auth/permission error) | **HARD STOP** — "Cannot access EKS. Verify the Agent Space role has `eks:ListClusters` permission and is configured for the correct region." |
-| Zero clusters returned | **HARD STOP** — "No EKS clusters found in this region. Specify a different region or verify cluster existence." |
+| API call fails (auth/permission error) | **Abort with error** — log "Cannot access EKS. The agent role requires `eks:ListClusters` permission for the configured region." in the report and terminate this assessment. |
+| Zero clusters returned | **Abort with error** — log "No EKS clusters found in this region." in the report and terminate this assessment. |
 | Exactly one cluster found, none named in request | **Proceed** — state which cluster was auto-selected |
 | Multiple clusters found, one named in request | **Proceed** — use the named cluster |
-| Multiple clusters found, none named in request | **HARD STOP** — list all discovered clusters and request the user specify which one to assess |
+| Multiple clusters found, none named in request | **Proceed** — assess **all** discovered clusters. Note in the report that no specific cluster was targeted, so all clusters in the region are included. |
 
 **Action 2 — Describe the selected cluster**
 
@@ -124,8 +125,8 @@ Use the EKS DescribeCluster API for the target cluster. Extract: cluster name, K
 | Cluster Status | Action |
 |----------------|--------|
 | `ACTIVE` | **Proceed** |
-| `CREATING` / `UPDATING` / `DELETING` | **HARD STOP** — "Cluster is in `<status>` state. Wait for the operation to complete, then re-invoke." |
-| `FAILED` | **HARD STOP** — "Cluster is in FAILED state. Recovery is required before cost assessment." |
+| `CREATING` / `UPDATING` / `DELETING` | **Skip cluster** — log "Cluster `<name>` is in `<status>` state; skipping until operation completes." If this is the only cluster, terminate with error report. |
+| `FAILED` | **Skip cluster** — log "Cluster `<name>` is in FAILED state; recovery required before cost assessment." If this is the only cluster, terminate with error report. |
 
 **Action 4 — Gather cluster context**
 

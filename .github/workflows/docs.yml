@@ -10,6 +10,7 @@ on:
       - "skills/**/SKILL.md"
       - "steering/**"
       - "examples/**/README.md"
+      - "devops-agent/**"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 

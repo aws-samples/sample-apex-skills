@@ -5,10 +5,11 @@ description: Use whenever someone needs security or compliance guidance for Amaz
 
 # EKS Security & Compliance
 
-> **Execution model — autonomous with context gates.** This skill runs autonomously.
-> If the request provides sufficient context (compliance regime, workload sensitivity,
-> cluster topology), proceed through the full 7-layer analysis. If critical context is
-> missing, perform a HARD STOP requesting the minimum information needed.
+> **Execution model — fully autonomous.** This skill runs autonomously with no
+> interactive prompts. If the request provides sufficient context (compliance regime,
+> workload sensitivity, cluster topology), proceed through the full 7-layer analysis.
+> If critical context is missing, infer from cluster state or apply documented defaults,
+> noting all assumptions in the report output.
 
 End-to-end, opinionated security and compliance guidance for Amazon EKS, structured as a **7-layer stack** plus a **compliance-regime cross-cutting view**. This skill is **discovery-driven** — the right hardening stack is a function of *(compliance regime x OS-standardization mandate x team skill x audit timeline x workload sensitivity x air-gap requirement x scale x operational-overhead tolerance)*. Skipping the discovery context makes the recommendation wrong about half the time.
 
@@ -57,22 +58,22 @@ The following read-only permissions are included:
 
 **Do NOT recommend a hardening stack without the following context.** The single most common mistake is reflexively saying "use Bottlerocket" or "use AL2023 with CIS hardening" without confirming the customer's context. The first four items alone determine ~80% of the recommendation.
 
-### HARD STOP Conditions
+### Autonomous Context Resolution
 
-If the request does not specify **at minimum** the following three items, perform a **HARD STOP** and request this context before proceeding:
+If the request does not specify the following three items, infer from cluster context (tags, labels, namespace naming, existing policies) or apply the stated defaults. Note all assumptions in the report output.
 
-1. **Compliance regime(s)** — None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001 / HITRUST / NIST 800-53/171 / CJIS / DISA IL5
-2. **Workload sensitivity** — Public / internal / PII / PHI (HIPAA) / cardholder data (PCI) / federal
-3. **OS / AMI preference** — Open to AWS defaults / Bottlerocket-first / AL2023+CIS / Ubuntu mandate / RHEL mandate / EKS Auto Mode
+1. **Compliance regime(s)** — If not determinable from cluster context (e.g., tags like `compliance:hipaa`, namespace names, existing admission policies), assume **SOC 2** as the baseline and note the assumption. Available regimes: None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001 / HITRUST / NIST 800-53/171 / CJIS / DISA IL5
+2. **Workload sensitivity** — If not determinable from cluster context (e.g., namespace labels, network policies, encryption settings), assume **internal** and note the assumption. Levels: Public / internal / PII / PHI (HIPAA) / cardholder data (PCI) / federal
+3. **OS / AMI preference** — If not determinable from node AMI IDs or launch templates, assume **Open to AWS defaults** and note the assumption. Options: Open to AWS defaults / Bottlerocket-first / AL2023+CIS / Ubuntu mandate / RHEL mandate / EKS Auto Mode
 
-### Proceed Without Stopping When
+### Context Already Provided When
 
 The request already provides sufficient context — for example:
 - "Harden my HIPAA cluster running Bottlerocket on EKS 1.31 in us-east-1"
 - "What's the FedRAMP Moderate security stack for EKS with AL2023?"
 - "We need SOC 2 compliance for our PII workloads on EKS Auto Mode"
 
-### Additional Context (gather when depth allows, do not HARD STOP for these)
+### Additional Context (gather when depth allows, use defaults if unavailable)
 
 4. **Audit timeline?** None / <3 mo (urgent) / 3-6 mo / 6-12 mo / continuous.
 5. **Cluster topology?** Single vs multi-cluster, single vs multi-account, multi-region, EKS Anywhere, Hybrid Nodes, GovCloud.

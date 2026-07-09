@@ -151,6 +151,10 @@ UPLOADED=0
 for skill_dir in "$SCRIPT_DIR"/*/; do
   [[ -f "$skill_dir/SKILL.md" ]] || continue
   skill_name=$(basename "$skill_dir")
+  if [[ ! -d "$skill_dir/references" ]]; then
+    echo "  Skipping $skill_name (placeholder — no references/)"
+    continue
+  fi
   echo "  Packaging $skill_name..."
   ZIP_FILE="/tmp/${skill_name}-skill.zip"
   (cd "$skill_dir" && zip -qr "$ZIP_FILE" .)
