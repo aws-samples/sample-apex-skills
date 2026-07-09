@@ -34,7 +34,7 @@ arn:aws:secretsmanager:region:aws_account_id:secret:secret-name:json-key:version
 
 The last three fields — **`json-key`**, **`version-stage`**, **`version-id`** — are optional, **but if you omit them you must still include the colons** to select the defaults. So to reference the whole secret you end with `...secret-name` (no trailing colons needed via the base ARN), but to pick a single JSON key `password` at the default version you write `...secret-name:password::` — **the two trailing colons are required**. Getting this wrong is a classic silent failure (wrong value injected, or launch failure). Source: [Pass Secrets Manager secrets via env vars](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-secrets-manager.html).
 
-Platform/agent version requirements (verified):
+Platform/agent version requirements (verified 2026-07-09 — [Pass Secrets Manager secrets via env vars](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-secrets-manager.html)):
 - **Single JSON key or specific version:** Fargate platform version **1.4.0+** (Linux) / **1.0.0** (Windows); EC2 container agent **1.37.0+**.
 - **Full secret contents:** Fargate **1.3.0+**; EC2 agent **1.22.0+**.
 
@@ -61,7 +61,7 @@ Create an **interface VPC endpoint for Secrets Manager (and SSM)** so retrieval 
 
 ## Fargate FIPS 140-3 (verified — GovCloud only)
 
-**AWS Fargate FIPS-140 (140-3) compliance is available only in AWS GovCloud (US) Regions**, is **off by default** (you must enable it via account setting), and requires: `operatingSystemFamily = LINUX`, `cpuArchitecture = X86_64`, and Fargate **platform version 1.4.0+**. Verify status inside a task with `cat /proc/sys/crypto/fips_enabled` (returns `1`). Do **not** claim Fargate FIPS in commercial Regions. Source: [AWS Fargate FIPS-140](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-fips-compliance.html).
+**AWS Fargate FIPS-140 (140-3) compliance is available only in AWS GovCloud (US) Regions** (verified 2026-07-09), is **off by default** (you must enable it via account setting), and requires: `operatingSystemFamily = LINUX`, `cpuArchitecture = X86_64`, and Fargate **platform version 1.4.0+**. Verify status inside a task with `cat /proc/sys/crypto/fips_enabled` (returns `1`). Do **not** claim Fargate FIPS in commercial Regions. Source: [AWS Fargate FIPS-140](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-fips-compliance.html).
 
 ## Shared responsibility (encryption & secrets)
 

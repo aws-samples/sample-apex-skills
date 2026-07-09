@@ -21,7 +21,7 @@ ECR offers two scanning modes; know which is which (verified against current doc
 |---|---|---|---|
 | **Enhanced scanning** | **Amazon Inspector** | OS packages **AND** programming-language packages (Python, Node.js, Java, Ruby, Go, …); **continuous re-scan** on new CVE disclosure; CVSS scoring; findings → Security Hub | **Recommended** for production. Reference: [ECR enhanced scanning](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-enhanced.html) |
 | **Basic scanning (AWS native)** | AWS-native CVE engine | OS packages, on push / on-demand | GA and the default for new registries; broad OS coverage |
-| **Basic scanning (Clair)** | OSS Clair | OS packages | **Deprecated** — not supported in Regions added after Sept 2024; unsupported in all Regions as of **Oct 1, 2025**. Do not recommend. |
+| **Basic scanning (Clair)** | OSS Clair | OS packages | **Deprecated** — verified 2026-07-09: *"Clair support is deprecated, Clair will not be supported in new regions as they are added and will no longer be supported in all regions as of October 1, 2025"*; also unsupported in Regions added after **September 2024**. Do not recommend. Source: [ECS task and container security best practices — scan images](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-tasks-containers.html). |
 
 For a regulated workload, enable **Enhanced scanning** on all production repositories (PCI Req 6/11, similar for other regimes) — the continuous re-scan is the key differentiator, since a clean image on push develops CVEs over time. Images with `HIGH`/`CRITICAL` findings should be rebuilt or deleted. Reference: [Scanning ECR images with Amazon Inspector](https://docs.aws.amazon.com/inspector/latest/user/scanning-ecr.html).
 

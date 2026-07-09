@@ -17,7 +17,7 @@ The cross-cutting view over the 7-layer stack. **Compliance status changes over 
 
 Amazon ECS and AWS Fargate are broadly covered by AWS's major compliance programs, but **program scope is per-service, per-Region, and changes over time** — quoting a memorized ECS scope table is exactly the kind of claim an auditor rejects. So this skill deliberately does **not** reproduce a fixed "ECS is in scope for X/Y/Z" table. The correct move every time:
 
-1. Open the **live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page**, filter to the customer's program(s) and Region(s), and confirm ECS / Fargate / ECR are listed.
+1. Open the **live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page**, filter to the customer's program(s) and Region(s), and confirm ECS / Fargate / ECR are listed. **Note:** on most program tables **Fargate has no separate row** — it is usually covered under the Amazon ECS row's bracketed note (e.g. PCI lists "Amazon ECS [both Fargate and EC2 launch types]"); **HIPAA is the exception** where AWS Fargate is often listed on its own. Don't fail an ECS engagement just because "Fargate" isn't its own line item.
 2. Cross-check the ECS-specific [Compliance validation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-compliance.html) page.
 3. Pull the attestation (SOC 2 / ISO / PCI AOC / HIPAA AOC / FedRAMP package) from **AWS Artifact** for the auditor.
 4. State the customer-owned workload controls explicitly — AWS's scope covers the service, not the customer's configuration.
@@ -27,7 +27,7 @@ Amazon ECS and AWS Fargate are broadly covered by AWS's major compliance program
 - **ECS/Fargate are "HIPAA-*eligible*"**, never "HIPAA-compliant" — a signed **BAA** with AWS is required before processing PHI, and the customer owns workload-level controls.
 - **FedRAMP Moderate ≠ High.** Moderate is generally commercial-Region; High is generally GovCloud. Confirm on the live page for the customer's Region — don't promise High in commercial.
 - **Fargate FIPS 140-3 is GovCloud (US) only**, off by default, LINUX + X86_64 + PV 1.4.0+ (verified — [Fargate FIPS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-fips-compliance.html)). Don't conflate 140-3 with 140-2.
-- For **alignment/framework** regimes (GDPR, NIST 800-53/171, CJIS), AWS provides enablers/DPA but **no independent certification** — say so.
+- For **alignment/framework** regimes (GDPR, NIST 800-53/171, CJIS), AWS provides enablers/DPA rather than a traditional certification. For **GDPR specifically**, name the concrete enabler: the **CISPE Data Protection Code of Conduct** — the first pan-European Article 40 code of conduct for cloud infrastructure providers (approved by the EDPB and adopted by CNIL in 2021, independently verified by EY CertifyPoint). 100+ AWS services are listed on the **CISPE public register** as adherent; check whether ECS/Fargate/ECR are on it for the customer's assurance ([CISPE Code](https://aws.amazon.com/compliance/cispe/)).
 - **ECS Anywhere** places the on-prem host, OS, and network entirely on the customer — it sits **outside** the AWS-managed compliance boundary for those hosts. Escalate for any regulated ECS Anywhere workload.
 
 ## Per-regime quick guidance (map controls to the 7 layers)
@@ -35,7 +35,7 @@ Amazon ECS and AWS Fargate are broadly covered by AWS's major compliance program
 - **HIPAA** — confirm an active BAA first; prefer **Fargate** for per-task isolation of PHI workloads (no shared kernel); CMK on ECR/EBS/EFS/logs holding PHI; Secrets Manager injection (no plaintext); GuardDuty Runtime Monitoring; ~6-year log retention; Audit Manager HIPAA framework; pull the HIPAA AOC from Artifact.
 - **PCI-DSS** — SG-per-service + private subnets + VPC endpoints to segment the cardholder-data environment (Req 1); ECR Enhanced Scanning + image hardening (Req 6/11); least-privilege task/execution roles + scoped `iam:PassRole` (Req 7); CloudTrail + Container Insights, ~1-year retention (Req 10); Security Hub PCI pack; PCI AOC from Artifact.
 - **FedRAMP** — Moderate (commercial) vs High (GovCloud) is the first question; CMK for all data layers; VPC endpoints to keep traffic on the AWS backbone; Fargate FIPS if in GovCloud; Audit Manager FedRAMP framework; confirm the authorizing agency.
-- **GDPR** — alignment/framework, no AWS certification; ECS + all data layers + logs in EU Regions only; no non-EU replication; DPA from Artifact; customer owns erasure/DPIA/breach-notification.
+- **GDPR** — alignment/framework backed by the CISPE Code (above); DPA from Artifact (the AWS DPA + Standard Contractual Clauses apply automatically); customer owns erasure/DPIA/breach-notification. **EU-only residency is a customer *policy* choice, not a GDPR mandate** — the GDPR permits transfers outside the EU under an adequacy decision or appropriate safeguards (SCCs), and AWS applies the SCCs automatically for transfers to non-adequate countries ([AWS DPA / SCCs](https://docs.aws.amazon.com/whitepapers/latest/navigating-gdpr-compliance/aws-data-processing-addendum-dpa.html)). So keep ECS + data + logs EU-resident **if the customer's data-residency policy requires it** (and CISPE's EEA-only option supports that), but don't state EU-only as a GDPR requirement.
 
 ## Worked scenarios (decision shape, not copy-paste)
 
@@ -55,3 +55,4 @@ First-time certification on a mission-critical regulated workload; XXL+ segment;
 ## Sources
 - [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) (**authoritative — verify here**) · [Compliance validation for Amazon ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-compliance.html) · [Compliance Programs](https://aws.amazon.com/compliance/programs/)
 - [AWS Fargate FIPS-140](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-fips-compliance.html) · [HIPAA Eligible Services](https://aws.amazon.com/compliance/hipaa-eligible-services-reference/) · [AWS Artifact](https://aws.amazon.com/artifact/)
+- [CISPE Data Protection Code of Conduct](https://aws.amazon.com/compliance/cispe/) · [AWS Data Processing Addendum + SCCs (GDPR transfers)](https://docs.aws.amazon.com/whitepapers/latest/navigating-gdpr-compliance/aws-data-processing-addendum-dpa.html) · [GDPR Center](https://aws.amazon.com/compliance/gdpr-center/)

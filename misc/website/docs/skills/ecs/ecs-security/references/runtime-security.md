@@ -15,7 +15,7 @@ Detect threats *while tasks run* — container breakouts, reverse shells, privil
 
 ## GuardDuty Runtime Monitoring for ECS
 
-An eBPF/kernel-level security agent observes on-host behavior (file access, process execution, network connections) and reports to GuardDuty. Coverage for ECS (verified against current docs):
+An eBPF/kernel-level security agent observes on-host behavior (file access, process execution, network connections) and reports to GuardDuty. Coverage for ECS (verified 2026-07-09 against current docs):
 
 | ECS launch type | Runtime Monitoring support | Agent management |
 |---|---|---|
@@ -33,7 +33,7 @@ Setup notes (verified):
 
 References: [GuardDuty Runtime Monitoring](https://docs.aws.amazon.com/guardduty/latest/ug/runtime-monitoring.html) · [How it works with ECS-Fargate](https://docs.aws.amazon.com/guardduty/latest/ug/how-runtime-monitoring-works-ecs-fargate.html) · [ECS GuardDuty integration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html).
 
-## GuardDuty Extended Threat Detection for ECS (automatic, no extra cost)
+## GuardDuty Extended Threat Detection for ECS (automatic, no *additional* cost atop paid GuardDuty)
 
 GuardDuty **Extended Threat Detection** now correlates signals across runtime behavior, malware execution, and AWS API activity to surface **multi-stage attacks** as a single critical finding — for ECS the finding type is **`AttackSequence:ECS/CompromisedCluster`** (and `AttackSequence:EC2/CompromisedInstanceGroup` for the EC2 layer). It is **enabled automatically for GuardDuty customers at no additional cost**, but its comprehensiveness depends on the protection plans you've enabled — **enable Runtime Monitoring (Fargate or EC2) to feed it** for ECS clusters. This is the highest-value detection lever to call out for SOC/compliance customers. Reference: [GuardDuty Extended Threat Detection now supports EC2 and ECS (Dec 2025)](https://aws.amazon.com/about-aws/whats-new/2025/12/guardduty-extended-threat-detection-ec2-ecs/) · [Extended Threat Detection docs](https://docs.aws.amazon.com/guardduty/latest/ug/guardduty-extended-threat-detection.html).
 
