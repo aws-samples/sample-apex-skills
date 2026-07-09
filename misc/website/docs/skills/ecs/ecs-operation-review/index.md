@@ -1,6 +1,6 @@
 ---
 title: "ecs-operation-review"
-description: "Run a structured Amazon ECS operational-excellence assessment against a live estate and score it GREEN/AMBER/RED. Covers 8 domains — clusters & capacity (scale-in correctness), networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (health-check grace period, connection draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for \"audit my ECS estate\", \"ECS health check\", \"score my ECS posture\", \"review my ECS services\", \"GREEN/AMBER/RED my clusters\", including section-scoped reviews of a single domain. For Day-0 deployment-model design and selection use ecs-architect; for deep security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for deployment/CI-CD engineering use ecs-devops; for read-only inventory/discovery use ecs-recon (once available)."
+description: "Run a structured Amazon ECS operational-excellence assessment against a live estate and score it GREEN/AMBER/RED. Skip for EKS/Kubernetes (use eks-operation-review). Covers 8 domains — clusters & capacity, networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (grace period, draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for \"audit my ECS estate\", \"ECS health check\", \"score my ECS posture\", \"review my ECS services\", \"GREEN/AMBER/RED my ECS clusters\", including section-scoped reviews of a single domain. For Day-0 design/selection use ecs-architect; for deep security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for CI/CD engineering use ecs-devops; for replatform/refactor use ecs-modernize; for read-only inventory/discovery use ecs-recon (siblings once available)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/SKILL.md
 format: md
 ---
@@ -14,7 +14,20 @@ This page is generated from [skills/ecs-operation-review/SKILL.md](https://githu
 
 This skill performs a structured, evidence-based operational-excellence assessment of a **live** Amazon ECS estate — clusters, capacity providers, services, task definitions, and their supporting AWS resources — and produces a rated report (GREEN / AMBER / RED / UNKNOWN) with prioritized, cited recommendations.
 
-It is the **umbrella Day-2 audit** that walks the entire Amazon ECS Best Practices Guide ([`ecs-best-practices.html`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-best-practices.html)) across every domain. It is evaluative (it *grades* what exists), not generative — it does not design or build new environments, and it **defers to the deep ECS skills** for remediation depth rather than duplicating them (see "Defers to deep skills").
+It is the **umbrella Day-2 audit** that walks the major domains of the Amazon ECS Best Practices Guide ([`ecs-best-practices.html`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-best-practices.html)). It is evaluative (it *grades* what exists), not generative — it does not design or build new environments, and it **defers to the deep ECS skills** for remediation depth rather than duplicating them (see "Defers to deep skills").
+
+**This skill is for Amazon ECS only. Skip it for EKS / Kubernetes estates — use `eks-operation-review` instead.**
+
+### Scope & limitations (known blind spots)
+
+This review is deliberately bounded. It does **not** currently assess, and should state as out-of-scope in the report:
+
+- **Scheduled and standalone tasks** — the audit enumerates workloads via `list-services`; EventBridge-scheduled tasks and one-off `run-task` workloads are not examined.
+- **ECS Express Mode** services — their ALB, security groups, and deployment config are auto-managed by AWS, so checks 2.2 / 4.x / 5.2 would mis-rate them. Mark N/A.
+- **Windows and ECS Anywhere (`EXTERNAL`) workloads** — several container-hardening and runtime-monitoring checks (3.x, 7.3, 7.4) assume Linux on Fargate/EC2 and would false-RED Windows or external tasks. Note their presence and mark the affected items N/A.
+- **API throttling on large estates** — when iterating over many services/task definitions, expect ECS API throttling; paginate and back off (see the pagination note in `references/operational-processes.md`).
+
+State any of these that apply to the estate explicitly in the report's Scope block rather than silently omitting them.
 
 ## When to use
 
@@ -30,14 +43,14 @@ Activate for any request to **audit, review, health-check, or score** an ECS est
 | Request | Route to |
 |---|---|
 | "Which launch type should I use — Fargate vs EC2 vs Managed Instances?", greenfield architecture/design/selection | **`ecs-architect`** (Day-0 design; generative) |
-| Read-only inventory / "what's in my estate" / discovery report before an audit | **`ecs-recon`** (discovery front door, once available; until then inventory with `aws ecs describe-*`) |
+| Read-only inventory / "what's in my estate" / discovery report before an audit | **`ecs-recon`** (discovery front door; until then inventory with `aws ecs describe-*`) |
 | Deep security hardening, task/execution-role trust remediation, PCI/HIPAA/FedRAMP scoping | **`ecs-security`** |
 | Dollar-quantified cost / TCO / Savings Plans / Spot / Graviton right-sizing | **`ecs-cost-intelligence`** |
 | Designing the logs/metrics/traces stack (FireLens vs ADOT vs Datadog) | **`ecs-observability`** |
 | Building deployment pipelines / choosing rollout strategy / CI-CD engineering | **`ecs-devops`** |
 | Replatform vs refactor of an existing application | **`ecs-modernize`** |
 
-General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
+The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-cost-intelligence`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family and may be **rolled out over time**; route to them by name where relevant, and if one is not yet available, note that and fall back to the AWS CLI / this skill's audit-depth guidance. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
 
 ## Defers to deep skills
 
@@ -52,7 +65,7 @@ The review's own output is an assessment report. Acting on it (mutations, pipeli
 
 ## Access model — READ-ONLY
 
-This skill is strictly read-only. It **CAN** issue read-only calls (`aws ecs describe-*`/`list-*`, `application-autoscaling describe-*`, `autoscaling describe-*`, `cloudwatch describe-*`/`get-*`, `ec2 describe-*`, `ecr describe-*`, `iam get-*`/`list-*`, `elbv2 describe-*`, `logs describe-*`, `events list-*`, `backup list-*`, `guardduty list-*`/`get-*`) to discover estate state, and **CAN** write a markdown/HTML report to the workspace. It **CANNOT** mutate any resource (no `create`, `update`, `delete`, `register`, `deregister`, `run-task`, or scale operations). Operational reviews are discovery activities; remediation belongs to whatever path the user chooses afterward.
+This skill is strictly read-only. It **CAN** issue read-only calls (`aws ecs describe-*`/`list-*`, `application-autoscaling describe-*`, `autoscaling describe-*`, `cloudwatch describe-*`/`get-*`, `ec2 describe-*`, `ecr describe-*`, `iam get-*`/`list-*`, `elbv2 describe-*`, `logs describe-*`, `events list-*`, `backup list-*`, `guardduty list-*`/`get-*`, `service-quotas get-*`/`list-*`) to discover estate state, and **CAN** write a markdown/HTML report to the workspace. It **CANNOT** mutate any resource (no `create`, `update`, `delete`, `register`, `deregister`, `run-task`, or scale operations). Operational reviews are discovery activities; remediation belongs to whatever path the user chooses afterward.
 
 ## Prerequisites
 

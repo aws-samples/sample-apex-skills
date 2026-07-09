@@ -55,22 +55,17 @@ Assess task-definition hygiene: right-sized task CPU/memory, container image dis
 
 ---
 
-### 3.3 — Log Configuration Present
+### 3.3 — Log Configuration Present (pointer — rated in 6.2)
 
 **What to check:**
-- `logConfiguration` on each container (`awslogs`, `awsfirelens`, etc.).
-- Containers with no log driver (logs unreachable).
+- Whether every container carries a `logConfiguration` at all (`awslogs`, `awsfirelens`, etc.) — a task-definition-hygiene sanity check.
 
 **How to check:**
-1. Inspect `containerDefinitions[].logConfiguration.logDriver` and options.
+1. Inspect `containerDefinitions[].logConfiguration.logDriver` while collecting task-definition data.
 
-**Rating:**
-- 🟢 GREEN: Every container has a log driver configured (`awslogs` or `awsfirelens`).
-- 🟡 AMBER: Log driver set but no obvious retention/routing strategy (rated fully in Section 06).
-- 🔴 RED: Containers with no log configuration — logs are lost.
-- ⬜ UNKNOWN: Cannot read task definitions.
+**Rating:** **Do not score this item here.** The presence/absence of a log driver (including the "no log driver → 🔴 RED" case), log routing, `awslogs-stream-prefix`, and delivery-mode are all rated **once** in **observability check 6.2** to avoid double-counting across domains (see `scoring-rubric.md`). If you observe a container with no log driver while parsing task definitions, record the evidence and carry it into 6.2 — do not emit a separate 3.3 rating.
 
-Full observability rating (retention, routing, tracing) is Section 06; design help → **`ecs-observability`**.
+Full observability rating (driver presence, retention, routing, delivery mode, tracing) is Section 06; design help → **`ecs-observability`**.
 
 ---
 
@@ -82,13 +77,13 @@ Full observability rating (retention, routing, tracing) is Section 06; design he
 **How to check:**
 1. `aws ecs describe-task-definition` → `taskRoleArn`, `executionRoleArn`.
 
-**Rating:**
-- 🟢 GREEN: Distinct task role (for app AWS calls) and execution role (for the agent); task role present only when the app needs AWS access.
-- 🟡 AMBER: Execution role reused as task role, or one broad role for both concerns.
-- 🔴 RED: No execution role where secrets/private-ECR pulls are used (tasks will fail to start), or a single over-broad role.
+**Rating (presence/separation only — least-privilege & role-reuse are rated once, in check 7.1, to avoid double-counting):**
+- 🟢 GREEN: Distinct task role (for app AWS calls) and execution role (for the agent) both present as needed; task role present only when the app needs AWS access.
+- 🟡 AMBER: Roles present but a single role serves both concerns (the least-privilege/reuse judgment on this is scored in **7.1**, not here — flag it and defer).
+- 🔴 RED: No execution role where secrets/private-ECR pulls are used (tasks will fail to start).
 - ⬜ UNKNOWN: Cannot read task definitions.
 
-**Key talking point:** The **task role** vends permissions to your app; the **execution role** lets the ECS agent pull images, inject secrets, and ship logs. Keep them separate and least-privilege. Deep role-trust and least-privilege remediation → **`ecs-security`**. See [ECS task IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html).
+**Scope note:** This check rates **presence and role separation** at the task-definition level. The **least-privilege, over-broad-policy, and execution-role-reused-as-task-role** ratings live in **security check 7.1** — do not re-score them here (see the consistency note in `scoring-rubric.md` on cross-domain duplicates). For the task-role vs execution-role explainer and deep role-trust remediation, see **7.1** and **`ecs-security`**. See [ECS task IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html).
 
 ---
 

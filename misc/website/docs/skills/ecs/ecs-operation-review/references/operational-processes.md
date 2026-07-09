@@ -30,9 +30,10 @@ The skill detects tool/config presence (IaC tags, backup resources, current heal
 
 **Rating:**
 - 🟢 GREEN: Clear IaC provenance (CloudFormation/CDK/Terraform tags) across cluster and services.
-- 🟡 AMBER: IaC tags on some resources but not all, or unclear if current.
-- 🔴 RED: No IaC provenance — estate appears console/CLI-created and not reproducible.
+- 🟡 AMBER: IaC tags on some resources but not all, or unclear if current, **or** no IaC provenance at all (estate appears console/CLI-created and not reproducible).
 - ⬜ UNKNOWN: Tags alone can't confirm the code is pipeline-applied vs manually run — suggest user verify.
+
+**Severity cap:** this is a **process/hygiene** finding — cap it at **AMBER** and place it in "Important", never "Critical" (see `report-generation.md`, Step 5). Lack of IaC provenance is important but is not a same-30-day-window emergency the way a single-AZ prod service is.
 
 **Investigate manually:** Is IaC applied via CI/CD or manually? Could you recreate a service from code today?
 
@@ -48,9 +49,10 @@ The skill detects tool/config presence (IaC tags, backup resources, current heal
 
 **Rating:**
 - 🟢 GREEN: Consistent environment + ownership tags enabling clear scoping and cost allocation.
-- 🟡 AMBER: Partial/inconsistent tagging.
-- 🔴 RED: No environment/ownership tags — can't distinguish prod from non-prod or attribute cost/ownership.
+- 🟡 AMBER: Partial/inconsistent tagging, **or** no environment/ownership tags at all (can't cleanly distinguish prod from non-prod or attribute cost/ownership).
 - ⬜ UNKNOWN: Cannot read tags.
+
+**Severity cap:** this is a **process/hygiene** finding — cap it at **AMBER** and place it in "Important", never "Critical" (see `report-generation.md`, Step 5). A missing `Environment` tag is not the same blast radius as a single-AZ production service.
 
 **Note:** Consistent env tags also improve the accuracy of every other section's production-vs-non-production rating.
 
@@ -80,15 +82,17 @@ The skill detects tool/config presence (IaC tags, backup resources, current heal
 **What to check (Fargate services):**
 - Whether the team understands Fargate task retirement (AWS retires tasks on old platform versions) and runs enough replicas + safe deploy config to absorb a task replacement without impact.
 - `minimumHealthyPercent` and multi-AZ spread (cross-refs Sections 04/05) so a retirement-driven replacement is non-disruptive.
+- **Actually read the running `platformVersion`.** A service pinned to a specific (non-`LATEST`) platform version, or running tasks on a demonstrably old PV, is the population AWS retires — so read it rather than only rating replica resilience abstractly.
 
 **How to check:**
 1. For Fargate services, confirm `desiredCount` ≥ 2, `minimumHealthyPercent` and AZ spread support graceful single-task replacement.
+2. `aws ecs describe-services` → read the service `platformVersion` (and `platformFamily`); `aws ecs describe-tasks` → per-task `platformVersion`. A pinned old value (not `LATEST`) increases retirement exposure.
 
 **Rating:**
-- 🟢 GREEN: Fargate services run ≥ 2 replicas across AZs with deploy config that absorbs a retirement/replacement transparently.
-- 🟡 AMBER: Single replica or tight `minimumHealthyPercent` that would cause a brief gap during a forced task replacement.
+- 🟢 GREEN: Fargate services run ≥ 2 replicas across AZs with deploy config that absorbs a retirement/replacement transparently; platform version is `LATEST` or current.
+- 🟡 AMBER: Single replica or tight `minimumHealthyPercent` that would cause a brief gap during a forced task replacement, **or** pinned to an old platform version while otherwise resilient.
 - 🔴 RED: Single-task critical Fargate service — a task retirement is a full outage.
-- ⬜ UNKNOWN: Cannot determine service criticality.
+- ⬜ UNKNOWN: Cannot determine service criticality or read platform version.
 
 **Key talking point:** AWS periodically retires Fargate tasks running on outdated platform versions; design for it with multiple replicas and safe deploy bounds so a replacement is invisible. See [task retirement and maintenance for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-maintenance.html).
 
@@ -121,14 +125,20 @@ The skill detects tool/config presence (IaC tags, backup resources, current heal
 - Whether relevant ECS service quotas (e.g., services per cluster, tasks per service, ASG max capacity vs projected peak) are monitored rather than discovered at the limit.
 
 **How to check:**
-1. `aws ecs list-task-definitions --family-prefix <family> --status ACTIVE` → count revisions per family; spot-check for thousands of stale revisions.
+1. `aws ecs list-task-definitions --family-prefix <family> --status ACTIVE` → count revisions per family; spot-check for thousands of stale revisions. **Paginate** — long-lived families can carry thousands of revisions; use `--max-items`/`--starting-token` (or `--no-paginate` deliberately) and expect ECS API throttling on large estates (back off and retry once, then mark UNKNOWN).
 2. `aws ecs list-task-definitions --status INACTIVE` → gauge cleanup backlog.
 3. Cross-check ASG max (from Section 01) and Application Auto Scaling max (Section 05) against projected peak.
+4. **Quota proximity (executable):** query Service Quotas for the relevant ECS limits and compare current usage against the limit. For example:
+   - `aws service-quotas list-service-quotas --service-code ecs` → read quotas such as *Services per cluster*, *Tasks per service*, *Container instances per cluster*.
+   - `aws service-quotas get-service-quota --service-code ecs --quota-code <code>` for a specific limit.
+   - Compare against observed counts (`aws ecs list-services`, `describe-services` `runningCount`/`desiredCount`, `list-container-instances`). Flag any usage above ~80% of its quota. (`service-quotas` read calls are on the Step-0 allowlist.)
 
 **Rating:**
-- 🟢 GREEN: Old revisions pruned (deregistered, and deleted where appropriate); quotas tracked with headroom to peak.
-- 🟡 AMBER: Revisions growing unbounded with no lifecycle process, or quotas checked only ad hoc.
-- 🔴 RED: Quota already reached/blocking launches, or revision sprawl demonstrably slowing operations.
+- 🟢 GREEN: Old revisions pruned (deregistered, and deleted where appropriate); quotas tracked with headroom to peak (usage well under limits).
+- 🟡 AMBER: Revisions growing unbounded with no lifecycle process, or quotas checked only ad hoc, or usage approaching (~80%+) a quota.
+- 🔴 RED: **Quota already reached / blocking launches** (a genuine availability issue — this specific case may be Critical).
 - ⬜ UNKNOWN: Cannot enumerate revisions or quota usage.
+
+**Severity cap:** revision-sprawl and general quota-tracking hygiene are **process/hygiene** findings — cap at **AMBER** / "Important" (see `report-generation.md`, Step 5). The **only** exception is a quota *already blocking task/service launches*, which is a real availability RED and may be Critical.
 
 **Key talking point:** A revision must be **deregistered** (→ `INACTIVE`) before it can be **deleted** (`DeleteTaskDefinition` → `DELETE_IN_PROGRESS`); existing tasks/services referencing an `INACTIVE`/`DELETE_IN_PROGRESS` revision keep running and can still scale. `INACTIVE` revisions currently persist indefinitely, so treat cleanup as a deliberate lifecycle task rather than assuming AWS reclaims them. See [deregistering a task-definition revision](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deregister-task-definition-v2.html) and [ECS task-definition deletion](https://aws.amazon.com/blogs/containers/announcing-amazon-ecs-task-definition-deletion/).

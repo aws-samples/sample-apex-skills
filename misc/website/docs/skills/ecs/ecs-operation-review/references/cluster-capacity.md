@@ -32,7 +32,7 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 - 🔴 RED: All services pinned to `launchType` with no capacity providers registered — no path to blended Spot/On-Demand or managed capacity.
 - ⬜ UNKNOWN: Cannot list services or describe the cluster.
 
-**Key talking point:** A service created with `launchType: EC2` cannot be migrated to capacity providers in place — the service must be recreated. Capacity-provider strategy is the flexible, recommended model. See [Auto scaling and capacity management best practices](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-availability.html).
+**Key talking point:** **All launch type → capacity provider updates are supported without service recreation** — an existing `launchType: EC2` (or `FARGATE`/`EXTERNAL`) service can be moved to a capacity-provider strategy in place with `UpdateService` (ensure the task definition's `requiresCompatibilities` includes the target). The switch itself does **not** trigger a deployment; running tasks migrate to the new capacity on the next forced/rolling deployment. The restrictions are narrower: capacity-provider → launch-type is *not* supported except reverting to the launch type the service was originally created with (pass an empty `capacityProviderStrategy`), and launch-type → launch-type is not supported (use the equivalent capacity provider). Capacity-provider strategy is the flexible, recommended model. Verified 2026-07-09. See [ECS launch types and capacity providers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-launch-type-comparison.html) and [Auto scaling and capacity management best practices](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-availability.html).
 
 ---
 
@@ -90,12 +90,12 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 1. `aws ecs describe-capacity-providers` → providers of type Managed Instances → inspect `managedInstancesProvider` (`infrastructureRoleArn`, `instanceLaunchTemplate`, `autoRepairConfiguration`, `infrastructureOptimization`).
 
 **Rating:**
-- 🟢 GREEN: Managed Instances configured with auto-repair on and instance requirements matched to workload; AWS handles patching (every 14 days) and scaling.
+- 🟢 GREEN: Managed Instances configured with auto-repair on and instance requirements matched to workload; AWS handles the instance lifecycle (drain-and-replace) and scaling.
 - 🟡 AMBER: Auto-repair off, or overly narrow instance-type constraints limiting placement flexibility.
 - 🔴 RED: Misconfigured infrastructure role blocking provisioning, or instance requirements so narrow that tasks cannot place.
 - ⬜ UNKNOWN: Managed Instances not in use (N/A), or cannot describe providers.
 
-**Key talking point:** ECS Managed Instances (GA 2025; available for new and existing clusters in all AWS Regions **except AWS GovCloud (US) and China**) gives Fargate-like operational offload with full EC2 instance-type access; AWS provisions, scales, patches (security patching initiated ~every 14 days, schedulable via EC2 event windows), and cost-optimizes placement. See [Architect for ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html) and [Managed Instances capacity providers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-capacity-providers-concept.html).
+**Key talking point:** ECS Managed Instances (GA Sep 2025; now available in **all commercial AWS Regions** and **AWS GovCloud (US-East/US-West)** — verified 2026-07-09) gives Fargate-like operational offload with full EC2 instance-type access; AWS provisions, scales, and cost-optimizes placement. Its "patching" is **not in-place**: instances run on a standardized **14–21 day maximum lifetime** — ECS begins graceful workload draining at day 14 from launch and terminates the instance no later than day 21, replacing it with a freshly patched one (early draining can occur for security vulnerabilities, hardware degradation, or to honor a configured EC2 event window). Schedule the disruption via EC2 event windows. **GuardDuty caveat:** GuardDuty Runtime Monitoring does **not** support ECS Managed Instances (see Section 07, check 7.4). See [Architect for ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html), [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html), [Managed Instances capacity providers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-capacity-providers-concept.html), and the [all-commercial-Regions](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-ecs-managed-instances-commercial-regions/) / [GovCloud](https://aws.amazon.com/about-aws/whats-new/2025/11/ecs-managed-instances-govcloud-us-regions/) availability posts.
 
 ---
 
@@ -117,3 +117,25 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 - ⬜ UNKNOWN: Cannot determine workload criticality — flag for manual review. Dollar-level Spot economics → **`ecs-cost-intelligence`**.
 
 **Note:** This item rates *resilience of the Spot posture*, not cost savings. Deep Spot-strategy and TCO analysis belongs to `ecs-cost-intelligence`. See [best practices for handling EC2 Spot interruptions](https://aws.amazon.com/blogs/compute/best-practices-for-handling-ec2-spot-instance-interruptions/).
+
+---
+
+### 1.6 — EC2 Container-Instance Currency & Agent Connectivity (self-managed EC2 only)
+
+**What to check (EC2 Auto Scaling group capacity providers / self-managed EC2 container instances only — N/A for Fargate and Managed Instances, where AWS owns the instance):**
+- Each container instance's `agentConnected` status — `false` means the ECS agent has lost contact with the control plane, so the instance can't place new tasks even though EC2 shows it healthy (a top re:Post failure mode).
+- ECS container agent version (`versionInfo.agentVersion`) currency against the latest release.
+- Age of the underlying ECS-optimized AMI (stale AMIs miss agent, kernel, and CVE fixes).
+
+**How to check:**
+1. `aws ecs list-container-instances --cluster <name>` → `aws ecs describe-container-instances --cluster <name> --container-instances <arns>` → read `agentConnected`, `versionInfo.agentVersion`, `versionInfo.dockerVersion`, and `ec2InstanceId`.
+2. Map `ec2InstanceId` → `aws ec2 describe-instances` → resolve the AMI (`ImageId`) and its age via `aws ec2 describe-images`.
+3. Compare the agent version against the [amazon-ecs-agent releases](https://github.com/aws/amazon-ecs-agent/releases).
+
+**Rating:**
+- 🟢 GREEN: All container instances `agentConnected: true`, running a recent agent, on a recent ECS-optimized AMI.
+- 🟡 AMBER: Agent or AMI several versions behind (missing fixes) but all connected, or no AMI-refresh process.
+- 🔴 RED: One or more container instances with `agentConnected: false` (silently unable to place tasks), or markedly stale AMIs on production capacity.
+- ⬜ UNKNOWN: Fargate/Managed-Instances only (N/A — AWS manages the instance and agent), or cannot describe container instances.
+
+**Key talking point:** `agentConnected: false` is a common, easily-missed cause of "tasks won't place / stuck PENDING" on EC2 capacity — EC2 reports the instance healthy while ECS can't schedule to it. Keep the agent current (it ships with the ECS-optimized AMI) and roll AMIs regularly. Verified 2026-07-09. See [ECS EC2 container instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-agent-versions.html) and [describe-container-instances](https://docs.aws.amazon.com/cli/latest/reference/ecs/describe-container-instances.html).

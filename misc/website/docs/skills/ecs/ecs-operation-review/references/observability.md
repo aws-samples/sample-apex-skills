@@ -36,22 +36,26 @@ Assess whether the estate is observable enough to detect and diagnose issues fas
 
 ---
 
-### 6.2 — Log Routing (awslogs / FireLens)
+### 6.2 — Log Routing & Delivery Mode (awslogs / FireLens)
+
+**This is the single scoring home for all log-driver checks** (driver presence, routing, `awslogs-stream-prefix`, and delivery mode). Task-definition check 3.3 defers here — do not double-score.
 
 **What to check:**
-- Log driver per container: `awslogs` (→ CloudWatch Logs) or `awsfirelens` (Fluent Bit/Fluentd → CloudWatch/OpenSearch/S3/3rd-party).
-- Containers with no log driver.
+- Log driver per container: `awslogs` (→ CloudWatch Logs) or `awsfirelens` (Fluent Bit/Fluentd → CloudWatch/OpenSearch/S3/3rd-party). **Containers with no log driver (logs unrecoverable).**
+- `awslogs-stream-prefix` set (traceable streams).
+- **Delivery mode** — `logConfiguration.options.mode` (`blocking` vs `non-blocking`) and, for `non-blocking`, `max-buffer-size`. Since **June 25, 2025** the ECS default (when neither the container `mode` nor the `defaultLogDriverMode` account setting is set) is **`non-blocking`**, which **silently drops** log lines under back-pressure once the buffer fills. Blocking mode preserves all logs but can stall the app if the log driver is unavailable.
 
 **How to check:**
-1. Task definitions → `containerDefinitions[].logConfiguration.logDriver` and options.
+1. Task definitions → `containerDefinitions[].logConfiguration.logDriver` and `.options` (`mode`, `max-buffer-size`, `awslogs-stream-prefix`).
+2. `aws ecs list-account-settings --name defaultLogDriverMode` for the account default that applies when `mode` is unset.
 
 **Rating:**
-- 🟢 GREEN: All containers route logs via `awslogs` or FireLens to a durable, queryable destination, with `awslogs-stream-prefix` set so streams are traceable to task/container.
-- 🟡 AMBER: Logging present but inconsistent across services, `awslogs` where FireLens routing/filtering is warranted, or `awslogs` on EC2 tasks with no `awslogs-stream-prefix` (logs land under bare Docker container IDs, making incident triage hard).
+- 🟢 GREEN: Every container routes logs via `awslogs` or FireLens to a durable, queryable destination, with `awslogs-stream-prefix` set, and a **deliberate** delivery mode — either `blocking`, or `non-blocking` with a `max-buffer-size` sized to the workload.
+- 🟡 AMBER: Logging present but inconsistent across services, `awslogs` where FireLens routing/filtering is warranted, `awslogs` on EC2 tasks with no `awslogs-stream-prefix` (logs land under bare Docker container IDs), **or** relying on the implicit `non-blocking` default with no `max-buffer-size` set on log-sensitive services (silent-drop risk).
 - 🔴 RED: Containers with no log driver — logs unrecoverable.
 - ⬜ UNKNOWN: Cannot read task definitions.
 
-**Key talking point:** FireLens routes ECS logs to AWS services or partner destinations via Fluent Bit/Fluentd with filtering and multi-destination fan-out. Also confirm `awslogs-stream-prefix` is set — it is **required on Fargate** and optional (but strongly recommended) on EC2; with it, streams take the form `prefix/container-name/ecs-task-id` (use the service name as the prefix), without it logs are named by opaque Docker container ID. Routing/design choices → **`ecs-observability`**. See [FireLens for ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_firelens.html).
+**Key talking point:** FireLens routes ECS logs to AWS services or partner destinations via Fluent Bit/Fluentd with filtering and multi-destination fan-out. Confirm `awslogs-stream-prefix` is set — it is **required on Fargate** and optional (but strongly recommended) on EC2; with it, streams take the form `prefix/container-name/ecs-task-id` (use the service name as the prefix), without it logs are named by opaque Docker container ID. Also confirm the **delivery mode** is intentional: the June 25 2025 default flip to `non-blocking` prioritizes task availability over log completeness, so audit/compliance-critical services should set `blocking` explicitly or size `max-buffer-size` for `non-blocking`. Routing/design choices → **`ecs-observability`**. Verified 2026-07-09. See [send ECS logs to CloudWatch (awslogs)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html), [ECS account settings — default log driver mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html), and [FireLens for ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_firelens.html).
 
 ---
 
@@ -80,15 +84,15 @@ Assess whether the estate is observable enough to detect and diagnose issues fas
 **How to check:**
 1. `aws cloudwatch describe-alarms` → filter for ECS/`ContainerInsights` namespace dimensions and check `AlarmActions`.
 
-**Rating:**
-- 🟢 GREEN: Alarms cover the critical signals (service unhealthy/running-count drop, high CPU/memory, deployment failure) and route to on-call.
+**Rating (health/capacity alerting; deployment-failure alerting is scored once, in check 4.5 — do not double-count):**
+- 🟢 GREEN: Alarms cover the critical health/capacity signals (service unhealthy/running-count drop, high CPU/memory, target-group unhealthy hosts) and route to on-call.
 - 🟡 AMBER: Some alarms but incomplete coverage, or no notification action wired.
 - 🔴 RED: No alarms — issues found only by customer reports.
 - ⬜ UNKNOWN: Cannot list alarms.
 
-**Minimum viable alert set:** running-task-count below desired, service CPU/memory saturation, deployment failure/rollback, target-group unhealthy-host count.
+**Minimum viable alert set:** running-task-count below desired, service CPU/memory saturation, target-group unhealthy-host count. (Deployment failure/rollback alerting — the `SERVICE_DEPLOYMENT_FAILED` signal — is rated in **check 4.5**, not here.)
 
-**Commonly omitted:** an EventBridge rule on ECS service-action / deployment-failure events — the earliest reliable signal of capacity pressure and rollout trouble. Filter `source: ["aws.ecs"]` with `eventName` in `SERVICE_TASK_PLACEMENT_FAILURE` (scoped by `reason` such as `RESOURCE:CPU`, `RESOURCE:MEMORY`, `RESOURCE:INSTANCE`, `RESOURCE:FARGATE`) and `SERVICE_DEPLOYMENT_FAILED`, routed to on-call. See [monitor ECS events with EventBridge filtering](https://aws.amazon.com/blogs/containers/monitor-amazon-ecs-events-with-amazon-eventbridge-filtering/).
+**Commonly omitted:** an EventBridge rule on ECS service-action events — the earliest reliable signal of capacity pressure. Filter `source: ["aws.ecs"]` with `eventName == SERVICE_TASK_PLACEMENT_FAILURE` (scoped by `reason` such as `RESOURCE:CPU`, `RESOURCE:MEMORY`, `RESOURCE:INSTANCE`, `RESOURCE:FARGATE`), routed to on-call. The `SERVICE_DEPLOYMENT_FAILED` deployment-failure rule belongs to check 4.5. See [monitor ECS events with EventBridge filtering](https://aws.amazon.com/blogs/containers/monitor-amazon-ecs-events-with-amazon-eventbridge-filtering/).
 
 ---
 
