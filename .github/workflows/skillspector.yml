@@ -1,0 +1,54 @@
+name: SkillSpector CI
+
+on:
+  pull_request:
+    paths:
+      - 'skills/**'
+      - 'devops-agent/**'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  skillspector:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install skillspector
+        run: |
+          pip install uv
+          uv tool install git+https://github.com/NVIDIA/skillspector.git
+
+      - name: Scan skills
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'vendor-update') }}
+        run: skillspector scan ./skills/ --no-llm -f sarif -o skills-results.sarif -b misc/skillspector/skills-baseline.json
+
+      - name: Scan skills (vendor update)
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'vendor-update') }}
+        continue-on-error: true
+        run: skillspector scan ./skills/ --no-llm -f sarif -o skills-results.sarif -b misc/skillspector/skills-baseline.json
+
+      - name: Scan devops-agent
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'vendor-update') }}
+        run: skillspector scan ./devops-agent/ --no-llm -f sarif -o devops-agent-results.sarif -b misc/skillspector/devops-agent-baseline.json
+
+      - name: Scan devops-agent (vendor update)
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'vendor-update') }}
+        continue-on-error: true
+        run: skillspector scan ./devops-agent/ --no-llm -f sarif -o devops-agent-results.sarif -b misc/skillspector/devops-agent-baseline.json
+
+      - name: Upload skills SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: skills-results.sarif
+          category: skillspector-skills
+
+      - name: Upload devops-agent SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: devops-agent-results.sarif
+          category: skillspector-devops-agent

@@ -151,7 +151,8 @@ Steps, in order:
    git add -A && git commit -m "docs: regenerate reference tables and pages"
    ```
    The `docs-sync` CI job runs these with `--check` and rejects the PR if they are stale. This step is not optional.
-6. **Open the PR.** Walk the author through the Pre-PR checklist in `../../CONTRIBUTING.md`. Fill in the PR template checkbox confirming the workflow was followed. Suggest a PR title (`feat(skills): add <name> skill`).
+6. **Security scan.** Run `make scan` from the repo root. Fix any findings before proceeding — the `skillspector` CI job will block the PR otherwise. If a finding is a false positive, note its ID for the PR description.
+7. **Open the PR.** Walk the author through the Pre-PR checklist in `../../CONTRIBUTING.md`. Fill in the PR template checkbox confirming the workflow was followed. Suggest a PR title (`feat(skills): add <name> skill`).
 
 **STOP.** Summarize what landed and hand off to the author. Do not open the PR yourself — that is the author's action.
 

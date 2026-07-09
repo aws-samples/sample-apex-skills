@@ -1,6 +1,7 @@
 # APEX Skills - Agentic Platform Engineering eXperience
 
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aws-samples.github.io/sample-apex-skills/)
+[![SkillSpector](https://img.shields.io/badge/SkillSpector-secured-green)](https://github.com/nvidia/skillspector)
 
 > Curated platform-engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, TAMs, and ProServe, delivered through agentic AI tools (Claude Code, Kiro CLI etc).
 

@@ -1,0 +1,384 @@
+{
+  "version": 1,
+  "rules": [],
+  "fingerprints": [
+    {
+      "hash": "sha256:92f8b3e9ff62564b",
+      "rule_id": "AST4",
+      "file": "skill-creator/eval-viewer/generate_review.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:e2b956a912a72f33",
+      "rule_id": "AST4",
+      "file": "skill-creator/scripts/improve_description.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:0a27c9fd3c44e4db",
+      "rule_id": "AST4",
+      "file": "skill-creator/scripts/run_eval.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:0735be201dc73944",
+      "rule_id": "RP1",
+      "file": "README.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:a3a7f462585052a1",
+      "rule_id": "RP1",
+      "file": "eks-mcp-server/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:d0709397332977fc",
+      "rule_id": "RP1",
+      "file": "eks-mcp-server/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:a6de948ba8ca2ea3",
+      "rule_id": "AS1",
+      "file": "skill-creator/scripts/run_eval.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:6b4faffff0d54518",
+      "rule_id": "AR3",
+      "file": "eks-best-practices/references/reliability-advanced.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:91b0a447f4328919",
+      "rule_id": "E2",
+      "file": "skill-creator/scripts/improve_description.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:7fa67388ac8ac918",
+      "rule_id": "E2",
+      "file": "skill-creator/scripts/run_eval.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:b48dfd63692b5b8b",
+      "rule_id": "EA1",
+      "file": "README.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:6089d2987bb43234",
+      "rule_id": "EA1",
+      "file": "README.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:674929063abf58c8",
+      "rule_id": "EA1",
+      "file": "README.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:4c6d5764c0a26450",
+      "rule_id": "EA1",
+      "file": "README.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:834d62fa99379362",
+      "rule_id": "EA1",
+      "file": "eks-cost-intelligence/README.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:6c31202bd864d24c",
+      "rule_id": "EA1",
+      "file": "eks-cost-intelligence/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:493910b5193b4182",
+      "rule_id": "EA1",
+      "file": "eks-ingress-migration/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:14939c09602a1897",
+      "rule_id": "EA1",
+      "file": "eks-ingress-migration/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:a279abb5ab9322ea",
+      "rule_id": "EA3",
+      "file": "eks-operation-review/LICENSE",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:d30ec640ec9636ce",
+      "rule_id": "EA3",
+      "file": "eks-upgrade-check/LICENSE",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:98a6ce5ba539ca14",
+      "rule_id": "EA1",
+      "file": "eks-upgrade-check/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:e70c6e948ea5f28e",
+      "rule_id": "EA1",
+      "file": "eks-upgrade-check/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:4333efb5e2b01408",
+      "rule_id": "EA3",
+      "file": "skill-creator/LICENSE.txt",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:ca2a95fe6cc1657b",
+      "rule_id": "EA3",
+      "file": "skill-creator/LICENSE.txt",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:158492b69dba24b5",
+      "rule_id": "EA3",
+      "file": "terraform-skill/LICENSE",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:dbe7bc53c1051d49",
+      "rule_id": "EA3",
+      "file": "terraform-skill/LICENSE",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:b3bf9dd9ff20acc5",
+      "rule_id": "EA2",
+      "file": "terraform-skill/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:abd81001e13b13f5",
+      "rule_id": "EA2",
+      "file": "terraform-skill/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:f087a99b585f88ba",
+      "rule_id": "OH1",
+      "file": "skill-creator/eval-viewer/generate_review.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:b6ff4b06d5115232",
+      "rule_id": "OH1",
+      "file": "skill-creator/scripts/improve_description.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:c86bbbcb63b03873",
+      "rule_id": "PE4",
+      "file": "eks-best-practices/references/cluster-upgrades.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:a56f14f5016b8397",
+      "rule_id": "PE3",
+      "file": "eks-best-practices/references/security-runtime-network.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:4b42d63ae1997440",
+      "rule_id": "PE3",
+      "file": "eks-build/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:c471b5b831a5056a",
+      "rule_id": "PE1",
+      "file": "eks-cost-intelligence/README.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:5c71ce0e2fcfffce",
+      "rule_id": "PE3",
+      "file": "eks-cost-intelligence/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:51fe996d1734e02e",
+      "rule_id": "PE3",
+      "file": "eks-cost-intelligence/references/observability-costs.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:c05177cec9e4ee74",
+      "rule_id": "PE3",
+      "file": "eks-cost-intelligence/references/observability-costs.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:b8eb581d9c307ed4",
+      "rule_id": "PE1",
+      "file": "eks-ingress-migration/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:1cd4ded52997c5c3",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:1cd4ded52997c5c3",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:83381ce66ad3dc6e",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:f194df71e29b0a6e",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:10e3b120f1f9ce57",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:10e3b120f1f9ce57",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:4f98d62495188ea1",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:83381ce66ad3dc6e",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:d78f01b9b1e4902e",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:f194df71e29b0a6e",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:f194df71e29b0a6e",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:8e14be5a5464eedf",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:b3ee6e3ec5c4ce72",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:b3ee6e3ec5c4ce72",
+      "rule_id": "PE3",
+      "file": "eks-mcp-server/references/self-hosted-setup.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:d1f2a18bc9675aeb",
+      "rule_id": "PE3",
+      "file": "eks-recon/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:4970b2193a573a78",
+      "rule_id": "PE3",
+      "file": "eks-recon/references/cluster-basics.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:3975fd50386eb28e",
+      "rule_id": "PE1",
+      "file": "eks-upgrade-check/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:118946ec6dea41ee",
+      "rule_id": "PE3",
+      "file": "eks-upgrade-check/SKILL.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:eb80d2d2fe6547c7",
+      "rule_id": "PE3",
+      "file": "steering-workflow-creator/references/tool-routing.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:2be9632917bbe20c",
+      "rule_id": "P2",
+      "file": "README.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:0f43b4acf0736754",
+      "rule_id": "TM4",
+      "file": "eks-best-practices/references/security.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:fedce96c68ba181a",
+      "rule_id": "TM1",
+      "file": "eks-build/references/lessons-learned.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:bc39fc598e6ac28d",
+      "rule_id": "TM1",
+      "file": "terraform-skill/references/security-compliance.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:3f55dddbb9fd430a",
+      "rule_id": "TM1",
+      "file": "terraform-skill/references/state-management.md",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    },
+    {
+      "hash": "sha256:beab8e19b12d1630",
+      "rule_id": "YR4",
+      "file": "eks-ingress-migration/tools/report_to_html.py",
+      "reason": "Existing reviewed content - 8-lens adversarial review complete"
+    }
+  ]
+}

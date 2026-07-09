@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "rules": [],
+  "fingerprints": [
+    {
+      "hash": "sha256:72692608d4174b5c",
+      "rule_id": "RP1",
+      "file": "README.md",
+      "reason": "Existing reviewed content - live-tested against pegitops-study-kit"
+    },
+    {
+      "hash": "sha256:72e317f5f950adfa",
+      "rule_id": "EA2",
+      "file": "eks-cost-intelligence/SKILL.md",
+      "reason": "Existing reviewed content - live-tested against pegitops-study-kit"
+    },
+    {
+      "hash": "sha256:44c57e116cb0c058",
+      "rule_id": "PE3",
+      "file": "eks-cost-intelligence/references/observability-costs.md",
+      "reason": "Existing reviewed content - live-tested against pegitops-study-kit"
+    }
+  ]
+}

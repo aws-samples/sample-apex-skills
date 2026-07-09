@@ -357,6 +357,8 @@ Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` /
 
 **CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` runs `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check` on every PR. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
 
+**Security scanning.** The `skillspector` job in `.github/workflows/skillspector.yml` scans skill content for security patterns (prompt injection, excessive agency, data exfiltration) using [NVIDIA SkillSpector](https://github.com/nvidia/skillspector). Run `make scan` locally before opening a PR. If you hit a false positive, note the finding ID in your PR description — a maintainer will update the baseline to suppress it.
+
 ## Creating a New Example
 
 1. Create `examples/<scenario>/<variant>/`
