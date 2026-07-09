@@ -58,7 +58,7 @@ Behavioral details worth knowing:
 - **Unhealthy-task replacement:** during rolling deployments, unhealthy tasks are replaced within the same service revision they belong to, and when `maximumPercent` allows, replacements launch **before** the unhealthy tasks stop — preventing cascade failures under load ([deep-dive blog](https://aws.amazon.com/blogs/containers/a-deep-dive-into-amazon-ecs-task-health-and-task-replacement/)).
 - **Stalls:** min/max values that prevent both stopping and starting stall the deployment and emit a service event — first place to look when a rolling deployment hangs.
 - **Version consistency:** ECS resolves image tags to digests when the deployment starts (the first started task establishes digests for the revision). With circuit breaker enabled, 3+ digest-resolution failures fail and roll back the deployment. Opt out per container with `versionConsistency`. On the EC2 launch type, digest resolution requires container agent ≥ 1.31.0 (all registries ≥ 1.70.0).
-- **Healthy counting without an LB** (CFN property reference, verified 2026-07-09): tasks whose essential containers have no health check count toward min-healthy 40 seconds after reaching RUNNING; with an LB, target-group health must also pass ([CFN DeploymentConfiguration](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.CfnService.DeploymentConfigurationProperty.html)).
+- **Healthy counting without an LB** (verified 2026-07-09): tasks whose essential containers have no health check count toward min-healthy 40 seconds after reaching RUNNING; with an LB, target-group health must also pass ([API_DeploymentConfiguration](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentConfiguration.html)).
 
 Zero-downtime recipe: `minimumHealthyPercent=100, maximumPercent=200`, plus failure detection (see [failure-detection-and-rollback.md](failure-detection-and-rollback)). On the EC2 launch type this needs spare cluster capacity for the extra tasks; on Fargate/Managed Instances it is purely a temporary-spend question.
 
@@ -82,7 +82,7 @@ RECONCILE_SERVICE -> PRE_SCALE_UP -> SCALE_UP -> POST_SCALE_UP
 - **Timeouts:** each stage max 24 h (a stage timeout fails the deployment and triggers rollback); CloudFormation adds a 36 h whole-deployment limit; the overall deployment limit is 30 days.
 - **Capacity:** blue and green run simultaneously until CLEAN_UP — plan for up to 2× task capacity during the deployment ([deployment-type-blue-green](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-blue-green.html)).
 - **NLB nuance:** with a Network Load Balancer, TEST_TRAFFIC_SHIFT and PRODUCTION_TRAFFIC_SHIFT take roughly 10 minutes longer because ECS verifies it is safe to shift traffic.
-- **Headless blue/green:** a service with no load balancer and no Service Connect can still use `BLUE_GREEN` — ECS replaces blue tasks with green but does **not** manage traffic shifting ([implementation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-implementation.html)). Headless linear/canary is not documented as supported — do not claim it.
+- **Headless blue/green:** a service with no load balancer and no Service Connect can still use `BLUE_GREEN` — ECS replaces blue tasks with green but does **not** manage traffic shifting ([implementation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-implementation.html)). This headless carve-out is documented for EC2/Fargate/Managed Instances — it is **not documented for ECS Anywhere**, so do not recommend headless blue/green there. Headless linear/canary is not documented as supported anywhere — do not claim it.
 
 Launch-type scope: blue/green-family managed traffic shifting requires ALB, NLB, or Service Connect, so it is available on EC2, Fargate, and Managed Instances but **not ECS Anywhere** (no ELB, no Service Connect on external instances — [ECS Anywhere](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html), [Service Connect deploy](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html)).
 
@@ -235,9 +235,9 @@ Note (verified 2026-07-09): the standalone ECS Best Practices Guide deployment c
 |---|---|---|---|---|
 | ROLLING | ✅ | ✅ | ✅ | ✅ (the practical strategy) |
 | BLUE_GREEN / LINEAR / CANARY (managed shifting) | ✅ | ✅ | ✅ | ❌ no ELB, no Service Connect |
-| Circuit breaker / alarms (rolling) | ✅ | ✅ | ✅ | ✅ / alarms per metric availability |
+| Circuit breaker / alarms (rolling) | ✅ | ✅ | ✅ | ⚠️ circuit breaker not explicitly documented for the EXTERNAL launch type — verify ([details](failure-detection-and-rollback)); alarms per metric availability |
 | DAEMON scheduling | ✅ (max% must be 100) | ❌ | ❌ | ✅ |
 | Selected via | `launchType: EC2` or capacity provider | `launchType: FARGATE` or FARGATE/FARGATE_SPOT capacity providers | `capacityProviderStrategy` only (omit `launchType`) | `launchType: EXTERNAL` (capacity providers unsupported) |
 
-- `launchType` enum: `EC2 | FARGATE | EXTERNAL | MANAGED_INSTANCES`. `launchType` and `capacityProviderStrategy` are mutually exclusive; `FARGATE_SPOT` is a capacity provider, not a launch type.
+- `launchType` enum: `EC2 | FARGATE | EXTERNAL | MANAGED_INSTANCES`. `launchType` and `capacityProviderStrategy` are mutually exclusive on `CreateService` (a request setting both is rejected); the `MANAGED_INSTANCES` enum value appears in API responses/task metadata, but you *select* Managed Instances via `capacityProviderStrategy` only. `FARGATE_SPOT` is a capacity provider, not a launch type.
 - ECS Anywhere additionally: no `awsvpc` network mode (use `bridge`/`host`/`none`), no service discovery, no EFS, no App Mesh. OS support narrows on August 7, 2026 to AL2023, Ubuntu 20/22/24, RHEL 9.

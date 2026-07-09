@@ -5,7 +5,7 @@
 
 **For the strategies these pipelines trigger, see:** [deployment-strategies.md](deployment-strategies.md)
 
-> Facts in this file verified 2026-07-09 against the AWS documentation and GitHub URLs cited inline. Coverage note: the aws/agent-toolkit-for-aws `aws-containers` skill explicitly excludes CI/CD from its scope — this reference is the primary CI/CD coverage in this skill family.
+> Facts in this file verified 2026-07-09 against the AWS documentation and GitHub URLs cited inline.
 
 ---
 
@@ -145,7 +145,7 @@ Sources: https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-b
 | Extras | Findings in ECR console/API | ECS/EKS image-usage context for prioritization; findings in ECR + Inspector; Security Hub / EventBridge integration |
 | Gotcha | — | Images older than 14 days at enablement get `SCAN_ELIGIBILITY_EXPIRED` — re-push to scan |
 
-Pipeline gating pattern: push → scan → EventBridge finding event → automation (fail the pipeline stage / block promotion on CRITICAL findings). Reference implementation: [ECR + Inspector scanning blog](https://aws.amazon.com/blogs/containers/container-scanning-updates-in-amazon-ecr-private-registries-using-amazon-inspector/). Deeper vulnerability-management policy (SLAs, suppression, registry hardening) is `ecs-security` territory (once available); this reference covers the pipeline hook only.
+Pipeline gating pattern: push → scan → EventBridge finding event → automation (fail the pipeline stage / block promotion on CRITICAL findings). Reference implementation: [ECR + Inspector scanning blog](https://aws.amazon.com/blogs/containers/container-scanning-updates-in-amazon-ecr-private-registries-using-amazon-inspector/). Deeper vulnerability-management policy (SLAs, suppression, registry hardening) is `ecs-security` territory (once available — until then, answer from general knowledge rather than dead-ending); this reference covers the pipeline hook only.
 
 ## Launch-Type Notes for Pipelines
 

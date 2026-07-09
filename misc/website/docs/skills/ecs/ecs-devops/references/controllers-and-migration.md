@@ -42,7 +42,7 @@ Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_service-
 
 **The controller is updatable in place since July 15, 2025** ([doc history](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/document_history.html)) — an existing CODE_DEPLOY service can be switched to the ECS controller with `UpdateService`, no service recreation.
 
-Launch-type scope: controllers are orthogonal to launch type, but their traffic-shifting prerequisites are not — CODE_DEPLOY needs ALB/NLB and EXTERNAL needs ALB/NLB, so neither delivers traffic shifting on ECS Anywhere (no service load balancing — [ECS Anywhere](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html)). Service Connect is unsupported with both CODE_DEPLOY and EXTERNAL controllers ([Service Connect deploy](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html)).
+Launch-type scope: controllers are orthogonal to launch type, but their traffic-shifting prerequisites are not — CODE_DEPLOY **requires** an ALB/NLB, and EXTERNAL supports only ALB/NLB *when* load-balancing (LB is optional on task sets), so neither delivers traffic shifting on ECS Anywhere (no service load balancing — [ECS Anywhere](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html)). Service Connect is unsupported with both CODE_DEPLOY and EXTERNAL controllers ([Service Connect deploy](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html)).
 
 ## CodeDeploy Controller (CODE_DEPLOY)
 
@@ -111,10 +111,10 @@ API surface:
 - `UpdateService` under EXTERNAL only changes desired count and health-check grace period — compute, load balancer, network, or task-definition changes require a **new task set**.
 
 Constraints (all from the same page, verified 2026-07-09):
-- **ALB or NLB only**, one ALB target group per task set. No Service Connect ([Service Connect deploy](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html)).
+- **Load balancer is optional on task sets** (`CreateTaskSet` `loadBalancers` is not required — [API_CreateTaskSet](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateTaskSet.html)); headless task sets are allowed, in which case you own all traffic management. *When* load-balancing: **ALB or NLB only**, one ALB target group per task set. No Service Connect ([Service Connect deploy](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html)).
 - `REPLICA` scheduling only — no DAEMON.
 - No direct Application Auto Scaling integration with task sets — task sets derive `ComputedDesiredCount` from the service `DesiredCount` and their `scale` percent.
-- Task-set `launchType` valid values are documented as `EC2 | FARGATE | EXTERNAL` — Managed Instances is **not** listed at the task-set level; do not assume it works there (the service-level enum adds `MANAGED_INSTANCES`, but task sets are their own API).
+- Task-set `launchType` in the developer guide is documented as `EC2 | FARGATE | EXTERNAL`, while the [CreateTaskSet API reference](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateTaskSet.html) lists `EC2 | FARGATE | EXTERNAL | MANAGED_INSTANCES` — the two pages disagree (checked 2026-07-09). Do not assert Managed Instances task-set support either way; say the docs are inconsistent and verify empirically.
 - None of the native safety net applies: no circuit breaker, no strategy-managed bake time — your engine owns failure detection and rollback (typically by flipping the primary task set back).
 
 Rule of thumb: if the requirement can be expressed as rolling, blue/green, linear, or canary, use the `ECS` controller — EXTERNAL trades away every managed guardrail for control.

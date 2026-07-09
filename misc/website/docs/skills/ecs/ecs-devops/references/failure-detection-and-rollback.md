@@ -36,7 +36,7 @@ This page is generated from [skills/ecs-devops/references/failure-detection-and-
 
 Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html (verified 2026-07-09)
 
-- **Scope:** rolling update under the `ECS` deployment controller **only**. Not blue/green-family (those rely on hooks, bake time, and stage timeouts), not CodeDeploy, not external. Launch types: GA covered EC2 and Fargate ([GA What's New, Dec 2020](https://aws.amazon.com/about-aws/whats-new/2020/12/amazon-ecs-announces-the-general-availability-of-ecs-deployment-circuit-breaker/)); it is a scheduler feature and applies to rolling deployments regardless of where tasks run, including ECS Anywhere.
+- **Scope:** rolling update under the `ECS` deployment controller **only**. Not blue/green-family (those rely on hooks, bake time, and stage timeouts), not CodeDeploy, not external. Launch types: the GA announcement names EC2 and Fargate ([GA What's New, Dec 2020](https://aws.amazon.com/about-aws/whats-new/2020/12/amazon-ecs-announces-the-general-availability-of-ecs-deployment-circuit-breaker/)); the current doc scopes the feature only by deployment controller and says nothing about launch types ([circuit breaker](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html)). **Circuit-breaker support on the `EXTERNAL` launch type (ECS Anywhere) is not explicitly documented — verify before relying on it.** If it does apply there, note that stage-2 detection reduces to Cloud Map and container health checks only (no ELB on Anywhere).
 - **Two-stage detection:**
   - Stage 1 — tasks failing to reach `RUNNING` count toward the threshold (task-launch failures: image pull errors, missing secrets, ENI/placement failures…).
   - Stage 2 — once at least one task is RUNNING, health-check failures count, across **ELB health checks, AWS Cloud Map service health checks, and ECS container health checks**.
@@ -76,11 +76,11 @@ Worked examples from the AWS doc (value 50, BOUNDED_PERCENT): desired 1 → thre
 Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html (verified 2026-07-09)
 
 - Config: `deploymentConfiguration.alarms={alarmNames=[...],enable=true,rollback=true}`. **Only supported with the `ECS` controller rolling deployment.**
-- **Bake time:** alarm monitoring starts after all target-revision tasks are running/healthy and old revisions are scaled to zero, and continues for a bake period (default under 5 minutes). The deployment stays `IN_PROGRESS` until the bake completes — raise CloudFormation/pipeline timeouts accordingly.
+- **Bake time:** alarm monitoring starts after all target-revision tasks are running/healthy and old revisions are scaled to zero, and continues for a bake period (the doc states only that the default bake time is "less than 5 minutes" — AWS does not publish an exact value). The deployment stays `IN_PROGRESS` until the bake completes — raise CloudFormation/pipeline timeouts accordingly.
 - **Gotchas (both documented):**
   - ECS polls alarms via `DescribeAlarms`, which counts against CloudWatch API quotas — heavy account-wide `DescribeAlarms` usage can throttle ECS's polling, causing a **missed alarm and a skipped rollback**.
   - If an alarm is already in `ALARM` state when the deployment starts, ECS **ignores the alarm configuration for that deployment** — deliberately, so you can deploy a fix for the very thing that is alarming.
-- Recommended alarm metrics (from the doc): ALB `HTTPCode_ELB_5XX_Count` / `HTTPCode_ELB_4XX_Count`, service `CPUUtilization` / `MemoryUtilization`, SQS `ApproximateNumberOfMessagesNotVisible`. Choose metrics that regress quickly when a bad revision ships. (For designing the broader alarm/dashboard stack, route to the `ecs-observability` skill.)
+- Recommended alarm metrics (from the doc): ALB `HTTPCode_ELB_5XX_Count` / `HTTPCode_ELB_4XX_Count`, service `CPUUtilization` / `MemoryUtilization`, SQS `ApproximateNumberOfMessagesNotVisible`. Choose metrics that regress quickly when a bad revision ships. (For designing the broader alarm/dashboard stack, route to the `ecs-observability` skill once available; until then, answer from general knowledge.)
 
 Launch-type note: alarm detection is metric-driven, so it works wherever the metrics exist — EC2, Fargate, Managed Instances; on ECS Anywhere there is no ELB, so use service/application metrics instead of ALB metrics.
 
@@ -97,7 +97,7 @@ Sources: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-
 Ordered fastest-first. Sources cited per rung (verified 2026-07-09).
 
 1. **Bake-time weight flip** (blue/green-family only). While blue still runs, rollback is a listener-rule weight change back to blue — near-instant, no task relaunch. Triggered automatically by hook failures and stage timeouts, or manually (rung 2). ([how blue/green works](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-how-it-works.html))
-2. **`stop-service-deployment` with ROLLBACK** (any strategy under the `ECS` controller; GA May 2, 2025 — [What's New](https://aws.amazon.com/about-aws/whats-new/2025/05/amazon-ecs-1-click-rollbacks-service-deployments/)):
+2. **`stop-service-deployment` with ROLLBACK** (any strategy under the `ECS` controller; GA May 5, 2025 — [What's New](https://aws.amazon.com/about-aws/whats-new/2025/05/amazon-ecs-1-click-rollbacks-service-deployments/)):
    ```bash
    aws ecs list-service-deployments --cluster prod --service web
    aws ecs stop-service-deployment \
@@ -126,4 +126,4 @@ Sources: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-
 - ECS emits **EventBridge service-deployment state-change events** — alert on `eventName = SERVICE_DEPLOYMENT_FAILED`. Rollback-initiated deployments carry a `reason` field indicating the rollback.
 - `aws ecs describe-service-deployments` shows deployment/hook detail (including `lifecycleHookDetails` with pause-hook `hookId`s).
 - Pause hooks emit `ECS Hook State Change` events with status `HOOK_AWAITING_ACTION` — the trigger for approval workflows.
-- Building the dashboards/alerting stack around these events is `ecs-observability` territory; this skill owns which events matter for release safety.
+- Building the dashboards/alerting stack around these events is `ecs-observability` territory (once available; answer from general knowledge until then); this skill owns which events matter for release safety.
