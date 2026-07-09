@@ -809,7 +809,7 @@ fi
 build_devops_index() {
   cat <<'INDEXEOF'
 ---
-sidebar_position: 7
+sidebar_position: 3.5
 title: DevOps Agent Skills
 description: "Skills ported for fully autonomous execution on AWS DevOps Agent — read-only EKS cluster assessments without interactive prompts."
 ---
@@ -820,6 +820,8 @@ description: "Skills ported for fully autonomous execution on AWS DevOps Agent �
 
 A subset of APEX skills ported for the [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/) runtime. These run fully autonomously — no interactive prompts, no scripts, no MCP server references.
 
+<table>
+<tr><th>Skill</th><th>Status</th><th>Description</th></tr>
 INDEXEOF
 
   for skill_dir in "$DEVOPS_DIR"/*/; do
@@ -832,16 +834,24 @@ INDEXEOF
     [[ -z "$title" ]] && title="$(title_from_filename "$folder")"
     local desc
     desc="$(parse_frontmatter "$skill_md" "description")"
-    [[ -z "$desc" ]] && desc="_(no description)_"
-    # Truncate at last word boundary for card display
-    if [[ ${#desc} -gt 150 ]]; then
+    [[ -z "$desc" ]] && desc="<em>(no description)</em>"
+    # Truncate at first sentence boundary (". " only — avoids cutting "EKS 1.32")
+    # Fall back to word boundary + ellipsis for descriptions without sentence ends
+    if [[ "$desc" == *". "* ]]; then
+      desc="${desc%%". "*}."
+    elif [[ ${#desc} -gt 150 ]]; then
       desc="${desc:0:150}"
-      desc="${desc% *}..."
+      desc="${desc% *}…"
+    fi
+    if [[ ${#desc} -gt 200 ]]; then
+      desc="${desc:0:200}"
+      desc="${desc% *}…"
     fi
     local status="Placeholder"
     [[ -d "$skill_dir/references" ]] && status="Active"
-    echo "- **[$title](./$folder/)** — $status — $desc"
+    echo "<tr><td><a href=\"./$folder/\"><b>$title</b></a></td><td>$status</td><td>$desc</td></tr>"
   done
+  echo "</table>"
 }
 
 if [[ "$MODE" == "dry-run" ]]; then
