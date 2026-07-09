@@ -26,7 +26,7 @@ Walk the APEX repo after any content change and bring every documentation surfac
 Determine what changed. Default comparison base is `origin/main`:
 
 ```bash
-git diff --name-status origin/main...HEAD -- 'skills/**/SKILL.md' 'steering/workflows/*.md' 'steering/commands/**/*.md'
+git diff --name-status origin/main...HEAD -- 'skills/**/SKILL.md' 'steering/workflows/*.md' 'steering/commands/**/*.md' 'devops-agent/**'
 ```
 
 If the user specifies a different scope ("since my last commit", "just the rename I did"), adjust the base accordingly. Also include any paths the user explicitly names.
@@ -66,6 +66,8 @@ Read each file in the candidate set below. Hold the change set in mind and look 
 - Every `skills/<name>/README.md` where present
 - Every `skills/<name>/SKILL.md`
 - Every tracked `*.md` under `steering/`
+- `devops-agent/README.md`
+- Every `devops-agent/<name>/SKILL.md`
 - `misc/README.md`
 - `misc/evals/README.md`
 - `misc/evals/_template/README.md`

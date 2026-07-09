@@ -14,12 +14,14 @@ Only Day 2 operational skills that benefit from autonomous execution are ported:
 
 ### EKS
 
+<!-- DEVOPS_AGENT_REFERENCE_START -->
 | Skill | Status | Source |
 |-------|--------|--------|
 | [eks-upgrade-check](eks-upgrade-check/) | Placeholder (vendored from upstream) | [sample-eks-upgrade-skill](https://github.com/aws-samples/sample-eks-upgrade-skill) |
 | [eks-operation-review](eks-operation-review/) | Placeholder (vendored from upstream) | [sample-eks-operation-review-skill](https://github.com/aws-samples/sample-eks-operation-review-skill) |
 | [eks-cost-intelligence](eks-cost-intelligence/) | Active | |
 | [eks-security](eks-security/) | Active | |
+<!-- DEVOPS_AGENT_REFERENCE_END -->
 
 ## Quick Start (Automated Setup)
 

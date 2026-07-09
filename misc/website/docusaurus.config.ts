@@ -51,7 +51,7 @@ const config: Config = {
             codeRepository: 'https://github.com/aws-samples/sample-apex-skills',
             programmingLanguage: ['TypeScript', 'Python', 'Bash', 'HCL'],
             license: 'https://opensource.org/licenses/MIT-0',
-            runtimePlatform: 'Claude Code, Kiro CLI',
+            runtimePlatform: 'Claude Code, Kiro CLI, AWS DevOps Agent',
           },
         ],
       }),
@@ -102,7 +102,7 @@ const config: Config = {
       {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
       {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
       {name: 'twitter:card', content: 'summary_large_image'},
-      {name: 'keywords', content: 'AWS, EKS, platform engineering, AI agent skills, Claude Code, Kiro CLI, Kubernetes, infrastructure as code, agentic AI, DevOps automation'},
+      {name: 'keywords', content: 'AWS, EKS, platform engineering, AI agent skills, Claude Code, Kiro CLI, AWS DevOps Agent, Kubernetes, infrastructure as code, agentic AI, DevOps automation'},
     ],
     navbar: {
       title: 'APEX Skills',
