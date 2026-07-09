@@ -2,6 +2,8 @@
 
 Running multi-GPU and multi-node training / fine-tuning on ECS-on-EC2. ECS is a viable orchestrator for distributed ML — AWS documents an end-to-end pattern using **PyTorch + Ray Train** with distributed data parallel on ECS ([Distributed machine learning with Amazon ECS](https://aws.amazon.com/blogs/containers/distributed-machine-learning-with-amazon-ecs/)). Training runs on ECS-on-EC2 (or Managed Instances); **not Fargate** (no GPU/accelerator).
 
+> **Managed Instances caveat for long training runs:** Managed Instances is convenient, but it **initiates security patching every ~14 days by replacing (drain-and-replace) the instance** ([capacity-and-scaling.md](capacity-and-scaling.md)). A multi-week pre-training/fine-tuning run **will be interrupted** by this cadence — so on MI you must have robust checkpoint/resume, schedule patching into a maintenance window, or prefer a **self-managed ASG / Capacity Block** for uninterrupted multi-week jobs.
+
 ## When ECS Fits Distributed Training — and When It Doesn't
 
 - **ECS fits** when the team wants a simple control plane (no Kubernetes to operate), IAM-native auth, and transparent control-plane upgrades, and the job is **single-node multi-GPU** (all GPUs on one instance; PyTorch DDP/FSDP inside one task with `GPU: ALL`) or a moderate multi-node data-parallel run driven by Ray. AWS's reference shows distributed data parallel (DDP) with Ray Train on ECS.
@@ -31,11 +33,12 @@ Typical NCCL/EFA container environment:
 ```bash
 FI_PROVIDER=efa
 FI_EFA_USE_DEVICE_RDMA=1
-NCCL_PROTO=simple
 NCCL_DEBUG=WARN
 ```
 
-Expose EFA to the task via the instance (EFA interfaces are configured on the ENI/launch template); the training task uses host networking or `awsvpc` with the EFA-enabled ENI. Because ECS capacity-provider ASGs must be homogeneous ([capacity-and-scaling.md](capacity-and-scaling.md)), a multi-node training job uses **one ASG of one GPU type** sized to the job.
+(Don't set `NCCL_PROTO=simple` — it's a legacy workaround that disables faster NCCL protocols and is not needed on recent `aws-ofi-nccl`; leave NCCL to auto-select.)
+
+**Exposing EFA to the container — the mechanism (get this right):** EFA attaches to the **instance at launch** via the launch template (an EFA-enabled ENI plus the EFA/libfabric driver baked into the AMI). To let the container use it you must **map the EFA device into the container with `linuxParameters.devices`** — `hostPath` (and, if set, `containerPath`) `/dev/infiniband/uverbs0`, with `permissions` `READ | WRITE | MKNOD` (multi-EFA instances such as p4d expose `uverbs0..uverbs3`). This is the documented device-mapping mechanism ([EFA on AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/efa.html)); also set the `memlock` ulimit to unlimited, and place all instances in the **same cluster placement group and AZ** (EFA OS-bypass traffic is limited to one AZ). Important: an `awsvpc` task ENI is a **plain interface ENI — it is never the EFA device**, so choosing `awsvpc` networking does not by itself grant EFA access; the `devices` mapping is what does (host networking is the other documented option). Because a heterogeneous GPU ASG breaks managed scaling ([capacity-and-scaling.md](capacity-and-scaling.md)), a multi-node training job uses **one homogeneous ASG of one GPU type** sized to the job.
 
 ## Orchestrating the Job on ECS
 
@@ -67,7 +70,7 @@ The trained artifact (e.g. SafeTensors weights) is written to **S3**; the infere
 ## Sources
 
 - [Distributed machine learning with Amazon ECS](https://aws.amazon.com/blogs/containers/distributed-machine-learning-with-amazon-ecs/)
-- [Elastic Fabric Adapter (EFA) for ML](https://aws.amazon.com/hpc/efa/) · [Get started with EFA and NCCL for ML workloads on Amazon EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start-nccl.html)
+- [Elastic Fabric Adapter (EFA) for ML](https://aws.amazon.com/hpc/efa/) · [Get started with EFA and NCCL for ML workloads on Amazon EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start-nccl.html) · [EFA device mapping into containers (AWS Batch)](https://docs.aws.amazon.com/batch/latest/userguide/efa.html)
 - [EC2 Capacity Blocks for ML](https://aws.amazon.com/ec2/capacityblocks/)
 - [Amazon ECS task definitions for GPU workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-gpu.html) · [ECS task definitions for AWS Neuron ML workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html)
 - [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html)

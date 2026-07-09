@@ -36,7 +36,7 @@ aws ssm get-parameters \
   --names /aws/service/ecs/optimized-ami/amazon-linux-2023/neuron/recommended
 ```
 
-(The AWS CDK exposes the same via `EcsOptimizedImage.amazonLinux2(AmiHardwareType.NEURON)` for Inf1/Trn1/Inf2 launches.)
+> **CDK caveat (AL2 vs AL2023 mismatch):** `EcsOptimizedImage.amazonLinux2(AmiHardwareType.NEURON)` returns the **Amazon Linux 2 (Neuron)** AMI — *not* the AL2023 Neuron AMI recommended above ([CDK aws-ecs — Amazon Linux 2 (Neuron) Instances](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs-readme.html)). To launch the **AL2023** Neuron AMI in CDK, don't rely on `amazonLinux2(...NEURON)`; use the **SSM parameter above directly** (e.g. `MachineImage.fromSsmParameter(...)`) so the launch template actually gets AL2023.
 
 ## Two Ways to Give a Container Neuron Devices
 
@@ -112,5 +112,5 @@ AWS-published price-performance claims for Inferentia2/Trainium live on the EC2 
 - [Amazon ECS task definitions for AWS Neuron machine learning workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html)
 - [Example Neuron task definitions for Amazon ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference-task-def.html)
 - [AWS Neuron](https://aws.amazon.com/ai/machine-learning/neuron/) · [AWS Inferentia](https://aws.amazon.com/ai/machine-learning/inferentia/) · [AWS Trainium](https://aws.amazon.com/ai/machine-learning/trainium/)
-- [Use GPUs with Amazon ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu.html) (Neuron selection via instanceRequirements)
+- [Amazon ECS task definitions for AWS Neuron ML workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html) — the authoritative source for the managed `NeuronDevice` allocation path and `instanceRequirements` Neuron selection (the NVIDIA-only [managed-instances-gpu.html](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu.html) does *not* cover Neuron device allocation)
 - [aws-cdk-lib.aws_ecs — Amazon Linux 2 (Neuron) Instances](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs-readme.html)

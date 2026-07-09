@@ -22,6 +22,11 @@ Key choices:
 - **Capacity:** route the service to the right GPU pool with a **capacity-provider strategy** (one ASG per GPU type — see [capacity-and-scaling.md](capacity-and-scaling.md)).
 - **Load balancer:** ALB for HTTP/gRPC inference APIs; NLB for raw TCP / ultra-low-overhead. Tune the **health-check grace period** generously — model load + warmup can take minutes, and a too-short grace period kills tasks mid-warmup.
 - **Networking:** `awsvpc` mode (task ENI) is the default for services behind a load balancer.
+- **Endpoint authentication + exposure:** decide **internal (internal ALB/NLB in private subnets, reached over VPC/PrivateLink)** vs **internet-facing** up front. A self-hosted model endpoint has **no built-in auth** — put authentication in front of it: Cognito/OIDC on the ALB, an API Gateway or a mutual-TLS/JWT-validating reverse-proxy sidecar, or WAF + an authorizer. Never expose a raw model API to the internet unauthenticated. Deep endpoint-security / compliance design → route to **`ecs-security`**.
+
+### Token streaming vs ALB idle timeout (the canonical self-hosted-LLM gotcha)
+
+Streaming LLM responses (SSE / chunked `text/event-stream`) that keep a single HTTP connection open longer than the **ALB idle timeout (default 60s)** get **severed mid-generation** — the client sees a truncated stream on long completions. Fix by **raising the ALB idle timeout** to exceed the longest expected generation (e.g. several minutes), ensuring the serving engine **emits tokens/keep-alive frequently** (regular SSE chunks reset the idle timer), and setting client and target-group timeouts consistently. This is the most common "streaming works in dev, breaks in prod" failure for self-hosted LLMs on ECS behind an ALB.
 
 ## Serving Engine — Bring Your Own Container
 
@@ -48,14 +53,23 @@ Choose based on model size and cold-start tolerance (full matrix in [storage.md]
 | **Mount EFS** | Any (shared) | Low | Multiple tasks/nodes sharing weights (ReadWriteMany) |
 | **FSx for Lustre** | Very large | Zero if pre-warmed | High-throughput weight/checkpoint I/O |
 
-Rules: **pre-cache large model images** (SOCI/parallel pull helps GPU-pod start; huge CUDA/DLC images dominate task launch time); **never pull weights from Hugging Face at every task start** (egress cost, rate limits, cold-start) — stage in S3/ECR first. For Neuron, **pre-compile and ship the compiled artifact** — never compile at task startup ([neuron-on-ecs.md](neuron-on-ecs.md)).
+Rules: **on the EC2 launch type the container image downloads fully before the task starts** — SOCI lazy loading is a **Fargate-PV1.4-only** feature, and Fargate has no GPU, so SOCI is unavailable on every host this skill covers ([storage.md](storage.md)). Mitigate the multi-GB CUDA/DLC image tax with **warm pools of pre-pulled instances, image caching on the instance NVMe, and lean/baked AMI layers** — not SOCI. **Never pull weights from Hugging Face at every task start** (egress cost, rate limits, cold-start) — stage in S3/ECR first. For Neuron, **pre-compile and ship the compiled artifact** — never compile at task startup ([neuron-on-ecs.md](neuron-on-ecs.md)).
+
+## Sizing the GPU to the Model — VRAM Method (not just size buckets)
+
+The coarse "7B–13B → g6e" buckets are a starting point; size VRAM explicitly before choosing an instance:
+
+- **Weights:** `params × bytes-per-param` — FP16/BF16 = 2 bytes (a 7B model ≈ 14 GB; 70B ≈ 140 GB), INT8 ≈ 1 byte, INT4/AWQ/GPTQ ≈ 0.5 byte.
+- **KV cache (often the silent OOM):** grows with `batch × sequence_length × 2 (K+V) × num_layers × hidden_dim × bytes` — at long context and high concurrency this can rival or exceed the weights. Size for peak concurrent context, not just the model.
+- **Overhead:** add headroom for activations, CUDA context, and fragmentation (rule of thumb ~10–20%).
+- Sum the three, then pick a GPU whose memory (from the [compute-hardware.md](compute-hardware.md) table) fits with margin — or shard across GPUs (tensor parallel) when it doesn't. This is why a 70B model at long context needs multi-GPU (e.g. g6e.48xlarge / p4d) even though the weights alone might "fit."
 
 ## Autoscaling the Inference Service
 
 Use **ECS Service Auto Scaling** (Application Auto Scaling) — target-tracking on a meaningful signal:
 
 - **ALB request count per target** (`ALBRequestCountPerTarget`) — simplest proxy for load.
-- **Custom CloudWatch metric** — publish queue depth / in-flight requests / TTFT from the serving engine for a truer signal; GPU utilization from Container Insights enhanced observability (see [observability.md](observability.md)).
+- **Custom CloudWatch metric** — publish queue depth / in-flight requests / TTFT from the serving engine for a truer signal. GPU utilization as an autoscaling signal is **agentless only on Managed Instances**; on the **EC2 launch type** you must publish it via the CloudWatch agent (`nvidia_smi`, host-level) or a DCGM exporter (per-task) — the agentless MI metrics won't exist (see [observability.md](observability.md)).
 - Cluster-level: ECS **cluster auto scaling** grows the GPU ASG when tasks can't place (`PROVISIONING`). Remember the **~15-minute scale-in latency** — factor it into GPU cost. Use warm pools to cut GPU-instance warm-up.
 
 ```json
@@ -84,6 +98,11 @@ Set `scale-out` faster than `scale-in` for GPU services — losing a warm GPU ta
 - Just need a **managed foundation-model API** with no self-hosting → **Amazon Bedrock**.
 
 See [service-boundaries.md](service-boundaries.md).
+
+## AI Gateway / Agentic & RAG on ECS
+
+- **AI gateway:** a self-hosted model-routing/observability/rate-limiting gateway such as **LiteLLM** runs well as a CPU-only ECS service in front of both your ECS-hosted models and Bedrock — this is a documented `ai-gateway` target. Use it to give clients one OpenAI-compatible endpoint, centralize auth/keys, and do cost attribution across self-hosted + managed models.
+- **Agentic / RAG orchestrators:** a CPU-only orchestrator/RAG retriever (calling your GPU inference service and/or Bedrock) fits fine on ECS — including on Fargate for the non-accelerated part ([service-boundaries.md](service-boundaries.md)). Boundary to name: for a **fully-managed agent runtime with memory/tools/identity**, route to **Amazon Bedrock AgentCore**; **self-host on ECS** when you need to own the framework/serving stack. Agentic workloads with autonomous tool/code execution raise sandbox-escape risk → loop in **`ecs-security`**.
 
 ## Sources
 

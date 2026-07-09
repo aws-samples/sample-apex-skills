@@ -6,11 +6,13 @@ This skill's most important job is to keep GPU/ML workloads on the *right* AWS s
 
 State this as fact, not opinion. GPU is a **container-instance (EC2)** capability on ECS; Fargate exposes only CPU + memory.
 
-- AWS lists the **`gpu` task-definition parameter among those "not valid in Fargate tasks"** — alongside `devices`, `placementConstraints`, and `privileged` ([ECS task definition differences for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)).
+- AWS lists the **`gpu` task-definition parameter among those "not valid in Fargate tasks"** (alongside `placementConstraints`); `devices` and `privileged` appear separately under **`linuxParameters` limitations** on the same page — either way none work for a Fargate GPU task ([ECS task definition differences for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)).
 - The **Fargate task-size model** enumerates valid CPU/memory combinations only — 256 (.25 vCPU) through 32768 (32 vCPU), with matching memory ranges — and **no GPU dimension**.
 - AWS documents the GPU `resourceRequirements` type as the number of physical GPUs the **ECS container agent** reserves on the **container instance**. The ECS GPU documentation is entirely about **EC2 GPU-based container instances** and the GPU-optimized AMI — there is no Fargate GPU path ([ECS GPU workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-gpu.html)).
 
 **Consequence:** any GPU/accelerator container must run on **ECS-on-EC2**, **ECS Managed Instances**, or **ECS Anywhere/External**. Fargate can still host **CPU-only** parts of a GenAI app (an API front-end, an orchestrator, a RAG retriever calling Bedrock) — just not the accelerated container.
+
+**Guidance for the CPU-only orchestrator/RAG/gateway pieces** (so this isn't a dead-end blessing): a **RAG retriever or agent orchestrator** that calls a model runs fine on Fargate — the boundary to name is **Amazon Bedrock AgentCore** for a fully-managed agent runtime (memory/tools/identity) vs **self-hosting the framework on ECS** when you want to own it. A self-hosted **AI gateway (e.g. LiteLLM)** — model routing, key management, cost attribution across your ECS-hosted models and Bedrock — is a documented `ai-gateway` target and also runs as a CPU-only ECS/Fargate service. See [inference-serving.md](inference-serving.md) for the gateway/agentic patterns; agentic workloads with autonomous tool/code execution → also loop in `ecs-security`.
 
 ## 2. Stay on ECS vs Route Elsewhere
 

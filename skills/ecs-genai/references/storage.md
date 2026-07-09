@@ -28,7 +28,7 @@ Rules:
 
 ## Container Image Size — the Cold-Start Tax
 
-CUDA / Deep Learning Container / Neuron images are large (often 5–15+ GB). On GPU/Neuron instances with local NVMe, ECS benefits from **parallel image pull/unpack (SOCI-style)** to speed multi-GB image starts; keep images lean (multi-stage builds, drop build toolchains) and pre-pull onto warm-pool instances so a scale-out event isn't dominated by image download. Decouple weights from the image (pull from S3) so a model update doesn't force a full image re-pull.
+CUDA / Deep Learning Container / Neuron images are large (often 5–15+ GB). **On the ECS-on-EC2 launch type the container image downloads completely before the container starts** — the same behavior as all non-1.4.0 Fargate platform versions ([ECS task definition differences for Fargate — SOCI lazy loading](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)). **SOCI lazy loading is Fargate-PV1.4-only, and Fargate has no GPU**, so SOCI is **unavailable on every host this skill covers** — do not plan around it for GPU/Neuron cold-start. Real EC2 mitigations: **pre-pull the image onto warm-pool instances**, **cache images on the instance NVMe**, **bake heavy layers into the AMI**, and keep images lean (multi-stage builds, drop build toolchains). Decouple weights from the image (pull from S3) so a model update doesn't force a full image re-pull.
 
 ## FSx for Lustre — Training I/O
 

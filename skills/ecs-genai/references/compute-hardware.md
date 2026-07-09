@@ -4,12 +4,12 @@ The foundation of every GPU/ML-on-ECS architecture: **which host, which accelera
 
 ## First-Class Constraint — AWS Fargate Has No GPU
 
-GPUs (and AWS accelerators) are **not available on AWS Fargate**. AWS lists the `gpu` task-definition parameter among those that are **"not valid in Fargate tasks"** (with `devices`, `placementConstraints`, and `privileged`), and the Fargate task-size model exposes only CPU and memory — the valid combinations run from 256 (.25 vCPU) up to 32768 (32 vCPU), with no GPU dimension at all ([ECS task definition differences for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)). The `resourceRequirements` `GPU` type is a **container-instance (EC2)** concept only. GPU/ML on ECS therefore runs only on:
+GPUs (and AWS accelerators) are **not available on AWS Fargate**. AWS lists the `gpu` task-definition parameter (with `placementConstraints`) among those **"not valid in Fargate tasks"**, and the Fargate task-size model exposes only CPU and memory — the valid combinations run from 256 (.25 vCPU) up to 32768 (32 vCPU), with no GPU dimension at all ([ECS task definition differences for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)). (Precise framing: on that same Fargate page, `devices` and `privileged` are listed under **`linuxParameters` limitations**, not on the "not valid" list — but the effect is the same, none are usable for a Fargate GPU task.) The `resourceRequirements` `GPU` type is a **container-instance (EC2)** concept only. GPU/ML on ECS therefore runs only on:
 
 | Host | GPU support | Who manages the EC2 lifecycle | Use when |
 |---|---|---|---|
 | **ECS-on-EC2** | ✅ Full (GPU-optimized AMI, custom AMI/kernel, EFA, multi-node) | You (Auto Scaling groups) | Training, demanding inference, full control |
-| **ECS Managed Instances** | ✅ GPU + Neuron (drivers pre-installed) | AWS (provision, patch every 14 days, refresh) | Lower ops overhead; GA Sept 2025, all commercial Regions Oct 2025 |
+| **ECS Managed Instances** | ✅ GPU + Neuron (drivers pre-installed) | AWS (provision; security patching initiated every 14 days by instance replacement — [ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/), [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)) | Lower ops overhead; GA Sept 2025, all commercial Regions Oct 2025 |
 | **ECS Anywhere / External** | ✅ On-prem GPU hosts (`--enable-gpu`) | You (on-prem) | Hybrid / data-residency |
 | **AWS Fargate** | ❌ **None** | AWS | Never — for GPU, rule Fargate out |
 
@@ -53,7 +53,14 @@ Amazon ECS provides a **GPU-optimized AMI** that ships pre-configured NVIDIA ker
 aws ssm get-parameters \
   --names /aws/service/ecs/optimized-ami/amazon-linux-2/gpu/recommended \
   --region us-east-1
+
+# Amazon Linux 2023 GPU variant (AL2 is approaching end-of-life — prefer AL2023 for new builds)
+aws ssm get-parameters \
+  --names /aws/service/ecs/optimized-ami/amazon-linux-2023/gpu/recommended \
+  --region us-east-1
 ```
+
+**AMI options:** AWS publishes GPU-optimized variants for both **Amazon Linux 2** and **Amazon Linux 2023** ([ECS-optimized Linux AMIs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html)); AL2 is approaching end-of-life, so prefer **AL2023** for new builds. There is also a **Bottlerocket ECS NVIDIA variant** (`aws-ecs-2-nvidia`, and the older `aws-ecs-1-nvidia`) for a minimal, image-based, security-oriented GPU host — exposed in CDK as `BottlerocketEcsVariant.AWS_ECS_2_NVIDIA` ([CDK BottlerocketEcsVariant](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.BottlerocketEcsVariant.html)).
 
 Key operational facts (all from the ECS GPU doc):
 
@@ -111,7 +118,11 @@ sudo systemctl restart docker
 
 ## GPU on ECS Managed Instances
 
-ECS Managed Instances supports GPU-accelerated computing with **NVIDIA drivers and the CUDA toolkit pre-installed** on the instance ([Use GPUs with ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu.html)). Documented GPU families include `g4dn` (NVIDIA T4), `g5` (A10G), `p3` (V100), and `p4d` (A100). You select GPU instances through the **`instanceRequirements`** object in the capacity provider's launch template:
+ECS Managed Instances supports GPU-accelerated computing with **NVIDIA drivers and the CUDA toolkit pre-installed** on the instance ([Use GPUs with ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu.html)). That page calls out `g4dn` (T4), `g5` (A10G), `p3` (V100), and `p4d` (A100) as a **subset** — the actual Managed Instances **accelerated-computing support list is far broader** than the EC2-launch-type GPU table above. Per [ECS Managed Instances instance types](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-instance-types.html) (verified 2026-07-09) it includes: **DL1, G4ad, G4dn, G5, G5g, G6, G6e, G6f, G7e, Gr6, Gr6f, Inf1, Inf2, P3dn, P4d, P4de, P5, P5en, P6-B200, P6-B300, Trn1** (plus HPC families). Re-check the live page — this list moves fast.
+
+**Hardware-fractional L4 (G6f / Gr6f) — MI-only, no scheduler needed.** `G6f` (and Graviton `Gr6f`) are **fractional-GPU** instances that expose a **1/8, 1/4, or 1/2 slice of an NVIDIA L4** as the hardware unit ([EC2 accelerated computing — Fractional-GPU G6 instances](https://aws.amazon.com/ec2/instance-types/accelerated-computing/)): the fractioning is done by the *instance shape*, not by a MIG/time-slicing scheduler, so it fits native ECS's whole-GPU pinning model. **G6f appears on the Managed Instances list but not on the EC2-launch-type GPU table** — treat it as a Managed-Instances lever for small/cost-sensitive L4 inference. This is distinct from *dynamic multi-model GPU packing* (MIG/time-slicing/DRA), which still has no native-ECS scheduler and routes to EKS/SageMaker (see GPU-sharing section and [service-boundaries.md](service-boundaries.md)).
+
+You select GPU instances through the **`instanceRequirements`** object in the capacity provider's launch template:
 
 ```json
 {
@@ -129,7 +140,7 @@ or pin exact types:
 { "instanceRequirements": { "allowedInstanceTypes": ["g4dn.xlarge", "p4de.24xlarge"] } }
 ```
 
-AWS handles instance configuration, capacity provisioning, workload placement, patching (every 14 days), scaling, and maintenance — trading some control for far lower operational overhead than a hand-rolled ASG.
+AWS handles instance configuration, capacity provisioning, workload placement, security patching (initiated every 14 days by instance replacement — [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)), scaling, and maintenance — trading some control for far lower operational overhead than a hand-rolled ASG. Note: the 14-day drain-and-replace cadence interrupts multi-week training runs — see [capacity-and-scaling.md](capacity-and-scaling.md).
 
 ## Capacity Planning Guidance
 
@@ -147,7 +158,8 @@ AWS handles instance configuration, capacity provisioning, workload placement, p
 - [Amazon ECS task definitions for GPU workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-gpu.html)
 - [ECS task definition differences for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)
 - [ECS task definition parameters for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html)
-- [Use GPUs with Amazon ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu.html)
+- [Use GPUs with Amazon ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu.html) · [Amazon ECS Managed Instances instance types (full accelerated list, incl. G6f/Gr6f/G7e)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-instance-types.html)
 - [Amazon ECS Managed Instances](https://aws.amazon.com/ecs/managed-instances/) · [Announcing Amazon ECS Managed Instances](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/)
-- [Amazon ECS-optimized Linux AMIs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html)
+- [Amazon ECS-optimized Linux AMIs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html) · [CDK BottlerocketEcsVariant (aws-ecs-2-nvidia)](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.BottlerocketEcsVariant.html)
+- [EC2 accelerated computing instances (Fractional-GPU G6f / Gr6f)](https://aws.amazon.com/ec2/instance-types/accelerated-computing/)
 - [Using Amazon ECS with NVIDIA GPUs to accelerate drug discovery](https://aws.amazon.com/blogs/containers/using-amazon-ecs-with-nvidia-gpus-to-accelerate-drug-discovery/)
