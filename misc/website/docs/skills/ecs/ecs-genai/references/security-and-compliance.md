@@ -11,72 +11,42 @@ This page is generated from [skills/ecs-genai/references/security-and-compliance
 
 # Security & Compliance for GPU / ML Workloads on Amazon ECS
 
-Non-negotiable security baseline for every GPU/ML-on-ECS deployment. GenAI workloads add supply-chain (model artifacts, huge dependency images) and data-processing (prompts, outputs, embeddings) risk on top of standard ECS hardening. For deep, general ECS security use the `ecs-security` skill; this file is the GPU/ML-specific slice.
+This file is the **GPU/ML-specific security slice only.** The generic ECS security baseline — task/execution-role least-privilege and the `ecs-tasks.amazonaws.com` trust policy, secrets via Secrets Manager/SSM, ECR enhanced scanning, private subnets + VPC endpoints, `awsvpc` security-group-per-task, non-root/read-only-rootfs container hardening, CloudTrail + Container Insights audit — is **owned by the `ecs-security` skill; route deep compliance and CDE design there** and don't restate it in full here. What follows is only what changes because the workload is GPU/ML/GenAI.
 
-## The Non-Negotiable Baseline
+## Baseline pointer (apply via `ecs-security`)
 
-Include every item in every GPU/ML-on-ECS response.
+Every GPU/ML-on-ECS response still MUST include the standard baseline (roles, secrets, ECR scanning, private subnets + endpoints, hardening, audit) — see **`ecs-security`** for the how. Two baseline items have GPU/ML-specific twists worth stating inline:
 
-### 1. Task role + execution role — least-privilege, no static keys
+- **Task role** grants the model server/trainer its S3 (weights/checkpoints), Secrets Manager, and — if the app calls Bedrock as a model target — **`bedrock-runtime`** permissions; scope to exact buckets/prefixes/secrets, never static keys.
+- **Container hardening exception:** the GPU-sharing pattern (making `nvidia` the default Docker runtime) **loosens isolation** — reserve it for dev/test ([compute-hardware.md](compute-hardware)).
 
-- **Task role** grants the *application* (model server / trainer) its AWS permissions — S3 for weights/checkpoints, Bedrock-runtime if used as a gateway target, Secrets Manager. Scope to specific buckets/prefixes/secrets; **never** put `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in env vars, the task definition, or the image.
-- **Execution role** grants the *ECS agent* rights to pull the ECR image and inject secrets/logs — keep it separate and minimal.
-- The recurring hard failure on ECS is the **task-role trust-relationship error** ("ECS was unable to assume the role"): the role's trust policy must allow `ecs-tasks.amazonaws.com` to `sts:AssumeRole`, and `iam:PassRole` must be granted to whoever registers/runs the task. Get the trust policy right first.
+## GPU/ML-Specific Controls (the reason this file exists)
 
-```json
-// Task role trust policy
-{ "Version": "2012-10-17", "Statement": [{
-  "Effect": "Allow",
-  "Principal": { "Service": "ecs-tasks.amazonaws.com" },
-  "Action": "sts:AssumeRole"
-}]}
-```
+### Model-artifact provenance (the top GenAI supply-chain risk)
 
-### 2. Secrets — Secrets Manager / SSM Parameter Store injection
+A poisoned model artifact executes arbitrary inference on customer data — treat weights like application binaries. Verify integrity before serving: pin **exact model revisions** (not floating tags/branches); verify **SHA256 checksums** for downloaded weights; use **image signing** (AWS Signer / Sigstore) for baked-in models; enable **S3 Object Lock** for production artifact buckets. Never pull weights from Hugging Face at task start in prod — stage in S3/ECR first ([storage.md](storage)).
 
-Store model-registry tokens, API keys, and gateway keys in **AWS Secrets Manager** or **SSM Parameter Store**; inject via the task definition `secrets` block (resolved by the execution role) — never bake secrets into the (often cached, widely-pulled) model image or a ConfigMap-style env.
+### GPU/ML-specific supply chain
 
-```json
-"secrets": [
-  { "name": "HF_TOKEN", "valueFrom": "arn:aws:secretsmanager:REGION:ACCT:secret:hf-token" }
-]
-```
+GPU/ML images (CUDA, cuDNN, PyTorch, Neuron SDK, DLC) carry **far larger dependency trees** than typical microservices — ECR enhanced scanning matters more here; scan on push and periodically for base-image drift, and block critical/high CVEs.
 
-### 3. ECR image scanning
+### `bedrock-runtime` VPC endpoint
 
-Enable **ECR enhanced scanning (Amazon Inspector)** and block deployment of critical/high CVEs. GPU/ML images (CUDA, cuDNN, PyTorch, Neuron SDK, DLC) carry **far larger dependency trees** than typical microservices — scan on push and periodically for base-image drift.
+If the ECS app calls Bedrock as a downstream model target, add the **`bedrock-runtime` interface endpoint** so that traffic stays private — this is the one VPC endpoint beyond the standard S3/ECR/Secrets/logs set that GenAI-on-ECS specifically adds.
 
-### 4. Model-artifact provenance
+### Inference-endpoint authentication
 
-A poisoned model artifact executes arbitrary inference on customer data — treat weights like application binaries. Verify integrity before serving: pin **exact model revisions** (not floating tags/branches); verify **SHA256 checksums** for downloaded weights; use **image signing** (AWS Signer / Sigstore) for baked-in models; enable **S3 Object Lock** for production artifact buckets.
+A self-hosted model endpoint has **no built-in auth**. Decide **internal vs internet-facing** (internal ALB/NLB in private subnets reached via VPC/PrivateLink is the default for internal consumers), and always put an authN/authZ layer in front — Cognito/OIDC on the ALB, API Gateway, or a JWT/mTLS-validating reverse proxy — plus WAF for internet-facing. Deep endpoint-security design → **`ecs-security`**. See [inference-serving.md](inference-serving) for the streaming/idle-timeout interaction.
 
-### 5. Network isolation
+### GuardDuty Runtime Monitoring — MI carve-out
 
-Place GPU/Neuron container instances in **private subnets** with no direct inbound internet. Route AWS API calls through **VPC endpoints**:
+Enable **GuardDuty ECS Runtime Monitoring** on **ECS-on-EC2** container instances for runtime threat detection. **Critical caveat given how heavily this skill promotes Managed Instances:** Runtime Monitoring is **not supported on ECS Managed Instances**, and also **not on ECS Anywhere or the Windows OS** ([Runtime Monitoring considerations](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html)). An MI-based GPU fleet therefore cannot rely on GuardDuty RM for the host — plan a different runtime-threat control (or keep sensitive runtime-monitored workloads on ECS-on-EC2). Pair with CloudTrail (management + S3 model-bucket data events).
 
-| Endpoint | Why |
-|---|---|
-| `s3` (Gateway) | Model weights, checkpoints, training data |
-| `ecr.api` + `ecr.dkr` | Image pull |
-| `secretsmanager` | Secrets injection |
-| `logs` / `monitoring` | CloudWatch Logs / metrics |
-| `bedrock-runtime` (Interface) | Only if the app calls Bedrock as a model target |
+## Compliance-Regime Notes (GPU/ML angle; full regime design → `ecs-security`)
 
-Egress for any unavoidable downloads via a NAT gateway with restrictive SGs — or eliminate by pre-caching all artifacts to S3/ECR. Use **security-group-per-task** (`awsvpc` mode) to scope task-to-task traffic.
-
-### 6. Container hardening
-
-Run containers **non-root**, with **read-only root filesystem** where the framework allows, and drop unneeded Linux capabilities. Note the GPU-sharing exception: making `nvidia` the default Docker runtime for GPU sharing loosens isolation — reserve that pattern for dev/test ([compute-hardware.md](compute-hardware)).
-
-### 7. GuardDuty ECS Runtime Monitoring + audit logging
-
-Enable **GuardDuty ECS Runtime Monitoring** on the EC2 container instances for runtime threat detection. Enable **CloudTrail** (management + S3 model-bucket data events) and **Container Insights** for audit and forensics. Retain per compliance requirement.
-
-## Compliance-Regime Notes
-
-- **HIPAA:** GPU tasks processing PHI on a HIPAA-eligible account (BAA in place); KMS-CMK encryption for EBS/S3/EFS; audit all access; verify Bedrock/other targets' HIPAA status at deployment.
-- **PCI-DSS:** isolate GPU/ML workloads in a dedicated cluster or node group + namespace + SG boundary within the CDE; encrypt task-to-task traffic; quarterly image scans retained.
-- **FedRAMP:** GovCloud or FedRAMP-authorized Regions; FIPS-validated modules; images only from an approved ECR in-boundary (no Docker Hub / HF pulls in prod).
+- **HIPAA:** GPU tasks processing PHI on a HIPAA-eligible account (BAA in place); KMS-CMK encryption for EBS/S3/EFS; verify Bedrock/other model targets' HIPAA status at deployment.
+- **PCI-DSS:** isolate GPU/ML workloads within the CDE using **ECS-native** boundaries — a **dedicated cluster** *or* a **dedicated capacity provider / ASG** + **security-group-per-task** (`awsvpc`) + **separate task/execution roles (and ideally separate accounts)**. (Node groups and namespaces are **Kubernetes** constructs that **don't exist in ECS** — don't prescribe them here; that's an `eks-genai` pattern.) Encrypt task-to-task traffic; retain quarterly image scans.
+- **FedRAMP:** GovCloud or FedRAMP-authorized Regions; FIPS-validated modules; images only from an approved in-boundary ECR (no Docker Hub / HF pulls in prod).
 - **GDPR:** EU-region deployment for EU personal data; design right-to-erasure so deleting source documents cascades to derived embeddings; treat stored prompts/outputs as personal data.
 
 ## When to Escalate to a Specialist Review
@@ -88,13 +58,18 @@ Enable **GuardDuty ECS Runtime Monitoring** on the EC2 container instances for r
 
 ## Quick-Reference Checklist
 
-- [ ] Task role + execution role least-privilege; trust policy allows `ecs-tasks.amazonaws.com`; `iam:PassRole` scoped
+Baseline items (details in **`ecs-security`**):
+- [ ] Task + execution role least-privilege; trust policy allows `ecs-tasks.amazonaws.com`; `iam:PassRole` scoped
 - [ ] Secrets via Secrets Manager / SSM — never in image/env
 - [ ] ECR enhanced scanning — critical/high blocked
-- [ ] Model provenance — pinned revision + checksum/signing
-- [ ] Private subnets + VPC endpoints (S3, ECR, Secrets Manager, logs; Bedrock if used)
-- [ ] Non-root, read-only rootfs, dropped capabilities
-- [ ] GuardDuty ECS Runtime Monitoring + CloudTrail + Container Insights
+- [ ] Private subnets + VPC endpoints (S3, ECR, Secrets Manager, logs); non-root, read-only rootfs, dropped capabilities
+- [ ] CloudTrail + Container Insights audit
+
+GPU/ML-specific (this file):
+- [ ] Model provenance — pinned revision + SHA256 checksum / signing; S3 Object Lock on prod artifact buckets
+- [ ] `bedrock-runtime` VPC endpoint if the app calls Bedrock
+- [ ] Inference-endpoint authN/authZ + internal-vs-internet-facing decision
+- [ ] GuardDuty ECS Runtime Monitoring on **ECS-on-EC2** hosts — **not available on Managed Instances / Anywhere / Windows** (plan an alternative for MI fleets)
 
 ## Sources
 
@@ -102,5 +77,6 @@ Enable **GuardDuty ECS Runtime Monitoring** on the EC2 container instances for r
 - [Amazon ECS task IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html) · [Task execution IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html)
 - [Passing sensitive data to a container (Secrets Manager / SSM)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data.html)
 - [Amazon ECR image scanning](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning.html)
-- [GuardDuty Runtime Monitoring for Amazon ECS](https://docs.aws.amazon.com/guardduty/latest/ug/runtime-monitoring.html)
+- [GuardDuty Runtime Monitoring for Amazon ECS — considerations (not supported on Managed Instances / Anywhere / Windows)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html)
 - [Interface VPC endpoints for Amazon ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/vpc-endpoints.html)
+- For the full ECS security baseline and regulated-compliance design: the **`ecs-security`** skill

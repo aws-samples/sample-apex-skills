@@ -25,15 +25,15 @@ Four condensed scenarios. Each gives: customer profile, the ECS-specific decisio
 |---|---|---|
 | D1 Host | ECS-on-EC2 (or Managed Instances) | Fargate has no GPU |
 | D2 Accelerator | g6e (NVIDIA L40S) for 7B–13B; evaluate Inf2 as phase-2 cost play | Broad ecosystem first; Neuron savings later |
-| D3 Capacity | One capacity-provider ASG for the g6e type + service capacity-provider strategy | ASGs must be homogeneous (no instance weighting) |
-| D4 Shape | Single GPU task behind an ALB; Service Auto Scaling on requests/latency | Standard inference service |
-| Storage | Weights in S3, pulled at task start | Decoupled model/image release ([storage.md](storage)) |
-| Observability | Container Insights **enhanced** (DCGM GPU metrics) + serving-engine latency metric | Enable enhanced — basic has no GPU metrics ([observability.md](observability)) |
+| D3 Capacity | One homogeneous g6e capacity-provider ASG + service capacity-provider strategy | Mixed-GPU ASGs are allowed but managed scaling protects on the smallest type — keep one type per ASG ([capacity-and-scaling.md](capacity-and-scaling)) |
+| D4 Shape | Single GPU task behind an ALB; Service Auto Scaling on requests/latency; raise ALB idle timeout for token streaming | Standard inference service ([inference-serving.md](inference-serving)) |
+| Storage | Weights in S3, pulled at task start | Decoupled model/image release; on EC2 the image downloads fully first (no SOCI) ([storage.md](storage)) |
+| Observability | **On g6e MI:** agentless DCGM via Container Insights **enhanced**. **On g6e ECS-on-EC2:** CloudWatch agent (`nvidia_smi`) or DCGM exporter — the agentless MI metrics don't exist there. Plus serving-engine latency metric | Pick the path by launch model ([observability.md](observability)) |
 | Security | Task role → S3 (prefix-scoped); private subnet + S3/ECR VPC endpoints; ECR scanning | Baseline ([security-and-compliance.md](security-and-compliance)) |
 
 **Build path:** stand up the g6e capacity provider + service; validate the model + a generous health-check grace period; wire enhanced Container Insights + latency-based Service Auto Scaling; harden (task role, secrets, private subnets, image scanning); then run a g6e-vs-inf2 cost comparison and migrate to Neuron if the savings justify the compilation ramp.
 
-**Route out if:** the team wants scale-to-zero or fractional-GPU multi-model packing → `eks-genai`; or a fully-managed endpoint → SageMaker.
+**Route out if:** the team wants scale-to-zero or **scheduler-driven** fractional-GPU multi-model packing (MIG/time-slicing/DRA) → `eks-genai`; or a fully-managed endpoint → SageMaker. (Hardware-fractional L4 via G6f/Gr6f on Managed Instances stays on ECS — see [compute-hardware.md](compute-hardware).)
 
 ---
 
@@ -90,7 +90,7 @@ Four condensed scenarios. Each gives: customer profile, the ECS-specific decisio
 
 **Build path:** launch a small g5/g6 ASG with the default-runtime user data; publish task-definition templates with `NVIDIA_VISIBLE_DEVICES` set; document the no-isolation caveat.
 
-**Route out if:** the team needs isolated fractional GPUs (MIG / time-slicing with per-slice memory / DRA) → `eks-genai`; or managed notebooks/experiments → SageMaker Studio.
+**Route out if:** the team needs **dynamic multi-model GPU packing** — a MIG / time-slicing / DRA *scheduler* — → `eks-genai`; or managed notebooks/experiments → SageMaker Studio. (But note: **hardware-fractional L4 instances (G6f/Gr6f)** are supported on ECS **Managed Instances** for small/cost-sensitive inference — the slice is the instance shape, no scheduler needed; see [compute-hardware.md](compute-hardware). Route to EKS only when the requirement is a *scheduler-driven* fractional-GPU platform.)
 
 ---
 
