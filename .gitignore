@@ -64,3 +64,6 @@ misc/website/build/
 HISTORY.md
 *.code-workspace
 PLAN-npm-release.md
+
+# DevOps Agent packaged skill zips
+devops-agent/**/*.zip

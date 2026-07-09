@@ -61,6 +61,25 @@ cp steering/workflows/*.md ~/.kiro/steering/
 
 Skills follow the [Agent Skills](https://agentskills.io/) standard. Clone and point your tool at `skills/{skill-name}/` — each contains a `SKILL.md` and optional `references/` directory.
 
+### AWS DevOps Agent
+
+A subset of skills are ported for fully autonomous execution on the [AWS DevOps Agent](https://docs.aws.amazon.com/devops-agent/). These live in the `devops-agent/` directory and run without interactive prompts.
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+# Automated setup (creates Agent Space, uploads skills, configures EKS access)
+./devops-agent/setup.sh --cluster-name <your-cluster> --region <region>
+
+# Or upload a single skill manually
+cd devops-agent/eks-cost-intelligence
+zip -r /tmp/eks-cost-intelligence.zip . -x '*.zip'
+# Upload via AWS Console → Amazon Q → DevOps Agent → Agent Skills
+```
+
+See [`devops-agent/README.md`](https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/README.md) for full setup instructions and constraints.
+
 ## Verify
 
 In your harness, run:

@@ -63,6 +63,10 @@ After syncing, run `./update-skills-references.sh` to regenerate the skills READ
 **What gets synced:** Core skill components only — `SKILL.md`, `LICENSE`, `references/*.md`  
 **What gets excluded:** Everything else (README, CLAUDE.md, CONTRIBUTING.md, CHANGELOG.md, tests/, `.github/`, `.claude-plugin/`)
 
+## Security Scanning
+
+[NVIDIA SkillSpector](https://github.com/nvidia/skillspector) scans skill content for prompt injection, excessive agency, and data exfiltration patterns. Run `make scan` locally; CI enforces it via `.github/workflows/skillspector.yml`.
+
 ## Docs site
 
 The Docusaurus site lives at `misc/website/`. Key commands:

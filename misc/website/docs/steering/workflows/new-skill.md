@@ -118,6 +118,7 @@ Classes of places to survey. For each class, `grep` with a reasonable search, en
 - **Sibling eval sets** — for each neighbour confirmed in Phase 3, `misc/evals/<sibling>/README.md`'s SIBLING_MAP block and `misc/evals/<sibling>/triggering.json`. This is the update the `update_sibling_map.py` helper script handles in Phase 5; surface the planned edits here so the author can review what will be inserted.
 - **Auto-generators** — `misc/update-steering-references.sh` and any sibling scripts. If the skill triggers a run of these, flag it.
 - **Skill-bundled steering workflows** — if the new skill ships structured engagement playbooks (STOP gates, phased flows), those belong in `steering/workflows/`, not under `skills/<name>/`. Each workflow needs: (1) a file in `steering/workflows/`, (2) a routing entry in the service hub (`steering/<service>.md`), (3) optionally a slash command in `steering/commands/apex/`. Use the `steering-workflow-creator` workflow for authoring. Surface this as a follow-up checklist item if the contributor has pre-authored workflows.
+- **DevOps Agent ports** — `devops-agent/` directory. If the skill has a Day 2 operational scope suitable for autonomous execution (read-only cluster assessment, scoring, reporting), check whether a DevOps Agent port should be created alongside the Claude Code skill. Surface as a follow-up item — porting is a separate workflow (see `devops-agent/README.md` contributing section).
 - **Grep pass** — `grep -r "<name>" -l .` to catch anything the class list missed. For greenfield skills, also grep domain keywords (e.g., "ingress" for an ingress assessment skill). Mentions in changelogs, screenshots, example output — each one decides on its own merits.
 
 For each proposed edit, show the file, the line, the before, and the after. Use the Edit tool or the `update_sibling_map.py` helper (Phase 5) depending on the edit type. Do not apply anything yet — this phase produces a proposal, Phase 5 applies it.
@@ -157,7 +158,8 @@ Steps, in order:
    git add -A && git commit -m "docs: regenerate reference tables and pages"
    ```
    The `docs-sync` CI job runs these with `--check` and rejects the PR if they are stale. This step is not optional.
-6. **Open the PR.** Walk the author through the Pre-PR checklist in `../../CONTRIBUTING.md`. Fill in the PR template checkbox confirming the workflow was followed. Suggest a PR title (`feat(skills): add <name> skill`).
+6. **Security scan.** Run `make scan` from the repo root. Fix any findings before proceeding — the `skillspector` CI job will block the PR otherwise. If a finding is a false positive, note its ID for the PR description.
+7. **Open the PR.** Walk the author through the Pre-PR checklist in `../../CONTRIBUTING.md`. Fill in the PR template checkbox confirming the workflow was followed. Suggest a PR title (`feat(skills): add <name> skill`).
 
 **STOP.** Summarize what landed and hand off to the author. Do not open the PR yourself — that is the author's action.
 

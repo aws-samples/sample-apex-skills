@@ -32,12 +32,14 @@ SCRIPTS=(
   "misc/update-skills-references.sh"
   "misc/update-steering-references.sh"
   "misc/update-examples-references.sh"
+  "misc/update-devops-agent-references.sh"
 )
 
 # Files any script above may touch — the blast radius of --check.
 TOUCHED_PATHS=(
   "README.md"
   "skills/README.md"
+  "devops-agent/README.md"
 )
 
 run_script() {

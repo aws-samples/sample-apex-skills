@@ -1,0 +1,86 @@
+name: DevOps Agent Skill Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'devops-agent/**'
+  pull_request:
+    paths:
+      - 'devops-agent/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate devops-agent skill structure
+        run: |
+          EXIT_CODE=0
+
+          for dir in devops-agent/*/; do
+            [ -d "$dir" ] || continue
+            skill=$(basename "$dir")
+            errors=""
+
+            # Check SKILL.md exists
+            if [ ! -f "$dir/SKILL.md" ]; then
+              errors="${errors}  - SKILL.md missing\n"
+            else
+              # Check frontmatter starts with ---
+              first_line=$(head -n 1 "$dir/SKILL.md")
+              if [ "$first_line" != "---" ]; then
+                errors="${errors}  - SKILL.md does not start with valid frontmatter (missing opening ---)\n"
+              else
+                # Check name: and description: exist in frontmatter
+                frontmatter=$(sed -n '2,/^---$/p' "$dir/SKILL.md" | sed '$d')
+                if ! echo "$frontmatter" | grep -q '^name:'; then
+                  errors="${errors}  - SKILL.md frontmatter missing name:\n"
+                fi
+                if ! echo "$frontmatter" | grep -q '^description:'; then
+                  errors="${errors}  - SKILL.md frontmatter missing description:\n"
+                fi
+              fi
+            fi
+
+            # Check no scripts/ directory
+            if [ -d "$dir/scripts" ]; then
+              errors="${errors}  - scripts/ directory must not exist\n"
+            fi
+
+            # Check no executable files
+            executables=$(find "$dir" -type f -executable)
+            if [ -n "$executables" ]; then
+              errors="${errors}  - executable files found:\n"
+              while IFS= read -r f; do
+                errors="${errors}      $f\n"
+              done <<< "$executables"
+            fi
+
+            # Check total size < 6MB
+            size_kb=$(du -s "$dir" | cut -f1)
+            if [ "$size_kb" -ge 6144 ]; then
+              errors="${errors}  - total size ${size_kb}KB exceeds 6MB limit\n"
+            fi
+
+            # Check file count <= 100
+            file_count=$(find "$dir" -type f | wc -l)
+            if [ "$file_count" -gt 100 ]; then
+              errors="${errors}  - file count ${file_count} exceeds 100-file limit\n"
+            fi
+
+            # Report result
+            if [ -n "$errors" ]; then
+              echo "FAIL: $skill"
+              printf "%s" "$errors"
+              EXIT_CODE=1
+            else
+              echo "PASS: $skill"
+            fi
+          done
+
+          exit $EXIT_CODE

@@ -1,6 +1,7 @@
-# APEX Skills — Agentic Platform Engineering eXperience
+# APEX Skills - Agentic Platform Engineering eXperience
 
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aws-samples.github.io/sample-apex-skills/)
+[![SkillSpector](https://img.shields.io/badge/SkillSpector-secured-green)](https://github.com/nvidia/skillspector)
 
 > Curated platform-engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, TAMs, and ProServe, delivered through agentic AI tools (Claude Code, Kiro CLI etc).
 
@@ -19,6 +20,7 @@ Agent Skills are organized folders of instructions, scripts, and resources that 
 | `rules/` | **How** the agent behaves — verification, source-checking, guardrails |
 | `examples/` | **How** to try it — deployable labs with planted issues |
 | `misc/` | Maintenance tooling and evaluation framework |
+| `devops-agent/` | Non-executable skill ports for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/), Day 2 operational skills repackaged for managed autonomous execution |
 
 ---
 
