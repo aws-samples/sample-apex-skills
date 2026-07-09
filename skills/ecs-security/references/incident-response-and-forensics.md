@@ -22,6 +22,15 @@ The isolation mechanics differ sharply by launch type — this is the ECS-specif
 6. **Eradicate & recover.** Terminate the compromised task (and, on EC2, the instance — replaced from a clean AMI); redeploy from a **known-good, signed, scanned** image (Layer 4); confirm the entry vector is closed (patched CVE, removed over-broad task-role permission or `iam:PassRole`, fixed misconfig).
 7. **Post-incident.** Root-cause; tighten task-definition hardening (Layer 3), SG rules (Layer 5), and role scope (Layer 2); record evidence for the auditor.
 
+## Escalate to AWS (don't run a major incident fully self-service)
+
+The runbook above is customer-executed, but a real breach should pull in AWS help early:
+
+- **AWS Customer Incident Response Team (CIRT)** — a 24/7 global team that assists customers during an **active** security event on the customer side of the shared-responsibility model (triage, root-cause via service logs, recovery + hardening recommendations). Engage the CIRT **through an AWS Support case**. Reference: [Understand AWS response teams and support](https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/understand-aws-response-teams-and-support.html).
+- **AWS Support case** — open a security/urgent case (severity per your Support plan) to reach the CIRT and coordinate.
+- **AWS Security Incident Response** (the managed service) — monitors your environment, triages GuardDuty/Security Hub findings, and gives you access to the Security Incident Response Engineering team across the full lifecycle (detection → triage → containment → recovery). Onboard it *before* an incident for the fastest path. Reference: [What is AWS Security Incident Response?](https://docs.aws.amazon.com/security-ir/latest/userguide/what-is.html).
+- Follow the **AWS Security Incident Response Guide** for the end-to-end process (aligned to NIST 800-61).
+
 ## Design choices that make response possible
 
 - **Fargate** shrinks blast radius (per-task isolation) and makes "stop the task" clean — the strongest IR posture on ECS.
@@ -39,3 +48,4 @@ The isolation mechanics differ sharply by launch type — this is the ECS-specif
 ## Sources
 - [ECS Best Practices: Security](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/security.html) · [ECS task IAM role — containers are not a boundary](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html)
 - [GuardDuty Runtime Monitoring](https://docs.aws.amazon.com/guardduty/latest/ug/runtime-monitoring.html) · [Roles recommendations — CloudTrail monitoring](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-iam-roles.html#security-iam-roles-recommendations-cloudtrail-monitoring)
+- [AWS Security Incident Response Guide — response teams & support (CIRT)](https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/understand-aws-response-teams-and-support.html) · [What is AWS Security Incident Response?](https://docs.aws.amazon.com/security-ir/latest/userguide/what-is.html)
