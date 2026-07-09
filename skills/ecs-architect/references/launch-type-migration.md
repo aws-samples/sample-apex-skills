@@ -1,7 +1,7 @@
 # ECS Launch-Type and Topology Migration
 
 > **Part of:** [ecs-architect](../SKILL.md)
-> **Purpose:** Plan the transition from an older ECS topology to a modern one — EC2 launch type → capacity providers / Managed Instances, and Service Discovery → Service Connect. Covers exactly which transitions the API supports, the `launchType`-immutability trap, and cutover steps. Facts verified against AWS docs on 2026-07-08.
+> **Purpose:** Plan the transition from an older ECS topology to a modern one — EC2 launch type → capacity providers / Managed Instances, and Service Discovery → Service Connect. Covers exactly which transitions the API supports, the `launchType`-immutability trap, and cutover steps. Facts verified against AWS docs on **2026-07-09**.
 >
 > **Scope note:** This is *topology* migration for an ECS estate you already understand. For assessing an existing *application* and choosing replatform vs refactor, use `ecs-modernize`. To inventory the estate first, use the `ecs-recon` skill once available (or `aws ecs list-*`/`describe-*`).
 
@@ -35,17 +35,11 @@ Older ECS services were created with a fixed `launchType` (`EC2` or `FARGATE`). 
 
 **`launchType` is immutable on an existing service.** The ECS `CreateService` API does not allow specifying both `launchType` and `capacityProviderStrategies` at once. Consequently, switching a service from a launch type to a capacity-provider strategy **through CloudFormation/CDK forces a service replacement** — CloudFormation deletes and recreates the service with the new configuration. This is an ECS API/CloudFormation constraint, not a CDK bug. ([aws-cdk-lib.aws_ecs — Service Replacement note](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs-readme.html))
 
-**Escape hatch (CDK):** define the service with `capacityProviderStrategies`, then force the `launchType` at the CloudFormation level on the underlying `CfnService` to prevent replacement:
+**Escape hatch (CDK):** the CDK workaround is a targeted use of L1 escape hatches / property overrides on the underlying `CfnService` to stop CloudFormation from treating the change as a replacement — it does **not** mean pinning a capacity-provider value onto `launchType`. The `LaunchType` property only accepts `EC2 | FARGATE | EXTERNAL` ([AWS::ECS::Service](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecs-service.html)); `FARGATE_SPOT` is **not** a launch type — it is a *capacity provider*. A service is also mutually exclusive here: it uses **either** a `launchType` **or** a `capacityProviderStrategy`, never both. So the escape hatch is about controlling CloudFormation's update/replacement behavior on the L1 resource, not about writing `FARGATE_SPOT` (or any CP) into `launchType`.
 
-```
-# Escape hatch: pin launchType on the L1 resource so CFN does not replace the service
-cfn_service = service.node.default_child
-cfn_service.launch_type = "FARGATE"   # or "FARGATE_SPOT" per your capacity provider
-```
+([aws-cdk-lib.aws_ecs — Service Replacement note / workaround](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs-readme.html) · [AWS::ECS::Service LaunchType allowed values](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecs-service.html))
 
-([aws-cdk-lib.aws_ecs — workaround](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs-readme.html))
-
-This is the precise, correct form of the field lore that "you can't migrate off `launchType: EC2` without recreating the service." Via **CloudFormation/CDK** you must either accept replacement or use the escape hatch; via the **`UpdateService` API directly**, specific transitions are supported without recreation (next section).
+This is the precise, correct form of the field lore that "you can't migrate off `launchType: EC2` without recreating the service." Via **CloudFormation/CDK** you must either accept replacement or use the escape hatch to control replacement; via the **`UpdateService` API directly**, specific transitions are supported without recreation (next section).
 
 ---
 
@@ -60,7 +54,7 @@ AWS documents this as **service mutability** — `UpdateService` can move a serv
 
 **Two important caveats:**
 - **Update the task definition first**: `requiresCompatibilities` must include the target (e.g. `MANAGED_INSTANCES`) and pass compatibility validation, or the `UpdateService` call fails.
-- Changing capacity providers is supported for both rolling and blue/green deployments and does **not** by itself trigger a new deployment.
+- Changing capacity providers is supported for both rolling and blue/green deployments and does **not** by itself trigger a new deployment — so **existing tasks keep running on the old capacity until you force a new deployment** (`--force-new-deployment`) or otherwise cause task replacement. The `UpdateService` call updates the *configuration*; tasks actually move on the next deployment. Plan that forced deployment as an explicit migration step.
 
 **Rule of thumb:** driving the change through the **API/CLI** follows the supported-transition list above with no recreation; driving it through **IaC** (CloudFormation/CDK) risks replacement unless you use the escape hatch. Plan the mechanism deliberately.
 
@@ -96,4 +90,5 @@ Because config changes take effect only during deployments, gate the rollout wit
 - [update-service CLI reference](https://docs.aws.amazon.com/cli/v1/reference/ecs/update-service.html) — supported launch-type ↔ capacity-provider transitions, Managed Instances requirement
 - [Amazon ECS launch types and capacity providers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-launch-type-comparison.html) — revert-to-launch-type semantics
 - [aws-cdk-lib.aws_ecs module — Service Replacement note](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs-readme.html) — launchType immutability, replacement, escape hatch
+- [AWS::ECS::Service (CloudFormation)](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-ecs-service.html) — `LaunchType` allowed values `EC2 | FARGATE | EXTERNAL`; Managed Instances requires `capacityProviderStrategy`
 - [Interconnect Amazon ECS services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/interconnecting-services.html) · [Networking between ECS services in a VPC](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/networking-connecting-services.html)

@@ -1,7 +1,7 @@
 # ECS Best-Practices Corpus (Shared Knowledge)
 
 > **Part of:** [ecs-architect](../SKILL.md)
-> **Purpose:** The shared "what good looks like" knowledge that `ecs-architect`, `ecs-operation-review`, and `ecs-cost-intelligence` all draw on. This is the single source of truth for ECS design fundamentals; a factor-out to a standalone `ecs-best-practices` skill is deferred. Facts verified against the AWS ECS Best Practices Guide and Developer Guide on 2026-07-08.
+> **Purpose:** The shared "what good looks like" knowledge that `ecs-architect`, `ecs-operation-review`, and `ecs-cost-intelligence` all draw on. This is the shared **design baseline** for ECS fundamentals; a factor-out to a standalone `ecs-best-practices` skill is deferred. It is not the sole authority on any deep domain — security, cost, observability, and other sibling skills own the depth over their own areas and may carry their own, more detailed per-domain references; where they do, defer to them. Facts verified against the AWS ECS Best Practices Guide and Developer Guide on **2026-07-09**.
 >
 > **How to use:** In `ecs-architect` this informs design decisions — synthesize it into project-specific recommendations, don't paste it into deliverables. Deep audit/scoring of a live estate against these belongs to `ecs-operation-review`; dollar-quantified cost work to `ecs-cost-intelligence`.
 
@@ -22,16 +22,16 @@
 
 ## Shared Responsibility by Model
 
-| Component | Fargate | ECS on EC2 | Managed Instances |
-|-----------|---------|-----------|-------------------|
-| Control plane | AWS | AWS | AWS |
-| EC2 instances (provision/patch/scale) | AWS (no instances) | **You** | AWS (patches every 14 days) |
-| ECS agent | AWS | **You** | AWS |
-| Host OS / AMI currency | AWS | **You** | AWS |
-| Task definition + sizing | You | You | You |
-| Application, IAM roles, secrets | You | You | You |
+| Component | Fargate | ECS on EC2 | Managed Instances | ECS Anywhere (EXTERNAL) |
+|-----------|---------|-----------|-------------------|-------------------------|
+| Control plane | AWS | AWS | AWS | AWS (in-cloud) |
+| Compute (provision/patch/scale) | AWS (no instances) | **You** | AWS (patches every 14 days) | **You** (own the physical/VM host) |
+| ECS agent | AWS | **You** | AWS | **You** (install/run agent + SSM agent) |
+| Host OS / AMI currency | AWS | **You** | AWS | **You** (+ physical security of the host) |
+| Task definition + sizing | You | You | You | You |
+| Application, IAM roles, secrets | You | You | You | You |
 
-The further left, the less you operate. This table drives the ops-overhead criterion in [model-selection-framework.md](model-selection-framework.md). Managed Instances patches on a **14-day** cadence, schedulable via EC2 event windows. ([Managed Instances launch post](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/))
+The further left, the less you operate. This table drives the ops-overhead criterion in [model-selection-framework.md](model-selection-framework.md). On **ECS Anywhere** you own the most — the host OS *and* its physical security — while AWS runs only the control plane. On **Managed Instances**, AWS patches on a **14-day** cadence: an instance's max lifetime is capped at 14 days, after which ECS **drains it and reschedules its tasks** onto a freshly patched replacement — a security benefit *and* an operational side-effect, so design for graceful draining and schedule the churn with EC2 event windows. ([MI security/patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-security.html) · [Managed Instances launch post](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/))
 
 ---
 
@@ -69,7 +69,7 @@ The further left, the less you operate. This table drives the ops-overhead crite
 
 - **Enable the deployment circuit breaker** with rollback so a bad deployment auto-reverts instead of leaving a half-failed service.
 - **Tune min/max healthy percent** to your capacity headroom — 100/200 for zero-loss deploys if you can afford the spare capacity. See [architecture-design.md](architecture-design.md#service-parameters).
-- **Native blue/green** (July 2025) consolidates blue/green into the ECS service with lifecycle hooks, bake time, and managed rollback — no CodeDeploy needed. ([ECS-native blue/green](https://aws.amazon.com/blogs/devops/choosing-between-amazon-ecs-blue-green-native-or-aws-codedeploy-in-aws-cdk/)) Strategy selection and pipeline design belong to `ecs-devops`.
+- **Native blue/green** (July 2025) consolidates blue/green into the ECS service with lifecycle hooks, bake time, and managed rollback — no CodeDeploy needed; works with ALB, NLB, and Service Connect. ([ECS built-in blue/green deployments — launch](https://aws.amazon.com/about-aws/whats-new/2025/07/amazon-ecs-built-in-blue-green-deployments/)) Strategy selection and pipeline design belong to `ecs-devops`.
 
 ---
 
@@ -97,5 +97,6 @@ These domains have dedicated skills — this corpus only flags the design-time d
 - [Amazon ECS task definition differences for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html) — SOCI, task sizing
 - [AWS Fargate supports SOCI Index Manifest v2 (July 2025)](https://aws.amazon.com/about-aws/whats-new/2025/07/aws-fargate-soci-index-manifest-v2-deployment-consistency/) · [Improving ECS deployment consistency with SOCI v2](https://aws.amazon.com/blogs/containers/improving-amazon-ecs-deployment-consistency-with-soci-index-manifest-v2/)
 - [Fargate selectively leverage SOCI (Nov 2023)](https://aws.amazon.com/about-aws/whats-new/2023/11/aws-fargate-amazon-ecs-tasks-selectively-leverage-soci/)
-- [Choosing between ECS Blue/Green Native or CodeDeploy](https://aws.amazon.com/blogs/devops/choosing-between-amazon-ecs-blue-green-native-or-aws-codedeploy-in-aws-cdk/)
-- [Announcing Amazon ECS Managed Instances](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/) — 14-day patch cadence
+- [Amazon ECS built-in blue/green deployments (July 2025)](https://aws.amazon.com/about-aws/whats-new/2025/07/amazon-ecs-built-in-blue-green-deployments/) · [Choosing between ECS Blue/Green Native or CodeDeploy (blog)](https://aws.amazon.com/blogs/devops/choosing-between-amazon-ecs-blue-green-native-or-aws-codedeploy-in-aws-cdk/)
+- [Announcing Amazon ECS Managed Instances](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/) · [MI security/patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-security.html) — 14-day patch/drain cadence
+- [ECS clusters for external instances (ECS Anywhere)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html) — customer owns host OS + physical security
