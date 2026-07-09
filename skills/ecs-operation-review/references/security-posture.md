@@ -42,7 +42,7 @@ Assess ECS security posture at **audit depth** — enough to rate it and flag to
 - 🔴 RED: Credentials in plaintext `environment` variables (visible in the task definition and console).
 - ⬜ UNKNOWN: Cannot read task definitions.
 
-**Key talking point:** ECS injects secrets at runtime from Secrets Manager or SSM Parameter Store via the `secrets` block referencing the secret ARN — never store credentials as plaintext in the task definition. See [specifying sensitive data with Secrets Manager](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data-tutorial.html) and [SSM Parameter Store secrets](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-app-ssm-paramstore.html).
+**Key talking point:** ECS injects secrets at runtime from Secrets Manager or SSM Parameter Store via the `secrets` block referencing the secret ARN — never store credentials as plaintext in the task definition. Deep secrets rotation, KMS scoping, and least-privilege secret-read remediation → **`ecs-security`**. See [specifying sensitive data with Secrets Manager](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data-tutorial.html) and [SSM Parameter Store secrets](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-app-ssm-paramstore.html).
 
 ---
 
@@ -71,19 +71,19 @@ These checks map directly to AWS **Security Hub CSPM ECS controls** — e.g., **
 
 **What to check:**
 - GuardDuty enabled with **Runtime Monitoring** covering ECS (required for any Fargate threat detection).
+- **Applicability first:** Runtime Monitoring supports only ECS clusters running on **EC2 or Fargate**. It does **not** support ECS **Managed Instances**, **Windows** containers, or **ECS Anywhere / `EXTERNAL`** workloads. Determine the estate's compute mix before rating.
 
 **How to check:**
 1. `aws guardduty list-detectors` → `aws guardduty get-detector --detector-id <id>` and check the Runtime Monitoring feature status (best-effort; may be UNKNOWN without permissions).
 
 **Rating:**
-- 🟢 GREEN: GuardDuty Runtime Monitoring enabled for ECS (Fargate and/or EC2).
-- 🟡 AMBER: GuardDuty enabled but Runtime Monitoring off (only foundational data sources).
-- 🔴 RED: Fargate workloads with GuardDuty Runtime Monitoring off — **no** runtime findings are generated for Fargate without it.
+- 🟢 GREEN: GuardDuty Runtime Monitoring enabled for the ECS clusters in scope (Fargate and/or EC2), with the automated agent covering the Fargate clusters.
+- 🟡 AMBER: GuardDuty enabled but Runtime Monitoring off (only foundational data sources), or on but not covering the in-scope ECS clusters.
+- 🔴 RED: Fargate/EC2 workloads with GuardDuty Runtime Monitoring off — **no** runtime findings are generated for Fargate without it.
+- ⬜ N/A: The estate runs **only** on ECS Managed Instances, Windows containers, or ECS Anywhere (`EXTERNAL`) — Runtime Monitoring does not support these, so there is no correct GREEN/RED path; state this and mark N/A (mirror the 1.2 / 1.4 N/A pattern). Route runtime-threat-detection design to **`ecs-security`**.
 - ⬜ UNKNOWN: Cannot read GuardDuty configuration.
 
-**Common omission:** Many estates have GuardDuty enabled (foundational sources, malware scanning) but have never turned on **Automated agent configuration** for AWS Fargate (ECS) — the setting that makes GuardDuty inject the security-agent sidecar into each Fargate task. Confirm both that Runtime Monitoring is on *and* that automated agent configuration covers the ECS clusters in scope (it can be scoped account-wide or per-cluster via GuardDuty tags). On Fargate the agent can *only* be managed by GuardDuty — there is no manual-agent path.
-
-**Key talking point:** For **Fargate**, GuardDuty Runtime Monitoring is *required* for threat detection — no other data source has visibility into Fargate containers, so without it no findings are produced. On EC2 it adds container-aware attribution to the ECS cluster (e.g., `AttackSequence:ECS/CompromisedCluster`) rather than only EC2-instance-level findings. The agent is fully managed on Fargate. See [ECS compliance & security best practices](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-compliance.html), [how Runtime Monitoring works with Fargate (ECS)](https://docs.aws.amazon.com/guardduty/latest/ug/how-runtime-monitoring-works-ecs-fargate.html), and the [GuardDuty ECS Runtime Monitoring launch](https://aws.amazon.com/blogs/aws/introducing-amazon-guardduty-ecs-runtime-monitoring-including-aws-fargate/).
+**Key talking point:** For **Fargate**, GuardDuty Runtime Monitoring is *required* for threat detection — no other data source sees inside Fargate containers, so without it no findings are produced, and existing tasks are only covered **after they restart** (the agent sidecar is injected into new tasks / new service deployments). On EC2 it adds container-aware attribution (e.g., `AttackSequence:ECS/CompromisedCluster`). It is **not supported on Managed Instances, Windows, or ECS Anywhere**. The deep configuration of automated agent management, per-cluster scoping via GuardDuty tags, and remediation belong to **`ecs-security`** → route there rather than expanding here. Verified 2026-07-09. See [how Runtime Monitoring works with Fargate (ECS)](https://docs.aws.amazon.com/guardduty/latest/ug/how-runtime-monitoring-works-ecs-fargate.html) and [ECS compliance & security best practices](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-compliance.html).
 
 ---
 
@@ -102,3 +102,23 @@ These checks map directly to AWS **Security Hub CSPM ECS controls** — e.g., **
 - ⬜ UNKNOWN: Cannot read ECR repositories (or images are not in ECR).
 
 Deep supply-chain/signing posture → **`ecs-security`**.
+
+---
+
+### 7.6 — ECS Exec Posture (enableExecuteCommand)
+
+**What to check:**
+- Whether services/tasks have **ECS Exec** enabled (`enableExecuteCommand: true`) — interactive shell access into running containers. Useful for debugging, but on production it is an audit-relevant access path that should be deliberate, logged, and least-privilege (the task role governs what the session can do; session logging to CloudWatch Logs / S3 should be configured).
+
+**How to check:**
+1. `aws ecs describe-services --cluster <c> --services <s>` → `enableExecuteCommand`.
+2. `aws ecs describe-tasks` → `enableExecuteCommand` on running tasks.
+3. Where enabled, check cluster `configuration.executeCommandConfiguration` for logging (`logging`, `logConfiguration`) and KMS encryption.
+
+**Rating:**
+- 🟢 GREEN: ECS Exec disabled on production services, or enabled deliberately with session logging + KMS encryption and a least-privilege task role.
+- 🟡 AMBER: ECS Exec enabled without session logging/encryption configured, or enabled broadly without a documented reason.
+- 🔴 RED: ECS Exec enabled on sensitive/production workloads with a broad task role and no logging — an unaudited interactive access path into containers.
+- ⬜ UNKNOWN: Cannot read service/task or cluster exec configuration.
+
+**Key talking point:** ECS Exec opens an interactive channel into a running container via SSM; treat it as privileged access — enable per-need, log every session, encrypt with KMS, and keep the task role least-privilege. Deep hardening → **`ecs-security`**. See [using Amazon ECS Exec for debugging](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html).

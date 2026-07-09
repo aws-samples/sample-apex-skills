@@ -80,7 +80,7 @@ Deep network-isolation hardening → **`ecs-security`**.
 - 🔴 RED: Sensitive/regulated workloads egressing to AWS APIs over the public internet with no endpoint policy.
 - ⬜ UNKNOWN: Cannot map task subnets to endpoints.
 
-**Key talking point:** AWS PrivateLink endpoints keep ECS/ECR/Logs/Secrets traffic on the AWS network and let you attach least-privilege endpoint policies. See [security considerations blog](https://aws.amazon.com/blogs/security/security-considerations-for-running-containers-on-amazon-ecs/).
+**Key talking point:** AWS PrivateLink interface endpoints keep ECS/ECR/Logs/Secrets traffic on the AWS network and let you attach least-privilege endpoint policies. Note Fargate tasks don't need the ECS interface endpoints themselves, but pulling private ECR images, reading Secrets Manager/SSM secrets, and shipping `awslogs` to CloudWatch each require their own interface endpoints (plus the S3 gateway endpoint for ECR layers) when there's no internet path. Verified 2026-07-09. See [Amazon ECS interface VPC endpoints (AWS PrivateLink)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/vpc-endpoints.html).
 
 ---
 
@@ -93,10 +93,31 @@ Deep network-isolation hardening → **`ecs-security`**.
 **How to check:**
 1. `aws ecs describe-services --cluster <c> --services <s>` → `serviceConnectConfiguration` (enabled?), `vpcLatticeConfigurations` (VPC Lattice target-group registration), and `serviceRegistries` (Cloud Map).
 
-**Rating:**
-- 🟢 GREEN: Service Connect enabled for intra-cluster east-west calls (short names, built-in metrics/logs, resilient client-side LB, automatic connection draining), or VPC Lattice where cross-cluster / cross-account / cross-compute connectivity is the requirement.
-- 🟡 AMBER: Legacy Service Discovery (Cloud Map) only, or internal ALB hops where Service Connect / VPC Lattice would simplify.
-- 🔴 RED: Hardcoded IPs/DNS or cross-service coupling with no discovery mechanism.
-- ⬜ UNKNOWN: Single-service estate (N/A), or cannot read service config.
+**Rating (rate whether a discovery mechanism *exists and works*, not whether it matches a preferred product — product selection is `ecs-architect`'s lane):**
+- 🟢 GREEN: Inter-service traffic uses a working discovery/connectivity mechanism appropriate to the requirement — Service Connect, VPC Lattice, Cloud Map service discovery, or internal load balancers — with no hardcoded coupling.
+- 🟡 AMBER: A discovery mechanism exists but shows an operational gap (e.g., no connection draining where deploy-time errors are observed), or partial coverage across services.
+- 🔴 RED: Hardcoded IPs/DNS or cross-service coupling with **no** discovery mechanism at all.
+- ⬜ N/A: Single-service estate (no east-west traffic). ⬜ UNKNOWN: Cannot read service config.
 
-**Key talking point:** Service Connect provides discovery + a service mesh with standardized metrics/logs, doesn't depend on VPC DNS, and supports automatic connection draining for near-zero-error rolling/blue-green deploys — best for intra-cluster east-west traffic. **VPC Lattice** natively integrates with ECS (ECS auto-registers/deregisters task IPs as Lattice IP targets via the ECS infrastructure IAM role) and is the right choice for cross-VPC, cross-account, cross-compute connectivity without intermediate load balancers. Choose per requirement, not by default. See [Service Connect](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect.html) and [native ECS support in VPC Lattice](https://aws.amazon.com/blogs/aws/streamline-container-application-networking-with-native-amazon-ecs-support-in-amazon-vpc-lattice/).
+**Key talking point:** Do **not** down-rate a working design merely because it uses Cloud Map or an internal ALB instead of Service Connect / VPC Lattice — choosing *between* mechanisms for a given topology is a Day-0 architecture decision that belongs to **`ecs-architect`**; route there rather than grading a preference here. For context only: Service Connect provides discovery + a service mesh with standardized metrics/logs, doesn't depend on VPC DNS, and supports automatic connection draining for near-zero-error deploys (intra-cluster east-west); **VPC Lattice** natively integrates with ECS (auto-registers/deregisters task IPs as Lattice targets via the ECS infrastructure IAM role) for cross-VPC/cross-account/cross-compute connectivity. See [Service Connect](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect.html) and [native ECS support in VPC Lattice](https://aws.amazon.com/blogs/aws/streamline-container-application-networking-with-native-amazon-ecs-support-in-amazon-vpc-lattice/).
+
+---
+
+### 2.6 — ENI Density & awsvpc Trunking (EC2 `awsvpc` only)
+
+**What to check (EC2 launch type / EC2-ASG capacity providers with `awsvpc` task networking — N/A for Fargate, where each task gets its own ENI automatically):**
+- Whether the instance types in use can supply enough ENIs for the desired task density per instance. Each `awsvpc` task consumes an ENI; without **ENI trunking (`awsvpcTrunking`)** the per-instance task count is capped by the instance's default ENI limit, and tasks fail to place with `RESOURCE:ENI`.
+- Whether the `awsvpcTrunking` account setting is enabled (it raises ENI-bound task density on supported Linux instance types; applies only to instances launched *after* enabling it, and not to Windows).
+
+**How to check:**
+1. `aws ecs list-account-settings --name awsvpcTrunking` → is trunking enabled (account/role/user scope)?
+2. Look for `RESOURCE:ENI` in `SERVICE_TASK_PLACEMENT_FAILURE` service events / stopped-task reasons.
+3. Cross-check instance-type ENI limits against observed/target tasks-per-instance.
+
+**Rating:**
+- 🟢 GREEN: ENI supply comfortably exceeds task density (trunking enabled where density warrants); no `RESOURCE:ENI` failures.
+- 🟡 AMBER: Density approaching the ENI limit with trunking off, or trunking not evaluated on dense EC2 nodes.
+- 🔴 RED: Observed `RESOURCE:ENI` placement failures on production capacity.
+- ⬜ N/A: Fargate-only estate, or non-`awsvpc` network mode. ⬜ UNKNOWN: Cannot read account settings or service events.
+
+**Key talking point:** On EC2 with `awsvpc`, ENI availability — not just CPU/memory — bounds how many tasks fit on an instance; `RESOURCE:ENI` is the tell. Enable the `awsVpcTrunking` account setting to raise the per-instance ENI limit on supported instance types. See [ECS account settings (ENI trunking)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html) and [elastic network interface trunking](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-instance-eni.html).

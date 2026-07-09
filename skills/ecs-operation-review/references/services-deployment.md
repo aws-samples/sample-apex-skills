@@ -39,7 +39,7 @@ Assess deployment safety — the single richest vein of ECS production incidents
 - 🔴 RED: No alarm-based rollback on a customer-facing service where the health check alone can't detect functional regressions.
 - ⬜ UNKNOWN: Cannot read deployment configuration.
 
-**Key talking point:** Alarm-based rollback extends the deployment with a **bake time** during which the primary deployment stays IN_PROGRESS; if alarms stay OK it completes, otherwise ECS rolls back. See [automate rollbacks with CloudWatch alarms](https://aws.amazon.com/blogs/containers/automate-rollbacks-for-amazon-ecs-rolling-deployments-with-cloudwatch-alarms/).
+**Key talking point:** Alarm-based rollback extends the deployment with a **bake time** during which the primary deployment stays IN_PROGRESS; if alarms stay OK it completes, otherwise ECS sets the deployment to FAILED and (with `rollback: true`) restores the last completed deployment. Only available when `deploymentController` is `ECS` (rolling update). Verified 2026-07-09. See [how CloudWatch alarms detect ECS deployment failures](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html) and the [automate rollbacks with CloudWatch alarms](https://aws.amazon.com/blogs/containers/automate-rollbacks-for-amazon-ecs-rolling-deployments-with-cloudwatch-alarms/) blog.
 
 ---
 
@@ -58,7 +58,7 @@ Assess deployment safety — the single richest vein of ECS production incidents
 - 🔴 RED: No safe-deploy mechanism at all on a critical service (rolling with no circuit breaker and no progressive strategy).
 - ⬜ UNKNOWN: Cannot determine service criticality — flag for manual review.
 
-**Key talking point:** ECS added **native blue/green** deployments (July 2025) and **built-in canary and linear** strategies (Oct 2025) with lifecycle hooks (Lambda or **pause** hooks), configurable bake time, and managed rollback — no CodeDeploy required, working with ALB, NLB, and Service Connect. **Pause and continue controls** (May 2026) let a `PAUSE` lifecycle hook halt progression for manual approval / integration tests / external validation (timeout up to 14 days, with a continue-or-roll-back timeout action) across rolling, blue/green, linear, and canary strategies; resume via the `ContinueServiceDeployment` API. Strategy design/selection → **`ecs-devops`**. See [ECS blue/green deployments](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-blue-green.html), [built-in blue/green launch](https://aws.amazon.com/about-aws/whats-new/2025/07/amazon-ecs-built-in-blue-green-deployments/), [linear/canary launch](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-ecs-built-in-linear-canary-deployments/), and [pause/continue controls](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/).
+**Key talking point:** ECS added **native blue/green** deployments (July 2025) and **built-in canary and linear** strategies (Oct 2025) with lifecycle hooks (Lambda or **pause** hooks), configurable bake time, and managed rollback — no CodeDeploy required. **Load-balancer support differs by strategy:** blue/green worked with ALB, NLB, and Service Connect from its July 2025 launch; the linear/canary strategies launched (Oct 2025) with **ALB or Service Connect only**, and **NLB support for linear/canary was added Feb 2026** — so all three now cover ALB, NLB, and Service Connect. If auditing a pre-Feb-2026 mental model, don't assume NLB linear/canary was always available. **Pause and continue controls** (May 2026) let a `PAUSE` lifecycle hook halt progression for manual approval / integration tests / external validation (timeout up to 14 days, with a continue-or-roll-back timeout action) across rolling, blue/green, linear, and canary strategies; resume via the `ContinueServiceDeployment` API. Strategy design/selection → **`ecs-devops`**. Verified 2026-07-09. See [ECS blue/green deployments](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-blue-green.html), [built-in blue/green launch](https://aws.amazon.com/about-aws/whats-new/2025/07/amazon-ecs-built-in-blue-green-deployments/), [linear/canary launch](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-ecs-built-in-linear-canary-deployments/), [NLB for linear/canary](https://aws.amazon.com/about-aws/whats-new/2026/02/amazon-ecs-nlb-linear-canary-deployments/), and [pause/continue controls](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/).
 
 ---
 
@@ -83,8 +83,10 @@ Assess deployment safety — the single richest vein of ECS production incidents
 
 ### 4.5 — Deployment Failure Signal / Alerting
 
+**This is the single scoring home for deployment-failure alerting** (the `SERVICE_DEPLOYMENT_FAILED` signal). Observability check 6.4 defers here — do not double-score; 6.4 owns health/capacity alerting only.
+
 **What to check:**
-- Whether failed deployments surface anywhere actionable (EventBridge rules on ECS deployment state-change events, CloudWatch alarms).
+- Whether failed deployments surface anywhere actionable (EventBridge rules on ECS deployment state-change events — `SERVICE_DEPLOYMENT_FAILED` — or CloudWatch alarms).
 
 **How to check:**
 1. `aws events list-rules` and inspect for ECS deployment state-change event patterns (best-effort; may be UNKNOWN).

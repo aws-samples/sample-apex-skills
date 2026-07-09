@@ -50,7 +50,6 @@ p{margin:.5rem 0}
 .score-bar div{height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:.8rem}
 .critical-box{background:#fde8e8;border:2px solid #ef5350;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}
 .quick-win{background:#e8f5e9;border:2px solid #66bb6a;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}
-.internal-banner{background:#fff3e0;border:2px solid #ff9900;border-radius:8px;padding:.75rem 1.25rem;margin:1rem 0;font-weight:600;color:#e65100}
 @media print{body{background:#fff;padding:0}main{box-shadow:none;padding:1rem}}
 """
 
@@ -147,6 +146,17 @@ def convert(md_text):
 
         # Fenced code block
         if stripped.startswith('```'):
+            # Look ahead for a closing fence. If there is none, the fence is
+            # unclosed and we must NOT swallow the rest of the document as code
+            # — treat this line as literal text and keep parsing normally.
+            has_closing = any(
+                lines[j].strip().startswith('```') for j in range(i + 1, len(lines))
+            )
+            if not has_closing:
+                close_list()
+                out.append(f'<p>{inline_format(escape(stripped))}</p>')
+                i += 1
+                continue
             close_list()
             lang_match = re.match(r'^```(\w+)?', stripped)
             lang = lang_match.group(1) if lang_match and lang_match.group(1) else None
@@ -221,13 +231,6 @@ def convert(md_text):
             i += 1
             continue
 
-        # Internal banner detection
-        if '⚠️' in stripped and 'INTERNAL' in stripped.upper():
-            close_list()
-            out.append(f'<div class="internal-banner">{inline_format(escape(stripped))}</div>')
-            i += 1
-            continue
-
         # Paragraph
         close_list()
         out.append(f'<p>{inline_format(escape(stripped))}</p>')
@@ -268,13 +271,24 @@ def main():
         print("Error: no input files specified", file=sys.stderr)
         sys.exit(1)
 
+    had_error = False
     for f in files:
         p = Path(f)
         if not p.exists():
             print(f"Error: {f} not found", file=sys.stderr)
+            had_error = True
             continue
 
-        md = p.read_text(encoding='utf-8')
+        # Read as UTF-8 but degrade gracefully on non-UTF-8 input rather than
+        # crashing with a UnicodeDecodeError traceback.
+        try:
+            md = p.read_text(encoding='utf-8')
+        except UnicodeDecodeError:
+            print(
+                f"Warning: {f} is not valid UTF-8; decoding with replacement characters",
+                file=sys.stderr,
+            )
+            md = p.read_text(encoding='utf-8', errors='replace')
 
         # Extract title from first H1
         m = re.search(r'^#\s+(.+)$', md, re.MULTILINE)
@@ -289,6 +303,11 @@ def main():
 
         out.write_text(result, encoding='utf-8')
         print(f"✓ {p.name} → {out.name}")
+
+    # Exit non-zero if any requested input was missing, so callers and CI can
+    # detect the failure instead of seeing a success (exit 0).
+    if had_error:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
