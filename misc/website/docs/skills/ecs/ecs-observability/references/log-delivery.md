@@ -51,8 +51,8 @@ So the customer is choosing between two failure modes:
 How to set it:
 
 - Per container: `logConfiguration.options.mode: "blocking"` in the container definition.
-- Account-wide: `aws ecs put-account-setting-default --name defaultLogDriverMode --value "blocking"` (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html).
-- Audit the effective default before advising — the account setting may already have been changed: `aws ecs list-account-settings --name defaultLogDriverMode --effective-settings`.
+- Account default, **per Region**: `aws ecs put-account-setting-default --name defaultLogDriverMode --value "blocking"` (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html). The API reference scopes this to "all containers in a specific AWS Region" — repeat it in every Region running tasks; it is not global.
+- Audit the effective default before advising — the account setting may already have been changed (again, per Region): `aws ecs list-account-settings --name defaultLogDriverMode --effective-settings`.
 
 **Advisory rule:** never let a compliance-sensitive customer discover this default by accident. If they need both completeness and availability, the answer is usually FireLens with filesystem buffering (below), not either awslogs mode.
 
@@ -60,20 +60,20 @@ How to set it:
 
 > ⚠️ **Point-in-time benchmark data — verified 2026-07-09 against https://aws.amazon.com/blogs/containers/preventing-log-loss-with-non-blocking-mode-in-the-awslogs-container-log-driver/ (blog published Aug 3, 2023, when the Docker-level default buffer was 1 MB). The current ECS `max-buffer-size` default is `10m` (10 MiB) per https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_LogConfiguration.html.**
 
-AWS's own benchmarks (~17,000 test runs) found:
+AWS's own benchmarks (~17,000 test runs; the blog quotes buffer sizes in MB — kept as MB here to match; ECS `max-buffer-size` values like `25m` are mebibytes):
 
-| Log throughput | Buffer needed for no observed loss |
+| Log throughput | Blog finding |
 |---|---|
-| ≤ 2 MB/s | ≥ 4 MiB |
-| ≤ 5 MB/s | ≥ 25 MiB |
-| ≥ 6 MB/s | Unreliable at any tested buffer size |
-| Cross-Region delivery | Unreliable even at 40+ MiB |
+| ≤ 2 MB/s | No observed loss with buffer ≥ 4 MB |
+| ≤ 5 MB/s | No observed loss with buffer ≥ 25 MB |
+| Above 6 MB/s | Driver performance is "less predictable and consistent" (AWS's words) — no tested buffer size guarantees no loss |
+| Cross-Region delivery | Low risk of loss requires **both** a ≥ 40 MB buffer **and** < 2 MB/s output rate |
 
 Practical guidance derived from that blog:
 
-- **Recommend ~25 MiB `max-buffer-size` for in-Region CloudWatch logging** when the customer stays on non-blocking mode and cares about loss.
-- The 10 MiB default is not sized for high-throughput containers — treat any service logging multiple MB/s as a buffer-sizing conversation.
-- **Do not architect cross-Region log delivery through the awslogs driver** — route in-Region and replicate at the destination instead.
+- **Recommend ~25 MB `max-buffer-size` (`25m`) for in-Region CloudWatch logging at up to ~5 MB/s per container** when the customer stays on non-blocking mode and cares about loss.
+- The 10 MiB default is not sized for high-throughput containers — treat any service logging multiple MB/s as a buffer-sizing conversation, and anything sustained above ~6 MB/s as a FireLens-with-filesystem-buffering conversation.
+- **Prefer in-Region delivery through the awslogs driver** — route in-Region and replicate at the destination instead. If cross-Region is unavoidable, the benchmark demands ≥ 40 MB buffer and < 2 MB/s output for low loss risk (advice: still route in-Region where possible).
 - Loss detection has no built-in signal. The only practical watch is comparing CloudWatch `IncomingLogEvents`/incoming bytes against expected application volume (framing borrowed from aws/agent-toolkit-for-aws@43e9d50, `references/ecs-logging-and-firelens.md:121` — cite, don't fork).
 
 ## awslogs configuration essentials
@@ -84,7 +84,7 @@ Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/d
 - `awslogs-stream-prefix` is **required on Fargate**, optional on the EC2 launch type, and required for logs to appear in the ECS console Logs pane.
 - EC2 launch type: requires container agent ≥ 1.9.0; custom AMIs must register the driver in `ECS_AVAILABLE_LOGGING_DRIVERS`.
 - Supported log drivers by launch type: **Fargate** = `awslogs`, `splunk`, `awsfirelens`; **EC2** = `awslogs`, `fluentd`, `gelf`, `json-file`, `journald`, `syslog`, `splunk`, `awsfirelens`. The extra Docker drivers are documented for EC2 only — do not extend them to Managed Instances or ECS Anywhere without verification.
-- Tasks in private subnets with no internet path need a CloudWatch Logs (`logs`) interface VPC endpoint for delivery.
+- Tasks in private subnets with no internet path need a CloudWatch Logs (`com.amazonaws.<region>.logs`) interface VPC endpoint for delivery (per https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch-logs-and-interface-VPC.html).
 
 ## FireLens (Fluent Bit) routing
 

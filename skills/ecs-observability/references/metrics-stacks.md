@@ -39,13 +39,13 @@ Mechanics common to both tiers:
 - Metrics arrive as performance log events (embedded metric format) in `/aws/ecs/containerinsights/<cluster>/performance`; aggregated metrics live in the `ECS/ContainerInsights` CloudWatch metric namespace.
 - Enablement: cluster setting `containerInsights` = `enabled` (standard) or `enhanced`, settable per cluster (`update-cluster-settings`) or account-wide (`put-account-setting-default`).
 - EC2 launch type requires ECS agent ≥ 1.29 on the instance.
-- Customer-managed KMS on the performance log group requires key-policy work; only symmetric keys are supported.
+- Customer-managed KMS on the performance log group requires key-policy work; CloudWatch Logs supports only symmetric KMS keys (per https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html).
 
 | | Standard (`enabled`) | Enhanced (`enhanced`) |
 |---|---|---|
 | Granularity | Task / service / cluster | Adds **container-level** metrics and per-TaskId dimensions |
 | Metric families | CPU/memory utilized+reserved, network rx/tx, storage r/w, ephemeral storage (Fargate PV ≥ 1.4.0), EBS filesystem (Fargate PV ≥ 1.4.0 or EC2 agent ≥ 1.79.0), task/service/deployment counts, RestartCount (restart-policy containers) | Adds ContainerCpu*/ContainerMemory*/ContainerNetwork*/ContainerStorage*, TaskCpuUtilization / TaskMemoryUtilization / TaskEphemeralStorageUtilization, UnHealthyContainerHealthStatus (health-check containers), Managed Daemon metrics (`ServiceName = daemon:<name>`), GPU/DCGM metrics (MI only — next section) |
-| Launch types (documented) | EC2 (agent ≥ 1.29), Fargate, Managed Instances | Fargate, Managed Instances, EC2 (released Dec 2024). EXTERNAL is not listed for either tier — don't claim it |
+| Launch types (documented) | EC2 (agent ≥ 1.29), Fargate, Managed Instances | Fargate, Managed Instances, EC2 (agent ≥ 1.29 applies to both tiers; the enhanced *tier* was released Dec 2024). EXTERNAL is not listed for either tier — don't claim it |
 | AWS's stance | Available | **Recommended** — AWS positions enhanced as the default choice ("reducing the mean time to resolution", per the deploy page) |
 
 Release date for enhanced observability: December 2024 (What's New: https://aws.amazon.com/about-aws/whats-new/2024/12/amazon-cloudwatch-container-insights-observability-ecs/).
@@ -80,7 +80,7 @@ Two documented ways to get Prometheus-format metrics off ECS (facts verified 202
 
 - The ADOT collector runs as a **sidecar container per task** (`public.ecr.aws/aws-observability/aws-otel-collector`), remote-writing task-level CPU/memory/network/storage and custom app metrics to an AMP workspace (`AWS_PROMETHEUS_ENDPOINT`, built-in `ecs-amp.yaml` config; custom config via SSM Parameter Store). The ECS console can inject the sidecar ("Use metric collection").
 - App exposes `/metrics` via Prometheus client libraries or uses the OTel SDK.
-- **Launch-type scope (quote the doc):** "supported for Amazon ECS workloads hosted on Fargate and Amazon ECS workloads hosted on Amazon EC2 instances. External instances aren't supported currently." Managed Instances is not enumerated on that page — the sidecar pattern is launch-type-agnostic in principle, but present MI support as verify-before-advising, and treat **EXTERNAL as unsupported, full stop**.
+- **Launch-type scope (quote the doc):** "supported for Amazon ECS workloads hosted on Fargate and Amazon ECS workloads hosted on Amazon EC2 instances. External instances aren't supported currently." Managed Instances is not enumerated on that page — verify before advising MI; treat **EXTERNAL as unsupported, full stop**.
 - Task role needs the collector's destination permissions (CloudWatch logs for collector logging, `cloudwatch:PutMetricData` or AMP remote-write per path).
 - Querying AMP needs Grafana or the API; Amazon Managed Grafana connects via the Prometheus data source with SigV4, and a dedicated AMP data source exists from AMG version 12 (per https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-query.html and https://docs.aws.amazon.com/grafana/latest/userguide/amazon-prometheus-data-source.html).
 

@@ -31,7 +31,7 @@ This page is generated from [skills/ecs-observability/references/native-visibili
 
 > Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_cwe_events.html and https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_service_events.html
 
-- ECS emits EventBridge events for: container instance state change, task state change, deployment state change, hook state change, service action, container instance health change, daemon deployment state change, and daemon service action. The `detail.version` field enables deduplication.
+- ECS emits EventBridge events for: container instance state change, task state change, deployment state change, hook state change, service action, container instance health change, daemon deployment state change, and daemon service action. For **container instance and task state-change events**, the `detail.version` field enables deduplication (events can be sent multiple times); **service action events carry `version` only in the main event body**, not in `detail` — don't build dedup logic on `detail.version` for those.
 - **Service action events** carry `eventType` INFO/WARN/ERROR — the ERROR set is the natural alerting hook: `SERVICE_TASK_PLACEMENT_FAILURE`, `SERVICE_DEPLOYMENT_FAILED`, `ECS_OPERATION_THROTTLED`. WARN includes `SERVICE_TASK_START_IMPAIRED`; INFO includes `SERVICE_STEADY_STATE`, `SERVICE_DEPLOYMENT_COMPLETED`.
 - **Service event messages** (console / `describe-services`) are the first stop for troubleshooting: the console shows the 100 most recent scheduler + Service Auto Scaling events; duplicate messages are suppressed until resolved or 6 hours elapse (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-event-messages.html).
 - Design cue: EventBridge rules on ERROR service actions + task state changes give deployment/placement alerting on every launch type with zero agents and zero per-metric cost — recommend this layer regardless of which metrics/traces stack wins.
@@ -62,7 +62,8 @@ Live interactive debugging over SSM Session Manager — no SSH, no inbound ports
 
 **VPC endpoint requirements — be precise, this is commonly gotten wrong:**
 
-- For tasks using interface VPC endpoints (or EC2-hosted `awsvpc` tasks with no internet path/NAT), ECS Exec requires the **`ssmmessages`** interface endpoint — the Session Manager channel endpoint. It does **not** require the full `ssm` + `ec2messages` + `ssmmessages` trio that generic SSM node management needs.
+- **For tasks in a VPC (EC2/Fargate/MI)** using interface VPC endpoints (or EC2-hosted `awsvpc` tasks with no internet path/NAT), ECS Exec requires the **`ssmmessages`** interface endpoint — the Session Manager channel endpoint. It does **not** require the full `ssm` + `ec2messages` + `ssmmessages` trio that generic SSM node management needs (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html).
+- **On EXTERNAL (ECS Anywhere), the "only ssmmessages" simplification does not apply:** the on-prem host must already reach `ssm.<region>.amazonaws.com`, `ec2messages.<region>.amazonaws.com`, and `ssmmessages.<region>.amazonaws.com` — SSM Agent registration and credential rotation depend on them, and Exec rides on that same SSM plumbing (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html).
 - Add a **KMS interface endpoint only if** you encrypt Exec sessions with your own customer-managed KMS key.
 - Cross-reference: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-privatelink.html
 
