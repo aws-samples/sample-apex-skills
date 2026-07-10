@@ -70,10 +70,11 @@ Before executing checks for any section, read the corresponding reference file f
    - `get`/`list` on `ingresses`, `ingressclasses` (networking.k8s.io/v1)
    - `get`/`list` on `deployments`, `daemonsets`, `services`, `pods` (apps/v1, v1)
    - `get`/`list` on `nodes` (v1)
-   - `get`/`list` on `gateways`, `httproutes`, `gatewayclasses` (gateway.networking.k8s.io/v1) — if CRDs installed
+   - `get`/`list` on `gateways`, `httproutes`, `gatewayclasses`, `grpcroutes` (gateway.networking.k8s.io/v1) — if CRDs installed
    - `get`/`list` on `configmaps` (v1) — ingress controller configuration discovery
    - `get`/`list` on `serviceaccounts` (v1) — IRSA verification for DNS/cert management
-   - `get`/`list` on `certificates`, `clusterissuers` (cert-manager.io/v1) — if CRDs installed
+   - `get`/`list` on `endpoints` (v1), `endpointslices` (discovery.k8s.io/v1) — backend health verification
+   - `get`/`list` on `clusterissuers`, `issuers` (cert-manager.io/v1) — if CRDs installed
    - `get`/`list` on `customresourcedefinitions` (apiextensions.k8s.io/v1) — CRD detection
 
 ## Assessment Workflow
@@ -116,7 +117,7 @@ Compile a discovery table:
 
 - If **0 clusters found** — produce an Assessment Error report (see error contract below).
 - If **1 cluster found** — proceed with that cluster automatically.
-- If **multiple clusters found** — assess ALL clusters. Produce one report file per cluster (`EKS-Ingress-Migration-<cluster>-<YYYY-MM-DD>.md`). Additionally write a discovery summary file `EKS-Ingress-Migration-Summary-<YYYY-MM-DD>.md` containing only the discovery table and per-cluster score/band.
+- If **multiple clusters found** — assess ALL clusters. Produce one report file per cluster (`EKS-Ingress-Migration-<cluster>-<YYYY-MM-DD>.md`). Additionally write a discovery summary file `EKS-Ingress-Migration-Summary-<YYYY-MM-DD>.md` containing the discovery table and per-cluster score/band (or ERROR for clusters where assessment failed).
 
 **Action 3 — For each discovered cluster, describe it**
 
@@ -188,7 +189,7 @@ Every report leads with a single **Migration Difficulty Score (0-100)** plus a s
 - **Deduction model, no artificial cap.** Start at 100, subtract weighted points per finding (Impact 5->10, 4->6, 3->4, 2->2, 1->1), cap per category, `score = max(0, 100 - sum)`. The score is **never** locked at a ceiling — a single hard route no longer flattens it.
 - **Re-architecture Gate (separate, informational):** routes needing redesign/approval (Lua/snippet/mirror, TLS passthrough/mTLS, cross-namespace ownership) are reported as a gate badge next to the score — they do not overwrite the number. Score = "how much work?"; gate = "does anything need a redesign decision?".
 - **Clean routes count at 0 effort:** an Ingress already on the ALB controller, Gateway API, or a supported 3rd-party controller contributes 0 and is excluded from the Volume work-count, so "X of N already done" is visible and lifts the score.
-- **Feature-gap is tiered:** features with no native ALB annotation but a standard workaround — **CORS** (app middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF) — are **Impact 2** (performance/hardening) or **3** (business-logic-entangled), never 4-5. Only no-workaround features (Lua/snippet/mirror/regex-capture) score heavy.
+- **Feature-gap is tiered:** features with no native ALB annotation but a standard workaround — **CORS** (app middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF) — default to **Impact 2** (performance/hardening) or **3** (business-logic-entangled). When the migration-path reference (e.g. alb-migration.md) rates a specific conversion as High, use that rating instead. Only no-workaround features (Lua/snippet/mirror/regex-capture) score heavy.
 - Bands: 90-100 TRIVIAL, 80-89 EASY, 70-79 MODERATE, 60-69 HARD, 0-59 VERY HARD.
 - The score is **derived from the findings, not a separate judgement** — it never overrides the team's choice of migration path. Full deterministic algorithm, category weights, gate logic, tiering rules, and the mandatory Score Breakdown table live in `references/report-generation.md` Step 1.
 
@@ -220,3 +221,5 @@ If a critical error prevents assessment (no clusters found, insufficient permiss
 ```
 
 When assessing multiple clusters and one fails, emit the error report for that cluster and continue assessing the remaining clusters.
+
+Write the error report to the per-cluster file: `EKS-Ingress-Migration-<cluster>-<YYYY-MM-DD>.md`. The Summary file shows ERROR in the score/band column for this cluster.

@@ -30,7 +30,7 @@ This file documents the differences between the Claude Code version and the DevO
 | `SKILL.md` | Rewritten execution model: fully autonomous (no interactive prompts, no hard-stops), multi-cluster assessment, error contract added, skip-list for porting-notes.md |
 | `SKILL.md` reference table | Upstream's conditional skip-list removed — the autonomous agent reads all reference files to assess all migration paths in a single pass |
 | `references/report-generation.md` | Rewritten for markdown-only output; removed HTML generation, manifest export, and topology.json references |
-| `references/traffic-routing.md` | Added DevOps Agent port note marking deep-inspection commands (pods/exec, pod creation) as inapplicable under read-only RBAC |
+| `references/traffic-routing.md` | Added DevOps Agent port note marking deep-inspection commands (pods/exec, pod creation) as inapplicable under read-only RBAC; removed stale topology-JSON and 3D-visualization references (lines 90, 94, 103) |
 | `references/migration-plan.md` | Added assessment-only framing note clarifying that mutating commands are documented steps, never executed |
 
 ## What Was Port-Authored
@@ -57,8 +57,8 @@ This file documents the differences between the Claude Code version and the DevO
 - `references/atx/td_ingress-nginx-lbc/document_references/navigating-nginx-ingress-retirement.md`
 
 **Sample YAML (16):**
-- `references/samples/alb/01–08-*.yaml` (8 files)
-- `references/samples/nginx/01–08-*.yaml` (8 files)
+- `references/samples/alb/01-through-08-*.yaml` (8 files each)
+- `references/samples/nginx/01-through-08-*.yaml` (8 files each)
 
 > **Known upstream issue:** `ingress-resources.md:91` contains a stale "for the 3D visualization" reference inherited from upstream; intentionally preserved as a byte-copy (filed as upstream issue).
 
@@ -66,10 +66,10 @@ This file documents the differences between the Claude Code version and the DevO
 
 | Aspect | Claude Code | DevOps Agent |
 |--------|-------------|--------------|
-| Tool access | `aws` CLI, `kubectl`, EKS MCP server | AWS APIs and Kubernetes APIs via Agent Space |
-| MCP | No `.mcp.json` required; upstream uses Claude Code tool calls (Bash, Read) for cluster access | No MCP — the port uses AWS DevOps Agent's native Kubernetes API integration via AmazonAIOpsAssistantPolicy |
+| Tool access | EKS MCP server (primary), `aws` CLI + `kubectl` (fallback) | AWS APIs and Kubernetes APIs via Agent Space |
+| MCP | EKS MCP server for cluster operations; falls back to aws CLI + kubectl when MCP unavailable | No MCP — native Kubernetes API integration via AmazonAIOpsAssistantPolicy |
 | Script execution | Python scripts in `tools/` | None — no scripts directory, no runtime |
 | Interactive prompts | Shows discovery table, asks user to choose cluster | Fully autonomous — assesses all discovered clusters |
 | RBAC posture | Full cluster access (user's kubeconfig) | Read-only Agent Space role (get/list only) |
-| Cluster selection | Single cluster, user-confirmed | All clusters assessed; separate report section per cluster |
+| Cluster selection | Multi-region discovery, user selects cluster(s) | All clusters assessed; one report file per cluster + summary file |
 | Report format | Markdown + HTML + topology JSON + manifest YAML | Markdown only |
