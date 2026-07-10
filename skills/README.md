@@ -335,6 +335,21 @@ Use when choosing and architecting an Amazon ECS deployment model for a NEW work
 
 ---
 
+### [ecs-devops](./ecs-devops/)
+
+Use when someone is deploying, releasing, or shipping software to Amazon ECS — phrased as "blue/green deployment on ECS", "canary deployment for my ECS service", "ECS rolling update settings", "set up CI/CD for ECS", "GitHub Actions deploy to Fargate", "my ECS deployment is stuck", "roll back an ECS deployment", "ECS deployment circuit breaker", "ECS task sets", or "migrate off CodeDeploy blue/green". Covers strategy selection (rolling / native blue-green / linear / canary), lifecycle hooks, circuit-breaker and alarm rollback, and pipelines (CodePipeline, GitHub Actions, ECR scanning) — scoped per launch type (EC2, Fargate, Managed Instances, ECS Anywhere). Trigger even if "deployment strategy" is never said — any release-safety, traffic-shifting, rollback, or pipeline decision for an ECS service qualifies. Skip for EKS/Kubernetes (use eks-* skills) and greenfield ECS architecture with no release angle. For ECS monitoring stacks use ecs-observability (once available); for GPU/ML on ECS use ecs-genai.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [cicd-pipelines.md](./ecs-devops/references/cicd-pipelines.md) | Cicd pipelines |
+| [controllers-and-migration.md](./ecs-devops/references/controllers-and-migration.md) | Controllers and migration |
+| [deployment-strategies.md](./ecs-devops/references/deployment-strategies.md) | Deployment strategies |
+| [failure-detection-and-rollback.md](./ecs-devops/references/failure-detection-and-rollback.md) | Failure detection and rollback |
+
+---
+
 ### [ecs-genai](./ecs-genai/)
 
 Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS — GPU on ECS, ECS GPU-optimized AMI, g4dn/g5/g6/p4/p5 on ECS, which ECS launch type for GPU, Inferentia/Trainium/Neuron on ECS, distributed training on ECS, model inference on ECS, Capacity Blocks for ECS, GPU sharing, or ASG per GPU type. Covers GPU compute on ECS-on-EC2 and ECS Managed Instances (GPU-optimized AMIs, NVIDIA runtime, instance families); the capacity pattern where mixed-instance ASGs are supported but constrained (no weighting; managed scaling protects on the smallest type, so one homogeneous ASG per GPU type is best practice); Capacity Blocks; inference/serving; Neuron; distributed ML; GPU observability; a GPU/ML security slice. AWS Fargate has NO GPU — use ECS-on-EC2, Managed Instances, or ECS Anywhere. Trigger even if GenAI is unsaid. Use eks-genai for Kubernetes/EKS; SageMaker for fully-managed ML; Bedrock for managed foundation models; ecs-architect for non-accelerator ECS design; ecs-security for deep compliance.
