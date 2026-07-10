@@ -106,6 +106,7 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 - 🟢 GREEN: Spot used with an On-Demand `base` for critical services (interruption-tolerant design); EC2 Spot ASGs diversify across ≥ 3 instance types + multiple AZs with `capacityRebalancing` on.
 - 🟡 AMBER: Spot used for stateful/critical services with no On-Demand base, or an EC2 Spot ASG on only 1–2 instance types (concentrated capacity-pool risk).
 - 🔴 RED: 100% Spot for a production, interruption-sensitive service with no fallback, or a single-instance-type Spot ASG behind a production service.
+- ⚪ N/A: No Spot capacity in use anywhere in the estate (no `FARGATE_SPOT` in any strategy, no Spot in any ASG `MixedInstancesPolicy`) — there is no Spot posture to rate.
 - ⬜ UNKNOWN: Cannot determine workload criticality — flag for manual review. Dollar-level Spot economics → **`ecs-cost-intelligence`**.
 
 **Note:** This item rates *resilience of the Spot posture*, not cost savings. Deep Spot-strategy and TCO analysis belongs to `ecs-cost-intelligence`. See [best practices for handling EC2 Spot interruptions](https://aws.amazon.com/blogs/compute/best-practices-for-handling-ec2-spot-instance-interruptions/).

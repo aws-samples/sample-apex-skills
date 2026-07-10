@@ -70,11 +70,15 @@ Constraints: at most one container definition may specify `NeuronDevice`; you ca
 ```json
 {
   "instanceRequirements": {
+    "vCpuCount": { "min": 4 },
+    "memoryMiB": { "min": 16384 },
     "acceleratorManufacturers": ["amazon-web-services"],
     "allowedInstanceTypes": ["inf2.*", "trn1.*"]
   }
 }
 ```
+
+`vCpuCount` and `memoryMiB` are **required** fields of `instanceRequirements` (`Required: Yes` in the API reference — a request without them fails validation; AWS's own ecs-inference.html example omits them). Size the min values to your smallest acceptable instance. ([`InstanceRequirementsRequest`](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_InstanceRequirementsRequest.html), verified 2026-07-10)
 
 > **API caveat:** [ecs-inference.html](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html) suggests `acceleratorNames` values `inferentia2`/`trainium`/`trainium2`, but the ECS API reference's [`InstanceRequirementsRequest.acceleratorNames`](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_InstanceRequirementsRequest.html) valid-values enum (`a100 | inferentia | k520 | k80 | m60 | radeon-pro-v520 | t4 | vu9p | v100 | a10g | h100 | t4g`, verified 2026-07-10) contains **none of those values** — only first-gen `inferentia`. Don't rely on Neuron `acceleratorNames`; select via `acceleratorManufacturers: ["amazon-web-services"]` and `allowedInstanceTypes`, and scope to Inf2/Trn1 per the MI supported list.
 

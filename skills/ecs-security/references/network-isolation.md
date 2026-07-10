@@ -33,7 +33,7 @@ For tasks in fully private subnets (no NAT), or to keep sensitive traffic off th
 
 For **ECS on EC2 in a fully private VPC**, the container instances *also* need the ECS control-plane endpoints so the agent can register and poll: `com.amazonaws.region.ecs-agent`, `com.amazonaws.region.ecs-telemetry`, and `com.amazonaws.region.ecs` (agent **1.25.1+**; restart the agent after creating them). These are not needed on Fargate. Reference: [ECS interface VPC endpoints](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/vpc-endpoints.html).
 
-References: [ECR interface VPC endpoints (PrivateLink)](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html) · [connect to Secrets Manager within a VPC](https://docs.aws.amazon.com/secretsmanager/latest/userguide/setup-create-vpc.html).
+References: [ECR interface VPC endpoints (PrivateLink)](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html) · [Secrets Manager VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html).
 
 > **Two easy-to-miss endpoint gotchas:**
 > - **ECR needs the S3 gateway endpoint**, not just the two ECR interface endpoints — image *layers* live in S3, so a private pull fails without it.
@@ -66,4 +66,4 @@ For service-to-service across VPCs or accounts, use **Service Connect** or **VPC
 
 ## Sources
 - [Network security best practices for Amazon ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-network.html) · [ECS Best Practices: Security](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/security.html)
-- [ECR interface VPC endpoints (PrivateLink)](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html) · [ECS interface VPC endpoints (ecs-agent/ecs-telemetry/ecs)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/vpc-endpoints.html) · [Connect to Secrets Manager within a VPC](https://docs.aws.amazon.com/secretsmanager/latest/userguide/setup-create-vpc.html) · [ECS-Fargate runtime coverage / endpoints](https://docs.aws.amazon.com/guardduty/latest/ug/gdu-assess-coverage-ecs.html) · [ECS Exec (ssmmessages/kms endpoints)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html)
+- [ECR interface VPC endpoints (PrivateLink)](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html) · [ECS interface VPC endpoints (ecs-agent/ecs-telemetry/ecs)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/vpc-endpoints.html) · [Using an AWS Secrets Manager VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html) · [ECS-Fargate runtime coverage / endpoints](https://docs.aws.amazon.com/guardduty/latest/ug/gdu-assess-coverage-ecs.html) · [ECS Exec (ssmmessages/kms endpoints)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html)

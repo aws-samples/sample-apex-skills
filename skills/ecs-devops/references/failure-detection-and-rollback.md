@@ -69,7 +69,7 @@ Sources: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-
 - **Gotchas (both documented):**
   - ECS polls alarms via `DescribeAlarms`, which counts against CloudWatch API quotas — heavy account-wide `DescribeAlarms` usage can throttle ECS's polling, causing a **missed alarm and a skipped rollback**.
   - If an alarm is already in `ALARM` state when the deployment starts, ECS **ignores the alarm configuration for that deployment** — deliberately, so you can deploy a fix for the very thing that is alarming.
-- Recommended alarm metrics (from the doc): ALB `HTTPCode_ELB_5XX_Count` / `HTTPCode_ELB_4XX_Count`, service `CPUUtilization` / `MemoryUtilization`, SQS `ApproximateNumberOfMessagesNotVisible`. Choose metrics that regress quickly when a bad revision ships. (For designing the broader alarm/dashboard stack, route to the `ecs-observability` skill once available; until then, answer from general knowledge.)
+- Recommended alarm metrics (from the doc): ALB `HTTPCode_ELB_5XX_Count` / `HTTPCode_ELB_4XX_Count`, service `CPUUtilization` / `MemoryUtilization`, SQS `ApproximateNumberOfMessagesNotVisible`. Choose metrics that regress quickly when a bad revision ships. (For designing the broader alarm/dashboard stack, route to the `ecs-observability` skill.)
 
 Launch-type note: alarm detection is metric-driven; the docs scope it only by deployment controller, and EC2/Fargate are covered explicitly. Managed Instances support is **inferred, not explicitly documented as of 2026-07-10 — verify** (same posture as the ECS Anywhere circuit-breaker caveat above). On ECS Anywhere there is no ELB, so any alarm use there must rest on service/application metrics, not ALB metrics.
 
@@ -115,4 +115,4 @@ Sources: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-
 - ECS emits **EventBridge service-deployment state-change events** — alert on `eventName = SERVICE_DEPLOYMENT_FAILED`. Rollback-initiated deployments carry a `reason` field indicating the rollback.
 - `aws ecs describe-service-deployments` shows deployment/hook detail (including `lifecycleHookDetails` with pause-hook `hookId`s).
 - Pause hooks emit `ECS Hook State Change` events with status `HOOK_AWAITING_ACTION` — the trigger for approval workflows.
-- Building the dashboards/alerting stack around these events is `ecs-observability` territory (once available; answer from general knowledge until then); this skill owns which events matter for release safety.
+- Building the dashboards/alerting stack around these events is `ecs-observability` territory; this skill owns which events matter for release safety.

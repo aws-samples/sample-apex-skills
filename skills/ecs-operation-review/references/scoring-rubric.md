@@ -19,7 +19,7 @@ N/A deliberately uses a **different emoji (⚪)** from UNKNOWN (⬜) so the two 
 - **UNKNOWN** = the check *applies* but the data could not be obtained (permission denied, timeout, ambiguous evidence). UNKNOWN items **go on the "Investigate Manually" list**.
 - **N/A** = the check *does not apply* to this estate by design — e.g., an EC2-ASG-only check on a Fargate-only estate, GuardDuty Runtime Monitoring on a Managed-Instances-only estate (7.4), or a Windows/ECS-Anywhere/Express-Mode workload where a Linux/Fargate assumption doesn't hold. State the reason inline.
 
-**N/A items are excluded from BOTH the maturity-score table AND the "Investigate Manually" list** — there is nothing to investigate and nothing to score. They may be listed in a short "Not applicable (with reason)" note if useful, but they never affect counts or percentages. Checks with a dedicated "⚪ N/A:" branch in their reference files: 1.2, 1.3, 1.4, 1.6, 2.5, 2.6, 5.1, 5.2, 5.3, 6.5, 7.4, 8.3. Any other check may still be marked N/A when a standing scope limitation applies (Express Mode, Windows, ECS Anywhere — see `SKILL.md`, Scope & limitations); state the reason inline.
+**N/A items are excluded from BOTH the maturity-score table AND the "Investigate Manually" list** — there is nothing to investigate and nothing to score. They may be listed in a short "Not applicable (with reason)" note if useful, but they never affect counts or percentages. Checks with a dedicated "⚪ N/A:" branch in their reference files: 1.2, 1.3, 1.4, 1.5, 1.6, 2.5, 2.6, 4.1, 5.1, 5.2, 5.3, 6.5, 7.4, 8.3. Any other check may still be marked N/A when a standing scope limitation applies (Express Mode, Windows, ECS Anywhere — see `SKILL.md`, Scope & limitations); state the reason inline.
 
 ## Rules
 
