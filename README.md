@@ -99,7 +99,7 @@ Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill l
 
 <table>
 <tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/"><b>ecs-architect</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-devops/"><b>ecs-devops</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-genai/"><b>ecs-genai</b></a></td></tr>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-operation-review/"><b>ecs-operation-review</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/"><b>ecs-security</b></a></td><td></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/"><b>ecs-observability</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-operation-review/"><b>ecs-operation-review</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/"><b>ecs-security</b></a></td></tr>
 </table>
 
 ### General

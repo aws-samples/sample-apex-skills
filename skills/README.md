@@ -371,6 +371,22 @@ Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS — GP
 
 ---
 
+### [ecs-observability](./ecs-observability/)
+
+Advise on Amazon ECS observability architecture — select the logs/metrics/traces stack (CloudWatch, Container Insights, X-Ray, ADOT/OpenTelemetry, Managed Prometheus/Grafana, FireLens to third-party) by compliance needs, existing tooling, scale, budget, and launch types (EC2, Fargate, Managed Instances, ECS Anywhere). Use for "how should we monitor our ECS services", "Container Insights or Prometheus for ECS", "are we losing ECS container logs", "set up tracing on Fargate", "ECS logging best practices", "Datadog vs CloudWatch for ECS", "GPU metrics for ECS tasks", or "plan live-debug access to an ECS task". Any ECS logging, metrics, tracing, or alerting design question qualifies even if "observability" is never said. Skip for EKS/Kubernetes (eks-* skills), deployment mechanics/CI-CD/deploy-failure diagnosis (ecs-devops; deploy-failure alerting stays here), security posture beyond observability audit logging (ecs-security), live-estate audits (ecs-operation-review), and FinOps audits of observability spend.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [launch-type-matrix.md](./ecs-observability/references/launch-type-matrix.md) | Launch type matrix |
+| [log-delivery.md](./ecs-observability/references/log-delivery.md) | Log delivery |
+| [metrics-stacks.md](./ecs-observability/references/metrics-stacks.md) | Metrics stacks |
+| [native-visibility-and-exec.md](./ecs-observability/references/native-visibility-and-exec.md) | Native visibility and exec |
+| [tracing-and-signals.md](./ecs-observability/references/tracing-and-signals.md) | Tracing and signals |
+
+---
+
 ### [ecs-operation-review](./ecs-operation-review/)
 
 Run a structured Amazon ECS operational-excellence assessment against a live estate and score it GREEN/AMBER/RED. Skip for EKS/Kubernetes (use eks-operation-review). Covers 8 domains — clusters & capacity, networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (grace period, draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for "audit my ECS estate", "ECS health check", "score my ECS posture", "review my ECS services", "GREEN/AMBER/RED my ECS clusters", including section-scoped reviews of a single domain. For Day-0 design/selection use ecs-architect; for deep security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for CI/CD engineering use ecs-devops; for replatform/refactor use ecs-modernize; for read-only inventory/discovery use ecs-recon (siblings once available).
