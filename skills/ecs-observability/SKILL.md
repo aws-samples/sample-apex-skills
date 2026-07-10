@@ -1,6 +1,6 @@
 ---
 name: ecs-observability
-description: "Advise on observability architecture for Amazon ECS — select the logs/metrics/traces stack (CloudWatch, Container Insights standard vs enhanced, X-Ray, ADOT/OpenTelemetry, Amazon Managed Prometheus/Grafana, FireLens to third-party) by compliance needs, existing tooling, scale, budget, and launch types in use (EC2, Fargate, Managed Instances, ECS Anywhere). Use when someone asks \"how should we monitor our ECS services\", \"Container Insights or Prometheus for ECS\", \"are we losing container logs\", \"set up tracing on Fargate\", \"ECS logging best practices\", \"Datadog vs CloudWatch for ECS\", \"GPU metrics for ECS tasks\", or \"how do I debug a running ECS task\". Trigger even if \"observability\" is never said — any ECS logging, metrics, tracing, alerting, or debugging-visibility design question qualifies. Skip for EKS/Kubernetes (eks-* skills), deployment mechanics/CI-CD (ecs-devops, when available; deployment-failure alerting stays here), and security posture beyond Exec session audit (ecs-security, when available)."
+description: 'Advise on Amazon ECS observability architecture — select the logs/metrics/traces stack (CloudWatch, Container Insights, X-Ray, ADOT/OpenTelemetry, Managed Prometheus/Grafana, FireLens to third-party) by compliance needs, existing tooling, scale, budget, and launch types (EC2, Fargate, Managed Instances, ECS Anywhere). Use for "how should we monitor our ECS services", "Container Insights or Prometheus for ECS", "are we losing ECS container logs", "set up tracing on Fargate", "ECS logging best practices", "Datadog vs CloudWatch for ECS", "GPU metrics for ECS tasks", or "plan live-debug access to an ECS task". Any ECS logging, metrics, tracing, or alerting design question qualifies even if "observability" is never said. Skip for EKS/Kubernetes (eks-* skills), deployment mechanics/CI-CD/deploy-failure diagnosis (ecs-devops; deploy-failure alerting stays here), security posture beyond observability audit logging (ecs-security), live-estate audits (ecs-operation-review), and FinOps audits of observability spend.'
 ---
 
 # ECS Observability
@@ -21,7 +21,7 @@ Advisory skill for designing the observability architecture of Amazon ECS worklo
 - Weigh compliance requirements (no log loss, session auditing, KMS encryption) against availability and cost
 
 **Do NOT use this skill for:**
-- EKS or any Kubernetes observability → use `eks-operation-review` or the `eks-*` skills
+- EKS or any Kubernetes observability → use `eks-best-practices` (design guidance) or `eks-operation-review` (live-cluster audit), or the other `eks-*` skills
 - ECS deployment *mechanics* — circuit breaker configuration, rollback strategy, CI/CD pipelines → use `ecs-devops` (once available). Deployment-failure *alerting and visibility* (e.g., EventBridge on `SERVICE_DEPLOYMENT_FAILED`) stays here.
 - ECS security posture, IAM hardening, compliance audits beyond observability's audit-logging angle → use `ecs-security` (once available)
 - Scoring or auditing a live ECS estate against a rubric → use `ecs-operation-review` (once available)
@@ -43,7 +43,7 @@ Elicit these five criteria before recommending a stack — each one prunes the o
 
 ### Default recommendation shape
 
-For a CloudWatch-centric customer with no contrary criteria (EC2/Fargate/MI fleets — EXTERNAL needs a different shape, since ADOT and Container Insights are not documented there): **awslogs (with an explicit, documented delivery-mode decision) + Container Insights enhanced + ADOT sidecar for traces + EventBridge alerting on service action ERROR events.** Enhanced is AWS's recommended Container Insights tier (per https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-ECS-cluster.html). Deviate per the criteria above.
+For a CloudWatch-centric customer with no contrary criteria (EC2/Fargate fleets — EXTERNAL needs a different shape, since ADOT and Container Insights are not documented there): **awslogs (with an explicit, documented delivery-mode decision) + Container Insights enhanced + ADOT sidecar for traces + EventBridge alerting on service action ERROR events.** Enhanced is AWS's recommended Container Insights tier (per https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-ECS-cluster.html) — but it adds container-level metric cardinality, a cost lever to surface (Advisory Rule 3; cost posture in [references/metrics-stacks.md](references/metrics-stacks.md)). For MI fleets the logs + metrics + EventBridge parts carry over, but the ADOT-sidecar tracing leg is **not documented for Managed Instances as of 2026-07-10** (the ADOT integration page enumerates Fargate + EC2 only, per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/application-metrics-prometheus.html) — verify against the live doc before recommending it there (see the matrix's ADOT row). Deviate per the criteria above.
 
 ## Logs — the decision gate every engagement must surface
 
@@ -51,7 +51,7 @@ For a CloudWatch-centric customer with no contrary criteria (EC2/Fargate/MI flee
 
 **Since June 25, 2025, the ECS default log delivery mode is `non-blocking`** — and non-blocking mode **silently drops logs** when its in-memory buffer (default `max-buffer-size`: 10 MiB) fills. No metric, no daemon log line, no signal (per https://aws.amazon.com/blogs/containers/preventing-log-loss-with-non-blocking-mode-in-the-awslogs-container-log-driver/). The alternative, `blocking`, preserves every record but can hang the application and fail health checks if the log pipeline backs up. This is a **compliance-versus-availability decision**, and since the 2025 default change the risky posture is what customers get by *not* deciding:
 
-- **Availability-first** (user-facing services, tolerable loss): keep `non-blocking`, size `max-buffer-size` to ~25 MB for in-Region delivery at up to ~5 MB/s per container (AWS benchmark guidance); above 6 MB/s AWS calls the driver's behavior "less predictable and consistent" — that becomes a FireLens conversation (see reference). Document the accepted loss risk.
+- **Availability-first** (user-facing services, tolerable loss): keep `non-blocking`, size `max-buffer-size` to ~25 MB for in-Region delivery at up to ~5 MB/s per container (AWS benchmark guidance — "no observed loss" in AWS's test runs, not a guarantee); above 6 MB/s AWS calls the driver's behavior "less predictable and consistent" — that becomes a FireLens conversation (see reference). Document the accepted loss risk.
 - **Completeness-first** (audit/financial/security logs): set `mode: blocking` per container or set the `defaultLogDriverMode` account setting — a **per-Region** setting, repeat it in every Region running tasks — and accept that a CloudWatch disruption can stall the app.
 - **Both required**: FireLens (Fluent Bit) with filesystem buffering — loss-resistant without blocking stdout/stderr.
 - Always audit the effective account default first: `aws ecs list-account-settings --name defaultLogDriverMode --effective-settings`.
@@ -64,20 +64,20 @@ FireLens is also the usual routing layer when the destination is not CloudWatch 
 
 > Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cloudwatch-container-insights.html and https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-enhanced-observability-metrics-ECS.html
 
-- **Standard** Container Insights (`containerInsights=enabled`): task/service/cluster-level metrics. **Enhanced** (`enhanced`, released Dec 2024): adds container-level metrics, per-TaskId dimensions, and health-status metrics — **AWS's recommended default**. Documented launch types: EC2 (agent ≥ 1.29), Fargate, Managed Instances; EXTERNAL is not listed — don't claim it.
+- **Standard** Container Insights (`containerInsights=enabled`): task/service/cluster-level metrics. **Enhanced** (`enhanced`, released Dec 2024): adds container-level metrics, per-TaskId dimensions, and health-status metrics — **AWS's recommended default**, at the cost of more metric series (cardinality is the main cost lever — link https://aws.amazon.com/cloudwatch/pricing/, never quote prices). Documented launch types: EC2 (agent ≥ 1.29), Fargate, Managed Instances; EXTERNAL is not listed — don't claim it.
 - **GPU telemetry is the sharpest launch-type trap:** agentless GPU/DCGM metrics (utilization, memory, power, temperature at container/task/instance level) are **Managed Instances-ONLY** and require enhanced CI (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/monitoring-managed-instances.html). The **EC2 launch type gets only the free GPU *reservation* metric** — GPU utilization there means customer-managed DCGM/CloudWatch-agent tooling. Never generalize in either direction.
-- Prometheus/Grafana route: ADOT sidecar remote-writes to Amazon Managed Service for Prometheus, visualized in Amazon Managed Grafana — **documented for Fargate and EC2; "External instances aren't supported currently"** (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/application-metrics-prometheus.html); MI undocumented — verify before advising. Alternative keeping data in CloudWatch: the CloudWatch agent's Prometheus scrape support.
+- Prometheus/Grafana route: ADOT sidecar remote-writes to Amazon Managed Service for Prometheus, visualized in Amazon Managed Grafana — **documented for Fargate and EC2 only; EXTERNAL explicitly unsupported, MI not documented as of 2026-07-10** (see the ADOT row of [references/launch-type-matrix.md](references/launch-type-matrix.md) for the source quote) — verify before advising MI. Alternative keeping data in CloudWatch: the CloudWatch agent's Prometheus scrape support.
 - Zero-cost floor available everywhere: free vended CPU/memory metrics + EventBridge service/task/deployment events + container health checks.
 
 **For metric tables, instance-level collection, and AMP vs CloudWatch-agent-Prometheus selection, see:** [Metrics Stacks Reference](references/metrics-stacks.md)
 
 ## Traces — OTel is the path; X-Ray SDK/daemon is legacy
 
-> Facts verified 2026-07-09 against https://docs.aws.amazon.com/xray/latest/devguide/xray-sdk-daemon-timeline.html
+> Facts verified 2026-07-10 against https://docs.aws.amazon.com/xray/latest/devguide/xray-sdk-daemon-timeline.html
 
-- **The X-Ray SDKs and daemon entered maintenance mode on February 25, 2026** (security fixes only); AWS recommends OpenTelemetry. Steer all new tracing to the **ADOT sidecar collector** (`public.ecr.aws/aws-observability/aws-otel-collector`), which still delivers traces to the X-Ray backend — the backend service itself is not in maintenance mode.
-- **CloudWatch Application Signals on ECS is custom setup with no autodiscovery** — service names are wired via env vars. Sidecar strategy: EC2 + Fargate, requires `awsvpc`. Daemon strategy: one agent per cluster, **excludes Fargate**. MI/EXTERNAL: undocumented for both strategies.
-- Placement rule: Fargate → sidecar only (no host access); EC2 → sidecar or daemon-scheduled collector; MI → sidecar (daemon-collector support undocumented — verify); EXTERNAL → ADOT unsupported.
+- **The X-Ray SDKs and daemon entered maintenance mode on February 25, 2026** (security fixes only); AWS recommends OpenTelemetry. Steer all new tracing to the **ADOT sidecar collector** (`public.ecr.aws/aws-observability/aws-otel-collector`), which still delivers traces to the X-Ray backend — the maintenance-mode timeline names only the SDKs and daemon, not the backend service (inference from https://docs.aws.amazon.com/xray/latest/devguide/xray-sdk-daemon-timeline.html, which covers SDKs/daemon only; the migration guide keeps X-Ray as the trace destination).
+- **CloudWatch Application Signals on ECS is custom setup with no autodiscovery** — service names are wired via env vars. Sidecar strategy: EC2 + Fargate, requires `awsvpc`. Daemon strategy: one agent per cluster, **excludes Fargate**. MI: not documented for either strategy as of 2026-07-10; EXTERNAL: sidecar structurally excluded (`awsvpc` required), daemon undocumented (see the App Signals rows of the matrix).
+- Placement rule: Fargate → sidecar only (no host access); EC2 → sidecar or daemon-scheduled collector; MI → **neither pattern is documented as of 2026-07-10** (the ADOT page enumerates Fargate + EC2 only — per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/application-metrics-prometheus.html; verify against the live doc before advising, see the matrix's ADOT row); EXTERNAL → ADOT unsupported.
 
 **For migration gotchas, IAM, and Application Signals strategy details, see:** [Tracing and Signals Reference](references/tracing-and-signals.md)
 
@@ -93,7 +93,7 @@ FireLens is also the usual routing layer when the destination is not CloudWatch 
 
 ## Launch-Type Discipline
 
-Before asserting any capability, check [references/launch-type-matrix.md](references/launch-type-matrix.md) — the per-capability EC2/Fargate/MI/EXTERNAL matrix with a source URL per row. The recurring traps:
+Before asserting any capability, check [references/launch-type-matrix.md](references/launch-type-matrix.md) — the per-capability EC2/Fargate/MI/EXTERNAL matrix with a source URL per row. The matrix is the single source of truth for these facts; the recurring traps (restated here per the matrix, verified 2026-07-10 — re-check the matrix row before load-bearing use):
 
 - Agentless GPU/DCGM → **MI only** (EC2 gets reservation-only).
 - ADOT/AMP → documented for **Fargate + EC2**; EXTERNAL explicitly unsupported; **MI undocumented — verify before advising**.

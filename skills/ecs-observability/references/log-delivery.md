@@ -37,6 +37,8 @@ So the customer is choosing between two failure modes:
 | `non-blocking` (default since 2025-06-25) | Buffer fills → newest logs silently dropped | **Availability** | User-facing services where uptime beats log completeness; loss tolerance documented |
 | `blocking` (pre-2025 default) | stdout/stderr writes stall → app may hang, health checks fail, task may be replaced | **Log completeness** | Audit, financial, security, or regulated logs where a dropped record is a compliance event |
 
+> **Regulated shops: this table is not the whole menu.** If the requirement is completeness **and** availability, neither awslogs mode is the answer — see [FireLens with filesystem buffering](#firelens-fluent-bit-routing) below before choosing `blocking`.
+
 How to set it:
 
 - Per container: `logConfiguration.options.mode: "blocking"` in the container definition.
@@ -67,35 +69,37 @@ Practical guidance derived from that blog:
 
 ## awslogs configuration essentials
 
-Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html and https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_LogConfiguration.html:
+Facts verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html and https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_LogConfiguration.html:
 
 - IAM: `logs:CreateLogStream` and `logs:PutLogEvents`, normally on the **task execution role** (`ecsTaskExecutionRole`).
-- `awslogs-stream-prefix` is **required on Fargate**, optional on the EC2 launch type, and required for logs to appear in the ECS console Logs pane.
+- `awslogs-stream-prefix` is **required on Fargate**, optional on the EC2 launch type, and required for logs to appear in the ECS console Logs pane. The API reference scopes this option to Fargate/EC2 only — its requirement status on Managed Instances and EXTERNAL is not documented as of 2026-07-10; verify before asserting either way (the MI getting-started example does set it: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/getting-started-managed-instances.html).
 - EC2 launch type: requires container agent ≥ 1.9.0; custom AMIs must register the driver in `ECS_AVAILABLE_LOGGING_DRIVERS`.
-- Supported log drivers by launch type: **Fargate** = `awslogs`, `splunk`, `awsfirelens`; **EC2** = `awslogs`, `fluentd`, `gelf`, `json-file`, `journald`, `syslog`, `splunk`, `awsfirelens`. The extra Docker drivers are documented for EC2 only — do not extend them to Managed Instances or ECS Anywhere without verification.
+- Supported log drivers by launch type: **Fargate** = `awslogs`, `splunk`, `awsfirelens`; **EC2** = `awslogs`, `fluentd`, `gelf`, `json-file`, `journald`, `syslog`, `splunk`, `awsfirelens`. The API reference enumerates only these two launch types — for **Managed Instances and EXTERNAL** the driver set is not documented there as of 2026-07-10 (`awslogs` itself is documented on both — see the matrix's awslogs row); do not extend the extra Docker drivers to MI or ECS Anywhere without verification.
 - Tasks in private subnets with no internet path need a CloudWatch Logs (`com.amazonaws.<region>.logs`) interface VPC endpoint for delivery (per https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch-logs-and-interface-VPC.html).
 
 ## FireLens (Fluent Bit) routing
 
-Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_firelens.html:
+Facts verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_firelens.html:
 
 - FireLens (`awsfirelens` log driver) routes container stdout/stderr to AWS services or AWS Partner destinations via Fluent Bit or Fluentd; AWS publishes the `aws-for-fluent-bit` image. Documented destinations with first-class options: Firehose, Kinesis Data Streams, OpenSearch Service, S3, plus partner outputs (Splunk, Datadog, etc.) via Fluent Bit output plugins (per https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_LogConfiguration.html).
-- **Launch-type scope: FireLens is documented for Linux tasks on Fargate and on the EC2 launch type. Windows containers do not support FireLens. Managed Instances and ECS Anywhere (EXTERNAL) support is not stated in the FireLens documentation — verify against current AWS docs before advising FireLens on those launch types.**
+- **Launch-type scope: FireLens is documented for Linux tasks on Fargate and on the EC2 launch type. Windows containers do not support FireLens** — for Windows customers the FireLens page itself points to running Fluent Bit directly (https://aws.amazon.com/blogs/containers/centralized-logging-for-windows-containers-on-amazon-ecs-using-fluent-bit/) as the alternative. **Managed Instances and ECS Anywhere (EXTERNAL) support is not stated in the FireLens documentation as of 2026-07-10 — verify against current AWS docs before advising FireLens on those launch types.**
 - FireLens adds ECS metadata (`ecs_cluster`, `ecs_task_arn`, `ecs_task_definition`) to records by default (disable with `enable-ecs-log-metadata: false`); ECS auto-orders the router container to start before and stop after app containers.
-- Security: the router listens on TCP 24224 — do not allow inbound on that port in task or instance security groups.
-- IAM split that trips people up: **destination permissions (e.g., `firehose:PutRecordBatch`) go on the task role** — Fluent Bit runs as the task; custom config pulled from S3 needs `s3:GetObject` on the **task execution role**. Fluent Bit can run as non-root with agent ≥ 1.96.0 and ECS-optimized AMI ≥ v20250716.
-- Operational rules worth restating (framing per aws/agent-toolkit-for-aws@43e9d50, `references/ecs-logging-and-firelens.md:240-248` — verified consistent with the AWS FireLens docs): the log-router container should be essential (otherwise app logs silently stop while the task keeps running), and the router's own logs should use `awslogs`, never `awsfirelens` (self-routing can prevent task start).
+- Security: the router listens on port 24224 (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_firelens.html; when running as non-root it receives logs over a UNIX socket instead) — do not allow inbound on that port in task or instance security groups.
+- IAM split that trips people up: **destination permissions (e.g., `firehose:PutRecordBatch`) go on the task role** — Fluent Bit runs as the task; custom config pulled from S3 needs `s3:GetObject` on the **task execution role**. Fluent Bit can run as non-root with agent ≥ 1.96.0 and ECS-optimized AMI ≥ v20250716 — an ECS-optimized-AMI (EC2 launch type) gate; non-root support on other launch types is not documented as of 2026-07-10.
+- Operational rules worth restating (framing per aws/agent-toolkit-for-aws@43e9d50, `references/ecs-logging-and-firelens.md:240-248` — toolkit-attributed guidance; the self-routing risk is consistent with the AWS FireLens docs, the essential-container rule is the toolkit's inference from how non-essential container exits behave, not stated verbatim in AWS docs as of 2026-07-10): the log-router container should be essential (otherwise app logs silently stop while the task keeps running), and the router's own logs should use `awslogs`, never `awsfirelens` (self-routing can prevent task start).
 
 ## High-throughput logging
 
 Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/firelens-docker-buffer-limit.html:
 
-- Fluent Bit defaults to **memory buffering** (`storage.type memory`); when `Mem_Buf_Limit` is exceeded the input pauses and **new records are lost**. For production pipelines where loss matters, AWS recommends **filesystem buffering**: `storage.path`, `storage.max_chunks_up` (default 128 chunks can consume 500 MB+), `storage.total_limit_size` per output (oldest records dropped when full), `storage.backlog.flush_on_shutdown On`, `threaded true`, `Grace 120`.
+- Fluent Bit defaults to **memory buffering** (`storage.type memory`); when `Mem_Buf_Limit` is exceeded the input pauses and **new records are lost**. For production pipelines where loss matters, AWS recommends **filesystem buffering** — the exact `storage.*`/`threaded`/`Grace` parameter set is on the AWS page above; don't reproduce it from memory, load it live when configuring.
 - `log-driver-buffer-limit` controls the Docker→Fluent Bit buffer in log **lines** (default 1,048,576; max 536,870,911); valid only with `awsfirelens`; supported on the EC2 launch type and on Fargate platform version ≥ 1.4.0.
 - Escape hatches documented on the same page: tail-input file-based logging (bypass the Docker log driver entirely), logging directly to FireLens over the Fluent Forward protocol, and multi-destination outputs for redundancy.
-- Foundational best practice regardless of stack: applications write to stdout/stderr so log handling stays an infrastructure decision, not a code change (per https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/application.html).
+- Foundational best practice regardless of stack: applications write to stdout/stderr so log handling stays an infrastructure decision, not a code change (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-considerations.html — verified 2026-07-10).
 
 ## Choosing awslogs vs FireLens
+
+> Launch-type facts in this table verified 2026-07-10; the matrix ([launch-type-matrix.md](launch-type-matrix.md)) is the source of truth for the support rows — re-check it before load-bearing use.
 
 | Criterion | awslogs | FireLens (Fluent Bit) |
 |---|---|---|
