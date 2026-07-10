@@ -29,6 +29,7 @@ All generated Terraform code MUST follow the conventions from these companion sk
 - General Terraform module development or testing (use `terraform-skill`)
 - EKS cluster reconnaissance or discovery (use `eks-recon`)
 - EKS operational best practices reference (use `eks-best-practices`)
+- Amazon ECS builds of any kind (use `ecs-build`)
 
 ## Internet Search Requirements
 
