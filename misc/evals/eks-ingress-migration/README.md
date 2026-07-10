@@ -21,10 +21,6 @@ The discriminator: if the user wants to move *off nginx* / change the *ingress d
 
 The `triggering.json` evals are description-fit only and need no cluster or MCP server. The `evals.json` task prompts carry enough context (sample ingress manifests and findings) to be graded from fixtures without a live cluster; a full end-to-end run that discovers real clusters would require the EKS MCP server (see the `eks-mcp-server` skill), but the graded expectations here do not depend on it.
 
-## Live-MCP caveat
-
-<REPLACE: note whether the `evals.json` tasks need a live cluster / MCP server, or whether the prompts carry enough context to be answered from fixtures alone. State explicitly whether running these evals requires MCP availability.>
-
 ## How to run
 
 From `misc/evals/`:

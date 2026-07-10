@@ -11,7 +11,7 @@
         "The /checkout configuration-snippet is flagged as a no-equivalent Tier-A item and raises the Re-architecture Gate (gate >= 1), reported separately from the numeric score (no hard cap applied)",
         "CORS, rate-limit, and IP-allowlist are each scored Impact 2 or 3 — never 4 or 5",
         "Scale/Volume is computed from the 10 routes needing work, and the 6 ALB-served routes are listed at 0 effort, not counted as migration work",
-        "No GREEN/AMBER/RED rating language is used — only Impact 1-5"
+        "No GREEN/AMBER/RED rating language is used — only the Impact 0-5 scale"
       ],
       "files": []
     },
@@ -24,6 +24,18 @@
         "Marks the generated target manifest for this ingress as INCOMPLETE / not safe to blind-apply, naming the hidden /healthz and /internal/ paths",
         "Tells the user to hand-port the snippet-injected routes before applying",
         "Counts this ingress toward the Re-architecture Gate, not as a clean annotation swap"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Assess three clusters and give each a Migration Difficulty Score with explicit presence/absence reasoning. Cluster A: no ingress controller, no IngressClass, and no Ingress resources. Cluster B: 5 nginx Ingress objects exist but no ingress-nginx controller is installed, and nothing else. Cluster C: a healthy ingress-nginx controller on image v1.10.0 with its validating admission webhook enabled, currently serving zero Ingress routes.",
+      "expected_output": "Cluster A scores 100/TRIVIAL (nothing to migrate), not a high-difficulty/low score. Cluster B's orphaned Ingress objects and absent controller are non-events (0) with a Migration Crew Alert that says to export/back up before deleting; with no other live findings its headline is 100/TRIVIAL. Cluster C is NOT a non-event: a healthy but vulnerable zero-route ingress-nginx (< v1.11.5, webhook enabled) is a security finding via CVE-2025-1974 despite serving no routes.",
+      "expectations": [
+        "Cluster A (empty estate) scores 100/TRIVIAL with a 'nothing to migrate' note and is explicitly NOT rated as high-difficulty / a low score for being empty; absence is not equated with health",
+        "Cluster B treats the absent controller and the 5 orphaned nginx Ingress objects as non-events (Impact 0) and emits a Migration Crew Alert; with no other live findings the headline is 100/TRIVIAL; the alert recommends exporting/backing up the manifests before deleting",
+        "Cluster C is NOT scored 0/non-event: the healthy zero-route ingress-nginx on v1.10.0 with the admission webhook enabled is flagged as a security finding (CVE-2025-1974 / control-plane exposure) even though it serves zero routes",
+        "No finding uses remediation effort ('easy'/'hard') as the severity driver, and only the Impact 0-5 scale is used (no GREEN/AMBER/RED)"
       ],
       "files": []
     }
