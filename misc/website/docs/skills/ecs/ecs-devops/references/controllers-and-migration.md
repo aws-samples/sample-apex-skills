@@ -54,7 +54,7 @@ Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-t
   - `DAEMON` scheduling unsupported.
   - Auto scaling is not blocked during a deployment, but scaling mid-deployment can fail it: the green task set gets up to 1 h to reach steady state, and a scaling event mid-traffic-shift allows only 5 min to re-reach steady state.
 - Rollback: CodeDeploy reroutes traffic from the replacement task set back to the original task set (kept until the termination wait time elapses) ([deployment steps](https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-steps-ecs.html)).
-- Keep CODE_DEPLOY (for now) when: an existing CodePipeline `CodeDeployToECS` integration works and migration effort isn't budgeted, or you depend on CodeDeploy-specific ecosystem tooling. Plan migration for everything else.
+- **Staying on CODE_DEPLOY indefinitely is a valid steady state.** The controller is fully supported with no announced end-of-life ([deployment-type-bluegreen](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html) — AWS recommends native, but has not deprecated CodeDeploy). If an existing CodeDeploy blue/green estate works, migration is optional, not overdue: migrate when you *want* what native adds — Service Connect, richer lifecycle hooks, service-revision history, simpler pipelines (plain `UpdateService`) — and weigh that against the migration cost (hook rewrite, pipeline changes, listener-rule restructuring). Use native for **new** adoptions.
 
 ## CodeDeploy vs Native — Implementation Differences
 

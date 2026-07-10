@@ -37,7 +37,7 @@ This page is generated from [skills/ecs-devops/references/cicd-pipelines.md](htt
 | Situation | Recommended shape |
 |---|---|
 | AWS-native pipeline, rolling deployments | CodePipeline standard "Amazon ECS" action |
-| AWS-native pipeline, existing CodeDeploy blue/green | Keep CodePipeline "ECS (Blue/Green)" action; plan migration to native (see [controllers-and-migration.md](controllers-and-migration)) |
+| AWS-native pipeline, existing CodeDeploy blue/green | Keep CodePipeline "ECS (Blue/Green)" action — a fully supported steady state (no announced EOL); migrate to native only when you want its benefits (see [controllers-and-migration.md](controllers-and-migration)) |
 | AWS-native pipeline, ECS-native blue/green / linear / canary | CodePipeline + a stage that calls `aws ecs update-service` (CodeBuild/Lambda) — **no dedicated action exists as of 2026-07-09** |
 | GitHub-hosted repo | Official `aws-actions/*` GitHub Actions with OIDC |
 | Any strategy, any CI system | Render task definition → `RegisterTaskDefinition` → `UpdateService`; the service's configured strategy does the rest |
@@ -54,7 +54,7 @@ Sources: https://docs.aws.amazon.com/codepipeline/latest/userguide/integrations-
 ```
 
 - Tutorial (ECR source → CodeBuild → ECS): https://docs.aws.amazon.com/codepipeline/latest/userguide/ecs-cd-pipeline.html
-- Pair the service with circuit breaker + alarm rollback so a bad image fails the pipeline stage rather than silently degrading (see [failure-detection-and-rollback.md](failure-detection-and-rollback)); note the alarm bake time keeps the deployment `IN_PROGRESS` longer — set stage timeouts accordingly.
+- Pair the service with circuit breaker + alarm rollback (EC2/Fargate/Managed Instances; see the ECS Anywhere caveat in [failure-detection-and-rollback.md](failure-detection-and-rollback)) so a bad image fails the pipeline stage rather than silently degrading; note the alarm bake time keeps the deployment `IN_PROGRESS` longer — set stage timeouts accordingly.
 
 ## CodePipeline — ECS Blue/Green Action (CodeDeployToECS)
 
@@ -89,7 +89,7 @@ In CodePipeline, run this from a CodeBuild action or a Lambda invoke action. Gat
 
 ## GitHub Actions with Official aws-actions
 
-Sources (all verified 2026-07-09): https://github.com/aws-actions/configure-aws-credentials · https://github.com/aws-actions/amazon-ecr-login · https://github.com/aws-actions/amazon-ecs-render-task-definition · https://github.com/aws-actions/amazon-ecs-deploy-task-definition
+Sources (all verified 2026-07-10): https://github.com/actions/checkout · https://github.com/aws-actions/configure-aws-credentials · https://github.com/aws-actions/amazon-ecr-login · https://github.com/aws-actions/amazon-ecs-render-task-definition · https://github.com/aws-actions/amazon-ecs-deploy-task-definition
 
 Building blocks, in order:
 
@@ -112,8 +112,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::111122223333:role/github-deploy
           aws-region: us-east-1
@@ -142,7 +142,7 @@ jobs:
 Notes:
 - Use the commit SHA (immutable) as the image tag — avoids the mutable-tag `--force-new-deployment` pattern entirely (see [failure-detection-and-rollback.md](failure-detection-and-rollback)).
 - `wait-for-service-stability: true` makes the job fail when a circuit breaker or alarm rolls the deployment back — the pipeline reflects deployment reality.
-- Pin action versions in regulated environments; the tags above were current at verification (2026-07-09).
+- Pin action versions in regulated environments (major-version tags like `@v7` are mutable; pin a full tag or commit SHA there). The major tags above were current at verification (2026-07-10): `actions/checkout` v7.0.0, `aws-actions/configure-aws-credentials` v6.2.2, `amazon-ecr-login` v2.1.6, `amazon-ecs-render-task-definition` v1.9.0, `amazon-ecs-deploy-task-definition` v2.6.3 — re-check each repo's Releases page before copying.
 
 ## ECR Image Scanning in the Pipeline
 
@@ -156,7 +156,7 @@ Sources: https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-b
 | Extras | Findings in ECR console/API | ECS/EKS image-usage context for prioritization; findings in ECR + Inspector; Security Hub / EventBridge integration |
 | Gotcha | — | Images older than 14 days at enablement get `SCAN_ELIGIBILITY_EXPIRED` — re-push to scan |
 
-Pipeline gating pattern: push → scan → EventBridge finding event → automation (fail the pipeline stage / block promotion on CRITICAL findings). Reference implementation: [ECR + Inspector scanning blog](https://aws.amazon.com/blogs/containers/container-scanning-updates-in-amazon-ecr-private-registries-using-amazon-inspector/). Deeper vulnerability-management policy (SLAs, suppression, registry hardening) is `ecs-security` territory (once available — until then, answer from general knowledge rather than dead-ending); this reference covers the pipeline hook only.
+Pipeline gating pattern: push → scan → EventBridge finding event → automation (fail the pipeline stage / block promotion on CRITICAL findings). Reference implementation: [ECR + Inspector scanning blog](https://aws.amazon.com/blogs/containers/container-scanning-updates-in-amazon-ecr-private-registries-using-amazon-inspector/). Deeper vulnerability-management policy (SLAs, suppression, registry hardening) is `ecs-security` territory; this reference covers the pipeline hook only.
 
 ## Launch-Type Notes for Pipelines
 

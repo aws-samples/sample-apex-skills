@@ -1,6 +1,6 @@
 ---
 title: "ecs-devops"
-description: "Use whenever someone is deploying, releasing, or shipping software to Amazon ECS — phrased as \"blue/green deployment on ECS\", \"canary deployment for my ECS service\", \"ECS rolling update settings\", \"set up CI/CD for ECS\", \"GitHub Actions deploy to Fargate\", \"my ECS deployment is stuck\", \"roll back an ECS deployment\", \"ECS deployment circuit breaker\", \"ECS task sets\", or \"migrate off CodeDeploy blue/green\". Covers strategy selection (rolling / native blue-green / linear / canary), lifecycle hooks, circuit-breaker and alarm rollback, and pipelines (CodePipeline, GitHub Actions, ECR scanning) — scoped per launch type (EC2, Fargate, Managed Instances, ECS Anywhere). Trigger even if \"deployment strategy\" is never said — any release-safety, traffic-shifting, rollback, or pipeline decision for an ECS service qualifies. Skip for EKS/Kubernetes (use eks-* skills) and greenfield ECS architecture with no release angle. For ECS monitoring stacks use ecs-observability (once available); for GPU/ML on ECS use ecs-genai."
+description: "Use when someone is deploying, releasing, or shipping software to Amazon ECS — phrased as \"blue/green deployment on ECS\", \"canary deployment for my ECS service\", \"ECS rolling update settings\", \"set up CI/CD for ECS\", \"GitHub Actions deploy to Fargate\", \"my ECS deployment is stuck\", \"roll back an ECS deployment\", \"ECS deployment circuit breaker\", \"ECS task sets\", or \"migrate off CodeDeploy blue/green\". Covers strategy selection (rolling / native blue-green / linear / canary), lifecycle hooks, circuit-breaker and alarm rollback, and pipelines (CodePipeline, GitHub Actions, ECR scanning) — scoped per launch type (EC2, Fargate, Managed Instances, ECS Anywhere). Trigger even if \"deployment strategy\" is never said — any release-safety, traffic-shifting, rollback, or pipeline decision for an ECS service qualifies. Skip for EKS/Kubernetes (use eks-* skills) and greenfield ECS architecture with no release angle. For ECS monitoring stacks use ecs-observability (once available); for GPU/ML on ECS use ecs-genai."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/SKILL.md
 format: md
 ---
@@ -31,10 +31,10 @@ Advisory guidance for shipping software to Amazon ECS safely: choosing a deploym
 **Don't use this skill for:**
 - EKS or Kubernetes deployments of any kind → use the `eks-*` skills (`eks-best-practices` for strategy, `eks-build` for artifacts)
 - ECS monitoring, logging, metrics, tracing, or alerting *stack selection* → `ecs-observability` (once available; this skill covers alarms only as deployment-failure triggers)
-- GPU / ML / GenAI workloads on ECS → `ecs-genai` (once available)
-- ECS security posture, IAM hardening, or compliance → `ecs-security` (once available)
-- Auditing the operational health of a live ECS cluster → `ecs-operation-review` (once available)
-- Greenfield ECS architecture / launch-type selection with no deployment or pipeline angle → `ecs-architect` (once available)
+- GPU / ML / GenAI workloads on ECS → `ecs-genai`
+- ECS security posture, IAM hardening, or compliance → `ecs-security`
+- Auditing the operational health of a live ECS cluster → `ecs-operation-review`
+- Greenfield ECS architecture / launch-type selection with no deployment or pipeline angle → `ecs-architect`
 
 If a routed sibling skill is not installed yet, don't dead-end the user: answer from general knowledge (staying within this skill's cited facts where they apply) and note that a dedicated skill is pending.
 
@@ -44,10 +44,10 @@ If a routed sibling skill is not installed yet, don't dead-end the user: answer 
 |---|---|---|
 | "Set up canary deployments for my ECS service" | `ecs-devops` | Release strategy and traffic shifting |
 | "Alert me when my ECS service errors spike" | `ecs-observability` (once available) | Monitoring stack, not deployment safety (this skill covers alarms only as rollback triggers) |
-| "Which launch type should my new ECS app use?" | `ecs-architect` (once available) | Architecture decision, no release angle |
-| "Harden the IAM roles my pipeline uses" | `ecs-security` (once available) | Security posture, not pipeline mechanics |
-| "Is my ECS cluster healthy / well configured?" | `ecs-operation-review` (once available) | Live operational audit |
-| "Deploy an LLM inference container to ECS" | `ecs-genai` (once available) | GPU/ML workload specifics |
+| "Which launch type should my new ECS app use?" | `ecs-architect` | Architecture decision, no release angle |
+| "Harden the IAM roles my pipeline uses" | `ecs-security` | Security posture, not pipeline mechanics |
+| "Is my ECS cluster healthy / well configured?" | `ecs-operation-review` | Live operational audit |
+| "Deploy an LLM inference container to ECS" | `ecs-genai` | GPU/ML workload specifics |
 | "Blue/green on EKS" | `eks-best-practices` | Kubernetes, not ECS |
 
 ---
@@ -55,10 +55,11 @@ If a routed sibling skill is not installed yet, don't dead-end the user: answer 
 ## Deployment Controller and Strategy Model
 
 > Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_service-options.html
+> GA dates in this skill follow AWS **What's New post dates**; the ECS doc-history page can log the same launch a few days earlier (e.g., blue/green Jul 15 vs Jul 17, 2025) — both are AWS sources, this skill standardizes on What's New except where it explicitly cites doc history.
 
 - `deploymentController.type` has three values — `ECS`, `CODE_DEPLOY`, `EXTERNAL`.
 - Under the **`ECS` controller**, `deploymentConfiguration.strategy` selects one of four built-in strategies — `ROLLING` (default), `BLUE_GREEN` (GA Jul 17, 2025), `LINEAR` and `CANARY` (GA Oct 30, 2025).
-- The **`CODE_DEPLOY` controller** is the older blue/green path. AWS's stated recommendation is to use the native ECS blue/green deployment instead ([deployment-type-bluegreen](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html)). It remains supported — treat it as the compatibility path for existing CodePipeline `CodeDeployToECS` integrations, not the default for new services.
+- The **`CODE_DEPLOY` controller** is the older blue/green path. For **new** adoptions, AWS's stated recommendation is the native ECS blue/green deployment ([deployment-type-bluegreen](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html)). It remains fully supported with **no announced end-of-life** — staying on CodeDeploy indefinitely is a valid steady state for existing estates; migrate when you want something native adds (Service Connect, richer hooks, simpler pipelines), not by default.
 - The **`EXTERNAL` controller** hands the whole deployment process to your own tooling via task-set APIs — see [references/controllers-and-migration.md](references/controllers-and-migration).
 - Since **July 15, 2025** the deployment controller is **updatable in place** on an existing service — you can migrate a service between controller types without recreating it ([doc history](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/document_history.html)).
 
@@ -70,7 +71,7 @@ If a routed sibling skill is not installed yet, don't dead-end the user: answer 
 | Instant cutover with near-instant rollback window | `BLUE_GREEN` | All-at-once weighted-target-group flip; blue kept running through bake time |
 | Gradual equal-step traffic shift (e.g., 10% at a time) | `LINEAR` | `stepPercent` + per-step bake time; hooks fire at every step |
 | Small validation slice, then full cutover | `CANARY` | Two-step shift (canary % → 100%) with canary bake time |
-| Keep an existing CodePipeline CodeDeploy integration working | `CODE_DEPLOY` controller | Legacy path; AWS recommends native for new workloads |
+| Keep an existing CodePipeline CodeDeploy integration working | `CODE_DEPLOY` controller | Fully supported steady state (no announced EOL); AWS recommends native for new workloads |
 | Your own deployment engine (custom orchestration) | `EXTERNAL` controller | Task-set APIs, you own everything |
 
 Blue/green, linear, and canary all run blue and green revisions simultaneously — plan for up to **2× capacity** (EC2 cluster headroom or Fargate/Managed Instances spend) during deployments ([deployment-type-blue-green](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-blue-green.html)).
@@ -97,23 +98,23 @@ Sources: [blue/green implementation](https://docs.aws.amazon.com/AmazonECS/lates
 > Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateService.html and https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html
 
 - The `launchType` enum has **four values: `EC2 | FARGATE | EXTERNAL | MANAGED_INSTANCES`**. `FARGATE_SPOT` is **not** a launch type — it is a capacity provider ("a capacity provider strategy must be used" for Fargate Spot). To use ECS Managed Instances you specify a `capacityProviderStrategy` and omit `launchType` — `launchType` and `capacityProviderStrategy` are mutually exclusive on `CreateService`, so a request that sets both is rejected. The `MANAGED_INSTANCES` enum value exists because launch type appears in API responses and task metadata; it is not how you *select* Managed Instances ([API_CreateService](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateService.html)).
-- **EC2 launch type:** all four strategies and both failure-detection methods. Service Connect needs ECS agent ≥ 1.67.2 on a current ECS-optimized AMI; image-digest resolution needs agent ≥ 1.31.0 ([Service Connect deploy](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html), [rolling deployment](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-ecs.html)).
+- **EC2 launch type:** all four strategies and both failure-detection methods. Service Connect needs ECS agent ≥ 1.67.2 on a current ECS-optimized AMI; image-digest resolution needs agent ≥ 1.31.0 for ECR-hosted images and ≥ 1.70.0 for all other registries ([Service Connect deploy](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html), [rolling deployment](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-ecs.html)).
 - **Fargate:** all four strategies; no `DAEMON` scheduling; Service Connect needs Linux platform version ≥ 1.4.0. Circuit breaker GA covered both EC2 and Fargate ([GA announcement](https://aws.amazon.com/about-aws/whats-new/2020/12/amazon-ecs-announces-the-general-availability-of-ecs-deployment-circuit-breaker/)).
-- **ECS Managed Instances** (GA Sep 30, 2025): fully managed EC2-based compute consumed **via capacity providers only** ([Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html)). **Strategy support: all four native strategies (`ROLLING`, `BLUE_GREEN`, `LINEAR`, `CANARY`) and both failure-detection methods via the `ECS` controller** — the native strategy pages scope by load balancer/Service Connect, not away from Managed Instances ([blue/green implementation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-implementation.html)). **`CODE_DEPLOY` and `EXTERNAL` controllers on Managed Instances are not clearly documented:** both are task-set-based, and the developer guide documents task-set `launchType` as `EC2 | FARGATE | EXTERNAL` ([external controller](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-external.html)) while the [CreateTaskSet API reference](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateTaskSet.html) lists `MANAGED_INSTANCES` in the enum — the two pages disagree, so do not claim controller support beyond `ECS` for Managed Instances; say the docs are inconsistent and verify.
+- **ECS Managed Instances** (GA Sep 30, 2025): fully managed EC2-based compute consumed **via capacity providers only** ([Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html)). **Strategy support: all four native strategies (`ROLLING`, `BLUE_GREEN`, `LINEAR`, `CANARY`) via the `ECS` controller** — the native strategy pages scope by load balancer/Service Connect, not away from Managed Instances ([blue/green implementation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-implementation.html)). Failure-detection support (circuit breaker, alarms) on Managed Instances is **inferred from the docs scoping those features only by deployment controller — not explicitly documented for Managed Instances as of 2026-07-10; verify before relying on it** (same evidence posture as the ECS Anywhere caveat below). **`CODE_DEPLOY` and `EXTERNAL` controllers on Managed Instances are not clearly documented:** both are task-set-based, and the developer guide documents task-set `launchType` as `EC2 | FARGATE | EXTERNAL` ([external controller](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-external.html)) while the [CreateTaskSet API reference](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateTaskSet.html) lists `MANAGED_INSTANCES` in the enum — the two pages disagree, so do not claim controller support beyond `ECS` for Managed Instances; say the docs are inconsistent and verify.
 - **ECS Anywhere (`EXTERNAL` launch type):** no service load balancing, no service discovery, no `awsvpc` network mode, no capacity providers, and Service Connect is explicitly unsupported on external container instances. Net effect — **no managed traffic shifting is possible, so rolling update (min/max percent) is the practical deployment strategy on ECS Anywhere.** Blue/green-family support without traffic management is not documented for Anywhere — do not claim it. Circuit-breaker support on the `EXTERNAL` launch type is **not explicitly documented** — the docs scope the circuit breaker only by deployment controller, and the [GA announcement](https://aws.amazon.com/about-aws/whats-new/2020/12/amazon-ecs-announces-the-general-availability-of-ecs-deployment-circuit-breaker/) names EC2 and Fargate — verify before relying on it. ([ECS Anywhere](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html), [Service Connect deploy](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html))
 
 ---
 
 ## Rolling Update Quick Reference
 
-> Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-ecs.html
+> Facts verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-ecs.html and https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentConfiguration.html
 
 - `minimumHealthyPercent` — lower bound on running-and-healthy tasks during deployment, as % of desired count, **rounded up**. Default 100% for replica services. Example: min 50% + desired 4 → the scheduler may stop 2 tasks before starting replacements; min 75% + desired 2 → it cannot stop any first.
-- `maximumPercent` — upper bound on running tasks, as % of desired count, **rounded down**. Example: max 200% + desired 4 → 4 new tasks can start before any old stop; max 125% + desired 3 → no task can start first. Daemon services: `maximumPercent` must be 100 and default min-healthy is 0 ([service options](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_service-options.html)).
+- `maximumPercent` — upper bound on running tasks, as % of desired count, **rounded down**. Example: max 200% + desired 4 → 4 new tasks can start before any old stop; max 125% + desired 3 → no task can start first. Daemon services: `maximumPercent` must be 100; default min-healthy is 0% via CLI/SDK/API but **50% via the console** ([API_DeploymentConfiguration](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentConfiguration.html)).
 - **Zero-downtime recipe:** `minimumHealthyPercent=100, maximumPercent=200` — requires headroom for 2× tasks during the rollout (applies on EC2 only if the cluster has spare capacity; on Fargate/Managed Instances it is a spend question).
 - Misconfigured min/max that prevents both stopping and starting **stalls the deployment** and emits a service event — check service events first when a rolling deployment hangs.
 - **Version consistency:** ECS resolves image tags to digests at deployment time (first started task pins the digests); 3+ digest-resolution failures with circuit breaker enabled fail and roll back the deployment. Configurable per container via `versionConsistency`.
-- **Always pair rolling with failure detection** — circuit breaker for "tasks can't start / can't get healthy", CloudWatch alarms for "metrics regressed". Both are rolling-only (`ECS` controller); usable together; **whichever trips first fails the deployment** ([alarm-based detection](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html)).
+- **Always pair rolling with failure detection** (on EC2/Fargate/Managed Instances; see the ECS Anywhere caveat above) — circuit breaker for "tasks can't start / can't get healthy", CloudWatch alarms for "metrics regressed". Circuit breaker is rolling-only; alarms work with any strategy under the `ECS` controller; usable together; **whichever trips first fails the deployment** ([alarm-based detection](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html)).
 
 ```bash
 aws ecs update-service --cluster prod --service web \
@@ -161,7 +162,7 @@ Valid ranges: `stepPercent` 3.0–100.0; `stepBakeTimeInMinutes` 0–1440 ([line
 
 - **Lifecycle stages** (shared by all three): RECONCILE_SERVICE → PRE_SCALE_UP → SCALE_UP → POST_SCALE_UP → TEST_TRAFFIC_SHIFT → POST_TEST_TRAFFIC_SHIFT → PRE_PRODUCTION_TRAFFIC_SHIFT → PRODUCTION_TRAFFIC_SHIFT → POST_PRODUCTION_TRAFFIC_SHIFT → BAKE_TIME → CLEAN_UP. Hooks attach to all stages except SCALE_UP, BAKE_TIME, CLEAN_UP; TEST_TRAFFIC_SHIFT and PRODUCTION_TRAFFIC_SHIFT (exactly those two — not the PRE_/POST_ variants) accept Lambda hooks only ([how it works](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-deployment-how-it-works.html)).
 - For linear/canary, PRE_PRODUCTION_TRAFFIC_SHIFT / PRODUCTION_TRAFFIC_SHIFT hooks fire at **every** traffic step; each production shift step may last up to 24 h.
-- **Pause/continue** (GA May 19, 2026): `PAUSE`-type lifecycle hooks on rolling *and* blue/green-family deployments; resume or abort with `aws ecs continue-service-deployment --hook-id <id> --action CONTINUE|ROLLBACK` ([pause hooks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/pause-lifecycle-hooks.html)).
+- **Pause/continue** (GA May 19, 2026): `PAUSE`-type lifecycle hooks on rolling *and* blue/green-family deployments (the rolling scope comes from the [What's New](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/); the doc page illustrates only blue/green-family stages; ECS Anywhere support is not documented as of 2026-07-10); resume or abort with `aws ecs continue-service-deployment --hook-id <id> --action CONTINUE|ROLLBACK` ([pause hooks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/pause-lifecycle-hooks.html)).
 - **Timeouts:** each lifecycle stage max 24 h (timeout → fail + roll back); CloudFormation adds a 36 h whole-deployment cap; overall deployment limit 30 days.
 
 **For full lifecycle-hook config, test-traffic routing, pause/continue details, and deployment-speed tuning, see:** [Deployment Strategies Deep Dive](references/deployment-strategies)
@@ -170,12 +171,14 @@ Valid ranges: `stepPercent` 3.0–100.0; `stepBakeTimeInMinutes` 0–1440 ([line
 
 ## Failure Detection — Circuit Breaker vs CloudWatch Alarms
 
-> Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html
+> Facts verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html and https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentAlarms.html
+>
+> ⚠️ **Scope wording trap:** one sentence on the [alarm-detection page](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html) reads "only supported for … the rolling update (ECS) deployment controller" — that "rolling update (ECS)" is the doc's name for the **controller**, not a strategy restriction. The API reference and the blue/green service definition (below) make the controller-vs-strategy distinction explicit.
 
 | | Deployment circuit breaker | CloudWatch alarm detection |
 |---|---|---|
 | Detects | Task-launch failures + health-check failures (ELB, Cloud Map, container health checks) | Any metric regression you can alarm on (5xx, latency, queue depth) |
-| Strategy scope | **Rolling only** (`ECS` controller) | **Rolling only** (`ECS` controller); blue/green-family safety comes from hooks + bake time instead |
+| Scope | **Rolling only**, under the `ECS` controller — the API attaches the rolling-only note to `deploymentCircuitBreaker` specifically ([API_DeploymentConfiguration](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentConfiguration.html)) | **Controller-scoped, not strategy-scoped**: any strategy under the `ECS` controller (not CODE_DEPLOY/EXTERNAL) — [API_DeploymentAlarms](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentAlarms.html) restricts only "when the DeploymentController is set to ECS", and AWS's own blue/green service definition sets `alarms` with `"strategy": "BLUE_GREEN"` ([deploy-blue-green-service](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deploy-blue-green-service.html)); blue/green-family adds hooks + bake time on top |
 | Trigger config | `deploymentCircuitBreaker={enable,rollback,resetOnHealthyTask,thresholdConfiguration}` | `alarms={alarmNames=[...],enable=true,rollback=true}` |
 | Combinable | Yes — first method to trip fails the deployment; rollback runs if the tripping method has rollback enabled | Yes (same) |
 
@@ -183,14 +186,14 @@ Jul 1, 2026 knobs ([What's New](https://aws.amazon.com/about-aws/whats-new/2026/
 - `thresholdConfiguration.type`: `BOUNDED_PERCENT` (default; value default 50; threshold = ceil(value% × desired count) clamped to min 3 / max 200), `UNBOUNDED_PERCENT` (same formula, no clamps), or `COUNT` (fixed number).
 - `resetOnHealthyTask`: `true` (default) counts **consecutive** failures (counter resets on a healthy task); `false` counts **cumulative** failures across the deployment.
 
-Alarm-detection gotchas: ECS polls alarms via `DescribeAlarms` (CloudWatch API throttling can cause a missed rollback), and an alarm already in ALARM state at deployment start is **ignored for that deployment** — deliberately, so you can deploy a fix ([alarm detection](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html)).
+Alarm-detection gotchas: ECS polls alarms via `DescribeAlarms` (CloudWatch API throttling can cause a missed rollback — mitigate by also enabling the circuit breaker and alerting on `SERVICE_DEPLOYMENT_FAILED`, both covered in this skill), and an alarm already in ALARM state at deployment start is **ignored for that deployment** — deliberately, so you can deploy a fix ([alarm detection](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-alarm-failure.html)).
 
 ## The Rollback Ladder (fastest first)
 
 1. **Bake-time weight flip** (blue/green-family only) — while blue is still running, rollback is a listener-weight change; near-instant, no task relaunch.
-2. **One-click manual rollback** (any strategy **under the `ECS` deployment controller**, while the deployment is still stoppable — `PENDING`/`IN_PROGRESS`; GA May 2025): `aws ecs stop-service-deployment --service-deployment-arn <arn> --stop-type ROLLBACK` — rolls back to the previous service revision **even if rollback was never configured** on the service. Find the ARN with `aws ecs list-service-deployments`. For CodeDeploy-controller services or deployments that already reached `COMPLETED`, use rung 4 instead ([stop-service-deployment](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stop-service-deployment.html)).
-3. **Automatic rollback** — circuit breaker or alarm trips (rolling), or a lifecycle-hook/stage-timeout failure (blue/green-family); target is the most recent `COMPLETED` deployment. If no COMPLETED deployment exists, the circuit breaker does not launch new tasks and the *failed* deployment stalls — clean up manually.
-4. **Manual re-deploy** — `UpdateService` back to the previous task-definition revision.
+2. **One-click manual rollback** (any strategy **under the `ECS` deployment controller**, while the deployment is in a stoppable state — `PENDING`, `IN_PROGRESS`, `STOP_REQUESTED`, `ROLLBACK_REQUESTED`, or `ROLLBACK_IN_PROGRESS`; GA May 2025): `aws ecs stop-service-deployment --service-deployment-arn <arn> --stop-type ROLLBACK` — rolls back to the previous service revision **even if rollback was never configured** on the service. Find the ARN with `aws ecs list-service-deployments`. For CodeDeploy-controller services or deployments that already reached `COMPLETED`, use rung 4 instead ([stop-service-deployment](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stop-service-deployment.html)).
+3. **Automatic rollback** — circuit breaker trips (rolling only), an alarm trips (any `ECS`-controller strategy), or a lifecycle-hook/stage-timeout failure (blue/green-family); target is the most recent `COMPLETED` deployment. If no COMPLETED deployment exists, the circuit breaker does not launch new tasks and the *failed* deployment stalls — clean up manually.
+4. **Manual re-deploy** — `UpdateService` back to the previous task-definition revision (universal fallback under the `ECS` and CodeDeploy controllers; under `EXTERNAL`, `UpdateService` cannot change the task definition — roll back by shifting your own task sets).
 
 > ❌ **`--force-new-deployment` is NOT a rollback.** It starts a new deployment with **no service-definition changes** — a restart/re-pull (e.g., pick up a newer image behind the same mutable tag, refresh image digests, move to a newer Fargate platform version). It redeploys the *same* task definition; it does not return you to the previous revision. This is a common misconception — reach for `stop-service-deployment --stop-type ROLLBACK` or a previous task-def revision instead ([UpdateService](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_UpdateService.html#ECS-UpdateService-request-forceNewDeployment)).
 
@@ -222,12 +225,12 @@ Alarm-detection gotchas: ECS polls alarms via `DescribeAlarms` (CloudWatch API t
 
 1. **Don't treat `--force-new-deployment` as a rollback** — it re-deploys the same task definition (restart/re-pull). Use `stop-service-deployment --stop-type ROLLBACK`.
 2. **Don't repeat the pre-Feb-2026 LB matrix** — linear/canary support NLB since Feb 4, 2026. Always state support matrices with a verification date.
-3. **Don't configure the circuit breaker on blue/green-family services** — it is rolling-only. Blue/green-family safety = hooks + bake time + stage timeouts.
-4. **Don't ship rolling deployments with no failure detection** — a bad deployment can stay "in progress" indefinitely. Enable circuit breaker + alarms with rollback, and alert on the `SERVICE_DEPLOYMENT_FAILED` EventBridge event.
+3. **Don't configure the circuit breaker on blue/green-family services** — the circuit breaker is rolling-only. CloudWatch alarm detection is *not* — it works with any `ECS`-controller strategy. Blue/green-family safety = hooks + bake time + stage timeouts + (optionally) alarms.
+4. **Don't ship rolling deployments with no failure detection** — a bad deployment can stay "in progress" indefinitely. Enable circuit breaker + alarms with rollback (on EC2/Fargate/Managed Instances; see the Anywhere caveat in Launch-Type Scoping), and alert on the `SERVICE_DEPLOYMENT_FAILED` EventBridge event.
 5. **Don't recommend blue/green-family strategies on ECS Anywhere** — no ELB, no Service Connect, therefore no managed traffic shifting. Rolling only.
 6. **Don't call `FARGATE_SPOT` a launch type** — it is a capacity provider; the launch-type enum is `EC2 | FARGATE | EXTERNAL | MANAGED_INSTANCES`, and Managed Instances itself is selected via `capacityProviderStrategy`, not `launchType`.
 7. **Don't start a blue/green-family rollout without 2× capacity headroom** — blue and green run simultaneously until CLEAN_UP.
-8. **Don't build new CodeDeploy-controller integrations** — AWS recommends native strategies; the controller is updatable in place since Jul 2025, so migration does not require service recreation. (But do not call CodeDeploy "deprecated" — AWS has not said that.)
+8. **Don't build new CodeDeploy-controller integrations** — AWS recommends native strategies for new adoptions; the controller is updatable in place since Jul 2025, so migration does not require service recreation. (But do not call CodeDeploy "deprecated" or push working existing CodeDeploy estates to migrate — it is a supported steady state with no announced EOL.)
 9. **Don't forget both target groups must be associated with the production/test listener rules** — otherwise blue/green deployments fail with an invalid-networking-configuration rollback ([migration steps page](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/migrate-code-deploy-to-ecs-blue-green.html) — a distinct page from the migration overview).
 
 ---

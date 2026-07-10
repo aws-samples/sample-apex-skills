@@ -37,7 +37,7 @@ This page is generated from [skills/ecs-devops/references/deployment-strategies.
 
 ## Rolling Update Mechanics
 
-Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-ecs.html (verified 2026-07-09)
+Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-ecs.html (verified 2026-07-10)
 
 `ROLLING` is the default `deploymentConfiguration.strategy` under the `ECS` controller. The scheduler replaces old-revision tasks with new-revision tasks within the envelope defined by two percentages of the service's desired count:
 
@@ -52,7 +52,7 @@ Worked examples (from the AWS doc):
 - max 200%, desired 4 → 4 new tasks can start before 4 old stop (start-first; needs 2× headroom).
 - max 125%, desired 3 → 125% of 3 rounds down to 3 → no new task can start before an old one stops.
 
-Daemon services: `maximumPercent` must be 100 and default `minimumHealthyPercent` is 0 ([service options](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_service-options.html)). Fargate and ECS Managed Instances have no daemon scheduling, so this applies to the EC2 launch type (and ECS Anywhere) only.
+Daemon services: `maximumPercent` must be 100; default `minimumHealthyPercent` is **0% via the CLI/SDKs/APIs but 50% via the AWS Management Console** ([API_DeploymentConfiguration](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentConfiguration.html), verified 2026-07-10). Fargate and ECS Managed Instances have no daemon scheduling, so this applies to the EC2 launch type (and ECS Anywhere) only.
 
 Behavioral details worth knowing:
 - **Unhealthy-task replacement:** during rolling deployments, unhealthy tasks are replaced within the same service revision they belong to, and when `maximumPercent` allows, replacements launch **before** the unhealthy tasks stop — preventing cascade failures under load ([deep-dive blog](https://aws.amazon.com/blogs/containers/a-deep-dive-into-amazon-ecs-task-health-and-task-replacement/)).
@@ -198,7 +198,7 @@ Sources: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-
 
 Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/pause-lifecycle-hooks.html (verified 2026-07-09; GA May 19, 2026 — [What's New](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/))
 
-- `targetType: PAUSE` lifecycle hooks work on **rolling and blue/green-family** deployments, all commercial + GovCloud (US) Regions.
+- `targetType: PAUSE` lifecycle hooks work on **rolling and blue/green-family** deployments, all commercial + GovCloud (US) Regions — both the rolling scope and the Region scope come from the [What's New](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/); the doc page itself illustrates only blue/green-family stages. ECS Anywhere support is not documented as of 2026-07-10.
 - When a pause hook is reached, ECS generates a `hookId`, emits an EventBridge `ECS Hook State Change` event (`HOOK_AWAITING_ACTION`), and waits. Retrieve the hookId via `DescribeServiceDeployments` (`lifecycleHookDetails`), then:
 
 ```bash
@@ -235,7 +235,7 @@ Note (verified 2026-07-09): the standalone ECS Best Practices Guide deployment c
 |---|---|---|---|---|
 | ROLLING | ✅ | ✅ | ✅ | ✅ (the practical strategy) |
 | BLUE_GREEN / LINEAR / CANARY (managed shifting) | ✅ | ✅ | ✅ | ❌ no ELB, no Service Connect |
-| Circuit breaker / alarms (rolling) | ✅ | ✅ | ✅ | ⚠️ circuit breaker not explicitly documented for the EXTERNAL launch type — verify ([details](failure-detection-and-rollback)); alarms per metric availability |
+| Circuit breaker (rolling) / alarms (any `ECS`-controller strategy) | ✅ | ✅ | ⚠️ inferred from controller-only scoping — not explicitly documented as of 2026-07-10; verify ([details](failure-detection-and-rollback)) | ⚠️ circuit breaker not explicitly documented for the EXTERNAL launch type — verify ([details](failure-detection-and-rollback)); alarms per metric availability |
 | DAEMON scheduling | ✅ (max% must be 100) | ❌ | ❌ | ✅ |
 | Selected via | `launchType: EC2` or capacity provider | `launchType: FARGATE` or FARGATE/FARGATE_SPOT capacity providers | `capacityProviderStrategy` only (omit `launchType`) | `launchType: EXTERNAL` (capacity providers unsupported) |
 
