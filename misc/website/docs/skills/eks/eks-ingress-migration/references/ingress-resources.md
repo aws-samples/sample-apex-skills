@@ -99,4 +99,4 @@ Analyze existing Ingress resources to determine what must be converted to HTTPRo
 - 🔴 5 (High): Missing backends or services with no endpoints
 - ⬜ Unknown: Cannot verify endpoint health
 
-**Topology data to collect:** Record every Ingress→backend mapping for the 3D visualization.
+**Routing data to collect:** Record every Ingress→backend mapping in the Routing Topology table.

@@ -87,14 +87,14 @@ Example: `Ingress/nginx-alb: app.example.com/* → nginx-service:80 (Prefix, TLS
 
 **What to check (read-only):** `alb.ingress.kubernetes.io/group.name` and `group.order` on each Ingress.
 - Multiple Ingresses (often across namespaces) sharing one `group.name` are served by a **single ALB**. This materially affects Gateway listener design and ALB consolidation during migration.
-- **Record group membership in the topology JSON and Routing Topology** — do not drop it.
+- **Record group membership in the Routing Topology table** — do not drop it.
 
 ### 5.5 — Declarative Blind Spot & Optional Route Verification
 
-**Blind spot (always note when snippets are present):** topology and routing are derived from **Ingress objects only**. Routes injected via `server-snippet` / `configuration-snippet` (e.g. a raw `location` block) **do not appear** as Ingress rules/backends, so the 3D diagram and Routing Topology under-count them. State this limitation explicitly in the report whenever snippet annotations exist — these are exactly the routes that block migration.
+**Blind spot (always note when snippets are present):** topology and routing are derived from **Ingress objects only**. Routes injected via `server-snippet` / `configuration-snippet` (e.g. a raw `location` block) **do not appear** as Ingress rules/backends, so the Routing Topology table under-counts them. State this limitation explicitly in the report whenever snippet annotations exist — these are exactly the routes that block migration.
 
 **Optional deep read (requires `--allow-sensitive-data-access`, still read-only):**
 - Enumerate snippet-injected routes: `kubectl exec <nginx-pod> -n <ns> -- nginx -T` and scan for `location` blocks not represented by an Ingress.
 - Verify live L7 behavior in-cluster: from a throwaway pod, `wget/curl` each controller's ClusterIP with the `Host:` header and record the status code (200/301/308/404/5xx) in Routing Topology. This raises confidence that routing actually works (vs. config-only inference). Keep it **optional** — the assessment is config-first.
 
-**Topology data to collect:** Record all routing patterns, hosts, paths, and features for the 3D visualization.
+**Routing data to collect:** Record all routing patterns, hosts, paths, and features in the Routing Topology table.
