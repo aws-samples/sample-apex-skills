@@ -117,7 +117,7 @@ Before writing the headline, produce this table so the math is auditable. Sum `b
 | Category | Findings (impact) | Raw pts | Capped | Cap |
 |----------|-------------------|---------|--------|-----|
 | Feature-Gap — No Equivalent (Tier A) | snippet on /checkout (5) | 10 | 10 | 30 |
-| Feature-Gap — Workaround Exists (Tier B) | CORS (2), rate-limit (2), allowlist (2) | 6 | 6 | 10 |
+| Feature-Gap — Workaround Exists (Tier B) | CORS (5), rate-limit (5), allowlist (5) | 30 | 10 | 10 |
 | ... | ... | ... | ... | ... |
 | **Total deductions** | | | **-XX** | |
 | **Re-architecture Gate** | 1 route — snippet on /checkout | — | — | — |
@@ -127,11 +127,11 @@ Then: `Score = 100 - (total capped deductions) = XX — [LABEL]`, plus the gate 
 
 ### 1.7 — Worked example
 
-Estate: **18 ingresses** — **6 already on ALB** (0 effort, done), **2 annotation-only** moves, and **10 needing work**. Of the 10: `configuration-snippet` Lua on `/checkout` (Tier A, no workaround), CORS (Impact 2) + rate-limit (Impact 2) + IP-allowlist (Impact 5 per alb-migration.md ALB.1), `rewrite-target` on 3 routes (Routing, Impact 2 each = annotation-grade), cert-manager to ACM (TLS, Impact 3), NGINX 1.9.x EOL no active CVE (Controller, Impact 3).
+Estate: **18 ingresses** — **6 already on ALB** (0 effort, done), **2 annotation-only** moves, and **10 needing work**. Of the 10: `configuration-snippet` Lua on `/checkout` (Tier A, no workaround), CORS + rate-limit + IP-allowlist (all Impact 5 per alb-migration.md — ALB migration-path rates these High), `rewrite-target` on 3 routes (Routing, Impact 2 each = annotation-grade), cert-manager to ACM (TLS, Impact 3), NGINX 1.9.x EOL no active CVE (Controller, Impact 3).
 
 ```
 Feature-Gap Tier A:  10  (cap 30)   # /checkout snippet  -> also Gate +1
-Feature-Gap Tier B:  14 -> capped 10  (cap 10)   # CORS(2)+rate-limit(2)+allowlist(10, Impact 5 per alb-migration.md ALB.1)
+Feature-Gap Tier B:  30  (cap 10)   # CORS+rate-limit+allowlist, Impact 5 each per alb-migration.md
 Routing:              6  (cap 20)   # 3 rewrites @ Impact 2 + 2 annotation-only moves
 TLS:                  4  (cap 15)   # cert-manager -> ACM
 Controller:           4  (cap 10)   # nginx EOL, no CVE
@@ -141,7 +141,9 @@ Total = 38  ->  score = 100 - 38 = 62  (HARD)
 Re-architecture Gate = 1  ->  "1 route needs redesign (snippet on /checkout)"
 ```
 
-Final: **62 / HARD — 1 route needs redesign.** The model credits the 6 done + 2 easy routes, applies the alb-migration.md ALB.1 High rating to IP-allowlist (Impact 5), keeps CORS/rate-limit at default Impact 2, counts 10 (not 18) for volume, and reports the one true blocker as a gate instead of erasing the number.
+Final: **62 / HARD — 1 route needs redesign.** The model credits the 6 done + 2 easy routes, rates CORS/allowlist/rate-limit at Impact 5 per alb-migration.md (capped at 10 for the Tier-B category), counts 10 (not 18) for volume, and reports the one true blocker as a gate instead of erasing the number.
+
+> **Note:** The Tier-B default Impact 2/3 applies to features that the migration-path reference does not explicitly rate.
 
 ---
 
@@ -512,12 +514,11 @@ Generate the following structure. Replace placeholders with assessment data.
 
 | Topic | URL |
 |-------|-----|
-| Gateway API on EKS | https://docs.aws.amazon.com/eks/latest/userguide/gateway-api.html |
 | AWS Load Balancer Controller | https://kubernetes-sigs.github.io/aws-load-balancer-controller/ |
 | Gateway API Specification | https://gateway-api.sigs.k8s.io/ |
-| HTTPRoute API Reference | https://gateway-api.sigs.k8s.io/api-types/httproute/ |
-| Gateway API Migration Guide | https://gateway-api.sigs.k8s.io/guides/migrating-from-ingress/ |
-| external-dns Gateway API | https://kubernetes-sigs.github.io/external-dns/latest/sources/gateway-api/ |
+| HTTPRoute API Reference | https://gateway-api.sigs.k8s.io/reference/api-types/httproute/ |
+| Gateway API Migration Guide | https://gateway-api.sigs.k8s.io/guides/getting-started/migrating-from-ingress/ |
+| external-dns Gateway API | https://kubernetes-sigs.github.io/external-dns/latest/docs/sources/gateway-api/ |
 | cert-manager Gateway API | https://cert-manager.io/docs/usage/gateway/ |
 | EKS Best Practices | https://docs.aws.amazon.com/eks/latest/best-practices/ |
 | EKS User Guide | https://docs.aws.amazon.com/eks/latest/userguide/ |

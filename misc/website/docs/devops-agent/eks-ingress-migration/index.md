@@ -209,6 +209,7 @@ Write markdown report to working directory. Filename: `EKS-Ingress-Migration-<cl
 | Routing Topology | Routing table (per-route line items + Impact), Traffic & Routing |
 | Migration Approach | Migration Options (Gateway API, ALB, ATX — consistent panels), Blockers, Recommendations |
 | Analysis | Ingress Resource Analysis, DNS & Certificates Analysis, Migration Risk |
+| References | AWS Reference Links, additional references cited in findings |
 
 ## Error Contract
 

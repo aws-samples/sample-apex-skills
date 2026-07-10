@@ -16,17 +16,17 @@ This file documents the differences between the Claude Code version and the DevO
 
 | File | Change |
 |------|--------|
-| `SKILL.md` | Rewritten execution model: fully autonomous (no interactive prompts, no hard-stops), multi-cluster assessment, error contract added, skip-list for porting-notes.md |
+| `SKILL.md` | Rewritten execution model: fully autonomous (no interactive prompts, no hard-stops), multi-cluster assessment, error contract added, skip-list for porting-notes.md; Report Structure table expanded (6th group added) |
 | `SKILL.md` reference table | Upstream's conditional skip-list removed — the autonomous agent reads all reference files to assess all migration paths in a single pass |
-| `references/report-generation.md` | Rewritten for markdown-only output; removed HTML generation, manifest export, and topology.json references |
-| `references/traffic-routing.md` | Added DevOps Agent port note marking deep-inspection commands (pods/exec, pod creation) as inapplicable under read-only RBAC; removed stale topology-JSON and 3D-visualization references (lines 90, 94, 103) |
+| `references/report-generation.md` | Rewritten for markdown-only output; removed HTML generation, manifest export, and topology.json references; footer added (port-authored — no footer in upstream); Tier-B semantics deliberately diverge from upstream (upstream caps at Impact 3, port allows migration-path-reference override to Impact 5); Output Contract section added for multi-file output |
+| `references/traffic-routing.md` | Added DevOps Agent port note marking deep-inspection commands (pods/exec, pod creation) as inapplicable under read-only RBAC; removed stale topology-JSON and 3D-visualization references (lines 90, 94, 103); topology-JSON references replaced with report-section references at lines 90, 94, 103 |
 | `references/migration-plan.md` | Added assessment-only framing note clarifying that mutating commands are documented steps, never executed |
 
 ## What Was Port-Authored
 
 | File | Notes |
 |------|-------|
-| `references/iam-policy.json` | Created for the port — defines AmazonAIOpsAssistantPolicy scoped permissions; no upstream equivalent exists |
+| `references/iam-policy.json` | Custom IAM identity policy defining the Agent Space role's minimum permissions for ingress assessment (read-only EKS/EC2/ELB/ACM actions). Separate from `AmazonAIOpsAssistantPolicy` which is an AWS-managed EKS cluster-access policy attached via access entries in setup.sh |
 | `references/porting-notes.md` | This file |
 
 ## What Was Preserved
@@ -46,8 +46,9 @@ This file documents the differences between the Claude Code version and the DevO
 - `references/atx/td_ingress-nginx-lbc/document_references/navigating-nginx-ingress-retirement.md`
 
 **Sample YAML (16):**
-- `references/samples/alb/01-through-08-*.yaml` (8 files each)
-- `references/samples/nginx/01-through-08-*.yaml` (8 files each)
+- 8 sample YAMLs per directory (01…08 prefixed)
+  - `references/samples/alb/`
+  - `references/samples/nginx/`
 
 > **Known upstream issue:** `ingress-resources.md:91` contains a stale "for the 3D visualization" reference inherited from upstream; intentionally preserved as a byte-copy (filed as upstream issue).
 
