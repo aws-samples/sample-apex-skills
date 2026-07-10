@@ -1,6 +1,6 @@
 ---
 title: "ecs-architect"
-description: ">-"
+description: "Use when choosing and architecting an Amazon ECS deployment model for a NEW workload — Fargate vs ECS on EC2 vs Managed Instances vs Express Mode vs ECS Anywhere/External — plus capacity-provider strategy, task sizing, awsvpc/ENI density, networking, service parameters, and launch-type or topology migration (EC2 launch type to capacity providers/Managed Instances; Service Discovery to Service Connect). Also the shared ECS best-practices corpus. Triggers include \\\"which ECS launch type\\\", \\\"Fargate or EC2\\\", \\\"should I use Managed Instances\\\", \\\"ECS capacity provider strategy\\\", \\\"how to size ECS tasks\\\", \\\"migrate off EC2 launch type\\\", \\\"App Mesh to Service Connect\\\", \\\"ECS on-prem\\\". Skip for existing-app replatform (ecs-modernize); auditing a live estate (ecs-operation-review); cost/TCO (ecs-cost-intelligence); inventory (ecs-recon); security (ecs-security); deployment/CICD (ecs-devops); observability (ecs-observability); GPU/ML design AND GPU launch-type choice (ecs-genai); Kubernetes/EKS (eks-design)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/SKILL.md
 format: md
 ---
