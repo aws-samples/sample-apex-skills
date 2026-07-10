@@ -27,6 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate SKILL.md frontmatter
+        run: pip install pyyaml && python3 misc/validate-frontmatter.py
       - name: Regenerate and fail on diff
         run: |
           ./misc/update-all-references.sh --check
@@ -44,6 +49,8 @@ jobs:
           ./misc/update-all-references.sh && ./misc/update-pages.sh && git add -A
           git commit -m "docs: regenerate reference tables and pages"
           ```
+
+          If the failure is from `validate-frontmatter.py`, check your `SKILL.md` frontmatter YAML syntax and description length (max 1024 chars).
 
           Full details: [`CONTRIBUTING.md` → Keeping docs in sync](../blob/${{ github.head_ref || github.ref_name }}/CONTRIBUTING.md#keeping-docs-in-sync-auto-generated-catalogues).
           EOF

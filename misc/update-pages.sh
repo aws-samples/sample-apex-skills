@@ -500,30 +500,28 @@ _emit_skills_index_grid() {
 # --- Build skills.json manifest to stdout ---------------------------------
 build_manifest() {
   python3 - "$SKILLS_DIR" <<'PY'
-import json, os, re, sys
+import json, os, sys
+import yaml
 
 skills_dir = sys.argv[1]
 
 
 def parse_fm(path):
     with open(path, encoding="utf-8") as f:
-        lines = f.read().splitlines()
-    if not lines or lines[0].strip() != "---":
+        lines = f.readlines()
+    if not lines or lines[0].rstrip() != "---":
         return {}
-    fm = {}
+    fm_lines = []
     for line in lines[1:]:
-        if line.strip() == "---":
+        if line.rstrip() == "---":
             break
-        m = re.match(r'^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$', line)
-        if not m:
-            continue
-        k, v = m.group(1), m.group(2).strip()
-        if (v.startswith('"') and v.endswith('"')) or (
-            v.startswith("'") and v.endswith("'")
-        ):
-            v = v[1:-1]
-        fm[k] = v
-    return fm
+        fm_lines.append(line)
+    else:
+        return {}
+    data = yaml.safe_load("".join(fm_lines))
+    if not isinstance(data, dict):
+        return {}
+    return {k: str(v) for k, v in data.items() if v is not None}
 
 
 out = []
@@ -660,11 +658,11 @@ examples_dir = sys.argv[1]
 def parse_fm(path):
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
-    if not lines or lines[0].strip() != "---":
+    if not lines or lines[0].rstrip() != "---":
         return {}
     fm = {}
     for line in lines[1:]:
-        if line.strip() == "---":
+        if line.rstrip() == "---":
             break
         m = re.match(r'^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$', line)
         if not m:
