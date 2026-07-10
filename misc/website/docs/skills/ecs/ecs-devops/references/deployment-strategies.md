@@ -196,7 +196,7 @@ Sources: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-
 
 ## Pause and Continue
 
-Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/pause-lifecycle-hooks.html (verified 2026-07-09; GA May 19, 2026 — [What's New](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/))
+Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/pause-lifecycle-hooks.html (verified 2026-07-10; GA May 19, 2026 — [What's New](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/))
 
 - `targetType: PAUSE` lifecycle hooks work on **rolling and blue/green-family** deployments, all commercial + GovCloud (US) Regions — both the rolling scope and the Region scope come from the [What's New](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/); the doc page itself illustrates only blue/green-family stages. ECS Anywhere support is not documented as of 2026-07-10.
 - When a pause hook is reached, ECS generates a `hookId`, emits an EventBridge `ECS Hook State Change` event (`HOOK_AWAITING_ACTION`), and waits. Retrieve the hookId via `DescribeServiceDeployments` (`lifecycleHookDetails`), then:

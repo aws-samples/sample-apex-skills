@@ -1,6 +1,6 @@
 ---
 title: "ecs-devops"
-description: "Use when someone is deploying, releasing, or shipping software to Amazon ECS — phrased as \"blue/green deployment on ECS\", \"canary deployment for my ECS service\", \"ECS rolling update settings\", \"set up CI/CD for ECS\", \"GitHub Actions deploy to Fargate\", \"my ECS deployment is stuck\", \"roll back an ECS deployment\", \"ECS deployment circuit breaker\", \"ECS task sets\", or \"migrate off CodeDeploy blue/green\". Covers strategy selection (rolling / native blue-green / linear / canary), lifecycle hooks, circuit-breaker and alarm rollback, and pipelines (CodePipeline, GitHub Actions, ECR scanning) — scoped per launch type (EC2, Fargate, Managed Instances, ECS Anywhere). Trigger even if \"deployment strategy\" is never said — any release-safety, traffic-shifting, rollback, or pipeline decision for an ECS service qualifies. Skip for EKS/Kubernetes (use eks-* skills) and greenfield ECS architecture with no release angle. For ECS monitoring stacks use ecs-observability (once available); for GPU/ML on ECS use ecs-genai."
+description: "Use when someone is deploying, releasing, or shipping software to Amazon ECS — phrased as \"blue/green deployment on ECS\", \"canary deployment for my ECS service\", \"ECS rolling update settings\", \"set up CI/CD for ECS\", \"GitHub Actions deploy to Fargate\", \"my ECS deployment is stuck\", \"roll back an ECS deployment\", \"ECS deployment circuit breaker\", \"ECS task sets\", or \"migrate off CodeDeploy blue/green\". Covers strategy selection (rolling / native blue-green / linear / canary), lifecycle hooks, circuit-breaker and alarm rollback, and pipelines (CodePipeline, GitHub Actions, ECR scanning) — scoped per launch type (EC2, Fargate, Managed Instances, ECS Anywhere). Trigger even if \"deployment strategy\" is never said — any release-safety, traffic-shifting, rollback, or pipeline decision for an ECS service qualifies. Skip for EKS/Kubernetes (use eks-* skills) and greenfield ECS architecture with no release angle. For ECS monitoring stacks use ecs-observability; for GPU/ML on ECS use ecs-genai."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/SKILL.md
 format: md
 ---
@@ -30,7 +30,7 @@ Advisory guidance for shipping software to Amazon ECS safely: choosing a deploym
 
 **Don't use this skill for:**
 - EKS or Kubernetes deployments of any kind → use the `eks-*` skills (`eks-best-practices` for strategy, `eks-build` for artifacts)
-- ECS monitoring, logging, metrics, tracing, or alerting *stack selection* → `ecs-observability` (once available; this skill covers alarms only as deployment-failure triggers)
+- ECS monitoring, logging, metrics, tracing, or alerting *stack selection* → `ecs-observability` (this skill covers alarms only as deployment-failure triggers)
 - GPU / ML / GenAI workloads on ECS → `ecs-genai`
 - ECS security posture, IAM hardening, or compliance → `ecs-security`
 - Auditing the operational health of a live ECS cluster → `ecs-operation-review`
@@ -43,7 +43,7 @@ If a routed sibling skill is not installed yet, don't dead-end the user: answer 
 | User Intent | Correct Skill | Why |
 |---|---|---|
 | "Set up canary deployments for my ECS service" | `ecs-devops` | Release strategy and traffic shifting |
-| "Alert me when my ECS service errors spike" | `ecs-observability` (once available) | Monitoring stack, not deployment safety (this skill covers alarms only as rollback triggers) |
+| "Alert me when my ECS service errors spike" | `ecs-observability` | Monitoring stack, not deployment safety (this skill covers alarms only as rollback triggers) |
 | "Which launch type should my new ECS app use?" | `ecs-architect` | Architecture decision, no release angle |
 | "Harden the IAM roles my pipeline uses" | `ecs-security` | Security posture, not pipeline mechanics |
 | "Is my ECS cluster healthy / well configured?" | `ecs-operation-review` | Live operational audit |
@@ -212,7 +212,7 @@ Alarm-detection gotchas: ECS polls alarms via `DescribeAlarms` (CloudWatch API t
 | GitHub Actions (official `aws-actions/*`) | Render + register task def, update service; optional CodeDeploy blue/green | ECS or CodeDeploy APIs | Task-definition JSON in repo |
 | ECS-native BLUE_GREEN / LINEAR / CANARY from any pipeline | Plain `aws ecs update-service` — the service's configured strategy governs the deployment | ECS `UpdateService` | Task-definition revision |
 
-- **There is no dedicated CodePipeline action for ECS-native blue/green/linear/canary (as of 2026-07-09).** AWS's migration guidance is to switch pipelines from CodeDeploy `CreateDeployment` to the ECS `UpdateService` API ([CodeDeploy-to-native migration overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/migrate-codedeploy-to-ecs-bluegreen.html)).
+- **There is no dedicated CodePipeline action for ECS-native blue/green/linear/canary (as of 2026-07-10).** AWS's migration guidance is to switch pipelines from CodeDeploy `CreateDeployment` to the ECS `UpdateService` API ([CodeDeploy-to-native migration overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/migrate-codedeploy-to-ecs-bluegreen.html)).
 - GitHub Actions building blocks (all official, `aws-actions` org): `configure-aws-credentials` (OIDC — no long-lived keys), `amazon-ecr-login`, `amazon-ecs-render-task-definition` (inject the new image URI), `amazon-ecs-deploy-task-definition` (register + deploy; `wait-for-service-stability`; CodeDeploy blue/green via `codedeploy-appspec`/`codedeploy-application`/`codedeploy-deployment-group`; actively maintained — v2.6.3, Jul 2026).
 - **ECR scanning in the pipeline:** basic scanning (OS-package CVEs, on-push filters) or enhanced scanning via Amazon Inspector (OS + language packages, continuous rescans, ECS image-usage context, Inspector pricing applies). Gate deploys on scan findings via EventBridge ([basic](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-basic-enabling.html) · [enhanced](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-enhanced.html)).
 - **Launch-type caveat:** pipeline mechanics (register task def → update service) are identical for EC2, Fargate, and Managed Instances — **except ECS Anywhere, which is rolling-only: never attach CodeDeploy blue/green actions or native blue/green-family expectations to an Anywhere service** ([ECS Anywhere](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html)).

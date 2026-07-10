@@ -20,8 +20,8 @@ ECR offers two scanning modes; know which is which (verified against current doc
 | Mode | Engine | Coverage | Status |
 |---|---|---|---|
 | **Enhanced scanning** | **Amazon Inspector** | OS packages **AND** programming-language packages (Python, Node.js, Java, Ruby, Go, …); **continuous re-scan** on new CVE disclosure; CVSS scoring; findings → Security Hub | **Recommended** for production. Reference: [ECR enhanced scanning](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-enhanced.html) |
-| **Basic scanning (AWS native)** | AWS-native CVE engine | OS packages, on push / on-demand | GA and the default for new registries; broad OS coverage |
-| **Basic scanning (Clair)** | OSS Clair | OS packages | **Deprecated** — verified 2026-07-09: *"Clair support is deprecated, Clair will not be supported in new regions as they are added and will no longer be supported in all regions as of October 1, 2025"*; also unsupported in Regions added after **September 2024**. Do not recommend. Source: [ECS task and container security best practices — scan images](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-tasks-containers.html). |
+| **Basic scanning (AWS native)** | AWS-native CVE engine | OS packages, on push / on-demand | GA and the default for new registries; broad OS coverage. **Region caveat:** like Clair, basic scanning is unsupported in Regions added after **September 2024** — AWS: *"Both AWS native and Clair basic scanning are supported in all regions… except for those that were added after September, 2024"* (verified 2026-07-10). |
+| **Basic scanning (Clair)** | OSS Clair | OS packages | **Deprecated** — verified 2026-07-10: *"Clair support is deprecated, Clair will not be supported in new regions as they are added and will no longer be supported in all regions as of October 1, 2025"*; the September-2024 Region restriction above applies to both basic-scanning engines (Enhanced/Inspector is unaffected). Do not recommend. Source: [ECS task and container security best practices — scan images](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/security-tasks-containers.html). |
 
 For a regulated workload, enable **Enhanced scanning** on all production repositories (PCI Req 6/11, similar for other regimes) — the continuous re-scan is the key differentiator, since a clean image on push develops CVEs over time. Images with `HIGH`/`CRITICAL` findings should be rebuilt or deleted. Reference: [Scanning ECR images with Amazon Inspector](https://docs.aws.amazon.com/inspector/latest/user/scanning-ecr.html).
 
@@ -37,7 +37,7 @@ ECR supports container image signing so you can verify **provenance and integrit
 ## Immutable tags + CMK-encrypted repositories
 
 - **Immutable tags** — configure ECR repositories with tag immutability so an attacker (or an accidental re-push) can't overwrite a known-good tag with a compromised image under the same name. Deploy by digest (`@sha256:…`) for the strongest guarantee.
-- **CMK encryption at rest** — ECR encrypts images at rest with an AWS-managed KMS key by default; use a **customer-managed key (CMK)** for rotation/audit control under compliance regimes. Reference: [ECR encryption at rest](https://docs.aws.amazon.com/AmazonECR/latest/userguide/encryption-at-rest.html).
+- **CMK encryption at rest** — ECR encrypts images at rest by default with **SSE-S3 (Amazon S3-managed keys, AES-256)**; KMS is **opt-in** — choose the `aws/ecr` AWS-managed key or a **customer-managed key (CMK)** for rotation/audit control under compliance regimes (verified 2026-07-10). Reference: [ECR encryption at rest](https://docs.aws.amazon.com/AmazonECR/latest/userguide/encryption-at-rest.html).
 
 ## Third-party scanners (alternatives or complements)
 

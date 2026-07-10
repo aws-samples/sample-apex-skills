@@ -32,7 +32,7 @@ ECS uses several IAM roles for different jobs. Conflating them is the classic mi
 
 ## Trust policy — the `ecs-tasks.amazonaws.com` principal
 
-Both the task role and the execution role must trust the ECS tasks service. The minimal trust policy is:
+Both the task role and the execution role must trust the ECS tasks service. The minimal trust policy is below — **not for production as-is**: it lacks the confused-deputy conditions added in the next section.
 
 ```json
 {
@@ -64,7 +64,7 @@ Because `ecs-tasks.amazonaws.com` is a shared AWS service principal, harden the 
 }
 ```
 
-> **Gotcha (corrected):** you **cannot** scope this `aws:SourceArn` to a specific cluster or task-family. AWS states verbatim: *"Using the `aws:SourceArn` condition key to specify a specific cluster is not currently supported, you should use the wildcard to specify all clusters"* — so the account-scoped `...:account:*` above is the tightest supported form. A task-family SourceArn is impossible in principle: a task ARN is `arn:aws:ecs:region:account:task/cluster-name/task-id` and never contains the family. Attempting a narrower pattern is the classic self-inflicted "unable to assume the role." Source: [ECS task IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html) · [AWS confused-deputy prevention](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html).
+> **Gotcha (corrected):** you **cannot** scope this `aws:SourceArn` to a specific cluster or task-family. AWS states verbatim: *"Using the `aws:SourceArn` condition key to specify a specific cluster is not currently supported, you should use the wildcard to specify all clusters"* — so the account-scoped `...:account:*` above is the tightest supported form. By inspection of the ARN format (an inference, not an AWS-documented statement): a task ARN is `arn:aws:ecs:region:account:task/cluster-name/task-id` and never contains the family, so a task-family SourceArn has nothing to match against. Attempting a narrower pattern is the classic self-inflicted "unable to assume the role." Source: [ECS task IAM role](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html) · [AWS confused-deputy prevention](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html).
 
 ## `iam:PassRole` — scope it, never `*`
 
@@ -99,9 +99,9 @@ This is the recurring firefight. Work the checklist in order (per [re:Post: ECS 
 **ECS Exec** (`aws ecs execute-command`) opens an interactive shell into a running container. It is invaluable for break-glass debugging and a serious lateral-movement risk if ungoverned — and note two verified facts (2026-07-09, [ECS Exec](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html)): **Exec commands always run as `root`** ("these commands are run as the `root` user … even when you specify a user ID for the container"), and **`readonlyRootFilesystem: true` is not supported with Exec** (the SSM agent must write to the container FS). Govern it explicitly:
 
 - **Restrict who can Exec, and into what** — scope `ecs:ExecuteCommand` in the caller's IAM policy with condition keys: `ecs:cluster` (which clusters), `ecs:container-name` (which containers), and resource tags on the cluster/task. AWS shows these exact patterns under [Using IAM policies to limit access to ECS Exec](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html). Also consider limiting the underlying `ssm:StartSession`.
-- **Log every session** — set the cluster `configuration.executeCommandConfiguration` to log sessions to **CloudWatch Logs and/or S3** (`logging: OVERRIDE`), and encrypt the session with a **KMS key** (`kmsKeyId`). When using a KMS key you must also add a KMS interface VPC endpoint on private networks.
+- **Log every session** — set the cluster `configuration.executeCommandConfiguration` to log sessions to **CloudWatch Logs and/or S3** (`logging: OVERRIDE`), and encrypt the session with a **KMS key** (`kmsKeyId`). The KMS permissions are **split**: the **task role** needs `kms:Decrypt` on the key, and the **caller** (the user/role running `execute-command`) needs `kms:GenerateDataKey` on it — both, or the session fails (verified 2026-07-10 — [ECS Exec](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html)). When using a KMS key you must also add a KMS interface VPC endpoint on private networks.
 - **Audit** — `ExecuteCommand` is a CloudTrail event; alert on it. Session command/output logs give you the in-container audit trail.
-- **Disable in production** — the task must opt in via `enableExecuteCommand`; leave it **off** for prod services unless a break-glass workflow is active, and pair the task-role SSM permissions (`ssmmessages:*`) with the IAM restrictions above.
+- **Disable in production** — the task must opt in via `enableExecuteCommand`; leave it **off** for prod services unless a break-glass workflow is active, and pair the task-role SSM permissions — the four documented actions `ssmmessages:CreateControlChannel`, `ssmmessages:CreateDataChannel`, `ssmmessages:OpenControlChannel`, `ssmmessages:OpenDataChannel`, not a `ssmmessages:*` wildcard ([ECS Exec permissions](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecs-exec-required-iam-permissions)) — with the IAM restrictions above.
 
 ## Operator-side IAM (cluster administration, not just workload roles)
 

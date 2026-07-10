@@ -30,7 +30,8 @@ Assess deployment safety — the single richest vein of ECS production incidents
 - 🟢 GREEN: Circuit breaker enabled **and** `rollback: true` — failed deployments auto-roll-back to the last COMPLETED revision; threshold either left at the sensible default or tuned to the service's measured startup profile.
 - 🟡 AMBER: Circuit breaker enabled but `rollback: false` (deployment fails but stays failed — manual intervention needed), **or** a long-startup app (JVM warm-up, model loading) left on a threshold that risks false-tripping where a tuned `COUNT`/`UNBOUNDED_PERCENT` would fit better.
 - 🔴 RED: Circuit breaker disabled on a production rolling-update service — a bad deploy retries in perpetuity, consuming resources without surfacing failure.
-- ⬜ UNKNOWN: Service uses a different deployment controller (blue/green — rate in 4.3) or cannot describe the service.
+- ⚪ N/A: Service uses a different deployment controller (blue/green — its rollback posture is rated in 4.3, not here).
+- ⬜ UNKNOWN: Cannot describe the service.
 
 **Key talking point:** Without the circuit breaker, a failing rolling deployment retries indefinitely using service throttling logic; the breaker detects failure and (with rollback) restores the last healthy revision automatically. As of **July 2026** the failure threshold is configurable via `thresholdConfiguration` — set a lower threshold for faster rollbacks in dev/test, or allow more tolerance for apps with expected startup failures before they stabilize; you can also count failures consecutively or cumulatively. See [deployment circuit breaker](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html), [configurable circuit breaker settings launch](https://aws.amazon.com/about-aws/whats-new/2026/07/amazon-ecs-circuit-breaker-settings/), and the [original launch post](https://aws.amazon.com/blogs/containers/announcing-amazon-ecs-deployment-circuit-breaker/).
 

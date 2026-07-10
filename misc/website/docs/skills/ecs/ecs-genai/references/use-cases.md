@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-genai/references/use-cases.md](https://g
 
 # Worked Use Cases — GPU / ML on Amazon ECS
 
-Four condensed scenarios. Each gives: customer profile, the ECS-specific decisions, and a build path. All keep the first-class constraint in view — **GPU is never on Fargate**.
+Five condensed scenarios. Each gives: customer profile, the ECS-specific decisions, and a build path. All keep the first-class constraint in view — **GPU is never on Fargate** — and Use Case 5 shows the equally valid answer of not self-hosting a GPU at all.
 
 ---
 
@@ -94,6 +94,25 @@ Four condensed scenarios. Each gives: customer profile, the ECS-specific decisio
 
 ---
 
+## Use Case 5 — Fargate Shop Adds an LLM Feature (Keep Fargate, Call Bedrock)
+
+**Profile:** Team runs its whole estate on ECS Fargate and wants to add an LLM-powered feature (summarization, chat, RAG). No stated need to self-host a model; no GPU expertise; wants to stay on Fargate.
+
+**ECS-specific decisions:**
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| D5 first | **No self-hosting — keep Fargate, call Amazon Bedrock** | The app/orchestrator is CPU-only and stays on Fargate; the model is a managed API — zero GPU infrastructure ([service-boundaries.md](service-boundaries)) |
+| D1 (moot) | No accelerated container exists | Fargate's no-GPU limit never bites because nothing needs a GPU |
+| Networking | **`bedrock-runtime` interface VPC endpoint** from the Fargate service's private subnets | Keep model traffic off the internet ([security-and-compliance.md](security-and-compliance)) |
+| Security | Task role scoped to `bedrock:InvokeModel*` on the specific model IDs; secrets via Secrets Manager | Standard baseline |
+
+**Build path:** add the Bedrock SDK call (or a LiteLLM/AI-gateway Fargate service in front — [inference-serving.md](inference-serving)) to the existing Fargate app; wire the `bedrock-runtime` VPC endpoint + task-role permissions; done — no ASG, no AMI, no capacity provider.
+
+**Route back into this skill's GPU path only if:** cost-at-scale, model customization, or data-residency later justifies self-hosting — then start at D1 with ECS-on-EC2 / Managed Instances.
+
+---
+
 ## Pattern Summary
 
 | Scenario | Primary lever | Key ECS-specific gotcha |
@@ -102,6 +121,7 @@ Four condensed scenarios. Each gives: customer profile, the ECS-specific decisio
 | Distributed training | Capacity Blocks + EFA + placement group | One homogeneous ASG; checkpoint or lose Spot progress |
 | Neuron migration | Neuron over GPU for supported models | Pre-compile offline; verify model support + output parity |
 | Shared GPU dev | GPU sharing via default runtime | No isolation — dev/test only |
+| Fargate + Bedrock | No self-hosted GPU at all | Don't stand up GPU EC2 when a managed FM API meets the need |
 
 ## Sources
 

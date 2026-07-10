@@ -13,7 +13,7 @@ This page is generated from [skills/ecs-genai/references/distributed-training.md
 
 Running multi-GPU and multi-node training / fine-tuning on ECS-on-EC2. ECS is a viable orchestrator for distributed ML — AWS documents an end-to-end pattern using **PyTorch + Ray Train** with distributed data parallel on ECS ([Distributed machine learning with Amazon ECS](https://aws.amazon.com/blogs/containers/distributed-machine-learning-with-amazon-ecs/)). Training runs on ECS-on-EC2 (or Managed Instances); **not Fargate** (no GPU/accelerator).
 
-> **Managed Instances caveat for long training runs:** Managed Instances is convenient, but it **initiates security patching every ~14 days by replacing (drain-and-replace) the instance** ([capacity-and-scaling.md](capacity-and-scaling)). A multi-week pre-training/fine-tuning run **will be interrupted** by this cadence — so on MI you must have robust checkpoint/resume, schedule patching into a maintenance window, or prefer a **self-managed ASG / Capacity Block** for uninterrupted multi-week jobs.
+> **Managed Instances caveat for long training runs:** Managed Instances is convenient, but it **initiates security patching every 14 days by replacing (drain-and-replace) the instance, with termination no later than day 21** ([capacity-and-scaling.md](capacity-and-scaling)). A multi-week pre-training/fine-tuning run **will be interrupted** by this cadence — so on MI you must have robust checkpoint/resume, schedule patching into a maintenance window, or prefer a **self-managed ASG / Capacity Block** for uninterrupted multi-week jobs.
 
 ## When ECS Fits Distributed Training — and When It Doesn't
 
@@ -60,6 +60,13 @@ Two common patterns:
 
 Keep the **whole job on one homogeneous GPU ASG** and size the ASG to the node count; ECS cluster auto scaling reacts with latency, so pre-provision (or use Capacity Blocks) for large runs rather than relying on reactive scale-out.
 
+**Launch and recovery mechanics (the HOW behind the patterns):**
+
+- **Head/long-lived roles → ECS Service; workers/finite jobs → `RunTask`.** A Ray head (or any rendezvous coordinator) is well modeled as a **service of 1** so ECS restarts it on failure; the finite training workers are standalone tasks started with `RunTask` — ECS never relaunches a **stopped standalone task** (services only maintain desired count for their own tasks). Container-level `restartPolicy` in the task definition can restart a crashed *container inside a still-running task*, but it does not resurrect a stopped task — the relaunch primitive for stopped tasks is the EventBridge wiring below ([container restart policies](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-restart-policy.html), verified 2026-07-10).
+- **Rendezvous wiring:** register the head/master in **Cloud Map (ECS Service Discovery / Service Connect)** so workers resolve `MASTER_ADDR` by DNS instead of IP-passing; pass `MASTER_PORT`/rank via container environment or task overrides.
+- **Who relaunches a failed rank:** on native ECS, *you* do. The documented primitive is an **EventBridge rule on the ECS Task State Change event** (`desiredStatus: STOPPED` with the job's tags/group) that triggers a Lambda/Step Functions target to `RunTask` a replacement and rejoin from the last checkpoint ([Amazon ECS events](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_cwe_events.html)). Ray Train gives you this fault-tolerance in-framework; rank-addressed torchrun jobs need the EventBridge wiring or an external controller.
+- **Or use AWS Batch — the canonical AWS answer to "ECS has no job primitive."** **AWS Batch multi-node parallel (MNP) jobs** run on ECS under the hood and provide gang-launch of N nodes, `AWS_BATCH_JOB_MAIN_NODE_INDEX`-based rendezvous, retry strategies, and job queues — including EFA support ([AWS Batch multi-node parallel jobs](https://docs.aws.amazon.com/batch/latest/userguide/multi-node-parallel-jobs.html)). If the team wants job-queue semantics without building the EventBridge/relaunch scaffolding, route the training layer to Batch-on-ECS before reaching for EKS.
+
 ## Checkpoint / Resume — Mandatory for Spot
 
 **Never run distributed training on Spot without checkpoint/resume.** Every interruption otherwise restarts from epoch 0 — a guaranteed cost-burn.
@@ -70,7 +77,7 @@ FSx for Lustre → S3 Data Repository Association (async durable offload)
 On interruption → replacement task launches → loads latest checkpoint from S3/FSx → resumes
 ```
 
-- Checkpoint every **15–30 min** on Spot (Spot gives a 2-minute warning; managed instance draining helps drain gracefully).
+- Checkpoint every **15–30 min** on Spot (Spot issues an interruption notice **two minutes** before stop/terminate — [Spot Instance interruption notices](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-instance-termination-notices.html); managed instance draining helps drain gracefully).
 - Keep checkpoint storage **same-AZ** as the GPU instances — cross-AZ latency dwarfs FSx's native performance ([storage.md](storage)).
 - Set the training tasks to **not be disrupted** by scale-in during an active run (schedule on On-Demand/Capacity Blocks, or isolate Spot to interruption-tolerant phases).
 

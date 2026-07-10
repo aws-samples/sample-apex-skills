@@ -11,19 +11,24 @@ This page is generated from [skills/ecs-genai/references/neuron-on-ecs.md](https
 
 # AWS Neuron (Inferentia / Trainium) on Amazon ECS
 
-Running AWS purpose-built ML accelerators — **AWS Inferentia (Inf1, Inf2)** and **AWS Trainium (Trn1, Trn2)** — as ECS workloads. Neuron is the cost-optimized alternative to NVIDIA GPU for **supported Transformer-family models**, at the cost of an ahead-of-time compilation step. Like GPU, **Neuron is not available on Fargate** — it runs on ECS-on-EC2 and ECS Managed Instances (Inf1 is EC2-launch-type only).
+Running AWS purpose-built ML accelerators — **AWS Inferentia (Inf1, Inf2)** and **AWS Trainium (Trn1, Trn2)** — as ECS workloads. Neuron is the cost-optimized alternative to NVIDIA GPU for **supported Transformer-family models**, at the cost of an ahead-of-time compilation step. Like GPU, **Neuron is not available on Fargate** — it runs on ECS-on-EC2 and, for **Inf2 and Trn1 only**, ECS Managed Instances; **Trn2 and Inf1 are EC2-launch-type only** (see the doc-conflict caveats below).
 
 ## Supported Instances & What Each Is For
 
-Per [ECS task definitions for AWS Neuron ML workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html):
+Per [ECS task definitions for AWS Neuron ML workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html) and the [ECS Managed Instances instance types](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-instance-types.html) supported list (both verified 2026-07-10):
 
 | Family | Chip | Role | ECS support |
 |---|---|---|---|
-| **Trn1, Trn2** | AWS Trainium | High-performance, low-cost **training** (also large-model inference) | EC2 launch type + Managed Instances |
+| **Trn1** | AWS Trainium | High-performance, low-cost **training** (also large-model inference) | EC2 launch type + Managed Instances |
+| **Trn2** | AWS Trainium2 | Highest-performance Trainium **training** | **EC2 launch type only** (not on the MI supported list — see caveat) |
 | **Inf2** | AWS Inferentia2 | High-performance, low-cost **inference** | EC2 launch type + Managed Instances |
 | **Inf1** | AWS Inferentia | Inference (first-gen) | **EC2 launch type only** |
 
-Verbatim device mapping from the ECS Neuron doc (subset — chips per instance, used for manual device specification):
+> **Known AWS doc conflicts (state these when advising, don't paper over them):**
+> - **Trn2 on Managed Instances:** [ecs-inference.html](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html) describes Trn2 selection on MI (e.g. `acceleratorNames: trainium2`), but the [MI supported-types list](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-instance-types.html) ends its accelerated list at Trn1 and the ECS API reference's [`InstanceRequirementsRequest.acceleratorNames`](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_InstanceRequirementsRequest.html) valid values include **no** `trainium`/`trainium2`/`inferentia2` values — as of 2026-07-10, Trn2 is **not** documented as supported on MI. **Verify against the live pages before advising Trn2 on MI**; scope Trn2 to the EC2 launch type (self-managed ASG) until the docs agree.
+> - **Inf1:** the same page pair disagrees the other way — ecs-inference.html says Inf1 is **EC2 launch type only**, while the MI supported-types list includes Inf1. Treat Inf1 as EC2-launch-type only (the explicit Neuron-page scoping note wins for device allocation), and flag the conflict.
+
+Verbatim device mapping from the ECS Neuron doc (subset — chips per instance, used for manual device specification; table re-verified against the live doc **2026-07-10** — the Inf/Trn family list moves fast, re-check before quoting):
 
 | Instance | vCPUs | RAM (GiB) | Neuron chips | Device paths |
 |---|---|---|---|---|
@@ -36,7 +41,7 @@ Verbatim device mapping from the ECS Neuron doc (subset — chips per instance, 
 | inf2.24xlarge | 96 | 384 | 6 | /dev/neuron0 … /dev/neuron5 |
 | inf2.48xlarge | 192 | 768 | 12 | /dev/neuron0 … /dev/neuron11 |
 
-Clusters can mix Trn1, Trn2, Inf1, Inf2, and other instances (subject to the per-type-ASG capacity rule in [capacity-and-scaling.md](capacity-and-scaling)). The workload must be a **Linux** container using a framework with Neuron support (PyTorch, TensorFlow) via the **AWS Neuron SDK** (compiler + runtime + profiling tools). Non-Neuron frameworks won't get accelerated performance on these instances.
+Depending on the launch type, clusters can mix Trn1, Trn2, Inf1, Inf2, and other instances (subject to the per-type-ASG capacity rule in [capacity-and-scaling.md](capacity-and-scaling) and the launch-model scoping above). The workload must be a **Linux** container using a framework with Neuron support (PyTorch, TensorFlow) via the **AWS Neuron SDK** (compiler + runtime + profiling tools). Non-Neuron frameworks won't get accelerated performance on these instances.
 
 ## The ECS Neuron-Optimized AMI
 
@@ -71,17 +76,22 @@ Use `resourceRequirements` type **`NeuronDevice`** with value `ALL`. ECS discove
 }
 ```
 
-Constraints: at most one container definition may specify `NeuronDevice`; you can't combine `NeuronDevice` `resourceRequirements` with `linuxParameters.devices` for Neuron in the same task definition. After launch, verify via `DescribeTasks` (`neuronDeviceIds` per container) or `DescribeContainerInstances` (`NEURON_DEVICES` in registered/remaining resources). Select Neuron instances in the Managed Instances launch template with `instanceRequirements`:
+Constraints: at most one container definition may specify `NeuronDevice`; you can't combine `NeuronDevice` `resourceRequirements` with `linuxParameters.devices` for Neuron in the same task definition. After launch, verify via `DescribeTasks` (`neuronDeviceIds` per container) or `DescribeContainerInstances` (`NEURON_DEVICES` in registered/remaining resources). Select Neuron instances in the Managed Instances launch template with `instanceRequirements` — use `acceleratorManufacturers` plus `allowedInstanceTypes`:
 
 ```json
 {
   "instanceRequirements": {
+    "vCpuCount": { "min": 4 },
+    "memoryMiB": { "min": 16384 },
     "acceleratorManufacturers": ["amazon-web-services"],
-    "acceleratorNames": ["inferentia2", "trainium", "trainium2"],
-    "allowedInstanceTypes": ["inf*", "trn*"]
+    "allowedInstanceTypes": ["inf2.*", "trn1.*"]
   }
 }
 ```
+
+`vCpuCount` and `memoryMiB` are **required** fields of `instanceRequirements` (`Required: Yes` in the API reference — a request without them fails validation; AWS's own ecs-inference.html example omits them). Size the min values to your smallest acceptable instance. ([`InstanceRequirementsRequest`](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_InstanceRequirementsRequest.html), verified 2026-07-10)
+
+> **API caveat:** [ecs-inference.html](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html) suggests `acceleratorNames` values `inferentia2`/`trainium`/`trainium2`, but the ECS API reference's [`InstanceRequirementsRequest.acceleratorNames`](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_InstanceRequirementsRequest.html) valid-values enum (`a100 | inferentia | k520 | k80 | m60 | radeon-pro-v520 | t4 | vu9p | v100 | a10g | h100 | t4g`, verified 2026-07-10) contains **none of those values** — only first-gen `inferentia`. Don't rely on Neuron `acceleratorNames`; select via `acceleratorManufacturers: ["amazon-web-services"]` and `allowedInstanceTypes`, and scope to Inf2/Trn1 per the MI supported list.
 
 ### 2. Manual Neuron device specification (EC2 launch type + Managed Instances)
 

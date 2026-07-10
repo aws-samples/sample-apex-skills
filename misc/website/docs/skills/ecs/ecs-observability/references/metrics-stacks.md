@@ -36,7 +36,7 @@ This page is generated from [skills/ecs-observability/references/metrics-stacks.
 
 Every ECS customer gets these before any stack decision:
 
-- 1-minute periods, 2-week retention: cluster and service `CPUUtilization` / `MemoryUtilization`; `CPUReservation` / `MemoryReservation` / `GPUReservation` for EC2-hosted clusters; EBS filesystem utilization (carries the same gate as the Container Insights EBS metric — Fargate platform version ≥ 1.4.0 or EC2 agent ≥ 1.79.0; see the tier table below).
+- 1-minute periods, 2-week retention: cluster and service `CPUUtilization` / `MemoryUtilization`; `CPUReservation` / `MemoryReservation` / `GPUReservation` for EC2-hosted clusters; EBS filesystem utilization (the free-metric pages state only "when there is an EBS volume attached" with no version gate; the Fargate platform version ≥ 1.4.0 / EC2 agent ≥ 1.79.0 gate is documented on the Container Insights metrics table — assuming it also gates the free metric is an inference, not documented; see the tier table below and https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-metrics-ECS.html).
 - Fargate services get CPU/memory utilization automatically; EC2-hosted needs container agent ≥ 1.4.0 (Linux) / ≥ 1.0.0 (Windows) and `ecs:StartTelemetrySession` on the instance role; disable with `ECS_DISABLE_METRICS=true`.
 - On ECS Anywhere (EXTERNAL), task/container metrics flow through the `ecs-t-*` regional endpoints, which must be reachable from the on-prem network (per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html).
 - AWS-recommended alarms for ECS (with and without Container Insights): https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Best_Practice_Recommended_Alarms_AWS_Services.html#ECS
@@ -62,7 +62,7 @@ Mechanics common to both tiers:
 
 Release date for enhanced observability: December 2024 (What's New: https://aws.amazon.com/about-aws/whats-new/2024/12/amazon-cloudwatch-container-insights-observability-ecs/).
 
-Container Insights can also be produced via an ADOT collector instead of the ECS-native path — relevant when a customer already standardizes on OTel pipelines: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-ECS-adot.html. Launch-type scope: that setup page does not enumerate launch types (its walkthrough uses EC2, and the ADOT-on-ECS integration itself is documented for Fargate + EC2 only — see the ADOT row of [launch-type-matrix.md](launch-type-matrix)); support beyond Fargate/EC2 is not documented as of 2026-07-10 — verify before advising.
+Container Insights can also be produced via an ADOT collector instead of the ECS-native path — relevant when a customer already standardizes on OTel pipelines: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-ECS-adot.html. Launch-type scope: that setup page does not enumerate launch types (its console walkthrough is launch-type-agnostic), but the ADOT-on-ECS integration itself is documented for Fargate + EC2 only — see the ADOT row of [launch-type-matrix.md](launch-type-matrix); support beyond Fargate/EC2 is not documented as of 2026-07-10 — verify before advising.
 
 ## GPU telemetry — the launch-type trap
 

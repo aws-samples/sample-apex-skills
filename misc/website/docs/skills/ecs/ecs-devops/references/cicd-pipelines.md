@@ -38,7 +38,7 @@ This page is generated from [skills/ecs-devops/references/cicd-pipelines.md](htt
 |---|---|
 | AWS-native pipeline, rolling deployments | CodePipeline standard "Amazon ECS" action |
 | AWS-native pipeline, existing CodeDeploy blue/green | Keep CodePipeline "ECS (Blue/Green)" action — a fully supported steady state (no announced EOL); migrate to native only when you want its benefits (see [controllers-and-migration.md](controllers-and-migration)) |
-| AWS-native pipeline, ECS-native blue/green / linear / canary | CodePipeline + a stage that calls `aws ecs update-service` (CodeBuild/Lambda) — **no dedicated action exists as of 2026-07-09** |
+| AWS-native pipeline, ECS-native blue/green / linear / canary | CodePipeline + a stage that calls `aws ecs update-service` (CodeBuild/Lambda) — **no dedicated action exists as of 2026-07-10** |
 | GitHub-hosted repo | Official `aws-actions/*` GitHub Actions with OIDC |
 | Any strategy, any CI system | Render task definition → `RegisterTaskDefinition` → `UpdateService`; the service's configured strategy does the rest |
 
@@ -70,7 +70,7 @@ Sources: https://docs.aws.amazon.com/codepipeline/latest/userguide/action-refere
 
 Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/migrate-codedeploy-to-ecs-bluegreen.html (verified 2026-07-09)
 
-**There is no dedicated CodePipeline action for ECS-native BLUE_GREEN / LINEAR / CANARY (as of 2026-07-09).** AWS's own migration checklist says: update deployment scripts and CI/CD pipelines to use the Amazon ECS `UpdateService` API instead of the CodeDeploy `CreateDeployment` API. The pattern:
+**There is no dedicated CodePipeline action for ECS-native BLUE_GREEN / LINEAR / CANARY (as of 2026-07-10).** AWS's own migration checklist says: update deployment scripts and CI/CD pipelines to use the Amazon ECS `UpdateService` API instead of the CodeDeploy `CreateDeployment` API. The pattern:
 
 ```bash
 # 1. Register the new task definition revision (immutable image tag or digest)

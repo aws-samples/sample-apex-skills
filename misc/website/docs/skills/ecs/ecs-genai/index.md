@@ -1,6 +1,6 @@
 ---
 title: "ecs-genai"
-description: "Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS — GPU on ECS, ECS GPU-optimized AMI, g4dn/g5/g6/p4/p5 on ECS, which ECS launch type for GPU, Inferentia/Trainium/Neuron on ECS, distributed training on ECS, model inference on ECS, Capacity Blocks for ECS, GPU sharing, or ASG per GPU type. Covers GPU compute on ECS-on-EC2 and ECS Managed Instances (GPU-optimized AMIs, NVIDIA runtime, instance families); the capacity pattern where mixed-instance ASGs are supported but constrained (no weighting; managed scaling protects on the smallest type, so one homogeneous ASG per GPU type is best practice); Capacity Blocks; inference/serving; Neuron; distributed ML; GPU observability; a GPU/ML security slice. AWS Fargate has NO GPU — use ECS-on-EC2, Managed Instances, or ECS Anywhere. Trigger even if GenAI is unsaid. Use eks-genai for Kubernetes/EKS; SageMaker for fully-managed ML; Bedrock for managed foundation models; ecs-architect for non-accelerator ECS design; ecs-security for deep compliance."
+description: "Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS: GPU on ECS, ECS GPU-optimized AMI, g4dn/g5/g6/p4/p5 on ECS, which ECS launch type for GPU, Inferentia/Trainium/Neuron on ECS, distributed training, model inference or vLLM/Triton/TGI/Ray on ECS, Capacity Blocks, GPU sharing, ASG per GPU type. Covers GPU on ECS-on-EC2 and ECS Managed Instances (GPU AMIs, NVIDIA runtime, instance families); mixed-instance ASGs supported but constrained (no weighting; managed scaling protects on the smallest type, so one homogeneous ASG per GPU type); Capacity Blocks; inference/serving; Neuron; distributed ML; GPU observability; a GPU/ML security slice (PCI/HIPAA). AWS Fargate has NO GPU: use ECS-on-EC2, Managed Instances, ECS Anywhere, or keep Fargate and call Bedrock. Trigger even if GenAI is unsaid. Use eks-genai for Kubernetes/EKS; SageMaker for fully-managed ML; Bedrock for managed foundation models; ecs-architect for non-accelerator ECS design; ecs-security for deep compliance."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/SKILL.md
 format: md
 ---
@@ -10,7 +10,7 @@ This page is generated from [skills/ecs-genai/SKILL.md](https://github.com/aws-s
 :::
 
 
-<!-- Note: ecs-genai intentionally ships no `apex:ecs-genai` steering command (eks-genai has one). This is an omission, not by design — steering-command wiring is deferred repo-wide, so it is left unwired for now to match the rest of the ECS skills. Freshness: instance/spec claims verified against live AWS docs 2026-07-09. -->
+<!-- Note: ecs-genai intentionally ships no `apex:ecs-genai` steering command (eks-genai has one). This is an omission, not by design — steering-command wiring is deferred repo-wide, so it is left unwired for now to match the rest of the ECS skills. Freshness: instance/spec claims verified against live AWS docs 2026-07-10. -->
 
 # GenAI / GPU / ML Workloads on Amazon ECS
 
@@ -45,7 +45,7 @@ Walk the customer through five decisions, top to bottom. Depth for each is in th
 
 ```text
 D1  Compute host      ECS-on-EC2 · ECS Managed Instances · ECS Anywhere   (NEVER Fargate for GPU)
-D2  Accelerator       NVIDIA GPU (g4dn/g5/g6/g6e/p3/p4d/p5) · AWS Neuron (Inf2/Trn1/Trn2)
+D2  Accelerator       NVIDIA GPU (g4dn/g5/g6/g6e/p3/p4d/p5) · AWS Neuron (Inf2/Trn1; Trn2 = EC2 launch type only)
 D3  Capacity model    separate ASG per GPU type + capacity-provider strategy · Managed Instances · Capacity Blocks · Spot
 D4  Workload shape    single-container inference · distributed multi-node training · GPU-shared dev
 D5  Boundary check    stay on ECS · or route to eks-genai / SageMaker / Bedrock
@@ -53,18 +53,27 @@ D5  Boundary check    stay on ECS · or route to eks-genai / SageMaker / Bedrock
 
 ### D1 — Compute host: Fargate is out for GPU (first-class caveat)
 
-**AWS Fargate cannot run GPU or AWS-accelerator workloads.** AWS lists the `gpu` parameter among the task-definition parameters that are **"not valid in Fargate tasks"** (alongside `devices` and `placementConstraints`), and the Fargate task-size model exposes only CPU and memory — valid task sizes run from 256 (.25 vCPU) up to 32768 (32 vCPU), with no GPU dimension at all ([ECS task definition differences for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)). The `resourceRequirements` `GPU` type and `NeuronDevice` allocation are container-instance (EC2) concepts only. GPU is supported on:
+**AWS Fargate cannot run GPU or AWS-accelerator workloads.** AWS lists the `gpu` parameter among the task-definition parameters that are **"not valid in Fargate tasks"** (alongside `privileged` and `placementConstraints`; `linuxParameters.devices` is separately unsupported on Fargate under the `linuxParameters` limitations), and the Fargate task-size model exposes only CPU and memory — valid task sizes run from 256 (.25 vCPU) up to 32768 (32 vCPU), with no GPU dimension at all ([ECS task definition differences for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)). The `resourceRequirements` `GPU` type and `NeuronDevice` allocation are container-instance (EC2) concepts only. GPU is supported on:
 
 - **ECS-on-EC2** — you own the Auto Scaling group and the GPU-optimized AMI; full control (custom AMI/kernel, EFA, multi-node). The default for training and demanding inference.
-- **ECS Managed Instances** — AWS provisions/patches (~every 14 days) the EC2 lifecycle for you; supports GPU (e.g. `g4dn`, `g5`, `p3`, `p4d`) with pre-installed NVIDIA drivers + CUDA ([Use GPUs with ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu.html)), and the managed `NeuronDevice` allocation path ([ECS task definitions for AWS Neuron ML workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html)). GA Sept 2025, all commercial Regions Oct 2025.
+- **ECS Managed Instances** — AWS provisions and patches the EC2 lifecycle for you (patching is initiated every 14 days by drain-and-replace, with termination no later than day 21 — [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)); supports GPU (e.g. `g4dn`, `g5`, `p3`, `p4d`) with pre-installed NVIDIA drivers + CUDA ([Use GPUs with ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu.html)), and the managed `NeuronDevice` allocation path ([ECS task definitions for AWS Neuron ML workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-inference.html)). GA Sept 2025, all commercial Regions Oct 2025.
 - **ECS Anywhere / External** — on-prem/hybrid GPU hosts registered with `--enable-gpu`.
+
+**MI vs EC2 launch type — the micro-decision inside D1:**
+
+| Signal | Pick |
+|---|---|
+| Training runs longer than ~2 weeks (MI drain-and-replace starts at day 14) | **EC2 launch type** + Capacity Block |
+| GuardDuty Runtime Monitoring required on the host | **EC2 launch type** (not supported on MI — see Security Baseline below) |
+| Custom AMI/kernel, EFA multi-node, or fee-sensitive (MI adds a management charge) | **EC2 launch type** (or compare cost) |
+| Lower ops overhead, no ASG/AMI plumbing, inference or short jobs | **Managed Instances** |
 
 Also note: **GPUs are not supported on Windows containers on ECS** ([ECS GPU workloads](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-gpu.html)). Details: [compute-hardware.md](references/compute-hardware).
 
 ### D2 — Accelerator: NVIDIA GPU vs AWS Neuron
 
 - **NVIDIA GPU** (g4dn/g5/g6/g6e inference; p3/p4d/p5 training) — broadest ecosystem, CUDA, fastest time-to-first-success, multi-modal/novel architectures. The ECS GPU-optimized AMI ships NVIDIA kernel drivers + the NVIDIA Docker runtime pre-installed.
-- **AWS Neuron** (Inf2 inference; Trn1/Trn2 training; Inf1 legacy, EC2 launch type only) — cost-optimized for supported Transformer-family models on the ECS Neuron-optimized AL2023 AMI, at the price of a compilation ramp. Details: [compute-hardware.md](references/compute-hardware), [neuron-on-ecs.md](references/neuron-on-ecs).
+- **AWS Neuron** (Inf2 inference; Trn1/Trn2 training; Inf1 legacy) — cost-optimized for supported Transformer-family models on the ECS Neuron-optimized AL2023 AMI, at the price of a compilation ramp. Launch-model scoping matters: the Managed Instances supported-types list ends at **Trn1** (no Trn2) — treat **Trn2 as EC2-launch-type only**, and see the Inf1/Trn2 doc-conflict caveats in [neuron-on-ecs.md](references/neuron-on-ecs). Details: [compute-hardware.md](references/compute-hardware), [neuron-on-ecs.md](references/neuron-on-ecs).
 
 Do not synthesize per-chip specs — cite the ECS GPU/Neuron doc tables. Right accelerator = f(model family × latency × cost posture × team skill × timeline).
 
@@ -90,7 +99,7 @@ ECS, by default, **pins whole physical GPUs to containers** — the scheduler as
 
 ## Security Baseline (non-negotiable)
 
-Every GPU/ML-on-ECS recommendation MUST include: **task role + execution role least-privilege** (never static keys in the image/env); **secrets via Secrets Manager / SSM Parameter Store** injected into the task definition (never baked into the model image); **ECR image scanning** (DLC/CUDA/Neuron images carry huge CVE surfaces); **model-artifact provenance** (checksum/signing; pin exact model revisions); **private subnets + VPC endpoints** (S3 for weights, ECR, Secrets Manager, Bedrock-runtime if used) for GPU instances; **inference-endpoint authentication** (internal vs internet-facing ALB/NLB + auth in front of the model API — see [security-and-compliance.md](references/security-and-compliance)); and **CloudTrail + Container Insights** audit. Add **GuardDuty ECS Runtime Monitoring** on **ECS-on-EC2** hosts — but note it is **not supported on ECS Managed Instances, ECS Anywhere, or Windows** ([GuardDuty Runtime Monitoring considerations](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html)), so an MI-based fleet needs a different runtime-threat control. For the deep, general ECS security baseline and regulated-compliance design, route to **`ecs-security`**; this skill carries only the GPU/ML-specific slice. Details: [security-and-compliance.md](references/security-and-compliance).
+Every GPU/ML-on-ECS recommendation MUST include: **task role + execution role least-privilege** (never static keys in the image/env); **secrets via Secrets Manager / SSM Parameter Store** injected into the task definition (never baked into the model image); **ECR image scanning** (DLC/CUDA/Neuron images carry huge CVE surfaces); **model-artifact provenance** (checksum/signing; pin exact model revisions); **private subnets + VPC endpoints** (S3 for weights, ECR, Secrets Manager, Bedrock-runtime if used) for GPU instances; **inference-endpoint authentication** (internal vs internet-facing ALB/NLB + auth in front of the model API — see [security-and-compliance.md](references/security-and-compliance)); and **CloudTrail + Container Insights** audit. Add **GuardDuty ECS Runtime Monitoring** on **ECS-on-EC2** hosts — but note it is **not supported on ECS Managed Instances, ECS Anywhere, or Windows** ([GuardDuty Runtime Monitoring considerations](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html)), so an MI-based fleet needs a different runtime-threat control — either a **third-party runtime-security agent run as a sidecar or per-instance daemon task** (e.g. Falco-based or a commercial CWPP agent), or **keep the runtime-monitored workloads on the EC2 launch type** where GuardDuty RM is supported. For the deep, general ECS security baseline and regulated-compliance design, route to **`ecs-security`**; this skill carries only the GPU/ML-specific slice. Details: [security-and-compliance.md](references/security-and-compliance).
 
 ## Cost Optimization
 
@@ -98,7 +107,7 @@ Levers in priority order: (1) **Capacity Blocks for ML** for planned multi-day t
 
 ## Top Guardrails (the high-cost mistakes)
 
-- **Never design a GPU workload on Fargate** — it has no GPU; use ECS-on-EC2 / Managed Instances / Anywhere.
+- **Never design a GPU workload on Fargate** — it has no GPU; use ECS-on-EC2 / Managed Instances / Anywhere — or no self-hosted GPU at all: keep Fargate for the app and call Bedrock (see D5 and [service-boundaries.md](references/service-boundaries)).
 - **Don't mix GPU instance types in one capacity-provider ASG** — it's *allowed* but managed scaling protects on the smallest type and can't weight, so use one homogeneous ASG per GPU type + a capacity-provider strategy.
 - **Don't assume native ECS has a MIG/time-slicing scheduler** — there is no fractional-GPU *scheduler* primitive; hardware-fractional L4 instances (G6f/Gr6f) exist on Managed Instances, but dynamic multi-model GPU packing (MIG/time-slicing/DRA) → EKS/SageMaker.
 - **Don't compile Neuron models at task startup** — pre-compile offline, ship the artifact via S3/image.

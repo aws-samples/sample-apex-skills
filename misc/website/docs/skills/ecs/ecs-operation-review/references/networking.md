@@ -108,7 +108,8 @@ Deep network-isolation hardening → **`ecs-security`**.
 - 🟢 GREEN: Inter-service traffic uses a working discovery/connectivity mechanism appropriate to the requirement — Service Connect, VPC Lattice, Cloud Map service discovery, or internal load balancers — with no hardcoded coupling.
 - 🟡 AMBER: A discovery mechanism exists but shows an operational gap (e.g., no connection draining where deploy-time errors are observed), or partial coverage across services.
 - 🔴 RED: Hardcoded IPs/DNS or cross-service coupling with **no** discovery mechanism at all.
-- ⬜ N/A: Single-service estate (no east-west traffic). ⬜ UNKNOWN: Cannot read service config.
+- ⚪ N/A: Single-service estate (no east-west traffic).
+- ⬜ UNKNOWN: Cannot read service config.
 
 **Key talking point:** Do **not** down-rate a working design merely because it uses Cloud Map or an internal ALB instead of Service Connect / VPC Lattice — choosing *between* mechanisms for a given topology is a Day-0 architecture decision that belongs to **`ecs-architect`**; route there rather than grading a preference here. For context only: Service Connect provides discovery + a service mesh with standardized metrics/logs, doesn't depend on VPC DNS, and supports automatic connection draining for near-zero-error deploys (intra-cluster east-west); **VPC Lattice** natively integrates with ECS (auto-registers/deregisters task IPs as Lattice targets via the ECS infrastructure IAM role) for cross-VPC/cross-account/cross-compute connectivity. See [Service Connect](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect.html) and [native ECS support in VPC Lattice](https://aws.amazon.com/blogs/aws/streamline-container-application-networking-with-native-amazon-ecs-support-in-amazon-vpc-lattice/).
 
@@ -129,6 +130,7 @@ Deep network-isolation hardening → **`ecs-security`**.
 - 🟢 GREEN: ENI supply comfortably exceeds task density (trunking enabled where density warrants); no `RESOURCE:ENI` failures.
 - 🟡 AMBER: Density approaching the ENI limit with trunking off, or trunking not evaluated on dense EC2 nodes.
 - 🔴 RED: Observed `RESOURCE:ENI` placement failures on production capacity.
-- ⬜ N/A: Fargate-only estate, or non-`awsvpc` network mode. ⬜ UNKNOWN: Cannot read account settings or service events.
+- ⚪ N/A: Fargate-only estate, or non-`awsvpc` network mode.
+- ⬜ UNKNOWN: Cannot read account settings or service events.
 
-**Key talking point:** On EC2 with `awsvpc`, ENI availability — not just CPU/memory — bounds how many tasks fit on an instance; `RESOURCE:ENI` is the tell. Enable the `awsVpcTrunking` account setting to raise the per-instance ENI limit on supported instance types. See [ECS account settings (ENI trunking)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html) and [elastic network interface trunking](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-instance-eni.html).
+**Key talking point:** On EC2 with `awsvpc`, ENI availability — not just CPU/memory — bounds how many tasks fit on an instance; `RESOURCE:ENI` is the tell. Enable the `awsvpcTrunking` account setting to raise the per-instance ENI limit on supported instance types. See [ECS account settings (ENI trunking)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html) and [elastic network interface trunking](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/container-instance-eni.html).

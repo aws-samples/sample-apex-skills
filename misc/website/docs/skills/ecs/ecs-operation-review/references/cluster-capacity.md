@@ -50,7 +50,8 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 - 🟢 GREEN: Managed scaling ON **and** managed termination protection ON **and** managed draining ON.
 - 🟡 AMBER: Managed scaling ON but managed draining OFF (ungraceful task interruption on scale-in), or termination protection ON without draining.
 - 🔴 RED: Managed termination protection OFF while managed scaling is ON — the ASG can terminate instances that are running tasks during scale-in, causing avoidable task disruption.
-- ⬜ UNKNOWN: No EC2 ASG capacity providers (N/A — Fargate/Managed-Instances only), or cannot describe providers.
+- ⚪ N/A: No EC2 ASG capacity providers (Fargate/Managed-Instances-only estate).
+- ⬜ UNKNOWN: Cannot describe capacity providers.
 
 **Critical gotcha:** Managed termination protection **requires** managed scaling to also be enabled, and the ASG (and its instances) must have scale-in protection enabled — otherwise it silently does nothing. Enable **both** managed termination protection and managed draining for maximum protection against interruptions. See [Deep dive on ECS cluster auto scaling](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cluster-auto-scaling.html) and the [managed instance draining launch post](https://aws.amazon.com/blogs/containers/amazon-ecs-enables-easier-ec2-capacity-management-with-managed-instance-draining/).
 
@@ -67,13 +68,14 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 1. `aws ecs describe-capacity-providers` → `managedScaling.targetCapacity`.
 2. `aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names <asg>` → min/max/desired.
 3. `aws ecs describe-clusters --include STATISTICS` → `pendingTasksCount`.
-4. Optionally list stopped tasks / service events for `RESOURCE:*` placement failures.
+4. Optionally list stopped tasks / service events for `RESOURCE:CPU` / `RESOURCE:MEMORY` placement failures (`RESOURCE:ENI` failures are rated in check **2.6**, not here).
 
 **Rating:**
 - 🟢 GREEN: `targetCapacity` tuned (typically 90–100 for cost, lower for burst headroom), ASG max provides headroom, no chronic pending tasks.
 - 🟡 AMBER: `targetCapacity` = 100 with bursty workloads (scale-out lag risk), or ASG max close to desired.
-- 🔴 RED: Persistent pending tasks blocked on `RESOURCE:*`, or ASG max reached with unplaced tasks.
-- ⬜ UNKNOWN: N/A for Fargate/Managed Instances (managed by AWS), or cannot read metrics.
+- 🔴 RED: Persistent pending tasks blocked on `RESOURCE:CPU` / `RESOURCE:MEMORY`, or ASG max reached with unplaced tasks. (`RESOURCE:ENI` exhaustion is scored once, in check **2.6** — cross-reference it, do not re-rate it here.)
+- ⚪ N/A: Fargate/Managed-Instances only (cluster scaling is managed by AWS).
+- ⬜ UNKNOWN: Cannot read capacity-provider or ASG metrics.
 
 **Key talking point:** `targetCapacity` below 100 intentionally keeps spare instances warm to reduce scale-out latency; 100 optimizes cost at the expense of launch time. See [Optimize ECS cluster auto scaling](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-cluster-speed-up-ec2.html).
 
@@ -93,7 +95,8 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 - 🟢 GREEN: Managed Instances configured with auto-repair on and instance requirements matched to workload; AWS handles the instance lifecycle (drain-and-replace) and scaling.
 - 🟡 AMBER: Auto-repair off, or overly narrow instance-type constraints limiting placement flexibility.
 - 🔴 RED: Misconfigured infrastructure role blocking provisioning, or instance requirements so narrow that tasks cannot place.
-- ⬜ UNKNOWN: Managed Instances not in use (N/A), or cannot describe providers.
+- ⚪ N/A: Managed Instances not in use.
+- ⬜ UNKNOWN: Cannot describe capacity providers.
 
 **Key talking point:** ECS Managed Instances (GA Sep 2025; now available in **all commercial AWS Regions** and **AWS GovCloud (US-East/US-West)** — verified 2026-07-09) gives Fargate-like operational offload with full EC2 instance-type access; AWS provisions, scales, and cost-optimizes placement. Its "patching" is **not in-place**: instances run on a standardized **14–21 day maximum lifetime** — ECS begins graceful workload draining at day 14 from launch and terminates the instance no later than day 21, replacing it with a freshly patched one (early draining can occur for security vulnerabilities, hardware degradation, or to honor a configured EC2 event window). Schedule the disruption via EC2 event windows. **GuardDuty caveat:** GuardDuty Runtime Monitoring does **not** support ECS Managed Instances (see Section 07, check 7.4). See [Architect for ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html), [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html), [Managed Instances capacity providers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-capacity-providers-concept.html), and the [all-commercial-Regions](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-ecs-managed-instances-commercial-regions/) / [GovCloud](https://aws.amazon.com/about-aws/whats-new/2025/11/ecs-managed-instances-govcloud-us-regions/) availability posts.
 
@@ -114,6 +117,7 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 - 🟢 GREEN: Spot used with an On-Demand `base` for critical services (interruption-tolerant design); EC2 Spot ASGs diversify across ≥ 3 instance types + multiple AZs with `capacityRebalancing` on.
 - 🟡 AMBER: Spot used for stateful/critical services with no On-Demand base, or an EC2 Spot ASG on only 1–2 instance types (concentrated capacity-pool risk).
 - 🔴 RED: 100% Spot for a production, interruption-sensitive service with no fallback, or a single-instance-type Spot ASG behind a production service.
+- ⚪ N/A: No Spot capacity in use anywhere in the estate (no `FARGATE_SPOT` in any strategy, no Spot in any ASG `MixedInstancesPolicy`) — there is no Spot posture to rate.
 - ⬜ UNKNOWN: Cannot determine workload criticality — flag for manual review. Dollar-level Spot economics → **`ecs-cost-intelligence`**.
 
 **Note:** This item rates *resilience of the Spot posture*, not cost savings. Deep Spot-strategy and TCO analysis belongs to `ecs-cost-intelligence`. See [best practices for handling EC2 Spot interruptions](https://aws.amazon.com/blogs/compute/best-practices-for-handling-ec2-spot-instance-interruptions/).
@@ -136,6 +140,7 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 - 🟢 GREEN: All container instances `agentConnected: true`, running a recent agent, on a recent ECS-optimized AMI.
 - 🟡 AMBER: Agent or AMI several versions behind (missing fixes) but all connected, or no AMI-refresh process.
 - 🔴 RED: One or more container instances with `agentConnected: false` (silently unable to place tasks), or markedly stale AMIs on production capacity.
-- ⬜ UNKNOWN: Fargate/Managed-Instances only (N/A — AWS manages the instance and agent), or cannot describe container instances.
+- ⚪ N/A: Fargate/Managed-Instances only (AWS manages the instance and agent).
+- ⬜ UNKNOWN: Cannot describe container instances.
 
 **Key talking point:** `agentConnected: false` is a common, easily-missed cause of "tasks won't place / stuck PENDING" on EC2 capacity — EC2 reports the instance healthy while ECS can't schedule to it. Keep the agent current (it ships with the ECS-optimized AMI) and roll AMIs regularly. Verified 2026-07-09. See [ECS EC2 container instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-agent-versions.html) and [describe-container-instances](https://docs.aws.amazon.com/cli/latest/reference/ecs/describe-container-instances.html).

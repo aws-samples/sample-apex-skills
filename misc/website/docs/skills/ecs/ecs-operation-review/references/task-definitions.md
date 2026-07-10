@@ -78,8 +78,8 @@ Full observability rating (driver presence, retention, routing, delivery mode, t
 1. `aws ecs describe-task-definition` → `taskRoleArn`, `executionRoleArn`.
 
 **Rating (presence/separation only — least-privilege & role-reuse are rated once, in check 7.1, to avoid double-counting):**
-- 🟢 GREEN: Distinct task role (for app AWS calls) and execution role (for the agent) both present as needed; task role present only when the app needs AWS access.
-- 🟡 AMBER: Roles present but a single role serves both concerns (the least-privilege/reuse judgment on this is scored in **7.1**, not here — flag it and defer).
+- 🟢 GREEN: Task role (for app AWS calls) and execution role (for the agent) each present where needed; task role present only when the app needs AWS access.
+- 🟡 AMBER: An expected role ARN is missing where the workload plausibly needs it (e.g., no task role on an app that calls AWS services), without the hard-failure condition below. (If you notice the *same* role ARN reused for both fields, do not rate that here — role-reuse and least-privilege are scored in **7.1**; record the evidence and defer.)
 - 🔴 RED: No execution role where secrets/private-ECR pulls are used (tasks will fail to start).
 - ⬜ UNKNOWN: Cannot read task definitions.
 

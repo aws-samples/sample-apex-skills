@@ -36,13 +36,13 @@ This page is generated from [skills/ecs-architect/references/best-practices-corp
 | Component | Fargate | ECS on EC2 | Managed Instances | ECS Anywhere (EXTERNAL) |
 |-----------|---------|-----------|-------------------|-------------------------|
 | Control plane | AWS | AWS | AWS | AWS (in-cloud) |
-| Compute (provision/patch/scale) | AWS (no instances) | **You** | AWS (patches every 14 days) | **You** (own the physical/VM host) |
+| Compute (provision/patch/scale) | AWS (no instances) | **You** | AWS (drain-and-replace, 14-21 day lifecycle) | **You** (own the physical/VM host) |
 | ECS agent | AWS | **You** | AWS | **You** (install/run agent + SSM agent) |
 | Host OS / AMI currency | AWS | **You** | AWS | **You** (+ physical security of the host) |
 | Task definition + sizing | You | You | You | You |
 | Application, IAM roles, secrets | You | You | You | You |
 
-The further left, the less you operate. This table drives the ops-overhead criterion in [model-selection-framework.md](model-selection-framework). On **ECS Anywhere** you own the most — the host OS *and* its physical security — while AWS runs only the control plane. On **Managed Instances**, AWS patches on a **14-day** cadence: an instance's max lifetime is capped at 14 days, after which ECS **drains it and reschedules its tasks** onto a freshly patched replacement — a security benefit *and* an operational side-effect, so design for graceful draining and schedule the churn with EC2 event windows. ([MI security/patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-security.html) · [Managed Instances launch post](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/))
+The further left, the less you operate. This table drives the ops-overhead criterion in [model-selection-framework.md](model-selection-framework). On **ECS Anywhere** you own the most — the host OS *and* its physical security — while AWS runs only the control plane. On **Managed Instances**, AWS patches by drain-and-replace on a **standardized 14-21 day instance lifecycle**: ECS initiates graceful draining at day 14 from launch and terminates the instance no later than day 21 (max lifetime 21 days), rescheduling its tasks onto a freshly patched replacement — a security benefit *and* an operational side-effect, so design for graceful draining and schedule the churn with EC2 event windows. ([Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html), verified 2026-07-10 · [Managed Instances launch post](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/))
 
 ---
 
@@ -109,5 +109,5 @@ These domains have dedicated skills — this corpus only flags the design-time d
 - [AWS Fargate supports SOCI Index Manifest v2 (July 2025)](https://aws.amazon.com/about-aws/whats-new/2025/07/aws-fargate-soci-index-manifest-v2-deployment-consistency/) · [Improving ECS deployment consistency with SOCI v2](https://aws.amazon.com/blogs/containers/improving-amazon-ecs-deployment-consistency-with-soci-index-manifest-v2/)
 - [Fargate selectively leverage SOCI (Nov 2023)](https://aws.amazon.com/about-aws/whats-new/2023/11/aws-fargate-amazon-ecs-tasks-selectively-leverage-soci/)
 - [Amazon ECS built-in blue/green deployments (July 2025)](https://aws.amazon.com/about-aws/whats-new/2025/07/amazon-ecs-built-in-blue-green-deployments/) · [Choosing between ECS Blue/Green Native or CodeDeploy (blog)](https://aws.amazon.com/blogs/devops/choosing-between-amazon-ecs-blue-green-native-or-aws-codedeploy-in-aws-cdk/)
-- [Announcing Amazon ECS Managed Instances](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/) · [MI security/patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-security.html) — 14-day patch/drain cadence
+- [Announcing Amazon ECS Managed Instances](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/) · [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html) — 14-21 day drain-and-replace lifecycle
 - [ECS clusters for external instances (ECS Anywhere)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html) — customer owns host OS + physical security

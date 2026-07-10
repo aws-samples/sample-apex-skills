@@ -40,7 +40,7 @@ A self-hosted model endpoint has **no built-in auth**. Decide **internal vs inte
 
 ### GuardDuty Runtime Monitoring — MI carve-out
 
-Enable **GuardDuty ECS Runtime Monitoring** on **ECS-on-EC2** container instances for runtime threat detection. **Critical caveat given how heavily this skill promotes Managed Instances:** Runtime Monitoring is **not supported on ECS Managed Instances**, and also **not on ECS Anywhere or the Windows OS** ([Runtime Monitoring considerations](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html)). An MI-based GPU fleet therefore cannot rely on GuardDuty RM for the host — plan a different runtime-threat control (or keep sensitive runtime-monitored workloads on ECS-on-EC2). Pair with CloudTrail (management + S3 model-bucket data events).
+Enable **GuardDuty ECS Runtime Monitoring** on **ECS-on-EC2** container instances for runtime threat detection. **Critical caveat given how heavily this skill promotes Managed Instances:** Runtime Monitoring is **not supported on ECS Managed Instances**, and also **not on ECS Anywhere or the Windows OS** ([Runtime Monitoring considerations](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html)). An MI-based GPU fleet therefore cannot rely on GuardDuty RM for the host — name a concrete alternative: (1) a **third-party runtime-security agent deployed as a sidecar container or a per-instance daemon task** (e.g. Falco-based tooling or a commercial CWPP/CNAPP agent that supports ECS), or (2) **keep the workloads that require runtime threat detection on the ECS-on-EC2 launch type**, where GuardDuty RM is supported. Pair with CloudTrail (management + S3 model-bucket data events).
 
 ## Compliance-Regime Notes (GPU/ML angle; full regime design → `ecs-security`)
 
@@ -69,7 +69,7 @@ GPU/ML-specific (this file):
 - [ ] Model provenance — pinned revision + SHA256 checksum / signing; S3 Object Lock on prod artifact buckets
 - [ ] `bedrock-runtime` VPC endpoint if the app calls Bedrock
 - [ ] Inference-endpoint authN/authZ + internal-vs-internet-facing decision
-- [ ] GuardDuty ECS Runtime Monitoring on **ECS-on-EC2** hosts — **not available on Managed Instances / Anywhere / Windows** (plan an alternative for MI fleets)
+- [ ] GuardDuty ECS Runtime Monitoring on **ECS-on-EC2** hosts — **not available on Managed Instances / Anywhere / Windows** (MI fleets: third-party runtime agent as sidecar/daemon task, or keep runtime-monitored workloads on the EC2 launch type)
 
 ## Sources
 
