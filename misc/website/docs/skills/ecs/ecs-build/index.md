@@ -64,11 +64,11 @@ All three models are consumed through **capacity providers** in generated code. 
 | **Who manages instances** | No instances (serverless) | You (AMI, agent, patching, ASG) | AWS (provisioning, scaling, patching) |
 | **OS** | Amazon Linux 2 kernel (Linux), Windows Server 2019/2022¹ | Any ECS-optimized or custom AMI (incl. Windows¹) | **Bottlerocket only, Linux containers only** (AWS-owned AMI) |
 | **GPUs** | **No** -- `gpu` is invalid in Fargate task definitions | Yes -- ECS GPU-optimized AMI ships NVIDIA drivers pre-installed; the right choice when the customer needs driver/CUDA version control | Yes -- drivers/CUDA pre-installed; incl. fractional-GPU G6f/Gr6f types; agentless GPU metrics via Container Insights enhanced observability |
-| **Instance lifetime** | N/A | Yours to manage (instance refresh, max lifetime) | Drain starts day 14, terminate by day 21 -- graceful drain-and-replace, so ordinary load-balanced service tasks are unaffected |
+| **Instance lifetime** | N/A | Yours to manage (instance refresh, max lifetime) | Drain starts day 14, terminate by day 21 -- services are unaffected (tasks are drained and replaced gracefully; start-before-stop requires the default `maximumPercent` 200, and event windows can begin draining earlier than day 14) |
 | **Task density** | One task per isolated environment | Multiple tasks per instance (binpack/spread) | Multiple tasks per instance by default |
 | **Privileged / capabilities** | `privileged` invalid; only `CAP_SYS_PTRACE` addable | Full Linux capabilities available | Optional privileged capabilities (CAP_NET_ADMIN, CAP_SYS_ADMIN, CAP_BPF, CAP_PERFMON) |
 | **SOCI lazy image loading** | Yes -- Linux platform version 1.4.0 only | No | No |
-| **Long-running tasks (>14 days)** | Yes | Yes | **Not suitable** for individual tasks that must run >14 days uninterrupted; replaceable service tasks are fine (drain is graceful) |
+| **Long-running tasks (>14 days)** | Yes | Yes | **Not suitable** for individual tasks that must run >14 days uninterrupted; services are unaffected (tasks are drained and replaced gracefully) |
 | **SSH / custom AMI** | N/A | Yes | No SSH, no custom AMI -- ECS Exec only |
 | **Terraform surface** | `default_capacity_provider_strategy` only | ASG + launch template + `aws_ecs_capacity_provider` (managed scaling/draining) | `aws_ecs_capacity_provider` with `managed_instances_provider` + infrastructure role + instance profile |
 
@@ -78,7 +78,7 @@ For full wiring, constraints, and migration paths see [references/capacity-provi
 
 **Strategy mixing self-check:** a cluster may contain all three provider types, but a single **capacity provider strategy** may contain only ONE type -- MI providers, ASG providers, or Fargate/Fargate Spot providers, never mixed (Critical Rule 2).
 
-**Express services (distinct generation path):** for simple stateless HTTP APIs, default to an ECS Express service instead of hand-wiring the full stack. Express delegates ALB, ACM certificate, autoscaling, and CloudWatch resource creation to ECS itself via an infrastructure role -- those resources are **not in Terraform state**. Constraints: single Main container exposing one port, Fargate-only, HTTP workloads, built-in canary deployments. Generate via the upstream `modules/express-service` submodule (in `terraform-aws-modules/ecs` since v7.2.0). Note: AWS App Runner closed to new customers 2026-04-30, and AWS recommends Express as the migration target (as of 2026-07-10; see [Express services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html) and [App Runner availability change](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html); date per the [App Runner product page](https://aws.amazon.com/apprunner/)). Details in [references/service-and-deployment.md](references/service-and-deployment).
+**Express services (distinct generation path):** for simple stateless HTTP(S) APIs, default to an ECS Express service instead of hand-wiring the full stack. Express delegates ALB, ACM certificate, autoscaling, and CloudWatch resource creation to ECS itself via an infrastructure role -- those resources are **not in Terraform state** (no plan/destroy visibility over the delegated resources -- a governance trade-off to surface to the user). Constraints: a single traffic-serving `Main` container exposing one port (sidecars are permitted), Fargate-only, HTTP(S) workloads, built-in canary deployments. Generate via the upstream `modules/express-service` submodule (in `terraform-aws-modules/ecs` since v7.2.0). Note: AWS App Runner closed to new customers 2026-04-30, and AWS recommends Express as the migration target (as of 2026-07-10; see [Express services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html) and [App Runner availability change](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html); date per the [App Runner product page](https://aws.amazon.com/apprunner/)). Details in [references/service-and-deployment.md](references/service-and-deployment).
 
 ## Workflow
 
@@ -101,6 +101,8 @@ services:
     load_balancer: alb           # alb | nlb | none
     deployment: rolling          # rolling | blue_green | linear | canary
     autoscaling: { min: 2, max: 10, target_cpu: 60 }
+    express: false               # set true for simple stateless HTTP(S) APIs (Express path)
+    logging: { mode: non-blocking }   # blocking | non-blocking (Critical Rule 4)
     secrets:                     # injected via execution role
       DB_PASSWORD: arn:aws:secretsmanager:...:secret:orders/db
 tags: { environment: prod, team: payments }
@@ -109,6 +111,8 @@ tags: { environment: prod, team: payments }
 ### Step 2: Select Capacity Model(s)
 
 Use the decision matrix. Multiple models can coexist in one cluster (separate services), but never in one strategy.
+
+**Express path:** if Step 2 selects Express, skip Steps 5-8 -- capacity providers, load balancing, autoscaling, and CloudWatch are ECS-managed. Generate via `modules/express-service` and jump to Step 9.
 
 ### Step 3: Create Project Structure
 
@@ -128,7 +132,7 @@ Per [references/capacity-provider-guide.md](references/capacity-provider-guide).
 
 ### Step 6: Generate Task Definitions and Services
 
-Per [references/task-definition-guide.md](references/task-definition-guide) and [references/service-and-deployment.md](references/service-and-deployment). Apply baseline defaults from [references/baseline-defaults.md](references/baseline-defaults): explicit awslogs mode, circuit breaker on rolling services, execution/task role separation.
+Per [references/task-definition-guide.md](references/task-definition-guide) and [references/service-and-deployment.md](references/service-and-deployment). Apply baseline defaults from [references/baseline-defaults.md](references/baseline-defaults): explicit awslogs mode, circuit breaker on rolling services, execution/task role separation. Task volumes: bind mounts, EFS, EBS, or S3 Files (Fargate/MI only) -- see the volume sections in [references/task-definition-guide.md](references/task-definition-guide). EC2 services also need `ordered_placement_strategy`/`placement_constraints` -- see [references/capacity-provider-guide.md](references/capacity-provider-guide). Per-instance agents on MI go through ECS Managed Daemons, not per-task sidecars ([references/service-and-deployment.md](references/service-and-deployment)).
 
 ### Step 7: Generate Networking
 
@@ -140,7 +144,7 @@ Per [references/autoscaling.md](references/autoscaling) -- `aws_appautoscaling_t
 
 ### Step 9: README and Validate
 
-Generate README with deploy commands, then run `scripts/validate_project.sh <project-dir>` and fix every FAIL.
+Generate README with deploy commands, then run `scripts/validate_project.sh <project-dir>` and fix every FAIL. Exit codes: 0 = clean; 1 = FAILs to fix; 2 = fail-grade checks were skipped (e.g. no terraform binary) -- run `terraform init` and re-validate before handoff.
 
 ## Critical Build Rules
 
@@ -152,7 +156,7 @@ The launch-type enum is `EC2 | FARGATE | EXTERNAL | MANAGED_INSTANCES`. Writing 
 
 ### 2. One Capacity Provider TYPE per Strategy
 
-A strategy may reference only MI providers, only ASG providers, or only FARGATE/FARGATE_SPOT -- never a mix of types. Mixing types is rejected by the API. Within the Fargate type, FARGATE + FARGATE_SPOT together is the standard base/weight overflow pattern, and only one capacity provider in a strategy may have a `base` **defined** at all ([CapacityProviderStrategyItem API](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CapacityProviderStrategyItem.html)).
+A strategy may reference only MI providers, only ASG providers, or only FARGATE/FARGATE_SPOT -- never a mix of types ("a capacity provider strategy can't have a mix of different capacity provider types" -- https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-launch-type-comparison.html). Within the Fargate type, FARGATE + FARGATE_SPOT together is the standard base/weight overflow pattern, and only one capacity provider in a strategy may have a `base` **defined** at all ([CapacityProviderStrategyItem API](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CapacityProviderStrategyItem.html)).
 
 ### 3. Managed Instances Needs the Full Wiring (and a Two-Step Apply)
 
@@ -168,7 +172,7 @@ Execution role = agent (ECR pull, awslogs, secrets fetch); task role = applicati
 
 ### 6. Native Deployment Strategies, Not CodeDeploy
 
-House rule for generation: this skill generates blue/green, linear, and canary through `deployment_configuration.strategy` (`ROLLING` default | `BLUE_GREEN` | `LINEAR` | `CANARY`) under the native `ECS` controller, and does not generate the CodeDeploy deployment controller for new services. The CodeDeploy controller remains AWS-supported for existing services -- it is not deprecated. BLUE_GREEN/LINEAR/CANARY require ALB, NLB, or Service Connect. The circuit breaker is rolling-only -- never emit `deployment_circuit_breaker` alongside a blue/green-family strategy ([references/service-and-deployment.md](references/service-and-deployment)).
+House rule for generation: this skill generates blue/green, linear, and canary through `deployment_configuration.strategy` (`ROLLING` default | `BLUE_GREEN` | `LINEAR` | `CANARY`) under the native `ECS` controller, and does not generate the CodeDeploy deployment controller for new services. The CodeDeploy controller remains AWS-supported for existing services -- it is not deprecated. LINEAR/CANARY require ALB, NLB, or Service Connect; headless BLUE_GREEN -- task replacement without managed traffic shifting -- is valid without a load balancer, but confirm intent before generating. The circuit breaker is rolling-only -- never emit `deployment_circuit_breaker` alongside a blue/green-family strategy ([references/service-and-deployment.md](references/service-and-deployment)).
 
 ### 7. Service Connect, Never App Mesh
 
@@ -225,7 +229,7 @@ terraform plan && terraform apply
 
 ## Completion Checklist
 
-Every item must be done before handoff:
+Every item must be done before handoff. Express projects: mark circuit-breaker/strategy/endpoint items N/A -- the validator warns rather than FAILs on them.
 
 - [ ] Internet search for latest module/provider versions (not from cached knowledge)
 - [ ] Capacity model(s) selected and confirmed; no mixed-type strategies
@@ -240,7 +244,7 @@ Every item must be done before handoff:
 - [ ] All versions explicitly pinned
 - [ ] Autoscaled services: raw `aws_ecs_service` has `lifecycle { ignore_changes = [desired_count] }`; module path relies on the submodule's built-in ignore (module `desired_count` input changes never apply post-create -- adjust autoscaling min/max instead)
 - [ ] `terraform fmt -check` passes
-- [ ] `scripts/validate_project.sh` passes with zero FAILs
+- [ ] `scripts/validate_project.sh` exits 0 (1 = FAILs to fix; 2 = fail-grade checks skipped, e.g. no terraform binary -- `terraform init` and re-validate)
 - [ ] `validation-checklist.md` generated
 
 ## References
@@ -250,7 +254,7 @@ Read these as needed based on the task at hand:
 - [Baseline Defaults](references/baseline-defaults) -- Read when generating any cluster, task definition, or service. The opinionated defaults applied to every project.
 - [Capacity Provider Guide](references/capacity-provider-guide) -- Read when wiring Fargate/FARGATE_SPOT strategies, EC2 ASG providers, or Managed Instances (full MI recipe incl. infrastructure role and two-step apply), or migrating launch type to capacity provider.
 - [Service and Deployment](references/service-and-deployment) -- Read when generating services: deployment strategies, bake time, lifecycle hooks, circuit breaker vs alarms, Service Connect, load balancer hygiene.
-- [Task Definition Guide](references/task-definition-guide) -- Read when generating task definitions: roles, secrets (`:json-key::` gotcha), awslogs mode, runtime_platform/Graviton, ephemeral storage, EBS task volumes, Fargate exclusions.
+- [Task Definition Guide](references/task-definition-guide) -- Read when generating task definitions: roles, secrets (`:json-key::` gotcha), awslogs mode, runtime_platform/Graviton, ephemeral storage, EBS/EFS/S3 Files task volumes, Fargate exclusions.
 - [Networking and Security](references/networking-security) -- Read when generating VPC endpoints, security groups, trust policies, or ECS Exec plumbing; includes launch-type-scoped security notes (GuardDuty, SOCI).
 - [Autoscaling](references/autoscaling) -- Read when adding Application Auto Scaling: target-tracking metrics, high-resolution variants, SQS backlog-per-task.
 - [Version Matrix](references/version-matrix) -- Read when looking up authoritative version sources. A lookup protocol, not a version list.

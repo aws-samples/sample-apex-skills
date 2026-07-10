@@ -76,6 +76,7 @@ When the destination is Firehose/Datadog/Splunk/OpenSearch etc. (or awslogs' fea
 ```
 
 - Task role (not execution role) needs write permissions to the destination (e.g. `firehose:PutRecordBatch`).
+- SaaS destinations (Datadog, Splunk, ...) must receive API keys via `secretOptions`/`valueFrom`, never inline in `options` -- inline keys land in the task definition in plaintext.
 - Give the fluent-bit container its own awslogs config so the router's own logs are captured.
 - Working end-to-end example: https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/master/examples/complete (fluent-bit sidecar + `awsfirelens` driver, verified 2026-07-10).
 
@@ -98,7 +99,7 @@ runtime_platform {
 - `linuxParameters.capabilities`: the only addable capability is `CAP_SYS_PTRACE`; `devices`, `sharedMemorySize`, `tmpfs` unsupported.
 - **No GPUs on Fargate** (as of 2026-07-10, per the exclusion list above) -- GPU workloads go to EC2 or Managed Instances capacity (design via `ecs-genai`).
 - Task-level CPU/memory required, fixed combos: 256 (.25 vCPU)/512MiB-2GB up to 32768 (32 vCPU)/60-244GB; 8+ vCPU requires Linux platform 1.4.0+.
-- Volumes: bind mounts, EFS, EBS -- no `dockerVolumeConfiguration`.
+- Volumes: bind mounts, EFS, EBS, S3 Files -- no `dockerVolumeConfiguration`.
 - **ephemeral_storage:** `size_in_gib` 21-200 (Fargate; 20 GiB free baseline, billed above -- https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-storage.html).
 - **SOCI lazy loading is Fargate-only, Linux platform version 1.4.0 only** -- gzip/uncompressed images in ECR private, index alongside the image; recommend for images > 250 MiB. Not available on EC2 or MI (those pull full images via the AMI's runtime). **New adopters can only use SOCI Index Manifest v2** (v1 is grandfathered for existing users; migrate). Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html (verified 2026-07-10).
 
@@ -149,9 +150,14 @@ volume {
 ```
 
 - Prefer **access points** (enforced POSIX user + root directory) over raw filesystem mounts; with `iam = "ENABLED"` the task role needs `elasticfilesystem:ClientMount`/`ClientWrite` on the filesystem.
+- **`root_directory` is ignored when `authorization_config` sets an access point** -- set the root directory on the access point itself (provider docs).
 - Security groups: allow **NFS TCP 2049** from the task security group to the EFS mount-target security group.
 - Private VPCs: a **mount target must be reachable in each AZ the tasks run in** -- missing mount targets surface as task-start timeouts, not clear errors.
-- Sources: https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/storage.html · https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_task_definition (verified 2026-07-10).
+- Sources: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/efs-volumes.html · https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_task_definition (verified 2026-07-10).
+
+## S3 Files volumes (direct file access to S3)
+
+S3 Files mounts an S3-backed file system into tasks via `s3files_volume_configuration` on the task-definition `volume` block (provider >= 6.41.0): `file_system_arn` (required, `arn:...:s3files:...:file-system/fs-xxxxx`), optional `access_point_arn`, `root_directory`, `transit_encryption_port`. Transit encryption and a task IAM role are **mandatory and auto-enforced**; the task role needs permissions to connect to the file system and read the S3 objects. Launch types: **Fargate and Managed Instances only -- tasks fail at launch on the EC2 launch type** as of 2026-07-10. Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/s3files-volumes.html (verified 2026-07-10).
 
 ## Other
 
@@ -165,6 +171,6 @@ volume {
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-secrets-manager.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar-ssm-paramstore.html
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-storage.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-account-settings.html
-- https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/storage.html · https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/master/examples/complete (FireLens)
+- https://docs.aws.amazon.com/AmazonECS/latest/developerguide/efs-volumes.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/s3files-volumes.html · https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/master/examples/complete (FireLens)
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/infrastructure_IAM_role.html
 - JSON-key colon gotcha and dependsOn framing: aws/agent-toolkit-for-aws `aws-containers` skill, Gotchas 4, 18 (Apache-2.0, retrieved 2026-07-10)

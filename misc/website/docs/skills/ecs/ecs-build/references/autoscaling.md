@@ -33,7 +33,7 @@ The module's service submodule creates this by default (min 1 / max 10, CPU + me
 
 ## desired_count and autoscaling never coexist in plans
 
-- **Module path:** the service submodule **unconditionally ignores `desired_count` drift** -- `lifecycle { ignore_changes = [desired_count] }` is hardcoded on both service resource variants with no opt-out variable. Corollary: changing the module's `desired_count` input after creation **never applies** -- adjust autoscaling `min_capacity`/`max_capacity` instead. Source: https://github.com/terraform-aws-modules/terraform-aws-ecs/blob/master/modules/service/main.tf (verified 2026-07-10).
+- **Module path:** the service submodule **unconditionally ignores `desired_count` drift** -- `lifecycle { ignore_changes = [desired_count] }` is hardcoded on both service resource variants with no opt-out variable. Corollary: changing the module's `desired_count` input never changes the running task count directly, but it can still widen the scalable-target bounds via the module's `min(autoscaling_min_capacity, desired_count)` / `max(autoscaling_max_capacity, desired_count)` clamp -- prefer autoscaling `min_capacity`/`max_capacity` as the single source of truth. Source: https://github.com/terraform-aws-modules/terraform-aws-ecs/blob/master/modules/service/main.tf (verified 2026-07-10).
 - **Raw path:** on any autoscaled `aws_ecs_service`, generate `lifecycle { ignore_changes = [desired_count] }` yourself, per the provider docs' "Ignoring Changes to Desired Count" section (https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service) -- otherwise every plan fights Application Auto Scaling's runtime changes.
 
 ## Target tracking (default choice)
