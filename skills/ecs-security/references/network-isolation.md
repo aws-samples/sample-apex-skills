@@ -29,7 +29,7 @@ For tasks in fully private subnets (no NAT), or to keep sensitive traffic off th
 | `com.amazonaws.region.kms` | Interface | *(optional)* only if ECS Exec sessions are **KMS-encrypted**, or for CMK `kms:Decrypt` on encrypted secrets |
 | `com.amazonaws.region.logs` | Interface | `awslogs` → CloudWatch Logs |
 
-> **`ssm` ≠ `ssmmessages`.** A common conflation: the `ssm` endpoint serves **Parameter Store** retrieval; **ECS Exec** rides Systems Manager Session Manager and needs **`ssmmessages`** (plus a task-role with `ssmmessages:*`), and **`kms`** only if you encrypt Exec sessions. Verified 2026-07-09 — [ECS Exec](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html).
+> **`ssm` ≠ `ssmmessages`.** A common conflation: the `ssm` endpoint serves **Parameter Store** retrieval; **ECS Exec** rides Systems Manager Session Manager and needs **`ssmmessages`** (plus a task role with the four documented `ssmmessages` actions — `CreateControlChannel`, `CreateDataChannel`, `OpenControlChannel`, `OpenDataChannel` — not a wildcard), and **`kms`** only if you encrypt Exec sessions. Verified 2026-07-10 — [ECS Exec](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html).
 
 For **ECS on EC2 in a fully private VPC**, the container instances *also* need the ECS control-plane endpoints so the agent can register and poll: `com.amazonaws.region.ecs-agent`, `com.amazonaws.region.ecs-telemetry`, and `com.amazonaws.region.ecs` (agent **1.25.1+**; restart the agent after creating them). These are not needed on Fargate. Reference: [ECS interface VPC endpoints](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/vpc-endpoints.html).
 

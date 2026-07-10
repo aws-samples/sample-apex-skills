@@ -37,8 +37,8 @@ Create an **interface VPC endpoint for Secrets Manager (and SSM)** so retrieval 
 
 ## Encryption at rest
 
-- **ECR images** — encrypted at rest with an AWS-managed KMS key by default; use a **CMK** for control under compliance ([ECR encryption at rest](https://docs.aws.amazon.com/AmazonECR/latest/userguide/encryption-at-rest.html)).
-- **Fargate ephemeral storage** — encrypted with **AES-256 by default**; you can bring a CMK for the ephemeral volume on supported platform versions.
+- **ECR images** — encrypted at rest by default with **SSE-S3 (AES-256)**; KMS is opt-in (the `aws/ecr` AWS-managed key or a **CMK** for control under compliance) (verified 2026-07-10 — [ECR encryption at rest](https://docs.aws.amazon.com/AmazonECR/latest/userguide/encryption-at-rest.html)).
+- **Fargate ephemeral storage** — encrypted with **AES-256 by default for tasks on platform version 1.4.0 or later** (earlier PVs don't get this default — pin/verify the PV); you can bring a CMK for the ephemeral volume on supported platform versions ([Fargate ephemeral storage encryption](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-storage.html)).
 - **EBS volumes attached to tasks** (Fargate or EC2, via the infrastructure role) — enable encryption, with a CMK for compliance.
 - **EFS volumes** — support encryption at rest (CMK) and in-transit (TLS mount).
 - **CloudWatch Logs / CloudTrail S3** — encrypt with a CMK for high-sensitivity workloads (see [audit-logging.md](audit-logging.md)).
