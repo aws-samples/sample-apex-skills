@@ -9,13 +9,35 @@ This is an **assessment report** — present findings and options, do not prescr
 
 ## Step 1: Build Master Finding List & Calculate the Migration Difficulty Score
 
+### 1.0 — Empty-estate & orphaned-config short-circuit (CHECK THIS FIRST)
+
+Before scoring anything, decide whether there is a live estate to migrate at all. **A high score is correct when there is little/nothing to migrate — the number measures change required, not cluster wealth.**
+
+**A) Truly empty estate** — no ingress controller **AND** no IngressClass **AND** no Ingress resources:
+- **Score = 100 / TRIVIAL. Stop the deduction math** (do not run the deep category deductions — there are no findings to deduct).
+- Emit a plain note next to the score, e.g.: *"No ingress controller, IngressClass, or Ingress resources found — your cluster is healthy from an ingress standpoint and there is nothing to migrate. (Cluster/node upgrades are out of scope for this skill and are not counted as migration.)"*
+- Still render the standard report shell (Overview, score gauge, this note); the deep-dive sections simply report "none found".
+
+**B) Orphaned config** — Ingress resources exist **but no controller is installed** (dead blueprints, no road):
+- The **absent controller is a non-event (0)** and the orphaned Ingress objects are **also 0** — they carry **zero live traffic**, so there is no live migration work (no traffic to reroute, no downtime risk). Score is **not** dragged down by them.
+- If there are *no other live findings*, the estate scores **100 / TRIVIAL**.
+- Emit this **Migration Crew Alert** note verbatim (substitute the real count), so the dead config is loud rather than silently hidden:
+
+> **Migration Crew Alert: N Orphaned Ingress Objects Detected**
+> **Finding:** N NGINX Ingress objects exist in the cluster, but no active NGINX Ingress Controller (the traffic machinery) is installed.
+> **Status:** Dead Configuration (Blueprints with no roads). These routing rules are completely inactive and handle zero live production traffic.
+> **Action Taken:** Scored as 100 / TRIVIAL because they require zero live migration effort (no traffic to reroute, no risk of downtime).
+> **Recommendation:** Cluster owners must verify if this is mid-migration debris left over from a previous unfinished project. If they are truly abandoned blueprints, they should be cleaned up and deleted before installing the new AWS Load Balancer Controller to prevent the new crew from accidentally building unintended roads.
+
+> **Distinction — broken ≠ absent:** if a controller **is present but broken** (CrashLoopBackOff/unreachable), that is **not** case A/B. It earns a **−1 tech-debt** deduction (per §1.1) *and* its config complexity is scored normally as migration difficulty — see §1.3/§1.4 below.
+
 ### 1.1 — Build the Master Finding List
 
 Compile ALL findings from sections 1–7. Every item must appear. No item may be skipped. Each finding already carries an **Impact 1–5** (per the Impact Indicator rubric). This list is the single source of truth for the score — every point deducted MUST trace back to exactly one row here.
 
 ### 1.2 — What the score means
 
-The **Migration Difficulty Score** is a **0–100** number that reflects the **amount of change / effort** needed to leave NGINX: **high = little change (easy)**, **low = much change (hard)**. It is an *effort index*, not a manday estimate — we cannot know who implements it — so it ranks relative effort using the per-finding Impact ratings.
+The **Migration Difficulty Score** is a **0–100** number that reflects the **amount of change** needed to leave NGINX: **high = little change (easy)**, **low = much change (hard)**. It is **not** a manday estimate and **not** a remediation-effort index — we cannot know who implements it, and the same change is trivial for an expert yet hard for a novice. Instead it rolls up the per-finding **Impact** ratings, which are weighted **business-first, then security, and never by how hard a fix is** (see the Impact Indicator). So the score ranks *how much of the estate must change*, prioritised by what that change protects (revenue/live traffic > security > everything else).
 
 Two design rules from operator feedback drive this version:
 
@@ -36,7 +58,7 @@ Every finding belongs to exactly one category. Categories are weighted by a **ma
 | TLS & Certificates | 15 | cert-manager→ACM move, SNI, multi-cert hosts (DNS & Certificates Analysis) |
 | DNS Cutover & Blast Radius | 15 | New ALB endpoint + DNS repoint, external-dns Gateway-API source maturity, hostname/TTL stability (DNS & Certificates Analysis, Migration Risk) |
 | Downtime / Rollback Readiness | 10 | New-LB provisioning, long-lived/stateful connections, presence of a weighted/blue-green rollback path (Migration Risk) |
-| Controller Health & EOL/CVE | 10 | NGINX version EOL, active CVE exposure, controller pod health (Ingress Discovery) |
+| Controller Health & EOL/CVE | 10 | Controller pod health + version EOL/CVE (Ingress Discovery §1.1, §1.4). **Absent controller = 0** (non-event). **Present-but-broken (CrashLoopBackOff/unreachable) = 1 (tech debt)** — a separate hygiene deduction with a mandatory cleanup note; it does **not** replace the migration-difficulty of that controller's config. **EOL/CVE severity scales with the live business traffic served** — 0 if the controller serves nothing/is broken; up to 5 only when it exposes business-critical live routes. |
 | Scale / Volume | 10 | **Count of routes that actually need work** = total routes − 0-effort routes. Do NOT scale off the raw total. (Ingress Discovery, Routing Topology) |
 | Backend Compatibility | 5 | Exotic backends, `ExternalName`, service-type edge cases (Ingress Resource Analysis) |
 
@@ -48,6 +70,15 @@ Caps deliberately sum to 125 (over-provisioned) so a genuinely high-change estat
 # Per-finding base points by Impact (reuse the rating you already assigned)
 def base_points(impact):
     return {5: 10, 4: 6, 3: 4, 2: 2, 1: 1}[impact]   # Unknown (⬜) = 0 pts, but list it
+# Impact 0 (🟢 non-event) = 0 pts. Absent controller, orphaned/dead config, and CVEs on
+# machinery serving no live traffic are non-events — list them (with their note) but deduct 0.
+
+# Three independent dimensions STACK on the same controller/route (do not let one override another):
+#   1. migration-difficulty  -> the config-complexity categories (Feature-Gap / Routing / TLS / ...)
+#   2. tech-debt             -> present-but-broken controller = +1 deduction (Controller Health cap),
+#                               ALWAYS paired with the mandatory cleanup note. Absent = 0 (never 1).
+#   3. security (CVE/EOL)    -> scales with LIVE business traffic served; 0 if absent/broken/zero-route.
+# Effort to remediate is NOT a dimension — never raise/lower points by how hard the fix is.
 
 # Tier-B feature impact (CORS / IP-allowlist / rate-limit):
 #   Impact 2 if performance/hardening only (not in the business-logic path)
@@ -95,14 +126,16 @@ The **Re-architecture Gate** is reported independently of the band: e.g. *"82 / 
 
 ### 1.6 — Build the Score Breakdown table (MANDATORY)
 
-Before writing the headline, produce this table so the math is auditable. Sum `base_points` per category, apply the cap, order highest-deduction first. The **Total** must equal `100 − score`. Add a final **Re-architecture Gate** line stating the count and which routes (it does not change the total).
+Before writing the headline, produce this table so the math is auditable. Sum `base_points` per category, apply the cap, order highest-deduction first. The **Total** must equal `100 − score`. A **present-but-broken controller** appears as a **tech-debt row (1 pt)** under Controller Health. **Non-events (absent controller, orphaned/dead config, CVE-on-nothing) MUST be listed at 0 pts** so the reader sees they were considered and deliberately not counted. Add a final **Re-architecture Gate** line stating the count and which routes (it does not change the total).
 
 ```
 | Category | Findings (impact) | Raw pts | Capped | Cap |
 |----------|-------------------|---------|--------|-----|
 | Feature-Gap — No Equivalent (Tier A) | snippet on /checkout (5) | 10 | 10 | 30 |
 | Feature-Gap — Workaround Exists (Tier B) | CORS (2), rate-limit (2), allowlist (2) | 6 | 6 | 10 |
+| Controller Health & EOL/CVE | broken nginx pod — tech debt (1) | 1 | 1 | 10 |
 | ... | ... | ... | ... | ... |
+| Non-events (0 pts, listed for transparency) | absent 2nd controller; 12 orphaned Ingress objects; CVE on broken pod | 0 | 0 | — |
 | **Total deductions** | | | **-XX** | |
 | **Re-architecture Gate** | 1 route — snippet on /checkout | — | — | — |
 ```
@@ -166,7 +199,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 11. **Lead with impact.** Order Executive Summary bullets and Assessment Summary rows from highest impact to lowest.
 12. **Download buttons (renderer tokens):** drop `[[DL:gateway-api]]`, `[[DL:alb]]`, `[[DL:atx]]`, or `[[DL:current]]` anywhere in the markdown — the renderer replaces each with a one-click download button for that option's combined routing config (built from the exported manifests). Prefer a download button over printing long target/current config text.
 13. **In-page anchor links:** write `[blocker](#blockers)` to link to a section — the renderer auto-scopes the anchor to the cluster (e.g. `#c0-blockers`). Use this wherever the text says "see Blockers".
-14. **Impact everywhere, by the rubric:** Assessment Summary, Ingress Discovery, Routing Topology, Traffic & Routing, Blockers, Recommendations, Ingress Resource Analysis, DNS & Certificates Analysis, Migration Risk all use the **Impact 1–5** scale (🟡1-2 / 🟠3-4 / 🔴5) — never GREEN/AMBER/RED. Every score MUST be justified against the **Impact Indicator** rubric (security/reputation · business/revenue · nature & effort), not ad-hoc judgement. Note: easy-to-deploy prerequisites (e.g. installing CRDs) are LOW even if they block a path.
+14. **Impact everywhere, by the rubric:** Assessment Summary, Ingress Discovery, Routing Topology, Traffic & Routing, Blockers, Recommendations, Ingress Resource Analysis, DNS & Certificates Analysis, Migration Risk all use the **Impact 1–5** scale (🟡1-2 / 🟠3-4 / 🔴5) — never GREEN/AMBER/RED. Every score MUST be justified against the **Impact Indicator** rubric (priority order: business/revenue · security/reputation · effort — and effort never sets severity), not ad-hoc judgement. Note: easy-to-deploy prerequisites (e.g. installing CRDs) are LOW even if they block a path.
 
 ### Report Template (follow EXACTLY)
 
@@ -220,15 +253,18 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 
 ## Impact Indicator
 
-> Place this rubric **before Assessment Summary** (Overview group). EVERY Impact score in the report MUST follow it — do not invent ad-hoc severities. Impact weighs three dimensions: security/reputation, business/revenue, and nature & effort to remediate; score the dominant one. Render as a table, one row per band, each cell a bullet list.
+> Place this rubric **before Assessment Summary** (Overview group). EVERY Impact score in the report MUST follow it — do not invent ad-hoc severities. Impact is set by **priority order: (1) business logic / revenue — the live traffic at stake · (2) security / reputation · (3) effort to remediate**. Score the **highest-priority dimension that applies**; a business-critical impact outranks a security one, which outranks effort. **Effort is NOT a severity driver** — never raise or lower Impact because a fix looks easy or hard (that depends on who does it). Render as a table, one row per band, each cell a bullet list.
+>
+> **Presence vs. absence:** an **absent** controller / **empty estate** / **orphaned dead config** is a **non-event (0)** — nothing serves live traffic, nothing to migrate. A **present-but-broken** controller is **tech debt (+1)** with a mandatory cleanup note, scored separately from its config's migration difficulty. Only **live** traffic anchors the business and security dimensions.
 >
 > **Execution risk counts — do NOT score by YAML-edit size.** A small manifest change can still be high-impact. Specifically: changing `ingressClassName` to a *different controller* (e.g. nginx→alb) **provisions a brand-new load balancer** and only takes traffic after a **DNS cutover** (it is a parallel-run + cutover, not a no-op edit); moving a feature that has **no faithful equivalent** (CORS, rate-limit, external auth) to WAF/app usually needs **application/code changes**; and any TLS/cert-store change done together with routing changes risks **SSL handshake errors / downtime**. Score these by the operational risk, not the diff size.
 
 | Impact | Meaning |
 |--------|---------|
-| 🟡 1–2 Low | - **Security:** hardening gap, no business-effective breach (e.g. a secret kept in-cluster, not in a secrets manager)<br>- **Business:** no revenue loss / downtime / lost transactions<br>- **Nature:** optional "should/may-do" best practice (reliability / automation)<br>- **Effort:** hours–1 day, one person, single service or route, no impact to business flows |
-| 🟠 3–4 Medium | - **Security:** breach with limited reputation / trust loss (weigh likelihood & history)<br>- **Business:** revenue loss limited to short downtime<br>- **Nature:** tech debt / weak design, hard to reverse, costly to fix later<br>- **Effort:** scoped to part / an area or one cluster — not all flows |
-| 🔴 5 High | - **Security:** breach with major loss or reputational damage (weigh likelihood & history)<br>- **Business:** significant revenue loss or prolonged downtime<br>- **Nature & Effort:** needs re-design / re-architecture, maybe business or provider approval. *If large but straightforward to deploy → rate medium-to-low.* |
+| 🟢 0 Non-event | - **Business:** serves no live traffic — nothing at stake<br>- **Security:** not exploitable (no live path)<br>- Absent controller, empty estate, orphaned/dead config, or a CVE on machinery serving nothing. **List it (with any note) but deduct 0.** |
+| 🟡 1–2 Low | - **Business (primary):** no revenue loss / downtime / lost transactions<br>- **Security:** hardening gap, no business-effective breach (e.g. a secret kept in-cluster, not in a secrets manager)<br>- **Nature:** optional "should/may-do" best practice; **or present-but-broken controller = tech debt (1) + cleanup note**<br>- *Effort (note only, not scored):* typically hours–1 day, single-scope |
+| 🟠 3–4 Medium | - **Business (primary):** revenue loss limited to short downtime, or a moderately-important live flow affected<br>- **Security:** breach with limited reputation / trust loss (weigh likelihood & history)<br>- **Nature:** tech debt / weak design, hard to reverse, costly to fix later<br>- *Effort (note only, not scored):* usually area / single-cluster scope |
+| 🔴 5 High | - **Business (primary):** significant revenue loss or prolonged downtime on business-critical / public live traffic<br>- **Security:** breach with major loss or reputational damage on a live path (weigh likelihood & history)<br>- **Nature:** needs re-design / re-architecture, maybe business or provider approval<br>- *Effort is NOT a factor — do not downgrade a business-critical finding just because the edit looks small, and do not upgrade a trivial one just because it looks laborious.* |
 
 ---
 

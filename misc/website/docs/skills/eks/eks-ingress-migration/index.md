@@ -310,23 +310,26 @@ For each cluster that has Ingress resources, generate manifest files:
 
 ## Rating Rubric
 
-Score every finding by **Impact 1–5** using the **Impact Indicator** rubric (defined in the report, before Assessment Summary). Weigh security/reputation, business/revenue, and the nature & effort to remediate.
+Score every finding by **Impact 1–5** using the **Impact Indicator** rubric (defined in the report, before Assessment Summary). Set severity by **priority order: (1) business logic / revenue — the live traffic at stake · (2) security / reputation · (3) effort to remediate**. **Effort is NOT a severity driver** — never move a score because a fix looks easy or hard. **Presence vs. absence:** an absent controller / empty estate / orphaned dead config is a **non-event (0)**; a present-but-broken controller is **tech debt (1) + cleanup note**, scored separately from its config's migration difficulty.
 
 | Impact | Band | Meaning |
 |--------|------|---------|
-| 🟡 1–2 | Low | Hardening gap / best-practice; no revenue/downtime impact; hours–1 day, single-scope. |
-| 🟠 3–4 | Medium | Limited-reputation breach or short-downtime revenue loss; tech debt hard to reverse; area/single-cluster scope. |
-| 🔴 5 | High | Major/reputational breach or prolonged downtime; needs re-design/re-architecture (may need approval). |
+| 🟢 0 | Non-event | Serves no live traffic — absent controller, empty estate, orphaned/dead config, CVE-on-nothing. List it, deduct 0. |
+| 🟡 1–2 | Low | No revenue/downtime impact; hardening gap / best-practice; **or present-but-broken controller (tech debt)**. |
+| 🟠 3–4 | Medium | Short-downtime revenue loss or moderately-important live flow; limited-reputation breach; tech debt hard to reverse. |
+| 🔴 5 | High | Business-critical revenue loss / prolonged downtime on live traffic, or a major/reputational breach on a live path; needs re-design/re-architecture (may need approval). |
 | ⬜ Unknown | — | Cannot determine — state what to check and why. |
 
-> Easy-to-deploy prerequisites (e.g. installing CRDs) are **Low** even if they block a path. Never use GREEN/AMBER/RED.
+> Easy-to-deploy prerequisites (e.g. installing CRDs) are **Low** even if they block a path — effort never sets severity. Never use GREEN/AMBER/RED.
 
 ## Migration Difficulty Score
 
 Every report leads with a single **Migration Difficulty Score (0–100)** plus a separate **Re-architecture Gate** badge:
 
-- **High score = little change (easy); low score = much change (hard).** It is a relative *effort index* from the per-finding Impact ratings — not a manday estimate (we cannot know who implements).
-- **Deduction model, no artificial cap.** Start at 100, subtract weighted points per finding (Impact 5→10, 4→6, 3→4, 2→2, 1→1), cap per category, `score = max(0, 100 − Σ)`. The score is **never** locked at a ceiling — a single hard route no longer flattens it.
+- **High score = little change (easy); low score = much change (hard).** It measures the *amount of the estate that must change*, rolled up from the per-finding Impact ratings — **not** a manday estimate and **not** a remediation-effort index (we cannot know who implements, and effort never sets severity).
+- **Empty / non-migratable estate = 100.** No controller + no IngressClass + no Ingress → **100 / TRIVIAL** with a "nothing to migrate" note (cluster/node upgrades are out of scope, not counted as migration). **Orphaned Ingress objects with no controller = dead config = 0** (100 / TRIVIAL) with a loud "Migration Crew Alert" note. See `references/report-generation.md` §1.0.
+- **Presence vs. absence.** Absent controller = **0** (non-event). Present-but-broken (CrashLoopBackOff/unreachable) = **1 tech-debt** deduction + mandatory cleanup note, which stacks with — but does not replace — the migration-difficulty of that controller's config.
+- **Deduction model, no artificial cap.** Start at 100, subtract weighted points per finding (Impact 5→10, 4→6, 3→4, 2→2, 1→1, non-event 0), cap per category, `score = max(0, 100 − Σ)`. The score is **never** locked at a ceiling — a single hard route no longer flattens it.
 - **Re-architecture Gate (separate, informational):** routes needing redesign/approval (Lua/snippet/mirror, TLS passthrough/mTLS, cross-namespace ownership) are reported as a `⛔ N routes` badge next to the score — they do not overwrite the number. Score = "how much work?"; gate = "does anything need a redesign decision?".
 - **Clean routes count at 0 effort:** an Ingress already on the ALB controller, Gateway API, or a supported 3rd-party controller contributes 0 and is excluded from the Volume work-count, so "X of N already done" is visible and lifts the score.
 - **Feature-gap is tiered:** features with no native ALB annotation but a standard workaround — **CORS** (app middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF) — are **Impact 2** (performance/hardening) or **3** (business-logic-entangled), never 4–5. Only no-workaround features (Lua/snippet/mirror/regex-capture) score heavy.

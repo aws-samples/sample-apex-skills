@@ -1,6 +1,12 @@
 # Ingress Discovery
 
-> **Rating model:** Express every finding as **Impact 1–5** using the *Impact Indicator* rubric (security/reputation · business/revenue · nature & effort to remediate). Band mapping is a starting point — GREEN→🟡 1–2, AMBER→🟠 3–4, RED→🔴 5 — but the Impact Indicator criteria set the final score (e.g. an easy-to-deploy prerequisite stays 🟡 low even if it blocks a path). All checks are **read-only** (`kubectl get/describe`, `aws … describe/list`).
+> **Rating model:** Express every finding as **Impact 1–5** using the *Impact Indicator* rubric. Weigh three dimensions **in strict priority order: (1) business logic / revenue — what live traffic the thing serves · (2) security / reputation · (3) effort to remediate**. **Effort is NOT a severity driver** — how hard a fix is depends on who implements it (trivial for an expert, hard for a novice), so the model must not raise or lower Impact based on remediation effort. If effort is ever mentioned, label it explicitly as an operator note, not a score input.
+>
+> **Three independent dimensions that stack (they do not override each other):** a single controller/route can carry (a) a **migration-difficulty** deduction (config complexity), (b) a **tech-debt** deduction (present-but-broken, ignored), and (c) a **security** deduction (CVE/EOL). Each is a separate row in the Score Breakdown and they add up.
+>
+> **Presence vs. absence (do not conflate — this is the core rule):** an **absent** controller (or an empty estate) is a **non-event = 0** — there is nothing to migrate, like an unbuilt road; it never inflates a finding. A **present-but-broken** controller (CrashLoopBackOff / unreachable) is **tech debt** — someone deployed it and left it jammed, which can mis-align other systems, so it earns a small deduction **plus a mandatory cleanup note**. Only a **healthy controller serving live traffic** anchors the business/security dimensions.
+>
+> Band mapping is a starting point — 🟡 1–2 / 🟠 3–4 / 🔴 5 — but the Impact Indicator criteria set the final score (e.g. an easy-to-deploy prerequisite stays 🟡 low even if it blocks a path). All checks are **read-only** (`kubectl get/describe`, `aws … describe/list`).
 
 
 ## Purpose
@@ -20,10 +26,11 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 3. Check namespaces: `ingress-nginx`, `kube-system`, `aws-load-balancer-controller`
 4. List pods with labels: `app.kubernetes.io/name=ingress-nginx`, `app.kubernetes.io/name=aws-load-balancer-controller`
 
-**Impact (per Impact Indicator):**
+**Impact (per Impact Indicator — mind presence vs. absence):**
+- 🟢 0 (Non-event): **No controller found / absent / empty estate** — nothing to migrate (unbuilt road). Contributes **0** to the score; never rate this as a finding. If Ingress objects exist without any controller, see the orphaned-config handling in `report-generation.md` Step 1 (still 0, but emit the Migration Crew Alert note).
+- 🟡 1 (Tech debt): **Controller present but broken** (pods in `CrashLoopBackOff`, `ImagePullBackOff`, or otherwise unreachable). Deduct **1** and **emit a mandatory note**: the controller was deployed and left jammed — it serves no live traffic but can mis-align/mis-configure other systems, so the cluster owner is responsible to fix or remove it. This is *not* a migration-difficulty rating; if the broken controller also has complex config, that complexity is scored **separately** under its own categories.
 - 🟡 1–2 (Low): Single modern controller (AWS LB Controller v2.x) installed and healthy
 - 🟠 3–4 (Medium): Multiple controllers or legacy controller (nginx-ingress, ALB Ingress Controller v1)
-- 🔴 5 (High): No controller found, or controller pods in CrashLoopBackOff
 - ⬜ Unknown: Cannot determine controller health
 
 ### 1.2 — IngressClass Resources
@@ -38,10 +45,11 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 2. Check for default class annotation
 3. Cross-reference with Ingress resources' `spec.ingressClassName`
 
-**Impact (per Impact Indicator):**
+**Impact (per Impact Indicator — mind presence vs. absence):**
+- 🟢 0 (Non-event): **No IngressClass defined AND no controller / no Ingress resources** (empty estate) — nothing to migrate; contributes 0.
 - 🟡 1–2 (Low): IngressClass defined, default set, Ingress resources reference it explicitly
-- 🟠 3–4 (Medium): IngressClass exists but Ingress resources use legacy annotation instead of `ingressClassName`
-- 🔴 5 (High): No IngressClass defined, or multiple defaults causing conflicts
+- 🟠 3–4 (Medium): IngressClass exists but Ingress resources use legacy annotation instead of `ingressClassName`; **or** no IngressClass defined *while Ingress resources exist* (they fall back to an ambiguous/implicit default)
+- 🔴 5 (High): **Multiple defaults causing conflicts** (two or more IngressClasses marked default → non-deterministic admission)
 - ⬜ Unknown: Cannot determine IngressClass usage
 
 ### 1.3 — Ingress Resource Inventory
@@ -79,10 +87,12 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 - Since **v1.9.0**, `allow-snippet-annotations` defaults to **`false`** and `annotations-risk-level` to **`High`**. If a cluster sets `allow-snippet-annotations: "true"`, it re-opens the injection surface — flag it.
 - AWS Load Balancer Controller: **v2.7.2+** for the ALB Ingress path; **≥ v2.13.3 (L4) / ≥ v2.14 (L7)** for Gateway API.
 
-**Impact (per Impact Indicator):**
-- 🟡 1–2 (Low): All controllers on supported versions; snippet hardening intact.
-- 🟠 3–4 (Medium): A controller is behind/approaching EOL, or `allow-snippet-annotations=true` is set on a current controller (injection surface re-opened).
-- 🔴 5 (High): An **EOL/unsupported** controller with **known CVEs** is in use (e.g. ingress-nginx `< v1.9.0`) — security exposure on a live ingress path.
+**Impact (per Impact Indicator — severity scales with the LIVE traffic served, not with patch effort):**
+> A CVE/EOL finding is only as severe as the **business-critical traffic it currently exposes**. Anchor severity to what the controller *actually serves live*, then to security; **never** raise or lower it based on how easy the upgrade is.
+- 🟢 0 (Non-event): The affected controller **serves no live traffic** — it is **absent, broken (CrashLoopBackOff/unreachable), or has zero live routes**. An unexploitable CVE on machinery that carries no traffic is a non-event; do not deduct (record it as an informational note only). *(A broken controller still earns its separate §1.1 tech-debt point — that is not a CVE deduction.)*
+- 🟡 1–2 (Low): EOL/CVE controller serving only **non-critical / internal / low-traffic** routes; snippet hardening intact.
+- 🟠 3–4 (Medium): A controller is behind/approaching EOL, **or** `allow-snippet-annotations=true` is set on a current controller (injection surface re-opened), serving routes of **moderate** business importance.
+- 🔴 5 (High): An **EOL/unsupported** controller with **known CVEs** (e.g. ingress-nginx `< v1.9.0`) is **actively serving business-critical / revenue / public-facing live traffic** — real security exposure on a live path.
 - ⬜ Unknown: Cannot read controller image/version.
 
 > Every controller version found MUST appear in the report (Current Configuration + Ingress Discovery), with EOL/CVE status called out — do not roll multiple controllers into one line.
