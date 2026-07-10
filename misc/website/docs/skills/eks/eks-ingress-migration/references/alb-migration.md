@@ -100,7 +100,7 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 
 **Note:** Add comment in manifest: `# REMOVED: CORS — configure via AWS WAF rules or application middleware`
 
-> **Effort reality (High, not Medium):** CORS has **no faithful ALB/WAF equivalent** — AWS WAF cannot inject CORS *response* headers; in practice CORS must move to the **application backend (code change)**. NGINX `rate-limit`/`limit-rps` is per-second, per-path/per-client; **AWS WAF rate-based rules** are coarser (per-IP over a multi-minute window), **cost extra**, and use a completely different config model. Treat CORS / rate-limit / IP-allowlist conversions as **🔴 High impact/effort**, not a simple Medium swap.
+> **Fidelity gap (not a simple annotation swap):** CORS has **no faithful ALB/WAF equivalent** — AWS WAF cannot inject CORS *response* headers, so CORS typically has to move to the **application backend**. NGINX `rate-limit`/`limit-rps` is per-second, per-path/per-client; **AWS WAF rate-based rules** are coarser (per-IP over a multi-minute window), **cost extra**, and use a completely different config model. Rate these by the **Impact Indicator** and the Feature-Gap classification in `report-generation.md` — by the live traffic/security the lost fidelity affects, **not** by remediation effort (the app/WAF rework is an operator note, never a severity input). Because they lack a faithful equivalent they are **not** trivial swaps, but the band comes from the rubric, not from how much work the change is.
 
 ### Authentication
 
