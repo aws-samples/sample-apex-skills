@@ -100,7 +100,7 @@ service_connect_configuration {
 Verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html:
 
 - Generate via the upstream `modules/express-service` submodule (wraps `aws_ecs_express_gateway_service`; in the module since v7.2.0).
-- **Different paradigm:** ECS creates and manages the ALB, ACM certificate, autoscaling and CloudWatch resources itself via an infrastructure role (`AmazonECSInfrastructureRoleforExpressGatewayServices`). Those resources are **NOT in Terraform state** -- `terraform plan` won't show them and `terraform destroy` won't remove them directly; ECS owns their lifecycle.
+- **Different paradigm:** ECS creates and manages the ALB, ACM certificate, autoscaling and CloudWatch resources itself via an infrastructure role carrying the `AmazonECSInfrastructureRoleforExpressGatewayServices` managed policy. Those resources are **NOT in Terraform state** -- `terraform plan` won't show them and `terraform destroy` won't remove them directly; ECS owns their lifecycle.
 - Constraints: single Main container, one TCP port, Fargate-only, HTTP(S) workloads, built-in canary traffic shifting. ALBs are shared across Express services with the same networking configuration.
 - **Prefer over full service generation** for simple stateless web apps/APIs where the user wants minimal Terraform surface; use the full path when they need custom listener rules, non-HTTP protocols, multi-container tasks, EC2/MI capacity, or explicit control of the LB in state.
 

@@ -421,7 +421,7 @@ if tf_grep_q 'vpc_endpoint|aws_vpc_endpoint'; then
     # Require S3-endpoint context: service name ending .s3, an explicit
     # Gateway endpoint type, or an s3_gateway module key — a bare "Gateway"
     # word (e.g. "Internet Gateway" in a comment) must NOT satisfy this.
-    if tf_grep_q 'com\.amazonaws\.[a-z0-9-]+\.s3|service_name\s*=\s*"[^"]*\.s3"|vpc_endpoint_type\s*=\s*"Gateway"|s3_gateway'; then
+    if tf_grep_q 'com\.amazonaws\.[a-z0-9-]+\.s3|service_name\s*=\s*"[^"]*\.s3"|vpc_endpoint_type\s*=\s*"Gateway"|service_type\s*=\s*"Gateway"|s3_gateway'; then
         pass "S3 gateway endpoint present (ECR layers live in S3)"
     else
         fail "VPC endpoints configured without an S3 gateway endpoint — image pulls will hang (most-missed endpoint)"
