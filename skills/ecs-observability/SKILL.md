@@ -22,11 +22,11 @@ Advisory skill for designing the observability architecture of Amazon ECS worklo
 
 **Do NOT use this skill for:**
 - EKS or any Kubernetes observability → use `eks-best-practices` (design guidance) or `eks-operation-review` (live-cluster audit), or the other `eks-*` skills
-- ECS deployment *mechanics* — circuit breaker configuration, rollback strategy, CI/CD pipelines → use `ecs-devops` (once available). Deployment-failure *alerting and visibility* (e.g., EventBridge on `SERVICE_DEPLOYMENT_FAILED`) stays here.
-- ECS security posture, IAM hardening, compliance audits beyond observability's audit-logging angle → use `ecs-security` (once available)
-- Scoring or auditing a live ECS estate against a rubric → use `ecs-operation-review` (once available)
-- Overall ECS architecture — compute selection, networking, service design → use `ecs-architect` (once available)
-- GenAI/LLM workload design on ECS (GPU serving stacks, model hosting) → use `ecs-genai` (once available); come back here for the GPU *telemetry* question
+- ECS deployment *mechanics* — circuit breaker configuration, rollback strategy, CI/CD pipelines → use `ecs-devops`. Deployment-failure *alerting and visibility* (e.g., EventBridge on `SERVICE_DEPLOYMENT_FAILED`) stays here.
+- ECS security posture, IAM hardening, compliance audits beyond observability's audit-logging angle → use `ecs-security`
+- Scoring or auditing a live ECS estate against a rubric → use `ecs-operation-review`
+- Overall ECS architecture — compute selection, networking, service design → use `ecs-architect`
+- GenAI/LLM workload design on ECS (GPU serving stacks, model hosting) → use `ecs-genai`; come back here for the GPU *telemetry* question
 - Cost optimization of an existing observability bill as a FinOps exercise — this skill flags cost levers during design but does not audit spend
 
 ## The Decision Framework
