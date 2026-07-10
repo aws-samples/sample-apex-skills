@@ -333,6 +333,29 @@ Use when choosing and architecting an Amazon ECS deployment model for a NEW work
 | [model-selection-framework.md](./ecs-architect/references/model-selection-framework.md) | Model selection framework |
 | [networking-and-eni-density.md](./ecs-architect/references/networking-and-eni-density.md) | Networking and eni density |
 
+---
+
+### [ecs-security](./ecs-security/)
+
+Security and compliance guidance for Amazon ECS — "ECS was unable to assume the role", task role vs execution role, iam:PassRole, confused-deputy aws:SourceArn trust, Fargate vs EC2 shared responsibility, injecting Secrets Manager/SSM secrets (trailing-colon JSON-key gotcha), readonlyRootFilesystem / non-root / drop capabilities, ECS Exec governance, security-group-per-task, VPC endpoints, GuardDuty ECS Runtime Monitoring, ECR Inspector scanning, image signing, Fargate FIPS, or PCI/HIPAA/FedRAMP. Walks a discovery-driven 7-layer stack plus the AWS-canonical baseline and a 30/60/90 roadmap. Trigger even if "compliance" is never said — any ECS hardening, task-trust fix, or secrets-injection qualifies. Skip for EKS/Kubernetes (eks-security), GenAI/GPU security (ecs-genai), App Runner/Lambda, auditing a live estate's operational posture (ecs-operation-review — "audit my ECS security posture" matches both), or account-level security with no ECS angle.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [audit-logging.md](./ecs-security/references/audit-logging.md) | Audit logging |
+| [compliance-accelerators.md](./ecs-security/references/compliance-accelerators.md) | Compliance accelerators |
+| [compliance-regimes.md](./ecs-security/references/compliance-regimes.md) | Compliance regimes |
+| [encryption-and-secrets.md](./ecs-security/references/encryption-and-secrets.md) | Encryption and secrets |
+| [engagement-and-response.md](./ecs-security/references/engagement-and-response.md) | Engagement and response |
+| [identity-and-access.md](./ecs-security/references/identity-and-access.md) | Identity and access |
+| [image-supply-chain.md](./ecs-security/references/image-supply-chain.md) | Image supply chain |
+| [incident-response-and-forensics.md](./ecs-security/references/incident-response-and-forensics.md) | Incident response and forensics |
+| [network-isolation.md](./ecs-security/references/network-isolation.md) | Network isolation |
+| [runtime-security.md](./ecs-security/references/runtime-security.md) | Runtime security |
+| [shared-responsibility.md](./ecs-security/references/shared-responsibility.md) | Shared responsibility |
+| [task-container-hardening.md](./ecs-security/references/task-container-hardening.md) | Task container hardening |
+
 ## General
 
 ### [skill-creator](./skill-creator/)
