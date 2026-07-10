@@ -70,7 +70,7 @@ Every finding belongs to exactly one category. Categories are weighted by a **ma
 | Category | Max deduction | Findings that feed it (source sections) |
 |----------|--------------|-----------------------------------------|
 | Feature-Gap — **No Equivalent (Tier A)** | 30 | NGINX features with **no faithful target equivalent and no standard workaround**: `configuration-snippet`/`server-snippet`/Lua, ModSecurity, mirror-to-arbitrary-backend, regex rewrite with capture groups, TLS passthrough, mTLS client-cert. **These also raise the Re-architecture Gate.** (Ingress Resource Analysis, Traffic & Routing, Blockers) |
-| Feature-Gap — **Workaround Exists (Tier B)** | 10 | Features with **no native ALB annotation but a well-known low-effort workaround**: **CORS** (app/middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF). Rate **Impact 2** when the feature is performance/hardening only; **Impact 3** when it is entangled with business-logic flow (multiple workstreams to coordinate). Never Impact 4–5. (Ingress Resource Analysis, Traffic & Routing) |
+| Feature-Gap — **Workaround Exists (Tier B)** | 10 | Features with **no native ALB annotation but a faithful workaround** (platform or app layer): **CORS** (app/middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF). Rate **Impact 2** when the feature is performance/hardening only; **Impact 3** when it is entangled with business-logic flow. Cap at **Impact 3 only while a faithful workaround genuinely exists**. **Escalation (by business impact, never effort):** if a feature has **no faithful equivalent at any layer** — e.g. CORS *response-header* injection, which AWS WAF cannot replicate — **and** its loss degrades a **live business flow**, it is no longer Tier-B: reclassify as **Tier-A (No Equivalent)** and rate by the live business/security impact (up to 5). (Ingress Resource Analysis, Traffic & Routing) |
 | Routing Complexity | 20 | Regex paths, `rewrite-target`, canary/traffic-split, header/method routing, cross-namespace fan-out (Traffic & Routing, Routing Topology) |
 | TLS & Certificates | 15 | cert-manager→ACM move, SNI, multi-cert hosts (DNS & Certificates Analysis) |
 | DNS Cutover & Blast Radius | 15 | New ALB endpoint + DNS repoint, external-dns Gateway-API source maturity, hostname/TTL stability (DNS & Certificates Analysis, Migration Risk) |
@@ -102,10 +102,13 @@ def base_points(impact):
 #                               a control-plane RCE (e.g. CVE-2025-1974) counts even at zero routes.
 # Effort to remediate is NOT a dimension — never raise/lower points by how hard the fix is.
 
-# Tier-B feature impact (CORS / IP-allowlist / rate-limit):
+# Tier-B feature impact (CORS / IP-allowlist / rate-limit) — a faithful workaround exists:
 #   Impact 2 if performance/hardening only (not in the business-logic path)
-#   Impact 3 if entangled with business-logic flow (multiple workstreams)
-# NEVER score a Tier-B feature above Impact 3.
+#   Impact 3 if entangled with business-logic flow
+#   A genuine Tier-B feature caps at Impact 3.
+# Escalation: if a feature has NO faithful equivalent at any layer (e.g. CORS response-header
+#   injection that AWS WAF cannot replicate) AND its loss degrades a live business flow, it is
+#   Tier-A (No Equivalent), rated by business impact up to 5. Escalate by business impact, NEVER effort.
 
 # 0-effort routes (already on ALB / Gateway API / supported 3rd-party):
 #   list them in the inventory, contribute 0 pts, EXCLUDE from Scale/Volume count.
@@ -196,7 +199,7 @@ Final: **66 / HARD · ⛔ 1 route needs redesign.** Contrast with v1, which floo
 | Prose paragraph that should be a table | Convert to table |
 | Raw YAML in findings (not Migration Approach) | Replace with summary |
 | Score Breakdown total ≠ (100 − score) | Recompute — the table is the source of truth |
-| CORS / IP-allowlist / rate-limit scored above Impact 3 | Re-rate: Impact 2 (perf/hardening) or 3 (business-logic-entangled) |
+| CORS / IP-allowlist / rate-limit scored above Impact 3 | Allowed **only** if it has no faithful equivalent AND degrades a live business flow → reclassify as **Tier-A** (business-impact rated). Otherwise re-rate: Impact 2 (perf/hardening) or 3 (business-logic-entangled). Never escalate by effort. |
 | Routes already on ALB / Gateway API counted as work | Set to 0 effort; exclude from Scale/Volume count |
 | Scale/Volume scored off the raw total, not routes-needing-work | Recount excluding 0-effort routes |
 | Re-architecture Gate count ≠ (Tier-A/passthrough/ownership **route** findings **plus non-route conditions**: no-rollback cutover, EOL/CVE control-plane exposure, Auto Mode LB ownership race) | Reconcile the gate to the master list **including the condition triggers** — a security/CVE condition legitimately raises the gate with **zero** route findings; do not delete it, and render it as `⛔ … condition(s)`, not a phantom route |
