@@ -335,6 +335,27 @@ Use when choosing and architecting an Amazon ECS deployment model for a NEW work
 
 ---
 
+### [ecs-genai](./ecs-genai/)
+
+Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS — GPU on ECS, ECS GPU-optimized AMI, g4dn/g5/g6/p4/p5 on ECS, which ECS launch type for GPU, Inferentia/Trainium/Neuron on ECS, distributed training on ECS, model inference on ECS, Capacity Blocks for ECS, GPU sharing, or ASG per GPU type. Covers GPU compute on ECS-on-EC2 and ECS Managed Instances (GPU-optimized AMIs, NVIDIA runtime, instance families); the capacity pattern where mixed-instance ASGs are supported but constrained (no weighting; managed scaling protects on the smallest type, so one homogeneous ASG per GPU type is best practice); Capacity Blocks; inference/serving; Neuron; distributed ML; GPU observability; a GPU/ML security slice. AWS Fargate has NO GPU — use ECS-on-EC2, Managed Instances, or ECS Anywhere. Trigger even if GenAI is unsaid. Use eks-genai for Kubernetes/EKS; SageMaker for fully-managed ML; Bedrock for managed foundation models; ecs-architect for non-accelerator ECS design; ecs-security for deep compliance.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [capacity-and-scaling.md](./ecs-genai/references/capacity-and-scaling.md) | Capacity and scaling |
+| [compute-hardware.md](./ecs-genai/references/compute-hardware.md) | Compute hardware |
+| [distributed-training.md](./ecs-genai/references/distributed-training.md) | Distributed training |
+| [inference-serving.md](./ecs-genai/references/inference-serving.md) | Inference serving |
+| [neuron-on-ecs.md](./ecs-genai/references/neuron-on-ecs.md) | Neuron on ecs |
+| [observability.md](./ecs-genai/references/observability.md) | Observability |
+| [security-and-compliance.md](./ecs-genai/references/security-and-compliance.md) | Security and compliance |
+| [service-boundaries.md](./ecs-genai/references/service-boundaries.md) | Service boundaries |
+| [storage.md](./ecs-genai/references/storage.md) | Storage |
+| [use-cases.md](./ecs-genai/references/use-cases.md) | Use cases |
+
+---
+
 ### [ecs-operation-review](./ecs-operation-review/)
 
 Run a structured Amazon ECS operational-excellence assessment against a live estate and score it GREEN/AMBER/RED. Skip for EKS/Kubernetes (use eks-operation-review). Covers 8 domains — clusters & capacity, networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (grace period, draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for "audit my ECS estate", "ECS health check", "score my ECS posture", "review my ECS services", "GREEN/AMBER/RED my ECS clusters", including section-scoped reviews of a single domain. For Day-0 design/selection use ecs-architect; for deep security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for CI/CD engineering use ecs-devops; for replatform/refactor use ecs-modernize; for read-only inventory/discovery use ecs-recon (siblings once available).
