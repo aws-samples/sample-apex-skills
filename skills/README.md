@@ -335,6 +335,33 @@ Use when choosing and architecting an Amazon ECS deployment model for a NEW work
 
 ---
 
+### [ecs-operation-review](./ecs-operation-review/)
+
+Run a structured Amazon ECS operational-excellence assessment against a live estate and score it GREEN/AMBER/RED. Skip for EKS/Kubernetes (use eks-operation-review). Covers 8 domains — clusters & capacity, networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (grace period, draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for "audit my ECS estate", "ECS health check", "score my ECS posture", "review my ECS services", "GREEN/AMBER/RED my ECS clusters", including section-scoped reviews of a single domain. For Day-0 design/selection use ecs-architect; for deep security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for CI/CD engineering use ecs-devops; for replatform/refactor use ecs-modernize; for read-only inventory/discovery use ecs-recon (siblings once available).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [cluster-capacity.md](./ecs-operation-review/references/cluster-capacity.md) | Cluster capacity |
+| [networking.md](./ecs-operation-review/references/networking.md) | Networking |
+| [observability.md](./ecs-operation-review/references/observability.md) | Observability |
+| [operational-processes.md](./ecs-operation-review/references/operational-processes.md) | Operational processes |
+| [report-generation.md](./ecs-operation-review/references/report-generation.md) | Report generation |
+| [scoring-rubric.md](./ecs-operation-review/references/scoring-rubric.md) | Scoring rubric |
+| [security-posture.md](./ecs-operation-review/references/security-posture.md) | Security posture |
+| [service-health-scaling.md](./ecs-operation-review/references/service-health-scaling.md) | Service health scaling |
+| [services-deployment.md](./ecs-operation-review/references/services-deployment.md) | Services deployment |
+| [task-definitions.md](./ecs-operation-review/references/task-definitions.md) | Task definitions |
+
+**Tools:**
+
+| File | Description |
+|------|-------------|
+| [report_to_html.py](./ecs-operation-review/tools/report_to_html.py) | Report_to_html |
+
+---
+
 ### [ecs-security](./ecs-security/)
 
 Security and compliance guidance for Amazon ECS — "ECS was unable to assume the role", task role vs execution role, iam:PassRole, confused-deputy aws:SourceArn trust, Fargate vs EC2 shared responsibility, injecting Secrets Manager/SSM secrets (trailing-colon JSON-key gotcha), readonlyRootFilesystem / non-root / drop capabilities, ECS Exec governance, security-group-per-task, VPC endpoints, GuardDuty ECS Runtime Monitoring, ECR Inspector scanning, image signing, Fargate FIPS, or PCI/HIPAA/FedRAMP. Walks a discovery-driven 7-layer stack plus the AWS-canonical baseline and a 30/60/90 roadmap. Trigger even if "compliance" is never said — any ECS hardening, task-trust fix, or secrets-injection qualifies. Skip for EKS/Kubernetes (eks-security), GenAI/GPU security (ecs-genai), App Runner/Lambda, auditing a live estate's operational posture (ecs-operation-review — "audit my ECS security posture" matches both), or account-level security with no ECS angle.
