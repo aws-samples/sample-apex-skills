@@ -46,7 +46,7 @@ Every finding belongs to exactly one category. Categories are weighted by a **ma
 | Category | Max deduction | Findings that feed it |
 |----------|--------------|----------------------|
 | Feature-Gap — **No Equivalent (Tier A)** | 30 | NGINX features with **no faithful target equivalent and no standard workaround**: `configuration-snippet`/`server-snippet`/Lua, ModSecurity, mirror-to-arbitrary-backend, regex rewrite with capture groups, TLS passthrough, mTLS client-cert. **These also raise the Re-architecture Gate.** |
-| Feature-Gap — **Workaround Exists (Tier B)** | 10 | Features with **no native ALB annotation but a well-known low-effort workaround**: **CORS** (app/middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF). Rate **Impact 2** when the feature is performance/hardening only; **Impact 3** when it is entangled with business-logic flow (multiple workstreams to coordinate). Never Impact 4-5. |
+| Feature-Gap — **Workaround Exists (Tier B)** | 10 | Features with **no native ALB annotation but a well-known low-effort workaround**: **CORS** (app/middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF). Default **Impact 2** when the feature is performance/hardening only; **Impact 3** when it is entangled with business-logic flow (multiple workstreams to coordinate). May score higher (up to 5) when the upstream migration-path reference rates the specific migration complexity as High (e.g., ALB.1 IP allowlist migration rated High in alb-migration.md). The per-feature rating in the migration-path reference takes precedence over this default. |
 | Routing Complexity | 20 | Regex paths, `rewrite-target`, canary/traffic-split, header/method routing, cross-namespace fan-out |
 | TLS & Certificates | 15 | cert-manager to ACM move, SNI, multi-cert hosts |
 | DNS Cutover & Blast Radius | 15 | New ALB endpoint + DNS repoint, external-dns Gateway-API source maturity, hostname/TTL stability |
@@ -65,9 +65,10 @@ def base_points(impact):
     return {5: 10, 4: 6, 3: 4, 2: 2, 1: 1}[impact]   # Unknown = 0 pts, but list it
 
 # Tier-B feature impact (CORS / IP-allowlist / rate-limit):
-#   Impact 2 if performance/hardening only (not in the business-logic path)
-#   Impact 3 if entangled with business-logic flow (multiple workstreams)
-# NEVER score a Tier-B feature above Impact 3.
+#   Default Impact 2 if performance/hardening only (not in the business-logic path)
+#   Default Impact 3 if entangled with business-logic flow (multiple workstreams)
+#   May score up to Impact 5 when the migration-path reference (e.g. alb-migration.md)
+#   rates the specific feature's migration complexity as High.
 
 # 0-effort routes (already on ALB / Gateway API / supported 3rd-party):
 #   list them in the inventory, contribute 0 pts, EXCLUDE from Scale/Volume count.
@@ -156,7 +157,7 @@ Run these checks before finalizing the report. Fix any failures in-place.
 | Prose paragraph that should be a table | Convert to table |
 | Raw YAML in findings (not Migration Approach) | Replace with summary |
 | Score Breakdown total does not equal (100 - score) | Recompute — the table is the source of truth |
-| CORS / IP-allowlist / rate-limit scored above Impact 3 | Re-rate: Impact 2 (perf/hardening) or 3 (business-logic-entangled) |
+| CORS / IP-allowlist / rate-limit scored above default Impact 3 without migration-path reference justification | Re-rate to default (2 or 3), OR cite the migration-path reference rating that justifies the higher score |
 | Routes already on ALB / Gateway API counted as work | Set to 0 effort; exclude from Scale/Volume count |
 | Scale/Volume scored off the raw total, not routes-needing-work | Recount excluding 0-effort routes |
 | Re-architecture Gate count does not equal Tier-A/passthrough/ownership findings | Reconcile the gate to the master list |
@@ -418,7 +419,7 @@ Generate the following structure. Replace placeholders with assessment data.
 #### Phase 1 — Foundation
 | Step | Action |
 |------|--------|
-| 1 | Upload Transform Definition from `references/atx/td_ingress-nginx-lbc/transformation_definition.md` |
+| 1 | Upload the NGINX-to-ALB Transform Definition to the ATX workspace (defines annotation mapping rules, TLS conversion, and rewrite transforms — see [AWS Transform documentation](https://docs.aws.amazon.com/eks/latest/userguide/eks-transform.html) for TD authoring and upload steps) |
 | 2 | Point ATX at Ingress manifest repository |
 
 #### Phase 2 — Convert & Test

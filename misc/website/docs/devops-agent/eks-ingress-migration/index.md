@@ -74,6 +74,10 @@ Before executing checks for any section, read the corresponding reference file f
    - `get`/`list` on `deployments`, `daemonsets`, `services`, `pods` (apps/v1, v1)
    - `get`/`list` on `nodes` (v1)
    - `get`/`list` on `gateways`, `httproutes`, `gatewayclasses` (gateway.networking.k8s.io/v1) — if CRDs installed
+   - `get`/`list` on `configmaps` (v1) — ingress controller configuration discovery
+   - `get`/`list` on `serviceaccounts` (v1) — IRSA verification for DNS/cert management
+   - `get`/`list` on `certificates`, `clusterissuers` (cert-manager.io/v1) — if CRDs installed
+   - `get`/`list` on `customresourcedefinitions` (apiextensions.k8s.io/v1) — CRD detection
 
 ## Assessment Workflow
 
@@ -115,7 +119,7 @@ Compile a discovery table:
 
 - If **0 clusters found** — produce an Assessment Error report (see error contract below).
 - If **1 cluster found** — proceed with that cluster automatically.
-- If **multiple clusters found** — assess ALL clusters and produce a separate report section for each. Present the discovery table in the report header, then run the full assessment workflow per cluster.
+- If **multiple clusters found** — assess ALL clusters. Produce one report file per cluster (`EKS-Ingress-Migration-<cluster>-<YYYY-MM-DD>.md`). Additionally write a discovery summary file `EKS-Ingress-Migration-Summary-<YYYY-MM-DD>.md` containing only the discovery table and per-cluster score/band.
 
 **Action 3 — For each discovered cluster, describe it**
 
