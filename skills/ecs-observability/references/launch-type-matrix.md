@@ -40,7 +40,7 @@
 > Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html and https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html
 
 **Managed Instances (MI):**
-- The AMI is AWS-owned — you cannot bake agents into it. Instances have a 14-day maximum lifetime (auto-drain and replace), so host-installed state is disposable by design.
+- The AMI is AWS-owned — you cannot bake agents into it. Instances live on a 14-21 day lifecycle — draining starts at day 14 and the instance is terminated no later than day 21 (auto-drain and replace; https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html, verified 2026-07-10) — so host-installed state is disposable by design.
 - No SSH; ECS Exec is the sole interactive path. Management is via ECS APIs only.
 - GPU auto-repair exists for impaired GPU instances (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-gpu-auto-repair.html).
 

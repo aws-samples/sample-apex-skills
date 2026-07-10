@@ -73,7 +73,7 @@ Full criteria matrix, per-model deep dives, and the exact GA/Region/pricing fact
 |-------|-------------|------------|-----|----------|---------|
 | **AWS Fargate** | Everything below the task | Task def, sizing | **No** | Most services, spiky/low-density, no-ops | GPU, custom AMI, host access |
 | **ECS on EC2** | Control plane | EC2 fleet (AMI, patch, scale), agent | Yes | Full control, GPU, dense bin-packing, custom kernel | Teams that don't want EC2 ops |
-| **ECS Managed Instances** | EC2 provisioning, patching (every 14 days), placement, scaling | Task def, instance-type constraints | Yes | EC2 flexibility (incl. GPU), Spot/Reserved capacity, without lifecycle ops | China Regions (not available; GovCloud (US) is supported) |
+| **ECS Managed Instances** | EC2 provisioning, patching (drain from day 14, replace by day 21), placement, scaling | Task def, instance-type constraints | Yes | EC2 flexibility (incl. GPU), Spot/Reserved capacity, without lifecycle ops | China Regions (not available; GovCloud (US) is supported) |
 | **ECS Express Mode** | ALB, ACM cert, target groups, SGs, autoscaling, cluster | Container image + 2 IAM roles | No (Fargate-backed) | Fast-path web apps/APIs, demos, internal tools | Fine-grained infra control from day one |
 | **ECS Anywhere (EXTERNAL)** | Control plane (in AWS) | On-prem/VM external instances, agents | Depends on host | Hybrid, edge, on-prem, data-processing/outbound | Inbound-heavy apps (no ELB support) |
 

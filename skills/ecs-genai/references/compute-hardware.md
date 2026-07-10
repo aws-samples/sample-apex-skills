@@ -9,7 +9,7 @@ GPUs (and AWS accelerators) are **not available on AWS Fargate**. AWS lists the 
 | Host | GPU support | Who manages the EC2 lifecycle | Use when |
 |---|---|---|---|
 | **ECS-on-EC2** | ✅ Full (GPU-optimized AMI, custom AMI/kernel, EFA, multi-node) | You (Auto Scaling groups) | Training, demanding inference, full control |
-| **ECS Managed Instances** | ✅ GPU + Neuron (drivers pre-installed) | AWS (provision; security patching initiated every 14 days by instance replacement — [ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/), [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)) | Lower ops overhead; GA Sept 2025, all commercial Regions Oct 2025 |
+| **ECS Managed Instances** | ✅ GPU + Neuron (drivers pre-installed) | AWS (provision; security patching by drain-and-replace: draining initiated at day 14, instance terminated no later than day 21 — [ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/), [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)) | Lower ops overhead; GA Sept 2025, all commercial Regions Oct 2025 |
 | **ECS Anywhere / External** | ✅ On-prem GPU hosts (`--enable-gpu`) | You (on-prem) | Hybrid / data-residency |
 | **AWS Fargate** | ❌ **None** | AWS | Never — for GPU, rule Fargate out |
 
@@ -152,7 +152,7 @@ or pin exact types:
 { "instanceRequirements": { "allowedInstanceTypes": ["g4dn.xlarge", "p4de.24xlarge"] } }
 ```
 
-AWS handles instance configuration, capacity provisioning, workload placement, security patching (initiated every 14 days by instance replacement — [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)), scaling, and maintenance — trading some control for far lower operational overhead than a hand-rolled ASG. Note: the 14-day drain-and-replace cadence interrupts multi-week training runs — see [capacity-and-scaling.md](capacity-and-scaling.md).
+AWS handles instance configuration, capacity provisioning, workload placement, security patching (drain initiated at day 14, instance terminated no later than day 21 — [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)), scaling, and maintenance — trading some control for far lower operational overhead than a hand-rolled ASG. Note: the 14-21 day drain-and-replace lifecycle interrupts multi-week training runs — see [capacity-and-scaling.md](capacity-and-scaling.md).
 
 ## Capacity Planning Guidance
 
