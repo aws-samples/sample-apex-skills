@@ -43,6 +43,13 @@ fi
 tf_grep() { grep -rn --include='*.tf' --exclude-dir=.terraform -E "$1" "$PROJECT_DIR" 2>/dev/null || true; }
 tf_grep_q() { grep -rq --include='*.tf' --exclude-dir=.terraform -E "$1" "$PROJECT_DIR" 2>/dev/null; }
 
+# Code-only variants for presence-triggered FAIL checks: drop full-line
+# comments (# or //) so commented-out HCL never trips a FAIL. Known limit:
+# heredoc bodies and trailing inline comments are NOT filtered — acceptable
+# for these line-oriented heuristics.
+tf_grep_code() { tf_grep "$1" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*(#|//)' || true; }
+tf_grep_code_q() { [ -n "$(tf_grep_code "$1")" ]; }
+
 # All .tf files, recursive, .terraform excluded — awk/per-file checks use this
 # so their scope matches tf_grep (module subdirs included).
 TF_FILES=()
@@ -50,8 +57,21 @@ while IFS= read -r -d '' f; do
     TF_FILES+=("$f")
 done < <(find "$PROJECT_DIR" -name '*.tf' -not -path '*/.terraform/*' -print0 2>/dev/null)
 
+# Express Mode projects delegate service-level concerns (deployment strategy,
+# circuit breaker, load balancing) to the ECS-managed infrastructure role —
+# those checks are N/A, not missing.
+EXPRESS_ONLY=0
+if tf_grep_q 'aws_ecs_express_gateway_service|express_gateway_service|modules/express-service' \
+   && ! tf_grep_q 'resource "aws_ecs_service"' \
+   && ! tf_grep_q '//modules/service"'; then
+    EXPRESS_ONLY=1
+fi
+
 echo "Validating project: $PROJECT_DIR"
 echo "==========================================="
+if [ "$EXPRESS_ONLY" -eq 1 ]; then
+    echo "i Express project detected — service-level checks (circuit breaker, strategy, LB) skipped as N/A"
+fi
 
 # --- 1. Required Terraform files ---
 echo ""
@@ -110,7 +130,8 @@ if tf_grep_q 'source\s*=\s*"terraform-aws-modules/ecs/aws"'; then
     # Every registry module block must carry a version pin (recursive scan)
     UNPINNED=""
     if [ ${#TF_FILES[@]} -gt 0 ]; then
-        UNPINNED=$(awk '/module "/{inmod=1; hasver=0; hasreg=0}
+        UNPINNED=$(awk 'FNR==1{inmod=0}
+            /module "/{inmod=1; hasver=0; hasreg=0}
             inmod && /source[[:space:]]*=[[:space:]]*"terraform-aws-modules\//{hasreg=1}
             inmod && /version[[:space:]]*=/{hasver=1}
             inmod && /^}/{if (hasreg && !hasver) print FILENAME; inmod=0}' "${TF_FILES[@]}" 2>/dev/null || true)
@@ -148,16 +169,16 @@ echo ""
 echo "5. FARGATE_SPOT / launch_type checks (CR 1)"
 echo "-------------------------------------------"
 
-if tf_grep_q 'launch_type\s*=\s*"FARGATE_SPOT"'; then
+if tf_grep_code_q 'launch_type\s*=\s*"FARGATE_SPOT"'; then
     fail "launch_type = \"FARGATE_SPOT\" found — FARGATE_SPOT is a capacity provider, not a launchType. Apply will fail."
-    tf_grep 'launch_type\s*=\s*"FARGATE_SPOT"' | head -5
+    tf_grep_code 'launch_type\s*=\s*"FARGATE_SPOT"' | head -5
 else
     pass "No launch_type = FARGATE_SPOT misuse"
 fi
 
-if tf_grep_q 'launch_type\s*=\s*"MANAGED_INSTANCES"'; then
+if tf_grep_code_q 'launch_type\s*=\s*"MANAGED_INSTANCES"'; then
     warn "launch_type = \"MANAGED_INSTANCES\" found — valid launchType, but this skill generates capacity provider strategies (Step 5) — confirm this is intentional."
-    tf_grep 'launch_type\s*=\s*"MANAGED_INSTANCES"' | head -5
+    tf_grep_code 'launch_type\s*=\s*"MANAGED_INSTANCES"' | head -5
 else
     pass "No launch_type = MANAGED_INSTANCES (skill default is capacity provider strategy)"
 fi
@@ -165,7 +186,9 @@ fi
 # launch_type and capacity_provider_strategy on the same service resource
 LT_CPS_CONFLICT=""
 if [ ${#TF_FILES[@]} -gt 0 ]; then
-    LT_CPS_CONFLICT=$(awk '/^resource "aws_ecs_service"/{inres=1; lt=0; cps=0; name=FILENAME": "$0}
+    LT_CPS_CONFLICT=$(awk 'FNR==1{inres=0}
+        /^[[:space:]]*(#|\/\/)/{next}
+        /^resource "aws_ecs_service"/{inres=1; lt=0; cps=0; name=FILENAME": "$0}
         inres && /launch_type[[:space:]]*=/{lt=1}
         inres && /capacity_provider_strategy/{cps=1}
         inres && /^}/{if (lt && cps) print name; inres=0}' "${TF_FILES[@]}" 2>/dev/null || true)
@@ -177,18 +200,42 @@ else
 fi
 
 # A single capacity_provider_strategy must not mix Fargate and non-Fargate
-# provider types (CR 2). Resource/module-block granular via awk.
-CPS_MIXED=""
+# provider types (CR 2). Resource-block granular via awk. Only quoted
+# literals are classified: an unquoted reference/interpolation (e.g.
+# `capacity_provider = capacity_provider_strategy.value.name` inside a
+# dynamic block) is indeterminate — reported separately, never a FAIL.
+# Module blocks may hold a services = {...} map of MULTIPLE services this
+# heuristic cannot separate, so module-block conflicts are warn-grade.
+CPS_SCAN=""
 if [ ${#TF_FILES[@]} -gt 0 ]; then
-    CPS_MIXED=$(awk '
-        /^(resource "aws_ecs_service"|resource "aws_ecs_cluster_capacity_providers"|module ")/{inres=1; farg=0; cust=0; name=FILENAME": "$0}
-        inres && /capacity_provider[[:space:]]*=/{ if ($0 ~ /"FARGATE(_SPOT)?"/) farg=1; else cust=1 }
-        inres && /^}/{if (farg && cust) print name; inres=0}' "${TF_FILES[@]}" 2>/dev/null || true)
+    CPS_SCAN=$(awk 'FNR==1{inres=0}
+        /^[[:space:]]*(#|\/\/)/{next}
+        /^(resource "aws_ecs_service"|resource "aws_ecs_cluster_capacity_providers")/{inres=1; ismod=0; farg=0; cust=0; dyn=0; name=FILENAME": "$0}
+        /^module "/{inres=1; ismod=1; farg=0; cust=0; dyn=0; name=FILENAME": "$0}
+        inres && /capacity_provider[[:space:]]*=/{
+            if ($0 ~ /=[[:space:]]*"FARGATE(_SPOT)?"/) farg=1
+            else if ($0 ~ /=[[:space:]]*"[^$]/) cust=1
+            else dyn=1
+        }
+        inres && /^}/{
+            if (farg && cust) print (ismod ? "MODMIX|" : "MIX|") name
+            else if (dyn && (farg || cust)) print "DYN|" name
+            inres=0
+        }' "${TF_FILES[@]}" 2>/dev/null || true)
 fi
+CPS_MIXED=$(echo "$CPS_SCAN" | grep '^MIX|' | sed 's/^MIX|//' || true)
+CPS_MODMIX=$(echo "$CPS_SCAN" | grep '^MODMIX|' | sed 's/^MODMIX|//' || true)
+CPS_DYN=$(echo "$CPS_SCAN" | grep '^DYN|' | sed 's/^DYN|//' || true)
 if [ -n "$CPS_MIXED" ]; then
     fail "capacity_provider_strategy mixes FARGATE/FARGATE_SPOT with a custom (ASG/MI) provider in the same strategy — a single strategy cannot mix provider types (CR 2): $CPS_MIXED"
 else
     pass "No capacity provider strategy mixes Fargate and non-Fargate provider types"
+fi
+if [ -n "$CPS_MODMIX" ]; then
+    warn "Fargate and custom providers both referenced in one module block — module services map: verify per-service; heuristic cannot separate entries (CR 2): $CPS_MODMIX"
+fi
+if [ -n "$CPS_DYN" ]; then
+    warn "dynamic strategy block — cannot statically verify type mixing (unquoted capacity_provider reference, CR 2): $CPS_DYN"
 fi
 
 # --- 6. Managed Instances wiring (CR 3) ---
@@ -220,7 +267,9 @@ if tf_grep_q 'managed_instances_provider'; then
     # MI + ASG provider in the same resource is invalid
     MI_ASG_MIX=""
     if [ ${#TF_FILES[@]} -gt 0 ]; then
-        MI_ASG_MIX=$(awk '/^resource "aws_ecs_capacity_provider"/{inres=1; mi=0; asg=0; name=FILENAME": "$0}
+        MI_ASG_MIX=$(awk 'FNR==1{inres=0}
+            /^[[:space:]]*(#|\/\/)/{next}
+            /^resource "aws_ecs_capacity_provider"/{inres=1; mi=0; asg=0; name=FILENAME": "$0}
             inres && /managed_instances_provider/{mi=1}
             inres && /auto_scaling_group_provider/{asg=1}
             inres && /^}/{if (mi && asg) print name; inres=0}' "${TF_FILES[@]}" 2>/dev/null || true)
@@ -270,9 +319,9 @@ echo "8. IAM role checks (CR 5)"
 echo "-------------------------------------------"
 
 # Cluster-scoped SourceArn is documented-unsupported
-if tf_grep_q 'aws:SourceArn.*:cluster/'; then
+if tf_grep_code_q 'aws:SourceArn.*:cluster/'; then
     fail "Cluster-scoped aws:SourceArn found in a trust policy — not supported for ecs-tasks trust; use arn:aws:ecs:<region>:<account>:* (CR 5)"
-    tf_grep 'aws:SourceArn.*:cluster/' | head -5
+    tf_grep_code 'aws:SourceArn.*:cluster/' | head -5
 else
     pass "No cluster-scoped aws:SourceArn in trust policies"
 fi
@@ -296,27 +345,42 @@ echo ""
 echo "9. Deployment strategy checks (CR 6)"
 echo "-------------------------------------------"
 
-if tf_grep_q 'strategy\s*=\s*"(BLUE_GREEN|LINEAR|CANARY)"'; then
-    # Resource/module-block granular: circuit breaker is rolling-only, so it
-    # must not sit on the SAME service block as a blue/green-family strategy.
+if [ "$EXPRESS_ONLY" -eq 1 ]; then
+    skip_check "deployment strategy checks" "Express project — strategy/circuit-breaker/LB managed by the ECS infrastructure role (N/A)" 0
+elif tf_grep_q 'strategy\s*=\s*"(BLUE_GREEN|LINEAR|CANARY)"'; then
+    # Resource-block granular: circuit breaker is rolling-only, so it must
+    # not sit on the SAME service block as a blue/green-family strategy.
     # (A rolling service and a BG service may legitimately share a file.)
-    CB_CONFLICTS=""
+    # Module blocks may hold a services = {...} map of multiple services this
+    # heuristic cannot separate — those conflicts are warn-grade.
+    CB_SCAN=""
     if [ ${#TF_FILES[@]} -gt 0 ]; then
-        CB_CONFLICTS=$(awk '
-            /^(resource "aws_ecs_service"|module ")/{inres=1; bg=0; cb=0; name=FILENAME": "$0}
+        CB_SCAN=$(awk 'FNR==1{inres=0}
+            /^[[:space:]]*(#|\/\/)/{next}
+            /^resource "aws_ecs_service"/{inres=1; ismod=0; bg=0; cb=0; name=FILENAME": "$0}
+            /^module "/{inres=1; ismod=1; bg=0; cb=0; name=FILENAME": "$0}
             inres && /strategy[[:space:]]*=[[:space:]]*"(BLUE_GREEN|LINEAR|CANARY)"/{bg=1}
             inres && /deployment_circuit_breaker/{cb=1}
-            inres && /^}/{if (bg && cb) print name; inres=0}' "${TF_FILES[@]}" 2>/dev/null || true)
+            inres && /^}/{if (bg && cb) print (ismod ? "MOD|" : "RES|") name; inres=0}' "${TF_FILES[@]}" 2>/dev/null || true)
     fi
+    CB_CONFLICTS=$(echo "$CB_SCAN" | grep '^RES|' | sed 's/^RES|//' || true)
+    CB_MOD_CONFLICTS=$(echo "$CB_SCAN" | grep '^MOD|' | sed 's/^MOD|//' || true)
     if [ -n "$CB_CONFLICTS" ]; then
         fail "Circuit breaker configured on the same service block as a blue/green-family strategy — circuit breaker is rolling-only: $CB_CONFLICTS"
     else
         pass "No service block mixes a blue/green-family strategy with the deployment circuit breaker"
     fi
+    if [ -n "$CB_MOD_CONFLICTS" ]; then
+        warn "Blue/green-family strategy and circuit breaker both present in one module block — module services map: verify per-service; heuristic cannot separate entries: $CB_MOD_CONFLICTS"
+    fi
+    # LB requirement split: LINEAR/CANARY need managed traffic shifting;
+    # BLUE_GREEN without an LB is documented-valid (headless) — warn only.
     if tf_grep_q 'load_balancer|service_connect_configuration'; then
         pass "Load balancer / Service Connect present for blue/green-family strategy"
+    elif tf_grep_q 'strategy\s*=\s*"(LINEAR|CANARY)"'; then
+        fail "LINEAR/CANARY requires ALB, NLB, or Service Connect for traffic shifting — none found"
     else
-        fail "BLUE_GREEN/LINEAR/CANARY requires ALB, NLB, or Service Connect — none found"
+        warn "headless blue/green (no managed traffic shifting) — confirm intent"
     fi
 else
     # Rolling services should have the circuit breaker
@@ -329,7 +393,7 @@ else
     fi
 fi
 
-if tf_grep_q 'CODE_DEPLOY|aws_codedeploy'; then
+if tf_grep_code_q 'CODE_DEPLOY|aws_codedeploy'; then
     fail "CodeDeploy controller/resources found — generate native ECS strategies for new services (CR 6)"
 else
     pass "No CodeDeploy deployment resources"
@@ -370,7 +434,7 @@ else
     pass "No FARGATE compatibility declared — exclusion checks skipped"
 fi
 
-# --- 12. Container hygiene (S12 / A6) ---
+# --- 12. Container hygiene (CR 12 + image/secret hygiene) ---
 echo ""
 echo "12. Container hygiene"
 echo "-------------------------------------------"
@@ -389,13 +453,16 @@ if tf_grep_q '"?image"?\s*[:=]\s*"[^"]*:latest"'; then
     tf_grep '"?image"?\s*[:=]\s*"[^"]*:latest"' | head -5
 else
     pass "No :latest image tags"
+    if tf_grep_q '"?image"?\s*[:=]\s*(var\.|local\.|"\$\{)'; then
+        echo "  note: image references use var/local interpolation — tag pinning cannot be checked statically"
+    fi
 fi
 
 # Plaintext credential-looking names inside environment blocks — use
 # secrets/valueFrom (SSM Parameter Store or Secrets Manager) instead.
 ENV_SECRET_HITS=""
 if [ ${#TF_FILES[@]} -gt 0 ]; then
-    ENV_SECRET_HITS=$(awk '
+    ENV_SECRET_HITS=$(awk 'FNR==1{env=0}
         /"?environment"?[[:space:]]*[:=][[:space:]]*\[/{env=1}
         env && /(PASSWORD|SECRET|TOKEN|API_KEY)/{print FILENAME":"FNR": "$0}
         env && /\]/{env=0}' "${TF_FILES[@]}" 2>/dev/null || true)
@@ -447,7 +514,7 @@ if command -v terraform &>/dev/null; then
         if terraform -chdir="$PROJECT_DIR" validate 2>&1 | grep -q "Success"; then
             pass "terraform validate passes"
         else
-            warn "terraform validate reported issues — inspect 'terraform -chdir=$PROJECT_DIR validate' output"
+            fail "terraform validate reported errors — inspect 'terraform -chdir=$PROJECT_DIR validate' output"
         fi
     else
         skip_check "terraform validate" "project not initialized (run 'terraform init' first, then re-validate)" 1

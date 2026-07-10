@@ -97,12 +97,20 @@ service_connect_configuration {
 
 ## Express services (distinct generation path)
 
-Verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html:
+Verified 2026-07-10; availability and delegation model per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html:
 
 - Generate via the upstream `modules/express-service` submodule (wraps `aws_ecs_express_gateway_service`; in the module since v7.2.0).
-- **Different paradigm:** ECS creates and manages the ALB, ACM certificate, autoscaling and CloudWatch resources itself via an infrastructure role carrying the `AmazonECSInfrastructureRoleforExpressGatewayServices` managed policy. Those resources are **NOT in Terraform state** -- `terraform plan` won't show them and `terraform destroy` won't remove them directly; ECS owns their lifecycle.
-- Constraints: single Main container, one TCP port, Fargate-only, HTTP(S) workloads, built-in canary traffic shifting. ALBs are shared across Express services with the same networking configuration.
+- **Different paradigm:** ECS creates and manages the ALB, ACM certificate, autoscaling and CloudWatch resources itself via an infrastructure role carrying the `AmazonECSInfrastructureRoleforExpressGatewayServices` managed policy (policy name per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/infrastructure_IAM_role.html). Those resources are **NOT in Terraform state** -- `terraform plan` won't show them and `terraform destroy` won't remove them directly; ECS owns their lifecycle. Scope this role deliberately: it grants ECS broad resource-creation rights (ELB, EC2 security groups, ACM, Application Auto Scaling) on your behalf.
+- Constraints: a single traffic-serving `Main` (primary) container with one TCP port; sidecars are permitted via the custom-task-definition path (`taskDefinitionArn`); Fargate-only, HTTP(S) workloads, built-in canary traffic shifting (https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateExpressGatewayService.html). ALBs are shared across Express services with the same networking configuration.
 - **Prefer over full service generation** for simple stateless web apps/APIs where the user wants minimal Terraform surface; use the full path when they need custom listener rules, non-HTTP protocols, multi-container tasks, EC2/MI capacity, or explicit control of the LB in state.
+
+## Daemons (per-instance agents)
+
+Two mechanisms, by capacity model (verified 2026-07-10):
+
+- **ECS Managed Daemons (June 2026, Managed Instances only):** dedicated `CreateDaemon` API -- one daemon task per MI-provisioned instance, started before application tasks, auto-repair (instance drained/replaced if the daemon stops), rolling `drainPercent`/`bakeTimeInMinutes` deployments. Generate with the provider's `aws_ecs_daemon` + `aws_ecs_daemon_task_definition` resources (provider >= 6.50.0; daemon references `cluster_arn`, `daemon_task_definition_arn`, `capacity_provider_arns`). Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-daemons-deployments.html.
+- **Classic `scheduling_strategy = "DAEMON"` on `aws_ecs_service`, EC2 launch type:** one task per container instance meeting the placement constraints; no `desired_count`, no placement strategy, no service autoscaling; `maximumPercent` must be 100. Not supported on Fargate or with `CODE_DEPLOY`/`EXTERNAL` controllers (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_service-options.html). For MI, the dev guide positions Managed Daemons as the daemon mechanism -- classic DAEMON services on MI are not documented as supported as of 2026-07-10; verify live before generating.
+- When each applies: Managed Daemons for agents on MI capacity; classic DAEMON for agents on self-managed EC2 ASG capacity; Fargate gets per-task sidecars only.
 
 ## Other service arguments worth generating deliberately
 
@@ -116,7 +124,8 @@ Verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/develop
 - https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_service-options.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-linear.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-blue-green.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/nlb-resources-for-blue-green.html
 - https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentConfiguration.html · https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentLifecycleHook.html
-- https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html · https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/master/modules/express-service
+- https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html · https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateExpressGatewayService.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/infrastructure_IAM_role.html · https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/master/modules/express-service
+- https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-daemons.html · https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-daemons-deployments.html
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect.html · https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html
 - https://github.com/terraform-aws-modules/terraform-aws-ecs/blob/master/modules/service/README.md
 - Zero-downtime min/max and LB hygiene framing: aws/agent-toolkit-for-aws `aws-containers` skill (Apache-2.0, retrieved 2026-07-10)

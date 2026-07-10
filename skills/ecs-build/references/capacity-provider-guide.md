@@ -69,6 +69,29 @@ Verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/develop
 - The scale-out estimate binpacks against the ASG's instance-type parameters and **protects on the smallest type**: a task group whose requirements exceed the smallest instance type is excluded from scale-out and remains in `PROVISIONING`.
 - **Best practice: separate homogeneous ASGs + capacity providers per minimum-resource class** (AWS's own recommendation on that page). "Managed scaling works best if your Auto Scaling group uses the same or similar instance types."
 
+### EC2 task placement (services on ASG providers)
+
+With no strategy specified, EC2 **standalone tasks place randomly** and EC2 **service** tasks default to AZ spread; generate placement explicitly for EC2 services (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-placement.html, verified 2026-07-10). MI does not support placement strategies (constraints only) -- ECS spreads across AZs itself; Fargate has neither.
+
+- `ordered_placement_strategy` -- order matters, the first entry is applied first: `spread` on `attribute:ecs.availability-zone` for HA, then `binpack` on `cpu` or `memory` for cost (fills instances before scale-out). Max 5 entries.
+- `placement_constraints` -- `memberOf` with a Cluster Query Language expression (e.g. instance type/attribute), or `distinctInstance` (one task per instance; not valid in task definitions, service-level only).
+
+```hcl
+# aws_ecs_service (EC2 services)
+ordered_placement_strategy {
+  type  = "spread"
+  field = "attribute:ecs.availability-zone"
+}
+ordered_placement_strategy {
+  type  = "binpack"
+  field = "memory"
+}
+placement_constraints {
+  type       = "memberOf"
+  expression = "attribute:ecs.instance-type =~ m5.*"
+}
+```
+
 ## Managed Instances (MI)
 
 MI is configured on `aws_ecs_capacity_provider` via `managed_instances_provider` -- no separate resource. Constraints (provider docs, verified 2026-07-10):
@@ -158,19 +181,34 @@ Or with the module: cluster submodule `capacity_providers = { <name> = { managed
 
 ### Two-step-apply network caveat
 
-The upstream `terraform-aws-modules/ecs` `managed-instances` example documents a network-timing caveat with the ECSInfrastructureRole: on a fully fresh apply, the capacity provider can be created before the infrastructure role's policy attachment has propagated, failing on network setup. Generated READMEs must say: **if the first `terraform apply` fails on the MI capacity provider, re-run `terraform apply`** -- or add an explicit `depends_on` from the capacity provider to the policy attachment plus a short propagation delay. Source: https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/master/examples/managed-instances (verified 2026-07-10).
+The upstream `terraform-aws-modules/ecs` `managed-instances` example documents a network-readiness caveat: the MI capacity provider needs network connectivity (NAT/egress in place) early in the creation process -- on a fully fresh apply where the VPC is created in the same run, `CreateCapacityProvider` fails with a `ServiceAccessDeniedException` on the ECSInfrastructureRole. The upstream example uses a targeted first apply (`terraform apply -target=module.vpc`) before the full apply; networking in a separate workspace/state avoids the issue entirely. Generated READMEs must say: **if the first `terraform apply` fails on the MI capacity provider, apply the VPC first (`-target`) or re-run `terraform apply`**. The same network dependency bites late in destroy (agents cannot connect to drain). Source: https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/master/examples/managed-instances (verified 2026-07-10).
 
 ### MI platform constraints (do not attribute these to other launch types)
 
 Verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html and https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html:
 
 - **Bottlerocket only, Linux containers only**, X86_64 and ARM64. AWS owns the AMI; no custom AMIs; no SSH (use ECS Exec).
-- **14-21-day drain-and-replace lifecycle:** graceful draining starts at day 14 from launch, final termination no later than day 21; EC2 event windows can shift draining earlier. Ordinary service tasks are unaffected -- the scheduler drains and replaces them gracefully; the lifecycle only bites tasks that need >14 uninterrupted days on one instance.
+- **14-21-day drain-and-replace lifecycle:** graceful draining starts at day 14 from launch, final termination no later than day 21; EC2 event windows can begin draining earlier than day 14. Services are unaffected -- tasks are drained and replaced gracefully (start-before-stop requires the default `maximumPercent` 200); the lifecycle only bites tasks that need >14 uninterrupted days on one instance.
 - Instance selection: `allowedInstanceTypes`/`excludedInstanceTypes` (wildcards) or attribute-based; if unspecified, ECS picks cost-optimized types. GPU/accelerated families are supported (MI-only relative to Fargate, which has no GPU support) -- family choice belongs to `ecs-genai` (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-instance-types.html, verified 2026-07-10). Instances are always >1 vCPU, never nano/micro.
 - **GPU metrics are agentless on MI:** Container Insights with enhanced observability collects DCGM GPU metrics at container/task/instance level with no agent installation (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/monitoring-managed-instances.html, verified 2026-07-10). On the EC2 launch type you deploy and manage the CloudWatch agent yourself.
 - **Purchase options:** On-Demand (default), Spot (`capacity_option_type = "SPOT"`), or Capacity Reservations (`capacityOptionType=Reserved` + a capacity reservation group); Savings Plans/RIs apply automatically. GPU Capacity Blocks mechanics (single-AZ, extendable): https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-how.html -- details with `ecs-genai`.
 - With `capacityOptionType=Reserved`, remember default deployments burst to 200% of steady state -- reserve headroom or tune `maximumPercent`.
 - **GuardDuty Runtime Monitoring is NOT supported for workloads on ECS Managed Instances** as of 2026-07-10 (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html). Do not generate GuardDuty agent expectations for MI; see [networking-security.md](networking-security.md).
+
+## Known Terraform/provider issues (check before generating)
+
+Known issues affecting apply-readiness, as of 2026-07-10:
+
+- Target-group replacement deadlocks against a live ECS service -- generate `name_prefix` + `lifecycle { create_before_destroy = true }` on target groups (https://github.com/hashicorp/terraform-provider-aws/issues/16889).
+- Services that inherit the cluster **default** capacity provider strategy show a perpetual diff -- prefer explicit per-service strategies (https://github.com/hashicorp/terraform-provider-aws/issues/44776).
+- `capacity_provider_strategy` can produce "Provider produced inconsistent final plan" (open: https://github.com/hashicorp/terraform-provider-aws/issues/25203).
+- Fargate service destroy can hang waiting on draining (open: https://github.com/hashicorp/terraform-provider-aws/issues/3414).
+- MI capacity provider deletion can wedge on stuck instances -- force-deregister per https://docs.aws.amazon.com/AmazonECS/latest/developerguide/troubleshooting-managed-instances.html.
+- Provider >= 6.53.0 auto-adds `replace_triggered_by` so a replaced capacity provider is detached from its cluster association before deletion -- older provider versions need manual ordering.
+
+### Quotas that shape generation (verified 2026-07-10)
+
+Per https://docs.aws.amazon.com/general/latest/gr/ecs-service.html: **20 capacity providers per cluster (non-adjustable)** -- this bounds Rule 11's one-ASG-provider-per-size-class pattern; 300 services per Cloud Map namespace; 5 target groups per service; 5 security groups and 16 subnets per `awsvpcConfiguration`; 1,000 tasks per service when service discovery is used (Cloud Map instance quota).
 
 ## Sources
 
