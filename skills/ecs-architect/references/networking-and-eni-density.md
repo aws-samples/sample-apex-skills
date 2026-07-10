@@ -24,7 +24,7 @@
 |------|------------------|-------|
 | **`awsvpc`** | Fargate (required), EC2, Managed Instances | Each task gets its own ENI, its own private IP, and its own security group. Recommended for security and observability. **Not available on ECS Anywhere (`EXTERNAL`).** |
 | **`bridge`** | EC2, **ECS Anywhere (`EXTERNAL`)** | Docker's built-in virtual network; dynamic port mapping. Legacy. |
-| **`host`** | EC2, **ECS Anywhere (`EXTERNAL`)** | Task binds directly to the host's network. No per-task isolation. |
+| **`host`** | EC2, **Managed Instances**, **ECS Anywhere (`EXTERNAL`)** | Task binds directly to the host's network. No per-task isolation. MI supports exactly `awsvpc` + `host` ([MI task networking](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instance-networking.html)). |
 | **`none`** | EC2, **ECS Anywhere (`EXTERNAL`)** | No external connectivity. |
 
 **Default recommendation: `awsvpc`.** It gives each task EC2-like networking — security groups, VPC Flow Logs, and granular monitoring per task — and is mandatory on Fargate. ([Allocate a network interface for an Amazon ECS task](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-networking-awsvpc.html))
@@ -110,6 +110,7 @@ Amazon VPC Lattice has **built-in Amazon ECS support**: an ECS service can be as
 - **Only ECS rolling deployments work with VPC Lattice — CodeDeploy and blue/green deployment controllers are not supported** ([Use VPC Lattice with ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-vpc-lattice.html)). If you need native blue/green *and* Lattice, that is a conflict to resolve at design time.
 - **Not supported on ECS Anywhere (`EXTERNAL`).**
 - Attaching multiple (up to five) VPC Lattice configurations can lengthen deployment time.
+- **Lattice has its own cost dimensions** — unlike Service Connect (whose cost is the proxy sidecar's task CPU/memory, above), VPC Lattice bills **per service-hour, per GB of data processed, and per HTTP request (or TCP connection for TLS listeners)** ([VPC Lattice pricing](https://aws.amazon.com/vpc/lattice/pricing/)). Weigh both cost models when choosing; quantify with `ecs-cost-intelligence`.
 
 ---
 
@@ -124,6 +125,7 @@ Amazon VPC Lattice has **built-in Amazon ECS support**: an ECS service can be as
 - [Migrating from AWS App Mesh to Amazon ECS Service Connect](https://aws.amazon.com/blogs/containers/migrating-from-aws-app-mesh-to-amazon-ecs-service-connect/) — App Mesh EOL Sept 30, 2026 (blog); [App Mesh doc-history EOL notice](https://docs.aws.amazon.com/app-mesh/latest/userguide/doc-history.html)
 - [Amazon ECS Service Connect components](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect-concepts-deploy.html) — proxy sidecar CPU/memory, task-memory-limit requirement
 - [ECS clusters for external instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html) — EXTERNAL supports bridge/host/none only (no awsvpc), no ELB/service discovery
-- [Use Amazon VPC Lattice with ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-vpc-lattice.html) · [ECS + VPC Lattice launch blog](https://aws.amazon.com/blogs/aws/streamline-container-application-networking-with-native-amazon-ecs-support-in-amazon-vpc-lattice/) — rolling-only, not on ECS Anywhere
+- [Use Amazon VPC Lattice with ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-vpc-lattice.html) · [ECS + VPC Lattice launch blog](https://aws.amazon.com/blogs/aws/streamline-container-application-networking-with-native-amazon-ecs-support-in-amazon-vpc-lattice/) — rolling-only, not on ECS Anywhere · [VPC Lattice pricing](https://aws.amazon.com/vpc/lattice/pricing/) — per service-hour + data processing + requests
+- [Amazon ECS task networking for Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instance-networking.html) — MI network modes: `awsvpc` + `host` only
 - [Architect for AWS Fargate — service load balancing](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html) — UDP via NLB requires PV 1.4+
 - [Amazon ECS FAQs — service-to-service communication](https://aws.amazon.com/ecs/faqs/)
