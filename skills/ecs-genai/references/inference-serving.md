@@ -26,7 +26,7 @@ Key choices:
 
 ### Token streaming vs ALB idle timeout (the canonical self-hosted-LLM gotcha)
 
-Streaming LLM responses (SSE / chunked `text/event-stream`) that keep a single HTTP connection open longer than the **ALB idle timeout (default 60s)** get **severed mid-generation** — the client sees a truncated stream on long completions. Fix by **raising the ALB idle timeout** to exceed the longest expected generation (e.g. several minutes), ensuring the serving engine **emits tokens/keep-alive frequently** (regular SSE chunks reset the idle timer), and setting client and target-group timeouts consistently. This is the most common "streaming works in dev, breaks in prod" failure for self-hosted LLMs on ECS behind an ALB.
+Streaming LLM responses (SSE / chunked `text/event-stream`) that keep a single HTTP connection open longer than the **ALB idle timeout (default 60 seconds; configurable 1–4000 seconds — [ALB connection idle timeout](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html))** get **severed mid-generation** — the client sees a truncated stream on long completions. Fix by **raising the ALB idle timeout** to exceed the longest expected generation (e.g. several minutes), ensuring the serving engine **emits tokens/keep-alive frequently** (regular SSE chunks reset the idle timer), and setting client and target-group timeouts consistently. This is the most common "streaming works in dev, breaks in prod" failure for self-hosted LLMs on ECS behind an ALB.
 
 ## Serving Engine — Bring Your Own Container
 
