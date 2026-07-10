@@ -19,9 +19,10 @@ Assess runtime resilience of services: load-balancer **health-check grace period
 - 🟢 GREEN: Grace period set to comfortably exceed cold-start time for slow-starting apps (JVM, large images), preventing premature task kills.
 - 🟡 AMBER: Default `0` on an app that starts slowly but currently survives, or a value only marginally above startup time.
 - 🔴 RED: Grace period `0`/too short on a slow-starting LB-backed service, causing a task-launch/kill loop (tasks killed before they become healthy).
-- ⬜ UNKNOWN: No load balancer (N/A — for non-LB services use the task-definition health-check `startPeriod` instead), or cannot read the service.
+- ⚪ N/A: No load balancer (for non-LB services use the task-definition health-check `startPeriod` instead).
+- ⬜ UNKNOWN: Cannot read the service.
 
-**Key talking point:** The health-check grace period is the window (default `0`, max `2147483647` seconds) during which the ECS scheduler ignores unhealthy Elastic Load Balancing, **VPC Lattice**, and container health checks after a task first starts — critical for slow-starting apps so they aren't killed before they come up. If none of those health checks are used, `healthCheckGracePeriodSeconds` is unused; for services without an ELB, use `startPeriod` in the task-definition health check. Note: if the service has more running tasks than desired, unhealthy tasks in the grace period may still be stopped to reach the desired count. The `healthCheckGracePeriodSeconds` parameter is defined on the [CreateService API](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateService.html) (the [load-balancer health-check tuning guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-healthcheck.html) covers the LB health check itself). Verified 2026-07-09.
+**Key talking point:** The health-check grace period is the window (default `0`) during which the ECS scheduler ignores unhealthy Elastic Load Balancing, **VPC Lattice**, and container health checks after a task first starts — critical for slow-starting apps so they aren't killed before they come up. If none of those health checks are used, `healthCheckGracePeriodSeconds` is unused; for services without an ELB, use `startPeriod` in the task-definition health check. Note: if the service has more running tasks than desired, unhealthy tasks in the grace period may still be stopped to reach the desired count. The `healthCheckGracePeriodSeconds` parameter is defined on the [CreateService API](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateService.html) (the [load-balancer health-check tuning guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-healthcheck.html) covers the LB health check itself). Verified 2026-07-09.
 
 ---
 
@@ -38,7 +39,8 @@ Assess runtime resilience of services: load-balancer **health-check grace period
 - 🟢 GREEN: Meaningful health-check path (not `/` if that doesn't reflect readiness), tuned interval/thresholds for fast-but-stable failure detection.
 - 🟡 AMBER: Default health check that may not reflect true readiness, or thresholds slow to detect failure.
 - 🔴 RED: Health check hitting an endpoint that returns 200 while the app is not truly ready (false-healthy), causing traffic to broken tasks.
-- ⬜ UNKNOWN: No load balancer, or cannot read target-group attributes.
+- ⚪ N/A: No load balancer on the service (same condition as 5.1's N/A).
+- ⬜ UNKNOWN: Cannot read target-group attributes.
 
 See [optimize load-balancer health-check parameters](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-healthcheck.html).
 
@@ -59,7 +61,8 @@ See [optimize load-balancer health-check parameters](https://docs.aws.amazon.com
 - 🟢 GREEN: Deregistration delay tuned to the app's in-flight request duration, and `stopTimeout` covers the drain window — no dropped connections on deploy/scale-in.
 - 🟡 AMBER: Defaults left in place (300s dereg delay slows deploys; short `stopTimeout` may cut connections) without evidence of tuning.
 - 🔴 RED: Draining misaligned and the service experiences 5xx/reset connections during deployments or scale-in.
-- ⬜ UNKNOWN: No load balancer, or cannot correlate settings.
+- ⚪ N/A: No load balancer on the service (same condition as 5.1's N/A).
+- ⬜ UNKNOWN: Cannot correlate the settings.
 
 **Key talking point:** During task shutdown the LB keeps sending traffic until deregistration completes; the container `stopTimeout` must be long enough to finish in-flight requests after `SIGTERM`. See [optimize load-balancer connection draining](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/load-balancer-connection-draining.html).
 
@@ -101,4 +104,4 @@ See [optimize load-balancer health-check parameters](https://docs.aws.amazon.com
 - 🔴 RED: Single-AZ deployment, or a multi-replica production service pinned to one AZ.
 - ⬜ UNKNOWN: Cannot map subnets to AZs or read placement config.
 
-**Key talking point:** AZ spread doesn't self-correct after an AZ disruption — imbalance can persist and threaten static stability. **AZ rebalancing** continuously redistributes tasks to keep AZs even. It supports Fargate, EC2, and Managed Instances, and works with the Replica strategy; it is **not** compatible with the Daemon strategy, `EXTERNAL` launch type, `maximumPercent: 100`, or a Classic Load Balancer. **Default gotcha:** on a *create-service* request with no value specified, ECS defaults `availabilityZoneRebalancing` to `ENABLED`; on an *update-service* request it inherits the existing value, and a service that never had it set is treated as `DISABLED` — so older services created before the feature often silently remain OFF. Confirm the observed value rather than assuming the create-time default. See [balancing an ECS service across AZs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-rebalancing.html) and [resilience best practices](https://aws.amazon.com/blogs/containers/best-practices-for-resilience-and-availability-on-amazon-ecs/).
+**Key talking point:** AZ spread doesn't self-correct after an AZ disruption — imbalance can persist and threaten static stability. **AZ rebalancing** continuously redistributes tasks to keep AZs even. It supports Fargate, EC2, and Managed Instances, and works with the Replica strategy; it is **not** compatible with the Daemon strategy, `EXTERNAL` launch type, `maximumPercent: 100`, or a Classic Load Balancer. **Default gotcha:** starting September 5, 2025, ECS enabled AZ rebalancing for all *eligible* services (eligible = AZ spread is the first placement strategy, or no placement strategy) — but ineligible services (Daemon strategy, `EXTERNAL` launch type, `maximumPercent: 100`, Classic Load Balancer, or an `ecs.availability-zone` placement constraint) remain OFF. Confirm the observed `availabilityZoneRebalancing` value rather than assuming it is on. See [balancing an ECS service across AZs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-rebalancing.html) and [resilience best practices](https://aws.amazon.com/blogs/containers/best-practices-for-resilience-and-availability-on-amazon-ecs/).

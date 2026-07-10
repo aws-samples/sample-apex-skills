@@ -61,29 +61,28 @@ The skill detects tool/config presence (IaC tags, backup resources, current heal
 - 🟢 GREEN: Backups configured and (ideally) restore-tested for stateful data; DR posture matches RTO/RPO.
 - 🟡 AMBER: Backups exist but never tested, or only partial coverage.
 - 🔴 RED: Stateful workloads with no backup strategy.
-- ⬜ N/A: Stateless estate with all config in Git/IaC.
+- ⚪ N/A: Stateless estate with all config in Git/IaC.
 - ⬜ UNKNOWN: Cannot determine restore testing — suggest user verify.
 
 ---
 
 ### 8.4 — Fargate Task Retirement / Maintenance Awareness
 
-**What to check (Fargate services):**
-- Whether the team understands Fargate task retirement (AWS retires tasks on old platform versions) and runs enough replicas + safe deploy config to absorb a task replacement without impact.
-- `minimumHealthyPercent` and multi-AZ spread (cross-refs Sections 04/05) so a retirement-driven replacement is non-disruptive.
-- **Actually read the running `platformVersion`.** A service pinned to a specific (non-`LATEST`) platform version, or running tasks on a demonstrably old PV, is the population AWS retires — so read it rather than only rating replica resilience abstractly.
+**What to check (Fargate services) — retirement-specific angle only.** Replica count, `minimumHealthyPercent`/`maximumPercent`, and AZ spread are **scored in 4.4 / 5.4 / 5.5**, not here; this check reuses those observed ratings as inputs and scores only what is unique to task retirement:
+- **Actually read the running `platformVersion`.** `aws ecs describe-services` → service `platformVersion` (and `platformFamily`); `aws ecs describe-tasks` → per-task `platformVersion`.
+- Whether the team is **aware** of Fargate task retirement (AWS periodically replaces tasks on outdated platform-version revisions) and has designed for it — i.e., whether the 4.4/5.4/5.5 posture would absorb a forced single-task replacement without impact.
 
 **How to check:**
-1. For Fargate services, confirm `desiredCount` ≥ 2, `minimumHealthyPercent` and AZ spread support graceful single-task replacement.
-2. `aws ecs describe-services` → read the service `platformVersion` (and `platformFamily`); `aws ecs describe-tasks` → per-task `platformVersion`. A pinned old value (not `LATEST`) increases retirement exposure.
+1. `aws ecs describe-services` / `describe-tasks` → `platformVersion` per service and per task.
+2. Cross-reference the already-recorded 4.4 (capacity bounds), 5.4 (autoscaling/min capacity), and 5.5 (AZ posture) ratings — do not re-derive or re-score them.
 
-**Rating:**
-- 🟢 GREEN: Fargate services run ≥ 2 replicas across AZs with deploy config that absorbs a retirement/replacement transparently; platform version is `LATEST` or current.
-- 🟡 AMBER: Single replica or tight `minimumHealthyPercent` that would cause a brief gap during a forced task replacement, **or** pinned to an old platform version while otherwise resilient.
-- 🔴 RED: Single-task critical Fargate service — a task retirement is a full outage.
+**Rating (retirement exposure only — do not re-rate replica/AZ/deploy posture here):**
+- 🟢 GREEN: Platform version is `LATEST` or current, and the cross-referenced 4.4/5.4/5.5 posture absorbs a retirement-driven replacement transparently.
+- 🟡 AMBER: Pinned to an old (non-`LATEST`) platform version, **or** the cross-referenced posture means a forced replacement causes a brief capacity gap (root cause scored at 4.4/5.4/5.5 — annotate as a related finding, per the consistency contract).
+- 🔴 RED: Demonstrably old platform version on a critical service whose cross-referenced posture cannot absorb a retirement (e.g., the single-task case RED-rated at 5.4) — a retirement is a full outage. Annotate the shared root cause.
 - ⬜ UNKNOWN: Cannot determine service criticality or read platform version.
 
-**Key talking point:** AWS periodically retires Fargate tasks running on outdated platform versions; design for it with multiple replicas and safe deploy bounds so a replacement is invisible. See [task retirement and maintenance for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-maintenance.html).
+**Key talking point:** AWS retires Fargate tasks running on outdated **platform-version revisions**; tasks using `LATEST` still run on the revision current at launch time, so they are also retired routinely — pinning to an old explicit version *increases* exposure but is not the only retired population. Design for retirement with multiple replicas and safe deploy bounds so a replacement is invisible. Verified 2026-07-10. See [task retirement and maintenance for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-maintenance.html).
 
 ---
 
@@ -118,7 +117,7 @@ The skill detects tool/config presence (IaC tags, backup resources, current heal
 2. `aws ecs list-task-definitions --status INACTIVE` → gauge cleanup backlog.
 3. Cross-check ASG max (from Section 01) and Application Auto Scaling max (Section 05) against projected peak.
 4. **Quota proximity (executable):** query Service Quotas for the relevant ECS limits and compare current usage against the limit. For example:
-   - `aws service-quotas list-service-quotas --service-code ecs` → read quotas such as *Services per cluster*, *Tasks per service*, *Container instances per cluster*.
+   - `aws service-quotas list-service-quotas --service-code ecs` → read quotas such as *Services per cluster*, *Tasks per service*, *Container instances per cluster*. **Fallback:** `list-service-quotas` returns applied quotas, and several of the quotas named here are non-adjustable — if a quota is missing from the output, read the default with `aws service-quotas list-aws-default-service-quotas --service-code ecs` (or `get-aws-default-service-quota --quota-code <code>`). See the [ECS service quotas reference](https://docs.aws.amazon.com/general/latest/gr/ecs-service.html).
    - `aws service-quotas get-service-quota --service-code ecs --quota-code <code>` for a specific limit.
    - Compare against observed counts (`aws ecs list-services`, `describe-services` `runningCount`/`desiredCount`, `list-container-instances`). Flag any usage above ~80% of its quota. (`service-quotas` read calls are on the Step-0 allowlist.)
 

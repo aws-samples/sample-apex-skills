@@ -5,7 +5,7 @@ description: Run a structured Amazon ECS operational-excellence assessment again
 
 # ECS Operation Review
 
-This skill performs a structured, evidence-based operational-excellence assessment of a **live** Amazon ECS estate — clusters, capacity providers, services, task definitions, and their supporting AWS resources — and produces a rated report (GREEN / AMBER / RED / UNKNOWN) with prioritized, cited recommendations.
+This skill performs a structured, evidence-based operational-excellence assessment of a **live** Amazon ECS estate — clusters, capacity providers, services, task definitions, and their supporting AWS resources — and produces a rated report (GREEN / AMBER / RED / UNKNOWN / N/A) with prioritized, cited recommendations.
 
 It is the **umbrella Day-2 audit** that walks the major domains of the Amazon ECS Best Practices Guide ([`ecs-best-practices.html`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-best-practices.html)). It is evaluative (it *grades* what exists), not generative — it does not design or build new environments, and it **defers to the deep ECS skills** for remediation depth rather than duplicating them (see "Defers to deep skills").
 
@@ -27,7 +27,7 @@ State any of these that apply to the estate explicitly in the report's Scope blo
 Activate for any request to **audit, review, health-check, or score** an ECS estate's operational posture:
 
 - "Run an operational review on my ECS cluster / estate"
-- "ECS health check", "score my ECS posture", "GREEN/AMBER/RED my services"
+- "ECS health check", "score my ECS posture", "GREEN/AMBER/RED my ECS services"
 - "Review my ECS deployment safety / capacity / networking / observability / security posture"
 - Section-scoped reviews of a single domain (e.g., "check my ECS capacity-provider scale-in", "review connection draining on my services", "audit my task-definition hygiene")
 
@@ -43,7 +43,7 @@ Activate for any request to **audit, review, health-check, or score** an ECS est
 | Building deployment pipelines / choosing rollout strategy / CI-CD engineering | **`ecs-devops`** |
 | Replatform vs refactor of an existing application | **`ecs-modernize`** |
 
-The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-cost-intelligence`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family and may be **rolled out over time**; route to them by name where relevant, and if one is not yet available, note that and fall back to the AWS CLI / this skill's audit-depth guidance. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
+The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-security`, `ecs-cost-intelligence`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family and may be **rolled out over time**; route to them by name where relevant, and if one is not yet available, note that and fall back to the AWS CLI / this skill's audit-depth guidance. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
 
 ## Defers to deep skills
 
@@ -58,7 +58,7 @@ The review's own output is an assessment report. Acting on it (mutations, pipeli
 
 ## Access model — READ-ONLY
 
-This skill is strictly read-only. It **CAN** issue read-only calls (`aws ecs describe-*`/`list-*`, `application-autoscaling describe-*`, `autoscaling describe-*`, `cloudwatch describe-*`/`get-*`, `ec2 describe-*`, `ecr describe-*`, `iam get-*`/`list-*`, `elbv2 describe-*`, `logs describe-*`, `events list-*`, `backup list-*`, `guardduty list-*`/`get-*`, `service-quotas get-*`/`list-*`) to discover estate state, and **CAN** write a markdown/HTML report to the workspace. It **CANNOT** mutate any resource (no `create`, `update`, `delete`, `register`, `deregister`, `run-task`, or scale operations). Operational reviews are discovery activities; remediation belongs to whatever path the user chooses afterward.
+This skill is strictly read-only. It **CAN** issue read-only calls (`aws ecs describe-*`/`list-*`, `sts get-caller-identity`, `application-autoscaling describe-*`, `autoscaling describe-*`, `cloudwatch describe-*`, `ec2 describe-*`, `ecr describe-*`, `iam get-*`/`list-*`, `elbv2 describe-*`, `logs describe-*`, `events list-*`, `backup list-*`, `guardduty list-*`/`get-*`, `service-quotas get-*`/`list-*`) to discover estate state, and **CAN** write a markdown/HTML report to the workspace. It **CANNOT** mutate any resource (no `create`, `update`, `delete`, `register`, `deregister`, `run-task`, or scale operations). Operational reviews are discovery activities; remediation belongs to whatever path the user chooses afterward.
 
 ## Prerequisites
 
@@ -133,5 +133,6 @@ Read `references/report-generation.md` and follow it exactly. See `references/sc
 | 🟡 AMBER | Partial or inconsistent — improvement opportunity |
 | 🔴 RED | Not implemented or significant gap — action needed |
 | ⬜ UNKNOWN | Cannot be determined from estate data — investigate manually |
+| ⚪ N/A | Check does not apply to this estate (compute model / architecture) — excluded from scoring and from Investigate Manually |
 
 Prioritize by blast radius: **security > availability > cost**. Every RED must carry a specific, cited, actionable recommendation. Full rules: `references/scoring-rubric.md`.
