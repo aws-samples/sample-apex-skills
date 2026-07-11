@@ -30,8 +30,9 @@ const config: Config = {
     // READMEs an explicit non-index slug instead of dropping the page.
     parseFrontMatter: async (params) => {
       const result = await params.defaultParseFrontMatter(params);
-      const posixPath = params.filePath.split(path.sep).join('/');
-      const match = posixPath.match(/\/docs\/(.+)\/README\.md$/);
+      const docsRoot = path.join(__dirname, 'docs');
+      const relPath = path.relative(docsRoot, params.filePath).split(path.sep).join('/');
+      const match = !relPath.startsWith('..') && relPath.match(/^(.+)\/README\.md$/);
       if (
         match &&
         !result.frontMatter.slug &&
