@@ -126,12 +126,12 @@ def check_frontmatter(lines: List[str]) -> List[Finding]:
             "frontmatter missing: file must open with '---'",
         ))
         return findings
-    if idx != 0:
+    if idx != 0 or lines[0].rstrip() != "---":
         findings.append(Finding(
             "W006", idx + 1,
             "frontmatter not at line 1 — the docs pipeline "
             "(update-steering-references.sh) will skip this file; "
-            "remove anything above the opening '---'",
+            "remove anything above (or before) the opening '---'",
         ))
     start = idx
     end = -1

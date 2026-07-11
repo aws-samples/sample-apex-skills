@@ -394,6 +394,8 @@ def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
     """Stdlib-only fallback frontmatter scraper (pre-PyYAML behavior).
     Only understands top-level `name:` and `description:` (plain or block
     scalar) — kept for environments without PyYAML installed.
+    Known divergence from the YAML path: quoted values keep their
+    surrounding quotes (cosmetic; description is output-metadata only).
     """
     name = None
     description_lines: list[str] = []
