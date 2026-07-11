@@ -800,7 +800,7 @@ done
 # --- Skills index (card grid) ---
 if [[ "$MODE" == "dry-run" ]]; then
   echo "--- $SKILLS_OUT/index.md ---"
-  build_skills_index | head -20
+  build_skills_index | head -20 || true
   echo "  [... truncated ...]"
   echo ""
 else

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
@@ -19,6 +21,25 @@ const config: Config = {
     format: 'detect',
     hooks: {
       onBrokenMarkdownLinks: 'warn',
+    },
+    // Docusaurus treats README.md as a directory-index doc, so a generated
+    // README.md wrapper sitting next to an index.md (e.g. the
+    // eks-cost-intelligence contributor README next to its SKILL.md wrapper)
+    // would claim the same route — "Duplicate routes found!" — and make
+    // plugin-client-redirects emit the same redirect twice. Give such
+    // READMEs an explicit non-index slug instead of dropping the page.
+    parseFrontMatter: async (params) => {
+      const result = await params.defaultParseFrontMatter(params);
+      const posixPath = params.filePath.split(path.sep).join('/');
+      const match = posixPath.match(/\/docs\/(.+)\/README\.md$/);
+      if (
+        match &&
+        !result.frontMatter.slug &&
+        fs.existsSync(path.join(path.dirname(params.filePath), 'index.md'))
+      ) {
+        result.frontMatter.slug = `/${match[1]}/README`;
+      }
+      return result;
     },
   },
 
