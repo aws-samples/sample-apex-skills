@@ -41,6 +41,11 @@
 # Fix: `./misc/update-pages.sh && git add … && commit`.
 
 set -euo pipefail
+# Command substitutions must inherit errexit: parse_frontmatter exits 2 on
+# invalid YAML, and most callers run inside $(...) (derive_title, the index
+# builders). Without this, a broken SKILL.md would be swallowed and the
+# wrapper written with an empty description.
+shopt -s inherit_errexit
 
 MODE="run"
 if [[ "${1:-}" == "--check" ]]; then
@@ -103,8 +108,9 @@ else:
     sys.exit(0)
 try:
     data = yaml.safe_load("".join(fm))
-except yaml.YAMLError:
-    sys.exit(0)
+except yaml.YAMLError as e:
+    print(f"ERROR: {path}: {e}", file=sys.stderr)
+    sys.exit(2)
 if not isinstance(data, dict):
     sys.exit(0)
 val = data.get(key)
@@ -311,9 +317,9 @@ vendored_skill_admonition() {
   # Fallback: frontmatter metadata
   if [[ -z "$author" ]]; then
     local skill_md="$skill_dir/SKILL.md"
-    author="$(parse_frontmatter "$skill_md" "author" 2>/dev/null)"
+    author="$(parse_frontmatter "$skill_md" "author")"
   fi
-  license_id="$(parse_frontmatter "$skill_dir/SKILL.md" "license" 2>/dev/null)"
+  license_id="$(parse_frontmatter "$skill_dir/SKILL.md" "license")"
   [[ -z "$license_id" ]] && license_id="Apache-2.0"
   [[ -z "$source_url" ]] && source_url="$GH_BASE/skills/$skill_name"
   [[ -z "$author" ]] && author="third party"

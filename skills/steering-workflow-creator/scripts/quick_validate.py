@@ -126,6 +126,13 @@ def check_frontmatter(lines: List[str]) -> List[Finding]:
             "frontmatter missing: file must open with '---'",
         ))
         return findings
+    if idx != 0:
+        findings.append(Finding(
+            "W006", idx + 1,
+            "frontmatter not at line 1 — the docs pipeline "
+            "(update-steering-references.sh) will skip this file; "
+            "remove anything above the opening '---'",
+        ))
     start = idx
     end = -1
     for j in range(idx + 1, len(lines)):
@@ -623,7 +630,7 @@ def group_findings(findings: List[Finding]) -> dict:
     buckets: dict = {}
     code_section = {
         "E001": "Frontmatter", "E002": "Frontmatter", "E003": "Frontmatter",
-        "E004": "Frontmatter", "E005": "Frontmatter",
+        "E004": "Frontmatter", "E005": "Frontmatter", "W006": "Frontmatter",
         "E010": "Title/Header", "E011": "Title/Header", "E012": "Title/Header",
         "E013": "Title/Header", "E014": "Title/Header", "E015": "Title/Header",
         "E020": "Required sections", "E021": "Required sections",

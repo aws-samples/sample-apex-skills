@@ -45,6 +45,11 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
+try:  # PyYAML is present in this eval env (siblings import it unconditionally),
+    import yaml  # but keep the stdlib-only regex fallback below so this runner
+except ImportError:  # still works in a bare interpreter.
+    yaml = None
+
 
 # Claude Code ships these skills in v2.1.121; system/init.skills lists them
 # before any project-level or plugin skills. Update if a CLI bump changes
@@ -356,9 +361,12 @@ _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def read_skill_meta(skill_dir: Path) -> tuple[str, str]:
-    """Parse SKILL.md frontmatter for (name, description). Simple YAML reader
-    — only `name:` and `description:` fields are needed, so we don't pull in
-    a YAML dependency.
+    """Parse SKILL.md frontmatter for (name, description).
+
+    Uses yaml.safe_load when PyYAML is importable (matching the docs
+    pipeline's parsing contract); falls back to the original stdlib-only
+    regex scraper otherwise. Raises RuntimeError on missing frontmatter,
+    missing `name`, or (yaml path only) invalid YAML.
     """
     text = (skill_dir / "SKILL.md").read_text()
     m = _FRONTMATTER_RE.match(text)
@@ -366,6 +374,27 @@ def read_skill_meta(skill_dir: Path) -> tuple[str, str]:
         raise RuntimeError(f"SKILL.md has no YAML frontmatter: {skill_dir}")
     fm = m.group(1)
 
+    if yaml is not None:
+        try:
+            data = yaml.safe_load(fm)
+        except yaml.YAMLError as e:
+            raise RuntimeError(
+                f"SKILL.md frontmatter is not valid YAML: {skill_dir}: {e}"
+            ) from e
+        if not isinstance(data, dict) or not data.get("name"):
+            raise RuntimeError(f"SKILL.md frontmatter missing `name`: {skill_dir}")
+        name = str(data["name"]).strip()
+        description = str(data.get("description") or "").strip()
+        return name, description
+
+    return _read_skill_meta_regex(fm, skill_dir)
+
+
+def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
+    """Stdlib-only fallback frontmatter scraper (pre-PyYAML behavior).
+    Only understands top-level `name:` and `description:` (plain or block
+    scalar) — kept for environments without PyYAML installed.
+    """
     name = None
     description_lines: list[str] = []
     in_description = False

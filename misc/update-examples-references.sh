@@ -14,6 +14,10 @@
 #   ./misc/update-examples-references.sh --dry-run # preview without writing
 
 set -euo pipefail
+# Command substitutions must inherit errexit so a parse_frontmatter failure
+# (exit 2 on invalid YAML) inside $(build_table) aborts before README.md is
+# rewritten.
+shopt -s inherit_errexit
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -54,8 +58,9 @@ else:
     sys.exit(0)
 try:
     data = yaml.safe_load("".join(fm))
-except yaml.YAMLError:
-    sys.exit(0)
+except yaml.YAMLError as e:
+    print(f"ERROR: {path}: {e}", file=sys.stderr)
+    sys.exit(2)
 if not isinstance(data, dict):
     sys.exit(0)
 val = data.get(key)
