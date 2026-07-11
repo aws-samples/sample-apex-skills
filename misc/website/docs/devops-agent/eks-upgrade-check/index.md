@@ -1,6 +1,6 @@
 ---
 title: "eks-upgrade-check"
-description: "Assess EKS cluster upgrade readiness by running automated checks across"
+description: "Assess EKS cluster upgrade readiness by running automated checks across 8 areas (version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, upgrade plan), calculate a readiness score (0-100%), and generate a detailed report with remediation steps."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/SKILL.md
 format: md
 ---

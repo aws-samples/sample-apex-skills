@@ -355,7 +355,11 @@ Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` /
 ./misc/update-all-references.sh
 ```
 
+The generator scripts (including `./misc/update-pages.sh`) parse frontmatter with PyYAML, so running them locally requires it: `pip install pyyaml`.
+
 **CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` runs `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check` on every PR. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
+
+CI also strict-parses `SKILL.md` frontmatter via `misc/validate-frontmatter.py` before regenerating: the frontmatter must be a valid YAML mapping, `name` and `description` are required, `description` is capped at 1024 characters, and for `skills/` each description must match the generated `skills.json` manifest (`devops-agent/` is exempt from the manifest check; a missing manifest entry is only a warning). If validation fails, fix the frontmatter YAML and rerun the regeneration commands above.
 
 ## Creating a New Example
 

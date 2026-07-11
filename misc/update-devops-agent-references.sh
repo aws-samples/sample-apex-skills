@@ -13,6 +13,12 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+python3 -c 'import yaml' 2>/dev/null || {
+  echo "ERROR: PyYAML is required (pip install pyyaml)" >&2
+  exit 1
+}
+
 DEVOPS_README="$REPO_ROOT/devops-agent/README.md"
 DEVOPS_DIR="$REPO_ROOT/devops-agent"
 DRY_RUN=false
@@ -29,47 +35,34 @@ fi
 parse_frontmatter() {
   local file="$1"
   local key="$2"
-  awk -v key="$key" '
-    /^---$/ { block++; next }
-    block == 1 && $0 ~ "^" key ":" {
-      sub("^" key ":[ ]*", "")
-      sub("^\"", ""); sub("\"$", "")
-      sub("^'\''", ""); sub("'\''$", "")
-      print
-      exit
-    }
-    block >= 2 { exit }
-  ' "$file"
-}
-
-# --- Parse multi-line frontmatter value ---
-# For descriptions that span multiple lines (YAML folded/flow style)
-parse_frontmatter_multiline() {
-  local file="$1"
-  local key="$2"
-  awk -v key="$key" '
-    /^---$/ { block++; next }
-    block == 1 && found {
-      if (/^[a-zA-Z_-]+:/) { exit }
-      gsub(/^[ \t]+/, "")
-      result = result " " $0
-      next
-    }
-    block == 1 && $0 ~ "^" key ":" {
-      sub("^" key ":[ ]*", "")
-      sub("^\"", ""); sub("\"$", "")
-      sub("^'\''", ""); sub("'\''$", "")
-      if (length($0) > 0) { result = $0 }
-      found = 1
-      next
-    }
-    block >= 2 { exit }
-    END {
-      gsub(/^[ \t]+/, "", result)
-      gsub(/[ \t]+$/, "", result)
-      print result
-    }
-  ' "$file"
+  python3 - "$file" "$key" <<'PY'
+import sys, yaml
+path, key = sys.argv[1], sys.argv[2]
+try:
+    with open(path, encoding="utf-8") as f:
+        lines = f.readlines()
+except (OSError, UnicodeDecodeError):
+    sys.exit(0)
+if not lines or lines[0].rstrip() != "---":
+    sys.exit(0)
+fm = []
+for line in lines[1:]:
+    if line.rstrip() == "---":
+        break
+    fm.append(line)
+else:
+    sys.exit(0)
+try:
+    data = yaml.safe_load("".join(fm))
+except yaml.YAMLError:
+    sys.exit(0)
+if not isinstance(data, dict):
+    sys.exit(0)
+val = data.get(key)
+if val is None:
+    sys.exit(0)
+print(" ".join(str(val).split()))
+PY
 }
 
 # --- Determine skill status ---
@@ -104,7 +97,7 @@ build_table() {
     fi
 
     local description
-    description="$(parse_frontmatter_multiline "$skill_md" "description")"
+    description="$(parse_frontmatter "$skill_md" "description")"
     if [[ -z "$description" ]]; then
       description="_(no description in frontmatter)_"
     fi

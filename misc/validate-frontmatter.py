@@ -30,6 +30,10 @@ def main():
         os.path.join(repo_root, "devops-agent", "*", "SKILL.md"),
     ]
 
+    errors = []
+    warnings = []
+    count = 0
+
     manifest_path = os.path.join(repo_root, "misc", "website", "static", "manifests", "skills.json")
     manifest_by_name = {}
     if not os.path.isfile(manifest_path):
@@ -38,14 +42,12 @@ def main():
     try:
         with open(manifest_path, encoding="utf-8") as f:
             for entry in json.load(f):
+                if entry["name"] in manifest_by_name:
+                    errors.append(f"skills.json: duplicate name '{entry['name']}'")
                 manifest_by_name[entry["name"]] = entry["description"]
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         print(f"ERROR: could not parse skills.json manifest ({e})")
         sys.exit(1)
-
-    errors = []
-    warnings = []
-    count = 0
 
     # M3: check manifest entries for over-length or invalid descriptions
     for name, manifest_desc in manifest_by_name.items():
@@ -55,6 +57,9 @@ def main():
             errors.append(f"skills.json[{name}]: manifest description too long ({len(manifest_desc)} chars, max 1024)")
 
     for pattern in patterns:
+        # devops-agent/ and skills/ are separate namespaces — a name may
+        # legitimately appear in both. Only flag duplicates within one scope.
+        seen_names = {}
         for path in sorted(glob(pattern)):
             count += 1
             rel = os.path.relpath(path, repo_root)
@@ -83,10 +88,18 @@ def main():
                 if len(desc) > 1024:
                     errors.append(f"{rel}: description too long ({len(desc)} chars, max 1024)")
 
+                if desc == "":
+                    warnings.append(f"{rel}: description is empty")
+
                 name = data.get("name")
                 if not name or not isinstance(name, str):
                     errors.append(f"{rel}: missing or invalid 'name' key")
                     continue
+
+                if name in seen_names:
+                    errors.append(f"{rel}: duplicate name '{name}' (also declared by {seen_names[name]})")
+                else:
+                    seen_names[name] = rel
                 is_devops_agent = rel.startswith("devops-agent/")
 
                 if not is_devops_agent and name in manifest_by_name:
@@ -97,6 +110,8 @@ def main():
 
             except yaml.YAMLError as e:
                 errors.append(f"{rel}: YAML parse error: {e}")
+            except (OSError, UnicodeDecodeError) as e:
+                errors.append(f"{rel}: cannot read file: {e}")
             except Exception as e:
                 errors.append(f"{rel}: unexpected error: {e}")
 

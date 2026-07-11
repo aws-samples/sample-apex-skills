@@ -1,6 +1,6 @@
 ---
 title: "eks-cost-intelligence"
-description: "EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report."
+description: "EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report. Analyzes compute efficiency, Spot/Graviton adoption, networking, storage, observability, and idle resources. Triggers on cost audit, cost review, cost driver analysis, FinOps assessment, spending efficiency, waste identification, over-provisioned workloads, or cost attribution by namespace. Combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/SKILL.md
 format: md
 ---

@@ -63,6 +63,10 @@ After syncing, run `./update-skills-references.sh` to regenerate the skills READ
 **What gets synced:** Core skill components only — `SKILL.md`, `LICENSE`, `references/*.md`  
 **What gets excluded:** Everything else (README, CLAUDE.md, CONTRIBUTING.md, CHANGELOG.md, tests/, `.github/`, `.claude-plugin/`)
 
+## Validate Frontmatter
+
+`validate-frontmatter.py` strict-parses the YAML frontmatter of every `skills/*/SKILL.md` and `devops-agent/*/SKILL.md` (valid mapping, `name` + `description` present, description ≤ 1024 chars; for `skills/` the description must also be in sync with the generated `skills.json` manifest — `devops-agent/` is exempt, and a missing manifest entry is only a warning). CI runs it in the `docs-sync` job; run it locally with `python3 misc/validate-frontmatter.py` (requires PyYAML).
+
 ## Docs site
 
 The Docusaurus site lives at `misc/website/`. Key commands:

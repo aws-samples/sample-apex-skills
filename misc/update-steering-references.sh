@@ -16,6 +16,12 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+python3 -c 'import yaml' 2>/dev/null || {
+  echo "ERROR: PyYAML is required (pip install pyyaml)" >&2
+  exit 1
+}
+
 README="$REPO_ROOT/README.md"
 STEERING_DIR="$REPO_ROOT/steering"
 DRY_RUN=false
@@ -28,17 +34,34 @@ fi
 parse_frontmatter() {
   local file="$1"
   local key="$2"
-  awk -v key="$key" '
-    /^---$/ { block++; next }
-    block == 1 && $0 ~ "^" key ":" {
-      sub("^" key ":[ ]*", "")
-      sub("^\"", ""); sub("\"$", "")
-      sub("^'\''", ""); sub("'\''$", "")
-      print
-      exit
-    }
-    block >= 2 { exit }
-  ' "$file"
+  python3 - "$file" "$key" <<'PY'
+import sys, yaml
+path, key = sys.argv[1], sys.argv[2]
+try:
+    with open(path, encoding="utf-8") as f:
+        lines = f.readlines()
+except (OSError, UnicodeDecodeError):
+    sys.exit(0)
+if not lines or lines[0].rstrip() != "---":
+    sys.exit(0)
+fm = []
+for line in lines[1:]:
+    if line.rstrip() == "---":
+        break
+    fm.append(line)
+else:
+    sys.exit(0)
+try:
+    data = yaml.safe_load("".join(fm))
+except yaml.YAMLError:
+    sys.exit(0)
+if not isinstance(data, dict):
+    sys.exit(0)
+val = data.get(key)
+if val is None:
+    sys.exit(0)
+print(" ".join(str(val).split()))
+PY
 }
 
 # --- Pick column count based on item count ---

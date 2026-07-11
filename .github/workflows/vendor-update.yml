@@ -108,14 +108,23 @@ jobs:
         run: |
           echo "${{ steps.check.outputs.upstream_sha }}" > "${{ matrix.skill.path }}/.vendor-sha"
 
+      - uses: actions/setup-python@v5
+        if: steps.sync.outcome == 'success'
+        with:
+          python-version: '3.x'
+
+      - name: Install docs-generation dependencies
+        if: steps.sync.outcome == 'success'
+        run: pip install 'pyyaml>=6,<7'
+
       - name: Regenerate docs
         if: steps.sync.outcome == 'success'
         run: |
           if [ -x misc/update-all-references.sh ]; then
-            ./misc/update-all-references.sh || true
+            ./misc/update-all-references.sh
           fi
           if [ -x misc/update-pages.sh ]; then
-            ./misc/update-pages.sh || true
+            ./misc/update-pages.sh
           fi
 
       - name: Check for actual diff

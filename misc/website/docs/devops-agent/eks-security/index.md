@@ -1,6 +1,6 @@
 ---
 title: "eks-security"
-description: "EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap."
+description: "EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap. Covers OS/AMI selection (Bottlerocket, AL2023, RHEL, Ubuntu), identity (EKS Pod Identity vs IRSA, Access Entries vs aws-auth), workload security (Pod Security Admission, Kyverno/OPA, NetworkPolicy, Security Groups for Pods), image supply chain (ECR scanning, Cosign/Notation signing), runtime detection (GuardDuty, Falco), audit logging, etcd / secrets encryption, and compliance accelerators (Audit Manager, Config, Security Hub). Triggers on CIS Benchmark, HIPAA, PCI-DSS, FedRAMP, SOC 2, GDPR compliance, cluster hardening, audit-prep, or any regulated-workload assessment. Does not cover non-EKS platforms (ECS/ROSA), account-level security with no EKS angle, or GenAI-workload security."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/SKILL.md
 format: md
 ---

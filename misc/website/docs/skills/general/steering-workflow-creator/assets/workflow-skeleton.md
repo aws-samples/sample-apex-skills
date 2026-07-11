@@ -1,6 +1,6 @@
 ---
-title: "<workflow-name>"
-description: "<Day N {intent} workflow. Front-load the lifecycle phase and the concrete verbs users will type — e.g., \"Day 2 cost review workflow. Discovers compute posture, scores hygiene against defaults, emits recommendations.\">"
+title: "<Workflow Title>"
+description: ""
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/steering-workflow-creator/assets/workflow-skeleton.md
 format: md
 ---

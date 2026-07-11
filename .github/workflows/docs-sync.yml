@@ -10,6 +10,7 @@ on:
       - "devops-agent/**"
       - "README.md"
       - "CONTRIBUTING.md"
+      - ".github/workflows/docs-sync.yml"
   push:
     branches:
       - main
@@ -31,13 +32,35 @@ jobs:
         with:
           python-version: '3.x'
       - name: Validate SKILL.md frontmatter
-        run: pip install pyyaml && python3 misc/validate-frontmatter.py
+        id: validate
+        run: pip install 'pyyaml>=6,<7' && python3 misc/validate-frontmatter.py
       - name: Regenerate and fail on diff
+        id: regen
         run: |
           ./misc/update-all-references.sh --check
           ./misc/update-pages.sh --check
-      - name: How to fix (shown on failure)
-        if: failure()
+      - name: How to fix frontmatter validation (shown on failure)
+        if: failure() && steps.validate.outcome == 'failure'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## SKILL.md frontmatter failed validation
+
+          `misc/validate-frontmatter.py` strict-parses the frontmatter of every `skills/*/SKILL.md` and `devops-agent/*/SKILL.md`. Check the job log above for the exact file and error, then verify:
+
+          - the frontmatter is valid YAML (a mapping between `---` delimiters — watch unquoted `:` and stray quotes)
+          - `name` and `description` keys are present
+          - `description` is at most 1024 characters
+          - for `skills/*/SKILL.md` only: `description` matches the generated `skills.json` manifest (`devops-agent/` is exempt; a missing manifest entry is only a warning) — if you changed a description, regenerate:
+
+          ```bash
+          ./misc/update-all-references.sh && ./misc/update-pages.sh && git add -A
+          git commit -m "docs: regenerate reference tables and pages"
+          ```
+          EOF
+      - name: How to fix stale docs (shown on failure)
+        if: failure() && steps.regen.outcome == 'failure'
+        env:
+          BRANCH_REF: ${{ github.head_ref || github.ref_name }}
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Docs auto-gen blocks are stale
@@ -50,7 +73,5 @@ jobs:
           git commit -m "docs: regenerate reference tables and pages"
           ```
 
-          If the failure is from `validate-frontmatter.py`, check your `SKILL.md` frontmatter YAML syntax and description length (max 1024 chars).
-
-          Full details: [`CONTRIBUTING.md` → Keeping docs in sync](../blob/${{ github.head_ref || github.ref_name }}/CONTRIBUTING.md#keeping-docs-in-sync-auto-generated-catalogues).
           EOF
+          printf 'Full details: [`CONTRIBUTING.md` → Keeping docs in sync](%s/%s/blob/%s/CONTRIBUTING.md#keeping-docs-in-sync-auto-generated-catalogues).\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "${BRANCH_REF}" >> "$GITHUB_STEP_SUMMARY"
