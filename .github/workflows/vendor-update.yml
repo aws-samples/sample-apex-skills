@@ -74,8 +74,16 @@ jobs:
           inputs.skill == '' ||
           inputs.skill == matrix.skill.name
         run: |
-          # Get upstream HEAD
-          UPSTREAM_SHA=$(git ls-remote "${{ matrix.skill.upstream }}" HEAD | cut -f1)
+          # Get upstream HEAD (capture first so a ls-remote failure isn't masked by the pipe)
+          if ! LS_REMOTE=$(git ls-remote "${{ matrix.skill.upstream }}" HEAD); then
+            echo "error: git ls-remote failed for ${{ matrix.skill.name }} (${{ matrix.skill.upstream }})" >&2
+            exit 1
+          fi
+          UPSTREAM_SHA=$(echo "$LS_REMOTE" | cut -f1)
+          if [ -z "$UPSTREAM_SHA" ]; then
+            echo "error: could not resolve upstream SHA for ${{ matrix.skill.name }}" >&2
+            exit 1
+          fi
           echo "upstream_sha=${UPSTREAM_SHA}" >> "$GITHUB_OUTPUT"
 
           # Compare with last synced SHA (stored in UPSTREAM.md or .vendor-sha)
@@ -120,12 +128,8 @@ jobs:
       - name: Regenerate docs
         if: steps.sync.outcome == 'success'
         run: |
-          if [ -x misc/update-all-references.sh ]; then
-            ./misc/update-all-references.sh
-          fi
-          if [ -x misc/update-pages.sh ]; then
-            ./misc/update-pages.sh
-          fi
+          bash misc/update-all-references.sh
+          bash misc/update-pages.sh
 
       - name: Check for actual diff
         id: diff

@@ -44,8 +44,9 @@ path, key = sys.argv[1], sys.argv[2]
 try:
     with open(path, encoding="utf-8") as f:
         lines = f.readlines()
-except (OSError, UnicodeDecodeError):
-    sys.exit(0)
+except (OSError, UnicodeDecodeError) as e:
+    print(f"ERROR: {path}: {e}", file=sys.stderr)
+    sys.exit(2)
 if not lines or lines[0].rstrip() != "---":
     sys.exit(0)
 fm = []
@@ -54,7 +55,8 @@ for line in lines[1:]:
         break
     fm.append(line)
 else:
-    sys.exit(0)
+    print(f"ERROR: {path}: unclosed frontmatter block (missing closing '---')", file=sys.stderr)
+    sys.exit(2)
 try:
     data = yaml.safe_load("".join(fm))
 except yaml.YAMLError as e:
