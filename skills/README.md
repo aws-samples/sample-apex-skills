@@ -438,6 +438,27 @@ Run a structured Amazon ECS operational-excellence assessment against a live est
 
 ---
 
+### [ecs-recon](./ecs-recon/)
+
+ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, review a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment and CI/CD (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost/TCO (ecs-cost-intelligence), observability design (ecs-observability), and replatform/migration (ecs-modernize).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [autoscaling.md](./ecs-recon/references/autoscaling.md) | Autoscaling |
+| [cicd.md](./ecs-recon/references/cicd.md) | Cicd |
+| [compute.md](./ecs-recon/references/compute.md) | Compute |
+| [deployment.md](./ecs-recon/references/deployment.md) | Deployment |
+| [iac.md](./ecs-recon/references/iac.md) | Iac |
+| [networking.md](./ecs-recon/references/networking.md) | Networking |
+| [observability.md](./ecs-recon/references/observability.md) | Observability |
+| [overview.md](./ecs-recon/references/overview.md) | Overview |
+| [security.md](./ecs-recon/references/security.md) | Security |
+| [task-definitions.md](./ecs-recon/references/task-definitions.md) | Task definitions |
+
+---
+
 ### [ecs-security](./ecs-security/)
 
 Security and compliance guidance for Amazon ECS — "ECS was unable to assume the role", task role vs execution role, iam:PassRole, confused-deputy aws:SourceArn trust, Fargate vs EC2 shared responsibility, injecting Secrets Manager/SSM secrets (trailing-colon JSON-key gotcha), readonlyRootFilesystem / non-root / drop capabilities, ECS Exec governance, security-group-per-task, VPC endpoint policies, GuardDuty ECS Runtime Monitoring, ECR Inspector scanning, image signing, Fargate FIPS, or PCI/HIPAA/FedRAMP. Walks a discovery-driven 7-layer stack plus the AWS-canonical baseline and a 30/60/90 roadmap. Trigger even if "compliance" is never said — any ECS hardening, task-trust fix, or secrets-injection qualifies. Skip for EKS/Kubernetes (eks-security), GenAI/GPU security (ecs-genai), App Runner/Lambda, auditing a live estate's operational posture (ecs-operation-review — "audit my ECS security posture" matches both), or account-level security with no ECS angle.
