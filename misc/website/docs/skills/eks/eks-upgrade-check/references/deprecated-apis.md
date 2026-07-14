@@ -107,6 +107,52 @@ is not affected by the default-hide behavior.
 | 1.29 | `flowcontrol.apiserver.k8s.io/v1beta2` | `flowcontrol.apiserver.k8s.io/v1` |
 | 1.32 | `flowcontrol.apiserver.k8s.io/v1beta3` | `flowcontrol.apiserver.k8s.io/v1` |
 
+### Step 3b: Filter Out Already-Migrated / System-Written Resources (deterministic rule)
+
+A `v1beta3` (or other removed-version) string appearing in `metadata.managedFields[]`
+does NOT by itself mean a resource needs migrating. Two things must both be true for a
+resource to be a real finding:
+
+1. The resource is **not already stored on a safe version**, and
+2. A **user-controlled writer** actually wrote the removed version.
+
+Apply these two deterministic tests to every FlowSchema / PriorityLevelConfiguration
+surfaced by Step 2a or Step 2b:
+
+**Test 1 — Stored apiVersion (authoritative).** Read the object's live `apiVersion`
+(the version the API server actually stores/serves):
+
+```bash
+kubectl get flowschema <name> -o jsonpath='{.apiVersion}{"\n"}'
+```
+
+- If the stored `apiVersion` is **already `...k8s.io/v1`** (the target-safe version) →
+  **EXCLUDE.** There is nothing to migrate; a removed version in `managedFields` is
+  stale edit-history metadata, not live config. Contributes 0 points.
+- If the stored `apiVersion` is itself a removed version → **COUNT it** (a real finding).
+
+**Test 2 — Writer identity (only if Test 1 didn't already exclude).** For any
+removed-version entry in `managedFields`, check the `manager` (writer):
+
+- If the writer is a **Kubernetes/EKS-internal APF controller** — its name starts with
+  `api-priority-and-fairness-config-` (e.g.
+  `api-priority-and-fairness-config-consumer-v1`,
+  `-producer-v1`) or is `eks-internal` → **EXCLUDE.** These are the API server's own
+  bootstrap controllers; the user cannot and need not change them.
+- If the writer is a **user tool** — `kubectl-*`, `helm`, `argocd-application-controller`,
+  `flux`, or any other non-APF manager → **COUNT it.** This points to a real source
+  manifest that must be updated.
+
+**Combined outcome:** A resource counts as a deprecated-API finding only if its stored
+`apiVersion` is a removed version OR a user tool wrote a removed version. If the object
+is already stored on `v1` and the only removed-version trace comes from internal APF
+controllers → it is a false positive; exclude it and record it under Informational
+Findings as "already migrated / system-written — no action required."
+
+An API path (e.g., `flowschemas`) is counted only if **at least one object on that path
+survives both tests**. If every object on the path is excluded, the path contributes 0
+points — do NOT deduct for it, and do NOT describe it as a blocker.
+
 ### Step 4: Classify Findings
 
 For each deprecated API found, record the **source** (`object` from Step 2a /

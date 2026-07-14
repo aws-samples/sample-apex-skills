@@ -44,7 +44,15 @@ Do NOT list generic Kubernetes release notes. Only report changes that affect re
 ### Target >= 1.32: FlowSchema API v1beta3 Removed
 
 **Check:** Scan for `apiVersion: flowcontrol.apiserver.k8s.io/v1beta3`
-- If found → HIGH severity. Update to `flowcontrol.apiserver.k8s.io/v1`
+- Apply the two-test filter in `deprecated-apis.md` Step 3b FIRST. An object is a
+  real finding only if its stored (live) `apiVersion` is a removed version OR a user
+  tool (kubectl/helm/argocd/flux) wrote v1beta3. Objects already stored on `v1` whose
+  only v1beta3 trace comes from internal APF controllers (`api-priority-and-fairness-config-*`,
+  `eks-internal`) are false positives and do NOT count.
+- If a real (user-managed, not-yet-migrated) v1beta3 object is found → HIGH severity.
+  Update to `flowcontrol.apiserver.k8s.io/v1`.
+- **Scoring home:** this finding is scored under Deprecated APIs (Category 2), NOT
+  here. Do NOT also deduct for it under Breaking Changes — that would double-count.
 
 ### Target >= 1.32: Anonymous Auth Restricted
 
@@ -52,6 +60,8 @@ Do NOT list generic Kubernetes release notes. Only report changes that affect re
 - Anonymous requests only allowed to /healthz, /livez, /readyz
 - Check: `kubectl get clusterrolebindings -o json | jq '.items[] | select(.subjects[]?.name=="system:unauthenticated")'`
 - Impact: Monitoring tools or LB health checks hitting non-health endpoints will get 401
+- **Scoring home:** scored under Breaking Changes (Category 1, MEDIUM = 4 pts). Do
+  NOT also count it under Behavioral Changes (Category 9) — it has exactly one home.
 
 ### Target >= 1.33: Endpoints API Deprecated
 

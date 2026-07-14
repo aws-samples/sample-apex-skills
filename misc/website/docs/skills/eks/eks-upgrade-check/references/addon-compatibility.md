@@ -36,6 +36,30 @@ The 4 core add-ons that MUST be checked:
    - Check health status and any issues
    - Note if it's self-managed (not in the managed add-on list but running in kube-system)
 
+**MANDATORY version comparison (deterministic — do NOT eyeball or skip):**
+
+For EVERY managed add-on, you MUST run this command and compare — never declare an
+add-on "compatible" or "up to date" from judgment alone:
+
+```bash
+aws eks describe-addon-versions --addon-name <addon> --kubernetes-version <target> \
+  --query 'addons[0].addonVersions[0].addonVersion' --output text
+```
+
+This returns the latest available build for the target Kubernetes version. Then apply
+this bright-line rule for each add-on:
+
+| Condition | Verdict | Score |
+|-----------|---------|-------|
+| Installed build == latest-for-target | COMPATIBLE | 0 pts |
+| Installed build < latest-for-target (behind) | UPDATE_RECOMMENDED | 1 pt |
+| Add-on DEGRADED / FAILED, or explicitly incompatible | INCOMPATIBLE | 5 pts (critical) / 3 pts (optional) |
+
+"Behind" includes any add-on whose version string is for an older Kubernetes minor
+(e.g., a `v1.31.x` kube-proxy build when the target is 1.32) OR a lower build number
+for the same minor. If you did not run `describe-addon-versions`, you cannot assign
+COMPATIBLE — the check is required, not optional.
+
 **Key talking point:** EKS does NOT auto-update add-ons when you upgrade the control plane. This is the #1 thing customers forget. A cluster upgraded to 1.33 can still be running vpc-cni from 1.29.
 
 **Rating per add-on:**

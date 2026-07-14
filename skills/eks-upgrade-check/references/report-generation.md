@@ -31,8 +31,17 @@ breaking_changes_deduction = min(breaking_changes_deduction, 25)
 # An API path is "found in cluster" if surfaced by EITHER Step 2a (live object
 # apiVersion) OR Step 2b (any entry in metadata.managedFields[].apiVersion) in
 # references/deprecated-apis.md. A path is counted ONCE regardless of step.
+#
+# EXCLUSION (deprecated-apis.md Step 3b): a FlowSchema / PriorityLevelConfiguration
+# counts ONLY if its stored (live) apiVersion is a removed version, OR a user tool
+# (kubectl/helm/argocd/flux/etc.) wrote a removed version in managedFields. Objects
+# already stored on v1 whose only removed-version trace comes from internal APF
+# controllers (managers named api-priority-and-fairness-config-* or eks-internal) are
+# false positives and do NOT count. An API path is counted only if at least one object
+# on it survives both tests; otherwise the path contributes 0 pts (report it under
+# Informational Findings instead).
 deprecated_apis_deduction = 0
-for each deprecated_api_path found in cluster:
+for each deprecated_api_path found in cluster:   # excluding already-migrated / system-written objects per Step 3b
     if removed_in_target_version:    deprecated_apis_deduction += 5
     if deprecated_but_still_served:  deprecated_apis_deduction += 1
 deprecated_apis_deduction = min(deprecated_apis_deduction, 20)
@@ -145,6 +154,8 @@ al2_deduction = min(al2_deduction, 5)
 
 # --- Category 9: Behavioral Changes (max deduction: 5) ---
 # COUNTING UNIT: each distinct behavioral change TYPE that applies to the target version.
+# EXCLUSION: The 1.32 "Anonymous Auth Restricted" change is scored under Category 1
+# (Breaking Changes), NOT here. Do NOT count it in this category — that double-counts.
 behavioral_deduction = 0
 for each behavioral_change applicable to target:
     if severity == MEDIUM: behavioral_deduction += 2
@@ -306,6 +317,18 @@ after Evidence, the report is invalid — reorder before returning.
 8. **WORKLOAD TABLE REQUIRED:** The master workload table from `workload-risks.md` Step A
    MUST be produced before any workload risk findings are written. All workload counts in the
    report must be traceable to rows in that table.
+9. **SCORE RECONCILIATION (hard gate):** Sum the Pts column of the Master Finding List
+   table. The headline score in `## Readiness Score:` MUST equal 100 minus that sum
+   (after per-category caps and any hard-blocker override). Also confirm each row's
+   Deduction in the Score Breakdown table equals the corresponding category subtotal
+   in the Master Finding List. If the header, the Score Breakdown, and the Master
+   Finding List do not all agree, the report is INVALID — recompute and fix before
+   returning it. Never publish a score that differs from the table it is derived from.
+10. **MANDATORY-FINDING PRESENCE:** Every "always flag" item from the steering files
+   MUST appear as a row in the Master Finding List when its target condition is met.
+   For target >= 1.32 this includes "Anonymous Auth Restricted" (Category 1, 4 pts).
+   If an always-flag item is absent from the table, the assessment is incomplete —
+   add it before scoring.
 
 ## Step 4: Write the Report
 
