@@ -63,14 +63,6 @@ Run detections in this order to build the networking picture from task definitio
 
 Retrieve the network mode declared in the active task definition. This determines whether awsvpc networking applies to this service.
 
-**MCP (future):**
-```
-ecs_describe_task_definition(
-  task_definition="<task-definition-arn>"
-)
--> Extract networkMode
-```
-
 **CLI (get task definition ARN from service, then describe it):**
 ```bash
 aws ecs describe-services \
@@ -91,24 +83,18 @@ aws ecs describe-task-definition \
 ```
 
 **Interpret the result:**
+
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
+
 - `"awsvpc"` — tasks get their own ENI, subnets, and security groups; step 2 applies
 - `"bridge"` — tasks share the host's network via Docker bridge; no awsvpc config
 - `"host"` — tasks share the host's network namespace directly; no awsvpc config
 - `"none"` — tasks have no external connectivity; no awsvpc config
-- If not specified, defaults to `"bridge"` on EC2 launch type (Fargate requires `awsvpc`)
+- If not specified, defaults to `"bridge"` on Linux EC2 launch type (Fargate requires `awsvpc`). Windows EC2 tasks default to `<default>` (NAT), and `bridge` is not valid on Windows.
 
 ### 2. awsvpc Configuration from Service
 
 When the network mode is `awsvpc`, the service's `networkConfiguration` contains subnet, security group, and public IP assignment details.
-
-**MCP (future):**
-```
-ecs_describe_services(
-  cluster="<cluster-name>",
-  services=["<service-name>"]
-)
--> Extract networkConfiguration.awsvpcConfiguration
-```
 
 **CLI:**
 ```bash
@@ -146,15 +132,6 @@ Services can be fronted by one or more load balancers. The service describes its
 
 **Step 3a: Get load balancer associations from service**
 
-**MCP (future):**
-```
-ecs_describe_services(
-  cluster="<cluster-name>",
-  services=["<service-name>"]
-)
--> Extract loadBalancers[]
-```
-
 **CLI:**
 ```bash
 aws ecs describe-services \
@@ -176,14 +153,6 @@ aws ecs describe-services \
 
 **Step 3b: Describe target group to get load balancer ARNs**
 
-**MCP (future):**
-```
-elbv2_describe_target_groups(
-  target_group_arns=["<target-group-arn>"]
-)
--> Extract LoadBalancerArns
-```
-
 **CLI:**
 ```bash
 aws elbv2 describe-target-groups \
@@ -199,14 +168,6 @@ aws elbv2 describe-target-groups \
 ```
 
 **Step 3c: Describe load balancer to determine type**
-
-**MCP (future):**
-```
-elbv2_describe_load_balancers(
-  load_balancer_arns=["<load-balancer-arn>"]
-)
--> Extract Type
-```
 
 **CLI:**
 ```bash
@@ -232,15 +193,6 @@ Detect whether the service uses Service Connect, Service Discovery, or App Mesh 
 **Step 4a: Detect Service Connect**
 
 Service Connect is configured per deployment — the configuration lives on the `Deployment` object, not the top-level `Service`. To read the active configuration, extract it from the PRIMARY deployment.
-
-**MCP (future):**
-```
-ecs_describe_services(
-  cluster="<cluster-name>",
-  services=["<service-name>"]
-)
--> Extract deployments[?status=='PRIMARY'] | [0].serviceConnectConfiguration
-```
 
 **CLI:**
 ```bash
@@ -314,6 +266,10 @@ aws ecs describe-services \
 
 App Mesh integration is detected via a proxy configuration in the task definition. The Envoy sidecar is injected as a proxy.
 
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html
+
+**Lifecycle note:** AWS App Mesh reaches end of support on **September 30, 2026** (new-customer onboarding closed September 24, 2024; existing customers remain functional until the end-of-support date). The detection mechanics below stay valid, but when `app_mesh: true` is detected, the report should surface the end-of-support date so the customer knows a migration is required.
+
 **CLI:**
 ```bash
 aws ecs describe-task-definition \
@@ -382,6 +338,7 @@ networking:
         service_connect: bool
         service_discovery: bool
         app_mesh: bool
+      error: string | null        # Set when a networking API call failed for this service; other fields may be absent
 ```
 
 **Field details:**
@@ -391,7 +348,8 @@ networking:
 - `assign_public_ip` — `"ENABLED"` or `"DISABLED"`
 - `load_balancers` — empty list `[]` when no load balancer is associated
 - `type` — `"ALB"` (Application Load Balancer) or `"NLB"` (Network Load Balancer)
-- `service_connectivity` — all three flags always reported as `true` or `false`
+- `service_connectivity` — all three flags always reported as `true` or `false`; when `app_mesh` is `true`, surface the App Mesh end-of-support date (2026-09-30) in the report
+- `error` — `null` on success; when a networking API call fails for this service, records the failing API call and error code
 
 ---
 
@@ -499,14 +457,38 @@ load_balancers:
 If any networking API call fails (access denied, throttling, resource not found):
 
 **How to handle:**
-- Report the error with the specific API call and affected service
-- Use the unavailable output schema
-- Do NOT terminate the remaining reconnaissance — continue with other services
+- Record the error on the affected service's entry (set `error` to the failing API call and error code) and continue with the remaining services — do NOT terminate the remaining reconnaissance
+- Keep any fields already retrieved for the affected service; omit the ones the failed call would have populated
+- Use module-level `unavailable: true` ONLY when the module cannot produce any data at all (every service failed, or a prerequisite call failed before any per-service data was gathered)
 
+**Example — one service failed, others succeeded:**
+```yaml
+networking:
+  services:
+    - service_name: web-api
+      network_mode: awsvpc
+      error: "elbv2:DescribeTargetGroups failed for service 'web-api': AccessDeniedException"
+    - service_name: worker-svc
+      network_mode: awsvpc
+      awsvpc_config:
+        subnets:
+          - subnet-0a1b2c3d4e5f00001
+        security_groups:
+          - sg-0a1b2c3d4e5f00001
+        assign_public_ip: DISABLED
+      load_balancers: []
+      service_connectivity:
+        service_connect: false
+        service_discovery: false
+        app_mesh: false
+      error: null
+```
+
+**Example — total failure only:**
 ```yaml
 networking:
   unavailable: true
-  reason: "elbv2:DescribeTargetGroups failed for service 'web-api': AccessDeniedException"
+  reason: "ecs:DescribeServices failed for all requested services: AccessDeniedException"
 ```
 
 ### Target group not associated with any load balancer
@@ -525,3 +507,12 @@ load_balancers:
     container_name: web
     container_port: 8080
 ```
+
+---
+
+## Sources
+
+- Task definition network parameters (network mode defaults per OS and launch type): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
+- Service Connect (configuration lives on the deployment): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect.html
+- Service discovery (`serviceRegistries`): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-discovery.html
+- AWS App Mesh overview and end-of-support announcement (2026-09-30): https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html

@@ -1,6 +1,6 @@
 ---
 title: "ecs-recon"
-description: "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, review a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment and CI/CD (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost/TCO (ecs-cost-intelligence), observability design (ecs-observability), and replatform/migration (ecs-modernize)."
+description: "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, inspect a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment strategy design and CI/CD engineering (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost/TCO (ecs-cost-intelligence, once available), observability design (ecs-observability), and replatform/migration (ecs-modernize, once available)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/SKILL.md
 format: md
 ---
@@ -12,7 +12,7 @@ This page is generated from [skills/ecs-recon/SKILL.md](https://github.com/aws-s
 
 # ECS Reconnaissance
 
-Discover everything about an ECS environment. Run this skill to gather comprehensive context about clusters, services, and tasks before making any decisions, changes, or recommendations.
+Discover everything about an ECS environment. Run this skill to gather comprehensive context about clusters, services, and their tasks before making any decisions, changes, or recommendations. Standalone (`run-task`) and scheduled (EventBridge) tasks are not discovered — discovery enumerates workloads via `list-services`.
 
 ## When to Use This Skill
 
@@ -30,7 +30,7 @@ Discover everything about an ECS environment. Run this skill to gather comprehen
 - You need to understand the ECS setup before giving guidance
 
 **Do NOT use this skill for:**
-- **Cost scoring or efficiency analysis** — belongs to `ecs-cost-intelligence`
+- **Cost scoring or efficiency analysis** — belongs to `ecs-cost-intelligence` (once available)
 - **Security auditing or compliance scoring** — belongs to `ecs-security`
 - **Best-practices evaluation or maturity ratings** — belongs to `ecs-operation-review`
 - **Migration planning (replatform/refactor onto ECS)** — belongs to `ecs-modernize` (once available)
@@ -40,26 +40,19 @@ Discover everything about an ECS environment. Run this skill to gather comprehen
 
 ---
 
+## Access Model — READ-ONLY
+
+This skill is strictly read-only. It **CAN** issue read-only calls (`aws ecs describe-*`/`list-*`, `application-autoscaling describe-*`, `elbv2 describe-*`, `cloudformation describe-*`/`list-*`, `codepipeline list-*`/`get-*`, `deploy list-*`/`get-*`, `sts get-caller-identity`, `logs describe-*`) to discover estate state, and **CAN** write the report file to the workspace. It **CANNOT** mutate any resource (no `create`, `update`, `delete`, `register`, `deregister`, `run-task`, or scale operations). If a detection would require a write, record the field as `unknown` instead.
+
+---
+
 ## Prerequisites
 
-### MCP Tools (Future — Preferred When Available)
+### MCP Tools (Optional Supplement)
 
-No ECS MCP server currently exists. When one becomes available, it will be the preferred tool:
+The Amazon ECS MCP server exists in **preview** ([ECS MCP server docs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-mcp-introduction.html)), but its tools are diagnostics-shaped — all require a `cluster_name` and none enumerate clusters — so it cannot drive discovery. **CLI Mode is the primary path for this skill.** If the ECS MCP server is configured, its read tools may supplement drill-down diagnostics; it is in preview and subject to change — do not depend on it.
 
-```
-If MCP tools like `list_ecs_clusters`, `describe_ecs_service` are available:
-  → MCP Mode: Use MCP tools (pre-authorized, richer output)
-
-If MCP tools are NOT available (current default):
-  → CLI Mode: Use AWS CLI (requires explicit permission for each command)
-```
-
-**Future MCP Mode benefits:**
-- Pre-authorized read-only operations (no permission prompts)
-- Richer output with better formatting
-- Single tool call instead of piped commands
-
-### Required for CLI Mode (Current Default)
+### Required for CLI Mode (Primary)
 
 | Tool | Required For |
 |------|-------------|
@@ -127,23 +120,11 @@ Load only the references needed for the user's request — this keeps context fo
 | Describe clusters | `aws ecs describe-clusters --clusters <name> --include STATISTICS SETTINGS` |
 | List services | `aws ecs list-services --cluster <name> --region <region>` |
 | Describe services | `aws ecs describe-services --cluster <name> --services <svc> --region <region>` |
-| Describe task definition | `aws ecs describe-task-definition --task-definition <arn>` |
+| Describe task definition | `aws ecs describe-task-definition --task-definition <arn> --query 'taskDefinition.{family:family,revision:revision,cpu:cpu,memory:memory,networkMode:networkMode,containerDefinitions:containerDefinitions[].{name:name,image:image,cpu:cpu,memory:memory,memoryReservation:memoryReservation,essential:essential}}'` (the `--query` projection excludes `containerDefinitions[].environment` — plaintext values there may contain credentials) |
 | List tags | `aws ecs list-tags-for-resource --resource-arn <arn>` |
-| Fargate profiles | N/A — Fargate is detected via capacity providers on ECS |
 | Auto scaling targets | `aws application-autoscaling describe-scalable-targets --service-namespace ecs` |
 | Auto scaling policies | `aws application-autoscaling describe-scaling-policies --service-namespace ecs` |
 | Load balancer info | `aws elbv2 describe-target-groups --target-group-arns <arn>` |
-
-### Future MCP Tool Interfaces
-
-| Detection | MCP Tool (when available) |
-|-----------|--------------------------|
-| List clusters | `list_ecs_clusters(region="<region>")` |
-| Describe cluster | `describe_ecs_cluster(cluster_name="<name>", include=["STATISTICS","SETTINGS"])` |
-| List services | `list_ecs_services(cluster_name="<name>")` |
-| Describe service | `describe_ecs_service(cluster_name="<name>", service_name="<svc>")` |
-| Describe task definition | `describe_ecs_task_definition(task_definition="<arn>")` |
-| List resource tags | `list_ecs_tags(resource_arn="<arn>")` |
 
 ---
 
@@ -160,6 +141,8 @@ Load only the references needed for the user's request — this keeps context fo
 >
 > Skipping references produces shallow results. The main skill provides orchestration;
 > the references provide detection intelligence.
+
+**Never reproduce `containerDefinitions[].environment` values or non-awslogs `logConfiguration.options` in output or the report** — they routinely contain plaintext credentials.
 
 ### Step 1: Gather Prerequisites
 
@@ -182,17 +165,7 @@ Optional:
 
 ### Step 2: Check Tool Availability
 
-Determine available tooling:
-
-```
-If MCP tools for ECS are available:
-  → Use MCP Mode (preferred, pre-authorized)
-
-If MCP tools are NOT available:
-  → Inform user: "No ECS MCP server detected. I'll use AWS CLI commands,
-    which will require your permission for each command."
-  → Use CLI Mode
-```
+CLI Mode is the primary path — the ECS MCP server (preview) offers no cluster-enumeration tools, so discovery always runs on the AWS CLI. If the ECS MCP server is configured, its read tools may optionally supplement drill-down diagnostics; record `tool_mode: mixed` in that case, otherwise `tool_mode: cli` (the normal value).
 
 ### Step 3: Run Overview Scan
 
@@ -217,9 +190,9 @@ After presenting the overview map:
 For each selected module:
 1. **Load the reference file** — REQUIRED
 2. **Run detection commands** following the reference's guidance:
-   - Try MCP tool first (when available)
-   - If MCP unavailable or fails, fall back to CLI from reference
-   - If neither available, record as unavailable with reason
+   - Use the CLI commands from the reference (primary path)
+   - ECS MCP server read tools (if configured) may supplement diagnostics
+   - If detection is not possible, record as unavailable with reason
 3. **Collect output** into report section using the reference's output schema
 
 **Execution order:** Modules are independent — run them in any order. Each module is self-contained with its own detection commands and output schema.
@@ -227,6 +200,10 @@ For each selected module:
 ### Step 6: Generate Report
 
 Write report to `.ecs-recon-report.yaml` and present summary to user.
+
+**Summarize facts, not verdicts** — this skill must not emit health/quality judgments (that is `ecs-operation-review`'s lane).
+
+**Report sensitivity:** the report embeds account IDs, subnet/security-group IDs, IAM role ARNs, and secret ARNs. Treat it as sensitive — write it only inside the workspace, and do not commit it (recommend adding `.ecs-recon-report.yaml` to `.gitignore`).
 
 ---
 
@@ -245,8 +222,13 @@ metadata:
   account_id: string
   region: string
   timestamp: string  # ISO 8601 UTC
-  tool_mode: string  # "cli" | "mcp" | "mixed"
+  tool_mode: string  # "cli" (normal) | "mixed" (ECS MCP server supplemented diagnostics)
   modules_run: list[string]
+  coverage:
+    regions: list[string]     # Regions covered (single-region per run)
+    scope_note: string        # "services and their tasks only; standalone (run-task) and scheduled (EventBridge) tasks not discovered"
+    clusters_discovered: int  # Clusters found in the Overview Scan
+    clusters_drilled_down: int  # Clusters covered by drill-down modules
 
 overview:
   clusters: list[ClusterSummary]
@@ -270,6 +252,8 @@ unavailable: true
 reason: string  # Human-readable explanation (e.g., "Access denied on ecs:DescribeServices")
 ```
 
+Module-level `unavailable: true` is reserved for **total module failure**. Each module's per-service entries may carry `error: string | null` — per-resource failures are recorded inline on the affected entry and recon continues with the rest.
+
 ### Example Report
 
 ```yaml
@@ -283,6 +267,12 @@ metadata:
     - compute
     - task_definitions
     - deployment
+  coverage:
+    regions:
+      - us-west-2
+    scope_note: "services and their tasks only; standalone (run-task) and scheduled (EventBridge) tasks not discovered"
+    clusters_discovered: 1
+    clusters_drilled_down: 1
 
 overview:
   clusters:
@@ -291,7 +281,7 @@ overview:
       status: ACTIVE
       services_count: 3
       running_tasks: 12
-      stopped_tasks: 2
+      stopped_tasks: 2  # int | null (null = not collected)
       capacity_providers:
         - FARGATE
         - FARGATE_SPOT
@@ -300,7 +290,7 @@ overview:
           status: ACTIVE
           desired_count: 4
           running_count: 4
-          launch_type: null
+          launch_type: not_applicable  # capacity provider strategy in use
         - name: worker-service
           status: ACTIVE
           desired_count: 2
@@ -373,12 +363,18 @@ task_definitions:
 deployment:
   services:
     - service_name: api-service
-      controller_type: ecs_rolling
+      controller_type: ecs_rolling  # ecs_rolling | ecs_blue_green | ecs_linear | ecs_canary | code_deploy | external
+      strategy: ROLLING  # ROLLING | BLUE_GREEN | LINEAR | CANARY | null (ECS controller + deploymentConfiguration.strategy decides the ecs_* controller_type; ROLLING or absent strategy -> ecs_rolling)
       minimum_healthy_percent: 100
       maximum_percent: 200
+      bake_time_in_minutes: null
       circuit_breaker:
         enabled: true
         rollback_enabled: true
+      alarms:
+        alarm_names: []
+        enable: false
+        rollback: false
       deployments:
         - id: ecs-svc/1234567890
           status: PRIMARY
@@ -426,3 +422,14 @@ The migration workflow can use ecs-recon to understand existing state:
    - IaC tooling → migration tooling decisions
    - Deployment config → migration strategy input
 ```
+
+---
+
+## Sources
+
+> Facts verified 2026-07-14 against the URLs below.
+
+- [Amazon ECS MCP server (preview)](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-mcp-introduction.html) — tool surface and preview status
+- [API_Service](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html) — service fields (launch type, capacity provider strategy, deployment controller)
+- [API_DeploymentConfiguration](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentConfiguration.html) — strategy, bake time, circuit breaker, alarms
+- [Amazon ECS Developer Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html)

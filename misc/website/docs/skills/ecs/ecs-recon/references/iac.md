@@ -25,6 +25,7 @@ This page is generated from [skills/ecs-recon/references/iac.md](https://github.
 - [Classification Logic](#classification-logic)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
+- [Sources](#sources)
 
 ---
 
@@ -35,9 +36,10 @@ This page is generated from [skills/ecs-recon/references/iac.md](https://github.
 - **AWS APIs used:**
   - `ecs:ListTagsForResource` — retrieve tags on ECS clusters and services
   - `cloudformation:ListStacks` — enumerate CloudFormation stacks in the account
-  - `cloudformation:DescribeStackResources` — check if ECS resources belong to a stack
-- **CLI commands:** `aws ecs list-tags-for-resource`, `aws cloudformation list-stacks`, `aws cloudformation describe-stack-resources`
-- **IAM permissions:** Read-only (`ecs:ListTagsForResource`, `cloudformation:ListStacks`, `cloudformation:DescribeStackResources`)
+  - `cloudformation:ListStackResources` — enumerate all resources in a stack (paginated)
+  - `cloudformation:DescribeStackResources` — reverse-lookup the stack owning a resource by physical resource ID
+- **CLI commands:** `aws ecs list-tags-for-resource`, `aws cloudformation list-stacks`, `aws cloudformation list-stack-resources`, `aws cloudformation describe-stack-resources`
+- **IAM permissions:** Read-only (`ecs:ListTagsForResource`, `cloudformation:ListStacks`, `cloudformation:ListStackResources`, `cloudformation:DescribeStackResources`)
 
 ---
 
@@ -52,7 +54,8 @@ Run detections in this order — each step adds evidence and confidence:
 ```
 
 **Why this order matters:**
-- Tags are the most reliable indicator — IaC tools consistently tag the resources they manage
+- Tags are the strongest single-call signal for the tools that DO tag: CloudFormation always applies `aws:cloudformation:*` tags, CDK adds `aws:cdk:path` (when metadata is enabled), and Copilot adds `copilot-*` tags
+- **Terraform is the critical exception: Terraform applies NO default tags.** Unless the team configured `default_tags` on the AWS provider or tagged resources explicitly, a fully Terraform-managed estate is invisible to tag-based detection. Expect `undetermined: true` to frequently mean "Terraform or console-managed" — do not read it as "no IaC"
 - Stack association confirms CloudFormation-family tools (CDK, Copilot, raw CloudFormation) with high confidence
 - Naming patterns provide supporting evidence when tags are stripped or absent, but carry lower confidence alone
 - Each step is independent — a failure in one does not block the others
@@ -71,14 +74,6 @@ Run detections in this order — each step adds evidence and confidence:
 ### 1. Resource Tag Inspection
 
 Retrieve tags from ECS clusters and services. IaC tools apply distinctive tags to resources they manage.
-
-**MCP (future):**
-```
-ecs_list_tags_for_resource(
-  resourceArn="<cluster-or-service-arn>"
-)
--> Extract tags[] and match against known IaC tag patterns
-```
 
 **CLI:**
 ```bash
@@ -180,18 +175,20 @@ aws ecs list-tags-for-resource \
 
 **Tag patterns to match:**
 
-| Tool | Tag Key Pattern | Confidence |
-|------|----------------|------------|
-| Terraform | Key starts with `terraform:` | High |
-| Terraform | Key starts with `tf-` | High |
-| CDK | Key is `aws:cdk:path` | High |
-| CDK | Key starts with `aws-cdk:` | High |
-| Copilot | Key is `copilot-application` | High |
-| Copilot | Key is `copilot-environment` | High |
-| Copilot | Key is `copilot-service` | High |
-| CloudFormation | Key is `aws:cloudformation:stack-id` | High |
-| CloudFormation | Key is `aws:cloudformation:stack-name` | High |
-| CloudFormation | Key is `aws:cloudformation:logical-id` | High |
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-resource-tags.html — CloudFormation automatically applies the stack-level tags `aws:cloudformation:logical-id`, `aws:cloudformation:stack-id`, and `aws:cloudformation:stack-name` (the `aws:` prefix is reserved for AWS use). Terraform's AWS provider applies NO tags by default — `terraform:*` / `tf-*` keys only exist when a team configured them deliberately.
+
+| Tool | Tag Key Pattern | Confidence | Origin |
+|------|----------------|------------|--------|
+| Terraform | Key starts with `terraform:` | High | Team convention (Terraform emits no default tags) |
+| Terraform | Key starts with `tf-` | High | Team convention (Terraform emits no default tags) |
+| CDK | Key is `aws:cdk:path` | High | Tool-emitted (when CDK path metadata is enabled) |
+| CDK | Key starts with `aws-cdk:` | High | Tool-emitted (specific constructs) |
+| Copilot | Key is `copilot-application` | High | Tool-emitted |
+| Copilot | Key is `copilot-environment` | High | Tool-emitted |
+| Copilot | Key is `copilot-service` | High | Tool-emitted |
+| CloudFormation | Key is `aws:cloudformation:stack-id` | High | Service-applied (automatic) |
+| CloudFormation | Key is `aws:cloudformation:stack-name` | High | Service-applied (automatic) |
+| CloudFormation | Key is `aws:cloudformation:logical-id` | High | Service-applied (automatic) |
 
 **Interpret the result:**
 - If any tag matches a pattern in the table above → record the tool with `confidence: "high"` and evidence type `"resource_tags"`
@@ -203,23 +200,12 @@ aws ecs list-tags-for-resource \
 
 Check whether ECS resources are managed by CloudFormation stacks. This catches resources that have CloudFormation-style tags (which may already be detected in step 1) and confirms CDK or Copilot usage when their characteristic stack naming is present.
 
-**MCP (future):**
-```
-cloudformation_list_stacks(
-  stackStatusFilter=["CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
-)
--> Filter for stacks related to ECS
-
-cloudformation_describe_stack_resources(
-  stackName="<stack-name>"
-)
--> Check for ECS resource types (AWS::ECS::Cluster, AWS::ECS::Service, AWS::ECS::TaskDefinition)
-```
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_ListStacks.html — `IMPORT_COMPLETE` and `IMPORT_ROLLBACK_COMPLETE` are valid `StackStatusFilter` values. A stack created via resource import that was never subsequently updated stays in `IMPORT_COMPLETE`; omitting it from the filter silently skips those stacks and produces a false `undetermined`.
 
 **CLI (list active stacks):**
 ```bash
 aws cloudformation list-stacks \
-  --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
+  --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE IMPORT_COMPLETE IMPORT_ROLLBACK_COMPLETE \
   --query 'StackSummaries[].{Name:StackName,Id:StackId}'
 ```
 
@@ -237,12 +223,16 @@ aws cloudformation list-stacks \
 ]
 ```
 
-**CLI (describe stack resources to find ECS resources):**
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_DescribeStackResources.html — `DescribeStackResources` returns only the first 100 resources of a stack; the API reference says to use `ListStackResources` instead for larger stacks. Large CDK stacks routinely exceed 100 resources, so enumerating with `describe-stack-resources` silently misses ECS resources. Use the paginated `list-stack-resources` for enumeration; reserve `describe-stack-resources --physical-resource-id` for the reverse lookup.
+
+**CLI (list stack resources to find ECS resources — paginated, use for enumeration):**
 ```bash
-aws cloudformation describe-stack-resources \
+aws cloudformation list-stack-resources \
   --stack-name <stack-name> \
-  --query 'StackResources[?ResourceType==`AWS::ECS::Cluster` || ResourceType==`AWS::ECS::Service` || ResourceType==`AWS::ECS::TaskDefinition`]'
+  --query 'StackResourceSummaries[?ResourceType==`AWS::ECS::Cluster` || ResourceType==`AWS::ECS::Service` || ResourceType==`AWS::ECS::TaskDefinition`]'
 ```
+
+The AWS CLI auto-paginates `list-stack-resources`, so all resources are returned even for stacks with hundreds of resources.
 
 **Example output (stack containing ECS resources):**
 ```json
@@ -262,11 +252,27 @@ aws cloudformation describe-stack-resources \
 ]
 ```
 
+**CLI (cheaper exact reverse lookup — find the stack that owns a known service):**
+
+Instead of enumerating every stack, ask CloudFormation directly which stack owns a resource by its physical resource ID:
+
+```bash
+aws cloudformation describe-stack-resources \
+  --physical-resource-id <service-arn> \
+  --query 'StackResources[].{Stack:StackName,LogicalId:LogicalResourceId,Type:ResourceType}'
+```
+
+- This works for ECS **service ARNs** (the service's physical resource ID is its ARN)
+- **Caveat:** ECS **cluster** physical IDs are cluster names, not ARNs — pass the cluster name (not the ARN) as `--physical-resource-id` when reverse-looking-up a cluster
+- If the resource is not part of any stack, the call returns an error (e.g., "Stack for <id> does not exist") — treat that as "not CloudFormation-managed", record the message in the `error` field, and continue
+- Prefer this reverse lookup when investigating specific known services; fall back to stack enumeration only when surveying the whole account
+
 **Interpret the result:**
-- If a stack contains ECS resources matching our target cluster or service → record `"cloudformation"` with `confidence: "high"` and evidence type `"stack_association"`
-- If the stack name matches CDK patterns (e.g., contains `Cdk`, or has CDK-style logical IDs like `MyConstructXXXXXXXX`) → record `"cdk"` with `confidence: "high"` and evidence type `"stack_association"`
-- If the stack name matches Copilot patterns (e.g., `<app>-<env>-<svc>` naming convention) → record `"copilot"` with `confidence: "high"` and evidence type `"stack_association"`
-- Note: CDK and Copilot both deploy via CloudFormation stacks — the stack name and logical resource IDs help distinguish which tool generated the template
+- If a stack contains ECS resources matching our target cluster or service → record `"cloudformation"` with `confidence: "high"` and evidence type `"stack_association"` (stack membership is a fact, not a heuristic)
+- If the stack additionally has CDK-style logical IDs (construct IDs with 8-hex-char suffixes like `MyConstructXXXXXXXX`) or CDK metadata resources → record `"cdk"` with `confidence: "high"` and evidence type `"stack_association"`
+- If the stack name merely LOOKS like a tool convention (e.g., contains `Cdk`, or follows the `<app>-<env>-<svc>` shape Copilot uses) → that is a name heuristic, not tool-emitted evidence. Cap at `confidence: "medium"` — `<app>-<env>-<svc>` is also the most common human naming convention, so it must NOT yield high confidence on its own
+- Raise Copilot to `confidence: "high"` only when corroborated by `copilot-*` tags or Copilot-characteristic logical resource IDs inside the stack
+- Note: CDK and Copilot both deploy via CloudFormation stacks — the logical resource IDs (not just the stack name) help distinguish which tool generated the template
 
 ### 3. Naming Pattern Analysis
 
@@ -286,7 +292,7 @@ Inspect ECS resource names for patterns characteristic of specific IaC tools. Th
 
 **Terraform naming patterns:**
 - Resources often follow user-defined conventions (no universal pattern)
-- Check for common Terraform naming: `<project>-<env>-<resource>` without the random suffixes that CDK/Copilot add
+- Names like `<project>-<env>-<resource>` without random suffixes are common in Terraform estates, but this is a generic human naming convention — console-created resources look identical. Generic name shapes are NOT evidence for Terraform and MUST NOT be recorded as such
 
 **Example Copilot-style naming:**
 ```
@@ -306,8 +312,9 @@ Task Definition Family: CdkEcsStackApiTaskDef
 - If naming matches Copilot convention (`<app>-<env>-<svc>-Service-XXXXXXXX`) → record `"copilot"` with `confidence: "medium"` and evidence type `"naming_pattern"`
 - If naming matches CDK convention (construct-style suffixes) → record `"cdk"` with `confidence: "medium"` and evidence type `"naming_pattern"`
 - Naming patterns alone provide `"medium"` confidence — they can be corroborated by tags or stack association to raise confidence
+- Naming-pattern confidence is CAPPED at `"medium"` — generic patterns like `<app>-<env>-<svc>` overlap heavily with human naming conventions and must never produce `"high"` on their own
 - If naming does not match any known pattern → do NOT record evidence for this step
-- Terraform naming patterns are too varied to detect by name alone — Terraform detection relies primarily on tags
+- Terraform naming patterns are too varied to detect by name alone — Terraform detection relies on team-convention tags (`terraform:*`, `tf-*`, or provider `default_tags`), which many estates never configure. A Terraform-managed environment with no such tags will correctly land as `undetermined`
 
 ---
 
@@ -319,9 +326,15 @@ After running all three detection steps, classify IaC tools using this logic:
 For each tool candidate (terraform, cloudformation, cdk, copilot):
   1. Collect all evidence items found across all detection steps
   2. Determine confidence:
-     - "high"   → evidence from resource_tags OR stack_association
-     - "medium" → evidence from naming_pattern only
+     - "high"   → evidence from resource_tags, OR stack_association where the
+                  resource verifiably belongs to the stack (membership fact)
+     - "medium" → evidence from naming_pattern only, OR stack_association based
+                  solely on a name-shape heuristic (e.g., stack named like
+                  <app>-<env>-<svc> with no corroborating tags or logical IDs)
      - "low"    → no direct evidence, but inferred from related resources
+     Generic name patterns (e.g., <app>-<env>-<svc>) are capped at "medium" —
+     they overlap with common human naming conventions and never yield "high"
+     alone.
   3. Each evidence item has:
      - type: "resource_tags" | "stack_association" | "naming_pattern"
      - detail: human-readable description of what was found
@@ -374,6 +387,7 @@ iac:
         - type: string          # "resource_tags" | "stack_association" | "naming_pattern"
           detail: string        # Human-readable evidence description
   undetermined: bool            # true if no tool detected
+  error: string | null          # Error message when a detection step failed (partial results); null when all steps ran cleanly
 ```
 
 **Field details:**
@@ -386,7 +400,8 @@ iac:
 | `detected_tools[].evidence` | list | Supporting evidence items (at least one per tool) |
 | `detected_tools[].evidence[].type` | string | Evidence category: `"resource_tags"`, `"stack_association"`, or `"naming_pattern"` |
 | `detected_tools[].evidence[].detail` | string | Human-readable description of the evidence |
-| `undetermined` | bool | `true` when no IaC tool could be identified; `false` when at least one tool detected |
+| `undetermined` | bool | `true` when no IaC tool could be identified; `false` when at least one tool detected. NOTE: `undetermined: true` often means "Terraform (which emits no default tags) or console-managed" — it is NOT proof that no IaC exists |
+| `error` | string or null | Error message(s) recorded when one or more detection steps failed but others produced results; `null` when every step completed |
 
 **Example output (multiple tools detected):**
 ```yaml
@@ -405,6 +420,7 @@ iac:
         - type: "resource_tags"
           detail: "Tag 'terraform:managed=true' found on cluster 'prod-cluster'"
   undetermined: false
+  error: null
 ```
 
 **Example output (undetermined):**
@@ -412,6 +428,7 @@ iac:
 iac:
   detected_tools: []
   undetermined: true
+  error: null
 ```
 
 **Example output (single tool, medium confidence):**
@@ -424,6 +441,7 @@ iac:
         - type: "naming_pattern"
           detail: "Service name 'my-app-production-api-Service-aB3cD4eF' matches Copilot naming convention"
   undetermined: false
+  error: null
 ```
 
 ---
@@ -457,23 +475,26 @@ iac:
         - type: "resource_tags"
           detail: "Tags 'copilot-application', 'copilot-environment', 'copilot-service' found on service 'api-service'"
   undetermined: false
+  error: null
 ```
 
 ### No tags present on resources
 
-Some resources may have no tags at all, or only non-IaC-related tags (e.g., `Environment`, `Team`). This does not mean IaC is absent — tags may have been stripped or the tool may not tag by default.
+Some resources may have no tags at all, or only non-IaC-related tags (e.g., `Environment`, `Team`). This does not mean IaC is absent — tags may have been stripped, and **Terraform does not tag by default at all**: without provider `default_tags` or explicit tags, Terraform-managed resources carry no Terraform marker.
 
 **How to handle:**
 - Continue to step 2 (stack association) and step 3 (naming patterns)
 - If no evidence is found across all three steps → report `undetermined: true`
 - Do NOT guess or infer a tool without matching evidence
 - The absence of tags is not evidence for any particular tool
+- When reporting `undetermined: true`, communicate it as "no detectable IaC markers — likely Terraform without tagging conventions, or console-managed", never as "no IaC in use"
 
 **Example:**
 ```yaml
 iac:
   detected_tools: []
   undetermined: true
+  error: null
 ```
 
 ### Naming patterns without confirming tags
@@ -496,6 +517,7 @@ iac:
         - type: "naming_pattern"
           detail: "Cluster name 'my-app-production-Cluster-vR5x8Kq2' matches Copilot naming convention"
   undetermined: false
+  error: null
 ```
 
 ### Evidence type restrictions
@@ -529,6 +551,7 @@ iac:
         - type: "stack_association"
           detail: "Service belongs to stack 'CdkEcsStack' (CDK-generated)"
   undetermined: false
+  error: null
 ```
 
 ### API call failures (access denied or throttling)
@@ -536,7 +559,7 @@ iac:
 If `ecs:ListTagsForResource` or CloudFormation APIs fail:
 
 **How to handle:**
-- Record the failure but continue remaining detection steps
+- Record the failure in the `error` field but continue remaining detection steps
 - A tag retrieval failure does not prevent stack association or naming pattern checks
 - If ALL detection steps fail → use the unavailable output schema:
 
@@ -546,7 +569,7 @@ iac:
   reason: "ecs:ListTagsForResource failed: AccessDeniedException; cloudformation:ListStacks failed: AccessDeniedException"
 ```
 
-- If only some steps fail, report what could be determined:
+- If only some steps fail, report what could be determined and record the failure in `error`:
 
 ```yaml
 iac:
@@ -555,6 +578,18 @@ iac:
       confidence: "medium"
       evidence:
         - type: "naming_pattern"
-          detail: "Service name matches Copilot naming convention (tag retrieval failed: AccessDeniedException)"
+          detail: "Service name matches Copilot naming convention"
   undetermined: false
+  error: "ecs:ListTagsForResource failed: AccessDeniedException — tag-based detection skipped"
 ```
+
+---
+
+## Sources
+
+- https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_ListStacks.html (valid `StackStatusFilter` values, including `IMPORT_COMPLETE` and `IMPORT_ROLLBACK_COMPLETE`)
+- https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_DescribeStackResources.html (100-resource limit; `PhysicalResourceId` reverse lookup; guidance to use `ListStackResources` for larger stacks)
+- https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_ListStackResources.html (paginated stack resource enumeration)
+- https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-resource-tags.html (automatic `aws:cloudformation:*` stack-level tags)
+- https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ListTagsForResource.html (tag retrieval for ECS clusters and services)
+- https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/resource-tagging (Terraform AWS provider applies no tags unless `default_tags` or per-resource tags are configured)

@@ -59,15 +59,6 @@ Retrieve the task definition to extract the IAM roles. The active task definitio
 
 **Step 1 — Get active task definition ARN from service:**
 
-**MCP (future):**
-```
-ecs_describe_services(
-  cluster="<cluster-name>",
-  services=["<service-name>"]
-)
--> Extract services[0].taskDefinition
-```
-
 **CLI:**
 ```bash
 aws ecs describe-services \
@@ -83,14 +74,6 @@ arn:aws:ecs:us-east-1:123456789012:task-definition/my-app:7
 ```
 
 **Step 2 — Describe the task definition for roles:**
-
-**MCP (future):**
-```
-ecs_describe_task_definition(
-  taskDefinition="<task-definition-arn>"
-)
--> Extract taskDefinition.taskRoleArn, taskDefinition.executionRoleArn
-```
 
 **CLI:**
 ```bash
@@ -124,14 +107,6 @@ aws ecs describe-task-definition \
 ### 2. Secrets References
 
 Secrets are defined in the `secrets` array within each container definition of the task definition. Each secret has a `name` (the environment variable name in the container) and a `valueFrom` (the ARN or parameter name to resolve).
-
-**MCP (future):**
-```
-ecs_describe_task_definition(
-  taskDefinition="<task-definition-arn>"
-)
--> Extract taskDefinition.containerDefinitions[].secrets[]
-```
 
 **CLI:**
 ```bash
@@ -192,15 +167,6 @@ aws ecs describe-task-definition \
 
 ECS Exec allows operators to run commands in or get a shell into a running container. The `enableExecuteCommand` field on the service controls whether this capability is available.
 
-**MCP (future):**
-```
-ecs_describe_services(
-  cluster="<cluster-name>",
-  services=["<service-name>"]
-)
--> Extract services[0].enableExecuteCommand
-```
-
 **CLI:**
 ```bash
 aws ecs describe-services \
@@ -220,8 +186,8 @@ false
 ```
 
 **Interpret the result:**
-- `true` → report `ecs_exec_enabled: true`
-- `false` or field absent → report `ecs_exec_enabled: false`
+- `true` → report `enable_execute_command: true`
+- `false` or field absent → report `enable_execute_command: false`
 
 ---
 
@@ -233,7 +199,8 @@ security:
     - service_name: string
       task_role_arn: string | "not_configured"
       execution_role_arn: string | "not_configured"
-      ecs_exec_enabled: bool
+      enable_execute_command: bool  # service-level flag only; full Exec functionality also requires SSM permissions (task role, or EC2 instance role) and a writable root filesystem
+      error: string | null          # Set when a describe call failed for this service; other fields may be absent
       secrets:
         - container_name: string
           secret_name: string
@@ -244,7 +211,8 @@ security:
 **Field descriptions:**
 - `task_role_arn` — the IAM role ARN containers assume at runtime, or `"not_configured"` if not set
 - `execution_role_arn` — the IAM role ARN the ECS agent uses for image pulls and log publishing, or `"not_configured"` if not set
-- `ecs_exec_enabled` — whether interactive exec is enabled on the service (`true` or `false`)
+- `enable_execute_command` — whether the service-level ECS Exec flag is set (`true` or `false`); mirrors the `enableExecuteCommand` API field and does not by itself prove Exec is functional
+- `error` — `null` on success; when a describe call fails for this service, records the failing API call and error code
 - `secrets` — list of secrets injected into containers; empty list `[]` when no secrets are configured
 - `source` — classification of the secret backend: `"secrets_manager"` or `"ssm_parameter_store"`
 - `value_from` — the original ARN or parameter name as declared in the task definition
@@ -257,7 +225,7 @@ Handle these scenarios to ensure accurate security posture reporting.
 
 ### No task role configured
 
-When `taskRoleArn` is null or absent from the task definition, containers run without an assumed IAM role. They cannot call AWS services unless the execution role or instance role (EC2 launch type) provides credentials through other means.
+When `taskRoleArn` is null or absent from the task definition, containers run without an assumed IAM role. Execution-role permissions are not directly accessible by the containers in the task; on the EC2 launch type, containers may still obtain credentials from the container instance's IAM role via the instance metadata service.
 
 **How to handle:**
 - Report `task_role_arn: "not_configured"`
@@ -270,13 +238,14 @@ security:
     - service_name: legacy-worker
       task_role_arn: "not_configured"
       execution_role_arn: "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
-      ecs_exec_enabled: false
+      enable_execute_command: false
+      error: null
       secrets: []
 ```
 
 ### No execution role configured
 
-When `executionRoleArn` is null or absent, the ECS agent cannot pull images from private ECR repositories or publish logs on behalf of the task. This is common with public images on EC2 launch type.
+When `executionRoleArn` is null or absent, on Fargate and Managed Instances the ECS agent cannot pull images from private ECR repositories or publish logs on behalf of the task. On the EC2 launch type, the container instance's IAM role covers image pulls and log publishing, so a missing execution role is common there (e.g., with public images).
 
 **How to handle:**
 - Report `execution_role_arn: "not_configured"`
@@ -291,6 +260,8 @@ When no container definitions have entries in their `secrets` array (all are nul
 - Do NOT omit the `secrets` key — always include it for schema consistency
 
 ### Secrets Manager vs SSM Parameter Store classification
+
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data.html
 
 The `valueFrom` field determines the source classification. Apply these rules:
 
@@ -324,27 +295,42 @@ secrets:
 
 For ECS Exec to be fully functional, three conditions must be met:
 1. The service must have `enableExecuteCommand: true`
-2. The task role must have appropriate SSM Session Manager permissions
+2. The IAM role providing SSM Session Manager permissions must be in place — normally the task role; on the EC2 launch type, if no task role is configured, the container instance's IAM role is used instead, so the absence of a task role does not by itself mean Exec is non-functional
 3. The container must have a writable root filesystem (`readonlyRootFilesystem` must not be `true`)
 
 **How to handle in this module:**
-- Report **only** the service-level `enableExecuteCommand` field as `ecs_exec_enabled`
+- Report **only** the service-level `enableExecuteCommand` field as `enable_execute_command`
 - This module reports what is configured at the service/task-definition level, not whether all runtime prerequisites are met
 - The service-level flag is the primary indicator from `ecs:DescribeServices`
 
 ### Task definition or service retrieval fails
 
-If `ecs:DescribeTaskDefinition` or `ecs:DescribeServices` returns an error:
+If `ecs:DescribeTaskDefinition` or `ecs:DescribeServices` returns an error for a specific service:
 
 **How to handle:**
-- Do NOT present partial security data as complete
-- Report the error with the specific API call that failed
-- Use the unavailable output schema:
+- Record the error on that service's entry (set `error` to the failing API call and error code) and continue with the remaining services — one inaccessible service must not discard data for the others
+- Do NOT present the errored service's partial data as complete — omit fields you could not retrieve
+- Use module-level `unavailable: true` ONLY when the module cannot produce any data at all (every service failed, or a prerequisite call failed before any per-service data was gathered)
 
+**Example — one service failed, others succeeded:**
+```yaml
+security:
+  services:
+    - service_name: my-app
+      error: "ecs:DescribeTaskDefinition failed for 'my-app:7': AccessDeniedException"
+    - service_name: healthy-service
+      task_role_arn: "arn:aws:iam::123456789012:role/healthy-task-role"
+      execution_role_arn: "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
+      enable_execute_command: false
+      error: null
+      secrets: []
+```
+
+**Example — total failure only:**
 ```yaml
 security:
   unavailable: true
-  reason: "ecs:DescribeTaskDefinition failed for 'my-app:7': AccessDeniedException"
+  reason: "ecs:DescribeServices failed for all requested services: AccessDeniedException"
 ```
 
 ### Multiple containers with secrets
@@ -363,3 +349,12 @@ secrets:
     source: secrets_manager
     value_from: "arn:aws:secretsmanager:us-east-1:123456789012:secret:shared/datadog-api-key-XyZ123"
 ```
+
+---
+
+## Sources
+
+- Task execution IAM role (execution-role permissions are not directly accessible by containers): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html
+- Task IAM role: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
+- ECS Exec prerequisites (including EC2 instance-role fallback when no task role is set): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html
+- Passing sensitive data to containers (Secrets Manager vs SSM Parameter Store `valueFrom` forms): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/specifying-sensitive-data.html

@@ -34,8 +34,9 @@ This page is generated from [skills/ecs-recon/references/compute.md](https://git
 - **AWS APIs used:**
   - `ecs:DescribeClusters` — cluster-level capacity providers and default strategy
   - `ecs:DescribeServices` — per-service launch type, capacity provider strategy, task counts
-- **CLI commands:** `aws ecs describe-clusters`, `aws ecs describe-services`
-- **IAM permissions:** Read-only (`ecs:DescribeClusters`, `ecs:DescribeServices`)
+  - `ecs:DescribeCapacityProviders` — capacity provider type and backing configuration (ASG or Managed Instances)
+- **CLI commands:** `aws ecs describe-clusters`, `aws ecs describe-services`, `aws ecs describe-capacity-providers`
+- **IAM permissions:** Read-only (`ecs:DescribeClusters`, `ecs:DescribeServices`, `ecs:DescribeCapacityProviders`)
 
 ---
 
@@ -66,15 +67,6 @@ Run detections in this order to build the compute picture from cluster down to s
 ### 1. Cluster Capacity Providers
 
 Retrieve the capacity providers associated with the cluster and the cluster's default capacity provider strategy. This tells you what compute backends are available.
-
-**MCP (future):**
-```
-ecs_describe_clusters(
-  clusters=["<cluster-name>"],
-  include=["SETTINGS"]
-)
--> Extract capacityProviders, defaultCapacityProviderStrategy
-```
 
 **CLI:**
 ```bash
@@ -116,23 +108,24 @@ aws ecs describe-clusters \
 **Interpret the result:**
 - `capacityProviders` lists all providers attached to this cluster
 - Built-in providers: `FARGATE`, `FARGATE_SPOT`
-- Custom providers reference an Auto Scaling Group (ASG)
+- Custom providers are backed either by an Auto Scaling Group (ASG) or by ECS Managed Instances
 - `defaultCapacityProviderStrategy` is used when a service does not define its own strategy
 
-To get full details on a custom capacity provider (including the ASG ARN):
+To get full details on a custom capacity provider (including its type and backing configuration):
 
 **CLI:**
 ```bash
 aws ecs describe-capacity-providers \
   --capacity-providers my-asg-provider \
-  --query 'capacityProviders[0].{name:name,status:status,autoScalingGroupProvider:autoScalingGroupProvider}'
+  --query 'capacityProviders[0].{name:name,status:status,type:type,autoScalingGroupProvider:autoScalingGroupProvider,managedInstancesProvider:managedInstancesProvider}'
 ```
 
-**Example output:**
+**Example output (ASG-backed provider):**
 ```json
 {
   "name": "my-asg-provider",
   "status": "ACTIVE",
+  "type": "EC2_AUTOSCALING",
   "autoScalingGroupProvider": {
     "autoScalingGroupArn": "arn:aws:autoscaling:us-east-1:123456789012:autoScalingGroup:12345678-1234-1234-1234-123456789012:autoScalingGroupName/my-ecs-asg",
     "managedScaling": {
@@ -142,6 +135,21 @@ aws ecs describe-capacity-providers \
       "maximumScalingStepSize": 10
     },
     "managedTerminationProtection": "ENABLED"
+  },
+  "managedInstancesProvider": null
+}
+```
+
+**Example output (Managed Instances provider):**
+```json
+{
+  "name": "SampleManagedInstances",
+  "status": "ACTIVE",
+  "type": "MANAGED_INSTANCES",
+  "autoScalingGroupProvider": null,
+  "managedInstancesProvider": {
+    "infrastructureRoleArn": "arn:aws:iam::123456789012:role/ecsInfrastructureRole",
+    "propagateTags": "NONE"
   }
 }
 ```
@@ -149,15 +157,6 @@ aws ecs describe-capacity-providers \
 ### 2. Service Launch Type and Capacity Provider Strategy
 
 For each service, determine whether it uses an explicit launch type or a capacity provider strategy. These are mutually exclusive — a service uses one or the other.
-
-**MCP (future):**
-```
-ecs_describe_services(
-  cluster="<cluster-name>",
-  services=["<service-name-1>", "<service-name-2>"]
-)
--> Extract launchType, capacityProviderStrategy per service
-```
 
 **CLI:**
 ```bash
@@ -167,13 +166,15 @@ aws ecs describe-services \
   --query 'services[].{serviceName:serviceName,launchType:launchType,capacityProviderStrategy:capacityProviderStrategy,runningCount:runningCount,desiredCount:desiredCount,pendingCount:pendingCount}'
 ```
 
+**Batch limit:** `DescribeServices` accepts a maximum of **10 services per call** — passing more than 10 raises a `ClientException`. For clusters with more than 10 services, batch service names into groups of 10 (mirroring the 100-cluster cap on `DescribeClusters`).
+
 **Example output (service with explicit launch type):**
 ```json
 [
   {
     "serviceName": "web-api",
     "launchType": "FARGATE",
-    "capacityProviderStrategy": [],
+    "capacityProviderStrategy": null,
     "runningCount": 3,
     "desiredCount": 3,
     "pendingCount": 0
@@ -207,9 +208,9 @@ aws ecs describe-services \
 ```
 
 **Interpret the result:**
-- `launchType` is `"FARGATE"` or `"EC2"` → report that value directly
+- `launchType` is set (`"FARGATE"`, `"EC2"`, `"EXTERNAL"`, or `"MANAGED_INSTANCES"`) → report that value directly
 - `launchType` is `null` and `capacityProviderStrategy` is non-empty → report launch type as `not_applicable`, enumerate the strategy
-- `launchType` is `null` and `capacityProviderStrategy` is empty → see [Edge Cases](#edge-cases)
+- `launchType` is `null` and `capacityProviderStrategy` is `null`/empty → see [Edge Cases](#edge-cases)
 
 ### 3. Task Counts
 
@@ -238,7 +239,7 @@ aws ecs describe-services \
 ```
 
 **Interpret the result:**
-- `running == desired` and `pending == 0` → service is healthy and at target
+- `running == desired` and `pending == 0` → task counts are at target (a factual state, not a health verdict — a crash-looping service can also match this momentarily; this skill reports facts, not health judgments)
 - `running < desired` with `pending > 0` → tasks are being placed
 - `running < desired` with `pending == 0` → possible placement failure (compute capacity issue)
 
@@ -246,19 +247,22 @@ aws ecs describe-services \
 
 ## Output Schema
 
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CapacityProvider.html (CapacityProvider.type enum: EC2_AUTOSCALING | MANAGED_INSTANCES | FARGATE | FARGATE_SPOT) and https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html (launchType enum: EC2 | FARGATE | EXTERNAL | MANAGED_INSTANCES)
+
 ```yaml
 compute:
   cluster:
     name: string
     capacity_providers:
       - name: string
-        type: string  # FARGATE | FARGATE_SPOT | ASG
+        type: string  # EC2_AUTOSCALING | MANAGED_INSTANCES | FARGATE | FARGATE_SPOT | unrecognized
         status: string
-        auto_scaling_group_arn: string | null
+        auto_scaling_group_arn: string | null  # null unless type is EC2_AUTOSCALING
     default_capacity_provider_strategy:
       - provider: string
         weight: int   # 0-1000
         base: int     # 0-100000
+    error: string | null  # Failing API call + error code for cluster-level lookups; null otherwise
   services:
     - name: string
       launch_type: string | "not_applicable"  # FARGATE | EC2 | EXTERNAL | MANAGED_INSTANCES | not_applicable
@@ -270,12 +274,17 @@ compute:
         running: int      # >= 0
         desired: int      # >= 0
         pending: int      # >= 0
+      error: string | null  # Failing API call + error code for this service; null otherwise
 ```
 
 **Type classification for capacity providers:**
-- Provider name is `FARGATE` → type is `FARGATE`
-- Provider name is `FARGATE_SPOT` → type is `FARGATE_SPOT`
-- Provider has an `autoScalingGroupProvider` in describe response → type is `ASG`
+
+Classify on the API's first-class `type` field from `describe-capacity-providers` — do not infer from the provider name:
+- `type: "FARGATE"` → `FARGATE`
+- `type: "FARGATE_SPOT"` → `FARGATE_SPOT`
+- `type: "EC2_AUTOSCALING"` → `EC2_AUTOSCALING` (carries `autoScalingGroupProvider`; extract `auto_scaling_group_arn` from it)
+- `type: "MANAGED_INSTANCES"` → `MANAGED_INSTANCES` (carries `managedInstancesProvider`, not an ASG)
+- Any other value → `unrecognized` (AWS may add new provider types; do not fail the module)
 
 **Strategy entry fields:**
 - `weight` — relative proportion of tasks to place on this provider (0–1000)
@@ -339,7 +348,7 @@ compute:
         status: ACTIVE
         auto_scaling_group_arn: null
       - name: ec2-ondemand
-        type: ASG
+        type: EC2_AUTOSCALING
         status: ACTIVE
         auto_scaling_group_arn: "arn:aws:autoscaling:us-east-1:123456789012:autoScalingGroup:abc123:autoScalingGroupName/ecs-ec2-asg"
     default_capacity_provider_strategy:
@@ -371,17 +380,34 @@ compute:
 
 ### Describe request fails (access denied or resource not found)
 
-If `ecs:DescribeServices` or `ecs:DescribeClusters` returns an error:
+If a describe call fails partway through, retain everything already collected — never discard already-collected inventory (see overview.md, Partial Failure Retention).
 
-**How to handle:**
-- Do NOT present partial data as complete
-- Report the error with the specific API call that failed
-- Use the unavailable output schema:
+**How to handle (per-resource failure — the normal case):**
+- If `ecs:DescribeServices` fails for a batch of services, or `ecs:DescribeCapacityProviders` fails for a provider, record the error on the affected entries (set `error` to the failing API call + error code), omit the fields you could not retrieve, and continue with the remaining services/providers
+- Do NOT present an errored entry's partial data as complete — the `error` field marks it as incomplete
+
+```yaml
+compute:
+  cluster:
+    name: prod-api
+    capacity_providers: [...]
+    error: null
+  services:
+    - name: web-api
+      error: "ecs:DescribeServices failed: AccessDeniedException"
+    - name: worker-service
+      launch_type: FARGATE
+      task_counts: {running: 3, desired: 3, pending: 0}
+      error: null
+```
+
+**How to handle (total failure — module-level `unavailable`):**
+- Use module-level `unavailable: true` ONLY when the module cannot produce any data at all — i.e., the initial `ecs:DescribeClusters` call fails, or the first `ListServices`/`DescribeServices` call fails before any per-service data was gathered
 
 ```yaml
 compute:
   unavailable: true
-  reason: "ecs:DescribeServices failed for cluster 'prod-api': AccessDeniedException"
+  reason: "ecs:DescribeClusters failed for cluster 'prod-api': AccessDeniedException"
 ```
 
 ### Capacity provider in INACTIVE or DELETE_IN_PROGRESS status
@@ -391,3 +417,13 @@ Capacity providers can be in transitional states. Always report the actual statu
 **How to handle:**
 - Include the capacity provider in the list with its actual `status` value
 - Do not filter out non-ACTIVE providers — they are still associated with the cluster
+
+---
+
+## Sources
+
+- CapacityProvider API shape, `type` enum (EC2_AUTOSCALING | MANAGED_INSTANCES | FARGATE | FARGATE_SPOT), `autoScalingGroupProvider`, `managedInstancesProvider`: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CapacityProvider.html
+- Service API shape, `launchType` enum (EC2 | FARGATE | EXTERNAL | MANAGED_INSTANCES), mutual exclusivity with `capacityProviderStrategy`: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_Service.html
+- DescribeServices request limit (max 10 services per call): https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeServices.html
+- DescribeCapacityProviders API: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeCapacityProviders.html
+- Capacity provider strategy semantics (base/weight): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/cluster-capacity-providers.html

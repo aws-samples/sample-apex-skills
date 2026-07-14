@@ -25,6 +25,7 @@ This page is generated from [skills/ecs-recon/references/cicd.md](https://github
   - [Workspace File Detection](#4-workspace-file-detection)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
+- [Sources](#sources)
 
 ---
 
@@ -58,14 +59,14 @@ Run detections in this order to identify CI/CD tooling from strongest signals to
 **Why this order matters:**
 - CodePipeline is the strongest signal — a pipeline with an ECS deploy action is definitive evidence of AWS-native CI/CD
 - CodeDeploy may be used standalone (without CodePipeline) for blue/green ECS deployments — checking it separately catches this case
-- Resource tags provide evidence of third-party CI/CD tools (GitHub Actions, GitLab CI, Jenkins) that tag resources during deployment
+- Resource tags provide heuristic evidence of third-party CI/CD tools (GitHub Actions, GitLab CI, Jenkins) — but only when the team's pipeline was written to apply such tags; the tools themselves emit none
 - Workspace file detection is the weakest signal — CI/CD config files may exist in the repo but not actively deploy to the target cluster; this step also may not be available if the workspace is not accessible
 
 **Key decision logic:**
-- If CodePipeline pipelines have ECS deploy actions → report `codepipeline` with pipeline name as evidence
-- If CodeDeploy applications target ECS compute platform → report `codedeploy` with application name as evidence
-- If resource tags match known CI/CD patterns → report the corresponding tool with the tag as evidence
-- If workspace files match CI/CD patterns → report the corresponding tool with the file path as evidence
+- If CodePipeline pipelines have ECS deploy actions → report `codepipeline` with pipeline name as evidence at `confidence: "high"` (the deploy action is a fact returned by the API)
+- If CodeDeploy applications target ECS compute platform → report `codedeploy` with application name as evidence at `confidence: "high"` (`computePlatform: "ECS"` is a fact returned by the API)
+- If resource tags match the heuristic conventions below → report the corresponding tool with the tag as evidence at `confidence: "medium"` (tags are team conventions, not tool-emitted signatures)
+- If workspace files match CI/CD patterns and reference ECS → report the corresponding tool with the file path as evidence at `confidence: "medium"` (a config file proves the pipeline exists, not that it deploys to THIS cluster); if the file names the target cluster/service explicitly → `confidence: "high"`
 - If none of the above yield results → report `undetermined: true`
 - Multiple CI/CD tools can be detected simultaneously (e.g., CodePipeline + GitHub Actions)
 
@@ -77,13 +78,7 @@ Run detections in this order to identify CI/CD tooling from strongest signals to
 
 Check whether any CodePipeline pipelines in the account contain ECS deploy actions. This is the strongest indicator of AWS-native CI/CD for ECS.
 
-**MCP (future):**
-```
-codepipeline_list_pipelines()
--> For each pipeline:
-   codepipeline_get_pipeline(name="<pipeline-name>")
-   -> Check stages[].actions[] for actionTypeId.provider == "ECS" or "CodeDeployToECS"
-```
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-ECS.html and https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-ECSbluegreen.html — the ECS standard deploy action uses provider `ECS`; the blue/green action uses provider `CodeDeployToECS`.
 
 **CLI:**
 ```bash
@@ -152,13 +147,7 @@ aws codepipeline get-pipeline \
 
 Check for CodeDeploy applications configured with the ECS compute platform. This detects cases where CodeDeploy is used for ECS blue/green deployments, including scenarios where CodeDeploy is used without CodePipeline.
 
-**MCP (future):**
-```
-codedeploy_list_applications()
--> For each application:
-   codedeploy_get_application(applicationName="<app-name>")
-   -> Check application.computePlatform == "ECS"
-```
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/codedeploy/latest/APIReference/API_ApplicationInfo.html — valid `computePlatform` values are `Server | Lambda | ECS | Kubernetes`.
 
 **CLI:**
 ```bash
@@ -202,21 +191,13 @@ aws deploy get-application \
 
 **Interpret the result:**
 - If `computePlatform` is `"ECS"` → the application manages ECS blue/green deployments
-- Filter out applications with `computePlatform` of `"Lambda"` or `"Server"` — those are not ECS-related
+- Filter out applications with `computePlatform` of `"Lambda"`, `"Server"`, or `"Kubernetes"` — those are not ECS-related
 - The naming convention `AppECS-{cluster}-{service}` is common but not guaranteed — always verify with `computePlatform`
 - Report each ECS-platform application as evidence for `codedeploy`
 
 ### 3. Resource Tag Detection
 
-Check ECS resource tags for indicators of third-party CI/CD tools. Many CI/CD systems tag deployed resources with metadata about the pipeline or workflow that deployed them.
-
-**MCP (future):**
-```
-ecs_list_tags_for_resource(
-  resourceArn="<service-arn-or-cluster-arn>"
-)
--> Scan tags for CI/CD indicators
-```
+Check ECS resource tags for indicators of third-party CI/CD tools. Some teams configure their pipelines to tag deployed resources with metadata about the workflow that deployed them — this is a deliberate team practice, not built-in tool behavior.
 
 **CLI (check service tags):**
 ```bash
@@ -280,9 +261,11 @@ aws ecs list-tags-for-resource \
 ]
 ```
 
-**Known CI/CD tag patterns:**
+**Heuristic CI/CD tag conventions:**
 
-| CI/CD Tool | Tag Key Patterns | Example Values |
+**Important:** none of these third-party tools automatically tag AWS resources. GitHub Actions, GitLab CI, Jenkins, and CircleCI do not emit any tags by themselves — the patterns below are TEAM CONVENTIONS that some pipelines apply deliberately (e.g., a deploy script that adds `deployed-by` or `jenkins-build-url` tags). Their exact keys vary between organizations. Treat any match as heuristic evidence with `confidence: "medium"` at best — never `"high"`.
+
+| CI/CD Tool | Conventional Tag Key Patterns (team-defined, not tool-emitted) | Example Values |
 |------------|-----------------|----------------|
 | GitHub Actions | `github-actions-*`, `deployed-by: github-actions` | workflow name, run ID, SHA |
 | GitLab CI | `gitlab-ci-*`, `deployed-by: gitlab-ci` | pipeline ID, project name |
@@ -292,8 +275,8 @@ aws ecs list-tags-for-resource \
 
 **Interpret the result:**
 - Scan all tag keys for prefixes or patterns matching the table above
-- A single matching tag is sufficient evidence to report that CI/CD tool
-- Multiple tags from the same tool strengthen confidence but are not required — report based on the first match
+- A single matching tag is sufficient to report that CI/CD tool, but at `confidence: "medium"` — these are conventions, not guaranteed tool signatures
+- Multiple tags from the same tool, or a tag with a verifiable value (e.g., a `jenkins-build-url` pointing at a real Jenkins host), strengthen the case but still cap at `"medium"` when tags are the only evidence
 - Tags from different CI/CD tools can coexist on the same resource — report each tool separately
 - Generic tags (e.g., `Environment`, `Team`) are NOT CI/CD evidence — only match the specific patterns listed
 
@@ -345,10 +328,12 @@ grep -l "ecs\|amazon-ecs\|aws-actions/amazon-ecs" .github/workflows/*.yml 2>/dev
 cicd:
   detected_tools:
     - tool: string              # "codepipeline" | "codedeploy" | "github_actions" | "gitlab_ci" | "jenkins" | "circleci" | "codebuild"
+      confidence: string        # "high" | "medium" | "low"
       evidence:
         - type: string          # "pipeline_action" | "codedeploy_application" | "resource_tag" | "workspace_file"
           detail: string        # Human-readable description of the evidence
   undetermined: bool            # true if no CI/CD detected
+  error: string | null          # Error message when a detection step failed (partial results); null when all steps ran cleanly
 ```
 
 **Field details:**
@@ -357,35 +342,42 @@ cicd:
 |-------|------|-------------|
 | `cicd.detected_tools` | list | All CI/CD tools detected (may contain multiple entries) |
 | `cicd.detected_tools[].tool` | string | Normalized tool identifier |
+| `cicd.detected_tools[].confidence` | string | Detection confidence: `"high"`, `"medium"`, or `"low"` |
 | `cicd.detected_tools[].evidence` | list | One or more evidence items supporting the detection |
 | `cicd.detected_tools[].evidence[].type` | string | Evidence category |
 | `cicd.detected_tools[].evidence[].detail` | string | Human-readable explanation of what was found |
 | `cicd.undetermined` | bool | `true` when no CI/CD tools could be identified from any detection method |
+| `cicd.error` | string or null | Error message(s) recorded when one or more detection steps failed but others produced results; `null` when every step completed |
 
-**Evidence type values:**
+**Evidence type values and confidence mapping:**
 
-| Type | Source |
-|------|--------|
-| `pipeline_action` | CodePipeline pipeline contains an ECS or CodeDeployToECS action |
-| `codedeploy_application` | CodeDeploy application configured with ECS compute platform |
-| `resource_tag` | ECS resource tag matches a known CI/CD pattern |
-| `workspace_file` | Local CI/CD config file contains ECS references |
+| Type | Source | Confidence |
+|------|--------|------------|
+| `pipeline_action` | CodePipeline pipeline contains an ECS or CodeDeployToECS action | `high` — API-returned fact |
+| `codedeploy_application` | CodeDeploy application configured with ECS compute platform | `high` — API-returned fact |
+| `resource_tag` | ECS resource tag matches a heuristic team-convention pattern | `medium` at best — conventions, not tool-emitted signatures |
+| `workspace_file` | Local CI/CD config file contains ECS references | `medium`; `high` only if the file names the target cluster/service |
+
+When a tool has multiple evidence items, its `confidence` is the highest confidence among them.
 
 **Example output (multiple tools detected):**
 ```yaml
 cicd:
   detected_tools:
     - tool: "codepipeline"
+      confidence: "high"
       evidence:
         - type: "pipeline_action"
           detail: "Pipeline 'prod-ecs-deploy' has ECS deploy action targeting cluster 'prod-cluster', service 'api-service'"
     - tool: "github_actions"
+      confidence: "medium"
       evidence:
         - type: "resource_tag"
-          detail: "Service 'api-service' tagged with 'github-actions-workflow: deploy.yml'"
+          detail: "Service 'api-service' tagged with 'github-actions-workflow: deploy.yml' (team convention)"
         - type: "workspace_file"
           detail: "File '.github/workflows/deploy.yml' references ECS deployment"
   undetermined: false
+  error: null
 ```
 
 **Example output (undetermined):**
@@ -393,6 +385,7 @@ cicd:
 cicd:
   detected_tools: []
   undetermined: true
+  error: null
 ```
 
 ---
@@ -416,18 +409,22 @@ An ECS environment may use multiple CI/CD tools simultaneously. For example, Cod
 cicd:
   detected_tools:
     - tool: "codepipeline"
+      confidence: "high"
       evidence:
         - type: "pipeline_action"
           detail: "Pipeline 'prod-ecs-deploy' has ECS deploy action"
     - tool: "codedeploy"
+      confidence: "high"
       evidence:
         - type: "codedeploy_application"
           detail: "Application 'AppECS-prod-cluster-api-service' with ECS compute platform"
     - tool: "github_actions"
+      confidence: "medium"
       evidence:
         - type: "resource_tag"
-          detail: "Cluster tagged with 'github-actions-workflow: ci.yml'"
+          detail: "Cluster tagged with 'github-actions-workflow: ci.yml' (team convention)"
   undetermined: false
+  error: null
 ```
 
 ### CodeDeploy without CodePipeline
@@ -444,14 +441,17 @@ CodeDeploy can manage ECS blue/green deployments independently, triggered by dir
 cicd:
   detected_tools:
     - tool: "codedeploy"
+      confidence: "high"
       evidence:
         - type: "codedeploy_application"
           detail: "Application 'AppECS-prod-cluster-api-service' with ECS compute platform (no associated CodePipeline found)"
     - tool: "github_actions"
+      confidence: "medium"
       evidence:
         - type: "resource_tag"
-          detail: "Service tagged with 'github-actions-workflow: deploy.yml'"
+          detail: "Service tagged with 'github-actions-workflow: deploy.yml' (team convention)"
   undetermined: false
+  error: null
 ```
 
 ### Workspace file detection unavailability
@@ -477,17 +477,19 @@ In some cases, resource tags are the only available evidence of CI/CD tooling. T
 **How to handle:**
 - Tag-based evidence alone is sufficient to report a detected CI/CD tool — do not require multiple evidence types
 - Report the specific tag key and value that triggered the detection
-- A single matching tag constitutes valid evidence
+- A single matching tag constitutes valid evidence, but cap the tool's `confidence` at `"medium"` — these tags are team conventions, not tool-emitted signatures
 
 **Example (tag-only detection):**
 ```yaml
 cicd:
   detected_tools:
     - tool: "gitlab_ci"
+      confidence: "medium"
       evidence:
         - type: "resource_tag"
-          detail: "Service 'worker-service' tagged with 'gitlab-ci-pipeline-id: 123456'"
+          detail: "Service 'worker-service' tagged with 'gitlab-ci-pipeline-id: 123456' (team convention)"
   undetermined: false
+  error: null
 ```
 
 ### API access denied for CodePipeline or CodeDeploy
@@ -499,18 +501,19 @@ If `codepipeline:ListPipelines` or `codedeploy:ListApplications` returns an acce
 - Skip the affected detection step and continue with remaining methods (tags, workspace files)
 - If all AWS API detection steps fail but tag or workspace detection succeeds → report detected tools normally
 - If all detection methods fail or are inaccessible → report `undetermined: true`
-- Record the access-denied error for visibility but do not block other detections
+- Record the access-denied error in the `error` field for visibility but do not block other detections
 
 **Example (partial detection with API errors):**
 ```yaml
 cicd:
   detected_tools:
     - tool: "github_actions"
+      confidence: "medium"
       evidence:
         - type: "resource_tag"
-          detail: "Service tagged with 'github-actions-workflow: deploy.yml'"
+          detail: "Service tagged with 'github-actions-workflow: deploy.yml' (team convention)"
   undetermined: false
-  # Note: codepipeline:ListPipelines returned AccessDeniedException — CodePipeline detection skipped
+  error: "codepipeline:ListPipelines returned AccessDeniedException — CodePipeline detection skipped"
 ```
 
 ### No CI/CD detected
@@ -527,4 +530,15 @@ When no detection method finds any CI/CD evidence:
 cicd:
   detected_tools: []
   undetermined: true
+  error: null
 ```
+
+---
+
+## Sources
+
+- https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-ECS.html (ECS standard deploy action — provider `ECS`, `ClusterName`/`ServiceName` configuration)
+- https://docs.aws.amazon.com/codepipeline/latest/userguide/action-reference-ECSbluegreen.html (blue/green deploy action — provider `CodeDeployToECS`, `ApplicationName`/`DeploymentGroupName` configuration)
+- https://docs.aws.amazon.com/codedeploy/latest/APIReference/API_ApplicationInfo.html (`computePlatform` valid values: `Server | Lambda | ECS | Kubernetes`)
+- https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ListTagsForResource.html (tag retrieval for ECS clusters and services)
+- https://awscli.amazonaws.com/v2/documentation/api/latest/reference/deploy/index.html (CodeDeploy CLI service command is `deploy`)

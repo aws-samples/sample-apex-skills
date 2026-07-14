@@ -67,15 +67,6 @@ Run detections in this order to build the observability picture from cluster lev
 
 Retrieve the Container Insights setting from the cluster. This is a cluster-level toggle that controls whether CloudWatch collects ECS metrics automatically.
 
-**MCP (future):**
-```
-ecs_describe_clusters(
-  clusters=["<cluster-name>"],
-  include=["SETTINGS"]
-)
--> Extract settings[] where name == "containerInsights"
-```
-
 **CLI:**
 ```bash
 aws ecs describe-clusters \
@@ -111,7 +102,7 @@ aws ecs describe-clusters \
 
 **Interpret the result:**
 - Setting present with `value: "enabled"` → report `container_insights: "enabled"` (standard CloudWatch metrics)
-- Setting present with `value: "enhanced"` → report `container_insights: "enhanced"` (enhanced observability with additional metrics, logs, and traces)
+- Setting present with `value: "enhanced"` → report `container_insights: "enhanced"` (enhanced observability: task- and container-level metric granularity plus log correlation)
 - Setting absent from the array, or the array is empty → report `container_insights: "disabled"`
 - Setting present with `value: "disabled"` → report `container_insights: "disabled"`
 
@@ -138,19 +129,13 @@ aws ecs describe-services \
 
 **Step 2b — Describe the task definition and extract log configuration:**
 
-**MCP (future):**
-```
-ecs_describe_task_definition(
-  taskDefinition="<task-definition-arn>"
-)
--> Extract containerDefinitions[].{name, logConfiguration}
-```
+Do NOT pull the full `logConfiguration` object. Non-awslogs drivers (especially `awsfirelens`) can carry credentials such as API keys in their `options` values. Scope the query to the `logDriver`, the awslogs-specific options, and the option **keys** only:
 
 **CLI:**
 ```bash
 aws ecs describe-task-definition \
   --task-definition <task-definition-arn> \
-  --query 'taskDefinition.containerDefinitions[].{name:name,logConfiguration:logConfiguration}'
+  --query 'taskDefinition.containerDefinitions[].{name: name, logDriver: logConfiguration.logDriver, awslogsGroup: logConfiguration.options."awslogs-group", awslogsRegion: logConfiguration.options."awslogs-region", awslogsStreamPrefix: logConfiguration.options."awslogs-stream-prefix", optionKeys: keys(not_null(logConfiguration.options, `{}`))}'
 ```
 
 **Example output (awslogs driver):**
@@ -158,56 +143,41 @@ aws ecs describe-task-definition \
 [
   {
     "name": "web",
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "/ecs/my-app",
-        "awslogs-region": "us-east-1",
-        "awslogs-stream-prefix": "web"
-      }
-    }
+    "logDriver": "awslogs",
+    "awslogsGroup": "/ecs/my-app",
+    "awslogsRegion": "us-east-1",
+    "awslogsStreamPrefix": "web",
+    "optionKeys": ["awslogs-group", "awslogs-region", "awslogs-stream-prefix"]
   },
   {
     "name": "sidecar",
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "/ecs/my-app-sidecar",
-        "awslogs-region": "us-east-1",
-        "awslogs-stream-prefix": "sidecar"
-      }
-    }
+    "logDriver": "awslogs",
+    "awslogsGroup": "/ecs/my-app-sidecar",
+    "awslogsRegion": "us-east-1",
+    "awslogsStreamPrefix": "sidecar",
+    "optionKeys": ["awslogs-group", "awslogs-region", "awslogs-stream-prefix"]
   }
 ]
 ```
 
-**Example output (awsfirelens driver):**
+**Example output (awsfirelens driver — note option keys only, no values):**
 ```json
 [
   {
     "name": "app",
-    "logConfiguration": {
-      "logDriver": "awsfirelens",
-      "options": {
-        "Name": "datadog",
-        "Host": "http-intake.logs.datadoghq.com",
-        "TLS": "on",
-        "dd_service": "my-app",
-        "dd_source": "ecs",
-        "provider": "ecs"
-      }
-    }
+    "logDriver": "awsfirelens",
+    "awslogsGroup": null,
+    "awslogsRegion": null,
+    "awslogsStreamPrefix": null,
+    "optionKeys": ["Name", "Host", "TLS", "apikey", "dd_service", "dd_source", "provider"]
   },
   {
     "name": "log-router",
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "/ecs/firelens",
-        "awslogs-region": "us-east-1",
-        "awslogs-stream-prefix": "firelens"
-      }
-    }
+    "logDriver": "awslogs",
+    "awslogsGroup": "/ecs/firelens",
+    "awslogsRegion": "us-east-1",
+    "awslogsStreamPrefix": "firelens",
+    "optionKeys": ["awslogs-group", "awslogs-region", "awslogs-stream-prefix"]
   }
 ]
 ```
@@ -217,19 +187,24 @@ aws ecs describe-task-definition \
 [
   {
     "name": "worker",
-    "logConfiguration": null
+    "logDriver": null,
+    "awslogsGroup": null,
+    "awslogsRegion": null,
+    "awslogsStreamPrefix": null,
+    "optionKeys": []
   }
 ]
 ```
 
 **Interpret the result:**
-- `logConfiguration` is present and has a `logDriver` → report the driver name as-is (e.g., `awslogs`, `awsfirelens`, `fluentd`, `splunk`, `json-file`)
-- `logConfiguration` is `null` or absent → report `log_driver: "not_configured"`
+- `logDriver` is present → report the driver name as-is (e.g., `awslogs`, `awsfirelens`, `fluentd`, `splunk`, `json-file`)
+- `logDriver` is `null` (logConfiguration absent) → report `log_driver: "not_configured"`
 - For `awslogs` driver, extract these options:
   - `awslogs-group` → the CloudWatch Logs log group name
   - `awslogs-region` → the AWS region for the log group
   - `awslogs-stream-prefix` → the stream prefix for log streams
 - For other drivers (`awsfirelens`, `fluentd`, `splunk`, etc.), report the driver name but do not attempt to parse driver-specific options into the standard awslogs fields — leave `awslogs_group`, `awslogs_region`, and `awslogs_stream_prefix` as `null`
+- **Never reproduce non-awslogs `logConfiguration.options` values in output or the report — report the driver name and option keys only.** Option values for FireLens and other third-party drivers can contain API keys and other credentials.
 
 ---
 
@@ -242,6 +217,7 @@ observability:
     container_insights: string    # "enabled" | "enhanced" | "disabled"
   services:
     - service_name: string
+      error: string | null                        # Set when a describe call failed for this service; containers may be empty
       containers:
         - container_name: string
           log_driver: string | "not_configured"   # awslogs | awsfirelens | fluentd | splunk | json-file | etc.
@@ -257,6 +233,7 @@ observability:
 | `cluster.name` | string | The cluster name |
 | `cluster.container_insights` | string | One of `"enabled"`, `"enhanced"`, or `"disabled"` |
 | `services[].service_name` | string | The ECS service name |
+| `services[].error` | string \| null | `null` on success; the failing API call and error code when a describe call failed for this service |
 | `services[].containers[].container_name` | string | The container name from the task definition |
 | `services[].containers[].log_driver` | string | The declared log driver, or `"not_configured"` if absent |
 | `services[].containers[].awslogs_group` | string \| null | CloudWatch log group (only for `awslogs` driver) |
@@ -315,9 +292,11 @@ containers:
 
 ### Container Insights — enhanced vs basic
 
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-enhanced-observability-metrics-ECS.html
+
 ECS Container Insights has two modes:
 - **Basic (`enabled`)** — collects CloudWatch metrics at the cluster, service, and task level (CPU, memory, network, storage)
-- **Enhanced (`enhanced`)** — includes everything in basic mode plus additional performance metrics, container-level metrics, and integration with CloudWatch Application Signals
+- **Enhanced (`enhanced`)** — includes everything in basic mode plus additional performance metrics at task and container granularity, with log correlation for faster problem isolation. Enhanced observability does NOT collect traces; CloudWatch Application Signals is a separate feature that requires its own instrumentation.
 
 **How to handle:**
 - Check the `value` field of the `containerInsights` setting exactly:
@@ -361,17 +340,11 @@ containers:
 If `ecs:DescribeClusters` or `ecs:DescribeTaskDefinition` returns an error:
 
 **How to handle:**
-- Do NOT present partial data as complete
-- Report the error with the specific API call that failed
-- Use the unavailable output schema:
+- Record the error on the affected service's entry (set `error` to the failing API call and error code) and continue with the remaining services
+- Do NOT present the errored service's partial data as complete — report `containers: []` for it
+- Use module-level `unavailable: true` ONLY when the module cannot produce any data at all (e.g., `ecs:DescribeClusters` fails and every per-service call also fails)
 
-```yaml
-observability:
-  unavailable: true
-  reason: "ecs:DescribeTaskDefinition failed for task-definition 'my-app:7': AccessDeniedException"
-```
-
-- If the cluster-level query succeeds but a specific task definition fails, report the cluster Container Insights data and mark only the affected service as unavailable:
+**Example — cluster-level query succeeds but one task definition fails:**
 
 ```yaml
 observability:
@@ -380,6 +353,7 @@ observability:
     container_insights: "enabled"
   services:
     - service_name: healthy-service
+      error: null
       containers:
         - container_name: web
           log_driver: "awslogs"
@@ -387,6 +361,23 @@ observability:
           awslogs_region: "us-east-1"
           awslogs_stream_prefix: "web"
     - service_name: inaccessible-service
-      containers: []
       error: "ecs:DescribeTaskDefinition failed: AccessDeniedException"
+      containers: []
 ```
+
+**Example — total failure only:**
+
+```yaml
+observability:
+  unavailable: true
+  reason: "ecs:DescribeClusters failed for 'prod-cluster': AccessDeniedException"
+```
+
+---
+
+## Sources
+
+- Container Insights for ECS (basic vs enhanced observability, metric coverage): https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-enhanced-observability-metrics-ECS.html
+- Task definition `logConfiguration` parameter: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
+- awslogs log driver options: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html
+- FireLens custom log routing: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_firelens.html

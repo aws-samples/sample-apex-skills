@@ -12,6 +12,7 @@
   - [Describe Task Definition](#2-describe-task-definition)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
+- [Sources](#sources)
 
 ---
 
@@ -48,15 +49,6 @@ Run detections in this order to build up from service to task definition details
 
 Retrieve the currently active task definition ARN for each service. This is the revision ECS is actively using to launch tasks.
 
-**MCP (future):**
-```
-ecs_describe_services(
-  cluster="<cluster-name>",
-  services=["<service-name>"]
-)
--> Extract response.services[0].taskDefinition
-```
-
 **CLI:**
 ```bash
 aws ecs describe-services \
@@ -76,14 +68,6 @@ arn:aws:ecs:us-east-1:123456789012:task-definition/my-api:42
 ### 2. Describe Task Definition
 
 Retrieve the full task definition to extract resource allocation, network mode, and container details.
-
-**MCP (future):**
-```
-ecs_describe_task_definition(
-  task_definition="arn:aws:ecs:us-east-1:123456789012:task-definition/my-api:42"
-)
--> Extract response.taskDefinition
-```
 
 **CLI:**
 ```bash
@@ -191,6 +175,7 @@ task_definitions:
           memory: int | null      # Per-container memory (MiB)
           memory_reservation: int | null  # Soft limit
           essential: bool
+      error: string | null        # Populated when DescribeServices or DescribeTaskDefinition fails for this service
 ```
 
 **Field notes:**
@@ -198,6 +183,7 @@ task_definitions:
 - `image` is reported exactly as declared in the task definition — preserving tags (`v2.3.1`), digests (`sha256:...`), or `latest`
 - `cpu` / `memory` per container are integers (CPU units and MiB) or `null` if not set on that container
 - `memory_reservation` is the soft limit used for task placement on EC2
+- `error` is `null` on success; when retrieval fails for a service, set `error` to a description of the failure and omit the other fields (see [Task Definition Retrieval Failure](#task-definition-retrieval-failure))
 
 ---
 
@@ -254,6 +240,8 @@ task_definitions:
 
 ### Fargate vs EC2 Resource Requirements
 
+> Facts verified 2026-07-14 against https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
+
 | Field | Fargate | EC2 |
 |-------|---------|-----|
 | `task_cpu` | Required (string) | Optional (null allowed) |
@@ -273,3 +261,13 @@ The `network_mode` field affects how containers communicate:
 - `none` — No external networking (rare, used for batch processing)
 
 **How to handle:** Report the mode as declared. The networking module uses this value for deeper connectivity analysis.
+
+---
+
+## Sources
+
+- Task definition parameters (task/container CPU and memory semantics, `memoryReservation`, `essential`, `networkMode`): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html
+- TaskDefinition API object (field types — task-level `cpu`/`memory` as strings, container-level as integers): https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_TaskDefinition.html
+- ContainerDefinition API object (`image`, `cpu`, `memory`, `memoryReservation`, `essential`): https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerDefinition.html
+- Fargate task CPU/memory requirements: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html
+- DescribeTaskDefinition API: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DescribeTaskDefinition.html
