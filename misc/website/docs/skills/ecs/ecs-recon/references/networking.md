@@ -62,7 +62,7 @@ Run detections in this order to build the networking picture from task definitio
 - If `networkMode` in task definition is `awsvpc` → extract `networkConfiguration.awsvpcConfiguration` from service
 - If `networkMode` is `bridge`, `host`, or `none` → no awsvpc config exists, skip step 2
 - If `loadBalancers` array on service is non-empty → follow each target group ARN to determine LB type
-- If `serviceConnectConfiguration` is present and enabled → Service Connect is active
+- If `serviceConnectConfiguration` on the PRIMARY deployment is present and enabled → Service Connect is active
 - If `serviceRegistries` array is non-empty → Service Discovery is active
 - If task definition has a proxy configuration with App Mesh → App Mesh is active
 
@@ -242,7 +242,7 @@ Detect whether the service uses Service Connect, Service Discovery, or App Mesh 
 
 **Step 4a: Detect Service Connect**
 
-Service Connect is configured at the service level via `serviceConnectConfiguration`.
+Service Connect is configured per deployment — the configuration lives on the `Deployment` object, not the top-level `Service`. To read the active configuration, extract it from the PRIMARY deployment.
 
 **MCP (future):**
 ```
@@ -250,7 +250,7 @@ ecs_describe_services(
   cluster="<cluster-name>",
   services=["<service-name>"]
 )
--> Extract serviceConnectConfiguration
+-> Extract deployments[?status=='PRIMARY'] | [0].serviceConnectConfiguration
 ```
 
 **CLI:**
@@ -258,7 +258,7 @@ ecs_describe_services(
 aws ecs describe-services \
   --cluster <cluster-name> \
   --services <service-name> \
-  --query 'services[0].serviceConnectConfiguration'
+  --query "services[0].deployments[?status=='PRIMARY'] | [0].serviceConnectConfiguration"
 ```
 
 **Example output (enabled):**
@@ -286,7 +286,7 @@ null
 ```
 
 **Interpret the result:**
-- If `serviceConnectConfiguration` is present and `enabled` is `true` → Service Connect is active
+- If `serviceConnectConfiguration` from the PRIMARY deployment is present and `enabled` is `true` → Service Connect is active
 - If `null` or `enabled` is `false` → Service Connect is not configured
 
 **Step 4b: Detect Service Discovery**

@@ -320,12 +320,12 @@ secrets:
     value_from: "/prod/config-token"
 ```
 
-### ECS Exec requires both service and task definition enablement
+### ECS Exec requires service enablement and task role permissions
 
 For ECS Exec to be fully functional, three conditions must be met:
 1. The service must have `enableExecuteCommand: true`
-2. The task definition must include the SSM agent sidecar (or use a platform version that includes it)
-3. The task role must have appropriate SSM permissions
+2. The task role must have appropriate SSM Session Manager permissions
+3. The container must have a writable root filesystem (`readonlyRootFilesystem` must not be `true`)
 
 **How to handle in this module:**
 - Report **only** the service-level `enableExecuteCommand` field as `ecs_exec_enabled`

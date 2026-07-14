@@ -320,7 +320,7 @@ overview:
           status: string      # ACTIVE | DRAINING | INACTIVE
           desired_count: int  # Target task count for the service
           running_count: int  # Currently running task count
-          launch_type: string | null  # FARGATE | EC2 | null (if capacity provider strategy)
+          launch_type: string | null  # FARGATE | EC2 | EXTERNAL | MANAGED_INSTANCES | null (if capacity provider strategy)
 ```
 
 **Notes:**

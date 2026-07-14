@@ -40,11 +40,11 @@ Run detections in this order to build the compute picture from cluster down to s
 
 **Why this order matters:**
 - Cluster-level capacity providers establish the available compute pool — services reference these
-- A service either specifies an explicit `launchType` (FARGATE or EC2) **or** a `capacityProviderStrategy` — never both
+- A service either specifies an explicit `launchType` (FARGATE, EC2, EXTERNAL, or MANAGED_INSTANCES) **or** a `capacityProviderStrategy` — never both
 - Task counts confirm whether the compute model is delivering the desired capacity
 
 **Key decision logic:**
-- If a service has `launchType` set → report it as `FARGATE` or `EC2`
+- If a service has `launchType` set → report it as `FARGATE`, `EC2`, `EXTERNAL`, or `MANAGED_INSTANCES`
 - If a service has `capacityProviderStrategy` set (and no explicit `launchType`) → report launch type as `not_applicable` and enumerate the strategy entries
 - Both fields empty is an edge case — see [Edge Cases](#edge-cases)
 
@@ -250,7 +250,7 @@ compute:
         base: int     # 0-100000
   services:
     - name: string
-      launch_type: string | "not_applicable"  # FARGATE | EC2 | not_applicable
+      launch_type: string | "not_applicable"  # FARGATE | EC2 | EXTERNAL | MANAGED_INSTANCES | not_applicable
       capacity_provider_strategy:
         - provider: string
           weight: int     # 0-1000
