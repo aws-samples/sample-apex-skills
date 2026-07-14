@@ -25,7 +25,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write
 
 jobs:
   check-updates:
@@ -59,7 +58,7 @@ jobs:
           inputs.skill != matrix.skill.name
         run: echo "Skipping ${{ matrix.skill.name }} (not selected)" && exit 0
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         if: >-
           github.event_name != 'workflow_dispatch' ||
           inputs.skill == 'all' ||
@@ -116,7 +115,7 @@ jobs:
         run: |
           echo "${{ steps.check.outputs.upstream_sha }}" > "${{ matrix.skill.path }}/.vendor-sha"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         if: steps.sync.outcome == 'success'
         with:
           python-version: '3.x'
@@ -143,7 +142,7 @@ jobs:
 
       - name: Create pull request
         if: steps.diff.outputs.has_changes == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           branch: chore/vendor-update-${{ matrix.skill.name }}
           delete-branch: true
@@ -176,7 +175,7 @@ jobs:
 
       - name: Create PR on sync failure
         if: steps.sync.outcome == 'failure'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
         with:
           branch: chore/vendor-update-${{ matrix.skill.name }}
           delete-branch: true

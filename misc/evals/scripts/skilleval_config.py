@@ -12,6 +12,9 @@ except ImportError:
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
 
+# Upfront size guard before YAML parsing (config files are small).
+_MAX_CONFIG_BYTES = 256 * 1024
+
 DEFAULT_WEIGHTS = {
     "triggering": 0.20,
     "process": 0.15,
@@ -128,7 +131,10 @@ def load_config(skill: str, cli_overrides: Optional[dict[str, Any]] = None) -> S
 
     merged: dict[str, Any] = {}
     for config_path in configs:
-        raw = yaml.safe_load(config_path.read_text()) or {}
+        text = config_path.read_text()
+        if len(text.encode("utf-8")) > _MAX_CONFIG_BYTES:
+            raise RuntimeError(f"config file exceeds maximum allowed size: {config_path}")
+        raw = yaml.safe_load(text) or {}
         merged = _merge_configs(merged, raw)
 
     if cli_overrides:

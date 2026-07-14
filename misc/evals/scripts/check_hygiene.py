@@ -201,8 +201,15 @@ def main() -> int:
         else:
             try:
                 import yaml
-                skilleval_raw = yaml.safe_load(skilleval_path.read_text()) or {}
-                if not isinstance(skilleval_raw, dict):
+                skilleval_text = skilleval_path.read_text()
+                if len(skilleval_text.encode("utf-8")) > 256 * 1024:
+                    warnings.append(".skilleval.yaml exceeds maximum allowed size")
+                    skilleval_raw = None
+                else:
+                    skilleval_raw = yaml.safe_load(skilleval_text) or {}
+                if skilleval_raw is None:
+                    pass  # oversize; already reported
+                elif not isinstance(skilleval_raw, dict):
                     warnings.append(".skilleval.yaml must be a YAML mapping")
                 else:
                     if "skill_name" not in skilleval_raw:

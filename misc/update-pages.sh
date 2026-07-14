@@ -310,12 +310,15 @@ vendored_skill_admonition() {
   local notices="$REPO_ROOT/THIRD_PARTY_NOTICES.md"
   local author license_id source_url
   if [[ -f "$notices" ]]; then
-    source_url="$(awk -v name="$skill_name" '
-      $0 ~ "^## " name { found=1; next }
+    # Pass skill_name via ENVIRON (not -v, which escape-processes the value)
+    # and match with index()==1 (literal prefix) rather than a regex, so a
+    # name containing regex metacharacters cannot match the wrong section.
+    source_url="$(SKILL_NAME="$skill_name" awk '
+      index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /Source:/ { sub(/.*Source:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
     ' "$notices")"
-    author="$(awk -v name="$skill_name" '
-      $0 ~ "^## " name { found=1; next }
+    author="$(SKILL_NAME="$skill_name" awk '
+      index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /Copyright:/ { sub(/.*Copyright:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
     ' "$notices")"
   fi

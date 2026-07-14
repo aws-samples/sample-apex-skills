@@ -30,6 +30,10 @@ def validate_skill(skill_path):
 
     frontmatter_text = match.group(1)
 
+    # Upfront size guard before YAML parsing (frontmatter is small).
+    if len(frontmatter_text.encode("utf-8")) > 256 * 1024:
+        return False, "Frontmatter exceeds maximum allowed size"
+
     # Parse YAML frontmatter
     try:
         frontmatter = yaml.safe_load(frontmatter_text)

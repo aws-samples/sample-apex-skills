@@ -373,6 +373,8 @@ def read_skill_meta(skill_dir: Path) -> tuple[str, str]:
     if not m:
         raise RuntimeError(f"SKILL.md has no YAML frontmatter: {skill_dir}")
     fm = m.group(1)
+    if len(fm.encode("utf-8")) > 256 * 1024:
+        raise RuntimeError(f"SKILL.md frontmatter exceeds maximum allowed size: {skill_dir}")
 
     if yaml is not None:
         try:
