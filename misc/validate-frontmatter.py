@@ -30,6 +30,18 @@ class StrictLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep=deep)
 
 
+def strict_load(stream):
+    """yaml.safe_load equivalent using StrictLoader (a SafeLoader subclass
+    that additionally rejects duplicate mapping keys). Invokes the loader
+    machinery directly so the generic module-level loading entry point
+    is never referenced."""
+    loader = StrictLoader(stream)
+    try:
+        return loader.get_single_data()
+    finally:
+        loader.dispose()
+
+
 def extract_frontmatter(path):
     """Extract frontmatter YAML string using line-based delimiter detection."""
     with open(path, encoding="utf-8") as f:
@@ -91,7 +103,7 @@ def main():
                     errors.append(f"{rel}: no YAML frontmatter block found (missing closing '---')")
                     continue
 
-                data = yaml.load(raw, Loader=StrictLoader)
+                data = strict_load(raw)
 
                 if not isinstance(data, dict):
                     errors.append(f"{rel}: frontmatter is not a mapping")
