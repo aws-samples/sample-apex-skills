@@ -40,7 +40,7 @@ parse_frontmatter() {
   local file="$1"
   local key="$2"
   python3 - "$file" "$key" <<'PY'
-import os, sys, yaml
+import sys, yaml
 path, key = sys.argv[1], sys.argv[2]
 try:
     with open(path, encoding="utf-8") as f:
