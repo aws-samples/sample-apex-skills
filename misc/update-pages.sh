@@ -90,7 +90,7 @@ parse_frontmatter() {
   local file="$1"
   local key="$2"
   python3 - "$file" "$key" <<'PY'
-import sys, yaml
+import os, sys, yaml
 path, key = sys.argv[1], sys.argv[2]
 try:
     with open(path, encoding="utf-8") as f:
@@ -107,6 +107,9 @@ for line in lines[1:]:
     fm.append(line)
 else:
     print(f"ERROR: {path}: unclosed frontmatter block (missing closing '---')", file=sys.stderr)
+    sys.exit(2)
+if len("".join(fm).encode("utf-8")) > 64 * 1024:
+    print(f"ERROR: {path}: frontmatter block too large to parse", file=sys.stderr)
     sys.exit(2)
 try:
     data = yaml.safe_load("".join(fm))
@@ -549,6 +552,9 @@ def parse_fm(path):
     else:
         print(f"ERROR: {path}: unclosed frontmatter block (missing closing '---')", file=sys.stderr)
         sys.exit(2)
+    if len("".join(fm_lines).encode("utf-8")) > 64 * 1024:
+        print(f"ERROR: {path}: frontmatter block too large to parse", file=sys.stderr)
+        sys.exit(2)
     data = yaml.safe_load("".join(fm_lines))
     if not isinstance(data, dict):
         return {}
@@ -679,7 +685,7 @@ EOF
     echo ""
     echo "$description"
     echo ""
-  done < <(find "$EXAMPLES_DIR" -name 'README.md' -print0 | sort -z)
+  done < <(find "$EXAMPLES_DIR" -type d -name '.terraform' -prune -o -type d -name '.*' -prune -o -name 'README.md' -print0 | sort -z)
 }
 
 # --- Build examples.json manifest to stdout --------------------------------
@@ -704,6 +710,9 @@ def parse_fm(path):
     else:
         print(f"ERROR: {path}: unclosed frontmatter block (missing closing '---')", file=sys.stderr)
         sys.exit(2)
+    if len("".join(fm_lines).encode("utf-8")) > 64 * 1024:
+        print(f"ERROR: {path}: frontmatter block too large to parse", file=sys.stderr)
+        sys.exit(2)
     data = yaml.safe_load("".join(fm_lines))
     if not isinstance(data, dict):
         return {}
@@ -712,6 +721,9 @@ def parse_fm(path):
 
 out = []
 for root, dirs, files in sorted(os.walk(examples_dir)):
+    # Prune gitignored/hidden trees (e.g. examples/**/.terraform) so a large
+    # no-frontmatter README under them never aborts the generator.
+    dirs[:] = [d for d in dirs if d != ".terraform" and not d.startswith(".")]
     dirs.sort()
     if "README.md" not in files:
         continue

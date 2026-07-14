@@ -8,26 +8,9 @@ from glob import glob
 
 import yaml
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-class DuplicateKeyError(yaml.YAMLError):
-    """Raised when a YAML mapping declares the same key twice."""
-
-
-class StrictLoader(yaml.SafeLoader):
-    """SafeLoader that rejects duplicate mapping keys instead of last-wins.
-
-    yaml.safe_load silently keeps the last value for a duplicated key, but
-    stricter spec-conformant consumers (e.g. js-yaml >= 4) reject the file.
-    """
-
-    def construct_mapping(self, node, deep=False):
-        seen = set()
-        for key_node, _ in node.value:
-            key = self.construct_object(key_node, deep=deep)
-            if key in seen:
-                raise DuplicateKeyError(f"duplicate frontmatter key: {key}")
-            seen.add(key)
-        return super().construct_mapping(node, deep=deep)
+from safe_frontmatter import FrontmatterError, load_frontmatter
 
 
 def extract_frontmatter(path):
@@ -91,11 +74,7 @@ def main():
                     errors.append(f"{rel}: no YAML frontmatter block found (missing closing '---')")
                     continue
 
-                data = yaml.load(raw, Loader=StrictLoader)
-
-                if not isinstance(data, dict):
-                    errors.append(f"{rel}: frontmatter is not a mapping")
-                    continue
+                data = load_frontmatter(raw, source=rel)
 
                 desc = data.get("description")
                 if desc is None:
@@ -129,7 +108,7 @@ def main():
                 elif not is_devops_agent and name not in manifest_by_name:
                     warnings.append(f"{rel}: no manifest entry for '{name}' (not in skills.json)")
 
-            except DuplicateKeyError as e:
+            except FrontmatterError as e:
                 errors.append(f"{rel}: {e}")
             except yaml.YAMLError as e:
                 errors.append(f"{rel}: YAML parse error: {e}")

@@ -40,7 +40,7 @@ parse_frontmatter() {
   local file="$1"
   local key="$2"
   python3 - "$file" "$key" <<'PY'
-import sys, yaml
+import os, sys, yaml
 path, key = sys.argv[1], sys.argv[2]
 try:
     with open(path, encoding="utf-8") as f:
@@ -57,6 +57,9 @@ for line in lines[1:]:
     fm.append(line)
 else:
     print(f"ERROR: {path}: unclosed frontmatter block (missing closing '---')", file=sys.stderr)
+    sys.exit(2)
+if len("".join(fm).encode("utf-8")) > 64 * 1024:
+    print(f"ERROR: {path}: frontmatter block too large to parse", file=sys.stderr)
     sys.exit(2)
 try:
     data = yaml.safe_load("".join(fm))
@@ -90,7 +93,7 @@ find_example_readmes() {
     if [[ -n "$name" ]]; then
       echo "$readme"
     fi
-  done < <(find "$EXAMPLES_DIR" -name 'README.md' -print0 | sort -z)
+  done < <(find "$EXAMPLES_DIR" -type d -name '.terraform' -prune -o -type d -name '.*' -prune -o -name 'README.md' -print0 | sort -z)
 }
 
 # --- Build the main README table ---

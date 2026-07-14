@@ -283,6 +283,15 @@ def _eval_yaml_valid(root: Path, assertion: dict) -> ArtifactAssertionResult:
     for f in all_files:
         try:
             content = f.read_text(errors="replace")
+            if len(content.encode("utf-8")) > 1024 * 1024:
+                rel = f.relative_to(root)
+                return ArtifactAssertionResult(
+                    assertion=assertion,
+                    status="failed",
+                    evidence=f"Artifact too large to parse safely: {rel}",
+                    failure_class="artifact_invalid",
+                    file_matched=str(rel),
+                )
             list(yaml.safe_load_all(content))
         except yaml.YAMLError as e:
             rel = f.relative_to(root)

@@ -50,6 +50,10 @@ jobs:
           - the frontmatter is valid YAML (a mapping between `---` delimiters — watch unquoted `:` and stray quotes)
           - `name` and `description` keys are present
           - `description` is at most 1024 characters
+          - only expected top-level keys are used: `name`, `description`, `license`, `metadata`, `allowed-tools`
+          - no YAML anchors or aliases (`&`/`*`)
+          - the frontmatter block is under 64KB
+          - nesting depth is at most 8
           - for `skills/*/SKILL.md` only: `description` matches the generated `skills.json` manifest (`devops-agent/` is exempt; a missing manifest entry is only a warning) — if you changed a description, regenerate:
 
           ```bash
