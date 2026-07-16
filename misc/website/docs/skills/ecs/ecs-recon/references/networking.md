@@ -162,6 +162,8 @@ aws ecs describe-services \
 ]
 ```
 
+**Note on ECS-native blue/green services:** When the service uses ECS-native blue/green deployment (`deploymentConfiguration.strategy: BLUE_GREEN`), the `loadBalancers` entry may also include `advancedConfiguration` with `productionListenerRule`, `testListenerRule`, `alternateTargetGroupArn`, and `roleArn`. If `DescribeTargetGroups` returns empty `LoadBalancerArns` for such a service, extract the load balancer ARN from the listener-rule ARN (`arn:...:listener-rule/<lb-arn-segment>/...`) or fall back to `type: "unknown"`. See [Target group with empty LoadBalancerArns](#target-group-with-empty-loadbalancerarns).
+
 **Step 3b: Describe target group to get load balancer ARNs**
 
 **CLI:**
@@ -341,7 +343,7 @@ networking:
         security_groups: list[string] | "none_configured"
         assign_public_ip: string  # ENABLED | DISABLED
       load_balancers:
-        - type: string            # "ALB" | "NLB"
+        - type: string            # "ALB" | "NLB" | "unknown"
           target_group_arn: string
           container_name: string
           container_port: int
@@ -502,15 +504,30 @@ networking:
   reason: "ecs:DescribeServices failed for all requested services: AccessDeniedException"
 ```
 
-### Target group not associated with any load balancer
+### Target group with empty LoadBalancerArns
 
-In rare cases, a target group referenced by a service may not be associated with any load balancer (orphaned target group or target group used by a different mechanism).
+`DescribeTargetGroups` returns an empty `LoadBalancerArns` list in two common scenarios:
+
+1. **ECS-native blue/green deployments** — the target groups attach to the load balancer via listener rules managed by the ECS deployment controller (returned in `loadBalancers[].advancedConfiguration`), not via direct association.
+2. **Orphaned target groups** — the target group was detached from its load balancer or never attached.
+
+In both cases the `DescribeTargetGroups` → `DescribeLoadBalancers` path cannot determine the LB type.
 
 **How to handle:**
-- If `DescribeTargetGroups` returns an empty `LoadBalancerArns` list, skip the load balancer type determination
-- Report the entry with the target group ARN, container name, and port, but set `type` to `"unknown"`
-- This indicates the target group exists but is not currently fronted by a load balancer
+- If `LoadBalancerArns` is empty, check whether the service uses `advancedConfiguration` (present on ECS-native blue/green services). If `advancedConfiguration.productionListenerRule` exists, extract the load balancer ARN from the listener-rule ARN prefix (`arn:...:loadbalancer/<type>/<name>/<id>/...`) and resolve the type with `DescribeLoadBalancers`.
+- If `advancedConfiguration` is absent or the above extraction is impractical, set `type` to `"unknown"`.
+- Always report the entry with the target group ARN, container name, and port regardless.
 
+**Example — resolved via advancedConfiguration:**
+```yaml
+load_balancers:
+  - type: "ALB"
+    target_group_arn: "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/blue-tg/1234567890abcdef"
+    container_name: web
+    container_port: 8080
+```
+
+**Example — unresolvable:**
 ```yaml
 load_balancers:
   - type: "unknown"
