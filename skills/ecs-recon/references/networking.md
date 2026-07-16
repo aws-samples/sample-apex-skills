@@ -349,7 +349,7 @@ networking:
 - `subnets` / `security_groups` — report actual IDs as a list; report `"none_configured"` if the list is empty
 - `assign_public_ip` — `"ENABLED"` or `"DISABLED"`
 - `load_balancers` — empty list `[]` when no load balancer is associated
-- `type` — `"ALB"` (Application Load Balancer) or `"NLB"` (Network Load Balancer)
+- `type` — `"ALB"` (Application Load Balancer), `"NLB"` (Network Load Balancer), or `"unknown"` (LB type could not be resolved — see [Target group with empty LoadBalancerArns](#target-group-with-empty-loadbalancerarns))
 - `service_connectivity` — all three flags always reported as `true` or `false`; when `app_mesh` is `true`, surface the App Mesh end-of-support date (2026-09-30) in the report
 - `error` — `null` on success; when a networking API call fails for this service, records the failing API call and error code
 
@@ -503,8 +503,10 @@ networking:
 In both cases the `DescribeTargetGroups` → `DescribeLoadBalancers` path cannot determine the LB type.
 
 **How to handle:**
-- If `LoadBalancerArns` is empty, check whether the service uses `advancedConfiguration` (present on ECS-native blue/green services). If `advancedConfiguration.productionListenerRule` exists, extract the load balancer ARN from the listener-rule ARN prefix (`arn:...:loadbalancer/<type>/<name>/<id>/...`) and resolve the type with `DescribeLoadBalancers`.
-- If `advancedConfiguration` is absent or the above extraction is impractical, set `type` to `"unknown"`.
+- If `LoadBalancerArns` is empty, check whether the service uses `advancedConfiguration` (present on ECS-native blue/green services). If `advancedConfiguration.productionListenerRule` exists, derive the load balancer ARN from the listener-rule ARN and resolve the type with `DescribeLoadBalancers`.
+- **ARN derivation:** a listener-rule ARN has the form `arn:aws:elasticloadbalancing:<region>:<account>:listener-rule/<lb-type>/<lb-name>/<lb-id>/<listener-id>/<rule-id>`. Replace the `listener-rule` resource token with `loadbalancer` and keep only the first three path segments: `arn:aws:elasticloadbalancing:<region>:<account>:loadbalancer/<lb-type>/<lb-name>/<lb-id>`.
+- If `DescribeLoadBalancers` on the derived ARN returns `LoadBalancerNotFound`, the reference is stale (the load balancer was deleted after the service's last deployment) — set `type` to `"unknown"` and note the stale reference in the service's `error` field.
+- If `advancedConfiguration` is absent or the derivation is impractical, set `type` to `"unknown"`.
 - Always report the entry with the target group ARN, container name, and port regardless.
 
 **Example — resolved via advancedConfiguration:**
