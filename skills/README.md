@@ -273,6 +273,7 @@ Use whenever someone needs security or compliance guidance for Amazon EKS — ph
 | Reference | Description |
 |-----------|-------------|
 | [audit-logging.md](./eks-security/references/audit-logging.md) | Audit logging |
+| [auto-mode-security.md](./eks-security/references/auto-mode-security.md) | Auto mode security |
 | [compliance-accelerators.md](./eks-security/references/compliance-accelerators.md) | Compliance accelerators |
 | [compliance-regimes.md](./eks-security/references/compliance-regimes.md) | Compliance regimes |
 | [encryption-and-secrets.md](./eks-security/references/encryption-and-secrets.md) | Encryption and secrets |

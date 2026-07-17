@@ -58,7 +58,7 @@ For **intra-cluster pod-to-pod mTLS**, use a service mesh — **Istio** (sidecar
 
 > **Don't position VPC Lattice as an mTLS mesh — it isn't one.** VPC Lattice provides **cross-VPC / cross-cluster service connectivity with IAM-based authentication (SigV4)**, not certificate-based mTLS between pods. Use it for secure *cross-boundary* service-to-service connectivity; use a service mesh (Istio/Linkerd/Cilium) for *intra-cluster* mTLS. References: [VPC Lattice integration](https://docs.aws.amazon.com/eks/latest/userguide/integration-vpc-lattice.html) · [VPC Lattice SigV4 auth](https://docs.aws.amazon.com/vpc-lattice/latest/ug/sigv4-authenticated-requests.html).
 
-> **Gotcha:** **AWS App Mesh reaches end of support on September 30, 2026** (new sign-ups already closed). Do not recommend App Mesh for new deployments — use Istio/Linkerd/Cilium mesh or VPC Lattice. Reference: [AWS App Mesh end-of-support notice](https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html).
+> **Gotcha:** **AWS App Mesh end of support: September 30, 2026** (announced date; new sign-ups already closed — verify current status on the notice page). Do not recommend App Mesh for new deployments regardless of where that date stands — use Istio/Linkerd/Cilium mesh or VPC Lattice. Reference: [AWS App Mesh end-of-support notice](https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html).
 
 ## Shared responsibility (Layer 3)
 

@@ -114,6 +114,16 @@ EKS is **natively in scope** for PCI-DSS L1, HIPAA-eligible (BAA required), SOC 
 
 > **Always include the disclaimer in customer-facing output:** "Compliance status changes over time — verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting program coverage." And precision matters: EKS is **HIPAA-*eligible*** (with a signed BAA), not "HIPAA-compliant"; FedRAMP **High = GovCloud only**, Moderate = commercial regions.
 
+## Securing an EKS Auto Mode Cluster
+
+When the assessed cluster runs Auto Mode (detectable via `eks:DescribeCluster` — `computeConfig.enabled`), adjust the report: Auto Mode shifts Layer 1 (and the NetworkPolicy *enforcement engine*) to AWS — it is **not** "security handled." Facts verified 2026-07-17 against [Auto Mode security considerations](https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html):
+
+- **AWS handles:** node lifecycle + patching (21-day max node lifetime, weekly AMI security releases), immutable Bottlerocket-variant node OS (SELinux enforcing, read-only root, no SSH/SSM), IMDSv2 hop-limit-1, and the managed CNI / NetworkPolicy engine / EBS CSI / LB controller / pre-installed Pod Identity agent. Do not flag these as customer findings.
+- **The customer still owns:** PSA `restricted` + Kyverno/OPA, NetworkPolicy *content* (default-deny), GuardDuty enablement, control-plane logging + CloudTrail + Security Hub, secrets management and the envelope-encryption CMK decision, Access Entries/IAM, image scanning/signing, workload security, and StorageClass-level EBS encryption for persistent volumes. Assess and report each of these.
+- **Avoid Auto Mode for security when (as of 2026-07-17):** a custom-AMI / baked-in-hardening mandate exists; Cilium or another alternate CNI is required; Security Groups for Pods is required; host-level agents or forensic node access are mandated; or Windows nodes are needed. **FIPS is not a blocker** — Auto Mode offers FIPS-compatible AMIs (NodeClass `advancedSecurity.fips`, US regions).
+
+Full responsibility split, verification sources, and the stale-claim traps: [references/auto-mode-security.md](references/auto-mode-security).
+
 ## Security Baseline (non-negotiable — every recommendation includes this)
 
 Regardless of regime, every hardening recommendation MUST include:
@@ -135,7 +145,41 @@ Regardless of regime, every hardening recommendation MUST include:
 - **Days 1-30 (baseline, non-disruptive):** enable control-plane `audit`+`authenticator` logging; enable GuardDuty for EKS; enable Security Hub (CIS AWS Foundations + AWS FSBP); enable ECR Enhanced Scanning; run `kube-bench` for the current CIS posture. *Change nothing yet — establish the baseline.*
 - **Days 31-60 (identity + workload):** migrate `aws-auth` → Access Entries (planned change window, `kubectl` access pre-validated); migrate/justify IRSA → Pod Identity; enable PSA `restricted` (start `audit` mode → `enforce`); deploy Kyverno/OPA; enforce NetworkPolicy default-deny.
 - **Days 61-90 (OS + image + accelerators):** migrate to Bottlerocket (or build CIS-hardened AL2023 via Image Builder); enable ECR image signing; deploy Audit Manager with the applicable framework; validate Security Hub against the compliance pack; download attestations from AWS Artifact.
-- **Greenfield:** deploy the full 7-layer stack at cluster creation, not retrofitted.
+- **Greenfield:** deploy the full 7-layer stack at cluster creation, not retrofitted — and get the Day 0 settings below right first.
+
+### Day 0 checklist (greenfield — settings that are one-way or costly to retrofit)
+
+Facts verified 2026-07-17 against the linked AWS docs. Only two of these are truly locked; the rest are changeable later but leave gaps or one-way ratchets — misstating which is which is an audit-refutable claim.
+
+| Setting | Set at creation to | Changeable later? |
+|---|---|---|
+| **Authentication mode** | **`API`** (Access Entries only) | **One-way ratchet** — you can move toward the API modes but [can't remove the EKS API/access entries once enabled](https://docs.aws.amazon.com/eks/latest/userguide/setting-up-access-entries.html); starting at `API` avoids the aws-auth migration entirely |
+| **Envelope-encryption CMK** | Customer-managed KMS key (default AWS-owned key applies on 1.28+ if unset) | Can be associated later, but **[irreversible once set](https://docs.aws.amazon.com/eks/latest/userguide/enable-kms.html)** — and a disabled/deleted CMK degrades or bricks the cluster |
+| **Cluster name / VPC** | Final values | **No** — immutable; a change means a new cluster |
+| **Kubernetes version** | A current (ideally latest-1) version | **Upgrade-only** — no downgrade; an old start burns support runway or forces extended support |
+| **[Endpoint access](https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html)** | **Private** (or public with tight CIDR allowlist) | Yes — but every day public-by-default is exposure |
+| **[Control-plane logging](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html)** | `audit` + `authenticator` minimum | Yes — but events before enablement are **unrecoverable**; auditors ask for history |
+
+Enforce all of the above org-wide with EKS IAM condition keys in SCPs — see [identity-and-access.md](references/identity-and-access).
+
+## Quick-Reference Decision Trees
+
+Routing aids for the three most common either/or questions (details in the linked references). Pod Identity support matrix verified 2026-07-17 against [pod-identities.html](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html).
+
+**Pod Identity vs IRSA** ([identity-and-access.md](references/identity-and-access)):
+- Fargate, Windows nodes, EKS Anywhere, or non-EKS Kubernetes → **IRSA** (Pod Identity runs only on Linux EC2 nodes in EKS, as of 2026-07-17)
+- Cross-account → **either**: Pod Identity does it via target-role chaining; IRSA via direct OIDC federation (single hop, longer sessions)
+- Greenfield on Linux EC2 (incl. Auto Mode) → **Pod Identity**
+- Existing working IRSA → **keep it**; migrate at the next major refactor if desired
+
+**Bottlerocket vs AL2023** ([os-ami-hardening.md](references/os-ami-hardening)):
+- Compliance mandate → check **which CIS benchmark applies** (CIS Bottlerocket vs CIS AL2023 are distinct documents) before choosing
+- Custom AMI / general-purpose OS / vendor kernel modules needed → **AL2023** (CIS-hardened via Image Builder)
+- Immutability preference, container-first, no custom-AMI need → **Bottlerocket**
+
+**Access Entries vs aws-auth ConfigMap** ([identity-and-access.md](references/identity-and-access)):
+- New cluster → **Access Entries, always** (create in `API` mode; never configure aws-auth)
+- Existing cluster on aws-auth → **migrate at the next change window** (`API_AND_CONFIG_MAP` transition, break-glass principal pre-validated)
 
 ## Top Guardrails (the high-cost mistakes)
 
@@ -143,8 +187,8 @@ Regardless of regime, every hardening recommendation MUST include:
 - **Don't call IRSA "legacy"** — AWS docs say Pod Identity is *recommended for new workloads* while **IRSA remains a fully supported alternative** (and is the right choice on Fargate, Windows nodes, unsupported SDKs, or cross-account OIDC federation). "Legacy" applies to the `aws-auth` ConfigMap, not IRSA.
 - **Don't use `aws-auth` ConfigMap on new clusters** — it's deprecated; use Access Entries (auditable in CloudTrail).
 - **Don't recommend PodSecurityPolicy (PSP)** — removed in Kubernetes 1.25+; use PSA + Kyverno/OPA.
-- **Don't recommend AWS App Mesh for new work** — end of support **Sept 30, 2026**; use Istio/Linkerd/Cilium mesh or VPC Lattice.
-- **Don't recommend EKS Auto Mode when a hard CIS-hardened-*custom*-AMI requirement exists** — Auto Mode doesn't support custom AMIs (as of June 2026); use Bottlerocket on self-managed Karpenter NodePools. Cilium CNI is also not supported on Auto Mode.
+- **Don't recommend AWS App Mesh for new work** — AWS set its end-of-support date as **September 30, 2026** (new sign-ups already closed; verify current status on the [App Mesh page](https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html)); use Istio/Linkerd/Cilium mesh or VPC Lattice.
+- **Don't recommend EKS Auto Mode when a hard CIS-hardened-*custom*-AMI requirement exists** — Auto Mode doesn't support custom AMIs (as of 2026-07-17); use Bottlerocket on self-managed Karpenter NodePools. Cilium CNI is also not supported on Auto Mode. See [auto-mode-security.md](references/auto-mode-security).
 - **Don't promise "HIPAA-compliant"** — EKS is HIPAA-*eligible*; a signed BAA is required and the customer owns workload-level controls.
 - **Don't conflate** FedRAMP Moderate (commercial) with High (GovCloud); FIPS 140-3 (Bottlerocket FIPS AMIs) with 140-2; or CIS AL2 with CIS AL2023 benchmarks (distinct documents).
 - **Don't treat a CMK as free of operational risk** — once a CMK is the envelope-encryption key, **disabling it degrades the cluster** (the API server can't boot on restart; ~30-day window to re-enable before forced auto-upgrade) and **deleting it makes the cluster unrecoverable**. Guard the CMK with least-privilege IAM + a CloudWatch alarm.
@@ -173,6 +217,7 @@ Progressive disclosure — the essentials are above; load a reference only when 
 |-----------|------------------------------|
 | [engagement-and-response.md](references/engagement-and-response) | Full discovery question set, adoption-challenge archetypes, the 8-step response framework, escalation criteria |
 | [os-ami-hardening.md](references/os-ami-hardening) | Layer 1 — Bottlerocket vs AL2023 vs Ubuntu/RHEL, CIS benchmark hierarchy, Image Builder hardened-AMI pipeline, FIPS |
+| [auto-mode-security.md](references/auto-mode-security) | Securing an EKS Auto Mode cluster — AWS-handled vs customer-owned controls, when to avoid Auto Mode for security |
 | [identity-and-access.md](references/identity-and-access) | Layer 2 — Pod Identity vs IRSA, Access Entries vs aws-auth, access policies |
 | [workload-security.md](references/workload-security) | Layer 3 — PSA, Kyverno/OPA, NetworkPolicy, Security Groups for Pods, service-mesh mTLS |
 | [image-supply-chain.md](references/image-supply-chain) | Layer 4 — ECR Enhanced Scanning, Cosign/Notation signing, admission control, third-party scanners |
@@ -190,6 +235,8 @@ Progressive disclosure — the essentials are above; load a reference only when 
 - [Meet compliance requirements with Bottlerocket](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-compliance-support.html) · [Bottlerocket FIPS AMIs](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-fips-amis.html)
 - [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) · [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) · [Access Entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html)
 - [GuardDuty EKS integration](https://docs.aws.amazon.com/eks/latest/userguide/integration-guardduty.html) · [Control-plane logs](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html) · [VPC CNI NetworkPolicy](https://docs.aws.amazon.com/eks/latest/userguide/cni-network-policy.html)
+- [EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/automode.html) · [Auto Mode security considerations](https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html) · [Auto Mode managed instances](https://docs.aws.amazon.com/eks/latest/userguide/automode-learn-instances.html) · [Auto Mode release notes](https://docs.aws.amazon.com/eks/latest/userguide/auto-change.html)
+- [Change authentication mode](https://docs.aws.amazon.com/eks/latest/userguide/setting-up-access-entries.html) · [Encrypt secrets with KMS on existing clusters](https://docs.aws.amazon.com/eks/latest/userguide/enable-kms.html) · [Default envelope encryption](https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html) · [Cluster endpoint access](https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html)
 - [AWS Compliance Programs](https://aws.amazon.com/compliance/programs/) · [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) · [AWS Artifact](https://aws.amazon.com/artifact/)
 - [aws/aws-eks-best-practices](https://github.com/aws/aws-eks-best-practices) · [EKS Security Immersion Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/165b0729-2791-4452-8920-53b734419050) · [kube-bench](https://github.com/aquasecurity/kube-bench)
 
