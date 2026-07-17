@@ -46,7 +46,7 @@ Priority-ordered (not big-bang): Weeks 1-2 enable logging + GuardDuty + ECR scan
 GDPR is **alignment/framework** — no AWS certification. Architecture: EKS + all data layers in EU regions only; no non-EU replication; EU-region logs; VPC endpoints to avoid egress via non-EU edges; AWS European Sovereign Cloud for highest assurance (escalate for availability). Standard 7-layer baseline otherwise. Customer owns Article-17 erasure, DPIAs, breach notification; AWS provides the DPA (Artifact).
 
 ### 5 — EKS Auto Mode for a compliance-sensitive workload
-The crux: is a CIS-hardened **custom** AMI a **hard regulatory requirement** or an **organizational preference**? Auto Mode doesn't support custom AMIs (or Cilium) as of June 2026.
+The crux: is a CIS-hardened **custom** AMI a **hard regulatory requirement** or an **organizational preference**? Auto Mode doesn't support custom AMIs (or Cilium) as of 2026-07-17.
 - **Hard requirement → Auto Mode not viable** → Bottlerocket on self-managed Karpenter NodePools.
 - **Preference → Auto Mode viable** → lead with its reduced-permission node IAM (`AmazonEKSWorkerNodeMinimalPolicy`) as a HIPAA differentiator.
 - Most compliance-sensitive customers land on **Bottlerocket + Karpenter** as the compromise (immutable OS + custom-AMI control + consolidation). Layers 2-7 are identical regardless of the Layer-1 choice.

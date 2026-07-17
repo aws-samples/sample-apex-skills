@@ -149,14 +149,14 @@ Regardless of regime, every hardening recommendation MUST include:
 
 ### Day 0 checklist (greenfield — settings that are one-way or costly to retrofit)
 
-Facts verified 2026-07-17 against the linked AWS docs. Only two of these are truly locked; the rest are changeable later but leave gaps or one-way ratchets — misstating which is which is an audit-refutable claim.
+Facts verified 2026-07-17 against the linked AWS docs. Only cluster name and VPC are truly immutable; the rest are changeable later but leave gaps or one-way ratchets — misstating which is which is an audit-refutable claim.
 
 | Setting | Set at creation to | Changeable later? |
 |---|---|---|
 | **Authentication mode** | **`API`** (Access Entries only) | **One-way ratchet** — you can move toward the API modes but [can't remove the EKS API/access entries once enabled](https://docs.aws.amazon.com/eks/latest/userguide/setting-up-access-entries.html); starting at `API` avoids the aws-auth migration entirely |
-| **Envelope-encryption CMK** | Customer-managed KMS key (default AWS-owned key applies on 1.28+ if unset) | Can be associated later, but **[irreversible once set](https://docs.aws.amazon.com/eks/latest/userguide/enable-kms.html)** — and a disabled/deleted CMK degrades or bricks the cluster |
+| **Envelope-encryption CMK** | Customer-managed KMS key (default AWS-owned key applies on 1.28+ if unset) | Can be [associated later](https://docs.aws.amazon.com/eks/latest/userguide/enable-kms.html), but **[irreversible once set](https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html)** — and a disabled/deleted CMK degrades or bricks the cluster |
 | **Cluster name / VPC** | Final values | **No** — immutable; a change means a new cluster |
-| **Kubernetes version** | A current (ideally latest-1) version | **Upgrade-only** — no downgrade; an old start burns support runway or forces extended support |
+| **Kubernetes version** | A current (ideally latest-1) version | **Upgrade-only below creation version** — no downgrade past the version the cluster was created at; [post-upgrade rollback to the previous minor version exists](https://docs.aws.amazon.com/eks/latest/userguide/rollback-cluster.html) (7-day window, one minor version); an old start burns support runway or forces extended support |
 | **[Endpoint access](https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html)** | **Private** (or public with tight CIDR allowlist) | Yes — but every day public-by-default is exposure |
 | **[Control-plane logging](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html)** | `audit` + `authenticator` minimum | Yes — but events before enablement are **unrecoverable**; auditors ask for history |
 

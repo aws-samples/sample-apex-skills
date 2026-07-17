@@ -50,7 +50,7 @@ Skip a step only if the question is narrow enough that it doesn't apply.
 4. **Layer-by-layer detail** — walk all 7 layers; cite the specific AWS doc/blog/workshop for each; give the **shared-responsibility split** per layer (critical for audit conversations).
 5. **30/60/90 hardening roadmap** — baseline (non-disruptive) → identity + workload → OS + image + accelerators; greenfield deploys the full stack at creation.
 6. **Security baseline (non-negotiable)** — include the full baseline from SKILL.md regardless of regime.
-7. **Known gotchas (surface 3-5 relevant ones)** — Auto Mode no custom AMI; Cilium not on Auto Mode; PSP removed 1.25+; Pod Identity 5,000-association hard limit; audit-log all-or-nothing (cost); HIPAA needs BAA; FedRAMP High = GovCloud; FIPS 140-3 not 140-2; CIS AL2 ≠ AL2023; aws-auth→Access-Entries lockout window; EKS Anywhere shifts all responsibility to customer; Hybrid Nodes outside the FedRAMP boundary; App Mesh EOS Sept 30 2026; AL2 OS EOL June 30 2026.
+7. **Known gotchas (surface 3-5 relevant ones)** — Auto Mode no custom AMI; Cilium not on Auto Mode; PSP removed 1.25+; Pod Identity 5,000-association hard limit; audit-log all-or-nothing (cost); HIPAA needs BAA; FedRAMP High = GovCloud; FIPS 140-3 not 140-2; CIS AL2 ≠ AL2023; aws-auth→Access-Entries lockout window; EKS Anywhere shifts all responsibility to customer; Hybrid Nodes outside the FedRAMP boundary; App Mesh end of support: September 30, 2026 (announced date — verify current status); AL2 OS EOL June 30 2026.
 8. **Cite sources** — every recommendation cites an AWS-published reference. If you can't ground a claim, **say so and recommend escalation — do not synthesize.** Customers validate every claim against an auditor.
 
 ## Escalation criteria
