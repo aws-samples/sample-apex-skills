@@ -33,7 +33,11 @@ This reference documents the exact API calls needed to collect cost and utilizat
 - IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
 
-### 1.1 Total EKS Spend by Service (Last 30 Days)
+### Time Window
+
+All Cost Explorer queries in this reference use a **7-day lookback by default**, matching the 7-day window used for CloudWatch utilization metrics. If the request names a different window (e.g., "last 30 days"), apply the override consistently to every Cost Explorer query in the assessment and record the window used in the report metadata (`Analysis Window` field). The examples below show a 30-day window for illustration; substitute the active analysis window.
+
+### 1.1 Total EKS Spend by Service
 
 **Via Cost Explorer GetCostAndUsage API:**
 

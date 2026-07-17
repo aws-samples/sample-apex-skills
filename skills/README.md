@@ -86,6 +86,7 @@ Run a live EKS cluster cost efficiency assessment — analyze spending across 6 
 | [compute-efficiency.md](./eks-cost-intelligence/references/compute-efficiency.md) | Compute efficiency |
 | [cost-data-collection.md](./eks-cost-intelligence/references/cost-data-collection.md) | Cost data collection |
 | [cost-estimation-fallback.md](./eks-cost-intelligence/references/cost-estimation-fallback.md) | Cost estimation fallback |
+| [fargate-costs.md](./eks-cost-intelligence/references/fargate-costs.md) | Fargate costs |
 | [findings-format.md](./eks-cost-intelligence/references/findings-format.md) | Findings format |
 | [idle-resources.md](./eks-cost-intelligence/references/idle-resources.md) | Idle resources |
 | [networking-costs.md](./eks-cost-intelligence/references/networking-costs.md) | Networking costs |

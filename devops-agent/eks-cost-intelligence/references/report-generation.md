@@ -161,8 +161,10 @@ Recommendations in the report are sorted by:
 | Cluster | {cluster_name} |
 | Region | {region} |
 | Assessment Date | {YYYY-MM-DD HH:MM} |
+| Analysis Window | {lookback_window, e.g. "7 days (default)" or "30 days (user-specified)"} |
 | Total Estimated Spend | ${total_spend}/month |
 | Data Sources | {data_sources_list} |
+| Fargate Profiles | {none | list of profiles with Fargate-scheduled namespaces} |
 
 ---
 

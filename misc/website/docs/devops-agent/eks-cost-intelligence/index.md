@@ -32,6 +32,8 @@ The following permissions are included:
 - `eks:ListNodegroups`
 - `eks:DescribeNodegroup`
 - `eks:ListAddons`
+- `eks:ListFargateProfiles`
+- `eks:DescribeFargateProfile`
 
 **EC2 (required):**
 - `ec2:DescribeInstances`
@@ -130,6 +132,7 @@ Collect the following using AWS and Kubernetes APIs:
 - Kubernetes version and platform version (from DescribeCluster response)
 - Node groups: use EKS ListNodegroups and DescribeNodegroup APIs for instance types, scaling config, capacity type (ON_DEMAND/SPOT)
 - Add-ons: use EKS ListAddons API
+- Fargate profiles: use EKS ListFargateProfiles API — if any profiles exist, use DescribeFargateProfile for each, note which namespaces/label selectors are Fargate-scheduled, and read `references/fargate-costs.md`. Fargate pods are billed on rounded-up pod requests (not node capacity), so exclude them from node-based checks and add the Fargate-specific checks to Steps 1–2.
 - Node inventory: use Kubernetes API to list nodes with labels and capacity info
 - Namespace list: use Kubernetes API to list namespaces
 
@@ -147,6 +150,7 @@ Checks:
 - Low-utilization nodes indicating consolidation opportunities
 - Karpenter consolidation effectiveness (where installed)
 - Workloads without resource requests or limits
+- Fargate pod request right-sizing against Fargate's vCPU/memory combinations — only when Step 0 found Fargate profiles (read `references/fargate-costs.md`, Check F1)
 
 Data collection uses:
 - Kubernetes API to list pods with resource requests/limits per namespace
@@ -167,6 +171,7 @@ Checks:
 - Stateless multi-replica workloads on On-Demand only
 - Instance type diversity for Spot availability
 - Node Termination Handler or Karpenter interruption handling
+- Interruption-tolerant workloads running on Fargate (EKS has no Fargate Spot) — only when Step 0 found Fargate profiles (read `references/fargate-costs.md`, Check F2)
 
 Data collection uses:
 - Kubernetes API to list nodes (labels: `kubernetes.io/arch`, `karpenter.sh/capacity-type`, `eks.amazonaws.com/capacityType`)
@@ -305,6 +310,10 @@ The skill calculates a weighted cost efficiency score:
 
 If Cost Explorer is unavailable, the skill falls back to node-based cost estimation (see `references/cost-estimation-fallback.md`).
 
+### Default Time Window
+
+Cost Explorer queries use a **7-day lookback by default** (matching the 7-day window used for CloudWatch utilization checks). If the request names a different window (e.g., "last 30 days"), apply the requested window to all Cost Explorer queries. Whichever window is used, record it in the report metadata (`Analysis Window` field) so findings are reproducible and comparable across runs.
+
 ---
 
 ## Out of Scope (v1)
@@ -344,6 +353,7 @@ Before executing checks for any dimension, read the corresponding reference file
 | Storage costs / gp2 / PVC / EBS | `references/storage-costs.md` |
 | Observability / logging / metrics / cardinality | `references/observability-costs.md` |
 | Idle resources / unused / orphaned / zero-scale | `references/idle-resources.md` |
+| Fargate profiles / Fargate pod pricing / request rounding | `references/fargate-costs.md` |
 | Score calculation / scoring algorithm | `references/report-generation.md` |
 | Generate report / produce report | `references/report-generation.md` |
 | Cost data collection / API calls | `references/cost-data-collection.md` |

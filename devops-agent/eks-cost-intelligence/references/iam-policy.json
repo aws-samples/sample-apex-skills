@@ -10,7 +10,8 @@
         "eks:ListNodegroups",
         "eks:DescribeNodegroup",
         "eks:ListAddons",
-        "eks:ListFargateProfiles"
+        "eks:ListFargateProfiles",
+        "eks:DescribeFargateProfile"
       ],
       "Resource": "*"
     },

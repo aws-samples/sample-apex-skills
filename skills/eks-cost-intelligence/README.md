@@ -36,6 +36,7 @@ skills/eks-cost-intelligence/
 │   ├── storage-costs.md                  # Dimension 4 checks
 │   ├── observability-costs.md            # Dimension 5 checks
 │   ├── idle-resources.md                 # Dimension 6 checks
+│   ├── fargate-costs.md                  # Fargate detection + Fargate-specific checks
 │   ├── report-generation.md              # Scoring algorithm + report template
 │   ├── cost-data-collection.md           # API calls for data sources
 │   ├── waste-calculation.md              # Dollar waste formulas
