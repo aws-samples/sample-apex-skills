@@ -867,15 +867,18 @@ html_escape() {
 
 # First-sentence extraction that skips mid-sentence abbreviations ("e.g. ",
 # "i.e. ", "vs. ") so the ". " inside them is not treated as a sentence
-# boundary. Prints the first real sentence (with trailing period); prints the
-# input unchanged if no real sentence boundary exists.
+# boundary. Abbreviation patterns are anchored to a word boundary (start of
+# string, space, or open paren) so words merely ending in the same letters
+# (e.g. "devs.") still count as sentence ends. Prints the first real sentence
+# (with trailing period); prints the input unchanged if no real sentence
+# boundary exists.
 first_sentence() {
   local text="$1" head="" rest="$1"
   while [[ "$rest" == *". "* ]]; do
     head="${head}${rest%%". "*}."
     rest="${rest#*". "}"
     case "$head" in
-      *[eE].g.|*[iI].e.|*[vV]s.) head="$head " ;;
+      [eE].g.|*[\ \(][eE].g.|[iI].e.|*[\ \(][iI].e.|[vV]s.|*[\ \(][vV]s.) head="$head " ;;
       *) printf '%s' "$head"; return ;;
     esac
   done
