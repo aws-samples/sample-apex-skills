@@ -118,7 +118,7 @@ Use the Kubernetes API to list all Nodes. Extract metadata.labels for instance-t
 > ⚠️ **Last verified: June 2026.** This table is a fallback for when the Price List API (Option B) is unavailable. Prices may drift. Always prefer Option B for production assessments.
 
 Use this table ONLY when:
-- `pricing:GetProducts` permission is not available
+- `pricing:GetProducts` permission is not available (it is not in the skill's baseline IAM policy — using the Price List API requires adding `pricing:GetProducts` to `references/iam-policy.json`)
 - Network-restricted environment cannot reach the Price List API endpoint
 - Quick directional estimate needed (mark all findings as Low confidence)
 

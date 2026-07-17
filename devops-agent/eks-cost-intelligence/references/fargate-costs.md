@@ -27,12 +27,12 @@ EKS Fargate has a fundamentally different cost model from EC2 nodes:
 
 **Via Kubernetes API:**
 
-- List nodes with label `eks.amazonaws.com/compute-type=fargate` to identify Fargate-backed nodes.
+- List nodes with label `eks.amazonaws.com/compute-type=fargate` to identify Fargate-backed nodes. Fallback: Fargate node names start with `fargate-` (e.g., filter the node list for names beginning with `fargate-`).
 - List pods and read the `CapacityProvisioned` annotation on Fargate-scheduled pods — it shows the billed vCPU/memory combination for each pod. Compare it against the pod's aggregate container requests.
 
 **Detection outcome:**
 
-- If no Fargate profiles exist → skip this reference entirely; note "Fargate: not used" in the report.
+- If no Fargate profiles exist → skip this reference entirely; note "Fargate Profiles: none" in the report.
 - If profiles exist → record which namespaces (and label selectors) are Fargate-scheduled, exclude Fargate pods from node-based checks (idle nodes, consolidation, node-based estimation), and run checks F1 and F2 below. List the Fargate-scheduled namespaces in the report metadata.
 
 A profile selector always contains a namespace and may include labels (up to 5 selectors per profile; `*` and `?` wildcards are allowed in selector criteria).
@@ -132,7 +132,8 @@ Also surface Compute Savings Plans coverage for clusters with significant steady
 
 | Condition | Severity |
 |-----------|----------|
-| Spot-eligible Fargate workloads with monthly savings > $200 | HIGH |
+| Spot-eligible Fargate workloads with monthly savings > $500 | CRITICAL |
+| Spot-eligible Fargate workloads with monthly savings $200–$500 | HIGH |
 | Spot-eligible Fargate workloads with monthly savings $50–$200 | MEDIUM |
 | Below $50/month or migration blocked (e.g., isolation requirement drove the Fargate choice) | LOW |
 

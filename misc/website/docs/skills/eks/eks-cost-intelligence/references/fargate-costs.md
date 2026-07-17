@@ -50,6 +50,9 @@ aws eks describe-fargate-profile \
 # Fargate nodes carry the compute-type label
 kubectl get nodes -l eks.amazonaws.com/compute-type=fargate -o wide
 
+# Fallback: Fargate node names start with "fargate-"
+kubectl get nodes | grep ^fargate-
+
 # The CapacityProvisioned annotation on a Fargate pod shows the billed combination
 kubectl get pods --all-namespaces -o json | \
   jq -r '.items[] |
@@ -59,7 +62,7 @@ kubectl get pods --all-namespaces -o json | \
 
 **Detection outcome:**
 
-- If no Fargate profiles exist → skip this reference entirely; note "Fargate: not used" in the report.
+- If no Fargate profiles exist → skip this reference entirely; note "Fargate Profiles: none" in the report.
 - If profiles exist → record which namespaces (and label selectors) are Fargate-scheduled, exclude Fargate pods from node-based checks (idle nodes, consolidation, node-based estimation), and run checks F1 and F2 below. List the Fargate-scheduled namespaces in the report metadata.
 
 A profile selector always contains a namespace and may include labels (up to 5 selectors per profile; `*` and `?` wildcards are allowed in selector criteria).
@@ -159,7 +162,8 @@ Also surface Compute Savings Plans coverage for clusters with significant steady
 
 | Condition | Severity |
 |-----------|----------|
-| Spot-eligible Fargate workloads with monthly savings > $200 | HIGH |
+| Spot-eligible Fargate workloads with monthly savings > $500 | CRITICAL |
+| Spot-eligible Fargate workloads with monthly savings $200–$500 | HIGH |
 | Spot-eligible Fargate workloads with monthly savings $50–$200 | MEDIUM |
 | Below $50/month or migration blocked (e.g., isolation requirement drove the Fargate choice) | LOW |
 
