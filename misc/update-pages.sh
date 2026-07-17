@@ -858,6 +858,30 @@ else
 fi
 
 # --- DevOps Agent index ---
+
+# Escape &, <, > so description text is safe to inject into HTML table cells.
+# Uses sed (not ${var//}) — bash 5.2 patsub_replacement expands & in replacements.
+html_escape() {
+  printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+}
+
+# First-sentence extraction that skips mid-sentence abbreviations ("e.g. ",
+# "i.e. ", "vs. ") so the ". " inside them is not treated as a sentence
+# boundary. Prints the first real sentence (with trailing period); prints the
+# input unchanged if no real sentence boundary exists.
+first_sentence() {
+  local text="$1" head="" rest="$1"
+  while [[ "$rest" == *". "* ]]; do
+    head="${head}${rest%%". "*}."
+    rest="${rest#*". "}"
+    case "$head" in
+      *[eE].g.|*[iI].e.|*[vV]s.) head="$head " ;;
+      *) printf '%s' "$head"; return ;;
+    esac
+  done
+  printf '%s' "$text"
+}
+
 build_devops_index() {
   cat <<'INDEXEOF'
 ---
@@ -887,10 +911,13 @@ INDEXEOF
     local desc
     desc="$(parse_frontmatter "$skill_md" "description")"
     [[ -z "$desc" ]] && desc="<em>(no description)</em>"
-    # Truncate at first sentence boundary (". " only — avoids cutting "EKS 1.32")
+    # Truncate at first sentence boundary (". " only — avoids cutting "EKS 1.32";
+    # first_sentence skips abbreviations like "e.g. " / "i.e. ").
     # Fall back to word boundary + ellipsis for descriptions without sentence ends
-    if [[ "$desc" == *". "* ]]; then
-      desc="${desc%%". "*}."
+    local first
+    first="$(first_sentence "$desc")"
+    if [[ "$first" != "$desc" ]]; then
+      desc="$first"
     elif [[ ${#desc} -gt 150 ]]; then
       desc="${desc:0:150}"
       desc="${desc% *}…"
@@ -901,6 +928,7 @@ INDEXEOF
     fi
     local status="Placeholder"
     [[ -d "$skill_dir/references" ]] && status="Active"
+    [[ "$desc" != "<em>(no description)</em>" ]] && desc="$(html_escape "$desc")"
     echo "<tr><td><a href=\"./$folder/\"><b>$title</b></a></td><td>$status</td><td>$desc</td></tr>"
   done
   echo "</table>"

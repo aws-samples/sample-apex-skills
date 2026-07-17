@@ -13,6 +13,8 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/porti
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution.
 
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-cost-intelligence/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-07-17.
+
 ## Differences from Claude Code Version
 
 | Aspect | Claude Code (`skills/eks-cost-intelligence/`) | DevOps Agent (this skill) |

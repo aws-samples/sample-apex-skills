@@ -13,7 +13,7 @@ A subset of APEX skills ported for the [AWS DevOps Agent](https://docs.aws.amazo
 <table>
 <tr><th>Skill</th><th>Status</th><th>Description</th></tr>
 <tr><td><a href="./eks-cost-intelligence/"><b>eks-cost-intelligence</b></a></td><td>Active</td><td>EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report.</td></tr>
-<tr><td><a href="./eks-operation-review/"><b>eks-operation-review</b></a></td><td>Placeholder</td><td>Run a structured EKS operational excellence assessment across 10 areas (networking, autoscaling, observability, access & identity, add-ons, workload…</td></tr>
+<tr><td><a href="./eks-operation-review/"><b>eks-operation-review</b></a></td><td>Placeholder</td><td>Run a structured EKS operational excellence assessment across 10 areas (networking, autoscaling, observability, access &amp; identity, add-ons, workload…</td></tr>
 <tr><td><a href="./eks-security/"><b>eks-security</b></a></td><td>Active</td><td>EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap.</td></tr>
 <tr><td><a href="./eks-upgrade-check/"><b>eks-upgrade-check</b></a></td><td>Placeholder</td><td>Assess EKS cluster upgrade readiness by running automated checks across 8 areas (version validation, breaking changes, deprecated APIs, add-on…</td></tr>
 </table>

@@ -56,6 +56,10 @@ The following permissions are included:
 - `logs:StartQuery`
 - `logs:GetQueryResults`
 
+**Amazon EFS (optional — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension):**
+- `elasticfilesystem:DescribeFileSystems`
+- `elasticfilesystem:DescribeLifecycleConfiguration`
+
 **Kubernetes API access (required):**
 - The Agent Space must have Kubernetes API access to the target cluster (via EKS Access Entry or aws-auth ConfigMap)
 - Required RBAC: `get`, `list` on pods, nodes, deployments, services, persistentvolumeclaims, configmaps, secrets, namespaces, events, endpointslices

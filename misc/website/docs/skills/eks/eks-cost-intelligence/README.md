@@ -62,7 +62,7 @@ skills/eks-cost-intelligence/
 - AWS credentials with EKS read access
 - `kubectl` configured for the target cluster
 - **Required permissions:** `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `elasticloadbalancing:DescribeLoadBalancers`
-- **Optional (for richer analysis):** `ce:GetCostAndUsage`, `cloudwatch:GetMetricData`, `pricing:GetProducts`
+- **Optional (for richer analysis):** `ce:GetCostAndUsage`, `cloudwatch:GetMetricData`, `pricing:GetProducts`, `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration`
 
 ## Relationship to other skills
 

@@ -58,6 +58,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 4. **Optional permissions (enable richer analysis):**
    - `ce:GetCostAndUsage` — enables dollar-accurate spend data from Cost Explorer
    - `cloudwatch:GetMetricData` — enables utilization-based analysis from Container Insights
+   - `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration` — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension
 
 ### Data Sources
 

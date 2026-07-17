@@ -55,6 +55,15 @@
         "logs:GetQueryResults"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "EFSOptional",
+      "Effect": "Allow",
+      "Action": [
+        "elasticfilesystem:DescribeFileSystems",
+        "elasticfilesystem:DescribeLifecycleConfiguration"
+      ],
+      "Resource": "*"
     }
   ]
 }

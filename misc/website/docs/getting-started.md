@@ -75,7 +75,7 @@ cd sample-apex-skills
 # Or upload a single skill manually
 cd devops-agent/eks-cost-intelligence
 zip -r /tmp/eks-cost-intelligence.zip . -x '*.zip' -x './references/porting-notes.md'
-# Upload via AWS Console → Amazon Q → DevOps Agent → Agent Skills
+# Upload in the Agent Space Operator Web App: Knowledge > Skills > Add skill > Upload skill
 ```
 
 See [`devops-agent/README.md`](https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/README.md) for full setup instructions and constraints.
