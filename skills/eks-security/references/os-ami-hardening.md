@@ -61,7 +61,7 @@ EKS Auto Mode is the lowest-operational-burden option but **does not support cus
 - **Hard requirement → Auto Mode is not viable.** Use **Bottlerocket on self-managed Karpenter NodePools** (immutable container-OS + custom-AMI control + Karpenter consolidation).
 - **Preference → Auto Mode is viable**, and its reduced-permission node IAM (`AmazonEKSWorkerNodeMinimalPolicy`, granting only `eks-auth:AssumeRoleForPodIdentity`) is a genuine security differentiator worth leading with.
 
-> **AL2 currency note (as of 2026-07-17):** EKS **stopped publishing EKS-optimized AL2 AMIs on Nov 26, 2025**; the **AL2 operating system reaches end-of-life on June 30, 2026.** Migrate AL2 nodes to AL2023 or Bottlerocket. Don't conflate the two dates.
+> **AL2 currency note (as of 2026-07-17):** EKS **stopped publishing EKS-optimized AL2 AMIs on Nov 26, 2025**; the **AL2 operating system reached end-of-life on June 30, 2026.** Migrate AL2 nodes to AL2023 or Bottlerocket. Don't conflate the two dates.
 
 ## Shared responsibility (Layer 1)
 
