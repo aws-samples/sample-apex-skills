@@ -34,51 +34,14 @@ Detect the Infrastructure-as-Code tooling used to manage the specified EKS clust
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
-
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-iac:
-  tool: <Terraform|CloudFormation|CDK|eksctl|Pulumi|Unknown>
-  confidence: <high|medium|low>
-  evidence:
-    type: <workspace_files|cluster_tags|cfn_stacks>
-    details: <string describing what was found>
-  workspace:
-    terraform:
-      detected: <bool>
-      files: [<list of .tf files if found>]
-      state_backend: <s3|local|remote|null>
-    cloudformation:
-      detected: <bool>
-      stack_name: <string or null>
-    cdk:
-      detected: <bool>
-      language: <typescript|python|java|null>
-    eksctl:
-      detected: <bool>
-      config_file: <string or null>
-    pulumi:
-      detected: <bool>
-  tags:
-    terraform_managed: <bool>
-    eksctl_created: <bool>
-    cfn_stack_id: <string or null>
-```
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/iac.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
 ## Important
 
 - Do NOT include recommendations or analysis - just facts
 - Be concise - the main agent will aggregate your findings
-- High confidence = workspace files found
-- Medium confidence = tags indicate IaC
-- Low confidence = inferring from patterns
+- Confidence labels (High/Medium/Low) are evidence-strength metadata, not a verdict:
+  workspace files found = high; tags indicate IaC = medium; inferring from patterns = low

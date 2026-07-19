@@ -24,7 +24,8 @@ This page is generated from [skills/eks-recon/references/iac.md](https://github.
   - [3. CDK Detection](#3-cdk-detection)
   - [4. eksctl Detection](#4-eksctl-detection)
   - [5. Pulumi Detection](#5-pulumi-detection)
-  - [6. Tag-Based Detection (Fallback)](#6-tag-based-detection-fallback)
+  - [6. Crossplane and ACK Detection](#6-crossplane-and-ack-detection)
+  - [7. Tag-Based Detection (Fallback)](#7-tag-based-detection-fallback)
 - [Output Schema](#output-schema)
 - [Confidence Determination](#confidence-determination)
 - [Edge Cases](#edge-cases)
@@ -44,11 +45,12 @@ This page is generated from [skills/eks-recon/references/iac.md](https://github.
 IaC detection is primarily workspace-based. Scan the local filesystem for IaC configuration files:
 
 ```
-1. Terraform     -> .tf files with aws_eks_cluster or module "eks"
-2. CloudFormation -> .yaml/.json with AWS::EKS::Cluster
-3. CDK           -> cdk.json + package.json with aws-cdk
-4. eksctl        -> yaml files with kind: ClusterConfig
-5. Pulumi        -> Pulumi.yaml + aws provider
+1. Terraform/OpenTofu -> .tf files with aws_eks_cluster or module "eks"
+2. CloudFormation     -> .yaml/.json with AWS::EKS::
+3. CDK                -> cdk.json + package.json with aws-cdk
+4. eksctl             -> yaml files with kind: ClusterConfig
+5. Pulumi             -> Pulumi.yaml + aws provider
+6. Crossplane / ACK   -> in-cluster CRDs (compositions, services.k8s.aws)
 ```
 
 **Confidence scoring:**
@@ -65,10 +67,14 @@ IaC detection is primarily workspace-based. Scan the local filesystem for IaC co
 
 Start with Terraform detection because it is the most common IaC tool for EKS clusters in production environments.
 
+`.tf` file detection covers both Terraform and OpenTofu (they share the `.tf` HCL
+syntax and file layout); the two are distinguished by lockfile/lockfile usage below.
+
 ```bash
-# Find Terraform files with EKS resources
-find . -name "*.tf" -type f 2>/dev/null | head -50 | \
-  xargs grep -l "aws_eks_cluster\|module.*eks" 2>/dev/null | head -10
+# Find Terraform/OpenTofu files with EKS resources
+# No head cap on the file list — large monorepos have thousands of .tf files and a
+# capped scan misses the ones defining the cluster. grep -rl walks all of them directly.
+grep -rl "aws_eks_cluster\|module.*eks" --include="*.tf" . 2>/dev/null | head -20
 ```
 
 **Example output:**
@@ -80,8 +86,13 @@ find . -name "*.tf" -type f 2>/dev/null | head -50 | \
 
 **If files found, extract details to determine which module or resource configuration is used:**
 ```bash
-# Check for terraform-aws-modules/eks
+# Check for terraform-aws-modules/eks module source
 grep -r "source.*terraform-aws-modules/eks" --include="*.tf" . 2>/dev/null | head -5
+
+# Module version — the `version = "..."` line adjacent to the module block that sources
+# terraform-aws-modules/eks (grep a few lines of context around the source line)
+grep -rA3 "source.*terraform-aws-modules/eks" --include="*.tf" . 2>/dev/null | \
+  grep "version\s*=" | head -5
 
 # Check for cluster name in tf files
 grep -r "cluster_name\s*=" --include="*.tf" . 2>/dev/null | head -5
@@ -93,9 +104,22 @@ find . -name "*.tfvars" -type f 2>/dev/null | head -5
 **Example output:**
 ```
 ./infrastructure/eks/main.tf:  source  = "terraform-aws-modules/eks/aws"
+./infrastructure/eks/main.tf:  version = "20.8.4"
 ./infrastructure/eks/main.tf:  cluster_name    = "my-production-cluster"
 ./infrastructure/eks/terraform.tfvars
 ```
+
+- `module_source` = the `source` value (e.g. `terraform-aws-modules/eks/aws`), null if the
+  cluster is defined with raw `aws_eks_cluster` resources rather than a module.
+- `module_version` = the `version` value on that module block, null if unpinned or raw resources.
+
+**State backend detection — grep the backend block in *.tf and populate `state_backend`:**
+```bash
+# s3 | remote | local — matches the `backend "<type>"` line inside a terraform {} block
+grep -rhoE 'backend "(s3|remote|local)"' --include="*.tf" . 2>/dev/null | head -3
+```
+Map the matched type to the `state_backend` enum (`s3` | `remote` | `local`). No `backend`
+block present ⇒ implicit local state ⇒ record `state_backend: local`.
 
 **Terraform state check (optional) - Use this to verify if Terraform has been applied:**
 ```bash
@@ -103,14 +127,28 @@ find . -name "*.tfvars" -type f 2>/dev/null | head -5
 find . -name "terraform.tfstate" -o -name ".terraform" -type d 2>/dev/null | head -3
 ```
 
+**OpenTofu vs Terraform:** both produce a `.terraform.lock.hcl` dependency lockfile. The
+lockfile alone does not distinguish the two. Check for OpenTofu-specific usage:
+```bash
+# OpenTofu lockfile present (shared name with Terraform)
+find . -name ".terraform.lock.hcl" -type f 2>/dev/null | head -3
+
+# tofu CLI available / tofu-specific state or wrapper usage
+command -v tofu 2>/dev/null
+grep -rl "tofu" --include="*.tf" --include="*.hcl" . 2>/dev/null | head -3
+```
+Record `opentofu_detected: bool` when `tofu` usage is found; otherwise the `.tf` files are
+attributed to Terraform.
+
 ### 2. CloudFormation Detection
 
 Check for CloudFormation templates when Terraform is not found, or when the organization uses AWS-native tooling.
 
 ```bash
-# Find CFN templates with EKS resources
-find . \( -name "*.yaml" -o -name "*.yml" -o -name "*.json" \) -type f 2>/dev/null | head -50 | \
-  xargs grep -l "AWS::EKS::Cluster\|AWSTemplateFormatVersion" 2>/dev/null | head -10
+# Find CFN templates with EKS resources.
+# Match AWS::EKS:: only — the old AWSTemplateFormatVersion OR-branch matched EVERY CFN
+# template (any service), so it over-reported EKS IaC. No head cap on the file list.
+grep -rlE "AWS::EKS::" --include="*.yaml" --include="*.yml" --include="*.json" . 2>/dev/null | head -10
 ```
 
 **Example output:**
@@ -191,6 +229,14 @@ NAME                REGION          EKSCTL CREATED
 my-dev-cluster      us-west-2       True
 ```
 
+**Live tag check — eksctl stamps clusters with the `alpha.eksctl.io/cluster-name` tag:**
+```bash
+aws eks describe-cluster --name <cluster-name> --region <region> \
+  --query 'cluster.tags."alpha.eksctl.io/cluster-name"' --output text 2>/dev/null
+```
+Presence of `alpha.eksctl.io/cluster-name` (value equals the cluster name) ⇒ record
+`eksctl_created: true`. Absence returns `None` ⇒ `eksctl_created: false`.
+
 ### 5. Pulumi Detection
 
 Check for Pulumi when the organization uses infrastructure-as-real-code with TypeScript, Python, or Go. Pulumi is less common than Terraform but growing in adoption.
@@ -215,7 +261,34 @@ find . \( -name "*.ts" -o -name "*.py" -o -name "*.go" \) -type f 2>/dev/null | 
 ./pulumi/index.ts
 ```
 
-### 6. Tag-Based Detection (Fallback)
+### 6. Crossplane and ACK Detection
+
+Detect in-cluster IaC control planes. Crossplane and AWS Controllers for Kubernetes (ACK)
+manage AWS infrastructure from inside the cluster via CRDs, often applied through GitOps.
+
+**Crossplane — check for compositions / composite resource definitions:**
+```bash
+# Compositions present ⇒ Crossplane installed
+kubectl get compositions 2>/dev/null
+
+# Composite Resource Definitions (XRDs)
+kubectl get compositeresourcedefinitions.apiextensions.crossplane.io 2>/dev/null
+
+# Crossplane controller / core CRDs
+kubectl get crds 2>/dev/null | grep crossplane.io
+```
+
+**ACK — check for the service-controller CRD group `services.k8s.aws`:**
+```bash
+# Any ACK controller registers CRDs under *.services.k8s.aws (e.g. eks.services.k8s.aws)
+kubectl get crds 2>/dev/null | grep services.k8s.aws
+```
+
+Record `crossplane.detected: bool` (compositions or crossplane.io CRDs present) and
+`ack.detected: bool` (any `services.k8s.aws` CRD present). For ACK, record the matched
+CRD groups (e.g. `eks.services.k8s.aws`, `iam.services.k8s.aws`) in `ack.controllers`.
+
+### 7. Tag-Based Detection (Fallback)
 
 Use tag-based detection when workspace scan finds nothing. IaC tools often add identifying tags to the resources they create.
 
@@ -262,42 +335,65 @@ aws eks describe-cluster --name <cluster-name> \
 
 ## Output Schema
 
+This is the **single canonical schema** for the IaC module — it carries every IaC fact.
+The `iac-recon` agent emits exactly this shape (plus the shared `cluster:` block from
+`references/cluster-basics.md`). Use `null` where a fact was not detected; never omit a key.
+
 ```yaml
 iac:
-  tool: string        # Terraform | CloudFormation | CDK | eksctl | Pulumi | CLI | unknown
-  confidence: string  # high | medium | low
-  evidence: string    # Path to files or reason for determination
-  
-  details:
-    # Terraform-specific
+  tools_detected: list    # ALL IaC tools with evidence, flat — no "primary". e.g. ["terraform","cdk"]
+                          # (Terraform | CloudFormation | CDK | eksctl | Pulumi | Crossplane | ACK | CLI | unknown)
+  confidence: string      # high | medium | low — evidence-strength metadata (fact), not a verdict
+  evidence:               # object form (canonical)
+    type: string          # workspace_files | cluster_tags | cfn_stacks | in_cluster_crds
+    details: string       # what was found (paths / reason for determination)
+
+  workspace:
+    # Terraform / OpenTofu
     terraform:
       detected: bool
-      files: list           # Paths to .tf files
-      module: string        # e.g., "terraform-aws-modules/eks/aws"
-      state_backend: string # local | s3 | remote
-      
-    # CloudFormation-specific
+      files: list             # paths to .tf files
+      module_source: string   # e.g. "terraform-aws-modules/eks/aws", null if raw resources
+      module_version: string  # version pinned on the module block, null if unpinned/raw
+      state_backend: string   # s3 | remote | local
+      opentofu_detected: bool # tofu CLI / tofu-specific usage found
+
+    # CloudFormation
     cloudformation:
       detected: bool
-      templates: list       # Paths to CFN templates
-      stack_name: string    # Deployed stack name (if found)
-      
-    # CDK-specific
+      templates: list         # paths to CFN templates (matched AWS::EKS::)
+      stack_name: string      # deployed stack name (if found)
+
+    # CDK
     cdk:
       detected: bool
-      language: string      # typescript | python | java | go
+      language: string        # typescript | python | java | go
       cdk_json_path: string
-      
-    # eksctl-specific
+
+    # eksctl
     eksctl:
       detected: bool
       config_files: list
-      
-    # Pulumi-specific
+
+    # Pulumi
     pulumi:
       detected: bool
       project_path: string
-      language: string
+      language: string        # typescript | python | go
+
+    # Crossplane (in-cluster control plane)
+    crossplane:
+      detected: bool
+
+    # AWS Controllers for Kubernetes (ACK)
+    ack:
+      detected: bool
+      controllers: list       # matched services.k8s.aws CRD groups, e.g. ["eks.services.k8s.aws"]
+
+  tags:
+    terraform_managed: bool
+    eksctl_created: bool      # alpha.eksctl.io/cluster-name tag present
+    cfn_stack_id: string      # aws:cloudformation:stack-id tag, null if absent
 ```
 
 ---
@@ -319,9 +415,9 @@ iac:
 ### Multiple IaC Tools Detected
 
 If multiple tools are found (e.g., Terraform + CDK):
-- Report primary tool as most likely (based on EKS-specific files)
-- Note secondary tools in details
-- Ask user to clarify if ambiguous
+- Report ALL detected tools flatly in `tools_detected` — do not pick a "primary" or rank
+  them by likelihood, and do not ask the user to clarify. Presence of each tool is the fact.
+- Each tool's per-tool `detected` flag and evidence appear in `workspace`.
 
 ### IaC in Different Directory
 
@@ -331,14 +427,12 @@ User may have IaC in a separate repo or directory:
 
 ### GitOps-Managed IaC
 
-IaC may be applied via GitOps (ArgoCD/Flux deploying Crossplane or ACK):
-- Check for Crossplane XRDs/compositions
-- Check for ACK resources
-- Note as "GitOps + IaC"
+IaC may be applied via GitOps (ArgoCD/Flux deploying Crossplane or ACK). This is detected
+by section 6 (Crossplane and ACK Detection): record `workspace.crossplane.detected` /
+`workspace.ack.detected` and add `Crossplane` / `ACK` to `tools_detected` when present.
 
 ### No IaC (CLI-Created)
 
 If no IaC evidence found:
 - Cluster may have been created via `aws eks create-cluster` or console
-- Note as "CLI or Console (no IaC detected)"
-- Warn that upgrades will need manual CLI commands
+- Record `tool: CLI/Console` as a fact (no IaC detected). State the fact only; draw no conclusion.

@@ -95,6 +95,87 @@ aws eks describe-cluster \
 
 ---
 
+## Shared Cluster Block
+
+This is the **canonical** `cluster:` block. Every module agent emits it verbatim via the pointer in its Output Format (see BUILD-SPEC Decision 1); it is defined here once and never redefined per-module.
+
+```yaml
+cluster:
+  name: <string>              # Cluster name
+  region: <string>            # AWS region (from arn or --region)
+  version: <string>           # Kubernetes version (e.g., "1.31")
+  platform_version: <string>  # EKS platform version (e.g., "eks.5")
+  endpoint: <string>          # API server endpoint URL
+  arn: <string>               # Full cluster ARN
+  status: <string>            # ACTIVE, CREATING, UPDATING, DELETING
+  created_at: <string>        # ISO timestamp
+  tags: <map or null>         # from cluster.tags (null if none)
+```
+
+**Detection command that populates this block:**
+
+CLI:
+```bash
+aws eks describe-cluster --name <cluster-name> --region <region> \
+  --query 'cluster.{name:name,version:version,platformVersion:platformVersion,endpoint:endpoint,arn:arn,status:status,createdAt:createdAt,tags:tags}'
+```
+
+MCP:
+```
+describe_eks_resource(resource_type="cluster", cluster_name="<cluster-name>")
+```
+
+**Notes:**
+- `tags` comes from `cluster.tags` (a map of key/value; emit `null` when the cluster has no tags).
+- `region` is derived from the `--region` argument or parsed from `cluster.arn` (`arn:aws:eks:<region>:...`).
+
+---
+
+## Cluster Detail (full recon)
+
+Additional control-plane identity/lifecycle facts owned by this module. All come from the same `aws eks describe-cluster` / `describe_eks_resource(resource_type="cluster")` response — no extra API calls required. Report as facts only.
+
+| Fact | Detection (schema field) | Notes |
+|------|--------------------------|-------|
+| `upgrade_policy.support_type` | `cluster.upgradePolicy.supportType` | `STANDARD` or `EXTENDED` |
+| `zonal_shift.enabled` | `cluster.zonalShiftConfig.enabled` | bool |
+| `certificate_authority.present` | `cluster.certificateAuthority.data` present | emit `true`/`false` only — do NOT emit the CA data itself |
+| `health.issues` | `cluster.health.issues` | raw list of issue objects, verbatim; `[]` when none |
+| `encryption_config.detected` | `cluster.encryptionConfig` present | bool |
+| `encryption_config.kms_key_arn` | `cluster.encryptionConfig[].provider.keyArn` | KMS key arn; `null` if not present |
+| `encryption_config.resources` | `cluster.encryptionConfig[].resources` | scope list, e.g. `["secrets"]` |
+
+**Detection command (fields not in the shared-block query):**
+```bash
+aws eks describe-cluster --name <cluster-name> --region <region> \
+  --query 'cluster.{support_type:upgradePolicy.supportType,zonal_shift:zonalShiftConfig.enabled,ca_present:certificateAuthority.data,health_issues:health.issues,encryption:encryptionConfig}'
+```
+
+**Output Schema (Cluster Detail):**
+```yaml
+cluster_detail:
+  upgrade_policy:
+    support_type: <string>       # STANDARD | EXTENDED
+  zonal_shift:
+    enabled: <bool>
+  certificate_authority:
+    present: <bool>              # presence only; never the CA data
+  health:
+    issues: <list>               # cluster.health.issues verbatim; [] when none
+  encryption_config:
+    detected: <bool>
+    kms_key_arn: <string or null>
+    resources: <list or null>    # e.g., ["secrets"]
+```
+
+**Not owned here (one-line pointers — do not duplicate):**
+- Network identifiers (vpcId, subnetIds, cluster SG, endpoint access) → see `references/networking.md`.
+- Auth mode + OIDC issuer/providers → see `references/security.md`.
+- Control-plane logging → see `references/observability.md`.
+- EKS Cluster Insights → see `references/cluster-insights.md`.
+
+---
+
 ## Region Detection
 
 When the user does not specify a region, detect it using these methods in order:
@@ -118,7 +199,10 @@ cluster:
   arn: string           # Full cluster ARN - use for IAM policies and cross-account access
   status: string        # ACTIVE, CREATING, UPDATING, DELETING - proceed only if ACTIVE
   created_at: string    # ISO timestamp - useful for compliance and audit reports
+  tags: map or null     # from cluster.tags (null if none)
 ```
+
+> This block is the canonical **[## Shared Cluster Block](#shared-cluster-block)**. See that section for the detection command and the full-recon **[## Cluster Detail (full recon)](#cluster-detail-full-recon)** facts.
 
 ---
 
@@ -148,4 +232,4 @@ When endpoint access is private-only:
 
 1. Verify MCP tool connectivity first - the MCP server may have VPC access
 2. For CLI access, connect through a VPN or bastion host within the VPC
-3. Record in the report: `endpoint_access: private` to flag this for operators
+3. The endpoint-access facts are captured by the **networking** module as `networking.endpoint_access: {public, private, public_cidrs}` (see `references/networking.md` "## Output Schema") — recon reports them there, not as a separate cluster-basics scalar.

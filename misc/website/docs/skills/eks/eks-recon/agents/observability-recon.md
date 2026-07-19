@@ -38,53 +38,10 @@ Detect the observability setup for the specified EKS cluster and return structur
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
-
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-observability:
-  control_plane_logging:
-    enabled_types:
-      - <api|audit|authenticator|controllerManager|scheduler>
-    disabled_types:
-      - <list>
-    log_group: <string or null>
-  container_insights:
-    enabled: <bool>
-    enhanced: <bool>
-  metrics:
-    metrics_server:
-      detected: <bool>
-      version: <string>
-    prometheus:
-      detected: <bool>
-      namespace: <string or null>
-    grafana:
-      detected: <bool>
-      namespace: <string or null>
-  logging:
-    fluent_bit:
-      detected: <bool>
-      namespace: <string or null>
-    fluentd:
-      detected: <bool>
-    cloudwatch_agent:
-      detected: <bool>
-  tracing:
-    xray:
-      detected: <bool>
-    otel:
-      detected: <bool>
-```
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/observability.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
 ## Important
 

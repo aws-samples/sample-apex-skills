@@ -30,48 +30,10 @@ Detect the compute strategy for the specified EKS cluster and return structured 
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
-
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-compute:
-  strategy: <Karpenter|MNG|Auto Mode|Fargate|Mixed|Self-managed|Unknown>
-  auto_mode:
-    enabled: <bool>
-  karpenter:
-    detected: <bool>
-    version: <string or null>
-    nodepools: <int>
-    nodepool_names: [<list>]
-  mng:
-    detected: <bool>
-    count: <int>
-    groups:
-      - name: <string>
-        status: <string>
-        instance_types: [<list>]
-        desired_size: <int>
-  fargate:
-    detected: <bool>
-    profiles: <int>
-  self_managed:
-    detected: <bool>
-    node_count: <int>
-  nodes:
-    - name: <string>
-      instance_type: <string>
-      capacity_type: <spot|on-demand>
-      nodepool: <string or null>
-```
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/compute.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
 ## Important
 

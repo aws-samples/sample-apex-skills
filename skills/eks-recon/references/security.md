@@ -8,15 +8,15 @@
 - [Prerequisites](#prerequisites)
 - [Detection Strategy](#detection-strategy)
 - [Detection Commands](#detection-commands)
-  - [1. IAM Model Detection](#1-iam-model-detection)
-  - [2. Pod Security Standards (PSS)](#2-pod-security-standards-pss)
-  - [3. Policy Engine Detection](#3-policy-engine-detection)
-  - [4. Secrets Management](#4-secrets-management)
-  - [5. Image Security](#5-image-security)
-  - [6. RBAC Summary](#6-rbac-summary)
+  - [1. Authentication & Access Detection](#1-authentication--access-detection)
+  - [2. IAM for Pods Detection](#2-iam-for-pods-detection)
+  - [3. Pod Security Standards (PSS)](#3-pod-security-standards-pss)
+  - [4. Policy Engine Detection](#4-policy-engine-detection)
+  - [5. Secrets Management](#5-secrets-management)
+  - [6. Image Security](#6-image-security)
+  - [7. RBAC Summary](#7-rbac-summary)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
-- [Recommendations Based on Findings](#recommendations-based-on-findings)
 
 ---
 
@@ -33,24 +33,67 @@
 Security posture covers multiple dimensions:
 
 ```
-1. IAM Model         -> Pod Identity vs IRSA vs node role
-2. Pod Security      -> PSA labels, PSS enforcement
-3. Policy Engine     -> Kyverno, OPA Gatekeeper, or none
-4. Secrets           -> ESO, Secrets Store CSI, native secrets
-5. Image Security    -> ECR scanning, admission control
-6. RBAC              -> Role/ClusterRole analysis
+1. Authentication    -> access authentication mode, access entries, aws-auth cm, OIDC provider
+2. IAM for Pods      -> Pod Identity vs IRSA vs node role
+3. Pod Security      -> PSA labels, PSS enforcement
+4. Policy Engines    -> Kyverno, OPA Gatekeeper, or none
+5. Secrets           -> ESO, Secrets Store CSI, native secrets, KMS
+6. Image Security    -> ECR usage, private registries, admission policies
+7. RBAC              -> Role/ClusterRole/namespaced Role analysis
 ```
 
 ---
 
 ## Detection Commands
 
-### 1. IAM Model Detection
+### 1. Authentication & Access Detection
 
-Detect which IAM model the cluster uses for workload authentication. This determines how pods access AWS services:
-- **Pod Identity** (recommended): AWS-native, simplest to manage, supports cross-account without OIDC providers
-- **IRSA**: Established pattern using OIDC, widely adopted but more complex setup
-- **Node role**: Legacy approach where all pods share the node's IAM role - security risk
+Detect how the cluster authenticates and authorizes API principals. These are facts about the cluster's access model.
+
+**Authentication mode** (`API` | `API_AND_CONFIG_MAP` | `CONFIG_MAP`):
+```bash
+aws eks describe-cluster --name <cluster-name> --region <region> \
+  --query 'cluster.accessConfig.authenticationMode' --output text
+```
+
+**Access entries** (count + principal ARNs):
+```bash
+aws eks list-access-entries --cluster-name <cluster-name> --region <region> \
+  --query 'accessEntries' --output json
+```
+
+**aws-auth ConfigMap** (presence is a fact; `NotFound` = `present: false`):
+```bash
+kubectl get cm aws-auth -n kube-system 2>/dev/null
+# Exit non-zero / NotFound => aws_auth_configmap.present: false
+```
+
+**OIDC provider** (cluster issuer + whether a matching IAM OIDC provider exists):
+```bash
+# Cluster OIDC issuer URL
+aws eks describe-cluster --name <cluster-name> --region <region> \
+  --query 'cluster.identity.oidc.issuer' --output text
+
+# IAM OIDC providers in the account; correlate by the issuer id substring
+# (the trailing path segment of the issuer URL) to set iam_provider_present
+aws iam list-open-id-connect-providers --query 'OpenIDConnectProviderList[].Arn' --output json
+```
+
+**Example output:**
+```
+# authenticationMode: API_AND_CONFIG_MAP
+# access entries: 3 (arn:aws:iam::123456789012:role/AdminRole, ...)
+# aws-auth cm: Error from server (NotFound)  => present: false
+# oidc issuer: https://oidc.eks.us-west-2.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE
+# iam providers: [".../oidc.eks.us-west-2.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"] => iam_provider_present: true
+```
+
+### 2. IAM for Pods Detection
+
+Detect which IAM model the cluster uses for pods to obtain AWS credentials. This is how pods access AWS services:
+- **Pod Identity**: AWS-native, uses the EKS Pod Identity Agent addon and pod identity associations
+- **IRSA**: uses an OIDC provider and service accounts annotated with `eks.amazonaws.com/role-arn`
+- **Node role**: pods use the node's IAM role (no per-pod credential mechanism detected)
 
 **Pod Identity:**
 
@@ -65,12 +108,22 @@ describe_eks_resource(
 
 **CLI:**
 ```bash
-# Check if Pod Identity agent is installed
+# Check if Pod Identity agent is installed as an addon
+# NOTE: On EKS Auto Mode the Pod Identity Agent is BUILT INTO the cluster, not an installable
+# addon, so describe-addon returns ResourceNotFound. That is expected — it does NOT mean Pod
+# Identity is absent. Set pod_identity.detected = (addon present) OR (associations.count > 0).
 aws eks describe-addon --cluster-name <cluster-name> --addon-name eks-pod-identity-agent 2>/dev/null
 
-# List Pod Identity associations
-aws eks list-pod-identity-associations --cluster-name <cluster-name> \
-  --query 'associations[*].{namespace:namespace,serviceAccount:serviceAccount,roleArn:roleArn}'
+# List Pod Identity associations (report each {namespace, serviceAccount, roleArn} triple, not just a count)
+# NOTE: list-pod-identity-associations does NOT return roleArn — its association objects only carry
+# clusterName/namespace/serviceAccount/associationArn/associationId. roleArn requires the describe call.
+# Two-step: enumerate association IDs, then describe each to obtain roleArn.
+for id in $(aws eks list-pod-identity-associations --cluster-name <cluster-name> --region <region> \
+    --query 'associations[].associationId' --output text); do
+  aws eks describe-pod-identity-association --cluster-name <cluster-name> --association-id "$id" --region <region> \
+    --query 'association.{namespace:namespace,serviceAccount:serviceAccount,roleArn:roleArn}'
+done
+# IAM: no new permissions needed — describe-pod-identity-association is covered by eks:Describe*.
 ```
 
 **Example output (Pod Identity enabled):**
@@ -132,15 +185,15 @@ if pod_identity_associations > 0:
 elif irsa_service_accounts > 0:
     model = "IRSA"
 else:
-    model = "node-role"  # Using node IAM role (not recommended)
+    model = "node-role"  # No per-pod credential mechanism detected; pods use the node IAM role
 ```
 
-### 2. Pod Security Standards (PSS)
+### 3. Pod Security Standards (PSS)
 
-Check Pod Security Admission (PSA) enforcement. PSA replaced PodSecurityPolicy in Kubernetes 1.25+. Use this detection to understand which namespaces enforce security constraints on pods:
-- **restricted**: Heavily restricted, follows hardening best practices
-- **baseline**: Minimally restrictive, prevents known privilege escalations
-- **privileged**: Unrestricted (default if no label set)
+Check Pod Security Admission (PSA) enforcement. PSA replaced PodSecurityPolicy in Kubernetes 1.25+. Report which namespaces set which enforcement level:
+- **restricted**: most constrained level
+- **baseline**: minimally restrictive level
+- **privileged**: unrestricted level (the default when no label is set)
 
 **CLI:**
 ```bash
@@ -174,32 +227,32 @@ kubectl get ns -o json | jq -r '
 
 **Summary:**
 ```bash
-# Count namespaces by enforcement level
+# Count namespaces by enforcement level; the "none" bucket = namespaces with no PSA enforce label
 kubectl get ns -o json | jq -r '
   .items | 
   group_by(.metadata.labels["pod-security.kubernetes.io/enforce"]) |
-  map({level: .[0].metadata.labels["pod-security.kubernetes.io/enforce"] // "none", count: length})'
+  map({level: (.[0].metadata.labels["pod-security.kubernetes.io/enforce"] // "none"), count: length})'
 ```
 
-### 3. Policy Engine Detection
+### 4. Policy Engine Detection
 
-Identify if a policy engine enforces admission control beyond PSA. Policy engines provide fine-grained control over what resources can be created:
-- **Kyverno**: Kubernetes-native, policies written in YAML, easier learning curve
-- **OPA Gatekeeper**: Uses Rego language, more powerful but steeper learning curve
-- Running both adds complexity - recommend consolidating to one
+Identify which policy engines (if any) are installed. Policy engines enforce admission control beyond PSA:
+- **Kyverno**: policies written in YAML
+- **OPA Gatekeeper**: constraints written in Rego
+Both may be present simultaneously — report each independently.
 
 **Kyverno:**
 ```bash
-# Check for Kyverno deployment
+# Check for Kyverno admission-controller deployment
 kubectl get deploy -n kyverno kyverno-admission-controller 2>/dev/null
 
-# Get Kyverno version
-kubectl get deploy -n kyverno -o json 2>/dev/null | \
-  jq -r '.items[0].spec.template.spec.containers[0].image'
+# Get Kyverno version from the admission-controller deployment (target by name, not items[0])
+kubectl get deploy kyverno-admission-controller -n kyverno -o json 2>/dev/null | \
+  jq -r '.spec.template.spec.containers[0].image'
 
-# Count policies
-kubectl get clusterpolicies.kyverno.io 2>/dev/null | wc -l
-kubectl get policies.kyverno.io -A 2>/dev/null | wc -l
+# Count policies (-o name avoids the header-row off-by-one)
+kubectl get clusterpolicies.kyverno.io -o name 2>/dev/null | wc -l
+kubectl get policies.kyverno.io -A -o name 2>/dev/null | wc -l
 ```
 
 **Example output (Kyverno detected):**
@@ -214,16 +267,16 @@ kyverno-admission-controller    1/1     45d
 
 **OPA Gatekeeper:**
 ```bash
-# Check for Gatekeeper deployment
+# Check for Gatekeeper controller-manager deployment
 kubectl get deploy -n gatekeeper-system gatekeeper-controller-manager 2>/dev/null
 
-# Get Gatekeeper version
-kubectl get deploy -n gatekeeper-system -o json 2>/dev/null | \
-  jq -r '.items[0].spec.template.spec.containers[0].image'
+# Get Gatekeeper version from the controller-manager deployment (target by name, not items[0])
+kubectl get deploy gatekeeper-controller-manager -n gatekeeper-system -o json 2>/dev/null | \
+  jq -r '.spec.template.spec.containers[0].image'
 
-# Count constraints
-kubectl get constraints 2>/dev/null | wc -l
-kubectl get constrainttemplates 2>/dev/null | wc -l
+# Count constraints (-o name avoids the header-row off-by-one)
+kubectl get constraints -o name 2>/dev/null | wc -l
+kubectl get constrainttemplates -o name 2>/dev/null | wc -l
 ```
 
 **Example output (Gatekeeper detected):**
@@ -236,20 +289,20 @@ gatekeeper-controller-manager       1/1     90d
 # Constraints: 15
 ```
 
-### 4. Secrets Management
+### 5. Secrets Management
 
-Determine how the cluster manages sensitive data. Native Kubernetes secrets are base64-encoded (not encrypted at rest by default), so most production clusters use external solutions:
-- **External Secrets Operator (ESO)**: Syncs secrets from AWS Secrets Manager/Parameter Store to K8s secrets
-- **Secrets Store CSI Driver**: Mounts secrets directly as volumes, avoids creating K8s Secret objects
-- **KMS encryption**: Encrypts etcd secrets at rest (cluster-level, not a secrets solution itself)
+Detect how the cluster manages sensitive data:
+- **External Secrets Operator (ESO)**: syncs secrets from AWS Secrets Manager/Parameter Store into K8s secrets
+- **Secrets Store CSI Driver**: mounts secrets as volumes
+- **KMS envelope encryption**: `cluster.encryptionConfig` scope for etcd secrets
 
 **External Secrets Operator (ESO):**
 ```bash
 # Check for ESO deployment
 kubectl get deploy -n external-secrets external-secrets 2>/dev/null
 
-# Count ExternalSecrets
-kubectl get externalsecrets.external-secrets.io -A 2>/dev/null | wc -l
+# Count ExternalSecrets (-o name avoids the header-row off-by-one)
+kubectl get externalsecrets.external-secrets.io -A -o name 2>/dev/null | wc -l
 
 # Check SecretStores
 kubectl get secretstores.external-secrets.io -A 2>/dev/null | head -5
@@ -274,8 +327,8 @@ kubectl get daemonset -n kube-system secrets-store-csi-driver 2>/dev/null
 # Check for AWS provider
 kubectl get daemonset -n kube-system secrets-store-csi-driver-provider-aws 2>/dev/null
 
-# Count SecretProviderClasses
-kubectl get secretproviderclasses -A 2>/dev/null | wc -l
+# Count SecretProviderClasses (-o name avoids the header-row off-by-one)
+kubectl get secretproviderclasses -A -o name 2>/dev/null | wc -l
 ```
 
 **Example output (Secrets Store CSI detected):**
@@ -289,8 +342,8 @@ secrets-store-csi-driver-provider-aws     3         3         3       45d
 
 **KMS Encryption:**
 ```bash
-# Check if secrets encryption is enabled
-aws eks describe-cluster --name <cluster-name> \
+# Report whether envelope encryption is configured and the key arn
+aws eks describe-cluster --name <cluster-name> --region <region> \
   --query 'cluster.encryptionConfig[*].{resources:resources,keyArn:provider.keyArn}'
 ```
 
@@ -304,18 +357,33 @@ aws eks describe-cluster --name <cluster-name> \
 ]
 ```
 
-### 5. Image Security
+> **Scope note:** `cluster.encryptionConfig` is fully owned by cluster-basics
+> (`encryption_config.detected` / `.kms_key_arn` / `.resources` — see
+> [`references/cluster-basics.md`](cluster-basics.md) "## Cluster Detail (full recon)").
+> Security reports only the secrets-management view: `secrets.kms_encryption.{enabled,kms_key_arn}`.
+> The resources-scope list (e.g. `["secrets"]`) is not re-owned here — defer to cluster-basics.
 
-Assess container image security posture. Check whether images come from trusted registries and if admission policies enforce image requirements:
-- **ECR usage**: Private registry with built-in vulnerability scanning
-- **Admission policies**: Kyverno/Gatekeeper rules that enforce image signing, registries, or tags
+### 6. Image Security
 
-**ECR Scanning:**
+Inventory container image sourcing facts:
+- **ECR usage**: whether images pull from ECR (private `*.dkr.ecr.*` or `public.ecr.aws`)
+- **Private registries**: the distinct registry hosts in use
+- **Admission policies**: whether Kyverno/Gatekeeper rules target Pods (image-related admission control exists)
+
+**ECR usage:**
 ```bash
 # Check if ECR is used (look for ECR URLs in pods)
 kubectl get pods -A -o json | jq -r '
   .items[].spec.containers[].image | 
   select(contains(".ecr.") or contains("ecr.aws"))' | sort -u | head -10
+```
+
+**Private registries in use** (distinct registry hosts across all pods):
+```bash
+kubectl get pods -A -o json | jq -r '
+  .items[].spec.containers[].image
+  | split("/")[0]
+  | select(contains(".") or contains(":"))' | sort -u
 ```
 
 **Example output (ECR images found):**
@@ -336,25 +404,36 @@ kubectl get constraints -o json 2>/dev/null | \
   jq -r '.items[] | select(.spec.match.kinds[].kinds[] == "Pod") | .metadata.name'
 ```
 
-### 6. RBAC Summary
+### 7. RBAC Summary
 
-Analyze RBAC configuration to identify overly permissive roles. Focus on:
-- **Wildcard permissions**: Roles with `*` on resources and verbs grant unlimited access
-- **cluster-admin bindings**: Should be minimal and well-documented
-- High role/binding counts may indicate RBAC sprawl needing cleanup
+Inventory RBAC objects and report these facts:
+- **Cluster-scoped**: ClusterRole / ClusterRoleBinding counts
+- **Namespaced**: Role / RoleBinding counts
+- **Wildcard roles**: roles whose rules contain `resources: ["*"]` AND `verbs: ["*"]` (report the names — a fact, no judgment)
+- **cluster-admin bindings**: ClusterRoleBindings whose `roleRef.name == cluster-admin` (report names + subjects)
 
 ```bash
-# Count ClusterRoles and ClusterRoleBindings
-kubectl get clusterroles | wc -l
-kubectl get clusterrolebindings | wc -l
+# Cluster-scoped counts (-o name avoids the header-row off-by-one)
+kubectl get clusterroles -o name | wc -l
+kubectl get clusterrolebindings -o name | wc -l
 
-# Find overly permissive ClusterRoles
+# Namespaced counts (-o name avoids the header-row off-by-one)
+kubectl get roles -A -o name | wc -l
+kubectl get rolebindings -A -o name | wc -l
+
+# Find ClusterRoles with wildcard resources AND wildcard verbs (a fact)
 kubectl get clusterroles -o json | jq -r '
   .items[] |
-  select(.rules[]?.resources[]? == "*" and .rules[]?.verbs[]? == "*") |
+  select(any(.rules[]?; (.resources[]? == "*") and (.verbs[]? == "*"))) |
   .metadata.name'
 
-# Check for cluster-admin bindings
+# Find namespaced Roles with wildcard resources AND wildcard verbs (a fact)
+kubectl get roles -A -o json | jq -r '
+  .items[] |
+  select(any(.rules[]?; (.resources[]? == "*") and (.verbs[]? == "*"))) |
+  "\(.metadata.namespace)/\(.metadata.name)"'
+
+# cluster-admin bindings (report names + subjects)
 kubectl get clusterrolebindings -o json | jq -r '
   .items[] |
   select(.roleRef.name == "cluster-admin") |
@@ -365,10 +444,12 @@ kubectl get clusterrolebindings -o json | jq -r '
 ```
 # ClusterRoles: 87
 # ClusterRoleBindings: 52
+# Roles (all namespaces): 41
+# RoleBindings (all namespaces): 63
 
-# Overly permissive roles:
+# Wildcard roles (resources:* AND verbs:*):
 super-admin-role
-legacy-operator-role
+kube-system/local-operator-role
 
 # cluster-admin bindings:
 {
@@ -389,85 +470,121 @@ legacy-operator-role
 
 ## Output Schema
 
+This is the **single canonical schema** for the security module — it carries every security
+fact. The `security-recon` agent emits exactly this shape (plus the shared `cluster:` block
+from `references/cluster-basics.md`). Use `null` where a fact was not detected; never omit a key.
+This module reports only security-relevant facts that EXIST; it draws no verdicts.
+
 ```yaml
 security:
-  iam:
-    model: string           # Pod Identity | IRSA | mixed | node-role
+  authentication:
+    mode: string                    # cluster.accessConfig.authenticationMode: API | API_AND_CONFIG_MAP | CONFIG_MAP
+    access_entries:
+      count: int                    # number of access entries
+      principal_arns: list          # principalArn per access entry
+    aws_auth_configmap:
+      present: bool                 # kubectl get cm aws-auth -n kube-system (NotFound => false)
+    oidc:
+      issuer: string                # cluster.identity.oidc.issuer, null if absent
+      iam_provider_present: bool    # an IAM OIDC provider whose arn contains the issuer id substring exists
+
+  iam_for_pods:
+    model: string                   # Pod Identity | IRSA | mixed | node-role
     pod_identity:
-      enabled: bool
-      associations: int     # Count of Pod Identity associations
+      detected: bool                  # (eks-pod-identity-agent addon present) OR (associations.count > 0).
+                                      # On EKS Auto Mode the agent is built-in, so describe-addon returns
+                                      # ResourceNotFound (expected, not "absent") — associations.count > 0 sets detected: true.
+      associations:
+        count: int
+        list:                       # one entry per pod identity association
+          - namespace: string
+            service_account: string
+            role_arn: string
     irsa:
-      enabled: bool
-      service_accounts: int # Count of SAs with IRSA annotation
-      
+      detected: bool
+      service_accounts_with_irsa: int   # count of SAs annotated with eks.amazonaws.com/role-arn
+
   pod_security:
     psa_enabled: bool
     enforcement:
-      restricted: int       # Namespaces enforcing restricted
-      baseline: int         # Namespaces enforcing baseline
-      privileged: int       # Namespaces enforcing privileged
-      none: int            # Namespaces with no PSA labels
-      
-  policy_engine:
-    tool: string           # kyverno | gatekeeper | both | none
+      restricted: int               # namespaces enforcing restricted
+      baseline: int                 # namespaces enforcing baseline
+      privileged: int               # namespaces enforcing privileged
+      none: int                     # namespaces with no PSA enforce label
+
+  policy_engines:
     kyverno:
       detected: bool
       version: string
       cluster_policies: int
       policies: int
-    gatekeeper:
+    opa_gatekeeper:
       detected: bool
       version: string
       constraint_templates: int
       constraints: int
-      
+
   secrets:
-    approach: string       # eso | secrets-store-csi | native | mixed
-    kms_encryption: bool
-    kms_key_arn: string
-    external_secrets:
+    kms_encryption:
+      enabled: bool                 # cluster.encryptionConfig present (secrets-management view)
+      kms_key_arn: string           # provider.keyArn, null if absent
+    external_secrets_operator:
       detected: bool
-      external_secrets: int
+      version: string
+      external_secrets_count: int
       secret_stores: int
     secrets_store_csi:
       detected: bool
       aws_provider: bool
       secret_provider_classes: int
-      
+
   image_security:
-    ecr_used: bool
-    private_registries: list
-    admission_policies: bool  # Image policies exist
-    
+    ecr_used: bool                  # any pod image pulls from ECR (private or public)
+    private_registries: list        # distinct registry hosts across all pod images
+    admission_policies: bool        # Kyverno/Gatekeeper rules targeting Pods exist
+
+  admission_webhooks:
+    validating:
+      count: int                    # total ValidatingWebhookConfigurations
+      webhooks:                     # non-system entries only
+        - name: string
+          webhook_names: list
+          failure_policy: string    # Fail | Ignore (webhooks[0].failurePolicy)
+    mutating:
+      count: int                    # total MutatingWebhookConfigurations
+      webhooks:                     # non-system entries only
+        - name: string
+          webhook_names: list
+          failure_policy: string
+
   rbac:
     cluster_roles: int
     cluster_role_bindings: int
-    overly_permissive_roles: list
-    cluster_admin_bindings: list
+    roles: int                      # namespaced Roles across all namespaces
+    role_bindings: int              # namespaced RoleBindings across all namespaces
+    wildcard_roles: list            # roles whose rules contain resources:* AND verbs:* (cluster + namespaced)
+    cluster_admin_bindings:         # ClusterRoleBindings with roleRef.name == cluster-admin
+      - name: string
+        subjects: list
 ```
 
 ---
 
 ## Edge Cases
 
-### Mixed IAM Model
+### Mixed IAM for Pods
 
-Many clusters transition from IRSA to Pod Identity gradually:
-- Note both are in use
-- List which service accounts use which method
-- Recommend completing migration
+Some clusters use both IRSA and Pod Identity:
+- `iam_for_pods.model: mixed`
+- Both `pod_identity.detected` and `irsa.detected` are true; report both counts.
 
-### No PSA Labels
+### Namespaces with no PSA labels
 
-Namespaces without PSA labels run in unrestricted mode:
-- Flag security risk
-- Recommend at minimum `baseline` enforcement
+Namespaces without a PSA enforce label are counted in `pod_security.enforcement.none` (a fact; report the count).
 
 ### Multiple Policy Engines
 
-Some clusters run both Kyverno and Gatekeeper:
-- Note complexity risk
-- Check for conflicting policies
+A cluster may run both Kyverno and Gatekeeper. Report each under `policy_engines` independently (`detected: true` for both).
 
 ### GuardDuty Integration
 
@@ -520,23 +637,12 @@ kubectl get mutatingwebhookconfigurations --no-headers | wc -l
 ]
 ```
 
-**Notable webhooks to look for:**
+**Notable webhook names (reported verbatim as facts):**
 - `kyverno-*` - Kyverno policy enforcement
 - `gatekeeper-*` - OPA Gatekeeper constraints
-- `cert-manager-webhook` - Certificate management
-- `aws-load-balancer-webhook` - ALB controller validation
+- `cert-manager-webhook` - cert-manager
+- `aws-load-balancer-webhook` - ALB controller
 
----
-
-## Recommendations Based on Findings
-
-| Finding | Recommendation |
-|---------|---------------|
-| node-role IAM model | Migrate to Pod Identity for least-privilege |
-| IRSA only | Consider Pod Identity for simpler management |
-| No PSA labels | Apply at least `baseline` enforcement |
-| No policy engine | Consider Kyverno for policy-as-code |
-| KMS encryption not enabled | Enable for compliance requirements |
-| No secrets solution | Implement ESO or Secrets Store CSI |
-| Overly permissive RBAC | Review and tighten role permissions |
-| Many mutating webhooks | Review for performance impact on API server |
+Admission webhooks are part of the canonical schema under `security.admission_webhooks`
+(validating + mutating, each with `count` and per-webhook `{name, webhook_names, failure_policy}`).
+Report `failurePolicy` verbatim (`Fail` | `Ignore`) as a fact; draw no conclusion.

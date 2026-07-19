@@ -24,7 +24,6 @@ This page is generated from [skills/eks-recon/references/cicd.md](https://github
 - [Output Schema](#output-schema)
 - [Integration Patterns](#integration-patterns)
 - [Edge Cases](#edge-cases)
-- [Recommendations Based on Findings](#recommendations-based-on-findings)
 
 ---
 
@@ -330,49 +329,64 @@ ghcr.io/fluxcd/source-controller:v1.2.4
 
 ## Output Schema
 
+This is the **single canonical schema** for the cicd module — it carries every CI/CD and
+GitOps fact. The `cicd-recon` agent emits exactly this shape (plus the shared `cluster:` block
+from `references/cluster-basics.md`). Use `null` where a fact was not detected; never omit a key.
+
 ```yaml
 cicd:
   workspace:
-    detected: list      # List of tools found in workspace
-    details:
-      github_actions:
-        detected: bool
-        workflows: list   # Paths to workflow files
-        eks_related: bool # Contains EKS/kubectl/helm references
-        
-      gitlab_ci:
-        detected: bool
-        config_path: string
-        
-      jenkins:
-        detected: bool
-        jenkinsfile_path: string
-        
-      circleci:
-        detected: bool
-        config_path: string
-        
-      codepipeline:
-        detected: bool
-        buildspec_paths: list
-        
+    tools:
+      count: int              # number of workspace CI/CD tools detected
+      list: list              # names of tools found in workspace (e.g. ["github_actions", "jenkins"])
+    github_actions:
+      detected: bool
+      workflows:
+        count: int
+        list: list            # paths to workflow files
+      eks_related: bool       # any workflow references EKS/kubectl/helm/eks
+    gitlab_ci:
+      detected: bool
+      config_path: string     # path to .gitlab-ci.yml, null if absent
+    jenkins:
+      detected: bool
+      jenkinsfile_path: string   # path to Jenkinsfile, null if absent
+      pipeline_libraries: list   # */vars/*.groovy paths (shared library steps), null/empty if none
+    circleci:
+      detected: bool
+      config_path: string     # path to .circleci/config.yml, null if absent
+    codepipeline:
+      detected: bool
+      buildspec_paths: list   # buildspec*.yml / pipeline*.json paths
+    atlantis:
+      detected: bool
+      config_path: string     # path to atlantis.yaml, null if absent
+
   gitops:
-    tool: string        # ArgoCD | Flux | none
-    detected: bool
-    
+    tool: string              # primary GitOps controller detected: argocd | flux | none
+    detected: bool            # any GitOps controller present
     argocd:
       detected: bool
       namespace: string
-      version: string
-      eks_managed: bool   # EKS ArgoCD Capability
-      applications: int   # Count of Application resources
-      
+      version: string         # from argocd-server container image tag
+      eks_managed: bool       # EKS ArgoCD Capability (AWS-managed) vs self-managed
+      applications: int       # count of Application resources
     flux:
       detected: bool
       namespace: string
-      version: string
-      gitrepositories: int
-      kustomizations: int
+      version: string         # from source-controller image tag or `flux version --client`
+      git_repositories: int   # count of GitRepository resources
+      kustomizations: int     # count of Kustomization resources
+
+  other_tools:                # additional CI/CD platforms detected in-cluster
+    spinnaker:
+      detected: bool
+      namespace: string       # namespace where spin-* deployments run, null if absent
+    tekton:
+      detected: bool
+      namespace: string
+      pipelines: int          # count of pipelines.tekton.dev resources
+      pipelineruns: int       # count of pipelineruns.tekton.dev resources
 ```
 
 ---
@@ -381,7 +395,7 @@ cicd:
 
 ### GitOps Bridge (Terraform + ArgoCD)
 
-**Why this matters:** The GitOps Bridge pattern uses Terraform to bootstrap ArgoCD, then ArgoCD manages all applications. Understanding this pattern is critical because cluster changes may require coordinating Terraform applies with ArgoCD sync.
+The GitOps Bridge pattern uses Terraform to bootstrap ArgoCD, then ArgoCD manages applications.
 
 If both Terraform and ArgoCD detected:
 ```bash
@@ -397,7 +411,7 @@ grep -r "gitops_bridge\|argocd_bootstrap" --include="*.tf" . 2>/dev/null | head 
 
 ### App of Apps
 
-**Why this matters:** App of Apps is a common ArgoCD pattern where one Application manages other Applications. Identify this to understand the deployment hierarchy and find the root Application that controls others.
+App of Apps is an ArgoCD pattern where one Application manages other Applications.
 
 If ArgoCD detected:
 ```bash
@@ -414,7 +428,7 @@ platform-apps
 
 ### ApplicationSets
 
-**Why this matters:** ApplicationSets generate multiple Applications from templates. Understanding ApplicationSet usage reveals how multi-cluster or multi-environment deployments work.
+ApplicationSets generate multiple Applications from templates.
 
 ```bash
 # Check for ApplicationSets
@@ -460,6 +474,8 @@ find . -name "atlantis.yaml" -type f 2>/dev/null
 ./atlantis.yaml
 ```
 
+Record under `cicd.workspace.atlantis`: `detected` and `config_path`.
+
 ### Tekton Pipelines
 
 **Why detect Tekton:** Tekton is a Kubernetes-native CI/CD framework. Pipelines run as pods in the cluster itself.
@@ -480,6 +496,9 @@ tekton      deploy-pipeline   60d
 kubectl get pipelineruns.tekton.dev -A 2>/dev/null | head -5
 ```
 
+Record under `cicd.other_tools.tekton`: `detected`, `namespace`, and counts of
+`pipelines`/`pipelineruns`.
+
 ### Spinnaker
 
 **Why detect Spinnaker:** Enterprise deployment platform with advanced deployment strategies (canary, blue-green). Often used in large organizations.
@@ -498,14 +517,4 @@ spin-gate           1/1     1            1           120d
 spin-orca           1/1     1            1           120d
 ```
 
----
-
-## Recommendations Based on Findings
-
-| Finding | Recommendation |
-|---------|---------------|
-| No CI/CD detected | Suggest setting up GitHub Actions or ArgoCD |
-| CI only, no CD | Consider ArgoCD for GitOps deployment |
-| ArgoCD detected | Use ArgoCD for add-on management during upgrades |
-| Flux detected | Coordinate upgrades with Flux reconciliation |
-| Multiple tools | Document integration points |
+Record under `cicd.other_tools.spinnaker`: `detected` and `namespace`.

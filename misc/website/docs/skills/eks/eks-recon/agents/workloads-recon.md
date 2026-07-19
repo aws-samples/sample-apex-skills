@@ -23,10 +23,12 @@ Detect all running workloads for the specified EKS cluster and return structured
 1. **Read both reference files first**:
    - `references/cluster-basics.md` — cluster context (always loaded); defines the shared `cluster:` block every module emits
    - `references/workloads.md` — module-specific detection:
-     - Namespace detection
-     - Deployment/StatefulSet/DaemonSet detection
-     - Service and Ingress detection
-     - PVC detection
+     - Deployment/StatefulSet/DaemonSet detection (all container images, init containers, labels)
+     - CronJob/Job detection
+     - Service, Ingress (tls_enabled), HPA detection
+     - PDB, PriorityClass, VPA detection
+     - api_versions_in_use (raw fact list — never flagged deprecated)
+     - StatefulSet volumeClaimTemplate → storage_class linkage (PVCs themselves are the storage module's)
      - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
@@ -38,67 +40,13 @@ Detect all running workloads for the specified EKS cluster and return structured
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/workloads.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-workloads:
-  namespaces:
-    total: <int>
-    user_namespaces: [<list excluding kube-*>]
-  pods:
-    total: <int>
-    by_namespace:
-      - namespace: <string>
-        count: <int>
-  deployments:
-    total: <int>
-    list:
-      - name: <string>
-        namespace: <string>
-        replicas: <int>
-        ready: <int>
-  statefulsets:
-    total: <int>
-    list:
-      - name: <string>
-        namespace: <string>
-        replicas: <int>
-  daemonsets:
-    total: <int>
-    list:
-      - name: <string>
-        namespace: <string>
-  services:
-    total: <int>
-    by_type:
-      ClusterIP: <int>
-      LoadBalancer: <int>
-      NodePort: <int>
-  ingresses:
-    total: <int>
-    list:
-      - name: <string>
-        namespace: <string>
-        class: <string>
-        hosts: [<list>]
-  storage:
-    pvcs:
-      total: <int>
-      by_storage_class:
-        - class: <string>
-          count: <int>
-          total_capacity: <string>
-```
+PVCs are NOT part of this module — the storage module owns PVC inventory. Do not emit a
+`storage.pvcs` block.
 
 ## Important
 

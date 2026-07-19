@@ -34,70 +34,10 @@ Detect the security posture for the specified EKS cluster and return structured 
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
-
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-security:
-  authentication:
-    mode: <API|API_AND_CONFIG_MAP|CONFIG_MAP>
-    access_entries: <int>
-  iam_for_pods:
-    pod_identity:
-      detected: <bool>
-      associations: <int>
-    irsa:
-      detected: <bool>
-      service_accounts_with_irsa: <int>
-  secrets:
-    kms_encryption:
-      enabled: <bool>
-      kms_key_arn: <string or null>
-    external_secrets_operator:
-      detected: <bool>
-      version: <string or null>
-      external_secrets_count: <int>
-      secret_stores: <int>
-    secrets_store_csi:
-      detected: <bool>
-      aws_provider: <bool>
-      secret_provider_classes: <int>
-  pod_security:
-    psa_enabled: <bool>
-    namespaces_with_labels: <int>
-    enforcement_levels:
-      restricted: <int>
-      baseline: <int>
-      privileged: <int>
-  policy_engines:
-    kyverno:
-      detected: <bool>
-      version: <string or null>
-      cluster_policies: <int>
-      policies: <int>
-    opa_gatekeeper:
-      detected: <bool>
-      version: <string or null>
-      constraints: <int>
-      constraint_templates: <int>
-  admission_webhooks:
-    validating_webhooks: <int>
-    mutating_webhooks: <int>
-    notable: [<list of non-system webhook names>]
-  rbac:
-    cluster_roles: <int>
-    cluster_role_bindings: <int>
-    overly_permissive_roles: [<list of roles with wildcard permissions>]
-```
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/security.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
 ## Important
 

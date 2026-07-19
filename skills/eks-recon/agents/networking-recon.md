@@ -31,49 +31,10 @@ Detect the networking setup for the specified EKS cluster and return structured 
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
-
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-networking:
-  vpc:
-    id: <string>
-    cidr: <string>
-    subnets: <int>
-    available_ips: <int>
-  cni:
-    type: <vpc-cni|calico|cilium|other>
-    version: <string>
-    config:
-      prefix_delegation: <bool>
-      network_policy_enabled: <bool>
-  service_cidr: <string>
-  endpoint_access:
-    public: <bool>
-    private: <bool>
-    public_cidrs: [<list>]
-  ingress:
-    controllers:
-      - name: <string>
-        type: <nginx|alb|traefik|other>
-        namespace: <string>
-    ingress_classes: [<list>]
-  service_mesh:
-    detected: <bool>
-    type: <istio|linkerd|appmesh|none>
-  network_policies:
-    count: <int>
-    namespaces_with_policies: [<list>]
-```
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/networking.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
 ## Important
 

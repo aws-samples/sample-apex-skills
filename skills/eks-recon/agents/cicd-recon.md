@@ -32,46 +32,10 @@ Detect the CI/CD pipelines and GitOps tooling for the specified EKS cluster and 
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
-
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-cicd:
-  workspace:
-    github_actions:
-      detected: <bool>
-      workflows: [<list of workflow files>]
-    gitlab_ci:
-      detected: <bool>
-    jenkins:
-      detected: <bool>
-      jenkinsfile: <bool>
-    other: <string or null>
-  gitops:
-    argocd:
-      detected: <bool>
-      namespace: <string or null>
-      applications: <int>
-      app_projects: <int>
-    flux:
-      detected: <bool>
-      namespace: <string or null>
-      kustomizations: <int>
-      helm_releases: <int>
-      git_repositories: <int>
-  deployment_method:
-    primary: <gitops|ci-push|manual|unknown>
-    evidence: <string describing how determined>
-```
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/cicd.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
 ## Important
 

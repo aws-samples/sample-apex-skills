@@ -30,47 +30,13 @@ Detect all add-ons and installed components for the specified EKS cluster and re
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
-
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-addons:
-  eks_managed:
-    count: <int>
-    list:
-      - name: <string>
-        version: <string>
-        status: <ACTIVE|CREATING|DEGRADED|etc>
-        configuration: <string or null>
-  helm_releases:
-    count: <int>
-    list:
-      - name: <string>
-        namespace: <string>
-        chart: <string>
-        version: <string>
-        status: <deployed|failed|etc>
-  crds:
-    count: <int>
-    notable:
-      - <list of interesting CRDs like karpenter.sh, cert-manager.io>
-  auto_mode_features:
-    elb: <bool>
-    block_storage: <bool>
-    compute: <bool>
-```
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/addons.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
 ## Important
 
 - Do NOT include recommendations or analysis - just facts
 - Be concise - the main agent will aggregate your findings
-- Note any add-ons that may need upgrade (version significantly behind latest)
+- Capture add-on status (including AWS-reported DEGRADED/ACTIVE and update-availability) as raw facts; do not judge whether an upgrade is needed

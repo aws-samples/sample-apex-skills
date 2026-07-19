@@ -1,6 +1,6 @@
 ---
 name: eks-recon
-description: "EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks what version am I running, mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say reconnaissance or discovery. When in doubt about cluster state, run recon first. Skip for upgrade readiness scoring or deprecated API checks (eks-upgrade-check), operational audits with GREEN/AMBER/RED ratings (eks-operation-review), and architecture design documents or Mermaid diagrams (eks-design)."
+description: "EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, subnets, load balancers, DNS), security facts (auth mode, IRSA/Pod Identity, RBAC, encryption), add-ons/Helm, observability, workloads (Deployments, StatefulSets, PDBs, HPAs), storage (CSI, StorageClasses, PVs, backup tooling), IaC (Terraform, CDK, eksctl), CI/CD (Actions, ArgoCD, Flux), and cluster insights. Use to discover or document the current state of an EKS cluster — 'what am I running', 'tell me about my setup', 'what version am I on', inventory before an upgrade/migration/design. Reports facts only; it does not score, rate, plan, or recommend, and overlapping facts with other skills is fine. Route elsewhere for a JUDGMENT or ARTIFACT: readiness scoring/deprecated-API checks (eks-upgrade-check), GREEN/AMBER/RED audits (eks-operation-review), design docs/diagrams (eks-design)."
 ---
 
 # EKS Reconnaissance
@@ -9,18 +9,17 @@ Discover everything about an EKS cluster environment. Run this skill to gather c
 
 ## When to Use This Skill
 
-**Run this skill when the user:**
+**Run this skill when the user wants to discover or document cluster FACTS:**
 - Asks about their EKS cluster ("what's my cluster running?", "tell me about my setup")
-- Plans an upgrade, migration, or architecture change
-- Needs cluster context before any EKS-related decision
-- Wants to document or review their cluster state
+- Wants an inventory of current state before an upgrade, migration, or architecture change
+- Wants to document or review what exists in their cluster
 - Asks questions like "what version am I on?" or "am I using Karpenter?"
-- Is about to modify their cluster (recon first to understand current state)
 
 **Also trigger this skill when:**
-- User mentions an EKS cluster name and seems to need context
-- Another workflow needs cluster information as input
-- You need to understand the cluster before giving recommendations
+- User mentions an EKS cluster name and seems to need its current-state facts
+- Another workflow needs raw cluster facts as input
+
+Recon reports **facts only**. Reporting facts that also matter to another skill (upgrade, security, design) is expected and fine — the dividing line is discovery-of-facts (here) vs. verdict/score/artifact (route elsewhere, below).
 
 **Do NOT use this skill for:**
 - **Upgrade readiness scoring or deprecated API checks** — questions like "score my upgrade readiness", "are there deprecated APIs blocking my upgrade", "can I safely upgrade to 1.33", "readiness score", or "breaking changes that would block a version bump" belong to `eks-upgrade-check`. Recon discovers *what version you're on*; it does NOT assess whether you're *ready* to move to the next version.
@@ -136,6 +135,7 @@ Load only the references needed for the user's request — this keeps context fo
 | Storage | PVCs, EBS, EFS, StorageClasses, CSI drivers, volumes, snapshots | [storage.md](references/storage.md) | [storage-recon.md](agents/storage-recon.md) |
 | IaC | Terraform, CloudFormation, CDK, eksctl, Pulumi, "how is it managed?" | [iac.md](references/iac.md) | [iac-recon.md](agents/iac-recon.md) |
 | CI/CD | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd.md) | [cicd-recon.md](agents/cicd-recon.md) |
+| Cluster Insights | EKS-reported upgrade-readiness & configuration insights (raw findings) | [cluster-insights.md](references/cluster-insights.md) | [cluster-insights-recon.md](agents/cluster-insights-recon.md) |
 
 ---
 
@@ -190,7 +190,7 @@ Required:
 
 Optional:
 - Specific modules to run (default: all)
-- Output file path (default: .eks-recon-report.yaml)
+- Output path prefix (default: `.eks-recon-report` → writes `.eks-recon-report.md` + `.eks-recon-report.yaml`)
 ```
 
 **Auto-discovery when cluster name is not explicit:**
@@ -207,6 +207,8 @@ When the user says "my cluster", "current cluster", or does not name a specific 
 4. Only ask the user to specify a cluster if discovery yields multiple candidates and the prompt is ambiguous.
 
 **IMPORTANT:** Never give up after checking only environment variables. AWS credentials can come from `~/.aws/credentials`, `~/.aws/config`, instance metadata, or ECS task roles — none of which appear in `env | grep AWS_`. Always try `aws sts get-caller-identity` before concluding credentials are unavailable.
+
+**IMPORTANT — verify the kubectl context matches the TARGET cluster.** When the user names a specific cluster, do NOT assume `kubectl config current-context` points at it — the current context frequently points at a *different* cluster (even a different region). Before running any kubectl detection, confirm the active context resolves to the named cluster (compare the context's cluster ARN/endpoint, or run `aws eks update-kubeconfig --name <cluster> --region <region>` to bind kubectl to the intended cluster, then `--context <that-context>`). Reconning the wrong cluster silently produces a confident-but-wrong report. If you cannot confirm the context maps to the named cluster, say so rather than proceeding against an unverified context.
 
 ### Step 2: Check MCP Availability
 
@@ -230,100 +232,77 @@ For each selected module:
 
 ### Step 4: Generate Report
 
-Write report to `.eks-recon-report.yaml` and present summary:
+Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a machine artifact for optional hand-off to other skills.
+
+> **Facts only.** Both artifacts report what the cluster *is*. Never emit a verdict, score, readiness rating, or recommendation. A "Notable facts" line states an observation ("2 subnets have < 16 free IPs"); it never says "you should" or "this is a risk".
+
+#### 4a. Markdown fact report (primary) → `.eks-recon-report.md`
+
+Render this structure, including **only modules that actually ran**:
+
+```markdown
+# EKS Recon — <cluster> (<region>)
+_generated <timestamp> · source: MCP | CLI · modules: N/N_
+
+## Cluster summary
+| Fact | Value |
+|------|-------|
+| version / platform | 1.31 / eks.5 |
+| support type | STANDARD |
+| status / created | ACTIVE / 2024-09-10 |
+| authentication mode | API_AND_CONFIG_MAP |
+| compute strategy | Karpenter + 1 MNG |
+| IaC | Terraform (high confidence) |
+| CI/CD | GitHub Actions + ArgoCD |
+
+## Per-module facts
+### Compute
+<small fact table per module — one H3 per RUN module>
+### Networking
+...
+
+## Notable facts
+<flat bullets: co-occurring or absent facts, stated neutrally, ZERO verdicts>
+- authentication_mode = API_AND_CONFIG_MAP; aws-auth ConfigMap present
+- compute.strategy = Karpenter; security.iam_for_pods.irsa.detected = false
+- 2 of 4 cluster subnets report < 16 available IPs
+
+## Coverage
+<modules that could not run + reason, AND sub-facts that ran but could not be confirmed — makes gaps visible>
+- storage: unavailable (reason: MCP 401 and kubectl not configured)
+- addons.helm_releases: unconfirmed (reason: helm CLI absent, secret fallback not run) — reported as `unconfirmed`, not `count: 0`
+
+## Machine artifact
+- `.eks-recon-report.yaml` written (canonical schema, for hand-off to other skills)
+```
+
+#### 4b. Machine YAML artifact → `.eks-recon-report.yaml`
+
+Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` block and the `cluster_detail:` block (both from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
+
+> **The reference Output Schemas are the single source of truth for the YAML shape** — do not hand-copy a schema here (that is how the old example drifted). The illustrative fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
 
 ```yaml
-# EKS Reconnaissance Report
-# Generated: 2026-04-22T14:30:00Z
-# Cluster: my-cluster
-# Region: us-west-2
-# Modules: cluster-basics, compute, iac, cicd, addons
-
-cluster:
+# EKS Reconnaissance Report — illustrative envelope only.
+# Canonical shape per module = references/<module>.md "## Output Schema".
+cluster:              # shape: references/cluster-basics.md "## Shared Cluster Block"
   name: my-cluster
   region: us-west-2
   version: "1.31"
   platform_version: eks.5
-  endpoint: https://<cluster-id>.gr7.us-west-2.eks.amazonaws.com
-  arn: arn:aws:eks:us-west-2:<account-id>:cluster/my-cluster
   status: ACTIVE
-  created_at: "2024-09-10T12:00:00Z"
-
-compute:
+  tags: {team: platform}
+cluster_detail:       # shape: references/cluster-basics.md "## Cluster Detail (full recon)"
+  upgrade_policy: {support_type: STANDARD}
+  # ...zonal_shift.enabled, certificate_authority.present, health.issues, encryption_config
+compute:              # shape: references/compute.md "## Output Schema"
   strategy: Karpenter
-  auto_mode:
-    enabled: false
-  karpenter:
-    detected: true
-    version: "1.0.5"
-    nodepools: 2
-    nodepool_names: [default, gpu]
-  mng:
-    detected: true
-    count: 1
-    groups:
-      - name: system
-        status: ACTIVE
-        instance_types: [m6i.large]
-        desired_size: 2
-  fargate:
-    detected: false
-    profiles: 0
-  self_managed:
-    detected: false
-    node_count: 0
-
-iac:
-  tool: Terraform
-  confidence: high
-  evidence:
-    type: workspace_files
-    details: "./infrastructure/eks/main.tf contains aws_eks_cluster"
-
-cicd:
-  workspace:
-    github_actions:
-      detected: true
-      workflows: [.github/workflows/deploy.yml]
-    gitlab_ci:
-      detected: false
-    jenkins:
-      detected: false
-      jenkinsfile: false
-    other: null
-  gitops:
-    argocd:
-      detected: true
-      namespace: argocd
-      applications: 12
-      app_projects: 3
-    flux:
-      detected: false
-      namespace: null
-      kustomizations: 0
-      helm_releases: 0
-      git_repositories: 0
-
-addons:
-  eks_managed:
-    count: 2
-    list:
-      - name: vpc-cni
-        version: v1.18.1-eksbuild.1
-        status: ACTIVE
-        configuration: null
-      - name: coredns
-        version: v1.11.1-eksbuild.8
-        status: ACTIVE
-        configuration: null
-  helm_releases:
-    count: 1
-    list:
-      - name: karpenter
-        namespace: kube-system
-        chart: karpenter
-        version: 1.0.5
-        status: deployed
+  # ...every field the reference schema defines, null where undetected
+networking: { ... }   # shape: references/networking.md
+# ...one key per module that ran; unavailable modules:
+storage:
+  unavailable: true
+  reason: "MCP 401 and kubectl not configured"
 ```
 
 ---
@@ -336,10 +315,11 @@ When running full reconnaissance, delegate each module to a specialized subagent
 
 | Scenario | Mode | Reason |
 |----------|------|--------|
-| Any recon (1+ modules) | **USE subagents** | Isolated context, cleaner main conversation |
+| Full or multi-module recon | **USE subagents** | Isolated context, true parallel execution across modules |
+| Single-module targeted query | **Inline preferred** | One reference, one detection — a subagent spawn adds a full model turn for a one-line answer |
 | No Agent tool available | Inline | Subagents not supported |
 
-> **IMPORTANT:** If the Agent tool is available, you MUST use subagent mode for ALL reconnaissance — even single-module targeted queries. Subagents keep detection context isolated from the main conversation. Do not fall back to inline mode just because "it's only one module" or "MCP tools work" — always delegate to subagents.
+> **IMPORTANT:** If the Agent tool is available, use subagent mode for **full or multi-module** reconnaissance — one subagent per module, spawned in parallel — so each module's detection context stays isolated. For a **single-module targeted query** (e.g. "Is this cluster using Karpenter?"), inline is preferred: load the one reference and run detection directly. Escalate a targeted query to a subagent only if it fans out to 2+ modules or the raw tool output would flood the main context.
 
 ### Subagent Files
 
@@ -356,14 +336,15 @@ Each module has a corresponding subagent prompt in `agents/`:
 | Workloads | `agents/workloads-recon.md` | Detect running workloads |
 | IaC | `agents/iac-recon.md` | Detect IaC tooling |
 | CI/CD | `agents/cicd-recon.md` | Detect deployment pipelines |
+| Cluster Insights | `agents/cluster-insights-recon.md` | Collect EKS-reported insights (raw findings) |
 
 ### Orchestration Steps
 
 **Step 1: Check subagent availability**
 ```
 If Agent tool is available:
-  → MUST use subagent mode for ALL recon (full or targeted)
-  → Even single-module queries use subagents to isolate context
+  → Full or multi-module recon → use subagent mode (one subagent per module, in parallel)
+  → Single-module targeted query → inline is preferred (load the one reference, detect directly)
 Else:
   → Use inline mode (load references directly)
 ```
@@ -389,7 +370,7 @@ Agent(
   subagent_type: "general-purpose"
 )
 
-... (spawn all 9 in parallel)
+... (spawn every selected module's subagent in parallel — up to all 10)
 ```
 
 **Step 3: Aggregate results**
@@ -398,12 +379,11 @@ When all subagents complete:
 1. Collect each subagent's YAML output
 2. Merge into single report structure, applying these normalization rules:
    - Every subagent emits its own top-level `cluster:` block. Merge into a single top-level `cluster:` by deduplicating exact-match blocks (all subagents report the same cluster); if any field mismatches across subagents, flag it rather than silently picking one.
-   - Module outputs are already in their canonical agent-defined shapes. Preserve them verbatim under the matching top-level key: `compute:`, `iac:`, `cicd:`, `addons:`, `networking:`, `observability:`, `security:`, `storage:`, `workloads:`. Do not reshape, flatten, or rename keys.
+   - **`cluster-basics` has no subagent** — it is always-loaded shared context. Beyond the shared `cluster:` block, it also owns the top-level **`cluster_detail:`** facts (support_type, zonal_shift, certificate_authority, health, encryption_config — see `references/cluster-basics.md` "## Cluster Detail (full recon)"). On a full recon, run those cluster-basics detection commands directly (inline, from the main thread — they are a handful of `describe-cluster` reads) and merge the result as the top-level `cluster_detail:` key. Skip on a targeted query that doesn't need them.
+   - Module outputs are already in the canonical shape defined by each `references/<module>.md` "## Output Schema". Preserve them verbatim under the matching top-level key: `compute:`, `networking:`, `security:`, `addons:`, `observability:`, `workloads:`, `storage:`, `iac:`, `cicd:`, `cluster_insights:`. Do not reshape, flatten, or rename keys.
    - If a subagent fails to respond or errors out, set its key to `unavailable: true` with a short `reason:` string; do not omit the key.
-3. Add cross-module insights (e.g., "Karpenter detected but no IRSA for controller")
-4. Generate recommendations based on combined findings
-5. Write final report to `.eks-recon-report.yaml`
-6. Present summary to user
+3. Note co-occurring or absent facts across modules — state the observation, draw no conclusion (e.g. "compute.strategy = Karpenter; security.iam_for_pods.irsa.detected = false"). These are neutral facts for the "Notable facts" section, never verdicts or recommendations.
+4. Render the **human-readable markdown fact report** (primary) and write the **machine YAML artifact** — see [Step 4](#step-4-generate-report).
 
 ---
 

@@ -21,6 +21,7 @@ Only Day 2 operational skills that benefit from autonomous execution are ported:
 |-------|--------|-------------|
 | [eks-cost-intelligence](./eks-cost-intelligence/) | Active | EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report. Analyzes compute efficiency, Spot/Graviton adoption, networking, storage,... |
 | [eks-operation-review](./eks-operation-review/) | Placeholder | Run a structured EKS operational excellence assessment across 10 areas (networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, ope... |
+| [eks-recon](./eks-recon/) | Active | EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, ... |
 | [eks-security](./eks-security/) | Active | EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap. Covers OS/AMI selection (Bottlerocket, AL2023, RHEL, Ubuntu), ide... |
 | [eks-upgrade-check](./eks-upgrade-check/) | Placeholder | Assess EKS cluster upgrade readiness by running automated checks across 8 areas (version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upg... |
 <!-- DEVOPS_AGENT_REFERENCE_END -->

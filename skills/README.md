@@ -232,7 +232,7 @@ Use whenever someone is designing or building an Internal Developer Platform (ID
 
 ### [eks-recon](./eks-recon/)
 
-EKS cluster reconnaissance and environment discovery. Detects compute strategy (Karpenter, MNG, Auto Mode, Fargate), IaC tooling (Terraform, CloudFormation, CDK, eksctl), CI/CD pipelines (GitHub Actions, GitLab, ArgoCD, Flux), add-on inventory, networking, security posture, and observability. Use this skill whenever someone asks about their EKS cluster, wants to understand their setup, is planning an upgrade or migration, needs cluster context for any reason, asks what version am I running, mentions wanting to review or document their cluster, or is about to make any EKS-related decision - even if they don't explicitly say reconnaissance or discovery. When in doubt about cluster state, run recon first. Skip for upgrade readiness scoring or deprecated API checks (eks-upgrade-check), operational audits with GREEN/AMBER/RED ratings (eks-operation-review), and architecture design documents or Mermaid diagrams (eks-design).
+EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, subnets, load balancers, DNS), security facts (auth mode, IRSA/Pod Identity, RBAC, encryption), add-ons/Helm, observability, workloads (Deployments, StatefulSets, PDBs, HPAs), storage (CSI, StorageClasses, PVs, backup tooling), IaC (Terraform, CDK, eksctl), CI/CD (Actions, ArgoCD, Flux), and cluster insights. Use to discover or document the current state of an EKS cluster — 'what am I running', 'tell me about my setup', 'what version am I on', inventory before an upgrade/migration/design. Reports facts only; it does not score, rate, plan, or recommend, and overlapping facts with other skills is fine. Route elsewhere for a JUDGMENT or ARTIFACT: readiness scoring/deprecated-API checks (eks-upgrade-check), GREEN/AMBER/RED audits (eks-operation-review), design docs/diagrams (eks-design).
 
 **References** (loaded on demand):
 
@@ -241,6 +241,7 @@ EKS cluster reconnaissance and environment discovery. Detects compute strategy (
 | [addons.md](./eks-recon/references/addons.md) | Addons |
 | [cicd.md](./eks-recon/references/cicd.md) | Cicd |
 | [cluster-basics.md](./eks-recon/references/cluster-basics.md) | Cluster basics |
+| [cluster-insights.md](./eks-recon/references/cluster-insights.md) | Cluster insights |
 | [compute.md](./eks-recon/references/compute.md) | Compute |
 | [iac.md](./eks-recon/references/iac.md) | Iac |
 | [networking.md](./eks-recon/references/networking.md) | Networking |
@@ -255,6 +256,7 @@ EKS cluster reconnaissance and environment discovery. Detects compute strategy (
 |------|-------------|
 | [addons-recon.md](./eks-recon/agents/addons-recon.md) | Addons recon |
 | [cicd-recon.md](./eks-recon/agents/cicd-recon.md) | Cicd recon |
+| [cluster-insights-recon.md](./eks-recon/agents/cluster-insights-recon.md) | Cluster insights recon |
 | [compute-recon.md](./eks-recon/agents/compute-recon.md) | Compute recon |
 | [iac-recon.md](./eks-recon/agents/iac-recon.md) | Iac recon |
 | [networking-recon.md](./eks-recon/agents/networking-recon.md) | Networking recon |

@@ -14,7 +14,14 @@
   - [4. Application Signals (APM)](#4-application-signals-apm)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
-- [Recommendations Based on Findings](#recommendations-based-on-findings)
+
+---
+
+> **Shared cluster block:** every module agent also emits the shared `cluster:` block defined
+> under "## Shared Cluster Block" in [`cluster-basics.md`](cluster-basics.md). It is not redefined here.
+>
+> **Module ownership:** this module OWNS control-plane logging. `cluster-basics` defers to the
+> `logging.control_plane` block below for which control-plane log types are enabled/disabled.
 
 ---
 
@@ -149,6 +156,16 @@ kubectl get deploy -A -l "app.kubernetes.io/name=grafana" 2>/dev/null
 # Note: AMG workspaces are external to cluster
 ```
 
+**Grafana type + version:** classify how Grafana runs and record its version.
+- `self-managed` — a `grafana` Deployment in-cluster; version comes from the deployment image tag.
+- `amg` — Amazon Managed Grafana; workspace is external to the cluster, so there is no in-cluster
+  version (record `version: null`).
+```bash
+# Version from the grafana image tag (self-managed)
+kubectl get deploy -A -l "app.kubernetes.io/name=grafana" -o json 2>/dev/null | \
+  jq -r '.items[].spec.template.spec.containers[] | select(.name|test("grafana")) | .image'
+```
+
 **Other Metrics Tools:**
 
 Third-party tools like Datadog and New Relic provide unified observability platforms. Check for these when the team uses a commercial APM solution.
@@ -159,24 +176,55 @@ kubectl get daemonset -n datadog datadog-agent 2>/dev/null
 
 # New Relic
 kubectl get daemonset -A -l "app.kubernetes.io/name=nri-bundle" 2>/dev/null
-
-# Metrics Server (required for HPA - almost always present)
-kubectl get deploy -n kube-system metrics-server 2>/dev/null
 ```
 
-**Example output (Metrics Server):**
+> **metrics-server defer:** metrics-server is reported by the addons module
+> (`addons.platform_components.metrics_server`) — see addons. This module does not detect or
+> emit it.
+
+**Prometheus type + version:** classify how Prometheus runs and record its version.
+- `self-managed` — a `prometheus-server` Deployment/StatefulSet (e.g. Helm `prometheus`).
+- `operator` — the Prometheus Operator is present (label `app.kubernetes.io/name=prometheus-operator`), managing `Prometheus` CRs.
+- `amp` — Amazon Managed Prometheus; an `aps-workspaces` remote_write target with no in-cluster server.
+```bash
+# Version from the prometheus image tag (self-managed / operator)
+kubectl get deploy,statefulset -A -l "app.kubernetes.io/name=prometheus" -o json 2>/dev/null | \
+  jq -r '.items[].spec.template.spec.containers[] | select(.name|test("prometheus")) | .image'
 ```
-NAME             READY   UP-TO-DATE   AVAILABLE   AGE
-metrics-server   1/1     1            1           120d
+
+**Container Insights addon_version:** take the exact `addonVersion` from the describe-addon
+call in the Container Insights step above (`.addon.addonVersion`, e.g. `v1.5.0-eksbuild.1`).
+
+**Alertmanager:** detect presence as a component (not a feature).
+```bash
+kubectl get deploy,statefulset -A -l "app.kubernetes.io/name=alertmanager" -o json 2>/dev/null | \
+  jq -r '.items[].metadata.name'
+# kube-prometheus-stack also ships the Alertmanager CR
+kubectl get alertmanagers.monitoring.coreos.com -A 2>/dev/null
 ```
+
+**Prometheus scrape_configs / remote_write targets (raw fact):** capture the configured
+scrape job names and remote_write URLs verbatim — do not interpret them.
+```bash
+# Self-managed / operator: the prometheus config secret or configmap
+kubectl get secret -A -o json 2>/dev/null | jq -r '
+  .items[] | select(.metadata.name|test("prometheus")) | .metadata.namespace + "/" + .metadata.name'
+# Extract remote_write targets (e.g. aps-workspaces AMP URLs) and scrape job names from the rendered config
+kubectl get cm -A -o json 2>/dev/null | jq -r '
+  .items[] | .data // {} | to_entries[] | .value
+  | capture("remote_write:[\\s\\S]*?url:\\s*(?<url>\\S+)") // empty | .url' 2>/dev/null
+```
+Record `scrape_configs` (count + list of job names) and `remote_write_targets` (list of URLs)
+exactly as found; report `null`/empty where the config is not readable.
 
 ### 2. Logging Configuration
 
-Detect logging configuration to understand how application and cluster logs are collected and where they are sent. Control plane logging is critical for debugging and compliance.
+Detect logging configuration to understand how application and cluster logs are collected and where they are sent.
 
-**Control Plane Logging:**
+**Control Plane Logging (this module owns it):**
 
-Always check control plane logging first. Missing audit logs is a security/compliance gap.
+Check control plane logging first. This module is the single owner of the control-plane
+logging fact; `cluster-basics` defers here.
 
 ```bash
 # Check which control plane logs are enabled
@@ -184,17 +232,29 @@ aws eks describe-cluster --name <cluster-name> \
   --query 'cluster.logging.clusterLogging[*].{types:types,enabled:enabled}'
 ```
 
-**Example output (all logs enabled):**
+**The `clusterLogging` array groups log types by state**, not by individual type. EKS returns
+one entry per state — an `enabled: true` group listing the enabled types and/or an `enabled: false`
+group listing the disabled types. A partially-enabled cluster therefore returns BOTH groups.
+De-nest this into flat `enabled_types` and `disabled_types` lists for the schema. Any of the five
+types (`api`, `audit`, `authenticator`, `controllerManager`, `scheduler`) not present in the
+enabled group is disabled. Report which types are enabled as a neutral fact.
+
+**Example output (partially enabled — api + audit on, rest off):**
 ```json
 [
   {
-    "types": ["api", "audit", "authenticator", "controllerManager", "scheduler"],
+    "types": ["api", "audit"],
     "enabled": true
+  },
+  {
+    "types": ["authenticator", "controllerManager", "scheduler"],
+    "enabled": false
   }
 ]
 ```
+→ `enabled_types: [api, audit]`, `disabled_types: [authenticator, controllerManager, scheduler]`
 
-**Example output (no logs enabled - flag this):**
+**Example output (none enabled):**
 ```json
 [
   {
@@ -202,6 +262,17 @@ aws eks describe-cluster --name <cluster-name> \
     "enabled": false
   }
 ]
+```
+→ `enabled_types: []`, `disabled_types: [api, audit, authenticator, controllerManager, scheduler]`
+
+**Control-plane log group (deterministic):** the `clusterLogging` query returns only types/enabled,
+not the log group. The EKS control-plane CloudWatch log group name is deterministic:
+`/aws/eks/<cluster-name>/cluster`. Populate `log_group` from the cluster name. When any control-plane
+log type is enabled the group exists and can optionally be confirmed:
+```bash
+aws logs describe-log-groups \
+  --log-group-name-prefix /aws/eks/<cluster-name>/cluster \
+  --query 'logGroups[].logGroupName'
 ```
 
 **Fluent Bit / Fluentd:**
@@ -246,22 +317,25 @@ kubectl get statefulset -A -l "app.kubernetes.io/name=loki" 2>/dev/null
 
 Tracing is essential for debugging latency in microservices architectures. Without tracing, diagnosing cross-service issues requires correlating logs manually.
 
-**AWS X-Ray / ADOT:**
+**AWS X-Ray / OpenTelemetry (otel):**
 
-ADOT (AWS Distro for OpenTelemetry) is the AWS-recommended approach for tracing. It can send traces to X-Ray, Jaeger, or other backends.
+The OpenTelemetry collector (shipped by AWS as ADOT — AWS Distro for OpenTelemetry, addon name
+`adot`) can send traces to X-Ray, Jaeger, or other backends. Record it under the `otel` key and
+capture its version.
 
 ```bash
-# Check for ADOT collector
+# Check for OTel / ADOT collector
 kubectl get deploy -A -l "app.kubernetes.io/name=aws-otel-collector" 2>/dev/null
+kubectl get deploy -A -l "app=opentelemetry-collector" 2>/dev/null
 
 # Check for X-Ray daemon
 kubectl get daemonset -A -l "app=xray-daemon" 2>/dev/null
 
-# Check ADOT add-on
+# Check ADOT add-on (addon name is 'adot'; version → otel.version)
 aws eks describe-addon --cluster-name <cluster-name> --addon-name adot 2>/dev/null
 ```
 
-**Example output (ADOT add-on installed):**
+**Example output (ADOT/otel add-on installed):**
 ```json
 {
   "addon": {
@@ -301,9 +375,14 @@ Application Signals provides automatic instrumentation for common frameworks. Ch
 # Check for CloudWatch Application Signals
 kubectl get deploy -n amazon-cloudwatch cloudwatch-agent-operator 2>/dev/null
 
-# Check for auto-instrumentation
+# Check for auto-instrumentation (record which namespaces have Instrumentation CRs)
 kubectl get instrumentations.opentelemetry.io -A 2>/dev/null
 ```
+
+- `application_signals.enabled` — a toggled feature; `true` when the CloudWatch agent operator
+  / Application Signals is active.
+- `auto_instrumentation.enabled` + `auto_instrumentation.namespaces` — `true` when any
+  `Instrumentation` CR exists; record the list of namespaces containing them.
 
 **Example output (auto-instrumentation configured):**
 ```
@@ -315,49 +394,66 @@ default     java-app   30d   http://adot-collector:4317
 
 ## Output Schema
 
+This is the **single canonical schema** for the observability module — it carries every
+observability fact. The `observability-recon` agent emits exactly this shape (plus the shared
+`cluster:` block from `references/cluster-basics.md`). Use `null` where a fact was not detected;
+never omit a key. This module OWNS the control-plane logging fact (`logging.control_plane`);
+`cluster-basics` defers here.
+
 ```yaml
 observability:
   metrics:
     container_insights:
-      enabled: bool
-      addon_version: string
-      
+      enabled: bool               # feature toggle: amazon-cloudwatch-observability addon active
+      addon_version: string       # describe-addon .addon.addonVersion, null if not installed
+
     prometheus:
       detected: bool
-      type: string         # self-managed | amp | operator
+      type: string                # self-managed | amp | operator
+      version: string             # from prometheus image tag, null for amp
       namespace: string
-      version: string
-      
+
     grafana:
       detected: bool
-      type: string         # self-managed | amg
+      type: string                # self-managed | amg
+      version: string             # from grafana image tag, null for amg (workspace external)
       namespace: string
-      
-    metrics_server:
-      detected: bool
-      version: string
-      
-    other_tools: list      # datadog, newrelic, etc.
-    
+
+    # metrics-server is reported by the addons module (platform_components.metrics_server) — see addons
+
+    alertmanager:
+      detected: bool              # component presence (deploy/statefulset or Alertmanager CR)
+      namespace: string
+
+    scrape_configs:               # raw fact — scrape jobs found in the prometheus config
+      count: int
+      list: list                  # scrape job names, verbatim
+    remote_write_targets: list    # remote_write URLs verbatim (e.g. aps-workspaces AMP URLs)
+
+    other_tools:                  # commercial APM agents detected in-cluster
+      count: int
+      list: list                  # e.g. ["datadog", "newrelic"]
+
   logging:
-    control_plane:
-      enabled: bool
-      log_types: list      # api, audit, authenticator, controllerManager, scheduler
-      
+    control_plane:                # OWNED by this module — de-nested from clusterLogging groups
+      enabled_types: list         # subset of [api, audit, authenticator, controllerManager, scheduler]
+      disabled_types: list        # the remaining types not in enabled_types
+      log_group: string           # deterministic: /aws/eks/<cluster-name>/cluster
+
     application:
-      tool: string         # fluent-bit | fluentd | promtail | none
-      destination: string  # cloudwatch | opensearch | loki | s3
+      tool: string                # fluent-bit | fluentd | promtail | none
+      destination: string         # cloudwatch | opensearch | loki | s3 | null
       namespace: string
-      
+
     log_destinations:
       cloudwatch: bool
       opensearch: bool
       s3: bool
       loki: bool
-      
+
   tracing:
-    tool: string           # xray | adot | jaeger | tempo | none
-    adot:
+    tool: string                  # xray | otel | jaeger | tempo | none
+    otel:                         # OpenTelemetry / ADOT collector (addon name is 'adot')
       detected: bool
       version: string
     xray:
@@ -366,13 +462,13 @@ observability:
       detected: bool
     tempo:
       detected: bool
-      
+
   apm:
     application_signals:
-      enabled: bool
+      enabled: bool               # feature toggle
     auto_instrumentation:
-      enabled: bool
-      namespaces: list
+      enabled: bool               # feature toggle: any Instrumentation CR present
+      namespaces: list            # namespaces containing Instrumentation CRs
 ```
 
 ---
@@ -400,14 +496,15 @@ Check Fluent Bit/Fluentd configs for destinations.
 ### Control Plane Logging Not Enabled
 
 ```bash
-# Check if any logs are enabled
+# Check which log types are enabled
 aws eks describe-cluster --name <cluster-name> \
   --query 'cluster.logging.clusterLogging[?enabled==`true`].types'
 ```
 
-If empty, flag as security/compliance gap.
+If empty, record `enabled_types: []` and `disabled_types: [api, audit, authenticator,
+controllerManager, scheduler]`. Report this as a neutral fact.
 
-### ADOT vs Self-Managed Collectors
+### ADOT vs Self-Managed OTel Collectors
 
 ```bash
 # Check if using ADOT add-on or self-managed
@@ -416,15 +513,4 @@ aws eks describe-addon --cluster-name <cluster-name> --addon-name adot 2>/dev/nu
 kubectl get deploy -A -l "app=opentelemetry-collector" 2>/dev/null
 ```
 
----
-
-## Recommendations Based on Findings
-
-| Finding | Recommendation |
-|---------|---------------|
-| No metrics solution | Enable Container Insights or deploy Prometheus |
-| No control plane logs | Enable all log types for debugging/audit |
-| No tracing | Consider ADOT for distributed tracing |
-| Multiple overlapping tools | Consolidate to reduce overhead |
-| No metrics server | Deploy for HPA functionality |
-| Application Signals not enabled | Consider for APM capabilities |
+Both surface under the `otel` key; the addon name is `adot`.

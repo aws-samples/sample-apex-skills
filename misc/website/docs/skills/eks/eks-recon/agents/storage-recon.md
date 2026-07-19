@@ -40,56 +40,10 @@ Detect the storage setup for the specified EKS cluster and return structured fin
 
 ## Output Format
 
-Return ONLY a YAML block with your findings:
-
-```yaml
-cluster:
-  name: <string>
-  region: <string>
-  version: <string>
-  platform_version: <string>
-  endpoint: <string>
-  arn: <string>
-  status: <string>
-  created_at: <string>
-
-storage:
-  csi_drivers:
-    ebs:
-      detected: <bool>
-      version: <string or null>
-      managed_by: <eks-addon|self-managed|auto-mode>
-    efs:
-      detected: <bool>
-      version: <string or null>
-      managed_by: <eks-addon|self-managed>
-    s3:
-      detected: <bool>
-      version: <string or null>
-    other: [<list of other CSI driver names>]
-  storage_classes:
-    count: <int>
-    default: <string or null>
-    list:
-      - name: <string>
-        provisioner: <string>
-        volume_binding_mode: <string>
-        reclaim_policy: <string>
-        encrypted: <bool>
-  pvcs:
-    total: <int>
-    by_storage_class:
-      - class: <string>
-        count: <int>
-        total_capacity: <string>
-    by_status:
-      bound: <int>
-      pending: <int>
-  snapshots:
-    controller_installed: <bool>
-    snapshot_classes: <int>
-    volume_snapshots: <int>
-```
+Emit a single YAML block. Emit EXACTLY the shape defined under "## Output Schema" in
+`references/storage.md`, plus the shared `cluster:` block defined under "## Shared Cluster Block"
+in `references/cluster-basics.md`. Include every field; use `null` where a fact was not detected
+(never omit a key). Do not rename, reshape, add, or drop fields relative to the reference schema.
 
 ## Important
 
