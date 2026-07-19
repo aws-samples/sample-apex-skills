@@ -19,6 +19,8 @@ Only Day 2 operational skills that benefit from autonomous execution are ported:
 
 | Skill | Status | Description |
 |-------|--------|-------------|
+| [eks-al2-to-al2023](./eks-al2-to-al2023/) | Active | Amazon Linux 2 → AL2023 EKS node migration readiness checker — assesses the migration-relevant facts and risks of moving worker nodes off the deprecated AL2 EKS-optimized AMI, then emits a guided, ... |
+| [eks-backup](./eks-backup/) | Active | EKS backup-readiness posture assessment — evaluates how well an EKS cluster is protected across BOTH AWS Backup for EKS and Velero, then emits a guided, human-executed runbook. Detects AWS Backup c... |
 | [eks-cost-intelligence](./eks-cost-intelligence/) | Active | EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report. Analyzes compute efficiency, Spot/Graviton adoption, networking, storage,... |
 | [eks-operation-review](./eks-operation-review/) | Placeholder | Run a structured EKS operational excellence assessment across 10 areas (networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, ope... |
 | [eks-recon](./eks-recon/) | Active | EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, ... |

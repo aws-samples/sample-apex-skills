@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EKSReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListClusters",
+        "eks:DescribeCluster",
+        "eks:ListAccessEntries",
+        "eks:DescribeAccessEntry",
+        "eks:ListAssociatedAccessPolicies",
+        "eks:ListAddons",
+        "eks:DescribeAddon"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "BackupReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "backup:ListBackupPlans",
+        "backup:GetBackupPlan",
+        "backup:ListBackupSelections",
+        "backup:GetBackupSelection",
+        "backup:ListProtectedResources",
+        "backup:ListProtectedResourcesByBackupVault",
+        "backup:ListRecoveryPointsByResource",
+        "backup:ListBackupVaults",
+        "backup:ListBackupJobs",
+        "backup:DescribeBackupJob"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
