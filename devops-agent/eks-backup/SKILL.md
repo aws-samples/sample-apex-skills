@@ -18,7 +18,7 @@ description: EKS backup-readiness posture assessment — evaluates how well an E
 
 ## Overview
 
-This skill assesses an EKS cluster's **backup and recovery posture** — how well its Kubernetes state and persistent data are protected — across the two mainstream approaches: **AWS Backup for EKS** (GA November 10, 2025, as of 2026-07-19; source: [AWS What's New](https://aws.amazon.com/about-aws/whats-new/2025/11/aws-backup-supports-amazon-eks/)) and the open-source **Velero**. It connects via AWS control-plane APIs and the Kubernetes API, detects what protection is actually configured, and produces two artifacts: a **backup-posture report** with a `READY` / `PARTIAL` / `UNPROTECTED` verdict, and a **guided backup runbook** the human executes to close any gaps.
+This skill assesses an EKS cluster's **backup and recovery posture** — how well its Kubernetes state and persistent data are protected — across the two mainstream approaches: **AWS Backup for EKS** (announced November 10, 2025, as of 2026-07-19; source: [AWS What's New](https://aws.amazon.com/about-aws/whats-new/2025/11/aws-backup-supports-amazon-eks/)) and the open-source **Velero**. It connects via AWS control-plane APIs and the Kubernetes API, detects what protection is actually configured, and produces two artifacts: a **backup-posture report** with a `READY` / `PARTIAL` / `UNPROTECTED` verdict, and a **guided backup runbook** the human executes to close any gaps.
 
 It answers the question: *"If I lost this cluster's state or a volume, could I get it back — and if not, how do I fix that?"* It is **read-only**: it never starts a backup, creates a plan, installs Velero, or performs a restore. The runbook is instructions for a human (or a change-management pipeline) to execute.
 
@@ -109,9 +109,13 @@ Load `references/aws-backup-assessment.md`. Using read-only AWS Backup + EKS API
 
 Load `references/velero-assessment.md`. Via the Kubernetes API, detect the Velero controller Deployment (authorized), then attempt to read Schedules / BackupStorageLocation / recent Backups (CRD reads — may be `403` under the managed policy alone). Report confirmed facts; mark blocked CRD reads `unconfirmed`, never `false`.
 
-### Step 3: Determine Posture + Emit the Runbook
+### Step 2.5: Detect Cluster Data Shape
 
-Load `references/backup-approaches.md` (the posture rubric + the restore-vs-rollback limitation) and `references/runbook.md`. Combine both halves into a `READY` / `PARTIAL` / `UNPROTECTED` posture per the rubric, honoring the unconfirmed-never-false rule, then emit a guided runbook tailored to what is (and is not) already in place.
+Via the Kubernetes API, detect the cluster's **data shape** — StatefulSets (`apps`), bound PVCs and their StorageClasses / volume types (EBS/EFS/S3/FSx/other-CSI), and PVs (core + `storage.k8s.io`). These are **all authorized built-in-group reads** under `AmazonAIOpsAssistantPolicy` (no CRD, no new AWS IAM). Classify as `stateful` (StatefulSets and/or persistent PVs — data node/cluster loss would destroy) or `stateless` (no StatefulSets and no bound PVCs, confirmed). If `k8s_api_available: false` from Step 0, set `data_shape: unconfirmed` and never infer `stateless`. See `references/backup-approaches.md` → Cluster Data-Shape Detection.
+
+### Step 3: Determine Posture + Urgency + Emit the Runbook
+
+Load `references/backup-approaches.md` (the posture rubric, the data-shape **urgency dimension**, and the restore-vs-rollback limitation) and `references/runbook.md`. Combine both tooling halves into a `READY` / `PARTIAL` / `UNPROTECTED` posture per the rubric, honoring the unconfirmed-never-false rule. Then add the **urgency** dimension from the detected data shape (verdict × data shape — e.g. UNPROTECTED + stateful EBS/EFS = HIGH; UNPROTECTED + stateless = LOW; unconfirmed shape never downgrades urgency). Emit a runbook tailored to both the tooling gap and the data shape (prioritize volume-level backup for stateful clusters; lighter object-level backup for stateless).
 
 ---
 
@@ -119,7 +123,7 @@ Load `references/backup-approaches.md` (the posture rubric + the restore-vs-roll
 
 | Intent / when to use | Reference file |
 |----------------------|----------------|
-| The two approaches, what each backs up / does NOT, the posture rubric, restore ≠ rollback | [backup-approaches.md](references/backup-approaches.md) |
+| The two approaches, what each backs up / does NOT, the posture rubric, the data-shape detection + urgency dimension, restore ≠ rollback | [backup-approaches.md](references/backup-approaches.md) |
 | Detect AWS Backup for EKS coverage via read-only AWS APIs | [aws-backup-assessment.md](references/aws-backup-assessment.md) |
 | Detect Velero posture via the Kubernetes API (+ the CRD-403 handling) | [velero-assessment.md](references/velero-assessment.md) |
 | Build the guided, human-executed backup runbook (both tools, gap-driven) | [runbook.md](references/runbook.md) |
@@ -132,6 +136,8 @@ Load `backup-approaches.md` first for the rubric and definitions, then the two a
 
 Produce **two** artifacts. The agent generates both directly — no external conversion tools or scripts.
 
+The report structure below is a **contract**: emit these sections in this order, and include a section even if empty (write "none detected" / "unconfirmed" rather than omitting it) so a reader can trust that a missing item means "assessed and absent," not "skipped."
+
 ### 1. Backup-posture report (primary)
 
 - **Filename:** `EKS-Backup-Posture-{cluster}-{YYYY-MM-DD}-{HHMM}.md`
@@ -142,6 +148,9 @@ _generated <timestamp> · source: AWS API + K8s API_
 
 ## Posture: PARTIAL
 <one-line rationale tied to the rubric>
+
+## Data shape & urgency
+<data_shape: stateful | stateless | unconfirmed; if stateful, the volume-type mix (e.g. 3 StatefulSets on gp3 EBS); urgency: HIGH | MEDIUM | LOW | unconfirmed per the verdict × data-shape table. Never downgrade urgency on an unconfirmed shape.>
 
 ## AWS Backup for EKS
 | Fact | Value |
@@ -179,7 +188,7 @@ A step-by-step runbook a human executes, assembled per `references/runbook.md` a
 
 1. **Assess and instruct — never act.** This skill reads facts and emits a runbook. It never starts backups, creates plans/vaults, installs Velero, or restores. Runbook commands are for a human to run.
 2. **Restore is not control-plane rollback.** Never describe any backup tool as restoring etcd or rolling back a Kubernetes version. State the limitation wherever recovery is discussed.
-3. **Cite the source and date for every capability/support claim.** AWS Backup for EKS GA, what each tool backs up, and restore semantics carry a source URL and "as of <date>" — see `references/backup-approaches.md`. Do not assert support from memory.
+3. **Cite the source and date for every capability/support claim.** The AWS Backup for EKS announcement, what each tool backs up, and restore semantics carry a source URL and "as of <date>" — see `references/backup-approaches.md`. Do not assert support from memory.
 4. **Distinguish absence from unconfirmed.** A Velero CRD read that returns `403` is `unconfirmed` (with the reason + the ClusterRole fix), never `false`/"no Velero". A cluster is never labeled `UNPROTECTED` on unread facts alone.
 5. **Do NOT hardcode or guess cluster names.** Discover via ListClusters first (Step 0).
 6. **Do NOT retry a failed API call more than once.** If it fails twice, record the gap in Coverage and continue.

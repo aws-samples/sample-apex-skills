@@ -20,6 +20,7 @@ backup/restore is **not** a control-plane rollback — see the caveat below. Sou
 ## Table of Contents
 
 - [How the agent uses this template](#how-the-agent-uses-this-template)
+- [Data-shape branching (urgency + what to prioritize)](#data-shape-branching-urgency--what-to-prioritize)
 - [The restore ≠ control-plane-rollback caveat](#the-restore--control-plane-rollback-caveat)
 - [READY — verify and validate](#ready--verify-and-validate)
 - [PARTIAL — close the gap](#partial--close-the-gap)
@@ -42,10 +43,54 @@ The runbook is **gap-driven from the posture verdict** produced in Step 3:
    controller is present but no `Schedule` → create a `Schedule`).
 3. **UNPROTECTED** → emit the [full setup](#unprotected--full-setup-choose-a-path), presenting
    **both** paths (AWS Backup and Velero) with the [decision aid](#decision-aid-aws-backup-vs-velero).
+4. **unknown** (both halves unconfirmed — AWS Backup API calls failed AND the K8s API was
+   unreachable) → emit **no** runbook; report `posture: unknown` with the Coverage note and the
+   Step 0 error output, and recommend re-running once access is restored.
 
 The agent fills every `<placeholder>` with the detected cluster name, region, account, ARN,
 etc. It does **not** execute any step — it produces the runbook as a document for an operator
 (or a change-management pipeline) to run.
+
+The verdict picks the section; the **detected data shape** (see `backup-approaches.md` →
+[Cluster Data-Shape Detection](backup-approaches.md#cluster-data-shape-detection) and the
+[urgency dimension](backup-approaches.md#data-shape-urgency-dimension)) then picks the
+**emphasis and ordering within it** — see the next section.
+
+---
+
+## Data-shape branching (urgency + what to prioritize)
+
+The verdict says *whether* tooling is configured; the data shape says *how urgent* the gap is
+and *what to protect first*. Apply this branching **on top of** the verdict section, keying off
+the `data_shape` / `urgency` facts from Step 3. This is deterministic — do not editorialize
+beyond the detected facts.
+
+- **Detected StatefulSets and/or EBS/EFS/other-CSI bound PVs, and no volume-level backup**
+  (UNPROTECTED, or PARTIAL where volumes are out of scope) → **HIGH urgency. Prioritize
+  volume-level backup.** Lead the runbook with whichever path covers the PV data:
+  - **AWS Backup path:** the EKS resource assignment (Path A, step 5) covers the cluster's PVs
+    via the EKS CSI driver (EBS/EFS/S3) — this is the fastest agentless route to volume
+    coverage. State the detected volume-type mix (e.g. "3 StatefulSets on gp3 EBS").
+  - **Velero path:** ensure CSI snapshots (VolumeSnapshotLocation) **or** Kopia
+    file-system backup is configured — a Velero install that backs up only K8s objects does
+    **not** protect the volume data. Call this out explicitly.
+- **Detected EFS-backed PVs** → note EFS specifics: AWS Backup for EKS backs EFS via the CSI
+  driver **but not cross-account EFS and not non-root subpath mounts** (see `backup-approaches.md`
+  Limitations); for those, Velero file-system backup is the fallback. EFS data often persists
+  independently of the cluster, but a backup still guards against accidental deletion.
+- **Detected FSx-backed PVs** → AWS Backup for EKS does **not** support FSx-via-CSI. Direct the
+  operator to Velero file-system backup for FSx volumes (or native FSx backups outside this
+  skill's scope), even under an otherwise-AWS-Backup posture.
+- **Stateless (StatefulSet and PVC reads both succeeded and returned zero)** → **`LOW` urgency.
+  Lighter recommendation:** object-level backup for fast namespace re-creation (either AWS
+  Backup EKS or Velero object backup); no volume snapshots needed. State plainly that the K8s
+  objects are reconstructible from GitOps/IaC, so this is a convenience/RTO improvement, not a
+  data-loss emergency. Still recommend it; just do not frame it as urgent.
+- **Data shape `unconfirmed`** (K8s API unavailable — `k8s_api_available: false`) → emit the
+  **full tooling-verdict runbook unchanged**, and add a note: "Data shape could not be assessed
+  (K8s API unreachable); urgency is treated as at-least the verdict warrants and volume-level
+  backup is assumed potentially in scope. Re-run with K8s-API access to tailor." **Never**
+  emit the lighter stateless recommendation on an unconfirmed shape.
 
 ---
 
@@ -140,12 +185,12 @@ no in-cluster agent.)
 | Management | **AWS-managed** — no in-cluster agent or controller pod | Self-managed — a controller Deployment + CRDs run in-cluster |
 | Where it integrates | AWS Backup vaults, backup policies, and audit/compliance tooling | Kubernetes-native CRDs; S3 for backup storage |
 | Portability | AWS-native | **Portable / multicloud** — same tool across clouds |
-| Volume backup | EBS/EFS/S3 via the EKS CSI driver | CSI snapshots **plus** restic/kopia file-system backup |
+| Volume backup | EBS/EFS/S3 via the EKS CSI driver | CSI snapshots **plus** Kopia file-system backup |
 | Prerequisites | `authenticationMode` includes `API`; IAM backup role; a vault | S3 bucket; IRSA or EKS Pod Identity; in-cluster CRDs |
 
 Rule of thumb: choose **AWS Backup** for an AWS-managed, agentless posture that plugs into
 existing AWS Backup vaults/policies/audit; choose **Velero** for a portable/multicloud tool
-with restic/kopia file-system backup (accepting the in-cluster CRDs and S3 you must run).
+with Kopia file-system backup (accepting the in-cluster CRDs and S3 you must run).
 
 ### Path A — AWS Backup for EKS
 
@@ -292,19 +337,22 @@ posture verdict. Every command block is prefixed `Operator runs (this skill does
 
 ```markdown
 # EKS Backup Runbook — <cluster> (<region>)
-_generated <timestamp> · posture: <READY|PARTIAL|UNPROTECTED> · THIS RUNBOOK IS EXECUTED BY A HUMAN — this skill does not run any step_
+_generated <timestamp> · posture: <READY|PARTIAL|UNPROTECTED> · urgency: <HIGH|MEDIUM|LOW|unconfirmed> · THIS RUNBOOK IS EXECUTED BY A HUMAN — this skill does not run any step_
 
 ## Posture summary
 <the verdict from Step 3 and the specific gap(s) this runbook closes>
+
+## Data shape & urgency
+<data_shape: stateful | stateless | unconfirmed; if stateful, the volume-type mix (e.g. "3 StatefulSets on gp3 EBS, 2 EFS PVCs"); the urgency from backup-approaches.md's urgency table and why. If unconfirmed, state the K8s API was unreachable and urgency is treated as at-least the verdict warrants.>
 
 ## Caveat: restore ≠ control-plane rollback
 <restores objects + PV data into a running cluster; no etcd / K8s-version rollback; validate in NON-PROD>
 
 ## Steps
-<only the section that matches the posture:>
-<  READY      → verify recent recovery points + recommend a periodic restore test>
-<  PARTIAL    → only the close-the-gap block(s) for the missing piece>
-<  UNPROTECTED → decision aid, then Path A (AWS Backup) and/or Path B (Velero) full setup>
+<only the section that matches the posture, with data-shape branching applied on top:>
+<  READY      → verify recent recovery points (incl. that PV data is covered, if stateful) + recommend a periodic restore test>
+<  PARTIAL    → only the close-the-gap block(s) for the missing piece; lead with volume-level coverage if stateful volumes are uncovered>
+<  UNPROTECTED → decision aid, then Path A (AWS Backup) and/or Path B (Velero) full setup; if stateful, prioritize volume-level backup; if stateless, lighter object-level backup>
 
 ## Validation
 <restore into a pre-provisioned/new NON-PROD cluster and confirm workloads come up>

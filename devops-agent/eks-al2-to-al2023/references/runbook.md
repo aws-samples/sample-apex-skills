@@ -24,6 +24,7 @@ moving worker nodes to AL2023. Source:
 - [Phase 2: Schedule a representative workload subset onto the canary](#phase-2-schedule-a-representative-workload-subset-onto-the-canary)
 - [Phase 3: Validate the canary](#phase-3-validate-the-canary)
 - [Phase 4: Roll the fleet (per migration path)](#phase-4-roll-the-fleet-per-migration-path)
+- [Phase 4 (cont.): Decommission the canary on success](#phase-4-cont-decommission-the-canary-on-success)
 - [Phase 5: Rollback](#phase-5-rollback)
 - [Runbook output template](#runbook-output-template)
 
@@ -68,7 +69,9 @@ validate an AL2023 canary before rolling the whole node group / fleet.
 Address **every** risk that `migration-risks.md` rated `applies` **before** creating any
 AL2023 node. The agent emits only the ones that apply, with concrete values.
 
-1. **VPC CNI floor** — if VPC CNI < 1.16.2, upgrade it first:
+1. **Back up before you touch nodes.** Node migration replaces nodes and reschedules pods; confirm the cluster's backup posture is sound first. Run the `eks-backup` skill (or otherwise verify AWS Backup for EKS / Velero coverage of any StatefulSet/PV data) before creating any AL2023 node. This skill does not perform backups.
+
+2. **VPC CNI floor** — if VPC CNI < 1.16.2, upgrade it first:
 
    Operator runs (this skill does not):
    ```bash
@@ -76,19 +79,22 @@ AL2023 node. The agent emits only the ones that apply, with concrete values.
      --addon-version <v1.16.2-or-newer-eksbuild> --resolve-conflicts PRESERVE
    ```
 
-2. **cgroup v2 workloads** — bump JDK 8 workloads to **jdk8u372+** (or a newer JDK); verify
+3. **cgroup v2 workloads** — bump JDK 8 workloads to **jdk8u372+** (or a newer JDK); verify
    .NET runtime versions for cgroup-v2 awareness. Land these workload changes **before** the
    AMI swap so the canary validates the fix.
 
-3. **IMDS hop limit** — plan the fix: either set `HttpPutResponseHopLimit: 2` on the AL2023
-   node group's launch template, **or** move IMDS-credential workloads to **EKS Pod Identity /
-   IRSA**. Decide before Phase 1.
+4. **IMDS hop limit** — plan the fix. Setting `HttpPutResponseHopLimit: 2` on the AL2023 node
+   group's launch template is the complete fix (it restores IMDS access for **both** credential
+   and metadata calls). Moving workloads to **EKS Pod Identity / IRSA** only removes the
+   *credential* dependency — pods that still call IMDS for **metadata** (region, AZ, instance-id)
+   remain broken at hop limit 1, so Pod Identity/IRSA alone is not sufficient unless no pod calls
+   IMDS for metadata. Decide before Phase 1.
 
-4. **nodeadm / NodeConfig** — for self-managed nodes and custom launch templates, rewrite
+5. **nodeadm / NodeConfig** — for self-managed nodes and custom launch templates, rewrite
    `bootstrap.sh` userData to the `NodeConfig` schema (see `migration-risks.md` for the minimal
    YAML). Do **not** run `nodeadm init` — it runs via systemd on the node at boot.
 
-5. **Host agents** — for each DaemonSet flagged `review`, confirm AL2023 support with its
+6. **Host agents** — for each DaemonSet flagged `review`, confirm AL2023 support with its
    vendor and stage an AL2023-capable version to validate on the canary.
 
 ---
@@ -98,25 +104,51 @@ AL2023 node. The agent emits only the ones that apply, with concrete values.
 Create a **small** AL2023 node group **alongside** the existing AL2 node group(s) — do not
 touch the AL2 nodes yet.
 
+> **Apply the Phase 0 fixes to the canary itself — or the canary validates nothing.** If IMDS
+> hop limit was flagged `applies`, the canary must come up with the **fixed** hop limit, not the
+> default. A managed node group created **without** a launch template defaults to hop limit **1**
+> (per `migration-risks.md` Risk 2) — so the canary would reproduce the *unfixed* state and
+> Phase 3's hop-limit check would be meaningless (false alarm, or false confidence). Give the
+> canary a launch template that sets `HttpPutResponseHopLimit: 2` (below), and likewise carry any
+> other Phase 0 remediation into the canary's cluster/config — VPC CNI floor, workload cgroup
+> fixes, **and (for path (a) in-place / self-managed nodes) the `bootstrap.sh` → `NodeConfig`
+> userData rewrite (Risk 3)**. A custom launch template that swaps only the AL2023 `ImageId`
+> while keeping AL2 `bootstrap.sh` userData will **fail to boot** on AL2023 — the canary node
+> never joins and validates nothing.
+
 Operator runs (this skill does not):
 ```bash
-# Blue/green (path b): a small AL2023 canary node group next to the AL2 one
+# Blue/green (path b): a small AL2023 canary node group next to the AL2 one.
+# Create a launch template first so the canary inherits the Phase 0 IMDS hop-limit fix
+# (skip the LT only if the IMDS risk did NOT apply — otherwise the canary comes up at hop limit 1).
+aws ec2 create-launch-template --launch-template-name <ng-name>-al2023-canary-lt \
+  --launch-template-data '{"MetadataOptions":{"HttpPutResponseHopLimit":2,"HttpTokens":"required","HttpEndpoint":"enabled"}}'
+
 aws eks create-nodegroup --cluster-name <cluster-name> \
   --nodegroup-name <ng-name>-al2023-canary \
   --node-role <existing-node-role-arn> \
   --subnets <subnet-ids> \
   --ami-type <AL2023-amiType-from-node-inventory> \
   --instance-types <same-as-al2-ng> \
+  --launch-template name=<ng-name>-al2023-canary-lt \
   --scaling-config minSize=1,maxSize=2,desiredSize=1 \
   --labels migration=al2023-canary --taints key=al2023-canary,value=true,effect=NoSchedule
 ```
 
 - **Path (a) in-place:** instead of a new node group, create a **new launch-template version**
-  with the AL2023 `ImageId` and point a **canary** node group (or a 1-node MNG) at that LT
-  version to validate before swapping the production node group.
+  with the AL2023 `ImageId`, the **rewritten `NodeConfig` userData** (Risk 3 — keeping the AL2
+  `bootstrap.sh` userData fails to boot on AL2023), **and** `MetadataOptions.HttpPutResponseHopLimit: 2`
+  (if the IMDS risk applied), and point a **canary** node group (or a 1-node MNG) at that LT
+  version to validate before swapping the production node group. Give the canary group the
+  **same `migration=al2023-canary` label + `NoSchedule` taint** as the path-(b) canary so the
+  Phase 2/3 selectors (`-l migration=al2023-canary`) target it.
 - **Path (c) Karpenter:** create a **canary `NodePool`** referencing an AL2023 `EC2NodeClass`
-  (`amiFamily: AL2023`) with a distinct taint/label, so a small number of AL2023 nodes come up
-  for validation before you change the production `EC2NodeClass`.
+  (`amiFamily: AL2023`) — give the `NodePool` the **`migration=al2023-canary` label + a
+  matching `NoSchedule` taint** (so the Phase 2/3 selectors and workload tolerations line up
+  with paths a/b), and set the `EC2NodeClass`
+  `metadataOptions.httpPutResponseHopLimit: 2` (if the IMDS risk applied) so the canary nodes
+  come up with the fix — so a small number of AL2023 nodes come up for validation before you
+  change the production `EC2NodeClass`.
 
 The canary carries a **taint** (`al2023-canary=true:NoSchedule`) so only workloads you
 deliberately target land on it.
@@ -127,8 +159,8 @@ deliberately target land on it.
 
 Cordon a portion of the AL2 capacity and steer a **representative** subset of workloads onto
 the canary using a `nodeSelector` + a matching toleration for the canary taint. Pick workloads
-that exercise the risks: a JVM/.NET app (cgroup v2), an IMDS-credential app, and each flagged
-host-agent DaemonSet.
+that exercise the risks: a JVM/.NET app (cgroup v2), a pod that calls IMDS (for credentials
+**or** metadata — both break at hop limit 1), and each flagged host-agent DaemonSet.
 
 Operator runs (this skill does not):
 ```bash
@@ -169,8 +201,9 @@ Validation checklist (all must pass):
 - Targeted pods reach **Ready** on the AL2023 node; app health checks pass.
 - **No cgroup OOM** — JVM/.NET workloads do not OOM/restart (confirms the jdk8u372+ / runtime
   fix under cgroup v2).
-- **IMDS-dependent pods still get credentials** (confirms the hop-limit fix or the Pod
-  Identity/IRSA migration).
+- **IMDS-dependent pods still reach IMDS for credentials AND metadata** (confirms the hop-limit
+  fix; the Pod Identity/IRSA migration only covers the credential path — verify metadata calls
+  too if any pod makes them).
 - Each flagged **host-agent DaemonSet** has a **Running** pod on the AL2023 node and is
   functioning (logs/metrics flowing) — confirms vendor AL2023 support.
 - containerd runtime healthy; no kernel-module load failures for privileged agents / GPU
@@ -188,12 +221,22 @@ Only after Phase 3 passes. Emit the block matching the node group's path.
 **Path (a) — IN-PLACE (custom AMI in a launch template).** Swap the AMI ID and update the node
 group; EKS rolls the nodes with surge/drain automatically.
 
+> **Roll the fleet to the *validated canary* configuration — do not rebuild from the AL2
+> source.** The new production LT version must carry **all** the fixes the canary proved, not
+> just the AMI ID: the **rewritten `NodeConfig` userData** (Risk 3 — an LT that keeps the AL2
+> `bootstrap.sh` userData fails to boot on AL2023) **and** `HttpPutResponseHopLimit: 2` (Risk 2,
+> if it applied). Deriving `--source-version` from the current **AL2** LT and overriding only
+> `ImageId` silently reintroduces both defects on the whole fleet. Reuse the canary's launch
+> template (or copy its full `--launch-template-data`) so the rolled fleet == the validated
+> canary.
+
 Operator runs (this skill does not):
 ```bash
-# Create a new LT version with the AL2023 ImageId, then update the node group to it
+# Create a new LT version carrying the FULL validated canary config (not just the AMI ID):
+# AL2023 ImageId + rewritten NodeConfig userData (Risk 3) + hop-limit 2 (Risk 2, if it applied).
 aws ec2 create-launch-template-version --launch-template-id <lt-id> \
-  --source-version <current-version> \
-  --launch-template-data '{"ImageId":"<al2023-ami-id>"}'
+  --source-version <canary-lt-version> \
+  --launch-template-data '{"ImageId":"<al2023-ami-id>","UserData":"<base64 NodeConfig>","MetadataOptions":{"HttpPutResponseHopLimit":2}}'
 aws eks update-nodegroup-version --cluster-name <cluster-name> --nodegroup-name <ng-name> \
   --launch-template id=<lt-id>,version=<new-version>
 ```
@@ -202,11 +245,25 @@ aws eks update-nodegroup-version --cluster-name <cluster-name> --nodegroup-name 
 to full size, then cordon + drain + delete the AL2 node group (matches the upstream
 `node-readiness.md` flow).
 
+> **The full-size AL2023 group must be the *validated canary* configuration — not a fresh bare
+> group.** Scale up the same launch template you validated in Phase 1 (the one carrying
+> `HttpPutResponseHopLimit: 2` and, for self-managed/custom-LT nodes, the rewritten `NodeConfig`
+> userData). A bare managed node group created **without** that launch template comes up at hop
+> limit **1** (Risk 2) — reintroducing the defect fleet-wide. Before scaling, **remove the
+> Phase 1 canary `NoSchedule` taint** (`key=al2023-canary`) so production pods can schedule onto
+> the group; the taint existed only to keep the canary isolated during validation.
+
+> **Note:** pods pinned to the old node group via `nodeSelector`/`nodeAffinity` on `eks.amazonaws.com/nodegroup: <old-name>` will not schedule onto the new, separately-named AL2023 group — update or remove those pins before draining, or the drained pods will stay Pending.
+
+> **Before draining:** `--delete-emptydir-data` discards emptyDir contents, and draining detaches EBS volumes (and unmounts EFS/NFS mounts) as pods reschedule — confirm StatefulSet/PV data is backed up (Phase 0 step 1) and can survive node replacement. A restrictive PodDisruptionBudget can stall or block a drain; check PDBs for the workloads on each node first and plan for it (raise `maxUnavailable`, or accept a slower rolling drain). Never force-delete PDB-protected pods without understanding the availability impact.
+
 Operator runs (this skill does not):
 ```bash
-# Grow the AL2023 node group to the AL2 node group's capacity, then drain the AL2 fleet
+# Grow the VALIDATED CANARY group (created in Phase 1, taint removed above) to the AL2 node
+# group's capacity, then drain the AL2 fleet. Scaling this group — not a fresh bare one —
+# is what keeps the fleet on the validated hop-limit-2 launch template.
 aws eks update-nodegroup-config --cluster-name <cluster-name> \
-  --nodegroup-name <ng-name>-al2023 --scaling-config minSize=<n>,maxSize=<n>,desiredSize=<n>
+  --nodegroup-name <ng-name>-al2023-canary --scaling-config minSize=<n>,maxSize=<n>,desiredSize=<n>
 
 # For each AL2 node: cordon, then drain
 kubectl cordon <al2-node-name>
@@ -216,17 +273,44 @@ kubectl drain <al2-node-name> --ignore-daemonsets --delete-emptydir-data
 aws eks delete-nodegroup --cluster-name <cluster-name> --nodegroup-name <ng-name>
 ```
 
-**Path (c) — Karpenter DRIFT.** Change the production `EC2NodeClass` `amiFamily` to AL2023;
+**Path (c) — Karpenter DRIFT.** Change the production `EC2NodeClass` to AL2023;
 Karpenter **Drift** detects the change and replaces nodes automatically (respecting
 disruption budgets).
 
+> **Carry the validated canary settings onto the *production* `EC2NodeClass` — not just
+> `amiFamily`.** The Phase 1 canary's hop-limit fix lived on a *separate* AL2023 `EC2NodeClass`;
+> editing only `spec.amiFamily` on the production class leaves its `metadataOptions` at the
+> default, so the drifted Karpenter fleet comes up at hop limit **1** (Risk 2). Set
+> `spec.metadataOptions.httpPutResponseHopLimit: 2` (if the IMDS risk applied) on the production
+> `EC2NodeClass` in the same edit. AL2023 `NodeConfig` userData is generated by Karpenter, so the
+> Risk 3 `bootstrap.sh` rewrite does not apply to this path.
+
 Operator runs (this skill does not):
 ```bash
-# Set amiFamily: AL2023 on the production EC2NodeClass; Karpenter Drift rolls the nodes.
-kubectl edit ec2nodeclass <name>    # spec.amiFamily: AL2023 (and amiSelectorTerms as needed)
+# Set the production EC2NodeClass to AL2023 AND carry the hop-limit fix; Karpenter Drift rolls the nodes.
+kubectl edit ec2nodeclass <name>
+# spec.amiFamily: AL2023 (and amiSelectorTerms as needed)
+# spec.metadataOptions.httpPutResponseHopLimit: 2   (if the IMDS risk applied)
 ```
 
 ---
+
+## Phase 4 (cont.): Decommission the canary on success
+
+Once the fleet is fully on AL2023 and validated, clean up the canary scaffolding — otherwise
+paths (a) and (c) leave an orphaned canary node group / `NodePool` running (idle cost), and the
+Phase 2 pin leaves workloads stuck to the canary.
+
+- **Revert the Phase 2 validation pin.** Remove the `nodeSelector: migration=al2023-canary` +
+  `al2023-canary` toleration you patched onto the canary workloads (Phase 2) so they schedule
+  freely across the AL2023 fleet — otherwise they stay pinned and go `Pending` when the canary
+  is removed.
+- **Path (b):** the canary group *became* the fleet (scaled up in Phase 4), so there is no
+  separate canary to delete — just confirm the old AL2 group was deleted.
+- **Paths (a) / (c):** the production node group / `EC2NodeClass` was rolled in place, so the
+  **separate** canary node group (a) or canary `NodePool` + its AL2023 `EC2NodeClass` (c) is now
+  redundant — delete it (and remove the `al2023-canary` taint/label references) once validation
+  has passed.
 
 ## Phase 5: Rollback
 
@@ -237,6 +321,12 @@ node.
   until you are confident). This is your rollback target.
 - **To roll back the canary or a partial roll:** cordon and drain the AL2023 nodes back onto
   the retained AL2 node group.
+
+> **Before draining (same caveat as Phase 4):** `--delete-emptydir-data` discards emptyDir
+> contents, and draining detaches EBS volumes (and unmounts EFS/NFS mounts) as pods reschedule
+> — confirm StatefulSet/PV data can survive the move back to AL2 nodes. A restrictive PodDisruptionBudget can stall or
+> block the drain; check PDBs first and plan for it (raise `maxUnavailable`, or accept a slower
+> rolling drain). Never force-delete PDB-protected pods without understanding the impact.
 
 Operator runs (this skill does not):
 ```bash

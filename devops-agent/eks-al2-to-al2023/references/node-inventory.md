@@ -231,7 +231,7 @@ CustomResourceDefinition, not in a node-group `amiType`:
 **CRD read constraint.** Under the `AmazonAIOpsAssistantPolicy` access entry **alone**, these
 CRD groups are **not** authorized — reads of `karpenter.k8s.aws`, `karpenter.sh`, and
 `eks.amazonaws.com` return `403 Forbidden` (the managed policy grants only built-in API
-groups; see SKILL.md and `references/porting-notes.md`). When the CRD read is blocked:
+groups; see SKILL.md § Kubernetes API Access). When the CRD read is blocked:
 
 - Report the Karpenter/Auto-Mode desired AMI family as **`unconfirmed`** — never guess
   `AL2` or `AL2023`, and never record `false`.
@@ -284,9 +284,8 @@ rules:
 
 Without this binding (or a broader access policy), the Karpenter/Auto-Mode desired-AMI facts
 stay `unconfirmed` and the skill reports this ClusterRole as the fix in the Coverage section.
-(This same YAML is documented for maintainers in `references/porting-notes.md`, which is
-excluded from the uploaded skill zip — it is duplicated here so the runbook and Coverage note
-can surface it at runtime.)
+(This ClusterRole is surfaced at runtime in the Coverage section when Karpenter/Auto-Mode AMI
+facts are unconfirmed.)
 
 ---
 

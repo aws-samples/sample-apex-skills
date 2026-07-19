@@ -68,9 +68,10 @@ Each risk is reported with a **status rating**:
   create an AL2 managed node group on 1.33+.
 - EKS AL2 AMI end-of-support is **independent of** the Kubernetes standard/extended support
   clock — a cluster on a still-supported K8s version can still be on an unsupported AL2 AMI.
-- The base **Amazon Linux 2 OS** end-of-support is **2026-06-30**. Until then you can build a
-  **custom** AMI from the AL2 base (kernel updates only), but this is a stopgap, not the
-  EKS-optimized AL2 AMI.
+- The base **Amazon Linux 2 OS** reached end-of-support on **2026-06-30** (now past, as of
+  2026-07-19). Building a **custom** AMI from the AL2 base was only ever a stopgap (kernel
+  updates only), not the EKS-optimized AL2 AMI — and with base-OS support now ended it is no
+  longer a viable path.
 
 > **Precision note (reconciling the upstream check).** The upstream
 > `skills/eks-upgrade-check/references/node-readiness.md` loosely states "AL2 standard support
@@ -92,8 +93,10 @@ Each risk is reported with a **status rating**:
 2026-07-19).
 
 - **EKS breaking change:** at **Kubernetes 1.35 and later, cgroup v1 support is removed** — the
-  kubelet **refuses to start on a cgroup v1 node** unless `failCgroupV1=false` is set. This
-  makes the AL2→AL2023 move effectively mandatory before 1.35. Source:
+  kubelet **refuses to start on a cgroup v1 node** because the kubelet-config field
+  `failCgroupV1` defaults to `true` in 1.35+; set `failCgroupV1: false` in kubelet
+  configuration to override (not recommended). This makes the AL2→AL2023 move effectively
+  mandatory before 1.35. Source:
   <https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html> (as of
   2026-07-19).
 - **JDK 8 before 8u372** cannot detect container memory limits under cgroup v2 — the JVM sizes
@@ -160,9 +163,13 @@ IMDS **hop limit varies by launch-template configuration**:
 
 Source: <https://docs.aws.amazon.com/eks/latest/userguide/al2023.html> (as of 2026-07-19).
 
-**Affected:** pods that reach the **node instance credentials via IMDS** (they need the extra
-hop). Pods using IRSA or EKS Pod Identity are **not** affected — they do not use node IMDS
-credentials.
+**Affected:** any **pod-network** pod that calls IMDS at all — for **credentials or for instance
+metadata** (region, AZ, instance-id, instance-type). The hop limit governs the network path to
+IMDS (169.254.169.254), not what is fetched, so the pod's extra network hop is dropped
+regardless. IRSA / EKS Pod Identity remove the *need* to fetch **credentials** from IMDS, but a
+pod that still queries IMDS for **metadata** remains affected at hop limit 1. (Exception: pods
+running with `hostNetwork: true` share the node's network namespace, so they reach IMDS without
+the extra hop and are unaffected.)
 
 ### How to detect
 
@@ -175,26 +182,29 @@ aws ec2 describe-launch-template-versions --launch-template-id <lt-id> --version
 ```
 
 - **No launch template on the node group** (from `node-inventory.md` section 1) → the node will
-  come up with hop limit **1** → flag `applies` (pods using node IMDS credentials will break).
+  come up with hop limit **1** → flag `applies` (any pod-network pod calling IMDS — for credentials OR metadata — will break; `hostNetwork` pods are unaffected).
 - **Launch template present** → read `HttpPutResponseHopLimit`; if 1, `applies`; if >= 2,
   `does-not-apply` (for the hop-limit concern).
 
-**Via Kubernetes API** (best-effort signal) — pods likely to use node IMDS credentials are
-those **without** an IRSA/Pod-Identity service account. Reading which pods call IMDS is not
-directly observable via the K8s API; report the hop-limit fact and recommend the operator
-confirm which workloads rely on node IMDS credentials.
+**Via Kubernetes API** (best-effort signal) — pods **without** an IRSA/Pod-Identity service
+account are the likeliest to depend on IMDS *credentials*, but IMDS *metadata* calls are
+invisible to the K8s API and can come from any pod. Report the hop-limit fact and recommend the
+operator confirm which workloads call IMDS for anything (credentials or metadata).
 
 ### Status rating
 
-- `applies` — an AL2 node group has (or will default to) hop limit 1 and workloads may use
-  node IMDS credentials.
-- `does-not-apply` — hop limit already >= 2, or all workloads use IRSA/Pod Identity.
+- `applies` — an AL2 node group has (or will default to) hop limit 1 and any pod-network
+  workload may call IMDS (credentials or metadata); `hostNetwork` pods are unaffected.
+- `does-not-apply` — hop limit already >= 2, or no workload calls IMDS at all (note: IRSA/Pod
+  Identity alone is NOT sufficient — a pod can still call IMDS for metadata).
 - `unconfirmed` — launch-template metadata options could not be read.
 
 ### Remediation
 
 Raise the hop limit to **2** via a **custom launch template**, **or** move workloads to **EKS
-Pod Identity / IRSA** instead of node IMDS credentials (the recommended long-term fix). Source:
+Pod Identity / IRSA** to remove the *credential* dependency on IMDS (the recommended long-term
+fix for credentials); note that pods still needing IMDS *metadata* require hop limit 2
+regardless, so raising the hop limit is the more complete fix. Source:
 <https://docs.aws.amazon.com/eks/latest/userguide/al2023.html> (as of 2026-07-19).
 
 ---
@@ -301,8 +311,8 @@ aws eks describe-addon --cluster-name <cluster-name> --addon-name vpc-cni \
 
 ### Remediation
 
-Upgrade VPC CNI to **>= 1.16.2** before migrating (operator action, first step in the runbook
-pre-flight). Source: <https://docs.aws.amazon.com/eks/latest/userguide/al2023.html> (as of
+Upgrade VPC CNI to **>= 1.16.2** before migrating (operator action, a Phase 0 pre-flight step
+in the runbook). Source: <https://docs.aws.amazon.com/eks/latest/userguide/al2023.html> (as of
 2026-07-19).
 
 ---

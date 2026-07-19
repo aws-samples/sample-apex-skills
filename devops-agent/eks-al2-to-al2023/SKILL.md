@@ -64,7 +64,7 @@ Node-level facts (per-node `osImage`, `kernelVersion`, container runtime, Daemon
 - **Raw cluster inventory / "what am I running"** → `eks-recon`. Recon reports AMI facts without the migration risk analysis or runbook.
 - Actually performing the migration — creating node groups, cordoning, draining, or replacing nodes (this skill is strictly read-only).
 
-> **Overlap note (for maintainers).** The upstream `skills/eks-upgrade-check` skill carries AL2→AL2023 material as one module of a broader readiness check, and an effort is underway to improve it. This standalone skill goes deeper on the node-OS migration specifically. If the improved `eks-upgrade-check` subsumes this depth, these two may later merge — see `references/porting-notes.md`.
+> **Overlap note (for maintainers).** The upstream `skills/eks-upgrade-check` skill carries AL2→AL2023 material as one module of a broader readiness check, and an effort is underway to improve it. This standalone skill goes deeper on the node-OS migration specifically. If the improved `eks-upgrade-check` subsumes this depth, these two may later merge.
 
 ---
 
@@ -138,6 +138,8 @@ Produce **two** artifacts. The agent generates both directly — no external con
 ### 1. Migration-readiness fact report (primary)
 
 - **Filename:** `EKS-AL2023-Migration-{cluster}-{YYYY-MM-DD}-{HHMM}.md`
+
+The report structure below is a **contract**: emit these sections in this order, and include a section even if empty (write "none detected" / "unconfirmed" rather than omitting it) so a reader can trust that a missing item means "assessed and absent," not "skipped."
 
 ```markdown
 # AL2 → AL2023 Migration Check — <cluster> (<region>)

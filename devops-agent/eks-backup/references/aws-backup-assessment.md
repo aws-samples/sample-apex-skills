@@ -66,7 +66,7 @@ aws backup get-backup-selection --backup-plan-id <plan-id> --selection-id <selec
 
 - **Fields to extract:** from each selection, `BackupSelection.Resources` (explicit ARNs) and
   `BackupSelection.Conditions` / resource-type filters. A match exists when a selection lists
-  the cluster ARN directly, or selects by resource type `Amazon EKS` (tag-based selection) in
+  the cluster ARN directly, or selects by resource type `EKS` (the API value; shown as "Amazon EKS" in the console) (tag-based selection) in
   a way that covers the cluster.
 - Cross-check via the protected-resources view (more direct when the cluster has been backed
   up at least once):
@@ -132,7 +132,7 @@ aws backup list-backup-jobs --by-resource-arn <cluster-arn> \
 aws backup describe-backup-job --backup-job-id <job-id>
 ```
 
-- **Fields to extract:** `State` (`COMPLETED` / `FAILED` / `RUNNING` / `ABORTED`) and
+- **Fields to extract:** `State` (`COMPLETED` / `PARTIAL` (some nested jobs failed) / `FAILED` / `RUNNING` / `ABORTED`) and
   `StatusMessage`. A `COMPLETED` state with a status message noting skipped resources is the
   **"Completed with issues"** case (e.g. `metrics.k8s.io` skipped — see `backup-approaches.md`
   Limitations); report it distinctly, not as a clean success and not as a failure.
@@ -184,7 +184,7 @@ aws_backup:
     count: int
     most_recent: string            # ISO CreationDate of newest recovery point, null if none
   vault: string                    # vault holding the cluster's recovery points, null if none
-  last_job_status: string          # COMPLETED | FAILED | RUNNING | ABORTED | "COMPLETED_WITH_ISSUES", null if no jobs
+  last_job_status: string          # COMPLETED | PARTIAL (some nested jobs failed) | FAILED | RUNNING | ABORTED | "COMPLETED_WITH_ISSUES" (a status message on a COMPLETED job, not a distinct job state), null if no jobs
   last_job_message: string         # StatusMessage when present (e.g. skipped metrics.k8s.io), null otherwise
   access_entry_present: bool       # AWS Backup's own EKS access entry (AWSBackupFullAccessPolicyForBackup)
 ```
