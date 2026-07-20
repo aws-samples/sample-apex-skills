@@ -67,7 +67,8 @@ Do NOT list generic Kubernetes release notes. Only report changes that affect re
 
 **Flag** (MEDIUM severity) only when `current <= 1.31 AND target >= 1.32` — i.e. the upgrade crosses INTO the anonymous-auth restriction. A cluster already on 1.32+ has the restriction in effect; do NOT flag it again.
 - Anonymous requests only allowed to /healthz, /livez, /readyz
-- Check: `kubectl get clusterrolebindings -o json | jq '.items[] | select(.subjects[]?.name=="system:unauthenticated")'`
+- Check: List ClusterRoleBindings via the Kubernetes API and flag any whose `subjects[]`
+  include `system:unauthenticated`
 - Impact: Monitoring tools or LB health checks hitting non-health endpoints will get 401
 - **Scoring home:** scored under Breaking Changes (Category 1, MEDIUM = 4 pts). Do
   NOT also count it under Behavioral Changes (Category 9) — it has exactly one home.
@@ -183,11 +184,11 @@ This file does not cover breaking changes for versions beyond 1.36. If the targe
 is > 1.36, you MUST perform a live lookup before reporting "no breaking changes found."
 
 **How to check:**
-1. Search AWS docs: `search_documentation` for "EKS Kubernetes <target> breaking changes"
-2. Search AWS docs: `search_documentation` for "Kubernetes <target> removed APIs"
-3. Fetch the Kubernetes changelog: `read_documentation` on the K8s CHANGELOG for the target
+1. Search AWS docs: a documentation search for "EKS Kubernetes <target> breaking changes"
+2. Search AWS docs: a documentation search for "Kubernetes <target> removed APIs"
+3. Fetch the Kubernetes changelog: the K8s CHANGELOG for the target
    minor version (e.g., CHANGELOG-1.37.md)
-4. Check for EKS-specific changes: `search_documentation` for "EKS <target> release notes"
+4. Check for EKS-specific changes: a documentation search for "EKS <target> release notes"
 
 **If no breaking changes are found after live lookup:** Report "No breaking changes identified
 for <target> based on available documentation" with a note that the user should re-check closer

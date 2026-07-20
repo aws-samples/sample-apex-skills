@@ -7,14 +7,14 @@ Retrieve and interpret official AWS EKS Upgrade Insights — pre-upgrade checks 
 
 ### Step 1: Get All Insights
 
-1. Call `get_eks_insights` with the cluster name
+1. Use the EKS ListInsights API with the cluster name
 2. Filter for category `UPGRADE_READINESS`
 3. Record each insight: ID, status, name, description
 
 ### Step 2: Get Details for Non-Passing Insights
 
 For any insight with status other than `PASSING`:
-1. Call `get_eks_insights` with the specific `insight_id`
+1. Use the EKS DescribeInsight API with the specific insight ID
 2. Record: detailed description, recommendation, affected resources
 
 ### Step 3: Classify Findings

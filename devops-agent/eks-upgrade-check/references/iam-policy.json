@@ -1,0 +1,57 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EKSReadCluster",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeCluster",
+        "eks:ListNodegroups",
+        "eks:ListAddons",
+        "eks:ListInsights",
+        "eks:DescribeInsight",
+        "eks:ListAccessEntries"
+      ],
+      "Resource": "arn:aws:eks:<region>:<account-id>:cluster/*"
+    },
+    {
+      "Sid": "EKSReadNodegroup",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeNodegroup"
+      ],
+      "Resource": "arn:aws:eks:<region>:<account-id>:nodegroup/*/*/*"
+    },
+    {
+      "Sid": "EKSReadAddon",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeAddon"
+      ],
+      "Resource": "arn:aws:eks:<region>:<account-id>:addon/*/*/*"
+    },
+    {
+      "Sid": "EKSReadAccessEntry",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeAccessEntry"
+      ],
+      "Resource": "arn:aws:eks:<region>:<account-id>:access-entry/*/*"
+    },
+    {
+      "Sid": "AccountLevelReads",
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListClusters",
+        "eks:DescribeAddonVersions",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroupRules",
+        "iam:GetRole",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:GetRolePolicy"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

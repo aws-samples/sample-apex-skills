@@ -1,17 +1,12 @@
 ---
 title: "Workload Risks"
 description: ""
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/workload-risks.md
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/references/workload-risks.md
 format: md
 ---
 
 :::info[Source]
-This page is generated from [skills/eks-upgrade-check/references/workload-risks.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/workload-risks.md). Edit the source, not this page.
-:::
-
-
-:::info[Vendored skill]
-This skill is sourced from [eks-upgrade-check](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check), also maintained by the APEX team.
+This page is generated from [devops-agent/eks-upgrade-check/references/workload-risks.md](https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/references/workload-risks.md). Edit the source, not this page.
 :::
 
 # Workload Risks
@@ -174,7 +169,7 @@ that workload HAS requests — do not flag it.
 ### Fargate-only cluster caveat
 
 **On a Fargate-only cluster** (no managed/self-managed node groups, no Karpenter nodes),
-`kubectl get nodes` and node-group listings return empty. Category 3 (node readiness) is
+node listings and node-group inventories return empty. Category 3 (node readiness) is
 therefore **N/A** and deducts 0 from empty inputs — this is the absence of nodes to assess,
 NOT a clean bill of health. The data-plane assessment then relies entirely on pod-level
 signals (preStop hooks, PDBs, readiness/liveness probes) from Category 8 / Category 6. When

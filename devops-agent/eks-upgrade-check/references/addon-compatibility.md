@@ -1,19 +1,3 @@
----
-title: "Add-on Compatibility"
-description: ""
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/addon-compatibility.md
-format: md
----
-
-:::info[Source]
-This page is generated from [skills/eks-upgrade-check/references/addon-compatibility.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/addon-compatibility.md). Edit the source, not this page.
-:::
-
-
-:::info[Vendored skill]
-This skill is sourced from [eks-upgrade-check](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check), also maintained by the APEX team.
-:::
-
 # Add-on Compatibility
 
 ## Purpose
@@ -38,28 +22,25 @@ The 4 core add-ons that MUST be checked:
 
 **MANDATORY version comparison (deterministic — do NOT eyeball or skip):**
 
-For EVERY managed add-on, you MUST run this command and compare — never declare an
-add-on "compatible" or "up to date" from judgment alone:
+For EVERY managed add-on, you MUST call the EKS `DescribeAddonVersions` API and
+compare — never declare an add-on "compatible" or "up to date" from judgment alone:
 
-```bash
-# Select the DEFAULT version explicitly — do NOT trust addonVersions[0].
-# describe-addon-versions does NOT guarantee index 0 is the newest/default.
-aws eks describe-addon-versions --addon-name <addon> --kubernetes-version <target> \
-  --query 'addons[0].addonVersions[?compatibilities[0].defaultVersion==`true`].addonVersion' \
-  --output text
-```
+- **API:** `DescribeAddonVersions`
+- **Parameters:** `addonName: <addon>`, `kubernetesVersion: <target>`
+- **Extract:** from `addons[0].addonVersions[]`, select the entry flagged as the
+  **defaultVersion** (the `compatibilities[].defaultVersion` marker). If none is
+  flagged, select the entry with the **highest semver**. Do NOT take the first
+  array element — `DescribeAddonVersions` does NOT guarantee index 0 is the
+  newest/default.
 
-If no entry is flagged `defaultVersion`, pick the **highest semver** from
-`addons[0].addonVersions[].addonVersion` instead (e.g. sort with `sort -V`) —
-NEVER just take the first array element (`[0]`), which is not guaranteed to be latest.
-This returns the latest available build for the target Kubernetes version. Then apply
+This gives the latest available build for the target Kubernetes version. Then apply
 this bright-line rule for each add-on:
 
 | Condition | Verdict | Score |
 |-----------|---------|-------|
 | Installed build == latest-for-target | COMPATIBLE | 0 pts |
 | Installed build < latest-for-target (behind) | UPDATE_RECOMMENDED | 1 pt |
-| Installed version NOT in target's compatible set (`describe-addon-versions` returns no entry for it) | INCOMPATIBLE | critical: 5 pts + hard blocker (caps ≤59) / optional: 3 pts, NO cap |
+| Installed version NOT in target's compatible set (`DescribeAddonVersions` returns no entry for it) | INCOMPATIBLE | critical: 5 pts + hard blocker (caps ≤59) / optional: 3 pts, NO cap |
 | Add-on DEGRADED / FAILED | INCOMPATIBLE (same deduction) | critical: 5 pts + hard blocker (caps ≤59) / optional: 3 pts, NO cap |
 | kube-proxy skew beyond policy (>3 minors behind target) | SKEW_WARNING | 2 pts (Category 4 warning — distinct from UNKNOWN_VERIFIABLE's 2 pts) |
 
@@ -73,14 +54,14 @@ kube-proxy, aws-ebs-csi-driver, plus any non-AWS cluster CNI installed in place 
 vpc-cni — Cilium, Calico) INCOMPATIBLE triggers hard blocker #3; an OPTIONAL
 add-on INCOMPATIBLE deducts 3 pts and does NOT cap the score.
 
-**Scope of this API-based INCOMPATIBLE rule:** this `describe-addon-versions`
+**Scope of this API-based INCOMPATIBLE rule:** this `DescribeAddonVersions`
 compatible-set test defines INCOMPATIBLE for **EKS-managed add-ons only**.
-`describe-addon-versions` does not cover OSS add-ons — those keep the upstream-source
+`DescribeAddonVersions` does not cover OSS add-ons — those keep the upstream-source
 definition of INCOMPATIBLE in §4.3 (verdict states).
 
 "Behind" includes any add-on whose version string is for an older Kubernetes minor
 (e.g., a `v1.31.x` kube-proxy build when the target is 1.32) OR a lower build number
-for the same minor. If you did not run `describe-addon-versions`, you cannot assign
+for the same minor. If you did not call `DescribeAddonVersions`, you cannot assign
 COMPATIBLE — the check is required, not optional.
 
 **Key talking point:** EKS does NOT auto-update add-ons when you upgrade the control plane. This is the #1 thing customers forget. A cluster upgraded to 1.33 can still be running vpc-cni from 1.29.
@@ -153,27 +134,27 @@ Always fetch compatibility information live from the upstream project.
 **Lookup order (stop at the first that yields a definitive answer):**
 
 1. **Check the local registry for the authoritative URL**
-   Read `${CLAUDE_SKILL_DIR}/data/oss_addon_registry.json`. If the add-on is listed,
+   Read `assets/oss_addon_registry.json`. If the add-on is listed,
    use its `compatibility_url` (primary) and `releases_url` (fallback). The registry
    contains identifiers and URLs — it does NOT contain compatibility data itself.
 
 2. **Fetch the compatibility page**
-   Use `webFetch` on the registry's `compatibility_url`. Look for a supported-versions
+   Fetch (web fetch) the registry's `compatibility_url`. Look for a supported-versions
    table or statement that covers both the installed add-on version and the target
    Kubernetes version.
 
 3. **Fetch release notes if no compatibility page exists**
-   Use `webFetch` on `releases_url` and inspect the relevant release for "Kubernetes
+   Fetch (web fetch) `releases_url` and inspect the relevant release for "Kubernetes
    compatibility" or "breaking changes" sections.
 
 4. **Fall back to web search only if the above fail**
-   Use `remote_web_search` with queries like:
+   Use web search with queries like:
    - `"<addon-name> <addon-version> supported Kubernetes versions"`
    - `"<addon-name> compatibility matrix"`
    Prefer results from the project's own domain or GitHub org.
 
 5. **If the add-on is not in the registry**
-   Search with `remote_web_search` first to identify the authoritative source
+   Use web search first to identify the authoritative source
    (project docs or GitHub releases), then apply steps 2–3 against that source.
 
 **If no authoritative source can be reached or the answer is ambiguous:**
@@ -255,8 +236,8 @@ version boundary that requires API migration (v1beta1 → v1).
 
 **If the target Kubernetes version or installed Karpenter version is NOT in the matrix above:**
 You MUST perform a web search to verify compatibility:
-1. Search: `"Karpenter compatibility matrix Kubernetes <target-version>"` using `remote_web_search`
-2. Fetch the official page: `https://karpenter.sh/docs/upgrading/compatibility/` using `webFetch`
+1. Search: `"Karpenter compatibility matrix Kubernetes <target-version>"` using web search
+2. Fetch the official page: `https://karpenter.sh/docs/upgrading/compatibility/` via web fetch
 3. Do NOT guess or assume compatibility. Report as UNKNOWN if you can't verify.
 
 **Rating:**

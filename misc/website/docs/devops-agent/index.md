@@ -16,5 +16,5 @@ A subset of APEX skills ported for the [AWS DevOps Agent](https://docs.aws.amazo
 <tr><td><a href="./eks-operation-review/"><b>eks-operation-review</b></a></td><td>Placeholder</td><td>Run a structured EKS operational excellence assessment across 10 areas (networking, autoscaling, observability, access &amp; identity, add-ons, workload…</td></tr>
 <tr><td><a href="./eks-recon/"><b>eks-recon</b></a></td><td>Active</td><td>EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment.</td></tr>
 <tr><td><a href="./eks-security/"><b>eks-security</b></a></td><td>Active</td><td>EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap.</td></tr>
-<tr><td><a href="./eks-upgrade-check/"><b>eks-upgrade-check</b></a></td><td>Placeholder</td><td>Assess EKS cluster upgrade readiness by running automated checks across 8 areas (version validation, breaking changes, deprecated APIs, add-on…</td></tr>
+<tr><td><a href="./eks-upgrade-check/"><b>eks-upgrade-check</b></a></td><td>Active</td><td>Assess EKS cluster upgrade readiness by running automated checks across 8 areas (version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS…</td></tr>
 </table>

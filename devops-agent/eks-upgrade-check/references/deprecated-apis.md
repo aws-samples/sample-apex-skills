@@ -46,38 +46,30 @@ manifests originally applied under a deprecated apiVersion. `managedFields`
 preserves the apiVersion used by every writer (kubectl, controllers, Argo CD,
 Flux, Helm), so this scan covers all configuration sources.
 
-```bash
-kubectl get <kind> --all-namespaces -o jsonpath='{range .items[*]}{.metadata.namespace}{"/"}{.metadata.name}{"\t"}{range .metadata.managedFields[*]}{.manager}{"="}{.apiVersion}{","}{end}{"\n"}{end}'
-```
-
-Output is `namespace/name<TAB>manager1=apiVersion1,manager2=apiVersion2,...`.
-The `manager` portion identifies which writer used each apiVersion (e.g.,
+**How to scan:** List each resource kind across all namespaces via the Kubernetes
+API and read `metadata.managedFields[]` from every returned object. Each entry
+contains a `manager` (the writer) and an `apiVersion` (the version that writer
+used). For each object, record `namespace/name` plus every `manager=apiVersion`
+pair. The `manager` value identifies which writer used each apiVersion (e.g.,
 `kubectl-client-side-apply`, `argocd-application-controller`, controller
 names) — this points to where the source manifest needs to be updated.
 
-**Anti-pattern — do not pre-filter with naïve substring greps.**
+**Anti-pattern — do not pre-filter with naïve substring matching.**
 
-```bash
-# WRONG — `v1` is a prefix of `v1beta3`, so `grep -v` strips both lines.
-... | grep -v "flowcontrol.apiserver.k8s.io/v1"
-```
+For example, excluding every object whose managedFields text contains
+`flowcontrol.apiserver.k8s.io/v1` also excludes `v1beta3` entries, because `v1`
+is a prefix of `v1beta3`. A single resource often has multiple
+`manager=apiVersion` entries (e.g., a controller writing `v1` plus the user
+writing `v1beta3`), and filter-then-decide logic drops the object entirely as
+soon as any benign apiVersion matches. Walk every object and check each
+`manager=apiVersion` pair individually against the deprecation table in Step 3.
 
-A single resource often has multiple `manager=apiVersion` entries on the
-same line (e.g., a controller writing `v1` plus the user writing `v1beta3`).
-Filter-then-decide pipelines drop the line entirely as soon as any benign
-apiVersion matches. Walk the full output line by line and check each
-`manager=apiVersion` pair against the deprecation table in Step 3 instead.
+**Anti-pattern — do not rely on client-rendered output that hides managedFields.**
 
-**Anti-pattern — do not substitute `-o yaml` or `-o json`.**
-
-```bash
-# WRONG — kubectl 1.21+ hides managedFields from -o yaml / -o json by default,
-# so this scan returns false negatives.
-kubectl get <kind> -A -o yaml | grep apiVersion
-```
-
-Use the `-o jsonpath` form above. It accesses `managedFields` directly and
-is not affected by the default-hide behavior.
+The raw Kubernetes API response includes `metadata.managedFields`. Client tools
+may strip it from rendered output (kubectl 1.21+ hides managedFields from
+`-o yaml` / `-o json` by default), producing false negatives. Always read
+`managedFields` directly from the API object, not from rendered/summarized views.
 
 ### Step 3: Check for Removed APIs by Target Version
 
@@ -103,13 +95,12 @@ does NOT by itself mean a resource needs migrating. The deciding question is **w
 wrote the removed version** — a resource is a real finding only if a
 **user-controlled writer** actually wrote it.
 
-> **Why not compare served vs stored apiVersion?** Reading the object's live
-> `apiVersion` (e.g. `kubectl get flowschema <name> -o jsonpath='{.apiVersion}'`)
-> cannot distinguish a migrated object from an unmigrated one: the API server
-> serves every object at the version you request, so the read-back value reflects
-> the request, not the source manifest. On 1.30+ control planes a `v1` read-back
-> can hide a manifest still applied as `v1beta3`. Do NOT use served/stored
-> apiVersion as a per-object signal.
+> **Why not compare served vs stored apiVersion?** Reading an object's top-level
+> `apiVersion` field back from the API cannot distinguish a migrated object from an
+> unmigrated one: the API server serves every object at the version you request, so
+> the read-back value reflects the request, not the source manifest. On 1.30+
+> control planes a `v1` read-back can hide a manifest still applied as `v1beta3`.
+> Do NOT use served/stored apiVersion as a per-object signal.
 
 Apply this deterministic test to **every removed-API kind** surfaced via
 `managedFields` in Step 2b (FlowSchema / PriorityLevelConfiguration and all other

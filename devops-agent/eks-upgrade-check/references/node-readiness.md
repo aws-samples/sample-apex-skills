@@ -1,19 +1,3 @@
----
-title: "Node Readiness"
-description: ""
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/node-readiness.md
-format: md
----
-
-:::info[Source]
-This page is generated from [skills/eks-upgrade-check/references/node-readiness.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/node-readiness.md). Edit the source, not this page.
-:::
-
-
-:::info[Vendored skill]
-This skill is sourced from [eks-upgrade-check](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check), also maintained by the APEX team.
-:::
-
 # Node Readiness
 
 ## Purpose
@@ -63,8 +47,8 @@ Assess node groups, AMI types, version alignment, and migration requirements for
 
 **Migration guidance (report as recommended remediation steps):**
 1. Recommend: create a new node group with the AL2023 AMI type
-2. Recommend: cordon the old AL2 nodes to stop new scheduling — e.g. `kubectl cordon <node-name>`
-3. Recommend: drain workloads off the old nodes so pods reschedule onto AL2023 — e.g. `kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data`
+2. Recommend: cordon the old AL2 nodes to mark them unschedulable so no new pods land on them
+3. Recommend: drain the workloads off the old AL2 nodes (ignoring DaemonSets, and clearing emptyDir data) so pods reschedule onto the AL2023 node group
 4. Recommend: delete the old node group once all pods have rescheduled
 5. Note the key differences to plan for: cgroup v2 default, dnf instead of yum, different kernel
 
@@ -126,12 +110,9 @@ upgrade, so it is scored HIGH but is NOT a hard blocker.
 **How to check:**
 1. Get the cluster subnet IDs from the cluster description (already retrieved in pre-flight
    Action 2 — `resourcesVpcConfig.subnetIds`).
-2. Run:
-   ```bash
-   aws ec2 describe-subnets --subnet-ids <subnet-id-1> <subnet-id-2> ... \
-     --query 'Subnets[].{SubnetId:SubnetId,AZ:AvailabilityZone,AvailableIPs:AvailableIpAddressCount,CIDR:CidrBlock}' \
-     --output table
-   ```
+2. Call the EC2 `DescribeSubnets` API with `SubnetIds: [<subnet-id-1>, <subnet-id-2>, ...]`
+   and record, for each subnet: `SubnetId`, `AvailabilityZone`,
+   `AvailableIpAddressCount`, and `CidrBlock`.
 3. For each subnet, evaluate `AvailableIpAddressCount` against thresholds.
 
 **Thresholds:**

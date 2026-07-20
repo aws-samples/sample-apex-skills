@@ -232,18 +232,115 @@ EOF
 
 echo ""
 
-# --- Step 7: Show what we got ---
-echo "=== Synced files ==="
+# --- Step 8: Sync DevOps Agent port ---
+DEVOPS_DIR="$REPO_ROOT/devops-agent/eks-upgrade-check"
+UPSTREAM_DEVOPS="$UPSTREAM_ROOT/DevOpsAgent"
+
+echo "Syncing DevOps Agent port..."
+
+if [ ! -f "$UPSTREAM_DEVOPS/SKILL.md" ]; then
+    echo "ERROR: Upstream DevOpsAgent/SKILL.md not found — aborting (port directory NOT deleted)"
+    exit 1
+fi
+
+# Guard passed — safe to wipe and replace
+rm -rf "$DEVOPS_DIR"
+echo ""
+
+# --- Step 9: Copy DevOps Agent port components ---
+echo "Copying DevOps Agent port to local..."
+
+mkdir -p "$DEVOPS_DIR/references" "$DEVOPS_DIR/assets"
+
+# SKILL.md (verbatim — no deviations needed; description 599 chars, under 1024 cap)
+cp "$UPSTREAM_DEVOPS/SKILL.md" "$DEVOPS_DIR/SKILL.md"
+
+# README.md → references/porting-notes.md (Differences section = porting notes;
+# excluded from upload zip by setup.sh; serves as docs page via generators)
+cp "$UPSTREAM_DEVOPS/README.md" "$DEVOPS_DIR/references/porting-notes.md"
+
+# Fix relative links broken by relocation (SKILL.md is now one dir up, not sibling)
+sed -i.bak 's|(SKILL\.md)|(../SKILL.md)|g' "$DEVOPS_DIR/references/porting-notes.md"
+rm -f "$DEVOPS_DIR/references/porting-notes.md.bak"
+
+# References (8 knowledge files — verbatim, already uses references/ naming)
+cp "$UPSTREAM_DEVOPS/references/"*.md "$DEVOPS_DIR/references/"
+
+# Assets (oss_addon_registry.json — kept in assets/ per upstream cross-refs)
+cp "$UPSTREAM_DEVOPS/assets/"* "$DEVOPS_DIR/assets/"
+
+echo "  Copied SKILL.md, references/ (8 + porting-notes.md), assets/"
+
+echo ""
+
+# --- Step 10: Extract iam-policy.json from upstream root README ---
+echo "Extracting IAM policy from upstream README.md..."
+
+awk '/^```json/{n++} n==3 && !/^```/{print} n==3 && /^```$/{exit}' "$UPSTREAM_ROOT/README.md" > "$DEVOPS_DIR/references/iam-policy.json"
+
+# Validate: must be valid JSON containing EKS actions
+python3 -m json.tool "$DEVOPS_DIR/references/iam-policy.json" > /dev/null
+grep -q '"eks:' "$DEVOPS_DIR/references/iam-policy.json" || { echo "ERROR: extracted IAM policy missing eks: actions — block numbering may have shifted"; exit 1; }
+
+echo "  iam-policy.json extracted and validated"
+echo ""
+
+# --- Step 11: Write port UPSTREAM.md provenance ---
+echo "Writing DevOps Agent port UPSTREAM.md..."
+cat > "$DEVOPS_DIR/UPSTREAM.md" <<EOF
+# Upstream Provenance
+
+This DevOps Agent port is **vendored** from an upstream repo. Do not edit files here directly — your changes will be overwritten by the next sync.
+
+| Field | Value |
+|---|---|
+| Source repo | $UPSTREAM_REPO |
+| Source path | \`DevOpsAgent/\` |
+| Refresh command | \`./misc/sync-eks-upgrade-skill.sh\` |
+| License | See \`skills/eks-upgrade-check/LICENSE\` (shared with the CC skill) |
+
+## Local modifications applied at sync time
+
+1. **\`DevOpsAgent/README.md\` → \`references/porting-notes.md\`** — the README's "Differences" section serves as porting documentation. Renamed so setup.sh excludes it from the upload zip (matching the eks-recon/eks-security pattern).
+2. **\`iam-policy.json\` extracted from upstream root README** — the IAM policy block is pulled out into \`references/iam-policy.json\` so every active port ships its own policy file (per the devops-agent README contract).
+
+Everything else is byte-for-byte from upstream's \`DevOpsAgent/\` directory.
+
+## To propose changes
+
+Open a PR against the upstream repo:
+$UPSTREAM_REPO
+
+Then re-run the sync script here.
+EOF
+
+echo ""
+
+# --- Step 12: Stage new files for generators ---
+echo "Staging synced files for generator visibility (git ls-files)..."
+git -C "$REPO_ROOT" add "$LOCAL_DIR" "$DEVOPS_DIR" 2>/dev/null || true
+
+echo ""
+
+# --- Step 13: Show what we got ---
+echo "=== Synced files (CC skill) ==="
 find "$LOCAL_DIR" -type f | sort | while read -r f; do
     echo "  ${f#$REPO_ROOT/}"
 done
 echo ""
 
+echo "=== Synced files (DevOps Agent port) ==="
+find "$DEVOPS_DIR" -type f | sort | while read -r f; do
+    echo "  ${f#$REPO_ROOT/}"
+done
+echo ""
+
 echo "=== Done ==="
-echo "eks-upgrade-check synced from upstream successfully."
+echo "eks-upgrade-check synced from upstream successfully (CC skill + DevOps Agent port)."
 echo ""
 echo "Next steps:"
 echo "  1. Review the synced files (git diff)"
 echo "  2. Ensure .claude/skills/eks-upgrade-check/ symlink exists:"
 echo "       ln -sfn ../../skills/eks-upgrade-check .claude/skills/eks-upgrade-check"
-echo "  3. Run ./misc/update-skills-references.sh to update skills/README.md"
+echo "  3. Run ./misc/update-all-references.sh && ./misc/update-pages.sh"
+echo "  4. Run python3 misc/validate-frontmatter.py"

@@ -1,17 +1,12 @@
 ---
 title: "Version Validation & Upgrade Path"
 description: ""
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/version-validation.md
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/references/version-validation.md
 format: md
 ---
 
 :::info[Source]
-This page is generated from [skills/eks-upgrade-check/references/version-validation.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/version-validation.md). Edit the source, not this page.
-:::
-
-
-:::info[Vendored skill]
-This skill is sourced from [eks-upgrade-check](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check), also maintained by the APEX team.
+This page is generated from [devops-agent/eks-upgrade-check/references/version-validation.md](https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/references/version-validation.md). Edit the source, not this page.
 :::
 
 # Version Validation & Upgrade Path
@@ -23,11 +18,11 @@ Validate the upgrade path, determine support status, and enforce EKS upgrade rul
 
 > **Freshness gate — apply BEFORE using this table:**
 > 1. If the cluster version or target version is **NOT in the table below** → fetch live
->    data from AWS docs (`search_documentation` for "EKS Kubernetes versions") before proceeding.
+>    data from AWS docs (a documentation search for "EKS Kubernetes versions") before proceeding.
 > 2. If today's assessment date is **past the "Extended Support Until" date** for the cluster's
 >    current version → that version's status may have changed to UNSUPPORTED. Verify live before
 >    reporting support status.
-> 3. If live lookup fails or the MCP server is unavailable → use the table as fallback, but add
+> 3. If live lookup fails or live lookup is unavailable → use the table as fallback, but add
 >    a note in the report: "Support status unverified — table data may be stale."
 
 | Version | Standard Support Until | Extended Support Until | Status |
@@ -65,14 +60,14 @@ cannot be assessed. The arithmetic check (target - current == 1) is necessary bu
 
 **How to check:**
 1. Confirm the target version exists in the calendar table above.
-2. If NOT in the table → search AWS docs (`search_documentation` for "EKS Kubernetes versions")
+2. If NOT in the table → search AWS docs (a documentation search for "EKS Kubernetes versions")
    to confirm whether the version has been released on EKS.
 3. If live lookup also finds no evidence the version exists on EKS → **ABORT the assessment.**
 
 **If target version does not exist on EKS — STOP and report:**
 
 ```
-## Assessment Cannot Proceed
+## Assessment Halted — target version not yet available on EKS
 
 **Target version <target> is not yet available on Amazon EKS.**
 
@@ -118,8 +113,9 @@ If the cluster version's Extended Support Until date has passed:
 - A downgrade is not an assessment target for this forward-path logic — but reverting is not
   impossible: EKS Version Rollback (launched 2026-07) can revert the control plane to the
   previous minor version within **7 days** of an in-place upgrade, a single version only
-  (N→N-1), via console/CLI/SDK (`aws eks update-cluster-version` with the N-1 version → update
-  type `VersionRollback`), gated by `ROLLBACK_READINESS` cluster insights.
+  (N→N-1), via the EKS console, API, or SDK (an update-cluster-version operation targeting the
+  N-1 version produces a `VersionRollback` update type), gated by `ROLLBACK_READINESS` cluster
+  insights.
 - Same-version "upgrades" are invalid
 
 **How to check:**
