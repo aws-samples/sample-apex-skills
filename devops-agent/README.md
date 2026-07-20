@@ -21,10 +21,12 @@ Only Day 2 operational skills that benefit from autonomous execution are ported:
 |-------|--------|-------------|
 | [eks-al2-to-al2023](./eks-al2-to-al2023/) | Active | Amazon Linux 2 → AL2023 EKS node migration readiness checker — assesses the migration-relevant facts and risks of moving worker nodes off the deprecated AL2 EKS-optimized AMI, then emits a guided, ... |
 | [eks-backup](./eks-backup/) | Active | EKS backup-readiness posture assessment — evaluates how well an EKS cluster is protected across BOTH AWS Backup for EKS and Velero, then emits a guided, human-executed runbook. Detects AWS Backup c... |
+| [eks-blue-green-readiness](./eks-blue-green-readiness/) | Active | EKS blue-green readiness pre-flight — a read-only GO / GO-WITH-CAVEATS / NO-GO gate for STANDING UP a green cluster before a blue-green cutover. Answers "is it safe to stand green up and cut over?"... |
 | [eks-cost-intelligence](./eks-cost-intelligence/) | Active | EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report. Analyzes compute efficiency, Spot/Graviton adoption, networking, storage,... |
 | [eks-operation-review](./eks-operation-review/) | Placeholder | Run a structured EKS operational excellence assessment across 10 areas (networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, ope... |
 | [eks-recon](./eks-recon/) | Active | EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, ... |
 | [eks-security](./eks-security/) | Active | EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap. Covers OS/AMI selection (Bottlerocket, AL2023, RHEL, Ubuntu), ide... |
+| [eks-upgrade-advisor](./eks-upgrade-advisor/) | Active | EKS Kubernetes-version upgrade execution advisor — turns a GO decision into a safe, ordered, phased plan (prepare → execute → validate/debug) and emits an operator runbook. Sequences the whole upgr... |
 | [eks-upgrade-check](./eks-upgrade-check/) | Active | Assess EKS cluster upgrade readiness by running automated checks across 8 areas (version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upg... |
 <!-- DEVOPS_AGENT_REFERENCE_END -->
 
