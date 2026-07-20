@@ -32,26 +32,61 @@ Do NOT list generic Kubernetes release notes. Only report changes that affect re
 ### Target >= 1.25: PodSecurityPolicy Removed
 
 **Check:** List PodSecurityPolicy resources via Kubernetes API
-- If PSPs exist → HIGH severity. PSPs will cease to exist after upgrade.
+- Apply the writer-identity filter in `deprecated-apis.md` Step 3b FIRST. A PSP is a real
+  finding only if a user tool (kubectl/helm/argocd/flux) wrote it in `managedFields`; objects
+  whose only trace comes from internal controllers do NOT count.
+- If a real (user-managed) PSP exists → HIGH severity. PSPs will cease to exist after upgrade.
 - Remediation: Migrate to Pod Security Standards (PSS) by labeling namespaces: `kubectl label namespace <ns> pod-security.kubernetes.io/enforce=restricted`
+- **Scoring home:** this is a removed API — scored under Deprecated APIs (Category 2), NOT
+  here. Do NOT also deduct for it under Breaking Changes — that would double-count.
 
 ### Target >= 1.29: FlowSchema API v1beta2 Removed
 
 **Check:** Scan cluster resources for `apiVersion: flowcontrol.apiserver.k8s.io/v1beta2`
 - Look at FlowSchema and PriorityLevelConfiguration resources
-- If found → MEDIUM severity. Update to `flowcontrol.apiserver.k8s.io/v1`
+- Apply the writer-identity filter in `deprecated-apis.md` Step 3b FIRST. An object is a real
+  finding only if a user tool (kubectl/helm/argocd/flux) wrote v1beta2 in `managedFields`.
+  Objects whose only v1beta2 trace comes from internal APF controllers
+  (`api-priority-and-fairness-config-*`, `eks-internal`) are false positives and do NOT count.
+  (`eks-internal` — exact manager string unverified against public AWS docs as of 2026-07;
+  AWS documents `manager: eks`. Kept conservatively.)
+- If a real (user-managed) object is found → HIGH severity (removed API in use). Update to `flowcontrol.apiserver.k8s.io/v1`
+- **Scoring home:** this is a removed API — scored under Deprecated APIs (Category 2), NOT
+  here. Do NOT also deduct for it under Breaking Changes — that would double-count.
+
+### Target >= 1.30: AppArmor Annotations Deprecated
+
+**Check:** Scan pod templates in deployments/daemonsets/statefulsets for
+`container.apparmor.security.beta.kubernetes.io/*` annotations
+- If found → MEDIUM severity. AppArmor itself is GA and fully supported — only the
+  annotation mechanism is deprecated, superseded by the native
+  `securityContext.appArmorProfile` field (GA in K8s 1.30).
+- Remediation: Replace the annotations with the `appArmorProfile` field in
+  `securityContext` (pod- or container-level). Do NOT migrate to seccomp — seccomp
+  and AppArmor are complementary mechanisms, not replacements.
 
 ### Target >= 1.32: FlowSchema API v1beta3 Removed
 
 **Check:** Scan for `apiVersion: flowcontrol.apiserver.k8s.io/v1beta3`
-- If found → HIGH severity. Update to `flowcontrol.apiserver.k8s.io/v1`
+- Apply the writer-identity filter in `deprecated-apis.md` Step 3b FIRST. An object is
+  a real finding only if a user tool (kubectl/helm/argocd/flux) wrote v1beta3 in
+  `managedFields`. Objects whose only v1beta3 trace comes from internal APF controllers
+  (`api-priority-and-fairness-config-*`, `eks-internal`) are false positives and do
+  NOT count. (`eks-internal` — exact manager string unverified against public AWS docs
+  as of 2026-07; AWS documents `manager: eks`. Kept conservatively.)
+- If a real (user-managed, not-yet-migrated) v1beta3 object is found → HIGH severity.
+  Update to `flowcontrol.apiserver.k8s.io/v1`.
+- **Scoring home:** this finding is scored under Deprecated APIs (Category 2), NOT
+  here. Do NOT also deduct for it under Breaking Changes — that would double-count.
 
 ### Target >= 1.32: Anonymous Auth Restricted
 
-**Always flag** (MEDIUM severity) — affects all clusters upgrading to 1.32+.
+**Flag** (MEDIUM severity) only when `current <= 1.31 AND target >= 1.32` — i.e. the upgrade crosses INTO the anonymous-auth restriction. A cluster already on 1.32+ has the restriction in effect; do NOT flag it again.
 - Anonymous requests only allowed to /healthz, /livez, /readyz
 - Check: `kubectl get clusterrolebindings -o json | jq '.items[] | select(.subjects[]?.name=="system:unauthenticated")'`
 - Impact: Monitoring tools or LB health checks hitting non-health endpoints will get 401
+- **Scoring home:** scored under Breaking Changes (Category 1, MEDIUM = 4 pts). Do
+  NOT also count it under Behavioral Changes (Category 9) — it has exactly one home.
 
 ### Target >= 1.33: Endpoints API Deprecated
 
@@ -65,24 +100,27 @@ Do NOT list generic Kubernetes release notes. Only report changes that affect re
 - If AL2 nodes found → HIGH severity. Cannot create new AL2 node groups for 1.33+
 - Remediation: Migrate to AL2023 or Bottlerocket BEFORE upgrading control plane
 
-### Target >= 1.34: AppArmor Deprecated
-
-**Check:** Scan deployments/daemonsets/statefulsets for AppArmor annotations in pod template
-- If found → MEDIUM severity
-- Remediation: Migrate to seccomp profiles
-
 ### Target >= 1.35: Cgroup v1 Support Removed
 
-**Always flag** (HIGH severity) for 1.35 targets.
+**Conditional** — flag (HIGH severity) ONLY if cgroup v1 nodes are detected. Applies
+to any target >= 1.35.
 - kubelet refuses to start on cgroup v1 nodes unless `failCgroupV1=false`
 - AL2 uses cgroup v1 by default; AL2023 and Bottlerocket use cgroup v2
-- Check node OS to determine impact
+- **Check:** inspect node OS images — AL2 nodes (osImage contains "Amazon Linux 2",
+  not "2023") imply cgroup v1; AL2023/Bottlerocket nodes are cgroup v2. If NO cgroup
+  v1 nodes are present, do NOT flag and do NOT deduct — record under Informational
+  Findings only.
+- **Detection caveat:** this keys on the osImage "Amazon Linux 2" string as a
+  conservative proxy for cgroup v1 — the actual cgroup version is not read from the
+  node. An AL2 node pinned to cgroup v2 over-flags; a non-AL distro pinned to v1 is missed.
 
 ### Target >= 1.35: Containerd 1.x End of Support
 
 **Check:** List nodes → inspect `status.nodeInfo.containerRuntimeVersion`
-- If any node shows containerd 1.x → MEDIUM severity
-- Last release supporting containerd 1.x; next version requires 2.0+
+- If any node shows containerd 1.x → MEDIUM severity (HIGH for self-managed / custom-AMI nodes at target >= 1.36 — see Node Readiness 5.3)
+- containerd 1.x is outside the tested matrix for 1.36, which is validated against containerd 2.x. EKS-managed AL2023 AMIs ship containerd 2.x, so they are unaffected.
+- **Scoring home:** containerd 1.x is scored under Node Readiness (Category 3), NOT
+  here. It is HIGH severity for the self-managed/1.36 case but is NOT a hard blocker (no score cap). Do NOT also deduct for it under Breaking Changes — that would double-count.
 
 ### Target >= 1.35: Ingress NGINX Retired
 
@@ -93,21 +131,27 @@ Do NOT list generic Kubernetes release notes. Only report changes that affect re
 ### Target == 1.35: IPVS Proxy Mode Deprecated
 
 **Check:** Read kube-proxy ConfigMap → check `mode` field
-- If `mode: ipvs` AND target is exactly 1.35 → MEDIUM severity. Deprecated; removed in 1.36.
-- Remediation: Switch to iptables or nftables mode before upgrading to 1.36.
+- If `mode: ipvs` AND target is exactly 1.35 → MEDIUM severity. IPVS proxy mode is deprecated as of 1.35; removal is slated for a future release (it is NOT removed in 1.36).
+- Remediation: Plan a migration to iptables or nftables mode ahead of the eventual removal.
 
 ### Target >= 1.35: --pod-infra-container-image Flag Removed
 
-**Always flag** (LOW severity) for 1.35 targets.
+**Conditional** — flag (LOW severity) ONLY if custom-AMI / self-managed nodes are
+detected (reuse the classification from node-readiness.md check 5.4). Applies to any
+target >= 1.35.
 - Affects custom AMIs with this kubelet flag in bootstrap scripts
-- EKS-managed AMIs are not affected
+- EKS-managed AMIs are not affected — if the cluster has no self-managed/custom-AMI
+  nodes, do NOT flag and do NOT deduct
+- **Detection caveat:** this detects the *presence* of self-managed/custom-AMI nodes,
+  not whether the `--pod-infra-container-image` flag is actually set — the kubelet flag
+  is not readable via the API. Presence is a conservative proxy.
 
-### Target >= 1.36: IPVS Proxy Mode Removed
+### Target >= 1.36: IPVS Proxy Mode Deprecated (removal in a future release)
 
 **Check:** Read kube-proxy ConfigMap → check `mode` field
-- If `mode: ipvs` → HIGH severity. IPVS mode is removed in 1.36 — kube-proxy will fail to
-  start in this mode after the upgrade, breaking Service routing cluster-wide.
-- Remediation: Switch to iptables or nftables mode BEFORE upgrading the control plane.
+- If `mode: ipvs` → MEDIUM severity. IPVS proxy mode is deprecated (as of 1.35) and slated for
+  removal in a future release; it is NOT removed in 1.36.
+- Remediation: Plan a migration to iptables or nftables mode ahead of the eventual removal.
 
 ### Target >= 1.36: gitRepo Volume Removed
 
@@ -131,7 +175,7 @@ leading zeros (e.g., `010.000.000.005`) or ambiguous CIDR (e.g., `192.168.0.5/24
 - Remediation: Update manifests, Helm charts, and automation to canonical IP/CIDR format before
   upgrading. See KEP-4858.
 
-### Target >= 1.36: SELinux Volume Labeling GA
+### Target >= 1.37: SELinux Volume Labeling GA
 
 **Check:** Only relevant on SELinux-enforcing nodes. Look for pods sharing a single volume
 between privileged and unprivileged containers.

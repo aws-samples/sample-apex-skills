@@ -88,16 +88,19 @@ deployment is meaningless — do NOT flag single-replica workloads for missing P
 
 **Why this matters:** A PDB that allows zero disruptions will cause `kubectl drain` to hang
 indefinitely during node group upgrades. The node group upgrade will eventually time out
-(typically after 1+ hours), failing the rolling update. This is the #1 cause of "upgrade stuck"
+(typically after 15 minutes), failing the rolling update. This is the #1 cause of "upgrade stuck"
 support tickets.
 
 **How to check:**
-1. For each PDB found in step 6.2, inspect:
-   - `status.disruptionsAllowed` == 0, OR
+1. For each PDB found in step 6.2, inspect. A PDB is **drain-blocking** if it currently
+   permits zero voluntary disruptions — expressed in any of these equivalent forms:
+   - `status.disruptionsAllowed` == 0 (authoritative runtime signal; prefer this when present), OR
    - `spec.maxUnavailable` == 0, OR
-   - `spec.minAvailable` == total replicas of the target workload
-2. If any of the above conditions is true AND the target workload has pods running on
-   nodes that will be drained during the upgrade → flag it.
+   - `spec.minAvailable` >= total replicas of the target workload
+2. If the PDB is drain-blocking (any one of the above) AND the target workload has pods
+   running on nodes that will be drained during the upgrade → flag it. The three conditions
+   are equivalent expressions of the same "0 disruptions allowed" state — do NOT count a
+   single PDB more than once.
 
 **Report message (use this exact framing):**
 
@@ -106,7 +109,7 @@ support tickets.
 > `<pdb-name>` in namespace `<ns>` currently allows 0 disruptions for `<workload-name>`.
 > During a node group rolling update, EKS drains each node before replacing it. If this PDB
 > cannot be satisfied (e.g., not enough capacity on remaining nodes to reschedule pods), the
-> drain will hang until the node group upgrade times out (~1 hour).
+> drain will hang until the node group upgrade times out (~15 minutes).
 >
 > **Before upgrading:**
 > 1. Verify sufficient cluster capacity exists for pods to reschedule to other nodes
@@ -163,7 +166,20 @@ that workload HAS requests — do not flag it.
 2. Check if those workloads have `lifecycle.preStop` hooks
 3. Check `terminationGracePeriodSeconds`
 
+**Externally-facing** = a workload backed by a LoadBalancer-type Service OR an Ingress (these receive external traffic and are sensitive to abrupt pod termination); ClusterIP-only workloads are NOT externally-facing.
+
 **Rating:** Missing preStop on externally-facing workloads = MEDIUM severity (1 pt).
+**Scoring home:** Category 6 (Workload Risks) MEDIUM — counted in the report-generation.md Category 6 pseudocode, subject to the 4-pt MEDIUM sub-cap.
+
+### Fargate-only cluster caveat
+
+**On a Fargate-only cluster** (no managed/self-managed node groups, no Karpenter nodes),
+`kubectl get nodes` and node-group listings return empty. Category 3 (node readiness) is
+therefore **N/A** and deducts 0 from empty inputs — this is the absence of nodes to assess,
+NOT a clean bill of health. The data-plane assessment then relies entirely on pod-level
+signals (preStop hooks, PDBs, readiness/liveness probes) from Category 8 / Category 6. When
+reporting, explicitly note that node-level checks were N/A on Fargate and that a high READY
+score reflects only what could be assessed from pod-level signals.
 
 ## Step C: Compile Findings with Row References
 

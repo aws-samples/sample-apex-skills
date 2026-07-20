@@ -1,7 +1,7 @@
 {
   "_comment": "Registry of common OSS add-ons found in EKS clusters. This file intentionally does NOT contain compatibility data — that lives upstream and goes stale the moment it's copied. Instead, it provides: (1) identifiers to detect the add-on in a cluster, and (2) authoritative URLs where the skill should fetch live compatibility information. Unknown add-ons should be handled via web search + UNKNOWN reporting, not guessed.",
   "_schema_version": "2.0",
-  "_usage": "For each discovered add-on, look it up here by matching app_names/helm_charts/container_images. Then fetch compatibility_url (primary) and releases_url (fallback) using webFetch. Do NOT infer compatibility from this file.",
+  "_usage": "This is a registry of authoritative compatibility URLs. For each discovered add-on, look it up here by matching app_names/helm_charts/container_images, then consult compatibility_url (primary) and releases_url (fallback) using whatever web-fetch or web-search capability is available. Do NOT infer compatibility from this file.",
   "addons": [
     {
       "name": "istio",
@@ -34,7 +34,7 @@
       },
       "compatibility_url": "https://github.com/kubernetes/ingress-nginx/blob/main/README.md#supported-versions-table",
       "releases_url": "https://github.com/kubernetes/ingress-nginx/releases",
-      "notes": "Project retired March 2026. Recommend migration to InGate or aws-load-balancer-controller. Flag any cluster using ingress-nginx as HIGH severity regardless of current version compatibility."
+      "notes": "Project retired March 2026. Recommend migration to Gateway API implementations (e.g., Envoy Gateway, AWS Gateway API Controller) or aws-load-balancer-controller. Flag any cluster using ingress-nginx as HIGH severity regardless of current version compatibility."
     },
     {
       "name": "kube-prometheus-stack",
@@ -43,7 +43,7 @@
         "helm_charts": ["kube-prometheus-stack", "prometheus-community"],
         "container_images": ["quay.io/prometheus/prometheus", "quay.io/prometheus-operator/prometheus-operator", "quay.io/prometheus/alertmanager"]
       },
-      "compatibility_url": "https://github.com/prometheus-operator/kube-prometheus#kubernetes-compatibility-matrix",
+      "compatibility_url": "https://github.com/prometheus-operator/kube-prometheus#compatibility",
       "releases_url": "https://github.com/prometheus-community/helm-charts/releases",
       "notes": "Chart uses CalVer-ish numbering (e.g., 61.x). Compatibility is driven by bundled prometheus-operator version; check kube-prometheus compatibility matrix."
     },
@@ -87,7 +87,7 @@
       },
       "compatibility_url": "https://github.com/kubernetes-sigs/external-dns/blob/master/README.md",
       "releases_url": "https://github.com/kubernetes-sigs/external-dns/releases",
-      "notes": "external-dns does not publish a formal K8s compatibility matrix. Check release notes for breaking changes and minimum K8s version."
+      "notes": "Check release notes for breaking changes and minimum K8s version."
     },
     {
       "name": "metrics-server",
@@ -138,8 +138,8 @@
         "helm_charts": ["velero"],
         "container_images": ["velero/velero"]
       },
-      "compatibility_url": "https://github.com/vmware-tanzu/velero#velero-compatibility-matrix",
-      "releases_url": "https://github.com/vmware-tanzu/velero/releases"
+      "compatibility_url": "https://github.com/velero-io/velero#velero-compatibility-matrix",
+      "releases_url": "https://github.com/velero-io/velero/releases"
     },
     {
       "name": "keda",
@@ -158,7 +158,7 @@
         "helm_charts": ["kyverno"],
         "container_images": ["ghcr.io/kyverno/kyverno"]
       },
-      "compatibility_url": "https://kyverno.io/docs/installation/#compatibility-matrix",
+      "compatibility_url": "https://kyverno.io/docs/installation/releases/",
       "releases_url": "https://github.com/kyverno/kyverno/releases"
     },
     {

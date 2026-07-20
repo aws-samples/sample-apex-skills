@@ -42,7 +42,7 @@ The skill calculates a weighted readiness score:
 | AL2 Nodes / Behavioral | 10 pts | Informational |
 
 **Hard Blocker Override:** If any hard blocker is detected (e.g., incompatible Karpenter, critical
-add-on DEGRADED, subnet IPs < 5, cluster not ACTIVE), the score is capped at ≤ 59% (NOT READY)
+add-on DEGRADED, cluster subnets collectively cannot place control-plane ENIs, cluster not ACTIVE), the score is capped at ≤ 59% (NOT READY)
 regardless of other findings. See `references/report-generation.md` for the full list.
 
 **Score Interpretation:**
@@ -112,6 +112,8 @@ Wait for the user to resolve the issue.
 
 Run `aws eks describe-cluster --name <cluster>` and show: cluster name, Kubernetes version, platform version, region, status, account ID.
 
+> **Account ID hygiene:** the account ID (from `aws sts get-caller-identity` / the cluster ARN) is sensitive. If the report will be shared outside the account, mask or omit the account ID before sharing.
+
 **Action 2b — Validate cluster status**
 
 Check the `status` field from the cluster description. If status is NOT `ACTIVE`:
@@ -179,7 +181,7 @@ Read `${CLAUDE_SKILL_DIR}/references/report-generation.md` and produce the repor
 
 ## Report Output
 
-- **Markdown:** `EKS-Upgrade-Assessment-<cluster>-<version>-<YYYY-MM-DD>-<HHMM>.md`
+- **Markdown:** `EKS-Upgrade-Assessment-<cluster>-<current>-to-<target>-<YYYY-MM-DD>-<HHMM>.md`
 - **HTML:** Run `python3 ${CLAUDE_SKILL_DIR}/tools/md_to_html.py <report>.md` to convert
 
 Do NOT generate HTML manually. Always use the conversion script.

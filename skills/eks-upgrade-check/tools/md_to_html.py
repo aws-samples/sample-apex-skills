@@ -18,17 +18,25 @@ from pathlib import Path
 
 
 def parse_args():
-    if len(sys.argv) < 2:
+    args = sys.argv[1:]
+    output_file = None
+
+    # Pull out "--output <file>" first so it can appear before or after the
+    # positional input (sys.argv[1] is no longer assumed to be the input).
+    if "--output" in args:
+        idx = args.index("--output")
+        if idx + 1 < len(args):
+            output_file = args[idx + 1]
+            del args[idx:idx + 2]
+        else:
+            print("Error: --output requires a filename")
+            sys.exit(1)
+
+    if not args:
         print("Usage: python3 md_to_html.py <input.md> [--output <output.html>]")
         sys.exit(1)
 
-    input_file = sys.argv[1]
-    output_file = None
-
-    if "--output" in sys.argv:
-        idx = sys.argv.index("--output")
-        if idx + 1 < len(sys.argv):
-            output_file = sys.argv[idx + 1]
+    input_file = args[0]
 
     if output_file is None:
         output_file = str(Path(input_file).with_suffix(".html"))
@@ -268,7 +276,12 @@ def md_to_html(md_content: str) -> str:
         if not list_items:
             return ""
         tag = "ol" if list_type == "ol" else "ul"
-        items = "".join(f"<li>{inline_format(item)}</li>" for item in list_items)
+        # list_items holds (checkbox_html, text) tuples; checkbox_html is ""
+        # for non-task items. The checkbox <input> is prepended after
+        # inline_format escapes the item text, so the tag survives.
+        items = "".join(
+            f"<li>{cb}{inline_format(item)}</li>" for cb, item in list_items
+        )
         in_list = False
         list_type = None
         list_items = []
@@ -294,11 +307,12 @@ def md_to_html(md_content: str) -> str:
         text = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", text)
         # Strikethrough
         text = re.sub(r"~~([^~]+)~~", r"<del>\1</del>", text)
-        # Checkboxes
-        text = text.replace("- [ ]", '<input type="checkbox" disabled>')
-        text = text.replace("- [x]", '<input type="checkbox" checked disabled>')
-        # Score styling
-        text = re.sub(r"\b(READY)\b", r'<span class="score-ready">READY</span>', text)
+        # Score styling. NOT READY is styled via the READY lookbehind below
+        # (matching "NOT READY" first then "READY" left the inner READY of a
+        # "NOT READY" verdict wrapped green — false positive). The negative
+        # lookbehind on READY skips the READY inside "NOT READY", and the
+        # NOT-READY rule then styles the whole phrase red.
+        text = re.sub(r"(?<!NOT )\b(READY)\b", r'<span class="score-ready">READY</span>', text)
         text = re.sub(r"\b(NOT READY)\b", r'<span class="score-not-ready">NOT READY</span>', text)
         text = re.sub(r"\b(RISKY)\b", r'<span class="score-risky">RISKY</span>', text)
         text = re.sub(r"\b(FAIR)\b", r'<span class="score-fair">FAIR</span>', text)
@@ -385,7 +399,17 @@ def md_to_html(md_content: str) -> str:
                 html_parts.append(flush_list())
             in_list = True
             list_type = "ul"
-            list_items.append(list_match.group(1))
+            item_text = list_match.group(1)
+            # Task-list checkbox: the leading "- " is already stripped by the
+            # list regex, so detect "[ ]"/"[x]" on the captured text here.
+            cb = ""
+            cb_match = re.match(r"^\[([ xX])\]\s+(.*)$", item_text)
+            if cb_match:
+                checked = cb_match.group(1).lower() == "x"
+                cb = ('<input type="checkbox" checked disabled> '
+                      if checked else '<input type="checkbox" disabled> ')
+                item_text = cb_match.group(2)
+            list_items.append((cb, item_text))
             continue
 
         # Ordered list
@@ -397,7 +421,7 @@ def md_to_html(md_content: str) -> str:
                 html_parts.append(flush_list())
             in_list = True
             list_type = "ol"
-            list_items.append(ol_match.group(1))
+            list_items.append(("", ol_match.group(1)))
             continue
 
         # Regular paragraph
