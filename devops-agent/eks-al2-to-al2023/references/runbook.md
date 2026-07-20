@@ -79,9 +79,68 @@ AL2023 node. The agent emits only the ones that apply, with concrete values.
      --addon-version <v1.16.2-or-newer-eksbuild> --resolve-conflicts PRESERVE
    ```
 
-3. **cgroup v2 workloads** — bump JDK 8 workloads to **jdk8u372+** (or a newer JDK); verify
-   .NET runtime versions for cgroup-v2 awareness. Land these workload changes **before** the
-   AMI swap so the canary validates the fix.
+3. **cgroup v2 workloads (Java)** — detection (`node-inventory.md` section 6 + `migration-risks.md`
+   Risk 1) produces an **at-risk / not-at-risk-newer-jdk / unconfirmed** Java list; the exact JDK
+   build is not readable from the control plane. **First resolve the build** (also resolves the
+   `unconfirmed` bucket):
+
+   Operator runs (this skill does not):
+   ```bash
+   # See the real image, confirm the JDK build, and see the JVM's resolved heap under the cgroup limit
+   kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.containers[*].image}'
+   kubectl exec <pod> -n <ns> -c <container> -- java -version
+   kubectl exec <pod> -n <ns> -c <container> -- java -XshowSettings:vm -version   # check MaxHeapSize
+   ```
+
+   For each **at-risk** workload, apply these levers (operator action — this skill does not modify
+   workloads):
+
+   1. **Bump the JDK to `8u372`+ (or a newer LTS JDK)** — `8u372` is the JDK 8 build that detects
+      the container memory limit under cgroup v2; older builds size the heap from node memory and
+      OOM. This is the primary fix. **Note the 8u191-8u371 trap:** those builds have
+      `UseContainerSupport` on by default yet do **not** read cgroup **v2** limits, so "flag on,
+      newer than 8u191" is **not** safe — only the version bump to 8u372+ fixes them.
+   2. **Confirm `-XX:+UseContainerSupport` is not explicitly disabled** — it is ON by default on
+      `8u191+`/`10+`, so confirm nothing set `-XX:-UseContainerSupport` in `JAVA_TOOL_OPTIONS` /
+      `JDK_JAVA_OPTIONS` / args; do not blindly add the flag on a modern JDK where it is the
+      default. Flag-on is necessary but **not sufficient** (see the 8u191-8u371 trap above).
+   3. **Size the heap with `-XX:MaxRAMPercentage` — after removing any surviving `-Xmx`.** A
+      leftover `-Xmx` **overrides** `-XX:MaxRAMPercentage` (the percentage is silently ignored; this
+      holds on both HotSpot and OpenJ9), so first find and remove any `-Xmx`/`-Xms` in
+      `JAVA_TOOL_OPTIONS` / `JDK_JAVA_OPTIONS` / args **or baked into the image `ENTRYPOINT`** (an
+      ENTRYPOINT-baked `-Xmx` is invisible to this skill — confirm with
+      `java -XshowSettings:vm -version` above). But first **confirm the `-Xmx` is not an intentional
+      cap** — some workloads set it deliberately to leave headroom for off-heap/native/metaspace;
+      removing a deliberate cap and applying 75% can enlarge the heap and OOM a pod that was
+      previously safe. Then set the percentage against
+      the pod's cgroup-v2 memory limit: `-XX:MaxRAMPercentage=75.0` suits a **dedicated, larger**
+      pod; use **50-60%** for **small pods (< 1-2 GB)** where metaspace/threads/direct buffers are
+      proportionally large. Always pair it with an explicit pod `resources.limits.memory`.
+
+   **ClickOps / no-IaC path (clusters managed by console/CLI with no manifest in git).** When there is no IaC
+   to edit, inject the flags directly:
+
+   Operator runs (this skill does not):
+   ```bash
+   # Inject/adjust JVM flags via env (edits the live Deployment)
+   kubectl set env deployment/<app> -n <ns> JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
+   # or edit the full spec (image tag bump, resources.limits.memory, remove -Xmx, etc.)
+   kubectl edit deployment/<app> -n <ns>
+   ```
+   > **Env injection alone can fail.** An `-Xmx` **baked into the image `ENTRYPOINT`** overrides a
+   > `JAVA_TOOL_OPTIONS` you inject, so `kubectl set env` will not take effect for heap sizing —
+   > you must rebuild the image (or otherwise remove the baked `-Xmx`). This ties to the §6
+   > detection blind spot: the baked flag is not visible from the control plane.
+
+   **Triage — is it really this bug?** Confirm the OOM is the cgroup-v2 heap mis-sizing, not an
+   app leak: this bug shows as a **kernel OOMKill** — `kubectl describe pod <p>` shows
+   `reason: OOMKilled` and **exit code 137**, with **no JVM stack**. A `java.lang.OutOfMemoryError`
+   **with a JVM stack** in the logs is an application leak, which these levers won't fix. Use the
+   same check to confirm the fix landed.
+
+   Also verify **.NET** runtime versions for cgroup-v2 awareness **by hand** — .NET is a **manual
+   review flag, NOT detected** by section 6 (UNVERIFIED version — treat as "verify your runtime").
+   Land these workload changes **before** the AMI swap so the canary validates the fix.
 
 4. **IMDS hop limit** — plan the fix. Setting `HttpPutResponseHopLimit: 2` on the AL2023 node
    group's launch template is the complete fix (it restores IMDS access for **both** credential

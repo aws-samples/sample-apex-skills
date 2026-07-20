@@ -92,25 +92,27 @@ Each risk is reported with a **status rating**:
 <https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html> (as of
 2026-07-19).
 
-- **EKS breaking change:** at **Kubernetes 1.35 and later, cgroup v1 support is removed** — the
-  kubelet **refuses to start on a cgroup v1 node** because the kubelet-config field
-  `failCgroupV1` defaults to `true` in 1.35+; set `failCgroupV1: false` in kubelet
-  configuration to override (not recommended). This makes the AL2→AL2023 move effectively
-  mandatory before 1.35. Source:
+- **EKS breaking change:** at **Kubernetes 1.35+, cgroup v1 is deprecated and the kubelet
+  refuses to start by default on a cgroup v1 node** (overridable via `failCgroupV1: false`);
+  **full removal is expected in a later release** (no announced date). Concretely, the
+  kubelet-config field `failCgroupV1` defaults to `true` in 1.35+, so on a cgroup v1 node the
+  kubelet refuses to start; set `failCgroupV1: false` in kubelet configuration to override (not
+  recommended). This makes the AL2→AL2023 move effectively mandatory before 1.35. Source:
   <https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html> (as of
-  2026-07-19).
+  2026-07-20).
 - **JDK 8 before 8u372** cannot detect container memory limits under cgroup v2 — the JVM sizes
   the heap from the **node's total memory**, not the pod's memory limit, causing `OutOfMemory`
   exceptions and pod restarts once on AL2023. Fix: **jdk8u372 or newer**, or a newer JDK.
   Source: <https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html>
   (as of 2026-07-19).
-- **UNVERIFIED — JDK 11 sub-version and .NET version.** The AWS FAQ names only **JDK 8
+- **JDK 11 VERIFIED; .NET version still UNVERIFIED.** The AWS FAQ names only **JDK 8
   (< 8u372)** explicitly and links the kubernetes.io "About cgroup v2" page for the full list
-  of affected runtimes. The specific JDK 11 sub-version and the specific .NET version that
-  gain cgroup-v2 awareness are **UNVERIFIED** here — do not assert them. Phrase the .NET risk
-  as "**older .NET runtimes without cgroup v2 awareness (verify your runtime version)**" and
-  the JDK 11 risk as "verify against the kubernetes.io cgroup v2 list". kubernetes.io "About
-  cgroup v2": <https://kubernetes.io/docs/concepts/architecture/cgroups/> (as of 2026-07-19).
+  of affected runtimes. That kubernetes.io page names **JDK 11.0.16** as the cgroup-v2-aware
+  JDK 11 build — so a JDK 11 workload older than **11.0.16** is exposed; **11.0.16+** is not.
+  Source: <https://kubernetes.io/docs/concepts/architecture/cgroups/> (as of 2026-07-20). The
+  specific **.NET** version that gains cgroup-v2 awareness is **UNVERIFIED** — that page names
+  no .NET version — so phrase the .NET risk as "**older .NET runtimes without cgroup v2
+  awareness (verify your runtime version)**" and do not assert a .NET version gate.
 - **VERIFIED** — cgroup v2 requires **kernel >= 5.8**; AL2023 uses **6.1 / 6.12** so it meets
   this. Legacy cgroup v1 can be forced with the kernel arg
   `systemd.unified_cgroup_hierarchy=0`, **but AWS does not recommend or support** doing so.
@@ -119,33 +121,126 @@ Each risk is reported with a **status rating**:
 
 ### How to detect
 
-**Via Kubernetes API** — enumerate workload container images and flag JDK-8/old-.NET images:
+**Detection is performed in `node-inventory.md` section 6 (JDK version signals)** — it
+enumerates PodSpecs (`Pod`/`Deployment`/`DaemonSet`/`StatefulSet`) and produces the
+**at-risk / not-at-risk-newer-jdk / unconfirmed** Java list this risk rates. Do not duplicate
+the resource/RBAC/tag detail here; §6 is the single authoritative source (including the
+**"image tag is a weak signal"** caveat and the **inline-`env[].value`-only** readability limit).
 
-- **Resource:** `Pod`, group/version `v1` (core), all namespaces; and `Deployment` /
-  `DaemonSet` / `StatefulSet`, group/version `apps/v1`, all namespaces.
-- **Fields to extract:** `spec.containers[].image` (and `spec.initContainers[].image`). Flag
-  images whose tag or base indicates **JDK 8 older than 8u372** (e.g. `openjdk:8`, `:8uNNN`
-  where NNN < 372, `eclipse-temurin:8`, `amazoncorretto:8` on an old build) or an **older .NET
-  runtime** (verify the runtime version — this is a review flag, not a version gate). Also flag
-  containers that set a memory limit (`spec.containers[].resources.limits.memory`) since those
-  are the ones exposed to the heap-sizing bug.
-- **RBAC verbs:** `get`, `list` on `pods`, `deployments.apps`, `daemonsets.apps`,
-  `statefulsets.apps`.
+Risk-1-specific rating logic over that list:
 
-Image tags are an **imperfect** signal (a `:8` tag may already be 8u372+). Report the flagged
-image as evidence and recommend the operator verify the actual JVM/.NET build; do not assert a
-definite break from the tag alone.
+- A workload classified **at-risk** (JDK 8 `< 8u372` or JDK 11 `< 11.0.16`, sub-build
+  unconfirmed) with a `resources.limits.memory` set is the one exposed to the heap-sizing bug —
+  this drives `applies`.
+- **.NET is NOT detected** by §6. `.NET` cgroup-v2 exposure is a **manual review flag** the
+  operator checks by hand (see Remediation) — it never produces a detection count and never a
+  clean/`does-not-apply` reading.
 
 ### Status rating
 
-- `applies` — one or more workload images match JDK 8 (< 8u372) or an older .NET runtime.
-- `does-not-apply` — no JDK/.NET workloads found (a clean fact).
-- `unconfirmed` — K8s API unreachable, so workload images could not be read.
+- `applies` — one or more Java workloads are **at-risk** (signal indicates JDK 8 or JDK 11,
+  sub-build unconfirmed — operator verifies `< 8u372` / `< 11.0.16`).
+- `does-not-apply` — **either** §6 detected Java workloads and **all** are
+  `not-at-risk-newer-jdk` (a clean fact **only** for the workloads whose JDK signal was actually
+  readable), **or** §6 **positively identified every image as non-Java** so `detected == 0` (no
+  Java in scope — a genuine clean fact **only** because detection positively cleared everything).
+  **Never** rate `does-not-apply` off Java that could not be detected — an opaque image with no
+  readable signal is `unconfirmed`, not clean, and `detected == 0` is `does-not-apply` **only**
+  when it results from positive non-Java identification, never from opaque/undetectable images
+  (see §6 cardinal rule).
+- `unconfirmed` — K8s API unreachable, **or** one or more Java workloads are §6-`unconfirmed`
+  (Java can neither be confirmed nor ruled out from readable signals).
 
 ### Remediation
 
-Bump affected JVMs to **jdk8u372+** (or a newer JDK); verify .NET runtime versions for cgroup
-v2 awareness. This is a **workload** fix that should land **before** the AMI swap.
+**Operator steps — the skill reports and advises; it does not modify workloads.** Detection
+(`node-inventory.md` section 6) produces an **at-risk / not-at-risk-newer-jdk / unconfirmed**
+Java list; work these levers per flagged workload. First **resolve unconfirmed workloads** with
+the §6 operator commands (`kubectl exec <p> -c <c> -- java -version`) so you know the real build
+before editing anything.
+
+> **Date note.** The Timeline and Risk 1 "Why this matters" facts were verified **as of
+> 2026-07-19**. The remediation-lever JDK/JVM claims below were (re-)verified **as of
+> 2026-07-20** — the later date is the accurate verify date for these specific JVM-behavior
+> claims (the `-Xmx` override and the `UseContainerSupport` default), not a contradiction.
+
+1. **Bump the JDK to `8u372`+ (or a newer LTS JDK).** `8u372` is the JDK 8 build that gains
+   cgroup-v2 container-memory-limit awareness; anything older mis-sizes the heap from the node's
+   total memory under cgroup v2 and OOMs. This is the primary fix — and for the **8u191-8u371**
+   case in lever 2 it is the *only* real fix. **VERIFIED** — the AWS FAQ names JDK 8 `< 8u372`
+   explicitly and links the kubernetes.io "About cgroup v2" list for other affected runtimes.
+   Source: <https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html> (as
+   of 2026-07-20).
+
+2. **Confirm `-XX:+UseContainerSupport` is not explicitly disabled — but know that flag-on is
+   necessary, NOT sufficient.** `UseContainerSupport` has been **ON by default since JDK 8u191
+   and JDK 10** (introduced in JDK 10, backported to 8u191). **VERIFIED** — origin is the OpenJDK
+   JBS issues **JDK-8146115** ("Improve docker container detection and resource configuration
+   usage", which introduced container awareness and the `UseContainerSupport` flag in JDK 10)
+   and **JDK-8170888** (the backport that shipped it in JDK 8u191). Source: OpenJDK JBS issues
+   JDK-8146115 / JDK-8170888 (as of 2026-07-20). The failure modes:
+   - (a) a build **older than 8u191** — no container support at all; the `8u372+` bump (lever 1)
+     fixes it.
+   - (b) `-XX:+UseContainerSupport` **explicitly disabled** with `-XX:-UseContainerSupport` in
+     `JAVA_TOOL_OPTIONS` / `JDK_JAVA_OPTIONS` / container args — re-enable (or remove the
+     disable).
+   - (c) **the real trap: builds 8u191-8u371.** Here `UseContainerSupport` is **on by default**
+     yet the build does **NOT** read cgroup **v2** limits — cgroup-v2 awareness arrives only at
+     **8u372** (that is the whole reason for the 8u372 floor). An operator who confirms "flag on,
+     newer than 8u191" would **wrongly feel safe**. So lever 2 is only "**don't let it be
+     disabled**"; the actual cgroup-v2 fix for these builds is the **version bump in lever 1**.
+   Do not blindly *add* `-XX:+UseContainerSupport` on a modern JDK where it is already the default.
+
+3. **Size the heap with `-XX:MaxRAMPercentage` against the container's cgroup-v2 limit — after
+   removing any surviving `-Xmx`.** With `UseContainerSupport` on, the JVM reads the pod's
+   cgroup-v2 memory limit and takes `MaxRAMPercentage` of *that*, instead of a legacy `-Xmx` guess
+   pinned to node memory.
+   > **A leftover `-Xmx` silently nullifies `-XX:MaxRAMPercentage`.** **VERIFIED** (Eclipse
+   > OpenJ9, as of 2026-07-20): **if `-Xmx` is set, `-XX:MaxRAMPercentage` is ignored** — the
+   > explicit `-Xmx` wins and re-mis-sizes the heap. This **behavior holds for both HotSpot and
+   > OpenJ9** (an explicit max-heap flag takes precedence over the percentage ergonomic on either
+   > VM), so it applies to the flagged Corretto/Temurin/OpenJDK (HotSpot) workloads too — not only
+   > OpenJ9. So **find and remove any existing `-Xmx`/`-Xms`** (in `JAVA_TOOL_OPTIONS`,
+   > `JDK_JAVA_OPTIONS`, container args, **or baked into the image `ENTRYPOINT`**) *before* adding
+   > `MaxRAMPercentage` — but first **confirm the `-Xmx` is not an intentional cap** (some
+   > workloads set it deliberately to leave headroom for off-heap/native/metaspace); removing a
+   > deliberate cap and applying 75% can **enlarge the heap and OOM a pod that was previously
+   > safe**. The **ENTRYPOINT-baked `-Xmx`**
+   > case ties to the §6 detection blind spot: an image-baked `-Xmx` is **not visible** to
+   > this skill, so a workload can look fixed via env yet still carry a hidden `-Xmx` — the
+   > operator confirms with `java -XshowSettings:vm -version` (resolved `MaxHeapSize`). Source:
+   > <https://eclipse.dev/openj9/docs/xxusecontainersupport/> (as of 2026-07-20).
+   >
+   HotSpot's / OpenJDK's default `MaxRAMPercentage` is low (**~25%**, VERIFIED — HotSpot
+   ergonomics / OpenJDK GC-defaults documentation, <https://docs.oracle.com/en/java/javase/17/gctuning/>,
+   as of 2026-07-20). The specific target percentages below are an **operational heuristic (skill
+   judgment, not from an AWS/vendor doc)**: a sane starting point for a **dedicated, larger** JVM
+   pod is `-XX:MaxRAMPercentage=75.0` (optionally `-XX:InitialRAMPercentage` to match, avoiding
+   heap-growth pauses); for **small pods (< 1-2 GB)** use **50-60%** — metaspace, threads, and
+   direct buffers are proportionally larger there and 75% leaves too little headroom. Tune per
+   workload. Always **pair it with an explicit pod `resources.limits.memory`** — the percentage is
+   meaningless without a limit to take a percentage of.
+
+For **.NET** (manual review flag — **not detected** by §6): verify runtime versions for
+cgroup-v2 awareness by hand — the specific .NET version is **UNVERIFIED** here (the AWS FAQ names
+only JDK 8 `< 8u372`, and the kubernetes.io page names no .NET version), so treat it as "verify
+your runtime version" rather than a version gate. The **JDK 11** build **11.0.16** is
+cgroup-v2-aware (kubernetes.io, as of 2026-07-20) — older 11.x is exposed.
+
+> **Note — other memory-limit-reading runtimes.** The JVM is the most common case, but any
+> runtime that sizes itself from the cgroup memory limit can show analogous cgroup-v2 behavior
+> (e.g. older Node.js builds pinned via `--max-old-space-size`); like .NET these are a manual
+> review flag, not a §6 detection output.
+
+**Triage — confirm this is the cgroup-v2 heap bug, not an app leak.** Before spending
+effort on the levers, confirm the OOM is actually this bug: the cgroup-v2 heap mis-sizing shows
+as a **kernel OOMKill** — `kubectl describe pod <p>` shows `reason: OOMKilled` and **exit code
+137**, with **no JVM stack trace**. A `java.lang.OutOfMemoryError` **with a JVM stack** in the
+app logs is an **application leak / undersized heap**, not this migration bug — the levers won't
+fix it. Use the same check to confirm the fix landed (no more OOMKilled after the bump).
+
+All these are **workload** fixes that should land **before** the AMI swap so the canary
+validates them (see `runbook.md` Phase 0).
 
 ---
 
@@ -398,7 +493,8 @@ migration_risks:
   cgroup_v2:
     status: string          # applies | does-not-apply | unconfirmed
     evidence: string        # e.g. "1 workload image tagged openjdk:8u312 with a memory limit"
-    # NOTE: JDK 8 <8u372 VERIFIED; JDK 11 sub-version + .NET version UNVERIFIED (verify runtime)
+    # NOTE: JDK 8 <8u372 VERIFIED; JDK 11 <11.0.16 VERIFIED (kubernetes.io, 2026-07-20);
+    #       .NET version UNVERIFIED (manual review flag, NOT detected). Undetectable Java => unconfirmed, never does-not-apply.
   imds_hop_limit:
     status: string          # applies | does-not-apply | unconfirmed
     evidence: string        # e.g. "ng-a has no launch template -> default hop limit 1"
@@ -427,9 +523,13 @@ assessable.
 
 ### Image tag is an imperfect JDK/.NET signal
 
-A `:8` or `:8-jre` tag may already be 8u372+. Report the flagged image as evidence and mark the
-cgroup risk `applies` **pending operator verification of the actual build** — do not assert a
-definite OOM break from the tag alone.
+The authoritative statement of this caveat lives in `node-inventory.md` section 6 (the tag is a
+**weak** signal; only inline manifest `env[].value` is readable; image-baked / `valueFrom` /
+`envFrom` env is invisible). In short: a `:8` or `:8-jre` tag may already be 8u372+. Report the
+flagged image as evidence and mark the cgroup risk `applies` **pending operator verification of
+the actual build** — do not assert a definite OOM break from the tag alone. Conversely, a Java
+workload with **no readable signal** is `unconfirmed`, **never** `does-not-apply` — absence of a
+detectable signal is not absence of Java.
 
 ### Self-managed VPC CNI (no EKS add-on)
 

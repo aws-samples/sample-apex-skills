@@ -3,8 +3,8 @@ name: eks-al2-to-al2023
 description: Amazon Linux 2 → AL2023 EKS node migration readiness checker — assesses the
   migration-relevant facts and risks of moving worker nodes off the deprecated AL2
   EKS-optimized AMI, then emits a guided, human-executed migration runbook with a canary
-  node group. Detects AL2 vs AL2023 nodes/node groups, cgroup v2 workload risk (pre-8u372
-  JDK 8, old .NET), IMDSv2 hop-limit-1 pod-metadata impact, bootstrap.sh → nodeadm/NodeConfig
+  node group. Detects AL2 vs AL2023 nodes/node groups, cgroup v2 workload risk (JDK 8
+  <8u372, JDK 11 <11.0.16; .NET flagged for manual review), IMDSv2 hop-limit-1 pod-metadata impact, bootstrap.sh → nodeadm/NodeConfig
   userData rewrite for custom launch templates and self-managed nodes, VPC CNI below 1.16.2,
   and DaemonSet/kernel-module/log-shipper agents. Triggers on "migrate to AL2023", "am I
   still on Amazon Linux 2", "AL2 end of support", "move nodes off AL2", "is my cluster
@@ -103,7 +103,7 @@ Node-level facts (per-node `osImage`, `kernelVersion`, container runtime, Daemon
 
 ### Step 1: Detect AL2 Footprint
 
-Load `references/node-inventory.md`. Identify which nodes and node groups are on AL2 vs AL2023, by compute type (managed node groups, self-managed, Karpenter, Auto Mode, Fargate — Fargate has no AL2 concern). This produces the migration scope: the set of node groups that need action.
+Load `references/node-inventory.md`. Identify which nodes and node groups are on AL2 vs AL2023, by compute type (managed node groups, self-managed, Karpenter, Auto Mode, Fargate — Fargate has no AL2 concern), and detect Java workloads for the cgroup-v2 risk (section 6). This produces the migration scope: the set of node groups that need action, plus the at-risk/unconfirmed Java list.
 
 ### Step 2: Evaluate Migration Risks
 
@@ -121,7 +121,7 @@ Load `references/node-inventory.md` first (it establishes the AL2 footprint ever
 
 | Intent / when to use | Reference file |
 |----------------------|----------------|
-| Always first — detect AL2 vs AL2023 nodes, node groups, compute types, launch templates | [node-inventory.md](references/node-inventory.md) |
+| Always first — detect AL2 vs AL2023 nodes, node groups, compute types, launch templates, and Java workloads for the cgroup-v2 risk | [node-inventory.md](references/node-inventory.md) |
 | Assess the migration-breaking behaviors (cgroup v2, IMDSv2, nodeadm, VPC CNI, agents) | [migration-risks.md](references/migration-risks.md) |
 | Build the guided, human-executed migration runbook (canary node group, blue/green, validation, rollback) | [runbook.md](references/runbook.md) |
 
@@ -155,7 +155,7 @@ _generated <timestamp> · source: AWS API + K8s API · K8s version: <version>_
 ## Migration risks
 | Risk | Status | Evidence |
 |------|--------|----------|
-| cgroup v2 (JDK 8 < 8u372 / old .NET) | applies | 1 workload image tagged openjdk:8u312 |
+| cgroup v2 (JDK 8 <8u372, JDK 11 <11.0.16; .NET manual review) | applies | 1 workload image tagged openjdk:8u312 |
 | IMDSv2 hop limit → 1 | applies | ng-a has no launch template (default hop limit 1) |
 | bootstrap.sh → nodeadm/NodeConfig | applies | ng-b uses a custom launch template with bootstrap.sh userData |
 | VPC CNI < 1.16.2 | applies | add-on version v1.15.4-eksbuild.1 (floor is 1.16.2) |

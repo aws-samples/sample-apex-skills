@@ -18,6 +18,7 @@ it never cordons, drains, or changes a node group.
   - [3. Launch Templates](#3-launch-templates)
   - [4. Node OS via Kubernetes API](#4-node-os-via-kubernetes-api)
   - [5. Karpenter / Auto Mode AMI family (CRD note)](#5-karpenter--auto-mode-ami-family-crd-note)
+  - [6. JDK version signals (Java workloads)](#6-jdk-version-signals-java-workloads)
 - [Lifting the limitation (supplementary ClusterRole)](#lifting-the-limitation-supplementary-clusterrole)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
@@ -63,9 +64,14 @@ AL2-footprint detection layers three independent signals so no compute type is m
 3. Node osImage/kernel -> in-cluster confirmation across ALL nodes (any compute type)
    + Launch templates  -> custom LT? -> drives nodeadm/bootstrap + IMDS risk in module 2
    + Karpenter/AutoMode -> AMI family lives in a CRD (may be 403 -> unconfirmed)
+   + JDK signals (§6)  -> Java cgroup-v2 heap-sizing risk (weak; workload-level, operator-verify)
 ```
 
-The three signals are cross-checked: a node group whose `amiType` says AL2 should have
+Signals 1-3 (+ LT / Karpenter) are the **OS-family** map. Signal 6 (JDK version signals, §6) is
+a **separate, workload-level** risk signal — it does **not** classify node OS; it scopes the
+cgroup-v2 Java risk in `migration-risks.md` Risk 1.
+
+The three OS-family signals are cross-checked: a node group whose `amiType` says AL2 should have
 instances on an `amazon-eks-node-*` AMI and nodes whose `osImage` contains `Amazon Linux 2`.
 When signals disagree (e.g. a custom AMI baked from AL2023 attached to a node group whose
 `amiType` still reads `CUSTOM`), report each signal as its own fact and mark the AMI family
@@ -247,6 +253,107 @@ groups; see SKILL.md § Kubernetes API Access). When the CRD read is blocked:
 node AMI. **Fargate has no AL2 concern** — state this as a fact and exclude Fargate profiles
 from the migration scope entirely.
 
+### 6. JDK version signals (Java workloads)
+
+The cgroup-v2 heap-sizing bug (`migration-risks.md` Risk 1) hits **JDK 8 before `8u372`** and
+**JDK 11 before `11.0.16`**, so knowing which Java workloads run — and, where possible, their
+JDK build — scopes that risk. A bare major-version tag (`:8` **or** `:11`) hides the sub-build
+and so can never clear the risk on its own. This
+section reads **signals** only; it does **not** run `java -version`, exec into any container, or
+open a node shell. It classifies each Java workload as **at-risk-needs-operator-verify**,
+**not-at-risk-newer-jdk**, or **unconfirmed** — it never guesses an exact build from a tag and
+calls it confirmed.
+
+> **Cardinal rule — absence of a *detectable signal* is NOT absence of Java.** A Java app can
+> run inside an opaque/custom image with no JDK tag, no `JAVA_*` env in the manifest, and no
+> readable JDK hint. When Java can neither be confirmed nor ruled out from the readable signals
+> below, the classification is **`unconfirmed`** — **never** `does-not-apply` or a "clean"
+> reading. This skill's RBAC cannot see inside the image, so silence is not safety.
+
+> **.NET is a MANUAL review flag, NOT a detection output.** This section and the
+> `java_workloads` schema detect **Java only**. `.NET` cgroup-v2 exposure is surfaced as a
+> manual review flag in `migration-risks.md` Risk 1 and `runbook.md` Phase 0 — there is **no**
+> `.NET` detection output here and no `.NET` counter. Do not claim `.NET` was detected or
+> cleared; the operator reviews .NET runtimes by hand.
+
+**Via Kubernetes API** — enumerate workload PodSpecs and read the Java-relevant fields:
+
+- **Resource:** `Pod`, group/version `v1` (core), all namespaces; and `Deployment` /
+  `DaemonSet` / `StatefulSet`, group/version `apps/v1`, all namespaces.
+- **Fields to extract (all from the PodSpec — no exec):**
+  - `spec.containers[].image` (and `spec.initContainers[].image`) — the image **ref + tag**.
+    A `:8`, `:8-jre`, `:8uNNN`, `openjdk:8`, `eclipse-temurin:8`, or `amazoncorretto:8` tag
+    signals **JDK 8** — but the tag is a **weak** signal: it may omit the sub-build (`:8` says
+    nothing about `8u362` vs `8u372`) or lie outright (a `:8` tag rebuilt on a newer patch).
+  - `spec.containers[].env[]` — Java-relevant environment variables **only when declared inline
+    as `spec.containers[].env[].value`** in the PodSpec: `JAVA_VERSION` (some base images set it
+    — a stronger hint than the tag, still not the running build), `JAVA_TOOL_OPTIONS`,
+    `JDK_JAVA_OPTIONS`, and any `-XX` flags carried in those vars or in
+    `spec.containers[].args` / `command` (e.g. a pre-set `-XX:+UseContainerSupport`,
+    `-XX:-UseContainerSupport`, `-XX:MaxRAMPercentage`, or a legacy `-Xmx` — all evidence for
+    Risk 1's operator guidance).
+    > **Readable env = inline manifest `env[].value` ONLY.** The core API exposes only env
+    > literally declared as `spec.containers[].env[].value`. Env baked into the image via the
+    > Dockerfile `ENV`, flags hard-coded in the image `ENTRYPOINT`/`CMD`, and any value resolved
+    > from `valueFrom.configMapKeyRef` / `secretKeyRef` or `envFrom` are **INVISIBLE** to this
+    > skill (its RBAC has no `secrets`/`configmaps` read). An image-baked `JAVA_VERSION`,
+    > `JAVA_TOOL_OPTIONS`, `-XX` flag, or `-Xmx` therefore is **not visible → `unconfirmed`**,
+    > **never** treated as "clean". This is why the tag/inline-env read is a weak, partial signal.
+  - `spec.containers[].resources.limits.memory` — a Java container **with** a memory limit is
+    the one exposed to the heap-sizing bug (cross-reference for Risk 1).
+- **RBAC verbs:** `get`, `list` on `pods`, `deployments.apps`, `daemonsets.apps`,
+  `statefulsets.apps`.
+
+**The hard limit (state it honestly).** The **exact JDK build** (e.g. `8u362` vs `8u372`) is
+**usually NOT determinable from control-plane reads alone** — confirming it would require
+`java -version` on a running container (exec) or a node shell, which this skill **cannot and
+must not** do. So the honest output for the build is **`jdk_version: unconfirmed`** with the
+reason, **never** a guess derived from the image tag.
+
+**Decision (per Java workload):**
+
+| Signal read | Classification |
+|-------------|----------------|
+| Inline manifest tag or `env[].value` strongly indicates **JDK 8** (`:8`, `:8uNNN`, `openjdk:8`, `amazoncorretto:8`, `eclipse-temurin:8`, `JAVA_VERSION=8...`), **JDK 11 with an unknown sub-build** (a bare `:11`, `openjdk:11`, `amazoncorretto:11`, `eclipse-temurin:11`, `JAVA_VERSION=11` — the major-version tag reveals nothing about the `11.0.x` sub-build), **OR any JDK major version below 15 (8, 11, 12, 13, 14)** — none of these is cgroup-v2-aware at every build, and 12/13/14 predate the JDK 15 "aware at every sub-build" line | **at-risk-needs-operator-verify** — flag for Risk 1. For JDK 8 the operator confirms the build is `< 8u372`; for JDK 11 the operator confirms it is `>= 11.0.16` (the cgroup-v2-aware JDK 11 build — older 11.x mis-sizes the heap); for **JDK 12/13/14** the operator verifies cgroup-v2 behavior directly (these majors are `< 15` and their cgroup-v2 memory-limit handling cannot be assumed safe). All via `java -version` (see operator commands below). A bare `:11`/`:12`/`:13`/`:14` tag is **exactly as weak as `:8`**: it says nothing about the sub-build/behavior, so it must **never** land clean. |
+| Inline manifest tag/`env[].value` strongly indicates a JDK that is cgroup-v2-aware at **every** sub-build — **JDK 15 or newer** (`>= 15`), including LTS **17** and **21** (`:17`, `:21`, `amazoncorretto:17`, `eclipse-temurin:21`, `JAVA_VERSION=17...`) | **not-at-risk-newer-jdk** — record as a fact. Only **JDK >= 15** qualifies: JDK 15+ is cgroup-v2-aware at every build (kubernetes.io "About cgroup v2", <https://kubernetes.io/docs/concepts/architecture/cgroups/> "15 and later", as of 2026-07-20). Not counted `at_risk` or `unconfirmed`. **Any JDK major `< 15` — 8, 11, 12, 13, 14 — does NOT qualify here** and takes the **at-risk** row above (JDK 11 only `11.0.16+` is aware, and a bare tag cannot prove that; 12/13/14 predate the JDK 15 line entirely). |
+| Java can neither be confirmed nor ruled out from readable signals — opaque/custom image name AND no inline `JAVA_*` `env[].value` (env may be image-baked / `valueFrom` / `envFrom` → invisible) | **unconfirmed** — record the image ref as a fact; **never** emit an OS-free "clean"/`does-not-apply` reading off undetectable Java |
+
+> **Conflicting signals — strongest wins, but a conflict never lands clean.** When an image
+> major-version tag and an inline `env[].value` disagree (e.g. a `:8` image tag alongside
+> `JAVA_VERSION=17`, or a `:11` tag alongside `JAVA_VERSION=8`), the inline `env[].value`
+> sub-build/version is the **stronger** signal — it is set explicitly in the manifest, whereas
+> the tag can be stale or rebuilt on a different build. But a conflict is itself a reason for
+> caution: classify a conflicting pair as **at-risk-needs-operator-verify** (the operator
+> resolves it with `java -version`), **never** the clean `not-at-risk-newer-jdk` bucket.
+
+These three classifications are **exhaustive and non-overlapping** over every workload signal 6
+considers — every workload **not positively identifiable as non-Java** (a positively-identified
+non-Java image, e.g. a pure `nginx`/`golang` image, is simply out of scope, not counted). An
+opaque/unknown-sub-build image cannot be ruled out, so it stays in scope as `unconfirmed`:
+`detected == at_risk + not_at_risk_newer_jdk + unconfirmed` (see the schema counters below).
+
+**Operator verification commands (self-serve — these are OPERATOR steps the skill *advises*,
+not skill actions).** For an **at-risk** or **unconfirmed** workload the operator resolves the
+build directly:
+
+```bash
+# 1. See the actual image (and thus base) behind the pod
+kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.containers[*].image}'
+
+# 2. Confirm the real JDK build (resolves at-risk "< 8u372?" and unconfirmed "is there Java at all?")
+kubectl exec <pod> -n <ns> -c <container> -- java -version
+
+# 3. See the JVM's RESOLVED heap sizing under the pod's cgroup-v2 limit (does MaxRAMPercentage/limit take effect?)
+kubectl exec <pod> -n <ns> -c <container> -- java -XshowSettings:vm -version   # look at MaxHeapSize
+```
+
+This lets the common **unconfirmed** bucket actually resolve rather than staying a dead end.
+This is a **read + advise** signal only. The remediation levers (bump to `8u372+`, verify
+`-XX:+UseContainerSupport` is not disabled, size the heap with `-XX:MaxRAMPercentage` after
+removing any residual `-Xmx`) are **operator steps** described in `migration-risks.md` Risk 1
+and staged in `runbook.md` Phase 0 — this skill reports and advises; it never modifies a
+workload.
+
 ---
 
 ## Lifting the limitation (supplementary ClusterRole)
@@ -346,6 +453,25 @@ al2_footprint:
       nodeclass_ami_family: string  # unconfirmed when CRD read blocked
     fargate:
       profiles: int                 # Fargate has no AL2 concern — excluded from migration scope
+
+  java_workloads:                   # cgroup-v2 JDK signals (section 6), null if K8s unreachable
+                                    # Java only — .NET is a manual review flag, NOT detected here (no counter)
+    detected: int                   # every workload NOT positively identifiable as non-Java:
+                                    # readable Java signal (at_risk + not_at_risk_newer_jdk) PLUS
+                                    # opaque images that cannot be ruled out (unconfirmed). Opaque
+                                    # images are NEVER dropped from the denominator.
+                                    # INVARIANT: detected == at_risk + not_at_risk_newer_jdk + unconfirmed
+    at_risk: int                    # inline tag/env indicates JDK 8, OR JDK 11 with unknown sub-build -> needs operator verify
+    not_at_risk_newer_jdk: int      # inline tag/env indicates JDK 15+ (incl. 17/21), cgroup-v2-aware at every build; recorded as a fact
+    unconfirmed: int                # Java plausible but no readable JDK-version signal (opaque/baked/valueFrom)
+    jdk_version: string             # always "unconfirmed" — exact build not readable from control-plane (no exec)
+    list:
+      - namespace: string
+        workload: string            # e.g. deployment/name or pod/name
+        image: string               # spec.containers[].image verbatim (weak JDK signal)
+        java_signal: string         # how detected: image-tag | JAVA_VERSION-env | -XX-flag | none
+        has_memory_limit: bool      # resources.limits.memory set -> exposed to the heap-sizing bug
+        classification: string      # at-risk-needs-operator-verify | not-at-risk-newer-jdk | unconfirmed
 ```
 
 ---

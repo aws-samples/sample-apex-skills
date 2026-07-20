@@ -143,7 +143,67 @@ ENIs, which is a different thing; source: [EKS cluster upgrade best practices](h
 | Workloads with `topologySpreadConstraints` set to `whenUnsatisfiable: DoNotSchedule` (readable — core/`apps` groups) | **AMBER** — like a strict PDB, this can both reduce availability during the roll and block reschedule if the surviving/new topology can't satisfy the spread. List them so the operator confirms the spread is satisfiable across the rolled fleet. |
 | Any node-subnet with **< 5** free IPs | **RED** — in-place surge and blue-green both need free IPs; too few blocks the node surge/rotation. Report per-subnet free IPs. |
 | Any node-subnet with **5–15** free IPs (none below 5) | **AMBER** — tight; node rotation may stall under surge. Report per-subnet free IPs (route capacity facts to `eks-recon` if needed). |
-| All node-subnets **> 15** free IPs | **GREEN** — sufficient *in-place surge* headroom. (Blue-green needs a **full parallel fleet** ≈2× — that capacity is checked separately in the mode decision, not settled by this GREEN.) |
+| All node-subnets **> 15** free IPs | **GREEN** — sufficient *in-place surge* headroom. (Blue-green needs a **full parallel fleet** ≈2× — that capacity is checked separately in the BG sub-block below, not settled by this GREEN.) |
+
+> **Gate 5 records the worst of all rows that match.** The four dimensions above (blocking PDB,
+> single-replica / un-replicated StatefulSet, strict `topologySpread`, subnet free-IPs) are
+> independent and can co-occur — e.g. a RED PDB alongside an AMBER subnet, or an AMBER subnet
+> alongside an `unconfirmed` PDB read. When more than one row matches, the recorded outcome is the
+> most restrictive of them (RED < unconfirmed < AMBER < GREEN).
+
+> **Blue-green overlap — aggregate against the WHOLE pool, do not evaluate per-fleet.** The
+> per-subnet heuristic above assumes a *single* fleet's surge. When the selected mode is
+> **blue-green**, blue and green are alive at once and (in the common shared-subnet case) draw IPs
+> from the **same pool**. The authoritative check compares green's projected demand against the
+> pool's current **free** IP count:
+>
+> > **GREEN-projected demand  ≤  current FREE IPs in the pool**
+> > (`free` already nets out **every** other consumer — BLUE-live *and* any third tenant sharing the
+> > subnet — so this form holds no matter how many fleets/clusters share the CIDR).
+>
+> Use the free-IP form as primary. The total-pool form `BLUE-live + GREEN-projected ≤ total usable`
+> (usable = subnet size minus the 5 AWS-reserved addresses; e.g. a `/25` = 128 − 5 = 123 usable) is
+> **equal to it only when blue and green are the pool's SOLE consumers.** In a genuinely shared
+> subnet a third consumer X exists, so `free = total usable − BLUE-live − X`; the total-usable form
+> drops the −X term and **over-states capacity → false GREEN**. Only use the total-usable form for a
+> single-consumer (blue-only) pool, or subtract the others explicitly (`… ≤ total usable −
+> other-consumers`). [blue-green-mode.md](blue-green-mode.md) and the mode-decision definition below
+> use this **same** free-IP-primary comparison. Estimate green's side from CNI/ENI facts (projected
+> node count × per-node demand, warm-target pre-allocation, prefix vs secondary-IP mode); the
+> mechanics and mitigations live in [blue-green-mode.md](blue-green-mode.md) → "Capacity strategies
+> under blue-green". The rows below extend Gate 5 **only when mode == blue-green**. The same
+> skill-internal band heuristic (still **NOT** an AWS-published node-surge number) applies to the
+> **residual headroom** left after the aggregate: `headroom = current free IPs − GREEN-projected`
+> (equal to `total usable − (BLUE-live + GREEN-projected)` only when blue+green are the sole
+> consumers), banded **< 5** = RED, **5–15** = AMBER (tight), **> 15** = GREEN.
+
+| Condition (blue-green mode only) | Outcome |
+|----------------------------------|---------|
+| **GREEN-projected ≤ current free IPs** with residual headroom **> 15**, and pool consumption is **readable** | **GREEN** — green fits comfortably; blue (and any third consumer, already netted out of free) coexist with green in the shared pool for the overlap window. Record GREEN-projected vs current free IPs. (Mirrors [blue-green-mode.md](blue-green-mode.md) decision aid — the minimum model holds; record and proceed.) |
+| **GREEN-projected ≤ current free IPs** but leaves residual headroom of only **5–15** IPs | **AMBER** — fits but tight; the overlap has little slack (a late-scaling green pod or blue not draining on schedule can tip it to exhaustion). Report GREEN-projected vs current free IPs; consider secondary-CIDR or rolling-drain-down before cutover. |
+| **GREEN-projected exceeds current free IPs** (or residual headroom **< 5**) | **RED** — cutover would stall: green cannot get pod/node IPs while blue (and any third consumer) still hold their share. Report GREEN-projected vs current free IPs; resolve capacity (secondary-CIDR / rolling-drain-down) or fall back to in-place. |
+| Green node/pod subnets carved from a **separate secondary VPC CIDR** (green does not share blue's pool), green's own pool is sized for GREEN-projected demand + warm targets, **and** custom networking / `ENIConfig` is **confirmed** to target the secondary-CIDR subnets | **GREEN** — contention escaped; blue keeps its pool. **Note:** confirming that targeting requires reading the `ENIConfig` CRD (unreadable under `AmazonAIOpsAssistantPolicy`) and at Phase 1 no green nodes exist to observe instead — so absent a supplementary ClusterRole this GREEN is **not routinely reachable** and normally resolves to `unconfirmed` (next row). It is a real GREEN only once the CRD read is granted or green nodes are up. |
+| Secondary CIDR present for green but green's pool **not** sized for its projected demand (or CNI not yet pointed at it) | **AMBER** — mitigation started but unproven; size/verify green's pool before cutover. |
+| Green's secondary-CIDR targeting depends on `ENIConfig`, but that **CRD read is blocked** (`ENIConfig` lives on `crd.k8s.amazonaws.com`, a **custom** resource — **not** authorized by `AmazonAIOpsAssistantPolicy`, which grants built-in API groups only; and at Phase 1 no green nodes exist yet to observe the effective CNI config instead) | **unconfirmed** — the secondary-CIDR GREEN above **cannot** be recorded: green's targeting is unproven, treated as not-GREEN, **never GREEN**. Report the supplementary-ClusterRole fix (mirrors Gate 6's Karpenter-CRD gap); route the read to `eks-recon`. |
+| Pool consumption **unreadable** (CNI config / ENI / IPAM facts blocked, e.g. `aws-node` env or EC2 describe unavailable) | **unconfirmed** — report the gap; treated as not-GREEN, **never GREEN/"fits"**. Route the read to `eks-recon`; blue-green is not confirmed-available until the aggregate is measurable. |
+
+> **Within the blue-green sub-block, take the worst matching row.** The BG rows above are not
+> mutually exclusive: when green's pool is sized but the `ENIConfig` CRD is unreadable, the
+> "secondary-CIDR present but CNI not yet pointed at it" (AMBER) row and the "`ENIConfig` read
+> blocked" (unconfirmed) row **both** match — the two are indistinguishable from the readable facts
+> (a sized-but-unverified pool and an unreadable targeting CRD look the same). **When more than one
+> BG row matches, the sub-block's outcome is the most restrictive of them (RED < unconfirmed <
+> AMBER < GREEN).** So the overlap resolves to **unconfirmed**, never GREEN/AMBER off an unreadable
+> CRD — an unreadable `ENIConfig` can never yield a confirmed reading.
+>
+> **Under blue-green, Gate 5's outcome is the WORSE of the two readings.** The main per-subnet
+> table above is a *single-fleet* surge reading; a single-fleet **GREEN** (every node-subnet > 15
+> free) does **not** settle Gate 5 when mode == blue-green — a contended *shared* subnet can pass
+> the single-fleet row yet fail the aggregate sub-block. **When mode == blue-green, Gate 5's
+> recorded outcome is the worse (more restrictive) of (a) the single-fleet main-table row and (b)
+> this blue-green aggregate sub-block** (RED < unconfirmed < AMBER < GREEN), where the sub-block's
+> own value is itself the worst of its matching rows per the note just above. The exit contract must
+> never record Gate 5 = GREEN off the single-fleet row alone under blue-green mode.
 
 ## Gate 6 — Karpenter migration state
 
@@ -195,10 +255,31 @@ blue-green. The rows are ordered; apply the **first** that matches (no overlap):
 | 4 | Gate 1 band is **RISKY/low** (blocker-free) **and** a parallel fleet fits | **Blue-green** — instant fallback for a high-risk upgrade. |
 | 5 | Otherwise | **In-place rolling** (default). |
 
-"A parallel fleet fits" is a fact: sum of new-fleet IP/instance need ≤ available subnet IPs **and**
-**EC2 On-Demand vCPU / instance-limit quota headroom** (see [blue-green-mode.md](blue-green-mode.md)).
-If a blue-green trigger fires but the fleet does **not** fit, record **AMBER** and fall back to
-in-place with the reason noted.
+"A parallel fleet fits" is a fact with **two** halves, both required — using the **same aggregate
+comparison** as Gate 5's blue-green sub-block above:
+- **IPs:** `GREEN-projected demand ≤ current free IPs in the pool` — the authoritative form, because
+  `free` nets out **all** other consumers (BLUE-live *and* any third tenant sharing the subnet). Use
+  the total-pool form `BLUE-live + GREEN-projected ≤ total usable` **only** when blue+green are the
+  pool's sole consumers (otherwise it drops the third consumer and false-GREENs); *not* GREEN-projected
+  vs a subnet's isolated headroom. See the Gate 5 BG rows and
+  [blue-green-mode.md](blue-green-mode.md) → "Shared-subnet aggregate contention".
+- **Quota:** **EC2 On-Demand vCPU / instance-limit quota headroom** for green's real instances
+  (blue-green consumes ~2× for the overlap; secondary-CIDR fixes IPs but **not** this half).
+
+If a blue-green trigger fires but either half does **not** fit, the outcome depends on **which
+trigger fired** — the advisor never silently overrides an explicit user path:
+- **Advisor-initiated triggers (rows 3–4)** — where the advisor merely *suggested* blue-green (a
+  multi-hop jump or a RISKY band): record **AMBER** and fall back to **in-place** with the reason
+  noted. Blue-green was the advisor's optimization, not a requirement; in-place is a safe default.
+- **User-requested blue-green (row 2)** — where the user *explicitly asked* for blue-green / a
+  cutover but it does **not** fit: the outcome is **RED** (NOT-READY). The user's chosen path is
+  blocked; do **not** silently downgrade their explicit request to in-place. Report the capacity
+  gap and the fix (secondary-CIDR / rolling-drain-down / quota increase) so the user can decide
+  whether to resolve capacity or consciously switch to in-place — the advisor does not make that
+  switch for them.
+
+(The Gate 5 BG sub-block gates the IP half explicitly; the vCPU half is verified here and applies
+equally under blue-green — a green fleet that fits on IPs can still stall on a vCPU-quota ceiling.)
 
 > **Capacity is two facts, not one.** Even in-place *surge* consumes extra instances briefly;
 > blue-green consumes ~2× for the overlap. Subnet free-IPs (Gate 5) is one constraint; **EC2
