@@ -24,3 +24,4 @@ This file documents the differences between the Claude Code version and the DevO
 | **Skill routing** | Routes to sibling skills (`eks-genai`, `eks-build`, `eks-design`) | Self-contained; notes alternative guidance domains without routing |
 | **Script execution** | Can run kube-bench, generate shell commands | Advisory only — recommends commands for the user to execute |
 | **MCP dependencies** | References eks-mcp-server for live data | No MCP dependencies; uses Agent Space APIs directly |
+| **Auto Mode security reference** | `references/auto-mode-security.md` — security facts (node OS, IMDSv2, shared-responsibility split) | Identical / in sync; security facts are launch-agnostic, only execution-model framing differs — edit both copies together. |

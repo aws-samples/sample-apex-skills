@@ -41,7 +41,7 @@ Everything above the node, plus all account-level enablement:
 
 - **Custom AMI / baked-in hardening mandate** — Auto Mode does not support custom AMIs; AWS chooses the OS and image. If the auditor requires specific controls baked into the AMI, use Bottlerocket on self-managed Karpenter NodePools.
 - **Alternate CNI requirement (Cilium, Calico, …)** — Auto Mode does not support alternate CNI or network-policy plugins.
-- **Security Groups for Pods requirement** — not supported on Auto Mode nodes (also not on Windows).
+- **Per-Pod Security Groups (classic SGPP) requirement** — a blocker only if *true per-Pod* SG assignment is mandated: the VPC CNI `SecurityGroupPolicy` CRD is [not supported on Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/auto-networking.html) (or Windows) nodes. Separate security groups for Pod traffic *are* available on Auto Mode via NodeClass [`podSecurityGroupSelectorTerms`](https://docs.aws.amazon.com/eks/latest/userguide/create-node-class.html), but only at NodeClass granularity (all Pods on that NodeClass share the same Pod security groups).
 - **Host-level agent or forensic access requirement** — no SSH/SSM means no interactive node access; node-level tooling must run as a DaemonSet, and node forensic capture is constrained to what the APIs expose.
 - **Windows workloads** — Auto Mode nodes are Linux-only.
 
@@ -56,4 +56,6 @@ On Auto Mode, Layers 1 and parts of 3 (enforcement engine) shift to AWS; **Layer
 - [Security considerations for Amazon EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html)
 - [Learn about Amazon EKS Auto Mode managed instances](https://docs.aws.amazon.com/eks/latest/userguide/automode-learn-instances.html)
 - [Alternate CNI plugins for Amazon EKS clusters](https://docs.aws.amazon.com/eks/latest/userguide/alternate-cni-plugins.html) (Auto Mode considerations)
+- [EKS Auto Mode networking](https://docs.aws.amazon.com/eks/latest/userguide/auto-networking.html) · [Create a NodeClass](https://docs.aws.amazon.com/eks/latest/userguide/create-node-class.html) (SGPP unsupported; `podSecurityGroupSelectorTerms`) — verified 2026-07-21
+- [EKS Auto Mode Best Practices: Security](https://docs.aws.amazon.com/eks/latest/best-practices/autosecure.html) (read-only root filesystem, SELinux enabled by default)
 - [EKS Auto Mode release notes](https://docs.aws.amazon.com/eks/latest/userguide/auto-change.html) (FIPS AMIs; capability changes)
