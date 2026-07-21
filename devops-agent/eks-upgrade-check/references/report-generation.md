@@ -260,10 +260,19 @@ score = max(0, 100 - total_deductions)
 #      networking broken during reschedule)
 #   5. API removed in target version AND actively used in cluster (workloads fail)
 #   6. Cluster status != ACTIVE (EKS API rejects update-cluster-version)
-#   7. AL2-only node groups AND target >= 1.33 (no AL2 AMI available for target)
+#   7. MANAGED node group (or Fargate) on AL2 AND target >= 1.33. update-cluster-version is
+#      API-rejected until managed/Fargate nodes match the control plane's CURRENT version, but
+#      there is NO EKS-optimized AL2 AMI past 1.32 (as of 2026-07-21) to advance them to — so
+#      the CP can complete ONE hop (1.32 -> 1.33) then is rejected at 1.33 -> 1.34; a
+#      multi-minor target is unreachable. Path: migrate the managed group to
+#      AL2023/Bottlerocket (eks-al2-to-al2023 skill) BEFORE the control-plane upgrade.
 #   8. Candidate control-plane subnets COLLECTIVELY cannot provide enough free IPs to
 #      place control-plane ENIs (EKS API rejects update-cluster-version). A single low
 #      subnet among otherwise-healthy subnets is a warning, not a blocker.
+#   9. ANY AL2 nodes (managed OR self-managed, EKS-optimized OR custom AMI) AND target >= 1.35.
+#      AL2 = cgroup v1; at K8s 1.35 `failCgroupV1` defaults true, so the kubelet refuses to
+#      start (as of 2026-07-21). This catches SELF-MANAGED AL2 at 1.35 — which #7 does NOT,
+#      since self-managed nodes are not API-gated. Migrate to cgroup v2 (AL2023/Bottlerocket).
 #
 # NOTE: containerd 1.x on self-managed/custom-AMI nodes at target >= 1.36 is HIGH severity
 # (+5 under Category 3) but is NOT a hard blocker — it does not cap the score.
@@ -276,8 +285,9 @@ if any critical_addon.verdict == "INCOMPATIBLE":      has_hard_blocker = True
 if any critical_addon.status in [DEGRADED, FAILED]:   has_hard_blocker = True
 if any api_removed_in_target_and_in_use:              has_hard_blocker = True
 if cluster_status != "ACTIVE":                        has_hard_blocker = True
-if al2_only_node_groups and target >= 1.33:           has_hard_blocker = True
+if any_al2_managed_or_fargate_node and target >= 1.33:  has_hard_blocker = True   # #7 API-gated: nodes must match CP-current, no AL2 AMI past 1.32 to advance to
 if candidate_subnets_collectively_cannot_place_enis:  has_hard_blocker = True   # single low subnet among healthy = warning, not blocker
+if any_al2_node and target >= 1.35:                   has_hard_blocker = True   # #9 cgroup v1 kubelet won't start (failCgroupV1); catches self-managed AL2 too
 # containerd 1.x on self-managed nodes at target >= 1.36 is HIGH severity (+5 Cat 3) but is
 # NOT a hard blocker — it does not cap the score.
 

@@ -19,6 +19,7 @@ it never cordons, drains, or changes a node group.
   - [4. Node OS via Kubernetes API](#4-node-os-via-kubernetes-api)
   - [5. Karpenter / Auto Mode AMI family (CRD note)](#5-karpenter--auto-mode-ami-family-crd-note)
   - [6. JDK version signals (Java workloads)](#6-jdk-version-signals-java-workloads)
+  - [7. Why is the AMI custom? (rebuild-complexity triage)](#7-why-is-the-ami-custom-rebuild-complexity-triage)
 - [Lifting the limitation (supplementary ClusterRole)](#lifting-the-limitation-supplementary-clusterrole)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
@@ -353,6 +354,42 @@ This is a **read + advise** signal only. The remediation levers (bump to `8u372+
 removing any residual `-Xmx`) are **operator steps** described in `migration-risks.md` Risk 1
 and staged in `runbook.md` Phase 0 — this skill reports and advises; it never modifies a
 workload.
+
+### 7. Why is the AMI custom? (rebuild-complexity triage)
+
+When section 1-3 resolve a node group to a **custom AMI** (`amiType: CUSTOM`, or an LT that pins
+a non-EKS-optimized `ImageId`, or a self-managed AMI whose Name matches no EKS pattern), the OS
+family is only half the picture. The **harder** question for migration effort is **why** the AMI
+is custom — because that determines whether the AL2023 target can be **stock AL2023 + config**
+or needs a **full custom image rebuild**. This is an **assess-and-present** step: surface the
+signals and the options, do **not** prescribe one path.
+
+**Signals to gather (facts, from reads already available — do not exec or open a node shell):**
+
+- **Baked host agents / daemons** — DaemonSets that could instead run as pods, or binaries the
+  AMI installs at build time (log shippers, security/observability agents). Cross-reference the
+  `migration-risks.md` Risk 5 host-agent list: an agent baked into the AMI is often re-expressible
+  as a **DaemonSet** or via **userData**, which favors stock AL2023.
+- **Kernel modules / GPU / Neuron drivers** — `securityContext.privileged` DaemonSets, GPU/Neuron
+  instance types (from `node.kubernetes.io/instance-type`), or an AMI Name hinting at drivers.
+  Out-of-tree modules must be rebuilt for the AL2023 6.1/6.12 kernel and are the **strongest**
+  pull toward a full image rebuild (or the AL2023 NVIDIA/Neuron EKS AMI, if one covers the need).
+- **Compliance / hardening** — an AMI Name or tag suggesting a CIS/STIG/hardened baseline, or a
+  golden-image pipeline. A hardened baseline usually means the AL2023 image must be re-hardened
+  (rebuild), not swapped to stock.
+- **Baked config / userData** — files, certs, or bootstrap logic baked in vs. supplied at boot.
+
+**Present the options (env-shaped, not a default):**
+
+| If the "why" is mostly… | Then AL2023 target likely… |
+|-------------------------|----------------------------|
+| Agents that can be DaemonSets / userData-installed | **Stock AL2023** EKS AMI + agents-as-DaemonSet/userData — lowest rebuild effort |
+| Kernel modules / custom drivers / GPU-Neuron / hardening baseline | **Full custom AL2023 image rebuild** (or the matching AL2023 accelerated EKS AMI) — carry the rebuild pipeline forward |
+| Mixed | Split: move what can move to stock AL2023, rebuild only the irreducible parts |
+
+Report the gathered signals as **facts** and the options for the operator to weigh — never
+assert which path they must take. Record any signal that could not be read as `unconfirmed` (e.g. a
+build-time agent invisible from the control plane), not as "no reason found".
 
 ---
 

@@ -120,8 +120,17 @@ If the cluster version's Extended Support Until date has passed:
 
 **Rules (Kubernetes version skew policy):**
 - kubelet may be up to **N-3** minor versions behind the control plane (the N-3 kubelet
-  skew policy; the older N-2 limit applies only to kubelet versions below 1.25)
+  skew policy since K8s 1.28, supported for managed, Fargate, AND self-managed nodes; the
+  older N-2 limit applies only to kubelet versions below 1.25)
 - If the control plane is upgraded to the target version, nodes must be within 3 minor versions
+- **Stricter EKS API gate (managed / Fargate only):** independent of the N-3 skew policy, the
+  EKS `update-cluster-version` API REJECTS a control-plane upgrade until every MANAGED node
+  group and Fargate node EQUALS the control plane's CURRENT version (as of 2026-07-21, per the
+  EKS troubleshooting doc "Node groups must match Kubernetes version before upgrading control
+  plane"). Self-managed nodes are NOT named in this gate — their kubelet version is invisible
+  to the EKS API, so the operator owns skew (bounded only by N-3 above). This gate is what makes
+  a managed AL2 node group a HARD BLOCKER at target >= 1.33 (see node-readiness.md §5.2): there
+  is no AL2 AMI past 1.32 to bring the managed group up to CP-current.
 
 **How to check:**
 1. List all node groups → describe each for Kubernetes version

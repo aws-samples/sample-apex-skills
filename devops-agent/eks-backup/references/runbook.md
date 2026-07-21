@@ -22,6 +22,8 @@ backup/restore is **not** a control-plane rollback — see the caveat below. Sou
 - [How the agent uses this template](#how-the-agent-uses-this-template)
 - [Data-shape branching (urgency + what to prioritize)](#data-shape-branching-urgency--what-to-prioritize)
 - [The restore ≠ control-plane-rollback caveat](#the-restore--control-plane-rollback-caveat)
+- [Cross-cluster restore](#cross-cluster-restore)
+- [WARNING: blue-green clusters sharing external datastores](#warning-blue-green-clusters-sharing-external-datastores)
 - [READY — verify and validate](#ready--verify-and-validate)
 - [PARTIAL — close the gap](#partial--close-the-gap)
 - [UNPROTECTED — full setup (choose a path)](#unprotected--full-setup-choose-a-path)
@@ -108,6 +110,86 @@ rollback:
 (Sources: [Restoring EKS](https://docs.aws.amazon.com/aws-backup/latest/devguide/restoring-eks.html),
 [EKS envelope encryption](https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html),
 both as of 2026-07-19. See `backup-approaches.md`.)
+
+---
+
+## Cross-cluster restore
+
+Restoring to a **different or new** cluster than the one backed up (DR to another
+region/account, blue-green cutover, or rebuilding a lost cluster) is supported by both
+tools, with mapping caveats the operator must handle. All of this is still a NON-PROD-first
+drill — validate before relying on it.
+
+- **AWS Backup for EKS** — a recovery point can be restored to the **source cluster, another
+  existing cluster, or a brand-new cluster AWS Backup creates** as part of the restore
+  (`newCluster=true`). Restores are non-destructive and never overwrite existing objects or
+  the target's K8s version. The recovery point is selected the same way regardless of target;
+  the target is chosen via the restore metadata (as of 2026-07-21; source:
+  [Restoring EKS](https://docs.aws.amazon.com/aws-backup/latest/devguide/restoring-eks.html)):
+
+  Operator runs (this skill does not) — restore to an **existing** different cluster:
+  ```bash
+  aws backup start-restore-job --recovery-point-arn <recovery-point-arn> \
+    --iam-role-arn <restore-role-arn> --resource-type EKS \
+    --metadata '{"clusterName":"<target-cluster>","newCluster":"false"}'
+  ```
+
+- **Velero** — point the target cluster's Velero at the **same `BackupStorageLocation` /
+  S3 bucket** as the source, then run `velero restore create` on the target. The step-6
+  validate flow already shows this:
+
+  Operator runs (this skill does not) — on the target cluster (Velero installed, same BSL):
+  ```bash
+  velero backup get                       # confirm the source Backup is visible
+  velero restore create --from-backup <backup-name>
+  ```
+
+**Cross-cluster caveats (both tools):**
+
+- **Namespace / PV mapping.** AWS Backup restores namespaces as-is (optionally scope to ≤5
+  namespaces with `namespaceLevelRestore`); Velero uses `--namespace-mappings old:new` to
+  remap. EBS restores need an **Availability Zone** mapped to a target node's AZ; **EFS**
+  restores to a random prefix and needs **manual access-point creation** to remount.
+- **StorageClass differences.** The target must have the matching **CSI driver add-ons
+  installed** before restore, and the source StorageClass name must exist on the target (or
+  be remapped) or PVCs bind-fail. Different volume types across clusters (e.g. gp2 vs gp3)
+  need an equivalent StorageClass on the target.
+- **IRSA / ServiceAccount re-mapping.** ServiceAccount `eks.amazonaws.com/role-arn`
+  annotations and IAM role trust policies carry the **source cluster's OIDC provider**;
+  AWS Backup does **not** rewrite them. The destination cluster needs an OIDC provider, and
+  every referenced role's trust policy must be updated to the destination OIDC endpoint, or
+  pods fail to assume roles after restore. **EKS Pod Identity avoids this** (no
+  cluster-specific OIDC dependency) and is the recommended path for cross-cluster/cross-account
+  portability (as of 2026-07-21; source: Restoring EKS, OIDC/IRSA considerations).
+- **Cross-account / cross-region.** Ensure images, KMS keys (a **different** key ARN is
+  required for cross-region/cross-account new-cluster restores), and S3 buckets are
+  accessible in the destination.
+
+---
+
+## WARNING: blue-green clusters sharing external datastores
+
+> **Data-integrity guardrail — read before any blue-green restore.** If the green (new)
+> cluster's workloads point at the **same external managed datastores** as blue — RDS/Aurora,
+> ElastiCache, DynamoDB, Amazon MQ, or any other store that lives **outside** the cluster —
+> then **do NOT copy, duplicate, or restore that data into a second store.** Both clusters
+> share the one **live** datastore; it is the source of truth for both. Creating a second
+> copy forks the data: the two clusters diverge, writes are lost or double-applied, and you
+> cannot cleanly cut back over.
+
+What this means in practice:
+
+- **In-cluster PV data** (EBS/EFS/S3-backed PVs, StatefulSet volumes) is what backup/restore
+  is for — those live with the cluster and a restore into green is correct.
+- **External managed datastores** are **not** part of the cluster's recoverable state here.
+  Treat the backup as protecting the **shared external store** (via that store's own native
+  backups — RDS snapshots, DynamoDB PITR, etc.), **not** as something to re-materialize per
+  cluster. Green should be pointed at the **existing** store (same endpoint/connection
+  secret), never a restored fork of it.
+- **Never run a restore that would fork or duplicate a shared live datastore.** If green
+  legitimately needs its own isolated data (a true clone environment, not blue-green over
+  shared live data), that is a deliberate, separate decision — confirm with the data owner
+  first; it is out of scope for a cluster backup/restore.
 
 ---
 
@@ -279,17 +361,43 @@ Source: <https://velero.io/docs/main/> (as of 2026-07-19).
    helm repo add vmware-tanzu https://vmware-tanzu.github.io/helm-charts
    helm install velero vmware-tanzu/velero --namespace velero --create-namespace \
      --set configuration.backupStorageLocation[0].bucket=<bucket> \
-     --set configuration.backupStorageLocation[0].provider=aws
+     --set configuration.backupStorageLocation[0].provider=aws \
+     --set configuration.backupStorageLocation[0].config.region=<region> \
+     --set initContainers[0].name=velero-plugin-for-aws \
+     --set initContainers[0].image=velero/velero-plugin-for-aws:<plugin-tag> \
+     --set initContainers[0].volumeMounts[0].mountPath=/target \
+     --set initContainers[0].volumeMounts[0].name=plugins
    # or, with the CLI:
-   # velero install --provider aws --bucket <bucket> --backup-location-config region=<region> ...
+   # velero install --provider aws --bucket <bucket> --backup-location-config region=<region> \
+   #   --plugins velero/velero-plugin-for-aws:<plugin-tag> ...
    ```
+
+   > **Both flags are required.** Without the `velero-plugin-for-aws` initContainer the
+   > pod has no object-store plugin, and without `config.region` the
+   > `BackupStorageLocation` comes up **`Unavailable`** and **no backup writes** — the two
+   > most common causes of a silently non-functional Velero install. Credentials are **not**
+   > passed here: they come from the IRSA / EKS Pod Identity step (step 3), so the
+   > `--set-file credentials.secretContents.cloud=...` and `--secret-file` flags from the
+   > upstream README example are intentionally omitted. Pin `<plugin-tag>` to a
+   > plugin version compatible with the installed Velero version (see the
+   > [velero-plugin-for-aws compatibility matrix](https://github.com/vmware-tanzu/velero-plugin-for-aws#compatibility),
+   > as of 2026-07-21).
 
 2. **Provision an S3 bucket** for backup storage:
 
-   Operator runs (this skill does not):
+   Operator runs (this skill does not) — **for any region OTHER than `us-east-1`**:
    ```bash
    aws s3api create-bucket --bucket <bucket> --region <region> \
      --create-bucket-configuration LocationConstraint=<region>
+   ```
+
+   For **`us-east-1`**, OMIT `--create-bucket-configuration` entirely — passing
+   `LocationConstraint=us-east-1` fails with `InvalidLocationConstraint` (us-east-1 is the
+   API default and rejects an explicit constraint):
+
+   Operator runs (this skill does not) — **us-east-1 only**:
+   ```bash
+   aws s3api create-bucket --bucket <bucket> --region us-east-1
    ```
 
 3. **Configure the `BackupStorageLocation` and grant S3 access via IRSA or EKS Pod Identity.**

@@ -109,8 +109,11 @@ branch) against that live-measured free pool.
 >   tight — CNI warm-pool churn or pod bursts can still exhaust it).
 > - **`available_at_overlap` ≥ `required_green` with ≥ 15% margin** → **GREEN**.
 >
-> When green's projected pod count is unknown, use blue's *current* pod population as the
-> conservative proxy (green replicates blue) and **state the assumption** in the report.
+> The "green replicates blue" proxy (size `required_green` from blue's *current* pod population) is
+> permitted **only when the operator has affirmatively asserted** green replicates blue; **state the
+> assertion** in the report. If projected size is simply **unknown/unstated**, the skill must **not**
+> self-supply this proxy to reach a GREEN — that is row 2 (`unconfirmed`, not-GREEN). The proxy is an
+> operator-asserted input, never a default the skill invents to grade GREEN.
 
 > **EC2 On-Demand vCPU / instance service quotas are a second, IP-independent standup failure
 > mode.** Standing up a *whole second fleet* can hit the account's **On-Demand vCPU** (or
@@ -124,7 +127,12 @@ branch) against that live-measured free pool.
 > green alongside live blue, note it (does not block); if it is unverified, it is `unconfirmed`**
 > ("parallel-fleet EC2 vCPU quota headroom unverified — confirm Service Quotas before standing green
 > up") — **not** a silent AMBER caveat, **not** a silent deferral, and never a false GREEN. Treated
-> as not-GREEN, it rolls up to NO-GO (unconfirmed) until the operator confirms headroom. This is
+> as not-GREEN, it makes **Gate 1's overall outcome `unconfirmed`** (worst-input-wins, per
+> readiness-model's within-gate roll-up) and rolls up to **NO-GO (unconfirmed)** until the operator
+> confirms headroom — **even when** subnet IPs, placement, and size all otherwise pass GREEN. It is
+> **forbidden** to report Gate 1 GREEN or AMBER with an unverified vCPU/instance quota demoted to an
+> "informational" caveat, side note, or footnote; there is **no materiality carve-out** that makes
+> the quota "informational" — an unread hard standup blocker is not-GREEN, full stop. This is
 > read-only and operator-framed — the skill flags the risk; the operator verifies the quota.
 
 ## Escape hatches: secondary CIDR and prefix delegation

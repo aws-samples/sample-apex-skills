@@ -79,6 +79,16 @@ API server (Law 3).
 - **One pre-control-plane exception:** if VPC CNI is **below the target's minimum floor**, raise
   it first (to a version supporting *both* the old and new control plane). Every other add-on
   waits for Step 2. Removed-API remediation and backups were already handled in Phase 1.
+- **Managed-node API gate — the update will be *rejected*, not merely warned.** EKS's
+  `update-cluster-version` API refuses the control-plane upgrade until every **managed** node
+  group **and Fargate** already equals the control plane's *current* minor (as of 2026-07-21;
+  source: [EKS troubleshooting — "Node groups must match Kubernetes version before upgrading
+  control plane"](https://docs.aws.amazon.com/eks/latest/userguide/troubleshooting.html)).
+  **Self-managed** nodes are **not** API-gated (their `kubelet` is invisible to the EKS API), so
+  a self-managed data plane may lawfully trail up to **N-3**. This is why an **AL2 managed** node
+  group blocks this step outright once no matching AL2 AMI exists (≥1.33) — it must migrate to
+  AL2023 in the **Step 3 pre-step (AL2 fork)** *before* this step can run; a **self-managed AL2**
+  group may stay put and let the control plane advance (see the Step 3 AL2 fork).
 - Trigger the EKS cluster update to the target minor. EKS performs a rolling, in-place
   control-plane upgrade; it is **not** instantaneous — it commonly takes on the order of tens of
   minutes. Watch it via `aws eks describe-update`; treat it as **in progress, not stuck**, while
@@ -134,6 +144,39 @@ respect PDBs (cleared in Phase 1 Gate 5), delete old nodes once empty.
 
 **Blue-green cutover (mode):** stand up the parallel target-version fleet and shift workloads —
 **see [blue-green-mode.md](blue-green-mode.md)** for the full overlay. Do not duplicate it here.
+
+**AL2 execution fork (forks on nodegroup type; path was selected in Phase 1 Gate 3).** With **no
+AL2 AMI for 1.33/1.34** (as of 2026-07-21; source:
+[EKS AL2 deprecation FAQ](https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html)),
+an AL2 cluster runs one of two sequences — mechanics route to `eks-al2-to-al2023`:
+
+- **Managed AL2 → migrate-first (AL2023 pre-step *before* Step 1).** The `update-cluster-version`
+  API is rejected until the managed group matches the CP's *current* minor, and no AL2 AMI exists
+  past 1.32 — the control plane could complete only one hop (1.32 → 1.33) and then cannot advance
+  beyond 1.33 (a multi-minor target is unreachable), so rather than get stuck mid-upgrade the
+  AL2→AL2023 migration is a **pre-step that runs before the control-plane hop
+  (before Step 1)**, not part of the normal "nodes last" Step 3. Once the group is on AL2023 the
+  ordinary sequence (Step 1 → 2 → 3) resumes. Route the migration to `eks-al2-to-al2023`.
+- **Self-managed AL2 → control-plane-first / hold-nodes.** Self-managed `kubelet` is not
+  API-gated, so advance the **control plane one minor at a time (1.32 → 1.33 → 1.34)** while
+  **holding** the AL2 nodes at kubelet 1.32 (within N-3). Migrate the nodes to AL2023 **once**,
+  in **this Step 3**, **before the 1.35 hop** — that boundary is forced on two counts at once:
+  a 1.32 kubelet under a 1.35 CP is **exactly N-3 with zero headroom** (the next hop makes it a
+  4th minor → API rejects) **and** cgroup v1 hard-fails kubelet start at 1.35 (as of 2026-07-21;
+  sources: [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/),
+  [EKS standard-support versions](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html)).
+  **One** node migration for the whole run, not one per hop.
+
+  > **Why this path is also *safer* (rollback-safety) — self-managed hold-nodes only.** On **this**
+  > path the self-managed nodes stay put (held at kubelet 1.32) while the control plane advances, so
+  > **each control-plane hop is independently rollback-eligible** (EKS 7-day / one-minor /
+  > version-only / in-place control-plane rollback) with **no coupled node-rollback**: the data
+  > plane isn't changing during the hops, so a bad hop backs out cleanly via the control-plane
+  > rollback alone. The single AL2→AL2023 migration is isolated to the one forced boundary.
+  > **This clean-backout property does NOT apply to the managed AL2 path**: there the nodes roll in
+  > lockstep with every hop, so a control-plane rollback would leave kubelet ahead of the API server
+  > (skew policy **forbids** kubelet leading — as of 2026-07-21) and thus **forces a coupled
+  > node-group rollback** too. See [upgrade-model.md](upgrade-model.md) → Rollback-safety rationale.
 
 **Node-OS crossings that land in this step** (route node-OS mechanics to `eks-al2-to-al2023`;
 this skill only flags the version triggers):

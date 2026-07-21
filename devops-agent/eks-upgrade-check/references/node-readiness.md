@@ -40,10 +40,61 @@ Assess node groups, AMI types, version alignment, and migration requirements for
 2. From node Kubernetes API, check `kernelVersion` for `amzn2` or `osImage` for `Amazon Linux 2`
 3. Count AL2 nodes and node groups
 
-**Rating:**
+**AMI provenance matters** — distinguish an EKS-optimized AL2 AMI from a CUSTOM AL2-based AMI.
+An operator who brings their own AL2 AMI bypasses the "no AL2 AMI available" logic, so the
+no-AMI reasoning below does NOT cover custom AL2 nodes. The rule that catches BOTH is cgroup
+version: AL2 runs cgroup v1 only; AL2023/Bottlerocket run cgroup v2. As of 2026-07-21, K8s
+1.31–1.34 treat cgroup v1 as a warning / maintenance mode (kubelet still starts), but at K8s
+1.35 `failCgroupV1` defaults to `true` and the kubelet REFUSES TO START on a cgroup v1 node.
+The `failCgroupV1: false` override exists but is non-prod-only. So a custom AL2 AMI survives
+1.33 and 1.34 but DIES at 1.35, regardless of AMI provenance.
+
+**Rating — fork on node group type first, then AMI provenance.** Reuse the classification
+from checks 5.1 / 5.4 (managed node group, Fargate, self-managed, Karpenter, Auto Mode). The
+managed/Fargate vs self-managed fork matters because the EKS `update-cluster-version` API
+REJECTS a control-plane upgrade until MANAGED node groups and Fargate nodes EQUAL the control
+plane's CURRENT version (stricter than the N-3 skew tolerance; as of 2026-07-21, per the EKS
+troubleshooting doc "Node groups must match Kubernetes version before upgrading control
+plane"). Self-managed nodes are NOT named in this gate — their kubelet version is invisible to
+the EKS API, so the operator owns skew (subject only to the N-3 kubelet skew policy).
+
 - No AL2 nodes → PASS
-- AL2 nodes present, target < 1.33 → WARN (plan migration)
-- AL2 nodes present, target >= 1.33 → FAIL (blocker — no AL2 AMI available)
+- AL2 nodes present, target < 1.33 → WARN (plan migration; AL2 merely deprecated, not fatal)
+
+- **Managed node group (or Fargate) on AL2, target >= 1.33 → HARD BLOCKER.** The
+  `update-cluster-version` API is rejected until every managed node group and Fargate node
+  matches the control plane's current version, but there is NO EKS-optimized AL2 AMI past 1.32
+  (1.32 is the last; as of 2026-07-21, per the EKS AMI deprecation FAQ). So the managed group
+  cannot be advanced to the target version. The control plane can complete exactly ONE hop
+  (1.32 → 1.33: managed nodes at 1.32 equal the pre-hop current minor) but is then REJECTED at
+  the next hop (1.33 → 1.34, which requires the managed group at 1.33 — impossible with no AL2
+  AMI past 1.32). So a multi-minor target (anything beyond 1.33) is unreachable while an AL2
+  managed group exists, and this blocks BEFORE the cgroup-v1/1.35 issue is ever reached. The ONLY path is
+  to migrate the managed group to AL2023/Bottlerocket (route to the **eks-al2-to-al2023** skill)
+  BEFORE the control-plane upgrade. Caps the readiness score (see Score Impact and the Hard
+  Blocker Override in SKILL.md). (Applies regardless of AMI provenance: even a custom AL2 AMI on
+  a managed node group must be advanced to a matching-version image the operator cannot build
+  from AL2 past 1.32.)
+
+- **Self-managed AL2 nodes** (not in any managed node group / Fargate — NOT API-gated):
+  - target == 1.33 or == 1.34 → WARN / at-risk (NOT a hard blocker) — **SELF-MANAGED ONLY**.
+    A MANAGED node group / Fargate at the same target is the HARD BLOCKER above (the
+    `update-cluster-version` API gate), NOT this WARN — do not apply the hold-at-1.32 path to a
+    managed group. This WARN/hold path is available ONLY because a self-managed kubelet is
+    invisible to the API gate. Viable path (self-managed only): hold kubelet at 1.32 (within the
+    N-3 kubelet skew policy — supported for self-managed nodes since K8s 1.28, as of 2026-07-21)
+    while the control plane advances 1.32 → 1.33 → 1.34, THEN migrate to AL2023/Bottlerocket
+    before/at 1.35. Note N-3 is the LIMIT: a 1.32 kubelet under a 1.34 CP is N-2 (one minor of
+    headroom); under a 1.35 CP it would be exactly N-3 (no headroom) — migrate before the CP
+    would force a 4th minor of skew. (A custom AL2 AMI can still run at 1.33/1.34 on cgroup v1 —
+    warning/maintenance mode.)
+  - target >= 1.35 → **HARD BLOCKER** (the cgroup-v1 rule below).
+
+- AL2 nodes present, target >= 1.35 → **HARD BLOCKER** (regardless of node group type OR whether
+  the AMI is EKS-optimized OR CUSTOM): AL2 = cgroup v1, and at K8s 1.35 `failCgroupV1` defaults
+  `true` so the kubelet refuses to start on a cgroup v1 node (as of 2026-07-21). Caps the
+  readiness score (see Score Impact and the Hard Blocker Override in SKILL.md). Migrate to
+  AL2023/Bottlerocket (cgroup v2) first.
 
 **Migration guidance (report as recommended remediation steps):**
 1. Recommend: create a new node group with the AL2023 AMI type
@@ -144,7 +195,7 @@ to verify capacity is sufficient for their instance type and CNI config.
 >
 > **Remediation (choose one):**
 > 1. Remove unused ENIs: `aws ec2 describe-network-interfaces --filters Name=subnet-id,Values=<subnet-id> Name=status,Values=available --query 'NetworkInterfaces[].NetworkInterfaceId'`
-> 2. Add a new subnet to the cluster: `aws eks update-cluster-config --name <cluster> --resources-vpc-config subnetIds=<existing>,<new-subnet>`
+> 2. Add a new subnet to the cluster: `aws eks update-cluster-config --name <cluster> --resources-vpc-config subnetIds=<subnet-1>,<subnet-2>,<new-subnet>` — this call REPLACES the entire subnet set, so list ALL current cluster subnets PLUS the new one (>= 2 subnets across different AZs, all in the same VPC); passing only the new subnet would drop the existing ones
 > 3. Expand the subnet CIDR (if VPC allows)
 
 **If subnet has 5–15 IPs, report:**
@@ -173,7 +224,9 @@ to verify capacity is sufficient for their instance type and CNI config.
 | Control-plane subnets collectively can't place ENIs — sum of `AvailableIpAddressCount` across ALL subnets < 5 (hard blocker) | 5 pts + hard blocker override (caps score ≤ 59%); additional to any +2 warnings |
 | Subnet IPs 5–15 (warning) | 2 pts |
 | AL2 nodes (target < 1.33) — Node count (Category 8) | 2-5 pts (max 5) |
-| AL2 nodes (target >= 1.33) — Breaking Change "AL2 AMI Not Available" (Category 1) | 10 pts (HIGH) |
+| AL2 nodes (target >= 1.33, EKS-optimized AMI) — Breaking Change "AL2 AMI Not Available" (Category 1) | 10 pts (HIGH) |
+| **Managed node group (or Fargate) on AL2, target >= 1.33** — `update-cluster-version` API-rejected (nodes must match CP-current) AND no AL2 AMI past 1.32 to advance them | 10 pts + hard blocker override (caps score ≤ 59%) |
+| AL2 nodes (target >= 1.35, EKS-optimized OR CUSTOM AMI, any node group type) — cgroup v1 kubelet won't start (`failCgroupV1` defaults true) | 10 pts + hard blocker override (caps score ≤ 59%) |
 | AL2 nodes (target >= 1.33) — Node count (Category 8) | 2-5 pts (max 5) |
 | Containerd 1.x (target < 1.36, or managed node on any target) | 2 pts |
 | Containerd 1.x on self-managed/custom AMI (target >= 1.36) | 5 pts (HIGH — outside containerd's tested matrix; NOT a score-cap blocker) |

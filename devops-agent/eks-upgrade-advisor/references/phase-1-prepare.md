@@ -59,6 +59,18 @@ findings), never to re-derive a score.
 | Verdict available, no hard blocker but a **low/RISKY band** | **AMBER** — proceed with the band + its risk drivers recorded; the band informs mode choice (a risky cluster leans blue-green), it does not block. |
 | Readiness **not yet run** | **unconfirmed** — instruct the operator to run `eks-upgrade-check` first; the advisor consumes its output, it does not substitute for it. Treated as not-GREEN. |
 
+> **Hard rule — no runnable control-plane upgrade command until readiness is confirmed AND
+> blocker-free.** The advisor must **not** emit a runnable control-plane upgrade command
+> (`aws eks update-cluster-version …`) — nor any Phase 2 step — while readiness is `unconfirmed`
+> (check not yet run / verdict unavailable) **or** any hard blocker is unresolved. This explicitly
+> **includes a Karpenter-version incompatibility** raised by `eks-upgrade-check` (e.g. v1.0.2 for
+> K8s 1.33): the advisor does not "skip Step 0" or issue the update command off its own Gate 6
+> reading of "already on v1.x" — Gate 6 sequences migration only and does not clear check's
+> compatibility blocker (see Gate 6 scope note). In that state the advisor **holds and routes back
+> to `eks-upgrade-check`**, names the blocker, and emits no runnable upgrade command. It also does
+> **not** issue its own readiness verdict; the READY / NOT-READY call restated in the plan is
+> `eks-upgrade-check`'s, consumed — never re-derived here.
+
 ## Gate 2 — Backup taken (recovery gate)
 
 EKS offers only a **narrow version rollback** (one minor, within 7 days, version-only — Law 2),
@@ -103,6 +115,25 @@ over the target-vs-current relation (equal / +1 / >1 / lower / unreleased) and t
 | Current `kubelet`/node skew **already beyond** the EKS limit vs the API server | **RED** — nodes outside the supported window (N-2 for ≤1.27, N-3 for ≥1.28) must be rolled into policy *before* another control-plane hop; a further hop would push them further out and the API server rejects them. |
 | Existing `kubelet` skew **near** the limit vs current API server | **AMBER** — record the headroom; nodes must be rolled promptly after the control-plane hop (Phase 2 Step 3) to stay in-policy (as of 2026-07-20; source: [Kubernetes version skew policy](https://kubernetes.io/releases/version-skew-policy/)). |
 | Current version already in **extended support** | **AMBER (note, non-blocking)** — surface cost/timeline urgency: EKS gives **14 months standard + 12 months extended** per minor (26 total); extended bills **$0.60/cluster-hour vs $0.10 standard** (as of 2026-07-20; source: [EKS version lifecycle](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html)). Proceed. |
+
+### AL2 node-OS path fork (evaluate when any node group is still Amazon Linux 2)
+
+There is **no AL2 EKS-optimized AMI for 1.33 or 1.34 — 1.32 was the last** (as of 2026-07-21;
+source: [EKS AL2 AMI deprecation FAQ](https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html)),
+so if the target hop crosses **1.32→1.33 or beyond**, an AL2 node group cannot simply follow the
+control plane. The path **forks on nodegroup type** — the advisor selects it here; the node-OS
+migration mechanics route to `eks-al2-to-al2023` (see [upgrade-model.md](upgrade-model.md) → The
+AL2 node-OS fork). This gate **selects the path**; the readiness/blocker verdict itself stays with
+`eks-upgrade-check` (Gate 1).
+
+| Condition | Outcome |
+|-----------|---------|
+| No AL2 node groups (all AL2023 / Bottlerocket / Auto Mode / Fargate) | **GREEN (N/A)** — no AL2 fork; skew rows above govern normally. |
+| Target hop stays at/below **1.32** and node groups are AL2 | **GREEN** — AL2 AMIs still exist through 1.32; the node roll is a same-OS version bump (no forced AL2→AL2023 yet). Record that the migration is still owed before 1.33. |
+| **Managed** node group on AL2, target hop **≥1.33** | **RED (path: migrate-first)** — the `update-cluster-version` API is rejected until the managed group equals the CP's *current* minor, and no AL2 AMI exists past 1.32, so the control plane can complete only **one hop** (1.32 → 1.33) and then **cannot advance beyond 1.33** (the 1.33 → 1.34 hop is rejected) — a multi-minor target is unreachable while an AL2 managed group exists. The migrate-to-AL2023 step must run **first** (you would only get one hop before getting stuck). Route the migration to `eks-al2-to-al2023`; treat the AL2023 migration as a Phase 2 pre-step (before Step 1). Not runnable as a plain control-plane upgrade until closed. |
+| **Self-managed** AL2 nodes, target hop **≥1.33** | **AMBER (path: control-plane-first / hold-nodes)** — self-managed `kubelet` is **not** API-gated, so the plan advances the **control plane** one minor at a time while **holding** the AL2 nodes at kubelet 1.32 within the **N-3** skew window, then migrates the nodes to AL2023 **once** before the **1.35** hop. Record the hold and the single migration boundary. Proceed (the hold is a planned sequence, not a blocker), with the boundary noted as an operator caveat. |
+| Self-managed AL2 nodes held at 1.32 while target/roadmap reaches **1.35** | **RED (migration now forced)** — a 1.32 kubelet under a 1.35 CP is **exactly N-3 with no headroom**; the 1.35 hop would push it to a 4th minor (API rejects) **and** cgroup v1 hard-fails kubelet start at 1.35. The single AL2→AL2023 node migration **must** land **before** the CP advances to 1.35. Do not emit the 1.35 control-plane hop until the node migration is planned/complete. |
+| Any node group's OS **unconfirmed** (K8s API / node labels unreadable) | **unconfirmed** — never assume AL2023; treated as not-GREEN, named in Coverage. Route the OS read to `eks-recon`. |
 
 ## Gate 4 — Add-on target versions resolved
 
@@ -210,11 +241,25 @@ ENIs, which is a different thing; source: [EKS cluster upgrade best practices](h
 If Karpenter is present, its 0.x→1.x migration (v1beta1→v1) is a **separate change that goes
 first** (sequence step 0), before the cluster upgrade.
 
+> **Scope — this gate sequences the migration; it does NOT judge Karpenter compatibility.**
+> Whether the running Karpenter **version is compatible with the *target* Kubernetes minor** is a
+> **readiness/compatibility question owned by `eks-upgrade-check`** (which maintains the
+> Karpenter-version-vs-EKS-minor support matrix — e.g. K8s 1.33 requires Karpenter ≥1.5, so v1.0.2
+> is a **hard blocker → NOT READY** there). Gate 6 answers only the **migration-sequencing**
+> question: *has the 0.x→1.x (v1beta1→v1) migration been done, and if not, where does it slot in the
+> plan?* It runs **after** `eks-upgrade-check` has already reported Karpenter **compatible with the
+> target** (Gate 1 GREEN with zero hard blockers). Gate 6 **never** emits GREEN on the *Karpenter
+> compatibility axis* from "already on v1.x" alone — being on v1.x satisfies the migration
+> prerequisite but says nothing about version-vs-target compatibility, which check owns. If check
+> flagged the Karpenter version as a hard blocker, Gate 1 is already RED and Phase 2 is not emitted
+> regardless of what this gate finds.
+
 | Condition | Outcome |
 |-----------|---------|
 | Karpenter absent (MNG / Auto Mode / Fargate only) | **N/A (GREEN)** — skip; note compute type. |
-| Karpenter already on 1.x | **GREEN** — proceed to the cluster upgrade sequence. |
-| Karpenter on 0.x | **GREEN (sequenced)** — not a blocker, but the plan must emit Karpenter 0.x→1.x as **Phase 2 Step 0** (migrate to 1.x, validate, THEN upgrade the cluster); do not interleave. |
+| Karpenter already on 1.x **and** `eks-upgrade-check` reported the Karpenter version compatible with the target minor (Gate 1 GREEN) | **GREEN (migration satisfied)** — the 0.x→1.x migration is done; proceed to the cluster upgrade sequence. This GREEN is a *sequencing* verdict only — it does **not** independently clear Karpenter compatibility (check owns that; see Gate 1). |
+| Karpenter on 1.x **but** `eks-upgrade-check` flagged the version as a hard blocker for the target minor (e.g. v1.0.2 for K8s 1.33, which needs ≥1.5) | **defer to Gate 1 (RED)** — do **not** record this axis GREEN. The migration is done but the version is incompatible; the blocker lives in Gate 1 / check, and Phase 2 is not emitted. Restate check's Karpenter blocker and route back to `eks-upgrade-check` remediation (upgrade Karpenter to the compatible minimum first). |
+| Karpenter on 0.x | **GREEN (sequenced)** — not a blocker, but the plan must emit Karpenter 0.x→1.x as **Phase 2 Step 0** (migrate to 1.x, validate, THEN upgrade the cluster); do not interleave. (Migration sequencing only — target-version compatibility of the resulting 1.x is still check's call, per Gate 1.) |
 | Karpenter version **unconfirmed** (CRD read `403` under `AmazonAIOpsAssistantPolicy`) | **unconfirmed** — Karpenter CRDs (`karpenter.sh`, `karpenter.k8s.aws`) are not authorized by the managed policy; report `unconfirmed` with the supplementary-ClusterRole fix, never a guessed version. Treated as not-GREEN. |
 
 ## Gate 7 — Control-plane upgrade prerequisites (IAM role, KMS, logging)
@@ -289,6 +334,23 @@ equally under blue-green — a green fleet that fits on IPs can still stall on a
 
 Record the chosen mode and the rollback strategy (in-place: node-group rollback to prior
 release; blue-green: cut back to old fleet). This choice is an **input to Phase 2**.
+
+> **Rollback-safety rationale — self-managed hold-nodes path *only*.** When Gate 3 selected the
+> **control-plane-first / hold-nodes** path (self-managed AL2), in-place is not just necessary (no
+> AL2 AMI for the hops) but **safer**, and the plan should say so: because the **self-managed nodes
+> stay put (held at kubelet 1.32) while the control plane advances**, **each control-plane hop is
+> independently rollback-eligible** under the EKS 7-day / one-minor / version-only / in-place
+> control-plane rollback — with **no coupled node-rollback problem**, since the data plane is not
+> changing during the hops and a bad hop backs out cleanly (the control-plane rollback is the entire
+> undo). The single AL2→AL2023 node migration is deferred to the one forced boundary (before 1.35 —
+> N-3 exhausted *and* cgroup v1 fails at 1.35), isolating the one non-rollback-covered data-plane
+> change to a single event. See [upgrade-model.md](upgrade-model.md) → Rollback-safety rationale.
+> **This clean-backout property does NOT apply to the *managed* node-group path.** There the nodes
+> migrate to AL2023 up front and thereafter roll **in lockstep with every hop**, so the nodes *do*
+> change each hop: a control-plane rollback would leave kubelet **ahead of** kube-apiserver, which
+> the Kubernetes version-skew policy **forbids** (kubelet may trail but never lead — as of
+> 2026-07-21) — so on the managed path a CP rollback **forces a coupled node-group rollback** too
+> (`UpdateNodegroupVersion` back to the prior release). Rollback there is coupled, not clean.
 
 ## Phase 1 exit contract
 

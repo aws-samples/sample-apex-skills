@@ -142,6 +142,14 @@ AL2023 node. The agent emits only the ones that apply, with concrete values.
    review flag, NOT detected** by section 6 (UNVERIFIED version — treat as "verify your runtime").
    Land these workload changes **before** the AMI swap so the canary validates the fix.
 
+   > **Off-ramps (env-shaped options, not defaults).** If the AL2→AL2023 rebuild cannot land in
+   > time, `migration-risks.md` Risk 1 → "Off-ramps" documents two: **(a)** the `failCgroupV1:
+   > false` kubelet-config **NON-PROD escape hatch** to let a cgroup-v1 (AL2) node start on K8s
+   > 1.35 (defers, does not fix — **not recommended for production**); and **(b)** a **"stop at
+   > 1.34"** de-scope — AL2 survives the 1.33/1.34 hops (cgroup v1 only *warns*) and becomes a
+   > hard kubelet-start failure only at **1.35**. Present these as options for the operator to
+   > weigh, not as the recommended path.
+
 4. **IMDS hop limit** — plan the fix. Setting `HttpPutResponseHopLimit: 2` on the AL2023 node
    group's launch template is the complete fix (it restores IMDS access for **both** credential
    and metadata calls). Moving workloads to **EKS Pod Identity / IRSA** only removes the
@@ -191,16 +199,32 @@ aws eks create-nodegroup --cluster-name <cluster-name> \
   --instance-types <same-as-al2-ng> \
   --launch-template name=<ng-name>-al2023-canary-lt \
   --scaling-config minSize=1,maxSize=2,desiredSize=1 \
-  --labels migration=al2023-canary --taints key=al2023-canary,value=true,effect=NoSchedule
+  --labels migration=al2023-canary --taints key=al2023-canary,value=true,effect=NO_SCHEDULE
 ```
 
-- **Path (a) in-place:** instead of a new node group, create a **new launch-template version**
-  with the AL2023 `ImageId`, the **rewritten `NodeConfig` userData** (Risk 3 — keeping the AL2
-  `bootstrap.sh` userData fails to boot on AL2023), **and** `MetadataOptions.HttpPutResponseHopLimit: 2`
-  (if the IMDS risk applied), and point a **canary** node group (or a 1-node MNG) at that LT
-  version to validate before swapping the production node group. Give the canary group the
-  **same `migration=al2023-canary` label + `NoSchedule` taint** as the path-(b) canary so the
-  Phase 2/3 selectors (`-l migration=al2023-canary`) target it.
+> **`--taints` on `aws eks` uses the API enum, not the Kubernetes string.** The `effect` above
+> is `NO_SCHEDULE` — the EKS API enum is `NO_SCHEDULE | NO_EXECUTE | PREFER_NO_SCHEDULE` and
+> **rejects** the Kubernetes-style `NoSchedule` with a validation error. (In `kubectl taint` /
+> pod `tolerations` you keep the Kubernetes spelling `NoSchedule`; only `aws eks ... --taints`
+> takes the upper-snake-case enum.)
+
+- **Path (a) in-place — custom AMI pinned in a launch template.** Instead of a new node group,
+  create a **new launch-template version** with the AL2023 `ImageId`, the **rewritten
+  `NodeConfig` userData** (Risk 3 — keeping the AL2 `bootstrap.sh` userData fails to boot on
+  AL2023), **and** `MetadataOptions.HttpPutResponseHopLimit: 2` (if the IMDS risk applied), and
+  point a **canary** node group (or a 1-node MNG) at that LT version to validate before swapping
+  the production node group.
+  > **When the launch template pins an `ImageId`, the node group MUST use `--ami-type CUSTOM`.**
+  > EKS rejects any other `--ami-type` (e.g. `AL2023_x86_64_STANDARD`) with
+  > `InvalidParameterException: You cannot specify an AMI Type other than CUSTOM, when specifying
+  > an image id in your launch template` (reproduced live 2026-07-21). So the path-(a) canary's
+  > `create-nodegroup` differs from the path-(b) block above: use `--ami-type CUSTOM` and let the
+  > LT's `ImageId` (the AL2023 AMI) select the OS — do **not** pass an `AL2023_*` ami-type. (This
+  > applies to any node group whose LT pins an `ImageId`, not only the in-place path.) Path (b)
+  > above keeps the `AL2023_*` ami-type because its LT sets **no** `ImageId`.
+
+  Give the canary group the **same `migration=al2023-canary` label + `NO_SCHEDULE` taint** (API
+  enum) as the path-(b) canary so the Phase 2/3 selectors (`-l migration=al2023-canary`) target it.
 - **Path (c) Karpenter:** create a **canary `NodePool`** referencing an AL2023 `EC2NodeClass`
   (`amiFamily: AL2023`) — give the `NodePool` the **`migration=al2023-canary` label + a
   matching `NoSchedule` taint** (so the Phase 2/3 selectors and workload tolerations line up
@@ -246,8 +270,11 @@ that applied:
 Operator runs (this skill does not):
 ```bash
 # Node is up, AL2023, Ready
+# READY prints the STATUS of the Ready condition (True/False), not its name — a
+# .status.conditions[-1].type JSONPath would print "Ready" even on a NotReady node.
 kubectl get nodes -l migration=al2023-canary \
-  -o custom-columns=NAME:.metadata.name,OSIMAGE:.status.nodeInfo.osImage,KERNEL:.status.nodeInfo.kernelVersion,READY:.status.conditions[-1].type
+  -o "custom-columns=NAME:.metadata.name,OSIMAGE:.status.nodeInfo.osImage,KERNEL:.status.nodeInfo.kernelVersion,READY:.status.conditions[?(@.type=='Ready')].status"
+# (Or just read the STATUS column of `kubectl get nodes -l migration=al2023-canary`.)
 
 # Targeted pods are Running/Ready on the canary
 kubectl get pods -A -o wide | grep <canary-node-name>

@@ -90,6 +90,17 @@ a bare verb, a score, or a percentage — the combinator keys only on these four
 
 ## The roll-up combinator
 
+**Within-gate roll-up (worst-input-wins) — apply this BEFORE the combinator.** Each gate has
+multiple inputs (e.g. Gate 1: subnet free IPs, placement intent, projected size, prefix state, and
+the EC2 vCPU/instance quota). A gate's single outcome is the **worst** of its inputs on the ordering
+`unconfirmed / RED > AMBER > GREEN`: **if any input is `unconfirmed`, the gate's outcome is
+`unconfirmed`** (and if any is RED, the gate is at least RED) — it is **never** rounded up to
+GREEN/AMBER by ignoring a not-GREEN input. There is **no "materiality" test** that lets a gate drop
+an `unconfirmed`/RED input and report a cleaner outcome: every `unconfirmed` input is material by
+definition (it is an unread fact the verdict depends on). A gate that reports GREEN or AMBER is
+asserting **all** of its inputs were read and none is `unconfirmed`. This is what prevents the
+aggregate from ever reading "no unconfirmed" while a gate input is in fact unconfirmed.
+
 The overall verdict is a **pure function** of the four gate outcomes — a second agent given the
 same four outcomes must reach the same verdict. Evaluate in this order; the **first** matching
 row wins:

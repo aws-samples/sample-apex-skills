@@ -51,7 +51,10 @@ The skill calculates a weighted readiness score:
 
 **Hard Blocker Override:** If any hard blocker is detected (e.g., incompatible Karpenter,
 critical add-on DEGRADED, cluster subnets collectively cannot place control-plane ENIs,
-cluster not ACTIVE), the score is capped at ≤ 59% (NOT READY) regardless of other findings.
+managed node group (or Fargate) on AL2 targeting >= 1.33 — API-rejected, no AL2 AMI past
+1.32 to advance nodes to, migrate to AL2023 first, AL2 nodes (cgroup v1) targeting 1.35 —
+EKS-optimized or custom AMI, kubelet won't start, cluster not ACTIVE), the score is capped
+at ≤ 59% (NOT READY) regardless of other findings.
 See `references/report-generation.md` for the full list.
 
 **Score Interpretation:**

@@ -92,12 +92,16 @@ Each risk is reported with a **status rating**:
 <https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html> (as of
 2026-07-19).
 
-- **EKS breaking change:** at **Kubernetes 1.35+, cgroup v1 is deprecated and the kubelet
-  refuses to start by default on a cgroup v1 node** (overridable via `failCgroupV1: false`);
-  **full removal is expected in a later release** (no announced date). Concretely, the
-  kubelet-config field `failCgroupV1` defaults to `true` in 1.35+, so on a cgroup v1 node the
-  kubelet refuses to start; set `failCgroupV1: false` in kubelet configuration to override (not
-  recommended). This makes the AL2→AL2023 move effectively mandatory before 1.35. Source:
+- **EKS breaking change — and the exact version where it turns hard:** cgroup v1 is
+  **deprecated / in maintenance mode across K8s 1.31-1.34** — the kubelet still **starts** on a
+  cgroup v1 node (AL2), emitting a deprecation warning, so AL2 **survives the 1.33 and 1.34
+  hops**. It becomes a **hard failure only at 1.35**: the kubelet-config field `failCgroupV1`
+  defaults to **`true`** in 1.35+, so on a cgroup v1 node the kubelet **refuses to start**.
+  Override with the config field `failCgroupV1: false` (or the CLI flag `--fail-cgroupv1`) — not
+  recommended (see the NON-PROD escape hatch in Remediation). **Full removal is expected in a
+  later release** (no announced date). AL2 is cgroup **v1 only** — only AL2023/Bottlerocket run
+  cgroup v2 — so the AL2→AL2023 move is effectively mandatory **before 1.35** (live-verified
+  2026-07-21). Source:
   <https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html> (as of
   2026-07-20).
 - **JDK 8 before 8u372** cannot detect container memory limits under cgroup v2 — the JVM sizes
@@ -241,6 +245,27 @@ fix it. Use the same check to confirm the fix landed (no more OOMKilled after th
 
 All these are **workload** fixes that should land **before** the AMI swap so the canary
 validates them (see `runbook.md` Phase 0).
+
+### Off-ramps (env-shaped options, NOT defaults)
+
+The AL2→AL2023 rebuild is the right long-term move, but two pragmatic off-ramps exist for teams
+that cannot land it immediately. **Present these as options shaped by the environment — do not
+recommend either as a default**, and never over a production cluster without the caveats below.
+
+- **(a) `failCgroupV1: false` — NON-PROD escape hatch (1.35+).** On K8s 1.35+, setting the
+  kubelet-config field **`failCgroupV1: false`** (or the CLI flag `--fail-cgroupv1`) lets a
+  **cgroup v1** node (AL2) start again despite the new default that refuses it. This unblocks a
+  1.35 upgrade **without** the AMI migration. **Not recommended for production:** cgroup v1 is
+  deprecated and slated for full removal in a later release (no announced date), so this only
+  **defers** the migration and leaves the node on an unsupported cgroup version. Frame it as a
+  short-lived bridge for a non-prod / time-boxed case, never a resting state.
+- **(b) "Stop at 1.34" de-scope.** Because AL2's cgroup v1 only becomes a **hard** kubelet-start
+  failure at **1.35** (it merely warns through **1.31-1.34** — see "Why this matters"), a team
+  that is not ready can **hold the cluster at K8s 1.34** and defer the AL2→AL2023 move until
+  before the 1.35 hop. This is an environment-shaped scheduling choice (trades staying on a
+  supported K8s version for more migration runway); it does **not** remove the eventual
+  requirement, since 1.35 makes AL2 non-viable. Weigh it against the K8s standard/extended
+  support clock for 1.34.
 
 ---
 
