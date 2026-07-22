@@ -4,13 +4,13 @@
     {
       "id": 1,
       "prompt": "Here is a cluster's ingress inventory: 18 Ingress resources — 6 already on the AWS Load Balancer Controller (ingressClassName: alb), 2 nginx ingresses that are plain annotation-only rewrites, and 10 nginx ingresses including one with an nginx.ingress.kubernetes.io/configuration-snippet Lua block on /checkout, three with rewrite-target, CORS + rate-limit + IP-allowlist on the API ingress, and cert-manager TLS. Produce the Migration Difficulty Score and Score Breakdown.",
-      "expected_output": "A Migration Difficulty Score (0-100) with a Score Breakdown table whose category deductions sum to (100 - score), a separate Re-architecture Gate of 1 (the /checkout snippet), CORS/rate-limit/IP-allowlist rated Impact 2-3 (not 4-5), Scale/Volume counted on 10 routes needing work (not 18), and the 6 ALB routes shown at 0 effort.",
+      "expected_output": "A Migration Difficulty Score (0-100) with a Score Breakdown table whose category deductions sum to (100 - score), a separate Re-architecture Gate of 1 (the /checkout snippet), CORS/rate-limit/IP-allowlist rated Impact 2-3 (not 4-5), Scale/Volume counted on 12 routes needing work (18 total minus the 6 already on ALB; the 2 annotation-only class-switch moves count as work), and the 6 ALB routes shown at 0 effort.",
       "expectations": [
         "Reports a single Migration Difficulty Score between 0 and 100 with a band label (TRIVIAL/EASY/MODERATE/HARD/VERY HARD)",
         "Score Breakdown deductions sum to (100 - score); arithmetic is shown and consistent",
         "The /checkout configuration-snippet is flagged as a no-equivalent Tier-A item and raises the Re-architecture Gate (gate >= 1), reported separately from the numeric score (no hard cap applied)",
         "CORS, rate-limit, and IP-allowlist are each scored Impact 2 or 3 — never 4 or 5",
-        "Scale/Volume is computed from the 10 routes needing work, and the 6 ALB-served routes are listed at 0 effort, not counted as migration work",
+        "Scale/Volume is computed from the 12 routes needing work (18 total minus the 6 ALB-served routes; the 2 annotation-only class-switch moves are counted as work, not free), and the 6 ALB-served routes are listed at 0 effort, not counted as migration work",
         "No GREEN/AMBER/RED rating language is used — only the Impact 0-5 scale"
       ],
       "files": []

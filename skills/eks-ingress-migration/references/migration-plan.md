@@ -115,6 +115,8 @@ Example: `HTTPRoute/nginx-app-route: parentRef=main-gateway, hostnames=[app.exam
 
 ## Checks to Execute
 
+> **These §7 checks are planning signals, NOT scored findings.** §7.1 scope, §7.2 conversion complexity, and §7.3 timeline restate what sections 1–5 already scored (scope↔Scale/Volume, complexity↔Feature-Gap/Routing) and feed the phased plan and Blockers. **Do not add any §7.x row to the Score Breakdown** (see `report-generation.md` §1.1 quarantine) — that would double-count. Timeline in particular is never an Impact score.
+
 ### 7.1 — Migration Scope
 
 **What to check:**
@@ -144,7 +146,7 @@ Example: `HTTPRoute/nginx-app-route: parentRef=main-gateway, hostnames=[app.exam
 
 ### 7.3 — Timeline Estimate
 
-> Express timeline as **relative phasing / complexity**, not committed mandays — actual effort depends on team experience and cannot be fixed precisely. Use the Impact Indicator (effort dimension) to convey scale; treat any day counts as indicative only.
+> Express timeline as **relative phasing**, not committed mandays — actual duration depends on team experience and cannot be fixed precisely. **Timeline is a planning output, not a scored Impact — do not assign it an Impact 1–5** (effort/duration never sets severity; see the Impact Indicator). Treat any day counts as indicative only.
 >
 > **Reality check — scale the timeline to the blockers, do not low-ball it.** Any **High-impact (5)** blocker that requires **application-code or architecture change** — e.g. re-implementing request **mirroring**, rewriting **ModSecurity** rules as **AWS WAF**, dismantling **Basic Auth** for OIDC, or moving CORS/rate-limit into the app — pulls in **multiple development teams** and their release cycles. A migration that contains several such blockers is **not** a 2–3 week effort on a large production system; it is realistically **weeks-to-months** and gated by the slowest dependent team. The phase that is config-only (CRDs, GatewayClass, simple conversions) may be days; the **redesign** phase dominates and must be called out as the long pole. Never present a single short total when redesign blockers exist.
 
@@ -155,8 +157,7 @@ Based on findings, estimate:
 - Phase 4 (Cleanup): X days
 - Total: X weeks
 
-**Impact (per Impact Indicator):**
-- 🟡 1–2 (Low): Estimated <2 weeks total
-- 🟠 3–4 (Medium): 2-4 weeks
-- 🔴 5 (High): >4 weeks
-- ⬜ Unknown: Cannot estimate
+**Timeline (planning output — NOT an Impact score):** express as relative phasing derived from the blockers; never assign the timeline an Impact 1–5.
+- **Config-only** (CRDs, GatewayClass, simple conversions): days.
+- **Redesign-dominated** (Tier-A blockers, app/architecture changes across teams): weeks-to-months — gated by the slowest dependent team; call it out as the long pole.
+- If you cannot estimate: say so, and scope the timeline to the identified blockers.

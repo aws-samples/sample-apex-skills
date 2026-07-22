@@ -13,20 +13,23 @@ This is an **assessment report** — present findings and options, do not prescr
 
 Before scoring anything, decide whether there is a live estate to migrate at all. **A high score is correct when there is little/nothing to migrate — the number measures change required, not cluster wealth.**
 
-**A) Truly empty estate** — no ingress controller **AND** no IngressClass **AND** no Ingress resources (this case **also** applies when the only controller present is a healthy migration-*target* controller — e.g. AWS LB Controller — with nothing bound to migrate):
+**A) Truly empty estate** — no ingress controller **AND** no IngressClass **AND** no Ingress resources (this case **also** applies when the only controller present is a healthy migration-*target* controller — e.g. AWS LB Controller — with nothing bound to migrate, **and that controller is not CVE/EOL-affected**):
+- **Security gate (check BEFORE short-circuiting):** if the only-present controller is on a **known-CVE / EOL version** (e.g. ingress-nginx `< v1.11.5 / < v1.12.1` with the admission webhook enabled — see §1.4), it is a **security finding regardless of route count** (control-plane exposure survives zero routes). **Do NOT short-circuit** in that case — run §1.4, score the security dimension, and raise the Re-architecture Gate. The short-circuit below is only for a controller that is both healthy **and** not vulnerable.
 - **Score = 100 / TRIVIAL, labelled "N/A — nothing to migrate". Stop the deduction math.** This short-circuit **replaces §1.1–1.6** — there are no findings to deduct, so do not run the deep category machinery. (The Score Breakdown table may still render with all-zero rows for transparency.)
 - Emit a plain note next to the score, e.g.: *"No ingress controller, IngressClass, or Ingress resources are present, so there is nothing to migrate. **Absence is not the same as health** — if you expected an ingress estate here, confirm it was not accidentally removed. (Cluster/node upgrades are out of scope for this skill and are not counted as migration.)"*
 - **Precedence:** if sections 4–5 surface DNS/certificate items, note that with **no Ingress present there is nothing to cut over**, so they are listed at **0** (non-events) and do not pull the score below 100.
 - Still render the standard report shell (Overview, score gauge, this note); the deep-dive sections simply report "none found".
 
-**B) Orphaned config** — Ingress resources exist **but no controller is installed** (dead blueprints, no road):
-- The **absent controller is a non-event (0)** and the orphaned Ingress objects are **also 0** — they carry **zero live traffic**, so there is no live migration work (no traffic to reroute, no downtime risk). The score is **not** dragged down by them.
-- If there are *no other live findings*, the estate scores **100 / TRIVIAL**. **If other live findings exist** (e.g. a second, live controller serving traffic), the orphaned config stays 0 but the **headline is whatever those live findings produce** — do **not** assert 100 in that case.
+**B) Orphaned config** — Ingress resources exist **but no controller for their class is installed** (dead blueprints, no road). This is judged **per class**: orphans of class `X` with **no class-`X` controller** are Case B **even if a different, healthy controller** (e.g. AWS LBC serving `alb`-class routes) is present — score the class-`X` orphans **0** and let the live controller's own routes produce the headline (this is the "other live findings exist" path below, not a fixed 100):
+- **Verify before you downgrade (conservative default).** "Zero live traffic" must be *evidenced*, not assumed from the missing controller. For **alb-class** orphans especially, a previously-provisioned **ALB/NLB keeps forwarding to registered targets even after the controller is uninstalled** (deletion requires the controller to process the `ingress.k8s.aws/resources` finalizer). Check surviving load-balancer / target-group state (`aws elbv2 describe-load-balancers`, `describe-target-health`) before calling the orphans dead. **If you cannot verify zero traffic, treat the estate as live** — it is then a live finding, not a non-event, and the headline comes from that finding.
+- Once verified dead: the **absent controller is a non-event (0)** and the orphaned Ingress objects are **also 0** — they carry **zero live traffic**, so there is no live migration work (no traffic to reroute, no downtime risk). The score is **not** dragged down by them.
+- If there are *no other live findings*, the estate scores **100 / TRIVIAL**. **If other live findings exist** (e.g. a second, live controller serving traffic, or an unverified/serving orphan ALB), the orphaned config stays 0 but the **headline is whatever those live findings produce** — do **not** assert 100 in that case.
+- **Precedence (same as case A):** if sections 4–5 surface DNS/certificate items, note that with **no controller to cut over to there is nothing to migrate**, so they are listed at **0** (non-events) and do not pull the score below the headline (e.g. "no external-dns" is not a deduction on a dead/absent estate).
 - Emit the **Migration Crew Alert** note below, substituting the real values: `{N}` = count, `{CONTROLLER_CLASS}` = the orphaned objects' class (nginx/traefik/…), `{SCORE}`/`{LABEL}` = the actual headline. (Only the empty-estate case A is a fixed 100 / TRIVIAL.)
 
 > **Migration Crew Alert: {N} Orphaned Ingress Objects Detected**
 > **Finding:** {N} `{CONTROLLER_CLASS}` Ingress objects exist in the cluster, but no matching `{CONTROLLER_CLASS}` ingress controller is installed to serve them.
-> **Status:** Dead configuration — inactive routing rules handling zero live production traffic.
+> **Status:** Dead configuration — inactive routing rules with **no matching controller** to serve them. *(Confirm zero live traffic first — for alb-class objects a previously-provisioned ALB may still be forwarding; see the verify step above. If traffic is unverified, treat as live, not dead.)*
 > **Action taken:** Scored **0** (no live migration effort — no traffic to reroute, no downtime risk); the estate's headline is **{SCORE} / {LABEL}**.
 > **Recommendation:** Verify whether this is mid-migration debris from an unfinished project. **Before deleting, export/back up these manifests** — they are often the only surviving record of routing intent (see **Export Materials** / the `[[DL:current]]` button) — and confirm they are not awaiting re-adoption by a controller about to be installed. Once confirmed abandoned, clean them up before installing the new controller so it does not adopt unintended routes.
 
@@ -34,7 +37,9 @@ Before scoring anything, decide whether there is a live estate to migrate at all
 
 ### 1.1 — Build the Master Finding List
 
-Compile ALL findings from sections 1–7. Every item must appear. No item may be skipped. Each finding already carries an **Impact 0–5** (per the Impact Indicator rubric). This list is the single source of truth for the score — every point deducted MUST trace back to exactly one row here.
+Compile ALL scoring findings from sections 1–5 (Ingress Discovery, Traffic & Routing, Ingress Resource Analysis, DNS & Certificates, Migration Risk). Every such item must appear. No item may be skipped. Each finding already carries an **Impact 0–5** (per the Impact Indicator rubric). This list is the single source of truth for the score — every point deducted MUST trace back to exactly one row here.
+
+> **Quarantine — §7.1–7.3 are NOT scored.** The migration-plan checks (§7.1 scope · §7.2 conversion complexity · §7.3 timeline) are **planning outputs**: they restate what sections 1–5 already scored (scope↔Scale/Volume, complexity↔Feature-Gap/Routing) and feed the phased plan and Blockers, **not** the Score Breakdown. **Never add a §7.x row to the Score Breakdown** (that would double-count), and **timeline/duration never carries an Impact score** at all.
 
 ### 1.2 — What the score means
 
@@ -139,32 +144,34 @@ Before writing the headline, produce this table so the math is auditable. Sum `b
 |----------|-------------------|---------|--------|-----|
 | Feature-Gap — No Equivalent (Tier A) | snippet on /checkout (5) | 10 | 10 | 30 |
 | Feature-Gap — Workaround Exists (Tier B) | CORS (2), rate-limit (2), allowlist (2) | 6 | 6 | 10 |
-| Controller Health & EOL/CVE | broken nginx pod, zero bound routes — tech debt (1) | 1 | 1 | 10 |
+| Controller Health & EOL/CVE | broken **traefik** pod, zero bound routes — tech debt (1) | 1 | 1 | 10 |
 | ... | ... | ... | ... | ... |
-| Non-events (0 pts, listed for transparency) | absent 2nd controller; 12 orphaned Ingress objects; CVE on broken pod | 0 | 0 | — |
+| Non-events (0 pts, listed for transparency) | absent 2nd controller; 12 orphaned **nginx** Ingress objects (no nginx controller installed); CVE on the fully-down traefik pod | 0 | 0 | — |
 | **Total deductions** | | | **-XX** | |
 | **Re-architecture Gate** | 1 route — snippet on /checkout | — | — | — |
 ```
+
+> **Note on the sample:** the classes are intentionally **distinct** — the broken controller is `traefik` (so it genuinely has *zero* bound routes) while the 12 orphans are `nginx` (no nginx controller present). If the orphans shared the broken controller's class they would be **bound** to it — that is a **suspected active outage**, not a zero-bound tech-debt row; never mix those two states on one class.
 
 Then: `Score = 100 − (total capped deductions) = XX — [LABEL]`, plus the gate badge.
 
 ### 1.7 — Worked example (reflecting the feedback)
 
-Estate: **18 ingresses** — **6 already on ALB** (0 effort, done), **2 annotation-only** moves, and **10 needing work**. Of the 10: `configuration-snippet` Lua on `/checkout` (Tier A, no workaround), CORS + rate-limit + IP-allowlist (Tier B, performance-only → Impact 2), `rewrite-target` on 3 routes (Routing, Impact 2 each = annotation-grade), cert-manager→ACM (TLS, Impact 3), NGINX 1.9.x EOL no active CVE (Controller, Impact 3).
+Estate: **18 ingresses** — **6 already on ALB** (0 effort, done) and **12 needing work** (per §1.3: routes needing work = total − 0-effort = 18 − 6 = **12**). The 12 are **2 plain class-switch moves** + **10 with feature complexity**. A bare nginx→alb class switch is **at least Medium** (it provisions a new ALB and only takes traffic after a DNS cutover — see `alb-migration.md`), so the 2 annotation-only moves are **not** free: they count in Scale/Volume and share the estate's single new-ALB cutover — they simply add no *feature-gap* complexity of their own. Of the 10: `configuration-snippet` Lua on `/checkout` (Tier A, no workaround), CORS + rate-limit + IP-allowlist (Tier B, performance-only → Impact 2), `rewrite-target` on 3 routes (Routing, Impact 2 each = annotation-grade), cert-manager→ACM (TLS, Impact 3), NGINX 1.9.x EOL no active CVE (Controller, Impact 3).
 
 ```
 Feature-Gap Tier A:  10  (cap 30)   # /checkout snippet  -> also Gate +1
 Feature-Gap Tier B:   6  (cap 10)   # CORS+rate-limit+allowlist, Impact 2 each
-Routing:              6  (cap 20)   # 3 rewrites @ Impact 2 + 2 annotation-only moves
+Routing:              6  (cap 20)   # 3 rewrites @ Impact 2 (class-switch cutover counted once below, not here)
 TLS:                  4  (cap 15)   # cert-manager -> ACM
 Controller:           4  (cap 10)   # nginx EOL, no CVE
-Scale/Volume:         4  (cap 10)   # 10 routes need work (NOT 18) -> Impact 3
+Scale/Volume:         4  (cap 10)   # 12 routes need work (NOT 18) -> Impact 3
 Σ = 34  ->  score = 100 − 34 = 66  (HARD)
 
 Re-architecture Gate = 1  ->  "⛔ 1 route needs redesign (snippet on /checkout)"
 ```
 
-Final: **66 / HARD · ⛔ 1 route needs redesign.** Contrast with v1, which floored the same cluster at **13 / VERY HARD** by maxing Feature-Gap on soft items and then locking the ceiling. The new model credits the 6 done + 2 easy routes, drops CORS/allowlist/rate-limit to Impact 2, counts 10 (not 18) for volume, and reports the one true blocker as a gate instead of erasing the number.
+Final: **66 / HARD · ⛔ 1 route needs redesign.** Contrast with v1, which floored the same cluster at **13 / VERY HARD** by maxing Feature-Gap on soft items and then locking the ceiling. The new model credits the 6 done routes, counts **12** (not 18) for volume, drops CORS/allowlist/rate-limit to Impact 2, treats the 2 class-switch moves as real (Medium) work rather than zero, and reports the one true blocker as a gate instead of erasing the number.
 
 ## Step 2: Consistency Checks (MANDATORY)
 
@@ -280,15 +287,15 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 > Do **NOT** rate trivial "is X installed" prerequisites the customer already knows (e.g. "Gateway API CRDs not installed") — rate the **feature transfer/replacement risk** instead.
 > Color bands: **0 = 🟢 non-event**, **1–2 = 🟡 low**, **3–4 = 🟠 medium**, **5 = 🔴 high**.
 
-| Theme | Impact | Why — feature transfer / replacement effort vs. current setup |
+| Theme | Impact | Why — live traffic / security at stake vs. current setup |
 |-------|--------|----------------------------------------------------------------|
-| [highest-impact theme] | 🔴 5 | [which feature can't transfer cleanly + replacement effort] |
+| [highest-impact theme] | 🔴 5 | [which feature can't transfer cleanly + what live traffic / security is at stake] |
 | [next] | 🟠 4 | [...] |
 | [next] | 🟠 3 | [...] |
 | [next] | 🟡 2 | [...] |
 | [lowest] | 🟡 1 | [...] |
 
-> Rows are themes framed as "how hard to replace", e.g.: NGINX snippet/auth/mirror features → no Gateway API equivalent; controller currency (EOL vs modern); TLS/cert model (K8s Secret vs ACM); routing complexity (regex/rewrite); canary/traffic-split portability. Order strictly by Impact descending.
+> Rows are themes framed as "what's at stake if it can't transfer cleanly", e.g.: NGINX snippet/auth/mirror features → no Gateway API equivalent; controller currency (EOL vs modern); TLS/cert model (K8s Secret vs ACM); routing complexity (regex/rewrite); canary/traffic-split portability. Order strictly by Impact descending.
 
 ---
 
@@ -352,6 +359,8 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 
 > Three migration paths. **Every option uses the same layout** (apply Option 1 as the template):
 > 1. an **info panel** (blockquote): `> **What:** … · **Effort:** Low/Medium/High · **Best when:** …` then a second line `> **Routing config:** [[DL:<token>]]`
+>
+> *(The panel's **Effort** is a **path-level** descriptor — how much work the whole migration path is — and is **not** a per-finding Impact. It never feeds the Score Breakdown; the effort-is-not-severity rule governs finding **Impact**, not this path summary.)*
 > 2. aligned **Phase 1 — Foundation / Phase 2 — Convert & Test / Phase 3 — Cutover / Phase 4 — Cleanup**, each a `| Step | Action |` table with numbered steps.
 > Do NOT print verbose target config — the `[[DL:*]]` button downloads it. Where a route can't convert, link `(see [blocker](#blockers))`.
 > No summary/intro blockquote above the options — send the reader straight into Option 1 so they engage with the steps.
