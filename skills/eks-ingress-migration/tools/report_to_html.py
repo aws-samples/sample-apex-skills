@@ -258,12 +258,14 @@ def _score_badge(score: int, label: str) -> str:
 
 def _gate_badge(n: int) -> str:
     """Render the Re-architecture Gate badge — informational, separate from the score.
-    n == 0 -> green 'no blockers'; n > 0 -> red 'N routes need redesign'."""
+    n == 0 -> green 'no blockers'; n > 0 -> red 'N blocker(s) need(s) redesign' (a blocker is a
+    route OR a non-route condition, e.g. an EOL/CVE control-plane exposure)."""
     if n <= 0:
         color, bg, txt = "#2ea043", "rgba(46,160,67,.12)", "✓ No re-architecture blockers"
     else:
         color, bg, txt = "#c44", "rgba(204,68,68,.12)", (
-            f"⛔ {n} route" + ("s" if n != 1 else "") + " need redesign / approval")
+            f"⛔ {n} blocker" + ("" if n == 1 else "s")
+            + (" needs" if n == 1 else " need") + " redesign / approval")
     return (
         '<div style="display:inline-flex;align-items:center;gap:.5rem;margin:.3rem 0 1rem;padding:.5rem .9rem;'
         'background:' + bg + ';border:1px solid ' + color + ';border-radius:999px;'

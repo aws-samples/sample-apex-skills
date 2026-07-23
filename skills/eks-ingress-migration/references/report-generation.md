@@ -136,13 +136,13 @@ gate += 1 if EKS Auto Mode managed LB and a self-managed AWS LB Controller race 
 | 60–69 | **HARD** | Significant feature gaps or risky cutover |
 | 0–59 | **VERY HARD** | Large amount of change across the estate |
 
-The **Re-architecture Gate** is reported independently of the band: e.g. *"82 / EASY · ⛔ 1 route needs redesign"* is valid — the estate is mostly trivial, but one route still needs a rethink. Score answers "how much work?"; the gate answers "does anything need a redesign decision?".
+The **Re-architecture Gate** is reported independently of the band: e.g. *"82 / EASY · ⛔ 1 route/condition needs redesign"* is valid — the estate is mostly trivial, but one route (or a non-route condition such as an EOL/CVE control-plane exposure) still needs a rethink. Score answers "how much work?"; the gate answers "does anything need a redesign decision?".
 
 > **When the gate fires on a security condition, name it in the bottom line.** A zero-route control-plane CVE (e.g. CVE-2025-1974) caps at Impact 5 = 10 pts, so the score can land at **90 / TRIVIAL** — genuinely little *migration* work, because there is nothing to migrate. That band must **never** be read as "safe": whenever the gate carries an **EOL/CVE control-plane** condition, the one-line bottom-line **MUST** name it explicitly and mark it urgent — e.g. *"90 / TRIVIAL · ⛔ CVE-2025-1974 (control-plane RCE) — nothing to migrate, but patch or replace the vulnerable controller urgently."* The score keeps measuring migration work; the red gate carries the security severity.
 
 ### 1.6 — Build the Score Breakdown table (MANDATORY)
 
-Before writing the headline, produce this table so the math is auditable. Sum `base_points` per category, apply the cap, order highest-deduction first. The **Total** must equal `100 − score`. A **present-but-broken controller with zero bound routes** appears as a **tech-debt row (1 pt)** under Controller Health; a **broken controller with bound routes** is an **active outage** — surface it as an urgent flag next to the score, **not** as a scored row. **Non-events (absent controller, empty/orphaned dead config, CVE on an absent/fully-down controller) MUST be listed at 0 pts** so the reader sees they were considered and deliberately not counted. Add a final **Re-architecture Gate** line stating the count and which routes (it does not change the total).
+Before writing the headline, produce this table so the math is auditable. Sum `base_points` per category, apply the cap, order highest-deduction first. The **Total** must equal `100 − score`. A **present-but-broken controller with zero bound routes** appears as a **tech-debt row (1 pt)** under Controller Health; a **broken controller with bound routes** is an **active outage** — surface it as an urgent flag next to the score, **not** as a scored row. **Non-events (absent controller, empty/orphaned dead config, CVE on an absent/fully-down controller) MUST be listed at 0 pts** so the reader sees they were considered and deliberately not counted. Add a final **Re-architecture Gate** line stating the count and which routes/conditions (it does not change the total).
 
 ```
 | Category | Findings (impact) | Raw pts | Capped | Cap |
@@ -240,7 +240,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 
 [[SCORE:66:HARD]] [[GATE:1]]
 
-[One sentence: how much change leaving NGINX needs for this cluster and the single biggest driver. State how many routes are already done (0 effort) and how many actually need work. If the gate is > 0, name the route(s) that need redesign.]
+[One sentence: how much change leaving NGINX needs for this cluster and the single biggest driver. State how many routes are already done (0 effort) and how many actually need work. If the gate is > 0, name the route(s)/condition(s) that need redesign.]
 
 ### Score Breakdown
 
