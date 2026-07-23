@@ -6,6 +6,8 @@
 ## Purpose
 Guide migration from NGINX Ingress Controller to AWS Load Balancer Controller (ALB Ingress), converting all NGINX-specific annotations to their ALB equivalents.
 
+> **This is the first hop of the complete path.** After NGINX → **LBC ALB Ingress** (this file), the *second hop* **LBC Ingress → Gateway API** can be automated with the official **`lbc-migrate` toolkit** — see `references/lbc-migrate-toolkit.md`. Full path: NGINX Ingress → LBC ALB Ingress → Gateway API.
+
 ## When to Recommend This Path
 
 - Customer wants to stay on Ingress API (not ready for Gateway API)

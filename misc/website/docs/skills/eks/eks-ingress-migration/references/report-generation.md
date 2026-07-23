@@ -383,6 +383,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 > **What:** Kubernetes-native successor to Ingress (HTTPRoute + Gateway). · **Effort:** Medium · **Best when:** you want the long-term standard.
 > **Routing config:** [[DL:gateway-api]]
 > **Caveats:** L7 ALB Gateway API support is recent (HTTPRoute ≥ v2.14, GA 2026 line) — verify TLS handling and routing filters per route before cutover. On **EKS Auto Mode** running a self-managed LBC too, scope `GatewayClass`/`IngressClass` per controller to avoid !!load-balancer ownership conflicts!!.
+> **Automation sub-path — `lbc-migrate` (recommended when already on LBC ALB Ingress):** if routes are already served by the AWS Load Balancer Controller, the official **LBC Ingress → Gateway API toolkit** (`lbc-migrate` CLI + Migration Console; requires LBC **v3.4.0** / Gateway API standard CRDs **v1.5.0**) auto-translates Ingress → Gateway API and previews the result with a dry-run before any ALB is created. Prefer it over hand-authoring HTTPRoutes; keep the manual Phase 2 steps below as the fallback for its **skip-and-warn** cases (capture-group `url-rewrite`, WAF Classic, `frontend-nlb-*`, `group.order`). Full flow, version gate, and limitations: `references/lbc-migrate-toolkit.md`. Note the hop order — convert raw **NGINX → LBC Ingress** first (`references/alb-migration.md`), *then* run `lbc-migrate` for **LBC Ingress → Gateway API**.
 
 #### Phase 1 — Foundation
 | Step | Action |
@@ -395,7 +396,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 #### Phase 2 — Convert & Test
 | Step | Action |
 |------|--------|
-| 1 | Generate HTTPRoutes from current Ingress (download config above) |
+| 1 | Generate HTTPRoutes from current Ingress — **automate with `lbc-migrate`** if already on LBC ALB Ingress (`references/lbc-migrate-toolkit.md`); otherwise download config above |
 | 2 | Apply low-risk routes first; validate routing, TLS, health |
 | 3 | Routes with no equivalent (snippets/auth/mirror) — redesign (see [blocker](#blockers)) |
 

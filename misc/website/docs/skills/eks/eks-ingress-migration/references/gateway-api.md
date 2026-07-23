@@ -12,6 +12,8 @@ This page is generated from [skills/eks-ingress-migration/references/gateway-api
 # Gateway API Prerequisites (input to Migration Options → Option 1)
 
 > **Not a standalone rated section.** These findings feed **Option 1 (Gateway API)** in the report (`report-generation.md`). "Not yet installed" prerequisites are **🟡 Low impact** — the reason is that **no live traffic is at stake** (a prerequisite serves nothing until routes cut over), **not** that they are easy to deploy (effort never sets severity) — per the *Impact Indicator*; never a standalone blocker. All checks are **read-only** (`kubectl get/describe`, `aws … describe/list`).
+>
+> **Automation:** when routes are already on **LBC ALB Ingress**, prefer the official **`lbc-migrate` toolkit** to auto-translate Ingress → Gateway API rather than hand-authoring HTTPRoutes — see `references/lbc-migrate-toolkit.md`. It requires a **higher** LBC baseline (**v3.4.0** / Gateway API standard CRDs **v1.5.0**) than the minimum Gateway API support documented below; the versions here cover the hand-authored path.
 
 ## Version & naming facts (cite these)
 - AWS LB Controller Gateway API support: **L4 (TCP/UDP/TLSRoute) ≥ v2.13.3**, **L7 (HTTPRoute/GRPCRoute) ≥ v2.14** (GA from the 2026 release line).

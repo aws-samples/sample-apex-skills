@@ -156,6 +156,7 @@ Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway A
 | [gateway-api.md](./eks-ingress-migration/references/gateway-api.md) | Gateway api |
 | [ingress-discovery.md](./eks-ingress-migration/references/ingress-discovery.md) | Ingress discovery |
 | [ingress-resources.md](./eks-ingress-migration/references/ingress-resources.md) | Ingress resources |
+| [lbc-migrate-toolkit.md](./eks-ingress-migration/references/lbc-migrate-toolkit.md) | Lbc migrate toolkit |
 | [migration-plan.md](./eks-ingress-migration/references/migration-plan.md) | Migration plan |
 | [migration-risk.md](./eks-ingress-migration/references/migration-risk.md) | Migration risk |
 | [report-generation.md](./eks-ingress-migration/references/report-generation.md) | Report generation |

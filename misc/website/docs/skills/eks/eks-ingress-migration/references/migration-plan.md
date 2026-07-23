@@ -54,6 +54,8 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
 
 ### Phase 2: Convert & Test (Week 2-3)
 
+> **Automate this phase with `lbc-migrate` when the estate is already on LBC ALB Ingress.** The official **LBC Ingress → Gateway API toolkit** (`lbc-migrate` CLI + Migration Console, LBC **v3.4.0** / Gateway API standard CRDs **v1.5.0**) translates Ingress → Gateway API (Gateway, HTTPRoute, GatewayClass, LoadBalancerConfiguration, TargetGroupConfiguration, ListenerRuleConfiguration), previews with a dry-run (`gateway.k8s.aws/dry-run` + the `IngressPlanAnnotation=true` feature gate), and applies new ALBs alongside the old ones. See `references/lbc-migrate-toolkit.md` for the full 6-step flow and version gate. The hand-authored steps below remain the fallback for the toolkit's **skip-and-warn** cases (capture-group rewrites, WAF Classic, `frontend-nlb-*`, `group.order`), for clusters below the toolkit's version gate, and for EKS Auto Mode. `lbc-migrate` converts **LBC Ingress**, not raw NGINX — do the NGINX → LBC Ingress hop first (`references/alb-migration.md`).
+
 **For each Ingress resource, create an equivalent HTTPRoute:**
 
 1. Start with lowest-risk routes (internal, low-traffic)

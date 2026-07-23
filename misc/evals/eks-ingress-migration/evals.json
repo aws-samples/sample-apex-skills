@@ -38,6 +38,19 @@
         "No finding uses remediation effort ('easy'/'hard') as the severity driver, and only the Impact 0-5 scale is used (no GREEN/AMBER/RED)"
       ],
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "A cluster is fully on the AWS Load Balancer Controller (ingressClassName: alb) with about 15 ALB Ingress resources, and the team wants to move to the Gateway API. One ingress uses an alb.ingress.kubernetes.io/transforms url-rewrite with a capture group (replace: /$1). LBC is v3.4.0. Recommend how to perform the Ingress-to-Gateway-API migration and call out any manual steps.",
+      "expected_output": "Recommends the official lbc-migrate toolkit (LBC Ingress -> Gateway API) as the automation sub-path for Option 1, since the estate is already on LBC ALB Ingress and meets the v3.4.0 / Gateway API standard CRD v1.5.0 version gate. Describes the dry-run preview (gateway.k8s.aws/dry-run plus the IngressPlanAnnotation feature gate) before applying new ALBs alongside the existing ones, and flags that the capture-group url-rewrite (replace: /$1) is skipped-and-warned by lbc-migrate and must be hand-edited with a Gateway API URLRewrite / ReplacePrefixMatch filter.",
+      "expectations": [
+        "Recommends the lbc-migrate toolkit (lbc-migrate CLI + Migration Console) for the LBC Ingress -> Gateway API hop rather than hand-authoring HTTPRoutes, because the estate is already on the AWS Load Balancer Controller",
+        "States the toolkit version gate (LBC v3.4.0, Gateway API standard CRDs v1.5.0) and that cluster reads are read-only",
+        "Describes the dry-run preview step (gateway.k8s.aws/dry-run annotation plus the IngressPlanAnnotation=true feature gate) before creating real ALBs, with new Gateway ALBs running alongside the existing Ingress ALBs",
+        "Flags that the capture-group url-rewrite (replace: /$1) cannot be represented in Gateway API and is skipped-and-warned by lbc-migrate, requiring a manual URLRewrite / ReplacePrefixMatch filter edit",
+        "Does not claim lbc-migrate converts raw NGINX annotations (it operates on LBC Ingress); if NGINX is present, the NGINX -> LBC Ingress hop comes first"
+      ],
+      "files": []
     }
   ]
 }
