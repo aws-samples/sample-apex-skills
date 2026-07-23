@@ -14,14 +14,14 @@ This is an **assessment report** — present findings and options, do not prescr
 Before scoring anything, decide whether there is a live estate to migrate at all. **A high score is correct when there is little/nothing to migrate — the number measures change required, not cluster wealth.**
 
 **A) Truly empty estate** — no ingress controller **AND** no IngressClass **AND** no Ingress resources (this case **also** applies when the only controller present is a healthy migration-*target* controller — e.g. AWS LB Controller — with nothing bound to migrate, **and that controller is not CVE/EOL-affected**):
-- **Security gate (check BEFORE short-circuiting):** if the only-present controller is on a **known-CVE / EOL version** (e.g. ingress-nginx `< v1.11.5 / < v1.12.1` with the admission webhook enabled — see §1.4), it is a **security finding regardless of route count** (control-plane exposure survives zero routes). **Do NOT short-circuit** in that case — run §1.4, score the security dimension, and raise the Re-architecture Gate. The short-circuit below is only for a controller that is both healthy **and** not vulnerable.
+- **Security gate (check BEFORE short-circuiting):** if the only-present controller is on a **known-CVE / EOL version** (e.g. ingress-nginx `< v1.11.5 / < v1.12.1` with the admission webhook exposed — see `ingress-discovery.md` §1.4), it is a **security finding regardless of route count** (control-plane exposure survives zero routes). **Do NOT short-circuit** in that case — run `ingress-discovery.md` §1.4, score the security dimension, and record it against the Re-architecture Gate's **EOL-CVE / control-plane-RCE condition line** (§1.4 *Scoring algorithm*, this file). That is a non-route **condition**, **not** a route — so it raises the gate legitimately with **zero** route findings and must **not** be rendered as a phantom `⛔ N routes` (the badge reads `⛔ N route(s)/condition(s)`). The short-circuit below is only for a controller that is both healthy **and** not vulnerable.
 - **Score = 100 / TRIVIAL, labelled "N/A — nothing to migrate". Stop the deduction math.** This short-circuit **replaces §1.1–1.6** — there are no findings to deduct, so do not run the deep category machinery. (The Score Breakdown table may still render with all-zero rows for transparency.)
 - Emit a plain note next to the score, e.g.: *"No ingress controller, IngressClass, or Ingress resources are present, so there is nothing to migrate. **Absence is not the same as health** — if you expected an ingress estate here, confirm it was not accidentally removed. (Cluster/node upgrades are out of scope for this skill and are not counted as migration.)"*
 - **Precedence:** if sections 4–5 surface DNS/certificate items, note that with **no Ingress present there is nothing to cut over**, so they are listed at **0** (non-events) and do not pull the score below 100.
 - Still render the standard report shell (Overview, score gauge, this note); the deep-dive sections simply report "none found".
 
 **B) Orphaned config** — Ingress resources exist **but no controller for their class is installed** (dead blueprints, no road). This is judged **per class**: orphans of class `X` with **no class-`X` controller** are Case B **even if a different, healthy controller** (e.g. AWS LBC serving `alb`-class routes) is present — score the class-`X` orphans **0** and let the live controller's own routes produce the headline (this is the "other live findings exist" path below, not a fixed 100):
-- **Verify before you downgrade (conservative default).** "Zero live traffic" must be *evidenced*, not assumed from the missing controller. For **alb-class** orphans especially, a previously-provisioned **ALB/NLB keeps forwarding to registered targets even after the controller is uninstalled** (deletion requires the controller to process the `ingress.k8s.aws/resources` finalizer). Check surviving load-balancer / target-group state (`aws elbv2 describe-load-balancers`, `describe-target-health`) before calling the orphans dead. **If you cannot verify zero traffic, treat the estate as live** — it is then a live finding, not a non-event, and the headline comes from that finding.
+- **Verify before you downgrade (conservative default).** "Zero live traffic" must be *evidenced*, not assumed from the missing controller. For **alb-class** orphans especially, a previously-provisioned **ALB/NLB keeps forwarding to registered targets even after the controller is uninstalled** (deletion requires the controller to process the `ingress.k8s.aws/resources` finalizer). **First identify *which* ALB belongs to each orphaned Ingress** — read the Ingress's `status.loadBalancer.ingress[].hostname` (the provisioned ALB DNS name); if status is empty, find the LB by its controller tags: `aws elbv2 describe-load-balancers`, then `aws elbv2 describe-tags --resource-arns <lb-arns>` matching `ingress.k8s.aws/stack=<namespace>/<ingress-name>` (and `elbv2.k8s.aws/cluster=<cluster>`). Then check that specific LB's surviving state — `aws elbv2 describe-target-health --target-group-arn <arn>` for registered/healthy targets, plus its request metrics — before calling the orphan dead. On a multi-ALB account this identification step is **required**: without it you cannot tell which LB to verify. **If you cannot identify the LB or verify zero traffic, treat the estate as live** — it is then a live finding, not a non-event, and the headline comes from that finding.
 - Once verified dead: the **absent controller is a non-event (0)** and the orphaned Ingress objects are **also 0** — they carry **zero live traffic**, so there is no live migration work (no traffic to reroute, no downtime risk). The score is **not** dragged down by them.
 - If there are *no other live findings*, the estate scores **100 / TRIVIAL**. **If other live findings exist** (e.g. a second, live controller serving traffic, or an unverified/serving orphan ALB), the orphaned config stays 0 but the **headline is whatever those live findings produce** — do **not** assert 100 in that case.
 - **Precedence (same as case A):** if sections 4–5 surface DNS/certificate items, note that with **no controller to cut over to there is nothing to migrate**, so they are listed at **0** (non-events) and do not pull the score below the headline (e.g. "no external-dns" is not a deduction on a dead/absent estate).
@@ -33,7 +33,7 @@ Before scoring anything, decide whether there is a live estate to migrate at all
 > **Action taken:** Scored **0** (no live migration effort — no traffic to reroute, no downtime risk); the estate's headline is **{SCORE} / {LABEL}**.
 > **Recommendation:** Verify whether this is mid-migration debris from an unfinished project. **Before deleting, export/back up these manifests** — they are often the only surviving record of routing intent (see **Export Materials** / the `[[DL:current]]` button) — and confirm they are not awaiting re-adoption by a controller about to be installed. Once confirmed abandoned, clean them up before installing the new controller so it does not adopt unintended routes.
 
-> **Distinction — broken ≠ absent:** if a controller **is present but broken** (CrashLoopBackOff/unreachable), that is **not** case A/B. Handle it per §1.1's split: **with bound routes → suspected active outage**, flagged urgently and **outside** the 0–100 score; **with zero bound routes → −1 tech-debt** deduction + cleanup note. In **both** cases the broken controller's routes remain **migratable config** — the migration will resurrect them — so their config complexity is scored normally as migration difficulty (see §1.3/§1.4). The tech-debt −1 (or the outage flag) is the operational-hygiene signal, **separate** from that migration-difficulty scoring.
+> **Distinction — broken ≠ absent:** if a controller **is present but broken** (CrashLoopBackOff/unreachable), that is **not** case A/B. Handle it per `ingress-discovery.md` §1.1's split: **with bound routes → suspected active outage**, flagged urgently and **outside** the 0–100 score; **with zero bound routes → −1 tech-debt** deduction + cleanup note. In **both** cases the broken controller's routes remain **migratable config** — the migration will resurrect them — so their config complexity is scored normally as migration difficulty (see `ingress-discovery.md` §1.3/§1.4). The tech-debt −1 (or the outage flag) is the operational-hygiene signal, **separate** from that migration-difficulty scoring.
 
 ### 1.1 — Build the Master Finding List
 
@@ -117,7 +117,7 @@ gate += count(production routes using a Tier-A no-workaround feature: Lua/snippe
 gate += count(routes needing TLS passthrough OR mTLS client-cert with no faithful target)
 gate += count(cross-namespace / shared-LB routes not expressible without ownership changes)
 gate += 1 if a revenue-critical hostname cutover has no rollback path (single hostname, no weighted/blue-green)
-gate += 1 if controller is EOL with an active exploitable CVE and no maintenance window
+gate += 1 if controller is EOL with an active exploitable CVE and no maintenance window, OR a running controller exposes a control-plane RCE (e.g. CVE-2025-1974, admission webhook) at ANY route count — zero routes included (this is a non-route condition, counted as a condition not a route)
 gate += 1 if EKS Auto Mode managed LB and a self-managed AWS LB Controller race for ownership
 # gate == 0  -> "✓ No re-architecture blockers"
 # gate  > 0  -> "⛔ N route(s)/condition(s) need redesign or approval"
@@ -134,6 +134,8 @@ gate += 1 if EKS Auto Mode managed LB and a self-managed AWS LB Controller race 
 | 0–59 | **VERY HARD** | Large amount of change across the estate |
 
 The **Re-architecture Gate** is reported independently of the band: e.g. *"82 / EASY · ⛔ 1 route needs redesign"* is valid — the estate is mostly trivial, but one route still needs a rethink. Score answers "how much work?"; the gate answers "does anything need a redesign decision?".
+
+> **When the gate fires on a security condition, name it in the bottom line.** A zero-route control-plane CVE (e.g. CVE-2025-1974) caps at Impact 5 = 10 pts, so the score can land at **90 / TRIVIAL** — genuinely little *migration* work, because there is nothing to migrate. That band must **never** be read as "safe": whenever the gate carries an **EOL/CVE control-plane** condition, the one-line bottom-line **MUST** name it explicitly and mark it urgent — e.g. *"90 / TRIVIAL · ⛔ CVE-2025-1974 (control-plane RCE) — nothing to migrate, but patch or replace the vulnerable controller urgently."* The score keeps measuring migration work; the red gate carries the security severity.
 
 ### 1.6 — Build the Score Breakdown table (MANDATORY)
 
@@ -162,7 +164,7 @@ Estate: **18 ingresses** — **6 already on ALB** (0 effort, done) and **12 need
 ```
 Feature-Gap Tier A:  10  (cap 30)   # /checkout snippet  -> also Gate +1
 Feature-Gap Tier B:   6  (cap 10)   # CORS+rate-limit+allowlist, Impact 2 each
-Routing:              6  (cap 20)   # 3 rewrites @ Impact 2 (class-switch cutover counted once below, not here)
+Routing:              6  (cap 20)   # 3 rewrites @ Impact 2 (the 2 class-switch moves add no routing complexity; counted only in Scale/Volume below, never as a separate row)
 TLS:                  4  (cap 15)   # cert-manager -> ACM
 Controller:           4  (cap 10)   # nginx EOL, no CVE
 Scale/Volume:         4  (cap 10)   # 12 routes need work (NOT 18) -> Impact 3
@@ -186,7 +188,7 @@ Final: **66 / HARD · ⛔ 1 route needs redesign.** Contrast with v1, which floo
 | CORS / IP-allowlist / rate-limit scored above Impact 3 | Re-rate: Impact 2 (perf/hardening) or 3 (business-logic-entangled) |
 | Routes already on ALB / Gateway API counted as work | Set to 0 effort; exclude from Scale/Volume count |
 | Scale/Volume scored off the raw total, not routes-needing-work | Recount excluding 0-effort routes |
-| Re-architecture Gate count ≠ Tier-A/passthrough/ownership findings | Reconcile the gate to the master list |
+| Re-architecture Gate count ≠ (Tier-A/passthrough/ownership **route** findings **plus non-route conditions**: no-rollback cutover, EOL/CVE control-plane exposure, Auto Mode LB ownership race) | Reconcile the gate to the master list **including the condition triggers** — a security/CVE condition legitimately raises the gate with **zero** route findings; do not delete it, and render it as `⛔ … condition(s)`, not a phantom route |
 | Headline `[[SCORE:nn:LABEL]]` band ≠ the §1.5 table | Fix the label to match the number |
 
 ## Step 3: Write Topology JSON
@@ -244,7 +246,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 | [highest-deduction category] | [finding (impact), …] | -X pts | [cap] |
 | [next] | [...] | -X pts | [cap] |
 | **Total deductions** | | **-X pts** | **Score: XX% — [LABEL]** |
-| **Re-architecture Gate** | [N route(s) + which, or "none"] | — | informational |
+| **Re-architecture Gate** | [N route(s)/condition(s) + which, or "none"] | — | informational |
 
 > The gate row never changes the total — it flags routes that need a redesign/approval decision. Routes already on ALB / Gateway API / a supported 3rd-party controller are listed at **0 pts** and excluded from the Scale/Volume count.
 

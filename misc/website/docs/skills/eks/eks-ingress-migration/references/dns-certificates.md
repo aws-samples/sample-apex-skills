@@ -36,7 +36,7 @@ Assess DNS automation and TLS certificate management for Gateway API migration.
 **Impact (per Impact Indicator):**
 - 🟡 1–2 (Low): external-dns installed with `gateway-httproute` source, IRSA configured
 - 🟠 3–4 (Medium): external-dns installed but only `ingress` source — needs config update
-- 🔴 5 (High): No external-dns — DNS records managed manually
+- 🔴 5 (High): No external-dns — DNS records managed manually. *(Precedence: on a **dead/absent estate** — no live controller/Ingress to cut over, Case A/B in `report-generation.md` §1.0 — there is nothing to auto-manage, so this is a **non-event listed at 0**, not 🔴5; it never pulls the score below the headline.)*
 - ⬜ Unknown: Cannot determine DNS management
 
 ### 4.2 — cert-manager Gateway API Integration
