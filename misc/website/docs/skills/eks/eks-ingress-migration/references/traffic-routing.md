@@ -102,7 +102,7 @@ Example: `Ingress/nginx-alb: app.example.com/* → nginx-service:80 (Prefix, TLS
 
 ### 5.5 — Declarative Blind Spot & Optional Route Verification
 
-**Blind spot (always note when snippets are present):** topology and routing are derived from **Ingress objects only**. Routes injected via `server-snippet` / `configuration-snippet` (e.g. a raw `location` block) **do not appear** as Ingress rules/backends, so the Routing Topology table under-counts them. State this limitation explicitly in the report whenever snippet annotations exist — these are exactly the routes that block migration.
+**Blind spot (always note when snippets are present):** topology and routing are derived from **Ingress objects only**. Routes injected via `server-snippet` / `configuration-snippet` (e.g. a raw `location` block) **do not appear** as Ingress rules/backends, so the Routing Topology table **and the HTML 3D Routing Diagram** (both derived from the same Ingress-only data) under-count them. State this limitation explicitly in the report whenever snippet annotations exist — these are exactly the routes that block migration.
 
 **Optional deep read (requires `--allow-sensitive-data-access`, still read-only):**
 - Enumerate snippet-injected routes: `kubectl exec <nginx-pod> -n <ns> -- nginx -T` and scan for `location` blocks not represented by an Ingress.

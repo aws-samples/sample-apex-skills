@@ -4,12 +4,12 @@
     {
       "id": 1,
       "prompt": "Here is a cluster's ingress inventory: 18 Ingress resources — 6 already on the AWS Load Balancer Controller (ingressClassName: alb), 2 nginx ingresses that are plain annotation-only rewrites, and 10 nginx ingresses including one with an nginx.ingress.kubernetes.io/configuration-snippet Lua block on /checkout, three with rewrite-target, CORS + rate-limit + IP-allowlist on the API ingress, and cert-manager TLS. Produce the Migration Difficulty Score and Score Breakdown.",
-      "expected_output": "A Migration Difficulty Score (0-100) with a Score Breakdown table whose category deductions sum to (100 - score), a separate Re-architecture Gate of 1 (the /checkout snippet), CORS/rate-limit/IP-allowlist rated Impact 2-3 (not 4-5), Scale/Volume counted on 12 routes needing work (18 total minus the 6 already on ALB; the 2 annotation-only class-switch moves count as work), and the 6 ALB routes shown at 0 effort.",
+      "expected_output": "A Migration Difficulty Score (0-100) with a Score Breakdown table whose category deductions sum to (100 - score), a separate Re-architecture Gate of 1 (the /checkout snippet), CORS/rate-limit/IP-allowlist rated Impact 2-3 (app/WAF workaround applicable; not escalated to Tier-A), Scale/Volume counted on 12 routes needing work (18 total minus the 6 already on ALB; the 2 annotation-only class-switch moves count as work), and the 6 ALB routes shown at 0 effort.",
       "expectations": [
         "Reports a single Migration Difficulty Score between 0 and 100 with a band label (TRIVIAL/EASY/MODERATE/HARD/VERY HARD)",
         "Score Breakdown deductions sum to (100 - score); arithmetic is shown and consistent",
         "The /checkout configuration-snippet is flagged as a no-equivalent Tier-A item and raises the Re-architecture Gate (gate >= 1), reported separately from the numeric score (no hard cap applied)",
-        "CORS, rate-limit, and IP-allowlist are each scored Impact 2 or 3 — never 4 or 5",
+        "CORS, rate-limit, and IP-allowlist are each scored Impact 2 or 3 (their app/backend or WAF workaround is applicable in this scenario — no closed/unmodifiable-backend escalation), not 4 or 5",
         "Scale/Volume is computed from the 12 routes needing work (18 total minus the 6 ALB-served routes; the 2 annotation-only class-switch moves are counted as work, not free), and the 6 ALB-served routes are listed at 0 effort, not counted as migration work",
         "No GREEN/AMBER/RED rating language is used — only the Impact 0-5 scale"
       ],
@@ -29,12 +29,12 @@
     },
     {
       "id": 3,
-      "prompt": "Assess three clusters and give each a Migration Difficulty Score with explicit presence/absence reasoning. Cluster A: no ingress controller, no IngressClass, and no Ingress resources. Cluster B: 5 nginx Ingress objects exist but no ingress-nginx controller is installed, and nothing else — and no surviving load balancers or target groups still front those objects (verified zero live traffic). Cluster C: a healthy ingress-nginx controller on image v1.10.0 with its validating admission webhook enabled, currently serving zero Ingress routes.",
-      "expected_output": "Cluster A scores 100/TRIVIAL (nothing to migrate), not a high-difficulty/low score. Cluster B's orphaned Ingress objects and absent controller are non-events (0) with a Migration Crew Alert that says to export/back up before deleting; with no other live findings its headline is 100/TRIVIAL. Cluster C is NOT a non-event: a healthy but vulnerable zero-route ingress-nginx (< v1.11.5, webhook enabled) is a security finding via CVE-2025-1974 despite serving no routes.",
+      "prompt": "Assess three clusters and give each a Migration Difficulty Score with explicit presence/absence reasoning. Cluster A: no ingress controller, no IngressClass, and no Ingress resources. Cluster B: 5 nginx Ingress objects exist but no ingress-nginx controller is installed, and nothing else — and no surviving load balancers or target groups still front those objects (verified zero live traffic). Cluster C: a healthy ingress-nginx controller on image v1.10.0 with its validating admission webhook exposed (the `--validating-webhook` server listening on :8443), currently serving zero Ingress routes.",
+      "expected_output": "Cluster A scores 100/TRIVIAL (nothing to migrate), not a high-difficulty/low score. Cluster B's orphaned Ingress objects and absent controller are non-events (0) with a Migration Crew Alert that says to export/back up before deleting; with no other live findings its headline is 100/TRIVIAL. Cluster C is NOT a non-event: a healthy but vulnerable zero-route ingress-nginx (< v1.11.5, webhook exposed / server listening) is a security finding via CVE-2025-1974 despite serving no routes.",
       "expectations": [
         "Cluster A (empty estate) scores 100/TRIVIAL with a 'nothing to migrate' note and is explicitly NOT rated as high-difficulty / a low score for being empty; absence is not equated with health",
         "Cluster B treats the absent controller and the 5 orphaned nginx Ingress objects as non-events (Impact 0) and emits a Migration Crew Alert; because no surviving load balancer fronts the orphans (verified zero live traffic) they are confirmed dead rather than treated as live, so with no other live findings the headline is 100/TRIVIAL; the alert recommends exporting/backing up the manifests before deleting",
-        "Cluster C is NOT scored 0/non-event: the healthy zero-route ingress-nginx on v1.10.0 with the admission webhook enabled is flagged as a security finding (CVE-2025-1974 / control-plane exposure) even though it serves zero routes",
+        "Cluster C is NOT scored 0/non-event: the healthy zero-route ingress-nginx on v1.10.0 with the admission webhook exposed (server listening on :8443) is flagged as a security finding (CVE-2025-1974 / control-plane exposure) even though it serves zero routes",
         "No finding uses remediation effort ('easy'/'hard') as the severity driver, and only the Impact 0-5 scale is used (no GREEN/AMBER/RED)"
       ],
       "files": []
