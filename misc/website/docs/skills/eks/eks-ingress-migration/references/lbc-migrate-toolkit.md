@@ -13,6 +13,8 @@ This page is generated from [skills/eks-ingress-migration/references/lbc-migrate
 
 > **Not a standalone rated section.** This describes the **automation sub-path for Option 1 (Gateway API)** in the report (`report-generation.md`). It is the *second hop* of the complete path this skill covers: **NGINX Ingress → LBC Ingress** (`alb-migration.md`) **→ Gateway API** (this file). Use it when the estate is **already on the AWS Load Balancer Controller (ALB Ingress)** and the target is Gateway API. All discovery is **read-only**.
 
+> **⚠️ Assessor scope — this skill assesses, it does not perform the migration.** Only **Step 1 (Translate)** and the **dry-run generation** are safe for the assessor to run: `lbc-migrate` reads the cluster read-only (`get`/`list`) and writes YAML to a local directory. **Everything that changes the cluster or AWS is an OPERATOR / DevOps action the assessor documents but MUST NOT execute** — installing the Gateway API / LBC Gateway CRDs (`kubectl apply`), enabling the `IngressPlanAnnotation` feature gate (`helm upgrade`), applying Gateway manifests with `--dry-run=false` or `kubectl annotate` (Step 3 — creates real ALBs), and `kubectl delete ingress` (Step 6). Present these as steps for the cluster owner to run under their change-management process, never as commands the assessment runs. (Matches the sibling references: *all assessment checks are read-only.*)
+
 ## What it is (cite the sources below; do not over-generalize — this shipped 2026-07-20)
 
 The **Ingress-to-Gateway API migration toolkit** for the AWS Load Balancer Controller (LBC) automates the conversion that `migration-plan.md` Phase 2 otherwise hand-authors. It has two parts:
@@ -25,7 +27,7 @@ The **Ingress-to-Gateway API migration toolkit** for the AWS Load Balancer Contr
 Per the launch blog, the toolkit ships with and requires:
 
 - **AWS Load Balancer Controller v3.4.0** (Gateway API support turns on automatically once the CRDs are present).
-- **Gateway API *standard* CRDs v1.5.0** **and** the **LBC Gateway CRDs**:
+- **Gateway API *standard* CRDs v1.5.0** **and** the **LBC Gateway CRDs** *(OPERATOR action — cluster change; the assessor documents these, does not run them)*:
   ```bash
   # Standard Gateway API CRDs
   kubectl apply --server-side=true \
@@ -39,12 +41,13 @@ Per the launch blog, the toolkit ships with and requires:
   kubectl -n kube-system logs deploy/aws-load-balancer-controller | grep "gateway.k8s.aws/alb"
   ```
 
-> **Higher than the manual-path baseline.** `gateway-api.md` documents the *minimum* Gateway API support in LBC (**≥ v2.14** L7 / **≥ v2.13.3** L4, CRDs **v1.3.0**). The **toolkit** needs a **higher** baseline — **v3.4.0 + standard CRDs v1.5.0**. When recommending `lbc-migrate`, require v3.4.0/v1.5.0; the lower baseline only covers hand-authored HTTPRoutes. On **EKS Auto Mode**, Gateway API is provided built-in via `eks.amazonaws.com` — confirm toolkit compatibility before assuming `lbc-migrate` applies.
+> **Where the versions come from.** The `lbc-migrate` CLI **ships in the AWS Load Balancer Controller v3.4.0 release** — build it from that tag (see Install below). It is **not** a higher controller *runtime* tier than the hand-authored path: the controller's Gateway API runtime support is the same either way (**≥ v2.13.3** L4 / **≥ v2.14** L7, per `gateway-api.md`). What the toolkit path needs is the current **standard Gateway API CRDs (v1.5.0)** plus the LBC Gateway CRDs (installed above). On **EKS Auto Mode**, Gateway API is provided built-in via the `eks.amazonaws.com` controller; the upstream guide does **not** document whether `lbc-migrate` targets that built-in path — do not assume it applies, verify against the guide before recommending it there.
 
 ## Install (build from source)
 
 ```bash
-git clone https://github.com/kubernetes-sigs/aws-load-balancer-controller.git
+# Pin to the v3.4.0 tag — the lbc-migrate CLI ships in that release
+git clone --branch v3.4.0 --depth 1 https://github.com/kubernetes-sigs/aws-load-balancer-controller.git
 cd aws-load-balancer-controller
 make lbc-migrate          # binary at bin/lbc-migrate
 make install-lbc-migrate  # optional: symlink onto PATH
@@ -76,16 +79,16 @@ Existing `Deployment`/`Service` are reused — HTTPRoute `backendRefs` point at 
 
 ## The 6-step guided flow (each step is safe to pause at)
 
-1. **Translate** — `lbc-migrate --from-cluster --namespaces <ns> --output-dir ./gw/`. Rollback: delete the generated files.
-2. **Dry-run preview (recommended)** — verify the generated Gateway will produce the *same* ALB config before creating anything:
-   - Enable the ingress-side plan: set the LBC feature gate **`IngressPlanAnnotation=true`** (Helm: `--set controllerConfig.featureGates.IngressPlanAnnotation=true`). The ingress controller then writes its model to each Ingress as `alb.ingress.kubernetes.io/dry-run-plan`.
+1. **Translate** *(assessor-safe — read-only)* — `lbc-migrate --from-cluster --namespaces <ns> --output-dir ./gw/`. Reads the cluster (`get`/`list`) only and writes YAML locally. Rollback: delete the generated files.
+2. **Dry-run preview (recommended)** *(generating/inspecting the plan is read-only; enabling the feature gate is an OPERATOR action)* — verify the generated Gateway will produce the *same* ALB config before creating anything:
+   - Enable the ingress-side plan *(OPERATOR action — `helm upgrade` restarts the controller)*: set the LBC feature gate **`IngressPlanAnnotation=true`** (Helm: `--set controllerConfig.featureGates.IngressPlanAnnotation=true`). The ingress controller then writes its model to each Ingress as `alb.ingress.kubernetes.io/dry-run-plan`. **Sensitive-data caveat:** the `dry-run-plan` annotation embeds the controller's full built model (listener/target-group config, cert ARNs, auth settings) on the live object and is readable by anyone with `get` on Ingresses/Gateways — treat it as potentially sensitive, avoid pasting it verbatim into reports, and disable the gate at cleanup (Step 6) so the annotation is removed.
    - Apply the generated manifests — they carry `gateway.k8s.aws/dry-run: "true"` by default, so the gateway controller writes `gateway.k8s.aws/dry-run-plan` **without creating an ALB**.
    - Compare: `lbc-migrate --console` (field-by-field diff) or inspect `gateway.k8s.aws/dry-run-plan` directly with `kubectl get gateway … -o jsonpath=…`.
    - Rollback: delete the dry-run Gateway. (Dry-run is ignored on an *already-provisioned* Gateway — it is for previewing **new** Gateways, not pausing live ones.)
-3. **Apply** — regenerate with `--dry-run=false` (GitOps-clean) **or** `kubectl annotate … gateway.k8s.aws/dry-run-` in place. LBC creates **new ALBs alongside** the existing Ingress ALBs, pointing at the **same** Services/Pods. Rollback: delete the Gateway resources.
-4. **Verify** — `Programmed: True` on the Gateway, `status.addresses` has the new ALB DNS, `aws elbv2 describe-target-health` all `healthy`, CloudWatch `HealthyHostCount`/`HTTPCode_ELB_5XX_Count`/`TargetResponseTime` nominal; `curl` the Gateway ALB directly.
-5. **Shift traffic** — move from the Ingress ALB to the Gateway ALB gradually. Two options: **Route 53 weighted routing** (DNS-based, **no extra cost**) or **AWS Global Accelerator** (per-request split, no domain needed). Rollback: shift back.
-6. **Cleanup** — `kubectl delete ingress <name>` (LBC removes the old ALB/target groups/listener rules), delete any leftover dry-run Gateway, and disable the `IngressPlanAnnotation` gate when no migrations are in progress.
+3. **Apply** *(OPERATOR action — creates real ALBs)* — regenerate with `--dry-run=false` (GitOps-clean) **or** `kubectl annotate … gateway.k8s.aws/dry-run-` in place. LBC creates **new ALBs alongside** the existing Ingress ALBs, pointing at the **same** Services/Pods. Rollback: delete the Gateway resources.
+4. **Verify** *(read-only checks)* — `Programmed: True` on the Gateway, `status.addresses` has the new ALB DNS, `aws elbv2 describe-target-health` all `healthy`, CloudWatch `HealthyHostCount`/`HTTPCode_ELB_5XX_Count`/`TargetResponseTime` nominal; `curl` the Gateway ALB directly.
+5. **Shift traffic** *(OPERATOR action)* — move from the Ingress ALB to the Gateway ALB gradually. The upstream guide leaves the exact mechanism to your environment (DNS provider / traffic tooling) and gives **AWS Global Accelerator** as *one* example; **Route 53 weighted records** are another common DNS-based option. Whichever you use, plan for quick rollback and gradual shifting. Rollback: shift back.
+6. **Cleanup** *(OPERATOR action — deletes the Ingress and its ALB)* — `kubectl delete ingress <name>` (LBC removes the old ALB/target groups/listener rules), delete any leftover dry-run Gateway, and disable the `IngressPlanAnnotation` gate when no migrations are in progress.
 
 > **Dual-ALB cost during Steps 3–5.** The original Ingress ALBs and the new Gateway ALBs run **in parallel** until cleanup — expect duplicate ALB-hours and LCU-hours on the bill for the migration window. This is the trade for a non-disruptive, reversible cutover.
 
@@ -93,7 +96,8 @@ Existing `Deployment`/`Service` are reused — HTTPRoute `backendRefs` point at 
 
 ## Known gaps — where the tool skips + warns (hand-edit required)
 
-- **`url-rewrite` / `host-header-rewrite` with capture groups** (e.g. `replace: "/$1"`, `"$1.example.org"`) — Gateway API's `URLRewrite` filter supports only **static** replacements (`ReplaceFullPath`/`ReplacePrefixMatch` for paths, `PreciseHostname` for hostnames). The tool **skips the dynamic transform and warns**; you finish the HTTPRoute by hand with the equivalent filter (e.g. a `/api`-strip becomes `urlRewrite.path.type: ReplacePrefixMatch`). Static-replacement transforms translate automatically. This reinforces the skill's existing snippet/rewrite blind-spot warnings.
+- **`url-rewrite` / `host-header-rewrite` with capture groups** (e.g. `replace: "/$1"`, `"$1.example.org"`) — **no Gateway API equivalent.** The `URLRewrite` filter does **static** replacements only (`ReplaceFullPath`/`ReplacePrefixMatch` for paths, `PreciseHostname` for hostnames), which cannot reproduce a capture-group substitution. The tool **skips the dynamic transform and warns**, and it **stays a Tier-A / Re-architecture-Gate item** — a hand *redesign*, not a mechanical fill-in. (Only **static prefix strips** — e.g. a fixed `/api` strip — map cleanly to `ReplacePrefixMatch`; those translate automatically.) This reinforces the skill's existing snippet/rewrite blind-spot warnings.
+- **ALB listener-rule count & priority differences** — the generated Gateway can yield a **different number of ALB listener rules** and a **different rule-priority order** than the source Ingress (Gateway API expresses precedence differently). Review the dry-run diff and the upstream [Known Differences from Ingress](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress2gateway/lbc_migrate_reference/#known-differences-from-ingress) before cutover.
 - **WAF Classic (`alb.ingress.kubernetes.io/waf-acl-id`, `web-acl-id`) — not supported.** Migrate to **WAFv2** (`wafv2-acl-arn`) on the source Ingress **before** running `lbc-migrate`, or the generated Gateway has **no WAF protection**.
 - **Frontend NLB (`alb.ingress.kubernetes.io/frontend-nlb-*`) — not supported yet.**
 - **`group.order` — no Gateway API equivalent for ALB rule priority.** The tool uses it to pick the primary group member, then **warns**. If Ingresses rely on `group.order` to resolve **overlapping** host+path rules, verify precedence with the dry-run before shifting.

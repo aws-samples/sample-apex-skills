@@ -3,6 +3,8 @@
 ## Purpose
 Guide customers who have AWS Transform (ATX) access through the fully automated NGINX→ALB manifest migration. ATX reads the Transform Definition (TD) and rewrites all matching Ingress manifests automatically.
 
+> **Next hop (Gateway API):** ATX automates the **NGINX → LBC ALB Ingress** hop. If the target is the **Gateway API**, the *second hop* **LBC Ingress → Gateway API** can then be automated with the official **`lbc-migrate` toolkit** — see `references/lbc-migrate-toolkit.md`. Full path: **NGINX Ingress → LBC ALB Ingress (ATX) → Gateway API (`lbc-migrate`)**.
+
 ## When to Recommend ATX
 
 - Customer has ATX workspace access (contact AWS SA for onboarding)

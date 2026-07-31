@@ -42,13 +42,25 @@
     {
       "id": 4,
       "prompt": "A cluster is fully on the AWS Load Balancer Controller (ingressClassName: alb) with about 15 ALB Ingress resources, and the team wants to move to the Gateway API. One ingress uses an alb.ingress.kubernetes.io/transforms url-rewrite with a capture group (replace: /$1). LBC is v3.4.0. Recommend how to perform the Ingress-to-Gateway-API migration and call out any manual steps.",
-      "expected_output": "Recommends the official lbc-migrate toolkit (LBC Ingress -> Gateway API) as the automation sub-path for Option 1, since the estate is already on LBC ALB Ingress and meets the v3.4.0 / Gateway API standard CRD v1.5.0 version gate. Describes the dry-run preview (gateway.k8s.aws/dry-run plus the IngressPlanAnnotation feature gate) before applying new ALBs alongside the existing ones, and flags that the capture-group url-rewrite (replace: /$1) is skipped-and-warned by lbc-migrate and must be hand-edited with a Gateway API URLRewrite / ReplacePrefixMatch filter.",
+      "expected_output": "Recommends the official lbc-migrate toolkit (LBC Ingress -> Gateway API) as the automation sub-path for Option 1, since the estate is already on LBC ALB Ingress (the CLI ships in LBC v3.4.0 and the path uses Gateway API standard CRDs v1.5.0). Describes the dry-run preview (gateway.k8s.aws/dry-run plus the IngressPlanAnnotation feature gate) before applying new ALBs alongside the existing ones, treats the CRD install / feature-gate enable / apply / cleanup as operator actions the assessment documents but does not run, and flags that the capture-group url-rewrite (replace: /$1) has no Gateway API equivalent — skipped-and-warned by lbc-migrate and remaining a Tier-A / Re-architecture-Gate hand-redesign (static ReplacePrefixMatch cannot express a capture group).",
       "expectations": [
         "Recommends the lbc-migrate toolkit (lbc-migrate CLI + Migration Console) for the LBC Ingress -> Gateway API hop rather than hand-authoring HTTPRoutes, because the estate is already on the AWS Load Balancer Controller",
-        "States the toolkit version gate (LBC v3.4.0, Gateway API standard CRDs v1.5.0) and that cluster reads are read-only",
+        "States that the lbc-migrate CLI ships in LBC v3.4.0 and the path uses Gateway API standard CRDs v1.5.0, and that cluster reads are read-only",
         "Describes the dry-run preview step (gateway.k8s.aws/dry-run annotation plus the IngressPlanAnnotation=true feature gate) before creating real ALBs, with new Gateway ALBs running alongside the existing Ingress ALBs",
-        "Flags that the capture-group url-rewrite (replace: /$1) cannot be represented in Gateway API and is skipped-and-warned by lbc-migrate, requiring a manual URLRewrite / ReplacePrefixMatch filter edit",
-        "Does not claim lbc-migrate converts raw NGINX annotations (it operates on LBC Ingress); if NGINX is present, the NGINX -> LBC Ingress hop comes first"
+        "Flags that the capture-group url-rewrite (replace: /$1) has NO Gateway API equivalent — lbc-migrate skips-and-warns it and it stays a Tier-A / Re-architecture-Gate hand-redesign; does NOT present static ReplacePrefixMatch (prefix-strip only) as able to express the capture group",
+        "Treats the mutating steps as operator actions the assessment documents but does not execute (CRD install, IngressPlanAnnotation feature-gate enable, --dry-run=false apply, kubectl delete ingress) — only translate and the dry-run preview are read-only/assessor-run"
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "A cluster runs the community ingress-nginx controller (no AWS Load Balancer Controller installed yet) with about 12 nginx Ingress resources, and the team wants to end up on the Gateway API. Recommend the migration path and say whether lbc-migrate applies here.",
+      "expected_output": "Explains that lbc-migrate converts LBC Ingress, not raw NGINX annotations, so it does NOT apply directly to this estate. The correct sequence is the NGINX -> LBC ALB Ingress hop first (alb-migration.md, or automated with ATX), and only then run lbc-migrate for the LBC Ingress -> Gateway API hop. Hand-authored HTTPRoutes (gateway-api.md / migration-plan.md Phase 2) remain the fallback for the toolkit's skip-and-warn cases.",
+      "expectations": [
+        "States that lbc-migrate operates on LBC Ingress and does NOT convert raw NGINX annotations, so it cannot be run directly on this estate",
+        "Sequences the two hops correctly: NGINX -> LBC ALB Ingress first (alb-migration.md or ATX), THEN lbc-migrate for LBC Ingress -> Gateway API",
+        "Offers the hand-authored HTTPRoute path (gateway-api.md / migration-plan.md Phase 2) as the fallback, e.g. for the toolkit's skip-and-warn cases",
+        "Does not present lbc-migrate as a one-step NGINX -> Gateway API converter"
       ],
       "files": []
     }

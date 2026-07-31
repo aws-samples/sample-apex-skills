@@ -13,11 +13,11 @@ This page is generated from [skills/eks-ingress-migration/references/gateway-api
 
 > **Not a standalone rated section.** These findings feed **Option 1 (Gateway API)** in the report (`report-generation.md`). "Not yet installed" prerequisites are **🟡 Low impact** — the reason is that **no live traffic is at stake** (a prerequisite serves nothing until routes cut over), **not** that they are easy to deploy (effort never sets severity) — per the *Impact Indicator*; never a standalone blocker. All checks are **read-only** (`kubectl get/describe`, `aws … describe/list`).
 >
-> **Automation:** when routes are already on **LBC ALB Ingress**, prefer the official **`lbc-migrate` toolkit** to auto-translate Ingress → Gateway API rather than hand-authoring HTTPRoutes — see `references/lbc-migrate-toolkit.md`. It requires a **higher** LBC baseline (**v3.4.0** / Gateway API standard CRDs **v1.5.0**) than the minimum Gateway API support documented below; the versions here cover the hand-authored path.
+> **Automation:** when routes are already on **LBC ALB Ingress**, prefer the official **`lbc-migrate` toolkit** to auto-translate Ingress → Gateway API rather than hand-authoring HTTPRoutes — see `references/lbc-migrate-toolkit.md`. The CLI **ships in the LBC v3.4.0 release** (build it from that tag); its Gateway API *runtime* prerequisite is the same as the hand-authored path (controller **≥ v2.13.3** L4 / **≥ v2.14** L7). Install the current **standard Gateway API CRDs (v1.5.0)** for either path.
 
 ## Version & naming facts (cite these)
 - AWS LB Controller Gateway API support: **L4 (TCP/UDP/TLSRoute) ≥ v2.13.3**, **L7 (HTTPRoute/GRPCRoute) ≥ v2.14** (GA from the 2026 release line).
-- GatewayClass `controllerName`: **`gateway.k8s.aws/alb`**. The LBC targets Gateway API CRDs **v1.3.0**.
+- GatewayClass `controllerName`: **`gateway.k8s.aws/alb`**. Install the current **standard Gateway API CRDs (v1.5.0)**; the LBC reconciles the Gateway API **`v1`** API.
 - On **EKS Auto Mode**, Gateway API / load balancing is provided **built-in** via the `eks.amazonaws.com` API group — no self-managed LBC install needed.
 
 ## Caveats & Risks (MUST surface in Option 1)
@@ -26,7 +26,7 @@ This page is generated from [skills/eks-ingress-migration/references/gateway-api
 - **Blast radius** — prefer **per-security-boundary Gateways** (e.g. `public-gateway` for web, separate `private-gateway` for payments) over one shared Gateway, even at extra cost.
 
 ## Prerequisite checks (read-only — gather for Option 1, Phase 1)
-1. **CRDs** — `kubectl get crd | grep gateway.networking.k8s.io`; need `GatewayClass`, `Gateway`, `HTTPRoute`, `ReferenceGrant` at v1. If missing → install `standard-install.yaml` **v1.3.0** (a low-impact Phase-1 step).
+1. **CRDs** — `kubectl get crd | grep gateway.networking.k8s.io`; need `GatewayClass`, `Gateway`, `HTTPRoute`, `ReferenceGrant` at v1. If missing → install the current standard release `standard-install.yaml` **v1.5.0** (a low-impact Phase-1 step).
 2. **Controller version** — `aws-load-balancer-controller` image tag **≥ v2.14** (L7) / **≥ v2.13.3** (L4); IRSA/Pod Identity present; healthy with 2+ replicas. `< v2.14` → upgrade in Phase 1. Built-in on Auto Mode.
 3. **GatewayClass** — `spec.controllerName: gateway.k8s.aws/alb`, status `Accepted: True`. None → create in Phase 1.
 4. **Adoption status** — list existing `Gateway`/`HTTPRoute`/`GRPCRoute` to tell greenfield from a partial migration (informational).
