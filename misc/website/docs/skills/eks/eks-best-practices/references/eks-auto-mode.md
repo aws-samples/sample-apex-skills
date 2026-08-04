@@ -38,7 +38,7 @@ Auto Mode is geared towards users that want the benefits of Kubernetes and EKS b
 | **Compliance (custom AMI pinning, air-gapped)** | Limited -- no custom AMIs | Full control |
 | **Cost** | Standard EC2 pricing + Auto Mode management fee on managed nodes | Standard EC2 pricing + self-managed operational cost |
 | **Mix with other compute** | Yes -- can run MNG alongside Auto Mode nodes | Yes -- can run MNG alongside Karpenter nodes |
-| **Troubleshooting managed components** | AWS Support ticket (components run off-cluster) | Direct access to pod logs |
+| **Troubleshooting managed components** | Self-service: `NodeDiagnostic`, `kubectl debug node`, `get-console-output`, CloudWatch Insights (managed controllers' own pod logs still not exposed) | Direct access to pod logs |
 
 **Choose Auto Mode when:** Minimal ops is the priority, standard Bottlerocket AMIs are acceptable, and you don't need custom AMI configurations or air-gapped setups.
 
@@ -85,7 +85,7 @@ A new Auto Mode cluster comes pre-configured with two NodePools:
 Provisions nodes with:
 - Capacity Type: On-Demand
 - Instance Types: C, M, or R families
-- Instance Generation: 4+
+- Instance Generation: 5 or newer
 - Architecture: AMD (x86_64)
 - OS: Linux
 - Disruption: max 10% of nodes disrupted at any time, consolidation when empty or underutilized
@@ -122,7 +122,14 @@ Currently the only supported AMIs are Amazon-provided Bottlerocket. No custom AM
 Because AMI customization is not supported, if you need host-level software for things like security scanning, deploy it as a Kubernetes DaemonSet.
 
 ### Troubleshooting Managed Components
-With EKS Auto Mode, components like the AWS Load Balancer Controller and Karpenter are managed outside your cluster. You won't have direct visibility into their logs. If troubleshooting is needed, create an AWS Support Ticket.
+With EKS Auto Mode, components like the AWS Load Balancer Controller and Karpenter are managed outside your cluster, so their own controller pod logs are not exposed. However, node-level troubleshooting is self-service and does not require a support ticket:
+
+- **`NodeDiagnostic`** — collect node log bundles and export them to S3
+- **`kubectl debug node`** — start a debugging container on the node
+- **`get-console-output`** — retrieve EC2 instance console output
+- **CloudWatch Insights** — Karpenter provisioning/scheduling decision events
+
+Open an AWS Support case only for issues that these self-service tools cannot surface (e.g. the internals of the off-cluster managed controllers).
 
 ### Mixed Compute
 You may run managed node groups alongside Auto Mode-managed nodes in the same cluster.

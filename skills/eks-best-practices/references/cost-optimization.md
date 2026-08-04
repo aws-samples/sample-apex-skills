@@ -33,7 +33,7 @@ The "See" pillar comes first because you can't optimize what you can't measure. 
 
 | Component | Cost Driver | Optimization Lever |
 |-----------|-----------|-------------------|
-| **EKS control plane** | $0.10/hour per cluster | Fewer clusters, multi-tenant |
+| **EKS control plane** | $0.10/hour per cluster (standard support); $0.60/hour under extended support (6x) | Stay in standard support, fewer clusters, multi-tenant |
 | **EC2 instances** | Instance type + hours | Right-sizing, Spot, Graviton |
 | **EBS volumes** | Volume type + size + IOPS | gp3, right-size, cleanup unused |
 | **Data transfer** | Cross-AZ, internet egress | Topology-aware routing, VPC endpoints |
@@ -41,10 +41,13 @@ The "See" pillar comes first because you can't optimize what you can't measure. 
 | **NAT Gateway** | Per GB processed + hourly | VPC endpoints for AWS services |
 | **Observability** | Log ingestion + metric storage | Filter, retain selectively, reduce cardinality |
 
+> **Control-plane support tier is the largest controllable control-plane cost lever.** Standard support is $0.10/hour per cluster; once a version exits standard support it moves to **extended support at $0.60/hour -- 6x the standard rate**. As of 2026-08-04, Kubernetes versions 1.31, 1.32, and 1.33 are all in extended support. Staying on a standard-support version (upgrade before standard support ends) avoids roughly **+$4,380/yr per cluster**. EKS Auto Mode adds a separate management fee on top of control-plane and EC2 costs.
+
 ### Quick Wins
 
 | Action | Typical Savings | Effort |
 |--------|----------------|--------|
+| Stay in EKS standard support | ~$4,380/yr per cluster ($0.60 vs $0.10/hr) | Low -- upgrade before standard support ends |
 | Switch to Graviton (arm64) | 20-40% | Low -- rebuild images for arm64 |
 | Use Spot for non-critical | 60-90% | Low -- Karpenter handles fallback |
 | Enable Karpenter consolidation | 20-30% | Low -- enable in NodePool |
@@ -281,13 +284,13 @@ kind: Service
 metadata:
   name: orders-service
 spec:
-  trafficDistribution: PreferClose
+  trafficDistribution: PreferSameZone   # formerly PreferClose (alias still works)
   selector:
     app: orders
   type: ClusterIP
 ```
 
-`PreferClose` routes to same-zone endpoints first, falling back to any endpoint when none are local. Can overload endpoints in high-traffic zones -- mitigate with per-zone deployments with independent HPAs, or topology spread constraints.
+`PreferSameZone` (the renamed `PreferClose`; the `PreferClose` alias still works) routes to same-zone endpoints first, falling back to any endpoint when none are local. A `PreferSameNode` option also exists to prefer node-local endpoints. Can overload endpoints in high-traffic zones -- mitigate with per-zone deployments with independent HPAs, or topology spread constraints.
 
 **Service Internal Traffic Policy** restricts traffic to the originating node:
 
@@ -333,7 +336,7 @@ Use **IP mode** to eliminate data transfer charges from LB-to-Pod traffic. Ensur
 | **gp3 root volume** | ~20% less than gp2 | Default choice for node root volumes |
 | **EC2 instance stores** | No additional cost | Caches, scratch space, temporary data |
 
-Instance stores are physically attached to the host -- free, but data is lost on termination. Use `HostPath` or the Local Persistent Volume Static Provisioner to expose them in Kubernetes.
+Instance stores are physically attached to the host -- free, but data is lost on termination. The **Instance Store CSI driver is GA as an EKS managed add-on (as of 2026-08-04)** and supersedes the `HostPath` / Local Persistent Volume Static Provisioner approach for exposing them in Kubernetes.
 
 ### Persistent Volumes: EBS
 
@@ -395,6 +398,8 @@ For FSx for Lustre, link to S3 for long-term storage -- lazy-load data into Lust
 | Container image optimization | Distroless/scratch base images, multi-stage builds |
 | Clean up dangling volumes | Direct savings -- Popeye or AWS Trusted Advisor |
 | EBS snapshot retention policy | Avoid unbounded snapshot growth via DLM or Velero TTL |
+
+> **Backup:** beyond Velero, **AWS Backup now supports EKS** (cluster-state and persistent-volume backups) as a managed option -- consider it alongside Velero for a native backup story.
 
 ---
 
@@ -482,7 +487,7 @@ AWS resource tags don't directly correlate with Kubernetes labels. Use Kubernete
 |------|-------|------|----------|
 | **AWS Cost Explorer** | Account-level | Free | High-level trends, SP/RI recommendations |
 | **Kubecost** | Cluster-level | Free (open source) | Per-namespace/pod cost allocation |
-| **CloudWatch Container Insights** | Cluster + pod | ~$0.30/container/month | Resource utilization monitoring |
+| **CloudWatch Container Insights** | Cluster + pod | $0.21 per 1M observations, tiered (e.g. ~$51.75/mo for a 10-node/20-pod cluster, as of 2026-08-04) | Resource utilization monitoring |
 | **AWS Billing + tags** | Account-level | Free | Chargeback by team/project |
 | **Karpenter metrics** | Node-level | Free | Consolidation efficiency |
 
@@ -502,7 +507,7 @@ helm install kubecost kubecost/cost-analyzer \
 | Namespace/label cost allocation | Yes | Yes |
 | Right-sizing recommendations | Yes | Yes |
 | Idle cost detection | Yes | Yes |
-| Multi-cluster | No | Yes |
+| Multi-cluster | Yes -- unlimited clusters up to 250 cores total | Yes (no core limit) |
 | SSO/RBAC | No | Yes |
 | Long-term storage | 15 days | Unlimited |
 

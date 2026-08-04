@@ -310,9 +310,16 @@ Remediation:
 
 ### Fluent Bit Configuration
 
+There is no `aws-for-fluent-bit` EKS add-on. Two supported paths:
+
 ```bash
-# Deploy as EKS add-on (recommended)
-aws eks create-addon --cluster-name my-cluster --addon-name aws-for-fluent-bit
+# Recommended: the CloudWatch Observability EKS add-on installs Fluent Bit
+# for CloudWatch Logs (alongside Container Insights and Application Signals)
+aws eks create-addon --cluster-name my-cluster --addon-name amazon-cloudwatch-observability
+
+# Alternative: deploy the community Fluent Bit DaemonSet directly (name: fluent-bit)
+# e.g. via the aws-for-fluent-bit Helm chart / manifests
+helm install fluent-bit eks/aws-for-fluent-bit --namespace amazon-cloudwatch --create-namespace
 ```
 
 **Scaling Fluent Bit for large clusters:**
@@ -383,13 +390,15 @@ spec:
           exporters: [awsxray]
 ```
 
-### X-Ray vs OpenTelemetry
+### OpenTelemetry (primary) vs X-Ray SDKs
 
-| Factor | AWS X-Ray | OpenTelemetry + Jaeger/Tempo |
-|--------|-----------|------------------------------|
-| **Setup** | Simple with ADOT | More configuration |
+The **X-Ray SDKs and the X-Ray daemon have been in maintenance mode since 2026-02-25** — they receive no new features. OpenTelemetry (via AWS Distro for OpenTelemetry, ADOT) is AWS's primary, recommended instrumentation standard for new work; instrument with OTel/ADOT rather than the X-Ray SDKs. The **X-Ray service and its APIs continue** as a trace backend/console — ADOT still exports traces to X-Ray (see the `awsxray` exporter above), so you can standardize on OTel instrumentation while keeping X-Ray as a backend.
+
+| Factor | AWS X-Ray (service/backend) | OpenTelemetry + Jaeger/Tempo |
+|--------|-----------------------------|------------------------------|
+| **Instrumentation** | X-Ray SDKs in maintenance mode since 2026-02-25 — use ADOT to feed X-Ray | ADOT / OTel SDKs (primary standard) |
 | **AWS integration** | Native (Lambda, API GW, etc.) | Manual |
-| **Vendor lock-in** | AWS-specific | Vendor-neutral |
+| **Vendor lock-in** | AWS-specific backend | Vendor-neutral |
 | **Querying** | X-Ray console, CloudWatch | Grafana (richer) |
 | **Cost** | Per trace recorded | Storage-dependent |
 
@@ -488,6 +497,34 @@ fields @timestamp, @message
 | sort @timestamp desc
 ```
 
+### Detecting Failed-Open Admission Webhooks
+
+An admission webhook configured with `failurePolicy: Ignore` fails **open** — when the webhook is unreachable or errors, the API request is admitted anyway and no error is surfaced to the caller. This is silent by design, so a broken policy/mutation webhook (e.g. a down Kyverno, OPA/Gatekeeper, or sidecar-injection webhook) can stop enforcing without any obvious signal.
+
+The kube-apiserver audit log does record these events: a fail-open admission surfaces as an annotation on the audit record, `failed-open.validation.webhook.admission.k8s.io` (validating webhooks) and `failed-open.mutation.webhook.admission.k8s.io` (mutating webhooks), naming the webhook configuration that was bypassed.
+
+Alarm on these the same way you alarm on 401/403 spikes — a CloudWatch Logs **metric filter** on the control-plane audit log group, paired with a CloudWatch **alarm**:
+
+```bash
+# Metric filter: count audit records carrying a failed-open webhook annotation
+aws logs put-metric-filter \
+  --log-group-name /aws/eks/my-cluster/cluster \
+  --filter-name webhook-failed-open \
+  --filter-pattern '{ ($.annotations."failed-open.validation.webhook.admission.k8s.io" = "*") || ($.annotations."failed-open.mutation.webhook.admission.k8s.io" = "*") }' \
+  --metric-transformations \
+      metricName=WebhookFailedOpen,metricNamespace=EKS/Admission,metricValue=1,defaultValue=0
+
+# Alarm on any occurrence
+aws cloudwatch put-metric-alarm \
+  --alarm-name eks-webhook-failed-open \
+  --namespace EKS/Admission --metric-name WebhookFailedOpen \
+  --statistic Sum --period 300 --evaluation-periods 1 \
+  --threshold 0 --comparison-operator GreaterThanThreshold \
+  --treat-missing-data notBreaching
+```
+
+Any non-zero value means an admission webhook silently failed open and enforcement gaps may exist — investigate the named webhook's availability before assuming policy is being applied.
+
 ### Amazon GuardDuty for EKS
 
 | Finding | Severity | Meaning |
@@ -496,7 +533,7 @@ fields @timestamp, @message
 | `Persistence:Kubernetes/ContainerWithSensitiveMount` | Medium | Sensitive host path mounted |
 | `Policy:Kubernetes/ExposedDashboard` | Medium | K8s dashboard exposed |
 | `CredentialAccess:Kubernetes/MaliciousIPCaller` | High | API call from known malicious IP |
-| `Impact:Runtime/CryptoCurrencyMiningDetected` | High | Crypto mining in container |
+| `Impact:Runtime/CryptoMinerExecuted` | High | Crypto mining in container |
 
 ### CloudTrail for EKS
 

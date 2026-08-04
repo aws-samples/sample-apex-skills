@@ -110,12 +110,12 @@ If an insight shows `"status": ERROR`, you **must** resolve it before upgrading.
 | Factor | In-Place Upgrade | Blue-Green Upgrade |
 |--------|-----------------|-------------------|
 | **Downtime risk** | Minutes (control plane) | Near-zero |
-| **Rollback** | Not possible for control plane | DNS/LB switch back |
+| **Rollback** | Yes, to N-1 within 7 days of an in-place upgrade (readiness-checked; add-ons/data-plane separate) | DNS/LB switch back (any time) |
 | **Cost** | No extra cost | 2× cluster cost during migration |
 | **Complexity** | Low-Medium | High |
 | **State migration** | None needed | Must migrate PVs, DNS, state |
 | **Version jump** | One minor at a time | Can skip versions (new cluster) |
-| **Use when** | Most upgrades | Critical workloads, major version jumps |
+| **Use when** | Most upgrades (in-place N-1 rollback available within 7 days) | Post-7-day rollback window, multi-minor jumps, data-plane isolation |
 
 ---
 
@@ -145,7 +145,7 @@ aws eks describe-cluster --name my-cluster \
 # Upgrade control plane (one minor version at a time)
 aws eks update-cluster-version \
   --name my-cluster \
-  --kubernetes-version 1.31
+  --kubernetes-version 1.34
 
 # Monitor upgrade status
 aws eks describe-update \
@@ -154,10 +154,10 @@ aws eks describe-update \
 ```
 
 **Key constraints:**
-- Can only upgrade one minor version at a time (1.29 → 1.30, not 1.29 → 1.31)
+- Can only upgrade one minor version at a time (1.34 → 1.35, not 1.34 → 1.36)
 - Control plane upgrade takes 15-30 minutes
 - API server remains available during upgrade (brief API errors possible)
-- Cannot rollback control plane version
+- Native in-place rollback to N-1 is supported within **7 days** of an in-place upgrade (GA, all regions, all cluster types; Auto Mode also rolls back nodes automatically). `update-cluster-version` supports type `VersionRollback`; a `ROLLBACK_READINESS` insight gates it. Add-ons/data-plane roll back separately. Past the 7-day window, roll back via blue-green or cluster rebuild.
 
 ### Step 2: Upgrade Add-ons
 
@@ -168,6 +168,8 @@ aws eks describe-addon --cluster-name my-cluster --addon-name coredns
 aws eks describe-addon --cluster-name my-cluster --addon-name kube-proxy
 
 # Upgrade each add-on
+# (--addon-version below is illustrative — check the current version with
+#  `aws eks describe-addon-versions` rather than pinning this exact value)
 aws eks update-addon \
   --cluster-name my-cluster \
   --addon-name vpc-cni \
@@ -187,7 +189,7 @@ EKS add-ons are **not** automatically upgraded during a control plane upgrade �
 aws eks update-nodegroup-version \
   --cluster-name my-cluster \
   --nodegroup-name default \
-  --kubernetes-version 1.31
+  --kubernetes-version 1.34
 
 # Monitor rolling update
 aws eks describe-nodegroup \
@@ -214,7 +216,9 @@ After the cluster upgrade, update your kubectl client to match:
 
 ```bash
 # Verify kubectl version matches cluster
-kubectl version --short
+# (--short was removed in kubectl 1.28; it errors on current clients)
+kubectl version
+# Optionally: kubectl version -o yaml   (or -o json)
 ```
 
 ### Ensure Availability During Upgrade
@@ -272,7 +276,8 @@ Spreading across zones and hosts ensures pods migrate to new nodes automatically
 - Major version jumps (skipping multiple minor versions via new cluster)
 - Zero-downtime requirement for the upgrade itself
 - Significant architectural changes alongside version upgrade
-- Compliance requirement for rollback capability
+- Data-plane isolation (validate the new version on a separate data plane before cutover)
+- Rollback needed beyond the 7-day in-place window (in-place N-1 rollback covers the first 7 days — see [Emergency Rollback Procedures](#emergency-rollback-procedures))
 
 ### Blue-Green Procedure
 
@@ -291,8 +296,32 @@ Spreading across zones and hosts ensures pods migrate to new nodes automatically
 |--------|------------|----------------|
 | **Route 53 weighted routing** | Percentage-based | Fast (DNS TTL) |
 | **ALB weighted target groups** | Percentage-based | Instant |
+| **NLB weighted target groups** | Percentage-based | Instant (weight shift is manual — no automatic failover) |
 | **Global Accelerator** | Endpoint weights | Instant |
 | **External DNS cutover** | All-or-nothing | DNS TTL dependent |
+
+#### NLB Weighted Target-Group Cutover
+
+For L4 / internal-NLB blue/green cutover, use **NLB weighted target groups** (a weighted `forward` action), GA as of 2025-11-19. Point one NLB listener at two target groups — one registered to the blue cluster, one to the green — and shift weights to move traffic:
+
+```bash
+aws elbv2 modify-listener \
+  --listener-arn <listener-arn> \
+  --default-actions '[{
+    "Type": "forward",
+    "ForwardConfig": {
+      "TargetGroups": [
+        {"TargetGroupArn": "<blue-tg-arn>", "Weight": 90},
+        {"TargetGroupArn": "<green-tg-arn>", "Weight": 10}
+      ]
+    }
+  }]'
+```
+
+Constraints:
+- Use **`ip`-type** target groups with a `TargetGroupBinding` per cluster. Never share one target group between clusters — the two clusters' controllers will fight over registration/deregistration.
+- With the AWS Load Balancer Controller, set `multiClusterTargetGroup: true` so the controller does not deregister targets it did not create.
+- **NLB has no automatic failover** — weight shifts are manual, so watch health checks and roll weights back yourself if the green cluster misbehaves.
 
 ### Blue-Green Downsides to Consider
 
@@ -334,7 +363,7 @@ For workloads with PersistentVolumes:
 # List compatible versions for an add-on
 aws eks describe-addon-versions \
   --addon-name vpc-cni \
-  --kubernetes-version 1.31 \
+  --kubernetes-version 1.34 \
   --query 'addons[0].addonVersions[*].{Version:addonVersion,Default:compatibilities[0].defaultVersion}' \
   --output table
 ```
@@ -409,20 +438,20 @@ aws logs get-query-results --query-id $QUERY_ID
 brew install FairwindsOps/tap/pluto
 
 # Scan Helm releases in cluster
-pluto detect-helm --target-versions k8s=v1.31
+pluto detect-helm --target-versions k8s=v1.34
 
 # Scan manifest files (more accurate — recommended for CI)
-pluto detect-files -d manifests/ --target-versions k8s=v1.31
+pluto detect-files -d manifests/ --target-versions k8s=v1.34
 
 # Scan live cluster
-pluto detect-api-resources --target-versions k8s=v1.31
+pluto detect-api-resources --target-versions k8s=v1.34
 ```
 
 ### Using kube-no-trouble
 
 ```bash
 sh -c "$(curl -sSL https://git.io/install-kubent)"
-kubent --target-version 1.31
+kubent --target-version 1.34
 ```
 
 Scanning static manifests is generally more accurate than live cluster scanning (fewer false positives). Run `kubent`/`pluto` in CI pipelines to catch issues before deployment.
@@ -433,15 +462,18 @@ Scanning static manifests is generally more accurate than live cluster scanning 
 |---------|------------|-------------|
 | **1.25** | PodSecurityPolicy | Pod Security Admission (PSA) |
 | **1.25** | batch/v1beta1 CronJob | batch/v1 |
-| **1.25** | Dockershim (CRI) | containerd (EKS Optimized AMI default) |
 | **1.26** | flowcontrol.apiserver.k8s.io/v1beta1 | flowcontrol.apiserver.k8s.io/v1beta3 |
 | **1.27** | storage.k8s.io/v1beta1 CSIStorageCapacity | storage.k8s.io/v1 |
 | **1.29** | flowcontrol.apiserver.k8s.io/v1beta2 | flowcontrol.apiserver.k8s.io/v1 |
 | **1.32** | flowcontrol.apiserver.k8s.io/v1beta3 | flowcontrol.apiserver.k8s.io/v1 |
 
+> This table lists API removals as of 2026-08-04 and is not a complete list for versions beyond 1.32 — always verify against the live [Kubernetes deprecation guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/) and EKS release notes for your target version.
+>
+> **Note:** Dockershim is a container-runtime component, **not** an API removal. It was removed upstream in Kubernetes **1.24** (EKS-Optimized AMIs use containerd) — see the migration guidance below.
+
 ### Feature-Specific Migration Guidance
 
-**Dockershim removal (1.25):** EKS Optimized AMI for 1.25+ uses containerd, not Docker. If you mount the Docker socket (`/var/run/docker.sock`), detect dependencies with the [Detector for Docker Socket (DDS)](https://github.com/aws-containers/kubectl-detector-for-docker-socket) kubectl plugin before upgrading nodes.
+**Dockershim removal (1.24):** Dockershim was removed upstream in Kubernetes 1.24; EKS-Optimized AMIs for 1.24+ use containerd, not Docker. If you mount the Docker socket (`/var/run/docker.sock`), detect dependencies with the [Detector for Docker Socket (DDS)](https://github.com/aws-containers/kubectl-detector-for-docker-socket) kubectl plugin before upgrading nodes.
 
 **PodSecurityPolicy removal (1.25):** Migrate to built-in [Pod Security Standards (PSS)](https://docs.aws.amazon.com/eks/latest/userguide/pod-security-policy-removal-faq.html) or a policy-as-code solution (Kyverno, OPA/Gatekeeper) before upgrading to 1.25.
 
@@ -507,9 +539,13 @@ Karpenter does not add jitter to expiry — configure PDBs to prevent simultaneo
 
 **Force immediate node replacement:**
 
+To force replacement of a specific node, delete its NodeClaim — Karpenter drains the node (respecting PDBs) and provisions a replacement:
+
 ```bash
-kubectl annotate nodes --all karpenter.sh/voluntary-disruption=drifted --overwrite
+kubectl delete nodeclaim/<nodeclaim-name>
 ```
+
+There is no `karpenter.sh/voluntary-disruption` annotation that forces replacement across the fleet — setting such an annotation is a silent no-op. See the [Karpenter disruption docs](https://karpenter.sh/docs/concepts/disruption/).
 
 ### Managed Node Group Upgrades
 
@@ -541,6 +577,8 @@ For nodes deployed outside the EKS managed service, use your provisioning tool:
 
 ## Version Support Policy
 
+> **Version anchors as of 2026-08-04:** the standard-support versions are **1.34 / 1.35 / 1.36** (newest is 1.36). **1.31, 1.32, and 1.33 are all in extended support** (1.33 exited standard support 2026-07-29). These move roughly every quarter — always confirm the current/newest versions against the live [EKS Kubernetes version release calendar](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html#kubernetes-release-calendar) and the per-cluster API (below) rather than trusting a static list.
+
 ### EKS Version Lifecycle
 
 | Phase | Patching | Cost | Auto-upgrade? |
@@ -566,7 +604,7 @@ You can [disable extended support](https://docs.aws.amazon.com/eks/latest/usergu
 - **End of extended support:** query the API per cluster version
 - **After:** EKS auto-upgrades your cluster (may disrupt workloads)
 
-**Recommendation:** Upgrade every 3-4 months to stay within standard support. Budget one upgrade cycle per quarter. Look beyond the next version — review upcoming K8s releases to identify major changes early (e.g., Dockershim removal was announced well before 1.25).
+**Recommendation:** Upgrade every 3-4 months to stay within standard support. Budget one upgrade cycle per quarter. Look beyond the next version — review upcoming K8s releases to identify major changes early (e.g., Dockershim removal was announced well before 1.24).
 
 ### Additional Upgrade Tools
 
@@ -661,7 +699,7 @@ To verify SSM connectivity: check that the SSM agent is running on the node, the
 
 | Component | Can Rollback? | Method | Notes |
 |---|---|---|---|
-| **EKS control plane** | No | Cannot downgrade K8s version | Must rebuild cluster at previous version |
+| **EKS control plane** | Yes (within 7 days) | In-place rollback to N-1 via `update-cluster-version` type `VersionRollback` (gated by a `ROLLBACK_READINESS` insight); Auto Mode rolls back nodes automatically | Post-7-day: blue-green or rebuild is the fallback, not the only path. Add-ons/data-plane roll back separately. |
 | **Data plane nodes** | Yes | Replace with previous AMI | Karpenter: update EC2NodeClass AMI; MNG: update launch template |
 | **EKS managed add-ons** | Yes | Revert to previous version via API/Terraform | Some add-ons have minimum version requirements |
 | **Helm-managed add-ons** | Yes | `helm rollback` or GitOps revert | Check CRD compatibility |
@@ -708,4 +746,6 @@ Use when: catastrophic cluster failure, corrupted etcd state, or failed upgrade 
 **Sources:**
 - [AWS EKS Best Practices Guide — Cluster Upgrades](https://docs.aws.amazon.com/eks/latest/best-practices/cluster-upgrades.html)
 - [EKS Version Lifecycle](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html)
+- [EKS control-plane version rollback](https://docs.aws.amazon.com/eks/latest/userguide/rollback-cluster.html) · [What's New — Amazon EKS version rollback](https://aws.amazon.com/about-aws/whats-new/2026/07/amazon-eks-version-rollback/)
 - [Karpenter Upgrade Guide](https://karpenter.sh/docs/upgrading/)
+- [Karpenter Disruption](https://karpenter.sh/docs/concepts/disruption/)

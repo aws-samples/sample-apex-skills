@@ -29,7 +29,7 @@ velero install \
   --bucket my-velero-bucket \
   --backup-location-config region=us-east-1 \
   --snapshot-location-config region=us-east-1 \
-  --plugins velero/velero-plugin-for-aws:v1.8.0
+  --plugins velero/velero-plugin-for-aws:v1.8.0  # illustrative pin — check the current release (e.g. v1.14.2) and match it to your Velero version
 
 # Schedule daily backups
 velero schedule create daily-backup \
@@ -57,16 +57,23 @@ velero schedule create daily-backup \
 
 ## EKS Zonal Shift (ARC Integration)
 
-Amazon Application Recovery Controller (ARC) zonal shift allows you to shift traffic away from an impaired Availability Zone for EKS workloads. When an AZ experiences degradation, zonal shift removes that AZ from the load balancer target group, redirecting traffic to healthy AZs without requiring application changes.
+Amazon Application Recovery Controller (ARC) zonal shift allows you to shift away from an impaired Availability Zone for EKS workloads. With the EKS-integrated ARC zonal shift enabled on the cluster, a shift does far more than reroute load balancer traffic — it acts across both the data plane and Kubernetes' own service routing:
+
+- **Nodes in the impaired AZ are cordoned** so no new pods schedule there.
+- **The EndpointSlice controller strips pod endpoints in the impaired AZ**, so east-west (in-cluster `ClusterIP`) traffic is shifted away too — not just external ALB/NLB traffic.
+- **Managed Node Group AZRebalance is suspended** so the ASG does not fight the shift by rebalancing capacity back into the impaired AZ.
+- **EKS Auto Mode stops provisioning** new capacity in the impaired AZ for the duration of the shift.
 
 | Aspect | Detail |
 |---|---|
-| **What it does** | Removes an AZ from ALB/NLB target groups, shifting traffic to healthy AZs |
+| **What it does** | Cordons impaired-AZ nodes, strips impaired-AZ pod endpoints (ClusterIP + ALB/NLB), suspends MNG AZRebalance, and stops Auto Mode provisioning in that AZ |
 | **Trigger** | Manual via console/API, or automated via zonal autoshift |
 | **Duration** | Up to 72 hours per shift, extendable |
-| **EKS impact** | Pods in the shifted AZ stop receiving traffic but continue running |
-| **Pod scheduling** | Existing pods remain; new pods still schedule to all AZs unless topology constraints prevent it |
-| **Prerequisites** | Multi-AZ deployment, topology spread constraints, sufficient capacity in remaining AZs |
+| **EKS impact** | Impaired-AZ pods are removed from Service endpoints (external and in-cluster); nodes are cordoned so nothing new lands there |
+| **Pod scheduling** | Impaired-AZ nodes are cordoned — new pods do not schedule into the AZ for the shift's duration |
+| **Prerequisites** | EKS-integrated ARC zonal shift enabled, multi-AZ deployment, topology spread constraints, sufficient capacity in remaining AZs |
+
+**Karpenter and Auto Mode integration:** Karpenter (as of 2026-05) and EKS Auto Mode (as of 2026-07) integrate with ARC zonal shift, so provisioning honors an active shift and stops adding capacity in the impaired AZ. This integration is what makes the older "traffic-only" characterization of zonal shift stale — with it enabled, the shift reaches scheduling and in-cluster routing, not just the load balancer.
 
 **When to use zonal shift:**
 - AZ-level impairment (network, storage, compute degradation)
@@ -74,9 +81,9 @@ Amazon Application Recovery Controller (ARC) zonal shift allows you to shift tra
 - Proactive shift during planned AZ maintenance
 
 **Limitations:**
-- Does not evict or reschedule pods — only affects traffic routing
+- Does not evict or reschedule already-running pods — it cordons nodes and removes endpoints, but existing pods in the impaired AZ keep running until they terminate on their own
 - Requires sufficient capacity in remaining AZs to handle full load
-- Works with ALB and NLB only (not ClusterIP or NodePort services)
+- Requires the EKS-integrated ARC zonal shift to be enabled on the cluster; without it, only the load-balancer traffic path shifts
 
 DO:
 - Ensure topology spread constraints distribute pods across all AZs before relying on zonal shift
@@ -85,7 +92,7 @@ DO:
 
 DON'T:
 - Use zonal shift as a substitute for proper multi-AZ pod distribution
-- Assume pods will automatically move — zonal shift only affects traffic, not scheduling
+- Assume already-running pods will be evicted or moved — the shift cordons nodes and strips endpoints, but does not reschedule pods that are already running
 
 ---
 
@@ -187,7 +194,7 @@ Create a new Deployment identical to the current version, verify pods are health
 
 ### Canary Deployments
 
-Deploy the new version with fewer replicas alongside the existing Deployment, divert a small percentage of traffic, and progressively increase if metrics are healthy. Use [Flagger](https://github.com/weaveworks/flagger) with Istio or AWS App Mesh for automated canary progression.
+Deploy the new version with fewer replicas alongside the existing Deployment, divert a small percentage of traffic, and progressively increase if metrics are healthy. Use [Flagger](https://github.com/fluxcd/flagger) with Istio for automated canary progression. (AWS App Mesh reaches end of support on 2026-09-30 — do not adopt it for new canary/mesh work; prefer Istio or Cilium-based service mesh instead.)
 
 ---
 
@@ -251,3 +258,4 @@ Prerequisite reading: [reliability-core.md](reliability-core.md).
 - [AWS EKS Best Practices Guide — High Availability](https://aws.github.io/aws-eks-best-practices/reliability/docs/)
 - [AWS Prescriptive Guidance — HA and Resiliency for EKS](https://docs.aws.amazon.com/prescriptive-guidance/latest/ha-resiliency-amazon-eks-apps/introduction.html)
 - [AWS FIS for EKS](https://docs.aws.amazon.com/fis/latest/userguide/fis-actions-reference.html)
+- [EKS Zonal Shift (ARC integration)](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift.html)

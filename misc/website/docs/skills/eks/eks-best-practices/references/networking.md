@@ -24,8 +24,9 @@ This page is generated from [skills/eks-best-practices/references/networking.md]
 1. [VPC CNI Deep Dive](#vpc-cni-deep-dive)
 2. [VPC CNI Operations](#vpc-cni-operations)
 3. [Subnet Planning](#subnet-planning)
-4. [IPv4 vs IPv6](#ipv4-vs-ipv6)
-5. [Security Groups for Pods](#security-groups-for-pods)
+4. [Control Plane Egress (CUSTOMER_ROUTED)](#control-plane-egress-customer_routed)
+5. [IPv4 vs IPv6](#ipv4-vs-ipv6)
+6. [Security Groups for Pods](#security-groups-for-pods)
 
 ---
 
@@ -49,7 +50,7 @@ Each pod receives one secondary private IP from an ENI attached to the node. The
 
 **Max pods per node** = (Number of ENIs × IPs per ENI) - 1
 
-ENI counts and IPs-per-ENI vary by instance type and change over time — use the live [max-pods-calculator.sh](https://github.com/awslabs/amazon-eks-ami/blob/main/templates/al2/runtime/max-pods-calculator.sh) script as the source of truth rather than relying on a static table:
+ENI counts and IPs-per-ENI vary by instance type and change over time — use the live [max-pods-calculator.sh](https://github.com/awslabs/amazon-eks-ami/blob/v20241213/templates/al2/runtime/max-pods-calculator.sh) script as the source of truth rather than relying on a static table (the script moved out of the `main` branch when the AL2 tree was removed, so pin a tag such as `v20241213`; the `--cni-version` value in the examples below is illustrative — check your installed version with `kubectl describe daemonset aws-node -n kube-system`):
 
 ```bash
 ./max-pods-calculator.sh --instance-type m5.large --cni-version 1.9.0
@@ -292,6 +293,56 @@ kubernetes.io/cluster/<cluster-name> = shared  # or "owned"
 | **IPv6** | High | Unlimited | Irreversible; dual-stack complexity |
 | **Private NAT gateway** | Medium | N/A | Solves overlapping CIDRs; adds NAT GW cost |
 
+#### Who owns the VPC? (shared / RAM-shared subnets)
+
+The strategies above — especially adding a secondary CIDR via `associate-vpc-cidr-block` — assume you own the VPC and its subnets. When the cluster runs in **shared subnets you don't own** (for example, subnets shared into your account via AWS Resource Access Manager from a central networking account), you cannot self-service a secondary CIDR or new subnets: those API calls act on the owner account. Route by ownership:
+
+- **You own the VPC** — use the strategies above directly (secondary CIDR, custom networking, prefix delegation, IPv6).
+- **Subnets are shared and you don't own them** — you have three options:
+  - Request the VPC owner add a **secondary CIDR** (or provision additional/larger subnets) for your cluster.
+  - Stretch the **existing** shared space you already have with **prefix delegation** or **IPv6**, which raise pod density without needing new CIDR space.
+  - Raise a **cross-team request** to the networking owner to re-plan address space if neither of the above closes the gap.
+
+---
+
+## Control Plane Egress (CUSTOMER_ROUTED)
+
+By default, EKS sends control-plane-initiated traffic through an AWS-managed egress path. The `cluster.resourcesVpcConfig.controlPlaneEgressMode` field (GA as of 2026-08-04) lets you change this:
+
+| Value | Behavior |
+|-------|----------|
+| **`AWS_MANAGED`** (default) | Control-plane-initiated egress uses the AWS-managed path |
+| **`CUSTOMER_ROUTED`** | Control-plane-initiated traffic (to webhooks, OIDC providers, aggregated API servers, kubelet) routes through your VPC networking — subnets, route tables, and NAT — rather than AWS-managed egress |
+
+`CUSTOMER_ROUTED` is supported on **EKS Auto Mode** as well.
+
+> **One-way switch:** Once you enable `CUSTOMER_ROUTED`, you **cannot revert to `AWS_MANAGED`**. Plan the reachability and security requirements below *before* switching.
+
+### Egress Categories to Plan For
+
+| Target | Port | Path |
+|--------|------|------|
+| Admission webhooks | 443 | Through the customer VPC egress device |
+| OIDC provider | 443 | Through the customer VPC egress device |
+| Aggregated API servers | 443 | Through the customer VPC egress device |
+| Kubelet API | 10250 | Reaches nodes via the **cluster ENI** — does **not** traverse the egress device |
+
+etcd, CloudWatch, and internal EKS traffic stay on the AWS-managed path.
+
+### NACL / Security Group Requirement
+
+The egress path must allow **outbound 443** *and* **inbound ephemeral ports 1024–65535** (return traffic). A "just allow 443" summary is wrong — omitting the inbound ephemeral range breaks the return path.
+
+### Pre-Switch Checklist
+
+Because the switch is irreversible, enumerate reachability before enabling:
+
+1. **Enumerate all admission webhooks** and their endpoints — distinguish external endpoints from in-cluster ones.
+2. **Confirm OIDC provider reachability** from the VPC.
+3. **Enumerate aggregated API services.**
+4. **Ensure route/NAT/NACL/SG allow the required flows** — outbound 443 plus inbound ephemeral (1024–65535).
+5. **Verify after switching** — trigger a webhook with a test pod, and watch the cluster log group `/aws/eks/<cluster-name>/cluster`.
+
 ---
 
 ## IPv4 vs IPv6
@@ -310,6 +361,8 @@ kubernetes.io/cluster/<cluster-name> = shared  # or "owned"
 | **Network policy** | Full support | Full support (VPC CNI 1.14+) |
 | **Load balancers** | ALB/NLB full support | ALB/NLB dual-stack (requires LBC, in-tree controller doesn't support IPv6) |
 | **Recommendation** | Default choice | Use when IPv4 exhaustion is a real concern |
+
+> **Network policy caveat:** VPC CNI network policy support is per-address-family — a cluster is either IPv4 or IPv6, so policies apply to whichever family the cluster runs (there is no dual-family enforcement in a single cluster). The newer `ClusterNetworkPolicy`/admin-tier enforcement (an addition in a later VPC CNI release, v1.21) is separate from the baseline `NetworkPolicy` support noted above; verify your installed VPC CNI version supports the tier you need.
 
 ### IPv6 Technical Details
 
@@ -407,6 +460,7 @@ aws eks describe-cluster --name CLUSTER_NAME \
 
 **Requirements not supported:**
 - Windows nodes and non-Nitro instances
+- **EKS Auto Mode** — the branch-ENI `SecurityGroupPolicy` path is not supported. On Auto Mode, attach security groups to pods by setting `podSecurityGroupSelectorTerms` on the NodeClass instead.
 - NodeLocal DNSCache in strict mode
 - SG for Pods with custom networking uses the SG from SecurityGroupPolicy, **not** from ENIConfig
 
@@ -436,6 +490,8 @@ multus:
 ```
 
 Multus is deployed via `kubectl_manifest` resources that apply the upstream thick-plugin DaemonSet manifests directly into `kube-system` (not via Helm). The only config keys that matter are `enabled` and `image`.
+
+> The `v4.1.x` image tags above are illustrative — the upstream project has moved on (current is v4.3.0). Check the [Multus releases](https://github.com/k8snetworkplumbingwg/multus-cni/releases) and pin a current tag that includes the pod-lookup race fix rather than copying these values verbatim.
 
 **When it is safe to enable:**
 - You are using thin-plugin mode (`multus-cni:v4.1.0-thin` or later) which avoids the race entirely
@@ -496,5 +552,6 @@ node_sg_additional_rules:
 - [AWS EKS Best Practices Guide — Prefix Mode](https://docs.aws.amazon.com/eks/latest/best-practices/prefix-mode-linux.html)
 - [AWS EKS Best Practices Guide — Custom Networking](https://docs.aws.amazon.com/eks/latest/best-practices/custom-networking.html)
 - [AWS EKS Best Practices Guide — Subnets](https://docs.aws.amazon.com/eks/latest/best-practices/subnets.html)
+- [Amazon EKS User Guide — Control plane egress](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-egress.html)
 - [AWS EKS Best Practices Guide — IPv6](https://docs.aws.amazon.com/eks/latest/best-practices/ipv6.html)
 - [AWS EKS Best Practices Guide — Security Groups Per Pod](https://docs.aws.amazon.com/eks/latest/best-practices/sgpp.html)

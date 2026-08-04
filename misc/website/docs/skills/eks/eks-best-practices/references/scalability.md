@@ -62,6 +62,8 @@ When investigating scaling issues, check metrics in both upstream and downstream
 
 EKS automatically scales the control plane (API servers across 2+ AZs, etcd across 3 AZs), but there are limits on how fast it scales.
 
+For large clusters that hit these auto-scaling limits, **EKS Provisioned Control Plane (PCP)** directly addresses the API-scaling concern: it offers a 99.99% SLA, an 8XL control-plane tier (added 2026-03), and faster pod autoscaling (added 2026-07). See [Amazon EKS Provisioned Control Plane](https://docs.aws.amazon.com/eks/latest/userguide/scale-cluster.html). Consider it before relying solely on the Terraform-level burst knobs below.
+
 ### Burst Limits
 
 Avoid scaling spikes that increase cluster size by more than ~10% at a time (e.g., 1,000 to 1,100 nodes, or 4,000 to 4,500 pods at once). The control plane auto-scales but needs time to adapt. New clusters will not immediately support hundreds of nodes.
@@ -100,7 +102,7 @@ If you see 429s from your controllers, they're likely making excessive LIST call
 | Metric | What It Tells You |
 |--------|-------------------|
 | `etcd_request_duration_seconds` | etcd latency per operation |
-| `apiserver_storage_size_bytes` (EKS >= 1.28) | etcd database size |
+| `apiserver_storage_size_bytes` | etcd database size |
 
 When etcd's database size exceeds its limit, it emits a "no space" alarm and the cluster becomes **read-only** -- no new pods, no scaling, no deployments.
 
@@ -179,7 +181,7 @@ spec:
 
 Keep worker nodes up to date with the latest EKS-optimized AMIs:
 
-- **Karpenter** automatically uses the latest AMI for new nodes
+- **Karpenter** (v1) selects AMIs via `amiSelectorTerms` on the EC2NodeClass -- it does not auto-track the latest AMI unless you use the `@latest` alias, which is discouraged in production (pin a specific AMI/alias instead)
 - **MNG** requires updating the ASG launch template for patch releases; minor versions are available as managed upgrades
 - Use Bottlerocket for automatic, minimal-downtime updates
 
@@ -259,7 +261,7 @@ Use separate EKS clusters for different application environments (dev, test, pro
 | ELB Type | Default Target Quota | Per-AZ Limit |
 |----------|---------------------|--------------|
 | ALB | 1,000 targets | -- |
-| NLB | 3,000 targets | 500 per AZ |
+| NLB | 3,000 targets | 500 per AZ (500 per LB total with cross-zone load balancing enabled) |
 
 If a service exceeds these targets, split across multiple LBs or use an in-cluster ingress controller. Use Route 53 (weighted DNS), Global Accelerator, or CloudFront to present multiple LBs as a single endpoint.
 
@@ -267,7 +269,7 @@ If a service exceeds these targets, split across multiple LBs or use an in-clust
 
 EndpointSlices reduce API server load compared to Endpoints for large, frequently-scaling services. They include topology information for features like topology-aware routing.
 
-Verify your controllers use them -- for the AWS Load Balancer Controller, enable `--enable-endpoint-slices`.
+Verify your controllers use them -- for older AWS Load Balancer Controller versions, enable `--enable-endpoint-slices`; it is on by default since LBC v2.7+ (and in v3), so no action is needed on current versions.
 
 ### Reduce Control Plane Watches
 

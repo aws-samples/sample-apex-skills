@@ -41,7 +41,7 @@ Reducing the attack surface of container images is a primary security goal:
   ENTRYPOINT ["/server"]
   ```
 - **Add the USER directive** to Dockerfiles to run as non-root by default
-- **Lint Dockerfiles** with tools like [dockerfile_lint](https://github.com/projectatomic/dockerfile_lint) to enforce best practices in CI
+- **Lint Dockerfiles** with tools like [hadolint](https://github.com/hadolint/hadolint) to enforce best practices in CI
 
 ### Software Bill of Materials (SBOMs)
 
@@ -68,7 +68,7 @@ aws ecr put-registry-scanning-configuration \
 
 | Scanning Type | Provider | Cost | Features |
 |--------------|----------|------|----------|
-| **Basic** | Clair (via ECR) | Free | On-push or on-demand |
+| **Basic** | AWS-native (`AWS_NATIVE`, via ECR) | Free | On-push or on-demand |
 | **Enhanced** | Amazon Inspector | Paid | Continuous, OS + language packages |
 
 Additional scanning tools: Grype, Trivy, Snyk, Prisma Cloud (twistcli), Aqua.

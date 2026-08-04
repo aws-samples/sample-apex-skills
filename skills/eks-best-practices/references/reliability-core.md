@@ -216,7 +216,7 @@ Karpenter respects PDBs during:
 - **Drift replacement** — Waits for PDB budget before cordoning
 - **Expiry** — Respects PDB during node replacement
 
-If a PDB blocks node drain for >15 minutes (default), Karpenter's `terminationGracePeriod` on the NodePool determines behavior.
+If a PDB blocks node drain, Karpenter waits indefinitely by default — there is no built-in timeout. The NodePool's `terminationGracePeriod` is an opt-in force-delete deadline that has **no default** (when unset, `nil`, Karpenter waits indefinitely for the PDB to allow eviction). Once set, it forces drain after that deadline even if a PDB is still blocking.
 
 ---
 

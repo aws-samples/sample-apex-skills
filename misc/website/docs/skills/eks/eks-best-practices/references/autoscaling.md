@@ -40,7 +40,7 @@ This page is generated from [skills/eks-best-practices/references/autoscaling.md
 | **Spot support** | Native Spot handling | Via mixed instance policy | AWS-managed |
 | **Operational overhead** | Low -- CRD-based config | Medium -- ASG management | Lowest -- fully managed |
 | **Customization** | High | Medium | Low |
-| **Maturity** | GA (v1.0+) | Very mature | Newer -- evaluate for your use case |
+| **Maturity** | GA (v1.0+) | Very mature | GA and mature -- managed drivers, self-service troubleshooting, GPU support |
 | **Recommendation** | Default choice | When Karpenter is not an option | When minimal ops is top priority |
 
 **For detailed Karpenter guidance, see:** [Karpenter Reference](karpenter)
@@ -60,7 +60,7 @@ This page is generated from [skills/eks-best-practices/references/autoscaling.md
 
 ### When to Use CAS Over Karpenter
 
-- EKS on Outposts (Karpenter not supported)
+- EKS on Outposts (Karpenter not supported, as of 2026-08-04)
 - Self-managed node groups with specific AMI requirements
 - Clusters already running CAS with complex ASG configurations
 - Organizations requiring node group-level operational boundaries
@@ -286,7 +286,7 @@ EKS Auto Mode provides AWS-managed:
 - **Node provisioning and scaling** (no node groups to manage)
 - **Node OS patching and upgrades**
 - **Compute optimization** (instance selection, Spot)
-- **Cluster add-ons** (VPC CNI, CoreDNS, kube-proxy)
+- **Built-in networking, DNS, load balancing, and storage** — VPC CNI, CoreDNS, kube-proxy, the AWS Load Balancer Controller, and EBS CSI run as AWS-managed built-in components, not as cluster add-ons you install. Installing the corresponding EKS add-ons on an Auto Mode cluster is redundant (and conflicts with the managed components).
 
 ### When to Use Auto Mode
 
@@ -298,10 +298,12 @@ Use Auto Mode when:
 
 Don't use Auto Mode when:
 - You need custom AMIs or specific kernel configurations
-- GPU/ML workloads requiring specific instance types or drivers
+- You must pin a *specific* GPU/Neuron driver version (Auto Mode is Bottlerocket-only and ships AWS-managed driver versions)
 - Windows containers are required
 - You need fine-grained control over node configuration
 - Running on EKS Outposts or EKS Anywhere
+
+**GPU/ML on Auto Mode:** Auto Mode DOES support GPU and accelerated workloads — it ships managed NVIDIA and Neuron drivers plus the GPU device plugins, and specific accelerated instance types are selectable via custom NodePools (e.g. `requirements` on `node.kubernetes.io/instance-type` or instance-family/GPU labels). The only residual limitation is that you can't pin a custom driver *version* (drivers track the managed Bottlerocket AMI). If a specific driver version or custom AMI is mandatory, use standard EKS + Karpenter instead.
 
 ### Auto Mode Configuration
 

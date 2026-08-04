@@ -139,10 +139,10 @@ DON'T:
 
 | Feature | Basic Scanning | Enhanced Scanning (Inspector) |
 |---|---|---|
-| **Engine** | Clair (open-source) | Amazon Inspector |
+| **Engine** | AWS-native (`AWS_NATIVE`) | Amazon Inspector |
 | **Coverage** | OS packages only | OS + programming language libraries |
-| **Trigger** | On-push only | Continuous (re-scans on new CVE disclosure) |
-| **Findings** | ECR console only | Security Hub + EventBridge |
+| **Trigger** | On-push, plus manual on-demand scans | Continuous (re-scans on new CVE disclosure) |
+| **Findings** | ECR console + EventBridge | Security Hub + EventBridge |
 | **Cost** | Free | Per-image pricing |
 | **Limitation** | -- | Cannot scan archived images (must restore first) |
 | **Recommendation** | Development only | Production |
@@ -290,8 +290,9 @@ ECR pull-through cache rules automatically cache images from upstream public reg
 | **Docker Hub** | `docker.io` | Yes (Secrets Manager) |
 | **ECR Public** | `public.ecr.aws` | No |
 | **GitHub Container Registry** | `ghcr.io` | Yes (Secrets Manager) |
-| **Quay.io** | `quay.io` | Yes (Secrets Manager) |
+| **Quay.io** | `quay.io` | No |
 | **Kubernetes Registry** | `registry.k8s.io` | No |
+| **ECR (another private ECR)** | `<account>.dkr.ecr.<region>.amazonaws.com` | Yes (IAM/cross-account) |
 | **GitLab Container Registry** | `registry.gitlab.com` | Yes (Secrets Manager) |
 | **Chainguard** | `cgr.dev` | Yes (Secrets Manager) |
 | **Azure Container Registry** | `<name>.azurecr.io` | Yes (Secrets Manager) |
@@ -424,7 +425,7 @@ ECR archival storage provides a low-cost tier for images you need to retain but 
 | **Transition** | Via lifecycle policy `archive` action, or manual API call |
 | **Storage cost** | Lower than standard ECR storage |
 | **Restore time** | Up to 20 minutes |
-| **Restore duration** | Restored copy available for a configurable number of days |
+| **Restore duration** | Permanent -- restore moves the image back to the STANDARD storage class; there is no timed window after which it re-archives |
 | **Scanning** | Archived images cannot be scanned -- restore first |
 
 ### Lifecycle Policy Integration
@@ -481,19 +482,26 @@ Blob mounting allows image layers that already exist in one repository to be ref
 
 | Setting | Effect |
 |---|---|
-| **Enabled (default)** | Push operations mount existing layers from other repos, saving bandwidth and time |
-| **Disabled** | Every push uploads all layers, even if identical copies exist in the registry |
+| **Disabled (default)** | Every push uploads all layers, even if identical copies exist in the registry |
+| **Enabled (opt-in)** | Push operations mount existing layers from other repos, saving bandwidth and time |
 
-Keep blob mounting enabled unless you have a specific security requirement to isolate layer access between repositories.
+Blob mounting is **off by default** -- opt in at the registry level with `aws ecr put-account-setting --name BLOB_MOUNTING --value ENABLED`. Constraints once enabled:
+- Not supported for pull-through-cache (PTC) images
+- Source and destination repositories must use identical encryption keys
+- Cross-repository mounts require the caller to hold `ecr:GetDownloadUrlForLayer` on the source repository
+
+Enable it when many images share common base layers, unless you have a specific security requirement to isolate layer access between repositories.
 
 ### Pull-Time Update Exclusions
 
-When pull-through cache is enabled, ECR checks the upstream registry for updates every 24 hours. Pull-time update exclusions let you pin specific repositories so ECR never re-checks upstream -- the cached version is treated as authoritative.
+Pull-time update exclusions are a registry setting that lists IAM role ARNs (up to 100 per account) whose image pulls do **not** update an image's `LastRecordedPullTime`. They have nothing to do with caching or pinning upstream versions.
 
-Use this for:
-- **Known-good images** you've validated and don't want upstream changes to override
-- **Air-gapped environments** where you've seeded images and upstream is unreachable
-- **Compliance scenarios** where you need a frozen, auditable copy
+The purpose is to protect `sinceImagePulled` lifecycle policies from being skewed by automated pulls. Security scanners, replication jobs, and other automation pull images frequently; without exclusions, those pulls keep refreshing `LastRecordedPullTime` and make images look "actively used," defeating lifecycle rules that expire images nobody actually deploys.
+
+Use this to:
+- **Exclude scanner roles** (e.g., Inspector or third-party CVE scanners) so their pulls don't reset the pull clock
+- **Exclude replication/automation roles** whose pulls shouldn't count as real usage
+- **Keep `sinceImagePulled` lifecycle policies accurate** so only genuinely-used images are retained
 
 ---
 
@@ -531,6 +539,8 @@ The workflow for Helm charts stored in ECR OCI follows three steps:
 - [Designing a secure container image registry](https://aws.amazon.com/blogs/containers/designing-a-secure-container-image-registry/)
 - [Amazon Inspector container scanning](https://docs.aws.amazon.com/inspector/latest/user/scanning-ecr.html)
 - [ECR Pull-Through Cache](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html)
+- [ECR Basic Scanning](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-basic.html)
+- [ECR Pull-Time Update Exclusions](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-time-update-exclusions.html)
 - [ECR Managed Signing](https://docs.aws.amazon.com/AmazonECR/latest/userguide/managed-signing.html)
 - [ECR Archival Storage](https://docs.aws.amazon.com/AmazonECR/latest/userguide/archive_restore_image.html)
 - [ECR Repository Creation Templates](https://docs.aws.amazon.com/AmazonECR/latest/userguide/repository-creation-templates.html)

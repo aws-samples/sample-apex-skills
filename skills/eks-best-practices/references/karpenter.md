@@ -24,7 +24,7 @@
 
 ### Run Karpenter on Fargate or a Dedicated MNG
 
-The Karpenter controller and webhook run as a Deployment that must be available before Karpenter can scale your cluster. Run them on infrastructure Karpenter does not manage -- either a small MNG (at least one worker node) or a Fargate profile for the `karpenter` namespace. If Karpenter runs on a node it manages, it could scale down that node and lose the ability to provision replacements.
+The Karpenter controller runs as a Deployment that must be available before Karpenter can scale your cluster. (The separate webhook Deployment was removed in Karpenter v1.0/1.1 -- webhooks are no longer a distinct component, so there is a single controller Deployment to schedule.) Run it on infrastructure Karpenter does not manage -- either a small MNG (at least one worker node) or a Fargate profile for the `karpenter` namespace. If Karpenter runs on a node it manages, it could scale down that node and lose the ability to provision replacements.
 
 ### Lock Down AMIs in Production
 
@@ -32,11 +32,11 @@ Pin well-known AMI versions for production clusters. Using `@latest` or methods 
 
 ```yaml
 amiSelectorTerms:
-- alias: al2023@v20240807  # Pin tested version in production
+- alias: al2023@v20240807  # Illustrative pin -- check the current AMI alias
 # Use al2023@latest only in dev/test
 ```
 
-Test newer AMI versions in non-production clusters before rolling to production.
+The `v20240807` alias above is a 2024-era example, not a recommended value -- look up the current tested AMI alias for your Kubernetes version and pin that. Test newer AMI versions in non-production clusters before rolling to production.
 
 ### No Custom Launch Templates
 
@@ -86,6 +86,8 @@ spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     consolidateAfter: 1m
+    budgets:
+    - nodes: "10%"   # Cap concurrent voluntary disruption (see Disruption Budgets)
 
   limits:
     cpu: "1000"
@@ -130,7 +132,7 @@ metadata:
 spec:
   role: KarpenterNodeRole-my-cluster
   amiSelectorTerms:
-  - alias: al2023@v20240807  # Pin AMI version in production
+  - alias: al2023@v20240807  # Illustrative pin -- check current AMI alias, not a hard-coded value
   subnetSelectorTerms:
   - tags:
       karpenter.sh/discovery: my-cluster
@@ -192,17 +194,80 @@ Do not use Karpenter interruption handling alongside AWS Node Termination Handle
 | Policy | Behavior | Use When |
 |--------|----------|----------|
 | **WhenEmpty** | Only replaces nodes with zero pods | Conservative -- minimal disruption |
-| **WhenEmptyOrUnderutilized** | Replaces underutilized nodes too | Default -- best cost optimization |
+| **WhenEmptyOrUnderutilized** | Replaces empty nodes and consolidates underutilized ones | Best cost optimization |
+| **Balanced** | Consolidates while weighing disruption cost against savings, favoring fewer, less disruptive actions | GA in Karpenter v1.14.0 (current) -- steadier middle ground between the two above |
 
 **Consolidation respects:**
 - Pod disruption budgets
 - `karpenter.sh/do-not-disrupt: "true"` annotation on pods or nodes
+
+These two protections gate **consolidation and drift** only. They do **not** block node **expiration** -- see [do-not-disrupt Does Not Block Expiration](#do-not-disrupt-does-not-block-expiration).
 
 ### Set requests=limits for Non-CPU Resources
 
 Consolidation packs pods based on resource **requests**, not limits. Pods with memory limits higher than requests can burst above requests. If several pods on the same node burst simultaneously, this can trigger OOM kills. Consolidation makes this more likely because it packs nodes more tightly.
 
 To prevent this, set `requests == limits` for memory and other non-CPU resources. CPU is the exception -- CPU is compressible and throttling (not OOM) is the consequence of exceeding limits.
+
+### Disruption Budgets
+
+`disruption.budgets` caps how much voluntary disruption Karpenter performs at once, across all NodePool-initiated actions. **When you define no budgets, the default is a single budget of `nodes: 10%`** -- Karpenter disrupts at most 10% of the NodePool's nodes concurrently.
+
+A budget's allowed node count is computed as:
+
+```
+allowed = roundup(total_nodes * percentage) - currently_deleting - not_ready
+```
+
+so `notReady` and in-flight deletions already count against the budget. A budget may be expressed as a percentage (`nodes: "10%"`) or an absolute count (`nodes: "5"`); `nodes: "0"` blocks all voluntary disruption for the window.
+
+**Reasons-based budgets** scope a budget to specific disruption reasons via the `reasons` field (`Drifted`, `Underutilized`, `Empty`). A budget with no `reasons` applies to every reason. This lets you, for example, allow empty-node reclamation to run wide open while throttling underutilization-driven consolidation:
+
+```yaml
+spec:
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    budgets:
+    - nodes: "20%"                    # applies to all reasons (fallback)
+    - nodes: "100%"
+      reasons: ["Empty"]              # reclaim empty nodes without throttling
+    - nodes: "5%"
+      reasons: ["Underutilized"]      # go slow on underutilization churn
+```
+
+**Scheduled / business-hours budgets** (e.g. a `nodes: "0"` block on a cron `schedule` + `duration` to freeze disruption during business hours) are documented once, alongside the drift-during-upgrade flow, rather than duplicated here. See:
+- [cluster-upgrades.md -- Karpenter Node Upgrades](cluster-upgrades.md#karpenter-node-upgrades) for the scheduled `nodes: "0"` business-hours block (plus always-allow-`Empty` at 100% and a 10% fallback)
+- [SKILL.md -- Data Plane with Karpenter](../SKILL.md#data-plane-with-karpenter) for the same budget in the upgrade-speed context
+- [reliability-core.md -- PDB Interaction with Karpenter](reliability-core.md#pdb-interaction-with-karpenter) for how budgets compose with Pod Disruption Budgets
+
+### do-not-disrupt Does Not Block Expiration
+
+`karpenter.sh/do-not-disrupt: "true"` and blocking PDBs gate the **graceful/voluntary** disruption methods -- consolidation and drift. **Expiration (`expireAfter`) is a forceful disruption method and is NOT blocked by these protections.** When a node reaches `expireAfter`, Karpenter proceeds with replacement regardless of the annotation; pod eviction is deferred at most until the node's configured `terminationGracePeriod` (see below), after which pods are force-drained. Do not rely on `do-not-disrupt` to keep an expired node alive indefinitely -- use it to protect against consolidation/drift churn, and tune `expireAfter` for node lifetime.
+
+### NodePool terminationGracePeriod (v1)
+
+The NodePool-level `terminationGracePeriod` (a v1 field, distinct from a pod's `terminationGracePeriodSeconds`) is the safety escape hatch against PDB deadlock. Once a node begins terminating, Karpenter waits at most this long for a graceful drain; when the deadline passes it **forces the drain, overriding blocking PDBs and `do-not-disrupt`**. This is what prevents a single stuck PDB from pinning a node forever.
+
+- It has **no default** -- when unset (nil), Karpenter waits **indefinitely** for pods to drain, so a blocking PDB or `do-not-disrupt` pod can stall the node.
+- Setting it bounds the maximum node lifetime: **max node lifetime = `terminationGracePeriod` + `expireAfter`** (the node can live up to `expireAfter`, then take up to `terminationGracePeriod` to finish draining).
+- Do not confuse it with the pod-level `terminationGracePeriodSeconds` (default 30s), which governs a single pod's shutdown, not the node's drain deadline.
+
+```yaml
+spec:
+  template:
+    spec:
+      expireAfter: 720h
+      terminationGracePeriod: 24h  # force drain 24h after termination begins, even past a blocking PDB
+```
+
+### Reducing Sudden Node Changes / Stabilizing Consolidation
+
+**Symptom:** nodes churn or the cluster sees sudden node changes as consolidation repeatedly repacks workloads. These levers, applied together, stabilize consolidation without turning it off:
+
+- **Raise `consolidateAfter`.** The examples in this doc use short values like `1m` to illustrate the field; short windows make Karpenter act on brief lulls. Values in the **15--60m** range let load settle before consolidation triggers, cutting churn.
+- **Add `disruption.budgets`** to cap how many nodes move at once (start from the default 10%, and consider reasons-based budgets to throttle only `Underutilized`).
+- **Use `WhenEmpty` on the single most interruption-sensitive NodePool** -- not generically across every NodePool. Reserve conservative consolidation for the workloads that most dislike being moved, and keep `WhenEmptyOrUnderutilized` (or `Balanced`) elsewhere so you still capture savings.
+- **Apply `do-not-disrupt` to the critical pods themselves** so consolidation and drift leave them in place (remember this does not stop expiration).
 
 ---
 
@@ -321,7 +386,9 @@ If routing Karpenter container logs to CloudWatch Logs, create a metrics filter 
 
 ### Use do-not-disrupt for Long-Running Workloads
 
-For batch jobs, ML training, or stateful workloads that are expensive to restart, annotate pods with `karpenter.sh/do-not-disrupt: "true"`. This prevents Karpenter from terminating the node even if `expireAfter` has been reached or consolidation would normally trigger. The annotation is respected until the pod terminates or the annotation is removed.
+For batch jobs, ML training, or stateful workloads that are expensive to restart, annotate pods with `karpenter.sh/do-not-disrupt: "true"`. This prevents Karpenter from disrupting the node via **consolidation or drift** while the pod runs; the annotation is respected until the pod terminates or the annotation is removed.
+
+**It does not, however, block expiration.** `expireAfter` is a forceful disruption method: when a node hits its expiry, Karpenter replaces it regardless of `do-not-disrupt` (pod eviction is deferred at most until the node's `terminationGracePeriod`). See [do-not-disrupt Does Not Block Expiration](#do-not-disrupt-does-not-block-expiration). For workloads that must not be interrupted mid-run, size `expireAfter` (and, if set, `terminationGracePeriod`) to outlast the work rather than relying on the annotation alone.
 
 Note: if the only non-daemonset pods left on a node are from completed Jobs (status succeeded or failed), Karpenter can still terminate that node.
 
@@ -370,6 +437,9 @@ When running EKS in a VPC with no internet access, Karpenter requires these VPC 
 | **SSM** | Karpenter queries SSM parameters for AMI IDs during node provisioning |
 | **EC2** | Standard EC2 API calls for instance provisioning |
 | **EKS** | EKS API calls |
+| **SQS** | Interruption handling polls the SQS interruption queue (required if you enable `--interruption-queue`, above) |
+| **ECR** (`ecr.api` + `ecr.dkr`) | Nodes pull container images from Amazon ECR |
+| **S3** (gateway endpoint) | ECR image layers and other artifacts are served from S3 |
 
 **No VPC endpoint exists for the Price List Query API.** Karpenter bundles on-demand pricing data in its binary, but this data only updates when Karpenter is upgraded. You'll see non-fatal errors about pricing data retrieval -- these are expected in private clusters.
 

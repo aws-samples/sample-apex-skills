@@ -44,7 +44,7 @@ This page is generated from [skills/eks-best-practices/references/security.md](h
 **Minimum node IAM policies:**
 - `AmazonEKSWorkerNodePolicy`
 - `AmazonEKS_CNI_Policy` (or use IRSA/Pod Identity for VPC CNI)
-- `AmazonEC2ContainerRegistryReadOnly`
+- `AmazonEC2ContainerRegistryPullOnly` (current guidance; narrower than the older `AmazonEC2ContainerRegistryReadOnly`)
 
 Move VPC CNI permissions to IRSA/Pod Identity to reduce node role scope. Never add application-level permissions (S3, DynamoDB) to node roles — use Pod Identity or IRSA instead.
 
@@ -110,7 +110,7 @@ aws eks associate-access-policy \
 
 **Migration path:** `CONFIG_MAP` -> `API_AND_CONFIG_MAP` -> `API`. These transitions are **irreversible** — you cannot switch from `API` back to `CONFIG_MAP`.
 
-**Available access policies:**
+**Available access policies (illustrative — 15+ EKS access policies exist; list the full set with `aws eks list-access-policies`):**
 - `AmazonEKSClusterAdminPolicy` -> cluster-admin
 - `AmazonEKSAdminPolicy` -> admin (namespace-scopable)
 - `AmazonEKSEditPolicy` -> edit (namespace-scopable)
@@ -142,7 +142,6 @@ If `stsendpoint` equals `sts.amazonaws.com`, the client is using the global endp
 | **Cross-account** | Built-in support | Manual trust policy per account |
 | **Session tags** | Automatic (cluster, namespace, SA) | Not available |
 | **Role chaining** | Supported | Not supported |
-| **EKS version** | 1.24+ | 1.14+ |
 | **Fargate support** | Not yet | Supported |
 | **Recommendation** | Preferred for new workloads | Use for older clusters or Fargate |
 
@@ -210,6 +209,8 @@ metadata:
 - Use `StringEquals` (not `StringLike`) for sub conditions
 - Never use wildcard `*` in IRSA trust policy conditions
 - Don't share service accounts across applications with different privilege needs
+
+> **PrivateLink for the cluster OIDC endpoint** (GA as of 2026-08-04): the cluster OIDC issuer endpoint can be reached over PrivateLink, giving IRSA token validation a fully private path with no public internet egress — useful for private/isolated clusters. See [Interface VPC endpoints for the OIDC endpoint](https://docs.aws.amazon.com/eks/latest/userguide/authenticate-oidc-identity-provider.html).
 
 ---
 
@@ -301,7 +302,7 @@ spec:
 - Drop ALL capabilities and add back only what's needed
 - Use `readOnlyRootFilesystem: true` where possible
 - Set `seccompProfile: RuntimeDefault`
-- Never run Docker-in-Docker or mount the Docker socket — use Kaniko, buildah, or CodeBuild instead
+- Never run Docker-in-Docker or mount the Docker socket — use buildah, CodeBuild, or BuildKit instead (Kaniko is archived — prefer buildah/CodeBuild/BuildKit)
 - Restrict `hostPath` usage — if necessary, mount as `readOnly: true` and limit allowed prefixes via policy
 - Don't enable `privileged: true`, `hostNetwork`, `hostPID`, or `hostIPC` for application workloads
 - Set resource requests and limits on every container to prevent DoS and resource contention
@@ -442,10 +443,13 @@ The ExternalId requirement mitigates confused-deputy attacks by ensuring only th
 | **Sealed Secrets (Bitnami)** | Low | Manual | Encrypt secrets for Git storage |
 | **Direct SDK calls** | Low | N/A | Application handles own secret retrieval |
 
-### Enable Envelope Encryption
+### Bring Your Own KMS Key (Customer-Managed CMK)
+
+Envelope encryption for Kubernetes secrets is already **on by default** on every cluster (see [Data Encryption](#data-encryption)). `associate-encryption-config` does **not** turn encryption on — its current role is to layer your own customer-managed KMS key (CMK) over the default AWS-owned key, giving you CloudTrail visibility into key usage and direct control over the key (disable/rotate/scope via key policy). It still scopes only `resources: ["secrets"]`.
 
 ```bash
-# Enable KMS encryption for Kubernetes secrets
+# Associate a customer-managed CMK for secrets (adds key control + CloudTrail visibility;
+# does NOT enable encryption — that is already on by default)
 aws eks associate-encryption-config \
   --cluster-name my-cluster \
   --encryption-config '[{
@@ -501,14 +505,14 @@ fields @timestamp, @message
 
 ### Secrets Best Practices
 
-- Enable envelope encryption with KMS for etcd secrets
+- Envelope encryption for etcd secrets is on by default; layer a customer-managed KMS CMK when you need key control and CloudTrail visibility
 - Use ESO or Secrets Store CSI for production workloads
 - Set `refreshInterval` for automatic rotation pickup
 - **Use volume mounts instead of environment variables** — env var values can appear in logs, `kubectl describe`, and crash dumps. Secrets mounted as volumes use tmpfs (RAM-backed) and are removed when the pod is deleted
 - Use separate namespaces to isolate secrets from different applications — secrets in a namespace are accessible to all pods in that namespace
 - Don't store secrets in ConfigMaps
 - Don't commit secrets to Git (even base64-encoded)
-- Don't rely on default Kubernetes encryption (base64 only, not encrypted at rest)
+- In **vanilla Kubernetes**, Secrets are only base64-encoded (not encrypted at rest); don't rely on that. **On EKS this is not the case** — every cluster has default envelope encryption for secrets plus disk-level etcd encryption, so EKS Secrets are encrypted at rest out of the box. Layer a customer-managed CMK when you need key control (see above)
 
 ### Secrets Operating Models
 
@@ -587,7 +591,7 @@ ESO syncs to K8s Secret in target namespace
 
 | Component | Mechanism | Default |
 |-----------|-----------|---------|
-| **etcd (secrets)** | KMS envelope encryption | Off — must enable |
+| **etcd (secrets)** | KMS envelope encryption (AWS-owned KEK) | On by default (all clusters ≥ 1.28) |
 | **EBS volumes** | EBS encryption with KMS | Configure in StorageClass |
 | **EFS** | Encryption at rest | Configure at file system creation |
 | **FSx for Lustre** | Service-managed key or CMK | Service-managed by default |
@@ -627,7 +631,7 @@ spec:
     volumeHandle: <file_system_id>
 ```
 
-**Use EFS access points** to simplify shared dataset access with different POSIX file permissions. Each EFS file system supports up to 120 access points.
+**Use EFS access points** to simplify shared dataset access with different POSIX file permissions. Each EFS file system supports up to 10,000 access points (adjustable quota).
 
 ### CMK Rotation
 
@@ -649,3 +653,5 @@ Configure KMS to automatically rotate your CMKs. This rotates keys once a year w
 - [AWS EKS Best Practices Guide — IAM](https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html)
 - [AWS EKS Best Practices Guide — Pod Security](https://docs.aws.amazon.com/eks/latest/best-practices/pod-security.html)
 - [AWS EKS Best Practices Guide — Data Encryption](https://docs.aws.amazon.com/eks/latest/best-practices/data-encryption-and-secrets-management.html)
+- [Amazon EKS — Envelope encryption of Kubernetes secrets](https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html)
+- [Amazon EFS — Quotas and limits](https://docs.aws.amazon.com/efs/latest/ug/limits.html)

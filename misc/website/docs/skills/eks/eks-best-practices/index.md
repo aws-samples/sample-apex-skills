@@ -136,7 +136,7 @@ Comprehensive guidance for designing, deploying, and operating Amazon EKS cluste
 
 | Approach | Use When | Setup |
 |----------|----------|-------|
-| **Pod Identity** | ✅ New workloads (EKS 1.24+) | EKS add-on + association |
+| **Pod Identity** | ✅ New workloads | EKS add-on + association |
 | **IRSA** | Older clusters, Fargate | OIDC provider + trust policy |
 
 **Key rules:**
@@ -241,8 +241,10 @@ topologySpreadConstraints:
 |--------|---------|------------|
 | **Risk** | Low-Medium | Lowest |
 | **Cost** | No extra | 2× during migration |
-| **Rollback** | ❌ No CP rollback | ✅ Switch back |
-| **Use when** | ✅ Most upgrades | Critical workloads |
+| **Rollback** | ✅ To N-1 within 7 days of upgrade | ✅ Switch back (any window) |
+| **Use when** | ✅ Most upgrades | Post-7-day rollback, multi-minor jumps, data-plane isolation |
+
+Native in-place rollback to N-1 is supported within **7 days** of an in-place upgrade (all regions, all cluster types; Auto Mode rolls back nodes automatically). `update-cluster-version` supports type `VersionRollback`, gated by a `ROLLBACK_READINESS` insight; add-ons/data-plane roll back separately. Blue-green retains independent rationale for post-7-day windows, multi-minor jumps, and data-plane isolation — not "because you can't roll back."
 
 ### Data Plane with Karpenter
 
@@ -266,6 +268,8 @@ disruption:
 | **Scale-up speed** | ~30s | ~60-90s | AWS-managed |
 | **Consolidation** | ✅ Built-in | ❌ | ✅ |
 | **Customization** | High | Medium | Low |
+
+Cluster Autoscaler's ~60-90s scale-up assumes cold EC2 launches; MNG EC2 warm pools (2026-04) pre-initialize instances and cut that latency substantially for MNG-backed node groups.
 
 ### Pod Autoscaler Selection
 
