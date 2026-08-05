@@ -520,9 +520,13 @@ spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     budgets:
-    - nodes: "10%"    # Max 10% of nodes disrupted at a time
-    - nodes: "0"
-      schedule: "0 9 * * 1-5"  # No disruptions during business hours
+    - nodes: "10%"                 # all-reasons fallback: at most 10% of nodes disrupted at once
+    - nodes: "100%"
+      reasons: ["Empty"]           # always reclaim empty nodes without throttling (outside the freeze window)
+    - nodes: "0"                   # freeze ALL voluntary disruption during the scheduled window
+      # NOTE: Karpenter budget schedules are evaluated in UTC, not cluster-local time.
+      # 01:00 UTC = 09:00 in a UTC+8 region — anchor the cron to UTC accordingly.
+      schedule: "0 1 * * 1-5"      # 01:00 UTC Mon–Fri (e.g. 09:00 in UTC+8)
       duration: 8h
 ```
 

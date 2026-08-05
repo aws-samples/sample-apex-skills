@@ -490,7 +490,7 @@ fields @timestamp, @message
 
 An admission webhook configured with `failurePolicy: Ignore` fails **open** — when the webhook is unreachable or errors, the API request is admitted anyway and no error is surfaced to the caller. This is silent by design, so a broken policy/mutation webhook (e.g. a down Kyverno, OPA/Gatekeeper, or sidecar-injection webhook) can stop enforcing without any obvious signal.
 
-The kube-apiserver audit log does record these events: a fail-open admission surfaces as an annotation on the audit record, `failed-open.validating.webhook.admission.k8s.io/round_0_index_<n>` (validating webhooks) and `failed-open.mutation.webhook.admission.k8s.io/round_0_index_<n>` (mutating webhooks) — one indexed annotation per bypassed webhook, naming the webhook configuration that was bypassed. The mutating-side spelling (`mutation`) and the validating-side spelling (`validating`) are asymmetric — match them exactly.
+The kube-apiserver audit log does record these events: a fail-open admission surfaces as an annotation on the audit record, `failed-open.validating.webhook.admission.k8s.io/round_0_index_<n>` (validating webhooks) and `failed-open.mutation.webhook.admission.k8s.io/round_<r>_index_<n>` (mutating webhooks — `<r>` is `0`, or `1` when a mutating webhook fails open on reinvocation) — one indexed annotation per bypassed webhook, naming the webhook that was bypassed. The mutating-side spelling (`mutation`) and the validating-side spelling (`validating`) are asymmetric — match them exactly.
 
 Alarm on these the same way you alarm on 401/403 spikes — a CloudWatch Logs **metric filter** on the control-plane audit log group, paired with a CloudWatch **alarm**:
 

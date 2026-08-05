@@ -236,7 +236,7 @@ spec:
 ```
 
 **Scheduled / business-hours budgets** (e.g. a `nodes: "0"` block on a cron `schedule` + `duration` to freeze disruption during business hours) are documented once, alongside the drift-during-upgrade flow, rather than duplicated here. See:
-- [cluster-upgrades.md -- Karpenter Node Upgrades](cluster-upgrades.md#karpenter-node-upgrades) for the scheduled `nodes: "0"` business-hours block (plus always-allow-`Empty` at 100% and a 10% fallback)
+- [cluster-upgrades.md -- Karpenter Node Upgrades](cluster-upgrades.md#karpenter-node-upgrades) for the canonical 3-budget pattern in one NodePool spec: a 10% all-reasons fallback, always-allow-`Empty` at 100%, and a scheduled `nodes: "0"` freeze window (UTC cron)
 - [SKILL.md -- Data Plane with Karpenter](../SKILL.md#data-plane-with-karpenter) for the same budget in the upgrade-speed context
 - [reliability-core.md -- PDB Interaction with Karpenter](reliability-core.md#pdb-interaction-with-karpenter) for how budgets compose with Pod Disruption Budgets
 
