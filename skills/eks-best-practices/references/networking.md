@@ -162,10 +162,10 @@ Kubernetes labels nodes with `topology.kubernetes.io/zone` automatically, so the
 
 Deploy VPC CNI as an [EKS managed add-on](https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html) rather than self-managed. Managed add-ons provide:
 - Validated compatibility with your EKS version
-- Drift handling — EKS-managed fields are enforced during add-on create/update/delete operations, not on a steady-state timer ([field management](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-field-management.html), as of 2026-08-05)
+- Drift handling — changes to EKS-managed fields conflict under server-side apply and may be overwritten: the AWS best-practices guide documents automatic overwrite of managed configuration roughly every 15 minutes ([VPC CNI BPG](https://docs.aws.amazon.com/eks/latest/best-practices/vpc-cni.html)), and add-on create/update applies conflict resolution (`OVERWRITE`/`PRESERVE`/`NONE`) ([field management](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-field-management.html)), as of 2026-08-05
 - Simpler upgrades via EKS API/Console/CLI
 
-Frequently-used fields like `WARM_ENI_TARGET`, `WARM_IP_TARGET`, and `MINIMUM_IP_TARGET` are **not** managed and won't be overwritten by drift prevention.
+Frequently-used fields like `WARM_ENI_TARGET`, `WARM_IP_TARGET`, and `MINIMUM_IP_TARGET` are **not** managed by EKS field management and won't be overwritten.
 
 ### EKS Auto Mode
 
