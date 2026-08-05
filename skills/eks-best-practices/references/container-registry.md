@@ -414,7 +414,7 @@ ECR archival storage provides a low-cost tier for images you need to retain but 
 | **Transition** | Via lifecycle policy `archive` action, or manual API call |
 | **Storage cost** | Lower than standard ECR storage |
 | **Restore time** | Up to 20 minutes |
-| **Restore duration** | Permanent -- restore moves the image back to the STANDARD storage class; there is no timed window after which it re-archives |
+| **Restore duration** | Permanent -- restore moves the image back to the STANDARD storage class; there is no timed window after which it re-archives (as of 2026-08-04) |
 | **Scanning** | Archived images cannot be scanned -- restore first |
 
 ### Lifecycle Policy Integration
@@ -475,7 +475,7 @@ Blob mounting allows image layers that already exist in one repository to be ref
 | **Enabled (opt-in)** | Push operations mount existing layers from other repos, saving bandwidth and time |
 
 Blob mounting is **off by default** -- opt in at the registry level with `aws ecr put-account-setting --name BLOB_MOUNTING --value ENABLED`. Constraints once enabled:
-- Not supported for pull-through-cache (PTC) images
+- Not supported for pull-through-cache (PTC) images (as of 2026-08-04)
 - Source and destination repositories must use identical encryption keys
 - Cross-repository mounts require the caller to hold `ecr:GetDownloadUrlForLayer` on the source repository
 

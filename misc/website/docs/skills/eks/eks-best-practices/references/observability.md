@@ -310,7 +310,7 @@ Remediation:
 
 ### Fluent Bit Configuration
 
-There is no `aws-for-fluent-bit` EKS add-on. Two supported paths:
+There is no `aws-for-fluent-bit` EKS add-on (as of 2026-08-04). Two supported paths:
 
 ```bash
 # Recommended: the CloudWatch Observability EKS add-on installs Fluent Bit
@@ -501,16 +501,22 @@ fields @timestamp, @message
 
 An admission webhook configured with `failurePolicy: Ignore` fails **open** — when the webhook is unreachable or errors, the API request is admitted anyway and no error is surfaced to the caller. This is silent by design, so a broken policy/mutation webhook (e.g. a down Kyverno, OPA/Gatekeeper, or sidecar-injection webhook) can stop enforcing without any obvious signal.
 
-The kube-apiserver audit log does record these events: a fail-open admission surfaces as an annotation on the audit record, `failed-open.validation.webhook.admission.k8s.io` (validating webhooks) and `failed-open.mutation.webhook.admission.k8s.io` (mutating webhooks), naming the webhook configuration that was bypassed.
+The kube-apiserver audit log does record these events: a fail-open admission surfaces as an annotation on the audit record, `failed-open.validating.webhook.admission.k8s.io/round_0_index_<n>` (validating webhooks) and `failed-open.mutation.webhook.admission.k8s.io/round_0_index_<n>` (mutating webhooks) — one indexed annotation per bypassed webhook, naming the webhook configuration that was bypassed. The mutating-side spelling (`mutation`) and the validating-side spelling (`validating`) are asymmetric — match them exactly.
 
 Alarm on these the same way you alarm on 401/403 spikes — a CloudWatch Logs **metric filter** on the control-plane audit log group, paired with a CloudWatch **alarm**:
+
+> **Prerequisite:** EKS control-plane **audit logging is disabled by default**. Enable the `audit` log type first — nothing below matches until audit events reach the `/aws/eks/<cluster>/cluster` log group:
+> ```bash
+> aws eks update-cluster-config --name my-cluster \
+>   --logging '{"clusterLogging":[{"types":["audit"],"enabled":true}]}'
+> ```
 
 ```bash
 # Metric filter: count audit records carrying a failed-open webhook annotation
 aws logs put-metric-filter \
   --log-group-name /aws/eks/my-cluster/cluster \
   --filter-name webhook-failed-open \
-  --filter-pattern '{ ($.annotations."failed-open.validation.webhook.admission.k8s.io" = "*") || ($.annotations."failed-open.mutation.webhook.admission.k8s.io" = "*") }' \
+  --filter-pattern '?"failed-open.validating.webhook.admission.k8s.io" ?"failed-open.mutation.webhook.admission.k8s.io"' \
   --metric-transformations \
       metricName=WebhookFailedOpen,metricNamespace=EKS/Admission,metricValue=1,defaultValue=0
 
@@ -522,6 +528,13 @@ aws cloudwatch put-metric-alarm \
   --threshold 0 --comparison-operator GreaterThanThreshold \
   --treat-missing-data notBreaching
 ```
+
+> Metric filters count matching log events but can't extract the indexed annotation name. To see *which* webhook failed open, query the audit log group in CloudWatch Logs Insights instead:
+> ```
+> fields @timestamp, @message
+> | filter @message like /failed-open\.(validating|mutation)\.webhook\.admission\.k8s\.io/
+> | sort @timestamp desc
+> ```
 
 Any non-zero value means an admission webhook silently failed open and enforcement gaps may exist — investigate the named webhook's availability before assuming policy is being applied.
 

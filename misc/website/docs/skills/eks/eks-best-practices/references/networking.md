@@ -300,7 +300,8 @@ The strategies above — especially adding a secondary CIDR via `associate-vpc-c
 - **You own the VPC** — use the strategies above directly (secondary CIDR, custom networking, prefix delegation, IPv6).
 - **Subnets are shared and you don't own them** — you have three options:
   - Request the VPC owner add a **secondary CIDR** (or provision additional/larger subnets) for your cluster.
-  - Stretch the **existing** shared space you already have with **prefix delegation** or **IPv6**, which raise pod density without needing new CIDR space.
+  - Stretch the **existing** shared IPv4 space with **prefix delegation** — a VPC CNI / ENI-level setting that carves /28 prefixes from the subnet's current CIDR, so a participant can enable it on ENIs they own with no VPC change. (Subnet CIDR *reservations*, used to keep prefixes contiguous, are an owner-only operation.)
+  - **IPv6 is not a participant-only lever**: it requires the owner to assign an IPv6 CIDR to the VPC and dual-stack the subnets (a VPC/subnet modification, owner-only). Pursue IPv6 only if the owner has already made the shared subnets dual-stack — otherwise fold it into the owner request above.
   - Raise a **cross-team request** to the networking owner to re-plan address space if neither of the above closes the gap.
 
 ---
@@ -341,7 +342,7 @@ Because the switch is irreversible, enumerate reachability before enabling:
 2. **Confirm OIDC provider reachability** from the VPC.
 3. **Enumerate aggregated API services.**
 4. **Ensure route/NAT/NACL/SG allow the required flows** — outbound 443 plus inbound ephemeral (1024–65535).
-5. **Verify after switching** — trigger a webhook with a test pod, and watch the cluster log group `/aws/eks/<cluster-name>/cluster`.
+5. **Verify after switching** — trigger a webhook with a test pod, watch the cluster log group `/aws/eks/<cluster-name>/cluster`, and enable **VPC Flow Logs** on the egress subnets to confirm control-plane traffic is actually taking the customer-routed path.
 
 ---
 
@@ -362,7 +363,7 @@ Because the switch is irreversible, enumerate reachability before enabling:
 | **Load balancers** | ALB/NLB full support | ALB/NLB dual-stack (requires LBC, in-tree controller doesn't support IPv6) |
 | **Recommendation** | Default choice | Use when IPv4 exhaustion is a real concern |
 
-> **Network policy caveat:** VPC CNI network policy support is per-address-family — a cluster is either IPv4 or IPv6, so policies apply to whichever family the cluster runs (there is no dual-family enforcement in a single cluster). The newer `ClusterNetworkPolicy`/admin-tier enforcement (an addition in a later VPC CNI release, v1.21) is separate from the baseline `NetworkPolicy` support noted above; verify your installed VPC CNI version supports the tier you need.
+> **Network policy caveat:** VPC CNI network policy support is per-address-family — a cluster is either IPv4 or IPv6, so policies apply to whichever family the cluster runs (there is no dual-family enforcement in a single cluster, as of 2026-08-04). The newer `ClusterNetworkPolicy`/admin-tier enforcement (an addition in a later VPC CNI release, v1.21) is separate from the baseline `NetworkPolicy` support noted above; verify your installed VPC CNI version supports the tier you need.
 
 ### IPv6 Technical Details
 
@@ -460,7 +461,7 @@ aws eks describe-cluster --name CLUSTER_NAME \
 
 **Requirements not supported:**
 - Windows nodes and non-Nitro instances
-- **EKS Auto Mode** — the branch-ENI `SecurityGroupPolicy` path is not supported. On Auto Mode, attach security groups to pods by setting `podSecurityGroupSelectorTerms` on the NodeClass instead.
+- **EKS Auto Mode** — the branch-ENI `SecurityGroupPolicy` path is not supported (as of 2026-08-04). On Auto Mode, attach security groups to pods by setting `podSecurityGroupSelectorTerms` on the NodeClass instead.
 - NodeLocal DNSCache in strict mode
 - SG for Pods with custom networking uses the SG from SecurityGroupPolicy, **not** from ENIConfig
 

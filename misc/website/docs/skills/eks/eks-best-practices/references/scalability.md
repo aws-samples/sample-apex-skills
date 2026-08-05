@@ -388,7 +388,7 @@ Karpenter does not have this limitation -- it handles large clusters without sha
 | Node autoscaling | 1,000+ nodes | Use Karpenter or shard CAS |
 | kubectl | Automation/scripts | Enable cache-dir, disable compression |
 | Node efficiency | Any scale | Prefer 4xlarge-12xlarge, match churn to node size |
-| Pod networking | IP exhaustion | Use prefix delegation or IPv6 |
+| Pod networking | IP exhaustion | Use prefix delegation; IPv6 (dual-stack) for larger address space |
 
 **For clusters beyond 1,000 nodes or 50,000 pods**, AWS recommends engaging your support team or TAM for specialist guidance. EKS can support up to 100,000 nodes with appropriate planning.
 

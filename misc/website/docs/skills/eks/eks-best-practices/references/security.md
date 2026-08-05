@@ -302,7 +302,7 @@ spec:
 - Drop ALL capabilities and add back only what's needed
 - Use `readOnlyRootFilesystem: true` where possible
 - Set `seccompProfile: RuntimeDefault`
-- Never run Docker-in-Docker or mount the Docker socket — use buildah, CodeBuild, or BuildKit instead (Kaniko is archived — prefer buildah/CodeBuild/BuildKit)
+- Never run Docker-in-Docker or mount the Docker socket — use buildah, CodeBuild, or BuildKit instead (Kaniko is archived — prefer buildah/CodeBuild/BuildKit) (as of 2026-08-04)
 - Restrict `hostPath` usage — if necessary, mount as `readOnly: true` and limit allowed prefixes via policy
 - Don't enable `privileged: true`, `hostNetwork`, `hostPID`, or `hostIPC` for application workloads
 - Set resource requests and limits on every container to prevent DoS and resource contention

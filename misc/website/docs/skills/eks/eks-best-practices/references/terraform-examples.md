@@ -522,7 +522,8 @@ module "vpc" {
 ### Standard Add-on Block
 
 ```hcl
-cluster_addons = {
+# v21 (terraform-aws-modules/eks ~> 21.0): the argument is `addons` — it was `cluster_addons` in v20.
+addons = {
   coredns = {
     most_recent = true
   }

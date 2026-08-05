@@ -188,7 +188,7 @@ Gateway API is the successor to the Ingress resource, offering role-oriented res
 | **AWS Load Balancer Controller (LBC) Gateway API** | `gateway.k8s.aws/alb` (L7) or `gateway.k8s.aws/nlb` (L4) | An ALB (L7) or NLB (L4) | In-cluster ingress that would otherwise use an ALB/NLB Ingress or Service |
 | **VPC Lattice (Gateway API controller)** | `application-networking.k8s.aws/gateway-api-controller` | A VPC Lattice service network | Cross-VPC / cross-account service-to-service networking |
 
-Copy-pasting the Lattice `controllerName` when you actually want an ALB yields a Lattice service network, not a load balancer — a common mistake. The LBC Gateway API support is GA (v3.0.0, released 2025-01-23; current v3.5.0 as of 2026-08-04) and installs its own CRDs (`TargetGroupBinding` plus the LBC Gateway CRDs); both L7 (ALB) and L4 (NLB) Gateways are supported.
+Copy-pasting the Lattice `controllerName` when you actually want an ALB yields a Lattice service network, not a load balancer — a common mistake. The LBC Gateway API support is GA (v3.0.0, released 2026-01-23; current v3.5.0 as of 2026-08-04) and installs its own CRDs (`TargetGroupBinding` plus the LBC Gateway CRDs); both L7 (ALB) and L4 (NLB) Gateways are supported.
 
 **Example A — ALB via the LBC Gateway API** (in-cluster HTTP ingress):
 
@@ -376,7 +376,7 @@ resource "aws_eks_cluster" "private" {
 | **PrivateLink** | Medium | Cross-VPC or cross-account |
 | **VS Code Remote / IDE over SSM** | Low | Development/testing from a workstation into a VPC bastion |
 
-> AWS Cloud9 is **closed to new customers** and is no longer a recommended in-VPC access path. Reach a private cluster through **SSM Session Manager** to a bastion (or VS Code Remote tunneling over that SSM session) instead.
+> AWS Cloud9 is **closed to new customers** (as of 2026-08-04) and is no longer a recommended in-VPC access path. Reach a private cluster through **SSM Session Manager** to a bastion (or VS Code Remote tunneling over that SSM session) instead.
 
 ---
 
