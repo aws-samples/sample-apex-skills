@@ -577,7 +577,7 @@ For nodes deployed outside the EKS managed service, use your provisioning tool:
 | Phase | Patching | Cost | Auto-upgrade? |
 |-------|----------|------|----------------|
 | **Standard support** | Security + bug fixes | Standard pricing | No |
-| **Extended support** | Critical security only | Additional per-hour surcharge | No |
+| **Extended support** | CP security patches + VPC CNI/kube-proxy/CoreDNS + EKS AMI patches; full AWS support | Additional per-hour surcharge | No |
 | **End of extended support** | None | N/A | Yes — AWS auto-upgrades at a time it chooses |
 
 **Always get exact dates from the EKS API — do not compute them from release dates.** Standard and extended support windows have historically shifted; the API is the only trustworthy source.

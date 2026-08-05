@@ -286,7 +286,7 @@ spec:
 
 ### Create Mutually Exclusive or Weighted NodePools
 
-If multiple NodePools match a pod's scheduling requirements and they are neither mutually exclusive (via taints/selectors) nor weighted, Karpenter **randomly chooses** which NodePool to use. This causes unpredictable scheduling. Design NodePools so they either:
+If multiple NodePools match a pod's scheduling requirements and they are neither mutually exclusive (via taints/selectors) nor weighted, Karpenter breaks the tie **deterministically**: NodePools are ordered by `weight` (descending), and on equal weight the NodePool whose name sorts **later in the alphabet** is tried first (Karpenter scheduler source, `OrderByWeight`, as of 2026-08-05). This ordering is easy to get wrong by accident, so scheduling is still hard to reason about. Design NodePools so they either:
 - **Don't overlap** -- use taints on specialized NodePools (GPU, high-memory) so only pods with matching tolerations schedule there
 - **Use weights** -- set `weight` to establish preference ordering among overlapping NodePools
 
