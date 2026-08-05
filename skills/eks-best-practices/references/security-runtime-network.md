@@ -21,7 +21,7 @@
 
 ### Amazon GuardDuty for EKS
 
-**Enable Runtime Monitoring** as the first line of defense. GuardDuty's EKS protection is now delivered through the unified **Runtime Monitoring** feature (the separate "EKS Runtime Monitoring" console path has been removed; AWS recommends migrating to unified Runtime Monitoring). GuardDuty combines two complementary sources of signal:
+**Enable Runtime Monitoring** as the first line of defense. GuardDuty's EKS protection is now delivered through the unified **Runtime Monitoring** feature (the separate "EKS Runtime Monitoring" console path has been removed (as of 2026-08-05, per the GuardDuty User Guide); AWS recommends migrating to unified Runtime Monitoring). GuardDuty combines two complementary sources of signal:
 
 - **EKS Protection (audit-log analysis)** — analyzes K8s control-plane audit logs for threats; no agent required.
 - **Runtime Monitoring (agent-based)** — the GuardDuty security agent observes container-level runtime behavior (process, file, and network activity) on your nodes.

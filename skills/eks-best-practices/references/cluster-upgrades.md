@@ -146,7 +146,7 @@ aws eks describe-update \
 - Can only upgrade one minor version at a time (1.34 → 1.35, not 1.34 → 1.36)
 - Control plane upgrade takes 15-30 minutes
 - API server remains available during upgrade (brief API errors possible)
-- Native in-place rollback to N-1 is supported within **7 days** of an in-place upgrade (GA, all regions, all cluster types; Auto Mode also rolls back nodes automatically). `update-cluster-version` supports type `VersionRollback`; a `ROLLBACK_READINESS` insight gates it. Add-ons/data-plane roll back separately. Past the 7-day window, roll back via blue-green or cluster rebuild.
+- Native in-place rollback to N-1 is supported within **7 days** of an in-place upgrade (GA, all regions; Auto Mode also rolls back nodes automatically). `update-cluster-version` supports type `VersionRollback`; a `ROLLBACK_READINESS` insight gates it. Rollback into an extended-support version requires setting the cluster upgrade policy to `EXTENDED` first (rollback-cluster.html). Add-ons/data-plane roll back separately. Past the 7-day window, roll back via blue-green or cluster rebuild.
 
 ### Step 2: Upgrade Add-ons
 
@@ -285,7 +285,7 @@ Spreading across zones and hosts ensures pods migrate to new nodes automatically
 |--------|------------|----------------|
 | **Route 53 weighted routing** | Percentage-based | Fast (DNS TTL) |
 | **ALB weighted target groups** | Percentage-based | Instant |
-| **NLB weighted target groups** | Percentage-based | Instant (weight shift is manual — no automatic failover) |
+| **NLB weighted target groups** | Percentage-based | Fast (new flows, ≤~3 min; existing flows drain) |
 | **Global Accelerator** | Endpoint weights | Instant |
 | **External DNS cutover** | All-or-nothing | DNS TTL dependent |
 
@@ -309,8 +309,8 @@ aws elbv2 modify-listener \
 
 Constraints:
 - Use **`ip`-type** target groups with a `TargetGroupBinding` per cluster. Never share one target group between clusters — the two clusters' controllers will fight over registration/deregistration.
-- With the AWS Load Balancer Controller, set `multiClusterTargetGroup: true` so the controller does not deregister targets it did not create.
-- **NLB has no automatic failover** — weight shifts are manual, so watch health checks and roll weights back yourself if the green cluster misbehaves.
+- With the AWS Load Balancer Controller, set `multiClusterTargetGroup: true` so the controller does not deregister targets it did not create — the flag guards a manually-created target group from controller deregistration, so the LBC manages only targets it registered on the manually-provisioned target group.
+- **NLB has no automatic failover between weighted target groups** (unlike ALB automatic target weights), as of 2026-08-05 — weight shifts are manual, so watch health checks and roll weights back yourself if the green cluster misbehaves.
 
 ### Blue-Green Downsides to Consider
 
@@ -509,9 +509,10 @@ spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     budgets:
-    - nodes: "10%"                 # all-reasons fallback: at most 10% of nodes disrupted at once
+    - nodes: "10%"                 # fallback for churn-driven disruption (drift/underutilization)
+      reasons: ["Drifted","Underutilized"]
     - nodes: "100%"
-      reasons: ["Empty"]           # always reclaim empty nodes without throttling (outside the freeze window)
+      reasons: ["Empty"]           # reclaim empty nodes at full speed (not capped by the fallback above)
     - nodes: "0"                   # freeze ALL voluntary disruption during the scheduled window
       # NOTE: Karpenter budget schedules are evaluated in UTC, not cluster-local time.
       # 01:00 UTC = 09:00 in a UTC+8 region — anchor the cron to UTC accordingly.

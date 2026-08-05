@@ -35,7 +35,7 @@ This page is generated from [skills/eks-best-practices/references/karpenter.md](
 
 ### Run Karpenter on Fargate or a Dedicated MNG
 
-The Karpenter controller runs as a Deployment that must be available before Karpenter can scale your cluster. (The separate webhook Deployment was removed in Karpenter v1.0/1.1 -- webhooks are no longer a distinct component, so there is a single controller Deployment to schedule.) Run it on infrastructure Karpenter does not manage -- either a small MNG (at least one worker node) or a Fargate profile for the `karpenter` namespace. If Karpenter runs on a node it manages, it could scale down that node and lose the ability to provision replacements.
+The Karpenter controller runs as a Deployment that must be available before Karpenter can scale your cluster. (Webhook containers were consolidated into the controller binary (v0.19.0), disabled by default (v0.33.0) -- a single controller Deployment today.) Run it on infrastructure Karpenter does not manage -- either a small MNG (at least one worker node) or a Fargate profile for the `karpenter` namespace. If Karpenter runs on a node it manages, it could scale down that node and lose the ability to provision replacements.
 
 ### Lock Down AMIs in Production
 
@@ -222,7 +222,7 @@ To prevent this, set `requests == limits` for memory and other non-CPU resources
 
 ### Disruption Budgets
 
-`disruption.budgets` caps how much voluntary disruption Karpenter performs at once, across all NodePool-initiated actions. **When you define no budgets, the default is a single budget of `nodes: 10%`** -- Karpenter disrupts at most 10% of the NodePool's nodes concurrently.
+`disruption.budgets` caps how much voluntary disruption Karpenter performs at once, across drift, emptiness, and consolidation (expiration exempt). **When you define no budgets, the default is a single budget of `nodes: 10%`** -- Karpenter disrupts at most 10% of the NodePool's nodes concurrently.
 
 A budget's allowed node count is computed as:
 
@@ -232,22 +232,23 @@ allowed = roundup(total_nodes * percentage) - currently_deleting - not_ready
 
 so `notReady` and in-flight deletions already count against the budget. A budget may be expressed as a percentage (`nodes: "10%"`) or an absolute count (`nodes: "5"`); `nodes: "0"` blocks all voluntary disruption for the window.
 
-**Reasons-based budgets** scope a budget to specific disruption reasons via the `reasons` field (`Drifted`, `Underutilized`, `Empty`). A budget with no `reasons` applies to every reason. This lets you, for example, allow empty-node reclamation to run wide open while throttling underutilization-driven consolidation:
+**Reasons-based budgets** scope a budget to specific disruption reasons via the `reasons` field (`Drifted`, `Underutilized`, `Empty`). A budget with no `reasons` applies to every reason. This lets you, for example, allow empty-node reclamation to proceed at full speed while throttling underutilization-driven consolidation:
 
 ```yaml
 spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     budgets:
-    - nodes: "20%"                    # applies to all reasons (fallback)
+    - nodes: "20%"                    # fallback for drift/underutilization churn
+      reasons: ["Drifted","Underutilized"]
     - nodes: "100%"
-      reasons: ["Empty"]              # reclaim empty nodes without throttling
+      reasons: ["Empty"]              # reclaim empty nodes at full speed (not capped by the fallback)
     - nodes: "5%"
-      reasons: ["Underutilized"]      # go slow on underutilization churn
+      reasons: ["Underutilized"]      # extra throttle on underutilization churn
 ```
 
 **Scheduled / business-hours budgets** (e.g. a `nodes: "0"` block on a cron `schedule` + `duration` to freeze disruption during business hours) are documented once, alongside the drift-during-upgrade flow, rather than duplicated here. See:
-- [cluster-upgrades.md -- Karpenter Node Upgrades](cluster-upgrades#karpenter-node-upgrades) for the canonical 3-budget pattern in one NodePool spec: a 10% all-reasons fallback, always-allow-`Empty` at 100%, and a scheduled `nodes: "0"` freeze window (UTC cron)
+- [cluster-upgrades.md -- Karpenter Node Upgrades](cluster-upgrades#karpenter-node-upgrades) for the canonical 3-budget pattern in one NodePool spec: a 10% fallback scoped to churn (drift/underutilization), an unthrottled `Empty` budget at 100%, and a scheduled `nodes: "0"` freeze window (UTC cron)
 - [SKILL.md -- Data Plane with Karpenter](../#data-plane-with-karpenter) for the same budget in the upgrade-speed context
 - [reliability-core.md -- PDB Interaction with Karpenter](reliability-core#pdb-interaction-with-karpenter) for how budgets compose with Pod Disruption Budgets
 
@@ -262,6 +263,7 @@ The NodePool-level `terminationGracePeriod` (a v1 field, distinct from a pod's `
 - It has **no default** -- when unset (nil), Karpenter waits **indefinitely** for pods to drain, so a blocking PDB or `do-not-disrupt` pod can stall the node.
 - Setting it bounds the maximum node lifetime: **max node lifetime = `terminationGracePeriod` + `expireAfter`** (the node can live up to `expireAfter`, then take up to `terminationGracePeriod` to finish draining).
 - Do not confuse it with the pod-level `terminationGracePeriodSeconds` (default 30s), which governs a single pod's shutdown, not the node's drain deadline.
+- With `terminationGracePeriod` set, a node can be disrupted via **Drift even when blocking PDBs or `do-not-disrupt` are present** -- the drain then proceeds up to the grace-period deadline, after which pods are force-evicted (see the [Karpenter disruption docs](https://karpenter.sh/docs/concepts/disruption/)).
 
 ```yaml
 spec:

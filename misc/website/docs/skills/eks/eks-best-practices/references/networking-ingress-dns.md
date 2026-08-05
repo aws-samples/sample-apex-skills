@@ -188,7 +188,7 @@ Gateway API is the successor to the Ingress resource, offering role-oriented res
 | **AWS Load Balancer Controller (LBC) Gateway API** | `gateway.k8s.aws/alb` (L7) or `gateway.k8s.aws/nlb` (L4) | An ALB (L7) or NLB (L4) | In-cluster ingress that would otherwise use an ALB/NLB Ingress or Service |
 | **VPC Lattice (Gateway API controller)** | `application-networking.k8s.aws/gateway-api-controller` | A VPC Lattice service network | Cross-VPC / cross-account service-to-service networking |
 
-Copy-pasting the Lattice `controllerName` when you actually want an ALB yields a Lattice service network, not a load balancer — a common mistake. The LBC Gateway API support is GA (v3.0.0, released 2026-01-23; current v3.5.0 as of 2026-08-04) and installs its own CRDs (`TargetGroupBinding` plus the LBC Gateway CRDs); both L7 (ALB) and L4 (NLB) Gateways are supported.
+Copy-pasting the Lattice `controllerName` when you actually want an ALB yields a Lattice service network, not a load balancer — a common mistake. The LBC Gateway API support is GA (v3.0.0, released 2026-01-23; current v3.5.0 as of 2026-08-04) and requires installing its CRDs (`TargetGroupBinding`, the LBC Gateway CRDs, and the upstream Gateway API CRDs) via a manual `kubectl apply` step, per the [v3.0.0 release notes'](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/tag/v3.0.0) Action-Required block; both L7 (ALB) and L4 (NLB) Gateways are supported.
 
 **Example A — ALB via the LBC Gateway API** (in-cluster HTTP ingress):
 

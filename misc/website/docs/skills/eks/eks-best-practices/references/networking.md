@@ -173,7 +173,7 @@ Kubernetes labels nodes with `topology.kubernetes.io/zone` automatically, so the
 
 Deploy VPC CNI as an [EKS managed add-on](https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html) rather than self-managed. Managed add-ons provide:
 - Validated compatibility with your EKS version
-- Drift handling — changes to EKS-managed fields conflict under server-side apply and may be overwritten: the AWS best-practices guide documents automatic overwrite of managed configuration roughly every 15 minutes ([VPC CNI BPG](https://docs.aws.amazon.com/eks/latest/best-practices/vpc-cni.html)), and add-on create/update applies conflict resolution (`OVERWRITE`/`PRESERVE`/`NONE`) ([field management](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-field-management.html)), as of 2026-08-05
+- Drift handling — changes to EKS-managed fields conflict under server-side apply and may be overwritten: the AWS best-practices guide documents automatic overwrite of managed configuration roughly every 15 minutes ([VPC CNI BPG](https://docs.aws.amazon.com/eks/latest/best-practices/vpc-cni.html)), and add-on create/update applies conflict resolution (`OVERWRITE`/`PRESERVE`/`NONE`) ([CreateAddon API](https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateAddon.html)), as of 2026-08-05
 - Simpler upgrades via EKS API/Console/CLI
 
 Frequently-used fields like `WARM_ENI_TARGET`, `WARM_IP_TARGET`, and `MINIMUM_IP_TARGET` are **not** managed by EKS field management and won't be overwritten.
@@ -342,7 +342,9 @@ Because the switch is irreversible, enumerate reachability before enabling:
 2. **Confirm OIDC provider reachability** from the VPC.
 3. **Enumerate aggregated API services.**
 4. **Ensure route/NAT/NACL/SG allow the required flows** — outbound 443 plus inbound ephemeral (1024–65535).
-5. **Verify after switching** — trigger a webhook with a test pod, watch the cluster log group `/aws/eks/<cluster-name>/cluster`, and enable **VPC Flow Logs** on the egress subnets to confirm control-plane traffic is actually taking the customer-routed path.
+5. **Confirm DNS resolution** — the VPC DHCP options set includes `AmazonProvidedDNS` and can resolve both VPC-private and public hostnames (external webhooks/OIDC endpoints).
+6. **IPv6 clusters: configure both an IPv6 `::/0` route via an egress-only internet gateway and an IPv4 `0.0.0.0/0` route via NAT.**
+7. **Verify after switching** — trigger a webhook with a test pod, watch the cluster log group `/aws/eks/<cluster-name>/cluster`, and enable **VPC Flow Logs** on the egress subnets to confirm control-plane traffic is actually taking the customer-routed path.
 
 ---
 

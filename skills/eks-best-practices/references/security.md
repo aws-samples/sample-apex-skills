@@ -434,7 +434,7 @@ The ExternalId requirement mitigates confused-deputy attacks by ensuring only th
 
 ### Bring Your Own KMS Key (Customer-Managed CMK)
 
-Envelope encryption for Kubernetes secrets is already **on by default** on every cluster (see [Data Encryption](#data-encryption)). `associate-encryption-config` does **not** turn encryption on — its current role is to layer your own customer-managed KMS key (CMK) over the default AWS-owned key, giving you CloudTrail visibility into key usage and direct control over the key (disable/rotate/scope via key policy). It still scopes only `resources: ["secrets"]`.
+Envelope encryption for Kubernetes secrets is already **on by default** on every cluster (see [Data Encryption](#data-encryption)). `associate-encryption-config` does **not** turn encryption on — its current role is to layer your own customer-managed KMS key (CMK) over the default AWS-owned key, giving you CloudTrail visibility into key usage and direct control over the key (disable/rotate/scope via key policy). On ≥1.28, default envelope encryption covers all Kubernetes API data; associating a CMK makes it the KEK for all of it. The `associate-encryption-config` API still accepts only `resources: ["secrets"]` as input, but the effect extends to all API data.
 
 ```bash
 # Associate a customer-managed CMK for secrets (adds key control + CloudTrail visibility;
@@ -501,7 +501,7 @@ fields @timestamp, @message
 - Use separate namespaces to isolate secrets from different applications — secrets in a namespace are accessible to all pods in that namespace
 - Don't store secrets in ConfigMaps
 - Don't commit secrets to Git (even base64-encoded)
-- In **vanilla Kubernetes**, Secrets are only base64-encoded (not encrypted at rest); don't rely on that. **On EKS this is not the case** — every cluster has default envelope encryption for secrets plus disk-level etcd encryption, so EKS Secrets are encrypted at rest out of the box. Layer a customer-managed CMK when you need key control (see above)
+- In **vanilla Kubernetes**, Secrets are only base64-encoded (not encrypted at rest); don't rely on that. **On EKS this is not the case** — on clusters ≥1.28 default envelope encryption covers all Kubernetes API data (not just secrets) plus disk-level etcd encryption, so EKS Secrets are encrypted at rest out of the box. Layer a customer-managed CMK when you need key control (see above)
 
 ### Secrets Operating Models
 
@@ -580,7 +580,7 @@ ESO syncs to K8s Secret in target namespace
 
 | Component | Mechanism | Default |
 |-----------|-----------|---------|
-| **etcd (secrets)** | KMS envelope encryption (AWS-owned KEK) | On by default (all clusters ≥ 1.28) |
+| **etcd (all K8s API data)** | KMS envelope encryption (AWS-owned KEK) | On by default (all clusters ≥ 1.28); covers all API data, not just secrets |
 | **EBS volumes** | EBS encryption with KMS | Configure in StorageClass |
 | **EFS** | Encryption at rest | Configure at file system creation |
 | **FSx for Lustre** | Service-managed key or CMK | Service-managed by default |

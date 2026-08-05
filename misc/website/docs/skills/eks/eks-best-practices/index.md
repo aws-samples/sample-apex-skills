@@ -166,7 +166,7 @@ metadata:
 | **Secrets Store CSI** | Medium | Mount secrets as volumes |
 | **KMS envelope encryption** | Low | Encrypt etcd secrets |
 
-**Always enable KMS envelope encryption for Kubernetes secrets.**
+Envelope encryption is on by default (≥1.28) and covers all Kubernetes API data; layer your own KMS CMK when you need key control and CloudTrail visibility. Source: https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html
 
 **For detailed security guidance, see:** [Security Reference](references/security) | [Runtime & Network](references/security-runtime-network) | [Supply Chain & Compliance](references/security-supply-chain)
 
@@ -244,7 +244,7 @@ topologySpreadConstraints:
 | **Rollback** | ✅ To N-1 within 7 days of upgrade | ✅ Switch back (any window) |
 | **Use when** | ✅ Most upgrades | Post-7-day rollback, multi-minor jumps, data-plane isolation |
 
-Native in-place rollback to N-1 is supported within **7 days** of an in-place upgrade (all regions, all cluster types; Auto Mode rolls back nodes automatically). `update-cluster-version` supports type `VersionRollback`, gated by a `ROLLBACK_READINESS` insight; add-ons/data-plane roll back separately. Blue-green retains independent rationale for post-7-day windows, multi-minor jumps, and data-plane isolation — not "because you can't roll back."
+Native in-place rollback to N-1 is supported within **7 days** of an in-place upgrade (all regions; Auto Mode rolls back nodes automatically; rollback into an extended-support version requires setting the cluster upgrade policy to `EXTENDED` first). `update-cluster-version` supports type `VersionRollback`, gated by a `ROLLBACK_READINESS` insight; add-ons/data-plane roll back separately. Blue-green retains independent rationale for post-7-day windows, multi-minor jumps, and data-plane isolation — not "because you can't roll back."
 
 ### Data Plane with Karpenter
 
