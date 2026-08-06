@@ -1,8 +1,19 @@
+---
+title: "Module: Scoring and Recommendation"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/scoring-and-recommendation.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [skills/ecs-modernize/references/scoring-and-recommendation.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/scoring-and-recommendation.md). Edit the source, not this page.
+:::
+
 # Module: Scoring and Recommendation
 
-> **Part of:** [ecs-modernize](../SKILL.md)
+> **Part of:** [ecs-modernize](../)
 > **Purpose:** Compute the 0–100 Fit_Score from the Source_Analysis evidence using the scoring criteria defined in this file — the single source of truth for every evaluation item, classification, score band, and weight — and derive the migration-strategy recommendation from it
-> **Prerequisites:** Tech Stack Detection ([tech-stack-detection.md](tech-stack-detection.md)) and Blocker Detection ([blocker-detection.md](blocker-detection.md)) — every dimension score is grounded in their outputs
+> **Prerequisites:** Tech Stack Detection ([tech-stack-detection.md](tech-stack-detection)) and Blocker Detection ([blocker-detection.md](blocker-detection)) — every dimension score is grounded in their outputs
 
 This module is deliberately orchestrator-neutral: the scoring criteria (evaluation items, weights, legacy/modern classifications, the modernity ladder) and the strategy classification logic are expressed exclusively in strategy-level vocabulary — Replatform and Rearchitect. Target-platform vocabulary does not appear in this file at all; mapping a strategy onto concrete compute models belongs to the path modules. This file covers scoring criteria and recommendation rules only; tech stack detection and blocker detection are each defined in their own reference file.
 
@@ -420,7 +431,7 @@ Regardless of where the Fit_Score lands — firm Rearchitect, firm Replatform, g
 
 - at least **one advantage**,
 - at least **one drawback**, and
-- an **effort classification** on the three-tier scale (small / medium / large) as defined in [rearchitect-path.md](rearchitect-path.md) — small = localized configuration/code changes, medium = cross-cutting but mechanical changes, large = architecture/framework-level changes. Use that module's criteria as-is; this file does not define a competing scale.
+- an **effort classification** on the three-tier scale (small / medium / large) as defined in [rearchitect-path.md](rearchitect-path) — small = localized configuration/code changes, medium = cross-cutting but mechanical changes, large = architecture/framework-level changes. Use that module's criteria as-is; this file does not define a competing scale.
 
 A recommendation is a weighting of the two options, never the suppression of one.
 
@@ -459,7 +470,7 @@ If the Fit_Score could not be computed at all (every dimension undetermined — 
 
 ### Strategy-to-Compute-Model Boundary
 
-The scoring criteria and the strategy classification logic in this file are expressed **exclusively** in strategy-level vocabulary — **Replatform** and **Rearchitect**. Target-platform compute-model vocabulary does not appear anywhere in this file, by design. Mapping a chosen strategy onto the concrete compute models of the target platform is performed **only by the path modules** — [replatform-path.md](replatform-path.md) and [rearchitect-path.md](rearchitect-path.md). This module hands them a strategy classification and nothing more; the separation keeps the scoring and recommendation knowledge portable across orchestrators.
+The scoring criteria and the strategy classification logic in this file are expressed **exclusively** in strategy-level vocabulary — **Replatform** and **Rearchitect**. Target-platform compute-model vocabulary does not appear anywhere in this file, by design. Mapping a chosen strategy onto the concrete compute models of the target platform is performed **only by the path modules** — [replatform-path.md](replatform-path) and [rearchitect-path.md](rearchitect-path). This module hands them a strategy classification and nothing more; the separation keeps the scoring and recommendation knowledge portable across orchestrators.
 
 ### Recommendation Output Schema
 

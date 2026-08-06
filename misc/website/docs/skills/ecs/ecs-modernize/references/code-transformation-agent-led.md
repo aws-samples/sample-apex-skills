@@ -1,8 +1,19 @@
+---
+title: "Module: Code Transformation — Agent-Executed Items"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/code-transformation-agent-led.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [skills/ecs-modernize/references/code-transformation-agent-led.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/code-transformation-agent-led.md). Edit the source, not this page.
+:::
+
 # Module: Code Transformation — Agent-Executed Items
 
-> **Part of:** [ecs-modernize](../SKILL.md)
+> **Part of:** [ecs-modernize](../)
 > **Purpose:** Execute the Agent_Executed_Items of the Transformation_Plan — hands-on .NET Framework → modern .NET porting and Java / other runtime EOL upgrades — under strict working-location safety rails, an incremental change → verify → commit discipline, and honest verification reporting
-> **Prerequisites:** **Execution_Gate passage** (Requirement 14) AND the **"code transformation start" action-class confirmation** obtained via the process model in [code-transformation.md](code-transformation.md). This file is the second file of the code transformation module: the plan construction, augmentation determination, partitioning, and adoption logic live in code-transformation.md — this file holds the HOW for the items that plan routes to `execution: agent`
+> **Prerequisites:** **Execution_Gate passage** (Requirement 14) AND the **"code transformation start" action-class confirmation** obtained via the process model in [code-transformation.md](code-transformation). This file is the second file of the code transformation module: the plan construction, augmentation determination, partitioning, and adoption logic live in code-transformation.md — this file holds the HOW for the items that plan routes to `execution: agent`
 
 An **Agent_Executed_Item** is a work item of the single Transformation_Plan that Transform_Augmentation does not cover: AWS Transform unavailable, transformation type outside documented coverage, augmentation not adopted, or residual work an AWS Transform job left unfinished. Every such item is executed by the agent, inside the same plan, in plan order — interleaved with Transform-augmented items as the order dictates. This file supplies the porting and upgrade knowledge, the safety rails that keep the original source untouched, and the verification and reporting rules for that execution.
 
@@ -47,10 +58,10 @@ Like its companion, this knowledge is application-level and orchestrator-neutral
 
 ## Inputs
 
-- **The partitioned Transformation_Plan** (required) — from [code-transformation.md](code-transformation.md): the items with `execution: agent`, each carrying its per-item reason (not applicable / not adopted / Transform residual work), in plan order.
+- **The partitioned Transformation_Plan** (required) — from [code-transformation.md](code-transformation): the items with `execution: agent`, each carrying its per-item reason (not applicable / not adopted / Transform residual work), in plan order.
 - **The "code transformation start" confirmation** (required) — the Requirement 14 action-class confirmation, whose presented content included the working branch / working directory for Agent_Executed_Items. No item in this file executes before it, and a change to the presented content (including the working location) requires re-confirmation before execution continues under it.
 - **The user-approved working location** (required) — the working branch or working directory the user approved. Where Transform_Augmentation has completed, the approved location may be a Transform target branch or a branch derived from one (see [working-location options](#working-location-options-after-transform_augmentation-completion)).
-- **Host OS and toolchain facts** — determine local verifiability per dimension (b) of the [proposal dimensions](code-transformation.md#the-four-proposal-dimensions) (language × host OS × toolchain presence). Established by inspection of the execution host and by asking the user where inspection cannot settle it.
+- **Host OS and toolchain facts** — determine local verifiability per dimension (b) of the [proposal dimensions](code-transformation#the-four-proposal-dimensions) (language × host OS × toolchain presence). Established by inspection of the execution host and by asking the user where inspection cannot settle it.
 - **Source_Analysis results** (when available) — `tech_stack` and `blockers` inform which porting steps apply (e.g. which `System.Web` surfaces exist, which OS-specific APIs need alternatives). When the assessment was skipped, the user-specified targets and the code itself are the evidence base.
 
 ---
@@ -99,7 +110,7 @@ Requirement 15.19 makes incremental execution mandatory. The discipline:
 2. **Inside each work item, work in small increments**: make a small, coherent change (one project conversion, one namespace sweep, one config migration) → verify it (build; tests where available) → commit it. Never accumulate a large uncommitted diff: a failed verification should implicate a small change, not an afternoon of edits.
 3. **Verify at item completion.** When local build verification is possible ([local verifiability](#local-verifiability)), run the build at each work item's completion — and the tests, when the codebase has runnable tests. An item is not "done" until its completion verification has run (or been honestly reported as not locally possible).
 4. **Record a checkpoint commit at each item's completion** on the working branch, and record its identifier (commit hash) in the item's result and the Execution_Log. Checkpoints are the recovery points that [interruption handling](#interruption-and-incompletion) preserves.
-5. **Log every action.** Item start, each verification result, each checkpoint commit — recorded in the Execution_Log before the next action starts, per the logging rules in [code-transformation.md](code-transformation.md#execution-ordering-confirmations-and-logging) (storage forms and save-failure fallback per the canonical [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff.md#execution_log-rules)).
+5. **Log every action.** Item start, each verification result, each checkpoint commit — recorded in the Execution_Log before the next action starts, per the logging rules in [code-transformation.md](code-transformation#execution-ordering-confirmations-and-logging) (storage forms and save-failure fallback per the canonical [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff#execution_log-rules)).
 
 **Why this order and granularity:** plan order preserves the dependency ordering the plan encoded (shared libraries before consumers; base port before API replacements); small increments keep every verification failure attributable and every checkpoint restorable; per-item checkpoints make interruption cheap instead of catastrophic.
 
@@ -107,7 +118,7 @@ Requirement 15.19 makes incremental execution mandatory. The discipline:
 
 ## Porting Knowledge — .NET Framework → Modern .NET
 
-The workflow for a ".NET Framework → .NET 8 LTS (or later)" work item. Verify current tooling and target-version guidance against the live Microsoft porting documentation before relying on version-specific details — the same freshness posture as the companion file's [Technical Freshness Directive](code-transformation.md#technical-freshness-directive).
+The workflow for a ".NET Framework → .NET 8 LTS (or later)" work item. Verify current tooling and target-version guidance against the live Microsoft porting documentation before relying on version-specific details — the same freshness posture as the companion file's [Technical Freshness Directive](code-transformation#technical-freshness-directive).
 
 ### Workflow Order
 
@@ -267,7 +278,7 @@ Crossing Java 8 → 11+ removes APIs the code may silently depend on:
 
 ## Porting Knowledge — WebSphere Traditional (tWAS) → Liberty
 
-The workflow for a "WebSphere traditional → WebSphere Liberty / Open Liberty" work item — the application-server migration option from [rearchitect-path.md](rearchitect-path.md). The same incremental discipline applies: one increment (feature configuration, one resource group, one API replacement sweep) → build/run/test → checkpoint.
+The workflow for a "WebSphere traditional → WebSphere Liberty / Open Liberty" work item — the application-server migration option from [rearchitect-path.md](rearchitect-path). The same incremental discipline applies: one increment (feature configuration, one resource group, one API replacement sweep) → build/run/test → checkpoint.
 
 **Workflow order:**
 
@@ -290,7 +301,7 @@ The workflow for a "WebSphere traditional → WebSphere Liberty / Open Liberty" 
 
 | tWAS proprietary surface | Liberty / spec replacement |
 |---|---|
-| CommonJ WorkManager / `com.ibm.websphere.asynchbeans` | Jakarta/EE Concurrency Utilities — `ManagedExecutorService`, `ManagedScheduledExecutorService` (`concurrent` feature). **Lower-effort bridge:** Liberty 22.0.0.1+ can run CommonJ Timer / Work Manager code unchanged by enabling the `heritageAPIs-1.1` feature — a legitimate first increment that defers the API replacement; present both options with the trade-off (heritage feature keeps the proprietary dependency alive) |
+| CommonJ WorkManager / `com.ibm.websphere.asynchbeans` | Jakarta/EE Concurrency Utilities — `ManagedExecutorService`, `ManagedScheduledExecutorService` (`concurrent` feature) |
 | WAS scheduler service | EJB Timer Service / `ManagedScheduledExecutorService`; or externalize to an orchestrator-level scheduler (ECS scheduled tasks) as a decision point |
 | DynaCache (`com.ibm.websphere.cache`, `DistributedMap`) | External cache (e.g. Redis/ElastiCache) or JCache — an integration change; present it as a decision point, not a silent substitution |
 | SIBus (WAS-embedded messaging) | External broker — the JMS API survives; the provider moves (e.g. Amazon MQ, IBM MQ) |
@@ -312,7 +323,7 @@ Node.js and Python EOL upgrades follow the same discipline (plan order, small in
 
 ### Local Verifiability
 
-Determined per dimension (b) of [code-transformation.md](code-transformation.md#the-four-proposal-dimensions) — mechanical: language × host OS × toolchain presence. The pivotal asymmetry for .NET items:
+Determined per dimension (b) of [code-transformation.md](code-transformation#the-four-proposal-dimensions) — mechanical: language × host OS × toolchain presence. The pivotal asymmetry for .NET items:
 
 - The **.NET Framework baseline cannot be built on a non-Windows host** (MSBuild + .NET Framework reference assemblies + often IIS/Windows deps).
 - The **ported, cross-platform .NET result is verifiable with the dotnet SDK on any host**.
@@ -357,8 +368,8 @@ When Agent_Executed_Item execution is interrupted, or the plan's work items cann
 2. **Preserve the working branch and every checkpoint commit.** Nothing is deleted, reset, or rewritten — the branch and its checkpoints are the user's recovery assets (and Requirement 11.17 forbids destroying them anyway).
 3. **Present the options**, at minimum:
    - **Manual continuation by the user** — from the preserved working branch and its last checkpoint;
-   - **Scope adjustment** — shrink or reshape the remaining transformation scope (a plan change, handled by the plan-change rules in [code-transformation.md](code-transformation.md#plan-changes), including re-presentation and re-confirmation);
-   - **Transform_Augmentation proposal for incomplete items within coverage** — for each unfinished item whose transformation type is inside AWS Transform's documented coverage (per the [two-condition test](code-transformation.md#augmentation-applicability--the-two-condition-test), availability included), propose augmentation per the companion file's proposal rules.
+   - **Scope adjustment** — shrink or reshape the remaining transformation scope (a plan change, handled by the plan-change rules in [code-transformation.md](code-transformation#plan-changes), including re-presentation and re-confirmation);
+   - **Transform_Augmentation proposal for incomplete items within coverage** — for each unfinished item whose transformation type is inside AWS Transform's documented coverage (per the [two-condition test](code-transformation#augmentation-applicability--the-two-condition-test), availability included), propose augmentation per the companion file's proposal rules.
 4. **Never claim the transformation is complete.** Partial completion is reported as partial — the same honesty rule as verification.
 5. **Log the interruption** — what stopped, item states, and the user's chosen option — in the Execution_Log.
 
@@ -381,7 +392,7 @@ When ALL work items of the Transformation_Plan are complete (Requirement 15.23) 
 
 ## Output Schema
 
-Agent_Executed_Item execution fills the agent-side fields of the `code_transformation` block defined in [code-transformation.md](code-transformation.md#output-schema) — this file does not define a second schema. The fields this module owns:
+Agent_Executed_Item execution fills the agent-side fields of the `code_transformation` block defined in [code-transformation.md](code-transformation#output-schema) — this file does not define a second schema. The fields this module owns:
 
 ```yaml
 # within code_transformation.transformation_plan.items[] (execution: agent):
@@ -479,4 +490,4 @@ Live documentation wins — the porting tables here are authoring-time knowledge
 - Maven surefire plugin (JDK compatibility): https://maven.apache.org/surefire/maven-surefire-plugin/
 - Gradle compatibility matrix (Gradle version × JDK): https://docs.gradle.org/current/userguide/compatibility.html
 
-The transformation process model, augmentation determination, evidence comparison, and Transform-augmented execution knowledge live in the companion file, [code-transformation.md](code-transformation.md); its Technical Freshness Directive's posture — verify against live sources before relying on version-specific claims — applies to the porting knowledge in this file as well.
+The transformation process model, augmentation determination, evidence comparison, and Transform-augmented execution knowledge live in the companion file, [code-transformation.md](code-transformation); its Technical Freshness Directive's posture — verify against live sources before relying on version-specific claims — applies to the porting knowledge in this file as well.

@@ -1,10 +1,21 @@
+---
+title: "Module: Containerization Execution"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/containerization-execution.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [skills/ecs-modernize/references/containerization-execution.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/containerization-execution.md). Edit the source, not this page.
+:::
+
 # Module: Containerization Execution
 
-> **Part of:** [ecs-modernize](../SKILL.md)
+> **Part of:** [ecs-modernize](../)
 > **Purpose:** Turn the approved migration plan into working container images: generate the Containerization_Artifact as real files in a user-approved location, keep the generated content aligned with the assessed containerization policy (or obtain the three-item policy confirmation when the assessment was skipped), determine whether the target image can be built locally, build and push to Amazon ECR behind the per-action-class confirmations — and, when a local build is impossible, route honestly to the CodeBuild Windows remote-build path or to a manual build hand-off instead of claiming success
 > **Prerequisites:** **Execution_Gate passage** (Requirement 14); **code transformation completion** when code transformation is part of the approved plan (containerize the transformed code, not the pre-transformation baseline); **the assessed containerization policy** from the Replatform / Rearchitect path outputs — or, when the assessment was skipped, the [three-item policy confirmation](#no-assessed-policy--the-three-item-confirmation) obtained BEFORE any artifact is generated
 
-This module owns containerization during Migration_Execution: producing the Containerization_Artifact (Dockerfile, `.dockerignore`, entrypoint script where needed, and the task-definition input values) as **real files** — the first point in the whole skill where artifacts stop being report code blocks and become files — then building the image and pushing it to Amazon ECR where the environment permits. Its outputs (the pushed image URI and the task-definition input values) feed [windows-environment-build.md](windows-environment-build.md) and the handoff in [deploy-verify-handoff.md](deploy-verify-handoff.md).
+This module owns containerization during Migration_Execution: producing the Containerization_Artifact (Dockerfile, `.dockerignore`, entrypoint script where needed, and the task-definition input values) as **real files** — the first point in the whole skill where artifacts stop being report code blocks and become files — then building the image and pushing it to Amazon ECR where the environment permits. Its outputs (the pushed image URI and the task-definition input values) feed [windows-environment-build.md](windows-environment-build) and the handoff in [deploy-verify-handoff.md](deploy-verify-handoff).
 
 Most of this module is orchestrator-neutral: Dockerfile generation, image builds, and ECR pushes do not depend on where the container will run. Only the **task-definition input values** portion is ECS-specific.
 
@@ -37,7 +48,7 @@ Most of this module is orchestrator-neutral: Dockerfile generation, image builds
 
 - **Execution_Gate passage** (required) — the gate's two conditions hold AND containerization is part of the approved migration plan. This module never runs before the gate.
 - **The containerization policy** (required before generation) — one of:
-  - the **assessed policy** from the Replatform path ([replatform-path.md](replatform-path.md) — base image selection, app-server bundling judgment, configuration intake method; for .NET Framework, the Windows base-image matrix) or the Rearchitect path ([rearchitect-path.md](rearchitect-path.md)) presented during the Assessment_Phase, or
+  - the **assessed policy** from the Replatform path ([replatform-path.md](replatform-path) — base image selection, app-server bundling judgment, configuration intake method; for .NET Framework, the Windows base-image matrix) or the Rearchitect path ([rearchitect-path.md](rearchitect-path)) presented during the Assessment_Phase, or
   - when the assessment was skipped (Requirement 14's equivalent-inputs route), the **user-confirmed three-item policy** obtained by this module BEFORE generation (see [below](#no-assessed-policy--the-three-item-confirmation)).
 - **The source code to containerize** — the transformed code (the code-transformation working branch or AWS Transform target branch) when code transformation was in the approved plan and has completed; otherwise the original source. Never containerize a pre-transformation baseline when the plan says the code is being transformed first.
 - **Source_Analysis findings** (when the assessment ran) — `tech_stack` (runtime versions for base-image tags), the Replatform path's persistent-vs-temporary write mapping (volume inputs for the task definition), and session/health findings that shape the task-definition input values.
@@ -183,7 +194,7 @@ When the local build is feasible, run: **build confirmation → build → push c
 
 - Push only after BOTH: the build succeeded, AND the user confirmed the push destination — **the ECR repository and the image tag** (the image push action-class confirmation).
 - Authenticate to ECR, tag the image with the full registry path, and push.
-- **Report the pushed image URI as the complete URI including repository and tag** — e.g. `123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/myapp:v1` — never an abbreviation. This URI is the primary handoff value for [windows-environment-build.md](windows-environment-build.md) and the `ecs-build` handoff in [deploy-verify-handoff.md](deploy-verify-handoff.md).
+- **Report the pushed image URI as the complete URI including repository and tag** — e.g. `123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/myapp:v1` — never an abbreviation. This URI is the primary handoff value for [windows-environment-build.md](windows-environment-build) and the `ecs-build` handoff in [deploy-verify-handoff.md](deploy-verify-handoff).
 - A destination change after confirmation (different repository or tag) requires re-confirmation before pushing.
 
 ---
@@ -198,7 +209,7 @@ When the local build is feasible, run: **build confirmation → build → push c
 2. **Present the remote-build path as the alternative**: an AWS CodeBuild project using a **Windows Server build environment** (environment type `WINDOWS_SERVER_2019_CONTAINER` or `WINDOWS_SERVER_2022_CONTAINER` — verify current availability and supported Regions against the live CodeBuild documentation before presenting), building the image from the generated Dockerfile and pushing to the confirmed ECR repository.
 3. **Generate the build definition files** needed for the remote build — a `buildspec.yml` (build + ECR login + push phases) and, where useful, the CodeBuild project definition — following the [output destination rules](#output-destination-rules) (these are files: the file-generation action class and the user-approved destination apply).
 4. **Never start the remote build without the user's explicit confirmation.** Generating the definition is not approval to run it. Starting a CodeBuild build creates AWS activity and cost; it happens only on an explicit, unambiguous go-ahead — and is then recorded in the Execution_Log.
-5. Until the remote build has run and pushed, the image URI is **unresolved** — downstream consumers handle it per their rules (e.g. [windows-environment-build.md](windows-environment-build.md) defines it as a Terraform input variable).
+5. Until the remote build has run and pushed, the image URI is **unresolved** — downstream consumers handle it per their rules (e.g. [windows-environment-build.md](windows-environment-build) defines it as a Terraform input variable).
 
 ### Other local-build infeasibility — manual build hand-off
 
@@ -224,7 +235,7 @@ When the local build is feasible, run: **build confirmation → build → push c
    ```
 
    Include the ECR repository creation command (`aws ecr create-repository --repository-name <repo> --region <region>`) when the repository does not exist yet, noting that creating it remains subject to the user's own decision in the manual flow.
-4. Ask the user to report back the pushed **image URI** — the downstream modules block on it exactly as under the refusal-handling rules of [SKILL.md](../SKILL.md).
+4. Ask the user to report back the pushed **image URI** — the downstream modules block on it exactly as under the refusal-handling rules of [SKILL.md](../).
 
 ---
 
@@ -260,7 +271,7 @@ When the local build is feasible, run: **build confirmation → build → push c
 
 ## Execution_Log
 
-Every action this module attempts — Containerization_Artifact file generation, build definition generation, image builds, ECR repository creation, image pushes, remote build starts — is recorded in the **Execution_Log**, success or failure alike, before the next action starts. The recording rules, required fields, storage forms, and save-failure fallback are canonical in [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff.md#execution_log-rules); this module records against them rather than restating them. Typical action types from this module: `file_generation`, `image_build`, `ecr_repository_create`, `image_push`, `remote_build_start`.
+Every action this module attempts — Containerization_Artifact file generation, build definition generation, image builds, ECR repository creation, image pushes, remote build starts — is recorded in the **Execution_Log**, success or failure alike, before the next action starts. The recording rules, required fields, storage forms, and save-failure fallback are canonical in [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff#execution_log-rules); this module records against them rather than restating them. Typical action types from this module: `file_generation`, `image_build`, `ecr_repository_create`, `image_push`, `remote_build_start`.
 
 ---
 
@@ -321,7 +332,7 @@ The three-item confirmation is not obtained: generate nothing, re-present the th
 
 ### The user refuses the file-generation action class
 
-Follow the refusal handling in [SKILL.md](../SKILL.md): write no files, present the artifact contents in the conversation (code blocks) so the user can create them manually, and continue only the confirmed classes that do not depend on the generated files. Classes that need the files (build, push) block until the user reports having created them.
+Follow the refusal handling in [SKILL.md](../): write no files, present the artifact contents in the conversation (code blocks) so the user can create them manually, and continue only the confirmed classes that do not depend on the generated files. Classes that need the files (build, push) block until the user reports having created them.
 
 ### The build tool exists but turns out to be inoperative at build time
 
@@ -349,11 +360,11 @@ No creation is needed: the existence check passes, `created_repo` stays false, a
 
 ### The remote build definition is generated but the user never starts the build
 
-That is a valid resting state: the definition files exist at the approved destination, `remote_build.started` stays false, and the image URI stays unresolved. Downstream modules treat the URI per their unresolved-value rules ([windows-environment-build.md](windows-environment-build.md) input-variable rule; [deploy-verify-handoff.md](deploy-verify-handoff.md) 未確定 handling). Never start the build to "unblock" things without the explicit confirmation.
+That is a valid resting state: the definition files exist at the approved destination, `remote_build.started` stays false, and the image URI stays unresolved. Downstream modules treat the URI per their unresolved-value rules ([windows-environment-build.md](windows-environment-build) input-variable rule; [deploy-verify-handoff.md](deploy-verify-handoff) 未確定 handling). Never start the build to "unblock" things without the explicit confirmation.
 
 ### Code transformation is in the approved plan but has not completed
 
-The prerequisite fails: do not generate against the untransformed source. Report that containerization waits on the transformation's completion (or on the user's decision to re-scope the plan), per the module routing prerequisites in [SKILL.md](../SKILL.md).
+The prerequisite fails: do not generate against the untransformed source. Report that containerization waits on the transformation's completion (or on the user's decision to re-scope the plan), per the module routing prerequisites in [SKILL.md](../).
 
 ---
 

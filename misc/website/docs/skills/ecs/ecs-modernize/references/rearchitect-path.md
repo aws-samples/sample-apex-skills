@@ -1,12 +1,23 @@
+---
+title: "Module: Rearchitect Path"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/rearchitect-path.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [skills/ecs-modernize/references/rearchitect-path.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/rearchitect-path.md). Edit the source, not this page.
+:::
+
 # Module: Rearchitect Path
 
-> **Part of:** [ecs-modernize](../SKILL.md)
+> **Part of:** [ecs-modernize](../)
 > **Purpose:** Turn a Rearchitect strategy outcome into a concrete modernization path — the three ECS compute-model candidates with per-candidate applicability grounded in the analysis findings, the modernization items the detected findings actually require, their effort classification on the three-tier scale this file owns, optional framework-migration paths, and AWS Transform accelerator recommendations — while delegating detailed design to `ecs-architect`
-> **Prerequisites:** Scoring and Recommendation ([scoring-and-recommendation.md](scoring-and-recommendation.md)) — the Rearchitect path is presented from the `scoring`, `recommendation`, `tech_stack`, and `blockers` blocks; it is never assembled without them
+> **Prerequisites:** Scoring and Recommendation ([scoring-and-recommendation.md](scoring-and-recommendation)) — the Rearchitect path is presented from the `scoring`, `recommendation`, `tech_stack`, and `blockers` blocks; it is never assembled without them
 
 This is a **path module**: unlike the orchestrator-neutral analysis modules, ECS-specific vocabulary is expected and deliberate here. Mapping the Rearchitect strategy onto concrete ECS compute models — ECS Express Mode, ECS on Fargate, ECS Managed Instances — happens in this file (and only in the path modules); the scoring module hands over a strategy classification and nothing more.
 
-**Effort-scale definition owner.** The three-tier remediation-effort scale (small / medium / large) is defined in [this file's Effort Scale section](#effort-scale-single-definition) and nowhere else. The both-strategies comparison in [scoring-and-recommendation.md](scoring-and-recommendation.md) ("Always Present Both Strategies") uses this scale **by reference**; no other file defines a competing scale.
+**Effort-scale definition owner.** The three-tier remediation-effort scale (small / medium / large) is defined in [this file's Effort Scale section](#effort-scale-single-definition) and nowhere else. The both-strategies comparison in [scoring-and-recommendation.md](scoring-and-recommendation) ("Always Present Both Strategies") uses this scale **by reference**; no other file defines a competing scale.
 
 ## Table of Contents
 
@@ -104,7 +115,7 @@ Serverless compute: each task runs in its own managed microVM; no instances to p
 - Linux containers with no GPU requirement — Fargate has **no GPU support** ([Fargate task/service considerations](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)).
 - No privileged containers, custom AMI/kernel, or host device access.
 - Task resource needs fit within Fargate task-size limits.
-- OS-specific dependencies (the `os_specific_api` blocker category) have been removed or ported — the Rearchitect path targets modern Linux containers; Windows-only API dependencies must be resolved by a porting item first (the Windows-container route without code changes is a Replatform variant, covered in [replatform-path.md](replatform-path.md)).
+- OS-specific dependencies (the `os_specific_api` blocker category) have been removed or ported — the Rearchitect path targets modern Linux containers; Windows-only API dependencies must be resolved by a porting item first (the Windows-container route without code changes is a Replatform variant, covered in [replatform-path.md](replatform-path)).
 
 **Typical grounding:** *applicable* for most stateless-after-remediation web and service workloads; *applicable_after_remediation* when `os_specific_api` or `process_model` blockers exist and are mapped to listed items; *not_applicable* when the stack evidences GPU/specialized-hardware dependence — cite the dependency evidence.
 
@@ -144,7 +155,7 @@ Fully managed EC2 capacity for ECS (GA since Sept 2025, all commercial Regions s
 
 ### Effort Scale (Single Definition)
 
-Every listed modernization item — including optional framework-migration items — receives **exactly one** of these three tiers. This section is the sole definition of the scale; the both-strategies comparison mandated by the recommendation rules ([scoring-and-recommendation.md](scoring-and-recommendation.md), "Always Present Both Strategies") classifies each strategy's remediation effort on **this same scale**, by reference to this section.
+Every listed modernization item — including optional framework-migration items — receives **exactly one** of these three tiers. This section is the sole definition of the scale; the both-strategies comparison mandated by the recommendation rules ([scoring-and-recommendation.md](scoring-and-recommendation), "Always Present Both Strategies") classifies each strategy's remediation effort on **this same scale**, by reference to this section.
 
 | Tier | Definition | Recognizing it |
 |---|---|---|
@@ -156,7 +167,7 @@ Every listed modernization item — including optional framework-migration items
 
 ### Framework Migration Options
 
-When the detected framework is in the legacy classification (per the modernity ladder in [scoring-and-recommendation.md](scoring-and-recommendation.md)) and an **established migration path to a successor framework exists**, present the framework migration as an **optional** modernization item — never a mandatory one — with its approximate effort tier. The Rearchitect path remains viable without it: containerizing on the legacy framework and modernizing state/config/secrets is a legitimate Rearchitect outcome.
+When the detected framework is in the legacy classification (per the modernity ladder in [scoring-and-recommendation.md](scoring-and-recommendation)) and an **established migration path to a successor framework exists**, present the framework migration as an **optional** modernization item — never a mandatory one — with its approximate effort tier. The Rearchitect path remains viable without it: containerizing on the legacy framework and modernizing state/config/secrets is a legitimate Rearchitect outcome.
 
 **Established paths:**
 
@@ -173,7 +184,7 @@ When the detected framework is in the legacy classification (per the modernity l
 
 | From (detected server) | To | Approximate effort | Notes |
 |---|---|---|---|
-| WebSphere Application Server traditional (tWAS) | WebSphere Liberty / Open Liberty | medium | IBM-documented modernization path ([modernizing to Liberty](https://developer.ibm.com/learningpaths/app-mod-liberty/)); converts the cell/profile configuration model to Liberty's `server.xml` feature configuration and replaces proprietary `com.ibm.websphere.*` / `com.ibm.wsspi.*` / CommonJ API usage with spec or MicroProfile equivalents. Effort scales with the code-level coupling depth from tech stack detection: descriptor-only apps are genuinely *medium* (mostly mechanical config conversion); heavy proprietary-API usage pushes toward *large*. **IBM assessment tooling** automates the readiness analysis — IBM Cloud Transformation Advisor and the Migration Toolkit for Application Binaries (binary scanner) report Liberty compatibility, flag proprietary-API usage, and estimate effort per application; present them as optional accelerators (assessment-side tooling — running them is the user's action, and code changes stay behind the Execution_Gate). Unlike on the Replatform path, Transformation Advisor's **generated migration artifacts are directly useful here**: the generated Liberty `server.xml`, `pom.xml`, and Containerfile kickstart exactly this migration item (the Application CR targets OpenShift and is not reusable for ECS — the environment build follows this skill's execution modules instead). Note: traditional WAS entitlement includes Liberty entitlement ([Liberty licensing](https://www.ibm.com/docs/en/was-liberty/base?topic=overview-licensing-liberty)), and Open Liberty is open source — the server migration typically *removes* the commercial-server licensing finding |
+| WebSphere Application Server traditional (tWAS) | WebSphere Liberty / Open Liberty | medium | IBM-documented modernization path ([modernizing to Liberty](https://developer.ibm.com/learningpaths/app-mod-liberty/)); converts the cell/profile configuration model to Liberty's `server.xml` feature configuration and replaces proprietary `com.ibm.websphere.*` / `com.ibm.wsspi.*` / CommonJ API usage with spec or MicroProfile equivalents. Effort scales with the code-level coupling depth from tech stack detection: descriptor-only apps are genuinely *medium* (mostly mechanical config conversion); heavy proprietary-API usage pushes toward *large*. **IBM assessment tooling** automates the readiness analysis — IBM Cloud Transformation Advisor and the Migration Toolkit for Application Binaries (binary scanner) report Liberty compatibility, flag proprietary-API usage, and estimate effort per application; present them as optional accelerators (assessment-side tooling — running them is the user's action, and code changes stay behind the Execution_Gate). Note: traditional WAS entitlement includes Liberty entitlement ([Liberty licensing](https://www.ibm.com/docs/en/was-liberty/base?topic=overview-licensing-liberty)), and Open Liberty is open source — the server migration typically *removes* the commercial-server licensing finding |
 | WebSphere traditional / WebLogic-hosted Java EE app | Jakarta EE 10+ on a container-native runtime (Liberty, Tomcat where the API surface fits) | medium | The `javax` → `jakarta` row above compounds with the server move; treat them as one coordinated item when both apply, since the target Liberty feature level fixes the namespace generation |
 
 Combining rule: when a tWAS-hosted app also carries ladder-level framework findings (e.g. Struts on tWAS), the server-migration item and the framework-migration item are **separate optional items** — each with its own effort tier and grounding — because either can be adopted without the other (Liberty runs Struts-era WARs; Spring Boot on tWAS is rare but the reverse adoption order is real).
@@ -182,7 +193,7 @@ Combining rule: when a tWAS-hosted app also carries ladder-level framework findi
 
 ### AWS Transform Applicability Guidance
 
-AWS Transform is presented in the assessment as an **optional accelerator recommendation only** — with its automation scope — attached to the modernization items it matches. Actual transformation is executed exclusively by the code transformation module ([code-transformation.md](code-transformation.md)) after Execution_Gate passage; this module never starts a transformation, never proposes a job, and never treats Transform adoption as decided.
+AWS Transform is presented in the assessment as an **optional accelerator recommendation only** — with its automation scope — attached to the modernization items it matches. Actual transformation is executed exclusively by the code transformation module ([code-transformation.md](code-transformation)) after Execution_Gate passage; this module never starts a transformation, never proposes a job, and never treats Transform adoption as decided.
 
 **Matching items and automation scope:**
 
@@ -195,7 +206,7 @@ AWS Transform is presented in the assessment as an **optional accelerator recomm
 
 - Attach the applicability as the item's `aws_transform_applicability` string — naming the matching source/target versions and the automation scope. Items with no matching transformation get `null`, never a speculative claim.
 - Add the **effort-reduction note**: when AWS Transform is applicable and adopted, the item's effort tier may effectively drop (e.g. a *large* .NET port trending toward *medium* for the automated portion). The classified tier itself stays the manual-effort judgment; the note is presentation, not reclassification.
-- Coverage claims are fast-moving: before asserting them in a report, re-verify against the live documentation URLs above (the technical-freshness directive in [code-transformation.md](code-transformation.md) applies here too).
+- Coverage claims are fast-moving: before asserting them in a report, re-verify against the live documentation URLs above (the technical-freshness directive in [code-transformation.md](code-transformation) applies here too).
 
 ### Delegation to ecs-architect
 
@@ -265,7 +276,7 @@ Blockers classified `must_fix` gate both strategies. Map them to modernization i
 
 ### Windows-only dependencies detected
 
-`os_specific_api` blockers evidencing Windows-only APIs make all three candidates `applicable_after_remediation` at best: the porting item (typically with AWS Transform for .NET applicability) is the gap-closing item. The no-code-change Windows container route belongs to the Replatform path ([replatform-path.md](replatform-path.md)) — reference it, do not duplicate it here.
+`os_specific_api` blockers evidencing Windows-only APIs make all three candidates `applicable_after_remediation` at best: the porting item (typically with AWS Transform for .NET applicability) is the gap-closing item. The no-code-change Windows container route belongs to the Replatform path ([replatform-path.md](replatform-path)) — reference it, do not duplicate it here.
 
 ### Applicability cannot be settled
 

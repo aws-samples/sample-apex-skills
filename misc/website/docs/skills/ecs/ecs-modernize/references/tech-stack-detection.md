@@ -1,6 +1,17 @@
+---
+title: "Module: Tech Stack Detection"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/tech-stack-detection.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [skills/ecs-modernize/references/tech-stack-detection.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/tech-stack-detection.md). Edit the source, not this page.
+:::
+
 # Module: Tech Stack Detection
 
-> **Part of:** [ecs-modernize](../SKILL.md)
+> **Part of:** [ecs-modernize](../)
 > **Purpose:** Identify the languages, frameworks, runtimes, declared versions, and application servers of the target application from source code — the evidence base every downstream analysis module builds on
 > **Prerequisites:** None (first module in the analysis pipeline)
 

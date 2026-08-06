@@ -1,8 +1,19 @@
+---
+title: "Module: Blocker Detection"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/blocker-detection.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [skills/ecs-modernize/references/blocker-detection.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/blocker-detection.md). Edit the source, not this page.
+:::
+
 # Module: Blocker Detection
 
-> **Part of:** [ecs-modernize](../SKILL.md)
+> **Part of:** [ecs-modernize](../)
 > **Purpose:** Detect the concrete findings in the source code that obstruct containerization or cloud migration, classify each into a blocker category, and assign every blocker exactly one remediation class (tolerated under Replatform vs. must-fix even for Replatform)
-> **Prerequisites:** Tech Stack Detection ([tech-stack-detection.md](tech-stack-detection.md)) — the evidence patterns below are selected by detected language and framework
+> **Prerequisites:** Tech Stack Detection ([tech-stack-detection.md](tech-stack-detection)) — the evidence patterns below are selected by detected language and framework
 
 This module is deliberately orchestrator-neutral: it describes what prevents the application from running in a container or moving to the cloud, not where it should run. Strategy-level vocabulary (Replatform / Rearchitect) appears here only because the remediation classes are defined against those two strategies; target-platform vocabulary does not appear at all — it lives in the path modules. This file covers blocker detection only; tech stack detection, scoring, and strategy recommendation are each defined in their own reference file.
 
@@ -104,7 +115,7 @@ User session state is held in the application process's memory as the authoritat
 
 | Ecosystem | Evidence patterns |
 |---|---|
-| Java | `HttpSession.setAttribute(...)` storing business objects; absence of `<distributable/>` in `web.xml` for a session-using servlet application; no external session store dependency (e.g. Spring Session with an external backend) anywhere in the build definitions. **WebSphere traditional caveat:** on tWAS, session persistence (database persistence; on the 8.5.5 line also memory-to-memory replication, removed in 9.0 in favor of eXtreme Scale) is configured in the server cell configuration, which usually lives outside the application source tree — when the app evidences session usage and the tree carries no session-persistence evidence either way, report the blocker with a note that server-side session persistence may exist and needs user confirmation |
+| Java | `HttpSession.setAttribute(...)` storing business objects; absence of `<distributable/>` in `web.xml` for a session-using servlet application; no external session store dependency (e.g. Spring Session with an external backend) anywhere in the build definitions. **WebSphere traditional caveat:** on tWAS, session persistence (database persistence or memory-to-memory replication) is configured in the server cell configuration, which usually lives outside the application source tree — when the app evidences session usage and the tree carries no session-persistence evidence either way, report the blocker with a note that server-side session persistence may exist and needs user confirmation |
 | .NET | `web.config` `<sessionState mode="InProc">`, or a `<sessionState>` element with no `mode` attribute (InProc is the default), or session usage (`Session[...]` in code-behind/controllers) with no `<sessionState>` element at all; no external session provider configured |
 | Any ecosystem | Static / singleton in-memory maps keyed by user or session identifiers holding authoritative state |
 
