@@ -99,15 +99,15 @@ Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill l
 
 <table>
 <tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/"><b>ecs-architect</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-build/"><b>ecs-build</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-devops/"><b>ecs-devops</b></a></td></tr>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-genai/"><b>ecs-genai</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/"><b>ecs-observability</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-operation-review/"><b>ecs-operation-review</b></a></td></tr>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-recon/"><b>ecs-recon</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/"><b>ecs-security</b></a></td><td></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-genai/"><b>ecs-genai</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-modernize/"><b>ecs-modernize</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/"><b>ecs-observability</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-operation-review/"><b>ecs-operation-review</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-recon/"><b>ecs-recon</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/"><b>ecs-security</b></a></td></tr>
 </table>
 
 ### General
 
 <table>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/"><b>graviton-migration</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/"><b>skill-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/steering-workflow-creator/"><b>steering-workflow-creator</b></a></td></tr>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/"><b>update-docs</b></a></td><td></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/"><b>dotnet-aws-ecs</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/"><b>graviton-migration</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/"><b>skill-creator</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/steering-workflow-creator/"><b>steering-workflow-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/"><b>update-docs</b></a></td></tr>
 </table>
 <!-- SKILLS_REFERENCE_END -->
 

@@ -1,0 +1,21 @@
+[
+  { "query": "Our Java web app runs on two EC2 instances behind an ALB. Migrate it to Amazon ECS — analyze the source and tell us the path.", "should_trigger": true },
+  { "query": "Can we containerize this VMware-hosted .NET application? Assess the code base for container readiness.", "should_trigger": true },
+  { "query": "Replatform or rearchitect? We have a legacy Struts app on Tomcat and want it on ECS — score it and recommend a strategy.", "should_trigger": true },
+  { "query": "Analyze this repo and give me a cloud/container fit score — we're moving the app off our VMware cluster onto ECS.", "should_trigger": true },
+  { "query": "Our .NET Framework 4.8 Web Forms app runs on IIS on EC2. What's the realistic path to ECS — Windows containers or a .NET port?", "should_trigger": true },
+  { "query": "Assess whether this 10-year-old monolith can move to ECS as-is, or how much rework a modern Fargate setup would take.", "should_trigger": true },
+  { "query": "We approved the migration: containerize this EC2-hosted app, push the image to ECR, and get it running on ECS.", "should_trigger": true },
+  { "query": "Modernize this app off .NET Framework and onto ECS — can AWS Transform accelerate the port?", "should_trigger": true },
+  { "query": "Assess this legacy app for ECS migration, and afterwards we'll also want the detailed capacity and network design for the target.", "should_trigger": true },
+  { "query": "Evaluate containerizing our on-prem VMware app for ECS — and separately we'll spin up a brand-new greenfield service later.", "should_trigger": true },
+
+  { "query": "We're building a brand-new containerized API from scratch — which ECS launch type should we pick, Fargate or EC2?", "should_trigger": false },
+  { "query": "Help me choose between ECS Express Mode, Fargate, and Managed Instances for a greenfield service we haven't written yet.", "should_trigger": false },
+  { "query": "Design the capacity provider strategy, task sizing, and networking for a new ECS workload — Day-0 design, nothing exists yet.", "should_trigger": false },
+  { "query": "New project kickoff: recommend an ECS deployment model and service parameters for a greenfield microservice.", "should_trigger": false },
+  { "query": "Migrate our application to Kubernetes on Amazon EKS.", "should_trigger": false },
+  { "query": "We want to move our on-prem workloads to EKS — plan the Kubernetes migration.", "should_trigger": false },
+  { "query": "Design an EKS architecture for the app that currently runs on our VMware cluster.", "should_trigger": false },
+  { "query": "Assess our monolith for a move to Kubernetes — we've standardized on EKS, ECS is not an option.", "should_trigger": false }
+]

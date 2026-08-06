@@ -1,5 +1,11 @@
 [
   {
+    "name": "dotnet-aws-ecs",
+    "description": "Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET workload to Amazon ECS Fargate on Linux containers with an Application Load Balancer. Produces a VPC, ECS cluster, task definition, ALB, and auto-scaling. NOT for Windows containers, EC2 launch type, or Kubernetes/EKS deployments.",
+    "path": "/docs/skills/general/dotnet-aws-ecs",
+    "group": "general"
+  },
+  {
     "name": "ecs-architect",
     "description": "Use when choosing and architecting an Amazon ECS deployment model for a NEW workload — Fargate vs ECS on EC2 vs Managed Instances vs Express Mode vs ECS Anywhere/External — plus capacity-provider strategy, task sizing, awsvpc/ENI density, networking, service parameters, and launch-type or topology migration (EC2 launch type to capacity providers/Managed Instances; Service Discovery to Service Connect). Also the shared ECS best-practices corpus. Triggers include \"which ECS launch type\", \"Fargate or EC2\", \"should I use Managed Instances\", \"migrate off EC2 launch type\", \"App Mesh to Service Connect\", \"migrate off App Runner\". Skip for existing-app replatform (ecs-modernize); auditing a live estate (ecs-operation-review); cost/TCO (ecs-cost-intelligence); inventory (ecs-recon); security (ecs-security); deployment/CICD (ecs-devops); observability (ecs-observability); GPU/ML design AND GPU launch-type choice (ecs-genai); Kubernetes/EKS (eks-design); Terraform generation of a settled design (use ecs-build).",
     "path": "/docs/skills/ecs/ecs-architect",
@@ -21,6 +27,12 @@
     "name": "ecs-genai",
     "description": "Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS: GPU on ECS, ECS GPU-optimized AMI, g4dn/g5/g6/p4/p5 on ECS, which ECS launch type for GPU, Inferentia/Trainium/Neuron on ECS, distributed training, model inference or vLLM/Triton/TGI/Ray on ECS, Capacity Blocks, GPU sharing, ASG per GPU type. Covers GPU on ECS-on-EC2 and ECS Managed Instances (GPU AMIs, NVIDIA runtime, instance families); mixed-instance ASGs supported but constrained (no weighting; managed scaling protects on the smallest type); Capacity Blocks; inference/serving; Neuron; distributed ML; GPU observability; a GPU/ML security slice (PCI/HIPAA). AWS Fargate has NO GPU: use ECS-on-EC2, Managed Instances, ECS Anywhere, or keep Fargate and call Bedrock. Trigger even if GenAI is unsaid. Use eks-genai for Kubernetes/EKS; SageMaker for fully-managed ML; Bedrock for managed foundation models; ecs-architect for non-accelerator ECS design; ecs-build to render the settled design as Terraform; ecs-security for deep compliance.",
     "path": "/docs/skills/ecs/ecs-genai",
+    "group": "ecs"
+  },
+  {
+    "name": "ecs-modernize",
+    "description": "Assess an existing app (VMware/EC2) by source code analysis for the replatform vs rearchitect decision, and execute the approved migration onto Amazon ECS. Scope: assessment, strategy decision, migration execution. Covers: source code analysis; language/framework detection (Java, .NET, Spring, Struts); cloud/container fit scoring; replatform/rearchitect strategy recommendation; Windows container support; migration plan generation; AWS Transform orchestration; containerization and ECR push; Windows-container-path environment build; deploy and steady-state verification. Triggers: \"migrate this app from EC2 to ECS\", \"can we containerize this VMware-hosted app?\", \"replatform or rearchitect for ECS?\". Applies to existing-app migration assessment, not greenfield or Kubernetes/EKS. Skip for greenfield deployment-model design (ecs-architect), Linux container path ECS Terraform generation (ecs-build), live ECS inventory (ecs-recon), security/compliance hardening (ecs-security), Kubernetes/EKS migration (eks-design).",
+    "path": "/docs/skills/ecs/ecs-modernize",
     "group": "ecs"
   },
   {

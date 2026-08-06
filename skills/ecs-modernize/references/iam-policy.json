@@ -1,0 +1,163 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AssessmentECSReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:Describe*",
+        "ecs:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AssessmentEC2ReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AssessmentELBReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:Describe*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AssessmentECRReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:ListImages"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionECRCreateRepository",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionECRImagePush",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionCodeBuildRemoteBuild",
+      "Effect": "Allow",
+      "Action": [
+        "codebuild:CreateProject",
+        "codebuild:BatchGetProjects",
+        "codebuild:StartBuild",
+        "codebuild:BatchGetBuilds"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionTerraformECS",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:CreateCluster",
+        "ecs:RegisterTaskDefinition",
+        "ecs:CreateService",
+        "ecs:UpdateService",
+        "ecs:CreateCapacityProvider",
+        "ecs:PutClusterCapacityProviders",
+        "ecs:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionTerraformCapacity",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:RunInstances",
+        "ec2:CreateLaunchTemplate",
+        "ec2:CreateLaunchTemplateVersion",
+        "ec2:CreateSecurityGroup",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress",
+        "ec2:CreateTags",
+        "autoscaling:CreateAutoScalingGroup",
+        "autoscaling:UpdateAutoScalingGroup",
+        "autoscaling:CreateOrUpdateTags",
+        "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:DescribeScalingActivities"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionTerraformLoadBalancing",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:ModifyTargetGroupAttributes",
+        "elasticloadbalancing:ModifyListener",
+        "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:AddTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionTerraformIAM",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole",
+        "iam:PutRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:TagRole",
+        "iam:CreateInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:PassRole"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionTerraformLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
+        "logs:ListTagsForResource",
+        "logs:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionDeployVerifyReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:DescribeServices",
+        "ecs:DescribeTasks",
+        "ecs:ListTasks"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

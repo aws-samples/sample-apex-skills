@@ -1,0 +1,40 @@
+skill_name: ecs-modernize
+artifact_type: null
+
+# Weight rationale — ecs-modernize produces artifacts (Dockerfiles, Terraform,
+# Modernization_Reports) in its execution phase, but the current evals.json
+# entries are conversational assessment / gate-behaviour checks graded via
+# plain `expectations` only: there are no process_assertions,
+# artifact_assertions, or knowledge_assertions to feed the deterministic
+# layers 1-3. Following the advisory-skill pattern in the scorecard (layers
+# without data are disabled and their weight redistributed), those three
+# layers are disabled here and the weight concentrates on the two layers that
+# have inputs: triggering (layer 0 — 18 prompts in triggering.json) and
+# quality (layer 4 — the LLM grader over 21 task evals with 3-6 expectations
+# each). Quality carries the larger share because the expectations encode the
+# skill's behavioural contract (read-only assessment, Execution_Gate,
+# per-action-class confirmations, delegation boundaries). Re-enable layers
+# 1-3 and rebalance once assertion fields are added to evals.json.
+
+layers:
+  triggering:
+    enabled: true
+  process:
+    enabled: false
+  artifact:
+    enabled: false
+    validators: []
+  knowledge:
+    enabled: false
+  quality:
+    enabled: true
+
+weights:
+  triggering: 0.30
+  quality: 0.70
+
+regression:
+  threshold: 5.0
+  pass_k: 3
+
+timeout: 1800

@@ -401,6 +401,28 @@ Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS: GPU o
 
 ---
 
+### [ecs-modernize](./ecs-modernize/)
+
+Assess an existing app (VMware/EC2) by source code analysis for the replatform vs rearchitect decision, and execute the approved migration onto Amazon ECS. Scope: assessment, strategy decision, migration execution. Covers: source code analysis; language/framework detection (Java, .NET, Spring, Struts); cloud/container fit scoring; replatform/rearchitect strategy recommendation; Windows container support; migration plan generation; AWS Transform orchestration; containerization and ECR push; Windows-container-path environment build; deploy and steady-state verification. Triggers: "migrate this app from EC2 to ECS", "can we containerize this VMware-hosted app?", "replatform or rearchitect for ECS?". Applies to existing-app migration assessment, not greenfield or Kubernetes/EKS. Skip for greenfield deployment-model design (ecs-architect), Linux container path ECS Terraform generation (ecs-build), live ECS inventory (ecs-recon), security/compliance hardening (ecs-security), Kubernetes/EKS migration (eks-design).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [blocker-detection.md](./ecs-modernize/references/blocker-detection.md) | Blocker detection |
+| [code-transformation-agent-led.md](./ecs-modernize/references/code-transformation-agent-led.md) | Code transformation agent led |
+| [code-transformation.md](./ecs-modernize/references/code-transformation.md) | Code transformation |
+| [containerization-execution.md](./ecs-modernize/references/containerization-execution.md) | Containerization execution |
+| [deploy-verify-handoff.md](./ecs-modernize/references/deploy-verify-handoff.md) | Deploy verify handoff |
+| [rearchitect-path.md](./ecs-modernize/references/rearchitect-path.md) | Rearchitect path |
+| [replatform-path.md](./ecs-modernize/references/replatform-path.md) | Replatform path |
+| [report-generation.md](./ecs-modernize/references/report-generation.md) | Report generation |
+| [scoring-and-recommendation.md](./ecs-modernize/references/scoring-and-recommendation.md) | Scoring and recommendation |
+| [tech-stack-detection.md](./ecs-modernize/references/tech-stack-detection.md) | Tech stack detection |
+| [windows-environment-build.md](./ecs-modernize/references/windows-environment-build.md) | Windows environment build |
+
+---
+
 ### [ecs-observability](./ecs-observability/)
 
 Advise on Amazon ECS observability architecture — select the logs/metrics/traces stack (CloudWatch, Container Insights, X-Ray, ADOT/OpenTelemetry, Managed Prometheus/Grafana, FireLens to third-party) by compliance needs, existing tooling, scale, budget, and launch types (EC2, Fargate, Managed Instances, ECS Anywhere). Use for "how should we monitor our ECS services", "Container Insights or Prometheus for ECS", "are we losing ECS container logs", "set up tracing on Fargate", "ECS logging best practices", "Datadog vs CloudWatch for ECS", "GPU metrics for ECS tasks", or "plan live-debug access to an ECS task". Any ECS logging, metrics, tracing, or alerting design question qualifies even if "observability" is never said. Skip for EKS/Kubernetes (eks-* skills), deployment mechanics/CI-CD/deploy-failure diagnosis (ecs-devops; deploy-failure alerting stays here), security posture beyond observability audit logging (ecs-security), live-estate audits (ecs-operation-review), and FinOps audits of observability spend.
@@ -487,6 +509,23 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 | [task-container-hardening.md](./ecs-security/references/task-container-hardening.md) | Task container hardening |
 
 ## General
+
+### [dotnet-aws-ecs](./dotnet-aws-ecs/)
+
+Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET workload to Amazon ECS Fargate on Linux containers with an Application Load Balancer. Produces a VPC, ECS cluster, task definition, ALB, and auto-scaling. NOT for Windows containers, EC2 launch type, or Kubernetes/EKS deployments.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [README.md](./dotnet-aws-ecs/references/README.md) | README |
+| [cdk-template-guide.md](./dotnet-aws-ecs/references/cdk-template-guide.md) | Cdk template guide |
+| [cloudformation-template-guide.md](./dotnet-aws-ecs/references/cloudformation-template-guide.md) | Cloudformation template guide |
+| [deployment-guide-template.md](./dotnet-aws-ecs/references/deployment-guide-template.md) | Deployment guide template |
+| [dockerfile-guide.md](./dotnet-aws-ecs/references/dockerfile-guide.md) | Dockerfile guide |
+| [healthcheck-endpoint-guide.md](./dotnet-aws-ecs/references/healthcheck-endpoint-guide.md) | Healthcheck endpoint guide |
+
+---
 
 ### [graviton-migration](./graviton-migration/)
 
