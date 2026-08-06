@@ -22,3 +22,12 @@ This repository includes third-party components under their own licenses.
 - **Copyright:** Anton Babenko ([terraform-best-practices.com](https://terraform-best-practices.com), [Compliance.tf](https://compliance.tf))
 - **Attribution:** Based on terraform-skill by Anton Babenko — https://github.com/antonbabenko/terraform-skill
 - **How synced:** Via [`misc/sync-terraform-skill.sh`](misc/sync-terraform-skill.sh) — treats upstream as source of truth. Do not manually edit files under `skills/terraform-skill/`.
+
+---
+
+## dotnet-aws-ecs
+
+- **Source:** https://github.com/adisimon217/sample-appmod-skills
+- **License:** MIT License (see [`skills/dotnet-aws-ecs/LICENSE`](skills/dotnet-aws-ecs/LICENSE))
+- **Copyright:** Copyright (c) 2026 adisimon217
+- **How synced:** Via [`misc/sync-dotnet-aws-ecs-skill.sh`](misc/sync-dotnet-aws-ecs-skill.sh) — treats upstream as source of truth. Do not manually edit files under `skills/dotnet-aws-ecs/`.

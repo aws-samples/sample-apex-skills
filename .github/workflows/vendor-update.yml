@@ -21,6 +21,7 @@ on:
           - terraform-skill
           - eks-upgrade-check
           - eks-operation-review
+          - dotnet-aws-ecs
 
 permissions:
   contents: write
@@ -49,6 +50,10 @@ jobs:
             script: misc/sync-eks-operation-review-skill.sh
             upstream: https://github.com/aws-samples/sample-eks-operation-review-skill.git
             path: skills/eks-operation-review
+          - name: dotnet-aws-ecs
+            script: misc/sync-dotnet-aws-ecs-skill.sh
+            upstream: https://github.com/adisimon217/sample-appmod-skills.git
+            path: skills/dotnet-aws-ecs
     steps:
       - name: Skip if single-skill dispatch doesn't match
         if: >-
