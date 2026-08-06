@@ -301,7 +301,7 @@ The workflow for a "WebSphere traditional → WebSphere Liberty / Open Liberty" 
 
 | tWAS proprietary surface | Liberty / spec replacement |
 |---|---|
-| CommonJ WorkManager / `com.ibm.websphere.asynchbeans` | Jakarta/EE Concurrency Utilities — `ManagedExecutorService`, `ManagedScheduledExecutorService` (`concurrent` feature) |
+| CommonJ WorkManager / `com.ibm.websphere.asynchbeans` | Jakarta/EE Concurrency Utilities — `ManagedExecutorService`, `ManagedScheduledExecutorService` (`concurrent` feature). **Lower-effort bridge:** Liberty 22.0.0.1+ can run CommonJ Timer / Work Manager code unchanged by enabling the `heritageAPIs-1.1` feature — a legitimate first increment that defers the API replacement; present both options with the trade-off (heritage feature keeps the proprietary dependency alive) |
 | WAS scheduler service | EJB Timer Service / `ManagedScheduledExecutorService`; or externalize to an orchestrator-level scheduler (ECS scheduled tasks) as a decision point |
 | DynaCache (`com.ibm.websphere.cache`, `DistributedMap`) | External cache (e.g. Redis/ElastiCache) or JCache — an integration change; present it as a decision point, not a silent substitution |
 | SIBus (WAS-embedded messaging) | External broker — the JMS API survives; the provider moves (e.g. Amazon MQ, IBM MQ) |
