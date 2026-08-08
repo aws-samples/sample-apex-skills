@@ -1,0 +1,22 @@
+---
+title: "Summaries"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/summaries.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [skills/graviton-migration/summaries.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/summaries.md). Edit the source, not this page.
+:::
+
+
+Read this first. This is the agent file-index for the graviton-migration skill — one line per file so you can decide what to load before opening anything. Load reference files only when the workflow step tells you to.
+
+* "SKILL.md": "Entry point. Sets up the third-party Arm migration MCP server (docker run armlimited/arm-mcp:latest over stdio) across harnesses, frames the pre-migration scan as three co-equal input layers (MCP = layer 1 of 3 with known blind spots; dependency-manifest parse and binary/JAR ELF scan are mandatory layers 2-3), documents the 7 MCP tools as capabilities, then routes a 6-step migration workflow to the reference files. Covers: docker gate; per-harness MCP config (Claude Code, Kiro, self-correcting path for others); the 7 tools; three-layer scan spine; lightweight conversational findings/runbook shape; interaction rules."
+* "summaries.md": "This file — the read-this-first agent index of every file in the skill and its purpose."
+* "document_references/agent-scope-boundaries.md": "In-scope vs out-of-scope decision list for the skill, including the guardrail that repos containing secrets/credentials must NOT be mounted into the scanner container (the :ro mount is not a trust boundary; the third-party arm-mcp image reads all source and makes outbound network calls). Load when a scope question comes up."
+* "references/scanner-workflow.md": "Owns the full 3-layer scan procedure AND the built-source safety gate — the pre-migration scan wrapping the Arm MCP source scanner (migrate_ease_scan, layer 1) and image-arch tools (check_image / skopeo), the Layer-3 binary/JAR ELF scan (file/readelf, fat-JAR recursion), and the fail-closed built-source gate that refuses to call an under-scanned tree CLEAN, producing a per-workload verdict of CLEAN / PORTABLE-WITH-CHANGES / BLOCKED. Load whenever you run the scan, the gate, or the Layer-3 ELF check — at workflow steps 1-2."
+* "references/dependency-knowledge.md": "Layer-2 ONLY — the dependency-manifest/floor knowledge: how to parse manifests/lockfiles (requirements/poetry.lock, go.mod, package-lock.json, pom.xml/Gradle, Gemfile.lock, .csproj) for arch-specific packages and native-dependency arm64 version floors that the MCP scanner misses. Does NOT cover the Layer-3 ELF/readelf binary scan or the built-source gate — those live in scanner-workflow.md. Load at workflow step 1 alongside scanner-workflow.md."
+* "references/karpenter-migration.md": "Taint-first Karpenter v1 runbook for cutting workloads over to Graviton/arm64 nodes: tainted arm64 NodePool, toleration+affinity canary, multi-arch image, on-node validation, progressive replica shift, cross-arch spread, and cleanup. Load at workflow steps 3-4."
+* "references/perf-validation.md": "Post-cutover validation — confirming the workload is healthy on arm64 under realistic load and comparing against the x86 baseline (latency, throughput, error rate) before retiring x86 capacity. Load at workflow step 5."
+* "references/multi-arch-pipelines.md": "How to make each major CI system (GitHub Actions, CodeBuild, GitLab CI, Jenkins) publish a single-tag multi-arch manifest list for linux/amd64,linux/arm64, covering the manifest-list concept and the native-runner-vs-QEMU-emulation tradeoff. Load at workflow step 6."
