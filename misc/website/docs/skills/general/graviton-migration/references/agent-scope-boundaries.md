@@ -47,7 +47,7 @@ Load this when a scope question comes up ("should the scanner touch this repo?",
 
 Before mounting:
 
-1. Scan the working tree for secrets (`.env`, `*.pem`, `id_rsa`, cloud credential files, `.git-credentials`) and remove or `.dockerignore`-equivalently exclude them from what you mount.
+1. Scan the working tree for secrets (`.env`, `*.pem`, `id_rsa`, cloud credential files, `.git-credentials`) and either remove them from the tree or mount a clean, source-only checkout that excludes them.
 2. Prefer mounting a **clean checkout** of just the source to migrate, not a developer working directory full of local config.
 3. Treat this exactly like running any untrusted third-party binary against a private repo — because that is what it is. Pin a specific published image tag rather than `:latest` for reproducibility, and confirm the image before the first pull.
 4. Keep the server **credential-free** — it scans source and manifests, it does not need AWS credentials; never inject them into the MCP entry.

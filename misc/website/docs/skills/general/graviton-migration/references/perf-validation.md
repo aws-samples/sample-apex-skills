@@ -63,7 +63,7 @@ The version floors in the table below are a **verified-as-of-2026-08-05 snapshot
 |------|---------|-----------|------------------|
 | `-march=armv8.2-a` | balanced, runs on all current Graviton (G2–G5) | GCC 7 (flag); GCC 9+ = AWS G2 tuning floor | Clang/LLVM ~4–5 (flag); 10+ = AWS G2 tuning floor |
 | `-mcpu=neoverse-v1` | perf-tuned for Graviton3(E) | GCC 11 | Clang/LLVM 12 (accepted); 14+ = AWS-recommended for tuning |
-| `-mcpu=neoverse-512tvb` | balanced tuning across Graviton3/4/5 | GCC 11 | Clang/LLVM 14+ |
+| `-mcpu=neoverse-512tvb` | balanced tuning across Graviton3/4/5 | GCC 11.3 | Clang/LLVM 14+ |
 | `-mcpu=neoverse-v2` | perf-tuned for Graviton4 | GCC 13 | Clang/LLVM 16+ |
 | `-moutline-atomics` | runtime LSE-atomics detection (safe on old + new cores) | GCC 10 (backported to GCC 9.4) | Clang/LLVM 12 |
 
