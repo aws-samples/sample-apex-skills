@@ -1,5 +1,7 @@
 # Native Dependency arm64 Floor Knowledge (Scan Layer 2)
 
+> **Part of:** [graviton-migration](../SKILL.md)
+
 This is **layer 2** of the Graviton migration scan: the manifest-parsing layer that
 closes the gaps `migrate-ease` misses — Maven `<classifier>` mismatches and native
 (JNI/FFI/CGO) dependencies whose arm64 support has a **minimum version floor**.

@@ -50,7 +50,7 @@ docker run --rm -i -v "$(pwd)":/workspace:ro armlimited/arm-mcp:latest
 
 - `--rm` — remove the container when the harness closes the connection.
 - `-i` — keep stdin open; MCP over stdio needs the pipe to stay live. Drive it from a harness (or an interactive/kept-open session) that holds stdin open for the whole exchange. A one-shot pipe (`echo '{...}' | docker run ... arm-mcp`) closes stdin as soon as the request is written, so the MCP process sees EOF and can exit before it returns results — the call comes back empty.
-- Before mounting, make sure the working tree carries no secrets (`.env`, private keys, credential files) — or mount a clean, source-only checkout instead. The container reads *everything* under the mount and makes outbound network calls, so anything sensitive in `$(pwd)` is exposed (see the security guardrail in `document_references/agent-scope-boundaries.md`).
+- Before mounting, make sure the working tree carries no secrets (`.env`, private keys, credential files) — or mount a clean, source-only checkout instead. The container reads *everything* under the mount and makes outbound network calls, so anything sensitive in `$(pwd)` is exposed (see the security guardrail in `references/agent-scope-boundaries.md`).
 - `-v "$(pwd)":/workspace:ro` — mount the current directory (the repo to migrate) into the container, **read-only** (`:ro`) so the scanner cannot modify or delete your source. `:ro` guards the filesystem only — it is **not** the trust boundary: the container still reads all of your source and makes outbound network calls (the image-arch and host-execution tools reach registries / SSH out — see the tool list below), so treat this like running any third-party code against a private repo. Start with `:ro`. If a run shows the tool needs to write somewhere, give it a *dedicated* writable mount at its own path (e.g. `-v /tmp/arm-mcp-out:/out`) rather than dropping `:ro` and exposing the whole source tree.
 - `armlimited/arm-mcp:latest` — the Arm migration MCP image. This is a third-party container (Arm Ltd) that runs against your source with network access, so treat it like any external dependency: for a reproducible setup, pin a specific published tag (e.g. `armlimited/arm-mcp:2.9.0`) rather than the mutable `:latest`, and confirm the image before first pull.
 
@@ -204,7 +204,7 @@ This is a conversational skill, not a batch service — it does **not** emit a m
 - **Validation deltas** — a couple of before/after numbers on arm64 vs x86 under load (latency, throughput, error rate).
 - **CI change** — the one-line "now publishes a multi-arch manifest list" note.
 
-Produce it inline as markdown if asked; do not create files unless the user explicitly wants them written out. Scope questions ("should the scanner touch this repo?", "is X in scope?") are answered by `document_references/agent-scope-boundaries.md`.
+Produce it inline as markdown if asked; do not create files unless the user explicitly wants them written out. Scope questions ("should the scanner touch this repo?", "is X in scope?") are answered by `references/agent-scope-boundaries.md`.
 
 ---
 

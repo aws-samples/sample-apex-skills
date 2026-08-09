@@ -494,17 +494,12 @@ Execute a workload migration from x86 (amd64) to AWS Graviton (arm64) — set up
 
 | Reference | Description |
 |-----------|-------------|
+| [agent-scope-boundaries.md](./graviton-migration/references/agent-scope-boundaries.md) | Agent scope boundaries |
 | [dependency-knowledge.md](./graviton-migration/references/dependency-knowledge.md) | Dependency knowledge |
 | [karpenter-migration.md](./graviton-migration/references/karpenter-migration.md) | Karpenter migration |
 | [multi-arch-pipelines.md](./graviton-migration/references/multi-arch-pipelines.md) | Multi arch pipelines |
 | [perf-validation.md](./graviton-migration/references/perf-validation.md) | Perf validation |
 | [scanner-workflow.md](./graviton-migration/references/scanner-workflow.md) | Scanner workflow |
-
-**Document_references:**
-
-| File | Description |
-|------|-------------|
-| [agent-scope-boundaries.md](./graviton-migration/document_references/agent-scope-boundaries.md) | Agent scope boundaries |
 
 ---
 

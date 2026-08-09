@@ -1,15 +1,17 @@
 ---
 title: "Agent Scope Boundaries"
 description: ""
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/document_references/agent-scope-boundaries.md
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/references/agent-scope-boundaries.md
 format: md
 ---
 
 :::info[Source]
-This page is generated from [skills/graviton-migration/document_references/agent-scope-boundaries.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/document_references/agent-scope-boundaries.md). Edit the source, not this page.
+This page is generated from [skills/graviton-migration/references/agent-scope-boundaries.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/references/agent-scope-boundaries.md). Edit the source, not this page.
 :::
 
 # Agent Scope Boundaries
+
+> **Part of:** [graviton-migration](../)
 
 Load this when a scope question comes up ("should the scanner touch this repo?", "is X part of this skill?"). It draws the line around what graviton-migration does and does not own, and carries the hard security guardrail on the scanner container.
 
