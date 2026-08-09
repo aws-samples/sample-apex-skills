@@ -57,6 +57,9 @@ spec:
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
     consolidateAfter: 1m
+    # During the canary/soak window, voluntary consolidation can churn the canary
+    # and corrupt your validation signal — protect it before you start (see
+    # "A note on cost": annotate the canary do-not-disrupt, or use WhenEmpty for the soak).
 ```
 
 Why the taint matters: without it, the moment this NodePool exists Karpenter can place *any* pending pod on an arm64 node during a scale-up. If that pod's image is amd64-only it will `CrashLoopBackOff` or fail with an `exec format error`, and you will be debugging a production incident instead of running a controlled canary. The taint makes arm64 opt-in.
@@ -235,7 +238,7 @@ Each Deployment's `selector` (and any `PodDisruptionBudget`) targets `app: myapp
 
 **Abort on regression (two-Deployment model).** If a stage regresses, do not just pause — reverse the ratio. The recovery lever is the **replica shift back to x86**, not NodePool deletion. **The one fast abort that actually holds is: pause/delete the arm64 HPA, then shift replicas to x86.** In order:
 
-1. **First, if you gave the arm64 Deployment its own HPA, pause or delete that HPA** (or set its `minReplicas`/`maxReplicas` to `0`). An HPA's `minReplicas` floor is `1` (scaling to `0` needs the alpha `HPAScaleToZero` gate, which is off by default and never applies to CPU/memory metrics), so if you skip this step the HPA **re-scales `myapp-arm64` back up within a reconcile cycle** and your abort silently fails — under exactly the per-arch-HPA setup this section recommends.
+1. **First, if you gave the arm64 Deployment its own HPA, pause or delete that HPA.** An HPA's `minReplicas` floor is `1` (scaling to `0` needs the alpha `HPAScaleToZero` gate, which is off by default and never applies to CPU/memory metrics), so if you skip this step the HPA **re-scales `myapp-arm64` back up within a reconcile cycle** and your abort silently fails — under exactly the per-arch-HPA setup this section recommends.
 2. **Then** scale `myapp-arm64` to `0` and scale `myapp-amd64` back up to full. The arm64 pods are hard-pinned, so they can only run on arm64 nodes — the way to get traffic off arm64 is to move replicas back to the x86 Deployment, whose pods *can* schedule on the retained x86 NodePool.
 3. **Only after** traffic is healthy on x86 do you cordon or delete the arm64 NodePool. **NodePool deletion is not the recovery lever** — deleting it while the arm64 pods are still hard-pinned just leaves them `Pending` (they cannot fall back to x86), which prolongs the outage instead of ending it. Likewise, **removing a pod's `app` label is not an abort lever** — the ReplicaSet immediately respawns a replacement (see Step 2).
 
