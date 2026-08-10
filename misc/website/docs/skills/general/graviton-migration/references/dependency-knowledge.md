@@ -17,7 +17,7 @@ This is **layer 2** of the Graviton migration scan: the manifest-parsing layer t
 closes the gaps `migrate-ease` misses — Maven `<classifier>` mismatches and native
 (JNI/FFI/CGO) dependencies whose arm64 support has a **minimum version floor**.
 
-> **Verify at migration time.** Every floor below drifts as projects cut releases and
+> **Verify at migration time (the floors below are a 2026-08-05 snapshot, not a live query).** Every floor below drifts as projects cut releases and
 > deprecate runtimes. Treat this table as a starting hypothesis, not gospel. Re-check the
 > package's release history (Maven Central, PyPI, crates.io, npm, project changelog) for
 > the artifact you actually depend on before you sign off. Entries are labeled
@@ -38,7 +38,7 @@ closes the gaps `migrate-ease` misses — Maven `<classifier>` mismatches and na
 | **snappy-java** | **1.1.2.2 (2016-03-29)** | `Linux/aarch64/libsnappyjava.so` has shipped since the early 1.1.x releases — the earliest release bundling it is **1.1.2.2 (2016-03-29)**; 1.1.7.8 merely rebuilt/enlarged it, so the practical floor is far earlier — *verify at release time* against Maven Central. |
 | **lz4-java** | **≥ 1.4.0** | aarch64 native support around this release — *approximate; verify at release time*. |
 | **Go** (toolchain) | **≥ 1.18** | Mature linux/arm64; earlier works but 1.18+ is the practical floor. |
-| **Rust** (toolchain) | **recent (verify current)** | `aarch64-unknown-linux-gnu` is tier-1. Rust **1.57.0** enabled `+outline-atomics` by default for `aarch64-unknown-linux-gnu` (glibc) → good Graviton atomics; the musl target (`aarch64-unknown-linux-musl`) only picked it up much later (~1.90 (PR #144429)). Still, verify the current toolchain's target features (`rustc --print cfg -C target-cpu=…`) rather than pinning a version from memory. |
+| **Rust** (toolchain) | **≥ 1.57 (glibc); ~1.90 (musl)** | `aarch64-unknown-linux-gnu` is tier-1. Rust **1.57.0** enabled `+outline-atomics` by default for `aarch64-unknown-linux-gnu` (glibc) → good Graviton atomics; the musl target (`aarch64-unknown-linux-musl`) only picked it up much later (~1.90 (PR #144429)). Still, verify the current toolchain's target features (`rustc --print cfg -C target-cpu=…`) rather than pinning a version from memory. |
 | **zlib-ng** | **use a current release** | arm64 NEON + ARMv8 CRC32 acceleration has been present since the 1.x line (those source paths date to 2016–2017); **2.0.0 (2021)** was the first stable release, not the arm64 introduction. No meaningful arm64-support floor — use a current release for Graviton perf. *Approximate — verify at release time.* |
 
 ## Layer-2 parsing procedure

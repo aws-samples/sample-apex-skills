@@ -38,7 +38,7 @@ Before mounting:
 
 1. Scan the working tree for secrets (`.env`, `*.pem`, `id_rsa`, cloud credential files, `.git-credentials`) and either remove them from the tree or mount a clean, source-only checkout that excludes them.
 2. Prefer mounting a **clean checkout** of just the source to migrate, not a developer working directory full of local config.
-3. Treat this exactly like running any untrusted third-party binary against a private repo — because that is what it is. Pin a specific published image tag rather than `:latest` for reproducibility, and confirm the image before the first pull.
+3. Treat this exactly like running any untrusted third-party binary against a private repo — because that is what it is. Pin a specific published image tag — or a `@sha256:` digest for a real supply-chain control — rather than `:latest`, and confirm the image before the first pull.
 4. Keep the server **credential-free** — it scans source and manifests, it does not need AWS credentials; never inject them into the MCP entry.
 5. If a tool genuinely needs to write output, give it a *dedicated* writable mount at its own path (e.g. `-v /tmp/arm-mcp-out:/out`) rather than dropping `:ro` on the source tree.
 

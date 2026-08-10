@@ -39,15 +39,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4      # enables arm64 emulation
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
+      - uses: actions/checkout@<current major>
+      - uses: docker/setup-qemu-action@<current major>      # enables arm64 emulation; runs a privileged binfmt container internally — pin the action to a trusted version
+      - uses: docker/setup-buildx-action@<current major>
+      - uses: aws-actions/configure-aws-credentials@<current major>
         with:
-          registry: <account>.dkr.ecr.<region>.amazonaws.com
-          username: ${{ ... }}
-          password: ${{ ... }}
-      - uses: docker/build-push-action@v7
+          role-to-assume: arn:aws:iam::<account>:role/<gha-oidc-role>   # GitHub OIDC role, no static keys
+          aws-region: <region>
+      - uses: aws-actions/amazon-ecr-login@<current major>              # configures docker auth to ECR
+      - uses: docker/build-push-action@<current major>
         with:
           platforms: linux/amd64,linux/arm64
           push: true
@@ -73,8 +73,8 @@ phases:
   pre_build:
     commands:
       - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR
-      # Runs privileged: registers QEMU handlers in the kernel via binfmt_misc, so pin a specific, trusted tag (verify a current one on Docker Hub), never :latest.
-      - docker run --privileged --rm tonistiigi/binfmt:qemu-v9.2.2 --install all   # QEMU (skip on native fleet)
+      # Runs privileged: registers QEMU handlers in the kernel via binfmt_misc (host-global — the handlers persist past this --rm container and affect other jobs on a shared runner), so pin a specific, trusted tag (verify a current one on Docker Hub), never :latest.
+      - docker run --privileged --rm tonistiigi/binfmt:<pinned-tag> --install all   # QEMU (skip on native fleet)
       - docker buildx create --use
   build:
     commands:
@@ -89,12 +89,12 @@ GitLab uses buildx inside a `docker:dind` service, or native arm64 runners. Emul
 
 ```yaml
 build:
-  image: docker:29
+  image: docker:<current major>
   services:
-    - docker:29-dind
+    - docker:<current major>-dind
   script:
-    # Runs privileged: registers QEMU handlers in the kernel via binfmt_misc, so pin a specific, trusted tag (verify a current one on Docker Hub), never :latest.
-    - docker run --privileged --rm tonistiigi/binfmt:qemu-v9.2.2 --install all
+    # Runs privileged: registers QEMU handlers in the kernel via binfmt_misc (host-global — the handlers persist past this --rm container and affect other jobs on a shared runner), so pin a specific, trusted tag (verify a current one on Docker Hub), never :latest.
+    - docker run --privileged --rm tonistiigi/binfmt:<pinned-tag> --install all
     - docker buildx create --use
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx build --platform linux/amd64,linux/arm64 -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" --push .
