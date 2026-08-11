@@ -1,6 +1,6 @@
 ---
 title: "eks-best-practices"
-description: "Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, and upgrade planning. Also answers Terraform configuration questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), building developer platforms and IDPs (eks-platform-engineering), GenAI/LLM workload decisions — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training, ML storage (eks-genai), or compliance-regime hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security)."
+description: "Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, and surge readiness for flash sales, marketing pushes, traffic spikes, and peak events. Also answers Terraform configuration questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), building developer platforms and IDPs (eks-platform-engineering), GenAI/LLM workload decisions — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training, ML storage (eks-genai), or compliance-regime hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/SKILL.md
 format: md
 ---
@@ -281,6 +281,14 @@ Cluster Autoscaler's ~60-90s scale-up assumes cold EC2 launches; MNG EC2 warm po
 
 **For detailed autoscaling guidance, see:** [Autoscaling Reference](references/autoscaling) | [Karpenter Reference](references/karpenter)
 
+### Preparing for a Known Traffic Peak
+
+For a planned peak — a flash sale, marketing push, product launch, or seasonal event — the arrival is a near-instantaneous step at a known clock time, so favor **scheduled pre-scaling** (set floors ahead of the trigger) over relying on reactive autoscaling to catch up. Pre-warm all three layers (control plane, nodes, pods) and hold the floor across the whole event window rather than scaling down between peaks.
+
+**Critical rule:** A load test that passes on request *rate* can still miss the failure that hits production — if it never reproduces the resource-consumption pattern (memory working-set, connection count) of the event's actual access patterns, especially for new features. Test consumption shapes, not just throughput, and act on findings before the event.
+
+**For detailed surge-readiness guidance, see:** [Surge Readiness Reference](references/surge-readiness)
+
 ## Terraform Examples Quick Start
 
 Based on [terraform-aws-modules/terraform-aws-eks](https://github.com/terraform-aws-modules/terraform-aws-eks).
@@ -375,6 +383,7 @@ This skill uses **progressive disclosure** — essential guidance is in this mai
 - **[Networking — Ingress & DNS](references/networking-ingress-dns)** — Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity
 - **[Reliability & Resiliency — Core](references/reliability-core)** — HA patterns, PDBs, health probes, load balancer health checks, lifecycle hooks, topology spread, resource management
 - **[Reliability & Resiliency — Advanced](references/reliability-advanced)** — disaster recovery, zonal shift, deployment strategies, large cluster guidance, chaos engineering, admission-controller topology enforcement
+- **[Surge Readiness](references/surge-readiness)** — preparing for a known traffic peak (flash sale, marketing push, product launch, seasonal event): spike shape vs magnitude, scheduled pre-scaling, capacity assurance (ODCR, quotas, LB warm-up), load-test realism, graceful degradation, and a descriptive pre-event readiness checklist
 - **[Autoscaling](references/autoscaling)** — Autoscaler selection, Cluster Autoscaler (IAM, Spot, overprovisioning, parameter tuning), HPA, VPA, KEDA, CoreDNS autoscaling
 - **[Karpenter](references/karpenter)** — Operational best practices, NodePools, EC2NodeClass, Spot/interruption handling, consolidation, multiple NodePool strategy, cost controls, resource management, private clusters, CoreDNS with Karpenter
 - **[Cluster Upgrades](references/cluster-upgrades)** — In-place and blue-green upgrades, pre-upgrade validation, add-on management, API deprecation detection, version skew policy, Bottlerocket updates, rollback procedures

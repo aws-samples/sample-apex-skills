@@ -506,6 +506,27 @@ Use `ResourceQuota` and `LimitRange` together to prevent noisy neighbors:
 
 If ResourceQuota is enabled for compute resources, every container in that namespace must specify requests or limits.
 
+### In-Cluster Stateful Cache: Sizing & Blast Radius
+
+**Prefer the managed off-ramp first.** For a cache like Redis/Valkey or Memcached, [Amazon ElastiCache](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html) moves memory sizing, failover, and scaling out of your cluster's failure domain and off your operational plate — it is the first-order answer, and it is the same managed-services-first posture this skill takes elsewhere (see [observability.md — Architecture Principles](observability.md#architecture-principles)). Run a cache *in-cluster* deliberately (latency, cost, or data-locality reasons), not by default — and when you do, treat it as a sized, stateful workload, not disposable scratch space.
+
+The reliability concern here is **Kubernetes resource management of a stateful in-cluster workload** — not tuning the cache engine itself (eviction policy, persistence, sharding are the datastore's own domain). Two distinct memory ceilings must agree:
+
+| Ceiling | Set by | Failure if wrong |
+|---|---|---|
+| **Pod memory limit** | Kubernetes (`resources.limits.memory`) | Hit it → the kubelet **OOMKills** the container |
+| **Application max-memory** (e.g. cache `maxmemory`) | The cache config | Set at/above the pod limit → the pod is killed before the cache can evict; set well below → wasted headroom |
+
+Size the application ceiling *below* the pod limit so the cache evicts (or refuses writes, per its policy) **before** the kubelet kills the pod — an app-level backpressure is recoverable; an OOMKill is a hard restart that drops the whole working set at once. Size both for **real peak demand**, including the memory shape of new access patterns (a feature that caches larger or more objects changes the working set — this is exactly what a request-rate-only load test misses; see [surge-readiness.md — Load-Test Realism](surge-readiness.md#load-test-realism)).
+
+**Blast radius.** A shared in-cluster cache is a single failure domain: if it OOMs, every dependent service degrades at once, and that can cascade upstream to the ingress/API gateway as latency and errors. Contain it:
+
+- **Isolate the domain** — dedicated nodes/namespace, its own resource quota, and Guaranteed QoS (requests = limits) so it is last to be evicted under node pressure.
+- **PDB + anti-affinity** so a replicated cache does not lose quorum to a single drain or node loss (see the `redis-pdb` example under [PDB Configuration Rules](#pdb-configuration-rules)).
+- **Don't fail readiness cluster-wide on a shared cache** — a shared-dependency readiness check removes *all* endpoints at once; prefer circuit breakers or degraded responses (see [Probe Anti-Patterns](#probe-anti-patterns)).
+
+> Backup scope is a separate question: a cache is still correctly excluded from your backup set (it is reconstructible) — see [reliability-advanced.md — Velero Backup Tiers](reliability-advanced.md#velero-backup-tiers). "Don't back it up" never meant "don't size it."
+
 ---
 
 ## Complete Reliable Deployment Template

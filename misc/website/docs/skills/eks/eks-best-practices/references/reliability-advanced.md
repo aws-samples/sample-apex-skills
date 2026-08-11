@@ -138,6 +138,8 @@ The default `KubeSchedulerConfiguration` cannot be changed in Amazon EKS. The bu
 - Node-level state (Karpenter will reprovision)
 - Cached data (Redis, Memcached — ephemeral by design)
 
+> **Ephemeral ≠ unsized.** "Don't back up the cache" is a *backup-scope* decision and it is correct — a cache is reconstructible, so it does not belong in your recovery set. It is **not** a statement that an in-cluster cache can be left unsized. An in-cluster cache whose memory ceiling is not sized for real peak demand is a reliability risk regardless of backup policy: it can OOM under load and take dependent services down with it. Backup scope and capacity sizing are orthogonal — see [reliability-core.md — In-Cluster Stateful Cache: Sizing & Blast Radius](reliability-core#in-cluster-stateful-cache-sizing--blast-radius).
+
 **What to ALWAYS back up:**
 - Custom resources and CRDs not in Git
 - Persistent volume data (databases, file storage)

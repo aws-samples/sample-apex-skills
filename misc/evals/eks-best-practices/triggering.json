@@ -32,6 +32,18 @@
     "should_trigger": true
   },
   {
+    "query": "We have a flash sale next month where traffic jumps to many times baseline the instant our push notification goes out. How do we get our EKS cluster ready to absorb that kind of spike?",
+    "should_trigger": true
+  },
+  {
+    "query": "Our marketing team is doing a big product launch at a fixed time. Should we pre-scale the EKS cluster ahead of it, and how — scheduled scaling, warm nodes, capacity reservations?",
+    "should_trigger": true
+  },
+  {
+    "query": "Our load test passed at the target RPS but we still had an outage during our last peak event when an in-cluster Redis OOM'd. How should we think about load-test realism and cache sizing for the next surge?",
+    "should_trigger": true
+  },
+  {
     "query": "What version of Kubernetes is my EKS cluster currently running, and which add-ons are installed?",
     "should_trigger": false
   },
@@ -109,6 +121,14 @@
   },
   {
     "query": "Our PCI-DSS audit is in 4 months; what's the priority order to harden the cluster \u2014 CIS, Pod Security Admission, NetworkPolicy, GuardDuty?",
+    "should_trigger": false
+  },
+  {
+    "query": "Our flash sale is next week \u2014 health-check my live cluster and score each operational area GREEN/AMBER/RED so I know what's not ready.",
+    "should_trigger": false
+  },
+  {
+    "query": "Black Friday is coming and we want to be on the latest EKS version first \u2014 run the upgrade readiness checks and give me a go/no-go score.",
     "should_trigger": false
   }
 ]

@@ -161,6 +161,56 @@
         {"type": "no-tool-called", "tool": "Write"}
       ],
       "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "We run an e-commerce platform on EKS. Next month we have a big flash sale: at a fixed time our push notification fires and traffic steps almost instantly to many multiples of baseline, with a few secondary peaks over the following hours. Last time, a load test that hit our target request rate still didn't prevent an outage. How do we get the cluster ready to absorb this kind of surge, and how should we think about pre-scaling and load testing?",
+      "expected_output": "Advisory surge-readiness guidance: emphasize that the spike is a near-instant step at a KNOWN time, so favor scheduled pre-scaling (raise floors ahead of the trigger) over relying on reactive autoscaling; pre-warm control plane, nodes, and pods and hold the floor across the whole event window rather than scaling down between peaks; assure capacity ahead of time (service quotas, ODCR/capacity reservations, load-balancer warm-up); and treat load-test realism as scenario coverage — a test that passes on request rate can miss a resource-consumption failure (e.g. memory) from a new access pattern, so test consumption shapes and act on findings before the event. Should stay advisory (no sizing verdicts) and may point to scheduled KEDA cron scaling and Karpenter disruption freezes.",
+      "expectations": [
+        "The output recommends scheduled/proactive pre-scaling ahead of the known event time (raising replica floors or desired counts before the trigger) rather than relying solely on reactive metric-driven autoscaling to catch up. TODO: human review",
+        "The output distinguishes the spike SHAPE (near-instant step / rate of arrival) from magnitude, and warns against scaling down or consolidating in the trough between peaks. TODO: human review",
+        "The output addresses capacity assurance ahead of the event — at least one of: service-quota pre-checks, On-Demand Capacity Reservations (ODCR), or load-balancer warm-up. TODO: human review",
+        "The output explains the load-test-realism lesson: a test passing on request rate can still miss a resource-consumption (e.g. memory) failure from a new/changed access pattern, so scenarios must cover consumption shapes and findings must be acted on before the event. TODO: human review",
+        "The output stays advisory — it does NOT invent a specific maximum absorbable step, headroom number, or sizing verdict for the cluster. TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["pre.?scal", "scheduled", "ahead of", "in advance", "proactive"],
+          "context": "Must recommend scheduled/proactive pre-scaling for the known event time",
+          "source": "https://docs.aws.amazon.com/eks/latest/userguide/eks-provisioned-control-plane.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["step", "rate of", "instant", "spike shape", "shape"],
+          "context": "Must frame the surge as a rate/step problem, not just peak magnitude",
+          "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_test_non_functional.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["quota", "ODCR", "capacity reservation", "capacityReservation", "warm.?(up|ing)"],
+          "context": "Must address capacity assurance ahead of the event (quotas, ODCR, or LB warm-up)",
+          "source": "https://karpenter.sh/docs/concepts/nodeclasses/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["consumption", "memory", "access pattern", "scenario", "realis"],
+          "context": "Must explain load-test realism as consumption-shape scenario coverage, not just request rate",
+          "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_test_non_functional.html"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "GREEN/AMBER/RED",
+          "context": "Surge readiness is advisory/descriptive; must not produce operation-review-style GREEN/AMBER/RED scoring",
+          "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_game_days_resiliency.html"
+        }
+      ],
+      "process_assertions": [
+        {"type": "step-count", "min": 1, "max": 15},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
+        {"type": "no-tool-called", "tool": "Write"}
+      ],
+      "files": []
     }
   ]
 }

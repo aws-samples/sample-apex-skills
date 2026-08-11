@@ -25,7 +25,7 @@ my-skill/
 
 ### [eks-best-practices](./eks-best-practices/)
 
-Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, and upgrade planning. Also answers Terraform configuration questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), building developer platforms and IDPs (eks-platform-engineering), GenAI/LLM workload decisions — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training, ML storage (eks-genai), or compliance-regime hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security).
+Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, and surge readiness for flash sales, marketing pushes, traffic spikes, and peak events. Also answers Terraform configuration questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), building developer platforms and IDPs (eks-platform-engineering), GenAI/LLM workload decisions — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training, ML storage (eks-genai), or compliance-regime hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security).
 
 **References** (loaded on demand):
 
@@ -47,6 +47,7 @@ Advisory guidance for Amazon EKS architecture and configuration decisions — co
 | [security-runtime-network.md](./eks-best-practices/references/security-runtime-network.md) | Security runtime network |
 | [security-supply-chain.md](./eks-best-practices/references/security-supply-chain.md) | Security supply chain |
 | [security.md](./eks-best-practices/references/security.md) | Security |
+| [surge-readiness.md](./eks-best-practices/references/surge-readiness.md) | Surge readiness |
 | [terraform-examples.md](./eks-best-practices/references/terraform-examples.md) | Terraform examples |
 
 ---
