@@ -100,11 +100,12 @@ An opinionated fast path (launched Nov 2025): from a container image plus two IA
 
 **Applicability conditions:**
 
-- The workload is an HTTP/HTTPS web application or API fronted by a load balancer — Express Mode's task definition contract is a single main container with **one TCP port mapping** and Fargate compatibility.
+- The workload is an HTTP/HTTPS web application or API fronted by a load balancer — Express Mode's task definition contract is one traffic-serving container named `Main` with **exactly one TCP port mapping** (container port plus port name) and Fargate compatibility.
 - Fargate constraints apply transitively: Linux containers, no GPU, no privileged mode, no custom kernel.
 - The team accepts AWS best-practice defaults (shared ALB, managed autoscaling, canary deployments) instead of fine-grained control over the ALB, networking, and task placement.
+- A **task role, environment variables, or secrets** are not grounds for exclusion — they are first-class on the managed path (`taskRoleArn` on the service; `environment` / `secret` on `primaryContainer`), so needing a task role for S3 or a database does not push a workload off this candidate. **Sidecars and full task-level control** require supplying your own task definition (`taskDefinitionArn`: Fargate-compatible, one container named `Main`, exactly one TCP port mapping with container port and port name), which is exclusive with `primaryContainer` / `executionRoleArn` / `taskRoleArn` / `cpu` / `memory`, and under which Express Mode stops managing the CloudWatch Logs group ([how Express Mode works](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html)). All of these are build-time inputs to carry into the `ecs-build` hand-off.
 
-**Typical grounding:** *applicable* when the detected framework is a web stack (e.g. Spring Boot web starter, ASP.NET Core) and state findings are covered by listed items; *not_applicable* when the detected entry point is non-HTTP (batch workers, message consumers, protocols needing an NLB) or the deployable requires multiple exposed ports / sidecar containers — cite the `tech_stack` evidence that shows it.
+**Typical grounding:** *applicable* when the detected framework is a web stack (e.g. Spring Boot web starter, ASP.NET Core) and state findings are covered by listed items; *not_applicable* when the detected entry point is non-HTTP (batch workers, message consumers, protocols needing an NLB) or the deployable requires more than one exposed port — cite the `tech_stack` evidence that shows it.
 
 #### ECS on Fargate
 
@@ -300,6 +301,7 @@ Items and judgments are derived from the readable evidence as usual; the partial
 
 - Announcing Amazon ECS Express Mode (Nov 2025): https://aws.amazon.com/about-aws/whats-new/2025/11/announcing-amazon-ecs-express-mode/
 - Amazon ECS Express Mode overview (task definition contract, managed resources): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html
+- How Express Mode works (task definition defaults, custom `taskDefinitionArn`, unmanaged log group): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html
 - Fargate task/service considerations (no GPU, task sizing): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html
 - Architect for Amazon ECS Managed Instances (Bottlerocket-only, networking): https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html
 - Amazon ECS Managed Instances FAQs (Region availability, pricing model): https://aws.amazon.com/ecs/managed-instances/faqs/
