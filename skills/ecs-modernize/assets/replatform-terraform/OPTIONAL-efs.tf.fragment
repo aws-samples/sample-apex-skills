@@ -1,0 +1,119 @@
+// =============================================================================
+// CONDITIONED FRAGMENT — persistent write targets on EFS
+//
+// ADD THIS FILE ONLY when blocker detection reported `local_state` findings AND
+// the Replatform path classified at least one write target as PERSISTENT.
+//
+//   * No local_state finding            -> do not add this file. State the
+//                                          not-needed conclusion with its
+//                                          grounds (no writes detected).
+//   * Findings classified TEMPORARY only -> do not add this file. Container-local
+//                                          storage is correct for regenerable
+//                                          data; state that decision.
+//   * >= 1 finding classified PERSISTENT -> add it, once per write target.
+//
+// This is a fragment, not a template file: rename it to `efs.tf` and drop the
+// `.fragment` suffix when you add it, so `terraform validate` picks it up. It is
+// kept out of the skeleton deliberately — generating an EFS file system the
+// assessment did not justify adds cost and a mount failure mode for nothing.
+//
+// One block per persistent write target. Cite the blocker id and the container
+// path in a comment on each, so the infrastructure traces back to the finding.
+// =============================================================================
+
+// --- EXAMPLE, for BLK-nnn: <container path the application writes to> --------
+//
+// Replace `archive` throughout with a short name for this write target, and
+// supply the real container path. Duplicate the whole block for a second target.
+
+variable "efs_container_path_archive" {
+  description = "Container path the application persists data to — from the local_state blocker evidence."
+  type        = string
+}
+
+resource "aws_security_group" "efs_archive" {
+  name        = "${local.name}-efs-archive"
+  description = "NFS from the container instances only"
+  vpc_id      = local.vpc_id
+  tags        = local.tags
+
+  ingress {
+    description     = "NFS from container instances"
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [aws_security_group.instances.id]
+  }
+}
+
+resource "aws_efs_file_system" "archive" {
+  creation_token = "${local.name}-archive"
+  encrypted      = true
+  tags           = merge(local.tags, { Name = "${local.name}-archive" })
+}
+
+resource "aws_efs_mount_target" "archive" {
+  for_each = toset(local.subnet_ids)
+
+  file_system_id  = aws_efs_file_system.archive.id
+  subnet_id       = each.value
+  security_groups = [aws_security_group.efs_archive.id]
+}
+
+// The access point pins ownership and permissions, so the container writes as a
+// known uid/gid rather than depending on the image's default user matching EFS.
+resource "aws_efs_access_point" "archive" {
+  file_system_id = aws_efs_file_system.archive.id
+  tags           = local.tags
+
+  root_directory {
+    path = "/archive"
+
+    creation_info {
+      owner_uid   = 1000
+      owner_gid   = 1000
+      permissions = "0755"
+    }
+  }
+}
+
+output "efs_archive_id" {
+  description = "EFS file system backing the persistent write target."
+  value       = aws_efs_file_system.archive.id
+}
+
+// =============================================================================
+// ALSO REQUIRED in main.tf when this fragment is added — the skeleton's task
+// definition has no volume, so add both halves:
+//
+//   1. a `volume` block on aws_ecs_task_definition.app:
+//
+//        volume {
+//          name = "archive"
+//
+//          efs_volume_configuration {
+//            file_system_id     = aws_efs_file_system.archive.id
+//            transit_encryption = "ENABLED"
+//
+//            authorization_config {
+//              access_point_id = aws_efs_access_point.archive.id
+//              iam             = "DISABLED"
+//            }
+//          }
+//        }
+//
+//   2. a `mountPoints` entry inside the container definition:
+//
+//        mountPoints = [
+//          {
+//            sourceVolume  = "archive"
+//            containerPath = var.efs_container_path_archive
+//            readOnly      = false
+//          }
+//        ]
+//
+//   3. `depends_on = [aws_efs_mount_target.archive]` on aws_ecs_service.app,
+//      so tasks do not start before the mount targets are available.
+//
+// Record in the Execution_Log which blocker id drove each volume.
+// =============================================================================

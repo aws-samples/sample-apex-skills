@@ -1,5 +1,10 @@
 [
   {
+    "name": "Liberty to ECS Modernization",
+    "description": "Assess a Java 8 / WebSphere Liberty application carrying planted modernization blockers, score it with the APEX ecs-modernize skill, then execute both migration paths on ECS — Replatform as-is onto ECS on EC2 and Rearchitect onto Fargate — and re-assess to see the Fit_Score rise from the Replatform band into the Rearchitect band.",
+    "path": "/docs/examples/ecs-modernize/liberty-to-ecs"
+  },
+  {
     "name": "EKS Upgrade Readiness Check",
     "description": "Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status.",
     "path": "/docs/examples/eks-upgrades/in-place-karpenter-check"

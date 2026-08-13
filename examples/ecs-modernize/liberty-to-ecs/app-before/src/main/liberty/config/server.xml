@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Liberty server configuration for the legacy Orders app.
+
+  This is a genuine Liberty server.xml (root element <server> with a
+  <featureManager>) — the assessment's tech-stack detection distinguishes it
+  from a Tomcat server.xml (root <Server> with Catalina <Service>) by content,
+  not by filename.
+
+  PLANTED (framework_modernity): the javaee-7.0 feature pins the app to the
+  Java EE 7 / javax namespace generation on a Java 8 runtime.
+
+  PLANTED (config_externalization): the data source carries a literal host and
+  an inline password rather than Liberty variables backed by the environment.
+  All values are fabricated placeholders (RFC 2606 example domains, dummy
+  password) for this training exercise.
+-->
+<server description="orders-legacy">
+
+  <featureManager>
+    <!-- PLANTED: whole-platform feature instead of a composed feature set -->
+    <feature>javaee-7.0</feature>
+  </featureManager>
+
+  <httpEndpoint id="defaultHttpEndpoint" host="*" httpPort="9080" httpsPort="9443"/>
+
+  <!--
+    PLANTED: no <httpSession cloneId=.../> and no sessionDatabase / sessionCache
+    feature — sessions stay in the server process, matching the missing
+    <distributable/> in web.xml.
+  -->
+
+  <!--
+    PLANTED: environment-specific endpoint + credential inline in config.
+
+    The data source is declared but the application never opens a connection
+    (the servlets only read configuration and the local filesystem), and the
+    referenced driver library directory is empty in the image. Liberty resolves
+    data sources lazily, so the server starts and serves regardless — the
+    declaration is here as configuration-externalization evidence, not as a
+    working database connection. Keeping the exercise database-free is
+    deliberate: no RDS to provision, no cost, no wait.
+  -->
+  <dataSource id="ordersDS" jndiName="jdbc/ordersDS">
+    <jdbcDriver libraryRef="db2Lib"/>
+    <properties.db2.jcc serverName="db2prod01.orders.example.com"
+                        portNumber="50000"
+                        databaseName="ORDERS"
+                        user="ORDERSAPP"
+                        password="NotARealPassword123"/>
+  </dataSource>
+
+  <library id="db2Lib">
+    <fileset dir="/opt/was/lib/db2" includes="*.jar"/>
+  </library>
+
+  <application id="orders" name="orders" type="war" location="orders.war"
+               context-root="/orders"/>
+
+</server>

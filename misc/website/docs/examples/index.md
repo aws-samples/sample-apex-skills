@@ -10,6 +10,10 @@ description: "Hands-on walkthroughs demonstrating APEX skills against real AWS i
 
 Examples are self-contained walkthroughs demonstrating APEX skills against real infrastructure. Each example deploys resources, runs an APEX workflow, and shows expected results.
 
+## [Liberty to ECS Modernization](./ecs-modernize/liberty-to-ecs/)
+
+Assess a Java 8 / WebSphere Liberty application carrying planted modernization blockers, score it with the APEX ecs-modernize skill, then execute both migration paths on ECS — Replatform as-is onto ECS on EC2 and Rearchitect onto Fargate — and re-assess to see the Fit_Score rise from the Replatform band into the Rearchitect band.
+
 ## [EKS Upgrade Readiness Check](./eks-upgrades/in-place-karpenter-check/)
 
 Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status.

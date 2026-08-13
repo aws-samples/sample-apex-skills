@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REARCHITECTED Liberty server configuration.
+
+  Fixes, versus app-before/src/main/liberty/config/server.xml:
+
+   * framework_modernity — a composed Jakarta EE 10 feature set (restfulWS, cdi,
+     concurrent, mpHealth) instead of the whole-platform javaee-7.0 feature.
+     Liberty's composability is the point: only what the app actually uses.
+   * config_externalization — no inline credential and no literal host. The one
+     environment-specific value left is injected as a Liberty variable backed by
+     an environment variable, so the same image moves across environments.
+   * state_management — no data source holding order state, and no in-process
+     session store; state lives in S3 (see OrderArchiveService).
+-->
+<server description="orders-modern">
+
+  <featureManager>
+    <feature>restfulWS-3.1</feature>
+    <feature>cdi-4.0</feature>
+    <feature>concurrent-3.0</feature>
+    <feature>mpHealth-4.0</feature>
+  </featureManager>
+
+  <httpEndpoint id="defaultHttpEndpoint" host="*" httpPort="9080"/>
+
+  <!--
+    Environment-driven configuration. The value is supplied by the ECS task
+    definition; nothing environment-specific is baked into the image.
+  -->
+  <variable name="ordersArchiveBucket" defaultValue="${env.ORDERS_ARCHIVE_BUCKET}"/>
+
+  <webApplication id="orders" name="orders" location="orders.war" contextRoot="/"/>
+
+</server>

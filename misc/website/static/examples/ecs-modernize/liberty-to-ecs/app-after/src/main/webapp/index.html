@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Orders (rearchitected)</title></head>
+<body>
+<h1>Orders — rearchitected build</h1>
+<p>Java 17 / Jakarta EE 10 / Open Liberty. Stateless, environment-driven
+configuration, order archive in Amazon S3.</p>
+<ul>
+  <li><a href="api/orders">GET /api/orders</a> — accept an order (archives to S3)</li>
+  <li><a href="api/cart?cartId=C1&amp;sku=SKU-1">GET /api/cart?cartId=C1&amp;sku=SKU-1</a> — stateless cart</li>
+  <li><a href="api/health">GET /api/health</a> — liveness</li>
+</ul>
+</body>
+</html>

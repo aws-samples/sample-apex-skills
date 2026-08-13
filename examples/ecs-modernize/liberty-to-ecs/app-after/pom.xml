@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REARCHITECTED build.
+  Differences from app-before, each one a Rearchitect work item:
+
+   * Java 8 -> Java 17 (maven.compiler.release), off an EOL runtime
+   * javax -> jakarta namespace (Jakarta EE 10 API)
+   * the system-scoped unmanaged JAR is gone; every dependency resolves from a
+     repository, so the build is reproducible from the declared toolchain alone
+   * no compiler exclusions — the CommonJ scheduler was reimplemented on EE
+     Concurrency and compiles normally
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.example</groupId>
+  <artifactId>orders</artifactId>
+  <version>2.0.0</version>
+  <packaging>war</packaging>
+  <name>Orders (rearchitected, Java 17 / Jakarta EE 10)</name>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <failOnMissingWebXml>false</failOnMissingWebXml>
+  </properties>
+
+  <dependencies>
+    <!-- Jakarta EE 10 API, provided by Liberty's jakartaee-10.0 feature -->
+    <dependency>
+      <groupId>jakarta.platform</groupId>
+      <artifactId>jakarta.jakartaee-api</artifactId>
+      <version>10.0.0</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!--
+      State externalization: order archives go to Amazon S3 instead of the
+      container's local filesystem. This is the positive evidence the
+      state_management dimension's top band asks for — persistence exclusively
+      via an external store.
+    -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>2.51.1</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>orders</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.4.0</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>

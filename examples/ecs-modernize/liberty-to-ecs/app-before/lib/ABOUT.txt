@@ -1,0 +1,11 @@
+# `lib/` — unmanaged binary directory (planted blocker)
+
+`pom.xml` declares a `system`-scoped dependency on `legacy-tax-rules-1.2.jar` in
+this directory. A system-scoped dependency is not resolvable from any Maven
+repository, which is the `build_reproducibility` blocker the assessment reports:
+the build depends on a JAR that merely happens to be present in the working copy.
+
+The JAR is **generated** by `scripts/build.sh` rather than committed, so this
+repository stays source-only while the assessment still sees a genuine
+repository-unresolvable dependency declaration. The generated JAR is
+git-ignored.

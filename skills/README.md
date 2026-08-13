@@ -403,7 +403,7 @@ Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS: GPU o
 
 ### [ecs-modernize](./ecs-modernize/)
 
-Assess an existing app (VMware/EC2) by source code analysis for the replatform vs rearchitect decision, and execute the approved migration onto Amazon ECS. Scope: assessment, strategy decision, migration execution. Covers: source code analysis; language/framework detection (Java, .NET, Spring, Struts, WebSphere tWAS/Liberty); cloud/container fit scoring; strategy recommendation; Windows container support; tWAS containerization and Liberty migration; migration plan generation; AWS Transform orchestration; containerization and ECR push; Windows-container-path environment build; deploy and steady-state verification. Triggers: "migrate this app from EC2 to ECS", "can we containerize this VMware-hosted app?", "replatform or rearchitect for ECS?", "modernize this WebSphere app". Skip for greenfield deployment-model design (ecs-architect), Linux container path ECS Terraform generation (ecs-build), live ECS inventory (ecs-recon), security/compliance hardening (ecs-security), Kubernetes/EKS migration (eks-design).
+Assess an existing app (VMware/EC2) by source code analysis for the replatform vs rearchitect decision, and execute the approved migration onto Amazon ECS. Scope: assessment, strategy decision, migration execution. Covers: source code analysis; language/framework detection (Java, .NET, Spring, Struts, WebSphere tWAS/Liberty); cloud/container fit scoring; strategy recommendation; tWAS containerization and Liberty migration; migration planning; AWS Transform orchestration; containerization and ECR push; Replatform (ECS on EC2, bridge, sticky sessions) and Windows-container environment build; deploy and verification. Triggers: "migrate this app from EC2 to ECS", "can we containerize this VMware-hosted app?", "replatform or rearchitect for ECS?", "modernize this WebSphere app". Skip for greenfield design (ecs-architect), Rearchitect compute-model Terraform — Express/Fargate/Managed Instances (ecs-build), live ECS inventory (ecs-recon), security hardening (ecs-security), Kubernetes/EKS (eks-design).
 
 **References** (loaded on demand):
 
@@ -415,11 +415,18 @@ Assess an existing app (VMware/EC2) by source code analysis for the replatform v
 | [containerization-execution.md](./ecs-modernize/references/containerization-execution.md) | Containerization execution |
 | [deploy-verify-handoff.md](./ecs-modernize/references/deploy-verify-handoff.md) | Deploy verify handoff |
 | [rearchitect-path.md](./ecs-modernize/references/rearchitect-path.md) | Rearchitect path |
+| [replatform-environment-build.md](./ecs-modernize/references/replatform-environment-build.md) | Replatform environment build |
 | [replatform-path.md](./ecs-modernize/references/replatform-path.md) | Replatform path |
 | [report-generation.md](./ecs-modernize/references/report-generation.md) | Report generation |
 | [scoring-and-recommendation.md](./ecs-modernize/references/scoring-and-recommendation.md) | Scoring and recommendation |
 | [tech-stack-detection.md](./ecs-modernize/references/tech-stack-detection.md) | Tech stack detection |
 | [windows-environment-build.md](./ecs-modernize/references/windows-environment-build.md) | Windows environment build |
+
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [replatform-terraform/](./ecs-modernize/assets/replatform-terraform/) | Replatform terraform |
 
 ---
 

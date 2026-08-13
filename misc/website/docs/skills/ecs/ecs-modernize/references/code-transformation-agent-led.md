@@ -25,8 +25,10 @@ Like its companion, this knowledge is application-level and orchestrator-neutral
 - [Working Location — Safety Rails](#working-location--safety-rails)
   - [The Approved Working Location](#the-approved-working-location)
   - [Working-Location Options After Transform_Augmentation Completion](#working-location-options-after-transform_augmentation-completion)
+  - [Preparing the Working Location for Checkpointing](#preparing-the-working-location-for-checkpointing)
   - [Repository Safety Invariants](#repository-safety-invariants)
 - [Execution Discipline — Item by Item, Small Steps](#execution-discipline--item-by-item-small-steps)
+  - [Editing Structured Files — Build Definitions and Server Configuration](#editing-structured-files--build-definitions-and-server-configuration)
 - [Porting Knowledge — .NET Framework → Modern .NET](#porting-knowledge--net-framework--modern-net)
   - [Workflow Order](#workflow-order)
   - [Step 1 — Project Conversion to SDK Style](#step-1--project-conversion-to-sdk-style)
@@ -90,6 +92,20 @@ When one or more Transform_Augmentation jobs have completed and their target bra
 
 Working on the Transform target branch is usually the right default to *propose* for residual work (the ported code is already there), but it is never assumed: the approval is explicit, and it is part of the confirmed content per the re-confirmation rule.
 
+### Preparing the Working Location for Checkpointing
+
+The [execution discipline](#execution-discipline--item-by-item-small-steps) requires a checkpoint commit per work item, so the approved working location must be able to *take* a clean commit before the first item runs. Verify both conditions below **once, before executing item 1** — discovering them mid-plan means the early checkpoints are already polluted, and the safety invariants forbid rewriting history to fix them.
+
+1. **The working location is a git working tree.** A branch checked out from the source repository satisfies this inherently. A **copied working directory** frequently does not: a plain recursive copy carries no `.git`, so `git init` (plus an initial commit capturing the unmodified baseline) is a prerequisite, not an optional nicety. The baseline commit matters independently: it is what makes every later checkpoint a readable diff of one work item.
+
+2. **Build output is excluded from version control.** Confirm the working location ignores the build's output directories and any generated binaries — `target/`, `build/`, `bin/`, `obj/`, generated JARs. Two failure modes make this worth an explicit check:
+   - A **copied working directory** may sit below the ignore file that covered it in its original location (a repository-root or parent-directory `.gitignore` does not travel with a subdirectory copy), so the copy is unprotected even though the original was fine.
+   - Per-item verification **runs the build**, so by the time the first checkpoint is taken there is output to capture. An unignored `target/` turns every checkpoint into a commit dominated by regenerated artifacts, which defeats the diff-readability the checkpoints exist for and can bury the source change entirely.
+
+   When the exclusion is missing, add it in the working location before the first checkpoint (this is a file the agent itself creates in the approved location, so the rails permit it) and record the addition in the Execution_Log.
+
+**One checkpoint per work item, and no batching.** Two items landing in a single commit leaves the earlier item without its own recovery point — the checkpoint exists precisely so that item's state can be returned to. If a verification for item N is only reached after item N+1's edits are already in the tree, the items were not executed one at a time; the fix is to slow the increments down, not to combine the commits. When commits do end up combined, the safety invariants forbid rewriting them — record the combination and its consequence (the missing recovery point) honestly in the Execution_Log rather than presenting the checkpoint history as finer-grained than it is.
+
 ### Repository Safety Invariants
 
 Per Requirement 11.17, at all times, regardless of working location:
@@ -113,6 +129,20 @@ Requirement 15.19 makes incremental execution mandatory. The discipline:
 5. **Log every action.** Item start, each verification result, each checkpoint commit — recorded in the Execution_Log before the next action starts, per the logging rules in [code-transformation.md](code-transformation#execution-ordering-confirmations-and-logging) (storage forms and save-failure fallback per the canonical [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff#execution_log-rules)).
 
 **Why this order and granularity:** plan order preserves the dependency ordering the plan encoded (shared libraries before consumers; base port before API replacements); small increments keep every verification failure attributable and every checkpoint restorable; per-item checkpoints make interruption cheap instead of catastrophic.
+
+### Editing Structured Files — Build Definitions and Server Configuration
+
+Build definitions (`pom.xml`, `build.gradle`, `*.csproj`) and server configuration (`server.xml`, `web.xml`, `web.config`) carry most of what these work items change, and they are the files where a careless edit costs a whole increment. Two disciplines:
+
+**Never delete a region of a structured file with an unanchored pattern match.** A multi-line regular expression written to remove one element (a `<dependency>`, a `<configuration>` block, a `<dataSource>`) readily matches more than intended — greedy quantifiers spanning to a later closing tag, or a pattern whose start anchor also matches the file header. The failure is not subtle but it is *late*: the build reports a parse error (`Non-parseable POM`, malformed XML) rather than the semantic change that was wanted, and the increment is spent diagnosing the edit instead of the port. Prefer, in order:
+
+1. **Targeted replacement of exact known text** — match the complete element including both of its tags, verbatim, and replace it. Uniqueness matters: if the element text appears twice, the match must include enough surrounding context to be unambiguous.
+2. **Rewriting the whole file** from a known-good base when the changes are extensive. For a build definition this is often *cleaner* than surgical edits, because the result is auditable in one read and its provenance is explicit.
+3. **A parser** (an XML/TOML/JSON library) when the edit is genuinely structural and must preserve unrelated content.
+
+**Verify the file still parses before running the build.** A structured-file edit's first verification is that the file is well-formed — a parse check is cheaper than a build and localizes the error precisely. Treat the build as the *second* check, of behavior, not of syntax.
+
+**Stale comments are part of the change.** These files commonly carry comments describing the configuration the work item is removing — an inline credential, a whole-platform feature, a local state directory. Deleting the element while leaving its comment produces a file that documents the opposite of what it now does, and the next assessment reads that tree as evidence. Update or remove the comment in the same increment as the element it describes, and let comments state the current state (with the transformation noted) rather than the state that was just eliminated.
 
 ---
 

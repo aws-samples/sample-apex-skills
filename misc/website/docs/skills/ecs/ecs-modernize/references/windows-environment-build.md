@@ -237,7 +237,7 @@ Both `terraform_init` and `terraform_validate` attempts are recorded in the Exec
 
 ## Value Traceability
 
-Every concrete value placed in the generated Terraform — the image URI, ports, health check, CPU/memory sizing inputs, mount/volume decisions, the session-affinity decision — is reported **mapped to its origin**: the Requirement 16 output (Containerization_Artifact task-definition input values, push result) and/or the Source_Analysis finding that grounds it. This is the same traceability discipline as the Linux-path handoff in [deploy-verify-handoff.md — Linux Path Handoff](deploy-verify-handoff#linux-path-handoff); a value with no traceable origin is not silently invented — it becomes an input variable or an explicit user-confirmed value, and the report says which.
+Every concrete value placed in the generated Terraform — the image URI, ports, health check, CPU/memory sizing inputs, mount/volume decisions, the session-affinity decision — is reported **mapped to its origin**: the Requirement 16 output (Containerization_Artifact task-definition input values, push result) and/or the Source_Analysis finding that grounds it. This is the same traceability discipline as the `ecs-build` handoff in [deploy-verify-handoff.md — Rearchitect Compute-Model Handoff](deploy-verify-handoff#rearchitect-compute-model-handoff); a value with no traceable origin is not silently invented — it becomes an input variable or an explicit user-confirmed value, and the report says which.
 
 ---
 

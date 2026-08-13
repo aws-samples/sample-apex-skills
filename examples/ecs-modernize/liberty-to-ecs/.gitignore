@@ -1,0 +1,13 @@
+# Build output — regenerate with scripts/build.sh
+target/
+
+# The unmanaged JAR app-before depends on is generated, not committed.
+# See app-before/lib/ABOUT.txt.
+app-before/lib/*.jar
+
+# Terraform working files (state is also covered by the repo-root .gitignore)
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+tfplan

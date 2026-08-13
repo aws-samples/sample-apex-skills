@@ -148,6 +148,7 @@ Steering files define **how** the agent runs an engagement. Structured sequences
 
 | Example | Description | Workflow |
 |---------|-------------|----------|
+| **[Liberty to ECS Modernization](examples/ecs-modernize/liberty-to-ecs/)** | Assess a Java 8 / WebSphere Liberty application carrying planted modernization blockers, score it with the APEX ecs-modernize skill, then execute both migration paths on ECS — Replatform as-is onto ECS on EC2 and Rearchitect onto Fargate — and re-assess to see the Fit_Score rise from the Replatform band into the Rearchitect band. | -- |
 | **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](steering/workflows/eks-upgrade-check.md) |
 <!-- EXAMPLES_REFERENCE_END -->
 

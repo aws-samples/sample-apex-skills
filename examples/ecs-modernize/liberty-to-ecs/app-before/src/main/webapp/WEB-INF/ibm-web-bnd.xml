@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PLANTED (os_host_dependency): a WebSphere-specific binding descriptor.
+  This is descriptor-level application-server coupling — it identifies the app
+  as WebSphere-hosted and binds resource references to WAS-specific JNDI names.
+
+  Liberty does support these traditional binding files (see the skill's
+  code-transformation-agent-led.md "Step 3 — bindings"), so this alone is not
+  a must-fix blocker; it is coupling evidence that the assessment reads.
+-->
+<web-bnd xmlns="http://websphere.ibm.com/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://websphere.ibm.com/xml/ns/javaee
+                             http://websphere.ibm.com/xml/ns/javaee/ibm-web-bnd_1_0.xsd"
+         version="1.0">
+
+  <virtual-host name="default_host"/>
+
+  <resource-ref name="jdbc/ordersDS" binding-name="jdbc/ordersDS"/>
+
+</web-bnd>

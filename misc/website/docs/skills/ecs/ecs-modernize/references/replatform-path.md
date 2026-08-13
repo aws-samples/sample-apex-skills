@@ -494,7 +494,7 @@ The Replatform path is presented **regardless** of the recommendation outcome �
 
 ### User asks for the Dockerfile files or environment IaC
 
-During the assessment, artifact illustrations are code blocks inside the Modernization_Report only — no files are created, and no Terraform/CloudFormation/CDK appears. Actual Containerization_Artifact generation and environment construction belong to the execution modules behind the Execution_Gate; Linux-path environment IaC is delegated to `ecs-build` by name.
+During the assessment, artifact illustrations are code blocks inside the Modernization_Report only — no files are created, and no Terraform/CloudFormation/CDK appears. Actual Containerization_Artifact generation and environment construction belong to the execution modules behind the Execution_Gate. This path's environment IaC is **not** delegated: `ecs-build` generates `awsvpc` task definitions and capacity-provider services exclusively and carries no `bridge`, dynamic-host-port, or ALB `stickiness` knowledge, so [replatform-environment-build.md](replatform-environment-build) generates it inside this skill. Only the Rearchitect compute models hand off to `ecs-build` by name.
 
 ### User asks for concrete sizing values
 
