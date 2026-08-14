@@ -51,18 +51,18 @@ When investigating scaling issues, check metrics in both upstream and downstream
 
 EKS automatically scales the control plane (API servers across 2+ AZs, etcd across 3 AZs), but there are limits on how fast it scales.
 
-For large clusters that hit these auto-scaling limits, **EKS Provisioned Control Plane (PCP)** directly addresses the API-scaling concern: it offers a 99.99% SLA, an 8XL control-plane tier (added 2026-03), and faster pod autoscaling (added 2026-07). See [Amazon EKS Provisioned Control Plane](https://docs.aws.amazon.com/eks/latest/userguide/scale-cluster.html). Consider it before relying solely on the Terraform-level burst knobs below.
+For large clusters that hit these auto-scaling limits, **EKS Provisioned Control Plane (PCP)** directly addresses the API-scaling concern: it offers a 99.99% SLA, an 8XL control-plane tier (added 2026-03), and faster pod autoscaling (added 2026-07). See [Amazon EKS Provisioned Control Plane](https://docs.aws.amazon.com/eks/latest/userguide/eks-provisioned-control-plane.html). Consider it before relying solely on the Terraform-level burst knobs below.
 
 ### etcd Database Size Limits
 
-etcd database size is a hard ceiling, not a soft target — when it is exceeded, etcd emits a "no space" alarm and the cluster goes **read-only** (no new pods, no scaling, no deployments). Know your ceiling and watch the *trend* toward it:
+etcd database size is a hard ceiling, not a soft target — when it is exceeded, etcd emits a "no space" alarm and the cluster goes **read-only** (no new pods, no scaling, no deployments). Know your ceiling and watch the *trend* toward it. The following figures are per the [EKS Provisioned Control Plane docs](https://docs.aws.amazon.com/eks/latest/userguide/eks-provisioned-control-plane.html), verified for EKS v1.30–v1.34+ (re-check the page for your version, as tiers and caps evolve):
 
-| Mode | etcd DB size ceiling | Source |
-|---|---|---|
-| **Standard** (auto-scaling) control plane | **8 GB** | [Amazon EKS Provisioned Control Plane](https://docs.aws.amazon.com/eks/latest/userguide/eks-provisioned-control-plane.html) |
-| **Provisioned Control Plane** (all tiers) | **16 GB, flat** across every PCP tier (XL → 8XL) | same |
+| Mode | etcd DB size ceiling |
+|---|---|
+| **Standard** (auto-scaling) control plane | **8 GB** |
+| **Provisioned Control Plane** (all tiers) | **16 GB, flat** across every PCP tier (XL → 8XL) |
 
-> **PCP exit restriction.** Once a cluster's etcd database exceeds **8 GB** while on Provisioned mode, you **cannot switch back to Standard** until you reduce it below 8 GB. Growing past the Standard ceiling is a one-way door until you shed data — plan capacity accordingly. (Source: as above, verified for EKS v1.30–v1.34+.)
+> **PCP exit restriction.** Once a cluster's etcd database exceeds **8 GB** while on Provisioned mode, you **cannot switch back to Standard** until you reduce it below 8 GB. Growing past the Standard ceiling is a one-way door until you shed data — plan capacity accordingly.
 
 **Alert on the rate of growth toward the ceiling, not on a mid-range absolute.** A database sitting at a healthy fraction of its limit is not a problem — an absolute value in the middle of the range is normal and alarming on it causes fatigue and premature escalation. What matters is a *sustained upward trend* that will reach the ceiling. AWS documents pre-built alert rules for exactly this — `etcdBackendQuotaLowSpace` (near-quota) and `etcdExcessiveDatabaseGrowth` (trend) — in [Managing etcd database size on Amazon EKS clusters](https://aws.amazon.com/blogs/containers/managing-etcd-database-size-on-amazon-eks-clusters/). Track `apiserver_storage_size_bytes` and reduce CRD/object churn (event TTLs, finalizer hygiene) to hold headroom.
 

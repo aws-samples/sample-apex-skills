@@ -40,7 +40,11 @@
     "should_trigger": true
   },
   {
-    "query": "Our load test passed at the target RPS but we still had an outage during our last peak event when an in-cluster Redis OOM'd. How should we think about load-test realism and cache sizing for the next surge?",
+    "query": "Our load test passed at the target RPS but we still had an outage during our last peak event when an in-cluster cache OOM'd on our EKS cluster. How should we think about load-test realism and pod memory sizing for the next surge?",
+    "should_trigger": true
+  },
+  {
+    "query": "We've got a big sale coming up on EKS — what should we change beforehand to be ready for the traffic? Looking for design guidance, not a tool run.",
     "should_trigger": true
   },
   {
@@ -129,6 +133,10 @@
   },
   {
     "query": "Black Friday is coming and we want to be on the latest EKS version first \u2014 run the upgrade readiness checks and give me a go/no-go score.",
+    "should_trigger": false
+  },
+  {
+    "query": "Flash sale is Friday \u2014 go look at my running cluster and tell me what's not ready and what to fix.",
     "should_trigger": false
   }
 ]

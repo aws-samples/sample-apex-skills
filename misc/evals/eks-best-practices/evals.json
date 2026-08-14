@@ -176,14 +176,14 @@
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
-          "patterns": ["pre.?scal", "scheduled", "ahead of", "in advance", "proactive"],
-          "context": "Must recommend scheduled/proactive pre-scaling for the known event time",
+          "patterns": ["pre.?scal", "schedul", "ahead of (the|time|each)", "in advance", "before the (event|trigger|sale|peak)", "proactiv"],
+          "context": "Must recommend scheduled/proactive pre-scaling ahead of the known event time (not just reactive autoscaling)",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/eks-provisioned-control-plane.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["step", "rate of", "instant", "spike shape", "shape"],
-          "context": "Must frame the surge as a rate/step problem, not just peak magnitude",
+          "patterns": ["step (function|change|up)", "rate of (arrival|change)", "near.?instant", "instantaneous", "spike shape", "shape of the (spike|surge|traffic)", "trough", "between peaks"],
+          "context": "Must frame the surge as a rate/step-shape problem (and/or the multi-peak trough), not just peak magnitude",
           "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_test_non_functional.html"
         },
         {
@@ -194,15 +194,16 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["consumption", "memory", "access pattern", "scenario", "realis"],
-          "context": "Must explain load-test realism as consumption-shape scenario coverage, not just request rate",
+          "patterns": ["memory", "consumption (pattern|shape)", "resource.?consumption", "access pattern", "working set", "scenario cover", "realis"],
+          "context": "Must explain load-test realism as consumption-shape (e.g. memory) scenario coverage, not just request rate",
           "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_test_non_functional.html"
         },
         {
           "type": "must-not-contain",
-          "pattern": "GREEN/AMBER/RED",
-          "context": "Surge readiness is advisory/descriptive; must not produce operation-review-style GREEN/AMBER/RED scoring",
-          "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_game_days_resiliency.html"
+          "pattern": "[A-Za-z][\\w /-]*\\s*[:|]\\s*(GREEN|AMBER|RED)\\b|\\b(GREEN|AMBER|RED)\\b\\s*[:|]|score (each|every|the) (area|dimension|component)|maturity (score|rating) report",
+          "context": "Surge readiness is advisory/descriptive: it must NOT emit an eks-operation-review-style scored audit. This regex catches a per-area colour VERDICT (e.g. 'Networking: RED', 'Autoscaling | AMBER') or a 'score each area' / 'maturity report' instruction — the structural signature of a scored audit. It deliberately does NOT fire on a prose disclaimer that merely names the scheme (e.g. 'no GREEN/AMBER/RED scoring here'), because those tokens are slash-joined and not bound to an area label by a colon/pipe. Regex flags: case-insensitive.",
+          "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_game_days_resiliency.html",
+          "flags": "i"
         }
       ],
       "process_assertions": [

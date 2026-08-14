@@ -525,16 +525,16 @@ The reliability concern here is **Kubernetes resource management of a stateful i
 
 | Ceiling | Set by | Failure if wrong |
 |---|---|---|
-| **Pod memory limit** | Kubernetes (`resources.limits.memory`) | Hit it → the kubelet **OOMKills** the container |
+| **Pod memory limit** | Kubernetes (`resources.limits.memory`) | Hit it → the **kernel** OOM-kills the container |
 | **Application max-memory** (e.g. cache `maxmemory`) | The cache config | Set at/above the pod limit → the pod is killed before the cache can evict; set well below → wasted headroom |
 
-Size the application ceiling *below* the pod limit so the cache evicts (or refuses writes, per its policy) **before** the kubelet kills the pod — an app-level backpressure is recoverable; an OOMKill is a hard restart that drops the whole working set at once. Size both for **real peak demand**, including the memory shape of new access patterns (a feature that caches larger or more objects changes the working set — this is exactly what a request-rate-only load test misses; see [surge-readiness.md — Load-Test Realism](surge-readiness#load-test-realism)).
+Size the application ceiling *below* the pod limit so the cache evicts (or refuses writes, per its policy) **before** the container hits the pod limit and is OOM-killed — an app-level backpressure is recoverable; an OOM-kill is a hard restart that drops the whole working set at once. Size both for **real peak demand**, including the memory shape of new access patterns (a feature that caches larger or more objects changes the working set — this is exactly what a request-rate-only load test misses; see [surge-readiness.md — Load-Test Realism](surge-readiness#load-test-realism)).
 
 **Blast radius.** A shared in-cluster cache is a single failure domain: if it OOMs, every dependent service degrades at once, and that can cascade upstream to the ingress/API gateway as latency and errors. Contain it:
 
-- **Isolate the domain** — dedicated nodes/namespace, its own resource quota, and Guaranteed QoS (requests = limits) so it is last to be evicted under node pressure.
+- **Isolate the domain** — dedicated nodes/namespace and its own resource quota. Set the cache's memory **request** at or above its real working set: under node memory pressure the kubelet ranks eviction by usage *relative to requests* (pods exceeding requests go first), not by QoS class, so a cache whose usage stays within its request is a poor eviction target. Use a higher **PriorityClass** to break ties within that group.
 - **PDB + anti-affinity** so a replicated cache does not lose quorum to a single drain or node loss (see the `redis-pdb` example under [PDB Configuration Rules](#pdb-configuration-rules)).
-- **Don't fail readiness cluster-wide on a shared cache** — a shared-dependency readiness check removes *all* endpoints at once; prefer circuit breakers or degraded responses (see [Probe Anti-Patterns](#probe-anti-patterns)).
+- **Don't fail readiness cluster-wide on a shared cache** — see [Probe Anti-Patterns](#probe-anti-patterns) for why, and the circuit-breaker / degraded-response alternatives.
 
 > Backup scope is a separate question: a cache is still correctly excluded from your backup set (it is reconstructible) — see [reliability-advanced.md — Velero Backup Tiers](reliability-advanced#velero-backup-tiers). "Don't back it up" never meant "don't size it."
 
