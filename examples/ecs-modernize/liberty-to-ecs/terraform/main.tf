@@ -102,11 +102,14 @@ resource "aws_security_group" "alb" {
 
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   security_group_id = aws_security_group.alb.id
-  description       = "HTTP from the operator's address range"
-  cidr_ipv4         = var.ingress_cidr
-  from_port         = 80
-  to_port           = 80
-  ip_protocol       = "tcp"
+  # No apostrophe: EC2 accepts security group rule descriptions only from the set
+  # a-zA-Z0-9. _-:/()#,@[]+=&;{}!$* and rejects anything else with
+  # InvalidParameterValue, which fails the apply on this resource.
+  description = "HTTP from the operator address range"
+  cidr_ipv4   = var.ingress_cidr
+  from_port   = 80
+  to_port     = 80
+  ip_protocol = "tcp"
 }
 
 resource "aws_vpc_security_group_egress_rule" "alb_all" {
