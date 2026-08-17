@@ -67,15 +67,208 @@ See [`SKILL.md`](../SKILL.md) for the full assessment workflow.
 
 ## Prerequisites
 
-This skill requires your AWS DevOps Agent (Agent Space) to have access to the EKS
-cluster(s) you want to assess. Follow the official AWS guide to grant it:
-[AWS EKS access setup](https://docs.aws.amazon.com/devopsagent/latest/userguide/configuring-integrations-and-knowledge-aws-eks-access-setup.html).
-An access entry must be created for each cluster you want the agent to assess.
+The DevOps Agent IAM role must have access to each EKS cluster you want to assess. In
+order for the agent to run the full upgrade assessment, the cluster access permissions
+must be updated beyond the default setup — follow the steps below for each cluster.
 
-The Agent Space role also needs read access to the supporting AWS APIs the skill uses:
+**Official guide:** [Configuring EKS access for DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/configuring-integrations-and-knowledge-aws-eks-access-setup.html)
 
-- **EKS (read):** `DescribeCluster`, `ListClusters`, `ListNodegroups`, `DescribeNodegroup`, `ListAddons`, `DescribeAddon`, `DescribeAddonVersions`, `ListInsights`, `DescribeInsight`
-- **EC2 (read):** `DescribeSubnets`
+In all commands below, replace:
+
+- `<CLUSTER>` — your EKS cluster name
+- `<REGION>` — the cluster's AWS region
+- `<DEVOPS_AGENT_ROLE_ARN>` — the Agent Space IAM role ARN, e.g.
+  `arn:aws:iam::111122223333:role/service-role/DevOpsAgentRole-AgentSpace-abc123`
+  (find it in the DevOps Agent console under **Agent Space → Capabilities → Cloud →
+  Primary source → Edit**)
+
+### Step 1: Create the access entry
+
+Ensure the cluster authentication mode includes **EKS API** (`API` or
+`API_AND_CONFIG_MAP`) — check the **Access** tab in the EKS console.
+
+**If the role has no access entry yet** (a fresh setup), run both commands:
+
+```bash
+aws eks create-access-entry \
+  --cluster-name <CLUSTER> \
+  --region <REGION> \
+  --type STANDARD \
+  --kubernetes-groups eks-upgrade-check \
+  --principal-arn <DEVOPS_AGENT_ROLE_ARN>
+
+aws eks associate-access-policy \
+  --cluster-name <CLUSTER> \
+  --region <REGION> \
+  --principal-arn <DEVOPS_AGENT_ROLE_ARN> \
+  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonAIOpsAssistantPolicy \
+  --access-scope type=cluster
+```
+
+**If the access entry already exists** (e.g. created earlier via the EKS console, which
+does not add Kubernetes groups), `create-access-entry` will fail with
+`ResourceInUseException`. Add the group to the existing entry instead:
+
+```bash
+aws eks update-access-entry \
+  --cluster-name <CLUSTER> \
+  --region <REGION> \
+  --kubernetes-groups eks-upgrade-check \
+  --principal-arn <DEVOPS_AGENT_ROLE_ARN>
+```
+
+> **Note:** `update-access-entry --kubernetes-groups` **replaces** the entry's group
+> list, it does not append. If the role's access entry already carries groups from other
+> tooling, include them all in one comma-separated list, e.g.
+> `--kubernetes-groups other-group,eks-upgrade-check`. Check the current groups first
+> with the `describe-access-entry` command shown in Step 2's verification.
+
+### Step 2: Grant assessment read permissions
+
+Bind a least-privilege ClusterRole to the group from Step 1. This grants read-only
+access to only the resources the assessment scans — no Secrets access — and the manifest
+contains no IAM ARNs, so the same file works unchanged in every cluster.
+
+```yaml
+# eks-upgrade-check-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eks-upgrade-check
+rules:
+  # workload-risks: PDB coverage and drain-blocking PDB detection
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list"]
+  # workload-risks: externally-facing detection (LoadBalancer-type Services)
+  # breaking-changes (target >= 1.33): custom Endpoints still in use
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list"]
+  # deprecated-apis: live scan for removed/deprecated API usage
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies", "ingresses"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "list"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list"]
+  # deprecated-apis + breaking-changes (target >= 1.29 / >= 1.32): APF v1beta2/v1beta3 removals
+  - apiGroups: ["flowcontrol.apiserver.k8s.io"]
+    resources: ["flowschemas", "prioritylevelconfigurations"]
+    verbs: ["get", "list"]
+  # breaking-changes (target >= 1.31): scan ClusterRoleBindings for system:unauthenticated subjects
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterrolebindings"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eks-upgrade-check
+subjects:
+  - kind: Group
+    name: eks-upgrade-check
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: eks-upgrade-check
+  apiGroup: rbac.authorization.k8s.io
+```
+
+(Core workload reads — Deployments, DaemonSets, StatefulSets, Pods, Nodes, events, pod
+logs — are already granted by `AmazonAIOpsAssistantPolicy` from Step 1; the ClusterRole
+adds only what that policy does not cover. `services` and `endpoints` are granted
+explicitly above rather than assumed from the managed policy, so the workload-risks
+externally-facing check and the target-≥1.33 Endpoints-deprecation check never depend on
+that policy's exact core-resource scope.)
+
+Unlike the AWS CLI commands above, `kubectl` does not take a cluster or region flag — it
+applies to whatever cluster your current kubeconfig context points at. Point it at the
+target cluster first:
+
+```bash
+aws eks update-kubeconfig --name <CLUSTER> --region <REGION>
+kubectl apply -f eks-upgrade-check-rbac.yaml
+```
+
+**Verify both halves of the setup.** First confirm the access entry actually carries the
+group — this is the step most often missed (the console access-entry flow does not add
+groups), and without it the binding applies to nobody:
+
+```bash
+aws eks describe-access-entry \
+  --cluster-name <CLUSTER> \
+  --region <REGION> \
+  --principal-arn <DEVOPS_AGENT_ROLE_ARN> \
+  --query 'accessEntry.kubernetesGroups'
+```
+
+Expected output includes `"eks-upgrade-check"`. If it shows `[]` or the group is
+missing, the ClusterRoleBinding applies to nobody. Fix it by adding the group, then
+re-run the check above:
+
+```bash
+aws eks update-access-entry \
+  --cluster-name <CLUSTER> \
+  --region <REGION> \
+  --kubernetes-groups eks-upgrade-check \
+  --principal-arn <DEVOPS_AGENT_ROLE_ARN>
+```
+
+Then confirm the binding grants the reads (these test the RBAC objects only — they pass
+regardless of the access entry, so always check the group above too):
+
+```bash
+kubectl auth can-i list poddisruptionbudgets --as-group eks-upgrade-check --as upgrade-check
+kubectl auth can-i list customresourcedefinitions --as-group eks-upgrade-check --as upgrade-check -A
+kubectl auth can-i list mutatingwebhookconfigurations --as-group eks-upgrade-check --as upgrade-check -A
+kubectl auth can-i list horizontalpodautoscalers --as-group eks-upgrade-check --as upgrade-check
+kubectl auth can-i list flowschemas.flowcontrol.apiserver.k8s.io --as-group eks-upgrade-check --as upgrade-check -A
+kubectl auth can-i list prioritylevelconfigurations.flowcontrol.apiserver.k8s.io --as-group eks-upgrade-check --as upgrade-check -A
+kubectl auth can-i list clusterrolebindings --as-group eks-upgrade-check --as upgrade-check -A
+kubectl auth can-i list services --as-group eks-upgrade-check --as upgrade-check
+kubectl auth can-i list endpoints --as-group eks-upgrade-check --as upgrade-check
+```
+
+All should print `yes`. The `-A` flag on cluster-scoped resources avoids a spurious
+"not namespace scoped" warning.
+
+### Step 3: Verify AWS API permissions
+
+Steps 1–2 grant access to the Kubernetes API. The assessment also calls AWS APIs
+directly (describing the cluster, node groups, add-ons, insights, and subnets). Agent
+Space setup normally attaches the AWS-managed
+[`AIDevOpsAgentAccessPolicy`](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AIDevOpsAgentAccessPolicy.html)
+to the primary cloud source role, which already covers all of these — in that case there
+is nothing to do. Confirm with:
+
+```bash
+aws iam list-attached-role-policies --role-name <AGENT_SPACE_ROLE_NAME>
+```
+
+(Use the bare role name, not the ARN.)
+
+If your organization replaces the managed policy with a custom scoped one, it must allow:
+
+- **EKS (read):** `ListClusters`, `DescribeCluster`, `ListNodegroups`, `DescribeNodegroup`, `ListAddons`, `DescribeAddon`, `DescribeAddonVersions`, `ListInsights`, `DescribeInsight`
+- **EC2 (read):** `DescribeSubnets` (subnet IP capacity checks), `DescribeNetworkInterfaces` (unused-ENI remediation guidance)
+
+Checks that hit a missing permission are marked with the denied action in the failure
+reason — add that action to the custom policy and re-run.
+
+### Rolling out at scale
+
+For fleets of clusters, script Steps 1–2 with a per-cluster loop, or manage them via
+Terraform (`aws_eks_access_entry`, `aws_eks_access_policy_association`, plus the RBAC
+manifest) or GitOps (Argo CD / Flux syncing the ClusterRole and binding to every
+cluster). Because the manifest is identical everywhere — no per-cluster ARNs — it can be
+committed once and fanned out.
 
 ### Web search / web fetch capability
 
