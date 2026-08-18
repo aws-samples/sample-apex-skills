@@ -6,7 +6,7 @@ These inputs exercise the `eks-best-practices` skill's declared scope: EKS archi
 
 ## Neighbour-skill disambiguation
 
-The 23 negative prompts in `triggering.json` (entries 13–35, 0-indexed 12–34) are deliberate near-misses targeting sibling skills:
+The 25 negative prompts in `triggering.json` (entries 13–37, 0-indexed 12–36) are deliberate near-misses targeting sibling skills:
 
 <!-- SIBLING_MAP_START -->
 - **`eks-recon`** (discovery / "what's currently running" / pre-upgrade inventory) — negatives 13, 14, 15 (what version am I running; inventory what's in my EKS cluster; snapshot of everything running).
@@ -19,8 +19,8 @@ The 23 negative prompts in `triggering.json` (entries 13–35, 0-indexed 12–34
 - **`eks-design`** (architecture design document generation — ADRs, system arch, Mermaid diagrams, validation scoring) — negatives 25, 26 (generate a complete EKS architecture design document; score and validate this architecture).
 - **`eks-build`** (EKS Terraform code generation — full project scaffold, add-ons, ArgoCD GitOps) — negatives 27, 28 (generate a production-ready Terraform project; add external-secrets and cert-manager addons to our Terraform project).
 - **`eks-ingress-migration`** (assesses/plans migrating off the NGINX ingress controller to Gateway API / ALB / ATX) — negative 29 (audit ingress controllers, score migration off nginx to ALB). Best-practices gives ingress design guidance; ingress-migration assesses an existing nginx estate and produces a migration plan.
-- **`eks-genai`** (self-hosting LLM/GenAI workloads — GPU vs Neuron, vLLM/Ray serving) — negative 30 (self-hosting Llama 3 on EKS — g6e vs Inferentia2, vLLM vs Ray Serve).
-- **`eks-security`** (EKS security & compliance hardening — CIS, HIPAA/PCI/FedRAMP/GDPR, Pod Identity/Access Entries, PSA, GuardDuty, image signing, audit logging) — negatives 31, 32 (PHI on EKS needing a HIPAA-ready baseline; PCI-DSS hardening priority order).
+- **`eks-genai`** (self-hosting LLM/GenAI workloads — GPU vs Neuron, vLLM/Ray serving, distributed training) — negatives 30, 36 (self-hosting Llama 3 on EKS — g6e vs Inferentia2, vLLM vs Ray Serve; large-scale distributed training across GPU nodes — inter-node networking and gang scheduling). Entry 36 guards the description-trim edge: the eks-genai exclusion clause no longer lists "distributed training" by name, so a bare distributed-training prompt must still route to eks-genai, not best-practices.
+- **`eks-security`** (EKS security & compliance hardening — CIS, HIPAA/PCI/FedRAMP/GDPR, Pod Identity/Access Entries, PSA, GuardDuty, image signing, audit logging) — negatives 31, 32, 37 (PHI on EKS needing a HIPAA-ready baseline; PCI-DSS hardening priority order; running the CIS benchmarks against the cluster and remediating failures). Entry 37 guards the description-trim edge: the eks-security exclusion clause no longer lists "CIS benchmarks" by name, so a bare CIS-benchmark prompt must still route to eks-security, not best-practices.
 <!-- SIBLING_MAP_END -->
 
 The key discriminators for `eks-best-practices`: the prompt asks for a *decision*, *recommendation*, *tradeoff*, or *sanity check* about an EKS design surface — not a discovery scan, not an executable upgrade runbook, and not MCP tooling setup.

@@ -138,5 +138,13 @@
   {
     "query": "Flash sale is Friday \u2014 go look at my running cluster and tell me what's not ready and what to fix.",
     "should_trigger": false
+  },
+  {
+    "query": "We need to run large-scale distributed training across many GPU nodes on EKS. What's the right setup for the training job's inter-node networking and gang scheduling?",
+    "should_trigger": false
+  },
+  {
+    "query": "Our security team wants us to run the CIS benchmarks against our EKS cluster and remediate the failures. How should we approach that hardening?",
+    "should_trigger": false
   }
 ]
