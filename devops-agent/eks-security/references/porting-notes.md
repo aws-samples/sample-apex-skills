@@ -2,7 +2,7 @@
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution.
 
-> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-07-17.
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-08-18 (compliance references re-verified; other rows carried forward unchanged from 2026-07-17).
 
 ## Differences from Claude Code Version
 
@@ -16,4 +16,4 @@ This file documents the differences between the Claude Code version and the DevO
 | **Script execution** | Can run kube-bench, generate shell commands | Advisory only — recommends commands for the user to execute |
 | **MCP dependencies** | References eks-mcp-server for live data | No MCP dependencies; uses Agent Space APIs directly |
 | **Auto Mode security reference** | `references/auto-mode-security.md` — security facts (node OS, IMDSv2, shared-responsibility split) | Identical / in sync; security facts are launch-agnostic, only execution-model framing differs — edit both copies together. |
-| **Compliance references** | 3 per-regime deep files (`compliance-hipaa/pci/soc2.md`) + at-a-glance router bullets in `compliance-regimes.md` | **No deep files** — `compliance-regimes.md` folds the per-regime depth (incl. PCI Req 3/4 + segmentation testing 11.4.5/11.4.6) inline, so the port's per-regime bullets are **intentionally richer** than the skill's at-a-glance bullets. Do NOT "sync" them back to the thinner skill bullets — the inline depth is by design here. Compliance *facts* (retention, req numbers, HIPAA-AOC→BAA) must still match the skill; only the file structure differs. |
+| **Compliance references** | 3 per-regime deep files (`compliance-hipaa/pci/soc2.md`), each with a control-mapping table + 30/60/90 + shared-responsibility table, **plus** router bullets + worked scenarios in `compliance-regimes.md` | **Only `compliance-regimes.md`** — the same compact per-regime bullets + worked scenarios, **no deep files** (and no per-regime control-mapping / 30-60-90 / shared-responsibility tables). The per-regime *bullets* are at parity with the skill's (same facts, incl. PCI Req 3/4 + segmentation 11.4.5/11.4.6); the port simply carries **less depth**. Keep the compliance *facts* in sync with the skill; the port intentionally omits the deep files (self-contained, no deep-dive links). |

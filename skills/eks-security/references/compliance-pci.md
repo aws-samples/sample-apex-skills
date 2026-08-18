@@ -28,7 +28,7 @@ A per-regime quick-start for running cardholder-data (CHD) workloads on Amazon E
 - **Weeks 1-2 (non-disruptive):** enable control-plane logging with **1-year** retention + GuardDuty + ECR Enhanced Scanning + the **Security Hub PCI DSS** standard + `kube-bench` baseline.
 - **Weeks 3-6:** `aws-auth` → Access Entries (change window); audit IRSA/Pod Identity least-privilege (Req 7/8).
 - **Weeks 7-10:** PSA `restricted` (`audit`→`enforce`); Kyverno PCI policies; **default-deny NetworkPolicy + Security Groups for Pods on the CDE namespace** (Req 1).
-- **Weeks 11-14:** migrate AL2 → AL2023 / Bottlerocket (AL2 OS EOL **June 30 2026**).
+- **Weeks 11-14:** migrate AL2 → AL2023 / Bottlerocket (AL2 OS reached EOL **2026-06-30** — already unsupported; prioritize).
 - **Weeks 15-16:** Audit Manager PCI DSS framework → remediate → pull the PCI AOC; schedule the quarterly ASV scan. Map controls to **Requirements 1/2/3/4/6/7/8/10/11**.
 
 ## Escalate
