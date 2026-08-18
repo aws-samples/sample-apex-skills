@@ -18,12 +18,12 @@ A per-regime quick-start for running Protected Health Information (PHI) workload
 | Audit controls §164.312(b) | **All 5 control-plane log types** for forensic depth (not just `audit`+`authenticator`); CloudTrail; GuardDuty for EKS |
 | Integrity §164.312(c) | ECR Enhanced Scanning + Cosign/Notation image signing + Kyverno `verifyImages` |
 | Transmission security §164.312(e) | TLS in-cluster; mTLS via service mesh for PHI-carrying paths |
-| Encryption at rest §164.312(a)(2)(iv) | **CMK** for EBS/S3/EFS holding PHI + envelope-encryption CMK for the K8s API |
+| Encryption/decryption §164.312(a)(2)(iv) — *addressable*, applied at rest | **CMK** for EBS/S3/EFS holding PHI + envelope-encryption CMK for the K8s API |
 | Documentation retention §164.316(b)(2) | **6-year** minimum retention of required documentation (commonly applied to audit-log/evidence retention as well) |
 
 ## 30 / 60 / 90 quick-start
 
-- **Confirm the BAA is active — before anything else.** Then Days 1-30: enable all 5 control-plane logs with **6-year** retention, GuardDuty for EKS, ECR Enhanced Scanning, Security Hub; run `kube-bench`; deploy the Audit Manager **HIPAA Security Rule** framework.
+- **Confirm the BAA is active — before anything else.** Then Days 1-30: enable all 5 control-plane logs (retain per your evidence policy — §164.316(b)(2)'s **6-year** rule governs *documentation*, commonly extended to logs), GuardDuty for EKS, ECR Enhanced Scanning, Security Hub; run `kube-bench`; deploy the Audit Manager **HIPAA Security Rule** framework.
 - **Days 31-60:** Pod Identity + Access Entries; PSA `restricted` (`audit`→`enforce`); Kyverno; default-deny NetworkPolicy + Security Groups for Pods on PHI namespaces; CMK on every PHI data layer.
 - **Days 61-90:** Bottlerocket (or CIS-hardened AL2023); image signing + admission verification; HIPAA mock audit → remediate → confirm the BAA is accepted in Artifact and pull supporting SOC 2 / ISO reports for the auditor (there is no HIPAA AOC to download).
 
@@ -35,7 +35,7 @@ First-time HIPAA audit/assessment on a mission-critical workload; multi-tenant S
 
 | AWS manages | Customer manages |
 |---|---|
-| Control-plane + etcd security; BAA coverage of eligible services; the SOC/ISO attestation reports + the accepted BAA in Artifact | The BAA signature; all workload-level Security Rule controls (access, audit, integrity, transmission, encryption); 6-year evidence retention; the risk assessment |
+| Control-plane + etcd security; BAA coverage of eligible services; the SOC/ISO attestation reports + the accepted BAA in Artifact | The BAA signature; all workload-level Security Rule controls (access, audit, integrity, transmission, encryption); documentation retention (§164.316(b)(2) — 6-year); the risk assessment |
 
 ## Sources
 - [HIPAA on AWS](https://aws.amazon.com/compliance/hipaa-compliance/) · [HIPAA Eligible Services](https://aws.amazon.com/compliance/hipaa-eligible-services-reference/) · [AWS Artifact](https://aws.amazon.com/artifact/)
