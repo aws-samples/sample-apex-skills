@@ -1,0 +1,21 @@
+[
+  {"query": "We want to move our EKS services off m5 instances onto Graviton. Where do I start?", "should_trigger": true},
+  {"query": "Scan my Go monorepo for anything that won't build or run on arm64 before we switch.", "should_trigger": true},
+  {"query": "Set up docker buildx so our CI publishes both amd64 and arm64 images as one manifest list.", "should_trigger": true},
+  {"query": "cut my karpenter nodes over to arm64 safely — I don't want to break prod", "should_trigger": true},
+  {"query": "Is my Node.js app arm64-ready? It has a couple of native npm modules I'm worried about.", "should_trigger": true},
+  {"query": "Port our payments service to Graviton end to end — readiness scan, node cutover, the works.", "should_trigger": true},
+  {"query": "Set up the arm migration MCP server so I can scan my repo for arm64 blockers.", "should_trigger": true},
+  {"query": "We've decided to adopt Graviton. Walk me through actually migrating the deployment onto arm64 nodes step by step.", "should_trigger": true},
+  {"query": "Before we commit to Graviton, can you check whether our Python service and its C extensions will actually run on arm64?", "should_trigger": true},
+  {"query": "Our Jenkins pipeline only builds x86 images today — what has to change so it also produces arm64 builds we can run on Graviton?", "should_trigger": true},
+
+  {"query": "How much would we save if we switched our fleet to Graviton?", "should_trigger": false},
+  {"query": "What's our current Graviton and Spot adoption percentage across the cluster right now?", "should_trigger": false},
+  {"query": "Should we even bother with Graviton for this workload, or is staying on x86 fine?", "should_trigger": false},
+  {"query": "Set up the EKS MCP server so I can query my cluster from Claude Code.", "should_trigger": false},
+  {"query": "Migrate my nginx ingress over to the AWS Load Balancer Controller and ALB.", "should_trigger": false},
+  {"query": "Upgrade my EKS cluster to 1.33 — is it ready and what's blocking me?", "should_trigger": false},
+  {"query": "Is Graviton a sensible fit for a latency-sensitive Redis cache, or should I keep it on x86?", "should_trigger": false},
+  {"query": "We're already on Spot — can you tune our Karpenter consolidation and disruption budgets?", "should_trigger": false}
+]

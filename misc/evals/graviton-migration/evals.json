@@ -1,0 +1,139 @@
+{
+  "skill_name": "graviton-migration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm configuring Claude Code and want the Arm migration MCP server available so I can scan this repo for arm64 blockers. Docker is already installed. Give me the exact .mcp.json block to add at my repo root and tell me how to verify it loaded.",
+      "expected_output": "A project-scope .mcp.json snippet with an mcpServers entry (server keyed e.g. arm-mcp) whose command is docker and whose args run the container roughly `docker run --rm -i -v ${CLAUDE_PROJECT_DIR:-.}:/workspace:ro armlimited/arm-mcp:latest` — using the `${CLAUDE_PROJECT_DIR:-.}` form (with the `:-.` default, since a user-authored .mcp.json needs it) and a read-only `:ro` mount, plus a note that the entry needs no AWS credentials, followed by the restart-then-verify step (restart Claude Code, list MCP tools, smoke-test the readiness scanner).",
+      "expectations": [
+        "The output provides a JSON block for `.mcp.json` at the repo root with an `mcpServers` object containing an entry whose `command` is `docker`. — TODO: human review",
+        "The `args` array runs the container with `--rm`, `-i`, a `-v` volume mount to `/workspace`, and the image `armlimited/arm-mcp:latest`. — TODO: human review",
+        "For the Claude Code config the mount path uses `${CLAUDE_PROJECT_DIR:-.}` (with the `:-.` default, not a bare `${CLAUDE_PROJECT_DIR}` and not `${workspaceFolder}`). — TODO: human review",
+        "The output does not claim the server calls AWS; it may note the entry is credential-free while still making non-AWS outbound calls (image-manifest/registry checks and host-execution tools) — the knowledge-base search is a local bundled index, not a network call. — TODO: human review",
+        "The output tells the user to restart/reload Claude Code and verify by listing MCP tools and smoke-testing the readiness scanner against the mounted repo. — TODO: human review",
+        "The output does not invent a precise MCP tool identifier it is unsure of, and does not fabricate an alternate image name (the image is `armlimited/arm-mcp`, at `:latest` or a pinned tag like `:2.9.0`). — TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["armlimited/arm-mcp:latest", "armlimited/arm-mcp:2.9.0", "armlimited/arm-mcp"],
+          "context": "Must specify the correct Arm migration MCP image (a pinned tag per the skill's advice is also acceptable)",
+          "source": "skills/graviton-migration/SKILL.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "\\.mcp\\.json",
+          "context": "Must reference the Claude Code project-scope config file",
+          "source": "skills/graviton-migration/SKILL.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "/workspace",
+          "context": "Must mount the repo into the container's /workspace path",
+          "source": "skills/graviton-migration/SKILL.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["restart", "reload"],
+          "context": "Must instruct the user to restart/reload the harness after editing config",
+          "source": "skills/graviton-migration/SKILL.md"
+        }
+      ],
+      "process_assertions": [
+        {"type": "step-count", "min": 1, "max": 12},
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "My scanner run came back CLEAN for our checkout service. I run Karpenter and want to bring arm64 capacity into the cluster safely and cut this one service over as a canary without risking the amd64-only pods that share the cluster. Give me the NodePool and the canary Deployment pod-spec bits I need.",
+      "expected_output": "A Karpenter v1 (karpenter.sh/v1) NodePool that pins kubernetes.io/arch to arm64 and carries a NoSchedule taint so un-vetted pods stay off, plus a canary workload pod spec that adds BOTH a matching toleration and an arm64 nodeSelector (or nodeAffinity) so the canary is forced onto arm64. Should explain the taint-first rationale (prevents accidental scheduling of amd64-only images / exec format errors) and that the toleration only permits while the nodeSelector forces placement.",
+      "expectations": [
+        "The NodePool uses the Karpenter v1 apiVersion `karpenter.sh/v1`. — TODO: human review",
+        "The NodePool has a `kubernetes.io/arch` requirement pinned to `arm64` and a NoSchedule taint keeping un-vetted pods off. — TODO: human review",
+        "The canary pod spec includes BOTH a toleration matching the taint AND an arm64 `nodeSelector` (or equivalent nodeAffinity) so placement is forced, not merely permitted. — TODO: human review",
+        "The output explains the taint-first rationale — without the taint an amd64-only pod could land on arm64 and hit CrashLoopBackOff / exec format error. — TODO: human review",
+        "The output does not tell the user to hardcode an `-arm64` tag suffix into the Kubernetes manifest (the multi-arch manifest list handles arch selection). — TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "karpenter\\.sh/v1",
+          "context": "Must use Karpenter v1 API semantics",
+          "source": "skills/graviton-migration/references/karpenter-migration.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "kubernetes\\.io/arch",
+          "context": "Must key the arch requirement/selector on kubernetes.io/arch",
+          "source": "skills/graviton-migration/references/karpenter-migration.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "arm64",
+          "context": "Must target the arm64 architecture value",
+          "source": "skills/graviton-migration/references/karpenter-migration.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["taint", "NoSchedule"],
+          "context": "Must apply the taint-first discipline on the arm64 NodePool",
+          "source": "skills/graviton-migration/references/karpenter-migration.md"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "toleration",
+          "context": "The canary must tolerate the arm64 taint",
+          "source": "skills/graviton-migration/references/karpenter-migration.md"
+        }
+      ],
+      "process_assertions": [
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "We push our images to ECR from GitHub Actions and it currently only builds amd64. I want every build to publish one tag that works on both amd64 and arm64 so the Graviton cutover sticks. Give me the GitHub Actions job.",
+      "expected_output": "A GitHub Actions job using Docker's buildx actions (setup-qemu-action for the emulated path, setup-buildx-action, login-action, build-push-action) that sets `platforms: linux/amd64,linux/arm64` and `push: true` to publish a single multi-arch manifest-list tag to ECR. Should note that platforms is what makes it a manifest-list build, and mention the native arm64-runner alternative (two per-arch builds joined with `docker buildx imagetools create`) as the faster option for compile-heavy builds.",
+      "expectations": [
+        "The job uses Docker buildx GitHub Actions (`docker/build-push-action` with `docker/setup-buildx-action`, and `docker/setup-qemu-action` for the emulated path). — TODO: human review",
+        "The build sets `platforms: linux/amd64,linux/arm64` and `push: true`, producing one manifest-list tag. — TODO: human review",
+        "The output explains that the `platforms` list is what turns the build into a multi-arch manifest list (one tag, right arch per node). — TODO: human review",
+        "The output mentions the native arm64-runner alternative (per-arch builds joined via `docker buildx imagetools create`) as faster for compile-heavy workloads. — TODO: human review",
+        "The output does not claim a single-tag manifest list requires a separate `-arm64` tag suffix. — TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "linux/amd64,linux/arm64",
+          "context": "Must build both architectures into one manifest list",
+          "source": "skills/graviton-migration/references/multi-arch-pipelines.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["build-push-action", "buildx"],
+          "context": "Must use Docker buildx / build-push-action",
+          "source": "skills/graviton-migration/references/multi-arch-pipelines.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["setup-qemu-action", "QEMU", "binfmt"],
+          "context": "Must set up QEMU emulation for the single-job cross-build path",
+          "source": "skills/graviton-migration/references/multi-arch-pipelines.md"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["imagetools create", "\\bnative\\b", "arm64 runner", "arm64-hosted"],
+          "context": "Must mention the native arm64-runner alternative",
+          "source": "skills/graviton-migration/references/multi-arch-pipelines.md"
+        }
+      ],
+      "process_assertions": [
+        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+      ],
+      "files": []
+    }
+  ]
+}

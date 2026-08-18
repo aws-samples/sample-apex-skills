@@ -25,7 +25,7 @@ my-skill/
 
 ### [eks-best-practices](./eks-best-practices/)
 
-Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, and surge readiness for flash sales, marketing pushes, traffic spikes, and peak events. Also answers Terraform configuration questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), building developer platforms and IDPs (eks-platform-engineering), GenAI/LLM workload decisions — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training, ML storage (eks-genai), or compliance-regime hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security).
+Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, and surge readiness for flash sales, marketing pushes, traffic spikes, and peak events. Also answers Terraform configuration questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), building developer platforms and IDPs (eks-platform-engineering), GenAI/LLM workload decisions — GPU vs Trainium/Inferentia, vLLM/Ray serving (eks-genai), or compliance-regime hardening and audit prep — HIPAA/PCI/FedRAMP, GuardDuty, image signing (eks-security) or EXECUTING an x86→arm64/Graviton migration (use graviton-migration).
 
 **References** (loaded on demand):
 
@@ -78,7 +78,7 @@ Use when building EKS clusters. Generates complete, production-ready Terraform p
 
 ### [eks-cost-intelligence](./eks-cost-intelligence/)
 
-Run a live EKS cluster cost efficiency assessment — analyze spending across 6 dimensions (compute efficiency, Spot/Graviton adoption, networking, storage, observability, idle resources), calculate a weighted 0-100 Cost Score, and generate a prioritized report with dollar-quantified findings and ready-to-apply remediation snippets. Use this skill when someone asks "how much am I wasting on EKS?", "run a cost audit on my cluster", "what's my biggest cost driver?", "analyze my cluster's cost efficiency", or needs dollar-denominated findings for a FinOps review — even if they don't say "cost intelligence" or "score". Combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis. Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable. Distinct from eks-best-practices (static advisory guidance), eks-operation-review (operational health), and eks-recon (cluster discovery).
+Run a live EKS cluster cost efficiency assessment — analyze spending across 6 dimensions (compute efficiency, Spot/Graviton adoption, networking, storage, observability, idle resources), calculate a weighted 0-100 Cost Score, and generate a prioritized report with dollar-quantified findings and ready-to-apply remediation snippets. Use this skill when someone asks "how much am I wasting on EKS?", "run a cost audit on my cluster", "what's my biggest cost driver?", "analyze my cluster's cost efficiency", or needs dollar-denominated findings for a FinOps review — even if they don't say "cost intelligence" or "score". Combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis. Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable. Distinct from eks-best-practices (static advisory guidance), eks-operation-review (operational health), and eks-recon (cluster discovery). Distinct from graviton-migration, which EXECUTES the x86→arm64 move, not scoring savings.
 
 **References** (loaded on demand):
 
@@ -170,7 +170,7 @@ Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway A
 
 ### [eks-mcp-server](./eks-mcp-server/)
 
-Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions "eks mcp", "mcp server", "mcp.json", or "mcp tools not showing". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades).
+Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions "eks mcp", "mcp server", "mcp.json", or "mcp tools not showing". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades). For setting up the Arm migration MCP server used for arm64 readiness scanning, use graviton-migration, not this skill.
 
 **References** (loaded on demand):
 
@@ -486,6 +486,23 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 | [task-container-hardening.md](./ecs-security/references/task-container-hardening.md) | Task container hardening |
 
 ## General
+
+### [graviton-migration](./graviton-migration/)
+
+Execute a workload migration from x86 (amd64) to AWS Graviton (arm64) — set up the Arm migration MCP server for code, dependency, and container arm64-readiness scanning, then run the migration — pre-migration scanning, Karpenter arm64 node cutover, and multi-arch CI pipelines. Use when someone says "migrate to Graviton", "move my workloads to arm64", "is my app arm64-ready", "graviton migration", "port this service to Graviton", "scan my code for arm64 blockers", "set up multi-arch container builds", or "cut my nodes over to arm64". This skill owns migration EXECUTION (readiness scanning, NodePool cutover, multi-arch builds). Do NOT use for scoring Graviton cost savings, quantifying Spot/Graviton adoption, or "how much would Graviton save me?" (use eks-cost-intelligence); for advisory "should I use Graviton?" architecture guidance (use eks-best-practices); or for general, non-Graviton MCP server setup like the EKS MCP server (use eks-mcp-server).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [agent-scope-boundaries.md](./graviton-migration/references/agent-scope-boundaries.md) | Agent scope boundaries |
+| [dependency-knowledge.md](./graviton-migration/references/dependency-knowledge.md) | Dependency knowledge |
+| [karpenter-migration.md](./graviton-migration/references/karpenter-migration.md) | Karpenter migration |
+| [multi-arch-pipelines.md](./graviton-migration/references/multi-arch-pipelines.md) | Multi arch pipelines |
+| [perf-validation.md](./graviton-migration/references/perf-validation.md) | Perf validation |
+| [scanner-workflow.md](./graviton-migration/references/scanner-workflow.md) | Scanner workflow |
+
+---
 
 ### [skill-creator](./skill-creator/)
 

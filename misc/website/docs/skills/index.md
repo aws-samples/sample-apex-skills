@@ -27,5 +27,6 @@ description: "Browse all APEX skills for AWS platform engineering — EKS archit
 ## General
 
 <table>
-<tr><td><a href="./general/skill-creator/"><b>skill-creator</b></a></td><td><a href="./general/steering-workflow-creator/"><b>steering-workflow-creator</b></a></td><td><a href="./general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="./general/update-docs/"><b>update-docs</b></a></td></tr>
+<tr><td><a href="./general/graviton-migration/"><b>graviton-migration</b></a></td><td><a href="./general/skill-creator/"><b>skill-creator</b></a></td><td><a href="./general/steering-workflow-creator/"><b>steering-workflow-creator</b></a></td></tr>
+<tr><td><a href="./general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="./general/update-docs/"><b>update-docs</b></a></td><td></td></tr>
 </table>
