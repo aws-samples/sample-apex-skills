@@ -19,7 +19,7 @@ variable "image_uri" {
   description = <<-EOT
     Full image URI (repo:tag) for the task definition. Left empty on the first
     apply: the ECR repository must exist before an image can be pushed into it,
-    so scripts/deploy.sh applies once to create the repository, pushes, then
+    so the README's Part 3b applies once to create the repository, pushes, then
     applies again with this set. The ECS service is only created once this is
     non-empty.
   EOT
@@ -67,7 +67,7 @@ variable "ingress_cidr" {
 variable "cpu_architecture" {
   description = <<-EOT
     CPU architecture of the pushed image, for the Fargate task definition. It
-    must match what you built: scripts/deploy.sh builds with
+    must match what you built: the README's Part 3b builds with
     --platform linux/amd64, so X86_64 is correct even on an Apple Silicon
     laptop. Set ARM64 only if you build natively for Graviton.
   EOT

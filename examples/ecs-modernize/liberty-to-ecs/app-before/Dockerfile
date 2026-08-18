@@ -17,7 +17,8 @@ FROM icr.io/appcafe/open-liberty:full-java8-openj9-ubi
 # The legacy server.xml, carried over unchanged from the VM.
 COPY --chown=1001:0 src/main/liberty/config/server.xml /config/server.xml
 
-# The application, built by scripts/build.sh.
+# The application, built by `mvn -B package` in this directory. That build needs
+# lib/legacy-tax-rules-1.2.jar to exist first — run scripts/make-legacy-jar.sh.
 COPY --chown=1001:0 target/orders.war /config/apps/orders.war
 
 # The app writes its order archive to a hardcoded absolute path. On the VM this

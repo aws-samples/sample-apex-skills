@@ -1,4 +1,4 @@
-# Build output — regenerate with scripts/build.sh
+# Build output — regenerate with `mvn -B package`
 target/
 
 # The unmanaged JAR app-before depends on is generated, not committed.

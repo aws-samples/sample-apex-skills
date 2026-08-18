@@ -29,8 +29,9 @@ import javax.servlet.annotation.WebListener;
  *
  * NOTE: this class does not compile against a plain Java EE 7 API jar — the
  * commonj.* packages ship with WebSphere. That is deliberate and is exactly
- * what the assessment reports as vendor lock-in. It is excluded from the
- * compile check in scripts/build.sh; see that script's comments.
+ * what the assessment reports as vendor lock-in. It is excluded from
+ * compilation by the maven-compiler-plugin &lt;excludes&gt; in pom.xml; see the
+ * comment there for why the file still stays in the tree.
  */
 @WebListener
 public class NightlySettlementScheduler implements ServletContextListener {
