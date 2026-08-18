@@ -478,7 +478,9 @@ kubectl get daemonset -n kube-system node-local-dns 2>/dev/null
 
 **Why check this:** Network policies enforce pod-to-pod traffic rules. Their absence means all
 pods can communicate. Calico and Cilium extend native Kubernetes policies with cluster-wide
-and L7 rules.
+and L7 rules. AWS also ships two CRDs in the `networking.k8s.aws` group: cluster-scoped
+`ClusterNetworkPolicy` (admin/baseline tiers) and, on **EKS Auto Mode only**,
+`ApplicationNetworkPolicy` (FQDN/L7 egress) — enumerate them so the segmentation picture is complete.
 
 ```bash
 # Native NetworkPolicy objects (use -o name | wc -l to avoid the header off-by-one)
@@ -487,6 +489,13 @@ kubectl get networkpolicies -A -o name 2>/dev/null | wc -l
 # Namespaces that hold at least one policy
 kubectl get networkpolicies -A -o json 2>/dev/null | \
   jq -r '[.items[].metadata.namespace] | unique'
+
+# AWS enhanced network-policy CRDs in the networking.k8s.aws group (v1alpha1)
+kubectl api-resources --api-group=networking.k8s.aws 2>/dev/null
+# ClusterNetworkPolicy: cluster-scoped admin/baseline tiers; all launch modes on VPC CNI 1.21.1+ / K8s 1.29+
+kubectl get clusternetworkpolicies.networking.k8s.aws --no-headers 2>/dev/null | wc -l
+# ApplicationNetworkPolicy: EKS Auto Mode ONLY (namespaced, FQDN egress) — expect none on standard EKS
+kubectl get applicationnetworkpolicies.networking.k8s.aws -A --no-headers 2>/dev/null | wc -l
 
 # Calico
 kubectl get crd 2>/dev/null | grep -i projectcalico.org
@@ -499,6 +508,8 @@ kubectl get ciliumnetworkpolicies -A --no-headers 2>/dev/null | wc -l
 
 - `network_policies.count` = total native NetworkPolicy objects.
 - `network_policies.namespaces_with_policies` = count+list of namespaces holding policies.
+- `network_policies.aws_cluster_network_policies` = count of `ClusterNetworkPolicy` (networking.k8s.aws) objects.
+- `network_policies.aws_application_network_policies` = count of `ApplicationNetworkPolicy` (Auto Mode-only) objects.
 - `calico.detected` = Calico CRDs present; `calico.global_policies` = count of GlobalNetworkPolicies.
 - `cilium.detected` = Cilium CRDs present.
 
@@ -652,6 +663,8 @@ networking:
     namespaces_with_policies:
       count: int
       list: list
+    aws_cluster_network_policies: int      # ClusterNetworkPolicy (networking.k8s.aws), cluster-scoped
+    aws_application_network_policies: int  # ApplicationNetworkPolicy (networking.k8s.aws), Auto Mode-only
     calico:
       detected: bool
       global_policies: int          # count of GlobalNetworkPolicies

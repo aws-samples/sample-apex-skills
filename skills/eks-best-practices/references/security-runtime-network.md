@@ -113,9 +113,49 @@ aws eks create-addon --cluster-name my-cluster \
   --configuration-values '{"enableNetworkPolicy": "true"}'
 ```
 
-Network policy support is NOT enabled by default — you must enable the `ENABLE_NETWORK_POLICY` flag on the VPC CNI add-on.
+Network policy support is NOT enabled by default — you must enable the `ENABLE_NETWORK_POLICY` flag on the VPC CNI add-on. The controller is eBPF-based and emits `PolicyEndpoint` CRDs; it enforces upstream `networking.k8s.io/v1` `NetworkPolicy` on Linux EC2 nodes (not Fargate/Windows), with **Standard** or **Strict** (default-deny) enforcement modes.
 
-Newer VPC CNI releases (v1.21+) also add a cluster-scoped **ClusterNetworkPolicy** admin tier and **strict mode** enforcement on top of the standard namespaced `NetworkPolicy` API — check the current VPC CNI version to see whether these are available in your cluster.
+**Enhanced AWS network-policy CRDs (`networking.k8s.aws/v1alpha1`).** On top of the standard namespaced `NetworkPolicy` API, recent VPC CNI releases add two AWS-specific CRDs. Both are `v1alpha1` — treat the API as subject to change and verify against the [current docs](https://docs.aws.amazon.com/eks/latest/userguide/auto-net-pol.html) before relying on them. Confirm they are registered: `kubectl api-resources --api-group=networking.k8s.aws`.
+
+| CRD | Scope | apiVersion | What it adds | Availability |
+|-----|-------|-----------|--------------|--------------|
+| **`ClusterNetworkPolicy`** | Cluster-scoped | `networking.k8s.aws/v1alpha1` | Cluster-wide admin guardrails via `spec.tier` (**`Admin`** \| **`Baseline`**) + `spec.priority` — the same Admin/Baseline pattern as the upstream AdminNetworkPolicy/BaselineAdminNetworkPolicy APIs. Admin-tier rules evaluate first and are non-overridable; Baseline rules are overridable by namespace `NetworkPolicy`. | Introduced Dec 2025 as **new-clusters-only** (existing-cluster support "to follow") — **verify current availability before relying on it**. Where available: all launch modes, **VPC CNI 1.21.1+**, Kubernetes **1.29+** |
+| **`ApplicationNetworkPolicy`** | Namespaced | `networking.k8s.aws/v1alpha1` | All standard `NetworkPolicy` fields **plus an FQDN/`domainNames` egress filter** (DNS-based egress — e.g. allow egress only to `*.amazonaws.com`). | **EKS Auto Mode only** (Kubernetes 1.29+); the DNS-based rules apply to workloads on Auto Mode-launched EC2 instances |
+
+```yaml
+# ApplicationNetworkPolicy (Auto Mode only): allow egress only to approved FQDNs.
+# The FQDN filter resolves names via CoreDNS, so you MUST also allow egress to
+# CoreDNS on port 53 — otherwise the domainNames never resolve and all egress fails.
+apiVersion: networking.k8s.aws/v1alpha1
+kind: ApplicationNetworkPolicy
+metadata:
+  name: allow-egress-to-aws-apis
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:                                   # required: reach CoreDNS to resolve FQDNs
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  - to:
+    - domainNames:
+      - "*.amazonaws.com"
+```
+
+**Auto Mode note:** EKS Auto Mode uses the managed **VPC CNI eBPF network-policy engine (not Cilium — Cilium CRDs are unsupported)**. Enable enforcement via the `amazon-vpc-cni` ConfigMap (`enable-network-policy-controller: "true"`) plus a `NodeClass` (`eks.amazonaws.com/v1`) with `networkPolicy`/`networkPolicyEventLogs`. Standard `NetworkPolicy` and `ClusterNetworkPolicy` work on both standard EKS and Auto Mode; `ApplicationNetworkPolicy` (FQDN egress) is the Auto Mode-only differentiator.
+
+> **FQDN egress is DNS-dependent — treat it as defense-in-depth, not an airtight control.** `domainNames` rules are enforced by intercepting CoreDNS responses; a pod that uses an external/non-cluster resolver, hard-codes a resolved IP, or relies on a long-lived cached IP can bypass the filter. Pair it with IP/CIDR egress rules for anything that must be hard-blocked. See [Auto Mode network policies](https://docs.aws.amazon.com/eks/latest/userguide/auto-net-pol.html) and the [DNS & admin network-policy launch post](https://aws.amazon.com/blogs/containers/enhance-amazon-eks-network-security-posture-with-dns-and-admin-network-policies/).
 
 ### Start with Default Deny + DNS Allow
 

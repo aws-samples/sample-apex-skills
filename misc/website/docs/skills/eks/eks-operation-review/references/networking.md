@@ -75,23 +75,25 @@ Assess VPC CNI configuration, IP capacity, DNS health, and network segmentation.
 ### 6.3 — Network Policies & Segmentation
 
 **What to check:**
-- VPC CNI Network Policy Controller enabled (`ENABLE_NETWORK_POLICY` env var on aws-node)
+- VPC CNI Network Policy Controller enabled (`ENABLE_NETWORK_POLICY` env var on aws-node; on Auto Mode, the `amazon-vpc-cni` ConfigMap `enable-network-policy-controller` + NodeClass `networkPolicy`)
 - Calico pods (alternative enforcement engine)
 - NetworkPolicy resources across namespaces
 - Default-deny policies (podSelector: {})
 - Namespaces without any NetworkPolicy
+- AWS enhanced CRDs (`networking.k8s.aws`): cluster-scoped `ClusterNetworkPolicy` (admin/baseline default-deny guardrails) and, on **Auto Mode**, `ApplicationNetworkPolicy` (FQDN/L7 egress control)
 
 **How to check:**
-1. Read DaemonSet `aws-node` in kube-system → check env var `ENABLE_NETWORK_POLICY`
+1. Read DaemonSet `aws-node` in kube-system → check env var `ENABLE_NETWORK_POLICY` (for Auto Mode, check the `amazon-vpc-cni` ConfigMap + active NodeClass instead)
 2. List pods with label `k8s-app=calico-node`
 3. List NetworkPolicies across all namespaces
 4. Inspect NetworkPolicies for default-deny (empty podSelector)
 5. Compare namespaces with policies vs namespaces without
+6. `kubectl api-resources --api-group=networking.k8s.aws`, then count `ClusterNetworkPolicy` / `ApplicationNetworkPolicy` objects
 
 **Rating:**
-- 🟢 GREEN: Enforcement enabled (VPC CNI controller or Calico), default-deny in production namespaces
+- 🟢 GREEN: Enforcement enabled **and** default-deny in production namespaces. Enforcement = the VPC CNI Network Policy Controller (required for both `NetworkPolicy` and `ClusterNetworkPolicy`) or Calico (for `NetworkPolicy` / Calico policies). The default-deny may be a per-namespace `NetworkPolicy` or a cluster-wide `ClusterNetworkPolicy` Admin-tier policy — but a `ClusterNetworkPolicy` counts only where the VPC CNI controller is the enforcer (Calico does not enforce `networking.k8s.aws` CRDs)
 - 🟡 AMBER: Policies defined but enforcement not verified, or policies in some namespaces only
 - 🔴 RED: No network policies, or policies defined but enforcement not enabled (false security)
 - ⬜ UNKNOWN: Cannot determine if policies have been tested
 
-**Critical gotcha:** VPC CNI requires explicitly enabling the Network Policy Controller. Without it, NetworkPolicy resources are just YAML that does nothing.
+**Critical gotcha:** VPC CNI requires explicitly enabling the Network Policy Controller. Without it, `NetworkPolicy` / `ClusterNetworkPolicy` resources are just YAML that does nothing — enforcement, not object count, is what the rating turns on. `ApplicationNetworkPolicy` (FQDN egress) is **exclusive to EKS Auto Mode** and is a defense-in-depth enhancement, **not** a GREEN requirement — do not flag its absence as a gap on standard EKS *or* Auto Mode clusters.
