@@ -10,6 +10,7 @@
 - [Detection Commands](#detection-commands)
   - [1. VPC Identifiers & Endpoint Access](#1-vpc-identifiers--endpoint-access)
   - [2. Subnets & IP Address Availability](#2-subnets--ip-address-availability)
+  - [2a. Node Subnets & AZ Resolution](#2a-node-subnets--az-resolution)
   - [3. CNI Vendor & VPC CNI Configuration](#3-cni-vendor--vpc-cni-configuration)
   - [3a. kube-proxy Mode](#3a-kube-proxy-mode)
   - [4. Ingress Controllers & Gateway API](#4-ingress-controllers--gateway-api)
@@ -38,6 +39,7 @@ Network configuration spans multiple layers:
 ```
 1. VPC identifiers & endpoint access -> Which VPC, subnets, SGs; how the API server is reached
 2. Subnets & IP availability          -> Per-subnet free IPs, secondary CIDRs
+2a. Node subnets & AZ                  -> Subnets nodes actually run in, AZ resolved for all
 3. CNI vendor & VPC CNI config         -> Pod networking vendor, mode, env vars
 4. Ingress & Gateway API               -> How external traffic enters the cluster
 5. Load balancers                      -> Provisioned ELBs and target group bindings
@@ -145,6 +147,90 @@ aws ec2 describe-vpcs --vpc-ids <vpc-id> --region <region> \
 [
   {"id": "subnet-0aaa111", "az": "us-west-2a", "cidr": "10.0.1.0/24", "free": 210},
   {"id": "subnet-0bbb222", "az": "us-west-2b", "cidr": "10.0.2.0/24", "free": 187}
+]
+```
+
+### 2a. Node Subnets & AZ Resolution
+
+**Why check this:** The `subnets` list in detection 2 resolves AZ/CIDR only for the subnets in
+`cluster.resourcesVpcConfig.subnetIds` (the cluster-registered list). EKS permits node groups to be
+deployed into subnets that were not specified at cluster creation (network-reqs, "Subnet
+requirements for nodes"), so nodes can run in subnets absent from that list — those node subnets
+otherwise carry no AZ, CIDR, or free-IP fact anywhere in recon. This detection resolves them.
+
+**Scope:** EC2 (kubelet) node subnets only. Fargate and Hybrid nodes are not EC2 instances and
+by design contribute no `node_subnets` entry. ENIConfig (custom-networking) *pod* subnets are
+also out of scope — this is node placement, not pod-ENI placement.
+
+**MCP (step 1 — node list):**
+```
+list_k8s_resources(
+  cluster_name="<cluster-name>",
+  kind="Node",
+  api_version="v1"
+)
+-> read each node's spec.providerID
+```
+
+**CLI:**
+```bash
+# 1. EC2 instance ids from node providerIDs. providerIDs use several schemes:
+#      EC2:     aws:///<az>/<instance-id>
+#      Fargate: aws:///<az>/<profile-or-task-id>/fargate-ip-<a-b-c-d>.<region>.compute.internal
+#               (3-segment path after aws:///, no EC2 instance; observed example in
+#                containers-roadmap#1976 — no authoritative doc format exists)
+#      Hybrid:  eks-hybrid:///<region>/<cluster>/<node-name> (no EC2 instance)
+#    Keep ONLY aws:/// providerIDs whose last segment is a real instance id (^i-). The
+#    filter is MANDATORY: a Fargate/hybrid/empty id makes the whole describe-instances
+#    --instance-ids call abort (Malformed/NotFound) and yields zero node_subnets facts.
+#    The last-segment `^i-` match is unaffected by the Fargate shape (its last segment is a
+#    hostname, not `i-*`); positional parsing that assumed the old 2-segment Fargate scheme
+#    would misfire.
+kubectl get nodes -o json | jq -r '
+  .items[].spec.providerID // empty
+  | select(startswith("aws:///"))
+  | split("/")[-1]
+  | select(startswith("i-"))'
+
+# 2. Map each RUNNING node instance to its subnet id; group by SubnetId for node_count.
+#    Uses --instance-ids (simpler/idiomatic); one fully-purged id aborts the whole batch
+#    (InvalidInstanceID.NotFound) — see the residual step-2 breaker in Edge Cases.
+#    The running-state filter drops a node terminated mid-recon (SubnetId null) that would
+#    otherwise poison the batch.
+aws ec2 describe-instances --instance-ids <instance-ids> --region <region> \
+  --filters Name=instance-state-name,Values=running \
+  --query 'Reservations[].Instances[].{instance:InstanceId,subnet:SubnetId}'
+
+# 3. Resolve AZ + CIDR + free-IP for EVERY distinct node subnet id. describe-subnets is not
+#    limited to the cluster-registered list — it resolves any subnet visible to the caller's
+#    credentials (owned or RAM-shared).
+aws ec2 describe-subnets --subnet-ids <distinct-node-subnet-ids> --region <region> \
+  --query 'Subnets[].{id:SubnetId,az:AvailabilityZone,az_id:AvailabilityZoneId,cidr:CidrBlock,free:AvailableIpAddressCount,vpc_id:VpcId}'
+```
+
+- `node_subnets` = count+list of `{id, az, az_id, cidr, free, vpc_id, node_count, in_cluster_subnet_list}`,
+  one entry per distinct subnet an EC2 node runs in. Empty list is a valid state (Fargate-only or
+  zero EC2-node cluster): `count: 0, list: []`. Two distinct failure modes: emit bare
+  `node_subnets: null` ONLY when the node list is unobtainable; when the node list IS obtained but
+  the EC2 describe calls fail (describe-instances / describe-subnets: AccessDenied / unreachable /
+  mid-flow abort), value-replace with `node_subnets: {unconfirmed: true, reason: "EC2 describe failed: <detail>"}`
+  — the `reason` string disambiguates this from the node-list-unobtainable case. Do NOT emit
+  `count: 0` on either failure (a failed EC2 resolve is not a Fargate-only cluster).
+- `az` / `az_id` / `cidr` / `free` = `AvailabilityZone` / `AvailabilityZoneId` / `CidrBlock` /
+  `AvailableIpAddressCount` from the describe-subnets call (step 3), resolved for every node subnet
+  including those outside the cluster-registered list. `az_id` is the cross-account-stable zone
+  identifier (AZ *names* are account-relative — matters for shared / cross-account subnets).
+- `vpc_id` = the subnet's `VpcId` (ties an unregistered entry back to its VPC).
+- `node_count` = number of running nodes in that subnet (from the describe-instances grouping).
+- `in_cluster_subnet_list` = `true` when the subnet id is present in `subnet_ids`
+  (`cluster.resourcesVpcConfig.subnetIds`), else `false`. A `false` entry is a node subnet absent
+  from `resourcesVpcConfig.subnetIds` — e.g. a node group launched into an unregistered subnet.
+
+**Example output:**
+```json
+[
+  {"id": "subnet-0aaa111", "az": "us-west-2a", "az_id": "usw2-az1", "cidr": "10.0.1.0/24", "free": 210, "vpc_id": "vpc-0abc123", "node_count": 3, "in_cluster_subnet_list": true},
+  {"id": "subnet-0ddd444", "az": "us-west-2c", "az_id": "usw2-az3", "cidr": "10.4.0.0/20", "free": 4051, "vpc_id": "vpc-0abc123", "node_count": 5, "in_cluster_subnet_list": false}
 ]
 ```
 
@@ -550,6 +636,22 @@ networking:
         free: int                   # AvailableIpAddressCount
   vpc_secondary_cidrs: list         # aws ec2 describe-vpcs CidrBlockAssociationSet (beyond primary)
 
+  # --- Node subnets (subnets nodes actually run in; AZ resolved for ALL, registered or not) ---
+  node_subnets:                     # aws ec2 describe-subnets over EC2 node instance SubnetIds
+                                    # EC2 nodes only (Fargate/hybrid contribute none).
+                                    # bare null ONLY if node list unobtainable; if node list IS obtained but
+                                    # EC2 describe fails, value-replace with {unconfirmed: true, reason: "EC2 describe failed: <detail>"}
+    count: int
+    list:
+      - id: string                  # SubnetId
+        az: string                  # AvailabilityZone (resolved for every node subnet)
+        az_id: string               # AvailabilityZoneId — cross-account-stable zone id
+        cidr: string                # CidrBlock
+        free: int                   # AvailableIpAddressCount
+        vpc_id: string              # VpcId (ties an unregistered subnet to its VPC)
+        node_count: int             # running nodes in this subnet
+        in_cluster_subnet_list: bool # true if id is in subnet_ids (resourcesVpcConfig.subnetIds)
+
   # --- CNI ---
   cni:
     type: string                    # aws-vpc-cni | calico | cilium | auto-mode | other (detected, not assumed)
@@ -682,3 +784,28 @@ Non-default settings surface through the aws-node env vars (Security Groups for 
 Per-subnet free-IP counts are recorded as facts in `subnets.list[].free` (from
 `AvailableIpAddressCount`). Secondary VPC CIDRs appear in `vpc_secondary_cidrs`. Report the
 numbers; draw no conclusion.
+
+### Node Subnets (§2a) Edge Cases
+
+- **Zero EC2 nodes / Fargate-only cluster:** the step-1 filter yields an empty id list. Do not
+  call `describe-instances` with no ids (region-wide fallback would return unrelated instances).
+  Emit `node_subnets: {count: 0, list: []}` — an empty list is a valid fact.
+- **Fargate / Hybrid nodes present:** their providerIDs are dropped by the `^i-` filter by design;
+  they contribute no `node_subnets` entry (not EC2 instances).
+- **Node churn mid-recon:** a node terminated between steps 1 and 2 is excluded by the
+  `instance-state-name=running` filter, so its `null` SubnetId can't break the step-2
+  group-by-SubnetId or the subnet-id dedup feeding step 3.
+  (A Node object stale >~1h whose instance is fully purged is the one residual step-2 breaker —
+  `InvalidInstanceID.NotFound` aborts the describe-instances call; rare, not caught by `--filters`.)
+- **Large clusters:** `describe-instances --instance-ids` is unpaginated — the EC2 API guidance
+  warns unpaginated requests are throttling- and timeout-prone — so chunk the instance ids across
+  calls and merge, then dedup subnet ids for step 3. `describe-subnets --subnet-ids` is likewise
+  unpaginated, so chunk the deduped `--subnet-ids` list into batches the same way (consistent with
+  the describe-instances `--instance-ids` batching in this bullet) and merge.
+- **Node list unobtainable:** emit bare `node_subnets: null` (module-level null rule) — this is the
+  ONLY case that uses bare null.
+- **Node list obtained but EC2 describe calls fail** (AccessDenied / unreachable / mid-flow abort):
+  value-replace with `node_subnets: {unconfirmed: true, reason: "EC2 describe failed: <detail>"}`
+  (the value-replacement convention used for `helm_releases` in `addons.md`) — do NOT emit bare
+  `null` or `count: 0` (a failed EC2 resolve is not a Fargate-only cluster, and `count: 0` reads as
+  Fargate-only; the `reason` string distinguishes this from the node-list-unobtainable null).

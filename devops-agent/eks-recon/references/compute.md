@@ -366,6 +366,10 @@ for n in v1.list_node().items:
     })
 ```
 
+> **Node subnets / AZ:** the subnets EC2 nodes run in (aggregated per subnet, with node counts)
+> are a networking fact — see `references/networking.md` §2a (`networking.node_subnets`).
+> Neither schema carries a per-node subnet/AZ mapping.
+
 **Example output:**
 ```json
 {

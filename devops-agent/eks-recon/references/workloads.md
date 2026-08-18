@@ -288,25 +288,34 @@ workloads scale automatically and their scaling thresholds.
 Enumerate PodDisruptionBudgets (PDBs) across namespaces. A PDB records the minimum
 availability guarantee for the pods matched by its selector. Record existence, the
 `minAvailable` / `maxUnavailable` value, and the label selector (the workloads it covers).
+Also record `status.disruptionsAllowed` — the point-in-time count of voluntary evictions the
+Eviction API currently permits for the pods this PDB selects. `0` means it currently rejects
+voluntary eviction of covered healthy pods, which can stall a drain of the nodes hosting them
+(a PDB selecting zero pods also reports `0`). Record `spec.unhealthyPodEvictionPolicy` too — it
+governs whether unhealthy covered pods are evictable at `0`.
 
 **Via Kubernetes API** — list PDBs across all namespaces (VERIFIED live: PDBs expose
 MIN AVAILABLE / MAX UNAVAILABLE):
 
 - **Resource:** `PodDisruptionBudget`, group/version `policy/v1`, all namespaces.
 - **Fields to extract:** `metadata.namespace`, `metadata.name`, `spec.minAvailable`,
-  `spec.maxUnavailable`, `spec.selector.matchLabels` (→ `selector`).
+  `spec.maxUnavailable`, `status.disruptionsAllowed` (→ `disruptions_allowed`),
+  `spec.unhealthyPodEvictionPolicy` (→ `unhealthy_pod_eviction_policy`),
+  `spec.selector.matchLabels` (→ `selector`).
 - **RBAC verbs:** `get`, `list` on `poddisruptionbudgets.policy`.
 
-Exactly one of `min_available` / `max_unavailable` is set per PDB; the other is `null`.
-The `selector` matchLabels identify the covered workloads.
+At most one of `min_available` / `max_unavailable` is set per PDB (both may be null for a
+selector-only PDB). The `selector` matchLabels identify the covered workloads.
 
 **Example (one PDB):**
 ```json
 {
   "namespace": "production",
   "name": "api-gateway-pdb",
-  "min_available": "1",
+  "min_available": 1,
   "max_unavailable": null,
+  "disruptions_allowed": 2,
+  "unhealthy_pod_eviction_policy": null,
   "selector": {"app": "api-gateway"}
 }
 ```
@@ -441,23 +450,32 @@ detected; never omit a key. Aggregate containers use the `{count, list}` wrapper
 ```yaml
 workloads:
   summary:
-    deployments: int
+    deployments: int               # kube-*-scoped total (§1 excludes kube-*); a true 0 is a valid fact
     statefulsets: int
     daemonsets: int
     cronjobs: int
     jobs: int
-    services: int
+    services: int                  # kube-*-scoped total (§5 excludes kube-*); a true 0 is a valid fact
     ingresses: int
     hpas: int
     pdbs: int
     namespaces_with_workloads: int
 
+  # kube-* scope split across these columns: ONLY deployments and services exclude kube-*
+  # namespaces (their §1/§5 listings filter kube-* out). statefulsets, ingresses, hpas, and pdbs
+  # INCLUDE kube-* (their listings apply no namespace filter). A namespace row exists wherever ANY
+  # column has a count, so rows may be partial. For a scoped-out column emit `null`, NOT 0 (schema
+  # header rule: null = fact not detected/collected) — e.g. a kube-system row shows `null` for
+  # deployments and services (column scoped out, not "zero found"; kube-system always runs CoreDNS
+  # Deployments + kube-dns Services) but real counts for statefulsets/ingresses/hpas/pdbs.
   by_namespace:
     - namespace: string
-      deployments: int
+      deployments: int|null          # null for kube-* rows: §1 scopes kube-* out, so not counted here (never 0)
       statefulsets: int
-      services: int
+      services: int|null             # null for kube-* rows: §5 scopes kube-* out, so not counted here (never 0)
       ingresses: int
+      hpas: int                    # per-namespace HPA count (rolled up from the hpas.list below)
+      pdbs: int                    # per-namespace PDB count (rolled up from the pdbs.list below)
 
   deployments:
     count: int
@@ -545,8 +563,11 @@ workloads:
     list:
       - namespace: string
         name: string
-        min_available: string      # spec.minAvailable (one of min/max set, other null)
-        max_unavailable: string    # spec.maxUnavailable
+        min_available: int|string  # spec.minAvailable — plain int or "N%" string (K8s IntOrString); at most one is set (both may be null for a selector-only PDB)
+        max_unavailable: int|string  # spec.maxUnavailable — plain int or "N%" string (K8s IntOrString)
+        disruptions_allowed: int   # status.disruptionsAllowed — voluntary evictions the Eviction API currently permits for
+                                   # covered pods; 0 rejects eviction of covered healthy pods (also 0 when it selects no pods); null if status unpopulated
+        unhealthy_pod_eviction_policy: string  # spec.unhealthyPodEvictionPolicy — emit verbatim; null when unset (API defaults behavior to IfHealthyBudget)
         selector: object           # spec.selector.matchLabels — covered workloads
 
   priority_classes:

@@ -436,6 +436,10 @@ kubectl get nodes -o json | jq -r '
 - **Windows presence** — a node with `os: windows` (or label `kubernetes.io/os=windows`)
   means Windows nodes are present; record `nodes_windows_present: true` at the compute level.
 
+> **Node subnets / AZ:** the subnets EC2 nodes run in (aggregated per subnet, with node counts)
+> are a networking fact — see `references/networking.md` §2a (`networking.node_subnets`).
+> Neither schema carries a per-node subnet/AZ mapping.
+
 **Example output:**
 ```json
 {
