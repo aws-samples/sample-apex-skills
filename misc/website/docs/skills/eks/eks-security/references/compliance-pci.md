@@ -32,7 +32,7 @@ A per-regime quick-start for running cardholder-data (CHD) workloads on Amazon E
 | Req 6 — secure development / patch | **ECR Enhanced Scanning** (Inspector); image signing; 21-day node lifecycle or managed patching |
 | Req 7 / 8 — access control | EKS Pod Identity + Access Entries (`API` mode); least-privilege RBAC; no static keys |
 | Req 10 — logging & monitoring | Control-plane `audit`+`authenticator` + CloudTrail + GuardDuty; **1-year audit-log retention minimum, 3 months immediately available** (PCI DSS Req 10.5.1 / v3.2.1 10.7) |
-| Req 11 — testing | ECR/Inspector continuous scanning; **quarterly ASV external scan** (Req 11.3.2) + **annual penetration test** (Req 11.4) |
+| Req 11 — testing | ECR/Inspector continuous scanning; **quarterly ASV external scan** (Req 11.3.2) + **annual penetration test** (Req 11.4.3); **segmentation testing** — at least every 12 months, **every 6 months for service providers** (Req 11.4.5 / 11.4.6) — to prove the NetworkPolicy/SGP CDE isolation actually holds |
 
 ## 30 / 60 / 90 quick-start (existing-cluster hardening, audit-driven)
 
@@ -50,7 +50,7 @@ First-time PCI Level 1 assessment; multi-tenant SaaS with cross-tenant CHD isola
 
 | AWS manages | Customer manages |
 |---|---|
-| Control-plane + etcd; PCI DSS L1 attestation of the infrastructure; the AOC in Artifact | CDE scoping + segmentation; the workload controls for Req 1/2/3/4/6/7/8/10/11; 1-year log retention; the quarterly ASV scan + annual pentest; the customer's own PCI assessment |
+| Control-plane + etcd; PCI DSS L1 attestation of the infrastructure; the AOC in Artifact | CDE scoping + segmentation; the workload controls for Req 1/2/3/4/6/7/8/10/11; 1-year log retention; the quarterly ASV scan + annual pentest + segmentation testing (every 6 months as a service provider); the customer's own PCI assessment |
 
 ## Sources
 - [PCI DSS on AWS](https://aws.amazon.com/compliance/pci-dss-level-1-faqs/) · [AWS Artifact](https://aws.amazon.com/artifact/) · [Security Hub PCI DSS standard](https://docs.aws.amazon.com/securityhub/latest/userguide/pci-standard.html)

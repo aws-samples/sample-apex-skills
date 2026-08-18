@@ -26,7 +26,7 @@ The cross-cutting view over the 7-layer stack. **Compliance status changes over 
 
 ## Per-regime quick guidance
 
-- **HIPAA** — confirm an active BAA first; enable all 5 control-plane log types for forensic depth; 6-year audit-log retention; CMK for EBS/S3/EFS holding PHI; Audit Manager HIPAA framework; download the HIPAA AOC from Artifact.
+- **HIPAA** — confirm an active BAA first; enable all 5 control-plane log types for forensic depth; 6-year documentation/evidence retention; CMK for EBS/S3/EFS holding PHI; Audit Manager HIPAA framework; accept the BAA in AWS Artifact (Agreements) and pull supporting SOC 2/ISO reports for evidence — there is no HIPAA AOC to download.
 - **PCI-DSS** — 1-year audit-log retention minimum; default-deny NetworkPolicy + Security Groups for Pods to segment cardholder-data namespaces; ECR Enhanced Scanning (Req 6 + 11) + quarterly ASV external pentest; Security Hub PCI-DSS pack; PCI AOC from Artifact.
 - **FedRAMP** — Moderate (commercial) vs High (GovCloud) is the first question; CMK for all data layers; VPC private endpoints to keep traffic on the AWS backbone; Audit Manager FedRAMP framework; confirm the authorizing agency for the customer's account.
 - **GDPR** — EU-region-only clusters + all data layers in EU; no cross-region replication outside the EU; EU-region CloudWatch/CloudTrail; download the DPA from Artifact; the customer owns Article-17 erasure, DPIAs, and breach notification (Articles 33-34).
@@ -34,7 +34,7 @@ The cross-cutting view over the 7-layer stack. **Compliance status changes over 
 ## Worked scenarios (decision shape, not copy-paste)
 
 ### 1 — HIPAA greenfield, open to AWS defaults
-Bottlerocket + Pod Identity + Access Entries + PSA `restricted` + Kyverno + VPC CNI NetworkPolicy + Security Groups for Pods + ECR Enhanced Scanning + Cosign + GuardDuty for EKS + all 5 control-plane logs + CMK on PHI data layers + Audit Manager HIPAA framework. **Confirm the BAA is active before anything else.** 30/60/90: provision + enable logging/Audit Manager → onboard first PHI workload + validate Pod Identity/Access Entries/Kyverno/NetworkPolicy → HIPAA mock audit + remediate + pull HIPAA AOC.
+Bottlerocket + Pod Identity + Access Entries + PSA `restricted` + Kyverno + VPC CNI NetworkPolicy + Security Groups for Pods + ECR Enhanced Scanning + Cosign + GuardDuty for EKS + all 5 control-plane logs + CMK on PHI data layers + Audit Manager HIPAA framework. **Confirm the BAA is active before anything else.** 30/60/90: provision + enable logging/Audit Manager → onboard first PHI workload + validate Pod Identity/Access Entries/Kyverno/NetworkPolicy → HIPAA mock audit + remediate + confirm the signed BAA (Artifact Agreements) + supporting SOC 2 report (no HIPAA AOC exists).
 
 ### 2 — Vendor-OS mandate (RHEL), FedRAMP Moderate, federal
 Layer 1 = custom CIS-hardened RHEL AMI on self-managed nodes via Image Builder (customer owns RHEL hardening + patch cycle), **or** ROSA if they want Red-Hat-managed OpenShift (separate product — defer to ROSA + Red Hat partner). Layers 2-7 identical to the canonical stack. FedRAMP nuance: Moderate = commercial regions; CMK for all data layers; VPC private endpoints. Surface Bottlerocket as the AWS-canonical alternative *if* the mandate is a support contract rather than specific RHEL features — without pushing past the mandate. Escalate if the customer needs FedRAMP **High** (GovCloud + partner).
