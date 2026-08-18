@@ -263,6 +263,15 @@ resource "aws_launch_template" "instances" {
     security_groups             = [aws_security_group.instances.id]
   }
 
+  # IMDSv2 required, hop limit 1. The hop limit is what keeps a bridge-networked
+  # container from reaching the instance's credentials at all; requiring tokens is
+  # host-level defence in depth on top of that.
+  metadata_options {
+    http_tokens                 = "required"
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 1
+  }
+
   # Without this the instances never join the cluster.
   user_data = base64encode(<<-EOT
     #!/bin/bash
@@ -336,13 +345,29 @@ resource "aws_ecs_task_definition" "app" {
         }
       ]
 
+      # `mode` is set explicitly on purpose. Since 2025-06-25 an unset mode
+      # defaults to non-blocking, and a non-blocking driver with no
+      # max-buffer-size buffers only 1 MiB before it starts dropping lines —
+      # which is exactly the wrong failure during the steady-state verification
+      # this path ends with, since the logs are the diagnosis.
+      #
+      # non-blocking is still the right default: blocking backs pressure up into
+      # the application's stdout writes and can hang a container (Trusted Advisor
+      # flags it as an availability risk). The buffer is widened instead. Switch
+      # to blocking only when complete logs matter more than task availability,
+      # and say so when you do.
       logConfiguration = {
         logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.app.name
-          "awslogs-region"        = var.region
-          "awslogs-stream-prefix" = "replatform"
-        }
+        options = merge(
+          {
+            "awslogs-group"         = aws_cloudwatch_log_group.app.name
+            "awslogs-region"        = var.region
+            "awslogs-stream-prefix" = "replatform"
+            "mode"                  = var.log_driver_mode
+          },
+          # max-buffer-size is only valid in non-blocking mode.
+          var.log_driver_mode == "non-blocking" ? { "max-buffer-size" = var.log_max_buffer_size } : {}
+        )
       }
     }
   ])
@@ -366,6 +391,13 @@ resource "aws_ecs_service" "app" {
   desired_count   = var.desired_count
 
   enable_execute_command = var.enable_execute_command
+
+  # Legacy applications start slowly — the Replatform path exists because they
+  # are unmodified, so a JVM or an app server warming up for a minute is normal.
+  # Without a grace period the ALB health check fails a task that is still
+  # starting and ECS kills it, which reads as a crash loop rather than a slow
+  # start. Tune it to the application's observed startup time.
+  health_check_grace_period_seconds = var.health_check_grace_period_seconds
 
   load_balancer {
     target_group_arn = aws_lb_target_group.app.arn

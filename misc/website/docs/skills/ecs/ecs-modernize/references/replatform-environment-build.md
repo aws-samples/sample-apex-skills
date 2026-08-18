@@ -98,6 +98,22 @@ A verified skeleton ships with this skill at **[`assets/replatform-terraform/`](
 2. **`session_affinity_required`** — `true` only when the `in_process_session` blocker exists. The `stickiness` block itself stays in the skeleton either way; the variable decides. This is deliberate: a reviewer can see that the decision was *made* rather than that the block was forgotten.
 3. **The EFS fragment** — added, renamed to `efs.tf`, and wired into the task definition **only** when a `local_state` finding was classified persistent. Both shapes — skeleton alone, and skeleton plus fragment — are `terraform validate`-clean as shipped.
 
+**`validate` is not `plan`, and the difference has bitten this skeleton.** `terraform validate` checks syntax and references without resolving values, so it passes on configurations that cannot plan. The EFS fragment originally keyed its mount targets with `for_each = toset(local.subnet_ids)`; in CREATE mode those ids do not exist until apply, and `for_each` keys must be known at plan time, so `terraform plan` failed outright with *"Invalid for_each argument … cannot be determined until apply"* while `validate` stayed green. The fragment now uses `count`, whose value is known in both modes. Both network modes have since been **plan-verified** with the fragment added — but the general rule is what matters: when a generated shape depends on values, a clean `validate` is necessary and not sufficient. Say which check was run, and do not describe `validate` coverage as though it were plan coverage.
+
+### What "verified" means here, and what the skeleton is not
+
+The skeleton is verified in a specific, limited sense: it formats, validates, plans and has been applied and destroyed against a real account. That is **not** the same as production-hardened, and it must not be presented as a hardened baseline. As shipped it carries, deliberately:
+
+| As shipped | Why, and what to do before production |
+|---|---|
+| **HTTP:80 only, no TLS** | The skeleton ships no certificate, and inventing an ACM domain would be a fabricated value. Add an HTTPS listener with a real certificate and redirect 80 → 443 |
+| **Egress `0.0.0.0/0`** | The unmodified application's outbound dependencies are not known from source analysis. Narrow it once they are enumerated |
+| **ECS Exec off by default** | Turning it on with no `execute_command_configuration` means an unaudited interactive shell. Enable it deliberately, and pair it with cluster-level Exec logging |
+| **No Container Insights** | Left off so the exercise's CloudWatch cost is near zero. Enable it for anything you intend to operate |
+| **IMDSv2 required, hop limit 1** | Already set — the hop limit is what keeps bridge-networked containers off the instance credentials |
+
+State this boundary when handing the environment over, and name **`ecs-security`** for the hardening pass. A migration cutover environment and a production environment are not the same artifact, and the difference is the user's to close.
+
 **Deviating from the skeleton.** A concrete migration finding may require something the skeleton does not carry (a second port, a sidecar, an extra egress rule). Add it, and state in the Execution_Log what was added and which finding required it. What is not permitted is silently changing the four elements that define this path — `bridge` networking, `hostPort = 0`, `target_type = "instance"`, and the fixed-count-no-scaling service. Changing those makes it a different path, and the approved strategy no longer describes what was built.
 
 **Why this order:** the approved-path check (step 1) gates everything, because generating an ECS on EC2 environment for a path the user approved as Fargate is a worse outcome than generating nothing. The conditioned elements (step 4) are resolved before generation so that stickiness and volumes are present exactly when their grounding findings are, rather than being added or removed after the fact. `terraform validate` (step 6) precedes any success report: unvalidated Terraform is not a deliverable.

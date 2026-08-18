@@ -246,7 +246,7 @@ Snapshot facts, each with its source. Re-verify per the directive above before u
 
 Where no published evidence distinguishes the capability of Transform_Augmentation from agent execution for a given transformation type, apply ALL three of the following, verbatim in spirit:
 
-1. **State explicitly that no capability-difference evidence exists** for that transformation type — say "no capability-difference evidence" (能力差の証拠なし); do not soften it into an implied preference or omit it.
+1. **State explicitly that no capability-difference evidence exists** for that transformation type — say "no capability-difference evidence"; do not soften it into an implied preference or omit it.
 2. **Guide the adoption decision by the operational factors** of dimension (a) — cost, organizational policy, availability, connectivity — together with the mechanically determinable dimensions (b) local verifiability and (c) scale. These are decidable without capability evidence.
 3. **Never claim that either execution route is superior or inferior without citable evidence.** A capability claim in a proposal must trace to a row of the table above (re-verified per the freshness directive) or to another citable source named in the proposal.
 

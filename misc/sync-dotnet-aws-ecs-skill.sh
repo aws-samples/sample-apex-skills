@@ -64,7 +64,8 @@ echo ""
 
 # --- Step 1: Clone upstream into a temp directory ---
 TEMP_DIR=$(mktemp -d)
-trap "rm -rf $TEMP_DIR" EXIT
+# Single-quote the trap so $TEMP_DIR expands when the trap fires, not now (SC2064).
+trap 'rm -rf "$TEMP_DIR"' EXIT
 
 echo "Cloning upstream: $UPSTREAM_REPO"
 git clone --depth 1 "$UPSTREAM_REPO" "$TEMP_DIR/sample-appmod-skills" 2>&1
@@ -78,6 +79,16 @@ UPSTREAM_DIR="$UPSTREAM_ROOT/$UPSTREAM_SKILL_DIR"
 # layout changes, we fail here with the local skill dir untouched.
 if [ ! -f "$UPSTREAM_DIR/SKILL.md" ]; then
     echo "ERROR: Upstream skill not found at $UPSTREAM_SKILL_DIR/SKILL.md" >&2
+    echo "The upstream repo layout may have changed. Local $LOCAL_SKILL_PATH is untouched." >&2
+    exit 1
+fi
+
+# The copy step below globs references/*.md, which fails after the rm if the
+# directory is empty or absent — wiping local then aborting. Guard it here too,
+# while local is still untouched, so every path the copy needs is verified before
+# anything is removed.
+if ! ls "$UPSTREAM_DIR/references/"*.md > /dev/null 2>&1; then
+    echo "ERROR: Upstream has no references/*.md at $UPSTREAM_SKILL_DIR/references/" >&2
     echo "The upstream repo layout may have changed. Local $LOCAL_SKILL_PATH is untouched." >&2
     exit 1
 fi
@@ -209,7 +220,7 @@ echo ""
 # --- Step 8: Show what we got ---
 echo "=== Synced files ==="
 find "$LOCAL_DIR" -type f | sort | while read -r f; do
-    echo "  ${f#$REPO_ROOT/}"
+    echo "  ${f#"$REPO_ROOT"/}"
 done
 echo ""
 

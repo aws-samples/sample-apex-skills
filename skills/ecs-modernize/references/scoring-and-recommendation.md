@@ -176,18 +176,22 @@ This dimension is governed by three definitions — the legacy classification, t
 - ASP.NET Core
 - .NET (Core / 5 and later) on a provider-supported version
 
+Note the qualifier in the first and third entries: **support status is part of the classification, not a footnote to it.** A framework line whose provider support has ended is in the *legacy* classification by the EOL entry above, however modern its family looks — so an EOL Spring Boot line does not reach the modern floor even though "Spring Boot" appears here.
+
 The legacy cap (40) is strictly below the modern floor (60); the interval 41–59 belongs to classifications that are neither legacy nor modern.
 
 **Modernity ladder** (most modern first) with the score band of each tier:
 
 | Tier | Classifications | Score band |
 |---|---|---|
-| 1 (most modern) | ASP.NET Core; Spring Boot 3.x | 80–100 |
-| 2 | Spring Boot 2.x; .NET 6–8 | 60–79 |
+| 1 (most modern) | ASP.NET Core; Spring Boot 3.x — on supported lines | 80–100 |
+| 2 | Spring Boot 2.x; .NET 6–8 — **only while the line is provider-supported** | 60–79 |
 | 3 | Spring Framework (non-Boot); ASP.NET MVC; Jakarta EE / Java EE | 41–59 |
-| 4 (legacy) | Struts; ASP.NET Web Forms; WCF; .NET Framework | 0–40 |
+| 4 (legacy) | Struts; ASP.NET Web Forms; WCF; .NET Framework; **any EOL framework or runtime line, whatever tier its family would otherwise sit in** | 0–40 |
 
 Tiers 1–2 sit at or above the modern floor; tier 4 sits at or below the legacy cap; tier 3 occupies the interval between them. Within a tier, position the score by version currency and support status (a framework on its newest supported line scores near the top of its band; an aging line near the bottom).
+
+**EOL beats the tier — check support status before banding.** Tier 2 in particular lists lines that have since gone end of life: Spring Boot 2.x left OSS support in November 2023, and .NET 6 and 7 are both past their end of support. An EOL line belongs to the legacy classification (see the EOL entry above) and is therefore **capped at 40**, whichever tier its family appears in here. The runtime-constraint rule below catches this when the *runtime* is EOL; this note is what catches it when the **framework line** is EOL on a still-supported runtime — an EOL Spring Boot 2.x application on Java 17 is the case that would otherwise slip through at 60–79. Verify the support status of the detected line at analysis time rather than reading the tier off this table, and record the support fact in the dimension's evidence.
 
 **Scoring rules:**
 
@@ -332,6 +336,12 @@ Absence of findings is not automatically a high score, and not automatically und
 ### All dimensions undetermined
 
 Report no numeric Fit_Score (`fit_score: null`), report per-dimension reasons, and hand off to the recommendation rules' no-score handling. Do not average nothing into something.
+
+### Compiled artifacts only — no readable source
+
+When the target path is readable but contains **no readable source code and no build definition** (only packaged or compiled artifacts — WAR/JAR/DLL/EXE), **every** dimension is `undetermined` and `fit_score` is `null`. This is stated explicitly because one dimension invites the opposite reading: `build_reproducibility`'s 0–29 band begins "No build definition", which looks satisfied here. It is not. That band describes a **readable source tree in which no build definition was found** — a determinable "checked and found none". With only artifacts there is no tree to check, so the honest state is "could not check", and a score of ~10 would be a fabricated determination dressed as a finding.
+
+What to report instead: the artifact inventory that *was* observed (file names and types are evidence of the stack, and tech stack detection may legitimately determine a language or framework from them), and what would settle the scoring — the source repository, or an artifact-level inventory tool. The recommendation follows the no-score handling: both strategies in parallel with decision factors, and no score-based pick.
 
 ### Partial analysis (`analysis.partial: true`)
 

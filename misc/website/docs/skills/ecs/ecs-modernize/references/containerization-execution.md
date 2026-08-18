@@ -360,7 +360,7 @@ No creation is needed: the existence check passes, `created_repo` stays false, a
 
 ### The remote build definition is generated but the user never starts the build
 
-That is a valid resting state: the definition files exist at the approved destination, `remote_build.started` stays false, and the image URI stays unresolved. Downstream modules treat the URI per their unresolved-value rules ([windows-environment-build.md](windows-environment-build) input-variable rule; [deploy-verify-handoff.md](deploy-verify-handoff) 未確定 handling). Never start the build to "unblock" things without the explicit confirmation.
+That is a valid resting state: the definition files exist at the approved destination, `remote_build.started` stays false, and the image URI stays unresolved. Downstream modules treat the URI per their unresolved-value rules ([windows-environment-build.md](windows-environment-build) input-variable rule; [deploy-verify-handoff.md](deploy-verify-handoff) unresolved-item handling). Never start the build to "unblock" things without the explicit confirmation.
 
 ### Code transformation is in the approved plan but has not completed
 

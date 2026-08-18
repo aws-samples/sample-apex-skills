@@ -38,6 +38,7 @@ This skill runs a **two-phase pipeline** with an explicit control point between 
 - **Inventorying a live ECS estate** (clusters, services, task definitions already running) — use `ecs-recon`.
 - **Security / compliance hardening** (IAM permission design, detailed secrets-management design, compliance audits) — use `ecs-security`.
 - **Kubernetes / EKS migration** — use `eks-design`. If the request mentions only Kubernetes/EKS and not ECS, do not run any analysis here.
+- **Greenfield .NET deployment with no existing app to assess** — a .NET application already cloud-ready and simply needing IaC (CloudFormation/CDK) to run on Fargate Linux is `dotnet-aws-ecs`'s job, not this skill's. The overlap is only apparent: `dotnet-aws-ecs` starts from a deployable app and emits a stack; `ecs-modernize` starts from a **legacy** app, runs the read-only assessment, and gates any change behind the Execution_Gate. Route to `dotnet-aws-ecs` when there is no legacy source to assess and no replatform/rearchitect decision to make; stay here when there is. (`dotnet-aws-ecs` does not name this skill in its own list — it is vendored from upstream and edited only at sync time.)
 
 ## Execution Model and Non-Destructive Guardrails
 
@@ -237,7 +238,15 @@ Dockerfile or task-definition **examples inside the Modernization_Report** are n
 
 ## IAM Permissions
 
-A ready-to-use least-privilege IAM policy document is available at [`references/iam-policy.json`](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/iam-policy.json). Statements are split by phase via their `Sid` prefix: `Assessment*` statements grant read-only access only (`Describe`/`List`/`Get` operations, matching the Assessment_Phase invariants), while `Execution*` statements grant the per-action-class permissions Migration_Execution needs — ECR repository creation, image push, CodeBuild remote Windows builds, `terraform apply` infrastructure (ECS, capacity, load balancing, IAM roles, logs), and read-only deploy verification. No statement grants delete actions on existing AWS resources. For assessment-only use, attach the `Assessment*` statements alone.
+A ready-to-use IAM policy document is available at [`references/iam-policy.json`](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/iam-policy.json). Statements are split by phase via their `Sid` prefix: `Assessment*` statements grant read-only access only (`Describe`/`List`/`Get` operations, matching the Assessment_Phase invariants), while `Execution*` statements grant the per-action-class permissions Migration_Execution needs — ECR repository creation, image push, CodeBuild remote Windows builds, `terraform apply` infrastructure (ECS, capacity, load balancing, IAM roles, logs), and read-only deploy verification. No statement grants delete actions on existing AWS resources, so a **teardown needs permissions this document deliberately withholds**. For assessment-only use, attach the `Assessment*` statements alone.
+
+**The `Execution*` half is scoped, not harmless — read this before attaching it.** Creating roles and passing them to services is inherently powerful: the unrestricted form of it (`iam:CreateRole` + `iam:AttachRolePolicy` + `iam:PassRole` on `*`) is administrator-equivalent, because the holder can mint a role, attach `AdministratorAccess`, and pass it to a service. The document therefore constrains all three:
+
+- every role and instance profile is confined to the IAM **path** `/ecs-modernize/`, which the generated Terraform sets (role *names* derive from a user-supplied prefix and cannot be scoped, so the path is the handle);
+- `iam:AttachRolePolicy` is restricted by `iam:PolicyARN` to exactly the three AWS-managed policies the generated environments attach;
+- `iam:PassRole` is restricted by `iam:PassedToService` to `ecs-tasks.amazonaws.com` and `ec2.amazonaws.com`.
+
+What remains is `iam:PutRolePolicy` on roles under that path: an operator who already holds this document can write an inline policy onto a role it created. Closing that requires a **permissions boundary** on the created roles, which is the right control for a shared or production account and is the user's to configure. Describe the document as scoped-for-migration-execution, never as least-privilege.
 
 ## Note: Future `ecs-build` Coverage
 

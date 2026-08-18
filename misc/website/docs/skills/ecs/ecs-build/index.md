@@ -35,6 +35,7 @@ Scope: **Terraform only.** For CDK-based ECS generation, this skill does not app
 ## Don't Use
 
 - Designing the workload or choosing a launch type/capacity model from requirements (use `ecs-architect` -- come here once the design is settled)
+- **Migrating an existing (legacy) application onto ECS** -- "generate Terraform to migrate my app", "containerize this app and deploy it" (use `ecs-modernize`). That skill runs a read-only assessment, makes the replatform/rearchitect decision, and gates every change behind its Execution_Gate; it then hands *this* skill a settled Rearchitect compute-model design to render. Coming straight here for a migration bypasses that gate. This skill renders a design that is already settled -- it does not assess an app or decide a strategy.
 - EKS or Kubernetes builds of any kind (use `eks-build`)
 - Generic Terraform authoring, review, or debugging with no ECS resource being built (use `terraform-skill`)
 - CI/CD pipelines, release-strategy selection, rollback operations, or deployment debugging (use `ecs-devops` -- this skill only renders the `deployment_configuration` blocks the chosen strategy needs)

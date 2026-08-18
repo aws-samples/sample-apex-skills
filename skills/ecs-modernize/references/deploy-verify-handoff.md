@@ -59,7 +59,7 @@ Present the handoff as a list that pairs **each item name with its value**. The 
 
 **Traceability rule (Requirement 17.6):** every value in the handoff is reported together with its origin — the Requirement 16 artifact or push result it came from, and/or the Source_Analysis finding that grounds it. A value with no traceable origin does not go into the handoff as a settled value.
 
-**Unresolved items:** when an item's value is not yet settled (e.g. the image was not pushed, or sizing evidence is missing), do NOT invent a value. Record the item as **未確定 (unresolved)** and state, in place of the value, **the condition required to settle it** — for example: "Image URI: 未確定 — settles when the Requirement 16 remote build (CodeBuild Windows path does not apply here; local build failed) is completed and the image is pushed to ECR". Unresolved items stay in the list; they are never silently dropped.
+**Unresolved items:** when an item's value is not yet settled (e.g. the image was not pushed, or sizing evidence is missing), do NOT invent a value. Record the item as **unresolved** and state, in place of the value, **the condition required to settle it** — for example: "Image URI: unresolved — settles when the Requirement 16 remote build (CodeBuild Windows path does not apply here; local build failed) is completed and the image is pushed to ECR". Unresolved items stay in the list; they are never silently dropped.
 
 ---
 
@@ -163,7 +163,7 @@ If any target service has not reached steady state when the 10-minute window clo
 | Verification may start | The apply completion is confirmed: skill-run `terraform apply` succeeded, OR the user declared they completed the apply. A failed skill-run apply never starts verification |
 | Steady state reached (per service) | running count == desired count AND the latest deployment is completed — both observed together |
 | Verification API is permissible | The operation name starts with `Describe` or `List`. Anything else is not used |
-| Handoff value is settled | The value traces to a Requirement 16 output (artifact / push result) and/or a Source_Analysis finding. Otherwise the item is 未確定 (unresolved) with its settling condition stated |
+| Handoff value is settled | The value traces to a Requirement 16 output (artifact / push result) and/or a Source_Analysis finding. Otherwise the item is `unresolved` with its settling condition stated |
 
 ---
 
@@ -210,8 +210,8 @@ environment_construction:            # Rearchitect compute models only — the e
   path: linux
   handoff_items:
     - name: string                   # e.g. "Image URI", "Exposed ports", "Session affinity"
-      value: string | 未確定          # the settled value, or the unresolved marker
-      unresolved_condition: string | null   # what settles the item (未確定 only)
+      value: string | unresolved     # the settled value, or the unresolved marker
+      unresolved_condition: string | null   # what settles the item (unresolved only)
       traceability: string           # the Req 16 output and/or Source_Analysis finding behind the value
 
 deployment_verification:
@@ -247,7 +247,7 @@ execution_log:
 - `services` entries exist only after verification started; a `failed` apply_result forbids verification entirely.
 - Every `steady_state: reached` entry shows running == desired AND a completed deployment.
 - Every operation in `api_operations_used` starts with `Describe` or `List`.
-- Every handoff item is either settled-with-traceability or `未確定` with an `unresolved_condition` — never a bare guess.
+- Every handoff item is either settled-with-traceability or `unresolved` with an `unresolved_condition` — never a bare guess.
 - The `execution_log.entries` sequence is append-ordered: entry *n* was recorded before action *n+1* began.
 
 ---
@@ -284,7 +284,7 @@ Apply the [save-failure fallback](#save-failure-fallback): report the failure an
 
 ### Handoff requested before containerization finished
 
-Produce the handoff with the settled items filled and the rest marked 未確定 with their settling conditions (typically "complete the Requirement 16 build/push"). The handoff is not blocked by unresolved items — `ecs-build` delegation guidance and the traceable partial list still go out.
+Produce the handoff with the settled items filled and the rest marked `unresolved` with their settling conditions (typically "complete the Requirement 16 build/push"). The handoff is not blocked by unresolved items — `ecs-build` delegation guidance and the traceable partial list still go out.
 
 ### Migration_Execution is interrupted mid-module
 

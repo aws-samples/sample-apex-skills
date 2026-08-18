@@ -199,12 +199,76 @@ variable "log_retention_days" {
 
 variable "enable_execute_command" {
   description = <<-EOT
-    Enable ECS Exec. The Replatform path's operational-procedures table lists
-    this as the replacement for host-login diagnostics, so it is on by default.
-    It adds a task role granting only the SSM message-channel actions.
+    Enable ECS Exec. The Replatform path's operational-procedures table lists it
+    as the replacement for host-login diagnostics, and it adds a task role
+    granting only the SSM message-channel actions.
+
+    It defaults to OFF because this skeleton configures no
+    execute_command_configuration — no audit log, no KMS key — so enabling it
+    hands out an unaudited interactive shell inside the task. Turn it on
+    deliberately, and for anything beyond a short-lived migration cutover pair it
+    with cluster-level Exec logging (`ecs-security` covers the shape).
   EOT
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "iam_role_path" {
+  description = <<-EOT
+    IAM path for the roles and instance profile this skeleton creates. It exists
+    so the operator's own IAM permissions can be resource-scoped to
+    `arn:aws:iam::*:role/<path>*` — role names derive from name_prefix and are
+    therefore unpredictable, so the path is the only stable handle. Must begin and
+    end with "/".
+  EOT
+  type        = string
+  default     = "/ecs-modernize/"
+
+  validation {
+    condition     = can(regex("^/.*/$", var.iam_role_path))
+    error_message = "iam_role_path must begin and end with a forward slash, e.g. /ecs-modernize/."
+  }
+}
+
+variable "health_check_grace_period_seconds" {
+  description = <<-EOT
+    How long the service ignores ALB health checks after a task starts. The
+    Replatform path runs an unmodified application, so slow starts are the norm
+    rather than a bug; too small a grace period makes ECS kill tasks that are
+    still warming up. Raise it to comfortably exceed the observed startup time.
+  EOT
+  type        = number
+  default     = 120
+}
+
+variable "log_driver_mode" {
+  description = <<-EOT
+    awslogs delivery mode, set explicitly rather than left to the default. Since
+    2025-06-25 an unset mode means non-blocking, which silently drops lines once
+    its buffer fills — bad during the steady-state verification this path ends
+    with, where the logs are the diagnosis.
+
+    non-blocking is still the default here: blocking backs pressure up into the
+    application's stdout writes and can hang a container. Choose blocking only
+    when complete logs matter more than task availability.
+  EOT
+  type        = string
+  default     = "non-blocking"
+
+  validation {
+    condition     = contains(["non-blocking", "blocking"], var.log_driver_mode)
+    error_message = "log_driver_mode must be non-blocking or blocking."
+  }
+}
+
+variable "log_max_buffer_size" {
+  description = <<-EOT
+    Buffer for non-blocking mode. The driver's own default is 1 MiB, which a
+    chatty legacy application can overrun in seconds; this widens it. Ignored in
+    blocking mode, where the option is not valid.
+  EOT
+  type        = string
+  default     = "25m"
 }
 
 variable "tags" {

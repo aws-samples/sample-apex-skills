@@ -118,7 +118,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "ExecutionTerraformIAM",
+      "Sid": "ExecutionTerraformIAMRolesUnderSkillPath",
       "Effect": "Allow",
       "Action": [
         "iam:CreateRole",
@@ -128,14 +128,44 @@
         "iam:ListAttachedRolePolicies",
         "iam:ListInstanceProfilesForRole",
         "iam:PutRolePolicy",
-        "iam:AttachRolePolicy",
         "iam:TagRole",
         "iam:CreateInstanceProfile",
         "iam:GetInstanceProfile",
-        "iam:AddRoleToInstanceProfile",
-        "iam:PassRole"
+        "iam:AddRoleToInstanceProfile"
       ],
-      "Resource": "*"
+      "Resource": [
+        "arn:aws:iam::*:role/ecs-modernize/*",
+        "arn:aws:iam::*:instance-profile/ecs-modernize/*"
+      ]
+    },
+    {
+      "Sid": "ExecutionTerraformIAMAttachOnlyTheseManagedPolicies",
+      "Effect": "Allow",
+      "Action": "iam:AttachRolePolicy",
+      "Resource": "arn:aws:iam::*:role/ecs-modernize/*",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": [
+            "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+            "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role",
+            "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "ExecutionTerraformIAMPassRoleToEcsAndEc2Only",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::*:role/ecs-modernize/*",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "ecs-tasks.amazonaws.com",
+            "ec2.amazonaws.com"
+          ]
+        }
+      }
     },
     {
       "Sid": "ExecutionTerraformLogs",

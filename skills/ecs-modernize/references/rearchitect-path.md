@@ -119,7 +119,7 @@ Fully managed EC2 capacity for ECS (GA since Sept 2025, all commercial Regions s
 - Linux containers on **Bottlerocket only** (X86_64 / ARM64) — no custom AMI/kernel, no Windows; OS-specific dependencies must be resolved by porting items, as with Fargate.
 - `awsvpc` or `host` network mode (no `bridge`).
 - Tasks tolerate being cycled by the 14–21 day drain-and-replace patching lifecycle — which makes the graceful-shutdown modernization item a first-class prerequisite ([Managed Instances patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)).
-- Not available in the China Regions.
+- Available in all AWS Regions **except AWS GovCloud (US) and the China Regions** ([ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/)) — so a GovCloud target rules this compute model out, not just a China one.
 
 **Typical grounding:** *applicable* when findings evidence resource or hardware needs Fargate cannot serve (cite the `tech_stack` or dependency evidence); *applicable_after_remediation* when graceful-shutdown or state findings must be resolved first (instance cycling makes unhandled shutdown a live risk, not a theoretical one); *not_applicable* when the deployment must land in a China Region or genuinely requires a custom AMI/kernel — the latter is also a signal to revisit the Replatform path (ECS on EC2), which the report's both-strategies comparison already presents.
 

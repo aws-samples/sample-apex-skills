@@ -52,11 +52,17 @@ resource "aws_efs_file_system" "archive" {
   tags           = merge(local.tags, { Name = "${local.name}-archive" })
 }
 
+// `count`, not `for_each`, and that is not a style preference. In CREATE mode
+// local.subnet_ids is aws_subnet.public[*].id — values that do not exist until
+// apply — and for_each keys must be known at plan time, so for_each fails the
+// whole plan with "Invalid for_each argument ... cannot be determined until
+// apply". The count is known in both modes (the subnets this skeleton creates, or
+// the length of the list supplied in REUSE mode), so count plans cleanly in each.
 resource "aws_efs_mount_target" "archive" {
-  for_each = toset(local.subnet_ids)
+  count = length(local.subnet_ids)
 
   file_system_id  = aws_efs_file_system.archive.id
-  subnet_id       = each.value
+  subnet_id       = local.subnet_ids[count.index]
   security_groups = [aws_security_group.efs_archive.id]
 }
 

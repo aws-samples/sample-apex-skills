@@ -34,10 +34,19 @@ data "aws_iam_policy_document" "ecs_tasks_assume" {
   }
 }
 
+# --- IAM path ----------------------------------------------------------------
+#
+# Every role and instance profile below sits under a shared path. That is what
+# lets the operator's own permissions be scoped: an IAM statement can name
+# `arn:aws:iam::*:role/ecs-modernize/*` and cover exactly the roles this skeleton
+# creates, which is impossible when role names come from a user-supplied prefix.
+# See references/iam-policy.json (ExecutionTerraformIAM*).
+
 # --- container instance role --------------------------------------------------
 
 resource "aws_iam_role" "instance" {
   name               = "${local.name}-instance"
+  path               = var.iam_role_path
   assume_role_policy = data.aws_iam_policy_document.ec2_assume.json
   tags               = local.tags
 }
@@ -56,6 +65,7 @@ resource "aws_iam_role_policy_attachment" "instance_ssm" {
 
 resource "aws_iam_instance_profile" "instance" {
   name = "${local.name}-instance"
+  path = var.iam_role_path
   role = aws_iam_role.instance.name
   tags = local.tags
 }
@@ -64,6 +74,7 @@ resource "aws_iam_instance_profile" "instance" {
 
 resource "aws_iam_role" "execution" {
   name               = "${local.name}-execution"
+  path               = var.iam_role_path
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
   tags               = local.tags
 }
@@ -100,6 +111,7 @@ data "aws_iam_policy_document" "exec_access" {
 resource "aws_iam_role" "exec_access" {
   count              = var.enable_execute_command ? 1 : 0
   name               = "${local.name}-task-exec-access"
+  path               = var.iam_role_path
   assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
   tags               = local.tags
 }
