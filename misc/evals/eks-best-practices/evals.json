@@ -200,8 +200,8 @@
         },
         {
           "type": "must-not-contain",
-          "pattern": "[A-Za-z][\\w /-]*\\s*[:|]\\s*(GREEN|AMBER|RED)\\b|\\b(GREEN|AMBER|RED)\\b\\s*[:|]|score (each|every|the) (area|dimension|component)|maturity (score|rating) report",
-          "context": "Surge readiness is advisory/descriptive: it must NOT emit an eks-operation-review-style scored audit. This regex catches a per-area colour VERDICT (e.g. 'Networking: RED', 'Autoscaling | AMBER') or a 'score each area' / 'maturity report' instruction — the structural signature of a scored audit. It deliberately does NOT fire on a prose disclaimer that merely names the scheme (e.g. 'no GREEN/AMBER/RED scoring here'), because those tokens are slash-joined and not bound to an area label by a colon/pipe. Regex flags: case-insensitive.",
+          "pattern": "\\|\\s*(GREEN|AMBER|RED)\\s*\\||[A-Za-z][\\w -]*:\\s*(GREEN|AMBER|RED)\\b(?!\\s*[/|])|score (each|every|the) (area|dimension|component)|maturity (score|rating) report",
+          "context": "Surge readiness is advisory/descriptive: it must NOT emit an eks-operation-review-style scored audit. This regex catches a per-area colour VERDICT as a table cell ('| AMBER |') or an area label followed by a single colour ('Networking: RED'), plus a 'score each area' / 'maturity report' instruction — the structural signature of a scored audit. The `(?!\\s*[/|])` lookahead spares a prose disclaimer that merely names the scheme, including the 'not an operation review: GREEN/AMBER/RED are out of scope' shape, because there the colour is followed by a slash-joined list rather than standing alone as a verdict. Regex flags: case-insensitive.",
           "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_game_days_resiliency.html",
           "flags": "i"
         }

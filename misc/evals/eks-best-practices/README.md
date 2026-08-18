@@ -27,7 +27,7 @@ The key discriminators for `eks-best-practices`: the prompt asks for a *decision
 
 ## Live-MCP caveat
 
-`evals.json` prompts are intentionally advisory and scenario-described — both evals give the model enough context in the prompt text that it can produce a quality answer without reaching into a live EKS cluster via MCP tools. Running these evals does **not** require a live cluster or the EKS MCP server to be configured. Triggering evals (`triggering.json`) are matched against the skill's `description` frontmatter only and are never affected by MCP availability.
+`evals.json` prompts are intentionally advisory and scenario-described — all three evals give the model enough context in the prompt text that it can produce a quality answer without reaching into a live EKS cluster via MCP tools. Running these evals does **not** require a live cluster or the EKS MCP server to be configured. Triggering evals (`triggering.json`) are matched against the skill's `description` frontmatter only and are never affected by MCP availability.
 
 ## How to run
 
