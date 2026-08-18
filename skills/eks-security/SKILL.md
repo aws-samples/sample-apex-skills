@@ -64,7 +64,7 @@ Walk the layers bottom-up on a first engagement; each layer's controls compound 
 
 ## Compliance-Regime Scope (cross-cutting)
 
-EKS is **natively in scope** for PCI-DSS L1, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Moderate (commercial) and High (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud only — commercial reaches IL2). AWS provides **alignment / framework support** (not independent attestation) for GDPR, NIST SP 800-53/800-171, and CJIS — the customer owns workload-level controls. Per-regime nuance, the scope table, and the worked HIPAA/PCI/FedRAMP/GDPR/Auto-Mode scenarios: [references/compliance-regimes.md](references/compliance-regimes.md).
+EKS is **natively in scope** for PCI-DSS L1, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Moderate (commercial) and High (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud only — commercial reaches IL2). AWS provides **alignment / framework support** (not independent attestation) for GDPR, NIST SP 800-53/800-171, and CJIS — the customer owns workload-level controls. Per-regime nuance, the scope table, and the worked HIPAA/PCI/FedRAMP/GDPR/Auto-Mode scenarios: [references/compliance-regimes.md](references/compliance-regimes.md). Dedicated per-regime quick-starts for the three most common regimes: [HIPAA](references/compliance-hipaa.md), [PCI DSS](references/compliance-pci.md), [SOC 2](references/compliance-soc2.md).
 
 > **Always include the disclaimer in customer-facing output:** "Compliance status changes over time — verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting program coverage." And precision matters: EKS is **HIPAA-*eligible*** (with a signed BAA), not "HIPAA-compliant"; FedRAMP **High = GovCloud only**, Moderate = commercial regions.
 
@@ -170,7 +170,10 @@ Progressive disclosure — the essentials are above; load a reference only when 
 | [encryption-and-secrets.md](references/encryption-and-secrets.md) | Default envelope encryption (KMS v2), CMK + its operational risk, EBS/EFS/FSx encryption, Secrets Manager/CSI/ESO/Sealed Secrets, secret hygiene |
 | [multi-tenancy.md](references/multi-tenancy.md) | Soft vs hard multi-tenancy, in-cluster isolation (namespaces/RBAC/NetworkPolicy/quotas/node isolation), cluster-/account-per-tenant |
 | [incident-response-and-forensics.md](references/incident-response-and-forensics.md) | IR runbook for a compromised pod/node, isolation/eradication, credential revocation, forensic capture |
-| [compliance-regimes.md](references/compliance-regimes.md) | Per-regime scope (HIPAA/PCI/FedRAMP/GDPR/ISO/…), the scope table, worked scenarios, regime-specific controls |
+| [compliance-regimes.md](references/compliance-regimes.md) | The cross-regime scope table, language-precision rules, worked scenarios, and routing to the per-regime quick-starts (HIPAA/PCI/FedRAMP/GDPR/ISO/…) |
+| [compliance-hipaa.md](references/compliance-hipaa.md) | HIPAA quick-start — BAA-first, Security Rule → EKS control map, 6-year retention, 30/60/90 |
+| [compliance-pci.md](references/compliance-pci.md) | PCI DSS quick-start — CDE scoping/segmentation, Req 1/2/3/4/6/7/8/10/11 → EKS control map, 1-year retention + ASV scan, 30/60/90 |
+| [compliance-soc2.md](references/compliance-soc2.md) | SOC 2 quick-start — attestation vs certification, Trust Services Criteria (CC6/CC7/CC8) → EKS control map, Type II readiness, 30/60/90 |
 
 ## Sources
 

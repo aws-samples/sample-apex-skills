@@ -279,7 +279,10 @@ Use whenever someone needs security or compliance guidance for Amazon EKS — ph
 | [audit-logging.md](./eks-security/references/audit-logging.md) | Audit logging |
 | [auto-mode-security.md](./eks-security/references/auto-mode-security.md) | Auto mode security |
 | [compliance-accelerators.md](./eks-security/references/compliance-accelerators.md) | Compliance accelerators |
+| [compliance-hipaa.md](./eks-security/references/compliance-hipaa.md) | Compliance hipaa |
+| [compliance-pci.md](./eks-security/references/compliance-pci.md) | Compliance pci |
 | [compliance-regimes.md](./eks-security/references/compliance-regimes.md) | Compliance regimes |
+| [compliance-soc2.md](./eks-security/references/compliance-soc2.md) | Compliance soc2 |
 | [encryption-and-secrets.md](./eks-security/references/encryption-and-secrets.md) | Encryption and secrets |
 | [engagement-and-response.md](./eks-security/references/engagement-and-response.md) | Engagement and response |
 | [identity-and-access.md](./eks-security/references/identity-and-access.md) | Identity and access |
