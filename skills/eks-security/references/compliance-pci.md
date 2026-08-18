@@ -20,7 +20,7 @@ A per-regime quick-start for running cardholder-data (CHD) workloads on Amazon E
 | Req 4 — encrypt CHD in transit over open/public networks | TLS to clients; **mTLS** via service mesh for CHD-carrying paths that cross untrusted networks |
 | Req 6 — secure development / patch | **ECR Enhanced Scanning** (Inspector); image signing; 21-day node lifecycle or managed patching |
 | Req 7 / 8 — access control | EKS Pod Identity + Access Entries (`API` mode); least-privilege RBAC; no static keys |
-| Req 10 — logging & monitoring | Control-plane `audit`+`authenticator` + CloudTrail + GuardDuty; **1-year audit-log retention minimum, 3 months immediately available** (PCI DSS Req 10.5.1 / v3.2.1 10.7) |
+| Req 10 — logging & monitoring | Control-plane `audit`+`authenticator` + CloudTrail + GuardDuty; **1-year audit-log retention minimum, 3 months immediately available** (PCI DSS Req 10.5.1) |
 | Req 11 — testing | ECR/Inspector continuous scanning; **quarterly ASV external scan** (Req 11.3.2) + **annual penetration test** (Req 11.4.3); **segmentation testing** — at least every 12 months, **every 6 months for service providers** (Req 11.4.5 / 11.4.6) — to prove the NetworkPolicy/SGP CDE isolation actually holds |
 
 ## 30 / 60 / 90 quick-start (existing-cluster hardening, audit-driven)
