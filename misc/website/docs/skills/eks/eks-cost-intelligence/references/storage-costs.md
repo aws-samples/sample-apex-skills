@@ -122,8 +122,7 @@ aws ec2 describe-volumes \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="PersistentVolumeClaim",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 # Filter results for storageClassName == "gp2"
 
@@ -291,16 +290,14 @@ comm -23 \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="PersistentVolumeClaim",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 
 # Step 2: Get all running pods to check volume mounts
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Pod",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 # Cross-reference: find PVCs in Bound state not referenced by any running pod's spec.volumes
 ```

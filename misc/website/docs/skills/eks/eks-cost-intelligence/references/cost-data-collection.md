@@ -653,8 +653,7 @@ aws logs start-query \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Deployment",
-  api_version="apps/v1",
-  namespace="all"
+  api_version="apps/v1"
 )
 ```
 
@@ -745,8 +744,7 @@ for deploy in deployments.items:
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="PersistentVolumeClaim",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 ```
 
@@ -830,8 +828,7 @@ for pvc in pvcs.items:
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Service",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 ```
 

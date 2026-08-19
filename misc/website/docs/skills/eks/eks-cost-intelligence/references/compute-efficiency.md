@@ -607,8 +607,7 @@ kubectl get pods --all-namespaces -o json | \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Pod",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 # Filter results for containers where resources.requests is null/empty
 ```

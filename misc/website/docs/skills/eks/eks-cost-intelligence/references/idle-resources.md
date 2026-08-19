@@ -110,8 +110,7 @@ kubectl get deployments --all-namespaces -o json | \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Deployment",
-  api_version="apps/v1",
-  namespace="all"
+  api_version="apps/v1"
 )
 # Filter results for spec.replicas == 0
 # Check status.conditions[].lastTransitionTime for idle duration
@@ -275,8 +274,7 @@ aws elb describe-load-balancers --query 'LoadBalancerDescriptions[*].{
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Service",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 # Filter for spec.type == "LoadBalancer"
 # Then check endpoints for each:
@@ -575,8 +573,7 @@ kubectl get pods --all-namespaces -o json | \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Pod",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 # Parse spec.volumes, spec.containers[].envFrom, spec.containers[].env[].valueFrom
 # to build set of referenced ConfigMaps and Secrets

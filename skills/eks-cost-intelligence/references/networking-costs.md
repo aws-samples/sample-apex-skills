@@ -111,8 +111,7 @@ kubectl get endpoints --all-namespaces -o json | \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Service",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 # Filter for services missing topology-mode annotation
 # Then check EndpointSlices for zone distribution:
@@ -269,16 +268,14 @@ aws elbv2 describe-target-health \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Ingress",
-  api_version="networking.k8s.io/v1",
-  namespace="all"
+  api_version="networking.k8s.io/v1"
 )
 # Check annotations for alb.ingress.kubernetes.io/target-type
 
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Service",
-  api_version="v1",
-  namespace="all"
+  api_version="v1"
 )
 # Filter type=LoadBalancer, check target-type annotations
 ```
@@ -672,8 +669,7 @@ aws cloudwatch get-metric-data \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="EndpointSlice",
-  api_version="discovery.k8s.io/v1",
-  namespace="all"
+  api_version="discovery.k8s.io/v1"
 )
 # Analyze zone distribution across endpoints
 

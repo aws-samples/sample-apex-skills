@@ -353,8 +353,7 @@ kubectl get deployments,statefulsets --all-namespaces -o json | \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Deployment",
-  api_version="apps/v1",
-  namespace="all"
+  api_version="apps/v1"
 )
 # Filter for spec.template.spec.nodeSelector["kubernetes.io/arch"] == "amd64"
 # or nodeAffinity expressions restricting to amd64
@@ -362,8 +361,7 @@ list_k8s_resources(
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="StatefulSet",
-  api_version="apps/v1",
-  namespace="all"
+  api_version="apps/v1"
 )
 # Same filtering logic
 ```
@@ -647,15 +645,13 @@ kubectl get nodes -o json | \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Deployment",
-  api_version="apps/v1",
-  namespace="all"
+  api_version="apps/v1"
 )
 
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="PodDisruptionBudget",
-  api_version="policy/v1",
-  namespace="all"
+  api_version="policy/v1"
 )
 
 list_k8s_resources(

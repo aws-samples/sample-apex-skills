@@ -397,15 +397,13 @@ list_k8s_resources(
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="ServiceMonitor",
-  api_version="monitoring.coreos.com/v1",
-  namespace="all"
+  api_version="monitoring.coreos.com/v1"
 )
 
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="PodMonitor",
-  api_version="monitoring.coreos.com/v1",
-  namespace="all"
+  api_version="monitoring.coreos.com/v1"
 )
 ```
 
@@ -625,8 +623,7 @@ kubectl get deployments --all-namespaces -o json | \
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="Deployment",
-  api_version="apps/v1",
-  namespace="all"
+  api_version="apps/v1"
 )
 # Parse containers[].env for LOG_LEVEL=debug/trace patterns
 # Parse containers[].args for --debug/--verbose/--trace flags
@@ -819,8 +816,7 @@ kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers 2>/dev/n
 list_k8s_resources(
   cluster_name="<cluster>",
   kind="DaemonSet",
-  api_version="apps/v1",
-  namespace="all"
+  api_version="apps/v1"
 )
 # Filter for fluent-bit, fluentd, cloudwatch-agent, adot-collector
 
