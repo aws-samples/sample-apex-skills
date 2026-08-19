@@ -49,7 +49,7 @@
 
 ### When to Use CAS Over Karpenter
 
-- EKS on Outposts (Karpenter not supported, as of 2026-08-04)
+- EKS on Outposts (Karpenter not documented as supported, as of 2026-08-18)
 - Self-managed node groups with specific AMI requirements
 - Clusters already running CAS with complex ASG configurations
 - Organizations requiring node group-level operational boundaries

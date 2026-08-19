@@ -1,6 +1,6 @@
 ---
 name: eks-best-practices
-description: Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, and surge readiness for flash sales, marketing pushes, traffic spikes, and peak events. Also answers Terraform questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), building developer platforms and IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (use graviton-migration).
+description: Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, on-prem/hybrid (EKS Hybrid Nodes, EKS Anywhere, Outposts), and surge readiness for planned traffic peaks. Also answers Terraform questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), developer platforms/IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (use graviton-migration).
 ---
 
 # EKS Best Practices
@@ -46,8 +46,13 @@ Comprehensive guidance for designing, deploying, and operating Amazon EKS cluste
 | **EKS Standard** | Full control over nodes, add-ons, networking | Medium-High | Need full customization |
 | **EKS Auto Mode** | AWS manages nodes, add-ons, scaling | Low | Want minimal ops, standard workloads |
 | **EKS with Fargate** | Serverless pods, per-pod billing | Low | Batch, low-density workloads |
-| **EKS on Outposts** | Run EKS on-premises | High | Data residency, low-latency edge |
-| **EKS Anywhere** | EKS on your own infrastructure | Highest | Air-gapped, custom hardware |
+| **EKS Hybrid Nodes** | Your on-prem/edge nodes on an AWS-managed control plane | Medium-High | Reliable Region link; AWS-managed control plane on your own hardware |
+| **EKS on Outposts** | EKS on AWS-owned hardware in your data center | High | Data residency or low latency; local clusters are disconnect-tolerant (not air-gapped) |
+| **EKS Anywhere** | You run the control plane and nodes on your own infrastructure | Highest | Air-gapped, isolated, or disconnected sites |
+
+**For choosing among and operating the on-premises/hybrid models, see:** [Hybrid & On-Premises Deployments](references/hybrid-deployments.md).
+
+**Routing:** the advisory question *"which on-prem/hybrid model should I choose?"* stays in this skill; generating a design **document or diagram** → `eks-design`; generating a **full production cluster Terraform project** or an **air-gapped build** → `eks-build` (the hybrid cloud/cluster-side Terraform *example* itself lives in this skill's [`terraform-examples.md`](references/terraform-examples.md)).
 
 ### Shared Responsibility
 
@@ -93,6 +98,20 @@ Comprehensive guidance for designing, deploying, and operating Amazon EKS cluste
 - Use self-managed nodes without a specific technical requirement
 - Run Fargate for GPU or DaemonSet-dependent workloads
 - Mix Karpenter and Cluster Autoscaler on the same node groups
+
+## Hybrid & On-Premises Deployments
+
+Three models run EKS outside a standard in-Region cluster. Pick by who owns the control plane and whether the site stays connected:
+
+| Model | Control plane | Reliable Region link? | Choose when |
+|-------|---------------|----------------------|-------------|
+| **EKS Hybrid Nodes** | AWS-managed, in-Region | Required | You want an AWS-managed control plane over your own on-prem/edge hardware |
+| **EKS Anywhere** | You run it on your infra | Not required | Air-gapped, isolated, or disconnected sites; you own the full stack |
+| **EKS on Outposts** | AWS-managed (in-Region for extended, on the Outpost for local) | Required (extended) / tolerates disconnect (local, racks only) | AWS-owned hardware for data residency or low latency |
+
+**Critical rule:** split by *why* the site is disconnected. Permanently air-gapped/isolated → EKS Anywhere (the only fully air-gapped model). A connected site that must keep operating *through* Region outages on AWS-owned hardware (data residency/sovereignty) → Outposts local clusters (Outposts racks only) — disconnect-*tolerant*, not air-gapped (IAM/IRSA/KMS/EBS-PV/Route 53 are unavailable offline). EKS Hybrid Nodes and Outposts extended clusters both depend on a reliable connection to an AWS Region.
+
+**For detailed hybrid-deployment guidance, see:** [Hybrid & On-Premises Deployments](references/hybrid-deployments.md)
 
 ## Networking Quick Reference
 
@@ -387,6 +406,7 @@ This skill uses **progressive disclosure** — essential guidance is in this mai
 - **[ArgoCD Patterns](references/argocd-patterns.md)** — ArgoCD architecture, App of Apps, ApplicationSets, GitOps Bridge, multi-cluster patterns (hub-and-spoke, decentralized, hybrid), EKS ArgoCD Capability (managed vs self-managed, migration), ACK/KRO integration, multi-tenant RBAC
 - **[Container Registry](references/container-registry.md)** — ECR architecture, operating models, image promotion, vulnerability scanning, base image curation, lifecycle policies, pull-through cache, repository creation templates, managed signing (AWS Signer), archival storage class, registry configuration
 - **[EKS Auto Mode](references/eks-auto-mode.md)** — Auto Mode architecture, managed NodePools/NodeClasses, migration from standard EKS, comparison with self-managed Karpenter, limitations and FAQ
+- **[Hybrid & On-Premises Deployments](references/hybrid-deployments.md)** — EKS Hybrid Nodes, EKS Anywhere, and EKS on Outposts: model-selection decision boundary, per-model networking/CIDR/CNI, disconnection behavior, compute & autoscaling support, identity, lifecycle, and a cross-model support matrix
 
 **How to use:** When you need detailed information on a topic, reference the appropriate guide. Claude will load it on demand.
 

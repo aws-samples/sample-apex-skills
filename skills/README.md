@@ -25,7 +25,7 @@ my-skill/
 
 ### [eks-best-practices](./eks-best-practices/)
 
-Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, and surge readiness for flash sales, marketing pushes, traffic spikes, and peak events. Also answers Terraform questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), building developer platforms and IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (use graviton-migration).
+Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, on-prem/hybrid (EKS Hybrid Nodes, EKS Anywhere, Outposts), and surge readiness for planned traffic peaks. Also answers Terraform questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), developer platforms/IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (use graviton-migration).
 
 **References** (loaded on demand):
 
@@ -37,6 +37,7 @@ Advisory guidance for Amazon EKS architecture and configuration decisions — co
 | [container-registry.md](./eks-best-practices/references/container-registry.md) | Container registry |
 | [cost-optimization.md](./eks-best-practices/references/cost-optimization.md) | Cost optimization |
 | [eks-auto-mode.md](./eks-best-practices/references/eks-auto-mode.md) | Eks auto mode |
+| [hybrid-deployments.md](./eks-best-practices/references/hybrid-deployments.md) | Hybrid deployments |
 | [karpenter.md](./eks-best-practices/references/karpenter.md) | Karpenter |
 | [networking-ingress-dns.md](./eks-best-practices/references/networking-ingress-dns.md) | Networking ingress dns |
 | [networking.md](./eks-best-practices/references/networking.md) | Networking |
