@@ -389,6 +389,8 @@ DON'T:
 - Combine HPA and VPA on the same CPU/memory metric
 - Set `minReplicas: 1` for production services
 
+> **Cluster-wide responsiveness (PCP):** the `behavior` policies above tune one HPA. On EKS Provisioned Control Plane you can also shorten the HPA controller's *sync period* (default `15s`, down to `10s`) so **every** HPA in the cluster reacts sooner — a cluster-level knob with its own trade-offs (fewer HPA objects reconciled on schedule). See [Scalability — Control Plane Configuration Parameters](scalability#control-plane-configuration-parameters).
+
 ### Custom Metrics with CloudWatch
 
 ```yaml
