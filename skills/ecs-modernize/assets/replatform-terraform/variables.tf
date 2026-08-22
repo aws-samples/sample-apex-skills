@@ -263,9 +263,10 @@ variable "log_driver_mode" {
 
 variable "log_max_buffer_size" {
   description = <<-EOT
-    Buffer for non-blocking mode. The driver's own default is 1 MiB, which a
-    chatty legacy application can overrun in seconds; this widens it. Ignored in
-    blocking mode, where the option is not valid.
+    Buffer for non-blocking mode. The ECS max-buffer-size default is 10 MiB
+    (`10m`); this widens it beyond that default, which a chatty legacy
+    application can still overrun. Ignored in blocking mode, where the option is
+    not valid.
   EOT
   type        = string
   default     = "25m"

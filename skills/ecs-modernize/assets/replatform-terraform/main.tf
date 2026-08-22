@@ -346,10 +346,11 @@ resource "aws_ecs_task_definition" "app" {
       ]
 
       # `mode` is set explicitly on purpose. Since 2025-06-25 an unset mode
-      # defaults to non-blocking, and a non-blocking driver with no
-      # max-buffer-size buffers only 1 MiB before it starts dropping lines —
-      # which is exactly the wrong failure during the steady-state verification
-      # this path ends with, since the logs are the diagnosis.
+      # defaults to non-blocking, and a non-blocking driver buffers up to its
+      # max-buffer-size — 10 MiB by default (the ECS max-buffer-size default is
+      # `10m`) — before it starts dropping lines, which is exactly the wrong
+      # failure during the steady-state verification this path ends with, since
+      # the logs are the diagnosis.
       #
       # non-blocking is still the right default: blocking backs pressure up into
       # the application's stdout writes and can hang a container (Trusted Advisor
