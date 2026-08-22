@@ -308,7 +308,7 @@ vendored_skill_admonition() {
 
   # Extract metadata from THIRD_PARTY_NOTICES.md (authoritative source)
   local notices="$REPO_ROOT/THIRD_PARTY_NOTICES.md"
-  local author license_id source_url
+  local author license_id source_url license_from_notices
   if [[ -f "$notices" ]]; then
     # Pass skill_name via ENVIRON (not -v, which escape-processes the value)
     # and match with index()==1 (literal prefix) rather than a regex, so a
@@ -321,16 +321,35 @@ vendored_skill_admonition() {
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /Copyright:/ { sub(/.*Copyright:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
     ' "$notices")"
+    # License mirrors the Copyright block: take the THIRD_PARTY_NOTICES License
+    # field (dropping the "(see ...)" file pointer) so a vendored skill without a
+    # frontmatter `license:` key renders its actual license, not the default.
+    license_from_notices="$(SKILL_NAME="$skill_name" awk '
+      index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
+      found && /License:/ { sub(/.*License:[* ]*/, ""); sub(/ *\(see.*$/, ""); sub(/[* ]*$/, ""); print; exit }
+    ' "$notices")"
+    # Normalize the long-form license name to its SPDX short id so the
+    # admonition reads "under the MIT license", not "under the MIT License license".
+    case "$license_from_notices" in
+      "MIT License") license_from_notices="MIT" ;;
+      "Apache License 2.0"|"Apache 2.0") license_from_notices="Apache-2.0" ;;
+    esac
   fi
   # Fallback: frontmatter metadata
   if [[ -z "$author" ]]; then
     local skill_md="$skill_dir/SKILL.md"
     author="$(parse_frontmatter "$skill_md" "author")"
   fi
+  # Precedence: frontmatter `license:` (e.g. terraform-skill) > THIRD_PARTY_NOTICES
+  # License field > Apache-2.0 default.
   license_id="$(parse_frontmatter "$skill_dir/SKILL.md" "license")"
+  [[ -z "$license_id" ]] && license_id="$license_from_notices"
   [[ -z "$license_id" ]] && license_id="Apache-2.0"
   [[ -z "$source_url" ]] && source_url="$GH_BASE/skills/$skill_name"
   [[ -z "$author" ]] && author="third party"
+  # Strip a leading "Copyright (c) <year> " prefix so the admonition shows a bare
+  # maintainer name (terraform-skill convention), not the raw copyright line.
+  author="$(printf '%s' "$author" | sed -E 's/^Copyright( \([cC]\))?[[:space:]]+[0-9]{4}(-[0-9]{4})?[[:space:]]+//')"
 
   # Determine ownership: team-owned if source URL matches AWS orgs
   local is_team=false

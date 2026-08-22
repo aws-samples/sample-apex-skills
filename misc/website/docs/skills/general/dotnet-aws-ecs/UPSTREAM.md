@@ -11,7 +11,7 @@ This page is generated from [skills/dotnet-aws-ecs/UPSTREAM.md](https://github.c
 
 
 :::caution[Third-party skill]
-This skill is maintained by **Copyright (c) 2026 adisimon217** under the Apache-2.0 license. Upstream: [https://github.com/adisimon217/sample-appmod-skills](https://github.com/adisimon217/sample-appmod-skills)
+This skill is maintained by **adisimon217** under the MIT license. Upstream: [https://github.com/adisimon217/sample-appmod-skills](https://github.com/adisimon217/sample-appmod-skills)
 :::
 
 # Upstream Provenance
