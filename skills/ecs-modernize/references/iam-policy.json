@@ -103,6 +103,29 @@
       "Resource": "*"
     },
     {
+      "Sid": "ExecutionTerraformReadAmiParameter",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter"
+      ],
+      "Resource": "arn:aws:ssm:*::parameter/aws/service/ecs/optimized-ami/*"
+    },
+    {
+      "Sid": "ExecutionTerraformNetworkCreateMode",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateVpc",
+        "ec2:ModifyVpcAttribute",
+        "ec2:CreateSubnet",
+        "ec2:CreateInternetGateway",
+        "ec2:AttachInternetGateway",
+        "ec2:CreateRouteTable",
+        "ec2:CreateRoute",
+        "ec2:AssociateRouteTable"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "ExecutionTerraformLoadBalancing",
       "Effect": "Allow",
       "Action": [
@@ -176,6 +199,20 @@
         "logs:PutRetentionPolicy",
         "logs:ListTagsForResource",
         "logs:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExecutionEfsOptional",
+      "Effect": "Allow",
+      "Action": [
+        "elasticfilesystem:CreateFileSystem",
+        "elasticfilesystem:CreateMountTarget",
+        "elasticfilesystem:CreateAccessPoint",
+        "elasticfilesystem:TagResource",
+        "elasticfilesystem:DescribeFileSystems",
+        "elasticfilesystem:DescribeMountTargets",
+        "elasticfilesystem:DescribeAccessPoints"
       ],
       "Resource": "*"
     },
