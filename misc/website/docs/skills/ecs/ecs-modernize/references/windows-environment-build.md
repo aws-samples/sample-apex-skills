@@ -185,6 +185,10 @@ Application Load Balancer, target group, and listener fronting the service:
 | `<dest>/outputs.tf` | Described outputs (e.g. `alb_dns_name`, `service_name`, `cluster_arn`) |
 | `<dest>/versions.tf` | `required_version` (minor-pinned) + `required_providers` (major-pinned AWS provider) |
 
+### As-shipped security posture (disclose at hand-off)
+
+The generated Windows environment is a migration **cutover** baseline, not a production-hardened one — the same distinction the Linux Replatform skeleton draws. As shipped it deliberately carries an **HTTP:80 listener with no TLS** (inventing an ACM domain would be a fabricated value), **egress `0.0.0.0/0`** (the unmodified application's outbound dependencies are not known from source analysis), **ECS Exec off by default**, and **no Container Insights**; on the EC2 option, **IMDSv2 is required with a low hop limit**. Disclose this boundary when handing the environment over, name **`ecs-security`** for the hardening pass, and never present the generated Terraform as a hardened baseline. The full as-shipped table and rationale are carried in the Linux sibling ([replatform-environment-build.md](replatform-environment-build#what-verified-means-here-and-what-the-skeleton-is-not)); the same posture applies here.
+
 ---
 
 ## Unresolved Image URI — Input Variable Rule

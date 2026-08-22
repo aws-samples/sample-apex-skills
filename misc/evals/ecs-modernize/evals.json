@@ -107,7 +107,7 @@
     },
     {
       "id": 9,
-      "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Note: the file ECS-Modernize-spring-boot-api-2026-07-25.md already exists in the current working directory from this morning's run.",
+      "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Note: a report file already exists in the current working directory at the exact name this run will generate (the ECS-Modernize-spring-boot-api-<today>.md name the default convention produces for this app on today's date), left over from an earlier run today.",
       "expected_output": "The skill asks the user whether to overwrite the existing report file before writing, and does not overwrite or claim the report was saved without that confirmation.",
       "expectations": [
         "Detects the same-name file at the output destination and asks the user for overwrite confirmation before writing",

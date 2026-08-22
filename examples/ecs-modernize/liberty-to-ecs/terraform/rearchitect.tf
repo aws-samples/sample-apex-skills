@@ -115,7 +115,8 @@ resource "aws_ecs_task_definition" "rearchitect" {
       ]
 
       # mode is explicit: since 2025-06-25 an unset mode means non-blocking, and
-      # non-blocking with no max-buffer-size buffers 1 MiB before dropping lines.
+      # non-blocking buffers 10 MiB (the ECS max-buffer-size default, `10m`)
+      # before dropping lines.
       # The exercise reads these logs to check the settlement worker, so a wider
       # buffer beats a silent gap. blocking would guarantee delivery at the cost of
       # hanging the container when CloudWatch is unreachable.
