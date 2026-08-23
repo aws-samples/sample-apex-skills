@@ -141,7 +141,7 @@ The application calls operating-system-specific interfaces.
 
 | Ecosystem | Evidence patterns |
 |---|---|
-| .NET | `Microsoft.Win32.Registry` / `RegistryKey` usage; Windows service plumbing (`System.ServiceProcess.ServiceBase`); COM interop (`[ComImport]`, `Marshal.GetActiveObject`, `dynamic` COM activation); P/Invoke (`[DllImport(...)]`) into Windows DLLs; `System.Messaging` (MSMQ); `System.DirectoryServices`; Windows Event Log APIs; desktop UI frameworks (WinForms / WPF references) |
+| .NET | `Microsoft.Win32.Registry` / `RegistryKey` usage; Windows service plumbing (`System.ServiceProcess.ServiceBase`); COM interop (`[ComImport]`, `Marshal.GetActiveObject`, `dynamic` COM activation); P/Invoke (`[DllImport(...)]`) into Windows DLLs; `System.Messaging` (MSMQ); `System.DirectoryServices`; Windows Event Log APIs; desktop UI frameworks (WinForms / WPF references); **Windows Integrated Authentication / Active Directory dependence** — `<authentication mode="Windows">` or `windowsAuthentication` in `web.config`, and `Integrated Security=SSPI` / `Trusted_Connection=True` in connection strings (these carry no `Password=`, so `hardcoded_credentials` will not flag them). AD-backed auth needs gMSA, which constrains the compute target — see the Windows path |
 | Java | JNI (`System.loadLibrary` / `System.load`) with platform-specific native libraries; JNA bindings to OS APIs; `Runtime.exec` / `ProcessBuilder` invoking OS-specific commands; hardcoded OS-specific paths (`C:\...`, backslash path building) |
 | Any ecosystem | Native modules or extensions compiled per-OS; direct device or driver access; dependencies documented as requiring a specific host OS feature |
 

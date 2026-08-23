@@ -84,6 +84,14 @@ resource "aws_iam_role_policy_attachment" "execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# NOTE: if the task definition uses `secrets` (SSM Parameter Store / Secrets
+# Manager), extend this execution role with an inline policy granting
+# ssm:GetParameters / secretsmanager:GetSecretValue (and kms:Decrypt for a
+# customer-managed key) for the referenced ARNs. AmazonECSTaskExecutionRolePolicy
+# does NOT grant read access to your parameters/secrets, so tasks fail to start
+# without it. This skeleton ships no `secrets` by default, so no such policy is
+# generated here.
+
 # --- task role for ECS Exec only ---------------------------------------------
 #
 # ECS Exec uses the TASK role, not the execution role — a common source of
