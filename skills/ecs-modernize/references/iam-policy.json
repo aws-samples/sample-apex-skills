@@ -93,6 +93,7 @@
         "ec2:CreateSecurityGroup",
         "ec2:AuthorizeSecurityGroupIngress",
         "ec2:AuthorizeSecurityGroupEgress",
+        "ec2:RevokeSecurityGroupEgress",
         "ec2:CreateTags",
         "autoscaling:CreateAutoScalingGroup",
         "autoscaling:UpdateAutoScalingGroup",
@@ -108,7 +109,10 @@
       "Action": [
         "ssm:GetParameter"
       ],
-      "Resource": "arn:aws:ssm:*::parameter/aws/service/ecs/optimized-ami/*"
+      "Resource": [
+        "arn:aws:ssm:*::parameter/aws/service/ecs/optimized-ami/*",
+        "arn:aws:ssm:*::parameter/aws/service/ami-windows-latest/*"
+      ]
     },
     {
       "Sid": "ExecutionTerraformNetworkCreateMode",
@@ -154,7 +158,8 @@
         "iam:TagRole",
         "iam:CreateInstanceProfile",
         "iam:GetInstanceProfile",
-        "iam:AddRoleToInstanceProfile"
+        "iam:AddRoleToInstanceProfile",
+        "iam:TagInstanceProfile"
       ],
       "Resource": [
         "arn:aws:iam::*:role/ecs-modernize/*",
@@ -212,7 +217,9 @@
         "elasticfilesystem:TagResource",
         "elasticfilesystem:DescribeFileSystems",
         "elasticfilesystem:DescribeMountTargets",
-        "elasticfilesystem:DescribeAccessPoints"
+        "elasticfilesystem:DescribeMountTargetSecurityGroups",
+        "elasticfilesystem:DescribeAccessPoints",
+        "elasticfilesystem:DescribeLifecycleConfiguration"
       ],
       "Resource": "*"
     },
