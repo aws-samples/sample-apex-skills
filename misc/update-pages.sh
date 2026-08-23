@@ -313,12 +313,17 @@ vendored_skill_admonition() {
     # Pass skill_name via ENVIRON (not -v, which escape-processes the value)
     # and match with index()==1 (literal prefix) rather than a regex, so a
     # name containing regex metacharacters cannot match the wrong section.
+    # `found && /^## / { exit }` stops each scan at the next section heading, so a
+    # section missing the field yields empty rather than bleeding the NEXT
+    # section's value in (which would flip a third-party skill's attribution).
     source_url="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
+      found && /^## / { exit }
       found && /Source:/ { sub(/.*Source:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
     ' "$notices")"
     author="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
+      found && /^## / { exit }
       found && /Copyright:/ { sub(/.*Copyright:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
     ' "$notices")"
     # License mirrors the Copyright block: take the THIRD_PARTY_NOTICES License
@@ -326,6 +331,7 @@ vendored_skill_admonition() {
     # frontmatter `license:` key renders its actual license, not the default.
     license_from_notices="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
+      found && /^## / { exit }
       found && /License:/ { sub(/.*License:[* ]*/, ""); sub(/ *\(see.*$/, ""); sub(/[* ]*$/, ""); print; exit }
     ' "$notices")"
     # Normalize the long-form license name to its SPDX short id so the
@@ -351,7 +357,10 @@ vendored_skill_admonition() {
   # maintainer name (terraform-skill convention), not the raw copyright line.
   author="$(printf '%s' "$author" | sed -E 's/^Copyright( \([cC]\))?[[:space:]]+[0-9]{4}(-[0-9]{4})?[[:space:]]+//')"
 
-  # Determine ownership: team-owned if source URL matches AWS orgs
+  # Determine ownership: team-owned if source URL matches AWS orgs. A vendored
+  # skill with a LICENSE file but no THIRD_PARTY_NOTICES entry is repo-native /
+  # team-owned by convention (third-party skills always carry a notices entry),
+  # so the fallback URL correctly resolves it to the team admonition.
   local is_team=false
   if [[ "$source_url" == *github.com/aws-samples/* || \
         "$source_url" == *github.com/aws/* || \
