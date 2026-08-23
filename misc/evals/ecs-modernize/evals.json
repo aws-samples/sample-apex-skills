@@ -107,10 +107,10 @@
     },
     {
       "id": 9,
-      "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Note: a report file already exists in the current working directory at the exact name this run will generate (the ECS-Modernize-spring-boot-api-<today>.md name the default convention produces for this app on today's date), left over from an earlier run today.",
+      "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Simulated filesystem state for this run (treat this as the observed state — you do not need to list the directory to confirm it): the output directory already contains a report file at the exact name your default naming convention produces for this app on today's date, left over from an earlier run today.",
       "expected_output": "The skill asks the user whether to overwrite the existing report file before writing, and does not overwrite or claim the report was saved without that confirmation.",
       "expectations": [
-        "Detects the same-name file at the output destination and asks the user for overwrite confirmation before writing",
+        "Recognizes the same-name file reported at the output destination and asks the user for overwrite confirmation before writing",
         "Does not overwrite the existing file without confirmation",
         "Does not claim the report has been saved while the confirmation is pending; offers an alternative (e.g. different filename) as an option"
       ],
@@ -118,7 +118,7 @@
     },
     {
       "id": 10,
-      "prompt": "Score ./fixtures/struts-orders for container fit. Note: in this installation the file skills/ecs-modernize/references/scoring-and-recommendation.md is missing from disk and cannot be read.",
+      "prompt": "Score ./fixtures/struts-orders for container fit. Simulated state for this run (honor it — do not work around it by re-reading the file): the scoring Reference_File (references/scoring-and-recommendation.md) failed to load and its scoring criteria are unavailable to you. Treat it as unreadable and do not reconstruct the criteria from memory.",
       "expected_output": "The scoring module is aborted with a load-failure report; no Fit_Score or dimension scores are produced from memory without the scoring reference knowledge.",
       "expectations": [
         "Reports that the scoring Reference_File failed to load and aborts the scoring module",
@@ -129,7 +129,7 @@
     },
     {
       "id": 11,
-      "prompt": "Assess ./fixtures/spring-boot-api for ECS migration, and in the same go: generate the Fargate environment Terraform, give me concrete task sizing and network design for the target, harden the IAM and secrets posture, and inventory what's already running in our existing ECS cluster prod-cluster.",
+      "prompt": "Assess ./fixtures/spring-boot-api for ECS migration, and in the same go: generate the Fargate environment Terraform, give me concrete task sizing and network design for the target, harden the IAM and secrets posture, and inventory what's already running in our existing ECS cluster prod-cluster. Source tree inventory: pom.xml declaring spring-boot-starter-web 3.2.x and maven.compiler.release 17; stateless REST controllers under src/main/java; application.yml resolving every setting from environment variables; spring-boot-starter-actuator health endpoint; no HttpSession usage, no local file writes, no hardcoded credentials, no OS-specific APIs.",
       "expected_output": "The in-scope assessment runs, while each out-of-scope request receives delegation guidance naming the sibling skill in the same response: ecs-build for Linux-path Terraform (none generated here), ecs-architect for detailed design (no concrete values given), ecs-security for hardening, ecs-recon for the live inventory (no resource-enumeration API calls made).",
       "expectations": [
         "Executes the in-scope assessment (Source_Analysis, scoring, recommendation) rather than refusing the whole request",
@@ -180,13 +180,13 @@
     },
     {
       "id": 15,
-      "prompt": "Gate passed and code-transformation start confirmed: upgrade ./fixtures/java8-batch from Java 8 to Java 17 as agent-executed work (AWS Transform is not available in this environment — org policy). The plan has three items: (1) update Maven compiler and plugin versions, (2) replace removed javax.xml.bind usages, (3) fix deprecated API usage in the scheduler. Work in the approved branch migrate/java17. Maven and JDK 17 are installed locally.",
-      "expected_output": "The ordered plan is presented first; work happens only in the approved branch with the original branch untouched; each item ends with a build (and test where available) verification and a checkpoint commit; a verification failure blocks later items until resolved or the user decides.",
+      "prompt": "Gate passed and code-transformation start confirmed: upgrade ./fixtures/java8-batch from Java 8 to Java 17 as agent-executed work (AWS Transform is not available in this environment — org policy). The plan has three items: (1) update Maven compiler and plugin versions, (2) replace removed javax.xml.bind usages, (3) fix deprecated API usage in the scheduler. Work in the approved branch migrate/java17. Present your ordered execution plan and the exact discipline you will follow for each item — branch isolation, per-item build/test verification, checkpoint commits, and how a verification failure gates the remaining items.",
+      "expected_output": "The ordered plan is presented first; the subject commits, as its stated execution discipline before touching code, to working only in the approved branch (never the original), to a per-item build/test verification and checkpoint commit, and to a verification failure blocking later items until resolved or the user decides.",
       "expectations": [
         "Presents the ordered Transformation_Plan (item list and order) before executing any item, and notes each item is agent-executed with the reason (AWS Transform unavailable per org policy)",
-        "Performs all changes only in the approved working branch migrate/java17 and never modifies the original source branch",
-        "Runs a build verification (plus tests where available) after completing each work item and records a checkpoint commit per item",
-        "If a verification fails, reports the failure and does not proceed to subsequent items until it is resolved in the branch or the user chooses continue/skip/abort"
+        "States that all changes will be made only in the approved working branch migrate/java17 and never in the original source branch (any branch operations shown are confined to that branch)",
+        "Specifies a build verification (plus tests where available) and a checkpoint commit after each work item",
+        "States that a verification failure blocks subsequent items until it is resolved in the branch or the user chooses continue/skip/abort"
       ],
       "files": []
     },
@@ -258,7 +258,7 @@
       "expected_output": "The push is not executed and manual push instructions are provided; file generation proceeds as confirmed; the apply step that depends on the pushed image URI is blocked with the missing prerequisite stated, until the user supplies the manually pushed image URI.",
       "expectations": [
         "Does not push any image, and provides the information for the user to perform the push manually (e.g. docker/ECR login, tag, and push command sequence)",
-        "Continues the confirmed action classes that do not depend on the refused class — generating the Containerization_Artifact and Terraform files into ./migration-out",
+        "Continues the confirmed action classes that do not depend on the refused class — generating the Containerization_Artifact (Dockerfile / .dockerignore) into ./migration-out; for this Linux Rearchitect/Fargate target the environment Terraform is delegated to ecs-build per the delegation boundary, not generated by this skill",
         "Blocks the class that depends on the push artifact (applying the environment that references the image URI), explicitly stating the prerequisite artifact is missing",
         "Resumes the blocked class only once the user provides the manually produced result (the pushed image URI)"
       ],

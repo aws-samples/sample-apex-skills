@@ -17,5 +17,6 @@
   { "query": "Migrate our application to Kubernetes on Amazon EKS.", "should_trigger": false },
   { "query": "We want to move our on-prem workloads to EKS — plan the Kubernetes migration.", "should_trigger": false },
   { "query": "Design an EKS architecture for the app that currently runs on our VMware cluster.", "should_trigger": false },
-  { "query": "Assess our monolith for a move to Kubernetes — we've standardized on EKS, ECS is not an option.", "should_trigger": false }
+  { "query": "Assess our monolith for a move to Kubernetes — we've standardized on EKS, ECS is not an option.", "should_trigger": false },
+  { "query": "Our .NET 8 API is already cloud-ready and containerized — just generate the Fargate Terraform/CDK to deploy it to ECS. No assessment needed.", "should_trigger": false }
 ]
