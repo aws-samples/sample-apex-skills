@@ -111,7 +111,7 @@ Serverless compute: each task runs in its own managed microVM; no instances to p
 
 #### ECS Managed Instances
 
-Fully managed EC2 capacity for ECS (GA since Sept 2025, all commercial Regions since Oct 2025): AWS provisions, patches, and replaces the instances (drain-and-replace on a 14–21 day lifecycle) while you keep EC2 instance-type flexibility — including GPU-accelerated, network-optimized, and burstable families ([Managed Instances docs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html), [FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/)).
+Fully managed EC2 capacity for ECS (GA Sept 30, 2025 ([launch](https://aws.amazon.com/about-aws/whats-new/2025/09/amazon-ecs-managed-instances/)); all commercial Regions since Oct 27, 2025 ([expansion](https://aws.amazon.com/about-aws/whats-new/2025/10/amazon-ecs-managed-instances-commercial-regions/))): AWS provisions, patches, and replaces the instances (drain-and-replace on a 14–21 day lifecycle) while you keep EC2 instance-type flexibility — including GPU-accelerated, network-optimized, and burstable families ([Managed Instances docs](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html)).
 
 **Applicability conditions:**
 
@@ -119,7 +119,7 @@ Fully managed EC2 capacity for ECS (GA since Sept 2025, all commercial Regions s
 - Linux containers on **Bottlerocket only** (X86_64 / ARM64) — no custom AMI/kernel, no Windows; OS-specific dependencies must be resolved by porting items, as with Fargate.
 - `awsvpc` or `host` network mode (no `bridge`).
 - Tasks tolerate being cycled by the 14–21 day drain-and-replace patching lifecycle — which makes the graceful-shutdown modernization item a first-class prerequisite ([Managed Instances patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)).
-- Available in all AWS Regions **except AWS GovCloud (US) and the China Regions** ([ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/)) — so a GovCloud target rules this compute model out, not just a China one.
+- Available in all commercial AWS Regions and, since **November 21, 2025**, in **AWS GovCloud (US-East and US-West)** ([What's New — GovCloud](https://aws.amazon.com/about-aws/whats-new/2025/11/ecs-managed-instances-govcloud-us-regions/)); the **China Regions remain excluded** — so only a China-Region target rules this compute model out. (The [ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/) page can lag Region-availability updates — prefer the dated What's New posts.)
 
 **Typical grounding:** *applicable* when findings evidence resource or hardware needs Fargate cannot serve (cite the `tech_stack` or dependency evidence); *applicable_after_remediation* when graceful-shutdown or state findings must be resolved first (instance cycling makes unhandled shutdown a live risk, not a theoretical one); *not_applicable* when the deployment must land in a China Region or genuinely requires a custom AMI/kernel — the latter is also a signal to revisit the Replatform path (ECS on EC2), which the report's both-strategies comparison already presents.
 
