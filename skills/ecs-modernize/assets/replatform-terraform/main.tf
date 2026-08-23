@@ -190,6 +190,17 @@ resource "aws_lb" "app" {
   security_groups    = [aws_security_group.alb.id]
   subnets            = local.subnet_ids
   tags               = local.tags
+
+  # REUSE mode (create_network = false) with an empty subnet_ids list plans
+  # clean but fails at apply — the ALB needs >= 2 subnets. Catch it at plan
+  # time. (var.subnet_ids' own validation permits an empty list for CREATE
+  # mode, so the cross-variable check has to live here.)
+  lifecycle {
+    precondition {
+      condition     = local.create_network || length(var.subnet_ids) >= 2
+      error_message = "REUSE mode (create_network = false) requires subnet_ids to list at least two subnets in different AZs, but it is empty. Supply the subnets or switch to CREATE mode."
+    }
+  }
 }
 
 resource "aws_lb_target_group" "app" {
