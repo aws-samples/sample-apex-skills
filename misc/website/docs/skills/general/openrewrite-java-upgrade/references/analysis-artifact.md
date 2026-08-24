@@ -32,7 +32,7 @@ Phase 1 produces this artifact before any code changes. Its job is to state, fro
 2. **Kafka compression**: snappy or zstd configured (native, on the path) vs none/gzip/lz4 (native N/A).
 3. **Base image**: musl/Alpine (unsafe for live native libs on arm64) vs glibc (safe).
 
-If all three native surfaces are N/A and the base is already glibc, the app needs only the version bump; skip the native-library fixes.
+If all three native surfaces are N/A and the base is already glibc, the app needs only the version bump plus bcpkix if it calls `SelfSignedCertificate()` on JDK 21 (that fix is pure-Java and applies regardless of native surfaces or base image); skip the native-library fixes.
 
 ## Template
 

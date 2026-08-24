@@ -90,11 +90,11 @@ The settled fixes, each explained with the exact edit, are in `references/gotcha
 
 ### Verify native linkage (the gate that matters)
 
-A functional probe that returns 200 is not proof the native libraries are sound. A musl-linked `.so` can `dlopen` successfully and then crash when a cold code path hits an unresolved symbol. The real gate is a full-relocation link check plus a functional probe, and it fails if **either** fails.
+A functional probe that returns 200 is not proof the native libraries are sound. On a glibc base a `.so` can `dlopen` successfully and then crash when a cold code path first hits an unresolved symbol, because glibc binds function symbols lazily; on a musl base the failure surfaces eagerly at load time (`Error relocating: ... symbol not found`). The real gate is a full-relocation link check plus a functional probe, and it fails if **either** fails.
 
 For each bundled `.so`, resolve every symbol:
 - glibc: `ldd -r <lib>.so` and fail on any `undefined symbol` line.
-- musl: the musl loader has no `-r`; use `/lib/ld-musl-<arch>.so.1 --list <lib>.so` and read the `NEEDED` entries.
+- musl: the musl loader resolves all relocations eagerly at load, so a missing glibc-only symbol fails as an `Error relocating: ... symbol not found` line; fail the gate on any such line. Note `/lib/ld-musl-<arch>.so.1 --list` shows `NEEDED` library dependencies, not individual symbols, so a symbol like `__strftime_l` never appears there; to enumerate demanded glibc-only symbols use `readelf --dyn-syms <lib>.so | grep UND` (or `nm -D <lib>.so | grep ' U '`).
 
 Then run the functional probe (a real handshake or round-trip, e.g. an OpenSSL TLS handshake and a `zstd`/`snappy` Kafka round-trip). The details, including extracting the `.so` from a Boot 3 fat jar (the loader launcher moved to `org.springframework.boot.loader.launch.PropertiesLauncher` in Boot 3.2+) and the Corretto-on-AL2023 `dnf install -y findutils` prerequisite, are in `references/native-linkage-gate.md`.
 
