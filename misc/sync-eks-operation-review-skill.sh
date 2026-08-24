@@ -369,7 +369,16 @@ EOF
     echo ""
 fi
 
-# --- Step 13: Show what we got ---
+# --- Step 13: Stage synced files for generator visibility (git ls-files) ---
+# update-pages.sh / update-all-references.sh enumerate tracked files via
+# `git ls-files`, so newly-synced port files must be staged or the generators
+# miss them on the next run (mirrors sync-eks-upgrade-skill.sh:321).
+echo "Staging synced files for generator visibility (git ls-files)..."
+git -C "$REPO_ROOT" add "$LOCAL_DIR" "$DEVOPS_DIR" 2>/dev/null || true
+
+echo ""
+
+# --- Step 14: Show what we got ---
 echo "=== Synced files (CC skill) ==="
 find "$LOCAL_DIR" -type f | sort | while read -r f; do
     echo "  ${f#$REPO_ROOT/}"
@@ -391,4 +400,4 @@ echo "Next steps:"
 echo "  1. Review the synced files (git diff)"
 echo "  2. Ensure .claude/skills/eks-operation-review/ symlink exists:"
 echo "       ln -sfn ../../skills/eks-operation-review .claude/skills/eks-operation-review"
-echo "  3. Run ./misc/update-all-references.sh to update README.md and skills/README.md catalogs"
+echo "  3. Run ./misc/update-all-references.sh && ./misc/update-pages.sh to update README.md, skills/README.md, and the docs site pages"
