@@ -33,6 +33,24 @@ For any insight with status other than `PASSING`:
 1. Call `get_eks_insights` with the specific `insight_id`
 2. Record: detailed description, recommendation, affected resources
 
+### CLI fallback (when the EKS MCP server is unavailable)
+
+If the `get_eks_insights` MCP tool is not available, use the AWS CLI directly (this is the
+CLI fallback the top-level skill promises):
+
+```bash
+# Step 1 equivalent — list all upgrade-readiness insights
+aws eks list-insights --cluster-name <cluster> --region <region> \
+  --filter categories=UPGRADE_READINESS
+
+# Step 2 equivalent — detail one non-PASSING insight
+aws eks describe-insight --cluster-name <cluster> --region <region> --id <insight-id>
+```
+
+Requires `eks:ListInsights` and `eks:DescribeInsight`. If neither the MCP tool nor the CLI can
+reach Insights, report Category 7 as UNKNOWN / not-scored — do NOT score it 0 (a denied read is
+not a clean pass).
+
 ### Step 3: Classify Findings
 
 | Insight Status | Severity |

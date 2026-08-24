@@ -45,11 +45,11 @@ This prevents miscounting and ensures no workload is missed.
 
 ## Checks to Execute
 
-### 6.1 — Single Replica Deployments
+### 6.1 — Single Replica Deployments and StatefulSets
 
 **Why this matters:** Node drains during upgrade will cause downtime for single-replica workloads.
 
-**How to check:** From the master table, filter for `kind == Deployment AND replicas == 1`.
+**How to check:** From the master table, filter for `kind IN (Deployment, StatefulSet) AND replicas == 1`. StatefulSets are collected in the master table (Step A above) and are scored identically to single-replica Deployments in `report-generation.md` — do NOT restrict this check to Deployments only, or single-replica StatefulSets will be collected but never scored.
 
 **Rating:** Each match = HIGH severity (3 pts in score).
 
@@ -72,8 +72,8 @@ deployment is meaningless — do NOT flag single-replica workloads for missing P
 
 **Why this matters:** A PDB that allows zero disruptions will cause `kubectl drain` to hang
 indefinitely during node group upgrades. The node group upgrade will eventually time out
-(typically after 15 minutes), failing the rolling update. This is the #1 cause of "upgrade stuck"
-support tickets.
+(typically after 15 minutes), failing the rolling update. This is a common cause of stalled
+node group upgrades.
 
 **How to check:**
 1. For each PDB found in step 6.2, inspect. A PDB is **drain-blocking** if it currently

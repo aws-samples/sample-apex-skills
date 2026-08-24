@@ -12,6 +12,13 @@ This skill assesses your live EKS cluster's readiness for a Kubernetes version u
 
 This skill is laser-focused on **upgrade safety** — answering the question: "Is it safe to upgrade this cluster to the next version?"
 
+> **Read-only / assessment-only — hard rule.** This skill ONLY inspects the cluster; it
+> MUST NOT modify it. Every `aws`, `kubectl`, and MCP call it issues must be a read/list/describe
+> operation. NEVER run mutating verbs (`apply`, `create`, `delete`, `patch`, `edit`, `replace`,
+> `annotate`, `label`, `set`, `scale`, `cordon`, `drain`, `update-*`, `--force`, etc.), and NEVER
+> execute a remediation snippet. Any mutating command embedded in a steering file is a
+> **recommendation for the user to run themselves** — surface it as text, do not execute it.
+
 ## What Gets Assessed
 
 | # | Section | Key Checks |
@@ -58,9 +65,8 @@ regardless of other findings. See `references/report-generation.md` for the full
 2. **kubectl access** to the target cluster (for Kubernetes API queries)
 3. **Required AWS Permissions:**
    - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`
-   - `eks:ListAddons`, `eks:DescribeAddon`, `eks:ListInsights`, `eks:DescribeInsight`
+   - `eks:ListAddons`, `eks:DescribeAddon`, `eks:DescribeAddonVersions`, `eks:ListInsights`, `eks:DescribeInsight`
    - `ec2:DescribeSubnets`
-   - `iam:GetRole`, `iam:ListAttachedRolePolicies`, `iam:ListRolePolicies`, `iam:GetRolePolicy`
 
 ### MCP Server Setup
 
@@ -98,6 +104,12 @@ The skill will discover your clusters, ask which one to assess and what target v
 
 Run `aws eks list-clusters` to discover available clusters.
 
+> **Region caveat.** `aws eks list-clusters` is **region-scoped** (it lists only the current/`--region`
+> region) and returns **names only, not regions**. An empty result means "no clusters in this region,"
+> NOT "no clusters in the account" — before treating zero clusters as terminal, confirm the intended
+> region (`echo $AWS_REGION`) and, if the region is ambiguous, list the likely regions. Any "name +
+> region" shown to the user pairs the returned name with the region actually queried.
+
 - ✅ Success → Show the cluster list. Ask which cluster to assess. If only one cluster, confirm it.
 - ❌ Failure → STOP. Do NOT retry more than once. Show:
 
@@ -122,14 +134,44 @@ Check the `status` field from the cluster description. If status is NOT `ACTIVE`
 
 Do NOT proceed with the assessment if cluster status is not ACTIVE. This is a hard blocker (see report-generation.md).
 
-**Action 3 — Validate permissions**
+Cluster status gates the whole assessment; node group status gates node readiness. If a node group's lifecycle `status == UPDATING` (mid-rotation), the assessment can still run but node readings may be a transient old/new mix — flag it as potentially unstable and recommend re-running after rotation (see node-readiness.md §5.1).
 
-After describing the cluster, verify key permissions by attempting:
+**Action 3 — Validate permissions (AWS + Kubernetes)**
+
+**3a — AWS API preflight.** After describing the cluster, verify key AWS permissions by attempting:
 1. `aws eks list-nodegroups --cluster-name <cluster>`
 2. `aws eks list-addons --cluster-name <cluster>`
-3. `aws eks list-insights --cluster-name <cluster>`
+3. `aws eks describe-addon-versions --kubernetes-version <current>` (add-on compatibility — `addon-compatibility.md` marks this a MUST-run read)
+4. `aws eks list-insights --cluster-name <cluster>`
+5. `aws ec2 describe-subnets --subnet-ids <cluster subnet ids>` (node-readiness subnet-IP hard-blocker input)
 
-If any fail with AccessDenied, show the user exactly which permission is missing and list the required IAM actions. Do NOT proceed until permissions are confirmed.
+`eks:DescribeCluster` / `eks:DescribeNodegroup` / `eks:DescribeAddon` / `eks:DescribeInsight` are
+exercised implicitly by the assessment steps themselves; the probes above cover the list/describe
+reads that gate scoring inputs.
+
+**3b — Kubernetes RBAC preflight.** The high-weight assessment categories read Kubernetes objects,
+not just AWS APIs. Verify cluster read access with `kubectl auth can-i` before scanning:
+
+```bash
+kubectl auth can-i list deployments -A          # workloads (workload-risks, deprecated-apis)
+kubectl auth can-i list daemonsets -A           # workloads
+kubectl auth can-i list statefulsets -A         # workloads
+kubectl auth can-i list validatingwebhookconfigurations   # webhooks (breaking-changes)
+kubectl auth can-i list mutatingwebhookconfigurations     # webhooks
+kubectl auth can-i list horizontalpodautoscalers -A       # HPA (deprecated-apis)
+kubectl auth can-i list nodepools.karpenter.sh            # Karpenter nodepools (node-readiness, addon-compat)
+```
+
+If `kubectl auth can-i` itself errors (not a clean yes/no), treat the read as denied.
+
+**Denied-read discipline (same for the AWS and Kubernetes preflights).** If any probe above
+returns `AccessDenied` (AWS) or `no` (kubectl) → surface exactly which read is denied and the IAM
+action or RBAC verb/resource needed, then ask the user whether to (a) fix the permission and
+re-run the probe, or (b) continue with a **partial assessment**. A denied read is NOT a hard stop
+and NOT a silent 0: the affected category is reported UNKNOWN / not-scored and listed in
+`## Unassessed`, per `references/report-generation.md`. A partial assessment can NEVER yield an
+uncaveated READY — the headline verdict carries the partial marker and is capped below READY.
+The guarantee this preflight gives extends only to the reads it actually probes.
 
 **Action 4 — Determine target version**
 

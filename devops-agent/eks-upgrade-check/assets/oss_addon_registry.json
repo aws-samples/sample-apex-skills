@@ -12,7 +12,7 @@
       },
       "compatibility_url": "https://istio.io/latest/docs/releases/supported-releases/",
       "releases_url": "https://github.com/istio/istio/releases",
-      "notes": "Istio supports N-2 Kubernetes versions for each minor release. Check 'Supported Releases' table."
+      "notes": "Each Istio minor release is tested against a specific set of Kubernetes versions (as of 2026-08-05, the current range of supported K8s minors, not an 'N-2' policy). Always check the authoritative 'Supported Releases' table for the exact tested versions. See https://istio.io/latest/docs/releases/supported-releases/"
     },
     {
       "name": "cert-manager",
@@ -108,7 +108,7 @@
       },
       "compatibility_url": "https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/README.md#releases",
       "releases_url": "https://github.com/kubernetes/autoscaler/releases",
-      "notes": "CA versions are pinned to K8s minors (e.g., cluster-autoscaler 1.30.x for K8s 1.30). Mismatch is a FAIL."
+      "notes": "Upstream recommends matching the cluster-autoscaler minor to the Kubernetes control-plane minor (e.g., cluster-autoscaler 1.30.x for K8s 1.30). A mismatch is not necessarily incompatible; treat it as a recommendation to align versions. See https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/README.md#releases"
     },
     {
       "name": "aws-load-balancer-controller",
@@ -119,7 +119,7 @@
       },
       "compatibility_url": "https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/",
       "releases_url": "https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases",
-      "notes": "AWS publishes this as an EKS add-on — prefer the managed add-on path when possible."
+      "notes": "Installed via Helm chart or Kubernetes manifests — this is NOT an EKS managed add-on (not present in `aws eks describe-addon-versions`, verified live 2026-08-05). In EKS Auto Mode, load balancing is a built-in cluster capability rather than a separately installed controller. See https://docs.aws.amazon.com/eks/latest/userguide/lbc-helm.html"
     },
     {
       "name": "external-secrets",

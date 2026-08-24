@@ -17,6 +17,23 @@ For any insight with status other than `PASSING`:
 1. Use the EKS DescribeInsight API with the specific insight ID
 2. Record: detailed description, recommendation, affected resources
 
+### CLI fallback (when the EKS APIs are not reachable through your tooling)
+
+If those APIs are not reachable through your tooling, call them via the AWS CLI:
+
+```bash
+# Step 1 equivalent — list all upgrade-readiness insights
+aws eks list-insights --cluster-name <cluster> --region <region> \
+  --filter categories=UPGRADE_READINESS
+
+# Step 2 equivalent — detail one non-PASSING insight
+aws eks describe-insight --cluster-name <cluster> --region <region> --id <insight-id>
+```
+
+Requires `eks:ListInsights` and `eks:DescribeInsight`. If Insights cannot be reached by either
+path, report Category 7 as UNKNOWN / not-scored — do NOT score it 0 (a denied read is not a
+clean pass).
+
 ### Step 3: Classify Findings
 
 | Insight Status | Severity |

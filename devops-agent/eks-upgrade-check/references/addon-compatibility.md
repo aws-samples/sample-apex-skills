@@ -247,7 +247,13 @@ You MUST perform a web search to verify compatibility:
   verdict (2 pts), NOT a separate/new deduction.
 - Incompatible version per matrix → FAIL (must upgrade Karpenter BEFORE control plane)
 
-**Key talking point:** Karpenter must be upgraded BEFORE the control plane, not after. The order matters. The 0.x → 1.x migration requires migrating from Provisioner to NodePool v1 APIs. See https://karpenter.sh/v1.0/upgrading/v1-migration/
+**Key talking point:** Karpenter must be upgraded BEFORE the control plane, not after. The order matters.
+
+**Two DISTINCT API migrations (do not conflate them):**
+- **Provisioner/`v1alpha5` → NodePool/`v1beta1`** happened at **Karpenter v0.32** (the CRD kind renamed from `Provisioner` to `NodePool`). See https://karpenter.sh/v1.0/upgrading/v1beta1-migration/
+- **`v1beta1` → `v1`** happened at **Karpenter 1.0** (the `0.x → 1.x` boundary). This is an API-version bump on the already-renamed `NodePool`/`NodeClaim` kinds, NOT the Provisioner rename. See https://karpenter.sh/v1.0/upgrading/v1-migration/
+
+The 0.37 → 1.0.5 jump in the matrix above crosses ONLY the `v1beta1 → v1` boundary; a cluster already on v0.32+ NodePools does not need to redo the Provisioner migration.
 
 ## Score Impact
 

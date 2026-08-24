@@ -9,8 +9,7 @@
         "eks:ListNodegroups",
         "eks:ListAddons",
         "eks:ListInsights",
-        "eks:DescribeInsight",
-        "eks:ListAccessEntries"
+        "eks:DescribeInsight"
       ],
       "Resource": "arn:aws:eks:<region>:<account-id>:cluster/*"
     },
@@ -31,25 +30,12 @@
       "Resource": "arn:aws:eks:<region>:<account-id>:addon/*/*/*"
     },
     {
-      "Sid": "EKSReadAccessEntry",
-      "Effect": "Allow",
-      "Action": [
-        "eks:DescribeAccessEntry"
-      ],
-      "Resource": "arn:aws:eks:<region>:<account-id>:access-entry/*/*"
-    },
-    {
       "Sid": "AccountLevelReads",
       "Effect": "Allow",
       "Action": [
         "eks:ListClusters",
         "eks:DescribeAddonVersions",
-        "ec2:DescribeSubnets",
-        "ec2:DescribeSecurityGroupRules",
-        "iam:GetRole",
-        "iam:ListAttachedRolePolicies",
-        "iam:ListRolePolicies",
-        "iam:GetRolePolicy"
+        "ec2:DescribeSubnets"
       ],
       "Resource": "*"
     }

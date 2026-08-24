@@ -242,6 +242,46 @@ td:first-child {
 """
 
 
+def _split_table_row(line: str) -> list:
+    """Split a markdown table row into cells on UNESCAPED, non-code pipes.
+
+    A ``|`` only ends a cell when it is neither backslash-escaped (``\\|``) nor
+    inside a backtick code span (`` `kubectl get po|grep x` ``). ``\\|`` is
+    unescaped to a literal ``|`` in the emitted cell. The bounding pipes that
+    delimit the row produce leading/trailing empty cells, which are dropped.
+    """
+    cells = []
+    cur = []
+    in_code = False
+    i = 0
+    n = len(line)
+    while i < n:
+        ch = line[i]
+        if ch == "\\" and i + 1 < n and line[i + 1] == "|":
+            cur.append("|")  # honor escaped pipe as a literal
+            i += 2
+            continue
+        if ch == "`":
+            in_code = not in_code
+            cur.append(ch)
+            i += 1
+            continue
+        if ch == "|" and not in_code:
+            cells.append("".join(cur))
+            cur = []
+            i += 1
+            continue
+        cur.append(ch)
+        i += 1
+    cells.append("".join(cur))
+    # Drop the empty cells created by the row's leading/trailing bounding pipes.
+    if cells and cells[0].strip() == "":
+        cells = cells[1:]
+    if cells and cells[-1].strip() == "":
+        cells = cells[:-1]
+    return cells
+
+
 def md_to_html(md_content: str) -> str:
     """Convert markdown to HTML. Handles tables, code blocks, headings, lists, links, emphasis."""
     lines = md_content.split("\n")
@@ -252,6 +292,7 @@ def md_to_html(md_content: str) -> str:
     in_table = False
     table_lines = []
     in_list = False
+    in_comment = False
     list_type = None
     list_items = []
 
@@ -261,7 +302,7 @@ def md_to_html(md_content: str) -> str:
             return ""
         rows = []
         for i, line in enumerate(table_lines):
-            cells = [c.strip() for c in line.strip("|").split("|")]
+            cells = [c.strip() for c in _split_table_row(line)]
             if i == 1 and all(set(c.strip()) <= set("-: ") for c in cells):
                 continue  # separator row
             tag = "th" if i == 0 else "td"
@@ -288,23 +329,64 @@ def md_to_html(md_content: str) -> str:
         return f"<{tag}>{items}</{tag}>"
 
     def inline_format(text: str) -> str:
-        """Apply inline formatting: bold, italic, code, links, checkboxes."""
+        """Apply inline formatting: bold, italic, code, links, checkboxes.
+
+        Root-cause discipline: emphasis/score/strikethrough passes must never
+        run over text that already contains generated HTML, or they bleed into
+        <code> spans, <a href="..."> attributes, and link labels (corrupting
+        IAM ARNs, pod-*-a/pod-*-b names, and band words inside URLs). So we
+        render code spans and links FIRST, swap each generated fragment out for
+        an opaque placeholder (\x00N\x00 — digits only, immune to every pass
+        below), run the emphasis/score transforms on the remaining plain text,
+        then restore the placeholders verbatim.
+        """
         # Escape HTML first so cluster-derived strings (labels, image tags,
         # annotations) can't inject markup. Markdown transforms below
         # re-introduce tags only for trusted patterns.
         text = html.escape(text)
-        # Code spans first (to avoid processing inside them)
-        text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
-        # Links — only allow safe URL schemes; leave unsafe links as plain text
+
+        protected = []
+
+        def _stash(fragment: str) -> str:
+            token = "\x00%d\x00" % len(protected)
+            protected.append(fragment)
+            return token
+
+        # Code spans first (to avoid processing inside them). The rendered
+        # <code>...</code> is stashed so no later pass sees its interior.
+        text = re.sub(
+            r"`([^`]+)`",
+            lambda m: _stash(f"<code>{m.group(1)}</code>"),
+            text,
+        )
+
+        # Links — only allow safe URL schemes; leave unsafe links as plain
+        # text. The whole rendered <a> (href attribute AND label) is stashed so
+        # emphasis/score passes never touch the URL or the label.
         def render_link(match):
             label, url = match.group(1), match.group(2)
-            safe = url.startswith(("http://", "https://", "mailto:", "#", "/"))
-            return f'<a href="{url}">{label}</a>' if safe else match.group(0)
+            # Block protocol-relative URLs ("//attacker.example"): a leading
+            # "//" is NOT safe even though it starts with "/".
+            safe = (
+                url.startswith(("http://", "https://", "mailto:", "#"))
+                or (url.startswith("/") and not url.startswith("//"))
+            )
+            if not safe:
+                return match.group(0)
+            return _stash(f'<a href="{url}">{label}</a>')
         text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", render_link, text)
+
+        # From here on, `text` contains only plain (escaped) text plus opaque
+        # placeholders — safe to run the greedy emphasis/score passes.
         # Bold
         text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
-        # Italic
-        text = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", text)
+        # Italic. Require the opening ``*`` to hug a word character so bare
+        # wildcard asterisks in IAM ARNs / glob paths (``"*"``, ``s3:::bucket/*``)
+        # are left literal instead of being paired into a spurious <em>. Real
+        # emphasis (``*word*``) always opens on a word char; the closer stays
+        # permissive so a phrase ending in punctuation (``*...full terms.*``)
+        # still italicizes.
+        text = re.sub(r"\*(\w[^*]*?)\*", r"<em>\1</em>", text)
         # Strikethrough
         text = re.sub(r"~~([^~]+)~~", r"<del>\1</del>", text)
         # Score styling. NOT READY is styled via the READY lookbehind below
@@ -317,6 +399,10 @@ def md_to_html(md_content: str) -> str:
         text = re.sub(r"\b(RISKY)\b", r'<span class="score-risky">RISKY</span>', text)
         text = re.sub(r"\b(FAIR)\b", r'<span class="score-fair">FAIR</span>', text)
         text = re.sub(r"\b(GOOD)\b", r'<span class="score-good">GOOD</span>', text)
+
+        # Restore protected fragments verbatim.
+        for i, fragment in enumerate(protected):
+            text = text.replace("\x00%d\x00" % i, fragment)
         return text
 
     for line in lines:
@@ -324,7 +410,14 @@ def md_to_html(md_content: str) -> str:
         if line.strip().startswith("```"):
             if in_code_block:
                 escaped = html.escape("\n".join(code_lines))
-                lang_attr = f' class="language-{code_lang}"' if code_lang else ""
+                # Escape the fence info-string before interpolating it into the
+                # class attribute — an unescaped info-string (e.g.
+                # `bash"><script>...`) would otherwise break out and inject a
+                # live <script> into the DOM.
+                lang_attr = (
+                    f' class="language-{html.escape(code_lang, quote=True)}"'
+                    if code_lang else ""
+                )
                 html_parts.append(f"<pre><code{lang_attr}>{escaped}</code></pre>")
                 in_code_block = False
                 code_lines = []
@@ -341,6 +434,33 @@ def md_to_html(md_content: str) -> str:
 
         if in_code_block:
             code_lines.append(line)
+            continue
+
+        # HTML comments (<!-- ... -->) — strip them so they never reach the
+        # html.escape() pass below (otherwise a template comment renders as
+        # visible "<p>&lt;!-- ... --&gt;</p>" garbage). Handles single-line
+        # comments, multiple comments on one line, and multi-line comments.
+        # Comments inside fenced code blocks are left intact (handled above).
+        if in_comment:
+            end = line.find("-->")
+            if end == -1:
+                continue  # still inside a multi-line comment; drop the line
+            in_comment = False
+            line = line[end + 3:]  # resume after the comment close
+        # Remove any complete <!-- ... --> spans on this line. re.DOTALL makes
+        # "." span newlines so a comment can never slip through unfiltered
+        # (CodeQL py/bad-tag-filter); multi-line comments are also handled by the
+        # in_comment state machine above, but the flag keeps this span robust.
+        line = re.sub(r"<!--.*?-->", "", line, flags=re.DOTALL)
+        # An unterminated <!-- opens a multi-line comment: keep the text before
+        # it, then swallow subsequent lines until --> is seen.
+        open_idx = line.find("<!--")
+        if open_idx != -1:
+            in_comment = True
+            line = line[:open_idx]
+        # If nothing but a (now-stripped) comment remained, skip the empty line
+        # rather than emitting an empty <p>.
+        if not line.strip():
             continue
 
         stripped = line.strip()
@@ -474,19 +594,43 @@ def main():
         print(f"Error: File not found: {input_file}")
         sys.exit(1)
 
-    with open(input_file, "r", encoding="utf-8") as f:
-        md_content = f.read()
+    # A directory (or other non-regular path) passed as the input would raise
+    # IsADirectoryError from open(); report it cleanly with a nonzero exit
+    # instead of a traceback.
+    if os.path.isdir(input_file):
+        print(f"Error: Input is a directory, not a file: {input_file}")
+        sys.exit(1)
+
+    try:
+        with open(input_file, "r", encoding="utf-8") as f:
+            md_content = f.read()
+    except (IsADirectoryError, OSError) as exc:
+        print(f"Error: Could not read input file {input_file}: {exc}")
+        sys.exit(1)
 
     title = extract_title(md_content)
     body_html = md_to_html(md_content)
     full_html = build_html(title, body_html)
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(full_html)
+    # Always write UTF-8 regardless of the ambient locale so non-ASCII content
+    # round-trips; the explicit encoding also prevents an ascii-locale
+    # UnicodeEncodeError at write time.
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(full_html)
+    except (IsADirectoryError, OSError) as exc:
+        print(f"Error: Could not write output file {output_file}: {exc}")
+        sys.exit(1)
 
     input_size = os.path.getsize(input_file)
     output_size = os.path.getsize(output_file)
-    print(f"✅ Converted: {input_file} ({input_size:,} bytes) → {output_file} ({output_size:,} bytes)")
+    # Use a plain ASCII status line: under an ascii stdout locale a non-ASCII
+    # glyph here would raise UnicodeEncodeError *after* the file was already
+    # written, making the exit code lie about the outcome.
+    print(
+        f"Converted: {input_file} ({input_size:,} bytes) -> "
+        f"{output_file} ({output_size:,} bytes)"
+    )
 
 
 if __name__ == "__main__":

@@ -19,10 +19,15 @@ Validate the upgrade path, determine support status, and enforce EKS upgrade rul
 > **Freshness gate — apply BEFORE using this table:**
 > 1. If the cluster version or target version is **NOT in the table below** → fetch live
 >    data from AWS docs (a documentation search for "EKS Kubernetes versions") before proceeding.
-> 2. If today's assessment date is **past the "Extended Support Until" date** for the cluster's
+> 2. If today's assessment date is **past the "Standard Support Until" date** for the cluster's
+>    current version → that version has moved from STANDARD to EXTENDED support (extended-support
+>    pricing and an extended-support INFO finding now apply). The table's STANDARD/EXTENDED labels
+>    go stale the moment a standard-support window closes, so verify the row's Status live against
+>    AWS docs (EKS `kubernetes-versions.html`) before reporting.
+> 3. If today's assessment date is **past the "Extended Support Until" date** for the cluster's
 >    current version → that version's status may have changed to UNSUPPORTED. Verify live before
 >    reporting support status.
-> 3. If live lookup fails or live lookup is unavailable → use the table as fallback, but add
+> 4. If live lookup fails or live lookup is unavailable → use the table as fallback, but add
 >    a note in the report: "Support status unverified — table data may be stale."
 
 | Version | Standard Support Until | Extended Support Until | Status |
@@ -30,10 +35,12 @@ Validate the upgrade path, determine support status, and enforce EKS upgrade rul
 | 1.36 | August 2, 2027 | August 2, 2028 | ✅ STANDARD (latest in this table) |
 | 1.35 | March 27, 2027 | March 27, 2028 | ✅ STANDARD |
 | 1.34 | December 2, 2026 | December 2, 2027 | ✅ STANDARD |
-| 1.33 | July 29, 2026 | July 29, 2027 | ✅ STANDARD |
+| 1.33 | July 29, 2026 | July 29, 2027 | ⚠️ EXTENDED (standard support ended July 29, 2026; extended as of 2026-08-05 — verify live) |
 | 1.32 | March 23, 2026 | March 23, 2027 | ⚠️ EXTENDED |
 | 1.31 | November 26, 2025 | November 26, 2026 | ⚠️ EXTENDED |
-| 1.30 | July 23, 2025 | July 23, 2026 | ⚠️ EXTENDED |
+| 1.30 | July 23, 2025 | July 23, 2026 | ❌ UNSUPPORTED (extended support ended July 23, 2026; unsupported as of 2026-08-06 — verify live) |
+
+> **Provenance:** calendar verified as of 2026-08-06 via https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html — re-verify live per the freshness gate above before reporting.
 
 **CRITICAL:** The `upgradePolicy.supportType` field from the API is a CONFIGURATION PREFERENCE, not the current billing status. Always determine actual support status from the calendar above or from live AWS documentation.
 
@@ -100,8 +107,8 @@ If the cluster version's Extended Support Until date has passed:
 - Severity = **CRITICAL**
 - Flag as a blocker in the report (see report-generation.md for template)
 - The cluster no longer receives security patches or bug fixes from AWS
-- AWS may force-upgrade the cluster with limited notice
-- Extended support billing (indicative ~$0.60/hr — verify current rate) continues to apply while the cluster remains on the extended-support version until it is upgraded
+- AWS automatically upgrades the cluster to the next minor version at the end of extended support (see EKS docs, "extended support" / `kubernetes-versions.html`); the cluster does not remain on the unsupported version indefinitely
+- Extended support billing (indicative ~$0.60/hr — verify current rate) applies throughout the extended-support window; it ends when the cluster leaves the extended-support version — either by a user-initiated upgrade or by AWS's automatic upgrade at end of extended support
 - Score impact: 15 pts deduction (see report-generation.md §Category 10)
 
 **Output:** Current version, support tier, cost implications. If UNSUPPORTED, include urgency callout.
@@ -132,6 +139,9 @@ If the cluster version's Extended Support Until date has passed:
 **Rules (Kubernetes version skew policy):**
 - kubelet may be up to **N-3** minor versions behind the control plane (the N-3 kubelet
   skew policy; the older N-2 limit applies only to kubelet versions below 1.25)
+  — see the Kubernetes "Version Skew Policy" (kubernetes.io/releases/version-skew-policy),
+  which permits kubelet to be up to 3 minor versions older than kube-apiserver as of
+  Kubernetes 1.28+ (the 2-version limit applied before 1.25)
 - If the control plane is upgraded to the target version, nodes must be within 3 minor versions
 
 **How to check:**
