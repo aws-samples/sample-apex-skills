@@ -555,6 +555,21 @@ Execute a workload migration from x86 (amd64) to AWS Graviton (arm64) — set up
 
 ---
 
+### [openrewrite-java-upgrade](./openrewrite-java-upgrade/)
+
+Analyze and upgrade a Java or Spring application to a modern JDK and Spring Boot line with OpenRewrite (Java 11 to 21, Spring Boot 2.7 to 3.3), then land a green build. Phase 1 emits an analysis artifact: current vs target JDK and Boot, base image (glibc vs musl/Alpine), the native-library footprint (netty-tcnative, snappy, zstd) with versions, and the TLS path read from the pom. Phase 2 runs the OpenRewrite recipe and applies the settled fixes: strip the spurious spring-boot-starter-web injected into WebFlux modules, put bcpkix at runtime scope, add BouncyCastle for the JDK-21 SelfSignedCertificate crashloop, move to a glibc base image for arm64 safety, and gate native libraries with 'ldd -r'. Use whenever someone wants to upgrade Java or Spring Boot, run OpenRewrite, modernize a Spring app, migrate Boot 2 to 3, move off Java 8/11 onto 17/21, or debug a post-upgrade native-library or TLS crashloop. Not for the arm64/Graviton node cutover itself (use graviton-migration) or general EKS work.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [analysis-artifact.md](./openrewrite-java-upgrade/references/analysis-artifact.md) | Analysis artifact |
+| [gotchas.md](./openrewrite-java-upgrade/references/gotchas.md) | Gotchas |
+| [native-linkage-gate.md](./openrewrite-java-upgrade/references/native-linkage-gate.md) | Native linkage gate |
+| [openrewrite-config.md](./openrewrite-java-upgrade/references/openrewrite-config.md) | Openrewrite config |
+
+---
+
 ### [skill-creator](./skill-creator/)
 
 Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
