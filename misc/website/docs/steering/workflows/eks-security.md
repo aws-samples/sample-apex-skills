@@ -51,7 +51,7 @@ One paragraph naming the choice at each of the 7 layers, each one-sentence-justi
 Walk all 7 layers, citing the AWS doc/blog/workshop for each and giving the **shared-responsibility split** per layer (what AWS manages vs what the customer manages — critical for audit conversations). Use the matching skill reference for each layer.
 
 ### Phase 5 — 30/60/90 hardening roadmap
-Baseline (non-disruptive: logging, GuardDuty, ECR scanning, Security Hub, kube-bench) → identity + workload (Access Entries, Pod Identity, PSA, Kyverno, NetworkPolicy) → OS + image + accelerators (Bottlerocket/CIS-AL2023, signing, Audit Manager, Artifact). Greenfield deploys the full stack at creation.
+Baseline (non-disruptive: logging, GuardDuty, ECR scanning, Security Hub, kube-bench) → identity + workload (Access Entries, Pod Identity, PSA, Kyverno, NetworkPolicy) → OS + image + accelerators (Bottlerocket/CIS-AL2023, signing, Config conformance packs, Artifact). Greenfield deploys the full stack at creation.
 
 ### Phase 6 — Security baseline, gotchas, escalation
 Include the non-negotiable baseline regardless of regime; surface 3-5 relevant gotchas (Auto Mode no custom AMI, PSP removed 1.25+, Pod Identity 5,000-association limit, HIPAA-needs-BAA, FedRAMP Moderate≠High, FIPS 140-3≠140-2, CIS AL2≠AL2023, App Mesh EOS, AL2 EOL); escalate per the skill's criteria when stakes warrant it.

@@ -27,7 +27,7 @@ Two AWS-published guides are the canonical foundation and every recommendation m
 - Apply workload security (Pod Security Admission, Kyverno/OPA, NetworkPolicy, Security Groups for Pods)
 - Secure the image supply chain (ECR Enhanced Scanning, Cosign/Notation signing, admission verification)
 - Add runtime security (GuardDuty for EKS, Falco) and audit logging (control-plane logs, CloudTrail, SIEM)
-- Wire compliance accelerators (Audit Manager, Config, Security Hub, Artifact)
+- Wire compliance accelerators (Config conformance packs, Security Hub, Artifact; Audit Manager for existing setups only — maintenance mode)
 
 **Don't use this skill for:**
 - Non-EKS container platforms — **ECS/Fargate-without-EKS** (defer to ECS security guidance) or **ROSA** (Red Hat manages the stack differently)
@@ -63,9 +63,9 @@ Walk the layers bottom-up on a first engagement; each layer's controls compound 
 | **4 — Image Supply Chain** | Trust what you run | **ECR Enhanced Scanning** (Inspector) + **Cosign/Notation signing** + Kyverno `verifyImages` admission | [image-supply-chain.md](references/image-supply-chain) |
 | **5 — Runtime Security** | Detect at runtime | **GuardDuty for EKS** (EKS Protection + Runtime Monitoring); Falco for OSS/custom rules; findings → Security Hub | [runtime-security.md](references/runtime-security) |
 | **6 — Audit Logging & Forensics** | Prove what happened | EKS control-plane logs (**`audit` + `authenticator` minimum**) + CloudTrail + VPC Flow Logs + SIEM forwarding | [audit-logging.md](references/audit-logging) |
-| **7 — Compliance Accelerators** | Continuous evidence | **Audit Manager** + **Config** + **Security Hub** + **Artifact** (download attestations) | [compliance-accelerators.md](references/compliance-accelerators) |
+| **7 — Compliance Accelerators** | Continuous control evidence (CIs) | **Config conformance packs** + **Security Hub** + **Artifact** (download attestations); **Audit Manager** existing setups only (maintenance mode) | [compliance-accelerators.md](references/compliance-accelerators) |
 
-> **The AWS-canonical reference stack for a new commercial cluster:** Bottlerocket (L1) + Pod Identity + Access Entries (L2) + PSA `restricted` + Kyverno + VPC CNI NetworkPolicy + Security Groups for Pods (L3) + ECR Enhanced Scanning + Cosign signing (L4) + GuardDuty for EKS (L5) + control-plane `audit`+`authenticator` logging + CloudTrail (L6) + Audit Manager + Config + Security Hub (L7). The **vendor-OS path** applies the same stack with a Layer-1 substitution only.
+> **The AWS-canonical reference stack for a new commercial cluster:** Bottlerocket (L1) + Pod Identity + Access Entries (L2) + PSA `restricted` + Kyverno + VPC CNI NetworkPolicy + Security Groups for Pods (L3) + ECR Enhanced Scanning + Cosign signing (L4) + GuardDuty for EKS (L5) + control-plane `audit`+`authenticator` logging + CloudTrail (L6) + Config conformance packs + Security Hub (L7; Audit Manager for existing setups only — maintenance mode). The **vendor-OS path** applies the same stack with a Layer-1 substitution only.
 
 **Cross-cutting concerns** (span every layer, aligned to the AWS Best Practices security areas): **data encryption & secrets management** (default envelope encryption on K8s 1.28+, CMK, Secrets Manager/CSI/ESO) → [encryption-and-secrets.md](references/encryption-and-secrets); **multi-tenancy & multi-account isolation** (soft vs hard, namespaces→cluster-/account-per-tenant) → [multi-tenancy.md](references/multi-tenancy); **incident response & forensics** (the runbook when a detection fires) → [incident-response-and-forensics.md](references/incident-response-and-forensics); and the **shared-responsibility model** — AWS secures the control plane (control-plane nodes + etcd) and assumes more as you move self-managed → MNG → Fargate; you secure the data plane, node OS, workloads, and the controls in this skill. Each reference includes its per-layer shared-responsibility split.
 
@@ -105,7 +105,7 @@ Regardless of regime, every hardening recommendation MUST include:
 
 - **Days 1-30 (baseline, non-disruptive):** enable control-plane `audit`+`authenticator` logging; enable GuardDuty for EKS; enable Security Hub (CIS AWS Foundations + AWS FSBP); enable ECR Enhanced Scanning; run `kube-bench` for the current CIS posture. *Change nothing yet — establish the baseline.*
 - **Days 31-60 (identity + workload):** migrate `aws-auth` → Access Entries (planned change window, `kubectl` access pre-validated); migrate/justify IRSA → Pod Identity; enable PSA `restricted` (start `audit` mode → `enforce`); deploy Kyverno/OPA; enforce NetworkPolicy default-deny.
-- **Days 61-90 (OS + image + accelerators):** migrate to Bottlerocket (or build CIS-hardened AL2023 via Image Builder); enable ECR image signing; deploy Audit Manager with the applicable framework; validate Security Hub against the compliance pack; download attestations from AWS Artifact.
+- **Days 61-90 (OS + image + accelerators):** migrate to Bottlerocket (or build CIS-hardened AL2023 via Image Builder); enable ECR image signing; enable the applicable AWS Config conformance pack (HIPAA/PCI/NIST/FedRAMP) + validate Security Hub against the compliance standard (Audit Manager existing setups only — maintenance mode; see references/compliance-accelerators.md); download attestations from AWS Artifact.
 - **Greenfield:** deploy the full 7-layer stack at cluster creation, not retrofitted — and get the Day 0 settings below right first.
 
 ### Day 0 checklist (greenfield — settings that are one-way or costly to retrofit)
@@ -173,12 +173,12 @@ Progressive disclosure — the essentials are above; load a reference only when 
 | [image-supply-chain.md](references/image-supply-chain) | Layer 4 — ECR Enhanced Scanning, Cosign/Notation signing, admission control, third-party scanners |
 | [runtime-security.md](references/runtime-security) | Layer 5 — GuardDuty for EKS, Falco, Security Hub aggregation |
 | [audit-logging.md](references/audit-logging) | Layer 6 — control-plane log types, CloudTrail, VPC Flow Logs, SIEM forwarding, retention |
-| [compliance-accelerators.md](references/compliance-accelerators) | Layer 7 — Audit Manager, Config, Security Hub, Artifact, kube-bench |
+| [compliance-accelerators.md](references/compliance-accelerators) | Layer 7 — Config conformance packs, Security Hub, Artifact, Audit Manager (maintenance mode), kube-bench |
 | [encryption-and-secrets.md](references/encryption-and-secrets) | Default envelope encryption (KMS v2), CMK + its operational risk, EBS/EFS/FSx encryption, Secrets Manager/CSI/ESO/Sealed Secrets, secret hygiene |
 | [multi-tenancy.md](references/multi-tenancy) | Soft vs hard multi-tenancy, in-cluster isolation (namespaces/RBAC/NetworkPolicy/quotas/node isolation), cluster-/account-per-tenant |
 | [incident-response-and-forensics.md](references/incident-response-and-forensics) | IR runbook for a compromised pod/node, isolation/eradication, credential revocation, forensic capture |
-| [compliance-regimes.md](references/compliance-regimes) | The cross-regime scope table, language-precision rules, worked scenarios, and routing to the per-regime quick-starts (HIPAA/PCI/FedRAMP/GDPR/ISO/…) |
-| [compliance-hipaa.md](references/compliance-hipaa) | HIPAA quick-start — BAA-first, Security Rule → EKS control map, 6-year retention, 30/60/90 |
+| [compliance-regimes.md](references/compliance-regimes) | The cross-regime scope table, language-precision rules, worked scenarios, and routing to the per-regime quick-starts (HIPAA/PCI/SOC 2) |
+| [compliance-hipaa.md](references/compliance-hipaa) | HIPAA quick-start — BAA-first, Security Rule → EKS control map, 6-year documentation retention, 30/60/90 |
 | [compliance-pci.md](references/compliance-pci) | PCI DSS quick-start — CDE scoping/segmentation, Req 1/2/3/4/6/7/8/10/11 → EKS control map, 1-year retention + ASV scan, 30/60/90 |
 | [compliance-soc2.md](references/compliance-soc2) | SOC 2 quick-start — attestation vs certification, Trust Services Criteria (CC6/CC7/CC8) → EKS control map, Type II readiness, 30/60/90 |
 

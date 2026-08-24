@@ -1,12 +1,12 @@
 ---
 title: "SOC 2 on EKS — Quick-Start"
 description: ""
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/compliance-soc2.md
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/compliance-soc2.md
 format: md
 ---
 
 :::info[Source]
-This page is generated from [skills/eks-security/references/compliance-soc2.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/compliance-soc2.md). Edit the source, not this page.
+This page is generated from [devops-agent/eks-security/references/compliance-soc2.md](https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/compliance-soc2.md). Edit the source, not this page.
 :::
 
 # SOC 2 on EKS — Quick-Start

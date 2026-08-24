@@ -1,6 +1,17 @@
+---
+title: "HIPAA on EKS — Quick-Start"
+description: ""
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/compliance-hipaa.md
+format: md
+---
+
+:::info[Source]
+This page is generated from [devops-agent/eks-security/references/compliance-hipaa.md](https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/compliance-hipaa.md). Edit the source, not this page.
+:::
+
 # HIPAA on EKS — Quick-Start
 
-A per-regime quick-start for running Protected Health Information (PHI) workloads on Amazon EKS. Read the cross-regime scope table and language-precision rules in [compliance-regimes.md](compliance-regimes.md) first; this file is the HIPAA-specific depth. This is a starting-point quick-start, **not a complete HIPAA Security Rule checklist** — it focuses on the EKS-relevant technical safeguards (§164.312/.316), not the full administrative (§164.308) and physical (§164.310) safeguards a HIPAA program also requires.
+A per-regime quick-start for running Protected Health Information (PHI) workloads on Amazon EKS. Read the cross-regime scope table and language-precision rules in [compliance-regimes.md](compliance-regimes) first; this file is the HIPAA-specific depth. This is a starting-point quick-start, **not a complete HIPAA Security Rule checklist** — it focuses on the EKS-relevant technical safeguards (§164.312/.316), not the full administrative (§164.308) and physical (§164.310) safeguards a HIPAA program also requires.
 
 > **Compliance status changes over time — verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting coverage in any customer-facing document.**
 
@@ -23,13 +34,13 @@ A per-regime quick-start for running Protected Health Information (PHI) workload
 
 ## 30 / 60 / 90 quick-start
 
-- **Confirm the BAA is active — before anything else.** Then Days 1-30: enable all 5 control-plane logs (retain per your evidence policy — §164.316(b)(2)'s **6-year** rule governs *documentation*, commonly extended to logs), GuardDuty for EKS, ECR Enhanced Scanning, Security Hub; run `kube-bench`; enable continuous control evidence (Configuration Items) via the AWS Config conformance pack **"Operational Best Practices for HIPAA Security"** + Security Hub. (AWS Audit Manager — which had a HIPAA Security Rule framework — is in maintenance mode, existing setups only; see [compliance-accelerators.md](compliance-accelerators.md) for the dated status.)
+- **Confirm the BAA is active — before anything else.** Then Days 1-30: enable all 5 control-plane logs (retain per your evidence policy — §164.316(b)(2)'s **6-year** rule governs *documentation*, commonly extended to logs), GuardDuty for EKS, ECR Enhanced Scanning, Security Hub; run `kube-bench`; enable continuous control evidence (Configuration Items) via the AWS Config conformance pack **"Operational Best Practices for HIPAA Security"** + Security Hub. (AWS Audit Manager — which had a HIPAA Security Rule framework — is in maintenance mode, existing setups only; see [compliance-accelerators.md](compliance-accelerators) for the dated status.)
 - **Days 31-60:** Pod Identity + Access Entries; PSA `restricted` (`audit`→`enforce`); Kyverno; default-deny NetworkPolicy + Security Groups for Pods on PHI namespaces; CMK on every PHI data layer.
 - **Days 61-90:** Bottlerocket (or CIS-hardened AL2023); image signing + admission verification; HIPAA mock audit → remediate → confirm the BAA is accepted in Artifact and pull supporting SOC 2 / ISO reports for the auditor (there is no HIPAA AOC to download).
 
 ## Escalate
 
-First-time HIPAA audit/assessment on a mission-critical workload; multi-tenant SaaS with cross-tenant PHI isolation; PHI in a service not on the HIPAA-eligible list; or any control the customer cannot ground in an AWS-published source. See [engagement-and-response.md](engagement-and-response.md).
+First-time HIPAA audit/assessment on a mission-critical workload; multi-tenant SaaS with cross-tenant PHI isolation; PHI in a service not on the HIPAA-eligible list; or any control the customer cannot ground in an AWS-published source. See [engagement-and-response.md](engagement-and-response).
 
 ## Shared responsibility (HIPAA)
 

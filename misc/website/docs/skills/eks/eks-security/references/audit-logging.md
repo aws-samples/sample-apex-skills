@@ -41,11 +41,12 @@ CloudWatch Logs subscription → Kinesis Data Streams → Firehose → SIEM dest
 
 ## Retention requirements by regime (set this deliberately)
 
-| Regime | Minimum audit-log retention |
+| Regime | Audit-log retention guidance |
 |---|---|
 | Commercial (no regime) | per policy (often 30-90 days) |
 | **PCI-DSS** | **1 year minimum** (3 months immediately available) |
-| **HIPAA / SOX** | **6 years** |
+| **HIPAA** | no fixed log-retention floor; §164.316(b)(2) requires 6-yr documentation retention, commonly extended to logs |
+| **SOX** | 7 years (17 CFR 210.2-06) |
 | FedRAMP | per System Security Plan; continuous-monitoring cadence |
 
 Apply the retention to the CloudWatch Logs groups holding `audit`/`authenticator` (and to CloudTrail/S3) — and encrypt those groups with a customer-managed KMS key for high-sensitivity workloads.
