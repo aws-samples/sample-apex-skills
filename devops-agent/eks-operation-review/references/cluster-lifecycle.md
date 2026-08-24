@@ -1,19 +1,3 @@
----
-title: "Cluster Lifecycle & Upgrades"
-description: ""
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/cluster-lifecycle.md
-format: md
----
-
-:::info[Source]
-This page is generated from [skills/eks-operation-review/references/cluster-lifecycle.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/cluster-lifecycle.md). Edit the source, not this page.
-:::
-
-
-:::info[Vendored skill]
-This skill is sourced from [eks-operation-review](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review), also maintained by the APEX team.
-:::
-
 # Cluster Lifecycle & Upgrades
 
 ## Purpose
@@ -26,12 +10,12 @@ Assess EKS cluster version currency, data plane alignment, upgrade readiness, ad
 Determine support status from the live API first; fall back to the dated table only when the API cannot be reached. Do NOT guess or use training data.
 
 **Primary (live) method — preferred:**
-Run `aws eks describe-cluster-versions` to get the authoritative real-time list of EKS versions and each version's `versionStatus` (falling back to the deprecated `status` field) — one of STANDARD_SUPPORT / EXTENDED_SUPPORT / UNSUPPORTED. Define **latest** = the highest version whose status is `STANDARD_SUPPORT` in the API response.
+Call the EKS **DescribeClusterVersions** API to get the authoritative real-time list of EKS versions and each version's `versionStatus` (falling back to the deprecated `status` field) — one of STANDARD_SUPPORT / EXTENDED_SUPPORT / UNSUPPORTED. Define **latest** = the highest version whose status is `STANDARD_SUPPORT` in the API response.
 
 **Fallback method — only when the live API is unavailable:**
 Use the dated table below. In fallback mode, **latest** = the highest `STANDARD_SUPPORT` version *in this table* (not the true current latest), so ratings are relative to the table and may lag reality — note fallback mode in the finding.
 
-> This fallback table was sourced from the EKS upgrade skill's version data on the "as of" date shown in the table header; it goes stale as new EKS versions ship and support windows advance — refresh it periodically against the [official EKS version calendar](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html). Prefer `aws eks describe-cluster-versions --include-all` (the `--include-all` flag also surfaces `UNSUPPORTED` versions) whenever the live API is reachable. If the API is unavailable and the cluster runs a version **not present** in this fallback table, do not guess from training data — classify by the table's bounds instead (this applies in fallback mode only; if the live API is reachable, the API's own support status governs and this fallback logic does not apply). A version **below the lowest table entry** (older than 1.30, the lowest version in this fallback table — note that 1.30 is itself now UNSUPPORTED, its extended support having ended July 23, 2026, so 1.31 is the oldest version still in extended support) is past extended-support end — rate 🔴 RED, since it is out of support, and note that it is below the fallback table and out of support. A version **newer than the highest table entry** (1.36) may be a brand-new release that the stale fallback table simply predates — do not rate it out of support. Rate it 🟢 GREEN via the out-of-range guard in check 1.1 and note that the version is newer than the fallback table (last verified 2026-08-09).
+> This fallback table was sourced from the EKS upgrade skill's version data on the "as of" date shown in the table header; it goes stale as new EKS versions ship and support windows advance — refresh it periodically against the [official EKS version calendar](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html). Prefer the DescribeClusterVersions API with `includeAll` set (which also surfaces `UNSUPPORTED` versions) whenever the live API is reachable. If the API is unavailable and the cluster runs a version **not present** in this fallback table, do not guess from training data — classify by the table's bounds instead (this applies in fallback mode only; if the live API is reachable, the API's own support status governs and this fallback logic does not apply). A version **below the lowest table entry** (older than 1.30, the lowest version in this fallback table — note that 1.30 is itself now UNSUPPORTED, its extended support having ended July 23, 2026, so 1.31 is the oldest version still in extended support) is past extended-support end — rate 🔴 RED, since it is out of support, and note that it is below the fallback table and out of support. A version **newer than the highest table entry** (1.36) may be a brand-new release that the stale fallback table simply predates — do not rate it out of support. Rate it 🟢 GREEN via the out-of-range guard in check 1.1 and note that the version is newer than the fallback table (last verified 2026-08-09).
 
 | Version | Standard Support Until | Extended Support Until | Status (as of 2026-08-09) |
 |---------|----------------------|----------------------|----------------|
@@ -43,7 +27,7 @@ Use the dated table below. In fallback mode, **latest** = the highest `STANDARD_
 | 1.31 | November 26, 2025 | November 26, 2026 | ⚠️ EXTENDED_SUPPORT (standard ended) |
 | 1.30 | July 23, 2025 | July 23, 2026 | ⛔ UNSUPPORTED (extended support ended July 23, 2026) |
 
-**CRITICAL:** The `upgradePolicy.supportType` field from the API is a CONFIGURATION PREFERENCE, not the current billing status. A cluster on a standard-support version with `supportType: EXTENDED` is still on standard support and NOT paying the extended premium. Always determine actual support status from `describe-cluster-versions` (or the fallback table), never from `supportType`.
+**CRITICAL:** The `upgradePolicy.supportType` field from the API is a CONFIGURATION PREFERENCE, not the current billing status. A cluster on a standard-support version with `supportType: EXTENDED` is still on standard support and NOT paying the extended premium. Always determine actual support status from the DescribeClusterVersions API (or the fallback table), never from `supportType`.
 
 ## Checks to Execute
 
@@ -56,14 +40,14 @@ Use the dated table below. In fallback mode, **latest** = the highest `STANDARD_
 
 **How to check:**
 1. Describe the cluster → get `version` and `platformVersion`
-2. Run `aws eks describe-cluster-versions` → find the cluster's version and its `versionStatus` (falling back to the deprecated `status` field), and identify **latest** = the highest `STANDARD_SUPPORT` version. If the live API is unavailable, fall back to the dated table above and note fallback mode in the finding.
+2. Call the EKS **DescribeClusterVersions** API → find the cluster's version and its `versionStatus` (falling back to the deprecated `status` field), and identify **latest** = the highest `STANDARD_SUPPORT` version. If the live API is unavailable, fall back to the dated table above and note fallback mode in the finding.
 3. Report: version, standard/extended/unsupported status, and when the current support period ends
 
 **Rating (evaluate RED first, then AMBER, then GREEN):**
 - 🔴 RED: Version is on **extended support**, or **unsupported** (past its extended-support end date) — extended support incurs the cost premium below; unsupported means running with no support
 - 🟡 AMBER: Version is on **standard support but older** — a standard version more than one minor behind the latest standard version
 - 🟢 GREEN: Version is the **latest** standard-support version or **N-1** (one minor behind the latest standard version)
-- ⬜ UNKNOWN: Cannot determine the version (should not happen with live access); OR the `describe-cluster-versions` call **succeeded but returned no versions (an empty list)** — this is NOT a 403 (do not treat an empty-but-successful response as access-denied, and do not read empty data as "version unsupported"). Prefer falling back to the dated table above (treat empty-but-successful as "live version data unavailable") and note fallback mode; if the table is also unavailable, rate this dimension UNKNOWN with the note "version support data unexpectedly empty from a successful describe-cluster-versions response." Floor-preserving: an empty-but-successful response never yields GREEN on its own.
+- ⬜ UNKNOWN: Cannot determine the version (should not happen with live access); OR the **DescribeClusterVersions** call **succeeded but returned no versions (an empty list)** — this is NOT a 403 (do not treat an empty-but-successful response as access-denied, and do not read empty data as "version unsupported"). Prefer falling back to the dated table above (treat empty-but-successful as "live version data unavailable") and note fallback mode; if the table is also unavailable, rate this dimension UNKNOWN with the note "version support data unexpectedly empty from a successful DescribeClusterVersions response." Floor-preserving: an empty-but-successful response never yields GREEN on its own.
 
 **Version out-of-range guard (fallback mode only):** If using the fallback table and the cluster version is higher than the highest version in the table, rate GREEN and note: "Version 1.X is newer than the fallback table (last verified 2026-08-09); the live API was unavailable. Rated GREEN as latest. Refresh the table when convenient."
 

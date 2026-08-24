@@ -60,7 +60,7 @@ This section is mostly NOT automatable from cluster state. The skill checks for 
 
 **How to check:**
 1. Get events with reason=NodeNotReady
-2. Get recent Deployment-related events (e.g. rollout/scaling activity). Note: Kubernetes emits a dedicated `DeploymentRollback` event reason only via the server-side `rollbackTo` path, which was REMOVED in Kubernetes 1.16 and now survives only via the `deprecated.deployment.rollback.to` annotation round-trip; modern `kubectl rollout undo` is a client-side patch that does not fire it, so rollback history cannot be reliably reconstructed from events alone — treat any signal here as best-effort and confirm with the user.
+2. Get recent Deployment-related events (e.g. rollout/scaling activity). Note: Kubernetes emits a dedicated `DeploymentRollback` event reason only via the server-side `rollbackTo` path, which was REMOVED in Kubernetes 1.16 and now survives only via the `deprecated.deployment.rollback.to` annotation round-trip; modern `kubectl rollout undo` is a client-side patch that does not fire it, so rollback history cannot be reliably reconstructed from events alone — treat any signal here as best-effort and flag it in the report under "Investigate manually" for confirmation.
 
 **Rating:**
 - ⬜ UNKNOWN: Cannot determine PIR process from cluster state.
@@ -97,6 +97,6 @@ This section is mostly NOT automatable from cluster state. The skill checks for 
 - **Scoring authority:** this check owns backup/DR coverage scoring (Velero / AWS Backup / VolumeSnapshots / no-backup-strategy); check 5.5 defers here for the backup-strategy signal and scores only storage-class / in-tree-plugin / PV-StatefulSet configuration facts (reclaim policy is a non-scoring note in 5.5).
 
 **Investigate manually:**
-- Has a restore actually been tested (not just backups running)? Restore-testing is never observable from cluster state — confirm with the user; it does not move the band.
+- Has a restore actually been tested (not just backups running)? Restore-testing is never observable from cluster state — flag it in the report under "Investigate manually" for confirmation; it does not move the band.
 - What is the documented RTO/RPO, and does the current backup cadence meet it?
 - Are backups stored in a separate account/region to survive a regional or account-level failure?

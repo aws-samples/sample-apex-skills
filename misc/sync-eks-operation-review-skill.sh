@@ -276,12 +276,113 @@ EOF
 
 echo ""
 
-# --- Step 8: Show what we got ---
-echo "=== Synced files ==="
+# --- Step 9: Sync DevOps Agent port ---
+# Mirrors sync-eks-upgrade-skill.sh's port-sync steps, ADAPTED to
+# op-review's upstream DevOpsAgent/ structure:
+#   - upstream references/ already uses `references/` naming (no rename)
+#   - upstream ships NO assets/ folder and NO iam-policy.json, so those
+#     copy/extract steps are guarded and skipped cleanly (never error).
+DEVOPS_DIR="$REPO_ROOT/devops-agent/eks-operation-review"
+UPSTREAM_DEVOPS="$UPSTREAM_ROOT/DevOpsAgent"
+
+echo "Syncing DevOps Agent port..."
+
+# Guard: only run the port sync if upstream ships DevOpsAgent/SKILL.md.
+# If upstream ever lacks it, leave the local port directory untouched and
+# continue (do NOT error) — keeps the skill sync usable on its own.
+if [ ! -f "$UPSTREAM_DEVOPS/SKILL.md" ]; then
+    echo "  NOTE: upstream DevOpsAgent/SKILL.md not found — skipping DevOps Agent port sync (local port left untouched)"
+else
+    # Guard passed — wipe and replace the (previously placeholder) port dir
+    echo "Removing local DevOps Agent port: $DEVOPS_DIR"
+    rm -rf "$DEVOPS_DIR"
+    echo ""
+
+    # --- Step 10: Copy DevOps Agent port components ---
+    echo "Copying DevOps Agent port to local..."
+
+    mkdir -p "$DEVOPS_DIR/references"
+
+    # SKILL.md (verbatim — port target is the DevOps Agent, not apex Claude
+    # Code, so the apex-flavored SKILL.md deviations do NOT apply here;
+    # matches the eks-upgrade-check port's verbatim-copy convention)
+    cp "$UPSTREAM_DEVOPS/SKILL.md" "$DEVOPS_DIR/SKILL.md"
+
+    # README.md → references/porting-notes.md (Differences section = porting
+    # notes; excluded from upload zip by setup.sh; serves as docs page via
+    # generators). Mirrors the upgrade port's convention.
+    cp "$UPSTREAM_DEVOPS/README.md" "$DEVOPS_DIR/references/porting-notes.md"
+
+    # Fix relative links broken by relocation (SKILL.md is now one dir up)
+    sed -i.bak 's|(SKILL\.md)|(../SKILL.md)|g' "$DEVOPS_DIR/references/porting-notes.md"
+    rm -f "$DEVOPS_DIR/references/porting-notes.md.bak"
+
+    # References (upstream knowledge files — verbatim, already `references/`)
+    cp "$UPSTREAM_DEVOPS/references/"*.md "$DEVOPS_DIR/references/"
+
+    # Assets — GUARDED. Op-review's upstream DevOpsAgent/ ships no assets/.
+    # Only copy if upstream actually provides a non-empty assets/ dir.
+    if [ -d "$UPSTREAM_DEVOPS/assets" ] && [ -n "$(ls -A "$UPSTREAM_DEVOPS/assets" 2>/dev/null)" ]; then
+        mkdir -p "$DEVOPS_DIR/assets"
+        cp "$UPSTREAM_DEVOPS/assets/"* "$DEVOPS_DIR/assets/"
+        echo "  Copied SKILL.md, references/ (+ porting-notes.md), assets/"
+    else
+        echo "  Copied SKILL.md, references/ (+ porting-notes.md); no upstream assets/ — skipped"
+    fi
+
+    echo ""
+
+    # --- Step 11: IAM policy — GUARDED (skipped for op-review) ---
+    # Unlike eks-upgrade-check, op-review's upstream ships NO iam-policy.json
+    # and its root README has no IAM policy block to extract. Skip cleanly.
+    echo "  No iam-policy.json for op-review port (upstream ships none) — skipped"
+    echo ""
+
+    # --- Step 12: Write DevOps Agent port UPSTREAM.md provenance ---
+    echo "Writing DevOps Agent port UPSTREAM.md..."
+    cat > "$DEVOPS_DIR/UPSTREAM.md" <<EOF
+# Upstream Provenance
+
+This DevOps Agent port is **vendored** from an upstream repo. Do not edit files here directly — your changes will be overwritten by the next sync.
+
+| Field | Value |
+|---|---|
+| Source repo | $UPSTREAM_REPO |
+| Source path | \`DevOpsAgent/\` |
+| Refresh command | \`./misc/sync-eks-operation-review-skill.sh\` |
+| License | See \`skills/eks-operation-review/LICENSE\` (shared with the CC skill) |
+
+## Local modifications applied at sync time
+
+1. **\`DevOpsAgent/README.md\` → \`references/porting-notes.md\`** — the README's "Differences" section serves as porting documentation. Renamed so setup.sh excludes it from the upload zip (matching the eks-upgrade-check/eks-recon/eks-security pattern).
+
+Unlike the eks-upgrade-check port, op-review's upstream \`DevOpsAgent/\` ships **no \`assets/\` directory and no \`iam-policy.json\`**, so those steps are skipped. Everything else is byte-for-byte from upstream's \`DevOpsAgent/\` directory.
+
+## To propose changes
+
+Open a PR against the upstream repo:
+$UPSTREAM_REPO
+
+Then re-run the sync script here.
+EOF
+
+    echo ""
+fi
+
+# --- Step 13: Show what we got ---
+echo "=== Synced files (CC skill) ==="
 find "$LOCAL_DIR" -type f | sort | while read -r f; do
     echo "  ${f#$REPO_ROOT/}"
 done
 echo ""
+
+if [ -d "$DEVOPS_DIR" ]; then
+    echo "=== Synced files (DevOps Agent port) ==="
+    find "$DEVOPS_DIR" -type f | sort | while read -r f; do
+        echo "  ${f#$REPO_ROOT/}"
+    done
+    echo ""
+fi
 
 echo "=== Done ==="
 echo "eks-operation-review synced from upstream successfully."

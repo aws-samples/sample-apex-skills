@@ -1,19 +1,3 @@
----
-title: "Infrastructure as Code & GitOps"
-description: ""
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/infrastructure-as-code.md
-format: md
----
-
-:::info[Source]
-This page is generated from [skills/eks-operation-review/references/infrastructure-as-code.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/infrastructure-as-code.md). Edit the source, not this page.
-:::
-
-
-:::info[Vendored skill]
-This skill is sourced from [eks-operation-review](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review), also maintained by the APEX team.
-:::
-
 # Infrastructure as Code & GitOps
 
 ## Purpose
@@ -31,7 +15,7 @@ This section is only partially automatable. The skill can detect tool presence (
 - CloudFormation provenance via the `aws:cloudformation:stack-name` tag (tag-only — stack-listing APIs are not available and must not be called)
 
 **How to check:**
-1. Describe cluster → inspect `tags` for IaC indicators (tags were already retrieved in Step 0 pre-flight — reuse that data, do NOT call `manage_eks_stacks`)
+1. Describe cluster → inspect `tags` for IaC indicators (tags were already retrieved in Step 0 pre-flight — reuse that data)
 2. Look for tags: `terraform`, `managed-by`, `aws:cloudformation:stack-name`, `eksctl.cluster.k8s.io/*`, `aws:cdk:*`
 
 **Rating:**
