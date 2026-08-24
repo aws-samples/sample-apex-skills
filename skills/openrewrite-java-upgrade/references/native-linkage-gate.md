@@ -1,6 +1,6 @@
 # Native-linkage gate (ELF gate v2)
 
-The purpose of this gate is to catch native libraries that load but are not actually sound on the target architecture. A functional probe that returns 200 is not sufficient: a musl-linked or wrong-arch `.so` can `dlopen` successfully and then crash when a cold code path first calls an unresolved symbol. The gate fails if **either** the link check or the functional probe fails.
+The purpose of this gate is to catch native libraries that load but are not actually sound on the target architecture. A functional probe that returns 200 is not sufficient. On a glibc base a wrong-arch or under-linked `.so` can `dlopen` successfully and then crash when a cold code path first calls an unresolved symbol, because glibc binds function symbols lazily (on first call). On a musl base the failure surfaces instead at load time (`Error relocating: ... symbol not found`), because musl resolves all relocations eagerly. Either way a happy-path probe is not proof. The gate fails if **either** the link check or the functional probe fails.
 
 ## The two checks
 
@@ -9,11 +9,9 @@ The purpose of this gate is to catch native libraries that load but are not actu
 Resolve every symbol in each bundled `.so`, not just load it.
 
 - **glibc**: `ldd -r <lib>.so`. The `-r` performs relocation of both data and function symbols. Fail on any line containing `undefined symbol`. A happy `ldd` without `-r` only lists the shared-object dependencies and will not surface the unresolved-symbol fault.
-- **musl**: the musl loader has no `-r` flag. Use the loader directly to list what the object needs:
-  `/lib/ld-musl-<arch>.so.1 --list <lib>.so`
-  and inspect the `NEEDED` entries. On musl this is how you confirm whether the glibc-only symbols (for example `__strftime_l`, `__fprintf_chk`) are being demanded.
+- **musl**: the musl loader has no `-r` flag, and `/lib/ld-musl-<arch>.so.1 --list <lib>.so` lists library dependencies (the `NEEDED` entries), not individual symbols, so a glibc-only symbol like `__strftime_l` will never appear there. On musl the relocation failure surfaces at load time as an `Error relocating: ... symbol not found` line (musl resolves all relocations eagerly at load); fail the gate on any such line. To enumerate the glibc-only symbols a `.so` demands, read its undefined dynamic symbols directly: `readelf --dyn-syms <lib>.so | grep UND` (or `nm -D <lib>.so | grep ' U '`).
 
-You can also read the declared needs with `readelf -d <lib>.so` (look at `NEEDED`) as a cross-check.
+`NEEDED` (from `readelf -d <lib>.so` or the musl loader `--list`) shows library dependencies, not symbols; use it to see which shared objects a `.so` pulls in, not which symbols it needs resolved.
 
 ### 2. Functional probe
 
@@ -45,7 +43,7 @@ Run the gate **in** the arm64 image you will ship, so you are testing the real b
 
 ## Never verify under QEMU
 
-Build and gate arm64 images on native arm64 runners. Emulation (QEMU/binfmt) can paper over exactly the linkage and instruction faults you are trying to catch, so an emulated pass is not evidence. Build each architecture natively and, for a multi-arch image, assemble with `docker manifest create` / `docker manifest push` from the per-arch builds.
+Build and gate arm64 images on native arm64 runners. Emulation (QEMU/binfmt) can paper over exactly the linkage and instruction faults you are trying to catch, so an emulated pass is not evidence. Build each architecture natively. Assembling the per-arch builds into a multi-arch image (`docker manifest`, and pushing it to a registry) is the `graviton-migration` skill's job, not this one: this skill stops at a per-arch green build and a native-linkage verdict.
 
 ## Verdict format
 
