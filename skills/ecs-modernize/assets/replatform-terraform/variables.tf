@@ -47,6 +47,18 @@ variable "health_check_path" {
   type        = string
 }
 
+variable "health_check_matcher" {
+  description = <<-EOT
+    HTTP status code(s) the ALB treats as healthy (Terraform matcher, e.g.
+    "200" or "200-399"). Default "200". When health_check_path falls back to
+    the application root, a legacy stack may answer the root with a redirect or
+    auth challenge (302/401); set this to the codes the health path actually
+    returns so the target can reach a steady healthy state.
+  EOT
+  type        = string
+  default     = "200"
+}
+
 # --- sizing (from the capacity derivation) -----------------------------------
 #
 # The Replatform path derives these from the CURRENT environment rather than

@@ -53,6 +53,17 @@ variable "health_check_path" {
   default     = "/api/health"
 }
 
+variable "health_check_matcher" {
+  description = <<-EOT
+    HTTP status code(s) the ALB treats as healthy (Terraform matcher, e.g.
+    "200" or "200-399"). Default "200". If health_check_path points at a path
+    that answers with a redirect or auth challenge (302/401), set this to the
+    codes actually returned so the target can reach a steady healthy state.
+  EOT
+  type        = string
+  default     = "200"
+}
+
 variable "ingress_cidr" {
   description = <<-EOT
     CIDR allowed to reach the ALB on port 80. Defaults to 0.0.0.0/0 so the
