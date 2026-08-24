@@ -61,7 +61,7 @@ Example: `Ingress/nginx-alb: app.example.com/* → nginx-service:80 (Prefix, TLS
 - URL rewriting → HTTPRoute `filters[].urlRewrite`
 - Request redirect → HTTPRoute `filters[].requestRedirect`
 - Request/response header modification → HTTPRoute `filters[].requestHeaderModifier`
-- Authentication → No native Gateway API equivalent (use ALB Cognito/OIDC annotation)
+- Authentication → No native Gateway API equivalent (use ALB Cognito/OIDC annotation — **interactive browser redirect only**; non-interactive callers need an app-level or token/mTLS scheme)
 - Rate limiting → No native equivalent (use AWS WAF)
 - CORS → No native equivalent (use application-level or WAF)
 
@@ -72,7 +72,7 @@ Example: `Ingress/nginx-alb: app.example.com/* → nginx-service:80 (Prefix, TLS
 
 **Impact (per Impact Indicator):**
 - 🟡 1–2 (Low): Features used have direct HTTPRoute equivalents (weighted routing, header matching, rewrites)
-- 🟠 3–4 (Medium): Some features need AWS service substitution (WAF for rate limiting, Cognito for auth)
+- 🟠 3–4 (Medium): Some features need AWS service substitution (WAF for rate limiting, Cognito for auth). **Auth caveat:** ALB OIDC/Cognito only substitutes faithfully for **browser** callers — with **non-interactive** clients (scripts, cron, CI, partner APIs) it escalates per `report-generation.md` §1.3 (up to 🔴 5) when the credential check also cannot move into a closed/unmodifiable backend.
 - 🔴 5 (High): Critical dependency on nginx lua/snippets with no Gateway API path
 - ⬜ Unknown: Cannot determine feature usage
 

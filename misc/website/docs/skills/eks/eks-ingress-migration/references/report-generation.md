@@ -25,7 +25,7 @@ This is an **assessment report** — present findings and options, do not prescr
 Before scoring anything, decide whether there is a live estate to migrate at all. **A high score is correct when there is little/nothing to migrate — the number measures change required, not cluster wealth.**
 
 **A) Truly empty estate** — no ingress controller **AND** no IngressClass **AND** no Ingress resources (this case **also** applies when the only controller present is a healthy migration-*target* controller — e.g. AWS LB Controller — with nothing bound to migrate, **and that controller is not CVE/EOL-affected**):
-- **Security gate (check BEFORE short-circuiting):** if the only-present controller is on a **known-CVE / EOL version** (e.g. ingress-nginx `< v1.11.5 / < v1.12.1` with the admission webhook exposed — see `ingress-discovery.md` §1.4), it is a **security finding regardless of route count** (control-plane exposure survives zero routes). **Do NOT short-circuit** in that case — run `ingress-discovery.md` §1.4, score the security dimension, and record it against the Re-architecture Gate's **EOL-CVE / control-plane-RCE condition line** (§1.4 *Scoring algorithm*, this file). That is a non-route **condition**, **not** a route — so it raises the gate legitimately with **zero** route findings and must **not** be rendered as a phantom `⛔ N routes` (the badge reads `⛔ N route(s)/condition(s)`). The short-circuit below is only for a controller that is both healthy **and** not vulnerable.
+- **Security gate (check BEFORE short-circuiting):** if the only-present controller is on a **known-CVE / EOL version** (e.g. ingress-nginx `< v1.11.5 / < v1.12.1` with the admission webhook exposed — see `ingress-discovery.md` §1.4), it is a **security finding regardless of route count** (control-plane exposure survives zero routes). **Do NOT short-circuit** in that case — run `ingress-discovery.md` §1.4, score the security dimension, and record it against the Re-architecture Gate's **EOL-CVE / control-plane-RCE condition line** (§1.4 *Scoring algorithm*, this file). That is a non-route **condition**, **not** a route — so it raises the gate legitimately with **zero** route findings and must **not** be rendered as a phantom `⛔ N routes` (the badge reads `⛔ N blocker(s) need(s) redesign / approval`, where a *blocker* is any such route **or** non-route condition). The short-circuit below is only for a controller that is both healthy **and** not vulnerable.
 - **Score = 100 / TRIVIAL, labelled "N/A — nothing to migrate". Stop the deduction math.** This short-circuit **replaces §1.1–1.6** — there are no findings to deduct, so do not run the deep category machinery. (The Score Breakdown table may still render with all-zero rows for transparency.)
 - Emit a plain note next to the score, e.g.: *"No ingress controller, IngressClass, or Ingress resources are present, so there is nothing to migrate. **Absence is not the same as health** — if you expected an ingress estate here, confirm it was not accidentally removed. (Cluster/node upgrades are out of scope for this skill and are not counted as migration.)"*
 - **Precedence:** if sections 4–5 surface DNS/certificate items, note that with **no Ingress present there is nothing to cut over**, so they are listed at **0** (non-events) and do not pull the score below 100.
@@ -70,7 +70,7 @@ Every finding belongs to exactly one category. Categories are weighted by a **ma
 | Category | Max deduction | Findings that feed it (source sections) |
 |----------|--------------|-----------------------------------------|
 | Feature-Gap — **No Equivalent (Tier A)** | 30 | NGINX features with **no faithful target equivalent and no standard workaround**: `configuration-snippet`/`server-snippet`/Lua, ModSecurity, mirror-to-arbitrary-backend, regex rewrite with capture groups, TLS passthrough, mTLS client-cert. **These also raise the Re-architecture Gate.** (Ingress Resource Analysis, Traffic & Routing, Blockers) |
-| Feature-Gap — **Workaround Exists (Tier B)** | 10 | Features with **no native ALB annotation but a faithful workaround** (platform or app layer): **CORS** (app/middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF). Rate **Impact 2** when the feature is performance/hardening only; **Impact 3** when it is entangled with business-logic flow. Cap at **Impact 3 only while that workaround can actually be applied**. **Escalation (by business impact, never effort):** the workaround for these is the **app/backend layer** (CORS) or **WAF / Security Group** (IP-allowlist, rate-limit). If that workaround **cannot be applied** — the backend is a **closed third-party / SaaS app you cannot modify** (so no app-layer CORS shim is possible) and no platform layer faithfully replicates it — **and** its loss degrades a **live business flow**, it is no longer Tier-B: reclassify as **Tier-A (No Equivalent)** and rate by the live business/security impact (up to 5). **When escalated, the deduction moves to the Tier-A cap (30), not the Tier-B cap (10).** (Ingress Resource Analysis, Traffic & Routing) |
+| Feature-Gap — **Workaround Exists (Tier B)** | 10 | Features with **no native ALB annotation but a faithful workaround** (platform or app layer): **CORS** (app/middleware), **IP allowlist** (Security Group / WAF), **rate-limit** (WAF), **Basic Auth → OIDC/Cognito** (app-level credential validation). Rate **Impact 2** when the feature is performance/hardening only; **Impact 3** when it is entangled with business-logic flow. Cap at **Impact 3 only while that workaround can actually be applied**. **Escalation (by business impact, never effort):** the workaround for these is the **app/backend layer** (CORS, Basic Auth) or **WAF / Security Group** (IP-allowlist, rate-limit). If that workaround **cannot be applied** — the backend is a **closed third-party / SaaS app you cannot modify** (so no app-layer CORS shim or credential check is possible) and no platform layer faithfully replicates it — **and** its loss degrades a **live business flow**, it is no longer Tier-B: reclassify as **Tier-A (No Equivalent)** and rate by the live business/security impact (up to 5). **When escalated, the deduction moves to the Tier-A cap (30), not the Tier-B cap (10).** For **Basic Auth → OIDC** escalation carries an **extra necessary condition — non-interactive callers** (scripts, cron, CI, partner APIs) that cannot complete an interactive OIDC browser redirect; where every caller is a browser, ALB OIDC/Cognito is a faithful substitute and it stays Tier-B. (Ingress Resource Analysis, Traffic & Routing) |
 | Routing Complexity | 20 | Regex paths, `rewrite-target`, canary/traffic-split, header/method routing, cross-namespace fan-out (Traffic & Routing, Routing Topology) |
 | TLS & Certificates | 15 | cert-manager→ACM move, SNI, multi-cert hosts (DNS & Certificates Analysis) |
 | DNS Cutover & Blast Radius | 15 | New ALB endpoint + DNS repoint, external-dns Gateway-API source maturity, hostname/TTL stability (DNS & Certificates Analysis, Migration Risk) |
@@ -102,15 +102,18 @@ def base_points(impact):
 #                               a control-plane RCE (e.g. CVE-2025-1974) counts even at zero routes.
 # Effort to remediate is NOT a dimension — never raise/lower points by how hard the fix is.
 
-# Tier-B feature impact (CORS / IP-allowlist / rate-limit) — a faithful workaround exists:
+# Tier-B feature impact (CORS / IP-allowlist / rate-limit / Basic-Auth→OIDC) — a faithful workaround exists:
 #   Impact 2 if performance/hardening only (not in the business-logic path)
 #   Impact 3 if entangled with business-logic flow
 #   A genuine Tier-B feature caps at Impact 3 (deducted under the Tier-B cap of 10).
-# Escalation: the workaround is the app/backend layer (CORS) or WAF/Security Group (IP-allowlist,
-#   rate-limit). If that workaround CANNOT be applied — the backend is a closed third-party/SaaS app
-#   you cannot modify (no app-layer shim possible) and no platform layer faithfully replicates it —
-#   AND its loss degrades a live business flow, it is Tier-A (No Equivalent), rated by business impact
-#   up to 5 and deducted under the Tier-A cap of 30. Escalate by business impact, NEVER effort.
+# Escalation: the workaround is the app/backend layer (CORS, Basic Auth) or WAF/Security Group
+#   (IP-allowlist, rate-limit). If that workaround CANNOT be applied — the backend is a closed
+#   third-party/SaaS app you cannot modify (no app-layer shim possible) and no platform layer
+#   faithfully replicates it — AND its loss degrades a live business flow, it is Tier-A (No
+#   Equivalent), rated by business impact up to 5 and deducted under the Tier-A cap of 30.
+#   For Basic-Auth→OIDC escalation ALSO requires non-interactive callers (scripts/cron/CI/partner
+#   APIs) that cannot complete an interactive OIDC browser redirect; browser-only callers stay
+#   Tier-B. Escalate by business impact, NEVER effort.
 
 # 0-effort routes (already on ALB / Gateway API / supported 3rd-party):
 #   list them in the inventory, contribute 0 pts, EXCLUDE from Scale/Volume count.
@@ -125,18 +128,18 @@ for each category:
 score = max(0, score)
 
 # --- Re-architecture Gate (INFORMATIONAL — does NOT change the score) ---
-# Count the routes/conditions that need a redesign or approval. Report this as a
+# Count the blockers — routes AND non-route conditions — that need a redesign or approval. Report this as a
 # separate badge next to the score. The score already reflects their effort via the
 # Tier-A / TLS / cross-namespace deductions — do NOT also cap the number.
 gate = 0
-gate += count(production routes using a Tier-A no-workaround feature: Lua/snippet/mirror/regex-capture, INCLUDING a Tier-B feature escalated to Tier-A — e.g. CORS on a closed/unmodifiable backend)
+gate += count(production routes using a Tier-A no-workaround feature: Lua/snippet/mirror/regex-capture, INCLUDING a Tier-B feature escalated to Tier-A — e.g. CORS on a closed/unmodifiable backend, or Basic-Auth→OIDC with non-interactive clients on a closed/unmodifiable backend)
 gate += count(routes needing TLS passthrough OR mTLS client-cert with no faithful target)
 gate += count(cross-namespace / shared-LB routes not expressible without ownership changes)
 gate += 1 if a revenue-critical hostname cutover has no rollback path (single hostname, no weighted/blue-green)
 gate += 1 if controller is EOL with an active exploitable CVE and no maintenance window, OR a running controller exposes a control-plane RCE (e.g. CVE-2025-1974, admission webhook) at ANY route count — zero routes included (this is a non-route condition, counted as a condition not a route)
 gate += 1 if EKS Auto Mode managed LB and a self-managed AWS LB Controller race for ownership
 # gate == 0  -> "✓ No re-architecture blockers"
-# gate  > 0  -> "⛔ N route(s)/condition(s) need redesign or approval"
+# gate  > 0  -> "⛔ N blocker(s) need(s) redesign / approval"
 ```
 
 ### 1.5 — Score interpretation
@@ -155,7 +158,7 @@ The **Re-architecture Gate** is reported independently of the band: e.g. *"82 / 
 
 ### 1.6 — Build the Score Breakdown table (MANDATORY)
 
-Before writing the headline, produce this table so the math is auditable. Sum `base_points` per category, apply the cap, order highest-deduction first. The **Total** must equal `100 − score`. A **present-but-broken controller with zero bound routes** appears as a **tech-debt row (1 pt)** under Controller Health; a **broken controller with bound routes** is an **active outage** — surface it as an urgent flag next to the score, **not** as a scored row. **Non-events (absent controller, empty/orphaned dead config, CVE on an absent/fully-down controller) MUST be listed at 0 pts** so the reader sees they were considered and deliberately not counted. Add a final **Re-architecture Gate** line stating the count and which routes/conditions (it does not change the total).
+Before writing the headline, produce this table so the math is auditable. Sum `base_points` per category, apply the cap, order highest-deduction first. The **Total** must equal `100 − score`. A **present-but-broken controller with zero bound routes** appears as a **tech-debt row (1 pt)** under Controller Health; a **broken controller with bound routes** is an **active outage** — surface it as an urgent flag next to the score, **not** as a scored row. **Non-events (absent controller, empty/orphaned dead config, CVE on an absent/fully-down controller) MUST be listed at 0 pts** so the reader sees they were considered and deliberately not counted. Add a final **Re-architecture Gate** line stating the count and which blockers (routes **and** non-route conditions) — it does not change the total.
 
 ```
 | Category | Findings (impact) | Raw pts | Capped | Cap |
@@ -186,10 +189,10 @@ Controller:           4  (cap 10)   # nginx EOL, no CVE
 Scale/Volume:         4  (cap 10)   # 12 routes need work (NOT 18) -> Impact 3
 Σ = 34  ->  score = 100 − 34 = 66  (HARD)
 
-Re-architecture Gate = 1  ->  "⛔ 1 route needs redesign (snippet on /checkout)"
+Re-architecture Gate = 1  ->  "⛔ 1 blocker needs redesign / approval (snippet on /checkout)"
 ```
 
-Final: **66 / HARD · ⛔ 1 route needs redesign.** Contrast with v1, which floored the same cluster at **13 / VERY HARD** by maxing Feature-Gap on soft items and then locking the ceiling. The new model credits the 6 done routes, counts **12** (not 18) for volume, drops CORS/allowlist/rate-limit to Impact 2, treats the 2 class-switch moves as real (Medium) work rather than zero, and reports the one true blocker as a gate instead of erasing the number.
+Final: **66 / HARD · ⛔ 1 blocker needs redesign / approval.** Contrast with v1, which floored the same cluster at **13 / VERY HARD** by maxing Feature-Gap on soft items and then locking the ceiling. The new model credits the 6 done routes, counts **12** (not 18) for volume, drops CORS/allowlist/rate-limit to Impact 2, treats the 2 class-switch moves as real (Medium) work rather than zero, and reports the one true blocker as a gate instead of erasing the number.
 
 ## Step 2: Consistency Checks (MANDATORY)
 
@@ -201,10 +204,10 @@ Final: **66 / HARD · ⛔ 1 route needs redesign.** Contrast with v1, which floo
 | Prose paragraph that should be a table | Convert to table |
 | Raw YAML in findings (not Migration Approach) | Replace with summary |
 | Score Breakdown total ≠ (100 − score) | Recompute — the table is the source of truth |
-| CORS / IP-allowlist / rate-limit scored above Impact 3 | Allowed **only** if the app/backend-layer workaround cannot be applied (closed third-party/SaaS backend you cannot modify) AND it degrades a live business flow → reclassify as **Tier-A** (business-impact rated, Tier-A cap). Otherwise re-rate: Impact 2 (perf/hardening) or 3 (business-logic-entangled). Never escalate by effort. |
+| CORS / IP-allowlist / rate-limit / Basic-Auth→OIDC scored above Impact 3 | Allowed **only** if the app/backend-layer workaround cannot be applied (closed third-party/SaaS backend you cannot modify) AND it degrades a live business flow → reclassify as **Tier-A** (business-impact rated, Tier-A cap); for **Basic-Auth→OIDC** the escalation **also** requires **non-interactive callers**. Otherwise re-rate: Impact 2 (perf/hardening) or 3 (business-logic-entangled). Never escalate by effort. |
 | Routes already on ALB / Gateway API counted as work | Set to 0 effort; exclude from Scale/Volume count |
 | Scale/Volume scored off the raw total, not routes-needing-work | Recount excluding 0-effort routes |
-| Re-architecture Gate count ≠ (Tier-A/passthrough/ownership **route** findings **plus non-route conditions**: no-rollback cutover, EOL/CVE control-plane exposure, Auto Mode LB ownership race) | Reconcile the gate to the master list **including the condition triggers** — a security/CVE condition legitimately raises the gate with **zero** route findings; do not delete it, and render it as `⛔ … condition(s)`, not a phantom route |
+| Re-architecture Gate count ≠ (Tier-A/passthrough/ownership **route** findings **plus non-route conditions**: no-rollback cutover, EOL/CVE control-plane exposure, Auto Mode LB ownership race) | Reconcile the gate to the master list **including the condition triggers** — a security/CVE condition legitimately raises the gate with **zero** route findings; do not delete it, and render it as `⛔ N blocker(s) need(s) redesign / approval`, not a phantom route |
 | Headline `[[SCORE:nn:LABEL]]` band ≠ the §1.5 table | Fix the label to match the number |
 
 ## Step 3: Write Topology JSON
@@ -253,7 +256,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 
 [[SCORE:66:HARD]] [[GATE:1]]
 
-[One sentence: how much change leaving NGINX needs for this cluster and the single biggest driver. State how many routes are already done (0 effort) and how many actually need work. If the gate is > 0, name the route(s)/condition(s) that need redesign.]
+[One sentence: how much change leaving NGINX needs for this cluster and the single biggest driver. State how many routes are already done (0 effort) and how many actually need work. If the gate is > 0, name the blocker(s) — route or condition — that need redesign.]
 
 ### Score Breakdown
 
@@ -262,9 +265,9 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 | [highest-deduction category] | [finding (impact), …] | -X pts | [cap] |
 | [next] | [...] | -X pts | [cap] |
 | **Total deductions** | | **-X pts** | **Score: XX% — [LABEL]** |
-| **Re-architecture Gate** | [N route(s)/condition(s) + which, or "none"] | — | informational |
+| **Re-architecture Gate** | [N blocker(s) + which, or "none"] | — | informational |
 
-> The gate row never changes the total — it flags routes/conditions that need a redesign/approval decision. Routes already on ALB / Gateway API / a supported 3rd-party controller are listed at **0 pts** and excluded from the Scale/Volume count.
+> The gate row never changes the total — it flags blockers (routes **and** non-route conditions) that need a redesign/approval decision. Routes already on ALB / Gateway API / a supported 3rd-party controller are listed at **0 pts** and excluded from the Scale/Volume count.
 
 ---
 
