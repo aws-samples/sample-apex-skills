@@ -16,7 +16,7 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
 
 1. Install Gateway API CRDs (if not present):
    ```bash
-   kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml
+   kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml
    ```
 
 2. Upgrade AWS LB Controller to **≥ v2.14** (L7 Gateway API) / **≥ v2.13.3** (L4) — not required on EKS Auto Mode (built-in):
@@ -43,7 +43,7 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
 
 ### Phase 2: Convert & Test (Week 2-3)
 
-> **Automate this phase with `lbc-migrate` when the estate is already on LBC ALB Ingress.** The official **LBC Ingress → Gateway API toolkit** (`lbc-migrate` CLI + Migration Console, LBC **v3.4.0** / Gateway API standard CRDs **v1.5.0**) translates Ingress → Gateway API (Gateway, HTTPRoute, GatewayClass, LoadBalancerConfiguration, TargetGroupConfiguration, ListenerRuleConfiguration), previews with a dry-run (`gateway.k8s.aws/dry-run` + the `IngressPlanAnnotation=true` feature gate), and applies new ALBs alongside the old ones. See `references/lbc-migrate-toolkit.md` for the full 6-step flow and version gate. The hand-authored steps below remain the fallback for the toolkit's **skip-and-warn** cases (capture-group rewrites, WAF Classic, `frontend-nlb-*`, `group.order`), for clusters below the toolkit's version gate, and for EKS Auto Mode. `lbc-migrate` converts **LBC Ingress**, not raw NGINX — do the NGINX → LBC Ingress hop first (`references/alb-migration.md`).
+> **Automate this phase with `lbc-migrate` when the estate is already on LBC ALB Ingress.** The official **LBC Ingress → Gateway API toolkit** (`lbc-migrate` CLI + Migration Console) translates the Ingress resources into Gateway API manifests and previews the result with a dry-run before any ALB is created. Prerequisites are the same runtime baseline as the hand-authored path below — controller **≥ v2.13.3** (L4) / **≥ v2.14** (L7) — plus **standard Gateway API CRDs v1.5.0** and the CLI built from the **LBC v3.4.0** tag. Full flow, prerequisites, output resources and limitations: `references/lbc-migrate-toolkit.md` — don't restate them here. The hand-authored steps below remain the fallback for the toolkit's **skip-or-warn** cases, for clusters **below that runtime baseline** (where upgrading the controller to the current v3.4.0 release line is usually the better first move — it clears the baseline *and* provides the CLI), and for EKS Auto Mode. `lbc-migrate` converts **LBC Ingress**, not raw NGINX — do the NGINX → LBC Ingress hop first (`references/alb-migration.md`).
 
 **For each Ingress resource, create an equivalent HTTPRoute:**
 
