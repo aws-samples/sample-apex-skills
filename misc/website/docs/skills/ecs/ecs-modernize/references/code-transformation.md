@@ -147,7 +147,7 @@ For each work item, Transform_Augmentation is **applicable** if and only if BOTH
 | # | Condition | How it is established |
 |---|---|---|
 | 1 | **AWS Transform is available** in the user's environment | **Exclusively by asking the user.** Availability is never assumed, inferred, or probed. If it has not been confirmed, it does not hold. The reasons behind unavailability — cost, organizational policy, connectivity, region — are the user's domain and are not second-guessed |
-| 2 | **The item's transformation type is within AWS Transform's documented coverage** | Checked against the documented coverage: .NET Framework 3.5+ / .NET Core 3.1 / .NET 5–7 → .NET 8 LTS or .NET 10 porting, and Java / Node.js / Python version upgrades for which out-of-the-box transformation definitions exist. The authoritative, source-cited coverage detail lives in [Evidence Comparison and Technical Freshness Directive](#evidence-comparison-and-technical-freshness-directive) — re-verify against the live sources before relying on it |
+| 2 | **The item's transformation type is within AWS Transform's documented coverage** | Checked against the documented coverage: .NET Framework 3.5+ / .NET Core 3.1 / .NET 5–8 → .NET 8 LTS or .NET 10 porting, and Java / Node.js / Python version upgrades for which out-of-the-box transformation definitions exist. The authoritative, source-cited coverage detail lives in [Evidence Comparison and Technical Freshness Directive](#evidence-comparison-and-technical-freshness-directive) — re-verify against the live sources before relying on it |
 
 Outcomes:
 
