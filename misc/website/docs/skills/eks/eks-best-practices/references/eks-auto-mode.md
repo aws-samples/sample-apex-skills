@@ -69,6 +69,8 @@ EKS Auto Mode completely automates the deployment of most data plane components 
 
 These components run in AWS-managed infrastructure separate from your cluster. The only pods running in the data plane of a new Auto Mode cluster are Kubernetes Metrics Server pods.
 
+Auto Mode's managed VPC CNI enforces standard Kubernetes `NetworkPolicy` via eBPF (no third-party CNI needed). Two AWS-native CRDs in `networking.k8s.aws/v1alpha1` build on it: cluster-scoped `ClusterNetworkPolicy` (`tier: Admin | Baseline`) and namespaced `ApplicationNetworkPolicy`, which adds FQDN-based egress and is exclusive to EKS Auto Mode (Kubernetes 1.29+). See `security-runtime-network.md` for detail.
+
 ### Operational Features
 
 - Automatic pod-driven scaling without manual node group configuration

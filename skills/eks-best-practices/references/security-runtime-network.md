@@ -115,7 +115,12 @@ aws eks create-addon --cluster-name my-cluster \
 
 Network policy support is NOT enabled by default — you must enable the `ENABLE_NETWORK_POLICY` flag on the VPC CNI add-on.
 
-Newer VPC CNI releases (v1.21+) also add a cluster-scoped **ClusterNetworkPolicy** admin tier and **strict mode** enforcement on top of the standard namespaced `NetworkPolicy` API — check the current VPC CNI version to see whether these are available in your cluster.
+Beyond the standard namespaced `NetworkPolicy` API, EKS adds two AWS-native CRDs in the `networking.k8s.aws/v1alpha1` API group (alpha, AWS's own group, not upstream `policy.networking.k8s.io`):
+
+- **`ClusterNetworkPolicy`**: cluster-scoped, with a `tier: Admin | Baseline` field for cluster-wide, higher-priority rules a namespace owner cannot override. Requires VPC CNI **v1.21.1+** (v1.21.0 has a documented Network Policy Agent defect) and works in all cluster launch modes.
+- **`ApplicationNetworkPolicy`**: namespaced, adds **FQDN-based egress** (allowlist egress by domain name). Exclusive to **EKS Auto Mode** and requires Kubernetes **1.29+**.
+
+Both are enforced by the VPC CNI eBPF network-policy controller (`enable-network-policy-controller: "true"`). Egress policies must still allow TCP and UDP port 53 to CoreDNS (see Step 2 below) or DNS and FQDN filtering will break. Naming gotcha: an `ApplicationNetworkPolicy` and a `NetworkPolicy` sharing the same name in one namespace breaks `PolicyEndpoints`. Check your installed VPC CNI version before relying on either CRD.
 
 ### Start with Default Deny + DNS Allow
 
