@@ -126,12 +126,14 @@ aws eks create-addon --cluster-name my-cluster \
 
 Network policy support is NOT enabled by default — you must enable the `ENABLE_NETWORK_POLICY` flag on the VPC CNI add-on.
 
-Beyond the standard namespaced `NetworkPolicy` API, EKS adds two AWS-native CRDs in the `networking.k8s.aws/v1alpha1` API group (alpha, AWS's own group, not upstream `policy.networking.k8s.io`):
+Beyond the standard namespaced `NetworkPolicy` API, EKS adds two AWS-native CRDs in the `networking.k8s.aws/v1alpha1` API group (alpha, AWS's own group, not upstream `policy.networking.k8s.io`). Both require Kubernetes **1.29+** and VPC CNI **v1.21.1+**:
 
-- **`ClusterNetworkPolicy`**: cluster-scoped, with a `tier: Admin | Baseline` field for cluster-wide, higher-priority rules a namespace owner cannot override. Requires VPC CNI **v1.21.1+** (v1.21.0 has a documented Network Policy Agent defect) and works in all cluster launch modes.
-- **`ApplicationNetworkPolicy`**: namespaced, adds **FQDN-based egress** (allowlist egress by domain name). Exclusive to **EKS Auto Mode** and requires Kubernetes **1.29+**.
+- **`ClusterNetworkPolicy`**: cluster-scoped, with a `tier: Admin | Baseline` field. The **Admin** tier is evaluated first and **cannot** be overridden by namespace-scoped policies; it supports explicit **Deny / Allow / Pass** actions (Pass delegates the decision to lower tiers). The **Baseline** tier is an overridable default posture evaluated after `NetworkPolicy`, so a namespace owner's policy can override it. Available in all EKS cluster launch modes.
+- **`ApplicationNetworkPolicy`**: namespaced. It supports all fields of the standard Kubernetes `NetworkPolicy` and adds an **FQDN-based egress** filter (allowlist egress by domain name). The standard L3/L4 fields work on any cluster; only the **FQDN/DNS-based egress** capability is exclusive to **EKS Auto Mode-launched EC2 instances**. An FQDN egress rule authored on a non-Auto-Mode cluster is silently ineffective (the DNS rule simply does not apply), which can leave an egress allowlist you believe is enforced when it is not.
 
-Both are enforced by the VPC CNI eBPF network-policy controller (`enable-network-policy-controller: "true"`). Egress policies must still allow TCP and UDP port 53 to CoreDNS (see Step 2 below) or DNS and FQDN filtering will break. Naming gotcha: an `ApplicationNetworkPolicy` and a `NetworkPolicy` sharing the same name in one namespace breaks `PolicyEndpoints`. Check your installed VPC CNI version before relying on either CRD.
+**Evaluation order:** Admin tier (Deny > Allow > Pass) then `NetworkPolicy` / `ApplicationNetworkPolicy` then Baseline tier then default-deny (if nothing matches).
+
+Enforcement runs on the VPC CNI eBPF network-policy controller (`enable-network-policy-controller: "true"`) and applies to **EC2 Linux nodes only** (not Fargate or Windows), even though the CRDs are available in all launch modes. Egress policies must still allow TCP and UDP port 53 to CoreDNS (see Step 2 below) or DNS and FQDN filtering will break. Naming gotcha: an `ApplicationNetworkPolicy` and a `NetworkPolicy` sharing the same name in one namespace breaks `PolicyEndpoints`. Check your installed VPC CNI version before relying on either CRD.
 
 ### Start with Default Deny + DNS Allow
 

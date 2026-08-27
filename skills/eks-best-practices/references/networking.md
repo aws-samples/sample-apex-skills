@@ -354,7 +354,7 @@ Because the switch is irreversible, enumerate reachability before enabling:
 | **Load balancers** | ALB/NLB full support | ALB/NLB dual-stack (requires LBC, in-tree controller doesn't support IPv6) |
 | **Recommendation** | Default choice | Use when IPv4 exhaustion is a real concern |
 
-> **Network policy caveat:** VPC CNI network policy support is per-address-family: a cluster is either IPv4 or IPv6, so policies apply to whichever family the cluster runs (there is no dual-family enforcement in a single cluster, as of 2026-08-04). The AWS-native `ClusterNetworkPolicy` CRD (`networking.k8s.aws/v1alpha1`, cluster-scoped, `tier: Admin | Baseline`, VPC CNI v1.21.1+) is separate from the baseline `NetworkPolicy` support noted above, as is the namespaced `ApplicationNetworkPolicy` (FQDN-based egress, exclusive to EKS Auto Mode, Kubernetes 1.29+). See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
+> **Network policy caveat:** VPC CNI network policy support is per-address-family: a cluster is either IPv4 or IPv6, so policies apply to whichever family the cluster runs (there is no dual-family enforcement in a single cluster, as of 2026-08-04). The AWS-native `ClusterNetworkPolicy` CRD (`networking.k8s.aws/v1alpha1`, cluster-scoped, `tier: Admin | Baseline`) is separate from the baseline `NetworkPolicy` support noted above, as is the namespaced `ApplicationNetworkPolicy`, which adds an FQDN-based egress filter that is exclusive to EKS Auto Mode. Both require Kubernetes 1.29+ and VPC CNI v1.21.1+. See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
 
 ### IPv6 Technical Details
 
