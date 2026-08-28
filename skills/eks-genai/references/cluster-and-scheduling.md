@@ -164,11 +164,49 @@ env:
 
 ## EC2 Capacity Blocks for ML
 
-For **planned multi-day training**, Capacity Blocks guarantee p5/p5e/trn1/trn2 capacity at pricing **substantially below on-demand** ([pricing page](https://aws.amazon.com/ec2/capacityblocks/pricing/)). Book 1–14 days in advance via the EC2 console or API.
+For **planned multi-day training**, Capacity Blocks guarantee accelerated capacity (p4d/p4de, p5/p5e/p5en, p6-b200/p6-b300, trn1/trn2, and other supported families — see the [pricing page](https://aws.amazon.com/ec2/capacityblocks/pricing/) for the current list) at pricing **substantially below on-demand**.
 
 - Use Capacity Blocks for: scheduled training runs, benchmark campaigns, customer demos requiring guaranteed GPU
 - Do **not** use for: inference (On-Demand with Karpenter consolidation is more flexible)
 - Integration: Karpenter EC2NodeClass `capacityReservationSelectorTerms` targets the Capacity Block reservation
+- **Single-AZ:** a CB is scoped to one Availability Zone. The consuming NodePool/EC2NodeClass must be constrained to that AZ (and, for multi-node training, the CB is placed in a single cluster/UltraCluster for low-latency EFA) — nodes can't span the reservation across zones.
+
+### Karpenter consumes reservations — it never purchases them
+
+**The #1 SA misconception:** Karpenter does **not** create, buy, or extend a Capacity Block (or ODCR). It only *consumes* a reservation that already exists in the account. Karpenter launches nodes via the EC2 Fleet `CreateFleet` API, which *launches instances into capacity* — it does **not** *acquire* capacity. Purchasing a CB is a separate commercial transaction Karpenter never performs. If the `EC2NodeClass` doesn't explicitly target a reservation, launched instances consume regular On-Demand and leave the CB idle (still billing).
+
+The workflow is **manual-first, Karpenter-second**:
+
+**1. Customer purchases the CB** (console or CLI) — `describe-capacity-block-offerings` to find an offering, then `purchase-capacity-block`. Purchase returns an offering ID (`cb-…`); the resulting reservation ID is `cr-…`. Payment is upfront, and the reservation is **not usable until it becomes `active`** (it sits in `payment-pending` → `scheduled` first — a `scheduled` CB has **zero available capacity**). A CB **can't be cancelled** once reserved — but **extensions ARE possible** (request before expiry; not guaranteed, capacity-dependent). See [Find and purchase Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-purchase.html) and [Extend Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-extend.html) for current duration/instance-count limits, payment states, and timing.
+
+> **IAM — spending authority:** `ec2:PurchaseCapacityBlock` commits real money upfront. Scope it to FinOps/platform-admin roles, not to cluster operators or CI. Karpenter's node role never needs it — Karpenter only *consumes* the reservation, so its permissions cover launching/terminating instances, not purchasing capacity.
+
+```bash
+aws ec2 describe-capacity-block-offerings \
+  --instance-type p5.48xlarge --instance-count 2 \
+  --start-date-range <START> --end-date-range <END> \
+  --capacity-duration-hours 168
+aws ec2 purchase-capacity-block \
+  --capacity-block-offering-id cb-0123456789abcdef0 --instance-platform Linux/UNIX
+```
+
+**2. Point Karpenter at it** — add the `cr-…` ID (or tags) to `capacityReservationSelectorTerms` on the `EC2NodeClass`, and allow `reserved` in the NodePool (already shown in the GPU NodePool above):
+
+```yaml
+# EC2NodeClass
+spec:
+  capacityReservationSelectorTerms:
+    - id: cr-0123456789abcdef0        # the CB's underlying reservation
+    # or: - tags: { team: ml-training }
+```
+
+**3. Karpenter fills and prioritizes it** — once the block is **`active`** and pods are pending, Karpenter launches nodes into the CB, models the pre-paid capacity as **$0** so it prefers `reserved` over on-demand/spot (including during consolidation), then falls back once the reservation is exhausted. Karpenter cannot launch into a CB that is still `scheduled` — only after the reservation window opens and it goes `active`.
+
+> **Version, limit, and timing values live in AWS docs — not here.** Karpenter version gates for ODCR / Capacity-Block / interruptible support, feature-gate names, instance-count and duration limits, and CB reclamation/drain timing all change over time. Consult the [Karpenter ODCR docs](https://karpenter.sh/docs/tasks/odcrs/) and the [EC2 Capacity Blocks pricing & billing docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-pricing-billing.html) for current values. Operationally: CBs are time-bound, EC2 reclaims the instances at the block end, and Karpenter preemptively drains affected nodes ahead of that — set appropriate `terminationGracePeriodSeconds` + PDBs on training pods. The `karpenter.sh/do-not-disrupt` annotation does **not** stop CB end-of-life reclamation.
+
+**EKS Auto Mode nuance:** Auto Mode auto-uses *open* ODCRs via open-matching (nodes labeled `on-demand`, not prioritized). **Capacity Blocks always require explicit `capacityReservationSelectorTerms`.** Once you set `capacityReservationSelectorTerms` on any NodeClass, Auto Mode stops auto-using open ODCRs for *all* NodeClasses — so **add explicit ODCR selector terms to every other NodeClass that should continue using reservations**, or their open-ODCR consumption silently breaks.
+
+> **P5 reality:** a plain On-Demand request for scarce GPUs (p5/p5e) often fails with `InsufficientInstanceCapacity` precisely because that capacity is held in reservations. For short P5 runs the CB is effectively mandatory — the customer procures it; Karpenter only launches into what they already own.
 
 ## Spot vs On-Demand Decision Rule
 
@@ -210,6 +248,11 @@ metadata:
 - [EFA with EKS](https://docs.aws.amazon.com/eks/latest/userguide/node-efa.html)
 - [Manage Neuron devices on Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/device-management-neuron.html)
 - [EKS Optimized AMIs](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html)
-- [EC2 Capacity Blocks for ML](https://aws.amazon.com/ec2/capacityblocks/pricing/)
+- [EC2 Capacity Blocks for ML — pricing](https://aws.amazon.com/ec2/capacityblocks/pricing/)
+- [EC2 — Find and purchase Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-purchase.html)
+- [EC2 — Capacity Blocks pricing and billing](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-pricing-billing.html)
+- [Karpenter — Utilizing ODCRs and Capacity Blocks](https://karpenter.sh/docs/tasks/odcrs/)
+- [EKS — Manage compute for AI/ML workloads with Auto Mode and Karpenter](https://docs.aws.amazon.com/eks/latest/userguide/ml-node-pools.html)
+- [EKS — Control deployment of workloads into Capacity Reservations with Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/auto-odcr.html)
 - [How to run AI model inference with GPUs on Amazon EKS Auto Mode](https://aws.amazon.com/blogs/containers/how-to-run-ai-model-inference-with-gpus-on-amazon-eks-auto-mode)
 - [`awslabs/ai-on-eks`](https://github.com/awslabs/ai-on-eks)

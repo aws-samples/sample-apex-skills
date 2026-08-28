@@ -98,6 +98,7 @@ Savings levers in priority order: (1) **Capacity Blocks** for planned multi-day 
 - **Don't default to NVIDIA GPU** — evaluate Neuron first for Transformer LLMs.
 - **Don't use Spot for training without checkpoint/resume** — guaranteed cost-burn.
 - **Don't recommend Cluster Autoscaler** for new GenAI clusters — Karpenter only.
+- **Never suggest Karpenter can purchase or create a Capacity Block (or ODCR)** — it only *consumes* pre-existing reservations. The customer buys the CB manually; Karpenter launches into it.
 - **Don't put FSx for Lustre cross-AZ** from the compute nodes.
 - **Don't skip NUMA pinning + static CPU manager** on EFA multi-node training.
 - **Don't pull model weights from Hugging Face at every pod start** — pre-cache to S3/FSx.
