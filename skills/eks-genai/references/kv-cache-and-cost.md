@@ -62,7 +62,7 @@ Deploy Amazon ElastiCache Serverless with Valkey engine as the L2 backing store:
 - **Same-AZ as vLLM pods** — cross-AZ adds 1-3 ms round-trip that erodes the cache benefit
 - **Security group** — allow inbound TCP 6379 from the vLLM pod security group only
 - **IAM auth** — use ElastiCache IAM authentication with EKS Pod Identity for zero-secret configuration
-- **Multi-tenant isolation (required):** a shared prefix cache keys on prompt/prefix content, so on a cache hit one tenant can receive another tenant's cached prefix. In multi-tenant setups you MUST partition the L2 cache per tenant (separate cache instances/namespaces or tenant-scoped keys). Never share a single L2 cache across tenants.
+- **Multi-tenant isolation (required):** a shared prefix cache keys on prompt/prefix content, so on a cache hit one tenant can receive another tenant's cached prefix. This leak exists at **both** tiers: the L1 per-pod store leaks whenever a single vLLM pod serves more than one tenant, and a shared L2 leaks across pods. The primary control is therefore **per-tenant pods/deployments** (do not multiplex tenants through one replica); additionally, if you use L2, partition it per tenant (separate cache instances/namespaces or tenant-scoped keys). Partitioning L2 alone is insufficient while a single pod is shared across tenants.
 
 ### Prefix Caching Strategy
 

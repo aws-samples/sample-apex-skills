@@ -132,7 +132,8 @@ spec:
   devices:
     requests:
       - name: gpu
-        deviceClassName: gpu.nvidia.com
+        exactly:                        # v1 (GA in K8s 1.34): deviceClassName/selectors/allocationMode nest under exactly
+          deviceClassName: gpu.nvidia.com
 ```
 
 ### Decision: MIG vs Time-Slicing vs DRA

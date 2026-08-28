@@ -88,7 +88,7 @@ Per the [AI/ML networking best practices](https://docs.aws.amazon.com/eks/latest
 
 - use `consolidationPolicy: WhenEmpty` (only reclaim nodes with zero workloads, never "underutilized" ones),
 - set `expireAfter` longer than the longest training job (or `Never` to disable node expiry), so a run is never interrupted by node age, and
-- back it with `karpenter.sh/do-not-disrupt: "true"` and PDBs on the training pods.
+- back it with `karpenter.sh/do-not-disrupt: "true"` (annotation on the training pods) and PDBs. These guard *voluntary* disruption only: on a Capacity Block they do **not** survive end-of-block reclamation (involuntary), so checkpoint/resume stays mandatory (see the Capacity Blocks section).
 
 ```yaml
 # TRAINING NodePool overrides (multi-node / EFA jobs); replaces the inference defaults above

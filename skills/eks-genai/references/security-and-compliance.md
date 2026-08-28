@@ -117,16 +117,19 @@ spec:
       ports:
         - protocol: TCP
           port: 8000
-    - from:                                             # metrics scrapers must still reach vLLM /metrics
+    - from:                                             # allow ONLY the metrics scraper to reach vLLM /metrics
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: monitoring   # namespace running Prometheus/DCGM (adjust to yours)
+              kubernetes.io/metadata.name: monitoring   # namespace running Prometheus (adjust to yours)
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus        # scraper pods only, NOT the whole namespace
       ports:
         - protocol: TCP
-          port: 8000                                    # vLLM serves the API and /metrics on the same port
+          port: 8000                                    # NOTE: vLLM serves the API and /metrics on the SAME port
 ```
 
-Requires a NetworkPolicy-enforcing CNI (VPC CNI network policy, Cilium, or Calico). Two caveats: (1) a default-deny that omits the monitoring namespace silently blocks Prometheus/DCGM scraping of vLLM `/metrics`, so keep the monitoring allow rule above (kubelet liveness/readiness probes are node-local and CNI-exempt, so they keep working regardless); (2) this policy denies only ingress. For exfiltration control on backends handling tenant data, add a companion default-deny `Egress` policy with an explicit allow for kube-dns (UDP/TCP 53) so name resolution still works. This is the in-cluster complement to the gateway auth caveat in [ai-gateway.md](ai-gateway.md).
+Requires a NetworkPolicy-enforcing CNI (VPC CNI network policy, Cilium, or Calico). Caveats: (1) a default-deny that omits the scraper silently blocks Prometheus from reaching vLLM `/metrics`, so keep the scraper allow rule above. Because vLLM serves the API and `/metrics` on the same port (8000), that rule also grants the scraper API access, so scope it to the scraper pods (as shown) and consider a dedicated metrics port or `/metrics` auth if that shared exposure matters. Kubelet liveness/readiness probes are node-local and CNI-exempt, so they keep working regardless; DCGM Exporter runs as its own DaemonSet on a separate port and is scraped independently, not through this rule. (2) This policy denies ingress only. If you add a companion default-deny `Egress` policy it must allow the workload's real dependencies or the pod fails closed: kube-dns (UDP/TCP 53, scoped to the kube-system DNS pods), plus the S3/AWS API endpoints (443) used for weight loading and the L2 cache endpoint (e.g. 6379), not DNS alone. This is the in-cluster complement to the gateway auth caveat in [ai-gateway.md](ai-gateway.md).
 
 ### 6. Audit Logging
 
