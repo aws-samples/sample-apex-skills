@@ -69,7 +69,7 @@ spec:
           values: ["inf2.8xlarge", "inf2.48xlarge", "trn1.32xlarge", "trn2.48xlarge"]
         - key: karpenter.sh/capacity-type
           operator: In
-          values: ["on-demand"]
+          values: ["on-demand", "reserved"]   # reserved = CB/ODCR via capacityReservationSelectorTerms (trn1/trn2 Capacity Blocks)
         - key: kubernetes.io/arch
           operator: In
           values: ["amd64"]
@@ -238,9 +238,11 @@ spec:
 
 > **P5 reality:** a plain On-Demand request for scarce GPUs (p5/p5e) often fails with `InsufficientInstanceCapacity` precisely because that capacity is held in reservations. For short P5 runs the CB is effectively mandatory — the customer procures it; Karpenter only launches into what they already own.
 
-> **Prerequisite (accelerated-instance vCPU quota):** before any of this, check the **EC2 Service Quota** for the relevant accelerated-instance vCPUs. New accounts start at **0** for accelerated (P / G / Trn) instance vCPU quotas, so the very first launch fails not with `InsufficientInstanceCapacity` but with a quota/`VcpuLimitExceeded`-style error. This is the most common first-launch blocker. The P/G/Trn On-Demand and Spot quotas are separate limits (e.g. "Running On-Demand P instances", "Running On-Demand G and VT instances", each an `L-…` code), and a quota increase can take hours to days to be approved. Verify and, if needed, request the increase in **Service Quotas** well ahead of the build.
+> **Prerequisite (Capacity Blocks quota):** CB launches are **not** gated by your On-Demand accelerated-instance vCPU limits; instances in a Capacity Block **don't count against your On-Demand Instance limits**. The quota that actually gates a CB is the separate **"Concurrent Capacity Blocks" per-account** family (e.g. "Concurrent P5 Capacity Blocks", "Concurrent Trn2 Capacity Blocks"), also **default 0** and adjustable via **Service Quotas**. Raise the concurrent-CB quota for the family you intend to reserve; raising the On-Demand P/G/Trn vCPU limits does nothing for a CB purchase (and chasing a `VcpuLimitExceeded` increase after a CB launch failure raises the wrong quota). See [EC2 Capacity Blocks Considerations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-blocks.html) and [EC2 instance quotas](https://docs.aws.amazon.com/ec2/latest/instancetypes/ec2-instance-quotas.html).
 
 ## Spot vs On-Demand Decision Rule
+
+> **Prerequisite (On-Demand accelerated-instance vCPU quota):** for the **On-Demand / Karpenter** path (e.g. g6e inference, on-demand p5), check the **EC2 Service Quota** for the relevant accelerated-instance vCPUs first. New accounts start at **0** for accelerated (P / G / Trn) On-Demand and Spot instance vCPU quotas, so the very first launch fails not with `InsufficientInstanceCapacity` but with a quota/`VcpuLimitExceeded`-style error. These are separate `L-…` limits per family ("Running On-Demand P instances", "Running On-Demand G and VT instances", etc.), and an increase can take hours to days to be approved. This does **not** apply to Capacity Block purchases (see the Capacity Blocks quota note above). Verify and, if needed, request the increase in **Service Quotas** well ahead of the build.
 
 | Workload | Capacity type | Condition |
 |---|---|---|
