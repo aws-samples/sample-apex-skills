@@ -170,6 +170,7 @@ For **planned multi-day training**, Capacity Blocks guarantee accelerated capaci
 - Do **not** use for: inference (On-Demand with Karpenter consolidation is more flexible)
 - Integration: Karpenter EC2NodeClass `capacityReservationSelectorTerms` targets the Capacity Block reservation
 - **Single-AZ:** a CB is scoped to one Availability Zone. The consuming NodePool/EC2NodeClass must be constrained to that AZ (and, for multi-node training, the CB is placed in a single cluster/UltraCluster for low-latency EFA) — nodes can't span the reservation across zones.
+- **UltraServers:** GB200 NVL72-class multi-node training is reserved via UltraServer Capacity Blocks, a distinct CB type from instance-level blocks (see the pricing page).
 
 ### Karpenter consumes reservations — it never purchases them
 
@@ -177,15 +178,15 @@ For **planned multi-day training**, Capacity Blocks guarantee accelerated capaci
 
 The workflow is **manual-first, Karpenter-second**:
 
-**1. Customer purchases the CB** (console or CLI) — `describe-capacity-block-offerings` to find an offering, then `purchase-capacity-block`. Purchase returns an offering ID (`cb-…`); the resulting reservation ID is `cr-…`. Payment is upfront, and the reservation is **not usable until it becomes `active`** (it sits in `payment-pending` → `scheduled` first — a `scheduled` CB has **zero available capacity**). A CB **can't be cancelled** once reserved — but **extensions ARE possible** (request before expiry; not guaranteed, capacity-dependent). See [Find and purchase Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-purchase.html) and [Extend Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-extend.html) for current duration/instance-count limits, payment states, and timing.
+**1. Customer purchases the CB** (console or CLI) — `describe-capacity-block-offerings` to find an offering, then `purchase-capacity-block`. `describe-capacity-block-offerings` returns an offering ID (`cb-…`); you pass that offering ID to `purchase-capacity-block`, which returns the reservation ID (`cr-…`). Payment is upfront, and the reservation is **not usable until it becomes `active`** (it sits in `payment-pending` → `scheduled` first — a `scheduled` CB has **zero available capacity**). A CB **can't be cancelled** once reserved — but **extensions ARE possible** (request before expiry; not guaranteed, capacity-dependent). See [Find and purchase Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-purchase.html) and [Extend Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-extend.html) for current duration/instance-count limits, payment states, and timing.
 
-> **IAM — spending authority:** `ec2:PurchaseCapacityBlock` commits real money upfront. Scope it to FinOps/platform-admin roles, not to cluster operators or CI. Karpenter's node role never needs it — Karpenter only *consumes* the reservation, so its permissions cover launching/terminating instances, not purchasing capacity.
+> **IAM — spending authority:** `ec2:PurchaseCapacityBlock` (and `ec2:PurchaseCapacityBlockExtension`, for extensions) commits real money upfront. Scope it to FinOps/platform-admin roles, not to cluster operators or CI. Karpenter's node role never needs it — Karpenter only *consumes* the reservation, so its permissions cover launching/terminating instances, not purchasing capacity.
 
 ```bash
 aws ec2 describe-capacity-block-offerings \
-  --instance-type p5.48xlarge --instance-count 2 \
+  --instance-type p5.48xlarge --instance-count <COUNT> \
   --start-date-range <START> --end-date-range <END> \
-  --capacity-duration-hours 168
+  --capacity-duration-hours <HOURS>
 aws ec2 purchase-capacity-block \
   --capacity-block-offering-id cb-0123456789abcdef0 --instance-platform Linux/UNIX
 ```
@@ -200,9 +201,11 @@ spec:
     # or: - tags: { team: ml-training }
 ```
 
+> **Two consume-failure footguns:** (1) the NodePool's instance-type requirements must permit the CB's exact instance type. If they exclude it, Karpenter launches on-demand instead and the CB sits idle (still billing). (2) A `tags` selector matches any reservation carrying that tag, including other teams' reservations, so prefer the reservation `id` or a unique per-CB tag.
+
 **3. Karpenter fills and prioritizes it** — once the block is **`active`** and pods are pending, Karpenter launches nodes into the CB, models the pre-paid capacity as **$0** so it prefers `reserved` over on-demand/spot (including during consolidation), then falls back once the reservation is exhausted. Karpenter cannot launch into a CB that is still `scheduled` — only after the reservation window opens and it goes `active`.
 
-> **Version, limit, and timing values live in AWS docs — not here.** Karpenter version gates for ODCR / Capacity-Block / interruptible support, feature-gate names, instance-count and duration limits, and CB reclamation/drain timing all change over time. Consult the [Karpenter ODCR docs](https://karpenter.sh/docs/tasks/odcrs/) and the [EC2 Capacity Blocks pricing & billing docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-pricing-billing.html) for current values. Operationally: CBs are time-bound, EC2 reclaims the instances at the block end, and Karpenter preemptively drains affected nodes ahead of that — set appropriate `terminationGracePeriodSeconds` + PDBs on training pods. The `karpenter.sh/do-not-disrupt` annotation does **not** stop CB end-of-life reclamation.
+> **Version, limit, and timing values live in AWS docs — not here.** Karpenter version gates for ODCR / Capacity-Block / interruptible support, feature-gate names, instance-count and duration limits, and CB reclamation/drain timing all change over time. Consult the [Karpenter ODCR docs](https://karpenter.sh/docs/tasks/odcrs/) and the [EC2 Capacity Blocks pricing & billing docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-pricing-billing.html) for current values. Operationally: CBs are time-bound, EC2 reclaims the instances at the block end, and Karpenter preemptively drains affected nodes ahead of that, so set an appropriate `terminationGracePeriodSeconds` for a graceful drain. Note that PDBs and the `karpenter.sh/do-not-disrupt` annotation do **not** stop the forced reclamation at block end (it is involuntary disruption). The real safeguard is checkpoint/resume before the block ends, plus sizing the block to the job duration.
 
 **EKS Auto Mode nuance:** Auto Mode auto-uses *open* ODCRs via open-matching (nodes labeled `on-demand`, not prioritized). **Capacity Blocks always require explicit `capacityReservationSelectorTerms`.** Once you set `capacityReservationSelectorTerms` on any NodeClass, Auto Mode stops auto-using open ODCRs for *all* NodeClasses — so **add explicit ODCR selector terms to every other NodeClass that should continue using reservations**, or their open-ODCR consumption silently breaks.
 
