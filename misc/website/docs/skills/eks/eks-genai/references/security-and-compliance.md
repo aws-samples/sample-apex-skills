@@ -93,6 +93,42 @@ Required VPC endpoints for GenAI on EKS:
 
 Egress to internet (HF download, pip) via **NAT Gateway** with restrictive SG — or eliminate by pre-caching all artifacts in S3/ECR.
 
+**In-cluster isolation (default-deny NetworkPolicy).** VPC endpoints only govern traffic leaving the cluster; they do nothing for pod-to-pod reachability inside it. Self-hosted inference backends (vLLM, Triton) typically run **without their own auth**, so any pod that can reach the model service bypasses the gateway and its rate limiting, cost tracking, and guardrails. Apply a **default-deny ingress** NetworkPolicy in every inference namespace, then allow ingress to the model service **only** from the gateway namespace/pods:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: genai-inference
+spec:
+  podSelector: {}          # all pods in the namespace
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-vllm
+  namespace: genai-inference
+spec:
+  podSelector:
+    matchLabels:
+      app: vllm-llama       # the vLLM model service pods
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ai-gateway   # only the gateway namespace
+      ports:
+        - protocol: TCP
+          port: 8000
+```
+
+Requires a NetworkPolicy-enforcing CNI (VPC CNI network policy, Cilium, or Calico). This is the in-cluster complement to the gateway auth caveat in [ai-gateway.md](ai-gateway).
+
 ### 6. Audit Logging
 
 **Rule:** Enable and retain:
@@ -171,6 +207,7 @@ Include in every GenAI-on-EKS response:
 - [ ] Secrets via Secrets Manager + Secrets Store CSI
 - [ ] Model provenance — image signing or checksum verification
 - [ ] Private subnets + VPC endpoints (S3, Bedrock, ECR, STS, Secrets Manager)
+- [ ] Default-deny NetworkPolicy: inference backends reachable only from the gateway
 - [ ] CloudTrail + EKS audit logs + VPC Flow Logs
 - [ ] Pod Security Admission `restricted` + CIS-hardened AMI
 - [ ] Langfuse traces encrypted + retained per compliance requirement

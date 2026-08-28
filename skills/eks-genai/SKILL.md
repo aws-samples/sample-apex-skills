@@ -41,7 +41,7 @@ Walk the customer **bottom-up** (Layer 1 → 6) on first engagement; revisit top
 
 ### Layer 1 — Compute / Hardware (the single most-impactful decision)
 
-AWS docs explicitly recommend Neuron *when the workload permits it*. **Do not reflexively pick NVIDIA GPU** — the most common SA mistake.
+For Transformer-family LLMs, evaluate AWS Neuron first *when the workload permits it*; it often wins on price-performance. **Do not reflexively pick NVIDIA GPU** (the most common SA mistake).
 
 - **Default to AWS Neuron** (Trn2/Trn1 training, Inf2 inference) when the model is Transformer-family (Llama, Mistral, Qwen, Falcon) + framework is PyTorch/vLLM + cost-conscious + the team can absorb a 1-2 week compilation ramp. Up to ~50% cost-to-train (Trainium) / ~40% better price-performance (Inferentia2).
 - **Default to NVIDIA GPU** (g6/g6e inference, p5/p5e training) for fastest time-to-first-success, CUDA-only dependencies, novel/non-Transformer architectures, or multi-modal models.
@@ -83,7 +83,7 @@ The AWS-canonical default, shipped end-to-end in `awslabs/ai-on-eks` and the Gen
 | Gateway | LiteLLM (+ Langfuse) | Routes self-hosted + Bedrock |
 | Optimization | LMCache KV-cache tiering (L1 CPU / L2 Valkey) | Prefix-cache reuse across pods |
 
-Pointing customers at the [`awslabs/ai-on-eks` blueprints](https://github.com/awslabs/ai-on-eks) is the fastest credible path from idea to production. The current NVIDIA workshop validates this stack on **EKS Auto Mode (K8s 1.34)** with **g6e (L40S)**, **vLLM + KubeRay**, **Strands Agents**, **LMCache**, and **kube-prometheus-stack + AMP**. Concrete versions and use-case → blueprint mapping: [reference-implementations.md](references/reference-implementations.md).
+Pointing customers at the [`awslabs/ai-on-eks` blueprints](https://github.com/awslabs/ai-on-eks) is the fastest credible path from idea to production. The current NVIDIA workshop validates this stack on **EKS Auto Mode (K8s 1.34, a workshop-pinned snapshot; deploy the latest supported EKS version)** with **g6e (L40S)**, **vLLM + KubeRay**, **Strands Agents**, **LMCache**, and **kube-prometheus-stack + AMP**. Concrete versions and use-case → blueprint mapping: [reference-implementations.md](references/reference-implementations.md).
 
 ## Security Baseline (non-negotiable)
 
@@ -128,6 +128,6 @@ Progressive disclosure — the essentials are above; load a reference only when 
 
 - [Best Practices for AI/ML Workloads on Amazon EKS](https://docs.aws.amazon.com/eks/latest/best-practices/aiml.html) · [AI/ML Networking](https://docs.aws.amazon.com/eks/latest/best-practices/aiml-networking.html) · [AI/ML Storage](https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html) · [AI/ML Performance](https://docs.aws.amazon.com/eks/latest/best-practices/aiml-performance.html)
 - [`awslabs/ai-on-eks`](https://github.com/awslabs/ai-on-eks) — canonical reference implementation (JARK, inference-ready-cluster, training, neuron, gateways blueprints)
-- [EKS ML Get Started](https://docs.aws.amazon.com/eks/latest/userguide/ml-get-started.html) · [Manage Neuron devices on EKS](https://docs.aws.amazon.com/eks/latest/userguide/device-management-neuron.html) · [EFA with EKS](https://docs.aws.amazon.com/eks/latest/userguide/node-efa.html)
+- [EKS for AI/ML](https://docs.aws.amazon.com/eks/latest/userguide/ml-on-eks.html) · [Manage Neuron devices on EKS](https://docs.aws.amazon.com/eks/latest/userguide/device-management-neuron.html) · [EFA with EKS](https://docs.aws.amazon.com/eks/latest/userguide/node-efa.html)
 - [Guidance for Scalable Model Inference and Agentic AI on Amazon EKS](https://aws.amazon.com/solutions/guidance/scalable-model-inference-and-agentic-ai-on-amazon-eks/)
 - Workshops: [GenAI on EKS using NVIDIA GPU](https://catalog.us-east-1.prod.workshops.aws/workshops/029d6c4e-4775-41c9-85ff-9f5360f32a15) · [using AWS Neuron](https://catalog.us-east-1.prod.workshops.aws/workshops/e21aadbd-23cb-4207-bd09-625e6de08a6c) · [Advanced Agentic AI on EKS](https://catalog.us-east-1.prod.workshops.aws/workshops/26ab2b07-9621-4e0c-bc44-3f7fef388cb7)

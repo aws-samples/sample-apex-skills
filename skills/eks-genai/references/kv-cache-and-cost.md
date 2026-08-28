@@ -62,6 +62,7 @@ Deploy Amazon ElastiCache Serverless with Valkey engine as the L2 backing store:
 - **Same-AZ as vLLM pods** — cross-AZ adds 1-3 ms round-trip that erodes the cache benefit
 - **Security group** — allow inbound TCP 6379 from the vLLM pod security group only
 - **IAM auth** — use ElastiCache IAM authentication with EKS Pod Identity for zero-secret configuration
+- **Multi-tenant isolation (required):** a shared prefix cache keys on prompt/prefix content, so on a cache hit one tenant can receive another tenant's cached prefix. In multi-tenant setups you MUST partition the L2 cache per tenant (separate cache instances/namespaces or tenant-scoped keys). Never share a single L2 cache across tenants.
 
 ### Prefix Caching Strategy
 
@@ -113,7 +114,7 @@ Savings levers ordered by impact. Apply top-down — each lever is independent; 
 
 ### Lever 1 — Capacity Blocks for ML
 
-Reserve GPU/Neuron capacity for defined time windows (1-14+ days) at substantially-below-on-demand pricing. Best for:
+Reserve GPU/Neuron capacity for defined windows, up to 182 days (roughly 6 months); defer exact duration-increment rules to AWS docs. Pricing is upfront and market-based (set by supply and demand); the primary value is *guaranteed* capacity access, not a substantial discount vs on-demand. Best for:
 
 - Planned pre-training runs with known duration
 - Fine-tuning campaigns (e.g., weekly retrain cycle)

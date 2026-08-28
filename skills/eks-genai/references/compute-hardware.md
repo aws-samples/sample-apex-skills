@@ -1,6 +1,6 @@
 # Compute & Hardware — NVIDIA GPU vs AWS Neuron
 
-The single most-impactful decision in any GenAI-on-EKS architecture. AWS docs explicitly state: *"When your workloads permit it, we recommend that you consider using Neuron"* ([EKS ML Get Started](https://docs.aws.amazon.com/eks/latest/userguide/ml-get-started.html)). **Do not reflexively pick NVIDIA GPU** — evaluate Neuron first for Transformer-family LLMs.
+The single most-impactful decision in any GenAI-on-EKS architecture. **Do not reflexively pick NVIDIA GPU.** For Transformer-family LLMs, evaluate AWS Neuron (Trainium/Inferentia) first: it often wins on price-performance versus NVIDIA GPU, but validate per workload.
 
 ## Layer-1 Decision Rule
 
@@ -47,7 +47,7 @@ Note: Inf2 instances do **not** support EFA — their `inf2.48xlarge` chip-to-ch
 | **trn2.48xlarge** | 16× Trainium2 | 1.5 TB HBM3 | 3.2 Tbps, EFA v3 (RDMA) | Pre-training (3× compute vs Trn1), large-scale fine-tuning |
 | **trn1.32xlarge** | 16× Trainium | 512 GB HBM2e | 800 Gbps, EFA v2 | Pre-training, fine-tuning — **up to 50% cost-to-train savings** |
 | **inf2.48xlarge** | 12× Inferentia2 | 384 GB HBM2e | 100 Gbps ENA (no EFA); NeuronLink chip-to-chip | High-throughput LLM inference (30B–70B) |
-| **inf2.8xlarge** | 2× Inferentia2 | 64 GB HBM2e | Up to 25 Gbps ENA (no EFA) | Dev/test inference, smaller models (7B–13B) |
+| **inf2.8xlarge** | 1× Inferentia2 | 32 GB HBM2e | Up to 25 Gbps ENA (no EFA) | Dev/test inference, smaller models (7B–13B) |
 
 ## When Each Accelerator Wins — Summary
 
@@ -104,15 +104,15 @@ data:
 
 > **Caution**: Time-slicing provides no memory isolation — one pod's OOM kills the GPU context for all co-located pods. Use only for dev/test.
 
-### Dynamic Resource Allocation (DRA) — Kubernetes 1.31+
+### Dynamic Resource Allocation (DRA): Kubernetes 1.34+
 
 Fine-grained GPU partitioning managed by the Kubernetes scheduler. Use for:
 
 - Clusters that need **scheduler-aware** GPU sharing (vs static MIG)
-- **Not compatible with Karpenter or EKS Auto Mode** as of 2026 — use only on self-managed node groups with Cluster Autoscaler or static capacity
+- **Karpenter static capacity only (no dynamic provisioning); not on Auto Mode.** The NVIDIA DRA driver is supported on Karpenter static-capacity NodePools, EKS managed node groups, and self-managed nodes, but does not support dynamic Karpenter provisioning and is not supported on EKS Auto Mode ([Manage NVIDIA GPU devices with DRA](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia.html)). On EKS the DRA drivers require Kubernetes 1.34+; the `resource.k8s.io/v1beta1` API used in the example below is 1.32+.
 
 ```yaml
-# DRA ResourceClaim example (self-managed clusters only)
+# DRA ResourceClaim example (Karpenter static capacity / managed NG / self-managed; not Auto Mode)
 apiVersion: resource.k8s.io/v1beta1
 kind: ResourceClaim
 metadata:
@@ -130,7 +130,7 @@ spec:
 |---|---|---|---|---|
 | **MIG** | Hardware-level | ✅ Yes | ✅ Yes | Production multi-tenant on H100/A100 |
 | **Time-slicing** | None (temporal only) | ❌ No | ✅ Yes | Dev/test density, low-utilization workloads |
-| **DRA** | Scheduler-managed | ✅ Yes | ❌ No | Fine-grained sharing on self-managed nodes |
+| **DRA** | Scheduler-managed | ✅ Yes | Static capacity only (no dynamic provisioning); not on Auto Mode | Fine-grained sharing on Karpenter static NodePools, managed node groups, or self-managed nodes |
 
 ## Neuron Compilation — The Ramp Cost
 
@@ -143,6 +143,8 @@ Neuron requires ahead-of-time compilation (`torch-neuronx` or `neuronx-distribut
 - Ship compiled artifacts via S3 or bake into container image — never compile at pod startup
 
 **Mitigation**: Pre-compile models offline in a CI pipeline. Store compiled `.neff` files in S3. Reference them from the serving container at startup. This removes compilation from the critical path entirely.
+
+> **Warning (SDK version skew)**: Precompiled Neuron artifacts (`.neff`) must be compiled with a Neuron SDK version compatible with the runtime version on the serving nodes. A compile-vs-runtime SDK mismatch is a common serve-time failure, so pin and match the Neuron SDK across build and serve.
 
 ```yaml
 # Neuron pod requesting NeuronCores (device plugin path)
@@ -171,7 +173,7 @@ resources:
 | Trainium: up to **50% cost-to-train savings** vs comparable EC2 GPU instances | [aws.amazon.com/ec2/instance-types/trn1](https://aws.amazon.com/ec2/instance-types/trn1/) |
 | Inferentia2: up to **40% better price-performance** vs comparable EC2 GPU instances | [aws.amazon.com/ec2/instance-types/inf2](https://aws.amazon.com/ec2/instance-types/inf2/) |
 | Inferentia2: up to **50% better performance/watt** vs comparable EC2 GPU | [aws.amazon.com/ec2/instance-types/inf2](https://aws.amazon.com/ec2/instance-types/inf2/) |
-| Capacity Blocks for ML: **substantially below on-demand** pricing for multi-day reservations | [aws.amazon.com/ec2/capacityblocks/pricing](https://aws.amazon.com/ec2/capacityblocks/pricing/) |
+| Capacity Blocks for ML: guaranteed capacity access, upfront market-based pricing (not a guaranteed on-demand discount) | [aws.amazon.com/ec2/capacityblocks/pricing](https://aws.amazon.com/ec2/capacityblocks/pricing/) |
 
 > Always provide **directional ranges with caveats** — actual savings depend on model size, traffic pattern, batch size, sequence length, and configuration. Never give point cost estimates.
 
@@ -182,7 +184,7 @@ On EKS Auto Mode, the NVIDIA driver and device plugin are **embedded in the Bott
 ## Sources
 
 - [Best Practices for AI/ML Workloads on Amazon EKS](https://docs.aws.amazon.com/eks/latest/best-practices/aiml.html)
-- [EKS ML Get Started](https://docs.aws.amazon.com/eks/latest/userguide/ml-get-started.html)
+- [EKS for AI/ML](https://docs.aws.amazon.com/eks/latest/userguide/ml-on-eks.html)
 - [Amazon EC2 Trn1 Instances](https://aws.amazon.com/ec2/instance-types/trn1/)
 - [Amazon EC2 Inf2 Instances](https://aws.amazon.com/ec2/instance-types/inf2/)
 - [EC2 Capacity Blocks for ML](https://aws.amazon.com/ec2/capacityblocks/pricing/)
