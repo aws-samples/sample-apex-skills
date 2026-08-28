@@ -120,11 +120,11 @@ data:
 Fine-grained GPU partitioning managed by the Kubernetes scheduler. Use for:
 
 - Clusters that need **scheduler-aware** GPU sharing (vs static MIG)
-- **Karpenter static capacity only (no dynamic provisioning); not on Auto Mode.** The NVIDIA DRA driver is supported on Karpenter static-capacity NodePools, EKS managed node groups, and self-managed nodes, but does not support dynamic Karpenter provisioning and is not supported on EKS Auto Mode ([Manage NVIDIA GPU devices with DRA](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia.html)). On EKS the DRA drivers require Kubernetes 1.34+; the `resource.k8s.io/v1beta1` API used in the example below is 1.32+.
+- **Karpenter static capacity only (no dynamic provisioning); not on Auto Mode.** The NVIDIA DRA driver is supported on Karpenter static-capacity NodePools, EKS managed node groups, and self-managed nodes, but does not support dynamic Karpenter provisioning and is not supported on EKS Auto Mode ([Manage NVIDIA GPU devices with DRA](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia.html)). On EKS the DRA drivers require Kubernetes 1.34+, where DRA is GA at `resource.k8s.io/v1` (used in the example below; the beta `resource.k8s.io/v1beta1` API dates to 1.32).
 
 ```yaml
 # DRA ResourceClaim example (Karpenter static capacity / managed NG / self-managed; not Auto Mode)
-apiVersion: resource.k8s.io/v1beta1
+apiVersion: resource.k8s.io/v1
 kind: ResourceClaim
 metadata:
   name: gpu-slice

@@ -30,7 +30,7 @@ vLLM is deployed via an [AWS Deep Learning Container](https://aws.amazon.com/ai/
 --load-format runai_streamer
 --model-loader-extra-config '{"concurrency": 16}'
 
-# Tool calling (Mistral family — supported in current vLLM, v0.6.0+)
+# Tool calling (Mistral family; supported since vLLM v0.6.0)
 --enable-auto-tool-choice
 --tool-call-parser mistral
 --config-format mistral

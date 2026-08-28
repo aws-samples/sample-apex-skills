@@ -110,13 +110,23 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: ai-gateway   # only the gateway namespace
+              kubernetes.io/metadata.name: ai-gateway   # gateway namespace...
+          podSelector:
+            matchLabels:
+              app: litellm                              # ...and only the gateway pods (least privilege)
       ports:
         - protocol: TCP
           port: 8000
+    - from:                                             # metrics scrapers must still reach vLLM /metrics
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring   # namespace running Prometheus/DCGM (adjust to yours)
+      ports:
+        - protocol: TCP
+          port: 8000                                    # vLLM serves the API and /metrics on the same port
 ```
 
-Requires a NetworkPolicy-enforcing CNI (VPC CNI network policy, Cilium, or Calico). This is the in-cluster complement to the gateway auth caveat in [ai-gateway.md](ai-gateway.md).
+Requires a NetworkPolicy-enforcing CNI (VPC CNI network policy, Cilium, or Calico). Two caveats: (1) a default-deny that omits the monitoring namespace silently blocks Prometheus/DCGM scraping of vLLM `/metrics`, so keep the monitoring allow rule above (kubelet liveness/readiness probes are node-local and CNI-exempt, so they keep working regardless); (2) this policy denies only ingress. For exfiltration control on backends handling tenant data, add a companion default-deny `Egress` policy with an explicit allow for kube-dns (UDP/TCP 53) so name resolution still works. This is the in-cluster complement to the gateway auth caveat in [ai-gateway.md](ai-gateway.md).
 
 ### 6. Audit Logging
 

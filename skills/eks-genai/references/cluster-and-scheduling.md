@@ -91,11 +91,14 @@ Per the [AI/ML networking best practices](https://docs.aws.amazon.com/eks/latest
 - back it with `karpenter.sh/do-not-disrupt: "true"` and PDBs on the training pods.
 
 ```yaml
-# TRAINING NodePool disruption block (multi-node / EFA jobs): replaces the inference defaults above
+# TRAINING NodePool overrides (multi-node / EFA jobs); replaces the inference defaults above
+spec:
+  template:
+    spec:
+      expireAfter: Never              # v1: expireAfter lives under template.spec, NOT disruption; or set longer than the longest job (e.g. 168h)
   disruption:
-    consolidationPolicy: WhenEmpty      # never disrupt "underutilized" nodes mid-run
+    consolidationPolicy: WhenEmpty    # never disrupt "underutilized" nodes mid-run
     consolidateAfter: 300s
-    expireAfter: Never                  # or a value longer than the longest training job, e.g. 168h
 ```
 
 Leave inference pools on `WhenEmptyOrUnderutilized`. Do not blanket-apply the training settings to them, or you forfeit inference bin-packing and cost savings.

@@ -113,7 +113,7 @@ spec:
                   number: 4000
 ```
 
-> **Secret handling (illustrative only).** The `secretKeyRef` env form above pulls `LITELLM_MASTER_KEY` and `DATABASE_URL` from a plain Kubernetes Secret. That is fine for a quick demo but contradicts the security baseline: a plain Secret is readable by anyone with namespace `get/list secrets` RBAC and isn't rotated or audited like Secrets Manager. For production, keep the master key and DB URL in AWS Secrets Manager and mount them via the Secrets Store CSI Driver through a `SecretProviderClass`, the same pattern this stack already uses for Langfuse keys (see the Langfuse Integration section below). See [security-and-compliance.md](security-and-compliance.md) §3 (Secrets Store CSI Driver).
+> **Secret handling (illustrative only).** The `secretKeyRef` env form above pulls `LITELLM_MASTER_KEY` and `DATABASE_URL` from a plain Kubernetes Secret. That is fine for a quick demo but contradicts the security baseline: a plain Secret is readable by anyone with namespace `get/list secrets` RBAC and isn't rotated or audited like Secrets Manager. For production, keep the master key and DB URL in AWS Secrets Manager and mount them via the Secrets Store CSI Driver through a `SecretProviderClass`, the same pattern this stack already uses for Langfuse keys (see the Langfuse Integration section below). Note that the CSI driver mounts secrets as files; to keep the `secretKeyRef` env shape above, enable `secretObjects` in the `SecretProviderClass` so the mounted values are synced into a Kubernetes Secret that `secretKeyRef` reads. See [security-and-compliance.md](security-and-compliance.md) §3 (Secrets Store CSI Driver).
 
 ### LiteLLM Config (Model Routing)
 
