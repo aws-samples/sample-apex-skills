@@ -14,7 +14,7 @@ Five condensed scenarios from the playbook. Each gives: customer profile, per-la
 |-------|--------|-----------|
 | 1 — Compute | **g6e.2xlarge** (L40S) for 7B-13B; g6e.12xlarge for 30B | Fastest time-to-first-success; Neuron as phase-2 cost optimization |
 | 2 — Cluster | Karpenter + NVIDIA device plugin + Bottlerocket accelerated AMI | Auto Mode compatible; driver pre-installed |
-| 3 — Framework | **vLLM** (AWS DLC) + **Ray Serve** (KubeRay 1.7.0) | OpenAI-compatible API; auto-scaling built-in |
+| 3 — Framework | **vLLM** (AWS DLC) + **Ray Serve** (KubeRay 1.5.1) | OpenAI-compatible API; auto-scaling built-in |
 | 4 — Storage | **Mountpoint S3 CSI** + Run:ai Streamer | Lazy-load weights from S3; per-pod cache |
 | 5 — Observability | DCGM Exporter + kube-prometheus-stack + AMP | Pre-built ai-on-eks Grafana dashboards |
 | 6 — Gateway | **LiteLLM** + Langfuse | Multi-model routing; per-tenant cost tracking |

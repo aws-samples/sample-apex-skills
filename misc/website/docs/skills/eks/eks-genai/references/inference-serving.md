@@ -111,7 +111,7 @@ When you need >1 replica, autoscaling, or multi-model routing at the framework l
 ```bash
 # Install KubeRay operator (Helm)
 helm repo add kuberay https://ray-project.github.io/kuberay-helm/
-helm install kuberay-operator kuberay/kuberay-operator --version 1.7.0
+helm install kuberay-operator kuberay/kuberay-operator --version 1.5.1
 ```
 
 Deploy a **RayService** CRD — the operator manages the Ray cluster lifecycle and rolling updates:

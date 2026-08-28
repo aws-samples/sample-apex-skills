@@ -84,7 +84,7 @@ These are the **pinned, tested versions** from the current [Generative AI on EKS
 | **Model** | **Ministral-3-8B-Instruct-2512** |
 | **Inference engine** | **vLLM** (AWS Deep Learning Container) |
 | **Model loading** | **Run:ai Streamer** from S3 (`RUNAI_STREAMER_S3_*` env vars) |
-| **Serving framework** | **Ray Serve** via **KubeRay operator 1.7.0** |
+| **Serving framework** | **Ray Serve** via **KubeRay operator 1.5.1** |
 | **Storage** | **Mountpoint for S3 CSI** (`s3.csi.aws.com`) |
 | **RAG vector store** | **Amazon S3 Vectors** |
 | **Observability — metrics** | **kube-prometheus-stack 69.7.4** + **grafana-operator 5.16.0** |
@@ -139,7 +139,7 @@ The NVIDIA workshop deploys the following architecture on EKS Auto Mode:
 ┌─────────────────────────────────────────────────────────────────┐
 │ EKS Auto Mode (K8s 1.34) — g6e.2xlarge NodePool                │
 ├─────────────────────────────────────────────────────────────────┤
-│ vLLM (DLC) + Run:ai Streamer          Ray Serve (KubeRay 1.7.0)│
+│ vLLM (DLC) + Run:ai Streamer          Ray Serve (KubeRay 1.5.1)│
 │     ↑ model weights from S3                ↑ auto-scales pods   │
 ├─────────────────────────────────────────────────────────────────┤
 │ LMCache (L1 CPU → L2 ElastiCache Valkey)   S3 Vectors (RAG)    │
