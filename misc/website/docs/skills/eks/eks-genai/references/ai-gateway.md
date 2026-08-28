@@ -124,6 +124,8 @@ spec:
                   number: 4000
 ```
 
+> **Secret handling (illustrative only).** The `secretKeyRef` env form above pulls `LITELLM_MASTER_KEY` and `DATABASE_URL` from a plain Kubernetes Secret. That is fine for a quick demo but contradicts the security baseline: a plain Secret is readable by anyone with namespace `get/list secrets` RBAC and isn't rotated or audited like Secrets Manager. For production, keep the master key and DB URL in AWS Secrets Manager and mount them via the Secrets Store CSI Driver through a `SecretProviderClass`, the same pattern this stack already uses for Langfuse keys (see the Langfuse Integration section below). The safest form is the file mount the CSI driver provides (no plaintext Secret persisted in etcd); have LiteLLM read the mounted files directly. If you must keep the `secretKeyRef` env shape above, `secretObjects` in the `SecretProviderClass` syncs the mounted values into a Kubernetes Secret, but that reintroduces the RBAC-readable Secret this note is warning about, so treat it as a convenience trade-off rather than the default. See [security-and-compliance.md](security-and-compliance) §3 (Secrets Store CSI Driver).
+
 ### LiteLLM Config (Model Routing)
 
 ```yaml
@@ -148,6 +150,8 @@ litellm_settings:
   success_callback: ["langfuse"]        # trace every request to Langfuse
   cache: true                           # enable response caching (Redis/Valkey)
 ```
+
+> **Lock down the vLLM backend.** `api_key: "not-needed"` means the vLLM service has no auth of its own, so any pod that can reach `vllm-llama.inference.svc.cluster.local:8000` bypasses the gateway entirely, and with it the rate limiting, cost tracking, and guardrails LiteLLM enforces. Do not rely on the missing key as a control. Restrict network reachability so only the gateway can call vLLM: apply a **default-deny NetworkPolicy** in the inference namespace plus an allow rule admitting ingress to the vLLM service **only** from the gateway namespace/pods. See [security-and-compliance.md](security-and-compliance) §5 (Network Isolation) for the baseline policy.
 
 ### Per-Tenant Rate Limiting
 

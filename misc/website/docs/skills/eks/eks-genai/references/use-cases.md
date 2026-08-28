@@ -25,7 +25,7 @@ Five condensed scenarios from the playbook. Each gives: customer profile, per-la
 |-------|--------|-----------|
 | 1 — Compute | **g6e.2xlarge** (L40S) for 7B-13B; g6e.12xlarge for 30B | Fastest time-to-first-success; Neuron as phase-2 cost optimization |
 | 2 — Cluster | Karpenter + NVIDIA device plugin + Bottlerocket accelerated AMI | Auto Mode compatible; driver pre-installed |
-| 3 — Framework | **vLLM** (AWS DLC) + **Ray Serve** (KubeRay 1.1.0) | OpenAI-compatible API; auto-scaling built-in |
+| 3 — Framework | **vLLM** (AWS DLC) + **Ray Serve** (KubeRay 1.5.1) | OpenAI-compatible API; auto-scaling built-in |
 | 4 — Storage | **Mountpoint S3 CSI** + Run:ai Streamer | Lazy-load weights from S3; per-pod cache |
 | 5 — Observability | DCGM Exporter + kube-prometheus-stack + AMP | Pre-built ai-on-eks Grafana dashboards |
 | 6 — Gateway | **LiteLLM** + Langfuse | Multi-model routing; per-tenant cost tracking |
@@ -65,7 +65,7 @@ Five condensed scenarios from the playbook. Each gives: customer profile, per-la
 
 **Escalate when:** >32 accelerator nodes per job — ML TFC joint review. Novel architecture not in Neuron supported list — GPU-only with Specialist review.
 
-**Spot strategy for training:** Spot is acceptable ONLY with checkpoint-resume wired into the training loop. Pattern: checkpoint every 15-30 min to FSx → async DRA offload to S3 → on Spot interruption, Karpenter provisions replacement → resume from latest checkpoint. Without this loop, Spot is a guaranteed cost-burn. For planned multi-day runs, use **Capacity Blocks for ML** (substantially below on-demand pricing for reserved GPU/Neuron).
+**Spot strategy for training:** Spot is acceptable ONLY with checkpoint-resume wired into the training loop. Pattern: checkpoint every 15-30 min to FSx → async DRA offload to S3 → on Spot interruption, Karpenter provisions replacement → resume from latest checkpoint. Without this loop, Spot is a guaranteed cost-burn. For planned multi-day runs, use **Capacity Blocks for ML** (guaranteed reserved GPU/Neuron capacity; upfront market-based pricing).
 
 ---
 

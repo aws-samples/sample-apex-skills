@@ -30,7 +30,7 @@ vLLM is deployed via an [AWS Deep Learning Container](https://aws.amazon.com/ai/
 --load-format runai_streamer
 --model-loader-extra-config '{"concurrency": 16}'
 
-# Tool calling (Mistral family — required for vLLM 0.9.0+)
+# Tool calling (Mistral family; --config-format mistral requires vLLM v0.6.1; auto-tool-choice flags landed v0.6.0)
 --enable-auto-tool-choice
 --tool-call-parser mistral
 --config-format mistral
@@ -64,6 +64,33 @@ Reference: [Generative AI on EKS using NVIDIA GPU Workshop](https://catalog.us-e
 
 **Decision rule:** Default → Run:ai Streamer for standalone vLLM (simplest, no PVC). Switch to Mountpoint S3 CSI when using Ray Serve (the KubeRay RayService CRD mounts the PV across head + workers). Use FSx only when the same cluster does training + inference and checkpoint-to-serve latency matters.
 
+## Health Probes for Long Model Loads
+
+Streaming large weights (a 70B model can take several minutes to load and warm up) will trip a default `livenessProbe`, which then restarts the pod mid-load and drives an endless `CrashLoopBackOff`. Guard the load with a `startupProbe` sized so `failureThreshold × periodSeconds` comfortably exceeds the observed load + warmup time. The `livenessProbe` and `readinessProbe` do not begin until the startupProbe first succeeds, so they never fire during loading.
+
+```yaml
+# vLLM container — probe /health once the server is up
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  periodSeconds: 15
+  failureThreshold: 60          # 15s × 60 = 15 min budget for load + warmup
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  periodSeconds: 10
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  periodSeconds: 20
+  failureThreshold: 3
+```
+
+**Rule:** measure the real cold-start for your model + loader, then set the startupProbe budget above it with headroom. Do not inflate `initialDelaySeconds` on the livenessProbe as a substitute. A startupProbe is the correct primitive and keeps liveness detection responsive once the pod is serving.
+
 ## Ray Serve + KubeRay — Multi-Replica Autoscaling
 
 When you need >1 replica, autoscaling, or multi-model routing at the framework level, wrap vLLM inside a Ray Serve deployment managed by the KubeRay operator.
@@ -73,7 +100,7 @@ When you need >1 replica, autoscaling, or multi-model routing at the framework l
 ```bash
 # Install KubeRay operator (Helm)
 helm repo add kuberay https://ray-project.github.io/kuberay-helm/
-helm install kuberay-operator kuberay/kuberay-operator --version 1.1.0
+helm install kuberay-operator kuberay/kuberay-operator --version 1.5.1
 ```
 
 Deploy a **RayService** CRD — the operator manages the Ray cluster lifecycle and rolling updates:

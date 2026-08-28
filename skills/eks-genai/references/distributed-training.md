@@ -186,7 +186,7 @@ spec:
 | Latency-sensitive eval loops (need uninterrupted hours) | ⚠️ Conditionally | Capacity Blocks preferred; Spot only if budget-constrained |
 | Dev / experimentation | ✅ Yes | Acceptable interruption profile for iterative work |
 
-Use **Capacity Blocks for ML** for planned multi-day training runs that need guaranteed capacity without Spot interruption risk. Pricing is substantially below on-demand for multi-day reservations.
+Use **Capacity Blocks for ML** for planned multi-day training runs that need guaranteed capacity without Spot interruption risk. Pricing is upfront and market-based; the value is guaranteed capacity access, not a guaranteed discount vs on-demand.
 
 Reference: [EC2 Capacity Blocks for ML Pricing](https://aws.amazon.com/ec2/capacityblocks/pricing/).
 

@@ -93,6 +93,55 @@ Required VPC endpoints for GenAI on EKS:
 
 Egress to internet (HF download, pip) via **NAT Gateway** with restrictive SG — or eliminate by pre-caching all artifacts in S3/ECR.
 
+**In-cluster isolation (default-deny NetworkPolicy).** VPC endpoints only govern traffic leaving the cluster; they do nothing for pod-to-pod reachability inside it. Self-hosted inference backends (vLLM, Triton) typically run **without their own auth**, so any pod that can reach the model service bypasses the gateway and its rate limiting, cost tracking, and guardrails. Apply a **default-deny ingress** NetworkPolicy in every **standalone-vLLM** inference namespace, then allow ingress to the model service **only** from the gateway namespace/pods:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: genai-inference   # adjust to your inference namespace (must match the gateway target in ai-gateway.md)
+spec:
+  podSelector: {}          # all pods in the namespace
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-to-vllm
+  namespace: genai-inference   # adjust to your inference namespace (must match the gateway target in ai-gateway.md)
+spec:
+  podSelector:
+    matchLabels:
+      app: vllm-llama       # the vLLM model service pods
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ai-gateway   # gateway namespace...
+          podSelector:
+            matchLabels:
+              app: litellm                              # ...and only the gateway pods (least privilege)
+      ports:
+        - protocol: TCP
+          port: 8000
+    - from:                                             # allow ONLY the metrics scraper to reach vLLM /metrics
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring   # namespace running Prometheus (adjust to yours)
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus        # scraper pods only, NOT the whole namespace
+      ports:
+        - protocol: TCP
+          port: 8000                                    # NOTE: vLLM serves the API and /metrics on the SAME port
+```
+
+Requires a NetworkPolicy-enforcing CNI (VPC CNI network policy, Cilium, or Calico). Caveats: (1) a default-deny that omits the scraper silently blocks Prometheus from reaching vLLM `/metrics`, so keep the scraper allow rule above. Because vLLM serves the API and `/metrics` on the same port (8000), that rule also grants the scraper API access, so scope it to the scraper pods (as shown). If that shared exposure matters, enable `/metrics` authentication, or accept it and keep the scraper rule tightly scoped. vLLM serves `/metrics` on the same port as the API and has no separate-metrics-port flag, so a dedicated metrics port isn't an option. With the CNIs listed (VPC CNI network policy, Cilium, or Calico), kubelet liveness/readiness probes are node-local and not governed by these ingress rules, so they keep working; this assumes DCGM Exporter runs **outside** this locked-down namespace (its own DaemonSet on a separate port, scraped independently, not through this rule). (2) This policy denies ingress only. If you add a companion default-deny `Egress` policy it must allow the workload's real dependencies or the pod fails closed: kube-dns (UDP/TCP 53, scoped to the kube-system DNS pods), plus the S3/AWS API endpoints (443) used for weight loading and the L2 cache endpoint (e.g. 6379), not DNS alone. This is the in-cluster complement to the gateway auth caveat in [ai-gateway.md](ai-gateway). (3) **This example is scoped to standalone-vLLM namespaces.** If you run vLLM inside **Ray Serve / KubeRay** in this namespace, the policy blocks Ray traffic (Ray pods don't carry `app: vllm-llama`), silently halting RayService reconciliation. Additionally allow intra-namespace Ray head↔worker traffic (GCS 6379, dashboard/health 8265, Serve proxy, object/worker ports) and KubeRay-operator→head ingress, or scope this policy to non-Ray namespaces.
+
 ### 6. Audit Logging
 
 **Rule:** Enable and retain:
@@ -171,6 +220,7 @@ Include in every GenAI-on-EKS response:
 - [ ] Secrets via Secrets Manager + Secrets Store CSI
 - [ ] Model provenance — image signing or checksum verification
 - [ ] Private subnets + VPC endpoints (S3, Bedrock, ECR, STS, Secrets Manager)
+- [ ] Default-deny NetworkPolicy: inference backends reachable only from the gateway
 - [ ] CloudTrail + EKS audit logs + VPC Flow Logs
 - [ ] Pod Security Admission `restricted` + CIS-hardened AMI
 - [ ] Langfuse traces encrypted + retained per compliance requirement
