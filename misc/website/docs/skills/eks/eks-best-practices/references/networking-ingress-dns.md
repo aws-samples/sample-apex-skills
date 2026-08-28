@@ -394,7 +394,7 @@ For detailed network policy guidance including default-deny patterns, DNS allow 
 
 **Recommendation:** Use VPC CNI native network policies for most workloads. Use Cilium or Calico only if you need L7 policies or advanced features like DNS hostname rules.
 
-> Beyond the namespaced `NetworkPolicy` above, EKS adds two AWS-native CRDs (`networking.k8s.aws/v1alpha1`; Kubernetes 1.29+, VPC CNI v1.21.1+): cluster-scoped **`ClusterNetworkPolicy`** with a `tier: Admin | Baseline` field (the Admin tier is evaluated first and can't be overridden by namespace policies; Baseline is an overridable default), and namespaced **`ApplicationNetworkPolicy`**, which adds an FQDN-based egress filter that is exclusive to EKS Auto Mode. See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
+> Beyond the namespaced `NetworkPolicy` above, EKS adds two AWS-native CRDs (`networking.k8s.aws/v1alpha1`, VPC CNI v1.21.1+): cluster-scoped **`ClusterNetworkPolicy`** with a `tier: Admin | Baseline` field (the Admin tier is evaluated first and can't be overridden by namespace policies; Baseline is an overridable default), and namespaced **`ApplicationNetworkPolicy`**, an EKS Auto Mode CRD adding an FQDN-based egress filter that applies only on Auto Mode nodes. (Kubernetes 1.29+ is the Auto Mode / new-cluster rollout floor, not a ClusterNetworkPolicy gate.) See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
 
 ---
 

@@ -582,10 +582,10 @@ kubectl get globalnetworkpolicies.crd.projectcalico.org --no-headers 2>/dev/null
 kubectl get crd 2>/dev/null | grep -i cilium.io
 kubectl get ciliumnetworkpolicies -A --no-headers 2>/dev/null | wc -l
 
-# AWS-native network policy CRDs (networking.k8s.aws)
+# AWS-native network policy CRDs (networking.k8s.aws); ApplicationNetworkPolicy is an Auto Mode CRD
 kubectl get crd 2>/dev/null | grep -i networking.k8s.aws
-kubectl get clusternetworkpolicies --no-headers 2>/dev/null | wc -l
-kubectl get applicationnetworkpolicies -A --no-headers 2>/dev/null | wc -l
+kubectl get clusternetworkpolicies.networking.k8s.aws --no-headers 2>/dev/null | wc -l
+kubectl get applicationnetworkpolicies.networking.k8s.aws -A --no-headers 2>/dev/null | wc -l
 ```
 
 - `network_policies.count` = total native NetworkPolicy objects.
@@ -593,7 +593,7 @@ kubectl get applicationnetworkpolicies -A --no-headers 2>/dev/null | wc -l
 - `calico.detected` = Calico CRDs present; `calico.global_policies` = count of GlobalNetworkPolicies.
 - `cilium.detected` = Cilium CRDs present.
 - `aws_cluster_network_policies` = count of cluster-scoped `ClusterNetworkPolicy` objects (`networking.k8s.aws/v1alpha1`). The CRD is available in all launch modes; enforcement runs on EC2 Linux nodes only.
-- `aws_application_network_policies` = count of namespaced `ApplicationNetworkPolicy` objects (`networking.k8s.aws/v1alpha1`). Count these regardless of compute mode: `ApplicationNetworkPolicy` supports all standard `NetworkPolicy` fields on any cluster. Only its FQDN-based egress rules are Auto Mode-exclusive, so treat FQDN rules as effective only when the compute module reports `auto_mode.enabled: true`.
+- `aws_application_network_policies` = count of namespaced `ApplicationNetworkPolicy` objects (`networking.k8s.aws/v1alpha1`). AWS documents `ApplicationNetworkPolicy` as an EKS Auto Mode CRD; the guarded `kubectl get` returns 0 where the CRD is absent, so report the raw count and expect non-zero results on Auto Mode clusters (`auto_mode.enabled: true`). Its FQDN-based egress rules apply only on Auto Mode nodes.
 
 ### 9. external-dns
 
@@ -767,7 +767,7 @@ networking:
     cilium:
       detected: bool
     aws_cluster_network_policies: int      # count of ClusterNetworkPolicy (networking.k8s.aws/v1alpha1); CRD in all launch modes, enforcement EC2 Linux only
-    aws_application_network_policies: int   # count of ApplicationNetworkPolicy (networking.k8s.aws/v1alpha1); count regardless of mode, only FQDN egress rules are Auto Mode-exclusive
+    aws_application_network_policies: int   # count of ApplicationNetworkPolicy (networking.k8s.aws/v1alpha1); AWS-documented as an Auto Mode CRD, FQDN egress applies only on Auto Mode nodes
 
   # --- external-dns ---
   external_dns:
