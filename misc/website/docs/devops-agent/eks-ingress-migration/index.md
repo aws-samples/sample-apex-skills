@@ -44,7 +44,7 @@ Pre-flight → Assess (7 sections) → Routing Topology → Markdown Report (inl
 1. **Pre-flight** — Discover cluster, validate permissions
 2. **Assessment** — Run 7 sections, collect findings and topology data
 3. **Routing Topology** — Compile the collected topology data (nodes, controllers, ingresses, services) into the Routing Topology table and the machine-readable topology artifact
-4. **Markdown Report** — Render one report per cluster, inline in the response. It leads with the **Migration Difficulty Score (0–100)** — a deterministic roll-up of the per-finding Impact ratings (high = easy to leave NGINX, low = hard / high business impact). See `references/report-generation.md` Step 1.
+4. **Markdown Report** — Render the report for the assessed cluster inline in the response. It leads with the **Migration Difficulty Score (0–100)** — a deterministic roll-up of the per-finding Impact ratings (high = easy to leave NGINX, low = hard / high business impact). See `references/report-generation.md` Step 1.
 5. **Export Materials** — Render ready-to-apply YAML inline, in apply order:
    - `current/` — existing Ingress resources (clean, no status fields)
    - `target/gateway-api/` — Gateway API resources (GatewayClass, Gateway, HTTPRoute) in apply order
@@ -145,11 +145,13 @@ A ready-to-use policy document is at [`references/iam-policy.json`](https://gith
 
 ### Kubernetes API access
 
-Cluster reads come from an **EKS access entry** binding the Agent Space role to a cluster-access policy; the cluster's `authenticationMode` must include `API`. `AmazonAIOpsAssistantPolicy` covers the built-in API groups this skill relies on most — `networking.k8s.io` (Ingress, IngressClass), core (Services, Pods, ConfigMaps, Nodes), and `apps` (controller Deployments).
+Cluster reads come from an **EKS access entry** binding the Agent Space role to a cluster-access policy (`devops-agent/setup.sh` associates `AmazonAIOpsAssistantPolicy`); the cluster's `authenticationMode` must include `API`.
+
+> **Do not assume the managed policy's coverage — verify it.** As of 2026-08-30, `AmazonAIOpsAssistantPolicy` is listed among the available cluster-access policies in the EKS reference but its rules are **not enumerated** there, unlike every other access policy on that page ([Review access policy permissions](https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html)). So the exact API groups it grants are unconfirmed from an authoritative source. This skill therefore treats **every** Kubernetes read as possibly denied and fails closed (below) rather than relying on assumed coverage. To make the outcome deterministic, bind the supplementary read-only ClusterRole in `references/porting-notes.md`, which grants exactly the reads this skill needs, and confirm with `kubectl auth can-i`.
 
 **Secret contents are never read.** TLS posture is inferred from the `secretName` references in `Ingress.spec.tls[]` plus the ACM inventory — the skill needs to know *that* a route terminates TLS from a Kubernetes Secret, never the key material. Do not request or read Secret data.
 
-**The access policy does not cover CRDs or `admissionregistration.k8s.io`.** Without a supplementary read-only ClusterRole, these reads return `403 Forbidden`:
+**These reads are the ones most likely to be denied.** The sibling `eks-recon` port records — unverified against AWS documentation — that the policy grants read-only `get`/`list` on built-in API groups only and no CRD groups. If that holds, each read below returns `403 Forbidden` without a supplementary ClusterRole:
 
 | Read | API group | Needed for |
 |---|---|---|

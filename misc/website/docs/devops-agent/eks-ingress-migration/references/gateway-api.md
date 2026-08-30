@@ -27,7 +27,7 @@ This page is generated from [devops-agent/eks-ingress-migration/references/gatew
 
 ## Prerequisite checks (read-only — gather for Option 1, Phase 1)
 1. **CRDs** — list `CustomResourceDefinition` (`apiextensions.k8s.io/v1`) and filter for `gateway.networking.k8s.io`; need `GatewayClass`, `Gateway`, `HTTPRoute`, `ReferenceGrant` at v1. If missing → install the current standard release `standard-install.yaml` **v1.5.0** (a low-impact Phase-1 step, run by the cluster owner).
-   > **Runtime caveat:** `apiextensions.k8s.io` and the `gateway.networking.k8s.io` CRD group are **not** covered by the default access-entry RBAC — a denied read means Gateway API adoption is **unconfirmed**, never "not installed". Do not recommend installing CRDs on the strength of a `403`. See `references/porting-notes.md`.
+   > **Runtime caveat:** `apiextensions.k8s.io` and the `gateway.networking.k8s.io` CRD group are outside the built-in groups an access entry is likely to grant, so expect a `403` here unless a supplementary ClusterRole was bound. A denied read means Gateway API adoption is **unconfirmed**, never "not installed" — do not recommend installing CRDs on the strength of a `403`. See `references/porting-notes.md`.
 2. **Controller version** — `aws-load-balancer-controller` image tag **≥ v2.14** (L7) / **≥ v2.13.3** (L4); IRSA/Pod Identity present; healthy with 2+ replicas. `< v2.14` → upgrade in Phase 1. Built-in on Auto Mode.
 3. **GatewayClass** — `spec.controllerName: gateway.k8s.aws/alb`, status `Accepted: True`. None → create in Phase 1.
 4. **Adoption status** — list existing `Gateway`/`HTTPRoute`/`GRPCRoute` to tell greenfield from a partial migration (informational).
