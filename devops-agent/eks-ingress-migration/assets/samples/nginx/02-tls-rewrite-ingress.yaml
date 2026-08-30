@@ -1,0 +1,55 @@
+# URI rewrite with TLS termination using Kubernetes Secret
+# Demonstrates the full NGINX TLS + rewrite pattern
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nginx-tls-secret
+  namespace: default
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTi... # base64-encoded certificate
+  tls.key: LS0tLS1CRUdJTi... # base64-encoded private key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-app
+  namespace: default
+  labels:
+    app: web-app
+spec:
+  type: ClusterIP
+  selector:
+    app: web-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rewrite-tls
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - rewrite.bar.com
+      secretName: nginx-tls-secret
+  rules:
+    - host: rewrite.bar.com
+      http:
+        paths:
+          - path: /something(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: web-app
+                port:
+                  number: 80
