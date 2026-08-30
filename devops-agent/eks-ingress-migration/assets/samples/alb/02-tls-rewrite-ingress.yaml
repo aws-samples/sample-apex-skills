@@ -1,0 +1,48 @@
+# URI rewrite with TLS termination using ACM
+# Demonstrates the full NGINX TLS + rewrite pattern
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-app
+  namespace: default
+  labels:
+    app: web-app
+spec:
+  type: ClusterIP
+  selector:
+    app: web-app
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rewrite-tls
+  namespace: default
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/transforms.web-app: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/something\\\\/(.*)$\"\
+      ,\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:ACCOUNT_ID:certificate/CERTIFICATE_ID
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+spec:
+  ingressClassName: alb
+  rules:
+  - host: rewrite.bar.com
+    http:
+      paths:
+      - path: /something
+        pathType: Prefix
+        backend:
+          service:
+            name: web-app
+            port:
+              number: 80

@@ -13,6 +13,7 @@ A subset of APEX skills ported for the [AWS DevOps Agent](https://docs.aws.amazo
 <table>
 <tr><th>Skill</th><th>Status</th><th>Description</th></tr>
 <tr><td><a href="./eks-cost-intelligence/"><b>eks-cost-intelligence</b></a></td><td>Active</td><td>EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report.</td></tr>
+<tr><td><a href="./eks-ingress-migration/"><b>eks-ingress-migration</b></a></td><td>Active</td><td>Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller (ALB Ingress), or AWS Transform (ATX).</td></tr>
 <tr><td><a href="./eks-operation-review/"><b>eks-operation-review</b></a></td><td>Active</td><td>Perform a structured EKS operational excellence assessment against a live cluster.</td></tr>
 <tr><td><a href="./eks-recon/"><b>eks-recon</b></a></td><td>Active</td><td>EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment.</td></tr>
 <tr><td><a href="./eks-security/"><b>eks-security</b></a></td><td>Active</td><td>EKS security and compliance assessment — 7-layer hardening stack, CIS/HIPAA/PCI/FedRAMP/SOC2/GDPR audit prep, and 30/60/90 roadmap.</td></tr>

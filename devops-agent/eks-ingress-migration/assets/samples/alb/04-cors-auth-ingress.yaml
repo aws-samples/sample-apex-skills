@@ -1,0 +1,53 @@
+# CORS and external auth annotations with AWS Load Balancer Controller
+# Demonstrates annotations that need special handling during migration
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: protected-svc
+  namespace: default
+  labels:
+    app: protected-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: protected-svc
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+
+---
+# REMOVED: nginx.ingress.kubernetes.io/cors-allow-origin — handle via AWS WAF or application-level CORS
+# REMOVED: nginx.ingress.kubernetes.io/cors-allow-methods — handle via AWS WAF or application-level CORS
+# REMOVED: nginx.ingress.kubernetes.io/cors-allow-headers — handle via AWS WAF or application-level CORS
+# REMOVED: nginx.ingress.kubernetes.io/proxy-body-size: "50m" — no direct ALB annotation; configure at application level
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cors-auth
+  namespace: default
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:ACCOUNT_ID:certificate/CERTIFICATE_ID
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+    alb.ingress.kubernetes.io/auth-type: oidc
+    alb.ingress.kubernetes.io/auth-idp-oidc: '{"issuer": "https://auth.example.com", "authorizationEndpoint": "https://auth.example.com/oauth2/authorize", "tokenEndpoint": "https://auth.example.com/oauth2/token",
+      "userInfoEndpoint": "https://auth.example.com/oauth2/userinfo", "secretName": "oidc-client-secret"}'
+spec:
+  ingressClassName: alb
+  rules:
+  - host: secure.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: protected-svc
+            port:
+              number: 80

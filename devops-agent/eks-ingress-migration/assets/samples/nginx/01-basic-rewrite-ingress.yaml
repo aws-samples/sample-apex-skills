@@ -1,0 +1,41 @@
+# Basic URI rewrite with NGINX Ingress Controller
+# Routes rewrite.bar.com/something/* to backend at /*
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: http-svc
+  namespace: default
+  labels:
+    app: http-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: http-svc
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rewrite-basic
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: rewrite.bar.com
+      http:
+        paths:
+          - path: /something(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: http-svc
+                port:
+                  number: 80

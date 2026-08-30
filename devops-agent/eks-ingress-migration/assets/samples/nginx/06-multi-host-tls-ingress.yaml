@@ -1,0 +1,97 @@
+# Multi-host Ingress with separate TLS certs per host
+# Good candidate for IngressGroup and certificate-discovery
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: store-tls-secret
+  namespace: ecommerce
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTi... # base64-encoded certificate
+  tls.key: LS0tLS1CRUdJTi... # base64-encoded private key
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: admin-tls-secret
+  namespace: ecommerce
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTi... # base64-encoded certificate
+  tls.key: LS0tLS1CRUdJTi... # base64-encoded private key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storefront-svc
+  namespace: ecommerce
+  labels:
+    app: storefront
+spec:
+  type: ClusterIP
+  selector:
+    app: storefront
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-svc
+  namespace: ecommerce
+  labels:
+    app: admin-panel
+spec:
+  type: ClusterIP
+  selector:
+    app: admin-panel
+  ports:
+    - name: http
+      port: 80
+      targetPort: 9090
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: multi-host-store
+  namespace: ecommerce
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - store.example.com
+      secretName: store-tls-secret
+    - hosts:
+        - admin.example.com
+      secretName: admin-tls-secret
+  rules:
+    - host: store.example.com
+      http:
+        paths:
+          - path: /catalog(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: storefront-svc
+                port:
+                  number: 80
+    - host: admin.example.com
+      http:
+        paths:
+          - path: /dashboard(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: admin-svc
+                port:
+                  number: 80
