@@ -305,11 +305,10 @@ Eviction API currently permits for the pods this PDB selects. `0` means it curre
 voluntary eviction of covered healthy pods, which can stall a drain of the nodes hosting them
 (a PDB selecting zero pods also reports `0`). **Always** record `spec.unhealthyPodEvictionPolicy`
 (→ `unhealthy_pod_eviction_policy`) — it governs whether running-but-not-ready (unhealthy)
-covered pods can be evicted, judged by whether the budget is currently met
-(`currentHealthy >= desiredHealthy`), independent of the `disruptions_allowed` counter
+covered pods can be evicted, independent of the `disruptions_allowed` counter
 (`AlwaysAllow` = evict such pods regardless of budget health; `IfHealthyBudget`, the unset
-default, = only while `currentHealthy >= desiredHealthy`) — this is what lets a drain make
-progress when a covered workload is unhealthy. Emit the value verbatim; use `null` only when
+default, = only while the budget is met, `currentHealthy >= desiredHealthy`) — this is what
+lets a drain make progress when a covered workload is unhealthy. Emit the value verbatim; use `null` only when
 the field is genuinely unset — never drop the key.
 
 **Via Kubernetes API** — list PDBs across all namespaces (VERIFIED live: PDBs expose
@@ -510,7 +509,8 @@ Per-Namespace Rollup step drives `by_namespace`).
 
 ```yaml
 workloads:
-  summary:
+  summary:                         # agent rolls these up from the per-type section counts above;
+                                   # namespaces_with_workloads = distinct namespaces across those lists
     deployments: int               # kube-*-scoped total (§1 excludes kube-*); a true 0 is a valid fact
     statefulsets: int
     daemonsets: int
