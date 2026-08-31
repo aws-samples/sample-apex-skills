@@ -373,10 +373,13 @@ Also record `status.disruptionsAllowed` — the point-in-time count of voluntary
 Eviction API currently permits for the pods this PDB selects. `0` means it currently rejects
 voluntary eviction of covered healthy pods, which can stall a drain of the nodes hosting them
 (a PDB selecting zero pods also reports `0`). **Always** record `spec.unhealthyPodEvictionPolicy`
-(→ `unhealthy_pod_eviction_policy`) — it governs whether unhealthy covered pods are evictable
-while `disruptions_allowed` is `0` (`AlwaysAllow` = evict regardless of budget health;
-`IfHealthyBudget`, the unset default, = only once the budget is healthy). Emit the value
-verbatim; use `null` only when the field is genuinely unset — never drop the key.
+(→ `unhealthy_pod_eviction_policy`) — it governs whether running-but-not-ready (unhealthy)
+covered pods can be evicted, judged by whether the budget is currently met
+(`currentHealthy >= desiredHealthy`), independent of the `disruptions_allowed` counter
+(`AlwaysAllow` = evict such pods regardless of budget health; `IfHealthyBudget`, the unset
+default, = only while `currentHealthy >= desiredHealthy`) — this is what lets a drain make
+progress when a covered workload is unhealthy. Emit the value verbatim; use `null` only when
+the field is genuinely unset — never drop the key.
 
 **MCP:**
 ```
@@ -547,7 +550,7 @@ kubectl get deploy,statefulsets,daemonsets,jobs -A -o json | jq -r '
 
 ### Per-Namespace Rollup
 
-Roll the per-type listings up into the `by_namespace` schema block — one row per namespace
+Populate the `by_namespace` schema block — one row per namespace
 with a count column per workload type. Run this explicitly: the schema advertises per-namespace
 `hpas`/`pdbs` counts and the `deployments`/`services` kube-* handling, but nothing above emits
 them, so on a complete run they are otherwise dropped.
@@ -579,13 +582,14 @@ kubectl get deploy,statefulset,service,ingress,hpa,pdb -A -o json | jq '
 ```
 
 A multi-type `kubectl get` tags each item with its `.kind`, so a single read covers all six
-types. A namespace row exists wherever any column has a count, so rows may be partial.
+types. A row exists for any namespace containing at least one of the six workload types, so
+rows may be partial.
 
 **Example output:**
 ```json
 [
-  {"namespace": "production", "deployments": 8, "statefulsets": 2, "services": 5, "ingresses": 1, "hpas": 3, "pdbs": 2},
-  {"namespace": "kube-system", "deployments": null, "statefulsets": 0, "services": null, "ingresses": 0, "hpas": 0, "pdbs": 1}
+  {"namespace": "kube-system", "deployments": null, "statefulsets": 0, "services": null, "ingresses": 0, "hpas": 0, "pdbs": 1},
+  {"namespace": "production", "deployments": 8, "statefulsets": 2, "services": 5, "ingresses": 1, "hpas": 3, "pdbs": 2}
 ]
 ```
 
@@ -620,8 +624,8 @@ workloads:
 
   # kube-* scope split across these columns: ONLY deployments and services exclude kube-*
   # namespaces (their §1/§5 jq blocks filter kube-* out). statefulsets, ingresses, hpas, and pdbs
-  # INCLUDE kube-* (their listings apply no namespace filter). A namespace row exists wherever ANY
-  # column has a count, so rows may be partial. For a scoped-out column emit `null`, NOT 0 (schema
+  # INCLUDE kube-* (their listings apply no namespace filter). A row exists wherever ANY of the six
+  # workload types is present, so rows may be partial. For a scoped-out column emit `null`, NOT 0 (schema
   # header rule: null = fact not detected/collected) — e.g. a kube-system row shows `null` for
   # deployments and services (column scoped out, not "zero found"; kube-system always runs CoreDNS
   # Deployments + kube-dns Services) but real counts for statefulsets/ingresses/hpas/pdbs.
