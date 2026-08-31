@@ -35,6 +35,7 @@ This page is generated from [devops-agent/eks-recon/references/workloads.md](htt
   - [Vertical Pod Autoscalers](#10-vertical-pod-autoscalers)
   - [API Versions In Use](#11-api-versions-in-use)
 - [Summary Statistics](#summary-statistics)
+  - [Per-Namespace Rollup](#per-namespace-rollup)
 - [Output Schema](#output-schema)
 - [Additional Fact Collection](#additional-fact-collection)
   - [Pod Phase and Replica Counts](#pod-phase-and-replica-counts)
@@ -302,8 +303,13 @@ availability guarantee for the pods matched by its selector. Record existence, t
 Also record `status.disruptionsAllowed` — the point-in-time count of voluntary evictions the
 Eviction API currently permits for the pods this PDB selects. `0` means it currently rejects
 voluntary eviction of covered healthy pods, which can stall a drain of the nodes hosting them
-(a PDB selecting zero pods also reports `0`). Record `spec.unhealthyPodEvictionPolicy` too — it
-governs whether unhealthy covered pods are evictable at `0`.
+(a PDB selecting zero pods also reports `0`). **Always** record `spec.unhealthyPodEvictionPolicy`
+(→ `unhealthy_pod_eviction_policy`) — it governs whether running-but-not-ready (unhealthy)
+covered pods can be evicted, independent of the `disruptions_allowed` counter
+(`AlwaysAllow` = evict such pods regardless of budget health; `IfHealthyBudget`, the unset
+default, = only while the budget is met, `currentHealthy >= desiredHealthy`) — this is what
+lets a drain make progress when a covered workload is unhealthy. Emit the value verbatim; use `null` only when
+the field is genuinely unset — never drop the key.
 
 **Via Kubernetes API** — list PDBs across all namespaces (VERIFIED live: PDBs expose
 MIN AVAILABLE / MAX UNAVAILABLE):
@@ -326,7 +332,7 @@ selector-only PDB). The `selector` matchLabels identify the covered workloads.
   "min_available": 1,
   "max_unavailable": null,
   "disruptions_allowed": 2,
-  "unhealthy_pod_eviction_policy": null,
+  "unhealthy_pod_eviction_policy": "AlwaysAllow",
   "selector": {"app": "api-gateway"}
 }
 ```
@@ -446,6 +452,46 @@ objects and counts per `kind`.
 ]
 ```
 
+### Per-Namespace Rollup
+
+Aggregate the per-type listings collected above into the `by_namespace` schema block — one
+row per namespace, with a count column per workload type. Do this explicitly: the schema
+advertises per-namespace `hpas`/`pdbs` counts and the `deployments`/`services` kube-* handling,
+but no other step produces them, so on a complete run they are otherwise dropped. Roll up from
+the already-collected lists (no additional read) — count Deployments, StatefulSets, Services,
+Ingresses, HPAs, and PDBs per namespace.
+
+`deployments` and `services` are `null` for `kube-*` namespaces — their §1/§5 listings scope
+`kube-*` out, so a count here would not be corroborated by the detailed lists (`null` ≠ `0`:
+`null` = column scoped out for that row). `statefulsets`, `ingresses`, `hpas`, and `pdbs`
+include `kube-*`. A row exists for any namespace containing at least one of the six workload
+types, so rows may be partial.
+
+*Reference pseudocode (agent-side aggregation), not executable:*
+```python
+# Roll the already-collected per-type lists up into by_namespace rows.
+by_namespace = []
+for ns in sorted(namespaces_with_any_workload):
+    sys = ns.startswith("kube-")
+    by_namespace.append({
+        "namespace": ns,
+        "deployments": None if sys else count(deployments, ns),   # §1 scopes kube-* out
+        "statefulsets": count(statefulsets, ns),
+        "services": None if sys else count(services, ns),          # §5 scopes kube-* out
+        "ingresses": count(ingresses, ns),
+        "hpas": count(hpas, ns),
+        "pdbs": count(pdbs, ns),
+    })
+```
+
+**Example output:**
+```json
+[
+  {"namespace": "kube-system", "deployments": null, "statefulsets": 0, "services": null, "ingresses": 0, "hpas": 0, "pdbs": 1},
+  {"namespace": "production", "deployments": 8, "statefulsets": 2, "services": 5, "ingresses": 1, "hpas": 3, "pdbs": 2}
+]
+```
+
 ---
 
 ## Output Schema
@@ -453,14 +499,18 @@ objects and counts per `kind`.
 This is the **single canonical schema** for the workloads module — it carries every
 workloads fact. The `workloads-recon` agent emits exactly this shape (plus the shared
 `cluster:` block from `references/cluster-basics.md`). Use `null` where a fact was not
-detected; never omit a key. Aggregate containers use the `{count, list}` wrapper.
+detected; never omit a key. Aggregate containers use the `{count, list}` wrapper. Every key
+must trace to a collection step above — including derived/rolled-up keys (`summary`,
+`by_namespace`, `services.by_type`); a schema key with no driving step is a defect (the
+Per-Namespace Rollup step drives `by_namespace`).
 
 > **PVCs are owned by the storage module.** This schema does not carry a `storage.pvcs`
 > block — see the storage module for PVC inventory (status, storage class, capacity).
 
 ```yaml
 workloads:
-  summary:
+  summary:                         # agent rolls these up from the per-type section counts above;
+                                   # namespaces_with_workloads = distinct namespaces across those lists
     deployments: int               # kube-*-scoped total (§1 excludes kube-*); a true 0 is a valid fact
     statefulsets: int
     daemonsets: int
@@ -474,8 +524,8 @@ workloads:
 
   # kube-* scope split across these columns: ONLY deployments and services exclude kube-*
   # namespaces (their §1/§5 listings filter kube-* out). statefulsets, ingresses, hpas, and pdbs
-  # INCLUDE kube-* (their listings apply no namespace filter). A namespace row exists wherever ANY
-  # column has a count, so rows may be partial. For a scoped-out column emit `null`, NOT 0 (schema
+  # INCLUDE kube-* (their listings apply no namespace filter). A row exists wherever ANY of the six
+  # workload types is present, so rows may be partial. For a scoped-out column emit `null`, NOT 0 (schema
   # header rule: null = fact not detected/collected) — e.g. a kube-system row shows `null` for
   # deployments and services (column scoped out, not "zero found"; kube-system always runs CoreDNS
   # Deployments + kube-dns Services) but real counts for statefulsets/ingresses/hpas/pdbs.
@@ -485,8 +535,8 @@ workloads:
       statefulsets: int
       services: int|null             # null for kube-* rows: §5 scopes kube-* out, so not counted here (never 0)
       ingresses: int
-      hpas: int                    # per-namespace HPA count (rolled up from the hpas.list below)
-      pdbs: int                    # per-namespace PDB count (rolled up from the pdbs.list below)
+      hpas: int                    # per-namespace HPA count (from the Per-Namespace Rollup step)
+      pdbs: int                    # per-namespace PDB count (from the Per-Namespace Rollup step)
 
   deployments:
     count: int
