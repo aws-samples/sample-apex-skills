@@ -35,6 +35,7 @@ This page is generated from [skills/eks-recon/references/workloads.md](https://g
    - [List Vertical Pod Autoscalers](#10-list-vertical-pod-autoscalers)
    - [Enumerate API Versions In Use](#11-enumerate-api-versions-in-use)
 4. [Generate Summary Statistics](#generate-summary-statistics)
+   - [Per-Namespace Rollup](#per-namespace-rollup)
 5. [Output Schema](#output-schema)
 6. [Additional Fact Collection](#additional-fact-collection)
    - [Pod Phase and Replica Counts](#pod-phase-and-replica-counts)
@@ -371,8 +372,11 @@ availability guarantee for the pods matched by its selector. Record existence, t
 Also record `status.disruptionsAllowed` — the point-in-time count of voluntary evictions the
 Eviction API currently permits for the pods this PDB selects. `0` means it currently rejects
 voluntary eviction of covered healthy pods, which can stall a drain of the nodes hosting them
-(a PDB selecting zero pods also reports `0`). Record `spec.unhealthyPodEvictionPolicy` too — it
-governs whether unhealthy covered pods are evictable at `0`.
+(a PDB selecting zero pods also reports `0`). **Always** record `spec.unhealthyPodEvictionPolicy`
+(→ `unhealthy_pod_eviction_policy`) — it governs whether unhealthy covered pods are evictable
+while `disruptions_allowed` is `0` (`AlwaysAllow` = evict regardless of budget health;
+`IfHealthyBudget`, the unset default, = only once the budget is healthy). Emit the value
+verbatim; use `null` only when the field is genuinely unset — never drop the key.
 
 **MCP:**
 ```
@@ -410,7 +414,7 @@ selector-only PDB). The `selector` matchLabels identify the covered workloads.
   "min_available": 1,
   "max_unavailable": null,
   "disruptions_allowed": 2,
-  "unhealthy_pod_eviction_policy": null,
+  "unhealthy_pod_eviction_policy": "AlwaysAllow",
   "selector": {"app": "api-gateway"}
 }
 ```
@@ -541,6 +545,50 @@ kubectl get deploy,statefulsets,daemonsets,jobs -A -o json | jq -r '
 ]
 ```
 
+### Per-Namespace Rollup
+
+Roll the per-type listings up into the `by_namespace` schema block — one row per namespace
+with a count column per workload type. Run this explicitly: the schema advertises per-namespace
+`hpas`/`pdbs` counts and the `deployments`/`services` kube-* handling, but nothing above emits
+them, so on a complete run they are otherwise dropped.
+
+`deployments` and `services` are `null` for `kube-*` namespaces — their §1/§5 listings scope
+`kube-*` out, so a count here would not be corroborated by the detailed lists (`null` ≠ `0`:
+`null` = column scoped out for that row). `statefulsets`, `ingresses`, `hpas`, and `pdbs`
+include `kube-*`.
+
+```bash
+# Per-namespace rollup -> drives workloads.by_namespace (schema shape)
+kubectl get deploy,statefulset,service,ingress,hpa,pdb -A -o json | jq '
+  [.items[] | {ns: .metadata.namespace, kind: .kind}] |
+  group_by(.ns) |
+  map(
+    (.[0].ns) as $ns |
+    (map(.kind) | group_by(.) | map({key: .[0], value: length}) | from_entries) as $c |
+    ($ns | startswith("kube-")) as $sys |
+    {
+      namespace: $ns,
+      deployments: (if $sys then null else ($c.Deployment // 0) end),
+      statefulsets: ($c.StatefulSet // 0),
+      services: (if $sys then null else ($c.Service // 0) end),
+      ingresses: ($c.Ingress // 0),
+      hpas: ($c.HorizontalPodAutoscaler // 0),
+      pdbs: ($c.PodDisruptionBudget // 0)
+    }
+  )'
+```
+
+A multi-type `kubectl get` tags each item with its `.kind`, so a single read covers all six
+types. A namespace row exists wherever any column has a count, so rows may be partial.
+
+**Example output:**
+```json
+[
+  {"namespace": "production", "deployments": 8, "statefulsets": 2, "services": 5, "ingresses": 1, "hpas": 3, "pdbs": 2},
+  {"namespace": "kube-system", "deployments": null, "statefulsets": 0, "services": null, "ingresses": 0, "hpas": 0, "pdbs": 1}
+]
+```
+
 ---
 
 ## Output Schema
@@ -548,7 +596,10 @@ kubectl get deploy,statefulsets,daemonsets,jobs -A -o json | jq -r '
 This is the **single canonical schema** for the workloads module — it carries every
 workloads fact. The `workloads-recon` agent emits exactly this shape (plus the shared
 `cluster:` block from `references/cluster-basics.md`). Use `null` where a fact was not
-detected; never omit a key. Aggregate containers use the `{count, list}` wrapper.
+detected; never omit a key. Aggregate containers use the `{count, list}` wrapper. Every key
+must trace to a collection step above — including derived/rolled-up keys (`summary`,
+`by_namespace`, `services.by_type`); a schema key with no driving step is a defect (the
+Per-Namespace Rollup step drives `by_namespace`).
 
 > **PVCs are owned by the storage module.** This schema does not carry a `storage.pvcs`
 > block — see the storage module for PVC inventory (status, storage class, capacity).
@@ -580,8 +631,8 @@ workloads:
       statefulsets: int
       services: int|null             # null for kube-* rows: §5 scopes kube-* out, so not counted here (never 0)
       ingresses: int
-      hpas: int                    # per-namespace HPA count (rolled up from hpas.list)
-      pdbs: int                    # per-namespace PDB count (rolled up from pdbs.list)
+      hpas: int                    # per-namespace HPA count (from the Per-Namespace Rollup step)
+      pdbs: int                    # per-namespace PDB count (from the Per-Namespace Rollup step)
 
   deployments:
     count: int
