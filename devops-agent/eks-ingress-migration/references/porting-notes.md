@@ -45,55 +45,9 @@ Every loss below is a **runtime reachability** gap, not a content cut. In each c
 
 ## Supplementary ClusterRole (optional — closes losses 2 and 3)
 
-**Source caveat (verified 2026-08-30).** `AmazonAIOpsAssistantPolicy` — the policy `devops-agent/setup.sh` associates — is listed among the available cluster-access policies in [Review access policy permissions](https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html) but, unlike every other policy on that page, **its rules are not enumerated there**. So its exact API-group coverage is *not* confirmable from an authoritative AWS source. The `eks-recon` port's notes state it grants read-only `get`/`list` on built-in groups only and no CRD groups; that is a **secondary, unverified** claim and this port does not depend on it — every read fails closed instead.
+The manifest and its rationale live in **`references/supplementary-rbac.md`**, which — unlike this file — **is** included in the shipped skill zip (`setup.sh` excludes only `porting-notes.md`). It is kept there, not here, so the operator-facing instruction is reachable from the packaged skill; do not duplicate the YAML back into this file.
 
-Binding the ClusterRole below removes the guesswork: it grants exactly the reads this skill needs, so the webhook tri-state and the Gateway API adoption check resolve definitively rather than degrading. Without it the assessment still completes — it just reports Unverified/unconfirmed where it would otherwise be definitive. Confirm the result with `kubectl auth can-i ... --as-group eks-ingress-migration` rather than assuming.
-
-```yaml
-# eks-ingress-migration-rbac.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: eks-ingress-migration
-rules:
-  # Gateway API adoption state (Option 1 readiness, topology gatewayApi block)
-  - apiGroups: ["gateway.networking.k8s.io"]
-    resources: ["gatewayclasses", "gateways", "httproutes", "grpcroutes", "referencegrants"]
-    verbs: ["get", "list"]
-  # Whether the Gateway API CRDs are installed, and at which version
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["get", "list"]
-  # ingress-nginx admission-webhook exposure (CVE-2025-1974 tri-state)
-  - apiGroups: ["admissionregistration.k8s.io"]
-    resources: ["validatingwebhookconfigurations"]
-    verbs: ["get", "list"]
-  # AWS LB Controller route ownership / IngressClassParams (self-managed LBC)
-  - apiGroups: ["elbv2.k8s.aws"]
-    resources: ["targetgroupbindings", "ingressclassparams"]
-    verbs: ["get", "list"]
-  # EKS Auto Mode managed load balancing (IngressClassParams in the managed group)
-  - apiGroups: ["eks.amazonaws.com"]
-    resources: ["ingressclassparams"]
-    verbs: ["get", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: eks-ingress-migration
-subjects:
-  - kind: Group
-    name: eks-ingress-migration
-    apiGroup: rbac.authorization.k8s.io
-roleRef:
-  kind: ClusterRole
-  name: eks-ingress-migration
-  apiGroup: rbac.authorization.k8s.io
-```
-
-Bind the group on the access entry (`--kubernetes-groups eks-ingress-migration`). Note that `aws eks update-access-entry --kubernetes-groups` **replaces** the entry's group list rather than appending — if the role already carries groups from other tooling, pass them all in one comma-separated list. See the `eks-upgrade-check` port's notes for the full access-entry walkthrough; the mechanism is identical.
-
-No Secret access is requested at any point: TLS posture comes from the `secretName` references in `Ingress.spec.tls[]` plus the ACM inventory, never from key material.
+Summary: binding it grants exactly the reads this skill needs, so the webhook tri-state and the Gateway API adoption check resolve definitively instead of degrading. Without it the assessment still completes and simply reports Unverified/unconfirmed. The `AmazonAIOpsAssistantPolicy` sourcing caveat (its rules are unpublished, so coverage is unconfirmable and every read fails closed) is stated there in full.
 
 ## Scoring model — carried over unchanged
 
@@ -108,10 +62,26 @@ The Migration Difficulty Score is the part most at risk from a port, so it was c
 
 The skill is assessment-only upstream; here it is also *incapable* of mutation. Operator steps (Gateway API CRD install, LBC feature-gate enable, `lbc-migrate` applies, DNS cutover, `kubectl delete ingress` cleanup) remain in the references as instructions **for the cluster owner to run under their change-management process**. The #154 assessor/operator fence in `lbc-migrate-toolkit.md` is unchanged, and `SKILL.md` Tool Usage Rule 17 states the agent never executes them. Fenced command blocks use plain fences rather than ` ```bash `, matching the other ports, so nothing implies a shell.
 
-## Upstream observations (not fixed here)
+## Faithful port vs. faithful defect — and what was corrected
 
-Found while porting; these are defects in the **upstream** skill, left alone so this PR does not edit `skills/`:
+The port is deliberately **minimal-delta**, but "faithful" has two very different meanings and they must not be conflated:
 
-1. **`SKILL.md` heading says "Report Structure (5 Navigation Pages)" but the table lists 6 rows** (Overview, Assessment Summary, Routing Topology, Migration Approach, Analysis, References). The port states 6, since it would otherwise carry a wrong count. Worth a one-word fix upstream.
-2. **`report-generation.md` upstream `:283` / port `:293`** — the tail of the "Execution risk counts" blockquote says *"moving a feature that has **no faithful equivalent** (CORS, rate-limit, external auth) to WAF/app usually needs **application/code changes**"*. "No faithful equivalent" is the literal **Tier-A** phrase, while §1.3 classifies those same three as **Tier-B precisely because a faithful workaround exists**. An executor reading only that line could score them Tier-A. Pre-existing (`git blame` predates #129), already disclosed on #153; carried over verbatim here rather than silently diverging the port from upstream.
-3. **`ingress-resources.md:31`** says "No equivalent — use ALB + Cognito/OIDC" where the sibling CORS row says "No **native** equivalent". Cosmetic, disclosed on #153.
+- **Design artifacts** (the scoring model, tier rubric, gate pseudocode, bands, report shape, worked example) — here **identity *is* correctness**. These were copied unchanged and re-derived by hand to prove it; a divergence would be a defect.
+- **Factual content** (version floors, annotation names, service capabilities) — here **identity is not correctness**. Copying a wrong version or a non-existent annotation byte-for-byte reproduces the error and ships it to a second audience. Provenance ("it was already like that upstream") is an explanation, never a mitigation.
+
+Review round 1 on #204 found several inherited **factual** defects. Because the port and the published skill would otherwise disagree — or agree on something untrue — they are fixed in **both** copies in this PR, parity-preserving, applying the same rule already used for the navigation-count: **diverge from upstream where the value is plainly wrong, stay identical everywhere else.** Corrected in both `skills/eks-ingress-migration/` and here:
+
+1. **`certificate-discovery` is not a real annotation.** `alb.ingress.kubernetes.io/certificate-discovery: "true"` was shipped as a functional annotation (a sample manifest plus four doc sites). It does not exist in the AWS Load Balancer Controller — absent from the Ingress annotation reference and from the controller's annotation constants (checked v2.7.2 → v3.5.0). Unknown annotations are **silently ignored**, so an operator would believe TLS discovery was active while the listener had no certificate. Certificate discovery is triggered by **omitting `certificate-arn`** with an HTTPS entry in `listen-ports`. The sample now uses the omit pattern.
+2. **Gateway API production floor is v3.0.0, not v2.14.** v2.13.3 / v2.14.0 are where L4 / L7 *reconciliation began*; through **v2.15.x** the upstream guide warned *"Using the LBC and Gateway API together is not suggested for production workloads (yet!)"*, and that warning is absent from **v3.0.0** (2026-01-23) onward. The old text let the Option-1 prerequisite gate pass a pre-production controller as production-ready.
+3. **`transforms` URI rewrites need LBC v2.15.0.** The install floor was stated as v2.7.2 while 6 of 8 ALB samples use `alb.ingress.kubernetes.io/transforms.<svc>`, introduced in **v2.15.0** (2025-11-14). On v2.7.2 that annotation is silently ignored and **no rewrite happens**. v2.7.2 remains correct for the plain ALB Ingress path; the rewrite path now states v2.15.0.
+4. **EKS Auto Mode does not provide Gateway API.** The built-in `eks.amazonaws.com` controller covers **Ingress** and **Service `type: LoadBalancer`** only (Auto Mode load-balancing docs, checked 2026-09-01). A Gateway API target still needs a self-managed LBC at ≥ v3.0.0. The old wording also contradicted `ingress-discovery.md`, which had it right.
+5. **Version currency.** Dropped "current" from the v1.5.0 CRD statements (Gateway API's current release is **v1.6.1**) and retargeted the runtime-upgrade recommendation to the current **LBC v3.5.0** line. The CRD pairing is now stated per controller line — **v1.5.0 for v3.4.0**, **v1.6.0 for v3.5.0** — because v3.5.0 is built for Gateway API v1.6.0; the `lbc-migrate` build-tag pin stays at v3.4.0. From Gateway API v1.6.0 TCPRoute/UDPRoute are in the standard channel, so no experimental install is needed for L4.
+6. **Tier-A phrasing applied to Tier-B features.** The "Execution risk counts" blockquote called CORS / rate-limit / external auth *"no faithful equivalent"* — the literal Tier-A phrase — while §1.3 classifies them Tier-B *because* a workaround exists. Reworded to "no native ALB annotation" with an explicit pointer that Tier-A requires §1.3's escalation conditions. (Pre-existing, predates #129, disclosed on #153; closed rather than carried again.)
+7. **Cosmetic parity.** `ingress-resources.md` `auth-url` row now reads "No **native** equivalent", matching its CORS and affinity siblings, and the upstream `SKILL.md` navigation-count heading now says 6 to match its own 6-row table.
+
+The two `certificate-discovery` occurrences that remain are inside `assets/atx/` — the vendored AWS Transform definition and the AWS blog reproduced beside it. Those are kept **byte-faithful to the artifact ATX actually ships** rather than silently forked, so `atx-guide.md` now carries an explicit caveat that the TD instructs a non-existent annotation and that ATX output must be reviewed for it.
+
+### Still open, deliberately not in this PR
+
+- **Report-template duplication** (a duplicate `## Current Configuration`, doubled Phase 3/4 sub-sections) is carried over from upstream. It reshapes the report template rather than correcting a fact, so it carries different regression risk and belongs in its own change.
+

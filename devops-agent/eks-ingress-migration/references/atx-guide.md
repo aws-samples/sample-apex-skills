@@ -60,10 +60,13 @@ ATX produces a diff. Verify:
 - ✅ No `nginx.ingress.kubernetes.io/*` annotations remain
 - ✅ Rewrite `transforms.<svc>` JSON is valid
 - ✅ ACM certificate references present on TLS ingresses
+- ⚠️ **No `alb.ingress.kubernetes.io/certificate-discovery` annotation** — see the caveat below; if ATX emitted one, delete it and omit `certificate-arn` instead
 - ✅ `ssl-redirect`, `listen-ports`, `ssl-policy` set
 - ✅ Orphaned TLS Secrets removed
 
 Then merge the changes.
+
+> **⚠️ Known defect in the vendored TD and its source blog — `certificate-discovery` is not a real annotation.** The Transform Definition under `assets/atx/` (and the AWS blog reproduced beside it) instruct using `alb.ingress.kubernetes.io/certificate-discovery: "true"`. **No such annotation exists in the AWS Load Balancer Controller** — it is absent from the [Ingress annotation reference](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/) and from the controller's annotation constants (checked v2.7.2 → v3.5.0, 2026-09-01). An unknown annotation is **silently ignored**, so an operator who applies it believes TLS discovery is active while the listener has no certificate configured. Certificate discovery is instead triggered by **omitting `certificate-arn`** entirely, with an HTTPS entry in `listen-ports`; the controller then matches ACM certs against the Ingress `tls` hosts and rule `host` values ([Certificate Discovery](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/cert_discovery/)). The `assets/atx/` files are kept **byte-faithful to the artifact ATX actually ships** rather than silently forked, so review any ATX output for this annotation and strip it.
 
 ## What the TD Converts (10 Steps)
 
@@ -74,7 +77,7 @@ Then merge the changes.
 | 3 | Add baseline ALB annotations (`scheme`, `target-type`) |
 | 4 | Convert URI rewrites → `transforms.<svc>` JSON |
 | 5 | Simplify regex paths to `Prefix`/`Exact` pathType |
-| 6 | Migrate TLS from K8s Secrets → ACM (`certificate-arn` or `certificate-discovery`) |
+| 6 | Migrate TLS from K8s Secrets → ACM (`certificate-arn`, or omit it for certificate discovery) |
 | 7 | Map remaining annotations (timeouts, CORS, auth, body-size) |
 | 8 | Add `group.name` for ALB sharing (if applicable) |
 | 9 | Update Helm/Kustomize/CI references |
@@ -91,7 +94,7 @@ The skill includes 8 sample patterns demonstrating the transformation:
 | `03-multi-path` | Multiple paths/services → per-service transforms + idle timeout |
 | `04-cors-auth` | CORS + external auth → ALB OIDC |
 | `05-deprecated-class` | `kubernetes.io/ingress.class` annotation → `ingressClassName: alb` |
-| `06-multi-host-tls` | Multiple hosts/TLS secrets → `certificate-discovery` |
+| `06-multi-host-tls` | Multiple hosts/TLS secrets → certificate discovery (omit `certificate-arn`) |
 | `07-simple-no-rewrite` | Host + TLS only → `ssl-redirect` + ACM cert |
 | `08-internal` | `whitelist-source-range` → `scheme: internal` + security groups |
 
@@ -111,7 +114,7 @@ See `assets/samples/nginx/` (input) and `assets/samples/alb/` (ATX output) direc
 
 Once ATX has transformed your manifests:
 
-1. Ensure AWS Load Balancer Controller **v2.7.2+** (ALB Ingress path) is installed — or use EKS Auto Mode's built-in `eks.amazonaws.com/alb`
+1. Ensure AWS Load Balancer Controller **v2.7.2+** (ALB Ingress path; **v2.15.0+** for the `transforms` URI rewrites this TD emits) is installed — or use EKS Auto Mode's built-in `eks.amazonaws.com/alb`
 2. Verify ACM certificates are provisioned and in ISSUED state
 3. `kubectl apply --dry-run=client -f <migrated-file>` to validate
 4. Deploy to staging first

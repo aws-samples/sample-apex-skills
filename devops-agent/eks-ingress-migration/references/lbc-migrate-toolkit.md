@@ -15,7 +15,7 @@ The **Ingress-to-Gateway API migration toolkit** for the AWS Load Balancer Contr
 
 The toolkit is a **build artifact of the LBC v3.4.0 release** (see the callout below for why that is not a controller runtime requirement). What the path needs:
 
-- **The `lbc-migrate` CLI, built from the LBC v3.4.0 tag** (see Install below). The **controller runtime** requirement is the same as the manual path — **≥ v2.13.3** (L4) / **≥ v2.14** (L7), per `gateway-api.md` — and Gateway API support turns on automatically once the CRDs are present.
+- **The `lbc-migrate` CLI, built from the LBC v3.4.0 tag** (see Install below). The **controller runtime** requirement is the same as the manual path — **≥ v3.0.0**, the Gateway API production floor, per `gateway-api.md` — and Gateway API support turns on automatically once the CRDs are present.
 - **Gateway API *standard* CRDs v1.5.0** **and** the **LBC Gateway CRDs** *(OPERATOR action — cluster change; the assessor documents these, does not run them)*:
   ```
   # Standard Gateway API CRDs
@@ -30,7 +30,7 @@ The toolkit is a **build artifact of the LBC v3.4.0 release** (see the callout b
   kubectl -n kube-system logs deploy/aws-load-balancer-controller | grep "gateway.k8s.aws/alb"
   ```
 
-> **Where the versions come from.** The `lbc-migrate` CLI **ships in the AWS Load Balancer Controller v3.4.0 release** — build it from that tag (see Install below). It is **not** a higher controller *runtime* tier than the hand-authored path: the controller's Gateway API runtime support is the same either way (**≥ v2.13.3** L4 / **≥ v2.14** L7, per `gateway-api.md`). What the toolkit path needs is the current **standard Gateway API CRDs (v1.5.0)** plus the LBC Gateway CRDs (installed above). On **EKS Auto Mode**, Gateway API is provided built-in via the `eks.amazonaws.com` controller; the upstream guide does **not** document whether `lbc-migrate` targets that built-in path — do not assume it applies, verify against the guide before recommending it there.
+> **Where the versions come from.** The `lbc-migrate` CLI **ships in the AWS Load Balancer Controller v3.4.0 release** — build it from that tag (see Install below). It is **not** a higher controller *runtime* tier than the hand-authored path: the controller's Gateway API runtime requirement is the same either way (**≥ v3.0.0**, the production floor, per `gateway-api.md`). What the toolkit path needs is the **standard Gateway API CRDs v1.5.0** — the version the v3.4.0 tag targets (the current v3.5.0 line targets **v1.6.0**) — plus the LBC Gateway CRDs (installed above). On **EKS Auto Mode**, Gateway API is **not** part of the built-in `eks.amazonaws.com` load balancing (Ingress + Service `type: LoadBalancer` only), so the Gateway API target needs a self-managed LBC there too; the upstream guide does **not** document whether `lbc-migrate` targets an Auto Mode estate — do not assume it applies, verify against the guide before recommending it there.
 
 ## Install (build from source)
 
@@ -96,8 +96,8 @@ Existing `Deployment`/`Service` are reused — HTTPRoute `backendRefs` point at 
 
 ## When to recommend `lbc-migrate` vs the manual path
 
-- **Recommend `lbc-migrate`** when the estate is on **LBC ALB Ingress** and the target is Gateway API — it automates the bulk translation and gives dry-run validation. This is the preferred Option 1 sub-path once the prerequisites above are in place: controller at the Gateway API runtime baseline (**≥ v2.13.3** L4 / **≥ v2.14** L7), **standard Gateway API CRDs v1.5.0** plus the LBC Gateway CRDs installed, and the CLI built from the **v3.4.0** tag.
-- **Keep the manual HTTPRoute authoring** (`migration-plan.md` Phase 2, `gateway-api.md`) as the fallback for the **skip-or-warn** cases above, or on EKS Auto Mode where the built-in provider path differs. For an estate **below the Gateway API runtime baseline** (controller `< v2.13.3` L4 / `< v2.14` L7) or **without standard CRDs v1.5.0**, note that Option 1 *itself* is blocked until the operator upgrades — beyond a handful of Ingresses, recommend **upgrading the controller to the current v3.4.0 release line first** (it clears the runtime baseline *and* provides the CLI) rather than hand-authoring HTTPRoutes against an unsupported controller.
+- **Recommend `lbc-migrate`** when the estate is on **LBC ALB Ingress** and the target is Gateway API — it automates the bulk translation and gives dry-run validation. This is the preferred Option 1 sub-path once the prerequisites above are in place: controller at or above the Gateway API **production floor (≥ v3.0.0)**, the **standard Gateway API CRDs the controller line targets** (v1.5.0 for v3.4.0, v1.6.0 for v3.5.0) plus the LBC Gateway CRDs installed, and the CLI built from the **v3.4.0** tag.
+- **Keep the manual HTTPRoute authoring** (`migration-plan.md` Phase 2, `gateway-api.md`) as the fallback for the **skip-or-warn** cases above, or on EKS Auto Mode where the built-in provider path differs. For an estate **below the Gateway API production floor** (controller `< v3.0.0`) or **without the standard CRDs its controller line targets**, note that Option 1 *itself* is blocked until the operator upgrades — beyond a handful of Ingresses, recommend **upgrading the controller to the current v3.5.0 release line first** (it clears the production floor *and* still carries the CLI) rather than hand-authoring HTTPRoutes against a controller upstream did not recommend for production.
 - Note: `lbc-migrate` migrates **LBC Ingress → Gateway API**. It does **not** convert raw **NGINX** annotations — do the NGINX → LBC Ingress hop first (`alb-migration.md`), then run `lbc-migrate`.
 
 ## Reference URLs (cite these; do not invent)

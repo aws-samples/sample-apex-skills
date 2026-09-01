@@ -1,6 +1,6 @@
 ---
 title: "eks-ingress-migration"
-description: "Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller (ALB Ingress), or AWS Transform (ATX). Discovers ingress controllers and routes, scores migration difficulty 0–100 with a separate re-architecture gate, and generates per-cluster reports plus ready-to-apply manifests. Use when someone asks \"how hard is it to move off nginx ingress?\", \"assess my ingress migration\", \"migrate nginx to ALB or Gateway API\", \"ingress migration audit\", or \"nginx ingress retirement plan\". Not for upgrade readiness (eks-upgrade-check), operational audits (eks-operation-review), general cluster discovery (eks-recon), or general ingress configuration advice (eks-best-practices)."
+description: "Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller (ALB Ingress), or AWS Transform (ATX). Discovers ingress controllers and routes, scores migration difficulty 0–100 with a separate re-architecture gate, and generates per-cluster reports plus ready-to-apply manifests. Use when someone asks \"how hard is it to move off nginx ingress?\", \"assess my ingress migration\", \"migrate nginx to ALB or Gateway API\", \"ingress migration audit\", or \"nginx ingress retirement plan\". Not for upgrade readiness (eks-upgrade-check), operational audits (eks-operation-review), general cluster discovery (eks-recon), or general ingress configuration advice that is not a migration assessment."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/SKILL.md
 format: md
 ---
@@ -31,7 +31,7 @@ This skill assesses your live EKS cluster's current Ingress architecture and eva
 
 | Option | Status | Notes |
 |--------|--------|-------|
-| Gateway API (HTTPRoute + Gateway) | ✅ Assessed | Official Kubernetes successor to Ingress. AWS LB Controller supports it (L7 ≥ v2.14, L4 ≥ v2.13.3; built-in on EKS Auto Mode). |
+| Gateway API (HTTPRoute + Gateway) | ✅ Assessed | Official Kubernetes successor to Ingress. Needs a **self-managed** AWS LB Controller at **≥ v3.0.0** (the production floor — L4/L7 reconciliation began at v2.13.3 / v2.14.0, which upstream flagged as not for production). **Not** provided by EKS Auto Mode's built-in controller. |
 | AWS Load Balancer Controller (ALB Ingress) | ✅ Assessed | Stay on Ingress API but swap NGINX→ALB. Gets WAF, Cognito, Shield. |
 | AWS Transform (ATX) — Automated | ✅ Included | TD included. For customers with ATX access — fully automated manifest rewriting. |
 
@@ -147,7 +147,7 @@ A ready-to-use policy document is at [`references/iam-policy.json`](https://gith
 
 Cluster reads come from an **EKS access entry** binding the Agent Space role to a cluster-access policy (`devops-agent/setup.sh` associates `AmazonAIOpsAssistantPolicy`); the cluster's `authenticationMode` must include `API`.
 
-> **Do not assume the managed policy's coverage — verify it.** As of 2026-08-30, `AmazonAIOpsAssistantPolicy` is listed among the available cluster-access policies in the EKS reference but its rules are **not enumerated** there, unlike every other access policy on that page ([Review access policy permissions](https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html)). So the exact API groups it grants are unconfirmed from an authoritative source. This skill therefore treats **every** Kubernetes read as possibly denied and fails closed (below) rather than relying on assumed coverage. To make the outcome deterministic, bind the supplementary read-only ClusterRole in `references/porting-notes.md`, which grants exactly the reads this skill needs, and confirm with `kubectl auth can-i`.
+> **Do not assume the managed policy's coverage — verify it.** As of 2026-08-30, `AmazonAIOpsAssistantPolicy` is listed among the available cluster-access policies in the EKS reference but its rules are **not enumerated** there, unlike most access policies on that page (`AmazonARCRegionSwitchScalingPolicy` is likewise unenumerated) ([Review access policy permissions](https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html)). So the exact API groups it grants are unconfirmed from an authoritative source. This skill therefore treats **every** Kubernetes read as possibly denied and fails closed (below) rather than relying on assumed coverage. To make the outcome deterministic, bind the supplementary read-only ClusterRole in `references/supplementary-rbac.md`, which grants exactly the reads this skill needs, and confirm with `kubectl auth can-i`.
 
 **Secret contents are never read.** TLS posture is inferred from the `secretName` references in `Ingress.spec.tls[]` plus the ACM inventory — the skill needs to know *that* a route terminates TLS from a Kubernetes Secret, never the key material. Do not request or read Secret data.
 
@@ -160,7 +160,7 @@ Cluster reads come from an **EKS access entry** binding the Agent Space role to 
 | `ValidatingWebhookConfiguration` | `admissionregistration.k8s.io` | The ingress-nginx admission-webhook exposure tri-state (CVE-2025-1974) |
 | `TargetGroupBinding` | `elbv2.k8s.aws` | AWS LB Controller route ownership |
 
-See `references/porting-notes.md` for the supplementary ClusterRole that grants them.
+See `references/supplementary-rbac.md` for the supplementary ClusterRole that grants them.
 
 ### Degraded reads — fail closed, never fail clean
 

@@ -39,7 +39,7 @@ Analyze existing Ingress resources to determine what must be converted to HTTPRo
 | `nginx.ingress.kubernetes.io/rewrite-target` | HTTPRoute `filters[].urlRewrite` |
 | `nginx.ingress.kubernetes.io/ssl-redirect` | Gateway listener `tls` config |
 | `nginx.ingress.kubernetes.io/cors-*` | No native equivalent — use AWS WAF or application-level |
-| `nginx.ingress.kubernetes.io/auth-url` | No equivalent — use ALB + Cognito/OIDC via Gateway annotation |
+| `nginx.ingress.kubernetes.io/auth-url` | No native equivalent — use ALB + Cognito/OIDC via Gateway annotation |
 | `nginx.ingress.kubernetes.io/canary-*` | HTTPRoute `backendRefs[].weight` (traffic splitting) |
 | `nginx.ingress.kubernetes.io/affinity` | No native equivalent — use `alb.ingress.kubernetes.io/target-group-attributes` on Gateway |
 | `nginx.ingress.kubernetes.io/configuration-snippet` | ❌ No equivalent — redesign needed |
