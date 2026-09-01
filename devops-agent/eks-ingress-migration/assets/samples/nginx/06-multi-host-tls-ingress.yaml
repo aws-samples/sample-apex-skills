@@ -1,5 +1,5 @@
 # Multi-host Ingress with separate TLS certs per host
-# Good candidate for IngressGroup and certificate-discovery
+# Good candidate for IngressGroup and ACM certificate discovery
 ---
 apiVersion: v1
 kind: Secret
