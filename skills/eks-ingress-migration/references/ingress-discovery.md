@@ -100,7 +100,7 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 **Deterministic version facts (cite in the finding):**
 - **ingress-nginx `< v1.9.0`** is affected by **CVE-2023-5043 / CVE-2023-5044** (configuration-snippet / permanent-redirect annotation injection → arbitrary command execution / privilege escalation). Treat any controller `< v1.9.0` as a security finding.
 - Since **v1.9.0**, `allow-snippet-annotations` defaults to **`false`** and `annotations-risk-level` to **`High`**. If a cluster sets `allow-snippet-annotations: "true"`, it re-opens the injection surface — flag it.
-- AWS Load Balancer Controller: **v2.7.2+** for the ALB Ingress path; **≥ v2.13.3 (L4) / ≥ v2.14 (L7)** for Gateway API.
+- AWS Load Balancer Controller: **v2.7.2+** for the ALB Ingress path (**v2.15.0+** if `transforms` URI rewrites are needed); **≥ v3.0.0** for Gateway API (the production floor; L4/L7 reconciliation began at v2.13.3 / v2.14.0 but upstream flagged those lines as not for production).
 
 **Impact (per Impact Indicator — anchor on EXPOSURE / blast-radius for security, and on live traffic for business; never on patch effort):**
 > A CVE/EOL finding's severity comes from what it **exposes**, not how hard the upgrade is. Two exposure surfaces exist and are **independent**:
@@ -125,6 +125,6 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 1. `aws eks describe-cluster --name <cluster> --query 'cluster.computeConfig'` — Auto Mode is enabled when `computeConfig.enabled = true` (with managed `nodePools`).
 2. Recognize Auto Mode's managed load-balancing IngressClass: `spec.controller: eks.amazonaws.com/alb` (parameters `apiGroup: eks.amazonaws.com`, `kind: IngressClassParams`); NLB via `loadBalancerClass: eks.amazonaws.com/nlb`. This is **distinct** from the self-managed LBC (`ingress.k8s.aws/alb`).
 
-**Why it matters:** on Auto Mode the ALB Ingress path needs **no self-managed LBC install** (it's built in); a `eks.amazonaws.com/alb` IngressClass is a *managed* controller, not a missing one. Gateway API L7 still requires the LBC ≥ v2.14 unless/until Auto Mode exposes it natively.
+**Why it matters:** on Auto Mode the ALB Ingress path needs **no self-managed LBC install** (it's built in); a `eks.amazonaws.com/alb` IngressClass is a *managed* controller, not a missing one. Gateway API is **not** part of Auto Mode's built-in load balancing (Ingress + Service `type: LoadBalancer` only, as of 2026-09-01), so a Gateway API target still requires a **self-managed LBC at ≥ v3.0.0**.
 
 **Impact (per Impact Indicator):** informational — record Auto Mode status in Current Configuration; it does not by itself carry a migration impact, but it changes the Migration Options guidance.

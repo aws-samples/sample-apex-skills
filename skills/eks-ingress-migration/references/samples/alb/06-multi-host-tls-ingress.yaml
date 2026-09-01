@@ -1,5 +1,5 @@
 # Multi-host Ingress with separate TLS certs per host
-# Good candidate for IngressGroup and certificate-discovery
+# Good candidate for IngressGroup and ACM certificate discovery
 ---
 apiVersion: v1
 kind: Service
@@ -49,7 +49,10 @@ metadata:
       /(.*)$\",\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
     alb.ingress.kubernetes.io/transforms.admin-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/dashboard\\\\/(.*)$\"\
       ,\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
-    alb.ingress.kubernetes.io/certificate-discovery: 'true'
+    # TLS certs are discovered from the rule `host` values below because
+    # `certificate-arn` is deliberately omitted. Certificate discovery requires
+    # an HTTPS entry in `listen-ports` (present). To pin certs explicitly instead,
+    # add `alb.ingress.kubernetes.io/certificate-arn` with comma-separated ARNs.
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-redirect: '443'
     alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
