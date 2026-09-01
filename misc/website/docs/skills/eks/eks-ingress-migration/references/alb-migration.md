@@ -64,6 +64,7 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 ```
 
 **Rules:**
+- **Requires LBC ≥ v2.15.0** — the `transforms.<svc>` annotation was introduced in [v2.15.0](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/tag/v2.15.0) (2025-11-14). On an older controller it is an unknown annotation and is **silently ignored — no rewrite happens** and traffic reaches the backend with the original path. If the estate needs URI rewrites, the controller floor is **v2.15.0**, not v2.7.2.
 - `<service-name>` must match the backend service name in `spec.rules`
 - Forward slashes in regex must be escaped as `\\/` in JSON
 - NGINX `$2` often becomes ALB `$1` (ALB doesn't need the separator capture group)
@@ -75,7 +76,7 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 |----------------|-------------|
 | `spec.tls[].secretName: my-secret` | Remove `spec.tls` section entirely |
 | K8s Secret with cert/key | `alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:...` |
-| Multiple TLS secrets | Comma-separated ARNs, or `alb.ingress.kubernetes.io/certificate-discovery: "true"` |
+| Multiple TLS secrets | Comma-separated ARNs, or **omit `certificate-arn`** to let the controller discover ACM certs from the Ingress `tls` hosts / rule `host` values |
 | `nginx...ssl-redirect: "true"` | `alb.ingress.kubernetes.io/ssl-redirect: "443"` |
 | (none) | `alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'` |
 | (none) | `alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06` |
@@ -145,7 +146,7 @@ alb.ingress.kubernetes.io/group.order: "10"
 ## Migration Phases (ALB Path)
 
 ### Phase 1: Prerequisites
-1. Install AWS Load Balancer Controller (**v2.7.2+** for the ALB Ingress path)
+1. Install AWS Load Balancer Controller — **v2.7.2+** for the ALB Ingress path, **v2.15.0+** if any route needs a `transforms` URI rewrite (see Rewrites above)
 2. Provision ACM certificates for all TLS hosts
 3. Ensure IAM roles/policies for LB Controller
 
@@ -185,7 +186,7 @@ alb.ingress.kubernetes.io/group.order: "10"
 ### ALB.2 — ACM Certificate Readiness
 
 **What to check:**
-- All TLS hosts have matching ACM certificates (or can use certificate-discovery)
+- All TLS hosts have matching ACM certificates (or rely on certificate discovery by omitting `certificate-arn`)
 - Certificates are in ISSUED state in the correct region
 
 **Impact (per Impact Indicator):**
@@ -197,7 +198,7 @@ alb.ingress.kubernetes.io/group.order: "10"
 ### ALB.3 — AWS LB Controller Readiness
 
 **What to check:**
-- AWS LB Controller installed and version ≥ 2.7
+- AWS LB Controller installed and version **≥ v2.7.2** (**≥ v2.15.0** if `transforms` URI rewrites are used)
 - IAM role with correct policy attached
 - IngressClass `alb` exists
 
