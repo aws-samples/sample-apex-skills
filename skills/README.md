@@ -326,6 +326,31 @@ Assess EKS cluster upgrade readiness — run automated checks across 8 areas (ve
 |------|-------------|
 | [md_to_html.py](./eks-upgrade-check/tools/md_to_html.py) | Md_to_html |
 
+---
+
+### [eks-well-architected-review](./eks-well-architected-review/)
+
+Runs a deterministic AWS Well-Architected Framework review of an Amazon EKS cluster. Collects live cluster data with kubectl and the aws CLI, scores it against best-practice questions across the five pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization) using fixed jq detections so scores are stable and reproducible, separates measured (cluster-observable) findings from governance (process) questions, applies a coverage gate so under-observed or empty clusters do not get inflated scores, and renders a scored, self-contained HTML report styled with the Cloudscape Design System. Use when the user asks to review, audit, assess, or score an EKS cluster, check Well-Architected compliance, detect configuration drift, or score EKS cost hygiene. Not for operational-posture-only audits (eks-operation-review), dollar-quantified cost analysis (eks-cost-intelligence), fact-only inventory (eks-recon), static advice (eks-best-practices), or design documents (eks-design).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [cost-analysis.md](./eks-well-architected-review/references/cost-analysis.md) | Cost analysis |
+| [cost-optimization.md](./eks-well-architected-review/references/cost-optimization.md) | Cost optimization |
+| [drift-detection.md](./eks-well-architected-review/references/drift-detection.md) | Drift detection |
+| [operational-excellence.md](./eks-well-architected-review/references/operational-excellence.md) | Operational excellence |
+| [performance-efficiency.md](./eks-well-architected-review/references/performance-efficiency.md) | Performance efficiency |
+| [reliability.md](./eks-well-architected-review/references/reliability.md) | Reliability |
+| [severity.md](./eks-well-architected-review/references/severity.md) | Severity |
+| [workflow.md](./eks-well-architected-review/references/workflow.md) | Workflow |
+
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [render-report.py](./eks-well-architected-review/assets/render-report.py) | Render report |
+
 ## ECS Skills
 
 ### [ecs-architect](./ecs-architect/)
@@ -529,12 +554,12 @@ Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET wo
 
 | Reference | Description |
 |-----------|-------------|
-| [README.md](./dotnet-aws-ecs/references/README.md) | README |
 | [cdk-template-guide.md](./dotnet-aws-ecs/references/cdk-template-guide.md) | Cdk template guide |
 | [cloudformation-template-guide.md](./dotnet-aws-ecs/references/cloudformation-template-guide.md) | Cloudformation template guide |
 | [deployment-guide-template.md](./dotnet-aws-ecs/references/deployment-guide-template.md) | Deployment guide template |
 | [dockerfile-guide.md](./dotnet-aws-ecs/references/dockerfile-guide.md) | Dockerfile guide |
 | [healthcheck-endpoint-guide.md](./dotnet-aws-ecs/references/healthcheck-endpoint-guide.md) | Healthcheck endpoint guide |
+| [README.md](./dotnet-aws-ecs/references/README.md) | README |
 
 ---
 

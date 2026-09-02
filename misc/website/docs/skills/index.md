@@ -14,6 +14,7 @@ description: "Browse all APEX skills for AWS platform engineering — EKS archit
 <tr><td><a href="./eks/eks-best-practices/"><b>eks-best-practices</b></a></td><td><a href="./eks/eks-build/"><b>eks-build</b></a></td><td><a href="./eks/eks-cost-intelligence/"><b>eks-cost-intelligence</b></a></td><td><a href="./eks/eks-design/"><b>eks-design</b></a></td></tr>
 <tr><td><a href="./eks/eks-genai/"><b>eks-genai</b></a></td><td><a href="./eks/eks-ingress-migration/"><b>eks-ingress-migration</b></a></td><td><a href="./eks/eks-mcp-server/"><b>eks-mcp-server</b></a></td><td><a href="./eks/eks-operation-review/"><b>eks-operation-review</b></a></td></tr>
 <tr><td><a href="./eks/eks-platform-engineering/"><b>eks-platform-engineering</b></a></td><td><a href="./eks/eks-recon/"><b>eks-recon</b></a></td><td><a href="./eks/eks-security/"><b>eks-security</b></a></td><td><a href="./eks/eks-upgrade-check/"><b>eks-upgrade-check</b></a></td></tr>
+<tr><td><a href="./eks/eks-well-architected-review/"><b>eks-well-architected-review</b></a></td><td></td><td></td><td></td></tr>
 </table>
 
 ## ECS Skills

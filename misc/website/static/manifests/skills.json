@@ -132,6 +132,12 @@
     "group": "eks"
   },
   {
+    "name": "eks-well-architected-review",
+    "description": "Runs a deterministic AWS Well-Architected Framework review of an Amazon EKS cluster. Collects live cluster data with kubectl and the aws CLI, scores it against best-practice questions across the five pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization) using fixed jq detections so scores are stable and reproducible, separates measured (cluster-observable) findings from governance (process) questions, applies a coverage gate so under-observed or empty clusters do not get inflated scores, and renders a scored, self-contained HTML report styled with the Cloudscape Design System. Use when the user asks to review, audit, assess, or score an EKS cluster, check Well-Architected compliance, detect configuration drift, or score EKS cost hygiene. Not for operational-posture-only audits (eks-operation-review), dollar-quantified cost analysis (eks-cost-intelligence), fact-only inventory (eks-recon), static advice (eks-best-practices), or design documents (eks-design).",
+    "path": "/docs/skills/eks/eks-well-architected-review",
+    "group": "eks"
+  },
+  {
     "name": "graviton-migration",
     "description": "Execute a workload migration from x86 (amd64) to AWS Graviton (arm64) — set up the Arm migration MCP server for code, dependency, and container arm64-readiness scanning, then run the migration — pre-migration scanning, Karpenter arm64 node cutover, and multi-arch CI pipelines. Use when someone says \"migrate to Graviton\", \"move my workloads to arm64\", \"is my app arm64-ready\", \"graviton migration\", \"port this service to Graviton\", \"scan my code for arm64 blockers\", \"set up multi-arch container builds\", or \"cut my nodes over to arm64\". This skill owns migration EXECUTION (readiness scanning, NodePool cutover, multi-arch builds). Do NOT use for scoring Graviton cost savings, quantifying Spot/Graviton adoption, or \"how much would Graviton save me?\" (use eks-cost-intelligence); for advisory \"should I use Graviton?\" architecture guidance (use eks-best-practices); or for general, non-Graviton MCP server setup like the EKS MCP server (use eks-mcp-server).",
     "path": "/docs/skills/general/graviton-migration",
