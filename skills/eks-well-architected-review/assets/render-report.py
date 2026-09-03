@@ -6,7 +6,6 @@ Usage:  python3 render-report.py <WORK_DIR> [-o report.html]
 Reads ONLY the files the collection step wrote and the scorers produced:
   scores.json      pillar + overall scores (authoritative — never recomputed here)
   results.jsonl    one line per question: pillar, id, track, state, detail
-  drift.md         the 10 baseline checks, already rendered as a markdown table
   cluster.json     header facts (name, region, version, compute mode)
   nodes.json       node count
   podidentity.json / oidcproviders.json / fargate.json  compute + identity context
@@ -119,11 +118,19 @@ def load(work):
         if line.strip():
             results.append(json.loads(line))
 
-    drift = (work / "drift.md").read_text() if (work / "drift.md").exists() else ""
+    # Every collected file, so the resource extractors can name what a check actually looked at.
+    raw = {}
+    for p in sorted(work.glob("*.json")):
+        if p.name in ("scores.json",):
+            continue
+        try:
+            raw[p.stem] = json.loads(p.read_text())
+        except (json.JSONDecodeError, OSError):
+            raw[p.stem] = None
     return {
         "scores": scores,
         "results": results,
-        "drift": drift,
+        "raw": raw,
         "cluster": j("cluster.json", {}).get("cluster", {}),
         "nodes": j("nodes.json", {"items": []}).get("items", []),
         "fargate": j("fargate.json", {}).get("fargateProfileNames", []),
@@ -133,36 +140,768 @@ def load(work):
     }
 
 
-def question_titles(ref_dir):
-    """Map question id -> human-readable question text, parsed from the reference files.
+def question_prose(ref_dir):
+    """Map question id -> {title, rationale, remediation, source_file}, from the reference files.
 
     results.jsonl carries only an id and a machine detail, so without this the report would be a
-    wall of `sec-11  none  0/4 PSS labels`. Titles are read from the same files that define the
-    questions, so they cannot drift from the scorers.
+    wall of `sec-11  none  0/4 PSS labels` with no statement of what to DO about it. All four fields
+    come from the same files that define the questions, so the advice cannot drift from the scorer
+    that produced the finding.
     """
-    titles = {}
+    prose = {}
     ref = pathlib.Path(ref_dir)
     if not ref.is_dir():
-        return titles
+        return prose
     for md in sorted(ref.rglob("*.md")):
-        for m in re.finditer(r"^###\s+([a-z]+-\d+)\s*:\s*(.+?)\s*$", md.read_text(), re.M):
-            titles.setdefault(m.group(1), m.group(2))
-    return titles
+        txt = md.read_text()
+        # [pre, id, title, body, id, title, body, ...]
+        parts = re.split(r"^###\s+([a-z]+-\d+)\s*:\s*(.+?)\s*$", txt, flags=re.M)
+        for i in range(1, len(parts) - 2, 3):
+            qid, title, body = parts[i], parts[i + 1], parts[i + 2]
+            if qid in prose:
+                continue
+            rat = re.search(r"^>\s*(.+?)(?:\n\n|\n[^>])", body, re.S | re.M)
+            rem = re.search(r"^\*\*Remediation:?\*\*:?\s*(.*?)(?=\n---|\n### |\Z)",
+                            body, re.S | re.M)
+            prose[qid] = {
+                "title": title,
+                "rationale": " ".join(rat.group(1).split()) if rat else "",
+                "remediation": rem.group(1).strip() if rem else "",
+                "source": str(md.relative_to(ref)),
+            }
+    return prose
 
 
-def parse_drift(md):
-    """Pull (num, check, ok, evidence) out of the already-rendered drift markdown table."""
-    rows = []
-    for line in md.splitlines():
-        if not line.startswith("|"):
+# Scorer helper -> number of collection files it reads before the jq program.
+_HELPER_ARITY = {"m": 1, "m2": 2, "m3": 3, "m4": 4}
+
+
+def scorer_provenance(ref_dir):
+    """Map question id -> {files, jq, helper}: exactly which collected JSON the detection read and
+    the expression it evaluated.
+
+    This is the audit trail. A finding that says `0/4 PSS labels` is only trustworthy if the reader
+    can see it came from `namespaces.json` and check the expression that produced it. Parsed from the
+    committed scorer lines, so it is the real detection, not a paraphrase of one.
+    """
+    prov = {}
+    ref = pathlib.Path(ref_dir)
+    if not ref.is_dir():
+        return prov
+    for md in sorted(ref.rglob("*.md")):
+        for line in md.read_text().splitlines():
+            mt = re.match(r"^(m[234]?)\s+([a-z]+-\d+)\s+(.*)$", line)
+            if not mt:
+                continue
+            helper, qid, rest = mt.group(1), mt.group(2), mt.group(3)
+            head, _, jq = rest.partition("'")
+            prov[qid] = {
+                "files": head.split()[:_HELPER_ARITY[helper]],
+                "jq": jq.rstrip("'"),
+                "helper": helper,
+            }
+    return prov
+
+
+# ---------------------------------------------------------------------------
+# Observed resources — WHICH objects a check looked at, and which side each fell on.
+#
+# Why this exists: "3/3 core addons" is a claim the reader cannot check. "vpc-cni, coredns,
+# kube-proxy" is one they can verify in seconds. Every historic scoping bug in this project was a
+# CORRECT COUNT OVER THE WRONG SET — net-2's clean-SG offender was an unrelated ECS security group,
+# sec-21 read 4/4 encrypted while most cluster EBS was not, rel-7's passes were all AWS-installed
+# Deployments. A count hides all three; a named list exposes them immediately.
+#
+# THE SAFETY PROPERTY. These extractors are a SECOND reading of the same data, so they could disagree
+# with the scorer that produced the score. That would be worse than showing nothing. So every
+# extractor is checked against the scorer's own `N/M` in the detail string, and a mismatch FAILS the
+# gate rather than rendering a plausible-looking list. Read `resource_agreement()` before adding one.
+# ---------------------------------------------------------------------------
+SYS_NS = re.compile(r"^(kube-|amazon-)")
+CORE_ADDONS = ("vpc-cni", "coredns", "kube-proxy")
+
+
+def _items(data, f):
+    d = data["raw"].get(f) or {}
+    return d.get("items") or []
+
+
+def _nm(i):
+    return (i.get("metadata") or {}).get("name", "?")
+
+
+def _qn(i):
+    m = i.get("metadata") or {}
+    return f'{m.get("namespace","")}/{m.get("name","?")}'
+
+
+def _workload(items):
+    return [i for i in items
+            if not SYS_NS.match(((i.get("metadata") or {}).get("namespace") or ""))]
+
+
+def _split(items, ok, name=_qn):
+    """Partition a list into (passing names, failing names)."""
+    p, f = [], []
+    for i in items:
+        (p if ok(i) else f).append(name(i))
+    return sorted(p), sorted(f)
+
+
+def _labels(i):
+    return (i.get("metadata") or {}).get("labels") or {}
+
+
+def _containers(pods):
+    out = []
+    for p in pods:
+        for c in (p.get("spec") or {}).get("containers") or []:
+            out.append((p, c))
+    return out
+
+
+def _res_addons(d):
+    have = (d["raw"].get("addons") or {}).get("addons") or []
+    core = [a for a in have if a in CORE_ADDONS]
+    return {"pass": sorted(core),
+            "fail": sorted(a for a in CORE_ADDONS if a not in have),
+            "context": sorted(a for a in have if a not in CORE_ADDONS),
+            "context_label": "other add-ons installed (not counted by this check)"}
+
+
+def _res_trails(d):
+    trails = (d["raw"].get("cloudtrail") or {}).get("trailList") or []
+    region = (d["cluster"].get("arn", "").split(":")[3] if d["cluster"].get("arn") else "")
+    p, f = [], []
+    for t in trails:
+        nm = t.get("Name", "?")
+        multi, home = t.get("IsMultiRegionTrail"), t.get("HomeRegion", "")
+        why = "multi-region" if multi else f"home region {home}"
+        (p if (multi or home == region) else f).append(f"{nm} ({why})")
+    return {"pass": sorted(p), "fail": sorted(f)}
+
+
+def _res_logtypes(d):
+    want = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+    on = set()
+    for grp in (d["cluster"].get("logging") or {}).get("clusterLogging") or []:
+        if grp.get("enabled"):
+            on |= set(grp.get("types") or [])
+    return {"pass": [t for t in want if t in on], "fail": [t for t in want if t not in on]}
+
+
+def _res_volumes(d, want_encrypted=True):
+    vols = (d["raw"].get("volumes") or {}).get("Volumes") or []
+    cn = d["cluster"].get("name", "")
+    mine = [v for v in vols
+            if any(t.get("Key") == f"kubernetes.io/cluster/{cn}" or t.get("Value") == cn
+                   for t in (v.get("Tags") or []))]
+    others = [v.get("VolumeId", "?") for v in vols if v not in mine]
+    p, f = [], []
+    for v in mine:
+        vid = f'{v.get("VolumeId","?")} ({v.get("Size","?")} GiB, {v.get("VolumeType","?")})'
+        (p if v.get("Encrypted") else f).append(vid)
+    return {"pass": sorted(p), "fail": sorted(f),
+            "context": sorted(others)[:10],
+            "context_label": "volumes in the VPC NOT tagged to this cluster (correctly excluded)"}
+
+
+def _res_unattached(d):
+    vols = (d["raw"].get("volumes") or {}).get("Volumes") or []
+    cn = d["cluster"].get("name", "")
+    mine = [v for v in vols
+            if any(t.get("Key") == f"kubernetes.io/cluster/{cn}" or t.get("Value") == cn
+                   for t in (v.get("Tags") or []))]
+    p, f = [], []
+    for v in mine:
+        vid = f'{v.get("VolumeId","?")} ({v.get("State","?")})'
+        (p if v.get("State") != "available" else f).append(vid)
+    return {"pass": sorted(p), "fail": sorted(f)}
+
+
+def _res_sg(d, ok):
+    sgs = (d["raw"].get("sg") or {}).get("SecurityGroups") or []
+    v = d["cluster"].get("resourcesVpcConfig") or {}
+    mine = set(v.get("securityGroupIds") or []) | {v.get("clusterSecurityGroupId")}
+    scoped = [g for g in sgs if g.get("GroupId") in mine]
+    others = [f'{g.get("GroupId","?")} ({g.get("GroupName","?")})'
+              for g in sgs if g.get("GroupId") not in mine]
+    p, f = _split(scoped, ok, lambda g: f'{g.get("GroupId","?")} ({g.get("GroupName","?")})')
+    return {"pass": p, "fail": f, "context": sorted(others)[:10],
+            "context_label": "security groups in the VPC not used by this cluster "
+                             "(correctly excluded)"}
+
+
+def _sg_clean(g):
+    for perm in g.get("IpPermissions") or []:
+        openv4 = any(r.get("CidrIp") == "0.0.0.0/0" for r in perm.get("IpRanges") or [])
+        if not openv4:
             continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 4 or cells[0] in ("#", "---") or set(cells[0]) <= set("-"):
+        lo, hi = perm.get("FromPort"), perm.get("ToPort")
+        if lo in (80, 443) and hi in (80, 443):
             continue
-        if not cells[0].isdigit():
+        return False
+    return True
+
+
+def _sg_no_ssh(g):
+    for perm in g.get("IpPermissions") or []:
+        lo, hi = perm.get("FromPort") or 0, perm.get("ToPort") or 0
+        if lo <= 22 <= hi and (perm.get("IpRanges") or perm.get("UserIdGroupPairs")):
+            return False
+    return True
+
+
+def _res_subnets(d, ok, label):
+    subs = (d["raw"].get("subnets") or {}).get("Subnets") or []
+    mine = set((d["cluster"].get("resourcesVpcConfig") or {}).get("subnetIds") or [])
+    scoped = [s for s in subs if s.get("SubnetId") in mine]
+    others = [f'{s.get("SubnetId","?")} ({s.get("AvailabilityZone","?")})'
+              for s in subs if s.get("SubnetId") not in mine]
+    rt = (d["raw"].get("routetables") or {}).get("RouteTables") or []
+
+    def nm(s):
+        return (f'{s.get("SubnetId","?")} ({s.get("AvailabilityZone","?")}, '
+                f'{s.get("AvailableIpAddressCount","?")} free IPs)')
+    p, f = _split(scoped, lambda s: ok(s, rt), nm)
+    return {"pass": p, "fail": f, "context": sorted(others)[:10],
+            "context_label": f"subnets in the VPC not used by this cluster ({label}); "
+                             "correctly excluded"}
+
+
+def _subnet_private(s, rts):
+    for rt in rts:
+        if not any(a.get("SubnetId") == s.get("SubnetId") for a in rt.get("Associations") or []):
             continue
-        rows.append((cells[0], cells[1], "✅" in cells[2], cells[3]))
-    return rows
+        return not any(r.get("GatewayId", "").startswith("igw-") for r in rt.get("Routes") or [])
+    return True
+
+
+def _res_nodes(d, ok, extra=None):
+    def nm(n):
+        lb = _labels(n)
+        bits = [lb.get("node.kubernetes.io/instance-type", "?"),
+                lb.get("topology.kubernetes.io/zone", "?")]
+        if extra:
+            bits.append(extra(n))
+        return f'{_nm(n)} ({", ".join(str(b) for b in bits if b)})'
+    p, f = _split(d["nodes"], ok, nm)
+    return {"pass": p, "fail": f}
+
+
+def _res_pv(d):
+    p, f = _split(_items(d, "pv"),
+                  lambda v: (v.get("status") or {}).get("phase") not in ("Released", "Available"),
+                  lambda v: f'{_nm(v)} ({(v.get("status") or {}).get("phase","?")})')
+    return {"pass": p, "fail": f}
+
+
+def _res_tags(d):
+    tags = d["cluster"].get("tags") or {}
+    classes = [("project", "project"), ("environment", "environment|^env$"),
+               ("cost-centre", "cost|billing"), ("team", "team|owner")]
+    p, f = [], []
+    for label, pat in classes:
+        hit = [k for k in tags if re.search(pat, k, re.I)]
+        (p if hit else f).append(f'{label}: {", ".join(hit) if hit else "absent"}')
+    return {"pass": p, "fail": f,
+            "context": [f"{k}={v}" for k, v in sorted(tags.items())],
+            "context_label": "all cluster tags collected"}
+
+
+def _res_endpoints(d):
+    have = [(v.get("ServiceName") or "") for v in
+            ((d["raw"].get("vpcendpoints") or {}).get("VpcEndpoints") or [])]
+    want = ["s3", "ecr.api", "ecr.dkr", "sts"]
+    p = [w for w in want if any(s.endswith(w) for s in have)]
+    return {"pass": p, "fail": [w for w in want if w not in p],
+            "context": sorted(have),
+            "context_label": "all VPC endpoints in the VPC"}
+
+
+def _res_storageclasses(d, ok):
+    scs = [s for s in _items(d, "storageclasses")
+           if re.search(r"ebs\.csi\.aws\.com|kubernetes\.io/aws-ebs", s.get("provisioner") or "")]
+    others = [f'{_nm(s)} ({s.get("provisioner","?")})'
+              for s in _items(d, "storageclasses") if s not in scs]
+    p, f = _split(scs, ok,
+                  lambda s: f'{_nm(s)} (type={(s.get("parameters") or {}).get("type","?")}, '
+                            f'encrypted={(s.get("parameters") or {}).get("encrypted","unset")})')
+    return {"pass": p, "fail": f, "context": sorted(others),
+            "context_label": "non-EBS StorageClasses (correctly excluded)"}
+
+
+def _res_ns_label(d, prefix):
+    ns = [n for n in _items(d, "namespaces") if not SYS_NS.match(_nm(n))]
+    p, f = _split(ns, lambda n: any(k.startswith(prefix) for k in _labels(n)), _nm)
+    return {"pass": p, "fail": f,
+            "context": sorted(_nm(n) for n in _items(d, "namespaces") if SYS_NS.match(_nm(n))),
+            "context_label": "AWS-managed namespaces (correctly excluded)"}
+
+
+def _res_ns_has(d, other_file, key="namespace", drop_default=False):
+    # `drop_default` mirrors sec-4, whose denominator ALSO excludes `default` — the agreement check
+    # caught this as 0/4 against the scorer's 0/3.
+    ns = [_nm(n) for n in _items(d, "namespaces")
+          if not SYS_NS.match(_nm(n)) and not (drop_default and _nm(n) == "default")]
+    covered = {(i.get("metadata") or {}).get(key) for i in _items(d, other_file)}
+    return {"pass": sorted(n for n in ns if n in covered),
+            "fail": sorted(n for n in ns if n not in covered)}
+
+
+def _res_pdb_coverage(d):
+    """rel-2: match PDB selectors against each Deployment's pod-template labels.
+
+    Denominator is DEPLOYMENTS, not namespaces — a namespace-level check read 0/4 where the scorer
+    said 0/8. This is also the exact question CONTEXT.md records as having once compared PDB
+    *cardinality* to Deployment count, so the shape matters more here than anywhere.
+    """
+    pdbs = _items(d, "pdb")
+    p, f = [], []
+    for dep in _workload(_items(d, "deployments")):
+        lb = (((dep.get("spec") or {}).get("template") or {}).get("metadata") or {}).get("labels") or {}
+        ns = (dep.get("metadata") or {}).get("namespace")
+        hit = None
+        for pdb in pdbs:
+            if (pdb.get("metadata") or {}).get("namespace") != ns:
+                continue
+            sel = ((pdb.get("spec") or {}).get("selector") or {}).get("matchLabels") or {}
+            if sel and all(lb.get(k) == v for k, v in sel.items()):
+                hit = _nm(pdb)
+                break
+        (p if hit else f).append(f"{_qn(dep)}" + (f"  <- {hit}" if hit else ""))
+    return {"pass": sorted(p), "fail": sorted(f),
+            "context": sorted(_qn(x) for x in pdbs),
+            "context_label": "all PodDisruptionBudget objects in the cluster"}
+
+
+def _res_deploy(d, ok):
+    p, f = _split(_workload(_items(d, "deployments")), ok)
+    return {"pass": p, "fail": f,
+            "context": sorted(_qn(i) for i in _items(d, "deployments")
+                              if SYS_NS.match(((i.get("metadata") or {}).get("namespace") or ""))),
+            "context_label": "AWS-installed Deployments (correctly excluded — not the "
+                             "operator's to configure)"}
+
+
+def _res_containers(d, ok):
+    p, f = [], []
+    for pod, c in _containers(_workload(d["pods"])):
+        nm = f'{_qn(pod)} / {c.get("name","?")}'
+        (p if ok(c) else f).append(nm)
+    return {"pass": sorted(p), "fail": sorted(f)}
+
+
+def _res_pods(d, ok):
+    p, f = _split(_workload(d["pods"]), ok)
+    return {"pass": p, "fail": f}
+
+
+def _res_containers_ctx(d, ok):
+    """Container-level check where the POD securityContext is inherited (podsec-1's shape)."""
+    p, f = [], []
+    for pod in _workload(d["pods"]):
+        ps = (pod.get("spec") or {}).get("securityContext") or {}
+        for c in (pod.get("spec") or {}).get("containers") or []:
+            nm = f'{_qn(pod)} / {c.get("name","?")}'
+            (p if ok(c, ps) else f).append(nm)
+    return {"pass": sorted(p), "fail": sorted(f)}
+
+
+def _res_imdsv2(d):
+    """lens-11 reads EC2 INSTANCES, not Kubernetes nodes — Fargate has neither, which is why the
+    scorer returns 0/0 there while a node-based extractor claimed 14/14."""
+    inst = [i for r in ((d["raw"].get("instances") or {}).get("Reservations") or [])
+            for i in (r.get("Instances") or [])]
+    p, f = _split(inst,
+                  lambda i: (i.get("MetadataOptions") or {}).get("HttpTokens") == "required",
+                  lambda i: f'{i.get("InstanceId","?")} ({i.get("InstanceType","?")}, '
+                            f'HttpTokens='
+                            f'{(i.get("MetadataOptions") or {}).get("HttpTokens","unset")})')
+    return {"pass": p, "fail": f}
+
+
+def _res_identity(d):
+    pia = [f'{a.get("namespace","?")}/{a.get("serviceAccount","?")} -> '
+           f'{(a.get("roleArn") or "?").split("/")[-1]}' for a in d["podidentity"]]
+    irsa = [f'{_qn(s)} -> '
+            f'{(_labels(s) and "" ) or ((s.get("metadata") or {}).get("annotations") or {}).get("eks.amazonaws.com/role-arn","").split("/")[-1]}'
+            for s in _items(d, "serviceaccounts")
+            if ((s.get("metadata") or {}).get("annotations") or {}).get("eks.amazonaws.com/role-arn")]
+    prov = [a.get("Arn", "?").split("oidc-provider/")[-1] for a in d["oidcproviders"]]
+    issuer = ((d["cluster"].get("identity") or {}).get("oidc") or {}).get("issuer", "")
+    return {"pass": sorted(pia) + sorted(irsa), "fail": [],
+            "context": [f"cluster issuer: {issuer.replace('https://','') or 'absent'}"]
+                       + [f"IAM OIDC provider: {x}" for x in sorted(prov)],
+            "context_label": "identity plumbing"}
+
+
+# ---- shapes B and C: existence checks and cluster-field checks -------------
+# These have NO count in the scorer's output, so `resource_agreement()` cannot cross-check them.
+# They still name the object or field that decided the verdict, which is the part a reader can
+# check by eye — and the panel says plainly that no total was available to verify against.
+def _res_match(d, f, pattern, label="Matched the detection", nm=_qn):
+    """Name-match existence: which objects matched the regex, plus the regex itself."""
+    hits = [nm(i) for i in _items(d, f) if re.search(pattern, _nm(i))]
+    return {"kind": "existence", "pass": sorted(hits), "fail": [],
+            "pass_label": label,
+            "context": [pattern],
+            "context_label": "pattern the names were matched against"}
+
+
+def _res_field(d, fields, label="Cluster settings read"):
+    """Cluster-field check: print each field path and its literal value."""
+    out = []
+    for path in fields:
+        cur, ok = d["cluster"], True
+        for part in path.split("."):
+            if isinstance(cur, dict) and part in cur:
+                cur = cur[part]
+            else:
+                cur, ok = None, False
+                break
+        out.append(f"{path} = {json.dumps(cur) if ok else 'not set'}")
+    return {"kind": "field", "pass": out, "fail": [], "pass_label": label}
+
+
+def _res_cost3(d):
+    keda = [_qn(i) for i in _items(d, "deployments") if re.search("keda", _nm(i))]
+    hpas = [_qn(i) for i in _items(d, "hpa")]
+    return {"kind": "existence",
+            "pass": sorted(keda) + [f"HPA: {h}" for h in sorted(hpas)], "fail": [],
+            "pass_label": "Both conditions matched (KEDA present, and at least one autoscaler)",
+            "context": ["Deployment name matches 'keda'", "hpa.json is non-empty"],
+            "context_label": "the two conditions this check requires"}
+
+
+def _res_ope7(d):
+    ds = [_qn(i) for i in _items(d, "daemonsets") if re.search("node-exporter", _nm(i))]
+    ec2 = [_nm(n) for n in d["nodes"]
+           if _labels(n).get("eks.amazonaws.com/compute-type") != "fargate"]
+    return {"kind": "existence", "pass": sorted(ds), "fail": [],
+            "pass_label": "Matched the detection",
+            "context": ec2, "context_label": "EC2 nodes the DaemonSet could run on "
+                                             "(the check is n/a with none)"}
+
+
+def _res_sec33(d):
+    addons = [f"add-on: {a}" for a in ((d["raw"].get("addons") or {}).get("addons") or [])
+              if "guardduty" in a]
+    pods = [f"pod: {_qn(p)}" for p in d["pods"]
+            if re.search("guardduty|falco|sysdig|tetragon", _nm(p))
+            or "guardduty" in ((p.get("metadata") or {}).get("namespace") or "")]
+    return {"kind": "existence", "pass": sorted(addons) + sorted(pods), "fail": [],
+            "pass_label": "Matched the detection (either branch satisfies it)",
+            "context": ["GuardDuty add-on installed",
+                        "or a pod named guardduty|falco|sysdig|tetragon"],
+            "context_label": "the two branches this check accepts"}
+
+
+def _res_rel4(d):
+    if (d["cluster"].get("computeConfig") or {}).get("enabled") is True:
+        return {"kind": "field",
+                "pass": ["computeConfig.enabled = true (EKS Auto Mode provisions nodes; "
+                         "no in-cluster autoscaler is expected)"],
+                "fail": [], "pass_label": "Cluster setting read"}
+    return _res_match(d, "deployments", "karpenter|cluster-autoscaler")
+
+
+def _res_rbac1(d):
+    binds = [b for b in _items(d, "clusterrolebindings")
+             if (b.get("roleRef") or {}).get("name") == "cluster-admin"]
+    p, f = [], []
+    for b in binds:
+        for s in b.get("subjects") or []:
+            nm = s.get("name", "?")
+            entry = f'{_nm(b)} -> {s.get("kind","?")} {nm}'
+            builtin = re.match(r"^(system:|eks:)", nm) or nm == "system:masters"
+            (p if builtin else f).append(entry)
+    return {"pass": sorted(p), "fail": sorted(f),
+            "pass_label": "Built-in subjects (expected)",
+            "fail_label": "Non-system subjects with cluster-admin (findings)"}
+
+
+def _res_logtypes_audit(d):
+    on = set()
+    for grp in (d["cluster"].get("logging") or {}).get("clusterLogging") or []:
+        if grp.get("enabled"):
+            on |= set(grp.get("types") or [])
+    return {"kind": "field",
+            "pass": [f"{t}{'  <- required by this check' if t == 'audit' else ''}"
+                     for t in sorted(on)] or ["no log types enabled"],
+            "fail": [], "pass_label": "Control-plane log types enabled"}
+
+
+def _res_net4(d):
+    v = d["cluster"].get("resourcesVpcConfig") or {}
+    cp = v.get("securityGroupIds") or []
+    csg = v.get("clusterSecurityGroupId") or ""
+    return {"kind": "field",
+            "pass": [f"{s} (resourcesVpcConfig.securityGroupIds)" for s in cp],
+            "fail": [], "pass_label": "Control plane security groups",
+            "context": [f"{csg} (resourcesVpcConfig.clusterSecurityGroupId)"] if csg else [],
+            "context_label": "cluster security group — the check passes when it is NOT in the "
+                             "list above"}
+
+
+def _res_sec18(d):
+    issuer = ((d["cluster"].get("identity") or {}).get("oidc") or {}).get("issuer", "")
+    provs = [a.get("Arn", "?") for a in d["oidcproviders"]]
+    irsa = [_qn(s) for s in _items(d, "serviceaccounts")
+            if ((s.get("metadata") or {}).get("annotations") or {})
+            .get("eks.amazonaws.com/role-arn")]
+    stripped = issuer.replace("https://", "")
+    match = [a for a in provs if a.endswith("oidc-provider/" + stripped)]
+    return {"kind": "field",
+            "pass": ([f"IAM OIDC provider: {a}" for a in match]
+                     + [f"IRSA ServiceAccount: {s}" for s in sorted(irsa)]),
+            "fail": [], "pass_label": "Registered provider and the accounts that depend on it",
+            "context": ([f"cluster issuer: {stripped or 'absent'}"]
+                        + [f"other provider in account: {a}" for a in provs if a not in match]),
+            "context_label": "matched against"}
+
+
+# id -> extractor. Absent id simply means no resource list is shown for that question.
+RESOURCES = {
+    # ---- Operational Excellence
+    "ope-16": _res_addons,
+    "lens-7": lambda d: {"pass": [a for a in
+                                  ((d["raw"].get("addons") or {}).get("addons") or [])
+                                  if a == "vpc-cni"],
+                         "fail": [] if "vpc-cni" in ((d["raw"].get("addons") or {}).get("addons") or [])
+                                 else ["vpc-cni not a managed add-on"]},
+    "ope-11": _res_trails,
+    "ope-6": _res_logtypes,
+    "ope-15": lambda d: {"pass": sorted((d["raw"].get("nodegroups") or {}).get("nodegroups") or []),
+                         "fail": []},
+    "ope-17": lambda d: {"pass": [], "fail": [],
+                         "context": sorted(_qn(i) for i in _items(d, "jobs")),
+                         "context_label": "Jobs collected"},
+    "ope-18": lambda d: {"pass": [], "fail": [],
+                         "context": sorted(_qn(i) for i in _items(d, "cronjobs")),
+                         "context_label": "CronJobs collected"},
+    # ---- Security
+    "sec-6": _res_identity,
+    "sec-11": lambda d: _res_ns_label(d, "pod-security.kubernetes.io/"),
+    "sec-4": lambda d: _res_ns_has(d, "networkpolicies", drop_default=True),
+    "sec-9": lambda d: (lambda roles: {
+        "pass": sorted(_nm(r) for r in roles
+                       if not any(("*" in (rr.get("resources") or []))
+                                  or ("*" in (rr.get("verbs") or []))
+                                  for rr in r.get("rules") or [])),
+        "fail": sorted(_nm(r) for r in roles
+                       if any(("*" in (rr.get("resources") or []))
+                              or ("*" in (rr.get("verbs") or []))
+                              for rr in r.get("rules") or [])),
+        "context": ["built-in system:/eks: roles excluded"],
+        "context_label": "scope"})(
+        [r for r in _items(d, "clusterroles")
+         if not re.match(r"^(system:|eks:|cluster-admin$)", _nm(r))]),
+    "sec-21": _res_volumes,
+    "sec-25": lambda d: _res_storageclasses(
+        d, lambda s: str((s.get("parameters") or {}).get("encrypted", "")).lower() == "true"),
+    "sec-30": lambda d: _res_sg(d, _sg_no_ssh),
+    "net-2": lambda d: _res_sg(d, _sg_clean),
+    "net-1": lambda d: _res_subnets(
+        d, lambda s, rt: (s.get("AvailableIpAddressCount") or 0) >= 100, "IP capacity"),
+    # MapPublicIpOnLaunch is what the scorer reads; route-table inspection disagreed 3/3 vs 0/3.
+    "lens-15": lambda d: _res_subnets(
+        d, lambda s, rt: s.get("MapPublicIpOnLaunch") is False, "private addressing"),
+    "lens-11": _res_imdsv2,
+    "rbac-4": lambda d: (lambda sas: {
+        "pass": sorted(_qn(s) for s in sas if s.get("automountServiceAccountToken") is False),
+        "fail": sorted(_qn(s) for s in sas if s.get("automountServiceAccountToken") is not False)})(
+        [s for s in _items(d, "serviceaccounts")
+         if _nm(s) == "default" and not re.match(r"^kube-",
+                                                 (s.get("metadata") or {}).get("namespace", ""))]),
+    # Denominator is CONTAINERS, with the pod-level securityContext inherited — a pod-level
+    # extractor read 11/15 against the scorer's 15/19.
+    "podsec-1": lambda d: _res_containers_ctx(
+        d, lambda c, ps: (c.get("securityContext") or {}).get("runAsNonRoot") is True
+        or (ps or {}).get("runAsNonRoot") is True),
+    "podsec-2": lambda d: _res_containers(
+        d, lambda c: not ((c.get("securityContext") or {}).get("privileged"))),
+    "podsec-3": lambda d: _res_pods(
+        d, lambda p: not any(v.get("hostPath") for v in (p.get("spec") or {}).get("volumes") or [])),
+    "podsec-5": lambda d: _res_containers(
+        d, lambda c: "ALL" in (((c.get("securityContext") or {}).get("capabilities") or {})
+                               .get("drop") or [])),
+    "sec-12": lambda d: _res_containers(
+        d, lambda c: ":" in (c.get("image") or "") and "latest" not in (c.get("image") or "")),
+    # ---- Reliability
+    "rel-1": lambda d: {"pass": sorted({_labels(n).get("topology.kubernetes.io/zone", "?")
+                                        for n in d["nodes"]}),
+                        "fail": [],
+                        "context": sorted({s.get("AvailabilityZone", "?") for s in
+                                           ((d["raw"].get("subnets") or {}).get("Subnets") or [])}),
+                        "context_label": "AZs the VPC has subnets in"},
+    "rel-2": _res_pdb_coverage,
+    "rel-5": lambda d: _res_deploy(d, lambda i: any(
+        ((h.get("spec") or {}).get("scaleTargetRef") or {}).get("name") == _nm(i)
+        for h in _items(d, "hpa"))),
+    "rel-7": lambda d: _res_deploy(d, lambda i: ((i.get("spec") or {}).get("replicas") or 1) > 1),
+    # podAntiAffinity specifically: any-affinity read 2/8 where the scorer said 0/8.
+    "rel-8": lambda d: _res_deploy(
+        d, lambda i: bool(((((i.get("spec") or {}).get("template") or {}).get("spec") or {})
+                           .get("affinity") or {}).get("podAntiAffinity"))),
+    "rel-9": lambda d: _res_deploy(
+        d, lambda i: bool((((i.get("spec") or {}).get("template") or {}).get("spec") or {})
+                          .get("topologySpreadConstraints"))),
+    "rel-3": lambda d: _res_containers(
+        d, lambda c: bool(((c.get("resources") or {}).get("limits") or {}))),
+    "rel-6": lambda d: _res_containers(d, lambda c: bool(c.get("readinessProbe"))),
+    "rel-11": lambda d: _split(_items(d, "pvc"),
+                              lambda v: (v.get("status") or {}).get("phase") == "Bound")
+                        and {"pass": _split(_items(d, "pvc"),
+                                            lambda v: (v.get("status") or {}).get("phase") == "Bound")[0],
+                             "fail": _split(_items(d, "pvc"),
+                                            lambda v: (v.get("status") or {}).get("phase") == "Bound")[1]},
+    "rel-18": lambda d: _res_deploy(
+        d, lambda i: ((i.get("spec") or {}).get("strategy") or {}).get("type") in
+        ("RollingUpdate", None)),
+    "rel-22": lambda d: (lambda sts: {
+        "pass": sorted(_qn(s) for s in sts if ((s.get("spec") or {}).get("replicas") or 1) > 1),
+        "fail": sorted(_qn(s) for s in sts if ((s.get("spec") or {}).get("replicas") or 1) <= 1)})(
+        _workload(_items(d, "statefulsets"))),
+    "lens-14": lambda d: {"pass": sorted(n.get("NatGatewayId", "?") + " (" +
+                                         n.get("SubnetId", "?") + ")" for n in
+                                         ((d["raw"].get("nat") or {}).get("NatGateways") or [])),
+                          "fail": [],
+                          "context": sorted({_labels(n).get("topology.kubernetes.io/zone", "?")
+                                             for n in d["nodes"]}),
+                          "context_label": "AZs the nodes occupy"},
+    # ---- Performance
+    "perf-1": lambda d: _res_containers(
+        d, lambda c: bool(((c.get("resources") or {}).get("requests") or {}).get("cpu"))
+        and bool(((c.get("resources") or {}).get("requests") or {}).get("memory"))),
+    "perf-3": lambda d: _res_nodes(
+        d, lambda n: not re.match(
+            r"^(a1|m[1-5]|c[1-5]|r[3-5]|t[12]|i[23]|d2|h1|x1|p[23]|g[23])[a-z]*\.",
+            _labels(n).get("node.kubernetes.io/instance-type", ""))),
+    "perf-6": lambda d: {"pass": sorted({_labels(n).get("node.kubernetes.io/instance-type", "?")
+                                         for n in d["nodes"]}), "fail": []},
+    "lens-6": lambda d: _res_nodes(
+        d, lambda n: re.search(r"Bottlerocket|Amazon Linux 20[0-9][0-9]",
+                               ((n.get("status") or {}).get("nodeInfo") or {}).get("osImage", "")),
+        extra=lambda n: ((n.get("status") or {}).get("nodeInfo") or {}).get("osImage", "?")),
+    "lens-5": lambda d: _res_pods(
+        d, lambda p: bool(_labels(p).get("app.kubernetes.io/name"))),
+    # ---- Cost
+    "cost-1": lambda d: _res_ns_has(d, "resourcequotas"),
+    "cost-2": lambda d: _res_ns_has(d, "limitranges"),
+    "cost-6": _res_pv,
+    "cost-7": _res_tags,
+    "cost-8": _res_unattached,
+    "cost-9": lambda d: _res_storageclasses(
+        d, lambda s: (s.get("parameters") or {}).get("type") == "gp3"),
+    # ---- the 17 that previously showed nothing --------------------------------
+    # A. name-match existence: which object matched, and the pattern it matched against
+    "ope-5": lambda d: _res_match(d, "deployments", "prometheus|grafana|cloudwatch"),
+    "rel-13": lambda d: _res_match(d, "deployments", "prometheus|grafana|datadog|cloudwatch"),
+    "rel-4": _res_rel4,
+    "cost-3": _res_cost3,
+    "ope-7": _res_ope7,
+    "sec-33": _res_sec33,
+    # B. cluster-field: the field path and its literal value, so the verdict is checkable
+    "sec-1": lambda d: _res_field(d, ["resourcesVpcConfig.endpointPrivateAccess"]),
+    "sec-2": lambda d: _res_field(d, ["resourcesVpcConfig.endpointPublicAccess",
+                                      "resourcesVpcConfig.publicAccessCidrs"]),
+    "sec-17": lambda d: _res_field(d, ["accessConfig.authenticationMode"]),
+    "sec-26": _res_logtypes_audit,
+    "net-4": _res_net4,
+    "sec-18": _res_sec18,
+    # C. ratio checks that simply had no extractor — these DO get the count cross-check
+    "perf-4": lambda d: _res_deploy(
+        d, lambda i: ((i.get("spec") or {}).get("strategy") or {}).get("type") in
+        ("RollingUpdate", None)),
+    "perf-5": lambda d: _res_deploy(
+        d, lambda i: bool((((i.get("spec") or {}).get("template") or {}).get("spec") or {})
+                          .get("affinity"))
+        or bool((((i.get("spec") or {}).get("template") or {}).get("spec") or {})
+                .get("topologySpreadConstraints"))),
+    "rel-19": lambda d: (lambda ds: {
+        "pass": sorted(_qn(i) for i in ds
+                       if ((i.get("spec") or {}).get("updateStrategy") or {})
+                       .get("type") == "RollingUpdate"),
+        "fail": sorted(_qn(i) for i in ds
+                       if ((i.get("spec") or {}).get("updateStrategy") or {})
+                       .get("type") != "RollingUpdate")})(_items(d, "daemonsets")),
+    "sec-15": lambda d: _res_containers_ctx(
+        d, lambda c, ps: (c.get("securityContext") or {}).get("runAsNonRoot") is True
+        or (c.get("securityContext") or {}).get("readOnlyRootFilesystem") is True
+        or (c.get("securityContext") or {}).get("allowPrivilegeEscalation") is False
+        or (ps or {}).get("runAsNonRoot") is True),
+    "rbac-1": _res_rbac1,
+    "lens-16": _res_endpoints,
+}
+
+
+def observed_resources(qid, data):
+    """Run the extractor for `qid`, or None. Never raises: a broken extractor must not take the
+    report down, it just shows no list (and the agreement gate will flag the absence)."""
+    fn = RESOURCES.get(qid)
+    if not fn:
+        return None
+    try:
+        r = fn(data)
+    except Exception:
+        return None
+    if not isinstance(r, dict):
+        return None
+    r.setdefault("pass", [])
+    r.setdefault("fail", [])
+    return r
+
+
+def resource_agreement(r, res):
+    """Compare an extractor's counts with the scorer's own `N/M` from the detail string.
+
+    Returns (verdict, message). `verdict` is True (agree), False (DISAGREE — a real bug) or None
+    (no ratio in the detail, so nothing to compare). The gate treats False as a failure: a resource
+    list that contradicts the score is worse than no list at all.
+    """
+    if not res:
+        return None, "no extractor"
+    m = re.match(r"^(\d+)/(\d+)", r.get("detail", "") or "")
+    if not m:
+        return None, "this check answers yes/no rather than counting"
+    n, tot = int(m.group(1)), int(m.group(2))
+    gp, gt = len(res["pass"]), len(res["pass"]) + len(res["fail"])
+    if gp == n and gt == tot:
+        return True, f"{gp} items listed, and the check counted {gp} \u2014 they agree"
+    return False, f"resource list says {gp}/{gt} but the check counted {n}/{tot}"
+
+
+def md_inline(s):
+    """Render the small markdown subset the reference remediation prose actually uses."""
+    out, blocks = [], re.split(r"```(?:bash|yaml|json)?\n(.*?)```", s, flags=re.S)
+    for i, chunk in enumerate(blocks):
+        if i % 2:                                   # fenced code block
+            out.append(f"<pre><code>{e(chunk.rstrip())}</code></pre>")
+            continue
+        txt = e(chunk)
+        txt = re.sub(r"`([^`]+)`", r"<code>\1</code>", txt)
+        txt = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", txt)
+        lines, in_ul = [], False
+        for ln in txt.split("\n"):
+            if re.match(r"^\s*[-*]\s+", ln):
+                if not in_ul:
+                    lines.append("<ul class='plain'>")
+                    in_ul = True
+                item = re.sub(r"^\s*[-*]\s+", "", ln)   # kept out of the f-string: py3.9 rejects
+                lines.append(f"<li>{item}</li>")        # a backslash inside an f-string expression
+            else:
+                if in_ul:
+                    lines.append("</ul>")
+                    in_ul = False
+                if ln.strip():
+                    lines.append(ln)
+        if in_ul:
+            lines.append("</ul>")
+        joined = "\n".join(lines)
+        if joined.strip():
+            out.append(joined)
+    return " ".join(out)
 
 
 # ---------------------------------------------------------------------------
@@ -396,6 +1135,12 @@ td.detail{color:var(--color-text-body-secondary);font-family:var(--font-family-m
 .badge-medium{background:var(--color-severity-medium);color:#0f141a}
 .badge-low{background:var(--color-severity-low);color:#0f141a}
 .badge-neutral{background:var(--color-severity-neutral)}
+/* passing rows: the weight without the alarm colour */
+.badge.wt-quiet{background:transparent;color:var(--color-text-body-secondary);
+  border:1px solid var(--color-border-divider-default);font-weight:var(--font-weight-normal)}
+.unverified{margin-top:var(--space-xs);color:var(--color-text-body-secondary);
+  font-size:11px;font-style:italic}
+.nolist{margin:0;color:var(--color-text-body-secondary);font-size:var(--font-size-body-s)}
 
 /* --- Alert --- */
 .alert{
@@ -416,6 +1161,116 @@ td.detail{color:var(--color-text-body-secondary);font-family:var(--font-family-m
 .bar{display:inline-block;width:120px;height:var(--space-xs);border-radius:var(--space-xxs);
   background:var(--color-border-divider-secondary);overflow:hidden;vertical-align:middle}
 .bar>i{display:block;height:100%;border-radius:var(--space-xxs)}
+
+/* --- Expandable "how it was measured / how to fix" (native <details>, no JS) --- */
+details.expand{margin-top:var(--space-xxs)}
+details.expand>summary{
+  cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:var(--space-xxs);
+  color:var(--color-text-link-default);font-family:var(--font-family-base);
+  font-size:var(--font-size-body-s);font-weight:var(--font-weight-heavy);
+}
+details.expand>summary::-webkit-details-marker{display:none}
+details.expand>summary::before{content:"▸";font-size:10px}
+details.expand[open]>summary::before{content:"▾"}
+details.expand>summary:hover{text-decoration:underline}
+details.expand>summary:focus-visible{outline:2px solid var(--color-text-status-info);outline-offset:2px}
+.evidence-panel{
+  margin-top:var(--space-xs);padding:var(--space-s);
+  background:var(--color-background-cell-shaded);
+  border-radius:var(--border-radius-input);
+  border-left:3px solid var(--color-border-divider-default);
+  font-family:var(--font-family-base);font-size:var(--font-size-body-s);
+  line-height:var(--line-height-body-m);color:var(--color-text-body-default);
+}
+.evidence-panel dt{
+  font-weight:var(--font-weight-heavy);color:var(--color-text-body-secondary);
+  text-transform:uppercase;letter-spacing:.04em;font-size:10px;margin-top:var(--space-s);
+}
+.evidence-panel dt:first-child{margin-top:0}
+.evidence-panel dd{margin:var(--space-xxxs) 0 0}
+.evidence-panel pre{
+  margin:var(--space-xxs) 0 0;padding:var(--space-xs);overflow-x:auto;
+  background:var(--color-background-container-content);
+  border:1px solid var(--color-border-divider-secondary);
+  border-radius:var(--border-radius-badge);
+  font-family:var(--font-family-monospace);font-size:11px;line-height:16px;white-space:pre-wrap;
+  word-break:break-word;
+}
+.evidence-panel code{font-family:var(--font-family-monospace);font-size:11px;
+  background:var(--color-background-container-content);padding:0 3px;border-radius:2px}
+.evidence-panel .src{font-family:var(--font-family-monospace)}
+.evidence-panel details.nested>summary{
+  cursor:pointer;list-style:none;color:var(--color-text-body-secondary);
+  font-size:var(--font-size-body-s);font-weight:var(--font-weight-normal);
+}
+.evidence-panel details.nested>summary::-webkit-details-marker{display:none}
+.evidence-panel details.nested>summary::before{content:"▸ ";font-size:10px}
+.evidence-panel details.nested[open]>summary::before{content:"▾ "}
+.evidence-panel details.nested>summary:hover{text-decoration:underline}
+.evidence-panel dl.inner{margin:var(--space-xs) 0 0;padding:0;background:none;border:none}
+
+/* Named resources: the list a reader checks by eye */
+.reshead{
+  font-weight:var(--font-weight-heavy);font-size:11px;text-transform:uppercase;
+  letter-spacing:.04em;margin-top:var(--space-xs);
+}
+.reshead:first-child{margin-top:0}
+.reshead.ok{color:var(--color-text-status-success)}
+.reshead.bad{color:var(--color-text-status-error)}
+.reshead.ctx{color:var(--color-text-status-inactive)}
+ul.reslist{
+  margin:var(--space-xxxs) 0 0;padding-left:var(--space-m);
+  font-family:var(--font-family-monospace);font-size:11px;line-height:17px;
+}
+ul.reslist.ok>li{color:var(--color-text-body-default)}
+ul.reslist.bad>li{color:var(--color-text-body-default)}
+ul.reslist.ctx>li{color:var(--color-text-body-secondary)}
+.agree{
+  margin-top:var(--space-xs);color:var(--color-text-status-success);
+  font-size:11px;font-weight:var(--font-weight-heavy);
+}
+
+/* Expand all / collapse all */
+.bulk{margin-left:auto;display:inline-flex;gap:var(--space-xs)}
+.bulk button{
+  background:transparent;border:1px solid var(--color-border-divider-default);
+  color:var(--color-text-link-default);cursor:pointer;
+  border-radius:var(--border-radius-input);padding:2px var(--space-xs);
+  font-family:inherit;font-size:var(--font-size-body-s);font-weight:var(--font-weight-heavy);
+}
+.bulk button:hover{background:var(--color-background-cell-shaded)}
+.bulk button:focus-visible{outline:2px solid var(--color-text-status-info);outline-offset:2px}
+.bulk[hidden]{display:none}
+@media print{.bulk{display:none}}
+
+/* --- Improvement plan --- */
+.tier{border-left:3px solid var(--color-border-divider-default);padding-left:var(--space-m)}
+.tier+.tier{margin-top:var(--space-xl)}
+.tier-now{border-left-color:var(--color-text-status-error)}
+.tier-soon{border-left-color:var(--color-text-status-warning)}
+.tier-later{border-left-color:var(--color-text-status-info)}
+.tier>h3{
+  margin:0 0 var(--space-xxs);font-size:var(--font-size-heading-s);
+  line-height:var(--line-height-heading-s);font-weight:var(--font-weight-heavy);
+  color:var(--color-text-heading-default);
+}
+.tier>.when{margin:0 0 var(--space-s);color:var(--color-text-body-secondary);font-size:var(--font-size-body-s)}
+.fix{padding:var(--space-s) 0;border-top:1px solid var(--color-border-divider-secondary)}
+.fix:first-of-type{border-top:none;padding-top:0}
+.fix>.head{display:flex;align-items:baseline;gap:var(--space-xs);flex-wrap:wrap}
+.fix>.head .qid{font-family:var(--font-family-monospace);color:var(--color-text-body-secondary);font-size:var(--font-size-body-s)}
+.fix>.head .what{font-weight:var(--font-weight-heavy)}
+.fix>.now{margin:var(--space-xxs) 0 0;color:var(--color-text-body-secondary);font-size:var(--font-size-body-s)}
+.fix>.now .measured{font-family:var(--font-family-monospace)}
+.fix>.do{margin:var(--space-xs) 0 0}
+.fix>.do pre{
+  margin:var(--space-xxs) 0 0;padding:var(--space-xs);overflow-x:auto;
+  background:var(--color-background-cell-shaded);border-radius:var(--border-radius-badge);
+  font-family:var(--font-family-monospace);font-size:11px;line-height:16px;white-space:pre-wrap;
+  word-break:break-word;
+}
+.fix>.do code{font-family:var(--font-family-monospace);font-size:12px;
+  background:var(--color-background-cell-shaded);padding:0 3px;border-radius:2px}
 
 .muted{color:var(--color-text-body-secondary)}
 .small{font-size:var(--font-size-body-s);line-height:var(--line-height-body-s)}
@@ -511,6 +1366,16 @@ TOGGLE_JS = """
   if(mq&&mq.addEventListener)mq.addEventListener('change',function(){
     if(!r.getAttribute('data-theme'))paint();});
 })();
+(function(){
+  var bar=document.getElementById('bulk');
+  if(!bar)return;
+  bar.addEventListener('click',function(ev){
+    var b=ev.target.closest('button');if(!b)return;
+    var open=b.getAttribute('data-act')==='open';
+    var all=document.querySelectorAll('details.expand,details.nested');
+    for(var i=0;i<all.length;i++)all[i].open=open;});
+  bar.hidden=false;
+})();
 """
 
 
@@ -521,9 +1386,18 @@ def si(kind, label):
             f'<span>{e(label)}</span></span>')
 
 
-def sev_badge(qid):
+def sev_badge(qid, state=None):
+    """The WAF risk weight (High=3 / Medium=2 / Low=1) that `sev()` applies to this question.
+
+    It is NOT a severity rating of the cluster. On a failing row the colour is the priority signal;
+    on a PASSING row a red "High" pill beside a green tick reads as an alarm, so passes and n/a get
+    a muted neutral chip. Same number, different reading: on a fail "how urgent", on a pass "how
+    much the score would lose if this regressed".
+    """
     s = sev_of(qid)
     cls, label = {3: ("high", "High"), 2: ("medium", "Medium"), 1: ("low", "Low")}[s]
+    if state in ("all", "na"):
+        return f'<span class="badge wt-quiet">{label}</span>'
     return f'<span class="badge badge-{cls}">{label}</span>'
 
 
@@ -539,6 +1413,160 @@ def bar(score):
             f'<i style="width:{max(0,min(100,score))}%;background:{color}"></i></span>')
 
 
+MAX_LIST = 12   # cap per list; a 40-node / 800-pod cluster would otherwise dominate the page
+
+
+def _res_list(names, cls):
+    if not names:
+        return ""
+    shown = names[:MAX_LIST]
+    more = len(names) - len(shown)
+    lis = "".join(f"<li>{e(n)}</li>" for n in shown)
+    tail = (f'<li class="muted">&hellip; and {more} more</li>' if more > 0 else "")
+    return f'<ul class="reslist {cls}">{lis}{tail}</ul>'
+
+
+def evidence_panel(r, prose, prov, data):
+    """What the reader needs, in the order they need it:
+         1. why it matters
+         2. WHAT WE FOUND — the named resources, so the verdict can be checked by eye
+         3. how to fix
+         4. how it was measured — file + expression, demoted to the bottom
+
+    The verbatim jq used to sit above the fix. It serves a narrow audience (auditing the tool,
+    disputing a finding, maintaining the skill) and pushed the actionable part out of view, so it is
+    now last and behind its own nested toggle.
+    """
+    p, v = prose.get(r["id"], {}), prov.get(r["id"], {})
+    state = r.get("state", "?")
+    rows = []
+
+    if p.get("rationale"):
+        rows.append(f"<dt>Why it matters</dt><dd>{e(p['rationale'])}</dd>")
+
+    res = observed_resources(r["id"], data)
+    body = ""
+    if res:
+        agree, why = resource_agreement(r, res)
+        if res["pass"]:
+            body += (f'<div class="reshead ok">'
+                     f'{e(res.get("pass_label", "Counted as passing"))} '
+                     f'({len(res["pass"])})</div>' + _res_list(res["pass"], "ok"))
+        if res["fail"]:
+            body += (f'<div class="reshead bad">'
+                     f'{e(res.get("fail_label", "Counted as failing"))} '
+                     f'({len(res["fail"])})</div>' + _res_list(res["fail"], "bad"))
+        if res.get("context"):
+            body += (f'<div class="reshead ctx">{e(res.get("context_label","context"))} '
+                     f'({len(res["context"])})</div>' + _res_list(res["context"], "ctx"))
+    if body:
+        # Three verification strengths must not LOOK equally verified. A counting check can be
+        # cross-checked against its own total; an existence or field check cannot, and saying so is
+        # the difference between evidence and a confident-looking assertion.
+        if agree is True:
+            note = f'<div class="agree">&#10003; {e(why)}</div>'
+        elif res.get("kind") == "existence":
+            note = ('<div class="unverified">This check answers yes/no rather than counting, so '
+                    "there is no total for the report to check this list against. Worth confirming "
+                    "by eye: an object that merely <em>matches the name pattern</em> would also "
+                    "satisfy the check.</div>")
+        elif res.get("kind") == "field":
+            note = ('<div class="unverified">This check reads cluster settings rather than counting '
+                    "objects. The field paths and their values are printed above so the verdict is "
+                    "checkable directly; there is no total to cross-check.</div>")
+        else:
+            note = ""
+        rows.append(f"<dt>What we found</dt><dd>{body}{note}</dd>")
+    else:
+        # NEVER a silent omission. Absent-by-design and absent-by-accident must look different, or
+        # the reader cannot tell "nothing to show" from "nobody implemented this".
+        srcs = (", ".join(f"<code>{e(f)}.json</code>" for f in v.get("files", []))
+                or "the collected data")
+        rows.append(
+            '<dt>Resource list</dt><dd><p class="nolist">Not generated for this question. '
+            f"The verdict came from {srcs} &mdash; open the section below and run the command "
+            "yourself to see the objects. <em>This line exists so an absent list is never "
+            "mistaken for an empty one.</em></p></dd>")
+
+    if state != "all" and p.get("remediation"):
+        rows.append(f"<dt>How to fix</dt><dd>{md_inline(p['remediation'])}</dd>")
+
+    method = [f"<dt>Data read</dt><dd class='src'>"
+              + (", ".join(f"<code>{e(f)}.json</code>" for f in v.get("files", []))
+                 or "&mdash;") + "</dd>",
+              f"<dt>Returned</dt><dd><code>{e(state)}</code>"
+              + (f" &mdash; {e(r.get('detail',''))}" if r.get("detail") else "") + "</dd>"]
+    if v.get("jq"):
+        method.append(f"<dt>Exact command used</dt><dd><pre>{e(v['jq'])}</pre></dd>")
+    if p.get("source"):
+        method.append(f"<dt>Reference</dt><dd class='src'><code>references/{e(p['source'])}</code>"
+                      f" &middot; question <code>{e(r['id'])}</code></dd>")
+    rows.append('<dt>How this was measured</dt><dd>'
+                '<details class="nested"><summary>Data source and detection expression</summary>'
+                f'<dl class="evidence-panel inner">{"".join(method)}</dl></details></dd>')
+
+    label = "Evidence &amp; fix" if state != "all" else "Evidence"
+    return (f'<details class="expand"><summary>{label}</summary>'
+            f'<dl class="evidence-panel">{"".join(rows)}</dl></details>')
+
+
+def improvement_plan(measured, prose, prov):
+    """Group everything that is not passing into three tiers and state the fix for each.
+
+    Tiering is mechanical — severity weight x how far short the result fell — so the ordering is as
+    reproducible as the scores. It deliberately does NOT invent effort estimates: the reference
+    remediation says what to do, and how long it takes depends on the environment, not the data.
+    """
+    order = {"none": 0, "some": 1, "most": 2}
+    open_items = [r for r in measured if r.get("state") in order]
+    if not open_items:
+        return None
+
+    def tier_of(r):
+        sev, st = sev_of(r["id"]), r["state"]
+        if sev == 3 and st in ("none", "some"):
+            return 0
+        if (sev == 3 and st == "most") or (sev == 2 and st in ("none", "some")):
+            return 1
+        return 2
+
+    tiers = [
+        ("now", "Immediate", "High-risk controls that are absent or only partly in place. "
+                             "Each is a High-severity question scoring below 75."),
+        ("soon", "Short-term", "High-risk gaps that are mostly covered, plus absent "
+                               "medium-risk controls."),
+        ("later", "Strategic", "Remaining medium-risk partials and the low-risk practices. "
+                               "Worth planning, not worth an interrupt."),
+    ]
+    out = []
+    for idx, (cls, name, why) in enumerate(tiers):
+        items = [r for r in open_items if tier_of(r) == idx]
+        items.sort(key=lambda r: (-sev_of(r["id"]), order[r["state"]], r["id"]))
+        if not items:
+            continue
+        blocks = []
+        for r in items:
+            p = prose.get(r["id"], {})
+            v = prov.get(r["id"], {})
+            src = (", ".join(f"<code>{e(f)}.json</code>" for f in v.get("files", []))
+                   or "<span class='muted'>&mdash;</span>")
+            blocks.append(
+                '<div class="fix">'
+                f'<div class="head"><span class="qid">{e(r["id"])}</span>{sev_badge(r["id"], r.get("state"))}'
+                f'{si(*STATE_UI[r["state"]])}'
+                f'<span class="what">{e(p.get("title","(question text unavailable)"))}</span></div>'
+                f'<p class="now">Measured now: <span class="measured">{e(r.get("detail","") or r["state"])}</span>'
+                f' &middot; from {src}</p>'
+                + (f'<div class="do">{md_inline(p["remediation"])}</div>'
+                   if p.get("remediation") else
+                   '<div class="do muted">No remediation recorded for this question.</div>')
+                + '</div>')
+        out.append(f'<div class="tier tier-{cls}"><h3>{e(name)} '
+                   f'<span class="muted">({len(items)})</span></h3>'
+                   f'<p class="when">{e(why)}</p>{"".join(blocks)}</div>')
+    return "".join(out), len(open_items)
+
+
 def container(title, body, counter=None, desc=None, flush=False):
     c = f' <span class="counter">({e(counter)})</span>' if counter else ""
     d = f'<div class="desc">{e(desc)}</div>' if desc else ""
@@ -549,7 +1577,7 @@ def container(title, body, counter=None, desc=None, flush=False):
 # ---------------------------------------------------------------------------
 # Report
 # ---------------------------------------------------------------------------
-def build(data, titles, toggle=True):
+def build(data, prose, prov, toggle=True):
     sc = data["scores"]
     res = data["results"]
     cl = data["cluster"]
@@ -584,10 +1612,15 @@ def build(data, titles, toggle=True):
 
     # ---- page header --------------------------------------------------------
     out.append(
-        '<div class="page-header"><h1>Well-Architected review</h1>'
+        '<div class="page-header" style="display:flex;align-items:flex-end;gap:var(--space-m);'
+        'flex-wrap:wrap"><div><h1>Well-Architected review</h1>'
         f'<p>Deterministic review of <code>{e(cl.get("name",""))}</code>. '
         f'{len(measured)} measured questions answered from one data collection; '
-        f'{len(governance)} governance questions are process-only.</p></div>')
+        f'{len(governance)} governance questions are process-only.</p></div>'
+        '<div class="bulk" id="bulk" hidden>'
+        '<button type="button" data-act="open">Expand all evidence</button>'
+        '<button type="button" data-act="close">Collapse all</button>'
+        '</div></div>')
 
     # ---- alert when the overall is withheld --------------------------------
     if not isinstance(overall, (int, float)):
@@ -643,17 +1676,21 @@ def build(data, titles, toggle=True):
                   key=lambda r: (-sev_of(r["id"]), order[r["state"]]))[:5]
     if prio:
         items = "".join(
-            f'<tr><td class="qid">{e(r["id"])}</td><td>{sev_badge(r["id"])}</td>'
-            f'<td>{e(titles.get(r["id"], "(question text unavailable)"))}</td>'
+            f'<tr data-qid="{e(r["id"])}" data-state="{e(r["state"])}" '
+            f'data-severity="{sev_of(r["id"])}" data-pillar="{e(r.get("pillar",""))}">'
+            f'<td class="qid">{e(r["id"])}</td><td>{sev_badge(r["id"], r.get("state"))}</td>'
+            f'<td>{e(prose.get(r["id"],{}).get("title","(question text unavailable)"))}</td>'
             f'<td>{si(*STATE_UI[r["state"]])}</td>'
-            f'<td class="detail">{e(r.get("detail",""))}</td></tr>'
+            f'<td class="detail">{e(r.get("detail",""))}'
+            f'{evidence_panel(r, prose, prov, data)}</td></tr>'
             for r in prio)
         out.append(container(
-            "Top priorities", '<table><thead><tr><th>ID</th><th>Severity</th><th>Question</th>'
-            '<th>Result</th><th>Evidence</th></tr></thead>'
+            "Top priorities", '<table><thead><tr><th>ID</th><th>Risk weight</th><th>Question</th>'
+            '<th>Result</th><th>Evidence &amp; fix</th></tr></thead>'
             f'<tbody>{items}</tbody></table>',
             counter=str(len(prio)),
-            desc="Highest WAF risk weight first, then the weakest result.", flush=True))
+            desc="Highest WAF risk weight first, then the weakest result. Expand any row for the "
+                 "data it was measured from and the fix.", flush=True))
 
     # ---- cluster facts -----------------------------------------------------
     workload_pods = sum(
@@ -687,10 +1724,13 @@ def build(data, titles, toggle=True):
         rank = {"none": 0, "some": 1, "most": 2, "all": 3, "na": 4}
         qs.sort(key=lambda r: (rank.get(r.get("state"), 9), -sev_of(r["id"]), r["id"]))
         rows = "".join(
-            f'<tr><td class="qid">{e(r["id"])}</td><td>{sev_badge(r["id"])}</td>'
-            f'<td>{e(titles.get(r["id"], "(question text unavailable)"))}</td>'
+            f'<tr data-qid="{e(r["id"])}" data-state="{e(r.get("state",""))}" '
+            f'data-severity="{sev_of(r["id"])}" data-pillar="{e(key)}">'
+            f'<td class="qid">{e(r["id"])}</td><td>{sev_badge(r["id"], r.get("state"))}</td>'
+            f'<td>{e(prose.get(r["id"],{}).get("title","(question text unavailable)"))}</td>'
             f'<td>{si(*STATE_UI.get(r.get("state"), ("inactive", r.get("state","?"))))}</td>'
-            f'<td class="detail">{e(r.get("detail",""))}</td></tr>' for r in qs)
+            f'<td class="detail">{e(r.get("detail",""))}'
+            f'{evidence_panel(r, prose, prov, data)}</td></tr>' for r in qs)
         s = p.get("score")
         head = (f'{s}/100' if isinstance(s, (int, float)) else "Insufficient coverage")
         counts = {k: sum(1 for r in qs if r.get("state") == k)
@@ -699,28 +1739,24 @@ def build(data, titles, toggle=True):
                    f'{counts["some"]} partial, {counts["none"]} fail, {counts["na"]} n/a')
         out.append(container(
             name,
-            '<table><thead><tr><th>ID</th><th>Severity</th><th>Question</th>'
-            '<th>Result</th><th>Evidence</th></tr></thead>'
+            '<table><thead><tr><th>ID</th><th>Risk weight</th><th>Question</th>'
+            '<th>Result</th><th>Evidence &amp; fix</th></tr></thead>'
             f'<tbody>{rows}</tbody></table>',
             counter=f'{p.get("applicable",0)} of {p.get("total",0)} applicable',
             desc=re.sub("<[^>]+>", "", summary).replace("&middot;", "·"),
             flush=True))
 
-    # ---- drift -------------------------------------------------------------
-    drows = parse_drift(data["drift"])
-    if drows:
-        passed = sum(1 for _, _, ok, _ in drows if ok)
-        rows = "".join(
-            f'<tr><td class="num">{e(n)}</td><td>{e(chk)}</td>'
-            f'<td>{si("success","Pass") if ok else si("error","Fail")}</td>'
-            f'<td class="detail">{e(ev)}</td></tr>' for n, chk, ok, ev in drows)
+    # ---- improvement plan --------------------------------------------------
+    plan = improvement_plan(measured, prose, prov)
+    if plan:
+        plan_html, n_open = plan
         out.append(container(
-            "Baseline drift detection",
-            '<table><thead><tr><th class="num">#</th><th>Check</th><th>Status</th>'
-            f'<th>Evidence</th></tr></thead><tbody>{rows}</tbody></table>',
-            counter=f"{passed} of {len(drows)} passing",
-            desc="Pass/fail baseline checks. Reported separately and never folded into a "
-                 "pillar score.", flush=True))
+            "Improvement plan", plan_html,
+            counter=f"{n_open} open item(s)",
+            desc="Every question not scoring `all`, tiered by risk weight and how far short the "
+                 "result fell, with the remediation from the reference for that question. "
+                 "Effort is deliberately not estimated — it depends on the environment, "
+                 "not on the collected data."))
 
     # ---- governance --------------------------------------------------------
     g = sc.get("governance", {})
@@ -792,7 +1828,8 @@ def main():
 
     data = load(args.work)
     ref = args.references or (pathlib.Path(__file__).resolve().parent.parent / "references")
-    titles = question_titles(ref)
+    prose = question_prose(ref)
+    prov = scorer_provenance(ref)
 
     cl = data["cluster"].get("name", "cluster")
 
@@ -800,7 +1837,7 @@ def main():
         # The toggle only makes sense in `auto`: --theme light/dark exist precisely to PIN a theme
         # for print, email or a ticket attachment, where an interactive control would be misleading.
         show_toggle = theme == "auto" and not args.no_toggle
-        body = build(data, titles, toggle=show_toggle)
+        body = build(data, prose, prov, toggle=show_toggle)
         script = f"<script>{TOGGLE_JS}</script>" if show_toggle else ""
         return (
             "<!DOCTYPE html>\n"

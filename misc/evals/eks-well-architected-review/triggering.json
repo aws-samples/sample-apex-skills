@@ -5,7 +5,7 @@
   { "query": "check my EKS cluster for Well-Architected compliance", "should_trigger": true },
   { "query": "how compliant is our EKS cluster with the AWS Well-Architected Framework?", "should_trigger": true },
   { "query": "review our EKS cluster against Well-Architected and tell me what to fix first to raise the score", "should_trigger": true },
-  { "query": "detect configuration drift on my EKS cluster", "should_trigger": true },
+  { "query": "assess cluster prod-eks against the Well-Architected Framework and show me which resources are failing each check", "should_trigger": true },
   { "query": "I need a WAFR for our EKS platform before the QBR — assess the live cluster and give me pillar-by-pillar scores", "should_trigger": true },
   { "query": "how does our EKS cluster rate on operational excellence, security, reliability, performance and cost? read the live cluster, don't guess", "should_trigger": true },
   { "query": "do the full Well-Architected review of cluster staging-eks and interview me on the governance questions too", "should_trigger": true },

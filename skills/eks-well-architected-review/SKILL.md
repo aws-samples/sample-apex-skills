@@ -1,6 +1,6 @@
 ---
 name: eks-well-architected-review
-description: Runs a deterministic AWS Well-Architected Framework review of an Amazon EKS cluster. Collects live data with kubectl and the aws CLI, scores it across the five pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization) using fixed jq detections so scores are reproducible, separates measured findings from governance (process) questions, applies a coverage gate so empty or under-observed clusters cannot score well, and renders a self-contained Cloudscape-styled HTML report. Use when the user asks to run a Well-Architected review of an EKS cluster, measure how far it complies with the AWS Well-Architected Framework, score or audit it across the five pillars, detect configuration drift, or get a prioritized plan of improvements to raise that score. Not for operational-posture-only audits (eks-operation-review), dollar-quantified cost analysis (eks-cost-intelligence), fact-only inventory (eks-recon), static advice (eks-best-practices), or design documents (eks-design).
+description: Runs a deterministic AWS Well-Architected Framework review of an Amazon EKS cluster. Collects live data with kubectl and the aws CLI, scores it across the five pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization) using fixed jq detections so scores are reproducible, separates measured findings from governance questions, applies a coverage gate so empty or under-observed clusters cannot score well, and renders a self-contained Cloudscape-styled HTML report naming the resources behind each finding. Use when the user asks to run a Well-Architected review of an EKS cluster, measure how far it complies with the AWS Well-Architected Framework, score or audit it across the five pillars, or get a prioritized plan of improvements to raise that score. Not for operational-posture-only audits (eks-operation-review), dollar-quantified cost analysis (eks-cost-intelligence), fact-only inventory (eks-recon), static advice (eks-best-practices), or design documents (eks-design).
 license: Apache-2.0
 metadata:
   author: terjing
@@ -107,7 +107,7 @@ if [ "$NODE_COUNT" -eq 0 ] && [ "$WORKLOAD_PODS" -eq 0 ]; then echo "NOT_VIABLE"
 ```
 
 If `NOT_VIABLE`: **stop scoring.** Report `Overall: NOT VIABLE — no data plane`, list only the
-control-plane facts and drift results, and state how many questions were applicable. Do **not** emit
+control-plane facts, and state how many questions were applicable. Do **not** emit
 pillar scores. An empty cluster must never score "Excellent."
 
 ### Step 5 — Run the measured detections (per pillar)
@@ -126,9 +126,16 @@ Run each pillar's scorer block:
 - **Performance Efficiency** — [references/performance-efficiency.md](references/performance-efficiency.md)
 - **Cost Optimization** — [references/cost-optimization.md](references/cost-optimization.md)
 
-Also run [references/drift-detection.md](references/drift-detection.md) (10 baseline checks) and
-[references/cost-analysis.md](references/cost-analysis.md) (savings opportunities). These inform the
-narrative; drift is reported as pass/fail, not folded into pillar scores.
+Also run [references/cost-analysis.md](references/cost-analysis.md) (savings opportunities) to
+inform the narrative.
+
+**`references/drift-detection.md` is no longer rendered in the report.** Its 10 checks were a spot
+check, not drift detection — nothing stored a prior state to compare against. 8 of the 10 duplicated
+a scored question verbatim; 2 contradicted theirs (its NetworkPolicy and PDB rows passed on
+"more than zero covered" while `sec-4`/`rel-2` graded the ratio, so a High-severity gap showed green);
+and 2 mapped only to a governance question the report declines to assess. The headline
+"10 of 10 passing" then undercut the actual verdict. Real drift detection needs a stored previous run
+to diff against — see the open item in CONTEXT.md.
 
 ### Step 6 — Governance questions
 
@@ -211,7 +218,28 @@ Still one file either way: the toggle adds ~20 lines of inline JavaScript and tw
 No `src`, no `@import`, no `fetch` — asserted by gate 11, because a report that reached the network
 on open would break the skill's "all data stays local" contract.
 
-It reads `scores.json`, `results.jsonl`, `drift.md` and the collected cluster JSON, and emits one
+**Each finding carries a named resource list.** "3/3 core addons" is a claim the reader cannot check;
+`coredns, kube-proxy, vpc-cni` is one they can verify in seconds. Every historic scoping bug in this
+skill was a *correct count over the wrong set* — an unrelated security group, another cluster's
+volumes, AWS-installed Deployments counted as the operator's. The lists make that visible, and they
+also name what was **excluded** and why, so the scoping rule is auditable rather than trusted.
+
+The lists are a second reading of the same data, so the renderer checks each one against the scorer's
+own `N/M` and gate 11 **fails on any disagreement** — a list that contradicts its score would be worse
+than no list. Currently 48 extractors, 585 agreements, 0 disagreements across the fixture suite.
+Questions without an extractor simply show no list.
+
+Panel order is deliberate: *why it matters* → *what we found* → *how to fix* → *how this was measured*
+(nested, collapsed). The verbatim `jq` serves a narrow audience — auditing the tool, disputing a
+finding, maintaining the skill — so it sits last rather than pushing the fix out of view.
+
+**No JSON export.** Measured, not assumed: scraping the rendered HTML for all findings takes 0.33 ms
+versus 0.06 ms to parse an equivalent JSON blob — a 0.0003 s difference. For an LLM the numbers point
+the other way: it reads the whole file regardless, so an embedded copy would add ~5,000 tokens and
+save nothing. Rows instead carry `data-qid` / `data-state` / `data-severity` attributes, which makes
+scraping reliable at zero cost.
+
+It reads `scores.json`, `results.jsonl` and the collected cluster JSON, and emits one
 self-contained file — no network requests, no external CSS or JS, so it opens offline and no data
 leaves the machine. Styling is the [Cloudscape Design System](https://cloudscape.aws.dev): Amazon
 Ember with the documented monospace fallback for IDs and measured values, container/table/status
@@ -247,20 +275,20 @@ sections below instead of the HTML. Otherwise prefer the renderer — it is fast
 and cannot drift from the design.
 
 1. **Header** — cluster, region, K8s version, node count, mode.
+
 2. **Executive Summary** — technical overall (or `NOT VIABLE` / `WITHHELD`), the pillar table, top 3 priorities.
 3. **Coverage & method** — for each pillar: `score (coverage: applicable/total)`. State the mode and, in
    `auto` mode, that governance questions were Not Assessed.
 4. **Detailed findings per pillar** — critical / improvement / passing, each citing the question id and the
    `detail` from its JSONL line.
-5. **Drift Detection** — the 10 baseline checks as pass/fail.
-6. **Cost Opportunities** — from cost-analysis.md. Label the Cost pillar score as **cost hygiene**
+5. **Cost Opportunities** — from cost-analysis.md. Label the Cost pillar score as **cost hygiene**
    and state, next to it, that Spot, Graviton and Extended Support are reported here as narrative
    opportunities and are **not** in that score, together with the cluster's actual posture on all
    three. A bare Cost number reads as "no cost levers taken", which it does not measure — a 100%
    Spot + Graviton cluster scores identically to one on neither. See the disclosure block at the top
    of [references/cost-optimization.md](references/cost-optimization.md).
-7. **Governance** — `interactive`: the score + answers. `auto`: the list of Not Assessed questions.
-8. **Action Plan** — immediate / short-term / strategic.
+6. **Governance** — `interactive`: the score + answers. `auto`: the list of Not Assessed questions.
+7. **Action Plan** — immediate / short-term / strategic.
 
 Report header block:
 
