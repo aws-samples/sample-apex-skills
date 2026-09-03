@@ -453,8 +453,8 @@ def _res_pdb_coverage(d):
     """rel-2: match PDB selectors against each Deployment's pod-template labels.
 
     Denominator is DEPLOYMENTS, not namespaces — a namespace-level check read 0/4 where the scorer
-    said 0/8. This is also the exact question CONTEXT.md records as having once compared PDB
-    *cardinality* to Deployment count, so the shape matters more here than anywhere.
+    said 0/8. This question has also previously compared PDB *cardinality* to Deployment count,
+    so the shape matters more here than anywhere.
     """
     pdbs = _items(d, "pdb")
     p, f = [], []

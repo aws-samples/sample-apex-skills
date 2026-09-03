@@ -338,7 +338,6 @@ Runs a deterministic AWS Well-Architected Framework review of an Amazon EKS clus
 |-----------|-------------|
 | [cost-analysis.md](./eks-well-architected-review/references/cost-analysis.md) | Cost analysis |
 | [cost-optimization.md](./eks-well-architected-review/references/cost-optimization.md) | Cost optimization |
-| [drift-detection.md](./eks-well-architected-review/references/drift-detection.md) | Drift detection |
 | [operational-excellence.md](./eks-well-architected-review/references/operational-excellence.md) | Operational excellence |
 | [performance-efficiency.md](./eks-well-architected-review/references/performance-efficiency.md) | Performance efficiency |
 | [reliability.md](./eks-well-architected-review/references/reliability.md) | Reliability |

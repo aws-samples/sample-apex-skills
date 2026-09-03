@@ -128,13 +128,13 @@ Run each pillar's scorer block:
 Also run [references/cost-analysis.md](references/cost-analysis) (savings opportunities) to
 inform the narrative.
 
-**`references/drift-detection.md` is no longer rendered in the report.** Its 10 checks were a spot
-check, not drift detection — nothing stored a prior state to compare against. 8 of the 10 duplicated
-a scored question verbatim; 2 contradicted theirs (its NetworkPolicy and PDB rows passed on
-"more than zero covered" while `sec-4`/`rel-2` graded the ratio, so a High-severity gap showed green);
-and 2 mapped only to a governance question the report declines to assess. The headline
+**Drift detection is out of scope.** An earlier version shipped 10 "drift" checks; they were retired
+because they were a spot check, not drift detection — nothing stored a prior state to compare against.
+8 of the 10 duplicated a scored question verbatim; 2 contradicted theirs (their NetworkPolicy and PDB
+rows passed on "more than zero covered" while `sec-4`/`rel-2` graded the ratio, so a High-severity gap
+showed green); and 2 mapped only to a governance question the report declines to assess. The headline
 "10 of 10 passing" then undercut the actual verdict. Real drift detection needs a stored previous run
-to diff against — see the open item in CONTEXT.md.
+to diff against.
 
 ### Step 6 — Governance questions
 

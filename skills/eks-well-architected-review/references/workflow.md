@@ -247,4 +247,4 @@ echo "OK: $(ls "$WORK"/*.json | wc -l | tr -d ' ') files collected and validated
 - Security: [identity-access.md](security/identity-access.md), [data-protection.md](security/data-protection.md),
   [network.md](security/network.md), [workload-security.md](security/workload-security.md),
   [governance-compliance.md](security/governance-compliance.md)
-- [drift-detection.md](drift-detection.md), [cost-analysis.md](cost-analysis.md)
+- [cost-analysis.md](cost-analysis.md)
