@@ -20,7 +20,7 @@ CloudTrail is on by default in every account (Event history), but for compliance
 ## Encryption + retention by regime (set deliberately)
 
 - **Encrypt** the CloudWatch Logs groups and the CloudTrail S3 bucket with a **customer-managed KMS key** for high-sensitivity workloads.
-- **Retention** — set the log-group and trail retention to the regime minimum (illustrative, verify per regime): PCI-DSS commonly **1 year** (3 months immediately available); **HIPAA** documentation retention is **6 years**; **SOX (§802)** is typically **7 years**; FedRAMP per the System Security Plan / continuous-monitoring cadence. Don't over-retain sensitive logs beyond requirement.
+- **Retention** — set the log-group and trail retention to the regime minimum (illustrative, verify per regime): PCI-DSS commonly **1 year** (3 months immediately available); **HIPAA** sets no fixed audit-log retention floor — the **6-year** figure is documentation retention (§164.316(b)(2)), commonly extended to logs as a conservative choice; **SOX (§802)** is typically **7 years**; FedRAMP per the System Security Plan / continuous-monitoring cadence. Don't over-retain sensitive logs beyond requirement.
 
 ## SIEM forwarding
 

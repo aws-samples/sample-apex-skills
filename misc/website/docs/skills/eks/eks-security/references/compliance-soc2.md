@@ -18,7 +18,7 @@ A per-regime quick-start for preparing an EKS-hosted service for a SOC 2 examina
 ## Scope & the language that gets graded
 
 - **SOC 2 is an attestation, not a certification**, performed by an independent CPA firm against the AICPA **Trust Services Criteria (TSC)**. AWS is **in scope for SOC 1/2/3** and its report is downloaded from **AWS Artifact** — but **AWS's SOC 2 does not make the customer's service SOC 2**. The customer must undergo **its own** examination; AWS's report is used via the **carve-out** method (the customer's description excludes AWS's controls and relies on AWS's SOC report as evidence — the common choice; the *inclusive* method is the rarely-used alternative).
-- **Type I** = design of controls at a point in time. **Type II** = *operating effectiveness* over a defined observation period (**typically 3–12 months**; a 3–6 month window is often used for a first Type II, 12 months once established) — Type II is what customers and auditors actually want, and it requires a continuous evidence window, so **instrument logging early**.
+- **Type I** = design of controls at a point in time. **Type II** = *operating effectiveness* over an observation window (commonly **3–12 months**, defined by the service organization in coordination with its auditor; a 3–6 month window is often used for a first Type II, 12 months once established) — Type II is what customers and auditors actually want, and it requires a continuous evidence window, so **instrument logging early**.
 - Select the applicable **Trust Services Categories**: **Security (Common Criteria — always required)**, plus optionally Availability, Confidentiality, Processing Integrity, and Privacy.
 
 ## The SOC 2-specific mapping (on top of the 7-layer baseline)
