@@ -152,6 +152,9 @@ Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway A
 |-----------|-------------|
 | [alb-migration.md](./eks-ingress-migration/references/alb-migration.md) | Alb migration |
 | [atx-guide.md](./eks-ingress-migration/references/atx-guide.md) | Atx guide |
+| [atx/td_ingress-nginx-lbc/document_references/navigating-nginx-ingress-retirement.md](./eks-ingress-migration/references/atx/td_ingress-nginx-lbc/document_references/navigating-nginx-ingress-retirement.md) | Navigating nginx ingress retirement |
+| [atx/td_ingress-nginx-lbc/summaries.md](./eks-ingress-migration/references/atx/td_ingress-nginx-lbc/summaries.md) | Summaries |
+| [atx/td_ingress-nginx-lbc/transformation_definition.md](./eks-ingress-migration/references/atx/td_ingress-nginx-lbc/transformation_definition.md) | Transformation_definition |
 | [dns-certificates.md](./eks-ingress-migration/references/dns-certificates.md) | Dns certificates |
 | [gateway-api.md](./eks-ingress-migration/references/gateway-api.md) | Gateway api |
 | [ingress-discovery.md](./eks-ingress-migration/references/ingress-discovery.md) | Ingress discovery |
@@ -612,6 +615,7 @@ Author a new steering workflow for any AWS service and pair it with a matching s
 |-----------|-------------|
 | [anti-patterns.md](./steering-workflow-creator/references/anti-patterns.md) | Anti patterns |
 | [convention.md](./steering-workflow-creator/references/convention.md) | Convention |
+| [examples/eks.md](./steering-workflow-creator/references/examples/eks.md) | Eks |
 | [tool-routing.md](./steering-workflow-creator/references/tool-routing.md) | Tool routing |
 
 **Scripts:**
