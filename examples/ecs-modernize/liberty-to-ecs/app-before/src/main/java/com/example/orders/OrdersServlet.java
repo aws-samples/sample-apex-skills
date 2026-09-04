@@ -59,8 +59,12 @@ public class OrdersServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
+        // Accept-known-good validation: order ids are alphanumeric with dashes.
+        // Anything null, empty, or otherwise non-conforming falls back to a
+        // generated id, so untrusted request input never reaches the response
+        // body unencoded (guards against reflected XSS and JSON injection).
         String orderId = request.getParameter("orderId");
-        if (orderId == null || orderId.isEmpty()) {
+        if (orderId == null || !orderId.matches("[A-Za-z0-9-]{1,64}")) {
             orderId = "ORD-" + System.currentTimeMillis();
         }
 
