@@ -92,8 +92,13 @@ humanize_filename() {
   local filename="$1"
   # Strip extension
   local base="${filename%.*}"
-  # Replace hyphens with spaces
+  # Replace hyphens and underscores with spaces
   base="${base//-/ }"
+  base="${base//_/ }"
+  # Collapse repeated spaces and trim (e.g. "__init__" -> "init")
+  base="$(printf '%s' "$base" | tr -s ' ')"
+  base="${base#"${base%%[![:space:]]*}"}"
+  base="${base%"${base##*[![:space:]]}"}"
   # Capitalize first letter
   echo "${base^}"
 }

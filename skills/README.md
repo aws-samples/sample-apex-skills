@@ -73,7 +73,7 @@ Use when building EKS clusters. Generates complete, production-ready Terraform p
 
 | Script | Description |
 |--------|-------------|
-| [validate_project.sh](./eks-build/scripts/validate_project.sh) | Validate_project |
+| [validate_project.sh](./eks-build/scripts/validate_project.sh) | Validate project |
 
 ---
 
@@ -102,7 +102,7 @@ Run a live EKS cluster cost efficiency assessment — analyze spending across 6 
 
 | File | Description |
 |------|-------------|
-| [report_to_html.py](./eks-cost-intelligence/tools/report_to_html.py) | Report_to_html |
+| [report_to_html.py](./eks-cost-intelligence/tools/report_to_html.py) | Report to html |
 
 ---
 
@@ -154,7 +154,7 @@ Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway A
 | [atx-guide.md](./eks-ingress-migration/references/atx-guide.md) | Atx guide |
 | [atx/td_ingress-nginx-lbc/document_references/navigating-nginx-ingress-retirement.md](./eks-ingress-migration/references/atx/td_ingress-nginx-lbc/document_references/navigating-nginx-ingress-retirement.md) | Navigating nginx ingress retirement |
 | [atx/td_ingress-nginx-lbc/summaries.md](./eks-ingress-migration/references/atx/td_ingress-nginx-lbc/summaries.md) | Summaries |
-| [atx/td_ingress-nginx-lbc/transformation_definition.md](./eks-ingress-migration/references/atx/td_ingress-nginx-lbc/transformation_definition.md) | Transformation_definition |
+| [atx/td_ingress-nginx-lbc/transformation_definition.md](./eks-ingress-migration/references/atx/td_ingress-nginx-lbc/transformation_definition.md) | Transformation definition |
 | [dns-certificates.md](./eks-ingress-migration/references/dns-certificates.md) | Dns certificates |
 | [gateway-api.md](./eks-ingress-migration/references/gateway-api.md) | Gateway api |
 | [ingress-discovery.md](./eks-ingress-migration/references/ingress-discovery.md) | Ingress discovery |
@@ -169,7 +169,7 @@ Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway A
 
 | File | Description |
 |------|-------------|
-| [report_to_html.py](./eks-ingress-migration/tools/report_to_html.py) | Report_to_html |
+| [report_to_html.py](./eks-ingress-migration/tools/report_to_html.py) | Report to html |
 
 ---
 
@@ -210,7 +210,7 @@ Run a structured EKS operational excellence assessment against a live cluster. C
 
 | File | Description |
 |------|-------------|
-| [report_to_html.py](./eks-operation-review/tools/report_to_html.py) | Report_to_html |
+| [report_to_html.py](./eks-operation-review/tools/report_to_html.py) | Report to html |
 
 ---
 
@@ -321,13 +321,13 @@ Assess EKS cluster upgrade readiness — run automated checks across 8 areas (ve
 
 | File | Description |
 |------|-------------|
-| [oss_addon_registry.json](./eks-upgrade-check/data/oss_addon_registry.json) | Oss_addon_registry |
+| [oss_addon_registry.json](./eks-upgrade-check/data/oss_addon_registry.json) | Oss addon registry |
 
 **Tools:**
 
 | File | Description |
 |------|-------------|
-| [md_to_html.py](./eks-upgrade-check/tools/md_to_html.py) | Md_to_html |
+| [md_to_html.py](./eks-upgrade-check/tools/md_to_html.py) | Md to html |
 
 ## ECS Skills
 
@@ -368,7 +368,7 @@ Use when building Amazon ECS infrastructure with Terraform, generating apply-rea
 
 | Script | Description |
 |--------|-------------|
-| [validate_project.sh](./ecs-build/scripts/validate_project.sh) | Validate_project |
+| [validate_project.sh](./ecs-build/scripts/validate_project.sh) | Validate project |
 
 ---
 
@@ -476,7 +476,7 @@ Run a structured Amazon ECS operational-excellence assessment against a live est
 
 | File | Description |
 |------|-------------|
-| [report_to_html.py](./ecs-operation-review/tools/report_to_html.py) | Report_to_html |
+| [report_to_html.py](./ecs-operation-review/tools/report_to_html.py) | Report to html |
 
 ---
 
@@ -572,21 +572,21 @@ Create new skills, modify and improve existing skills, and measure skill perform
 
 | Script | Description |
 |--------|-------------|
-| [__init__.py](./skill-creator/scripts/__init__.py) | __init__ |
-| [aggregate_benchmark.py](./skill-creator/scripts/aggregate_benchmark.py) | Aggregate_benchmark |
-| [generate_report.py](./skill-creator/scripts/generate_report.py) | Generate_report |
-| [improve_description.py](./skill-creator/scripts/improve_description.py) | Improve_description |
-| [package_skill.py](./skill-creator/scripts/package_skill.py) | Package_skill |
-| [quick_validate.py](./skill-creator/scripts/quick_validate.py) | Quick_validate |
-| [run_eval.py](./skill-creator/scripts/run_eval.py) | Run_eval |
-| [run_loop.py](./skill-creator/scripts/run_loop.py) | Run_loop |
+| [__init__.py](./skill-creator/scripts/__init__.py) | Init |
+| [aggregate_benchmark.py](./skill-creator/scripts/aggregate_benchmark.py) | Aggregate benchmark |
+| [generate_report.py](./skill-creator/scripts/generate_report.py) | Generate report |
+| [improve_description.py](./skill-creator/scripts/improve_description.py) | Improve description |
+| [package_skill.py](./skill-creator/scripts/package_skill.py) | Package skill |
+| [quick_validate.py](./skill-creator/scripts/quick_validate.py) | Quick validate |
+| [run_eval.py](./skill-creator/scripts/run_eval.py) | Run eval |
+| [run_loop.py](./skill-creator/scripts/run_loop.py) | Run loop |
 | [utils.py](./skill-creator/scripts/utils.py) | Utils |
 
 **Assets:**
 
 | Asset | Description |
 |-------|-------------|
-| [eval_review.html](./skill-creator/assets/eval_review.html) | Eval_review |
+| [eval_review.html](./skill-creator/assets/eval_review.html) | Eval review |
 
 **Agents:**
 
@@ -600,7 +600,7 @@ Create new skills, modify and improve existing skills, and measure skill perform
 
 | File | Description |
 |------|-------------|
-| [generate_review.py](./skill-creator/eval-viewer/generate_review.py) | Generate_review |
+| [generate_review.py](./skill-creator/eval-viewer/generate_review.py) | Generate review |
 | [viewer.html](./skill-creator/eval-viewer/viewer.html) | Viewer |
 
 ---
@@ -622,7 +622,7 @@ Author a new steering workflow for any AWS service and pair it with a matching s
 
 | Script | Description |
 |--------|-------------|
-| [quick_validate.py](./steering-workflow-creator/scripts/quick_validate.py) | Quick_validate |
+| [quick_validate.py](./steering-workflow-creator/scripts/quick_validate.py) | Quick validate |
 
 **Assets:**
 
