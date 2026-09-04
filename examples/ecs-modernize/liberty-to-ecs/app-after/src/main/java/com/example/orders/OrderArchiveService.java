@@ -1,6 +1,7 @@
 package com.example.orders;
 
 import java.time.Instant;
+import java.util.regex.Pattern;
 
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -20,6 +21,11 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
  *    endpoint or secret is baked into the artifact.
  */
 public class OrderArchiveService {
+
+    // Defense-in-depth: the same accept-known-good allowlist the resources
+    // apply, re-checked here so a raw orderId can never reach the S3 object key
+    // or the archived payload even if a future caller skips validation.
+    private static final Pattern ID_PATTERN = Pattern.compile("[A-Za-z0-9-]{1,64}");
 
     private final S3Client s3;
     private final String bucket;
@@ -44,6 +50,9 @@ public class OrderArchiveService {
     public String archive(String orderId, String payload) {
         if (!isConfigured()) {
             throw new IllegalStateException("ORDERS_ARCHIVE_BUCKET is not set");
+        }
+        if (orderId == null || !ID_PATTERN.matcher(orderId).matches()) {
+            throw new IllegalArgumentException("orderId must match [A-Za-z0-9-]{1,64}");
         }
         String key = "orders/" + orderId + "-" + Instant.now().toEpochMilli() + ".json";
         s3.putObject(

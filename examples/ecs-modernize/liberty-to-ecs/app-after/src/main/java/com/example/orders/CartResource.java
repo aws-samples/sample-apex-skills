@@ -1,5 +1,7 @@
 package com.example.orders;
 
+import java.util.regex.Pattern;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -28,6 +30,16 @@ import jakarta.ws.rs.core.Response;
 @ApplicationScoped
 public class CartResource {
 
+    // Accept-known-good allowlists for the client-supplied values, applied
+    // before either is concatenated into the hand-built JSON body below.
+    // Invalid input is rejected (HTTP 400), not substituted or encoded, so
+    // untrusted characters never reach the response (reflected XSS / JSON
+    // injection). sku permits '.' and '_' in addition to the id set, since
+    // real SKUs use them; the metacharacters that break out of JSON strings
+    // ('"', '<', '>', '{', '}', '\\') stay excluded.
+    private static final Pattern ID_PATTERN = Pattern.compile("[A-Za-z0-9-]{1,64}");
+    private static final Pattern SKU_PATTERN = Pattern.compile("[A-Za-z0-9._-]{1,64}");
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response get(@QueryParam("cartId") String cartId,
@@ -36,6 +48,18 @@ public class CartResource {
         if (cartId == null || cartId.isBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\":\"cartId is required — this service holds no session\"}")
+                    .build();
+        }
+
+        if (!ID_PATTERN.matcher(cartId).matches()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\":\"cartId must match [A-Za-z0-9-]{1,64}\"}")
+                    .build();
+        }
+
+        if (sku != null && !SKU_PATTERN.matcher(sku).matches()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\":\"sku must match [A-Za-z0-9._-]{1,64}\"}")
                     .build();
         }
 
