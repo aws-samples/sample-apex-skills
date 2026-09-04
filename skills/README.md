@@ -553,12 +553,12 @@ Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET wo
 
 | Reference | Description |
 |-----------|-------------|
+| [README.md](./dotnet-aws-ecs/references/README.md) | README |
 | [cdk-template-guide.md](./dotnet-aws-ecs/references/cdk-template-guide.md) | Cdk template guide |
 | [cloudformation-template-guide.md](./dotnet-aws-ecs/references/cloudformation-template-guide.md) | Cloudformation template guide |
 | [deployment-guide-template.md](./dotnet-aws-ecs/references/deployment-guide-template.md) | Deployment guide template |
 | [dockerfile-guide.md](./dotnet-aws-ecs/references/dockerfile-guide.md) | Dockerfile guide |
 | [healthcheck-endpoint-guide.md](./dotnet-aws-ecs/references/healthcheck-endpoint-guide.md) | Healthcheck endpoint guide |
-| [README.md](./dotnet-aws-ecs/references/README.md) | README |
 
 ---
 
