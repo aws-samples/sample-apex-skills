@@ -1,0 +1,46 @@
+# Simple Ingress with no rewrite — just host-based routing and TLS
+# Tests the baseline annotation swap without rewrite complexity
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage-svc
+  namespace: marketing
+  labels:
+    app: homepage
+spec:
+  type: ClusterIP
+  selector:
+    app: homepage
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: simple-host
+  namespace: marketing
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:ACCOUNT_ID:certificate/CERTIFICATE_ID
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+spec:
+  ingressClassName: alb
+  rules:
+  - host: www.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: homepage-svc
+            port:
+              number: 80

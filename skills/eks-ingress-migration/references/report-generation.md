@@ -280,7 +280,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 >
 > **Presence is decided by estate state — not by a "serves no live traffic" test:** an **absent** controller / **empty estate** / **orphaned dead config** is a **non-event (0)** — nothing to migrate. A **present-but-broken** controller with **zero bound routes** is **tech debt (+1)** with a cleanup note; **with bound routes** it is a **suspected active outage**, flagged urgently **outside** the 0–100 score. **Carve-out:** a running controller with a **control-plane CVE** (e.g. an admission-webhook RCE) is a security finding **even at zero routes**. Only **live** traffic anchors the *business* dimension; *security* is anchored by exposure.
 >
-> **Execution risk counts — do NOT score by YAML-edit size.** A small manifest change can still be high-impact. Specifically: changing `ingressClassName` to a *different controller* (e.g. nginx→alb) **provisions a brand-new load balancer** and only takes traffic after a **DNS cutover** (it is a parallel-run + cutover, not a no-op edit); moving a feature that has **no faithful equivalent** (CORS, rate-limit, external auth) to WAF/app usually needs **application/code changes**; and any TLS/cert-store change done together with routing changes risks **SSL handshake errors / downtime**. Score these by the operational risk, not the diff size.
+> **Execution risk counts — do NOT score by YAML-edit size.** A small manifest change can still be high-impact. Specifically: changing `ingressClassName` to a *different controller* (e.g. nginx→alb) **provisions a brand-new load balancer** and only takes traffic after a **DNS cutover** (it is a parallel-run + cutover, not a no-op edit); moving a feature with **no native ALB annotation** (CORS, rate-limit, external auth) to WAF/app usually needs **application/code changes** — note those three are **Tier-B** under §1.3 **precisely because** that app/WAF workaround exists, so this line is about execution risk, never a reason to score them Tier-A (that needs §1.3's escalation conditions); and any TLS/cert-store change done together with routing changes risks **SSL handshake errors / downtime**. Score these by the operational risk, not the diff size.
 
 | Impact | Meaning |
 |--------|---------|
@@ -379,25 +379,25 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 
 > **What:** Kubernetes-native successor to Ingress (HTTPRoute + Gateway). · **Effort:** Medium · **Best when:** you want the long-term standard.
 > **Routing config:** [[DL:gateway-api]]
-> **Caveats:** L7 ALB Gateway API support is recent (HTTPRoute ≥ v2.14, GA 2026 line) — verify TLS handling and routing filters per route before cutover. On **EKS Auto Mode** running a self-managed LBC too, scope `GatewayClass`/`IngressClass` per controller to avoid !!load-balancer ownership conflicts!!.
+> **Caveats:** L7 ALB Gateway API support is recent (HTTPRoute reconciliation since v2.14.0; **production floor v3.0.0**) — verify TLS handling and routing filters per route before cutover. On **EKS Auto Mode** running a self-managed LBC too, scope `GatewayClass`/`IngressClass` per controller to avoid !!load-balancer ownership conflicts!!.
 > **Automation sub-path — `lbc-migrate` (recommended when already on LBC ALB Ingress):** if routes are already served by the AWS Load Balancer Controller, the official **LBC Ingress → Gateway API toolkit** (`lbc-migrate` CLI + Migration Console; the CLI ships in **LBC v3.4.0** and the path uses **Gateway API standard CRDs v1.5.0**) auto-translates Ingress → Gateway API and previews the result with a dry-run before any ALB is created. Prefer it over hand-authoring HTTPRoutes; keep the manual Phase 2 steps below as the fallback for its **skip-or-warn** cases (capture-group `url-rewrite`, WAF Classic, `frontend-nlb-*`, `group.order`). The skipped **capture-group `url-rewrite` stays a Tier-A / Re-architecture-Gate item** — automating the bulk translation does not downgrade it (it has no Gateway API equivalent; only **static** prefix strips map to `ReplacePrefixMatch`). Two migration-window facts to surface in the report: the new Gateway ALBs run **in parallel** with the existing Ingress ALBs until cleanup (**duplicate ALB/LCU-hours on the bill**), and if clients reach the app via the **Ingress ALB DNS name directly** (no Route 53 / custom domain) **traffic cannot be shifted without updating every client** — confirm the traffic path before cutover. Full flow, prerequisites, and limitations: `references/lbc-migrate-toolkit.md`. Note the hop order — convert raw **NGINX → LBC Ingress** first (`references/alb-migration.md`, or automate that hop with **ATX / Option 3**), *then* run `lbc-migrate` for **LBC Ingress → Gateway API**.
 
 #### Phase 1 — Foundation
 | Step | Action |
 |------|--------|
 | 1 | Install Gateway API CRDs |
-| 2 | Verify/upgrade AWS LB Controller (**≥ v2.14** for L7 Gateway API; not needed on Auto Mode) |
+| 2 | Verify/upgrade AWS LB Controller (**≥ v3.0.0**, the Gateway API production floor — still needed on Auto Mode, whose built-in controller has no Gateway API) |
 | 3 | Create GatewayClass |
 | 4 | Create Gateway per listener group |
 
 #### Phase 2 — Convert & Test
 | Step | Action |
 |------|--------|
-| 1 | Generate HTTPRoutes from current Ingress — **automate with `lbc-migrate`** if already on LBC ALB Ingress **and** the controller is at the Gateway API runtime baseline (**≥ v2.13.3** L4 / **≥ v2.14** L7) with **standard CRDs v1.5.0** (`references/lbc-migrate-toolkit.md`); otherwise download config above |
+| 1 | Generate HTTPRoutes from current Ingress — **automate with `lbc-migrate`** if already on LBC ALB Ingress **and** the controller is at or above the Gateway API **production floor (≥ v3.0.0)** with the **standard CRDs its controller line targets** (v1.5.0 for v3.4.0, v1.6.0 for v3.5.0) (`references/lbc-migrate-toolkit.md`); otherwise download config above |
 | 2 | Apply low-risk routes first; validate routing, TLS, health |
 | 3 | Routes with no equivalent (snippets/auth/mirror) — redesign (see [blocker](#blockers)) |
 
-> **Below the runtime baseline?** If the controller is older than **v2.13.3** (L4) / **v2.14** (L7), or standard Gateway API CRDs are older than **v1.5.0**, then the `lbc-migrate` automation is unavailable — **and so is Option 1 itself** — until the operator upgrades. For anything beyond a handful of Ingresses, present **"upgrade the AWS Load Balancer Controller to the current v3.4.0 release line" as the recommended first step**: it clears the runtime baseline **and** provides the `lbc-migrate` CLI, which is cheaper than hand-authoring HTTPRoutes against an unsupported controller. The upgrade and the CRD install are **operator actions** the assessment documents but does not run.
+> **Below the production floor?** If the controller is older than **v3.0.0** (the Gateway API production floor), or the standard Gateway API CRDs are older than the version its controller line targets, then the `lbc-migrate` automation is unavailable — **and so is Option 1 itself** — until the operator upgrades. For anything beyond a handful of Ingresses, present **"upgrade the AWS Load Balancer Controller to the current v3.5.0 release line" as the recommended first step**: it clears the production floor **and** still carries the `lbc-migrate` CLI, which is cheaper than hand-authoring HTTPRoutes against an unsupported controller. The upgrade and the CRD install are **operator actions** the assessment documents but does not run.
 
 #### Phase 3 — Cutover
 | Step | Action |
@@ -445,7 +445,7 @@ Stay on the Ingress API but swap NGINX annotations for ALB annotations. Gets you
 |-----------------|----------------|
 | `ingressClassName: nginx` | `ingressClassName: alb` |
 | `nginx...rewrite-target: /$2` | `alb...transforms.<svc>` (url-rewrite JSON) |
-| `spec.tls[].secretName` | `alb...certificate-arn` or `certificate-discovery: "true"` |
+| `spec.tls[].secretName` | `alb...certificate-arn`, or omit it for ACM certificate discovery |
 | `nginx...ssl-redirect: "true"` | `alb...ssl-redirect: "443"` |
 | `nginx...proxy-read-timeout` | `alb...load-balancer-attributes: idle_timeout.timeout_seconds=N` |
 | `nginx...auth-url` | `alb...auth-type: oidc` + `auth-idp-oidc` JSON |
@@ -457,7 +457,7 @@ Stay on the Ingress API but swap NGINX annotations for ALB annotations. Gets you
 
 | Step | Action | Validation |
 |------|--------|-----------|
-| 1 | Install AWS LB Controller **v2.7.2+** (ALB Ingress); not needed on EKS Auto Mode | `kubectl get deploy -n kube-system aws-load-balancer-controller` |
+| 1 | Install AWS LB Controller **v2.7.2+** (ALB Ingress) — **v2.15.0+** if any route needs a `transforms` URI rewrite; not needed on EKS Auto Mode | `kubectl get deploy -n kube-system aws-load-balancer-controller` |
 | 2 | Provision ACM certificates | `aws acm list-certificates` — all ISSUED |
 | 3 | Convert annotations per mapping above | `kubectl apply --dry-run=client -f <file>` |
 | 4 | Deploy migrated Ingress (new ALB created) | `kubectl get ingress -A` shows ALB address |
