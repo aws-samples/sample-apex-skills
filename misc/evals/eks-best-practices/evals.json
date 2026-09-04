@@ -4,7 +4,6 @@
     {
       "id": 1,
       "prompt": "We run ~40 microservices across 3 product teams on EC2 today and we're moving to EKS. Traffic is spiky, teams want autonomy, and we expect the service count to double in 12 months. Should we run one shared EKS cluster or split per team, and what compute model (Karpenter, MNG, Fargate, Auto Mode) should we default to? Explain the tradeoffs.",
-      "expected_output": "A recommendation that favors a shared multi-tenant cluster with per-team namespace isolation (RBAC, NetworkPolicy, ResourceQuota) unless a concrete isolation driver argues otherwise, and recommends Karpenter (or EKS Auto Mode for minimal ops) as the default data plane given the spiky, varied workload mix. Should cover tradeoffs and call out system components on a stable MNG.",
       "expectations": [
         "The output recommends a shared multi-tenant EKS cluster as the default over per-team clusters for this scale, with per-team namespace isolation (at least two of: RBAC, NetworkPolicy, ResourceQuota) called out explicitly. TODO: human review",
         "The output recommends Karpenter (or EKS Auto Mode) as the default compute model over pure MNG or Fargate, citing at least one concrete reason such as consolidation, instance flexibility, or faster scale-up for spiky traffic. TODO: human review",
@@ -84,7 +83,6 @@
     {
       "id": 2,
       "prompt": "Review this EKS setup for production readiness. We have a single managed node group of 2 m5.large on-demand nodes in one AZ, no Pod Disruption Budgets defined, no ingress controller installed yet (we're hitting pods via NodePort), and application IAM permissions are attached directly to the node IAM role. What should we fix, in priority order?",
-      "expected_output": "A prioritized review flagging the single-AZ node group as the top reliability risk, missing PDBs as a disruption/upgrade hazard, NodePort as an ingress anti-pattern (recommend AWS Load Balancer Controller with ALB/NLB or Gateway API), and node-role IAM as a security anti-pattern (recommend Pod Identity or IRSA). Should suggest multi-AZ spread and topology spread constraints.",
       "expectations": [
         "The output identifies the single-AZ / two-node configuration as a high-priority reliability issue and recommends spreading nodes across at least 3 AZs (or 2 at minimum) with topology spread constraints or equivalent. TODO: human review",
         "The output recommends adding Pod Disruption Budgets for production workloads with more than one replica, with at least one concrete example target (e.g. minAvailable 50% for stateless, maxUnavailable 1 for stateful quorum). TODO: human review",
@@ -165,7 +163,6 @@
     {
       "id": 3,
       "prompt": "We run an e-commerce platform on EKS. Next month we have a big flash sale: at a fixed time our push notification fires and traffic steps almost instantly to many multiples of baseline, with a few secondary peaks over the following hours. Last time, a load test that hit our target request rate still didn't prevent an outage. How do we get the cluster ready to absorb this kind of surge, and how should we think about pre-scaling and load testing?",
-      "expected_output": "Advisory surge-readiness guidance: emphasize that the spike is a near-instant step at a KNOWN time, so favor scheduled pre-scaling (raise floors ahead of the trigger) over relying on reactive autoscaling; pre-warm control plane, nodes, and pods and hold the floor across the whole event window rather than scaling down between peaks; assure capacity ahead of time (service quotas, ODCR/capacity reservations, load-balancer warm-up); and treat load-test realism as scenario coverage — a test that passes on request rate can miss a resource-consumption failure (e.g. memory) from a new access pattern, so test consumption shapes and act on findings before the event. Should stay advisory (no sizing verdicts) and may point to scheduled KEDA cron scaling and Karpenter disruption freezes.",
       "expectations": [
         "The output recommends scheduled/proactive pre-scaling ahead of the known event time (raising replica floors or desired counts before the trigger) rather than relying solely on reactive metric-driven autoscaling to catch up. TODO: human review",
         "The output distinguishes the spike SHAPE (near-instant step / rate of arrival) from magnitude, and warns against scaling down or consolidating in the trough between peaks. TODO: human review",
