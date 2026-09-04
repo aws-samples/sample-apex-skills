@@ -5,7 +5,7 @@ This folder contains miscellaneous scripts to help maintain this repo.
 
 ## Evaluate Skills
 
-Per-skill evaluation inputs live under [`evals/`](./evals/). The eval framework uses a 5-layer architecture (triggering → process → artifact → knowledge → quality) with composite scoring and letter grades. Scored eval runs are maintainer-run (a deterministic `check_hygiene.py` pre-flight does gate every PR touching `evals/**` or `skills/**`); see [`evals/README.md`](./evals/README.md) for the manual update workflow.
+Per-skill evaluation inputs live under [`evals/`](./evals/). The eval framework uses a 5-layer architecture (triggering → process → artifact → knowledge → quality) with composite scoring and letter grades. Scored eval runs are maintainer-run (a deterministic `check_hygiene.py` pre-flight runs on every PR touching `misc/evals/**` or `skills/**`); see [`evals/README.md`](./evals/README.md) for the manual update workflow.
 
 ## Update README - Skills and Steering  
 

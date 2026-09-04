@@ -58,7 +58,7 @@ Composite scoring combines all layers via configurable weights in `.skilleval.ya
 
 ## How to update evals (manual process)
 
-Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) does gate every PR that touches `misc/evals/**` or `skills/**`. The scored and coverage layers stay non-CI by design.
+Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The scored and coverage layers stay maintainer-run and out of CI for now, pending proper eval automation.
 
 ### Step 1 — Run evals
 
