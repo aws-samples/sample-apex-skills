@@ -1,0 +1,25 @@
+[
+  { "query": "run a Well-Architected review on my EKS cluster", "should_trigger": true },
+  { "query": "score my EKS cluster against the Well-Architected Framework", "should_trigger": true },
+  { "query": "audit cluster prod-use1 in us-east-1 across all five pillars and give me an HTML report", "should_trigger": true },
+  { "query": "check my EKS cluster for Well-Architected compliance", "should_trigger": true },
+  { "query": "how compliant is our EKS cluster with the AWS Well-Architected Framework?", "should_trigger": true },
+  { "query": "review our EKS cluster against Well-Architected and tell me what to fix first to raise the score", "should_trigger": true },
+  { "query": "assess cluster prod-eks against the Well-Architected Framework and show me which resources are failing each check", "should_trigger": true },
+  { "query": "I need a WAFR for our EKS platform before the QBR — assess the live cluster and give me pillar-by-pillar scores", "should_trigger": true },
+  { "query": "how does our EKS cluster rate on operational excellence, security, reliability, performance and cost? read the live cluster, don't guess", "should_trigger": true },
+  { "query": "do the full Well-Architected review of cluster staging-eks and interview me on the governance questions too", "should_trigger": true },
+  { "query": "generate a scored, self-contained HTML Well-Architected report for our EKS cluster that I can email to the customer", "should_trigger": true },
+
+  { "query": "run a Well-Architected review on my ECS cluster", "should_trigger": false },
+  { "query": "run a Well-Architected Framework review on our AWS account — all workloads, not just Kubernetes", "should_trigger": false },
+  { "query": "score our RDS Aurora setup against the Well-Architected Framework", "should_trigger": false },
+  { "query": "review our serverless architecture against the Well-Architected serverless lens", "should_trigger": false },
+  { "query": "run an EKS operational review and rate my 10 operational areas GREEN/AMBER/RED", "should_trigger": false },
+  { "query": "how much am I wasting on EKS? give me dollar figures for the top cost drivers", "should_trigger": false },
+  { "query": "what add-ons and node groups am I running? just tell me what's there, no scoring", "should_trigger": false },
+  { "query": "what are the best practices for EKS multi-tenancy?", "should_trigger": false },
+  { "query": "how do I improve reliability on EKS in general? no need to look at my cluster", "should_trigger": false },
+  { "query": "generate an architecture design document with Mermaid diagrams for a new EKS platform", "should_trigger": false },
+  { "query": "is my cluster ready to upgrade to 1.33?", "should_trigger": false }
+]

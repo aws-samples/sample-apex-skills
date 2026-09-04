@@ -25,7 +25,7 @@ my-skill/
 
 ### [eks-best-practices](./eks-best-practices/)
 
-Advisory guidance for Amazon EKS architecture and configuration decisions — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, on-prem/hybrid (EKS Hybrid Nodes, EKS Anywhere, Outposts), and surge readiness for planned traffic peaks. Also answers Terraform questions about terraform-aws-modules/terraform-aws-eks. Use for any EKS planning or architectural judgment call, even when phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), developer platforms/IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (use graviton-migration).
+Advisory guidance for Amazon EKS architecture and configuration — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, on-prem/hybrid (EKS Hybrid Nodes, EKS Anywhere, Outposts), and surge readiness for planned traffic peaks. Also answers terraform-aws-modules/terraform-aws-eks questions. Use for any EKS planning or architectural judgment call, even phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check, eks-well-architected-review), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), developer platforms/IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (graviton-migration).
 
 **References** (loaded on demand):
 
@@ -325,6 +325,30 @@ Assess EKS cluster upgrade readiness — run automated checks across 8 areas (ve
 | File | Description |
 |------|-------------|
 | [md_to_html.py](./eks-upgrade-check/tools/md_to_html.py) | Md_to_html |
+
+---
+
+### [eks-well-architected-review](./eks-well-architected-review/)
+
+Runs a deterministic AWS Well-Architected Framework review of an Amazon EKS cluster. Collects live data with kubectl and the aws CLI, scores it across the five pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization) using fixed jq detections so scores are reproducible, separates measured findings from governance questions, applies a coverage gate so empty or under-observed clusters cannot score well, and renders a self-contained Cloudscape-styled HTML report naming the resources behind each finding. Use when the user asks to run a Well-Architected review of an EKS cluster, measure how far it complies with the AWS Well-Architected Framework, score or audit it across the five pillars, or get a prioritized plan of improvements to raise that score. Not for operational-posture-only audits (eks-operation-review), dollar-quantified cost analysis (eks-cost-intelligence), fact-only inventory (eks-recon), static advice (eks-best-practices), or design documents (eks-design).
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [cost-analysis.md](./eks-well-architected-review/references/cost-analysis.md) | Cost analysis |
+| [cost-optimization.md](./eks-well-architected-review/references/cost-optimization.md) | Cost optimization |
+| [operational-excellence.md](./eks-well-architected-review/references/operational-excellence.md) | Operational excellence |
+| [performance-efficiency.md](./eks-well-architected-review/references/performance-efficiency.md) | Performance efficiency |
+| [reliability.md](./eks-well-architected-review/references/reliability.md) | Reliability |
+| [severity.md](./eks-well-architected-review/references/severity.md) | Severity |
+| [workflow.md](./eks-well-architected-review/references/workflow.md) | Workflow |
+
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [render-report.py](./eks-well-architected-review/assets/render-report.py) | Render report |
 
 ## ECS Skills
 
