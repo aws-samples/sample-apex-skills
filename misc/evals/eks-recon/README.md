@@ -13,9 +13,10 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 - **Generic / non-EKS** — pure Kubernetes-internals questions with no EKS hook. Negative at item 13 is a sanity check that recon does not fire on controller-level Kubernetes questions.
 - **`eks-upgrade-check`** — owns upgrade readiness scoring ("score my upgrade readiness" wants a scored report, not a discovery inventory). Negatives at items 14, 16 enforce this.
 - **`eks-operation-review`** — owns operational maturity scoring ("rate my ops posture GREEN/AMBER/RED" is a structured review, not reconnaissance). Negative at item 15 enforces this.
-- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 17 ("Catalog our services in a Backstage dev…").
-- **`eks-design`** (design document generation — ADRs, Mermaid diagrams, architecture scoring) — negatives 18, 19 ("Design a new EKS architecture…", "Create a security architecture document…").
-- **`eks-build`** (EKS Terraform code generation — full project scaffold, Pattern 2a/2b) — negatives 20, 21 ("Generate Terraform code for…", "Build an EKS Terraform project…").
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 18 ("Catalog our services in a Backstage dev…").
+- **`eks-design`** (design document generation — ADRs, Mermaid diagrams, architecture scoring) — negatives 19, 20 ("Design a new EKS architecture…", "Create a security architecture document…").
+- **`eks-build`** (EKS Terraform code generation — full project scaffold, Pattern 2a/2b) — negatives 21, 22 ("Generate Terraform code for…", "Build an EKS Terraform project…").
+- **`eks-cost-intelligence`** (live cost audit with dollar-quantified waste findings) - negative 17 ("Run a cost audit on my production EKS cluster and quantify the waste in dollars.").
 - **`eks-ingress-migration`** (assesses/plans migrating off the NGINX ingress controller to Gateway API / ALB / ATX) — negative 23 ("map nginx Ingress to HTTPRoute, flag no-Gateway-API-equivalent annotations"). Recon inventories what's deployed; ingress-migration evaluates how to move the ingress layer off nginx.
 - **`eks-security`** (EKS security & compliance hardening — CIS, HIPAA/PCI/FedRAMP/GDPR, Pod Identity/Access Entries, PSA, GuardDuty, image signing, audit logging) — negative 24 ("Harden my EKS cluster to meet PCI-DSS —…").
 <!-- SIBLING_MAP_END -->

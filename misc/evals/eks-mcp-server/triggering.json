@@ -17,5 +17,7 @@
   {"query": "Assess my cluster's upgrade readiness and produce a scored report with blockers — can we move to 1.32?", "should_trigger": false},
   {"query": "Give me an operational review of my EKS cluster across all 10 standard areas with a maturity score.", "should_trigger": false},
   {"query": "Analyze my cluster's cost efficiency and produce a scored report with dollar-quantified findings.", "should_trigger": false},
-  {"query": "Wire up a self-service portal so developers can provision AWS resources via ACK without raising infra tickets.", "should_trigger": false}
+  {"query": "Wire up a self-service portal so developers can provision AWS resources via ACK without raising infra tickets.", "should_trigger": false},
+  {"query": "Set up the arm migration mcp (arm-mcp) so I can scan this repo for arm64 readiness before moving to Graviton.", "should_trigger": false},
+  {"query": "Configure the Arm migration MCP server in my AI assistant to check our container images for arm64 compatibility.", "should_trigger": false}
 ]

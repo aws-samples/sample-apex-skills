@@ -14,9 +14,10 @@ The most common confusion this skill needs to disambiguate is "assess my readine
 - **`eks-best-practices`** (architectural choices) — negative 16 ("Karpenter vs MNG for a new cluster"). Architectural decisions are best-practices; readiness assessments are upgrade-check.
 - **`eks-mcp-server`** (tooling setup) — negative 17 ("install and configure the EKS MCP server"). Not an upgrade question.
 - **Generic / non-EKS** — negative 18 ("self-managed vanilla Kubernetes on bare metal"). EKS-specific assessment is the skill's remit.
-- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 19 ("Set up golden paths so app teams can sh…").
-- **`eks-design`** (architecture design documents, ADRs, and system diagrams for EKS solutions) — negative 20 ("Generate architecture decision records and validate the design for our new EKS cluster").
-- **`eks-operation-review`** (structured operational posture assessment with GREEN/AMBER/RED ratings) — negative 21 ("Run an operational excellence assessment on my EKS cluster covering networking, autoscaling, and observability").
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 20 ("Set up golden paths so app teams can sh…").
+- **`eks-design`** (architecture design documents, ADRs, and system diagrams for EKS solutions) — negative 21 ("Generate architecture decision records and validate the design for our new EKS cluster").
+- **`eks-operation-review`** (structured operational posture assessment with GREEN/AMBER/RED ratings) — negative 22 ("Run an operational excellence assessment on my EKS cluster covering networking, autoscaling, and observability").
+- **`eks-cost-intelligence`** (live cost-efficiency audit with dollar-quantified findings) - negative 19 ("Assess my EKS cluster for cost waste - over-provisioned pods, unused volumes, idle load balancers.").
 - **`eks-ingress-migration`** (assesses/plans migrating off the NGINX ingress controller to Gateway API / ALB / ATX) — negative 23 ("plan nginx ingress retirement, generate Gateway API/ALB manifests"). Both emit a 0–100 score, but upgrade-check scores Kubernetes version-upgrade readiness; ingress-migration scores the difficulty of leaving nginx.
 <!-- SIBLING_MAP_END -->
 
