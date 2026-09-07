@@ -11,12 +11,12 @@ This page is generated from [skills/eks-well-architected-review/references/secur
 
 # 🔒 Security — Network Segmentation & Infrastructure
 
-**8 questions** — Network policies, pod network separation, SSH access, security group separation, subnet IP capacity, prefix delegation.
+**8 questions** — Network policies, pod network separation, SSH access, cluster security group egress, subnet IP capacity, prefix delegation.
 
 > **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access).**
 > The per-question `Detection:` tags below are explanatory only; the scorer decides measured vs governance.
 
-Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`. ASK USER responses: "Yes, fully" → `all`, "Mostly" → `most`, "Partially" → `some`, "No" → `none`, "Doesn't apply" → `not-applicable`.
+Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`. ASK USER responses: "Yes, fully" → `all`, "Mostly" → `most`, "Partially" → `some`, "No" → `none`, "Doesn't apply" → `na`.
 
 ---
 
@@ -51,7 +51,7 @@ kubectl get namespaces -o json
 
 ### sec-30: Do you disable SSH access to worker nodes, using Systems Manager or similar for emergency access?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Disabling SSH reduces the attack surface on worker nodes.
 
@@ -59,13 +59,19 @@ kubectl get namespaces -o json
 
 ---
 
-### sec-31: Do you avoid sharing security groups between EKS worker nodes and the control plane?
+### sec-31: Do you avoid sharing security groups between EKS worker nodes and the control plane? — RETIRED
 
-**Detection:** ✋ ASK USER
+**Detection:** ⊘ NOT ASSESSED (always `na`)
 
-> Separate security groups enforce network segmentation.
-
-**Remediation:** Create separate security groups for worker nodes and the EKS control plane. Update node group launch templates to use the dedicated node SG.
+> **This question is no longer scored.** AWS applies the cluster security group to the control plane
+> and to managed compute by design, and states that the older practice of maintaining separate
+> control-plane and worker-node security groups is "no longer required and can be removed". Answering
+> it would penalise the configuration AWS now ships by default. The remediation this question used to
+> give — create a dedicated node security group — is the opposite of current guidance, which is why
+> the text was removed rather than reworded.
+>
+> The measurable control that remains in this area is **net-4**: whether the cluster security group's
+> default allow-all egress to `0.0.0.0/0` has been narrowed.
 
 ---
 
@@ -118,16 +124,38 @@ kubectl get daemonset aws-node -n kube-system -o json
 
 ---
 
-### net-4: Are separate security groups used for the control plane and worker nodes?
+### net-4: Has the cluster security group's default allow-all egress been narrowed?
 
 **Detection:** 🔬 AUTO-DETECTABLE
 
-> SG separation enforces network segmentation between control and data planes.
+> EKS creates the cluster security group with a single egress rule permitting all protocols to
+> `0.0.0.0/0`. Every node and every pod using the cluster SG inherits it, so a compromised pod can
+> reach any internet endpoint — the outbound path used for data exfiltration and for pulling a second
+> stage. Narrowing egress to the destinations the workload actually needs removes that path.
 
 **Commands:**
 ```bash
-aws ec2 describe-security-groups --filters Name=vpc-id,Values=<VPC_ID> --region <REGION>
-# Compare cluster SG vs node SGs
+aws ec2 describe-security-groups --group-ids <CLUSTER_SG_ID> --region <REGION> \
+  --query 'SecurityGroups[].IpPermissionsEgress'
+# Passes when no egress rule allows all protocols ("-1") to 0.0.0.0/0.
 ```
 
-**Remediation:** Create separate security groups for worker nodes and the EKS control plane. Do not reuse the cluster security group for node-to-node traffic.
+**Remediation:** Replace the default egress rule on the cluster security group with specific
+destinations. Most clusters need 443 to the VPC endpoints they use (`ecr.api`, `ecr.dkr`, `s3`, `sts`,
+`logs`), plus 443 to the control plane and any external service the workload calls. Removing all
+egress will break image pulls and add-on updates, so add the replacements before revoking:
+
+```bash
+aws ec2 authorize-security-group-egress --group-id <CLUSTER_SG_ID> --region <REGION> \
+  --ip-permissions 'IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges=[{CidrIp=<VPC_CIDR>}]'
+aws ec2 revoke-security-group-egress --group-id <CLUSTER_SG_ID> --region <REGION> \
+  --ip-permissions 'IpProtocol=-1,IpRanges=[{CidrIp=0.0.0.0/0}]'
+```
+
+> **Not what this used to ask.** This question previously asked whether *separate* security groups
+> were used for the control plane and worker nodes, testing whether `securityGroupIds` contained
+> `clusterSecurityGroupId`. That premise was wrong: AWS applies the cluster security group to the
+> control plane *and* to managed compute by design, and it is never a member of the additional-groups
+> list — so the check reported a separation that does not exist on essentially every cluster. AWS
+> further states the old control-plane/node split is "no longer required and can be removed", so the
+> previous remediation advised the opposite of current guidance.

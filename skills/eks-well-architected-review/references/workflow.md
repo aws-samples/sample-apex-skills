@@ -19,6 +19,19 @@ Set up the work directory and collection helpers first:
 ```bash
 set -uo pipefail
 export WORK="$(pwd)/eks-war-<CLUSTER>"; mkdir -p "$WORK"; : > "$WORK/results.jsonl"
+# SKILL_DIR is the skill's own directory, so Steps 7 and 8 can invoke assets/reduce.sh and
+# assets/render-report.py from ANY working directory. `python3 assets/render-report.py` only worked
+# when the shell happened to be sitting in the skill root, which is not where $WORK is.
+#
+# It has to be SET, not derived. A fenced block copied into a shell has no file identity --
+# ${BASH_SOURCE[0]} is empty -- so deriving the path from this file's own location silently resolves to
+# the wrong directory. Step 1 of SKILL.md exports it; this only checks the export happened and points
+# somewhere real, because the alternative is discovering it in Step 8 after the whole collection ran.
+export SKILL_DIR="${SKILL_DIR:?export SKILL_DIR to the absolute path of the eks-well-architected-review directory (the one containing assets/ and references/) — see SKILL.md Step 1}"
+[ -x "$SKILL_DIR/assets/reduce.sh" ] && [ -f "$SKILL_DIR/assets/render-report.py" ] || {
+  echo "SKILL_DIR=$SKILL_DIR does not contain assets/reduce.sh and assets/render-report.py." >&2
+  echo "Point it at the skill directory itself, not its parent and not \$WORK." >&2
+  return 1 2>/dev/null || exit 1; }
 # Clear any PREVIOUS run's collection before starting. `awsjson`/`kjson` only ever write on
 # success, so a stale file from an earlier run silently satisfies a call that fails this time —
 # and the validation gate, whose entire purpose is to refuse un-collected data, then passes on
@@ -29,6 +42,23 @@ export AWS_PAGER=""            # never page
 # export AWS_PROFILE=<PROFILE> # uncomment if you use a named profile
 
 COLLECT_ERRORS=0              # incremented on any hard failure; checked by the validation gate
+
+# ── CLUSTER IDENTITY BINDING (REQUIRED) ────────────────────────────────────────────────────────────
+# The AWS half of this review comes from `aws eks describe-cluster --name $CLUSTER`, and the
+# Kubernetes half from whatever `kubectl` happens to point at. NOTHING previously tied those together.
+# A reviewer with several clusters in their kubeconfig could collect the control-plane facts from
+# cluster A and every pod, node and RBAC object from cluster B, and the validation gate would pass:
+# every REQUIRED file present, all valid JSON, `cluster.version` set, `namespaces.json` non-empty. The
+# resulting report names cluster A and grades cluster B's workloads.
+#
+# KCTX is mandatory and has no default. `kubectl config current-context` is deliberately NOT used as a
+# fallback: an unattended run would then silently inherit whatever context was last selected, which is
+# the failure this binding exists to prevent.
+export KCTX="${KCTX:?set KCTX to the kubectl context for this cluster — e.g. export KCTX=\$(kubectl config current-context)}"
+
+# kctl : every kubectl call in this file goes through here, so the context cannot be forgotten on one
+# of them. A binding enforced on some calls is not a binding.
+kctl() { kubectl --context "$KCTX" "$@"; }
 
 # firstline <file> : the first NON-EMPTY line of a captured stderr.
 # `head -1` loses the reason whenever stderr opens with a blank line or a deprecation warning,
@@ -61,12 +91,12 @@ kjson() {
   local out="$1"; shift
   local tmp="$out.tmp" n=0
   while :; do
-    if kubectl get "$@" -o json >"$tmp" 2>"$tmp.err" && jq -e . "$tmp" >/dev/null 2>&1; then
+    if kctl get "$@" -o json >"$tmp" 2>"$tmp.err" && jq -e . "$tmp" >/dev/null 2>&1; then
       mv "$tmp" "$out"; rm -f "$tmp.err"; return 0
     fi
     n=$((n+1))
     if [ "$n" -ge 3 ]; then
-      echo "ERROR: kubectl get $* failed: $(firstline "$tmp.err")" >&2
+      echo "ERROR: kubectl --context $KCTX get $* failed: $(firstline "$tmp.err")" >&2
       rm -f "$tmp" "$tmp.err"; COLLECT_ERRORS=$((COLLECT_ERRORS+1)); return 1
     fi
     sleep $((n*2))
@@ -78,13 +108,13 @@ kjson() {
 kjson_optional() {
   local out="$1"; shift
   local tmp="$out.tmp"
-  if kubectl get "$@" -o json >"$tmp" 2>"$tmp.err" && jq -e . "$tmp" >/dev/null 2>&1; then
+  if kctl get "$@" -o json >"$tmp" 2>"$tmp.err" && jq -e . "$tmp" >/dev/null 2>&1; then
     mv "$tmp" "$out"; rm -f "$tmp.err"; return 0
   fi
   if grep -qiE "the server doesn't have a resource type|could not find (the )?requested resource|Unknown resource|NotFound" "$tmp.err" 2>/dev/null; then
     echo '{"items":[]}' >"$out"; rm -f "$tmp" "$tmp.err"; return 0   # CRD genuinely absent → empty is correct
   fi
-  echo "ERROR: kubectl get $* failed (not a missing-CRD error): $(firstline "$tmp.err")" >&2
+  echo "ERROR: kubectl --context $KCTX get $* failed (not a missing-CRD error): $(firstline "$tmp.err")" >&2
   rm -f "$tmp" "$tmp.err"; COLLECT_ERRORS=$((COLLECT_ERRORS+1)); return 1
 }
 ```
@@ -113,6 +143,34 @@ awsjson "$WORK/podidentity.json" -- aws eks list-pod-identity-associations --clu
 awsjson "$WORK/oidcproviders.json" -- aws iam list-open-id-connect-providers --output json
 
 export VPC=$(jq -r '.cluster.resourcesVpcConfig.vpcId // empty' "$WORK/cluster.json")
+
+# ── IDENTITY CROSS-CHECK: does $KCTX actually point at $CLUSTER? ────────────────────────────────────
+# Runs HERE — after cluster.json exists, before the first `kubectl get` — so a mismatch costs one AWS
+# call rather than a full collection and a wrong report.
+#
+# Compare API server ENDPOINTS, not context names. A context name is user-renameable and often not the
+# cluster ARN, so matching on it produces false alarms; the endpoint is assigned by EKS and unique per
+# cluster. `kubectl config view --minify` resolves the server URL for the selected context only.
+K_ENDPOINT=$(kubectl --context "$KCTX" config view --minify -o jsonpath='{.clusters[0].cluster.server}' 2>/dev/null)
+A_ENDPOINT=$(jq -r '.cluster.endpoint // empty' "$WORK/cluster.json")
+if [ -z "$K_ENDPOINT" ] || [ -z "$A_ENDPOINT" ]; then
+  echo "ERROR: cannot verify cluster identity — kubeconfig server='$K_ENDPOINT', describe-cluster endpoint='$A_ENDPOINT'." >&2
+  echo "       Refusing to collect: an unverified binding is how the AWS half and the kubectl half end up" >&2
+  echo "       describing different clusters." >&2
+  COLLECT_ERRORS=$((COLLECT_ERRORS+1))
+elif [ "${K_ENDPOINT%/}" != "${A_ENDPOINT%/}" ]; then
+  echo "ERROR: CLUSTER MISMATCH — refusing to collect." >&2
+  echo "       kubectl context '$KCTX' points at : $K_ENDPOINT" >&2
+  echo "       aws describe-cluster '$CLUSTER' is: $A_ENDPOINT" >&2
+  echo "       The report would name '$CLUSTER' while grading a different cluster's workloads." >&2
+  echo "       Fix with: aws eks update-kubeconfig --name $CLUSTER --region $REGION --alias $CLUSTER" >&2
+  COLLECT_ERRORS=$((COLLECT_ERRORS+1))
+else
+  echo "OK: kubectl context '$KCTX' and cluster '$CLUSTER' both resolve to $A_ENDPOINT"
+fi
+# Abort now rather than at the validation gate: every kubectl call after this point would collect the
+# wrong cluster's data, and the gate cannot tell whose data it is looking at.
+[ "$COLLECT_ERRORS" -eq 0 ] || { echo "Aborting collection." >&2; return 1 2>/dev/null || exit 1; }
 [ -n "$VPC" ] || { echo "ERROR: could not read VPC id from cluster.json — aborting (cluster describe failed?)" >&2; COLLECT_ERRORS=$((COLLECT_ERRORS+1)); }
 
 # per nodegroup / addon (detail only; not read by scorers, so best-effort with a warning)
@@ -148,6 +206,13 @@ Canonical short names used by the scorers (aliases created for convenience):
 ln -sf validatingwebhookconfigurations.json "$WORK/validatingwebhooks.json"
 ln -sf mutatingwebhookconfigurations.json "$WORK/mutatingwebhooks.json"
 # Kyverno / Gatekeeper policies — optional CRDs; empty only when the CRD is not installed
+# EKS Fargate's documented log router is NOT a sidecar. AWS: "you don't explicitly run a Fluent Bit
+# container as a sidecar, but Amazon runs it for you. All that you have to do is configure the log
+# router" — via a ConfigMap named `aws-logging` in the namespace `aws-observability`. Without collecting
+# it, `fargate-4` can never credit a correctly-configured Fargate cluster. Optional-style because its
+# absence is a legitimate finding, not a collection failure.
+kjson_optional "$WORK/awslogging.json" configmap aws-logging -n aws-observability
+
 kjson_optional "$WORK/kyverno.json"           clusterpolicies.kyverno.io
 kjson_optional "$WORK/constraints.json"       constraints -A
 kjson_optional "$WORK/constrainttemplates.json" constrainttemplates
@@ -193,9 +258,16 @@ for r in $REQUIRED; do
   [ -f "$WORK/$r.json" ] || { INVALID="$INVALID $r.json(NOT COLLECTED)"; continue; }
   jq -e . "$WORK/$r.json" >/dev/null 2>&1 || INVALID="$INVALID $r.json(unparseable)"
 done
-# The Kyverno/Gatekeeper CRD files are the ONLY legitimately-empty ones, but they
-# must still exist as valid JSON so the scorers can read them.
-for r in kyverno constraints constrainttemplates; do
+# The Kyverno/Gatekeeper CRDs and the Fargate log-router ConfigMap are the only legitimately-EMPTY
+# files, but each must still exist as valid JSON so the scorers can read it. awslogging is here and
+# not in REQUIRED because the ConfigMap is genuinely absent on most clusters — but absent-as-an-object
+# and absent-as-a-file are different things: fargate-4 reads it through m3, which ABORTS the whole
+# Operational Excellence block on an unopenable input. A truncated pillar does not fail loudly, it
+# emits fewer questions and the reducer scores what arrived: 16 questions instead of 19, coverage 62%,
+# which still clears the 50% gate. So the pillar publishes a plausible number off two-thirds of its
+# evidence. That is the exact failure this gate exists to prevent, and it was reachable purely because
+# a newly-collected file was never added to either list.
+for r in kyverno constraints constrainttemplates awslogging; do
   [ -f "$WORK/$r.json" ] && jq -e . "$WORK/$r.json" >/dev/null 2>&1 \
     || INVALID="$INVALID $r.json(missing/unparseable; write '{\"items\":[]}' if the CRD is absent)"
 done

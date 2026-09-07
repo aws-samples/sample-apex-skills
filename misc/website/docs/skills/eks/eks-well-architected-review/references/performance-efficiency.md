@@ -36,15 +36,20 @@ m(){ local id="$1" f="$2" p="$3" r st d; r=$(jq -r "$B $p" "$W/$f.json" 2>&1) ||
 
 m perf-1 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select(.resources.requests.cpu and .resources.requests.memory)]|length) as $ok| if $t==0 then "na~no workload containers" else b($ok;$t)+"~\($ok)/\($t) requests (workloads)" end'
 m perf-2 deployments 'if ([.items[]|select(.metadata.name|test("vertical-pod-autoscaler|vpa-recommender|vpa"))]|length)>0 then "all~VPA" else "none~none" end'
-# perf-3 — previous-generation instance share. The family group MUST allow suffix letters before the
-# size separator: written as `...|m[1-5])\.` the pattern only matched the bare family, so every
-# suffixed previous-gen type escaped and was counted as CURRENT generation — m5d, m5n, m5zn, c5a, c5d,
-# c5n, r5b, r5d, r5n, i3en and p3dn, eleven real families, all inflating the score. `[a-z]*` closes it.
-# Two deliberate narrowings that come with that change:
-#   - `t[12]`, not `t[1-3]`: t3 is CURRENT generation. The old pattern flagged `t3` while `t3a` and
-#     `t4g` escaped, so one family was scored three different ways.
-#   - `g[23]`, not `g[34]`: g4dn is not previous generation, and with `[a-z]*` it would now match.
-m perf-3 nodes '[.items[]|.metadata.labels["node.kubernetes.io/instance-type"]//empty] as $it|($it|length) as $t|([$it[]|select(test("^(a1|m[1-5]|c[1-5]|r[3-5]|t[12]|i[23]|d2|h1|x1|p[23]|g[23])[a-z]*\\."))]|length) as $old|($t-$old) as $ok| if ([.items[]]|length)==0 then "na~no nodes" elif $t==0 then "na~no instance types (serverless compute)" else b($ok;$t)+"~\($ok)/\($t) current-generation" end'
+# perf-3 — previous-generation instance share, pinned to AWS's ACTUAL published list.
+# AWS, ec2/latest/instancetypes/instance-types.html "Previous generation instances":
+#   General purpose  A1 | M1 | M2 | M3 | M4 | T1
+#   Compute          C1 | C3 | C4
+#   Memory           R3 | R4
+#   Storage          I2
+#   Accelerated      G3 | P3 | P3dn
+# The previous pattern also flagged m5, c5, r5, t2, i3, d2, h1, x1, p2 and g2 — TEN families AWS lists
+# as CURRENT generation. Because the report prints the words "current-generation" to a customer, that
+# was a factual error in customer-facing output, not an internal threshold choice: an all-m5 fleet was
+# told 0/N of its nodes were current generation.
+# `[a-z]*` before the dot keeps suffixed members of a genuinely previous-gen family (p3dn, m3 variants)
+# while `m[1-4]`/`c1|c3|c4`/`t1` deliberately exclude m5, c5 and t2.
+m perf-3 nodes '[.items[]|.metadata.labels["node.kubernetes.io/instance-type"]//empty] as $it|($it|length) as $t|([$it[]|select(test("^(a1|m[1-4]|t1|c1|c3|c4|r3|r4|i2|g3|p3)[a-z]*\\."))]|length) as $old|($t-$old) as $ok| if ([.items[]]|length)==0 then "na~no nodes" elif $t==0 then "na~no instance types (serverless compute)" else b($ok;$t)+"~\($ok)/\($t) current-generation" end'
 m perf-4 deployments '[.items[]|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $d|($d|length) as $t|([$d[]|select(.spec.strategy.type=="RollingUpdate" or .spec.strategy.type==null)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) rolling"'
 m perf-5 deployments '[.items[]|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $d|($d|length) as $t|([$d[]|select(.spec.template.spec.affinity or ((.spec.template.spec.topologySpreadConstraints//[])|length>0))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) scheduling"'
 m perf-6 nodes '([.items[]|.metadata.labels["node.kubernetes.io/instance-type"]//empty]|unique|length) as $d| if ([.items[]]|length)==0 then "na~no nodes" elif $d==0 then "na~no instance types (serverless compute)" elif $d>=3 then "all~\($d) types" elif $d==2 then "most~2 types" else "some~1 type" end'
@@ -141,7 +146,7 @@ kubectl get nodes -o json
 
 ### perf-4: Do deployments use RollingUpdate strategy for zero-downtime updates?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Rolling updates maintain performance during deployments by keeping pods available.
 
@@ -150,7 +155,7 @@ kubectl get nodes -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Set `strategy.type: RollingUpdate` on all Deployments with appropriate `maxUnavailable` and `maxSurge` values for zero-downtime updates.
 
@@ -158,7 +163,7 @@ kubectl get nodes -o json
 
 ### perf-5: Are pod affinity, anti-affinity, or topology spread constraints configured?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Scheduling constraints optimize pod placement for performance and availability.
 
@@ -167,7 +172,7 @@ kubectl get nodes -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Configure pod affinity/anti-affinity and topology spread constraints to optimize pod placement across nodes and zones.
 
@@ -177,7 +182,7 @@ kubectl get nodes -o json
 
 ### perf-6: Is there diversity in EC2 instance types across node groups?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Instance type diversity reduces Spot interruption risk and improves bin-packing.
 
@@ -186,7 +191,7 @@ kubectl get nodes -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Use multiple instance types across node groups to improve bin-packing and reduce Spot interruption risk. Mix instance families (m5, m6i, m7g).
 
@@ -205,13 +210,19 @@ kubectl get nodes -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Right-size nodes based on actual utilization. Target 60-80% CPU and memory utilization. Use Karpenter for automatic instance type selection.
 
 ---
 
 ## EKS Best Practices
+
+> Questions prefixed `lens-` come from the **EKS Best Practices Guides**
+> (aws.github.io/aws-eks-best-practices) and the EKS User Guide, not from the AWS
+> Well-Architected Framework's own question set. They are scored the same way and reported
+> alongside the Framework questions because they measure the same properties on EKS
+> specifically; the prefix is what distinguishes their source.
 
 ### lens-5: Do pods use Kubernetes standard labels (app.kubernetes.io/name)?
 

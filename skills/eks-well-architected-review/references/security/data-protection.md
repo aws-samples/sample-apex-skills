@@ -5,7 +5,7 @@
 > **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access.md).**
 > The per-question `Detection:` tags below are explanatory only; the scorer decides measured vs governance.
 
-Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`. ASK USER responses: "Yes, fully" → `all`, "Mostly" → `most`, "Partially" → `some`, "No" → `none`, "Doesn't apply" → `not-applicable`.
+Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`. ASK USER responses: "Yes, fully" → `all`, "Mostly" → `most`, "Partially" → `some`, "No" → `none`, "Doesn't apply" → `na`.
 
 ---
 
@@ -71,7 +71,23 @@ aws ec2 describe-volumes --region <REGION> --query "Volumes[].Encrypted"
 aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.encryptionConfig"
 ```
 
-**Remediation:** Encrypt EBS volumes: `aws ec2 modify-volume --volume-id <id> --encrypted`. Update StorageClass with `encrypted: "true"`.
+**Remediation:** EBS volumes **cannot be encrypted in place** — `ModifyVolume` has no encryption
+parameter, and AWS states "You can't directly encrypt existing unencrypted volumes or snapshots." For
+each existing unencrypted volume: snapshot it, create an encrypted volume from the snapshot, then
+detach the old volume and attach the new one (this needs downtime for the pod using that volume).
+
+```bash
+aws ec2 create-snapshot --volume-id <vol-id> --description "pre-encryption"
+aws ec2 create-volume --snapshot-id <snap-id> --availability-zone <az> \
+  --encrypted --kms-key-id <key-arn> --volume-type gp3
+```
+
+To stop it recurring, turn on account-level default encryption so *new* volumes are always encrypted,
+and set `encrypted: "true"` in the StorageClass so dynamically provisioned volumes are covered:
+
+```bash
+aws ec2 enable-ebs-encryption-by-default --region <region>
+```
 
 ---
 

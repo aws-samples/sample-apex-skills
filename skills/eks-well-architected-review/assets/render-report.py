@@ -109,6 +109,11 @@ def load(work):
             sys.exit(f"render-report: {p} is not valid JSON ({exc}) — refusing to render a "
                      f"report from data the scorers could not have read either")
 
+    import datetime
+    collected = datetime.datetime.utcfromtimestamp(
+        (work / "results.jsonl").stat().st_mtime).strftime("%Y-%m-%d %H:%M UTC") \
+        if (work / "results.jsonl").exists() else "unknown"
+
     scores = j("scores.json")
     results = []
     rp = work / "results.jsonl"
@@ -131,6 +136,7 @@ def load(work):
         "scores": scores,
         "results": results,
         "raw": raw,
+        "collected": collected,
         "cluster": j("cluster.json", {}).get("cluster", {}),
         "nodes": j("nodes.json", {"items": []}).get("items", []),
         "fargate": j("fargate.json", {}).get("fargateProfileNames", []),
@@ -301,9 +307,15 @@ def _res_volumes(d, want_encrypted=True):
     for v in mine:
         vid = f'{v.get("VolumeId","?")} ({v.get("Size","?")} GiB, {v.get("VolumeType","?")})'
         (p if v.get("Encrypted") else f).append(vid)
+    # The scoping rule is what the reader needs to check here, not the identity of other workloads'
+    # disks. Listing up to 10 out-of-scope volume IDs put account-scoped identifiers for resources
+    # OUTSIDE the review into a report written to be emailed and pasted into tickets. The count still
+    # proves the exclusion happened and is still falsifiable against `describe-volumes`.
     return {"pass": sorted(p), "fail": sorted(f),
-            "context": sorted(others)[:10],
-            "context_label": "volumes in the VPC NOT tagged to this cluster (correctly excluded)"}
+            "context": ([f"{len(others)} volume(s) in the VPC are not tagged to this cluster and were "
+                         f"excluded from the score (identifiers omitted \u2014 they belong to workloads "
+                         f"outside this review)"] if others else []),
+            "context_label": "scope of this check"}
 
 
 def _res_unattached(d):
@@ -316,7 +328,13 @@ def _res_unattached(d):
     for v in mine:
         vid = f'{v.get("VolumeId","?")} ({v.get("State","?")})'
         (p if v.get("State") != "available" else f).append(vid)
-    return {"pass": sorted(p), "fail": sorted(f)}
+    # Labels stated explicitly rather than defaulted, because "passing" on this check means the volume
+    # is IN USE. The scorer used to emit failures/total ("1/4 unattached") while this list counts
+    # passes, so the two disagreed on direction: guaranteed a false contradiction whenever idle was not
+    # exactly half, and a false agreement when it was. The scorer now emits passes/total.
+    return {"pass": sorted(p), "fail": sorted(f),
+            "pass_label": "Attached, doing work",
+            "fail_label": "Unattached and still billing"}
 
 
 def _res_sg(d, ok):
@@ -345,9 +363,25 @@ def _sg_clean(g):
 
 
 def _sg_no_ssh(g):
+    """IpProtocol "-1" means ALL protocols on ALL ports and carries NO FromPort/ToPort (both are
+    `Required: No` in the EC2 API). The old `lo <= 22 <= hi` test therefore read 0 <= 22 <= 0, which is
+    false, and a security group open to the entire internet on every port PASSED this High-severity
+    SSH check. Twin of the scorer in references/security/identity-access.md — change both together.
+
+    The source of the rule must be 0.0.0.0/0, exactly as the scorer requires
+    (`.IpRanges[]?.CidrIp=="0.0.0.0/0"`). Accepting any non-empty IpRanges OR UserIdGroupPairs
+    diverged from it in two ways, both of which listed a security group as "counted as failing"
+    underneath a panel the scorer had marked Pass:
+      - EKS's own default cluster SG carries an ALL-protocols rule whose source is the SG itself
+        (`UserIdGroupPairs`, described "Allows EFA traffic, which is not matched by CIDR rules")
+        with `IpRanges: []`. That is self-referencing node-to-node traffic, not internet exposure.
+      - An SSH rule correctly narrowed to a private CIDR such as 10.0.0.0/8 was flagged too, so
+        the customers who had done exactly the right thing saw their SG named as the problem."""
     for perm in g.get("IpPermissions") or []:
         lo, hi = perm.get("FromPort") or 0, perm.get("ToPort") or 0
-        if lo <= 22 <= hi and (perm.get("IpRanges") or perm.get("UserIdGroupPairs")):
+        covers_22 = perm.get("IpProtocol") == "-1" or lo <= 22 <= hi
+        world_open = any(r.get("CidrIp") == "0.0.0.0/0" for r in (perm.get("IpRanges") or []))
+        if covers_22 and world_open:
             return False
     return True
 
@@ -370,11 +404,27 @@ def _res_subnets(d, ok, label):
 
 
 def _subnet_private(s, rts):
-    for rt in rts:
-        if not any(a.get("SubnetId") == s.get("SubnetId") for a in rt.get("Associations") or []):
-            continue
-        return not any(r.get("GatewayId", "").startswith("igw-") for r in rt.get("Routes") or [])
-    return True
+    """A subnet is private when its route table has no route to an internet gateway.
+
+    THE MAIN-TABLE FALLBACK IS THE WHOLE POINT. AWS: "You can explicitly associate a subnet with a
+    particular route table. Otherwise, the subnet is implicitly associated with the main route table."
+    An implicitly-associated subnet returns an EMPTY per-subnet association list, so the earlier version
+    of this function fell through its loop and returned True for every such subnet — which is why it
+    disagreed with the scorer and got replaced by a MapPublicIpOnLaunch proxy. The proxy was the wrong
+    fix: auto-assign-public-IP can be false while the subnet still routes 0.0.0.0/0 to an IGW.
+
+    Unresolvable table -> NOT private. Never claim private without evidence.
+    Twin of the m3 lens-15 scorer in references/reliability.md — change both together."""
+    sid = s.get("SubnetId")
+    table = next((rt for rt in rts
+                  if any(a.get("SubnetId") == sid for a in rt.get("Associations") or [])), None)
+    if table is None:
+        table = next((rt for rt in rts
+                      if any(a.get("Main") is True for a in rt.get("Associations") or [])), None)
+    if table is None:
+        return False
+    return not any((r.get("GatewayId") or "").startswith("igw-")
+                   for r in table.get("Routes") or [])
 
 
 def _res_nodes(d, ok, extra=None):
@@ -453,8 +503,8 @@ def _res_pdb_coverage(d):
     """rel-2: match PDB selectors against each Deployment's pod-template labels.
 
     Denominator is DEPLOYMENTS, not namespaces — a namespace-level check read 0/4 where the scorer
-    said 0/8. This question has also previously compared PDB *cardinality* to Deployment count,
-    so the shape matters more here than anywhere.
+    said 0/8. This is also the exact question CONTEXT.md records as having once compared PDB
+    *cardinality* to Deployment count, so the shape matters more here than anywhere.
     """
     pdbs = _items(d, "pdb")
     p, f = [], []
@@ -633,15 +683,38 @@ def _res_logtypes_audit(d):
 
 
 def _res_net4(d):
+    """net-4 was RESCOPED from "are control-plane and node SGs separate" to "has the cluster SG's
+    default allow-all egress been narrowed". This extractor kept implementing the old premise, so the
+    panel listed the control-plane SGs and explained that the check passes when the cluster SG is
+    absent from them — while the verdict line directly above it read "cluster SG ... still allows ALL
+    egress to 0.0.0.0/0" and the jq printed below it tested IpPermissionsEgress. Three parts of one
+    panel described three different checks. Twin of the net-4 scorer in security/identity-access.md."""
     v = d["cluster"].get("resourcesVpcConfig") or {}
-    cp = v.get("securityGroupIds") or []
     csg = v.get("clusterSecurityGroupId") or ""
-    return {"kind": "field",
-            "pass": [f"{s} (resourcesVpcConfig.securityGroupIds)" for s in cp],
-            "fail": [], "pass_label": "Control plane security groups",
-            "context": [f"{csg} (resourcesVpcConfig.clusterSecurityGroupId)"] if csg else [],
-            "context_label": "cluster security group — the check passes when it is NOT in the "
-                             "list above"}
+    groups = [g for g in ((d["raw"].get("sg") or {}).get("SecurityGroups") or [])
+              if g.get("GroupId") == csg]
+    if not csg:
+        return {"kind": "field", "pass": [], "fail": [],
+                "context": ["no clusterSecurityGroupId on this cluster"],
+                "context_label": "Cluster security group"}
+    if not groups:
+        return {"kind": "field", "pass": [], "fail": [],
+                "context": [f"{csg} (not present in the collected security groups)"],
+                "context_label": "Cluster security group"}
+    openv4, narrowed = [], []
+    for g in groups:
+        for perm in g.get("IpPermissionsEgress") or []:
+            dests = [r.get("CidrIp") for r in (perm.get("IpRanges") or [])]
+            proto = perm.get("IpProtocol")
+            desc = f"{g['GroupId']} egress {'ALL protocols' if proto == '-1' else proto} -> " \
+                   f"{', '.join(d for d in dests if d) or 'security group / prefix list'}"
+            if proto == "-1" and "0.0.0.0/0" in dests:
+                openv4.append(desc + "   <- the default rule this check looks for")
+            else:
+                narrowed.append(desc)
+    return {"kind": "field", "pass": narrowed, "fail": openv4,
+            "pass_label": "Egress rules on the cluster security group",
+            "fail_label": "Counted as failing"}
 
 
 def _res_sec18(d):
@@ -656,8 +729,15 @@ def _res_sec18(d):
             "pass": ([f"IAM OIDC provider: {a}" for a in match]
                      + [f"IRSA ServiceAccount: {s}" for s in sorted(irsa)]),
             "fail": [], "pass_label": "Registered provider and the accounts that depend on it",
+            # list-open-id-connect-providers is ACCOUNT-scoped, so the non-matching entries are other
+            # clusters' providers -- full ARNs, account id included, for workloads outside this
+            # review. What the reader must be able to check is that a provider matching THIS cluster's
+            # issuer was found, and the count establishes that the others were considered and rejected.
             "context": ([f"cluster issuer: {stripped or 'absent'}"]
-                        + [f"other provider in account: {a}" for a in provs if a not in match]),
+                        + ([f"{len([a for a in provs if a not in match])} other IAM OIDC provider(s) "
+                            f"exist in this account and do not match this issuer (identifiers omitted "
+                            f"\u2014 they belong to other clusters)"]
+                           if [a for a in provs if a not in match] else [])),
             "context_label": "matched against"}
 
 
@@ -704,9 +784,7 @@ RESOURCES = {
     "net-2": lambda d: _res_sg(d, _sg_clean),
     "net-1": lambda d: _res_subnets(
         d, lambda s, rt: (s.get("AvailableIpAddressCount") or 0) >= 100, "IP capacity"),
-    # MapPublicIpOnLaunch is what the scorer reads; route-table inspection disagreed 3/3 vs 0/3.
-    "lens-15": lambda d: _res_subnets(
-        d, lambda s, rt: s.get("MapPublicIpOnLaunch") is False, "private addressing"),
+    "lens-15": lambda d: _res_subnets(d, _subnet_private, "private routing"),
     "lens-11": _res_imdsv2,
     "rbac-4": lambda d: (lambda sas: {
         "pass": sorted(_qn(s) for s in sas if s.get("automountServiceAccountToken") is False),
@@ -776,7 +854,7 @@ RESOURCES = {
         and bool(((c.get("resources") or {}).get("requests") or {}).get("memory"))),
     "perf-3": lambda d: _res_nodes(
         d, lambda n: not re.match(
-            r"^(a1|m[1-5]|c[1-5]|r[3-5]|t[12]|i[23]|d2|h1|x1|p[23]|g[23])[a-z]*\.",
+            r"^(a1|m[1-4]|t1|c1|c3|c4|r3|r4|i2|g3|p3)[a-z]*\.",
             _labels(n).get("node.kubernetes.io/instance-type", ""))),
     "perf-6": lambda d: {"pass": sorted({_labels(n).get("node.kubernetes.io/instance-type", "?")
                                          for n in d["nodes"]}), "fail": []},
@@ -794,7 +872,9 @@ RESOURCES = {
     "cost-8": _res_unattached,
     "cost-9": lambda d: _res_storageclasses(
         d, lambda s: (s.get("parameters") or {}).get("type") == "gp3"),
-    # ---- the 17 that previously showed nothing --------------------------------
+    # ---- the checks that previously showed nothing ----------------------------
+    # Not stated as a count: the number drifted from 17 to 18 the moment one was added, and a
+    # stale number in a comment is the same defect as a stale number in the report.
     # A. name-match existence: which object matched, and the pattern it matched against
     "ope-5": lambda d: _res_match(d, "deployments", "prometheus|grafana|cloudwatch"),
     "rel-13": lambda d: _res_match(d, "deployments", "prometheus|grafana|datadog|cloudwatch"),
@@ -947,6 +1027,7 @@ TOKENS_LIGHT = """
   --color-severity-medium:#f89256;
   --color-severity-low:#f2cd54;
   --color-severity-neutral:#656871;
+  --color-text-badge-severity:#f9f9fa;   /* on the dark red/critical chips */
   --color-background-badge-grey:#424650;
   --shadow-container:0 1px 8px 2px rgba(0,7,22,.12);
 """
@@ -995,8 +1076,14 @@ TOKENS_DARK = """
     --color-border-status-success:#2bb534;
     --color-border-status-warning:#fbd332;
     --color-border-status-info:#42b4ff;
-    --color-severity-critical:#d63f38;
+    /* Dark-theme severity chips are LIGHT reds, so light text on them fails WCAG AA: #f9f9fa on
+       #fe6e73 measures 2.59:1 at 12px/700 where 4.5:1 is required, and it was reachable on every
+       failing High row. The text inverts to near-black (6.78:1) rather than darkening the chip,
+       which would have collided with the dark surface behind it. Critical is lifted from #d63f38 --
+       which fails against BOTH text colours (4.31:1 light, 4.08:1 dark) -- to #e0554e, 4.91:1. */
+    --color-severity-critical:#e0554e;
     --color-severity-high:#fe6e73;
+    --color-text-badge-severity:#0f141a;
     --color-background-badge-grey:#656871;
     --shadow-container:0 1px 8px 2px rgba(0,7,22,.6);
 """
@@ -1095,6 +1182,12 @@ code,.mono,td.num{font-family:var(--font-family-monospace)}
 }
 .score-hero .den{color:var(--color-text-body-secondary);font-size:var(--font-size-heading-l)}
 .score-hero .rating{font-size:var(--font-size-heading-s);color:var(--color-text-body-secondary)}
+/* Liveness ratios, per SKILL.md Step 4b: visible beside the score without expanding anything. */
+.score-hero .live{
+  font-size:var(--font-size-body-s);color:var(--color-text-body-secondary);
+  font-family:var(--font-family-monospace);margin-left:auto
+}
+.score-hero .live.bad{color:var(--color-text-status-error);font-weight:var(--font-weight-heavy)}
 
 /* --- Table --- */
 table{width:100%;border-collapse:collapse;font-size:var(--font-size-body-m)}
@@ -1130,8 +1223,8 @@ td.detail{color:var(--color-text-body-secondary);font-family:var(--font-family-m
   font-weight:var(--font-weight-heavy);color:#f9f9fa;background:var(--color-background-badge-grey);
   white-space:nowrap;
 }
-.badge-critical{background:var(--color-severity-critical)}
-.badge-high{background:var(--color-severity-high)}
+.badge-critical{background:var(--color-severity-critical);color:var(--color-text-badge-severity)}
+.badge-high{background:var(--color-severity-high);color:var(--color-text-badge-severity)}
 .badge-medium{background:var(--color-severity-medium);color:#0f141a}
 .badge-low{background:var(--color-severity-low);color:#0f141a}
 .badge-neutral{background:var(--color-severity-neutral)}
@@ -1228,6 +1321,13 @@ ul.reslist.ctx>li{color:var(--color-text-body-secondary)}
 .agree{
   margin-top:var(--space-xs);color:var(--color-text-status-success);
   font-size:11px;font-weight:var(--font-weight-heavy);
+}
+.disagree{
+  margin-top:var(--space-xs);padding:var(--space-xs);
+  background:var(--color-background-status-error);
+  border-left:3px solid var(--color-border-status-error);
+  border-radius:var(--border-radius-badge);
+  color:var(--color-text-status-error);font-size:11px;line-height:16px;
 }
 
 /* Expand all / collapse all */
@@ -1413,6 +1513,11 @@ def bar(score):
             f'<i style="width:{max(0,min(100,score))}%;background:{color}"></i></span>')
 
 
+# Populated by evidence_panel() whenever a resource list contradicts its scorer's own count. main()
+# exits non-zero if it is non-empty, so the guarantee lives in the SHIPPED renderer rather than in a
+# test-harness gate that does not ship with the skill.
+DISAGREEMENTS = []
+
 MAX_LIST = 12   # cap per list; a 40-node / 800-pod cluster would otherwise dominate the page
 
 
@@ -1465,6 +1570,23 @@ def evidence_panel(r, prose, prov, data):
         # the difference between evidence and a confident-looking assertion.
         if agree is True:
             note = f'<div class="agree">&#10003; {e(why)}</div>'
+        elif agree is False:
+            # A list that contradicts its own score is worse than no list. This used to fall through
+            # to `note = ""`, so a contradiction rendered EXACTLY like a not-comparable check and the
+            # run exited 0 — the only signal was the absence of a green tick. The file's own rule is
+            # that absent-by-design must not look like absent-by-accident; this is that rule applied
+            # to the contradicted case. DISAGREEMENTS is checked by main(), which exits non-zero.
+            #
+            # Keyed by question id because a question that appears in BOTH Top priorities and its
+            # pillar table renders this panel twice, and appending twice made the banner and the
+            # stderr line report "2 finding(s)" for one contradicted question, listing it twice. That
+            # is the same defect CONTEXT.md §4g records for the deleted drift counter: a number and
+            # the thing it counts, never asserted against each other.
+            if r["id"] not in {q for q, _ in DISAGREEMENTS}:
+                DISAGREEMENTS.append((r["id"], why))
+            note = ('<div class="disagree">&#9888; <strong>Unverified:</strong> this list does not '
+                    f'match the count the check reported ({e(why)}). Treat both the list and the '
+                    'result as unconfirmed and re-run the detection.</div>')
         elif res.get("kind") == "existence":
             note = ('<div class="unverified">This check answers yes/no rather than counting, so '
                     "there is no total for the report to check this list against. Worth confirming "
@@ -1475,7 +1597,15 @@ def evidence_panel(r, prose, prov, data):
                     "objects. The field paths and their values are printed above so the verdict is "
                     "checkable directly; there is no total to cross-check.</div>")
         else:
-            note = ""
+            # An honest default, NOT "". A list with no note rendered exactly like a cross-checked
+            # one, so the strongest and the weakest evidence in the report looked identical — and
+            # that is what hid a real scorer/extractor divergence on sec-30, whose detail
+            # ("no ssh open (cluster SGs)") carries no N/M and whose extractor set no `kind`, so the
+            # contradicted list fell through to here and rendered clean at exit 0.
+            note = ('<div class="unverified">The check reported a result rather than a countable '
+                    "total, so the report cannot cross-check this list against it. The list is what "
+                    "the detection looked at; confirm it matches what you expect to be in "
+                    "scope.</div>")
         rows.append(f"<dt>What we found</dt><dd>{body}{note}</dd>")
     else:
         # NEVER a silent omission. Absent-by-design and absent-by-accident must look different, or
@@ -1578,6 +1708,7 @@ def container(title, body, counter=None, desc=None, flush=False):
 # Report
 # ---------------------------------------------------------------------------
 def build(data, prose, prov, toggle=True):
+    del DISAGREEMENTS[:]          # per-render: --both calls build() twice
     sc = data["scores"]
     res = data["results"]
     cl = data["cluster"]
@@ -1589,6 +1720,31 @@ def build(data, prose, prov, toggle=True):
 
     region = (cl.get("arn", "").split(":")[3] if cl.get("arn") else "")
     node_count = len(data["nodes"])
+
+    # ---- liveness (SKILL.md Step 4b) ---------------------------------------------------------------
+    # No scorer reads a readiness condition or a pod phase, so a cluster whose nodes are all NotReady
+    # has complete `spec` sections, passes every spec-side detection, and bands like a healthy one.
+    # Computed HERE, before the hero, because Step 4b requires the ratios beside the score and the
+    # withholding decision to be made from them — they used to be derived ~29 KB further down, in the
+    # Cluster facts container, which is why nothing in the header could react to them.
+    #
+    # Deliberately NOT used to filter any denominator: excluding broken pods from a ratio would make a
+    # cluster that cannot schedule its workload score BETTER. Judge what is declared; disclose what is
+    # actually running.
+    nodes_ready = sum(
+        1 for n in data["nodes"]
+        if any(c.get("type") == "Ready" and c.get("status") == "True"
+               for c in ((n.get("status") or {}).get("conditions") or [])))
+    wl_pods = [p for p in data["pods"]
+               if not SYS_NS.match(((p.get("metadata") or {}).get("namespace") or ""))]
+    pods_running = sum(1 for p in wl_pods if (p.get("status") or {}).get("phase") == "Running")
+    no_node_ready = node_count > 0 and nodes_ready == 0
+    most_pods_down = len(wl_pods) > 0 and pods_running * 2 < len(wl_pods)
+    # A withheld overall stays withheld; a healthy cluster keeps its number. Only the dead-node case
+    # takes a number away, and it is replaced with a stated reason rather than a blank.
+    if no_node_ready and isinstance(overall, (int, float)):
+        overall = "NOT HEALTHY — no node is Ready"
+
     fargate_nodes = sum(1 for n in data["nodes"]
                         if (n.get("metadata", {}).get("labels") or {})
                         .get("eks.amazonaws.com/compute-type") == "fargate")
@@ -1616,14 +1772,51 @@ def build(data, prose, prov, toggle=True):
         'flex-wrap:wrap"><div><h1>Well-Architected review</h1>'
         f'<p>Deterministic review of <code>{e(cl.get("name",""))}</code>. '
         f'{len(measured)} measured questions answered from one data collection; '
-        f'{len(governance)} governance questions are process-only.</p></div>'
+        f'{len(governance)} governance questions are process-only. '
+        f'Data collected {e(data.get("collected","unknown"))}.</p>'
+        '<p class="small muted">Unofficial review &mdash; not the AWS Well-Architected Tool. '
+        'Covers five of the six Well-Architected pillars (no Sustainability). Scores describe '
+        'configuration at collection time, not runtime behaviour or compliance.</p></div>'
         '<div class="bulk" id="bulk" hidden>'
         '<button type="button" data-act="open">Expand all evidence</button>'
         '<button type="button" data-act="close">Collapse all</button>'
         '</div></div>')
 
+    # ---- disagreement banner ---------------------------------------------------------------------
+    # Must appear ABOVE the tables, but is only knowable AFTER them: evidence_panel() is what detects a
+    # contradiction. So reserve the slot now and fill it at the end of build().
+    out.append("<!--DISAGREE_BANNER-->")
+
+    # ---- liveness alerts (SKILL.md Step 4b) --------------------------------
+    # Above the summary, because a score read without them is misleading. Step 4b is explicit that
+    # this is "a disclosure, not a refusal": a cluster mid-upgrade legitimately shows NotReady nodes
+    # and a batch cluster legitimately sits at zero running pods, so the wording states what was
+    # observed and leaves the judgement to the reader.
+    if no_node_ready:
+        out.append(
+            '<div class="alert alert-error"><span class="ico" aria-hidden="true">&#9888;</span>'
+            '<div><h3>NOT HEALTHY &mdash; no node is Ready</h3>'
+            f'<p>{node_count} node(s) exist and <strong>0 are Ready</strong>, so the technical '
+            'overall is withheld: the pillar scores below describe the configuration this cluster '
+            '<em>declares</em>, and nothing here shows whether it can run a workload.</p>'
+            '<p class="small">Pillar scores are still shown, and are still valid as a description of '
+            'declared configuration. A cluster mid-upgrade or mid-scale-up can legitimately look like '
+            'this; check the nodes before reading anything below as a verdict.</p></div></div>')
+    elif most_pods_down:
+        out.append(
+            '<div class="alert alert-warning"><span class="ico" aria-hidden="true">&#9888;</span>'
+            '<div><h3>Fewer than half of the workload pods are Running</h3>'
+            f'<p>{pods_running} of {len(wl_pods)} workload pods are Running. The scores below are '
+            'published, but they measure declared configuration &mdash; a pod that never starts is '
+            'graded on the spec it would have run with.</p>'
+            '<p class="small">Deliberate: filtering the ratios to Running pods would make a cluster '
+            'that cannot schedule its workload score higher, not lower.</p></div></div>')
+
     # ---- alert when the overall is withheld --------------------------------
-    if not isinstance(overall, (int, float)):
+    # `not no_node_ready` because the liveness gate above also replaces the overall with a string, and
+    # this alert would then blame the coverage gate for a withholding the coverage gate did not cause.
+    # Two reasons, two messages: whichever one actually applied is the one shown.
+    if not isinstance(overall, (int, float)) and not no_node_ready:
         insufficient = [n for (k, n) in PILLARS
                         if not isinstance(by_pillar[k].get("score"), (int, float))]
         out.append(
@@ -1636,16 +1829,27 @@ def build(data, prose, prov, toggle=True):
             'pillar detail below is still valid.</p></div></div>')
 
     # ---- executive summary -------------------------------------------------
+    # Step 4b: "Always report the two ratios in the header, healthy or not... A reader must be able to
+    # see `3 nodes (0 Ready)` beside any score without expanding anything." They sit in the hero itself
+    # rather than the facts table so no score can be read without them.
+    live_cls = "live bad" if (no_node_ready or most_pods_down) else "live"
+    live = (f'<span class="{live_cls}">{node_count} node(s) ({nodes_ready} Ready)'
+            f' &middot; {len(wl_pods)} workload pod(s) ({pods_running} Running)</span>')
     if isinstance(overall, (int, float)):
         kind, label = risk(overall)
-        hero = (f'<div class="score-hero"><span class="val">{overall}</span>'
+        hero = (f'<div class="score-hero"><span class="val">{e(overall)}</span>'
                 f'<span class="den">/ 100</span>'
                 f'<span class="rating">{e(rating(overall))}</span>'
-                f'<span>{si(kind, label + " risk")}</span></div>')
+                f'<span>{si(kind, label + " risk")}</span>{live}</div>')
     else:
         hero = f'<div class="score-hero"><span class="val muted">&mdash;</span>' \
-               f'<span class="rating">{e(str(overall))}</span></div>'
+               f'<span class="rating">{e(str(overall))}</span>{live}</div>'
 
+    # Every value taken from scores.json goes through e(), not just the ones sourced from the
+    # cluster. The coverage cell and the governance counts did not, and a scores.json holding
+    # `<script>` had it EXECUTE in the rendered report. scores.json is machine-written, so this
+    # is a consistency defect rather than a live injection path — but it is the kind that stops
+    # being theoretical the moment anything downstream starts editing that file.
     rows = []
     for key, name in PILLARS:
         p = by_pillar[key]
@@ -1659,7 +1863,7 @@ def build(data, prose, prov, toggle=True):
             f'<td>{bar(s)}</td>'
             f'<td>{e(rating(s))}</td>'
             f'<td>{si(rk, rl)}</td>'
-            f'<td class="num">{appl}&thinsp;/&thinsp;{tot}</td></tr>')
+            f'<td class="num">{e(appl)}&thinsp;/&thinsp;{e(tot)}</td></tr>')
     table = (
         '<table><thead><tr><th>Pillar</th><th class="num">Score</th><th></th>'
         '<th>Rating</th><th>Risk</th><th class="num">Coverage</th></tr></thead>'
@@ -1693,18 +1897,16 @@ def build(data, prose, prov, toggle=True):
                  "data it was measured from and the fix.", flush=True))
 
     # ---- cluster facts -----------------------------------------------------
-    workload_pods = sum(
-        1 for p in data["pods"]
-        if not re.match(r"^(kube-|amazon-)", (p.get("metadata", {}).get("namespace") or ""))
-    )
+    # The liveness ratios repeated here for the reader who scrolls to the facts table; the values are
+    # computed once at the top of build() so the header and this table can never disagree.
     facts = [
         ("Cluster", cl.get("name", "—")),
         ("Region", region or "—"),
         ("Kubernetes version", cl.get("version", "—")),
         ("Platform version", cl.get("platformVersion", "—")),
         ("Compute mode", mode),
-        ("Nodes", f"{node_count}"),
-        ("Workload pods", f"{workload_pods}"),
+        ("Nodes", f"{node_count} ({nodes_ready} Ready)"),
+        ("Workload pods", f"{len(wl_pods)} ({pods_running} Running)"),
         ("Support type", cl.get("upgradePolicy", {}).get("supportType", "—")),
         ("Endpoint access", "private only" if cl.get("resourcesVpcConfig", {})
             .get("endpointPublicAccess") is False else "public enabled"),
@@ -1764,7 +1966,7 @@ def build(data, prose, prov, toggle=True):
     if gscore == "Not Assessed" or not governance:
         body = (
             '<div class="alert alert-info"><span class="ico" aria-hidden="true">&#8505;</span>'
-            f'<div><h3>{g.get("answered",0)} of {g.get("total",len(governance))} answered '
+            f'<div><h3>{e(g.get("answered",0))} of {e(g.get("total",len(governance)))} answered '
             '&mdash; Not Assessed</h3>'
             '<p>Governance questions cover process rather than cluster state (upgrade cadence, '
             'change management, environment separation, secret rotation, compliance scanning, '
@@ -1776,7 +1978,7 @@ def build(data, prose, prov, toggle=True):
     else:
         body = (f'<div class="score-hero"><span class="val">{e(gscore)}</span>'
                 f'<span class="den">/ 100</span><span class="rating">'
-                f'{g.get("answered",0)} of {g.get("total",0)} answered</span></div>')
+                f'{e(g.get("answered",0))} of {e(g.get("total",0))} answered</span></div>')
     out.append(container("Governance", body))
 
     # ---- method ------------------------------------------------------------
@@ -1800,12 +2002,45 @@ def build(data, prose, prov, toggle=True):
         '<li>The Cost Optimization score measures cost <em>hygiene</em>. Spot, Graviton and '
         'Extended Support are workload- or date-dependent and are reported as narrative '
         'opportunities, not scored.</li>'
+        '<li><strong>Every pillar score measures configuration present at collection time</strong> '
+        '&mdash; not runtime behaviour, and not compliance with any standard. A pass means the '
+        'setting was found, not that it works, that it is effective, or that it was tested. This '
+        'applies to Security and Reliability exactly as much as to Cost.</li>'
+        '<li><strong>Five of six pillars.</strong> Sustainability is not assessed: it is not '
+        'deterministically observable from cluster state.</li>'
+        '<li><strong>Unofficial.</strong> This is not the AWS Well-Architected Tool and produces no '
+        'AWS-recorded workload review. AWS publishes no Well-Architected lens for Amazon EKS or '
+        'Kubernetes &mdash; the closest official lens, Container Build, covers the container build '
+        'process rather than cluster operation. These questions are this skill&rsquo;s own '
+        'interpretation of Well-Architected guidance applied to EKS.</li>'
+        '<li><strong>Before sharing this report:</strong> it names real infrastructure &mdash; the '
+        'cluster and its region, node and volume identifiers, security group and subnet IDs, IAM role '
+        'and OIDC provider ARNs (which contain the AWS account ID), and workload namespaces and pod '
+        'names. That detail is the point: it is what makes each finding checkable. But it is also '
+        'enough to describe the environment to someone outside it, so treat the file as internal and '
+        'mask the account ID and resource identifiers before sending it anywhere the cluster owner '
+        'would not. Identifiers for resources <em>outside</em> this cluster are already reduced to '
+        'counts rather than named.</li>'
         '</ul>')))
 
     out.append('<footer class="page">Generated locally from collected cluster data. '
                'No data left this machine. Styled with the Cloudscape Design System.</footer>')
     out.append('</div>')
-    return "\n".join(out)
+
+    banner = ""
+    if DISAGREEMENTS:
+        ids = ", ".join(f"<code>{e(q)}</code>" for q, _ in DISAGREEMENTS[:12])
+        more = f" and {len(DISAGREEMENTS) - 12} more" if len(DISAGREEMENTS) > 12 else ""
+        banner = (
+            '<div class="alert alert-error"><span class="ico" aria-hidden="true">&#9888;</span>'
+            f'<div><h3>{len(DISAGREEMENTS)} finding(s) could not be verified</h3>'
+            '<p>For these questions the named resource list does not match the count the detection '
+            f'reported: {ids}{more}.</p>'
+            '<p class="small">A resource list is a second reading of the same collected data, so a '
+            'mismatch means one of the two is wrong and neither should be trusted. Everything else in '
+            'this report is unaffected. The renderer exits non-zero when this banner appears.</p>'
+            '</div></div>')
+    return "\n".join(out).replace("<!--DISAGREE_BANNER-->", banner)
 
 
 def main():
@@ -1857,6 +2092,20 @@ def main():
         out.write_text(doc)
         print(f"wrote {out} ({len(doc):,} bytes, {theme} theme)")
 
+    # Fail the run when any resource list contradicts its own score. The report is still written — it
+    # names the affected questions and carries the banner — but the exit code makes the contradiction
+    # impossible to miss in a pipeline. This is what makes the guarantee true for a consumer holding
+    # only the skill directory, with no test harness.
+    if DISAGREEMENTS:
+        print(f"\nERROR: {len(DISAGREEMENTS)} finding(s) have a resource list that contradicts the "
+              f"count their detection reported:", file=sys.stderr)
+        for qid, why in DISAGREEMENTS:
+            print(f"  {qid}: {why}", file=sys.stderr)
+        print("The report was written and flags them, but do not trust those findings.",
+              file=sys.stderr)
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -5,7 +5,7 @@
 > **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access.md).**
 > The per-question `Detection:` tags below are explanatory only; the scorer decides measured vs governance.
 
-Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`. ASK USER responses: "Yes, fully" → `all`, "Mostly" → `most`, "Partially" → `some`, "No" → `none`, "Doesn't apply" → `not-applicable`.
+Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`. ASK USER responses: "Yes, fully" → `all`, "Mostly" → `most`, "Partially" → `some`, "No" → `none`, "Doesn't apply" → `na`.
 
 ---
 
@@ -45,7 +45,7 @@ kubectl get namespaces -o json
 
 ### sec-16: Do you leverage Pod Security Standards, Pod Security Policies, or admission controllers to restrict Pod actions and enforce security controls?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Assess the implementation of Pod-level security policies and admission control.
 
@@ -247,8 +247,63 @@ aws ec2 describe-instances --filters "Name=tag:kubernetes.io/cluster/<CLUSTER>,V
 
 ### sec-33: Do you implement runtime security monitoring (Falco, GuardDuty for EKS, Sysdig)?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Runtime monitoring detects suspicious container behavior.
 
 **Remediation:** Deploy GuardDuty for EKS: enable in the GuardDuty console under EKS Protection. Alternatively, deploy Falco: `helm install falco falcosecurity/falco`.
+
+---
+
+## Image supply chain
+
+> Moved here from Cost Optimization. Both questions are ECR controls that limit what can enter
+> the cluster, which the EKS Best Practices Guides cover under Security / Image Security. Scored
+> in the consolidated Security scorer in [identity-access.md](identity-access.md).
+
+### lens-12: Do ECR repositories have scan-on-push enabled?
+
+**Detection:** 🔬 AUTO-DETECTABLE
+
+> Image scanning detects vulnerabilities before deployment.
+
+**Commands:**
+```bash
+aws ecr describe-repositories --region <REGION> --query "repositories[].imageScanningConfiguration.scanOnPush"
+```
+
+**Analysis:** Use percentage-based scoring where applicable:
+- ≥90% compliance → `all`
+- ≥70% compliance → `most`
+- >0% compliance → `some`
+- 0% compliance → `none`
+- For boolean: present/true → `all`, absent/false → `none`
+
+**Remediation:** Enable scan-on-push for ECR repositories: `aws ecr put-image-scanning-configuration --repository-name <name> --image-scanning-configuration scanOnPush=true`.
+
+---
+
+---
+
+### lens-13: Do ECR repositories use immutable image tags?
+
+**Detection:** 🔬 AUTO-DETECTABLE
+
+> Immutable tags prevent tag overwriting and ensure deployment reproducibility.
+
+**Commands:**
+```bash
+aws ecr describe-repositories --region <REGION> --query "repositories[].imageTagMutability"
+# Check for IMMUTABLE
+```
+
+**Analysis:** Use percentage-based scoring where applicable:
+- ≥90% compliance → `all`
+- ≥70% compliance → `most`
+- >0% compliance → `some`
+- 0% compliance → `none`
+- For boolean: present/true → `all`, absent/false → `none`
+
+**Remediation:** Enable immutable tags for ECR repositories: `aws ecr put-image-tag-mutability --repository-name <name> --image-tag-mutability IMMUTABLE`.
+
+---

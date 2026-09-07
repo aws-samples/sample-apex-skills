@@ -82,5 +82,9 @@
   {
     "query": "Harden our EKS cluster for FedRAMP Moderate \u2014 Bottlerocket vs CIS-hardened AL2023, GuardDuty, image signing, audit logging.",
     "should_trigger": false
+  },
+  {
+    "query": "run a Well-Architected review against our live EKS cluster and score the five pillars",
+    "should_trigger": false
   }
 ]

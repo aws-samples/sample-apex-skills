@@ -23,6 +23,8 @@ emit(){ printf '{"pillar":"reliability","id":"%s","track":"%s","state":"%s","det
 g(){ emit "$1" governance unknown ""; }
 m(){ local id="$1" f="$2" p="$3" r st d; r=$(jq -r "$B $p" "$W/$f.json" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed — a missing or malformed collection file is NOT a finding, and must never be scored as one. jq said: %s\n' "$id" "$r" >&2; exit 1; }; [ -n "$r" ] || { printf 'SCORER ABORT [%s]: jq produced no output\n' "$id" >&2; exit 1; }; st="${r%%~*}"; d="${r#*~}"; [ "$r" = "$st" ]&&d=""; emit "$id" measured "${st:-none}" "$d"; }
 m2(){ local id="$1" f1="$2" f2="$3" p="$4" r st d; r=$(jq -r "$B $p" "$W/$f1.json" "$W/$f2.json" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed — a missing or malformed collection file is NOT a finding, and must never be scored as one. jq said: %s\n' "$id" "$r" >&2; exit 1; }; [ -n "$r" ] || { printf 'SCORER ABORT [%s]: jq produced no output\n' "$id" >&2; exit 1; }; st="${r%%~*}"; d="${r#*~}"; [ "$r" = "$st" ]&&d=""; emit "$id" measured "${st:-none}" "$d"; }
+# Three inputs, for lens-15: subnets + cluster (for scoping) + route tables (for the real test).
+m3(){ local id="$1" f1="$2" f2="$3" f3="$4" p="$5" r st d; r=$(jq -r "$B $p" "$W/$f1.json" "$W/$f2.json" "$W/$f3.json" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed — a missing or malformed collection file is NOT a finding, and must never be scored as one. jq said: %s\n' "$id" "$r" >&2; exit 1; }; [ -n "$r" ] || { printf 'SCORER ABORT [%s]: jq produced no output\n' "$id" >&2; exit 1; }; st="${r%%~*}"; d="${r#*~}"; [ "$r" = "$st" ]&&d=""; emit "$id" measured "${st:-none}" "$d"; }
 
 m rel-1 nodes '([.items[]|.metadata.labels["topology.kubernetes.io/zone"]//empty]|unique|length) as $z| if ([.items[]]|length)==0 then "na~no nodes" elif $z>=3 then "all~\($z) AZs" elif $z==2 then "most~2 AZs" elif $z>=1 then "some~1 AZ" else "none~0" end'
 m2 rel-2 pdb deployments 'input as $d|[.items[]?] as $pdbs|[$d.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $deps|($deps|length) as $t|([$deps[]|. as $dep|(($dep.spec.template.metadata.labels)//{}) as $lb|select([$pdbs[]|select(.metadata.namespace==$dep.metadata.namespace)|(((.spec.selector.matchLabels)//{})|to_entries) as $sel|select(($sel|length)>0 and ($sel|all($lb[.key]==.value)))]|length>0)]|length) as $ok| if $t==0 then "na~no deploys" else b($ok;$t)+"~\($ok)/\($t) deploys covered by PDB" end'
@@ -50,7 +52,17 @@ m rel-23 deployments 'if ([.items[]|select(.metadata.name|test("jaeger|tempo|x-r
 m2 lens-2 daemonsets cluster 'input as $cl| if ($cl.cluster.computeConfig.enabled==true) then "all~auto mode caches DNS on the node" elif ([.items[]?]|length)==0 then "na~no DaemonSets possible (serverless compute)" elif ([.items[]|select(.metadata.name|test("nodelocaldns|node-local-dns"))]|length)>0 then "all~nodelocal dns" else "none~none" end'
 m lens-3 deployments 'if ([.items[]|select(.metadata.name|test("dns-autoscaler|proportional-autoscaler"))]|length)>0 then "all~coredns autoscaler" else "none~none" end'
 m2 lens-14 nat nodes 'input as $n|([.NatGateways[]?|select(.State=="available")]|length) as $nat|([$n.items[]|.metadata.labels["topology.kubernetes.io/zone"]//empty]|unique|length) as $az| if $az==0 then "na~no nodes" elif $nat>=$az then "all~\($nat) NAT/\($az) AZ" elif $nat>0 then "some~\($nat) NAT/\($az) AZ" else "none~0 NAT" end'
-m2 lens-15 subnets cluster 'input as $cl|(($cl.cluster.resourcesVpcConfig.subnetIds)//[]) as $own|[.Subnets[]?|select(($own|length)==0 or (.SubnetId as $id|$own|index($id)))] as $s|($s|length) as $t|([$s[]|select(.MapPublicIpOnLaunch==false)]|length) as $ok| if $t==0 then "na~no cluster subnets" else b($ok;$t)+"~\($ok)/\($t) private (cluster subnets)" end'
+# lens-15 — a subnet is PRIVATE when its route table has no route to an internet gateway. AWS:
+# "You can explicitly associate a subnet with a particular route table. Otherwise, the subnet is
+# implicitly associated with the main route table." So the algorithm needs the MAIN-TABLE FALLBACK:
+# an implicitly-associated subnet returns an EMPTY per-subnet association list, and a naive lookup
+# therefore finds nothing and silently mis-scores it.
+# This previously tested MapPublicIpOnLaunch, which is auto-assign-public-IP — a proxy, not the
+# definition. A subnet can have it false and still route 0.0.0.0/0 to an IGW, so the proxy false-PASSES
+# on a weight-3 question. An earlier route-table attempt was abandoned because it "disagreed 3/3";
+# that disagreement was the missing main-table fallback, not evidence against the correct rule.
+# A subnet whose table cannot be resolved counts as NOT private: never claim private without evidence.
+m3 lens-15 subnets cluster routetables 'input as $cl|input as $rt|(($cl.cluster.resourcesVpcConfig.subnetIds)//[]) as $own|[.Subnets[]?|select(($own|length)==0 or (.SubnetId as $id|$own|index($id)))] as $s|($s|length) as $t|([$rt.RouteTables[]?|select([.Associations[]?|select(.Main==true)]|length>0)]|first) as $main|([$s[]|.SubnetId as $sid|((([$rt.RouteTables[]?|select([.Associations[]?|select(.SubnetId==$sid)]|length>0)]|first)) // $main) as $tbl|select(($tbl!=null) and (([$tbl.Routes[]?|select((.GatewayId//"")|startswith("igw-"))]|length)==0))]|length) as $ok| if $t==0 then "na~no cluster subnets" else b($ok;$t)+"~\($ok)/\($t) private (no IGW route, cluster subnets)" end'
 ```
 
 **Governance (interview in `interactive` mode):** rel-10/rel-12 (volume snapshot/backup policy), rel-14
@@ -283,7 +295,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Install the EBS CSI Driver snapshot controller and create a VolumeSnapshotClass to enable automated PV backups.
 
@@ -291,7 +303,7 @@ kubectl get deployments -A -o json
 
 ### rel-11: Are PersistentVolumeClaims in a Bound state?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Unbound PVCs indicate storage provisioning failures that could affect workloads.
 
@@ -300,7 +312,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Investigate unbound PVCs. Note that `--field-selector status.phase!=Bound` does
 **not** work on PersistentVolumeClaims — Kubernetes registers only `metadata.name` and
@@ -330,7 +342,7 @@ requested capacity is available.
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Create VolumeSnapshot CronJobs for automated backups. Configure retention policies to manage snapshot lifecycle.
 
@@ -372,7 +384,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Scale ingress controllers to 2+ replicas: `kubectl scale deployment <ingress-controller> --replicas=3`. Add PDB with minAvailable=1.
 
@@ -389,7 +401,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Use Service type LoadBalancer for external traffic. Deploy AWS Load Balancer Controller for ALB/NLB integration.
 
@@ -397,7 +409,7 @@ kubectl get deployments -A -o json
 
 ### rel-16: Is a service mesh deployed for traffic management and circuit breaking?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Service meshes provide retry logic, circuit breaking, and traffic shifting.
 
@@ -406,7 +418,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Deploy Istio or Linkerd for traffic management with circuit breaking, retries, and traffic shifting capabilities.
 
@@ -423,7 +435,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Verify CoreDNS is running: `kubectl get pods -n kube-system -l k8s-app=kube-dns`. Deploy External DNS for automatic Route53 management.
 
@@ -454,7 +466,7 @@ kubectl get deployments -A -o json
 
 ### rel-19: Do DaemonSets use RollingUpdate strategy?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Rolling updates for DaemonSets prevent all node agents from restarting simultaneously.
 
@@ -463,7 +475,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Set `updateStrategy.type: RollingUpdate` on DaemonSets with `maxUnavailable: 1` to prevent all node agents from restarting simultaneously.
 
@@ -473,7 +485,7 @@ kubectl get deployments -A -o json
 
 ### rel-20: Do DaemonSet containers have resource requests and limits set?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Resource constraints on DaemonSets prevent them from starving workload pods.
 
@@ -482,7 +494,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Add resource requests and limits to all DaemonSet containers to prevent them from starving workload pods on the same node.
 
@@ -492,7 +504,7 @@ kubectl get deployments -A -o json
 
 ### rel-21: Do StatefulSets use persistent storage (volumeClaimTemplates or PVCs)?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Persistent storage ensures StatefulSet data survives pod restarts.
 
@@ -501,7 +513,7 @@ kubectl get deployments -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Use `volumeClaimTemplates` in StatefulSet specs for persistent storage. This ensures each replica gets its own dedicated PVC.
 
@@ -539,7 +551,7 @@ Then confirm a PDB actually selects those pods — see `rel-2`.
 
 ### rel-23: Do you implement distributed tracing (AWS X-Ray, Jaeger, Zipkin) for request flow visibility?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Distributed tracing enables root cause analysis across microservices.
 
@@ -548,13 +560,19 @@ Then confirm a PDB actually selects those pods — see `rel-2`.
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Deploy distributed tracing: `helm install jaeger jaegertracing/jaeger`. Or enable AWS X-Ray with the ADOT collector for request flow visibility.
 
 ---
 
 ## EKS Best Practices
+
+> Questions prefixed `lens-` come from the **EKS Best Practices Guides**
+> (aws.github.io/aws-eks-best-practices) and the EKS User Guide, not from the AWS
+> Well-Architected Framework's own question set. They are scored the same way and reported
+> alongside the Framework questions because they measure the same properties on EKS
+> specifically; the prefix is what distinguishes their source.
 
 ### lens-2: Is NodeLocal DNSCache deployed for DNS performance?
 
@@ -633,8 +651,9 @@ aws ec2 describe-nat-gateways --filter Name=vpc-id,Values=<VPC_ID> --region <REG
 
 **Commands:**
 ```bash
-aws ec2 describe-subnets --filters Name=vpc-id,Values=<VPC_ID> --region <REGION>
-# Check MapPublicIpOnLaunch=false for node subnets
+aws ec2 describe-route-tables --filters Name=vpc-id,Values=<VPC_ID> --region <REGION>
+# A subnet is PRIVATE when its route table has NO route whose GatewayId starts with "igw-".
+# Use the subnet's explicitly-associated table; fall back to the VPC's main table if it has none.
 ```
 
 **Analysis:** Use percentage-based scoring where applicable:
@@ -644,6 +663,18 @@ aws ec2 describe-subnets --filters Name=vpc-id,Values=<VPC_ID> --region <REGION>
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Move worker nodes to private subnets (MapPublicIpOnLaunch=false). Use NAT Gateways for outbound internet access.
+**Remediation:** Remove the internet gateway route from the route tables serving the node subnets, and
+route `0.0.0.0/0` to a NAT gateway in a public subnet instead:
+
+```bash
+aws ec2 delete-route --route-table-id <RTB_ID> --destination-cidr-block 0.0.0.0/0 --region <REGION>
+aws ec2 create-route --route-table-id <RTB_ID> --destination-cidr-block 0.0.0.0/0 \
+  --nat-gateway-id <NAT_ID> --region <REGION>
+```
+
+Existing nodes keep their public IPs until replaced, so cycle the node group afterwards. Note that
+setting `MapPublicIpOnLaunch=false` alone will **not** satisfy this check: it stops new instances
+getting a public IP, but a subnet whose route table still reaches an internet gateway is still a public
+subnet, and nodes already running in it keep the addresses they were given.
 
 ---

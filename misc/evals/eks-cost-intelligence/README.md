@@ -14,6 +14,7 @@ This skill has explicit-trigger semantics — it deliberately does NOT auto-acti
 - **`eks-recon`** — cluster discovery (negatives 13, 18: "what version am I running", "full reconnaissance on our EKS environment"). The discriminator: recon answers "what's there?"; cost-intelligence answers "how much is it costing and where is the waste?"
 - **`eks-upgrade-check`** — upgrade readiness (negative 14: "is my cluster ready to upgrade"). The discriminator: upgrade-check scores readiness-for-upgrade across 8 areas; cost-intelligence scores cost efficiency across 6 spending dimensions.
 - **`eks-mcp-server`** — MCP server setup (negative 16: "set up the EKS MCP server"). The discriminator: mcp-server helps install/configure tooling; cost-intelligence uses that tooling to run a cost assessment.
+- **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster — five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) — negative 19 ("score our EKS cluster against the Well-…").
 <!-- SIBLING_MAP_END -->
 
 The `triggering.json` positives (entries 0–9) use two phrasing styles: explicit cost-assessment language ("run a cost audit", "score my cluster's cost efficiency") and business-outcome forms ("justify optimization work to leadership", "internal chargebacks"). Both must trigger the skill. The negatives (entries 10–17) are deliberately drawn from neighbouring apex skills' territory — advisory cost guidance, operational reviews, discovery, upgrade readiness, MCP setup, and architectural recommendations.

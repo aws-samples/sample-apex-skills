@@ -61,9 +61,22 @@ m2 ope-16 addons cluster 'input as $cl| if ($cl.cluster.computeConfig.enabled==t
 m ope-17 jobs '[.items[]?] as $j|($j|length) as $t|([$j[]|select((.spec.activeDeadlineSeconds!=null) and ((.spec.backoffLimit//6)<=6))]|length) as $ok| if $t==0 then "na~no Jobs" else b($ok;$t)+"~\($ok)/\($t) Jobs bounded (activeDeadlineSeconds set, backoffLimit<=6)" end'
 m ope-18 cronjobs '[.items[]?] as $c|($c|length) as $t|([$c[]|select(((.spec.concurrencyPolicy//"Allow")!="Allow") and (.spec.failedJobsHistoryLimit!=null))]|length) as $ok| if $t==0 then "na~no CronJobs" else b($ok;$t)+"~\($ok)/\($t) CronJobs guarded (concurrencyPolicy!=Allow, failedJobsHistoryLimit set)" end'
 m fargate-1 fargate 'if ((.fargateProfileNames//[])|length)==0 then "na~no fargate" else "na~NOT ASSESSED: profile selectors require describe-fargate-profile, which this review does not collect — do not report this as satisfied or as not-applicable" end'
-m2 fargate-2 fargate pods 'input as $p|if ((.fargateProfileNames//[])|length)==0 then "na~no fargate" else ([$p.items[]?|select(.metadata.labels["eks.amazonaws.com/compute-type"]=="fargate")|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select(.resources.requests.cpu and .resources.requests.memory)]|length) as $ok| if $t==0 then "na~no Fargate pods running" else b($ok;$t)+"~\($ok)/\($t) Fargate containers with cpu+memory requests" end) end'
+# fargate-2 / fargate-4 — pod selection resolves POD -> NODE, not a pod label.
+# These previously selected pods by `.metadata.labels["eks.amazonaws.com/compute-type"]=="fargate"`.
+# AWS documents `compute-type` on Fargate NODES; on a POD the only related label is
+# `eks.amazonaws.com/fargate-profile`, and the docs describe that as a label YOU ADD to disambiguate
+# when a pod matches several profiles — an input, not a guaranteed auto-applied output. So the old
+# selector matched zero pods on a real Fargate cluster and silently no-op'd to `na`: a check that
+# cannot match must not report success. Joining on `.spec.nodeName` uses the documented node label
+# instead, which is what the fixtures and the rest of this skill already rely on.
+m3 fargate-2 fargate pods nodes 'input as $p|input as $n|if ((.fargateProfileNames//[])|length)==0 then "na~no fargate" else ([$n.items[]?|select(.metadata.labels["eks.amazonaws.com/compute-type"]=="fargate")|.metadata.name]) as $fg|([$p.items[]?|select((.spec.nodeName//"") as $nn|$fg|index($nn))|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select(.resources.requests.cpu and .resources.requests.memory)]|length) as $ok| if $t==0 then "na~no pods resolved to a Fargate node" else b($ok;$t)+"~\($ok)/\($t) fargate pod requests" end) end'
 m fargate-3 fargate 'if ((.fargateProfileNames//[])|length)==0 then "na~no fargate" else "na~NOT ASSESSED: pod execution roles require describe-fargate-profile, which this review does not collect — do not report this as satisfied or as not-applicable" end'
-m2 fargate-4 fargate pods 'input as $p|if ((.fargateProfileNames//[])|length)==0 then "na~no fargate" else ([$p.items[]?|select(.metadata.labels["eks.amazonaws.com/compute-type"]=="fargate")] as $po|($po|length) as $t|([$po[]|select([.spec.containers[]?.name]|any(test("fluent")))]|length) as $ok| if $t==0 then "na~no Fargate pods running" else b($ok;$t)+"~\($ok)/\($t) Fargate pods with a log-router sidecar" end) end'
+# fargate-4 — the DOCUMENTED Fargate logging mechanism is the built-in log router, configured by a
+# ConfigMap named `aws-logging` in namespace `aws-observability`. AWS: "you don't explicitly run a
+# Fluent Bit container as a sidecar, but Amazon runs it for you. All that you have to do is configure
+# the log router." Crediting only a sidecar meant a correctly-configured cluster could never pass —
+# and the ConfigMap was not even collected. A sidecar is still accepted as an alternative path.
+m3 fargate-4 fargate awslogging pods 'input as $cm|input as $p|if ((.fargateProfileNames//[])|length)==0 then "na~no fargate" else ((($cm.data//{})|length) as $keys|([$p.items[]?|select([.spec.containers[]?.name]|any(test("fluent")))]|length) as $side| if $keys>0 then "all~aws-observability/aws-logging log router configured (\($keys) config key(s))" elif $side>0 then "most~\($side) pod(s) run a fluent sidecar; the documented path is the aws-logging ConfigMap" else "none~no aws-logging ConfigMap in aws-observability and no fluent sidecar" end) end'
 m2 lens-1 daemonsets nodes 'input as $n|([$n.items[]?|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")]|length) as $ec2|(([$n.items[]?]|length)>0) as $any| if ($any and $ec2==0) then "na~no DaemonSets possible on Fargate compute" elif ([.items[]|select(.metadata.name|test("node-problem-detector|npd"))]|length)>0 then "all~NPD" else "none~none" end'
 g ope-19
 m2 lens-7 addons cluster 'input as $cl| if ($cl.cluster.computeConfig.enabled==true) then "na~auto mode delivers CNI/DNS/LB/storage as core components, not add-ons" elif ((.addons//[])|any(.=="vpc-cni")) then "all~vpc-cni managed" else "none~not managed" end'
@@ -87,7 +100,7 @@ alarms), ope-13 (upgrade plan), ope-14 (non-prod test env), ope-19 (capacity pla
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Adopt Terraform, CDK, or CloudFormation for cluster provisioning. Store all K8s manifests in Git and deploy via CI/CD pipelines.
 
@@ -119,7 +132,7 @@ aws eks list-addons --cluster-name <CLUSTER> --region <REGION>
 
 ### ope-3: Do you use GitOps workflows (ArgoCD, Flux) to minimize direct kubectl access?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > GitOps reduces human error and provides audit trails for all changes.
 
@@ -128,7 +141,7 @@ aws eks list-addons --cluster-name <CLUSTER> --region <REGION>
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Implement GitOps workflows (ArgoCD, Flux) to eliminate direct kubectl access. Restrict kubectl to break-glass scenarios only.
 
@@ -145,7 +158,7 @@ aws eks list-addons --cluster-name <CLUSTER> --region <REGION>
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Adopt Helm for application packaging: `helm create <chart>`. Use values files per environment and store charts in a Helm repository.
 
@@ -155,7 +168,7 @@ aws eks list-addons --cluster-name <CLUSTER> --region <REGION>
 
 ### ope-5: Are control plane metrics monitored using CloudWatch Container Insights or Prometheus?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Control plane monitoring enables early detection of API server and etcd issues.
 
@@ -164,7 +177,7 @@ aws eks list-addons --cluster-name <CLUSTER> --region <REGION>
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Deploy Prometheus + Grafana or enable CloudWatch Container Insights: `aws eks create-addon --addon-name amazon-cloudwatch-observability`.
 
@@ -194,7 +207,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 
 ### ope-7: Are worker node metrics (CPU, memory, disk) monitored using Node Exporter or CloudWatch?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Node monitoring enables capacity planning and early detection of resource exhaustion.
 
@@ -203,7 +216,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Deploy Prometheus Node Exporter as a DaemonSet: `helm install node-exporter prometheus-community/prometheus-node-exporter`. Create Grafana dashboards for CPU, memory, disk.
 
@@ -211,7 +224,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 
 ### ope-8: Are application logs forwarded to a centralized system (Fluent Bit, Fluentd, CloudWatch)?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Centralized logging enables cross-service troubleshooting and audit trails.
 
@@ -220,7 +233,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Deploy Fluent Bit as a DaemonSet: `helm install fluent-bit fluent/fluent-bit --set output.cloudWatch.enabled=true`. Configure log routing to CloudWatch or Elasticsearch.
 
@@ -237,7 +250,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Create CloudWatch metric filters on EKS audit logs for 403/401 responses. Set alarms with SNS notifications for threshold breaches.
 
@@ -245,7 +258,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 
 ### ope-10: Is the CNI metrics helper deployed to monitor VPC CNI IP address allocation and ENI usage?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > CNI metrics prevent IP exhaustion which can cause pod scheduling failures.
 
@@ -254,7 +267,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Deploy the CNI metrics helper: `kubectl apply -f https://raw.githubusercontent.com/aws/amazon-vpc-cni-k8s/master/config/master/cni-metrics-helper.yaml`. Monitor IP allocation in CloudWatch.
 
@@ -262,7 +275,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 
 ### ope-11: Are you using AWS CloudTrail to audit EKS API calls and IRSA actions?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > CloudTrail provides API-level audit logging for compliance.
 
@@ -271,7 +284,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Enable CloudTrail in all regions with S3 log delivery. Create CloudTrail event selectors for EKS API calls and IRSA assume-role events.
 
@@ -310,7 +323,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Create a documented upgrade schedule aligned with the EKS version calendar. Test upgrades in non-prod first. Use `eksctl upgrade cluster` or Terraform.
 
@@ -327,7 +340,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Create a dedicated staging EKS cluster in a separate AWS account. Test all upgrades and add-on updates there before applying to production.
 
@@ -441,7 +454,7 @@ kubectl get cronjobs -A -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Conduct quarterly capacity reviews using Prometheus metrics. Set alerts at 70% CPU/memory utilization. Plan for 30% headroom above peak usage.
 
@@ -542,6 +555,12 @@ kubectl get pods -A -o json
 ---
 
 ## EKS Best Practices
+
+> Questions prefixed `lens-` come from the **EKS Best Practices Guides**
+> (aws.github.io/aws-eks-best-practices) and the EKS User Guide, not from the AWS
+> Well-Architected Framework's own question set. They are scored the same way and reported
+> alongside the Framework questions because they measure the same properties on EKS
+> specifically; the prefix is what distinguishes their source.
 
 ### lens-1: Is Node Problem Detector deployed for node health monitoring?
 

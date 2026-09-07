@@ -31,7 +31,7 @@ Governance questions are unweighted here — they are interview-only and reporte
 |----|-------|----------|
 | sec-2 | API server not open to `0.0.0.0/0` | An internet-reachable control plane is the single biggest EKS attack vector. |
 | sec-4 | NetworkPolicies present per namespace | Flat pod networking lets one compromised pod reach everything; isolation is baseline containment. |
-| sec-6 | IRSA (pod-level IAM via OIDC) | Falling back to node-role credentials gives every pod broad AWS access — huge blast radius. |
+| sec-6 | Pod-level AWS identity (EKS Pod Identity **or** IRSA) | Falling back to node-role credentials gives every pod on the node broad AWS access — huge blast radius. The detection accepts either mechanism: Pod Identity is what AWS now recommends and it uses no ServiceAccount annotation, so an IRSA-only rationale described a check narrower than the one that runs. |
 | sec-11 | Pod Security Standards enforced | Without PSS, privileged/root pods deploy unchecked — the entry point for most container escapes. |
 | sec-18 | OIDC provider associated | Prerequisite for IRSA; without it fine-grained pod IAM is impossible. |
 | sec-21 | Cluster EBS volumes encrypted at rest | Unencrypted data at rest is a direct compliance and confidentiality failure. |
@@ -53,7 +53,7 @@ Governance questions are unweighted here — they are interview-only and reporte
 | sec-15 | Containers set a security context | Good hygiene; overlaps the more specific podsec checks. |
 | sec-16 | Admission/policy engine deployed | Enables enforcement; value depends on the policies actually loaded. |
 | sec-25 | StorageClasses set `encrypted: true` | Ensures new volumes are encrypted; sec-21 already covers existing ones. |
-| sec-31 / net-4 | Separate control-plane vs node security groups | Limits lateral movement; defense-in-depth rather than a direct hole. |
+| net-4 | Cluster SG default allow-all egress narrowed | Removes the outbound path used for exfiltration and second-stage pulls; not itself an inbound hole. (sec-31, which asked about control-plane/node SG separation, is retired — AWS says that split is no longer required.) |
 | sec-33 | Runtime threat monitoring (GuardDuty/Falco) | Detection layer; valuable but not a preventive control. |
 | adm-1 | ≥5 admission policies loaded | Depth of policy coverage; incremental over having an engine. |
 | adm-2 | A policy blocks privileged pods | Reinforces podsec-2; medium as a policy-level backstop. |
@@ -197,7 +197,7 @@ Governance questions are unweighted here — they are interview-only and reporte
 |----|-------|----------|
 | cost-6 | No idle/unused PersistentVolumes | Idle EBS bills every hour for zero value — direct, ongoing waste. |
 | cost-8 | No Released/Available (orphaned) volumes | Same as above from the orphaned-resource angle; pure leak. |
-| cost-9 | Storage on gp3 (not gp2) | gp3 is ~20% cheaper with equal/better performance — an unforced overspend if not migrated. |
+| cost-9 | Storage on gp3 (not gp2) | gp3 is ~20% cheaper on storage. Below ~1,000 GiB it is also faster at baseline, so migrating is a straight win. At or above ~1,000 GiB a gp2 volume already exceeds gp3's default 3,000 IOPS, and migrating without provisioning `iops: size × 3` is a **performance downgrade** — see [cost-analysis.md](cost-analysis) for the crossover. Still weighted High because the overspend is unforced, not because the migration is free. |
 
 ### Medium
 | ID | Check | Why Medium |

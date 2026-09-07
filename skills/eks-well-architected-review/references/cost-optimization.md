@@ -45,6 +45,12 @@ g(){ emit "$1" governance unknown ""; }
 m(){ local id="$1" f="$2" p="$3" r st d; r=$(jq -r "$B $p" "$W/$f.json" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed — a missing or malformed collection file is NOT a finding, and must never be scored as one. jq said: %s\n' "$id" "$r" >&2; exit 1; }; [ -n "$r" ] || { printf 'SCORER ABORT [%s]: jq produced no output\n' "$id" >&2; exit 1; }; st="${r%%~*}"; d="${r#*~}"; [ "$r" = "$st" ]&&d=""; emit "$id" measured "${st:-none}" "$d"; }
 m2(){ local id="$1" f1="$2" f2="$3" p="$4" r st d; r=$(jq -r "$B $p" "$W/$f1.json" "$W/$f2.json" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed — a missing or malformed collection file is NOT a finding, and must never be scored as one. jq said: %s\n' "$id" "$r" >&2; exit 1; }; [ -n "$r" ] || { printf 'SCORER ABORT [%s]: jq produced no output\n' "$id" >&2; exit 1; }; st="${r%%~*}"; d="${r#*~}"; [ "$r" = "$st" ]&&d=""; emit "$id" measured "${st:-none}" "$d"; }
 
+# lens-12 / lens-13 (ECR scan-on-push, immutable image tags) MOVED to the Security scorer in
+# security/identity-access.md. They are supply-chain controls -- the EKS Best Practices Guides
+# place both under Security, Image Security -- and scoring them here meant an unscanned image
+# registry pulled down a customer's COST score, where a reader looking to cut spend would find
+# two findings that save nothing. Moving rather than annotating, because the annotation would
+# have documented the misattribution instead of removing it.
 m2 cost-1 resourcequotas namespaces 'input as $ns|[$ns.items[]|select(.metadata.name|test("^(kube-|amazon-)")|not)|.metadata.name] as $n|($n|length) as $t|([.items[].metadata.namespace]|unique) as $cov|([$n[]|select(. as $x|$cov|index($x))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) ns quota"'
 m2 cost-2 limitranges namespaces 'input as $ns|[$ns.items[]|select(.metadata.name|test("^(kube-|amazon-)")|not)|.metadata.name] as $n|($n|length) as $t|([.items[].metadata.namespace]|unique) as $cov|([$n[]|select(. as $x|$cov|index($x))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) ns limitrange"'
 m2 cost-3 deployments hpa 'input as $h|(([.items[]|select(.metadata.name|test("keda"))]|length)>0) as $keda|(([$h.items[]?]|length)>0) as $used| if ($keda and $used) then "all~KEDA + active autoscalers" elif $keda then "some~KEDA installed but no autoscalers" elif $used then "some~HPA only, no event-driven scaling" else "none~none" end'
@@ -52,11 +58,17 @@ g cost-4
 g cost-5
 m cost-6 pv '[.items[]] as $p|($p|length) as $t|([$p[]|select(.status.phase!="Released" and .status.phase!="Available")]|length) as $ok| if $t==0 then "na~no PV" else b($ok;$t)+"~\($ok)/\($t) in-use" end'
 m cost-7 cluster '(.cluster.tags//{}) as $t|(["project","environment|^env$","cost|billing","team|owner"]|map(select(. as $k|$t|to_entries|any(.key|test($k;"i"))))|length) as $ok| b($ok;4)+"~\($ok)/4 chargeback tag classes (project/environment/cost-centre/team)"'
-m2 cost-8 volumes cluster 'input as $cl|($cl.cluster.name//"") as $cn|[.Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0)] as $v|($v|length) as $t|([$v[]|select(.State=="available")]|length) as $idle| if $t==0 then "na~no cluster-tagged volumes" elif $idle==0 then "all~no unattached cluster volumes" else b(($t-$idle);$t)+"~\($idle)/\($t) unattached (cluster vols)" end'
+# cost-8 emits PASSES/total, like every sibling detection. It used to emit FAILURES/total
+# ("1/4 unattached") while its own bucket call already scored passes -- b(($t-$idle);$t) -- so the
+# state and the detail were counted in opposite directions. The renderer cross-checks each
+# resource list against the ratio in the detail, so that guaranteed a false DISAGREEMENT whenever
+# $idle != $t-$idle, and worse, a false AGREEMENT at the exact midpoint: 2 idle of 4 read 2/4
+# from both sides while measuring opposite things. The `$idle==0` special case is gone too --
+# it emitted prose with no ratio, which skipped the cross-check on the majority of real clusters,
+# i.e. precisely the ones where a scoping bug would be invisible.
+m2 cost-8 volumes cluster 'input as $cl|($cl.cluster.name//"") as $cn|[.Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0)] as $v|($v|length) as $t|([$v[]|select(.State=="available")]|length) as $idle| if $t==0 then "na~no cluster-tagged volumes" else b(($t-$idle);$t)+"~\($t-$idle)/\($t) attached (cluster vols)" end'
 m cost-9 storageclasses '[.items[]|select((.provisioner//"")|test("ebs\\.csi\\.aws\\.com|kubernetes\\.io/aws-ebs"))] as $s|($s|length) as $t|([$s[]|select(.parameters.type=="gp3")]|length) as $ok| if $t==0 then "na~no EBS StorageClass" else b($ok;$t)+"~\($ok)/\($t) gp3 EBS SC" end'
 m lens-4 deployments 'if ([.items[]|select(.metadata.name|test("kubecost|opencost|cost-analyzer"))]|length)>0 then "all~cost tooling" else "none~none" end'
-m2 lens-12 ecr pods 'input as $p|[$p.items[].spec.containers[]?.image|select(test("dkr.ecr"))|capture("amazonaws.com/(?<r>[^:@]+)").r] as $used|[.repositories[]?|select(.repositoryName as $rn|$used|index($rn))] as $r|($r|length) as $t|([$r[]|select(.imageScanningConfiguration.scanOnPush==true)]|length) as $ok| if $t==0 then "na~no cluster ECR repos" else b($ok;$t)+"~\($ok)/\($t) scan-on-push" end'
-m2 lens-13 ecr pods 'input as $p|[$p.items[].spec.containers[]?.image|select(test("dkr.ecr"))|capture("amazonaws.com/(?<r>[^:@]+)").r] as $used|[.repositories[]?|select(.repositoryName as $rn|$used|index($rn))] as $r|($r|length) as $t|([$r[]|select(.imageTagMutability=="IMMUTABLE")]|length) as $ok| if $t==0 then "na~no cluster ECR repos" else b($ok;$t)+"~\($ok)/\($t) immutable" end'
 m lens-16 vpcendpoints '[.VpcEndpoints[]?.ServiceName] as $sn|([ "s3","ecr.api","ecr.dkr","sts"]|map(select(. as $x|$sn|any(test($x+"$"))))|length) as $ok| b($ok;4)+"~\($ok)/4 endpoints"'
 ```
 
@@ -117,7 +129,7 @@ kubectl get namespaces -o json
 
 ### cost-3: Do you proactively optimize Pod hours by scaling down or terminating unnecessary Pods during off-peak hours, nights, and weekends?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > Evaluate cost optimization through workload scheduling and scaling.
 
@@ -126,7 +138,7 @@ kubectl get namespaces -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Implement pod scaling schedules using KEDA or CronJobs to scale down non-critical workloads during off-peak hours, nights, and weekends.
 
@@ -143,7 +155,7 @@ kubectl get namespaces -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Monitor cross-AZ data transfer using VPC Flow Logs and Cost Explorer. Use topology-aware routing to keep traffic within the same AZ where possible.
 
@@ -160,7 +172,7 @@ kubectl get namespaces -o json
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Right-size storage PVC requests to match actual usage. Use `kubectl exec` to check filesystem usage inside pods and adjust PVC sizes accordingly.
 
@@ -214,9 +226,14 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.tag
 
 ---
 
-### cost-8: Are there unattached EBS volumes belonging to this cluster?
+### cost-8: Are the cluster's EBS volumes all attached (none idle and still billing)?
 
 **Detection:** 🔬 AUTO-DETECTABLE — the scorer reads `volumes.json` (EC2), **not** `pv.json`.
+
+> **Phrasing note.** This question used to read "Are there unattached EBS volumes belonging to this
+> cluster?", where a *yes* was bad while the state `all` means good — inverted against every sibling
+> question. The detection now reports how many of the cluster's volumes are attached, counting what
+> passed like every sibling question does, so the title matches what a passing result means.
 
 > An EBS volume in `State: available` is attached to nothing and still bills at full rate. These
 > usually outlive a deleted PVC whose StorageClass had `reclaimPolicy: Retain`, or a node that was
@@ -248,7 +265,7 @@ often appear together — report them as one root cause, not two.
 
 ### cost-9: Are StorageClasses configured with cost-optimized volume types (gp3, Delete reclaim policy)?
 
-**Detection:** ✋ ASK USER
+**Detection:** 🔬 AUTO-DETECTABLE
 
 > gp3 is 20% cheaper than gp2 with better baseline performance.
 
@@ -257,13 +274,19 @@ often appear together — report them as one root cause, not two.
 - "Mostly" / "For most workloads" → `most`
 - "Partially" / "Working on it" → `some`
 - "No" / "Not yet" → `none`
-- "Doesn't apply" → `not-applicable`
+- "Doesn't apply" → `na`
 
 **Remediation:** Migrate gp2 StorageClasses to gp3: update the StorageClass `parameters.type` to `gp3`. gp3 is 20% cheaper with better baseline performance.
 
 ---
 
 ## EKS Best Practices
+
+> Questions prefixed `lens-` come from the **EKS Best Practices Guides**
+> (aws.github.io/aws-eks-best-practices) and the EKS User Guide, not from the AWS
+> Well-Architected Framework's own question set. They are scored the same way and reported
+> alongside the Framework questions because they measure the same properties on EKS
+> specifically; the prefix is what distinguishes their source.
 
 ### lens-4: Is cost visibility tooling (Kubecost/OpenCost) deployed?
 
@@ -288,50 +311,7 @@ kubectl get deployments -A -o json
 
 ---
 
-### lens-12: Do ECR repositories have scan-on-push enabled?
 
-**Detection:** 🔬 AUTO-DETECTABLE
-
-> Image scanning detects vulnerabilities before deployment.
-
-**Commands:**
-```bash
-aws ecr describe-repositories --region <REGION> --query "repositories[].imageScanningConfiguration.scanOnPush"
-```
-
-**Analysis:** Use percentage-based scoring where applicable:
-- ≥90% compliance → `all`
-- ≥70% compliance → `most`
-- >0% compliance → `some`
-- 0% compliance → `none`
-- For boolean: present/true → `all`, absent/false → `none`
-
-**Remediation:** Enable scan-on-push for ECR repositories: `aws ecr put-image-scanning-configuration --repository-name <name> --image-scanning-configuration scanOnPush=true`.
-
----
-
-### lens-13: Do ECR repositories use immutable image tags?
-
-**Detection:** 🔬 AUTO-DETECTABLE
-
-> Immutable tags prevent tag overwriting and ensure deployment reproducibility.
-
-**Commands:**
-```bash
-aws ecr describe-repositories --region <REGION> --query "repositories[].imageTagMutability"
-# Check for IMMUTABLE
-```
-
-**Analysis:** Use percentage-based scoring where applicable:
-- ≥90% compliance → `all`
-- ≥70% compliance → `most`
-- >0% compliance → `some`
-- 0% compliance → `none`
-- For boolean: present/true → `all`, absent/false → `none`
-
-**Remediation:** Enable immutable tags for ECR repositories: `aws ecr put-image-tag-mutability --repository-name <name> --image-tag-mutability IMMUTABLE`.
-
----
 
 ### lens-16: Are VPC endpoints configured for S3, ECR, and STS?
 

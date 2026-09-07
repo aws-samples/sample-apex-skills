@@ -86,12 +86,33 @@ m sec-29 ingresses '[.items[]] as $i|($i|length) as $t|([$i[]|select((.spec.tls/
 # ── network (8) ──
 m2 sec-4 namespaces networkpolicies 'input as $np|[.items[]|select(.metadata.name|test("^(kube-|amazon-)|^default$")|not)|.metadata.name] as $ns|($ns|length) as $t|($np.items|map(.metadata.namespace)|unique) as $cov|([$ns[]|select(. as $n|$cov|index($n))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) ns covered"'
 g sec-14
-m2 sec-30 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.resourcesVpcConfig) as $v|((($v.securityGroupIds//[]) + [$v.clusterSecurityGroupId//empty])|unique) as $own|[.SecurityGroups[]?|select((.GroupId as $id|$own|index($id)) or ([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0))] as $g| if ($g|length)==0 then "na~no cluster SGs" elif ([$g[].IpPermissions[]?|select(((.FromPort//0)<=22 and (.ToPort//0)>=22) and (.IpRanges[]?.CidrIp=="0.0.0.0/0"))]|length)>0 then "none~ssh 0.0.0.0/0" else "all~no ssh open (cluster SGs)" end'
-m sec-31 cluster '"na~same signal as net-4 (deduplicated)"'
+m2 sec-30 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.resourcesVpcConfig) as $v|((($v.securityGroupIds//[]) + [$v.clusterSecurityGroupId//empty])|unique) as $own|[.SecurityGroups[]?|select((.GroupId as $id|$own|index($id)) or ([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0))] as $g| if ($g|length)==0 then "na~no cluster SGs" elif ([$g[].IpPermissions[]?|select((.IpProtocol=="-1" or ((.FromPort//0)<=22 and (.ToPort//0)>=22)) and (.IpRanges[]?.CidrIp=="0.0.0.0/0"))]|length)>0 then "none~ssh 0.0.0.0/0" else "all~no ssh open (cluster SGs)" end'
+# sec-31 asked the same thing net-4 used to: whether control-plane and node security groups are
+# separate. net-4 has been RESCOPED to cluster-SG egress, so "deduplicated against net-4" is no longer
+# true — nothing measures SG separation now, deliberately, because AWS states the split is "no longer
+# required and can be removed". Kept as `na` with an accurate reason rather than deleted, so a reader
+# comparing this run against an older report can see why the question stopped being answered.
+m sec-31 cluster '"na~retired: AWS no longer recommends separating control-plane and node security groups"'
 m2 net-1 subnets cluster 'input as $cl|(($cl.cluster.resourcesVpcConfig.subnetIds)//[]) as $own|[.Subnets[]?|select(($own|length)==0 or (.SubnetId as $id|$own|index($id)))] as $s|($s|length) as $t|([$s[]|select(.AvailableIpAddressCount>=100)]|length) as $ok| if $t==0 then "na~no cluster subnets" else b($ok;$t)+"~\($ok)/\($t) >=100 IPs (cluster subnets)" end'
 m2 net-2 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.resourcesVpcConfig) as $v|((($v.securityGroupIds//[]) + [$v.clusterSecurityGroupId//empty])|unique) as $own|[.SecurityGroups[]?|select((.GroupId as $id|$own|index($id)) or ([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0))] as $g|($g|length) as $t|([$g[]|select([.IpPermissions[]?|select((.IpRanges[]?.CidrIp=="0.0.0.0/0") and ((.FromPort//0)!=443 and (.FromPort//0)!=80))]|length==0)]|length) as $ok| if $t==0 then "na~no cluster SGs" else b($ok;$t)+"~\($ok)/\($t) clean SG (cluster SGs)" end'
+# ECR supply-chain controls, MOVED here from the Cost Optimization scorer: an image registry
+# without scan-on-push or tag immutability is a supply-chain exposure, not an overspend, and
+# the EKS Best Practices Guides place both under Security / Image Security.
+m2 lens-12 ecr pods 'input as $p|[$p.items[].spec.containers[]?.image|select(test("dkr.ecr"))|capture("amazonaws.com/(?<r>[^:@]+)").r] as $used|[.repositories[]?|select(.repositoryName as $rn|$used|index($rn))] as $r|($r|length) as $t|([$r[]|select(.imageScanningConfiguration.scanOnPush==true)]|length) as $ok| if $t==0 then "na~no cluster ECR repos" else b($ok;$t)+"~\($ok)/\($t) scan-on-push" end'
+m2 lens-13 ecr pods 'input as $p|[$p.items[].spec.containers[]?.image|select(test("dkr.ecr"))|capture("amazonaws.com/(?<r>[^:@]+)").r] as $used|[.repositories[]?|select(.repositoryName as $rn|$used|index($rn))] as $r|($r|length) as $t|([$r[]|select(.imageTagMutability=="IMMUTABLE")]|length) as $ok| if $t==0 then "na~no cluster ECR repos" else b($ok;$t)+"~\($ok)/\($t) immutable" end'
 m3 net-3 daemonsets nodes cluster 'input as $n|input as $cl|([$n.items[]|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")]|length) as $ec2| if ($cl.cluster.computeConfig.enabled==true) then "na~auto mode fully manages the VPC CNI; prefix delegation is not configurable" elif $ec2==0 then "na~fargate" else (([.items[]|select(.metadata.name=="aws-node")]|first // {}|.spec.template.spec.containers[]?.env[]?|select(.name=="ENABLE_PREFIX_DELEGATION")|.value) as $v| if $v=="true" then "all~prefix delegation on" else "none~off" end) end'
-m net-4 cluster '.cluster.resourcesVpcConfig as $v|($v.securityGroupIds//[]) as $cp|($v.clusterSecurityGroupId//"") as $csg| if ($cp|length)==0 or ($csg|length)==0 then "na~cannot distinguish control-plane and node SGs from describe-cluster" elif ($cp|index($csg)) then "none~control plane shares the cluster SG" else "all~separate SGs" end'
+# net-4 — RESCOPED. It used to ask whether "separate SGs" are used for control plane and nodes, by
+# testing whether resourcesVpcConfig.securityGroupIds contains clusterSecurityGroupId. That premise is
+# wrong. AWS: "The cluster security group is applied by default to the Kubernetes control plane managed
+# by Amazon EKS as well as any managed compute resources created by Amazon EKS. ADDITIONAL cluster
+# security groups control communications from the Kubernetes control plane to compute resources."
+# So the cluster SG spans BOTH planes by design and is never a member of the additional list — the
+# check reported "separate SGs" on essentially every cluster, describing a separation that does not
+# exist. AWS also says the old control-plane/node SG split is "no longer required and can be removed".
+# The measurable question that remains is whether the cluster SG's default allow-ALL egress has been
+# narrowed — AWS: "Optionally, users can remove this egress rule and limit the open ports between the
+# cluster and nodes." `na` when the cluster SG cannot be identified: absent data is not a finding.
+m2 net-4 sg cluster 'input as $cl|($cl.cluster.resourcesVpcConfig.clusterSecurityGroupId//"") as $csg|([.SecurityGroups[]?|select(.GroupId==$csg)]|first) as $g| if ($csg|length)==0 then "na~cluster security group not reported by describe-cluster" elif $g==null then "na~cluster security group \($csg) not in the collected VPC security groups" elif ([$g.IpPermissionsEgress[]?|select((.IpProtocol=="-1") and (.IpRanges[]?.CidrIp=="0.0.0.0/0"))]|length)>0 then "none~cluster SG \($csg) still allows ALL egress to 0.0.0.0/0 (EKS default)" else "all~cluster SG \($csg) egress narrowed from the EKS default" end'
 
 # ── workload-security (16) ──
 m2 sec-10 validatingwebhooks mutatingwebhooks 'input as $mw| ([(.items[]?,$mw.items[]?)|select((.metadata.name|test("aws-load-balancer|vpc-resource|pod-identity|^eks-|amazon-"))|not)]|length) as $n| if $n>0 then "all~\($n) non-AWS webhooks" else "none~only AWS-installed webhooks" end'
@@ -156,7 +177,19 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.res
 aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.resourcesVpcConfig.{public:endpointPublicAccess,cidrs:publicAccessCidrs}"
 ```
 
-**Remediation:** Restrict public API server access: update cluster security group to allow only known CIDR ranges instead of 0.0.0.0/0.
+**Remediation:** The cluster security group does **not** affect the public endpoint — AWS is explicit
+that "the cluster security group doesn't affect the public endpoint", so restricting it there changes
+nothing. The control is `publicAccessCidrs`:
+
+```bash
+aws eks update-cluster-config --name <CLUSTER> --region <REGION> \
+  --resources-vpc-config endpointPublicAccess=true,publicAccessCidrs="1.2.3.4/32",endpointPrivateAccess=true
+```
+
+Better still, disable public access entirely (`endpointPublicAccess=false`) and reach the API over the
+private endpoint. If you do restrict `publicAccessCidrs`, either enable private access or include the
+nodes' egress IPs — otherwise nodes cannot reach the API server and will fail to join. Cluster security
+groups are the control for the **private** endpoint, not the public one.
 
 ---
 
