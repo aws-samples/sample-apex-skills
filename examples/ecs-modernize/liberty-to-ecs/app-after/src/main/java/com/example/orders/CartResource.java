@@ -31,13 +31,14 @@ import jakarta.ws.rs.core.Response;
 public class CartResource {
 
     // Accept-known-good allowlists for the client-supplied values, applied
-    // before either is concatenated into the hand-built JSON body below.
-    // Invalid input is rejected (HTTP 400), not substituted or encoded, so
-    // untrusted characters never reach the response (reflected XSS / JSON
-    // injection). sku permits '.' and '_' in addition to the id set, since
-    // real SKUs use them; the metacharacters that break out of JSON strings
-    // ('"', '<', '>', '{', '}', '\\') stay excluded.
-    private static final Pattern ID_PATTERN = Pattern.compile("[A-Za-z0-9-]{1,64}");
+    // before either is concatenated into the hand-built JSON body below. cartId
+    // uses the shared IdValidation.ID_PATTERN; sku additionally permits '.' and
+    // '_' since real SKUs use them. Invalid input is rejected (HTTP 400), not
+    // substituted or encoded. Because the allowlist is accept-known-good,
+    // everything outside it is excluded — including the '"' and '\\' (and
+    // control) characters that per RFC 8259 can break out of a JSON string
+    // value, and the '<' / '>' that would matter only if the value were later
+    // rendered in an HTML context.
     private static final Pattern SKU_PATTERN = Pattern.compile("[A-Za-z0-9._-]{1,64}");
 
     @GET
@@ -51,9 +52,10 @@ public class CartResource {
                     .build();
         }
 
-        if (!ID_PATTERN.matcher(cartId).matches()) {
+        if (!IdValidation.ID_PATTERN.matcher(cartId).matches()) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\":\"cartId must match [A-Za-z0-9-]{1,64}\"}")
+                    .entity("{\"error\":\"cartId must match "
+                            + IdValidation.ID_PATTERN.pattern() + "\"}")
                     .build();
         }
 

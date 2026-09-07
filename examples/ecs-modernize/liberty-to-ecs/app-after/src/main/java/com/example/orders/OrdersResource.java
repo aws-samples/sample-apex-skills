@@ -1,7 +1,5 @@
 package com.example.orders;
 
-import java.util.regex.Pattern;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -28,19 +26,21 @@ public class OrdersResource {
 
     private final OrderArchiveService archive = new OrderArchiveService();
 
-    // Accept-known-good allowlist for the client-supplied order id. Anything
-    // outside it is rejected rather than substituted or encoded, so untrusted
-    // input never reaches the hand-built JSON payload below (reflected XSS /
-    // JSON injection).
-    private static final Pattern ID_PATTERN = Pattern.compile("[A-Za-z0-9-]{1,64}");
-
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response accept(@QueryParam("orderId") String orderId) {
 
-        if (orderId != null && !orderId.isBlank() && !ID_PATTERN.matcher(orderId).matches()) {
+        // orderId is optional. A null, blank, or whitespace-only value is
+        // treated as absent and a fresh ORD-<millis> id is generated below
+        // (that generated id conforms to the shared allowlist). A non-blank
+        // orderId that does not match the allowlist is rejected with HTTP 400
+        // rather than substituted or encoded, so untrusted input never reaches
+        // the hand-built JSON payload below (reflected XSS / JSON injection).
+        if (orderId != null && !orderId.isBlank()
+                && !IdValidation.ID_PATTERN.matcher(orderId).matches()) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\":\"orderId must match [A-Za-z0-9-]{1,64}\"}")
+                    .entity("{\"error\":\"orderId must match "
+                            + IdValidation.ID_PATTERN.pattern() + "\"}")
                     .build();
         }
 
