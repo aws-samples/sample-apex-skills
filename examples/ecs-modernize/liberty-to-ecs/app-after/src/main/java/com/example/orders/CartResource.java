@@ -35,10 +35,10 @@ public class CartResource {
     // uses the shared IdValidation.ID_PATTERN; sku additionally permits '.' and
     // '_' since real SKUs use them. Invalid input is rejected (HTTP 400), not
     // substituted or encoded. Because the allowlist is accept-known-good,
-    // everything outside it is excluded — including the '"' and '\\' (and
-    // control) characters that per RFC 8259 can break out of a JSON string
-    // value, and the '<' / '>' that would matter only if the value were later
-    // rendered in an HTML context.
+    // everything outside it is excluded: the '"' and '\\' that end or escape a
+    // JSON string value, the control characters that RFC 8259 section 7
+    // requires be escaped, and the '<' / '>' that would matter only if the
+    // value were later rendered in an HTML context.
     private static final Pattern SKU_PATTERN = Pattern.compile("[A-Za-z0-9._-]{1,64}");
 
     @GET
@@ -61,7 +61,8 @@ public class CartResource {
 
         if (sku != null && !SKU_PATTERN.matcher(sku).matches()) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\":\"sku must match [A-Za-z0-9._-]{1,64}\"}")
+                    .entity("{\"error\":\"sku must match "
+                            + SKU_PATTERN.pattern() + "\"}")
                     .build();
         }
 

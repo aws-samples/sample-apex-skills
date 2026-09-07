@@ -34,8 +34,9 @@ public class OrdersResource {
         // treated as absent and a fresh ORD-<millis> id is generated below
         // (that generated id conforms to the shared allowlist). A non-blank
         // orderId that does not match the allowlist is rejected with HTTP 400
-        // rather than substituted or encoded, so untrusted input never reaches
-        // the hand-built JSON payload below (reflected XSS / JSON injection).
+        // rather than substituted or encoded, so only allowlist-constrained
+        // input reaches the hand-built JSON payload below (guarding against
+        // reflected XSS / JSON injection).
         if (orderId != null && !orderId.isBlank()
                 && !IdValidation.ID_PATTERN.matcher(orderId).matches()) {
             return Response.status(Response.Status.BAD_REQUEST)
