@@ -21,6 +21,12 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
  */
 public class OrderArchiveService {
 
+    // Defense-in-depth: the same accept-known-good allowlist the resources
+    // apply (IdValidation.ID_PATTERN), re-checked here so a raw orderId can
+    // never reach the S3 object key even if a future caller skips validation.
+    // This guards the object key only; the payload argument is written verbatim
+    // and is the caller's responsibility.
+
     private final S3Client s3;
     private final String bucket;
 
@@ -44,6 +50,10 @@ public class OrderArchiveService {
     public String archive(String orderId, String payload) {
         if (!isConfigured()) {
             throw new IllegalStateException("ORDERS_ARCHIVE_BUCKET is not set");
+        }
+        if (orderId == null || !IdValidation.ID_PATTERN.matcher(orderId).matches()) {
+            throw new IllegalArgumentException(
+                    "orderId must match " + IdValidation.ID_PATTERN.pattern());
         }
         String key = "orders/" + orderId + "-" + Instant.now().toEpochMilli() + ".json";
         s3.putObject(
