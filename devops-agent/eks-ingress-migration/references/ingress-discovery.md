@@ -81,6 +81,28 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 - 🔴 5 (High): >200 Ingress resources, or many without IngressClass assignment
 - ⬜ Unknown: Cannot list Ingress resources
 
+### 1.3-A — TCP/UDP Service Exposure (L4 flows with no Ingress object)
+
+**Why this is its own check:** ingress-nginx also proxies raw TCP/UDP via the `--tcp-services-configmap` / `--udp-services-configmap` flags. Those flows are declared in a **ConfigMap plus a controller Service port** — there is **no Ingress object anywhere**. §1.3's inventory therefore cannot see them, and neither can the Routing Topology table. Missing them silently drops working production traffic at cutover.
+
+**What to check (read-only):**
+- Controller Deployment `args` for `--tcp-services-configmap=<ns>/<name>` and `--udp-services-configmap=<ns>/<name>`
+- The referenced ConfigMaps — each entry is `<external-port>: <namespace>/<service>:<service-port>`
+- The controller Service's ports **other than 80/443** — an L4 entry only reaches the cluster if the Service publishes its port, so an entry with no matching Service port is dead config (record it as such, don't count it as a live route)
+
+**How to check:**
+1. Read the controller Deployment's container args; extract the two ConfigMap references
+2. Get each referenced ConfigMap and enumerate its `data` entries
+3. List the controller Service and record every non-80/443 port, matching it to the ConfigMap entries
+
+**Migration consequence (state it in the report):** TCP/UDP flows map to **TCPRoute / UDPRoute on an NLB Gateway** — a **separate Gateway** from the L7 ALB one, because LBC does not support mixing protocol layers on a single Gateway. They also need the L4 CRDs, and from Gateway API v1.6.0 TCPRoute/UDPRoute are in the standard channel (below v1.6.0 they require the experimental install). Plan a second Gateway, not an extra listener.
+
+**Impact (per Impact Indicator):**
+- 🟢 0: no `--tcp/udp-services-configmap` arg and no non-80/443 controller Service port
+- 🟡 1–2 (Low): a small number of L4 entries, all mapping cleanly to TCPRoute/UDPRoute
+- 🟠 3–4 (Medium): L4 entries present and carrying live business traffic — a second (NLB) Gateway plus its own cutover is now in scope
+- ⬜ Unknown: **fail closed.** If the controller args or the ConfigMaps cannot be read, record L4 exposure as **Unverified** and state that the route inventory is a **lower bound**. Never infer "no L4 services" from a failed or denied read.
+
 ### 1.4 — Controller Currency, EOL & CVE Exposure
 
 **What to check (read-only):**
@@ -100,8 +122,8 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 
 **Deterministic version facts (cite in the finding):**
 - **ingress-nginx `< v1.9.0`** is affected by **CVE-2023-5043 / CVE-2023-5044** (configuration-snippet / permanent-redirect annotation injection → arbitrary command execution / privilege escalation). Treat any controller `< v1.9.0` as a security finding.
-- Since **v1.9.0**, `allow-snippet-annotations` defaults to **`false`** and `annotations-risk-level` to **`High`**. If a cluster sets `allow-snippet-annotations: "true"`, it re-opens the injection surface — flag it.
-- AWS Load Balancer Controller: **v2.7.2+** for the ALB Ingress path (**v2.15.0+** if `transforms` URI rewrites are needed); **≥ v3.0.0** for Gateway API (the production floor; L4/L7 reconciliation began at v2.13.3 / v2.14.0 but upstream flagged those lines as not for production).
+- Since **v1.9.1**, `allow-snippet-annotations` defaults to **`false`** and `annotations-risk-level` to **`High`**. Neither is present in **v1.9.0** — both landed in [v1.9.1](https://github.com/kubernetes/ingress-nginx/releases/tag/controller-v1.9.1) (2023-10-03), so a v1.9.0 controller still allows snippets by default. If a cluster sets `allow-snippet-annotations: "true"`, it re-opens the injection surface — flag it.
+- AWS Load Balancer Controller: no separately documented minimum for the plain ALB Ingress path (use a currently supported release — the latest line is **v3.5.0**; currency is dated in `gateway-api.md`) — but **v2.14.1+** if `transforms` URI rewrites are needed, and **≥ v3.0.0** for Gateway API (the production floor; L4/L7 reconciliation began at v2.13.3 / v2.14.0 but upstream flagged the whole v2.x line as not for production).
 
 **Impact (per Impact Indicator — anchor on EXPOSURE / blast-radius for security, and on live traffic for business; never on patch effort):**
 > A CVE/EOL finding's severity comes from what it **exposes**, not how hard the upgrade is. Two exposure surfaces exist and are **independent**:

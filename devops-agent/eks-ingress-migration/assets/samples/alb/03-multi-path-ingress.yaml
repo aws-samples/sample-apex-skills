@@ -45,14 +45,12 @@ metadata:
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/transforms.api-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/api\\\\/(.*)$\",\n\
-      \          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
-    alb.ingress.kubernetes.io/transforms.frontend-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/web\\\\/(.*)$\"\
-      ,\n          \"replace\": \"/$1\"\n        }\n      ]\n    }\n  }\n]"
+    alb.ingress.kubernetes.io/transforms.api-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/api(\\\\/|$)(.*)$\",\n          \"replace\": \"/$2\"\n        }\n      ]\n    }\n  }\n]"
+    alb.ingress.kubernetes.io/transforms.frontend-svc: "[\n  {\n    \"type\": \"url-rewrite\",\n    \"urlRewriteConfig\": {\n      \"rewrites\": [\n        {\n          \"regex\": \"^\\\\/web(\\\\/|$)(.*)$\",\n          \"replace\": \"/$2\"\n        }\n      ]\n    }\n  }\n]"
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:ACCOUNT_ID:certificate/CERTIFICATE_ID
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-redirect: '443'
-    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
     alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=120
 spec:
   ingressClassName: alb

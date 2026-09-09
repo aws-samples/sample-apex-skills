@@ -61,7 +61,7 @@ Example: `Ingress/nginx-alb: app.example.com/* → nginx-service:80 (Prefix, TLS
 - URL rewriting → HTTPRoute `filters[].urlRewrite`
 - Request redirect → HTTPRoute `filters[].requestRedirect`
 - Request/response header modification → HTTPRoute `filters[].requestHeaderModifier`
-- Authentication → No native Gateway API equivalent (use ALB Cognito/OIDC annotation — **interactive browser redirect only**; non-interactive callers need an app-level or token/mTLS scheme)
+- Authentication → No native Gateway API equivalent (use ALB Cognito/OIDC via `ListenerRuleConfiguration.authenticateOIDCConfig` — **interactive browser redirect only**; non-interactive callers need an app-level or token/mTLS scheme)
 - Rate limiting → No native equivalent (use AWS WAF)
 - CORS → No native equivalent (use application-level or WAF)
 
@@ -104,7 +104,9 @@ Example: `Ingress/nginx-alb: app.example.com/* → nginx-service:80 (Prefix, TLS
 
 **Blind spot (always note when snippets are present):** topology and routing are derived from **Ingress objects only**. Routes injected via `server-snippet` / `configuration-snippet` (e.g. a raw `location` block) **do not appear** as Ingress rules/backends, so the Routing Topology table (derived from that same Ingress-only data) under-counts them. State this limitation explicitly in the report whenever snippet annotations exist — these are exactly the routes that block migration.
 
-**In this runtime the blind spot cannot be closed — say so, do not work around it.** Both deep reads below need in-cluster execution (`exec` into the controller pod, or curl from a throwaway pod). This runtime has **no shell, no pod exec, and no in-cluster network path**, and `pods/exec` is not granted by the access entry. Therefore:
+**Second blind spot — L4 (always check, not only when snippets exist):** `tcp-services` / `udp-services` ConfigMap entries are raw TCP/UDP flows with **no Ingress object at all**, so they are invisible to an Ingress-derived topology by construction. They are discovered separately in `ingress-discovery.md` §1.3-A (controller args → referenced ConfigMaps → non-80/443 controller Service ports) and must be carried into the Routing Topology table as their own rows, marked L4. They migrate to TCPRoute/UDPRoute on a **separate NLB Gateway** — LBC does not allow mixing protocol layers on one Gateway. Unlike the snippet blind spot below, **this one is closable in this runtime**: the controller args and the ConfigMaps are ordinary API reads. If those reads are denied, the route count is a **lower bound** and the inventory is **Unverified**; never report "no L4 exposure" from a denied read.
+
+**In this runtime the snippet blind spot cannot be closed — say so, do not work around it.** Both deep reads below need in-cluster execution (`exec` into the controller pod, or curl from a throwaway pod). This runtime has **no shell, no pod exec, and no in-cluster network path**, and `pods/exec` is not granted by the access entry. Therefore:
 
 - The snippet under-count is a **permanent caveat of this assessment**, not an optional footnote. Whenever snippet annotations are present, the report MUST state that the true route count is **≥** the counted one and that the delta is unmeasured.
 - Never report a snippet-using estate's route inventory as complete, and never infer "no hidden routes" from the Ingress objects alone.

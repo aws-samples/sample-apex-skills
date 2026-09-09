@@ -21,7 +21,12 @@ Cluster reads come from an **EKS access entry** binding the Agent Space role to 
 
 > **Do not assume that policy's coverage — verify it.** As of 2026-08-30, `AmazonAIOpsAssistantPolicy` is listed among the available cluster-access policies in [Review access policy permissions](https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html) but, unlike most policies on that page (`AmazonARCRegionSwitchScalingPolicy` is likewise unenumerated), **its rules are not enumerated there**. So the exact API groups it grants are **not** confirmable from an authoritative AWS source. This skill therefore treats **every** Kubernetes read as possibly denied and fails closed, rather than relying on assumed coverage.
 
-Binding the ClusterRole below removes the guesswork: it grants exactly the reads this skill needs. Confirm the result with `kubectl auth can-i --as-group eks-ingress-migration ...` rather than assuming.
+Binding the ClusterRole below removes the guesswork: it grants exactly the reads this skill needs. Confirm the result with `kubectl auth can-i` rather than assuming — and note that `--as-group` is only honoured **alongside** `--as`, so a group-only invocation is rejected:
+
+```
+kubectl auth can-i list ingresses.networking.k8s.io \
+  --as <the-agent-role-arn-or-username> --as-group eks-ingress-migration
+```
 
 ## Manifest
 
@@ -71,7 +76,7 @@ roleRef:
 
 Bind the group on the access entry (`--kubernetes-groups eks-ingress-migration`).
 
-> `aws eks update-access-entry --kubernetes-groups` **replaces** the entry's group list rather than appending. If the role already carries groups from other tooling, pass them all in one comma-separated list.
+> **Observed behaviour, not a documented guarantee:** `aws eks update-access-entry --kubernetes-groups` appears to **replace** the entry's group list rather than append to it, which is the expected semantics for a PUT-style update but is **not stated explicitly** in the API reference. Treat it as replace — if the role already carries groups from other tooling, read the current list first (`aws eks describe-access-entry`) and pass them all in one comma-separated value. Verify on a non-production entry before relying on it.
 
 **No Secret access is requested at any point.** TLS posture comes from the `secretName` references in `Ingress.spec.tls[]` plus the ACM inventory, never from key material.
 

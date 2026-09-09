@@ -43,8 +43,8 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
       "urlRewriteConfig": {
         "rewrites": [
           {
-            "regex": "^\\/something\\/(.*)$",
-            "replace": "/$1"
+            "regex": "^\\/something(\\/|$)(.*)$",
+            "replace": "/$2"
           }
         ]
       }
@@ -53,10 +53,24 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 ```
 
 **Rules:**
-- **Requires LBC ≥ v2.15.0** — the `transforms.<svc>` annotation was introduced in [v2.15.0](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/tag/v2.15.0) (2025-11-14). On an older controller it is an unknown annotation and is **silently ignored — no rewrite happens** and traffic reaches the backend with the original path. If the estate needs URI rewrites, the controller floor is **v2.15.0**, not v2.7.2.
+- **Requires LBC ≥ v2.14.1** — the `transforms.<svc>` annotation was introduced in [v2.14.1](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/tag/v2.14.1) (2025-10-17). It is absent from v2.14.0 and from every v2.13.x line. Below the floor it is an unknown annotation and is **silently ignored — no rewrite happens** and traffic reaches the backend with the original path. This is the one hard controller floor on the ALB Ingress path. Do not confuse this Ingress annotation with the Gateway API `HTTPRoute` `URLRewrite` filter, a separate feature that landed in v2.15.0.
 - `<service-name>` must match the backend service name in `spec.rules`
-- Forward slashes in regex must be escaped as `\\/` in JSON
-- NGINX `$2` often becomes ALB `$1` (ALB doesn't need the separator capture group)
+- Forward slashes in regex must be escaped as `\\/` in JSON — **exactly one** level. Over-escaping to `\\\\/` makes the pattern require a literal backslash, so it matches nothing and the rewrite silently never fires (the vendored ATX TD has this bug — see `atx-guide.md`).
+- **Keep the separator group — do not "simplify" it away.** Mirror NGINX's `(/|$)` and keep the payload in `$2`. The three forms compared below:
+
+  ```
+  NGINX source          path: /something(/|$)(.*)      rewrite-target: /$2
+  ALB, correct          regex: ^\/something(\/|$)(.*)$   replace: /$2     <- use this
+  ALB, over-simplified  regex: ^\/something\/(.*)$       replace: /$1     <- silently wrong
+  ```
+
+  | Request | NGINX | ALB correct | ALB over-simplified |
+  |---|---|---|---|
+  | `/something` | `/` | `/` ✅ | **no match → forwarded as `/something`** ❌ |
+  | `/something/foo` | `/foo` | `/foo` ✅ | `/foo` ✅ |
+  | `/somethingelse` | no match | no match ✅ | no match ✅ |
+
+  The over-simplified form is the tempting one and it is **wrong for the bare prefix**: ALB sends the original request to the target when no pattern matches, so `/something` silently reaches the backend un-rewritten while `/something/foo` works. That asymmetry is easy to miss in testing. The correct form is exactly NGINX-equivalent on every input, and needs only plain alternation plus capturing groups — ALB's rewrite engine excludes lookarounds, backreferences, atomic groups, possessive quantifiers, subroutines, recursion and Unicode character classes, none of which this uses. ([Transforms for listener rules](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/rule-transforms.html))
 - Multi-path Ingress needs separate `transforms.<svc>` per backend service
 
 ### TLS / Certificates
@@ -135,7 +149,7 @@ alb.ingress.kubernetes.io/group.order: "10"
 ## Migration Phases (ALB Path)
 
 ### Phase 1: Prerequisites
-1. Install AWS Load Balancer Controller — **v2.7.2+** for the ALB Ingress path, **v2.15.0+** if any route needs a `transforms` URI rewrite (see Rewrites above)
+1. Install AWS Load Balancer Controller. There is no separately documented minimum for the plain ALB Ingress path — the controller has reconciled Ingress since its 2.x line, so use a **currently supported release** (pin the **v3.5.0** line unless a constraint prevents it) rather than a floor. The floors that *are* documented and do bite are feature-specific: **v2.14.1+** if any route needs a `transforms` URI rewrite (see Rewrites above), **v3.0.0+** for Gateway API.
 2. Provision ACM certificates for all TLS hosts
 3. Ensure IAM roles/policies for LB Controller
 
@@ -145,13 +159,20 @@ alb.ingress.kubernetes.io/group.order: "10"
 3. Validate with `kubectl apply --dry-run=client -f <file>`
 
 ### Phase 3: Deploy & Shift Traffic
-1. Deploy migrated Ingress (creates new ALB)
-2. Use DNS weighted routing to shift traffic CLB→ALB
-3. Monitor error rates, latency
+
+> ⚠️ **Do not flip `ingressClassName` in place on the live Ingress.** The moment the class changes from `nginx` to `alb`, the NGINX controller stops serving that object and the ALB starts provisioning — there is no period where both paths are live, so there is nothing to weight and no rollback except editing the class back and waiting for NGINX to re-converge. An in-place flip is an **all-or-nothing cutover**, not a parallel run.
+
+1. Create the migrated Ingress as a **new object with a new name** (e.g. `web-alb`) carrying `ingressClassName: alb`, leaving the original `nginx` Ingress untouched and serving. Both now answer for the same host on **different load balancers**, which is what makes step 3 possible.
+2. Wait for the ALB to provision and its target groups to report healthy; validate directly against the ALB DNS name (`Host:` header) before any DNS change.
+3. Use DNS weighted routing to shift traffic from the NGINX load balancer to the ALB, at a low TTL. **Rollback = move the weight back**; the NGINX path is still live and unmodified.
+4. Monitor error rates and latency at each weight step.
+5. Only once traffic is fully on the ALB, delete the original `nginx` Ingress (Phase 4).
+
+**If a parallel object is not possible** (e.g. a GitOps repo that enforces one Ingress per host, or an admission policy blocking duplicate hosts), then say so plainly in the report and plan it as a **low-TTL all-or-nothing cutover with a documented maintenance window** — do not describe it as weighted or zero-downtime. The Gateway API path (Option 1) does not have this constraint, because the HTTPRoute/Gateway objects are new resources by construction and the Ingress keeps serving until deleted.
 
 ### Phase 4: Cleanup
 1. Delete old NGINX Ingress resources
-2. Remove NGINX Ingress Controller deployment
+2. Remove the NGINX Ingress Controller by **uninstalling its release** (`helm uninstall <release> -n <ns>`) — **not** by deleting the Deployment. The chart also installs an `ingress-nginx-admission` ValidatingWebhookConfiguration with `failurePolicy: Fail` and no selectors; left behind with no endpoints it makes the API server reject **every** Ingress create/update cluster-wide, including re-applying these migrated ALB Ingresses. Non-Helm installs: delete the admission webhook config and its Service explicitly.
 3. Remove orphaned TLS Secrets
 4. Update IaC/GitOps references
 
@@ -187,7 +208,7 @@ alb.ingress.kubernetes.io/group.order: "10"
 ### ALB.3 — AWS LB Controller Readiness
 
 **What to check:**
-- AWS LB Controller installed and version **≥ v2.7.2** (**≥ v2.15.0** if `transforms` URI rewrites are used)
+- AWS LB Controller installed and on a **currently supported release** (no documented minimum for the plain Ingress path; **≥ v2.14.1** if `transforms` URI rewrites are used)
 - IAM role with correct policy attached
 - IngressClass `alb` exists
 
