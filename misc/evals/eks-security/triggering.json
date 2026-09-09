@@ -1,25 +1,94 @@
 [
-  { "query": "We're processing PHI on EKS and need a HIPAA-ready security baseline. What's the AWS-recommended hardening stack?", "should_trigger": true },
-  { "query": "Our PCI-DSS Level 1 audit is in 4 months and our cluster has no NetworkPolicy or Pod Security Admission. What's the priority order to harden it?", "should_trigger": true },
-  { "query": "Can we run EKS with RHEL-based nodes for a FedRAMP Moderate workload, and what does the CIS-hardened AMI path look like?", "should_trigger": true },
-  { "query": "Should we use EKS Pod Identity or IRSA for a new regulated cluster, and is IRSA still OK to use?", "should_trigger": true },
-  { "query": "How do I migrate off the aws-auth ConfigMap to EKS Access Entries without locking myself out?", "should_trigger": true },
-  { "query": "We need GuardDuty for EKS runtime threat detection plus audit-log monitoring. How do the two GuardDuty features differ and how do I enable them?", "should_trigger": true },
-  { "query": "What's the difference between Bottlerocket and CIS-hardened AL2023 for an audit, and which passes more CIS controls out of the box?", "should_trigger": true },
-  { "query": "We want default-deny network policy and pod-level isolation between our cardholder-data pods and everything else in the same cluster.", "should_trigger": true },
-  { "query": "Set up image signing with Cosign and block unsigned images at admission on our EKS cluster.", "should_trigger": true },
-  { "query": "Our compliance team requires CIS-hardened custom AMIs but we wanted EKS Auto Mode for simplicity — what are our options?", "should_trigger": true },
-  { "query": "Which EKS control-plane log types do we need for compliance and how long must we retain them for PCI and HIPAA?", "should_trigger": true },
-  { "query": "GDPR-bound EU customer data on EKS — what's the data-residency architecture and what's our shared responsibility?", "should_trigger": true },
-
-  { "query": "Should we use Karpenter or managed node groups, and how should we plan VPC subnets and CIDR for a new EKS cluster?", "should_trigger": false },
-  { "query": "Generate an EKS architecture design document with Mermaid diagrams and ADRs for our new platform.", "should_trigger": false },
-  { "query": "Run an operational excellence review of our live EKS cluster and give it a GREEN/AMBER/RED score.", "should_trigger": false },
-  { "query": "What version of Kubernetes and which add-ons is my EKS cluster currently running? Inventory the setup.", "should_trigger": false },
-  { "query": "We're self-hosting Llama 3 on EKS with GPUs — how do we secure the model artifacts and training data, and pick GPU vs Inferentia?", "should_trigger": false },
-  { "query": "Generate the Terraform and Helm values to build a production EKS cluster with ArgoCD.", "should_trigger": false },
-  { "query": "Help us set up org-wide AWS security — SCPs, IAM Identity Center, and GuardDuty across every account and service with no EKS angle.", "should_trigger": false },
-  { "query": "How do I reduce my EKS bill — Spot, Graviton, and Karpenter consolidation strategy?", "should_trigger": false },
-  { "query": "Is my cluster ready to upgrade from 1.30 to 1.33? Check deprecated APIs and add-on compatibility.", "should_trigger": false },
-  { "query": "Configure the EKS MCP server in my AI assistant so it can read my cluster.", "should_trigger": false }
+  {
+    "query": "We're processing PHI on EKS and need a HIPAA-ready security baseline. What's the AWS-recommended hardening stack?",
+    "should_trigger": true
+  },
+  {
+    "query": "Our PCI-DSS Level 1 audit is in 4 months and our cluster has no NetworkPolicy or Pod Security Admission. What's the priority order to harden it?",
+    "should_trigger": true
+  },
+  {
+    "query": "Can we run EKS with RHEL-based nodes for a FedRAMP Moderate workload, and what does the CIS-hardened AMI path look like?",
+    "should_trigger": true
+  },
+  {
+    "query": "Should we use EKS Pod Identity or IRSA for a new regulated cluster, and is IRSA still OK to use?",
+    "should_trigger": true
+  },
+  {
+    "query": "How do I migrate off the aws-auth ConfigMap to EKS Access Entries without locking myself out?",
+    "should_trigger": true
+  },
+  {
+    "query": "We need GuardDuty for EKS runtime threat detection plus audit-log monitoring. How do the two GuardDuty features differ and how do I enable them?",
+    "should_trigger": true
+  },
+  {
+    "query": "What's the difference between Bottlerocket and CIS-hardened AL2023 for an audit, and which passes more CIS controls out of the box?",
+    "should_trigger": true
+  },
+  {
+    "query": "We want default-deny network policy and pod-level isolation between our cardholder-data pods and everything else in the same cluster.",
+    "should_trigger": true
+  },
+  {
+    "query": "Set up image signing with Cosign and block unsigned images at admission on our EKS cluster.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our compliance team requires CIS-hardened custom AMIs but we wanted EKS Auto Mode for simplicity \u2014 what are our options?",
+    "should_trigger": true
+  },
+  {
+    "query": "Which EKS control-plane log types do we need for compliance and how long must we retain them for PCI and HIPAA?",
+    "should_trigger": true
+  },
+  {
+    "query": "GDPR-bound EU customer data on EKS \u2014 what's the data-residency architecture and what's our shared responsibility?",
+    "should_trigger": true
+  },
+  {
+    "query": "Should we use Karpenter or managed node groups, and how should we plan VPC subnets and CIDR for a new EKS cluster?",
+    "should_trigger": false
+  },
+  {
+    "query": "Generate an EKS architecture design document with Mermaid diagrams and ADRs for our new platform.",
+    "should_trigger": false
+  },
+  {
+    "query": "Run an operational excellence review of our live EKS cluster and give it a GREEN/AMBER/RED score.",
+    "should_trigger": false
+  },
+  {
+    "query": "What version of Kubernetes and which add-ons is my EKS cluster currently running? Inventory the setup.",
+    "should_trigger": false
+  },
+  {
+    "query": "We're self-hosting Llama 3 on EKS with GPUs \u2014 how do we secure the model artifacts and training data, and pick GPU vs Inferentia?",
+    "should_trigger": false
+  },
+  {
+    "query": "Generate the Terraform and Helm values to build a production EKS cluster with ArgoCD.",
+    "should_trigger": false
+  },
+  {
+    "query": "Help us set up org-wide AWS security \u2014 SCPs, IAM Identity Center, and GuardDuty across every account and service with no EKS angle.",
+    "should_trigger": false
+  },
+  {
+    "query": "How do I reduce my EKS bill \u2014 Spot, Graviton, and Karpenter consolidation strategy?",
+    "should_trigger": false
+  },
+  {
+    "query": "Is my cluster ready to upgrade from 1.30 to 1.33? Check deprecated APIs and add-on compatibility.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure the EKS MCP server in my AI assistant so it can read my cluster.",
+    "should_trigger": false
+  },
+  {
+    "query": "score our EKS cluster across all five Well-Architected pillars, security included",
+    "should_trigger": false
+  }
 ]

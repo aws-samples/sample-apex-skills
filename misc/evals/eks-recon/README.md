@@ -18,6 +18,7 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 - **`eks-build`** (EKS Terraform code generation — full project scaffold, Pattern 2a/2b) — negatives 20, 21 ("Generate Terraform code for…", "Build an EKS Terraform project…").
 - **`eks-ingress-migration`** (assesses/plans migrating off the NGINX ingress controller to Gateway API / ALB / ATX) — negative 23 ("map nginx Ingress to HTTPRoute, flag no-Gateway-API-equivalent annotations"). Recon inventories what's deployed; ingress-migration evaluates how to move the ingress layer off nginx.
 - **`eks-security`** (EKS security & compliance hardening — CIS, HIPAA/PCI/FedRAMP/GDPR, Pod Identity/Access Entries, PSA, GuardDuty, image signing, audit logging) — negative 24 ("Harden my EKS cluster to meet PCI-DSS —…").
+- **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster — five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) — negative 25 ("audit our EKS cluster against Well-Arch…").
 <!-- SIBLING_MAP_END -->
 
 ## Live-cluster caveat

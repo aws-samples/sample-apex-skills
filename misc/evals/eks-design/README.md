@@ -16,6 +16,7 @@ The boundary between `eks-design` and its neighbours hinges on whether the promp
 - **`eks-operation-review`** (structured operational posture assessment with GREEN/AMBER/RED ratings) — negative 19 ("Run a structured operational review on my EKS cluster and produce a GREEN/AMBER/RED rated report").
 - **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 20 ("Help me build an Internal Developer Platform with Backstage portal, golden paths, and progressive delivery on EKS").
 - **`eks-security`** (EKS security & compliance hardening — CIS, HIPAA/PCI/FedRAMP/GDPR, Pod Identity/Access Entries, PSA, GuardDuty, image signing, audit logging) — negative 21 ("Harden our EKS cluster for FedRAMP Mode…").
+- **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster — five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) — negative 22 ("run a Well-Architected review against o…").
 <!-- SIBLING_MAP_END -->
 
 The key discriminator: `eks-design` fires when the prompt requests a **persistent design artifact** (architecture document, ADR, Mermaid diagram, validation report, or design-for-handoff-to-build) rather than a verbal recommendation, executable code, live cluster query, or process/standards check.
