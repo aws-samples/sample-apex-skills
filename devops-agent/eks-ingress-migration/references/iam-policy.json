@@ -1,0 +1,64 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EKSReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListClusters",
+        "eks:DescribeCluster",
+        "eks:ListAddons",
+        "eks:DescribeAddon"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EC2ReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeRegions",
+        "ec2:DescribeInstances",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ELBReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:Describe*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ACMReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "acm:ListCertificates",
+        "acm:DescribeCertificate"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Route53ReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "route53:ListHostedZones",
+        "route53:ListResourceRecordSets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListOpenIDConnectProviders"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

@@ -65,7 +65,7 @@ Every finding belongs to exactly one category. Categories are weighted by a **ma
 | DNS Cutover & Blast Radius | 15 | New ALB endpoint + DNS repoint, external-dns Gateway-API source maturity, hostname/TTL stability (DNS & Certificates Analysis, Migration Risk) |
 | Downtime / Rollback Readiness | 10 | New-LB provisioning, long-lived/stateful connections, presence of a weighted/blue-green rollback path (Migration Risk) |
 | Controller Health & EOL/CVE | 10 | Controller pod health + version EOL/CVE (Ingress Discovery §1.1, §1.4). **Absent controller = 0** (non-event). **Present-but-broken with zero bound routes = 1 (tech debt)** — a separate hygiene deduction with a mandatory cleanup note; **broken with bound routes = active outage**, flagged urgently and scored **outside** this 0–100 model. Neither replaces the migration-difficulty of that controller's config. **EOL/CVE: data-plane severity scales with the live business traffic served (0 if the controller is absent/fully-down); but a running controller exposing a known control-plane RCE (e.g. CVE-2025-1974) is a security finding regardless of route count** (see §1.4). |
-| Scale / Volume | 10 | **Count of routes that actually need work** = total routes − 0-effort routes. Do NOT scale off the raw total. (Ingress Discovery, Routing Topology) |
+| Scale / Volume | 10 | **Count of routes that actually need work** = total routes − 0-effort routes. Do NOT scale off the raw total. Map the count to Impact deterministically: **0 routes → 0 · 1–3 → 1 · 4–10 → 2 · 11–30 → 3 · 31–100 → 4 · >100 → 5.** (Ingress Discovery, Routing Topology) |
 | Backend Compatibility | 5 | Exotic backends, `ExternalName`, service-type edge cases (Ingress Resource Analysis) |
 
 Caps deliberately sum to 125 (over-provisioned) so a genuinely high-change estate floors toward 0 — that is intended: much change ⇒ low score.
@@ -167,21 +167,34 @@ Then: `Score = 100 − (total capped deductions) = XX — [LABEL]`, plus the gat
 
 ### 1.7 — Worked example (reflecting the feedback)
 
-Estate: **18 ingresses** — **6 already on ALB** (0 effort, done) and **12 needing work** (per §1.3: routes needing work = total − 0-effort = 18 − 6 = **12**). The 12 are **2 plain class-switch moves** + **10 with feature complexity**. A bare nginx→alb class switch is **at least Medium** (it provisions a new ALB and only takes traffic after a DNS cutover — see `alb-migration.md`), so the 2 annotation-only moves are **not** free: they count in Scale/Volume and share the estate's single new-ALB cutover — they simply add no *feature-gap* complexity of their own. Of the 10: `configuration-snippet` Lua on `/checkout` (Tier A, no workaround), CORS + rate-limit + IP-allowlist (Tier B, performance-only → Impact 2), `rewrite-target` on 3 routes (Routing, Impact 2 each = annotation-grade), cert-manager→ACM (TLS, Impact 3), NGINX 1.9.x EOL no active CVE (Controller, Impact 3).
+Estate: **18 ingresses** — **6 already on ALB** (0 effort, done) and **12 needing work** (per §1.3: routes needing work = total − 0-effort = 18 − 6 = **12**). The 12 are **2 plain class-switch moves** + **10 with feature complexity**. A bare nginx→alb class switch is **at least Medium** (it provisions a new ALB and only takes traffic after a DNS cutover — see `alb-migration.md`), so the 2 annotation-only moves are **not** free: they count in Scale/Volume and share the estate's single new-ALB cutover — they simply add no **feature-gap** complexity of their own. Of the 10: `configuration-snippet` Lua on `/checkout` (Tier A, no workaround), CORS + rate-limit + IP-allowlist (Tier B, performance-only → Impact 2), `rewrite-target` on 3 routes (Routing, Impact 2 each = annotation-grade), cert-manager→ACM (TLS, Impact 3), NGINX 1.9.x EOL (Controller, Impact 3 — **see the webhook stipulation below**).
+
+**Every category in §1.3 is listed below, including the ones that score low or zero** — §1.6 requires it, so that a reader can see what was considered rather than guessing what was skipped. For this estate the two cutover categories are stipulated as: **DNS Cutover & Blast Radius — Impact 2** (one new ALB, 12 hostnames repointed, but hostnames are stable, TTLs are already low and a weighted shift is available) and **Downtime / Rollback Readiness — Impact 1** (that weighted DNS path gives a proven rollback, and no long-lived/stateful connections are in play). **Backend Compatibility — Impact 0** (no `ExternalName` or exotic service types), listed at 0 pts per the non-event rule.
+
+> **Stipulation the Controller score depends on — do not read past it.** This example scores the EOL controller at Impact **3**, and that is only legal because §1.4's webhook tri-state resolved to **confirmed not-exposed**: the controller Deployment carries **no `--validating-webhook=<address>` argument**, so the admission webhook server is not listening and the [CVE-2025-1974](https://github.com/advisories/GHSA-mgvx-rpfc-9mpv) control-plane path is closed. That verification is a required row in the findings, not an assumption:
+>
+> | Check | Observed | Consequence |
+> |---|---|---|
+> | Controller `args` contain `--validating-webhook=<address>` | **absent** | webhook server not listening → CVE-2025-1974 path closed → Controller stays Impact 3, EOL/currency only |
+>
+> **Counterfactual (the common real case):** if that argument is present, **or** the args could not be read, §1.4 fails closed to **exposed** and the same estate scores Controller **Impact 5**. Re-deriving with `base_points(5) = 10` against the Controller cap of 10: `10 + 6 + 6 + 4 + 2 + 1 + 10 + 4 + 0 = 43` deductions → **100 − 43 = 57 / VERY HARD**, and the CVE condition adds a non-route gate entry → gate **2**. The webhook state therefore moves the estate a **whole band**. An unverified webhook is **never** Impact 3; do not copy the 63 below into a report whose webhook state is Unverified.
 
 ```
-Feature-Gap Tier A:  10  (cap 30)   # /checkout snippet  -> also Gate +1
-Feature-Gap Tier B:   6  (cap 10)   # CORS+rate-limit+allowlist, Impact 2 each
-Routing:              6  (cap 20)   # 3 rewrites @ Impact 2 (the 2 class-switch moves add no routing complexity; counted only in Scale/Volume below, never as a separate row)
-TLS:                  4  (cap 15)   # cert-manager -> ACM
-Controller:           4  (cap 10)   # nginx EOL, no CVE
-Scale/Volume:         4  (cap 10)   # 12 routes need work (NOT 18) -> Impact 3
-Σ = 34  ->  score = 100 − 34 = 66  (HARD)
+Feature-Gap Tier A:    10  (cap 30)   # /checkout snippet  -> also Gate +1
+Feature-Gap Tier B:     6  (cap 10)   # CORS+rate-limit+allowlist, Impact 2 each
+Routing:                6  (cap 20)   # 3 rewrites @ Impact 2 (the 2 class-switch moves add no routing complexity; counted only in Scale/Volume below, never as a separate row)
+TLS:                    4  (cap 15)   # cert-manager -> ACM
+DNS Cutover:            2  (cap 15)   # one new ALB, 12 hosts repointed; stable hostnames, low TTL, weighted shift available -> Impact 2
+Downtime/Rollback:      1  (cap 10)   # weighted DNS rollback path exists; no long-lived connections -> Impact 1
+Controller:             4  (cap 10)   # nginx EOL; webhook CONFIRMED not-exposed (see stipulation) -> no CVE condition
+Scale/Volume:           4  (cap 10)   # 12 routes need work (NOT 18) -> Impact 3
+Backend Compatibility:  0  (cap  5)   # no ExternalName / exotic backends -> non-event, listed at 0
+Σ = 37  ->  score = 100 − 37 = 63  (HARD)
 
 Re-architecture Gate = 1  ->  "⛔ 1 blocker needs redesign / approval (snippet on /checkout)"
 ```
 
-Final: **66 / HARD · ⛔ 1 blocker needs redesign / approval.** Contrast with v1, which floored the same cluster at **13 / VERY HARD** by maxing Feature-Gap on soft items and then locking the ceiling. The new model credits the 6 done routes, counts **12** (not 18) for volume, drops CORS/allowlist/rate-limit to Impact 2, treats the 2 class-switch moves as real (Medium) work rather than zero, and reports the one true blocker as a gate instead of erasing the number.
+Final: **63 / HARD · ⛔ 1 blocker needs redesign / approval.** Contrast with v1, which floored the same cluster at **13 / VERY HARD** by maxing Feature-Gap on soft items and then locking the ceiling. The new model credits the 6 done routes, counts **12** (not 18) for volume, drops CORS/allowlist/rate-limit to Impact 2, treats the 2 class-switch moves as real (Medium) work rather than zero, prices the cutover explicitly instead of omitting it, and reports the one true blocker as a gate instead of erasing the number.
 
 ## Step 2: Consistency Checks (MANDATORY)
 
@@ -243,7 +256,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 
 > Place this as the first authored section on the Overview page (the renderer injects the 3D Routing Diagram just above it, so the rendered flow is: cluster info → 3D diagram → this score → Executive Summary). The headline is the `[[SCORE:nn:LABEL]]` token (colored gauge, green = easy / red = hard) optionally followed by a `[[GATE:n]]` token (re-architecture badge: green ✓ when `n` is 0, red ⛔ when `n` > 0). `nn` is the 0–100 number from Step 1; `LABEL` is the band. One sentence states the bottom line, then the Score Breakdown table makes the math auditable.
 
-[[SCORE:66:HARD]] [[GATE:1]]
+[[SCORE:63:HARD]] [[GATE:1]]
 
 [One sentence: how much change leaving NGINX needs for this cluster and the single biggest driver. State how many routes are already done (0 effort) and how many actually need work. If the gate is > 0, name the blocker(s) — route or condition — that need redesign.]
 
@@ -280,7 +293,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 >
 > **Presence is decided by estate state — not by a "serves no live traffic" test:** an **absent** controller / **empty estate** / **orphaned dead config** is a **non-event (0)** — nothing to migrate. A **present-but-broken** controller with **zero bound routes** is **tech debt (+1)** with a cleanup note; **with bound routes** it is a **suspected active outage**, flagged urgently **outside** the 0–100 score. **Carve-out:** a running controller with a **control-plane CVE** (e.g. an admission-webhook RCE) is a security finding **even at zero routes**. Only **live** traffic anchors the *business* dimension; *security* is anchored by exposure.
 >
-> **Execution risk counts — do NOT score by YAML-edit size.** A small manifest change can still be high-impact. Specifically: changing `ingressClassName` to a *different controller* (e.g. nginx→alb) **provisions a brand-new load balancer** and only takes traffic after a **DNS cutover** (it is a parallel-run + cutover, not a no-op edit); moving a feature that has **no faithful equivalent** (CORS, rate-limit, external auth) to WAF/app usually needs **application/code changes**; and any TLS/cert-store change done together with routing changes risks **SSL handshake errors / downtime**. Score these by the operational risk, not the diff size.
+> **Execution risk counts — do NOT score by YAML-edit size.** A small manifest change can still be high-impact. Specifically: changing `ingressClassName` to a *different controller* (e.g. nginx→alb) **provisions a brand-new load balancer** and only takes traffic after a **DNS cutover** (it is a parallel-run + cutover, not a no-op edit); moving a feature with **no native ALB annotation** (CORS, rate-limit, external auth) to WAF/app usually needs **application/code changes** — note those three are **Tier-B** under §1.3 **precisely because** that app/WAF workaround exists, so this line is about execution risk, never a reason to score them Tier-A (that needs §1.3's escalation conditions); and any TLS/cert-store change done together with routing changes risks **SSL handshake errors / downtime**. Score these by the operational risk, not the diff size.
 
 | Impact | Meaning |
 |--------|---------|
@@ -379,56 +392,58 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 
 > **What:** Kubernetes-native successor to Ingress (HTTPRoute + Gateway). · **Effort:** Medium · **Best when:** you want the long-term standard.
 > **Routing config:** [[DL:gateway-api]]
-> **Caveats:** L7 ALB Gateway API support is recent (HTTPRoute ≥ v2.14, GA 2026 line) — verify TLS handling and routing filters per route before cutover. On **EKS Auto Mode** running a self-managed LBC too, scope `GatewayClass`/`IngressClass` per controller to avoid !!load-balancer ownership conflicts!!.
+> **Caveats:** L7 ALB Gateway API support is recent (HTTPRoute reconciliation since v2.14.0; **production floor v3.0.0**) — verify TLS handling and routing filters per route before cutover. On **EKS Auto Mode** running a self-managed LBC too, scope `GatewayClass`/`IngressClass` per controller to avoid !!load-balancer ownership conflicts!!.
 > **Automation sub-path — `lbc-migrate` (recommended when already on LBC ALB Ingress):** if routes are already served by the AWS Load Balancer Controller, the official **LBC Ingress → Gateway API toolkit** (`lbc-migrate` CLI + Migration Console; the CLI ships in **LBC v3.4.0** and the path uses **Gateway API standard CRDs v1.5.0**) auto-translates Ingress → Gateway API and previews the result with a dry-run before any ALB is created. Prefer it over hand-authoring HTTPRoutes; keep the manual Phase 2 steps below as the fallback for its **skip-or-warn** cases (capture-group `url-rewrite`, WAF Classic, `frontend-nlb-*`, `group.order`). The skipped **capture-group `url-rewrite` stays a Tier-A / Re-architecture-Gate item** — automating the bulk translation does not downgrade it (it has no Gateway API equivalent; only **static** prefix strips map to `ReplacePrefixMatch`). Two migration-window facts to surface in the report: the new Gateway ALBs run **in parallel** with the existing Ingress ALBs until cleanup (**duplicate ALB/LCU-hours on the bill**), and if clients reach the app via the **Ingress ALB DNS name directly** (no Route 53 / custom domain) **traffic cannot be shifted without updating every client** — confirm the traffic path before cutover. Full flow, prerequisites, and limitations: `references/lbc-migrate-toolkit.md`. Note the hop order — convert raw **NGINX → LBC Ingress** first (`references/alb-migration.md`, or automate that hop with **ATX / Option 3**), *then* run `lbc-migrate` for **LBC Ingress → Gateway API**.
 
 #### Phase 1 — Foundation
 | Step | Action |
 |------|--------|
 | 1 | Install Gateway API CRDs |
-| 2 | Verify/upgrade AWS LB Controller (**≥ v2.14** for L7 Gateway API; not needed on Auto Mode) |
+| 2 | Verify/upgrade AWS LB Controller (**≥ v3.0.0**, the Gateway API production floor — still needed on Auto Mode, whose built-in controller has no Gateway API) |
 | 3 | Create GatewayClass |
 | 4 | Create Gateway per listener group |
 
 #### Phase 2 — Convert & Test
 | Step | Action |
 |------|--------|
-| 1 | Generate HTTPRoutes from current Ingress — **automate with `lbc-migrate`** if already on LBC ALB Ingress **and** the controller is at the Gateway API runtime baseline (**≥ v2.13.3** L4 / **≥ v2.14** L7) with **standard CRDs v1.5.0** (`references/lbc-migrate-toolkit.md`); otherwise download config above |
+| 1 | Generate HTTPRoutes from current Ingress — **automate with `lbc-migrate`** if already on LBC ALB Ingress **and** the controller is at or above the Gateway API **production floor (≥ v3.0.0)** with the **standard CRDs its controller line targets** (v1.5.0 for v3.4.0, v1.6.0 for v3.5.0) (`references/lbc-migrate-toolkit.md`); otherwise download config above |
 | 2 | Apply low-risk routes first; validate routing, TLS, health |
 | 3 | Routes with no equivalent (snippets/auth/mirror) — redesign (see [blocker](#blockers)) |
 
-> **Below the runtime baseline?** If the controller is older than **v2.13.3** (L4) / **v2.14** (L7), or standard Gateway API CRDs are older than **v1.5.0**, then the `lbc-migrate` automation is unavailable — **and so is Option 1 itself** — until the operator upgrades. For anything beyond a handful of Ingresses, present **"upgrade the AWS Load Balancer Controller to the current v3.4.0 release line" as the recommended first step**: it clears the runtime baseline **and** provides the `lbc-migrate` CLI, which is cheaper than hand-authoring HTTPRoutes against an unsupported controller. The upgrade and the CRD install are **operator actions** the assessment documents but does not run.
+> **Below the production floor?** If the controller is older than **v3.0.0** (the Gateway API production floor), or the standard Gateway API CRDs are older than the version its controller line targets, then the `lbc-migrate` automation is unavailable — **and so is Option 1 itself** — until the operator upgrades. For anything beyond a handful of Ingresses, present **"upgrade the AWS Load Balancer Controller to the v3.5.0 release line" as the recommended first step**: it clears the production floor **and** still carries the `lbc-migrate` CLI, which is cheaper than hand-authoring HTTPRoutes against an unsupported controller. The upgrade and the CRD install are **operator actions** the assessment documents but does not run.
 
 #### Phase 3 — Cutover
 | Step | Action |
 |------|--------|
-| 1 | Shift DNS to the Gateway ALB (weighted) |
-| 2 | Watch 5xx / latency |
-| 3 | Confirm all HTTPRoutes `Accepted=True` |
+| 1 | Confirm all HTTPRoutes `Accepted=True` and the Gateway `Programmed=True`, with target groups healthy — **before any DNS change** |
+| 2 | Shift DNS to the Gateway ALB (weighted, low TTL) |
+| 3 | Watch 5xx / latency; **rollback = shift the DNS weight back** (the old path is still live) |
 
 #### Phase 4 — Cleanup
 | Step | Action |
 |------|--------|
 | 1 | Delete migrated Ingress resources |
-| 2 | Remove old controllers |
+| 2 | Remove old controllers by **uninstalling the release** (`helm uninstall <release> -n <ns>`) — never by deleting the Deployment alone; see the admission-webhook warning below |
 | 3 | Remove unused IngressClasses |
+
+> ⚠️ **Removing only the ingress-nginx Deployment breaks Ingress admission cluster-wide.** The chart also installs an `ingress-nginx-admission` ValidatingWebhookConfiguration with `failurePolicy: Fail` and no namespace/object selectors. Delete the Deployment and that webhook survives with **no endpoints behind its Service**, so the API server fails closed on **every** Ingress create/update in the cluster — including re-applying the migrated ALB Ingresses and any GitOps sync. Cleanup must `helm uninstall` the release (or, for a non-Helm install, explicitly delete the admission `ValidatingWebhookConfiguration` **and** its Service). This is an **OPERATOR** action; the assessment documents it and never executes it.
 
 > Options 2 (ALB) and 3 (ATX) follow the identical panel + Phase 1–4 structure, each with its own `[[DL:alb]]` / `[[DL:atx]]` button. Keep the ALB annotation-conversion table and the ATX "What ATX Converts" table as reference sub-sections under their options.
 
 #### Phase 3: Traffic Cutover
 
-| Step | Action | Validation |
-|------|--------|-----------|
-| 1 | Update DNS to Gateway LB | [how to verify] |
-| 2 | Monitor error rates | [what to watch] |
-| 3 | Confirm all routes healthy | [check command] |
+| Step | Action | Validation | Rollback |
+|------|--------|-----------|----------|
+| 1 | Confirm routes accepted and targets healthy **before touching DNS** | [how to verify] | n/a — nothing shifted yet |
+| 2 | Update DNS to the Gateway LB (weighted, low TTL) | [how to verify] | Shift the weight back; the old path is still live |
+| 3 | Monitor error rates | [what to watch] | Shift the weight back |
 
 #### Phase 4: Cleanup
 
 | Step | Action |
 |------|--------|
 | 1 | Delete old Ingress resources |
-| 2 | Remove old controller |
+| 2 | Remove the old controller by **uninstalling its release**, not by deleting the Deployment (an orphaned `ingress-nginx-admission` webhook fails Ingress admission cluster-wide — see the Phase 4 warning above) |
 | 3 | Remove unused IngressClass |
 
 ---
@@ -445,7 +460,7 @@ Stay on the Ingress API but swap NGINX annotations for ALB annotations. Gets you
 |-----------------|----------------|
 | `ingressClassName: nginx` | `ingressClassName: alb` |
 | `nginx...rewrite-target: /$2` | `alb...transforms.<svc>` (url-rewrite JSON) |
-| `spec.tls[].secretName` | `alb...certificate-arn` or `certificate-discovery: "true"` |
+| `spec.tls[].secretName` | `alb...certificate-arn`, or omit it for ACM certificate discovery |
 | `nginx...ssl-redirect: "true"` | `alb...ssl-redirect: "443"` |
 | `nginx...proxy-read-timeout` | `alb...load-balancer-attributes: idle_timeout.timeout_seconds=N` |
 | `nginx...auth-url` | `alb...auth-type: oidc` + `auth-idp-oidc` JSON |
@@ -457,7 +472,7 @@ Stay on the Ingress API but swap NGINX annotations for ALB annotations. Gets you
 
 | Step | Action | Validation |
 |------|--------|-----------|
-| 1 | Install AWS LB Controller **v2.7.2+** (ALB Ingress); not needed on EKS Auto Mode | `kubectl get deploy -n kube-system aws-load-balancer-controller` |
+| 1 | Install AWS LB Controller on a currently supported release — **v2.14.1+** if any route needs a `transforms` URI rewrite; not needed on EKS Auto Mode | `kubectl get deploy -n kube-system aws-load-balancer-controller` |
 | 2 | Provision ACM certificates | `aws acm list-certificates` — all ISSUED |
 | 3 | Convert annotations per mapping above | `kubectl apply --dry-run=client -f <file>` |
 | 4 | Deploy migrated Ingress (new ALB created) | `kubectl get ingress -A` shows ALB address |
@@ -487,7 +502,7 @@ For customers with AWS Transform access — fully automated manifest rewriting. 
 | 1 | Upload TD from `references/atx/td_ingress-nginx-lbc/transformation_definition.md` | You |
 | 2 | Point ATX at your Ingress manifest repository | You |
 | 3 | ATX scans, converts, validates automatically | ATX |
-| 4 | Review diff and merge | You |
+| 4 | Review diff and merge — **including the three mandatory manual checks below**; ATX's own validation does not catch them | You |
 | 5 | Deploy + DNS cutover | You |
 
 #### What ATX Converts
@@ -508,6 +523,16 @@ For customers with AWS Transform access — fully automated manifest rewriting. 
 - ✅ All rewrites use valid `transforms.<svc>` JSON
 - ✅ All TLS ingresses have ACM + ssl-redirect + ssl-policy
 - ✅ `kubectl apply --dry-run=client` passes
+
+#### Manual Checks ATX Does NOT Perform (MANDATORY before merge)
+
+The Transform Definition carries three defects that produce **valid YAML with wrong behaviour**, so every check above passes while the result is broken. Full explanation: `references/atx-guide.md`.
+
+| # | Check the diff for | Why | Fix |
+|---|---|---|---|
+| 1 | `alb.ingress.kubernetes.io/certificate-discovery` | The annotation **does not exist**; it is silently ignored, leaving the HTTPS listener with **no certificate** | Delete it and omit `certificate-arn` instead (that is what triggers discovery) |
+| 2 | An over-escaped rewrite regex — decoded JSON reading `^\\/path\\/(.*)$` instead of `^\/path\/(.*)$` | The extra escape level makes the regex require a literal backslash, so **the rewrite never fires** and the backend sees the original path | Remove one level of escaping |
+| 3 | `deregistration_delay.timeout_seconds` used for `proxy-read-timeout` / `proxy-send-timeout` | Deregistration delay is connection **draining**, unrelated to backend response waits | Use the ALB **idle timeout** (`load-balancer-attributes: idle_timeout.timeout_seconds`); note it is load-balancer-wide, so per-route NGINX timeouts cannot be reproduced exactly |
 
 > **TD location:** `references/atx/td_ingress-nginx-lbc/transformation_definition.md`
 > **Contact:** AWS account team for ATX workspace onboarding

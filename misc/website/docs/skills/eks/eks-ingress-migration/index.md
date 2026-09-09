@@ -22,7 +22,7 @@ This skill assesses your live EKS cluster's current Ingress architecture and eva
 
 | Option | Status | Notes |
 |--------|--------|-------|
-| Gateway API (HTTPRoute + Gateway) | ✅ Assessed | Official Kubernetes successor to Ingress. AWS LB Controller supports it (L7 ≥ v2.14, L4 ≥ v2.13.3; built-in on EKS Auto Mode). |
+| Gateway API (HTTPRoute + Gateway) | ✅ Assessed | Official Kubernetes successor to Ingress. Needs a **self-managed** AWS LB Controller at **≥ v3.0.0** (the production floor — L4/L7 reconciliation began at v2.13.3 / v2.14.0, which upstream flagged as not for production). **Not** provided by EKS Auto Mode's built-in controller. |
 | AWS Load Balancer Controller (ALB Ingress) | ✅ Assessed | Stay on Ingress API but swap NGINX→ALB. Gets WAF, Cognito, Shield. |
 | AWS Transform (ATX) — Automated | ✅ Included | TD included. For customers with ATX access — fully automated manifest rewriting. |
 
@@ -56,7 +56,7 @@ Pre-flight → Assess (7 sections) → Current Architecture Topology → Dual Re
 | Traffic & Routing | Routing patterns, advanced features, mapping to HTTPRoute |
 | Migration Risk | Downtime risk, feature gaps, rollback plan |
 
-## Report Structure (5 Navigation Pages)
+## Report Structure (6 Navigation Pages)
 
 | Nav Page | Contains |
 |----------|----------|
@@ -73,7 +73,7 @@ Before executing checks for any section, read the corresponding reference file f
 
 | User Request | Reference File |
 |---|---|
-| Full migration assessment | ALL files in order (skip gateway-api.md, lbc-migrate-toolkit.md, alb-migration.md, atx-guide.md) |
+| Full migration assessment | ALL files in order. `gateway-api.md`, `lbc-migrate-toolkit.md`, `alb-migration.md` and `atx-guide.md` are **not read during the discovery/scoring pass** — they are **loaded later, at report-generation and export time**, for whichever migration option(s) the findings select (export rule 7 reads `alb-migration.md` for the ALB target). Skipping them up front keeps the assessment pass lean; it does not mean they go unused. |
 | What ingress controllers do I have? | `references/ingress-discovery.md` |
 | Analyze my Ingress resources | `references/ingress-resources.md` |
 | DNS / certs / TLS | `references/dns-certificates.md` |
