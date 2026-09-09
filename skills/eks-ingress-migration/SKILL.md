@@ -66,7 +66,7 @@ Before executing checks for any section, read the corresponding reference file f
 
 | User Request | Reference File |
 |---|---|
-| Full migration assessment | ALL files in order (skip gateway-api.md, lbc-migrate-toolkit.md, alb-migration.md, atx-guide.md) |
+| Full migration assessment | ALL files in order. `gateway-api.md`, `lbc-migrate-toolkit.md`, `alb-migration.md` and `atx-guide.md` are **not read during the discovery/scoring pass** — they are **loaded later, at report-generation and export time**, for whichever migration option(s) the findings select (export rule 7 reads `alb-migration.md` for the ALB target). Skipping them up front keeps the assessment pass lean; it does not mean they go unused. |
 | What ingress controllers do I have? | `references/ingress-discovery.md` |
 | Analyze my Ingress resources | `references/ingress-resources.md` |
 | DNS / certs / TLS | `references/dns-certificates.md` |

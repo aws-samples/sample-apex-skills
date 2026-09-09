@@ -69,15 +69,22 @@ Point ATX at the repository containing your NGINX Ingress manifests. ATX will:
 ATX produces a diff. Verify:
 - ✅ `ingressClassName` is `alb` everywhere
 - ✅ No `nginx.ingress.kubernetes.io/*` annotations remain
-- ✅ Rewrite `transforms.<svc>` JSON is valid
+- ⚠️ **Rewrite `transforms.<svc>` JSON is valid *and its regex actually matches*** — the TD over-escapes forward slashes (defect 2 below). Decode the JSON and confirm the regex reads `^\/path\/(.*)$`, not `^\\/path\\/(.*)$`
 - ✅ ACM certificate references present on TLS ingresses
-- ⚠️ **No `alb.ingress.kubernetes.io/certificate-discovery` annotation** — see the caveat below; if ATX emitted one, delete it and omit `certificate-arn` instead
+- ⚠️ **No `alb.ingress.kubernetes.io/certificate-discovery` annotation** — defect 1 below; if ATX emitted one, delete it and omit `certificate-arn` instead
+- ⚠️ **No `deregistration_delay.timeout_seconds` standing in for a proxy timeout** — defect 3 below; the analogue of `proxy-read-timeout` / `proxy-send-timeout` is the **idle timeout**, not deregistration delay
 - ✅ `ssl-redirect`, `listen-ports`, `ssl-policy` set
 - ✅ Orphaned TLS Secrets removed
 
 Then merge the changes.
 
-> **⚠️ Known defect in the vendored TD and its source blog — `certificate-discovery` is not a real annotation.** The Transform Definition under `atx/` (and the AWS blog reproduced beside it) instruct using `alb.ingress.kubernetes.io/certificate-discovery: "true"`. **No such annotation exists in the AWS Load Balancer Controller** — it is absent from the [Ingress annotation reference](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/) and from the controller's annotation constants (checked v2.7.2 → v3.5.0, 2026-09-01). An unknown annotation is **silently ignored**, so an operator who applies it believes TLS discovery is active while the listener has no certificate configured. Certificate discovery is instead triggered by **omitting `certificate-arn`** entirely, with an HTTPS entry in `listen-ports`; the controller then matches ACM certs against the Ingress `tls` hosts and rule `host` values ([Certificate Discovery](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/cert_discovery/)). The `atx/` files are kept **byte-faithful to the artifact ATX actually ships** rather than silently forked, so review any ATX output for this annotation and strip it.
+> **⚠️ Three known defects in the vendored TD.** The Transform Definition and the AWS blog under `atx/` are kept **byte-faithful to the artifact ATX actually ships** rather than silently forked, so these are documented here instead of edited there. All three fail **silently** — the manifest applies cleanly and the behaviour is wrong — so each needs an explicit review step above.
+>
+> **1. `certificate-discovery` is not a real annotation.** The TD (and the blog reproduced beside it) instruct `alb.ingress.kubernetes.io/certificate-discovery: "true"`. **No such annotation exists in the AWS Load Balancer Controller** — it is absent from the [Ingress annotation reference](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/annotations/) and from the controller's annotation constants (checked v2.7.2 → v3.5.0, 2026-09-01). An unknown annotation is **silently ignored**, so an operator who applies it believes TLS discovery is active while the listener has no certificate configured. Certificate discovery is instead triggered by **omitting `certificate-arn`** entirely, with an HTTPS entry in `listen-ports`; the controller then matches ACM certs against the Ingress `tls` hosts and rule `host` values ([Certificate Discovery](https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/guide/ingress/cert_discovery/)).
+>
+> **2. The rewrite regex is over-escaped and never matches.** The TD emits `"regex": "^\\\\/something\\\\/(.*)$"` inside a YAML `|` block scalar and instructs "escape forward slashes as `\\\\/`". A block scalar performs **no** unescaping, so JSON receives four backslashes and decodes them to **two** — the regex then requires a literal backslash before each slash and matches no real request path. **The rewrite silently never fires** and traffic reaches the backend with the original path. The correct escaping is `\\/` in the block scalar (JSON-decoding to `\/`), which is what the AWS blog **in the same bundle** and this skill's own `references/samples/alb/*` both use — so the TD contradicts its own source. Fix ATX output by deleting one level of escaping.
+>
+> **3. `proxy-read-timeout` / `proxy-send-timeout` are mapped to the wrong attribute.** The TD maps them to `target-group-attributes` `deregistration_delay.timeout_seconds`. That attribute controls how long a **deregistering** target keeps draining connections — it has nothing to do with how long the load balancer waits for a backend response. The behavioural analogue is the ALB **idle timeout** (`alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds`), and note it is **load-balancer-wide**, not per-service, so per-route NGINX timeouts cannot be reproduced exactly — record any divergence as a finding rather than assuming parity.
 
 ## What the TD Converts (10 Steps)
 
@@ -125,7 +132,7 @@ See `references/samples/nginx/` (input) and `references/samples/alb/` (ATX outpu
 
 Once ATX has transformed your manifests:
 
-1. Ensure AWS Load Balancer Controller **v2.7.2+** (ALB Ingress path; **v2.15.0+** for the `transforms` URI rewrites this TD emits) is installed — or use EKS Auto Mode's built-in `eks.amazonaws.com/alb`
+1. Ensure AWS Load Balancer Controller is installed on a currently supported release (**v2.14.1+** is required for the `transforms` URI rewrites this TD emits) — or use EKS Auto Mode's built-in `eks.amazonaws.com/alb`
 2. Verify ACM certificates are provisioned and in ISSUED state
 3. `kubectl apply --dry-run=client -f <migrated-file>` to validate
 4. Deploy to staging first

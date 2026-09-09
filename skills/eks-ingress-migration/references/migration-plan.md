@@ -14,16 +14,22 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
 
 **Install/verify Gateway API prerequisites:**
 
-1. Install Gateway API CRDs (if not present):
+1. Install the standard Gateway API CRDs (if not present) — **pick the version that pairs with the controller line you land on in step 2**, because the pairing is not interchangeable:
+
+   | Controller line | Standard CRDs | Notes |
+   |---|---|---|
+   | v3.4.0 (the tag the `lbc-migrate` CLI is built from) | **v1.5.0** | L4 routes still need the experimental channel |
+   | **v3.5.0** (current runtime; the recommended target) | **v1.6.0** | LBC v3.5.0 is built for Gateway API v1.6.0; TCPRoute/UDPRoute are in the standard channel from v1.6.0, so no experimental install is needed for L4 |
+
    ```bash
-   kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml
+   # v1.6.0 — pair with a v3.5.0 controller (see step 2)
+   kubectl apply --server-side=true -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.0/standard-install.yaml
    ```
 
-2. Upgrade AWS LB Controller to **≥ v3.0.0** (the Gateway API production floor) — still required on EKS Auto Mode, whose built-in controller does not provide Gateway API:
+   Also install the **LBC Gateway API CRDs** (`LoadBalancerConfiguration`, `TargetGroupConfiguration`, `ListenerRuleConfiguration`) — the ALB Gateway controller does not enable without them, and Phase 2 configures the load balancer through them.
+
+2. Upgrade AWS LB Controller to **≥ v3.0.0** (the Gateway API production floor; the current **v3.5.0** line is the recommended target) — still required on EKS Auto Mode, whose built-in controller does not provide Gateway API. There is **no `aws-load-balancer-controller` EKS add-on** — it is not in the AWS add-on catalog nor the community add-on list, so install and upgrade go through Helm (or the release manifests):
    ```bash
-   # EKS managed add-on
-   aws eks update-addon --cluster-name <cluster> --addon-name aws-load-balancer-controller --addon-version <latest>
-   # Or Helm
    helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set serviceAccount.create=false
    ```
 
@@ -43,32 +49,51 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
 
 ### Phase 2: Convert & Test (Week 2-3)
 
-> **Automate this phase with `lbc-migrate` when the estate is already on LBC ALB Ingress.** The official **LBC Ingress → Gateway API toolkit** (`lbc-migrate` CLI + Migration Console) translates the Ingress resources into Gateway API manifests and previews the result with a dry-run before any ALB is created. Prerequisites are the same runtime requirement as the hand-authored path below — controller **≥ v3.0.0**, the Gateway API production floor — plus the **standard Gateway API CRDs the controller line targets** (v1.5.0 for v3.4.0, v1.6.0 for the current v3.5.0) and the CLI built from the **LBC v3.4.0** tag. Full flow, prerequisites, output resources and limitations: `references/lbc-migrate-toolkit.md` — don't restate them here. The hand-authored steps below remain the fallback for the toolkit's **skip-or-warn** cases, for clusters **below that production floor** (where upgrading the controller to the current v3.5.0 release line is usually the better first move — it clears the floor *and* still carries the CLI), and for EKS Auto Mode. `lbc-migrate` converts **LBC Ingress**, not raw NGINX — do the NGINX → LBC Ingress hop first (`references/alb-migration.md`).
+> **Automate this phase with `lbc-migrate` when the estate is already on LBC ALB Ingress.** The official **LBC Ingress → Gateway API toolkit** (`lbc-migrate` CLI + Migration Console) translates the Ingress resources into Gateway API manifests and previews the result with a dry-run before any ALB is created. Prerequisites are the same runtime requirement as the hand-authored path below — controller **≥ v3.0.0**, the Gateway API production floor — plus the **standard Gateway API CRDs the controller line targets** (v1.5.0 for v3.4.0, v1.6.0 for the v3.5.0) and the CLI built from the **LBC v3.4.0** tag. Full flow, prerequisites, output resources and limitations: `references/lbc-migrate-toolkit.md` — don't restate them here. The hand-authored steps below remain the fallback for the toolkit's **skip-or-warn** cases, for clusters **below that production floor** (where upgrading the controller to the v3.5.0 release line is usually the better first move — it clears the floor *and* still carries the CLI), and for EKS Auto Mode. `lbc-migrate` converts **LBC Ingress**, not raw NGINX — do the NGINX → LBC Ingress hop first (`references/alb-migration.md`).
 
 **For each Ingress resource, create an equivalent HTTPRoute:**
 
 1. Start with lowest-risk routes (internal, low-traffic)
-2. Create Gateway resource for each listener group:
+2. Create a Gateway resource for each listener group. **The ALB is configured through the `LoadBalancerConfiguration` CRD, not through `alb.ingress.kubernetes.io/*` annotations** — those are Ingress/Service-only and are ignored on a Gateway. Two consequences worth stating explicitly, because both fail silently:
+   - `scheme` **defaults to `internal`**, so omitting it gives you a private ALB, not an internet-facing one.
+   - **TLS certificates cannot be set via the listener's `certificateRefs` field.** Upstream states this outright; the cert comes from `listenerConfigurations[].defaultCertificate` (an ACM ARN) or from hostname-based certificate discovery. A Gateway that only sets `certificateRefs` gets **no certificate on the listener**.
+
    ```yaml
+   apiVersion: gateway.k8s.aws/v1
+   kind: LoadBalancerConfiguration
+   metadata:
+     name: main-gateway-lb
+     namespace: <namespace>
+   spec:
+     scheme: internet-facing          # REQUIRED for public: default is internal
+     listenerConfigurations:
+       - protocolPort: HTTPS:443
+         defaultCertificate: <acm-arn>   # ACM ARN; NOT a Kubernetes Secret
+         sslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+   ---
    apiVersion: gateway.networking.k8s.io/v1
    kind: Gateway
    metadata:
      name: main-gateway
      namespace: <namespace>
-     annotations:
-       alb.ingress.kubernetes.io/scheme: internet-facing
-       alb.ingress.kubernetes.io/certificate-arn: <acm-arn>
    spec:
      gatewayClassName: aws-alb
+     infrastructure:
+       parametersRef:                 # how the LB config attaches
+         group: gateway.k8s.aws
+         kind: LoadBalancerConfiguration
+         name: main-gateway-lb
      listeners:
        - name: https
          protocol: HTTPS
          port: 443
+         hostname: <fqdn>             # drives certificate discovery
          tls:
            mode: Terminate
-           certificateRefs:
-             - name: <cert-secret>
+           # No certificateRefs: unsupported by LBC. Cert is set above.
    ```
+
+   Per-target-group settings (health checks, target type, attributes) move to `TargetGroupConfiguration`, and per-rule settings such as OIDC authentication move to `ListenerRuleConfiguration.authenticateOIDCConfig` — again, not annotations.
 
 3. Create HTTPRoute for each Ingress:
    ```yaml
@@ -112,7 +137,7 @@ Example: `HTTPRoute/nginx-app-route: parentRef=main-gateway, hostnames=[app.exam
 
 1. Confirm all traffic flowing through Gateway API
 2. Delete old Ingress resources
-3. Remove old ingress controller (nginx, etc.) if no longer needed
+3. Remove the old ingress controller (nginx, etc.) if no longer needed — **`helm uninstall` the release, never `kubectl delete deploy` alone.** The ingress-nginx chart also owns an `ingress-nginx-admission` ValidatingWebhookConfiguration (`failurePolicy: Fail`, no selectors); if the Deployment goes and the webhook stays, its Service has no endpoints and the API server rejects **every** Ingress create/update in the cluster — including re-applying the migrated resources and any GitOps reconcile. For a non-Helm install, delete the admission `ValidatingWebhookConfiguration` and its Service explicitly.
 4. Update IaC/GitOps to manage HTTPRoute resources instead of Ingress
 
 ## Checks to Execute

@@ -19,10 +19,30 @@ spec:
     protocol: TCP
 
 ---
+# The OIDC annotation below references this Secret by name. It must exist in the SAME
+# namespace as the Ingress, with exactly these two keys, or the listener rule is never
+# created and requests fall through to the default action.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oidc-client-secret
+  namespace: default
+type: Opaque
+stringData:
+  clientID: REPLACE_WITH_OIDC_CLIENT_ID
+  clientSecret: REPLACE_WITH_OIDC_CLIENT_SECRET
+
+---
 # REMOVED: nginx.ingress.kubernetes.io/cors-allow-origin — handle via AWS WAF or application-level CORS
 # REMOVED: nginx.ingress.kubernetes.io/cors-allow-methods — handle via AWS WAF or application-level CORS
 # REMOVED: nginx.ingress.kubernetes.io/cors-allow-headers — handle via AWS WAF or application-level CORS
 # REMOVED: nginx.ingress.kubernetes.io/proxy-body-size: "50m" — no direct ALB annotation; configure at application level
+# NOTE: ALB OIDC authentication only applies to HTTPS listeners. The HTTP:80 listener below
+#       is redirect-only (ssl-redirect), so nothing unauthenticated is served on it. If you
+#       drop the redirect and serve content on :80, that traffic bypasses auth entirely.
+# NOTE: ALB OIDC uses an interactive browser redirect. Non-interactive callers (scripts,
+#       cron, CI, partner APIs) cannot complete it — see report-generation.md §1.3 Tier-B
+#       escalation before assuming this is a faithful replacement for Basic Auth.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -34,7 +54,7 @@ metadata:
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:ACCOUNT_ID:certificate/CERTIFICATE_ID
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-redirect: '443'
-    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
     alb.ingress.kubernetes.io/auth-type: oidc
     alb.ingress.kubernetes.io/auth-idp-oidc: '{"issuer": "https://auth.example.com", "authorizationEndpoint": "https://auth.example.com/oauth2/authorize", "tokenEndpoint": "https://auth.example.com/oauth2/token",
       "userInfoEndpoint": "https://auth.example.com/oauth2/userinfo", "secretName": "oidc-client-secret"}'
