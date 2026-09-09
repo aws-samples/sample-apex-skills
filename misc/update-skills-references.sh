@@ -92,8 +92,13 @@ humanize_filename() {
   local filename="$1"
   # Strip extension
   local base="${filename%.*}"
-  # Replace hyphens with spaces
+  # Replace hyphens and underscores with spaces
   base="${base//-/ }"
+  base="${base//_/ }"
+  # Collapse repeated spaces and trim (e.g. "__init__" -> "init")
+  base="$(printf '%s' "$base" | tr -s ' ')"
+  base="${base#"${base%%[![:space:]]*}"}"
+  base="${base%"${base##*[![:space:]]}"}"
   # Capitalize first letter
   echo "${base^}"
 }
@@ -310,7 +315,7 @@ _emit_skills_group() {
       local ref_files=()
       while IFS= read -r -d '' f; do
         ref_files+=("$f")
-      done < <(find "$refs_dir" -maxdepth 1 -type f -name '*.md' -print0 | sort -z)
+      done < <(find "$refs_dir" -type f -name '*.md' -print0 | sort -z)
 
       if [[ ${#ref_files[@]} -gt 0 ]]; then
         echo ""
@@ -319,11 +324,11 @@ _emit_skills_group() {
         echo "| Reference | Description |"
         echo "|-----------|-------------|"
         for ref_file in "${ref_files[@]}"; do
-          local ref_basename
-          ref_basename="$(basename "$ref_file")"
+          local ref_rel
+          ref_rel="${ref_file#"$refs_dir"/}"
           local ref_label
-          ref_label="$(humanize_filename "$ref_basename")"
-          echo "| [$ref_basename](./$folder_name/references/$ref_basename) | $ref_label |"
+          ref_label="$(humanize_filename "$(basename "$ref_file")")"
+          echo "| [$ref_rel](./$folder_name/references/$ref_rel) | $ref_label |"
         done
       fi
     fi

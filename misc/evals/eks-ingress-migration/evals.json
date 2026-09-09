@@ -4,7 +4,6 @@
     {
       "id": 1,
       "prompt": "Here is a cluster's ingress inventory: 18 Ingress resources — 6 already on the AWS Load Balancer Controller (ingressClassName: alb), 2 nginx ingresses that are plain annotation-only rewrites, and 10 nginx ingresses including one with an nginx.ingress.kubernetes.io/configuration-snippet Lua block on /checkout, three with rewrite-target, CORS + rate-limit + IP-allowlist on the API ingress, and cert-manager TLS. Produce the Migration Difficulty Score and Score Breakdown.",
-      "expected_output": "A Migration Difficulty Score (0-100) with a Score Breakdown table whose category deductions sum to (100 - score), a separate Re-architecture Gate of 1 (the /checkout snippet), CORS/rate-limit/IP-allowlist rated Impact 2-3 (app/WAF workaround applicable; not escalated to Tier-A), Scale/Volume counted on 12 routes needing work (18 total minus the 6 already on ALB; the 2 annotation-only class-switch moves count as work), and the 6 ALB routes shown at 0 effort.",
       "expectations": [
         "Reports a single Migration Difficulty Score between 0 and 100 with a band label (TRIVIAL/EASY/MODERATE/HARD/VERY HARD)",
         "Score Breakdown deductions sum to (100 - score); arithmetic is shown and consistent",
@@ -18,7 +17,6 @@
     {
       "id": 2,
       "prompt": "An nginx Ingress uses nginx.ingress.kubernetes.io/server-snippet to inject a /healthz location and a deny rule for /internal/. Generate the target ALB and Gateway API manifests and explain how to treat this ingress during export.",
-      "expected_output": "The export flags this ingress as INCOMPLETE because snippet-injected locations (/healthz, deny /internal/) cannot be represented in declarative ALB/Gateway-API manifests, instructs the user to hand-port those routes rather than blind-apply, and surfaces it as a re-architecture-gate item.",
       "expectations": [
         "Identifies server-snippet as having no faithful ALB/Gateway-API equivalent (Tier-A, no workaround)",
         "Marks the generated target manifest for this ingress as INCOMPLETE / not safe to blind-apply, naming the hidden /healthz and /internal/ paths",
@@ -30,7 +28,6 @@
     {
       "id": 3,
       "prompt": "Assess three clusters and give each a Migration Difficulty Score with explicit presence/absence reasoning. Cluster A: no ingress controller, no IngressClass, and no Ingress resources. Cluster B: 5 nginx Ingress objects exist but no ingress-nginx controller is installed, and nothing else — and no surviving load balancers or target groups still front those objects (verified zero live traffic). Cluster C: a healthy ingress-nginx controller on image v1.10.0 with its validating admission webhook exposed (the `--validating-webhook` server listening on :8443), currently serving zero Ingress routes.",
-      "expected_output": "Cluster A scores 100/TRIVIAL (nothing to migrate), not a high-difficulty/low score. Cluster B's orphaned Ingress objects and absent controller are non-events (0) with a Migration Crew Alert that says to export/back up before deleting; with no other live findings its headline is 100/TRIVIAL. Cluster C is NOT a non-event: a healthy but vulnerable zero-route ingress-nginx (< v1.11.5, webhook exposed / server listening) is a security finding via CVE-2025-1974 despite serving no routes.",
       "expectations": [
         "Cluster A (empty estate) scores 100/TRIVIAL with a 'nothing to migrate' note and is explicitly NOT rated as high-difficulty / a low score for being empty; absence is not equated with health",
         "Cluster B treats the absent controller and the 5 orphaned nginx Ingress objects as non-events (Impact 0) and emits a Migration Crew Alert; because no surviving load balancer fronts the orphans (verified zero live traffic) they are confirmed dead rather than treated as live, so with no other live findings the headline is 100/TRIVIAL; the alert recommends exporting/backing up the manifests before deleting",
@@ -42,7 +39,6 @@
     {
       "id": 4,
       "prompt": "A cluster is fully on the AWS Load Balancer Controller (ingressClassName: alb) with about 15 ALB Ingress resources, and the team wants to move to the Gateway API. One ingress uses an alb.ingress.kubernetes.io/transforms url-rewrite with a capture group (replace: /$1). LBC is v3.4.0. Recommend how to perform the Ingress-to-Gateway-API migration and call out any manual steps.",
-      "expected_output": "Recommends the official lbc-migrate toolkit (LBC Ingress -> Gateway API) as the automation sub-path for Option 1, since the estate is already on LBC ALB Ingress (the CLI ships in LBC v3.4.0 and the path uses Gateway API standard CRDs v1.5.0). Describes the dry-run preview (gateway.k8s.aws/dry-run plus the IngressPlanAnnotation feature gate) before applying new ALBs alongside the existing ones, treats the CRD install / feature-gate enable / apply / cleanup as operator actions the assessment documents but does not run, and flags that the capture-group url-rewrite (replace: /$1) has no Gateway API equivalent — skipped by lbc-migrate (the original regex is discarded, so the generated manifest must be diffed) and remaining a Tier-A / Re-architecture-Gate hand-redesign (static ReplacePrefixMatch cannot express a capture group).",
       "expectations": [
         "Recommends the lbc-migrate toolkit (lbc-migrate CLI + Migration Console) for the LBC Ingress -> Gateway API hop rather than hand-authoring HTTPRoutes, because the estate is already on the AWS Load Balancer Controller",
         "States that the lbc-migrate CLI ships in LBC v3.4.0 and the path uses Gateway API standard CRDs v1.5.0, and that cluster reads are read-only",
@@ -55,7 +51,6 @@
     {
       "id": 5,
       "prompt": "A cluster runs the community ingress-nginx controller (no AWS Load Balancer Controller installed yet) with about 12 nginx Ingress resources, and the team wants to end up on the Gateway API. Recommend the migration path and say whether lbc-migrate applies here.",
-      "expected_output": "Explains that lbc-migrate converts LBC Ingress, not raw NGINX annotations, so it does NOT apply directly to this estate. The correct sequence is the NGINX -> LBC ALB Ingress hop first (alb-migration.md, or automated with ATX), and only then run lbc-migrate for the LBC Ingress -> Gateway API hop. Hand-authored HTTPRoutes (gateway-api.md / migration-plan.md Phase 2) remain the fallback for the toolkit's skip-or-warn cases.",
       "expectations": [
         "States that lbc-migrate operates on LBC Ingress and does NOT convert raw NGINX annotations, so it cannot be run directly on this estate",
         "Sequences the two hops correctly: NGINX -> LBC ALB Ingress first (alb-migration.md or ATX), THEN lbc-migrate for LBC Ingress -> Gateway API",
@@ -67,7 +62,6 @@
     {
       "id": 6,
       "prompt": "A cluster is fully on the AWS Load Balancer Controller (ingressClassName: alb) with about 20 ALB Ingress resources and the team wants to move to the Gateway API. The installed controller is v2.12.1 and the cluster has Gateway API standard CRDs v1.2.0 installed. Can we use the lbc-migrate toolkit? Recommend the path.",
-      "expected_output": "Identifies that controller v2.12.1 is below the Gateway API runtime baseline (L4 >= v2.13.3, L7 >= v2.14) and the standard CRDs are below v1.5.0, so the Gateway API path itself - not merely the automation - is blocked until the operator upgrades. Recommends upgrading the controller to the current v3.4.0 release line as the first step, because that both clears the runtime baseline and provides the lbc-migrate CLI, which is cheaper than hand-authoring 20 HTTPRoutes against an unsupported controller. Does not describe v3.4.0 as a required controller runtime version for Gateway API - v3.4.0 is the release the CLI is built from, while the runtime requirement is the >= v2.13.3 / >= v2.14 baseline. Treats the controller upgrade and the CRD install as operator actions the assessment documents but does not execute.",
       "expectations": [
         "States that controller v2.12.1 is below the Gateway API runtime baseline (L4 >= v2.13.3, L7 >= v2.14) and that standard CRDs v1.2.0 is below the v1.5.0 the path needs",
         "Concludes lbc-migrate cannot be used on the estate as it stands, and that Option 1 (Gateway API) as a whole is blocked until the operator upgrades - not just the automation sub-path",

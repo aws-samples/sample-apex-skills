@@ -4,7 +4,6 @@
     {
       "id": 1,
       "prompt": "I want to author a new steering workflow at steering/workflows/cost-review.md for a Day 2 EKS cost review engagement. Walk me through the convention — what the frontmatter must contain, what the header block looks like, and which H2 sections are required in what order. Then produce a conforming skeleton I can paste into the file.",
-      "expected_output": "A response that names the two required frontmatter keys (name, description) and explicitly says `inclusion:` must NOT appear on a workflow file; describes the four-line blockquote header block with the exact labels in order (Part of, Lifecycle, Skill, Access Model); lists the five required H2 sections in exactly this order — How to Route Requests, Phases, Defaults, Quality Checklist, Conversation Style; and produces a conforming skeleton that the linter would accept.",
       "expectations": [
         "Lists exactly two required frontmatter keys: `name` and `description`. — TODO: human review",
         "Explicitly states that `inclusion:` must not appear on workflow files (it is reserved for hub files). — TODO: human review",
@@ -110,7 +109,6 @@
     {
       "id": 2,
       "prompt": "I'm drafting a Day 2 blue-green cutover workflow for RDS. One phase needs to run `aws rds describe-db-instances` against the target account to check current engine versions, another phase presents a decision framework for the cutover window. What `Source:` annotations should I use on each phase, and what else must each one include? Also, what Access Model should the workflow declare in its header block, given that the workflow itself only reads state and produces a plan?",
-      "expected_output": "A response that names `Source: live` for the describe-db-instances phase and requires it carry a CLI fallback line (naming the exact aws rds command is the fallback); names `Source: knowledge` or `Source: either` for the decision-framework phase and explains why; and recommends `Access Model: advisory` (or `read-only`) in the header, with reasoning that the workflow emits a plan rather than mutating.",
       "expectations": [
         "Identifies the describe-db-instances phase as Source: live. — TODO: human review",
         "States that a Source: live phase must include a named CLI fallback inline. — TODO: human review",
@@ -160,7 +158,6 @@
     {
       "id": 3,
       "prompt": "Create a complete steering workflow for a Day 1 Lambda deployment review. The workflow should help teams validate their Lambda configuration (memory, timeout, concurrency, VPC placement) before going to production. It plugs into a hypothetical steering/lambda.md hub and uses a lambda-best-practices knowledge skill. Write the full workflow file to steering/workflows/lambda-deploy-review.md and its matching command shim to steering/commands/apex/lambda-deploy-review.md.",
-      "expected_output": "Two complete files: a conforming workflow at steering/workflows/lambda-deploy-review.md with proper frontmatter (name, description), header block (Part of, Lifecycle, Skill, Access Model), all five required H2 sections, Source annotations on phases, STOP gates, and a matching command shim at steering/commands/apex/lambda-deploy-review.md with frontmatter plus objective/execution_context/process tags.",
       "expectations": [
         "Creates the workflow file with valid YAML frontmatter containing name and description keys. — TODO: human review",
         "Workflow header block contains all four labels in order: Part of, Lifecycle, Skill, Access Model. — TODO: human review",
