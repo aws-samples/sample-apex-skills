@@ -347,9 +347,16 @@ aws ec2 describe-instances --filters "Name=tag:kubernetes.io/cluster/<CLUSTER>,V
      track and ImdsSupport: v2.0 on its aws-k8s-1.34 track. AL2's EKS-optimized AMI could not be checked
      the same way: AWS stopped publishing it entirely on 2025-11-26 (stated on the same al2023.html
      page), and its SSM parameter for 1.34 no longer resolves.
-       Karpenter's httpPutResponseHopLimit:1 default is unaffected by any of the above and is documented
-     at https://karpenter.sh/docs/concepts/nodeclasses/, corroborated by the "Announcing Karpenter 1.0"
-     post on the AWS Containers Blog. -->
+       Karpenter's httpPutResponseHopLimit:1 default is unaffected by any of the above. Source:
+     https://karpenter.sh/docs/concepts/nodeclasses/ (spec.metadataOptions) -- "If metadataOptions are
+     omitted from this EC2NodeClass, the following default settings are applied: httpEndpoint: enabled,
+     httpProtocolIPv6: disabled, httpPutResponseHopLimit: 1, httpTokens: required". That is the Karpenter
+     project's own reference documentation for its own default, which is the authority for it; no AWS
+     doc restates it. Deliberately NOT corroborated with the Karpenter 1.0 launch blog post that an
+     earlier draft of this note cited: blog posts sit at the bottom of this skill's source hierarchy
+     (see references/severity.md and the review record), and a launch announcement is a point-in-time
+     claim that does not track later changes to a default. If this value needs re-checking, re-read the
+     nodeclasses reference page, not an announcement. -->
 
 **Remediation:** Require IMDSv2 (`MetadataOptions.HttpTokens=required`) so node credentials cannot be
 read with a bare `GET` to `169.254.169.254`, which is what makes a server-side request forgery

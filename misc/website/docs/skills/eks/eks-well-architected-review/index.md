@@ -527,13 +527,18 @@ reached the network on open would break the skill's "all data stays local" contr
 `coredns, kube-proxy, vpc-cni` is one they can verify in seconds. Every historic scoping bug in this
 skill was a *correct count over the wrong set* — an unrelated security group, another cluster's
 volumes, AWS-installed Deployments counted as the operator's. The lists make that visible, and they
-also name what was **excluded** and why, so the scoping rule is auditable rather than trusted.
+also name what was **excluded** and by which rule — the mechanism, not a verdict on it — so a reader
+who thinks the scoping is wrong can see the rule and say so.
 
 The lists are a second reading of the same data, so wherever a check reports an `N/M` count the
 renderer recomputes it from its own list and **marks the finding unverified, banners it at the top of
 the report, and exits non-zero** on any disagreement — a list that contradicts its score would be worse
-than no list. Currently 65 extractors (countable from `assets/render-report.py`).
-Questions without an extractor simply show no list.
+than no list. Be exact about what that tick proves: the renderer re-derives the list with the *same*
+scoping rule the scorer uses, so agreement proves the two readings of that rule match — it catches
+transcription and extraction drift, and cannot catch a rule that scopes the wrong set. The *correct
+count over the wrong set* bug is caught by **reading the excluded list**, which is why the excluded
+list names its rule and never certifies it. Currently 65 extractors (countable from
+`assets/render-report.py`). Questions without an extractor simply show no list.
 
 Where a check is boolean or reads a field rather than counting objects, there is no total to recompute
 against, and the panel says so in those words instead of showing a tick. That distinction is the point:

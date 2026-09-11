@@ -80,12 +80,16 @@ kubectl get deployments -A -o json
 
 **Detection:** 🔬 AUTO-DETECTABLE
 
-> EBS encryption protects data at rest from unauthorized access.
+> EBS encryption protects data at rest from unauthorized access. **On EKS Auto Mode this question has two halves and AWS answers only one of them.** The node's own disks are AWS's: "On EKS Auto Mode nodes, the root and data Amazon EBS volumes are encrypted and configured to be deleted upon termination of the instance", with an optional customer-managed key via the `NodeClass`. The volumes your workloads ask for are still yours: AWS draws the line itself — "EKS Auto Mode manages the volumes attached to EC2 instances at creation time, including root and data volumes. EKS Auto Mode does not fully manage EBS volumes created using Kubernetes persistent storage features" — and then recommends what you must do about it: "AWS recommends that you enable encryption for EBS Volumes provisioned by Kubernetes persistent storage features." So an Auto Mode cluster gets no blanket pass here: every cluster-tagged volume is still counted, and the StorageClass that decides the next PersistentVolume's encryption is scored separately by **sec-25**.
 
 **Commands:**
 ```bash
 aws ec2 describe-volumes --region <REGION> --query "Volumes[].Encrypted"
 aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.encryptionConfig"
+# EKS Auto Mode hides its managed instances and their volumes from list calls, so a bare
+# describe-volumes can come back empty on a cluster that has plenty. The collector recovers them by
+# id; if you run this by hand, pass the ids from the nodes and the PersistentVolumes:
+kubectl get pv -o json | jq -r '.items[].spec.csi.volumeHandle'
 ```
 
 **Remediation:** EBS volumes **cannot be encrypted in place** — `ModifyVolume` has no encryption
@@ -105,6 +109,11 @@ and set `encrypted: "true"` in the StorageClass so dynamically provisioned volum
 ```bash
 aws ec2 enable-ebs-encryption-by-default --region <region>
 ```
+
+On EKS Auto Mode, apply that same account-level default and the StorageClass parameter (see sec-25 for
+the Auto Mode provisioner name) — the node root and data volumes need no action, and a customer-managed
+key for them is set through the `NodeClass` field `spec.ephemeralStorage.kmsKeyID`, not through this
+question.
 
 ---
 
@@ -202,12 +211,15 @@ incident, this control does not give you that: revoking it takes the cluster dow
 
 **Detection:** 🔬 AUTO-DETECTABLE
 
-> Encrypted StorageClasses ensure all new PVCs are automatically encrypted.
+> Encrypted StorageClasses ensure all new PVCs are automatically encrypted. This is entirely the operator's object on **every** compute shape, EKS Auto Mode included — AWS creates no StorageClass for you there ("EKS Auto Mode does not create a `StorageClass` for you. You must create a `StorageClass` referencing `ebs.csi.eks.amazonaws.com` to use the storage capability of EKS Auto Mode") and recommends that you "enable encryption for EBS Volumes provisioned by Kubernetes persistent storage features". Auto Mode's driver has a different name from the self-managed one, so a StorageClass named for the wrong provisioner provisions nothing. **All three EBS provisioner names are counted, and an Auto Mode cluster usually has more than one class.** A real Auto Mode cluster commonly still carries the legacy in-tree `gp2` class next to its `ebs.csi.eks.amazonaws.com` one, and `gp2` sets no `encrypted` parameter — so a ratio like `1/2` here means one class provisions encrypted volumes and one does not, not that the cluster is half covered. Whichever class is marked default is the one that decides what an unqualified PVC gets, so check that first.
 
 **Commands:**
 ```bash
 kubectl get storageclasses -o json
-# Check parameters.encrypted == "true"
+# Check parameters.encrypted == "true", on any of the three EBS provisioners:
+#   ebs.csi.aws.com             self-managed / add-on EBS CSI driver
+#   ebs.csi.eks.amazonaws.com   EKS Auto Mode
+#   kubernetes.io/aws-ebs       in-tree legacy
 ```
 
 **Remediation:** Update StorageClasses to include `encrypted: "true"` in parameters. Create a new default
@@ -215,6 +227,24 @@ StorageClass with encryption enabled. **This covers only volumes provisioned aft
 StorageClass has no effect on PVCs and volumes that already exist. For those, see sec-21's remediation:
 EBS volumes cannot be encrypted in place, so an existing unencrypted volume needs the snapshot-and-recreate
 path.
+
+On EKS Auto Mode the StorageClass must name Auto Mode's own provisioner, or nothing provisions:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: auto-ebs-sc
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.eks.amazonaws.com
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+parameters:
+  type: gp3
+  encrypted: "true"
+  # kmsKeyId: <key-arn>   # optional: a customer-managed key instead of the AWS managed key
+```
 
 ---
 

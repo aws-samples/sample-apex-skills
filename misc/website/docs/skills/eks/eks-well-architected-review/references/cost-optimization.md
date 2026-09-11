@@ -114,7 +114,23 @@ m2 cost-8 volumes cluster 'input as $cl|($cl.cluster.name//"") as $cn|[.Volumes[
 # `.parameters.type`, so a gp3 StorageClass with `reclaimPolicy: Retain` -- which leaves EBS volumes
 # behind on every PVC delete, the exact leak cost-8 reports -- scored identically to a correct one.
 # reclaimPolicy defaults to Delete when unset, which is why the default is spelled out here.
-m cost-9 storageclasses '[.items[]?|select(((.provisioner//"")|test("ebs|aws-ebs")) or ((.parameters.type//"")|test("^(gp2|gp3|io1|io2|st1|sc1)$")))] as $sc|($sc|length) as $t|([$sc[]|select(((.parameters.type//"")=="gp3") and ((.reclaimPolicy//"Delete")=="Delete"))]|length) as $ok| if $t==0 then "na~no EBS StorageClasses" else b($ok;$t)+"~\($ok)/\($t) gp3 with Delete reclaim" end'
+# The provisioner set below is CANONICAL and is shared with sec-25 in references/security/identity-access.md
+# and with _res_storageclasses() in assets/render-report.py; EDIT ALL THREE OR NONE. All three
+# provisioners must stay listed -- `ebs.csi.aws.com` (self-managed EBS CSI driver),
+# `ebs.csi.eks.amazonaws.com` (EKS Auto Mode) and `kubernetes.io/aws-ebs` (in-tree legacy) -- because
+# dropping any one of them makes a real EBS StorageClass invisible to a question that is about EBS.
+# This predicate used to be a bare `test("ebs|aws-ebs")`, which "worked" on Auto Mode purely by
+# accident: the unanchored `ebs` matched `ebs.csi.eks.amazonaws.com` as a substring, without anyone
+# having listed that provisioner, and would just as happily match an unrelated third-party
+# `example.com/ebs-fake`. Because the renderer's list matched only the two anchored names, cost-9
+# counted the Auto Mode class and the resource list did not, and the report said `resource list says
+# 0/0 but the check counted 1/1` -- the loose regex hid the divergence rather than fixing it, and the
+# same omission left sec-25 returning `na` on an Auto Mode cluster with a perfectly good encrypted
+# StorageClass. Auto Mode needs its own entry because it has its own provisioner: "EKS Auto Mode does
+# not create a `StorageClass` for you. You must create a `StorageClass` referencing
+# `ebs.csi.eks.amazonaws.com` to use the storage capability of EKS Auto Mode"
+# (https://docs.aws.amazon.com/eks/latest/userguide/create-storage-class.html).
+m cost-9 storageclasses '[.items[]?|select(((.provisioner//"")|test("ebs\\.csi\\.aws\\.com|ebs\\.csi\\.eks\\.amazonaws\\.com|kubernetes\\.io/aws-ebs")) or ((.parameters.type//"")|test("^(gp2|gp3|io1|io2|st1|sc1)$")))] as $sc|($sc|length) as $t|([$sc[]|select(((.parameters.type//"")=="gp3") and ((.reclaimPolicy//"Delete")=="Delete"))]|length) as $ok| if $t==0 then "na~no EBS StorageClasses" else b($ok;$t)+"~\($ok)/\($t) gp3 with Delete reclaim" end'
 m lens-4 deployments 'if ([.items[]|select(.metadata.name|test("kubecost|opencost|cost-analyzer"))]|length)>0 then "all~cost tooling" else "none~none" end'
 # lens-16 uses endswith(), not a regex. `test("ecr.api$")` treated `.` as "any character", so it
 # matched by luck; escaping the dots instead meant counting backslashes through the markdown and

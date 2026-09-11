@@ -43,7 +43,7 @@ match a function name and every call prompts, or fails outright under a no-promp
 `$WORK` (set in SKILL.md Step 2) populated with the canonical JSON files, and appends one JSONL line per
 question to `$WORK/results.jsonl`.
 
-The `m`/`m2`/`m3`/`m4` thresholds are the determinism guarantee and are not yours to edit.
+The `m`/`m2`/`m3`/`m4`/`m7` thresholds are the determinism guarantee and are not yours to edit.
 
 - **auto mode:** run as-is. Governance questions emit `state:"unknown"` (reported as Not Assessed).
 - **interactive mode:** the governance answers arrive from `$WORK/governance.tsv`, which `score.sh`
@@ -62,6 +62,33 @@ m3(){ local id="$1" f1="$2" f2="$3" f3="$4" p="$5" r st d; r=$(jq -r "$B $p" "$W
 # Four inputs, for `sec-6`: workload identity can be delivered by EITHER Pod Identity OR IRSA, and
 # IRSA is only real if the IAM OIDC provider is registered — that is 4 separate collection files.
 m4(){ local id="$1" f1="$2" f2="$3" f3="$4" f4="$5" p="$6" r st d; r=$(jq -r "$B $p" "$W/$f1.json" "$W/$f2.json" "$W/$f3.json" "$W/$f4.json" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed — a missing or malformed collection file is NOT a finding, and must never be scored as one. jq said: %s\n' "$id" "$r" >&2; exit 1; }; [ -n "$r" ] || { printf 'SCORER ABORT [%s]: jq produced no output\n' "$id" >&2; exit 1; }; st="${r%%~*}"; d="${r#*~}"; [ "$r" = "$st" ]&&d=""; emit "$id" measured "${st:-none}" "$d"; }
+# Seven inputs, for `sec-4` alone: NetworkPolicy enforcement is opt-in on BOTH cluster shapes, and the
+# two opt-ins are recorded in different places, so the question needs the NetworkPolicy objects, the
+# namespaces that form its denominator, and then FIVE separate files of enforcement evidence — the
+# aws-node DaemonSet and the add-on list (standard clusters), the `amazon-vpc-cni` ConfigMap and the
+# NodeClasses (EKS Auto Mode), and nodes.json to decide which cluster shape it is looking at.
+# A copy of `m4`, extended: same abort-on-jq-failure semantics, same `emit` call, same `$B` prelude.
+# THE SEQUENCE SKIPS `m5` AND `m6` DELIBERATELY. Nothing in this block takes 5 or 6 files, and a
+# helper with no caller is dead code the next reader has to verify by hand before they can trust it.
+# Add one when a question needs one, not in anticipation.
+#
+# ⚠️ THE HELPER NAME IS A CONTRACT WITH THREE FILES THIS BLOCK DOES NOT OWN, AND `m7` CURRENTLY BREAKS
+# IT. Two of them hardcode the arity alternation `m[234]?`, so ANY helper above arity 4 -- m5, m6 or m7
+# alike -- falls out of their scan silently:
+#   assets/render-report.py:524  `_HELPER_ARITY = {"m": 1, "m2": 2, "m3": 3, "m4": 4}`
+#   assets/render-report.py:541  `re.match(r"^(m[234]?)\s+([a-z]+-\d+)\s+(.*)$", line)`
+#     -> scorer_provenance() drops sec-4 entirely, so its report panel loses "Data read", "Exact
+#        command used" and "Returned" -- the audit trail, on a High-severity finding.
+#   test-harness/validate-render.sh:552  `re.match(r"\s*m[234]?\s+([a-z]+-\d+)\s", line)`
+#     -> gate 5h stops counting sec-4 as measured, so a `Detection:` tag contradicting the scorer would
+#        no longer be caught for this question.
+# The fix is one entry and one character class, and it belongs to the owners of those files:
+# add `"m7": 7` to `_HELPER_ARITY` and widen both regexes to `m\d*`. It is NOT optional -- until it
+# lands, sec-4 ships without provenance. Verify with: every id matched by `^m\d*\s+<id>\s` in
+# references/ must appear in `scorer_provenance()`; today 103 scorer lines produce 102 entries.
+# Neither gate catches this on its own: validate-render.sh's 5c compares label counts against the
+# MEASURED total (103) while the report renders 108 panels, so one missing trio hides in the slack.
+m7(){ local id="$1" f1="$2" f2="$3" f3="$4" f4="$5" f5="$6" f6="$7" f7="$8" p="$9" r st d; r=$(jq -r "$B $p" "$W/$f1.json" "$W/$f2.json" "$W/$f3.json" "$W/$f4.json" "$W/$f5.json" "$W/$f6.json" "$W/$f7.json" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed — a missing or malformed collection file is NOT a finding, and must never be scored as one. jq said: %s\n' "$id" "$r" >&2; exit 1; }; [ -n "$r" ] || { printf 'SCORER ABORT [%s]: jq produced no output\n' "$id" >&2; exit 1; }; st="${r%%~*}"; d="${r#*~}"; [ "$r" = "$st" ]&&d=""; emit "$id" measured "${st:-none}" "$d"; }
 
 # ── identity-access (13) ──
 m sec-1 cluster 'if .cluster.resourcesVpcConfig.endpointPrivateAccess==true then "all~private endpoint on" else "none~private endpoint off" end'
@@ -127,7 +154,36 @@ g sec-35
 # cluster tag. Dynamically-provisioned CSI volumes get a cluster tag only when the driver is configured
 # to add one, so a High-severity encryption check was reporting "not applicable" on clusters that
 # demonstrably had EBS volumes. `na` is excluded from scoring entirely, so that was a silent pass.
-m3 sec-21 volumes cluster pv 'input as $cl|input as $pvs|($cl.cluster.name//"") as $cn|[.Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0)] as $v|($v|length) as $t|([$v[]|select(.Encrypted==true)]|length) as $ok|([$pvs.items[]?|select(.spec.csi.driver=="ebs.csi.aws.com" or (.spec.awsElasticBlockStore!=null))]|length) as $ebspv| if $t==0 and $ebspv>0 then "none~NOT SCOPED: \($ebspv) EBS-backed PersistentVolume(s) exist but no volume carries a cluster tag, so encryption could not be checked — tag them (ebs.csi.aws.com/cluster-name or kubernetes.io/cluster/<name>) and re-run" elif $t==0 then "na~no cluster-tagged volumes and no EBS-backed PVs" else b($ok;$t)+"~\($ok)/\($t) encrypted (cluster vols)" end'
+#
+# THE PV FALLBACK MATCHES EKS AUTO MODE'S CSI DRIVER TOO. `.spec.csi.driver` was tested against
+# `ebs.csi.aws.com` only, and Auto Mode's driver has a different name:
+#   https://docs.aws.amazon.com/eks/latest/userguide/create-storage-class.html
+#   "You must create a `StorageClass` referencing `ebs.csi.eks.amazonaws.com` to use the storage
+#   capability of EKS Auto Mode"
+# So the "NOT SCOPED" branch — which exists precisely to stop this question answering from too little
+# evidence — was blind on exactly the clusters that need it. This is not hypothetical: on the real Auto
+# Mode cluster in this account, before the collector learned to recover Auto-Mode-hidden volumes by id,
+# sec-21 published `all~1/1 encrypted` on a cluster that had SEVEN volumes. Full confidence off one
+# seventh of the data. The collector fixed the numerator; this fixes the branch that is supposed to
+# notice when the denominator is missing.
+#
+# AUTO MODE FULFILS THE NODE HALF OF THIS QUESTION AND NOT THE PV HALF, so the detail says which is
+# which rather than reading as a blanket pass. AWS's own security whitepaper, on the node half:
+#   https://docs.aws.amazon.com/whitepapers/latest/security-overview-amazon-eks-auto-mode/eks-auto-mode-data-plane.html
+#   "On EKS Auto Mode nodes, the root and data Amazon EBS volumes are encrypted and configured to be
+#   deleted upon termination of the instance"
+# and the User Guide, on the PV half, in the same breath as stating the boundary — "EKS Auto Mode
+# manages the volumes attached to EC2 instances at creation time, including root and data volumes. EKS
+# Auto Mode does not fully manage EBS volumes created using Kubernetes persistent storage features":
+#   https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html
+#   "AWS recommends that you enable encryption for EBS Volumes provisioned by Kubernetes persistent
+#   storage features"
+# The clause is appended, never substituted, and carries no second ratio: `_res_volumes` in
+# render-report.py cross-checks the LEADING `\($ok)/\($t)`, which is unchanged.
+# The Auto Mode test is EVERY EC2 NODE carrying the documented label, not `computeConfig.enabled` —
+# see the argument at sec-30 and at references/reliability.md's lens-2. On a hybrid cluster the
+# managed-node-group root volumes are the operator's, so no node-half credit is claimed there.
+m4 sec-21 volumes cluster pv nodes 'input as $cl|input as $pvs|input as $nd|($cl.cluster.name//"") as $cn|[$nd.items[]?|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")!="fargate")] as $ec2|($ec2|length) as $nt|([$ec2[]|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="auto")]|length) as $nauto|(($cl.cluster.computeConfig.enabled==true) and $nt>0 and $nauto==$nt) as $allauto|[.Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0)] as $v|($v|length) as $t|([$v[]|select(.Encrypted==true)]|length) as $ok|([$pvs.items[]?|select(.spec.csi.driver=="ebs.csi.aws.com" or .spec.csi.driver=="ebs.csi.eks.amazonaws.com" or (.spec.awsElasticBlockStore!=null))]|length) as $ebspv|(if $allauto then " — every EC2 node is an EKS Auto Mode node, so the root and data volumes AWS attaches at launch are encrypted by design; the volumes Kubernetes persistent storage provisions stay yours to encrypt (sec-25)" else "" end) as $am| if $t==0 and $ebspv>0 then "none~NOT SCOPED: \($ebspv) EBS-backed PersistentVolume(s) exist but no volume carries a cluster tag, so encryption could not be checked — tag them (ebs.csi.aws.com/cluster-name or kubernetes.io/cluster/<name>) and re-run" elif $t==0 then "na~no cluster-tagged volumes and no EBS-backed PVs" else b($ok;$t)+"~\($ok)/\($t) encrypted (cluster vols)"+$am end'
 # sec-38 measures whether a CUSTOMER-MANAGED key is in use -- not whether envelope encryption exists.
 # The distinction is the whole finding. AWS envelope-encrypts all Kubernetes API data, Secrets included,
 # by default on 1.28+ with an AWS-owned KMS key, and says it "doesn't require any action on your part";
@@ -141,7 +197,28 @@ m3 sec-21 volumes cluster pv 'input as $cl|input as $pvs|($cl.cluster.name//"") 
 # but AWS still returns ["secrets"] to preserve the old API contract, so matching on it is safe.
 m sec-38 cluster '([.cluster.encryptionConfig[]?|select((.resources//[])|index("secrets"))]|first) as $ec| if $ec==null then "none~no customer-managed KMS key: Secrets are envelope-encrypted with the default AWS-owned key, so the key policy, CloudTrail audit trail and revocation are not yours to control" elif (($ec.provider.keyArn//"")|length)>0 then "all~Secrets encrypted with customer-managed KMS key" else "some~encryptionConfig covers secrets but names no keyArn" end'
 g sec-22
-m sec-25 storageclasses '[.items[]|select((.provisioner//"")|test("ebs\\.csi\\.aws\\.com|kubernetes\\.io/aws-ebs"))] as $s|($s|length) as $t|([$s[]|select(.parameters.encrypted=="true")]|length) as $ok| if $t==0 then "na~no EBS StorageClass" else b($ok;$t)+"~\($ok)/\($t) encrypted EBS SC" end'
+# sec-25's provisioner set is CANONICAL and MUST stay character-identical to the two other copies:
+# `_res_storageclasses` in assets/render-report.py and `cost-9` in references/cost-optimization.md.
+# EDIT ALL THREE OR NONE. All three names must remain: `ebs.csi.aws.com` (self-managed EBS CSI driver),
+# `ebs.csi.eks.amazonaws.com` (EKS Auto Mode) and `kubernetes.io/aws-ebs` (in-tree legacy).
+#   https://docs.aws.amazon.com/eks/latest/userguide/create-storage-class.html
+#   "EKS Auto Mode does not create a `StorageClass` for you. You must create a `StorageClass`
+#   referencing `ebs.csi.eks.amazonaws.com` to use the storage capability of EKS Auto Mode"
+# The Auto Mode name was missing, so this weight-2 question answered `na~no EBS StorageClass` on an Auto
+# Mode cluster that HAD one — and `na` is excluded from scoring, so an unencrypted Auto Mode
+# StorageClass took no penalty and got no mention. THE VERDICT IS UNCHANGED BY INTENT: the StorageClass
+# is entirely the operator's object on Auto Mode (auto-security.html: "AWS recommends that you enable
+# encryption for EBS Volumes provisioned by Kubernetes persistent storage features"), so this is a
+# detection fix, not a credit — Auto Mode gets no pass here, it merely stops being invisible.
+# THE OLD SET WAS WRONG IN BOTH DIRECTIONS ON A REAL AUTO MODE CLUSTER, which typically carries the
+# legacy in-tree `gp2` class alongside the Auto Mode one. Measured against a live cluster's two
+# StorageClasses -- `auto-ebs-sc` (ebs.csi.eks.amazonaws.com, encrypted=true) and `gp2`
+# (kubernetes.io/aws-ebs, encrypted unset) -- the old regex answered `none~0/1`: it counted ONLY the
+# unencrypted legacy class and could not see the encrypted Auto Mode one, so it named the right
+# problem for the wrong reason and would have gone on doing so if the operator encrypted the Auto Mode
+# class. The corrected set answers `some~1/2`, which is the honest reading: one EBS StorageClass on the
+# cluster still provisions unencrypted volumes.
+m sec-25 storageclasses '[.items[]|select((.provisioner//"")|test("ebs\\.csi\\.aws\\.com|ebs\\.csi\\.eks\\.amazonaws\\.com|kubernetes\\.io/aws-ebs"))] as $s|($s|length) as $t|([$s[]|select(.parameters.encrypted=="true")]|length) as $ok| if $t==0 then "na~no EBS StorageClass" else b($ok;$t)+"~\($ok)/\($t) encrypted EBS SC" end'
 g sec-23
 # sec-27 and rel-16 answer the same question -- "is a service mesh present?" -- and used to disagree on
 # the same cluster: rel-16 credited Consul Connect and sec-27 did not, while sec-27 matched the namespaces
@@ -168,16 +245,113 @@ m2 sec-28 pods peerauthentications 'input as $pa|[.items[]?|select((.metadata.na
 m sec-29 ingresses '[.items[]] as $i|($i|length) as $t|([$i[]|select((.spec.tls//[])|length>0)]|length) as $ok| if $t==0 then "na~no Ingress objects; TLS on Service type=LoadBalancer is not assessed, so this is not a finding of no plaintext exposure" else b($ok;$t)+"~\($ok)/\($t) TLS" end'
 
 # ── network (8) ──
-# sec-4 checks that NetworkPolicies can actually be ENFORCED, not merely that objects exist. AWS:
-# network policy support in the VPC CNI is "disabled by default at launch" -- so on a default cluster
-# every NetworkPolicy object is inert and this High-severity question used to score `all` while nothing
-# was enforced. Enforcement shows up as the `aws-eks-nodeagent` container in the aws-node DaemonSet
-# (added when enableNetworkPolicy is on) or an explicit NETWORK_POLICY_ENFORCING_MODE env var. Both are
+# sec-4 checks that NetworkPolicies can actually be ENFORCED, not merely that objects exist. Enforcement
+# is opt-in, in the service documentation's own words:
+# docs.aws.amazon.com/eks/latest/userguide/cni-network-policy-configure.html -- "You must configure the
+# following in order to use this feature: 1. Set up policy enforcement at Pod startup. You do this in the
+# `aws-node` container of the VPC CNI DaemonSet. 2. Enable the network policy parameter for the add-on.
+# 3. Configure your cluster to use the Kubernetes network policy." So on a cluster where none of the
+# three was done, every NetworkPolicy object is inert, and this High-severity question used to score
+# `all` while nothing was enforced. (An earlier draft of this comment quoted a 2023 launch blog post's
+# "disabled by default at launch" phrasing; the User Guide states the same requirement and is the source
+# that tracks the service, so the blog quote is gone.) Enforcement shows up as the `aws-eks-nodeagent`
+# container in the aws-node DaemonSet (added when enableNetworkPolicy is on) or an explicit
+# NETWORK_POLICY_ENFORCING_MODE env var. Both are
 # already collected -- net-3 reads this same DaemonSet's env. A third-party enforcing CNI (Calico,
 # Cilium) replaces vpc-cni entirely, so the guard only fires when vpc-cni IS the installed addon.
-m4 sec-4 networkpolicies namespaces daemonsets addons 'input as $ns|input as $ds|input as $ad|([$ad.addons[]?]|index("vpc-cni")) as $has_cni|([$ds.items[]?|select(.metadata.name=="aws-node")|.spec.template.spec.containers[]?.env[]?|select(.name=="NETWORK_POLICY_ENFORCING_MODE")|.value]|first) as $mode|([$ds.items[]?|select(.metadata.name=="aws-node")|.spec.template.spec.containers[]?|select(.name=="aws-eks-nodeagent")]|length>0) as $agent|[$ns.items[]|select(.metadata.name|test("^(kube-|amazon-)")|not)|.metadata.name] as $n|($n|length) as $t|([.items[].metadata.namespace]|unique) as $cov|([$n[]|select(. as $x|$cov|index($x))]|length) as $ok| if $t==0 then "na~no workload namespaces" elif ($has_cni != null) and ($agent|not) and ($mode==null) then "none~\($ok)/\($t) ns have a NetworkPolicy, but the VPC CNI network-policy agent is not running so none of them is enforced" else b($ok;$t)+"~\($ok)/\($t) ns with a NetworkPolicy" + (if $mode!=null then " (CNI mode: \($mode))" else "" end) end'
+#
+# THE STANDARD-CLUSTER GUARD ABOVE CANNOT FIRE ON EKS AUTO MODE, AND THAT WAS THE WHOLE FAILURE.
+# It is conditioned on the `vpc-cni` add-on being installed and on an `aws-eks-nodeagent` container in
+# the `aws-node` DaemonSet. An all-Auto-Mode cluster has neither -- no vpc-cni add-on, no aws-node
+# DaemonSet at all -- so the guard was structurally unreachable and the raw coverage ratio was
+# published, up to `all`, on a cluster where policy enforcement may be entirely off. It returned the
+# same answer whether Auto Mode enforced or not, which makes it inert, not satisfied. Auto Mode
+# enforcement is OPT-IN, in the service documentation's own words:
+#   https://docs.aws.amazon.com/eks/latest/userguide/auto-net-pol.html
+#   "To use network policies with EKS Auto Mode, you first need to enable the Network Policy Controller
+#   by applying a ConfigMap to your cluster."  (`metadata.name: amazon-vpc-cni`, `namespace:
+#   kube-system`, `data.enable-network-policy-controller: "true"`)
+#   https://docs.aws.amazon.com/eks/latest/best-practices/autosecure.html
+#   "Q: Is Network Policy support enabled by default in EKS Auto Mode? A: For now, Network Policy
+#   support needs to be explicitly enabled through the VPC CNI add-on configuration."
+# BOTH DOCUMENTED KEYS ARE ACCEPTED. auto-net-pol.html shows `enable-network-policy-controller` and
+# autosecure.html shows `enable-network-policy`, in the same ConfigMap, for the same purpose. The pages
+# disagree about the key name; refusing to read the one a customer copied out of the other page would
+# fail them for following AWS documentation. Either key, set to "true", is the opt-in.
+#
+# WHAT WE DECIDED ABOUT THE NODECLASS, AND WHY. autosecure.html adds "It's also required to define the
+# Network Policy support is configured in the Node Class", with `spec.networkPolicy` on the NodeClass.
+# auto-net-pol.html contradicts that: its NodeClass step is titled "Step 3: Adjust Network Policy Agent
+# configuration in Node Class (Optional)", the field is commented "# Optional: Changes default network
+# policy behavior", and Step 2 -- reached with Step 1's ConfigMap alone -- already says "Your EKS Auto
+# Mode cluster is now configured to support Kubernetes network policies." So `spec.networkPolicy` is
+# documented as ADJUSTING an agent that the ConfigMap has already switched on, and the only two values
+# create-node-class.html gives are `DefaultAllow` and `DefaultDeny` -- both of which are enforcement
+# postures, neither of which is "off". Treating an ABSENT `spec.networkPolicy` as a failure would
+# manufacture a finding out of a step the User Guide labels Optional; treating `DefaultAllow` as a pass
+# would manufacture a credit out of a field that does not enable anything. So the ConfigMap alone
+# decides the verdict, and any NodeClass `spec.networkPolicy` value is REPORTED, not scored -- the same
+# treatment the standard path already gives NETWORK_POLICY_ENFORCING_MODE. The residual uncertainty is
+# recorded rather than hidden: no AWS page states which value `spec.networkPolicy` defaults to when the
+# field is unset, so this scorer does not claim to know.
+# A LIVE AUTO MODE CLUSTER SETTLED THIS RATHER THAN THE READING ALONE. Captured read-only: the
+# `amazon-vpc-cni` ConfigMap does not exist (`Error from server (NotFound)`) while NodeClass `default`
+# DOES carry `spec.networkPolicy: DefaultAllow`. So the half an operator actually reaches for is the
+# optional one, and had `spec.networkPolicy` been read as the enabling signal this cluster would have
+# scored a pass with enforcement off -- doubly wrong, since `DefaultAllow` is the PERMISSIVE mode of the
+# two. The not-enforced arm therefore names that exact mistake when it sees it, because "you configured
+# step 3 and not step 1" is the actionable sentence and "not enforced" alone is not.
+# The arm also has a no-policies variant: with zero covered namespaces, "the NetworkPolicy objects are
+# not enforced" is vacuously true and reads as though objects existed, so that case says instead that no
+# workload namespace carries one and pod-to-pod traffic is unrestricted. Neither variant prints a ratio.
+#
+# THE GATE IS EVERY EC2 NODE, NOT `computeConfig.enabled` -- the same re-gating applied to
+# references/reliability.md's lens-2, and for the same reason. A hybrid cluster has Auto Mode enabled
+# AND an `aws-node` DaemonSet with a live nodeagent, so the flag alone would hand the standard-cluster
+# guard's job to an Auto Mode arm that cannot see the mechanism actually enforcing on the managed
+# nodes: https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html -- "However, if your cluster
+# combines Auto mode with other compute options like self-managed EC2 instances, Managed Node Groups,
+# or AWS Fargate, these add-ons remain necessary." Membership is the documented label,
+# create-node-pool.html's supported-label table -- "| eks.amazonaws.com/compute-type | auto |
+# Identifies EKS Auto Mode managed nodes |" -- and associate-workload.html -- "EKS Auto Mode nodes have
+# set the value of the label `eks.amazonaws.com/compute-type` to `auto`." cluster.json is deliberately
+# NOT an eighth input: a node cannot carry that label unless Auto Mode is enabled, so once every EC2
+# node carries it the cluster flag adds no information. Fargate nodes are excluded from the denominator
+# as everywhere else, and an EMPTY EC2 node set does not satisfy the gate ($nt>0 is required) so an
+# empty cluster is never vacuously routed down the Auto Mode arm.
+# The standard guard now carries `($allauto|not)` so the two guards can never both claim the cluster and
+# report contradictory reasons -- on an all-Auto-Mode cluster there is no aws-node DaemonSet for the
+# standard guard's evidence to be about. Enforcement mechanism, for the reader: the security whitepaper's
+# eks-auto-mode-data-plane.html -- "These policies are enforced by a networking component on the node
+# using eBPF."
+# NO RATIO IN THE AUTO MODE ARM. `_res_ns_has(d, "networkpolicies")` is this question's extractor and
+# resource_agreement() cross-checks a LEADING `n/m`; the standard-cluster guard's ratio already agrees
+# with it and is left exactly as it was, and the new arms add none.
+m7 sec-4 networkpolicies namespaces daemonsets addons vpccniconfig nodeclasses nodes 'input as $ns|input as $ds|input as $ad|input as $cm|input as $nc|input as $nd|([$ad.addons[]?]|index("vpc-cni")) as $has_cni|([$ds.items[]?|select(.metadata.name=="aws-node")|.spec.template.spec.containers[]?.env[]?|select(.name=="NETWORK_POLICY_ENFORCING_MODE")|.value]|first) as $mode|([$ds.items[]?|select(.metadata.name=="aws-node")|.spec.template.spec.containers[]?|select(.name=="aws-eks-nodeagent")]|length>0) as $agent|[$nd.items[]?|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")!="fargate")] as $ec2|($ec2|length) as $nt|([$ec2[]|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="auto")]|length) as $nauto|($nt>0 and $nauto==$nt) as $allauto|((($cm.data["enable-network-policy-controller"]//$cm.data["enable-network-policy"]//"")|tostring|ascii_downcase)=="true") as $npc|([$nc.items[]?|select(((.spec.networkPolicy//"")|tostring)!="")|"\(.metadata.name)=\(.spec.networkPolicy)"]|join(", ")) as $ncpol|[$ns.items[]|select(.metadata.name|test("^(kube-|amazon-)")|not)|.metadata.name] as $n|($n|length) as $t|([.items[].metadata.namespace]|unique) as $cov|([$n[]|select(. as $x|$cov|index($x))]|length) as $ok| if $t==0 then "na~no workload namespaces" elif ($allauto and ($npc|not)) then (if $ok>0 then "none~every EC2 node is an EKS Auto Mode node and the amazon-vpc-cni ConfigMap in kube-system does not enable the Network Policy Controller, so the NetworkPolicy objects that exist in this cluster are NOT enforced — Auto Mode enforcement is opt-in and was never opted into" else "none~every EC2 node is an EKS Auto Mode node, the amazon-vpc-cni ConfigMap in kube-system does not enable the Network Policy Controller, and no workload namespace carries a NetworkPolicy — Auto Mode enforcement is opt-in and was never opted into, so pod-to-pod traffic is unrestricted" end) + (if $ncpol!="" then " (NodeClass networkPolicy \($ncpol) IS set, but that is the documented-optional step 3 and it does not enable the controller — apply the ConfigMap)" else "" end) elif ($allauto|not) and ($has_cni != null) and ($agent|not) and ($mode==null) then "none~\($ok)/\($t) ns have a NetworkPolicy, but the VPC CNI network-policy agent is not running so none of them is enforced" else b($ok;$t)+"~\($ok)/\($t) ns with a NetworkPolicy" + (if $mode!=null then " (CNI mode: \($mode))" else "" end) + (if ($allauto and $npc) then " (Auto Mode Network Policy Controller enabled" + (if $ncpol!="" then "; NodeClass networkPolicy \($ncpol), reported not scored" else "" end) + ")" else "" end) + (if (($allauto|not) and $nauto>0 and ($npc|not)) then " — but \($nauto) of \($nt) EC2 nodes are EKS Auto Mode nodes, whose enforcement is gated separately by the amazon-vpc-cni ConfigMap and is not enabled, so no policy is enforced for pods landing there" else "" end) end'
 g sec-14
-m2 sec-30 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.resourcesVpcConfig) as $v|((($v.securityGroupIds//[]) + [$v.clusterSecurityGroupId//empty])|unique) as $own|[.SecurityGroups[]?|select((.GroupId as $id|$own|index($id)) or ([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0))] as $g| if ($g|length)==0 then "na~no cluster SGs" elif ([$g[].IpPermissions[]?|select((.IpProtocol=="-1" or ((.FromPort//0)<=22 and (.ToPort//0)>=22)) and (.IpRanges[]?.CidrIp=="0.0.0.0/0"))]|length)>0 then "none~ssh 0.0.0.0/0" else "all~no ssh open (cluster SGs)" end'
+# sec-30 asks whether SSH to the nodes is disabled. On EKS Auto Mode nodes THE SECURITY GROUP IS THE
+# WRONG EVIDENCE, because there is no listener for port 22 to reach:
+#   https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html
+#   "SSH access is not available." / "AWS Systems Manager Session Manager (SSM) access is not
+#   available."
+#   https://docs.aws.amazon.com/whitepapers/latest/security-overview-amazon-eks-auto-mode/eks-auto-mode-data-plane.html
+#   "remote access services like SSH and the AWS Systems Manager agent are not available on Auto Mode
+#   nodes"
+# and the same page gives the break-glass path the question's own remediation asks for: "NodeDiagnostic
+# resource - The NodeDiagnostic custom resource definition (CRD) is a Kubernetes-native method of
+# fetching system logs and information from an EKS Auto Mode node." So on an all-Auto-Mode cluster this
+# control is met by the platform, and an open port 22 in a cluster security group grants nothing.
+# THE GATE IS EVERY EC2 NODE CARRYING THE DOCUMENTED LABEL, matching references/reliability.md's lens-2
+# (create-node-pool.html's supported-label table: "| eks.amazonaws.com/compute-type | auto | Identifies
+# EKS Auto Mode managed nodes |"; associate-workload.html: "EKS Auto Mode nodes have set the value of
+# the label `eks.amazonaws.com/compute-type` to `auto`."). Fargate nodes are excluded from the
+# denominator as everywhere else, and $nt>0 is required so a cluster with no nodes is never credited
+# vacuously. ON A HYBRID CLUSTER IT FALLS THROUGH to the security-group measurement, because a managed
+# node group DOES run sshd and its port 22 is real.
+# The rule stays visible to the reader even when credited: the detail names the open-SG rule it is
+# declining to apply and points at net-2, which still measures 0.0.0.0/0 on every other port -- so
+# "SSH is not reachable" can never be misread as "this security group is fine".
+m3 sec-30 sg cluster nodes 'input as $cl|input as $nd|($cl.cluster.name//"") as $cn|($cl.cluster.resourcesVpcConfig) as $v|((($v.securityGroupIds//[]) + [$v.clusterSecurityGroupId//empty])|unique) as $own|[$nd.items[]?|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")!="fargate")] as $ec2|($ec2|length) as $nt|([$ec2[]|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="auto")]|length) as $nauto|[.SecurityGroups[]?|select((.GroupId as $id|$own|index($id)) or ([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0))] as $g| if (($cl.cluster.computeConfig.enabled==true) and $nt>0 and $nauto==$nt) then "all~every EC2 node is an EKS Auto Mode node, where SSH and the SSM agent are not available at all, so port 22 cannot reach a listener and break-glass access is the NodeDiagnostic CRD; the open-security-group rule is therefore not applied here — net-2 still measures 0.0.0.0/0 on every other port" elif ($g|length)==0 then "na~no cluster SGs" elif ([$g[].IpPermissions[]?|select((.IpProtocol=="-1" or ((.FromPort//0)<=22 and (.ToPort//0)>=22)) and (.IpRanges[]?.CidrIp=="0.0.0.0/0"))]|length)>0 then "none~ssh 0.0.0.0/0" else "all~no ssh open (cluster SGs)" end'
 # sec-31 asked the same thing net-4 used to: whether control-plane and node security groups are
 # separate. net-4 has been RESCOPED to cluster-SG egress, so "deduplicated against net-4" is no longer
 # true — nothing measures SG separation now, deliberately, because AWS states the split is "no longer
@@ -197,7 +371,42 @@ m2 net-2 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.res
 # the EKS Best Practices Guides place both under Security / Image Security.
 m2 lens-12 ecr pods 'input as $p|[$p.items[].spec.containers[]?.image|select(test("dkr.ecr"))|capture("amazonaws.com/(?<r>[^:@]+)").r] as $used|[.repositories[]?|select(.repositoryName as $rn|$used|index($rn))] as $r|($r|length) as $t|([$r[]|select(.imageScanningConfiguration.scanOnPush==true)]|length) as $ok| if $t==0 then "na~no cluster ECR repos" else b($ok;$t)+"~\($ok)/\($t) scan-on-push" end'
 m2 lens-13 ecr pods 'input as $p|[$p.items[].spec.containers[]?.image|select(test("dkr.ecr"))|capture("amazonaws.com/(?<r>[^:@]+)").r] as $used|[.repositories[]?|select(.repositoryName as $rn|$used|index($rn))] as $r|($r|length) as $t|([$r[]|select(.imageTagMutability=="IMMUTABLE")]|length) as $ok| if $t==0 then "na~no cluster ECR repos" else b($ok;$t)+"~\($ok)/\($t) immutable" end'
-m3 net-3 daemonsets nodes cluster 'input as $n|input as $cl|([$n.items[]|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")]|length) as $ec2| if ($cl.cluster.computeConfig.enabled==true) then "na~auto mode fully manages the VPC CNI; prefix delegation is not configurable" elif $ec2==0 then "na~fargate" else (([.items[]|select(.metadata.name=="aws-node")]|first // {}|.spec.template.spec.containers[]?.env[]?|select(.name=="ENABLE_PREFIX_DELEGATION")|.value) as $v| if $v=="true" then "all~prefix delegation on" else "none~off" end) end'
+# net-3 used to answer `na~auto mode fully manages the VPC CNI; prefix delegation is not configurable`
+# on any cluster with `computeConfig.enabled`. That detail was wrong twice over. Prefix delegation is
+# the documented Auto Mode DEFAULT -- which is exactly what this question wants:
+#   https://docs.aws.amazon.com/eks/latest/userguide/auto-networking.html
+#   "EKS Auto Mode defaults to using prefix delegation (/28 prefixes) for pod networking and maintains a
+#   predefined warm pool of IP resources that scales based on the number of scheduled pods"
+# and it IS configurable, so the default must be verified rather than asserted:
+#   https://docs.aws.amazon.com/eks/latest/userguide/create-node-class.html
+#   "ipv4PrefixSize is default to Auto which is prefix and fallback to secondary IP. \"32\" is the
+#   secondary IP mode."
+# The field lives at `spec.advancedNetworking.ipv4PrefixSize` in that page's NodeClass specification and
+# nowhere else, so only that path is read -- guessing at a second path would be inventing a shape the
+# documentation does not describe. nodeclasses.json is now collected, so a NodeClass that opts a cluster
+# into secondary-IP mode is reported instead of being credited.
+# THE GATE IS EVERY EC2 NODE, NOT `computeConfig.enabled`. On a hybrid cluster the old flag-based `na`
+# SUPPRESSED A REAL FINDING: the identical Standard cluster answers `none~off`, while the hybrid one went
+# `na` -- excluded from scoring entirely -- even though it provably still runs an `aws-node` DaemonSet
+# with `ENABLE_PREFIX_DELEGATION` sitting in its env waiting to be read. Auto Mode capabilities do not
+# reach non-Auto-Mode nodes: eks-add-ons.html -- "However, if your cluster combines Auto mode with other
+# compute options like self-managed EC2 instances, Managed Node Groups, or AWS Fargate, these add-ons
+# remain necessary" -- and auto-networking.html's Important callout says the same of the node-level DNS
+# service: "Non-Auto Mode nodes rely on the traditional CoreDNS pods for DNS resolution, as they cannot
+# access the node-level DNS service that Auto Mode provides." Same membership test, same $ec2>0
+# requirement and same Fargate exclusion as lens-2 and sec-30, so the three gates cannot drift.
+# `none` for an `ipv4PrefixSize: "32"` NodeClass is the accurate answer to the question as asked -- is
+# prefix delegation enabled -- and NOT automatically a defect. create-node-class.html recommends
+# secondary IP mode for pod-sparse workloads at scale, so the remediation prose tells the reader to
+# check whether the opt-out was deliberate before changing it. Low severity, so the honest `none` costs
+# one weight-1 question and the prose carries the nuance the state cannot.
+# `$v` is now read as `[...]|first` rather than bound from a streaming path. The old form bound `as $v`
+# to an expression that yields ZERO outputs when aws-node has no ENABLE_PREFIX_DELEGATION env var (or no
+# aws-node exists at all), which makes the whole jq program emit nothing and trips the helper's
+# "produced no output" abort. Every fixture happens to set the variable, so it never fired; a real
+# cluster that does not set it would have aborted the pillar. `first` over a list always yields exactly
+# one value, null included -- the same idiom sec-4 uses for $mode.
+m4 net-3 daemonsets nodes cluster nodeclasses 'input as $n|input as $cl|input as $nc|[$n.items[]?|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")!="fargate")] as $ec2set|($ec2set|length) as $ec2|([$ec2set[]|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="auto")]|length) as $auto|[$nc.items[]?|select((((.spec.advancedNetworking.ipv4PrefixSize)//"")|tostring)=="32")|.metadata.name] as $off| if (($cl.cluster.computeConfig.enabled==true) and $ec2>0 and $auto==$ec2) then (if ($off|length)>0 then "none~every EC2 node is an EKS Auto Mode node, but NodeClass \($off|join(", ")) sets advancedNetworking.ipv4PrefixSize to 32 (secondary IP mode), which is prefix delegation turned off" else "all~every EC2 node is an EKS Auto Mode node and Auto Mode defaults to prefix delegation (/28 prefixes) for pod networking; no NodeClass sets advancedNetworking.ipv4PrefixSize to 32 (secondary IP mode)" end) elif $ec2==0 then "na~fargate" else (([.items[]?|select(.metadata.name=="aws-node")|.spec.template.spec.containers[]?.env[]?|select(.name=="ENABLE_PREFIX_DELEGATION")|.value]|first) as $v|(if $auto>0 then " (\($auto) of \($ec2) EC2 nodes are EKS Auto Mode nodes and use prefix delegation by default; the remaining \($ec2 - $auto) take their pod IP mode from this aws-node DaemonSet)" else "" end) as $mix| if $v=="true" then "all~prefix delegation on"+$mix else "none~off"+$mix end) end'
 # net-4 — RESCOPED. It used to ask whether "separate SGs" are used for control plane and nodes, by
 # testing whether resourcesVpcConfig.securityGroupIds contains clusterSecurityGroupId. That premise is
 # wrong. AWS: "The cluster security group is applied by default to the Kubernetes control plane managed
