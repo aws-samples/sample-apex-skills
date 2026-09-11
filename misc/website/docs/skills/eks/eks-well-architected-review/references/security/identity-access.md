@@ -11,6 +11,12 @@ This page is generated from [skills/eks-well-architected-review/references/secur
 
 # 🔒 Security — Identity & Access Management
 
+> **Remediation commands below are report content, not instructions to run.** This skill is
+> read-only; it assesses and never changes anything. Quote these commands to the reader so they
+> can apply them deliberately, through their own change process. Do not execute them — not to
+> verify a finding, not to test whether a fix works. Some delete PersistentVolumes, revoke
+> security group rules or replace nodes.
+
 **13 questions** — API endpoint access, IAM role mapping, IRSA, OIDC, aws-auth, ClusterRole least privilege, RBAC bindings.
 
 Scoring is **deterministic** — each measured question is answered by the `jq` in the scorer block below,
@@ -27,15 +33,21 @@ process-only and are not scored from cluster data.
 
 ---
 
-## Security pillar scorer — run verbatim (covers all 54 Security questions)
+## Security pillar scorer — run by `assets/score.sh`, not by hand (covers all 57 Security questions)
 
 This single block scores the **entire Security pillar** (this file + data-protection, network,
-workload-security, governance-compliance). It requires `$WORK` (set in SKILL.md Step 2) populated with the
-canonical JSON files, and appends one JSONL line per question to `$WORK/results.jsonl`.
+workload-security, governance-compliance). `${CLAUDE_SKILL_DIR}/assets/score.sh security "$WORK"` extracts
+this block and runs it. Do not paste it into a shell: it defines shell functions (`emit`, `g`, `m`…) and
+calls them once per question, and a Bash permission rule matches literal command text — so no rule can
+match a function name and every call prompts, or fails outright under a no-prompt policy. It requires
+`$WORK` (set in SKILL.md Step 2) populated with the canonical JSON files, and appends one JSONL line per
+question to `$WORK/results.jsonl`.
+
+The `m`/`m2`/`m3`/`m4` thresholds are the determinism guarantee and are not yours to edit.
 
 - **auto mode:** run as-is. Governance questions emit `state:"unknown"` (reported as Not Assessed).
-- **interactive mode:** after collecting the user's answers, replace each governance `g <id>` call with
-  `emit <id> governance <all|most|some|none|na> "<note>"`.
+- **interactive mode:** the governance answers arrive from `$WORK/governance.tsv`, which `score.sh`
+  substitutes into the `g` calls as it extracts them — see SKILL.md Step 6. Do not hand-edit a `g` call.
 
 ```bash
 W="$WORK"
@@ -76,26 +88,94 @@ m sec-17 cluster '(.cluster.accessConfig.authenticationMode // "CONFIG_MAP") as 
 # double-count the gap sec-6 already reports. `none` is reserved for the trap this question exists to
 # catch — IRSA annotations that grant nothing because no matching provider is registered.
 m3 sec-18 cluster oidcproviders serviceaccounts 'input as $p|input as $sa|((.cluster.identity.oidc.issuer // "")|sub("^https://";"")) as $iss|[$p.OpenIDConnectProviderList[]?.Arn // empty] as $arns|([$sa.items[]?|select(.metadata.annotations["eks.amazonaws.com/role-arn"])]|length) as $irsa| if $irsa==0 then "na~no IRSA ServiceAccounts, so no IAM OIDC provider is required (workload identity is scored by sec-6)" elif ($iss|length)==0 then "none~\($irsa) IRSA SA(s) but the cluster reports no OIDC issuer" elif ($arns|any(endswith("oidc-provider/"+$iss))) then "all~IAM OIDC provider registered for the cluster issuer (\($irsa) IRSA SAs)" else "none~\($irsa) IRSA SA(s) but NO IAM OIDC provider matches the cluster issuer (\($arns|length) in account) — the annotations grant nothing" end'
-m rbac-1 clusterrolebindings '[.items[]|select(.roleRef.name=="cluster-admin")] as $bb|([$bb[]|.subjects[]?|select(((.name//"")|test("^system:|^eks:"))|not)|select(.name!="system:masters")]|length) as $ns| if ($bb|length)==0 then "na~none" elif $ns==0 then "all~system-only" else "none~\($ns) nonsystem" end'
+# rbac-1 reads aws-auth AS WELL AS the ClusterRoleBindings. `system:masters` is a built-in group whose
+# cluster-admin power is baked into the API server: it needs no ClusterRoleBinding at all. That is why
+# this check correctly filters it out as a built-in SUBJECT, and exactly why it could not see who
+# aws-auth maps INTO it. `awsauth.json` was already collected for this reason — collect.sh: "An entry
+# granting system:masters is a full-cluster takeover path via IAM that no RBAC check can see" — and no
+# scorer read it, so a cluster handing cluster-admin to an IAM role reported `all~system-only`.
+# PRESENCE, NOT A COUNT. `data.mapRoles`/`data.mapUsers` are YAML DOCUMENTS carried as JSON strings and
+# jq cannot parse YAML. A substring test over the text is robust; splitting it into entries to count or
+# attribute them is not, and a fragile number on a High-severity question is worse than an honest
+# boolean. The detail therefore carries no `N/M` — the renderer's extractor produces no matching count,
+# so `resource_agreement()` must stay at None (it lists the mappings without cross-checking a total).
+# The renderer's `_res_rbac1` twin does attribute ARNs textually so the reader sees which principal is
+# involved, and says that it did so; the verdict here does not depend on that attribution.
+# ONLY `system:masters` IS MATCHED, deliberately not `cluster-admin`. A group named `cluster-admin`
+# grants nothing unless a ClusterRoleBinding binds it — and if one does, the `$ns` clause below already
+# reports it as a nonsystem subject. Matching the bare string would instead fire on role ARNs such as
+# `.../eks-cluster-admin-role`, which grant nothing by being named that.
+# A cluster on `API` auth mode has no aws-auth ConfigMap at all; collect.sh writes `{"items":[]}` for a
+# missing optional file, so `.data` is null, the test is false, and this behaves exactly as it did
+# before. Absent aws-auth is never itself a finding.
+m2 rbac-1 clusterrolebindings awsauth 'input as $aa|(($aa.data.mapRoles//"")+"\n"+($aa.data.mapUsers//"")) as $am|($am|test("system:masters")) as $iam|[.items[]|select(.roleRef.name=="cluster-admin")] as $bb|([$bb[]|.subjects[]?|select(((.name//"")|test("^system:|^eks:"))|not)|select(.name!="system:masters")]|length) as $ns| if $iam then "none~kube-system/aws-auth maps an IAM principal into system:masters (matched in data.mapRoles/mapUsers) — cluster-admin granted through IAM, which no ClusterRoleBinding can show"+(if $ns>0 then ", plus \($ns) nonsystem cluster-admin subject(s) in ClusterRoleBindings" else "" end) elif ($bb|length)==0 then "na~none" elif $ns==0 then "all~system-only" else "none~\($ns) nonsystem" end'
 m2 rbac-2 rolebindings clusterrolebindings 'input as $crb|[.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)|(.metadata.namespace//"") as $bns|.subjects[]?|select(.kind=="ServiceAccount")|(((.namespace//$bns)|if .=="" then $bns else . end)+"/"+.name)]|unique as $ns_bound|[$crb.items[]?|select(((.metadata.name//"")|test("^(system:|eks:)"))|not)|.subjects[]?|select(.kind=="ServiceAccount")|select(((.namespace//"")|test("^(kube-|amazon-)"))|not)|((.namespace//"")+"/"+.name)]|unique as $cluster_bound|(($ns_bound+$cluster_bound)|unique|length) as $t|(($ns_bound-$cluster_bound)|length) as $ok| if $t==0 then "na~no workload ServiceAccount bindings" else b($ok;$t)+"~\($ok)/\($t) SAs namespace-scoped only" end'
 m2 rbac-3 rolebindings serviceaccounts 'input as $sa| ($sa.items|map(.metadata.namespace+"/"+.metadata.name)) as $known|[.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)|(.metadata.namespace//"") as $bns|.subjects[]?|select(.kind=="ServiceAccount")|(((.namespace//$bns)|if .=="" then $bns else . end)+"/"+.name)] as $refs|($refs|length) as $t|([$refs[]|select(. as $r|$known|index($r))]|length) as $ok| if $t==0 then "na~no workload SA bindings" else b($ok;$t)+"~\($ok)/\($t) resolve" end'
-m rbac-4 serviceaccounts '[.items[]|select(.metadata.name=="default" and ((.metadata.namespace)|test("^kube-")|not))] as $d|($d|length) as $t|([$d[]|select(.automountServiceAccountToken==false)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) automount off"'
+# rbac-4 covers EVERY workload ServiceAccount, not only the one literally named `default`. Real workloads
+# use named SAs, so the old check was blind to the normal case. It also reports pod-level
+# `automountServiceAccountToken: true`, which overrides an SA-level `false` -- so the SA can look
+# compliant while the pods still receive a token.
+m2 rbac-4 serviceaccounts pods 'input as $p|[.items[]?|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)] as $sa|($sa|length) as $t|([$sa[]|select(.automountServiceAccountToken==false)]|length) as $ok|([$p.items[]?|select(.spec.automountServiceAccountToken==true)]|length) as $override| if $t==0 then "na~no workload ServiceAccounts" elif $override>0 then b($ok;$t)+"~\($ok)/\($t) SAs disable token automount, but \($override) pod(s) re-enable it in their own spec (a pod-level true overrides the SA)" else b($ok;$t)+"~\($ok)/\($t) SAs disable token automount" end'
 
 # ── data-protection (11) ──
 m sec-8 deployments 'if ([.items[]|select(.metadata.name|test("external-secrets"))]|length)>0 then "all~ESO present" else "none~no ESO" end'
 g sec-24
 g sec-34
 g sec-35
-m2 sec-21 volumes cluster 'input as $cl|($cl.cluster.name//"") as $cn|[.Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0)] as $v|($v|length) as $t|([$v[]|select(.Encrypted==true)]|length) as $ok| if $t==0 then "na~no cluster-tagged volumes" else b($ok;$t)+"~\($ok)/\($t) encrypted (cluster vols)" end'
+# sec-21 also matches `ebs.csi.aws.com/cluster-name`, the tag AWS's own cluster-scoped CSI policy uses.
+# And critically: it no longer answers `na` when EBS-backed PersistentVolumes exist but nothing carries a
+# cluster tag. Dynamically-provisioned CSI volumes get a cluster tag only when the driver is configured
+# to add one, so a High-severity encryption check was reporting "not applicable" on clusters that
+# demonstrably had EBS volumes. `na` is excluded from scoring entirely, so that was a silent pass.
+m3 sec-21 volumes cluster pv 'input as $cl|input as $pvs|($cl.cluster.name//"") as $cn|[.Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0)] as $v|($v|length) as $t|([$v[]|select(.Encrypted==true)]|length) as $ok|([$pvs.items[]?|select(.spec.csi.driver=="ebs.csi.aws.com" or (.spec.awsElasticBlockStore!=null))]|length) as $ebspv| if $t==0 and $ebspv>0 then "none~NOT SCOPED: \($ebspv) EBS-backed PersistentVolume(s) exist but no volume carries a cluster tag, so encryption could not be checked — tag them (ebs.csi.aws.com/cluster-name or kubernetes.io/cluster/<name>) and re-run" elif $t==0 then "na~no cluster-tagged volumes and no EBS-backed PVs" else b($ok;$t)+"~\($ok)/\($t) encrypted (cluster vols)" end'
+# sec-38 measures whether a CUSTOMER-MANAGED key is in use -- not whether envelope encryption exists.
+# The distinction is the whole finding. AWS envelope-encrypts all Kubernetes API data, Secrets included,
+# by default on 1.28+ with an AWS-owned KMS key, and says it "doesn't require any action on your part";
+# every version in standard or extended support today is >= 1.31, so the default is universal. This check
+# used to emit "no envelope encryption", which told every cluster without a CMK that a control AWS
+# documents as on was absent -- a false finding on 100% of clusters, and one that pushed the reader
+# toward an irreversible change. What is genuinely absent is the key policy, the CloudTrail trail and
+# revocation control that come with bringing your own key.
+#   https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html
+# `resources` is deprecated for the same reason (it "no longer affects which resources are encrypted"),
+# but AWS still returns ["secrets"] to preserve the old API contract, so matching on it is safe.
+m sec-38 cluster '([.cluster.encryptionConfig[]?|select((.resources//[])|index("secrets"))]|first) as $ec| if $ec==null then "none~no customer-managed KMS key: Secrets are envelope-encrypted with the default AWS-owned key, so the key policy, CloudTrail audit trail and revocation are not yours to control" elif (($ec.provider.keyArn//"")|length)>0 then "all~Secrets encrypted with customer-managed KMS key" else "some~encryptionConfig covers secrets but names no keyArn" end'
 g sec-22
 m sec-25 storageclasses '[.items[]|select((.provisioner//"")|test("ebs\\.csi\\.aws\\.com|kubernetes\\.io/aws-ebs"))] as $s|($s|length) as $t|([$s[]|select(.parameters.encrypted=="true")]|length) as $ok| if $t==0 then "na~no EBS StorageClass" else b($ok;$t)+"~\($ok)/\($t) encrypted EBS SC" end'
 g sec-23
-m sec-27 deployments 'if ([.items[]?|select(((.metadata.namespace//"")|test("istio-system|linkerd")) or (.metadata.name|test("istiod|linkerd")))]|length)>0 then "all~mesh present" else "none~no mesh" end'
-m sec-28 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)] as $p|($p|length) as $t|([$p[]|select([.spec.containers[]?.name]|any(test("istio-proxy|linkerd-proxy")))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) sidecars (workloads)"'
-m sec-29 ingresses '[.items[]] as $i|($i|length) as $t|([$i[]|select((.spec.tls//[])|length>0)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) TLS"'
+# sec-27 and rel-16 answer the same question -- "is a service mesh present?" -- and used to disagree on
+# the same cluster: rel-16 credited Consul Connect and sec-27 did not, while sec-27 matched the namespaces
+# istio-system|linkerd and rel-16 did not. So a Consul cluster scored `most` in Reliability and `none` in
+# Security, and a mesh with renamed control-plane Deployments in namespace `linkerd` scored the reverse.
+# Both patterns were half right; this is their union. EDIT BOTH OR NEITHER -- rel-16 is at
+# references/reliability.md:78 and nothing enforces their agreement.
+m sec-27 deployments 'if ([.items[]?|select(((.metadata.namespace//"")|test("istio-system|linkerd|consul";"i")) or (.metadata.name|test("istiod|linkerd|consul-connect";"i")))]|length)>0 then "all~mesh present" else "none~no mesh" end'
+# sec-28 asks whether mTLS is ENFORCED. Sidecar presence does not establish that: Istio's default mesh
+# mode is PERMISSIVE, which accepts plaintext alongside mTLS. STRICT requires a PeerAuthentication, so
+# that object is now collected and required for a pass; sidecars without it score `some`.
+# sec-28 can only speak to Istio and Linkerd. Its evidence is the sidecar name plus an Istio
+# PeerAuthentication; Consul's sidecar is `envoy-sidecar`/`consul-dataplane` and its enforcement lives in
+# ProxyDefaults/ServiceDefaults CRDs that collect.sh does not gather. Since sec-27 now credits Consul as a
+# mesh, reporting "no mesh sidecars" on a Consul cluster would contradict sec-27 one question later --
+# the same disagreement, moved. A Consul mesh therefore answers `na` with the reason, which keeps it out
+# of the score entirely rather than scoring a control this data cannot see.
+m2 sec-28 pods peerauthentications 'input as $pa|[.items[]?|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)] as $p|($p|length) as $t|([$p[]|select([.spec.containers[]?.name]|any(test("istio-proxy|linkerd-proxy")))]|length) as $inj|([$p[]|select([.spec.containers[]?.name]|any(test("envoy-sidecar|consul-dataplane")))]|length) as $consul|([$pa.items[]?|select((.spec.mtls.mode//"")=="STRICT")]|length) as $strict| if $t==0 then "na~no workload pods" elif ($inj==0 and $consul>0) then "na~\($consul)/\($t) pods carry a Consul sidecar; Consul enforcement lives in ProxyDefaults/ServiceDefaults, which this review does not collect, so mTLS mode is NOT ASSESSED rather than absent" elif $inj==0 then "none~no mesh sidecars" elif $strict==0 then "some~\($inj)/\($t) pods have a mesh sidecar but no PeerAuthentication sets STRICT, so plaintext is still accepted (Istio defaults to PERMISSIVE)" else b($inj;$t)+"~\($inj)/\($t) pods meshed, STRICT mTLS enforced by \($strict) PeerAuthentication(s)" end'
+# sec-29 reads Ingress only, so its `na` means "no Ingress objects" -- NOT "nothing is exposed in
+# plaintext". A cluster fronting its apps with a Service of type LoadBalancer on port 80 has real
+# in-transit exposure and no Ingress, and would land here. services.json is collected (lens-9 reads it),
+# so widening this to cover LoadBalancer listeners is possible and is the right long-term fix; until then
+# the `na` says what was and was not examined, so the report cannot imply the question was answered.
+m sec-29 ingresses '[.items[]] as $i|($i|length) as $t|([$i[]|select((.spec.tls//[])|length>0)]|length) as $ok| if $t==0 then "na~no Ingress objects; TLS on Service type=LoadBalancer is not assessed, so this is not a finding of no plaintext exposure" else b($ok;$t)+"~\($ok)/\($t) TLS" end'
 
 # ── network (8) ──
-m2 sec-4 namespaces networkpolicies 'input as $np|[.items[]|select(.metadata.name|test("^(kube-|amazon-)|^default$")|not)|.metadata.name] as $ns|($ns|length) as $t|($np.items|map(.metadata.namespace)|unique) as $cov|([$ns[]|select(. as $n|$cov|index($n))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) ns covered"'
+# sec-4 checks that NetworkPolicies can actually be ENFORCED, not merely that objects exist. AWS:
+# network policy support in the VPC CNI is "disabled by default at launch" -- so on a default cluster
+# every NetworkPolicy object is inert and this High-severity question used to score `all` while nothing
+# was enforced. Enforcement shows up as the `aws-eks-nodeagent` container in the aws-node DaemonSet
+# (added when enableNetworkPolicy is on) or an explicit NETWORK_POLICY_ENFORCING_MODE env var. Both are
+# already collected -- net-3 reads this same DaemonSet's env. A third-party enforcing CNI (Calico,
+# Cilium) replaces vpc-cni entirely, so the guard only fires when vpc-cni IS the installed addon.
+m4 sec-4 networkpolicies namespaces daemonsets addons 'input as $ns|input as $ds|input as $ad|([$ad.addons[]?]|index("vpc-cni")) as $has_cni|([$ds.items[]?|select(.metadata.name=="aws-node")|.spec.template.spec.containers[]?.env[]?|select(.name=="NETWORK_POLICY_ENFORCING_MODE")|.value]|first) as $mode|([$ds.items[]?|select(.metadata.name=="aws-node")|.spec.template.spec.containers[]?|select(.name=="aws-eks-nodeagent")]|length>0) as $agent|[$ns.items[]|select(.metadata.name|test("^(kube-|amazon-)")|not)|.metadata.name] as $n|($n|length) as $t|([.items[].metadata.namespace]|unique) as $cov|([$n[]|select(. as $x|$cov|index($x))]|length) as $ok| if $t==0 then "na~no workload namespaces" elif ($has_cni != null) and ($agent|not) and ($mode==null) then "none~\($ok)/\($t) ns have a NetworkPolicy, but the VPC CNI network-policy agent is not running so none of them is enforced" else b($ok;$t)+"~\($ok)/\($t) ns with a NetworkPolicy" + (if $mode!=null then " (CNI mode: \($mode))" else "" end) end'
 g sec-14
 m2 sec-30 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.resourcesVpcConfig) as $v|((($v.securityGroupIds//[]) + [$v.clusterSecurityGroupId//empty])|unique) as $own|[.SecurityGroups[]?|select((.GroupId as $id|$own|index($id)) or ([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0))] as $g| if ($g|length)==0 then "na~no cluster SGs" elif ([$g[].IpPermissions[]?|select((.IpProtocol=="-1" or ((.FromPort//0)<=22 and (.ToPort//0)>=22)) and (.IpRanges[]?.CidrIp=="0.0.0.0/0"))]|length)>0 then "none~ssh 0.0.0.0/0" else "all~no ssh open (cluster SGs)" end'
 # sec-31 asked the same thing net-4 used to: whether control-plane and node security groups are
@@ -105,7 +185,13 @@ m2 sec-30 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.re
 # comparing this run against an older report can see why the question stopped being answered.
 m sec-31 cluster '"na~retired: AWS no longer recommends separating control-plane and node security groups"'
 m2 net-1 subnets cluster 'input as $cl|(($cl.cluster.resourcesVpcConfig.subnetIds)//[]) as $own|[.Subnets[]?|select(($own|length)==0 or (.SubnetId as $id|$own|index($id)))] as $s|($s|length) as $t|([$s[]|select(.AvailableIpAddressCount>=100)]|length) as $ok| if $t==0 then "na~no cluster subnets" else b($ok;$t)+"~\($ok)/\($t) >=100 IPs (cluster subnets)" end'
-m2 net-2 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.resourcesVpcConfig) as $v|((($v.securityGroupIds//[]) + [$v.clusterSecurityGroupId//empty])|unique) as $own|[.SecurityGroups[]?|select((.GroupId as $id|$own|index($id)) or ([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0))] as $g|($g|length) as $t|([$g[]|select([.IpPermissions[]?|select((.IpRanges[]?.CidrIp=="0.0.0.0/0") and ((.FromPort//0)!=443 and (.FromPort//0)!=80))]|length==0)]|length) as $ok| if $t==0 then "na~no cluster SGs" else b($ok;$t)+"~\($ok)/\($t) clean SG (cluster SGs)" end'
+# net-2 tests the whole port SPAN, not just FromPort. A rule is only clean when it opens exactly
+# one of 80/443 to the world — i.e. FromPort==ToPort and that port is 80 or 443. Testing FromPort
+# alone let `80-65535 from 0.0.0.0/0` score CLEAN, because FromPort was 80: a security group open
+# to almost every port passed a least-privilege check. `-1` (all protocols) carries no ports at
+# all and is always dirty. This matches the renderer's _sg_clean twin, which already required
+# both ends to be in {80,443} and was therefore reporting a disagreement against this scorer.
+m2 net-2 sg cluster 'input as $cl|($cl.cluster.name//"") as $cn|($cl.cluster.resourcesVpcConfig) as $v|((($v.securityGroupIds//[]) + [$v.clusterSecurityGroupId//empty])|unique) as $own|[.SecurityGroups[]?|select((.GroupId as $id|$own|index($id)) or ([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0))] as $g|($g|length) as $t|([$g[]|select([.IpPermissions[]?|select((.IpRanges[]?.CidrIp=="0.0.0.0/0") and (.IpProtocol=="-1" or ((.FromPort//0)!=(.ToPort//0)) or ((.FromPort//0)!=443 and (.FromPort//0)!=80)))]|length==0)]|length) as $ok| if $t==0 then "na~no cluster SGs" else b($ok;$t)+"~\($ok)/\($t) clean SG (cluster SGs)" end'
 # ECR supply-chain controls, MOVED here from the Cost Optimization scorer: an image registry
 # without scan-on-push or tag immutability is a supply-chain exposure, not an overspend, and
 # the EKS Best Practices Guides place both under Security / Image Security.
@@ -123,22 +209,80 @@ m3 net-3 daemonsets nodes cluster 'input as $n|input as $cl|([$n.items[]|select(
 # The measurable question that remains is whether the cluster SG's default allow-ALL egress has been
 # narrowed — AWS: "Optionally, users can remove this egress rule and limit the open ports between the
 # cluster and nodes." `na` when the cluster SG cannot be identified: absent data is not a finding.
-m2 net-4 sg cluster 'input as $cl|($cl.cluster.resourcesVpcConfig.clusterSecurityGroupId//"") as $csg|([.SecurityGroups[]?|select(.GroupId==$csg)]|first) as $g| if ($csg|length)==0 then "na~cluster security group not reported by describe-cluster" elif $g==null then "na~cluster security group \($csg) not in the collected VPC security groups" elif ([$g.IpPermissionsEgress[]?|select((.IpProtocol=="-1") and (.IpRanges[]?.CidrIp=="0.0.0.0/0"))]|length)>0 then "none~cluster SG \($csg) still allows ALL egress to 0.0.0.0/0 (EKS default)" else "all~cluster SG \($csg) egress narrowed from the EKS default" end'
+# net-4 catches ANY rule that opens every port to the world, not only the literal `IpProtocol: "-1"`
+# shape EKS creates by default. A `tcp 0-65535 -> 0.0.0.0/0` rule grants identical egress and used to
+# score as "narrowed" -- the same FromPort/ToPort blind spot that was fixed for INGRESS in net-2 and not
+# carried across to this egress check when it was written.
+m2 net-4 sg cluster 'input as $cl|($cl.cluster.resourcesVpcConfig.clusterSecurityGroupId//"") as $csg|([.SecurityGroups[]?|select(.GroupId==$csg)]|first) as $g| if ($csg|length)==0 then "na~no cluster security group" elif $g==null then "na~cluster SG not in the collected security groups" elif ([$g.IpPermissionsEgress[]?|select(([.IpRanges[]?.CidrIp]|index("0.0.0.0/0")) and (.IpProtocol=="-1" or ((.FromPort//0)<=1 and (.ToPort//0)>=65535)))]|length)>0 then "none~cluster SG \($csg) still allows ALL egress to 0.0.0.0/0 (EKS default)" else "all~cluster SG \($csg) egress is narrowed" end'
 
 # ── workload-security (16) ──
 m2 sec-10 validatingwebhooks mutatingwebhooks 'input as $mw| ([(.items[]?,$mw.items[]?)|select((.metadata.name|test("aws-load-balancer|vpc-resource|pod-identity|^eks-|amazon-"))|not)]|length) as $n| if $n>0 then "all~\($n) non-AWS webhooks" else "none~only AWS-installed webhooks" end'
-m sec-11 namespaces '[.items[]|select(.metadata.name|test("^(kube-|amazon-)")|not)] as $ns|($ns|length) as $t|([$ns[]|select((.metadata.labels//{})|to_entries|any(.key|test("^pod-security.kubernetes.io/")))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) PSS labels"'
-m2 sec-16 kyverno constrainttemplates 'input as $ct| (([.items[]]|length)+($ct.items|length)) as $n| if $n>0 then "all~policy engine" else "none~none" end'
-m2 adm-1 kyverno constrainttemplates 'input as $ct| (([.items[]]|length)+($ct.items|length)) as $n| if $n>=5 then "all~\($n) policies" elif $n>0 then "some~\($n) policies" else "none~0" end'
-m2 adm-2 constraints kyverno 'input as $ky| (([.items[]]|length)+($ky.items|length)) as $n| (([.items[]?.kind//empty]+[$ky.items[]?.metadata.name//empty])|any(test("privileg";"i"))) as $blk| if $blk then "all~blocks privileged" elif $n>0 then "some~engine present" else "none~none" end'
+# sec-11 reads the enforce LEVEL, not merely the presence of a `pod-security.kubernetes.io/` label.
+# Matching the key prefix alone meant `pod-security.kubernetes.io/enforce: privileged` -- which opts the
+# namespace OUT of restriction -- scored `all` on a High-severity control. Only `restricted` and
+# `baseline` are enforcement; `privileged` is the absence of it. `warn`/`audit` labels do not gate
+# admission at all, so only the `enforce` key counts.
+m2 sec-11 namespaces pods 'input as $p|[.items[]|select(.metadata.name|test("^(kube-|amazon-)")|not)] as $ns|($ns|length) as $t|([$ns[]|select((.metadata.labels//{})|to_entries|any((.key|test("^pod-security.kubernetes.io/enforce$")) and (.value=="restricted" or .value=="baseline")))]|length) as $ok| if $t==0 then "na~no workload namespaces" else b($ok;$t)+"~\($ok)/\($t) ns enforce restricted|baseline" end'
+# sec-16 same correction as adm-1: an installed engine with only templates, or only Audit-mode policies,
+# is not enforcing anything.
+m3 sec-16 kyverno constraints constrainttemplates 'input as $c|input as $ct|(([.items[]?|select((.spec.validationFailureAction//""|ascii_downcase)=="enforce")]|length)+([$c.items[]?]|length)) as $n|([$ct.items[]?]|length) as $tmpl| if $n>0 then "all~policy engine enforcing \($n) policy/ies" elif $tmpl>0 then "some~policy engine installed but only ConstraintTemplates (schemas), no enforcing policy" else "none~none" end'
+# adm-1 counts what is ENFORCED. A Gatekeeper ConstraintTemplate is a schema: without a Constraint
+# object instantiating it, Gatekeeper enforces nothing. Counting templates meant 5 templates and zero
+# Constraints scored `all~5 policies` while the cluster enforced none -- and adm-2/adm-3 already read
+# `constraints.json` correctly, so this was an internal inconsistency. Kyverno policies count only in
+# Enforce mode; Audit-mode policies report but do not block.
+m3 adm-1 kyverno constraints constrainttemplates 'input as $c|input as $ct|([.items[]?|select((.spec.validationFailureAction//""|ascii_downcase)=="enforce")]|length) as $kyv|([$c.items[]?]|length) as $gk|($kyv+$gk) as $n|([$ct.items[]?]|length) as $tmpl| if $n>=5 then "all~\($n) enforcing policies" elif $n>0 then "some~\($n) enforcing policies" elif $tmpl>0 then "none~\($tmpl) Gatekeeper ConstraintTemplate(s) but no Constraint objects, so nothing is enforced" else "none~0" end'
+# adm-2 judges what a policy DOES, not what it is called. It used to accept a case-insensitive substring
+# match on "privileg" against the policy kind/name, so a policy named `allow-privileged-for-ci` -- an
+# exception that PERMITS privileged pods -- scored as blocking them. Now: a Kyverno policy counts only if
+# it is in Enforce mode AND its rule pattern requires privileged==false; Gatekeeper counts real
+# Constraint objects (see adm-1), not templates.
+m2 adm-2 kyverno constraints 'input as $c|([.items[]?|select((.spec.validationFailureAction//""|ascii_downcase)=="enforce")]) as $kyv|([$c.items[]?]) as $gk|(($kyv|length)+($gk|length)) as $t|([$kyv[]|select([.spec.rules[]?.validate.pattern.spec.containers[]?.securityContext.privileged?]|any(.==false))]|length) as $kok| if $t==0 then "none~no enforcing admission policy" elif ($kok+($gk|length))>0 then "all~\($kok+($gk|length)) enforcing policy/ies restrict privileged" else "some~\($t) enforcing policy/ies, none demonstrably restricting privileged" end'
 m2 adm-3 kyverno constraints 'input as $gk|([.items[]?|(.spec.validationFailureAction // (.spec.rules[]?.validate.failureAction) // empty)] + [$gk.items[]?|(.spec.enforcementAction // empty)]) as $a| if ($a|length)==0 then (if (([.items[]?]|length)+([$gk.items[]?]|length))==0 then "na~no policy engine installed" else "some~policies present but no enforcement action set (defaults to audit)" end) elif ([$a[]|select(test("^(Enforce|enforce|deny)$"))]|length)>0 then "all~enforce" else "some~audit" end'
 m sec-12 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select((.image|test(":latest$")) or ((.image|test("@sha256:|:[^/]+$"))|not))]|length) as $bad| if $t==0 then "na~no workload containers" else b(($t-$bad);$t)+"~\(($t-$bad))/\($t) pinned image tags" end'
 m sec-15 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.securityContext as $ps|.spec.containers[]?|{sc:.securityContext,ps:$ps}] as $c|($c|length) as $t|([$c[]|select(.sc.runAsNonRoot==true or .sc.readOnlyRootFilesystem==true or .sc.allowPrivilegeEscalation==false or .ps.runAsNonRoot==true)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) secctx (workloads)"'
-m podsec-1 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.securityContext as $ps|.spec.containers[]?|{sc:.securityContext,ps:$ps}] as $c|($c|length) as $t|([$c[]|select(.sc.runAsNonRoot==true or .ps.runAsNonRoot==true)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) nonroot (workloads)"'
+# WINDOWS SCOPE — podsec-5 excludes Windows pods, podsec-1 does NOT. The asymmetry is deliberate and
+# it is not about Linux-vs-Windows in general: it is about whether Kubernetes will accept the field on
+# a Windows pod at all.
+#   podsec-5 (`capabilities.drop: [ALL]`) EXCLUDES Windows. `securityContext.capabilities` is
+#     REJECTED BY THE API SERVER on a pod that declares `spec.os.name: windows` — validateWindows in
+#     pkg/apis/core/validation/validation.go returns Forbidden, "cannot be set for a windows pod" —
+#     and the Pod Security Standards list Linux Capabilities as one of the three controls it relaxes
+#     for Windows pods (with Privilege Escalation and Seccomp). The field is unsettable there, so
+#     counting a Windows container as one that failed to set it reports a fact about Kubernetes as a
+#     finding about the cluster. The nodeSelector signal is kept alongside `spec.os.name` because a
+#     dropped capability is inert on a Windows node whether or not the pod declares its OS.
+#   podsec-1 (`runAsNonRoot`) DOES NOT EXCLUDE Windows, because all three things that would justify
+#     an exclusion are false:
+#     * ADMISSIBLE — `runAsNonRoot` is absent from validateWindows's forbidden list, so the API
+#       server accepts it on a Windows pod. (`runAsUser`/`runAsGroup` are the ones it rejects.)
+#     * REQUIRED BY PSS-RESTRICTED — PSS relaxes only Privilege Escalation, Seccomp and Linux
+#       Capabilities for `spec.os.name: windows`. Those three checks each carry a Windows branch;
+#       check_runAsNonRoot.go has none, so Restricted demands `runAsNonRoot` on Windows pods too.
+#     * ENFORCED BY THE KUBELET — pkg/kubelet/kuberuntime/security_context_windows.go carries a
+#       Windows-specific verifyRunAsNonRoot with `windowsRootUserName = "ContainerAdministrator"`,
+#       unchanged from release-1.24 through master. The Kubernetes Windows documentation says the
+#       same: "securityContext.runAsNonRoot — this setting will prevent containers from running as
+#       ContainerAdministrator which is the closest equivalent to a root user on Windows", and names
+#       it as one of only TWO pod-level securityContext fields that work on Windows.
+#     DO NOT RE-ADD A WINDOWS EXCLUSION HERE. It made a Windows pod running as ContainerAdministrator
+#     with no `runAsNonRoot` score `all` on a mixed cluster, and on a Windows-only cluster it made the
+#     question `na` — which SKILL.md excludes from numerator AND denominator, so a High-severity
+#     control left the Security score entirely. That is exactly the implied pass SKILL.md's "Windows
+#     node pools are genuine gaps, not implied passes" forbids, and sec-15 above already counts the
+#     same Windows container and fails it, so the exclusion also made this file disagree with itself.
+#   `runAsNonRoot` is NECESSARY BUT NOT SUFFICIENT on Windows: the kubelet check passes vacuously on
+#     an image with no USER directive, so podsec-1 also fails a container whose EFFECTIVE
+#     `windowsOptions.runAsUserName` (container overriding pod) is ContainerAdministrator even when
+#     `runAsNonRoot: true` is set. Compared case-insensitively, matching the kubelet's
+#     strings.EqualFold. On Linux pods the field is absent, so the clause is inert there.
+# podsec-2 (privileged) and podsec-4 (added capabilities) are not excluded either: a Windows container
+# legitimately passes both, since it has neither privileged mode nor capabilities to add.
+m podsec-1 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.securityContext as $ps|.spec.containers[]?|{sc:.securityContext,ps:$ps}] as $c|($c|length) as $t|([$c[]|select((.sc.runAsNonRoot==true or .ps.runAsNonRoot==true) and ((((.sc.windowsOptions.runAsUserName // .ps.windowsOptions.runAsUserName) // "")|ascii_downcase)!="containeradministrator"))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) nonroot (workloads)"'
 m podsec-2 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select((.securityContext.privileged//false)!=true)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) nonpriv (workloads)"'
 m podsec-3 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)] as $p|($p|length) as $t|([$p[]|select([.spec.volumes[]?|select(.hostPath)]|length==0)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) no hostPath (workloads)"'
 m podsec-4 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.containers[]?|select(.securityContext.capabilities.add)] as $c|($c|length) as $t|([$c[]|select(([.securityContext.capabilities.add[]?]|any(.=="NET_ADMIN" or .=="SYS_ADMIN" or .=="ALL"))|not)]|length) as $ok| if $t==0 then "na~no container adds capabilities" else b($ok;$t)+"~\($ok)/\($t) safe caps (declared adds)" end'
-m podsec-5 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select([.securityContext.capabilities.drop[]?]|any(.=="ALL"))]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) drop ALL (workloads)"'
+m podsec-5 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)] as $wl|([$wl[]|select(((.spec.os.name//"")=="windows") or (((.spec.nodeSelector//{})["kubernetes.io/os"]//"")=="windows"))]|length) as $win|[$wl[]|select((((.spec.os.name//"")=="windows") or (((.spec.nodeSelector//{})["kubernetes.io/os"]//"")=="windows"))|not)|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select([.securityContext.capabilities.drop[]?]|any(.=="ALL"))]|length) as $ok| if $t==0 then "na~no Linux workload containers" else b($ok;$t)+"~\($ok)/\($t) drop ALL (workloads)"+(if $win>0 then " (\($win) Windows pod(s) excluded — securityContext.capabilities is rejected by the API server on a Windows pod, so drop ALL cannot be set there)" else "" end) end'
 m lens-11 instances '[.Reservations[]?.Instances[]?] as $i|($i|length) as $t|([$i[]|select(.MetadataOptions.HttpTokens=="required")]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) IMDSv2"'
 g sec-32
 m2 sec-33 addons pods 'input as $pods| (([.addons[]?|select(test("guardduty"))]|length)>0) as $gda| (($pods.items|map(select((.metadata.name|test("guardduty|falco|sysdig|tetragon")) or ((.metadata.namespace//"")|test("guardduty"))))|length)>0) as $agent| if ($gda or $agent) then "all~runtime monitoring" else "none~none" end'
@@ -249,13 +393,17 @@ aws iam list-open-id-connect-providers --output json   # IRSA is inert without t
 2. **An IRSA annotation without a registered IAM OIDC provider does nothing.** The pod gets a
    projected token no IAM role will trust. That state scores `none`, not a pass — see sec-18.
 
+<!-- MAINTAINER NOTE — not report content. Found while verifying render output for the rbac-1 fix
+     above: this file's renderer (question_prose()/md_inline() in assets/render-report.py) only
+     recognizes a bullet as ONE physical line — a continuation line wrapped onto the next line (no
+     leading `-`/`*`) breaks out of the `<ul>` as loose sibling text, dropping the rest of the bullet
+     into the report with the wrong markup. These two bullets were wrapped across three lines each and
+     rendered broken; reflowed onto one line per bullet, content unchanged. Verified 2026-09-11 by
+     calling question_prose()+md_inline() directly against this file. -->
+
 **Remediation:**
-- **Preferred — Pod Identity.** Install the `eks-pod-identity-agent` add-on, then
-  `aws eks create-pod-identity-association --cluster-name <name> --namespace <ns> --service-account <sa> --role-arn <arn>`.
-  The role's trust policy names `pods.eks.amazonaws.com`; no per-cluster OIDC edit is needed.
-- **IRSA.** `eksctl create iamserviceaccount --cluster <name> --name <sa> --namespace <ns> --attach-policy-arn <arn>`
-  (this also creates the IAM OIDC provider if it is missing). Verify with
-  `aws iam list-open-id-connect-providers`.
+- **Preferred — Pod Identity.** Install the `eks-pod-identity-agent` add-on, then `aws eks create-pod-identity-association --cluster-name <name> --namespace <ns> --service-account <sa> --role-arn <arn>`. The role's trust policy names `pods.eks.amazonaws.com`; no per-cluster OIDC edit is needed.
+- **IRSA.** `eksctl create iamserviceaccount --cluster <name> --name <sa> --namespace <ns> --attach-policy-arn <arn>` (this also creates the IAM OIDC provider if it is missing). Verify with `aws iam list-open-id-connect-providers`.
 
 ---
 
@@ -339,15 +487,114 @@ with `aws iam list-open-id-connect-providers`, not with `describe-cluster`.
 
 **Detection:** 🔬 AUTO-DETECTABLE
 
-> Non-system cluster-admin grants provide excessive cluster-wide access.
+<!-- MAINTAINER NOTE — not report content. Deliberately placed outside the blockquote and the
+     Remediation block so the renderer does not extract it. History: the scorer (this file's scorer
+     block, `m2 rbac-1`) was extended to also read awsauth.json — an IAM principal mapped into
+     system:masters via aws-auth is a full-cluster-admin path no ClusterRoleBinding check can see, and
+     the scorer's own comment documents why. This remediation previously covered only the
+     ClusterRoleBinding path, told the reader to "remove non-system bindings" with no check that the
+     binding being removed wasn't the operator's own or a break-glass account's only route to
+     cluster-admin, and no rollback. Now covers both paths the question can fail on, warns and verifies
+     before any removal, and gives the exact re-creation command for the ClusterRoleBinding case.
+     Verified 2026-09-11 against docs.aws.amazon.com/eks/latest/userguide (authenticationMode: CONFIG_MAP
+     vs API vs API_AND_CONFIG_MAP) and the AWS CLI reference for update-access-entry /
+     disassociate-access-policy / delete-access-entry. -->
+
+> Non-system cluster-admin grants provide excessive cluster-wide access — whether granted through a
+> Kubernetes `ClusterRoleBinding` or through an IAM principal mapped into the `system:masters` group.
+> Both paths reach the same place: unrestricted cluster-admin.
 
 **Commands:**
 ```bash
 kubectl get clusterrolebindings -o json
 # Filter roleRef.name == "cluster-admin", check subjects
+kubectl get configmap aws-auth -n kube-system -o json
+# Check data.mapRoles / data.mapUsers for "system:masters"
 ```
 
-**Remediation:** Audit cluster-admin ClusterRoleBindings: `kubectl get clusterrolebindings -o json | jq '.items[] | select(.roleRef.name=="cluster-admin")'`. Remove non-system bindings.
+**Remediation:** Before you remove anything: **confirm you have another way in.** A cluster-admin
+binding or mapping that looks like "the" non-system grant this finding names may be the operator's own
+only path to cluster-admin, or a break-glass account's. Removing it strands you on a cluster whose
+entire point is that you administer it. From the identity that will remain after the change (not the
+one you are about to remove), confirm it actually has cluster-admin:
+
+```bash
+kubectl auth can-i --list --as=<remaining-identity-or-serviceaccount>
+# or, for an IAM principal not yet mapped to a Kubernetes username:
+kubectl auth can-i '*' '*' --as=<kubernetes-username-or-group-that-will-remain>
+```
+
+Only remove the binding or mapping once that comes back with full access.
+
+**Path 1 — a non-system `ClusterRoleBinding` bound to `cluster-admin`:**
+
+```bash
+# Save it first — this is also the rollback if the removal turns out to be wrong:
+kubectl get clusterrolebinding <BINDING_NAME> -o yaml > <BINDING_NAME>-backup.yaml
+kubectl delete clusterrolebinding <BINDING_NAME>
+```
+
+Rollback, if needed:
+```bash
+kubectl apply -f <BINDING_NAME>-backup.yaml
+```
+
+**Path 2 — an IAM principal mapped into `system:masters`:** this path is materially more dangerous
+than path 1: a `ClusterRoleBinding` mistake strands one subject, but a bad edit to the cluster's
+identity mapping can lock out **every** IAM principal at once, including the one making the edit.
+Which mechanism applies, and how to tell:
+
+```bash
+aws eks describe-cluster --name <CLUSTER> --region <REGION> --query 'cluster.accessConfig.authenticationMode'
+```
+
+**If `CONFIG_MAP`, or `API_AND_CONFIG_MAP` with the mapping found in `data.mapRoles`/`data.mapUsers`:**
+the aws-auth ConfigMap governs this principal. Back it up, then edit only that principal's entry — never
+delete the ConfigMap itself, which also carries the node-bootstrap role mappings
+(`system:bootstrappers`/`system:nodes`) and would stop new nodes from joining as well as removing
+cluster-admin:
+
+```bash
+kubectl get configmap aws-auth -n kube-system -o yaml > aws-auth-backup.yaml
+kubectl edit configmap aws-auth -n kube-system
+```
+
+In the editor, remove only the offending role/user entry, or drop `system:masters` from its groups
+list — leave every other entry untouched (deleting the whole ConfigMap breaks node bootstrapping too).
+Rollback, if needed: `kubectl apply -f aws-auth-backup.yaml`.
+
+**If `API`, or `API_AND_CONFIG_MAP` with the mapping found via an access entry:** this cluster uses EKS
+access entries instead; the aws-auth ConfigMap is either ignored (`API`) or only a fallback for
+principals with no access entry (`API_AND_CONFIG_MAP`). Find and narrow the entry rather than editing a
+ConfigMap that may not even be consulted:
+
+```bash
+aws eks list-access-entries --cluster-name <CLUSTER> --region <REGION>
+aws eks describe-access-entry --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN>
+aws eks list-associated-access-policies --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN>
+```
+
+If admin comes from `kubernetesGroups: ["system:masters", ...]` on the entry, replace the list with the
+remaining groups (an empty list removes group-based access without touching any associated policy):
+
+```bash
+aws eks update-access-entry --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --kubernetes-groups <REMAINING_GROUPS_SPACE_SEPARATED>
+```
+
+If admin comes from an associated policy (`AmazonEKSClusterAdminPolicy` with `accessScope.type=cluster`),
+remove only that policy — this leaves the access entry and any other associated policy intact, unlike
+`delete-access-entry`, which removes the principal's access entirely:
+
+```bash
+aws eks disassociate-access-policy --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
+```
+
+Rollback, if needed: re-run `update-access-entry` with `system:masters` restored, or associate the
+policy again:
+
+```bash
+aws eks associate-access-policy --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy --access-scope type=cluster
+```
 
 ---
 

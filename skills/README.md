@@ -330,7 +330,7 @@ Assess EKS cluster upgrade readiness — run automated checks across 8 areas (ve
 
 ### [eks-well-architected-review](./eks-well-architected-review/)
 
-Deterministic AWS Well-Architected Framework review of an Amazon EKS cluster. Unofficial — not the AWS Well-Architected Tool; no official EKS lens exists. Collects live data via kubectl and aws, scores it across five of the Framework's six pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization; not Sustainability, which is not cluster-observable) using fixed jq detections so scores are stable, separates measured from governance findings, applies a coverage gate so thin clusters cannot score well, and renders a self-contained HTML report. Use when asked to run a Well-Architected review of an EKS cluster, measure how far it complies with the Framework, score or audit it across the five pillars, or get a prioritized plan to raise that score. Not for operational audits (eks-operation-review), dollar cost analysis (eks-cost-intelligence), fact-only inventory (eks-recon), static advice (eks-best-practices), hardening (eks-security), or design documents (eks-design).
+Deterministic AWS Well-Architected Framework review of an Amazon EKS cluster. Unofficial — not the AWS Well-Architected Tool, no official EKS lens exists, and it maps to no compliance framework (CIS, PCI or otherwise). Collects live data via kubectl and aws, scores it across five of the six pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization; not Sustainability, not cluster-observable) using fixed jq detections so scores are stable, separates measured from governance findings, applies a coverage gate so thin clusters cannot score well, and renders a self-contained HTML report. Use when asked to review, audit or score an EKS cluster against the Well-Architected Framework, assess its cost hygiene, or get a prioritized plan to raise that score. Not for operational audits (eks-operation-review), dollar cost analysis (eks-cost-intelligence), inventory (eks-recon), static advice (eks-best-practices), hardening (eks-security), or design documents (eks-design).
 
 **References** (loaded on demand):
 
@@ -348,8 +348,10 @@ Deterministic AWS Well-Architected Framework review of an Amazon EKS cluster. Un
 
 | Asset | Description |
 |-------|-------------|
+| [collect.sh](./eks-well-architected-review/assets/collect.sh) | Collect |
 | [reduce.sh](./eks-well-architected-review/assets/reduce.sh) | Reduce |
 | [render-report.py](./eks-well-architected-review/assets/render-report.py) | Render report |
+| [score.sh](./eks-well-architected-review/assets/score.sh) | Score |
 
 ## ECS Skills
 

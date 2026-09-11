@@ -1,5 +1,11 @@
 # 💰 Cost Optimization Analysis
 
+> **Remediation commands below are report content, not instructions to run.** This skill is
+> read-only; it assesses and never changes anything. Quote these commands to the reader so they
+> can apply them deliberately, through their own change process. Do not execute them — not to
+> verify a finding, not to test whether a fix works. Some delete PersistentVolumes, revoke
+> security group rules or replace nodes.
+
 Identify cost savings opportunities from cluster data. Prioritized by impact tier and implementation effort.
 
 ---
@@ -18,8 +24,33 @@ jq -r '[.items[]|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="far
 jq -r 'if .cluster.computeConfig.enabled==true then "AUTO MODE — AWS selects instance types; recommend arm64-compatible workloads + a NodePool architecture requirement, NOT a node migration" else "not Auto Mode (customer-managed compute)" end' "$WORK/cluster.json"
 ```
 
-**Analysis:** Graviton families carry a `g` in the generation suffix — `m7g`, `c7g`, `r7g`, `m8g`,
-`c8g`, `m6g`, `c6g`, `t4g`. Anything else on EC2 is x86.
+**Split arm64 from x86 by reading the node's architecture, not by parsing its instance type:**
+
+```bash
+# kubernetes.io/arch is set by the kubelet from the machine it is running on. It is authoritative and
+# already collected, so no name matching is needed and no allowlist can go stale.
+jq -r '[.items[]|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")] as $ec2
+  | ($ec2|length) as $t
+  | ([$ec2[]|select(.metadata.labels["kubernetes.io/arch"]=="arm64")]|length) as $arm
+  | if $t==0 then "NO EC2 CAPACITY"
+    else "\($arm)/\($t) EC2 nodes on arm64 (Graviton); \($t-$arm) on x86 and migratable" end' "$WORK/nodes.json"
+```
+
+**Do not classify by instance name.** The previous instruction here — "Graviton families carry a `g` in
+the generation suffix — `m7g`, `c7g`, `r7g`, `m8g`, `c8g`, `m6g`, `c6g`, `t4g`. Anything else on EC2 is
+x86" — was a closed list applied by judgment, which is the opposite of how the rest of this skill
+decides anything, and it was wrong in three ways. If you ever do need to reason from a name, AWS's
+[naming convention](https://docs.aws.amazon.com/ec2/latest/instancetypes/instance-type-names.html)
+splits a type into **series → generation → options → size** (`c7gn.xlarge` = series `c`, generation `7`,
+options `gn`, size `xlarge`), and:
+
+| Trap | Example | Why the closed list or a naive "contains `g`" gets it wrong |
+|---|---|---|
+| A **new** Graviton generation | `m9g` | Not on the list, so read as x86 — the list needs editing every generation. |
+| Series `G` is **Graphics**, not Graviton | `g5`, `g6e` | The `g` is the *series*, meaning "graphics intensive" — these are NVIDIA GPU instances on x86 hosts. A "contains `g`" rule calls them Graviton. |
+| Series `A` **is** Graviton, with no `g` | `a1` | "Powered by Arm-based AWS Graviton processors" per AWS, but there is no `g` anywhere in the name. |
+
+`g` means Graviton only in the **options** position. Reading `kubernetes.io/arch` avoids all of this.
 
 **Raise this whenever ANY x86 EC2 capacity remains.** It is the single largest compute lever the
 skill can act on that is not workload-dependent: unlike Spot it costs nothing in availability, and
@@ -27,7 +58,28 @@ unlike a version upgrade it is not time-boxed. Same vCPU, same memory, lower hou
 typically equal or better throughput per core. Treat "we have not looked at Graviton" as the default
 state to challenge, not as a preference to respect.
 
-**Get the saving from the Price List API, do not quote a fixed percentage.** The long-standing
+**Get the saving from the Price List API, do not quote a fixed percentage.** The command, so this is an
+instruction and not an aspiration:
+
+```bash
+# On-Demand $/hr for one instance type in one region. Repeat for the x86 type and its Graviton peer.
+aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
+  --filters Type=TERM_MATCH,Field=instanceType,Value=<TYPE> \
+            Type=TERM_MATCH,Field=regionCode,Value=<REGION> \
+            Type=TERM_MATCH,Field=operatingSystem,Value=Linux \
+            Type=TERM_MATCH,Field=tenancy,Value=Shared \
+            Type=TERM_MATCH,Field=preInstalledSw,Value=NA \
+            Type=TERM_MATCH,Field=capacitystatus,Value=Used \
+  --query 'PriceList[0]' --output text \
+  | jq -r '.terms.OnDemand|to_entries[0].value.priceDimensions|to_entries[0].value.pricePerUnit.USD'
+```
+
+The Price List API is served from three endpoints only — `us-east-1`, `ap-south-1` and `eu-central-1`
+([service endpoints](https://docs.aws.amazon.com/general/latest/gr/billing.html),
+[price change notifications](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/price-changes.html))
+— which is why a fixed `--region us-east-1` is used above while the *priced* region goes in `regionCode`.
+Any of the three works; the endpoint you call does not change the answer. If the call is unavailable,
+say the percentage is unverified rather than quoting the example table below. The long-standing
 "~20%" in this file is the **Graviton2** delta; current-generation Graviton3 is nearer **15%**.
 Verified live in `ap-southeast-5` (Price List, published 2026-08-31):
 
@@ -51,8 +103,24 @@ number: it is the fastest way to lose the operator's trust in the whole report.
   (Scope the title and the saving to the x86 nodes that are LEFT. On a fleet that is
   already part-Graviton, "migrate to Graviton" reads as though nothing has been done.)
 - **Current State:** X of Y nodes on x86 (list the types and their hourly rate)
-- **Recommended State:** equivalent Graviton types (`m5`/`m6i`→`m7g`, `c5`/`c6i`→`c7g`, `r5`→`r7g`),
-  with the region's real hourly delta
+- **Recommended State:** the same **series** and **size**, with `g` in the **options** position and the
+  newest Graviton **generation** the region actually offers: `m6i.large` → `m<gen>g.large`, resolved to
+  `m8g.large` where generation 8 is offered and `m7g.large` where it is not. Do not carry a fixed map
+  (`m6i`→`m7g`, `c6i`→`c7g`) in your head: that is the closed list this section just argued against, and
+  it goes stale the day a generation ships. Quote the region's real hourly delta alongside it.
+
+  ```bash
+  # Which Graviton generations of this series and size does the region offer? Ask; don't assume.
+  # Substitute the series letter and size from the node you are migrating.
+  aws ec2 describe-instance-type-offerings --location-type region --region <REGION> \
+    --filters Name=instance-type,Values='m*g.large' \
+    --query 'InstanceTypeOfferings[].InstanceType' --output text
+  ```
+
+  Take the highest generation returned. The rule holds across series, including the ones the trap table
+  warns about: `g5g` is series `g` (graphics), generation `5`, options `g` — a Graviton GPU instance —
+  so the `g`-in-options test is what distinguishes it from the x86 `g5`. Options also carry `d` (local
+  NVMe) and `n` (extra network); keep whichever the current type has if the workload depends on it.
 - **Estimated Savings:** (x86 rate − Graviton rate) × node count × 730, shown as $/month
 - **Effort:** Medium — confirm arm64 images, then roll a new node group (or set an
   architecture requirement on the Karpenter/Auto Mode NodePool) and drain the old one
@@ -163,33 +231,57 @@ jq -r -s '.[1].cluster.name as $cn | [.[0].Volumes[]?|select([.Tags[]?|select((.
 | Burst | to 3,000 IOPS below 1,000 GiB | none — baseline is not a credit pool |
 | Price | ~$0.10/GiB-mo | ~$0.08/GiB-mo (**~20% less**) |
 
+**Price row verified live** in `us-east-1` via the AWS Price List API, 2026-09-11: gp2 $0.100/GiB-mo,
+gp3 $0.080/GiB-mo — exactly 20% less. Prices are per-region and change over time; re-check before
+quoting, the same discipline Opportunity 1 applies to the Graviton percentage:
+```bash
+aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
+  --filters Type=TERM_MATCH,Field=volumeApiName,Value=<gp2-or-gp3> \
+            Type=TERM_MATCH,Field=regionCode,Value=<REGION> \
+  --query 'PriceList[0]' --output text \
+  | jq -r '.terms.OnDemand|to_entries[0].value.priceDimensions|to_entries[0].value.pricePerUnit.USD'
+```
+
 This file previously said *"3000 IOPS vs 100 IOPS/GiB"*, which confuses gp2's 100-IOPS **floor** with
 its 3 IOPS/GiB **rate** and overstates gp2 by 33× — a 100 GiB gp2 volume gets 300 baseline IOPS, not
 10,000.
 
-**gp3 is not universally faster — the crossover is 1,000 GiB.** gp2 reaches 3,000 baseline IOPS at
-exactly 1,000 GiB and keeps climbing to 16,000 at 5,334 GiB. So:
+**gp3 is not universally faster — the crossover is 1,000 GiB, and the `size × 3` parity formula has its
+own ceiling.** gp2 reaches 3,000 baseline IOPS at exactly 1,000 GiB and keeps climbing — but **gp2's
+baseline stops climbing at 16,000 IOPS, reached at 5,334 GiB, and every larger gp2 volume gets the same
+16,000** ([EBS User Guide, General Purpose SSD volumes](https://docs.aws.amazon.com/ebs/latest/userguide/general-purpose.html),
+verified live 2026-09-11). So:
 
 - **Below ~1,000 GiB** → gp3 is cheaper *and* faster at baseline. Straight win, say so.
-- **At or above ~1,000 GiB** → gp3 is still ~20% cheaper on storage, but its default 3,000 IOPS is a
-  **downgrade**. Provision `iops: size × 3` (and matching throughput) on the gp3 volume to hold
-  parity, and note that provisioned IOPS above the free 3,000 carry their own charge, which erodes
-  part of the 20%. Do not present these as free wins.
+- **1,000 GiB up to 5,334 GiB** → gp3 is still ~20% cheaper on storage, but its default 3,000 IOPS is a
+  **downgrade**. Provision `iops: size × 3` (and matching throughput) on the gp3 volume to hold parity,
+  and note that provisioned IOPS above the free 3,000 carry their own charge, which erodes part of the
+  20%. Do not present these as free wins.
+- **5,334 GiB and larger** → cap it: provision `iops: 16000` flat, never `size × 3`. Past this size the
+  uncapped formula asks gp3 for more IOPS than gp2 ever delivered — an 8,192 GiB volume would request
+  24,576 IOPS against gp2's real ceiling of 16,000, over-paying by roughly **$43/month** at gp3's
+  provisioned-IOPS rate of $0.005/IOPS-month (`us-east-1`, AWS Price List API, verified live 2026-09-11),
+  rising to roughly **$166/month** at gp2's own 16 TiB size limit. The net gp2→gp3 saving stays positive
+  at every size — this erosion shrinks it (by about 46% at 8 TiB and 64% at 16 TiB against the ~20%
+  storage-only saving) but never inverts it into a loss.
 
-Because gp2 also bursts to 3,000 IOPS below 1,000 GiB, a small volume that relies on **sustained**
+Because gp2 also bursts to 3,000 IOPS below 1 TiB (1,024 GiB — AWS states the burst boundary in TiB; the ~1,000 GiB figure used here is the round number where baseline IOPS crosses 3,000, which is close but not the documented threshold), a small volume that relies on **sustained**
 burst is a genuine gp3 improvement (gp3's 3,000 is baseline, not a depleting credit balance) — worth
 one sentence when the cluster's gp2 volumes are small.
 
 **Criteria for opportunity:**
 - Any gp2 volume or gp2 StorageClass exists → opportunity exists
-- Split the finding by volume size at the 1,000 GiB crossover, using the sizes the detection printed
+- Split the finding by volume size at the 1,000 GiB **and** 5,334 GiB crossovers, using the sizes the
+  detection printed
 
 **Report as:**
 - **Title:** Migrate gp2 volumes to gp3 for ~20% storage savings
 - **Current State:** X gp2 volumes totalling Y GiB (list sizes; flag any ≥1,000 GiB separately)
-- **Recommended State:** gp3 — default 3,000 IOPS / 125 MiB/s for volumes under 1,000 GiB; for
-  volumes at or above 1,000 GiB, provision `iops = size × 3` to match the gp2 baseline
-- **Estimated Savings:** ~20% of the gp2 storage line, minus any provisioned IOPS added above 3,000
+- **Recommended State:** gp3 — default 3,000 IOPS / 125 MiB/s for volumes under 1,000 GiB; `iops = size
+  × 3` for volumes from 1,000 GiB up to 5,334 GiB; `iops = 16000` (gp2's own ceiling, never `size × 3`)
+  for volumes 5,334 GiB and larger
+- **Estimated Savings:** ~20% of the gp2 storage line, minus any provisioned IOPS added above 3,000 —
+  and minus the excess IOPS charge if `size × 3` was provisioned uncapped past 5,334 GiB
 - **Effort:** Easy — `modify-volume` is an online volume-type change, no downtime
 
 ---
@@ -324,7 +416,13 @@ likely to be genuinely billed. If it is above the highest row, the table is stal
 [lifecycle page](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html) before
 asserting anything.
 
-When billing applies, the surcharge is $0.60/hr vs $0.10/hr standard = ~$365/month extra.
+When billing applies, the surcharge is $0.60/hr vs $0.10/hr standard = ~$365/month extra. **Verified
+live** via the AWS Price List API, 2026-09-11: `AmazonEKS` standard cluster usage is $0.10/hr and the
+`extendedSupport` line item is $0.50/hr **on top of** the standard charge (both continue to be billed),
+for a combined $0.60/hr — consistent in both `us-east-1` and `ap-southeast-5`. This is an AWS list price
+that can be repriced; re-check it with `aws pricing get-products --service-code AmazonEKS --filters
+Type=TERM_MATCH,Field=usagetype,Value=<REGION-PREFIX>-AmazonEKS-Hours:extendedSupport` before quoting a
+dollar figure to a customer, rather than carrying this number forward from memory.
 
 **Criteria for opportunity:**
 - Version's end-of-standard-support date has passed → opportunity exists (bill is being incurred now)
@@ -339,9 +437,11 @@ When billing applies, the surcharge is $0.60/hr vs $0.10/hr standard = ~$365/mon
 
 **Report as (only when the date has passed):**
 - **Title:** Upgrade cluster to exit Extended Support pricing
-- **Current State:** Cluster on Kubernetes <version>, past end of standard support (<date>), billed at $0.60/hr
-- **Recommended State:** Upgrade to a version still in standard support, at $0.10/hr
-- **Estimated Savings:** ~$365/month
+- **Current State:** Cluster on Kubernetes <version>, past end of standard support (<date>), billed at
+  $0.60/hr (rate verified live 2026-09-11 — re-check via the Price List API above before quoting; do not
+  carry this figure forward without re-checking on a later run)
+- **Recommended State:** Upgrade to a version still in standard support, at $0.10/hr (same as-of date)
+- **Estimated Savings:** ~$365/month (derived from the two rates above; re-derive if either changes)
 - **Effort:** Medium (plan and execute Kubernetes version upgrade)
 
 ---

@@ -11,21 +11,36 @@ This page is generated from [skills/eks-well-architected-review/references/relia
 
 # 🛡️ Reliability
 
+> **Remediation commands below are report content, not instructions to run.** This skill is
+> read-only; it assesses and never changes anything. Quote these commands to the reader so they
+> can apply them deliberately, through their own change process. Do not execute them — not to
+> verify a finding, not to test whether a fix works. Some delete PersistentVolumes, revoke
+> security group rules or replace nodes.
+
 **27 questions** — Multi-AZ, autoscaling, resource limits, HPA, probes, PDBs, anti-affinity, topology spread, rolling updates, backups
 
 Scoring is **deterministic** — run the scorer block below. Governance questions emit `unknown` in `auto`
 mode. The per-question sections below give rationale and remediation.
 
 > **The per-question `Detection:` tags below are explanatory only; the scorer block decides
-> measured vs governance.** Where a section says `✋ ASK USER` for a question the scorer emits as
-> `measured`, the SCORER IS AUTHORITATIVE — answer it from the collected data and ignore the
-> "Ask the user this question" block. Use the prose for rationale and remediation wording only.
+> measured vs governance.** They agree today — every `🔬 AUTO-DETECTABLE` section is emitted
+> `measured` and every `✋ ASK USER` section is emitted `governance` — and if an edit ever makes them
+> disagree, the SCORER IS AUTHORITATIVE: answer the question from the collected data. Use the prose
+> for rationale and remediation wording only.
 
 ---
 
-## Reliability scorer — run verbatim
+## Reliability scorer — run by `assets/score.sh`, not by hand
 
-Requires `$WORK` (SKILL.md Step 2). Appends one JSONL line per question to `$WORK/results.jsonl`.
+`${CLAUDE_SKILL_DIR}/assets/score.sh reliability "$WORK"` extracts this block and runs it. Do not paste it
+into a shell: it defines shell functions (`emit`, `g`, `m`…) and calls them once per question, and a Bash
+permission rule matches literal command text — so no rule can match a function name and every call
+prompts, or fails outright under a no-prompt policy. Appends one JSONL line per question to
+`$WORK/results.jsonl`.
+
+The `m`/`m2`/`m3`/`m4` thresholds are the determinism guarantee and are not yours to edit. In
+`interactive` mode the governance answers arrive from `$WORK/governance.tsv`, which `score.sh`
+substitutes into the `g` calls as it extracts them — see SKILL.md Step 6. Do not hand-edit a `g` call.
 
 ```bash
 W="$WORK"
@@ -38,9 +53,18 @@ m2(){ local id="$1" f1="$2" f2="$3" p="$4" r st d; r=$(jq -r "$B $p" "$W/$f1.jso
 m3(){ local id="$1" f1="$2" f2="$3" f3="$4" p="$5" r st d; r=$(jq -r "$B $p" "$W/$f1.json" "$W/$f2.json" "$W/$f3.json" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed — a missing or malformed collection file is NOT a finding, and must never be scored as one. jq said: %s\n' "$id" "$r" >&2; exit 1; }; [ -n "$r" ] || { printf 'SCORER ABORT [%s]: jq produced no output\n' "$id" >&2; exit 1; }; st="${r%%~*}"; d="${r#*~}"; [ "$r" = "$st" ]&&d=""; emit "$id" measured "${st:-none}" "$d"; }
 
 m rel-1 nodes '([.items[]|.metadata.labels["topology.kubernetes.io/zone"]//empty]|unique|length) as $z| if ([.items[]]|length)==0 then "na~no nodes" elif $z>=3 then "all~\($z) AZs" elif $z==2 then "most~2 AZs" elif $z>=1 then "some~1 AZ" else "none~0" end'
-m2 rel-2 pdb deployments 'input as $d|[.items[]?] as $pdbs|[$d.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $deps|($deps|length) as $t|([$deps[]|. as $dep|(($dep.spec.template.metadata.labels)//{}) as $lb|select([$pdbs[]|select(.metadata.namespace==$dep.metadata.namespace)|(((.spec.selector.matchLabels)//{})|to_entries) as $sel|select(($sel|length)>0 and ($sel|all($lb[.key]==.value)))]|length>0)]|length) as $ok| if $t==0 then "na~no deploys" else b($ok;$t)+"~\($ok)/\($t) deploys covered by PDB" end'
+# rel-2 honours matchExpressions as well as matchLabels. A PDB selecting with matchExpressions -- fully
+# valid Kubernetes -- was invisible, so a genuinely protected Deployment scored as unprotected. All four
+# operators are handled; an empty selector is deliberately NOT treated as a match, because a PDB with no
+# selector is a different (and rarer) situation than one that selects this Deployment.
+m2 rel-2 pdb deployments 'input as $d|[$d.items[]?|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)] as $deps|($deps|length) as $t|[.items[]?] as $pdbs|([$deps[]|. as $dep|($dep.spec.template.metadata.labels//{}) as $L|select([$pdbs[]|select((.metadata.namespace//"")==($dep.metadata.namespace//""))|(.spec.selector//{}) as $sel|select((((($sel.matchLabels//{})|length)>0) and (($sel.matchLabels|to_entries|all(.value==($L[.key]//null))))) or ((($sel.matchExpressions//[])|length)>0 and (($sel.matchExpressions)|all(. as $e|($e.key) as $k|($L[$k]//null) as $v| if $e.operator=="In" then (($e.values//[])|index($v))!=null elif $e.operator=="NotIn" then (($e.values//[])|index($v))==null elif $e.operator=="Exists" then $v!=null elif $e.operator=="DoesNotExist" then $v==null else false end))))]|length>0)]|length) as $ok| if $t==0 then "na~no workload Deployments" else b($ok;$t)+"~\($ok)/\($t) deploys covered by PDB" end'
 m rel-3 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select(.resources.limits.cpu and .resources.limits.memory)]|length) as $ok| if $t==0 then "na~no workload containers" else b($ok;$t)+"~\($ok)/\($t) limits (workloads)" end'
-m2 rel-4 deployments cluster 'input as $cl| if ($cl.cluster.computeConfig.enabled==true) then "all~auto mode provisions nodes (AWS-managed, no in-cluster autoscaler)" elif ([.items[]|select(.metadata.name|test("karpenter|cluster-autoscaler"))]|length)>0 then "all~autoscaler" else "none~none" end'
+# rel-4 identifies the autoscaler by container IMAGE and by Karpenter's own node label, not by Deployment
+# name. This repo's cost-analysis.md documents a real captured cluster with a Deployment NAMED
+# `cluster-autoscaler` running the `karpenter/controller` image, and prescribes image matching for exactly
+# that reason -- the fix was applied to the narrative opportunity and not to this scored question. A
+# name-only match also misses any Helm release installed under a non-default name.
+m3 rel-4 deployments pods nodes 'input as $p|input as $n|([$p.items[]?|.spec.containers[]?.image|select(test("karpenter|cluster-autoscaler|autoscaler";"i"))]|length) as $img|([.items[]?|select(.metadata.name|test("karpenter|cluster-autoscaler";"i"))]|length) as $name|([$n.items[]?|select((.metadata.labels["karpenter.sh/nodepool"]//"")!="")]|length) as $karpnodes| if ($img+$karpnodes)>0 then "all~autoscaler present (by image/nodepool label)" elif $name>0 then "most~a Deployment is NAMED like an autoscaler but no matching image was found — confirm which controller is actually running" else "none~no autoscaler" end'
 m2 rel-5 hpa deployments 'input as $d|[.items[]?] as $hpas|[$d.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $deps|($deps|length) as $t|([$deps[]|. as $dep|select([$hpas[]|select(.metadata.namespace==$dep.metadata.namespace)|select((((.spec.scaleTargetRef.kind)//"")=="Deployment") and (((.spec.scaleTargetRef.name)//"")==$dep.metadata.name))]|length>0)]|length) as $ok| if $t==0 then "na~no deploys" else b($ok;$t)+"~\($ok)/\($t) deploys with HPA" end'
 m rel-6 pods '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.containers[]?] as $c|($c|length) as $t|([$c[]|select(.readinessProbe)]|length) as $ok| if $t==0 then "na~no workload containers" else b($ok;$t)+"~\($ok)/\($t) readiness (workloads)" end'
 m rel-7 deployments '[.items[]|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $d|($d|length) as $t|([$d[]|select((.spec.replicas//1)>1)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) multi-replica"'
@@ -49,10 +73,28 @@ m rel-9 deployments '[.items[]|select(((.metadata.namespace//"")|test("^(kube-|a
 g rel-10
 m rel-11 pvc '[.items[]] as $p|($p|length) as $t|([$p[]|select(.status.phase=="Bound")]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) bound"'
 g rel-12
-m rel-13 deployments 'if ([.items[]|select(.metadata.name|test("prometheus|grafana|datadog|cloudwatch"))]|length)>0 then "all~monitoring" else "none~none" end'
+# rel-13 -- a DaemonSet-based or image-based monitoring stack is real monitoring: CloudWatch Container
+# Insights ships its agent as a DaemonSet, and Amazon Managed Prometheus is scraped by an ADOT collector.
+# DUPLICATED PROGRAM -- EDIT BOTH OR NEITHER. The jq below is byte-identical to ope-5's, at
+# references/operational-excellence.md:56. Nothing enforces that; there is no shared definition and
+# no test that compares them. If they drift, ONE cluster fact gets TWO verdicts: Operational Excellence
+# reports the cluster monitored while Reliability reports it unmonitored, both from the same
+# deployments/daemonsets/pods files, and no report surface flags the contradiction -- the reader is simply
+# left with two findings that cannot both be true. That is the same failure rel-16 documents for the mesh
+# pattern it does not share with sec-27, which is why this comment names a file and a line instead of
+# saying "see ope-5".
+m3 rel-13 deployments daemonsets pods 'input as $ds|input as $p|(([.items[]?|select(.metadata.name|test("prometheus|grafana|cloudwatch|datadog|adot|opentelemetry";"i"))]|length) + ([$ds.items[]?|select(.metadata.name|test("prometheus|grafana|cloudwatch|datadog|adot|opentelemetry|node-exporter";"i"))]|length) + ([$p.items[]?|.spec.containers[]?.image|select(test("prometheus|grafana|cloudwatch|adot|opentelemetry|aws-otel";"i"))]|length)) as $n| if $n>0 then "all~\($n) monitoring workload(s)/image(s)" else "none~none" end'
 g rel-14
 g rel-15
-m rel-16 deployments 'if ([.items[]?|select(((.metadata.namespace//"")|test("istio-system|linkerd")) or (.metadata.name|test("istiod|linkerd")))]|length)>0 then "all~mesh" else "none~none" end'
+# rel-16 caps at `most`. Its rationale claims circuit breaking, retries and traffic shifting, but a mesh
+# control plane provides the CAPABILITY -- the behaviour comes from DestinationRule/VirtualService objects
+# that are not collected. Reporting `all` implied resilience policy that may not exist.
+# The mesh pattern here is NOT the one Security uses. sec-27 (references/security/identity-access.md)
+# accepts the istio-system/linkerd NAMESPACES, which this does not, and does not accept consul-connect,
+# which this does -- so one cluster can be "mesh present" in Reliability and "no mesh" in Security. Do not
+# quietly align the two by editing this line: it is the wider and, on Consul, the correct one. The
+# divergence is written up in rel-16's prose below so a reader who meets both findings can reconcile them.
+m rel-16 deployments '([.items[]?|select(.metadata.name|test("istiod|linkerd-(destination|controller)|consul-connect";"i"))]|length) as $mesh| if $mesh>0 then "most~mesh control plane present; retries/circuit-breaking depend on DestinationRule/VirtualService policy, which this review does not collect" else "none~no mesh" end'
 g rel-17
 m rel-18 deployments '[.items[]|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $d|($d|length) as $t|([$d[]|select(.spec.strategy.type=="RollingUpdate" or .spec.strategy.type==null)]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) rolling"'
 m rel-19 daemonsets '[.items[]] as $d|($d|length) as $t|([$d[]|select(.spec.updateStrategy.type=="RollingUpdate")]|length) as $ok| b($ok;$t)+"~\($ok)/\($t) rolling DS"'
@@ -126,7 +168,19 @@ kubectl get deployments -A -o json
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Add PodDisruptionBudgets: `kubectl create pdb <name> --selector=app=<label> --min-available=1`.
+**Remediation:** `--min-available` must be set **strictly below** the Deployment's current replica
+count. On a single-replica Deployment, `--min-available=1` requires that one pod never be evicted —
+`kubectl drain`, managed node group upgrades and Karpenter consolidation all block indefinitely waiting
+for a voluntary disruption the PDB will never allow. Check the replica count, create the PDB below it,
+then confirm the result is actually satisfiable:
+
+```bash
+kubectl get deployment <name> -n <ns> -o jsonpath='{.spec.replicas}'
+kubectl create pdb <name> --selector=app=<label> --min-available=<replicas - 1> -n <ns>
+kubectl get pdb <name> -n <ns> -o jsonpath='{.status.disruptionsAllowed}'   # must be >=1
+```
+
+If replicas is 1, fix that first — see `rel-7`. A PDB cannot make a single replica safe to evict.
 
 ---
 
@@ -318,13 +372,6 @@ kubectl get deployments -A -o json
 
 > Unbound PVCs indicate storage provisioning failures that could affect workloads.
 
-**Ask the user this question.** Interpret their response:
-- "Yes, fully" / "We do this everywhere" → `all`
-- "Mostly" / "For most workloads" → `most`
-- "Partially" / "Working on it" → `some`
-- "No" / "Not yet" → `none`
-- "Doesn't apply" → `na`
-
 **Remediation:** Investigate unbound PVCs. Note that `--field-selector status.phase!=Bound` does
 **not** work on PersistentVolumeClaims — Kubernetes registers only `metadata.name` and
 `metadata.namespace` as selectable fields for PVCs, so that form fails with
@@ -355,7 +402,41 @@ requested capacity is available.
 - "No" / "Not yet" → `none`
 - "Doesn't apply" → `na`
 
-**Remediation:** Create VolumeSnapshot CronJobs for automated backups. Configure retention policies to manage snapshot lifecycle.
+**Remediation:** A high Reliability score is not evidence a backup exists — nor is a snapshot that
+has never been restored a tested backup. Prerequisites, in order:
+
+1. **EBS CSI driver with snapshot support** — the `csi-snapshotter` sidecar must be running on the
+   controller: `kubectl get pods -n kube-system -l app=ebs-csi-controller -o jsonpath='{.items[*].spec.containers[*].name}'`.
+2. **The external-snapshotter CRDs and controller** — `VolumeSnapshotClass`, `VolumeSnapshotContent`,
+   `VolumeSnapshot` (`kubectl get crd | grep snapshot.storage.k8s.io`); without the controller reconciling
+   them, a `VolumeSnapshot` object is created and never becomes `readyToUse`.
+3. **A `VolumeSnapshotClass`** naming the driver:
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: ebs-snapshot-class
+driver: ebs.csi.aws.com
+deletionPolicy: Delete
+```
+
+4. **A schedule** — either a CronJob that creates a `VolumeSnapshot` referencing the target PVC on a
+   recurring basis, or a managed path that replaces steps 3-4 outright: **AWS Backup** (native EBS/EFS
+   backup plans with retention and cross-region copy) or **Velero with the AWS plugin** (namespace-aware —
+   restores the Kubernetes objects, not just the volume). Either is less to operate than hand-rolled
+   CronJob YAML.
+
+**Verify a snapshot actually completes, then verify it actually restores** — a CronJob existing proves
+neither:
+
+```bash
+kubectl get volumesnapshot -n <ns> <name> -o jsonpath='{.status.readyToUse}'   # must be true
+# Then, on a schedule you repeat, prove restore works — a throwaway PVC/pod from the snapshot,
+# not just a green snapshot job.
+```
+
+A snapshot that has never been restored is not a tested backup.
 
 ---
 
@@ -424,14 +505,17 @@ kubectl get deployments -A -o json
 
 > Service meshes provide retry logic, circuit breaking, and traffic shifting.
 
-**Ask the user this question.** Interpret their response:
-- "Yes, fully" / "We do this everywhere" → `all`
-- "Mostly" / "For most workloads" → `most`
-- "Partially" / "Working on it" → `some`
-- "No" / "Not yet" → `none`
-- "Doesn't apply" → `na`
+**Remediation:** Deploy Istio, Linkerd or Consul Connect for traffic management with circuit breaking, retries, and traffic shifting capabilities.
 
-**Remediation:** Deploy Istio or Linkerd for traffic management with circuit breaking, retries, and traffic shifting capabilities.
+**This question and Security's `sec-27` can disagree about the same cluster.** `rel-16` credits a
+Deployment named `istiod`, `linkerd-destination`/`linkerd-controller` or `consul-connect`. `sec-27` (in
+`security/identity-access.md`) credits `istiod`/`linkerd` by name **or** the namespaces
+`istio-system`/`linkerd`, and does not know Consul at all. So a Consul Connect cluster reads as "mesh
+present" here and "no mesh" there, and a mesh whose control-plane Deployments are renamed but still live
+in namespace `linkerd` reads the opposite way. If you meet both findings: believe `rel-16` on Consul —
+Consul Connect is a service mesh. Also note `sec-28` (mTLS enforced) inspects Istio/Linkerd sidecars and
+Istio `PeerAuthentication` only, so it cannot confirm a Consul mesh's mTLS posture either. Nothing in the
+report reconciles the two questions; read them together.
 
 ---
 
@@ -481,13 +565,6 @@ kubectl get deployments -A -o json
 
 > Rolling updates for DaemonSets prevent all node agents from restarting simultaneously.
 
-**Ask the user this question.** Interpret their response:
-- "Yes, fully" / "We do this everywhere" → `all`
-- "Mostly" / "For most workloads" → `most`
-- "Partially" / "Working on it" → `some`
-- "No" / "Not yet" → `none`
-- "Doesn't apply" → `na`
-
 **Remediation:** Set `updateStrategy.type: RollingUpdate` on DaemonSets with `maxUnavailable: 1` to prevent all node agents from restarting simultaneously.
 
 ---
@@ -500,13 +577,6 @@ kubectl get deployments -A -o json
 
 > Resource constraints on DaemonSets prevent them from starving workload pods.
 
-**Ask the user this question.** Interpret their response:
-- "Yes, fully" / "We do this everywhere" → `all`
-- "Mostly" / "For most workloads" → `most`
-- "Partially" / "Working on it" → `some`
-- "No" / "Not yet" → `none`
-- "Doesn't apply" → `na`
-
 **Remediation:** Add resource requests and limits to all DaemonSet containers to prevent them from starving workload pods on the same node.
 
 ---
@@ -518,13 +588,6 @@ kubectl get deployments -A -o json
 **Detection:** 🔬 AUTO-DETECTABLE
 
 > Persistent storage ensures StatefulSet data survives pod restarts.
-
-**Ask the user this question.** Interpret their response:
-- "Yes, fully" / "We do this everywhere" → `all`
-- "Mostly" / "For most workloads" → `most`
-- "Partially" / "Working on it" → `some`
-- "No" / "Not yet" → `none`
-- "Doesn't apply" → `na`
 
 **Remediation:** Use `volumeClaimTemplates` in StatefulSet specs for persistent storage. This ensures each replica gets its own dedicated PVC.
 
@@ -565,13 +628,6 @@ Then confirm a PDB actually selects those pods — see `rel-2`.
 **Detection:** 🔬 AUTO-DETECTABLE
 
 > Distributed tracing enables root cause analysis across microservices.
-
-**Ask the user this question.** Interpret their response:
-- "Yes, fully" / "We do this everywhere" → `all`
-- "Mostly" / "For most workloads" → `most`
-- "Partially" / "Working on it" → `some`
-- "No" / "Not yet" → `none`
-- "Doesn't apply" → `na`
 
 **Remediation:** Deploy distributed tracing: `helm install jaeger jaegertracing/jaeger`. Or enable AWS X-Ray with the ADOT collector for request flow visibility.
 
@@ -675,11 +731,21 @@ aws ec2 describe-route-tables --filters Name=vpc-id,Values=<VPC_ID> --region <RE
 - For boolean: present/true → `all`, absent/false → `none`
 
 **Remediation:** Remove the internet gateway route from the route tables serving the node subnets, and
-route `0.0.0.0/0` to a NAT gateway in a public subnet instead:
+route `0.0.0.0/0` to a NAT gateway in a public subnet instead.
+
+> **Read this before running anything.** You are editing the default route of a live subnet. `replace-route`
+> is used rather than delete-then-create because a failed `create-route` after a successful `delete-route`
+> leaves the subnet with **no default route at all** — every node in it loses outbound connectivity,
+> including image pulls and the kubelet's path to the control plane. Confirm the NAT gateway exists and is
+> `available` in a *different* (public) subnet first, and do one route table at a time.
 
 ```bash
-aws ec2 delete-route --route-table-id <RTB_ID> --destination-cidr-block 0.0.0.0/0 --region <REGION>
-aws ec2 create-route --route-table-id <RTB_ID> --destination-cidr-block 0.0.0.0/0 \
+# 1. confirm the NAT gateway is usable before touching any route
+aws ec2 describe-nat-gateways --nat-gateway-ids <NAT_ID> --region <REGION> \
+  --query 'NatGateways[].{State:State,Subnet:SubnetId}'
+
+# 2. atomically repoint the default route — no window with the subnet unrouted
+aws ec2 replace-route --route-table-id <RTB_ID> --destination-cidr-block 0.0.0.0/0 \
   --nat-gateway-id <NAT_ID> --region <REGION>
 ```
 
