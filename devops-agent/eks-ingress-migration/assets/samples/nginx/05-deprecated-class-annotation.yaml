@@ -1,0 +1,41 @@
+# Uses the deprecated kubernetes.io/ingress.class annotation
+# instead of spec.ingressClassName — tests legacy annotation migration
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-svc
+  namespace: legacy
+  labels:
+    app: legacy-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: legacy-svc
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: legacy-class
+  namespace: legacy
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  rules:
+    - host: legacy.example.com
+      http:
+        paths:
+          - path: /app(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: legacy-svc
+                port:
+                  number: 80

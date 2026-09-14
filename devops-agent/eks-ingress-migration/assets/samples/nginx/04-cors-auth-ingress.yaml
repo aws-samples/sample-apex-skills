@@ -1,0 +1,50 @@
+# CORS and external auth annotations with NGINX Ingress
+# Demonstrates annotations that need special handling during migration
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: protected-svc
+  namespace: default
+  labels:
+    app: protected-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: protected-svc
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cors-auth
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://frontend.example.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/auth-url: "https://auth.example.com/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://auth.example.com/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - secure.example.com
+      secretName: secure-tls-secret
+  rules:
+    - host: secure.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: protected-svc
+                port:
+                  number: 80

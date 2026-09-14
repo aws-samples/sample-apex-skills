@@ -43,8 +43,8 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
       "urlRewriteConfig": {
         "rewrites": [
           {
-            "regex": "^\\/something\\/(.*)$",
-            "replace": "/$1"
+            "regex": "^\\/something(\\/|$)(.*)$",
+            "replace": "/$2"
           }
         ]
       }
@@ -53,9 +53,24 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 ```
 
 **Rules:**
+- **Requires LBC ≥ v2.14.1** — the `transforms.<svc>` annotation was introduced in [v2.14.1](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/tag/v2.14.1) (2025-10-17). It is absent from v2.14.0 and from every v2.13.x line. Below the floor it is an unknown annotation and is **silently ignored — no rewrite happens** and traffic reaches the backend with the original path. This is the one hard controller floor on the ALB Ingress path. Do not confuse this Ingress annotation with the Gateway API `HTTPRoute` `URLRewrite` filter, a separate feature that landed in v2.15.0.
 - `<service-name>` must match the backend service name in `spec.rules`
-- Forward slashes in regex must be escaped as `\\/` in JSON
-- NGINX `$2` often becomes ALB `$1` (ALB doesn't need the separator capture group)
+- Forward slashes in regex must be escaped as `\\/` in JSON — **exactly one** level. Over-escaping to `\\\\/` makes the pattern require a literal backslash, so it matches nothing and the rewrite silently never fires (the vendored ATX TD has this bug — see `atx-guide.md`).
+- **Keep the separator group — do not "simplify" it away.** Mirror NGINX's `(/|$)` and keep the payload in `$2`. The three forms compared below:
+
+  ```
+  NGINX source          path: /something(/|$)(.*)      rewrite-target: /$2
+  ALB, correct          regex: ^\/something(\/|$)(.*)$   replace: /$2     <- use this
+  ALB, over-simplified  regex: ^\/something\/(.*)$       replace: /$1     <- silently wrong
+  ```
+
+  | Request | NGINX | ALB correct | ALB over-simplified |
+  |---|---|---|---|
+  | `/something` | `/` | `/` ✅ | **no match → forwarded as `/something`** ❌ |
+  | `/something/foo` | `/foo` | `/foo` ✅ | `/foo` ✅ |
+  | `/somethingelse` | no match | no match ✅ | no match ✅ |
+
+  The over-simplified form is the tempting one and it is **wrong for the bare prefix**: ALB sends the original request to the target when no pattern matches, so `/something` silently reaches the backend un-rewritten while `/something/foo` works. That asymmetry is easy to miss in testing. The correct form is exactly NGINX-equivalent on every input, and needs only plain alternation plus capturing groups — ALB's rewrite engine excludes lookarounds, backreferences, atomic groups, possessive quantifiers, subroutines, recursion and Unicode character classes, none of which this uses. ([Transforms for listener rules](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/rule-transforms.html))
 - Multi-path Ingress needs separate `transforms.<svc>` per backend service
 
 ### TLS / Certificates
@@ -64,7 +79,7 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 |----------------|-------------|
 | `spec.tls[].secretName: my-secret` | Remove `spec.tls` section entirely |
 | K8s Secret with cert/key | `alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:...` |
-| Multiple TLS secrets | Comma-separated ARNs, or `alb.ingress.kubernetes.io/certificate-discovery: "true"` |
+| Multiple TLS secrets | Comma-separated ARNs, or **omit `certificate-arn`** to let the controller discover ACM certs from the Ingress `tls` hosts / rule `host` values |
 | `nginx...ssl-redirect: "true"` | `alb.ingress.kubernetes.io/ssl-redirect: "443"` |
 | (none) | `alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'` |
 | (none) | `alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06` |
@@ -91,7 +106,7 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 
 **Note:** Add comment in manifest: `# REMOVED: CORS — configure via AWS WAF rules or application middleware`
 
-> **Fidelity gap (not a simple annotation swap):** CORS has **no *faithful* ALB/WAF equivalent for the dynamic case**. ALB *can* inject **static** CORS response headers via listener-rule **response-header** actions (added Nov 2024), which covers a fixed `Access-Control-Allow-Origin`; but **dynamic origin reflection** (echoing the request `Origin` against an allowlist) and **preflight `OPTIONS` short-circuiting** have no native ALB/WAF equivalent and still need the **application backend** (or a Lambda/edge layer). AWS WAF cannot inject CORS response headers at all. NGINX `rate-limit`/`limit-rps` is per-second, per-path/per-client; **AWS WAF rate-based rules** are coarser — they **default to per-IP aggregation** (custom aggregation keys are available) over a configurable **evaluation window (60–600s)**, **cost extra**, and use a completely different config model. Rate these by the **Impact Indicator** and the Feature-Gap classification in `report-generation.md` — by the live traffic/security the lost fidelity affects, **not** by remediation effort (the app/WAF rework is an operator note, never a severity input). Because they lack a faithful equivalent they are **not** trivial swaps, but the band comes from the rubric, not from how much work the change is.
+> **Fidelity gap (not a simple annotation swap):** CORS has **no *faithful* ALB/WAF equivalent for the dynamic case**. ALB *can* inject **static** CORS response headers, but via **listener response-header attributes** (`routing.http.response.*`) — a **listener-level** setting that the load balancer adds to **all responses** on that listener, **not** a per-listener-rule action. That distinction matters on a **shared/grouped ALB**: you cannot vary the CORS values per host or path rule, so one origin policy applies to every route on the listener. It covers a fixed `Access-Control-Allow-Origin`; but **dynamic origin reflection** (echoing the request `Origin` against an allowlist) and **preflight `OPTIONS` short-circuiting** have no native ALB/WAF equivalent and still need the **application backend** (or a Lambda/edge layer). AWS WAF cannot add CORS headers to **normal (allowed) responses** — header insertion is not a WAF capability on pass-through traffic; the only WAF-side headers you control are those on a **custom response body for a Block action**, which does not help a CORS allow-flow. **On EKS Auto Mode the static-CORS workaround is unavailable entirely:** AWS documents that you **cannot set `ListenerAttribute`** with Auto Mode, and the response-header insertion above *is* a listener attribute — so on Auto Mode even the fixed-origin case falls back to the application ([auto-configure-alb](https://docs.aws.amazon.com/eks/latest/userguide/auto-configure-alb.html), checked 2026-09-13). Note too that the WAF-based workarounds for the sibling Tier-B features are themselves constrained on Auto Mode: `waf-acl-id`/`web-acl-id` are "Not supported" and `wafv2-acl-name` is documented as "Upcoming soon". NGINX `rate-limit`/`limit-rps` is per-second, per-path/per-client; **AWS WAF rate-based rules** are coarser — they **default to per-IP aggregation** (custom aggregation keys are available) over a configurable **evaluation window (60–600s)**, **cost extra**, and use a completely different config model. Rate these by the **Impact Indicator** and the Feature-Gap classification in `report-generation.md` — by the live traffic/security the lost fidelity affects, **not** by remediation effort (the app/WAF rework is an operator note, never a severity input). Because they lack a faithful equivalent they are **not** trivial swaps, but the band comes from the rubric, not from how much work the change is.
 
 ### Authentication
 
@@ -100,6 +115,8 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 | `nginx...auth-url` + `nginx...auth-signin` | `alb.ingress.kubernetes.io/auth-type: oidc` |
 | (external auth service) | `alb.ingress.kubernetes.io/auth-idp-oidc: '{"issuer":"...","authorizationEndpoint":"...","tokenEndpoint":"...","userInfoEndpoint":"...","secretName":"..."}'` |
 
+> ⚠️ **Not available on EKS Auto Mode's built-in controller.** AWS documents `alb.ingress.kubernetes.io/auth-type: oidc` as **"Not supported"** on Auto Mode ("OIDC Auth Type is currently not supported"), so this substitution requires a **self-managed AWS Load Balancer Controller**. If the estate is on Auto Mode, the Basic-Auth→OIDC path is not a drop-in: either install a self-managed LBC or keep the credential check in the app. Source: [Create an IngressClass to configure an ALB](https://docs.aws.amazon.com/eks/latest/userguide/auto-configure-alb.html) (Ingress annotations table, checked 2026-09-13).
+
 > **⚠️ Behavior change — NOT a like-for-like conversion.** Basic Auth (`auth-type: basic`, an `Authorization: Basic` header — commonly used by **scripts, cron jobs and machine/API clients**) → ALB **OIDC/Cognito** replaces header auth with an **interactive browser login redirect** to an Identity Provider. Every **non-interactive** caller (automation, CI, partner APIs) **breaks immediately**. This requires client re-architecture (e.g. OIDC client-credentials flow, app-level token auth, or mTLS) and stakeholder coordination — never present `auth-*` → OIDC as a simple annotation swap. **Score it via `report-generation.md` §1.3 as Tier-B** — the faithful workaround is **app-level credential validation** — **escalating to Tier-A (up to 5) only when non-interactive clients are present *and* the backend is a closed/unmodifiable third-party app**, so the credential check cannot be moved into it. Always call out the affected client types.
 
 ### Body Size
@@ -107,6 +124,10 @@ alb.ingress.kubernetes.io/transforms.<service-name>: |
 | Before (NGINX) | After (ALB) |
 |----------------|-------------|
 | `nginx...proxy-body-size: "50m"` | Remove — no ALB annotation equivalent |
+| `nginx...backend-protocol-version: GRPC` | `alb.ingress.kubernetes.io/backend-protocol-version: GRPC` — ALB supports gRPC to the target group, but **only over HTTPS/HTTP2 listeners**; confirm the target group protocol version and the health-check settings, which differ from HTTP/1.1 |
+| `nginx...permanent-redirect` (+ `…-code`) | No annotation equivalent. Express the redirect as an **ALB listener rule redirect action** (or an `ListenerRuleConfiguration` on the Gateway path). It is **not** emitted by an Ingress annotation, so a converted manifest silently loses it — flag per route |
+| `nginx...app-root` | No equivalent — NGINX redirects `/` to the configured root. Reproduce as an explicit listener-rule redirect, or handle in the app. Silently lost on conversion |
+| `nginx...custom-http-errors` | No equivalent — depends on NGINX `error_page` interception. ALB has **fixed-response** actions but will not re-route upstream error codes to a backend error service; needs app-level handling. Silently lost on conversion |
 
 **Note:** Add comment: `# REMOVED: proxy-body-size — configure at application level`
 
@@ -128,13 +149,14 @@ To share a single ALB across multiple Ingress resources:
 alb.ingress.kubernetes.io/group.name: shared-alb
 alb.ingress.kubernetes.io/group.order: "10"
 ```
+> ⚠️ **On EKS Auto Mode, `group.name` as an Ingress annotation is "Not supported"** — grouping must be declared on the **IngressClass** (via `IngressClassParams.spec.group.name`) instead. A converted manifest carrying the annotation will silently not group on Auto Mode. Source: [auto-configure-alb](https://docs.aws.amazon.com/eks/latest/userguide/auto-configure-alb.html) (checked 2026-09-13).
 
 > **Blast radius — do NOT default to one shared ALB/Gateway across all teams.** Consolidating `team-api`, `team-payments`, `team-web` onto a single shared ALB (or a single Gateway) maximizes blast radius: one team's broken route, bad annotation, or traffic overload degrades **everyone**. Split by **security boundary**, e.g. a `public` group/Gateway for general web and a separate **`private`/payments** group/Gateway for sensitive systems — accept the extra LB cost for isolation. Recommend grouping by trust/security boundary, not "one group to save money." This applies equally to Gateway API: prefer per-boundary `Gateway`s over a single shared listener.
 
 ## Migration Phases (ALB Path)
 
 ### Phase 1: Prerequisites
-1. Install AWS Load Balancer Controller (**v2.7.2+** for the ALB Ingress path)
+1. Install AWS Load Balancer Controller. There is no separately documented minimum for the plain ALB Ingress path — the controller has reconciled Ingress since its 2.x line, so use a **currently supported release** (pin the **v3.5.0** line unless a constraint prevents it) rather than a floor. The floors that *are* documented and do bite are feature-specific: **v2.14.1+** if any route needs a `transforms` URI rewrite (see Rewrites above), **v3.0.0+** for Gateway API.
 2. Provision ACM certificates for all TLS hosts
 3. Ensure IAM roles/policies for LB Controller
 
@@ -144,15 +166,26 @@ alb.ingress.kubernetes.io/group.order: "10"
 3. Validate with `kubectl apply --dry-run=client -f <file>`
 
 ### Phase 3: Deploy & Shift Traffic
-1. Deploy migrated Ingress (creates new ALB)
-2. Use DNS weighted routing to shift traffic CLB→ALB
-3. Monitor error rates, latency
+
+> ⚠️ **Do not flip `ingressClassName` in place on the live Ingress.** The moment the class changes from `nginx` to `alb`, the NGINX controller stops serving that object and the ALB starts provisioning — there is no period where both paths are live, so there is nothing to weight and no rollback except editing the class back and waiting for NGINX to re-converge. An in-place flip is an **all-or-nothing cutover**, not a parallel run.
+
+1. Create the migrated Ingress as a **new object with a new name** (e.g. `web-alb`) carrying `ingressClassName: alb`, leaving the original `nginx` Ingress untouched and serving. Both now answer for the same host on **different load balancers**, which is what makes step 3 possible.
+2. Wait for the ALB to provision and its target groups to report healthy; validate directly against the ALB DNS name (`Host:` header) before any DNS change.
+3. Use DNS weighted routing to shift traffic from the NGINX load balancer to the ALB, at a low TTL. **Rollback = move the weight back**; the NGINX path is still live and unmodified.
+4. Monitor error rates and latency at each weight step.
+5. Only once traffic is fully on the ALB, delete the original `nginx` Ingress (Phase 4).
+
+**If a parallel object is not possible** (e.g. a GitOps repo that enforces one Ingress per host, or an admission policy blocking duplicate hosts), then say so plainly in the report and plan it as a **low-TTL all-or-nothing cutover with a documented maintenance window** — do not describe it as weighted or zero-downtime. The Gateway API path (Option 1) does not have this constraint, because the HTTPRoute/Gateway objects are new resources by construction and the Ingress keeps serving until deleted.
 
 ### Phase 4: Cleanup
 1. Delete old NGINX Ingress resources
-2. Remove NGINX Ingress Controller deployment
-3. Remove orphaned TLS Secrets
-4. Update IaC/GitOps references
+2. Remove the NGINX Ingress Controller by **uninstalling its release** (`helm uninstall <release> -n <ns>`) — **not** by deleting the Deployment. The chart also installs an `ingress-nginx-admission` ValidatingWebhookConfiguration with `failurePolicy: Fail` and no selectors; left behind with no endpoints it makes the API server reject **every** Ingress create/update cluster-wide, including re-applying these migrated ALB Ingresses. Non-Helm installs: delete the admission webhook config and its Service explicitly.
+3. Remove the controller's **IngressClass** and its **`LoadBalancer` Service** (this is what actually releases the old CLB/NLB and its security groups)
+4. Remove orphaned TLS Secrets — **check for a cert-manager `Certificate` owner first**; deleting a Secret that a live `Certificate` still owns triggers re-issuance (and can hit ACME rate limits) rather than cleaning anything up
+5. Retire stale DNS: if **external-dns** managed the old hostnames, remove its ownership **TXT** records alongside the A/CNAME records, or it will keep trying to reconcile a load balancer that no longer exists
+6. Update IaC/GitOps references
+> **Enumerate the survivors before declaring cleanup done.** Uninstalling the release (or deleting the Deployment on a non-Helm install) leaves these behind, and each is a real orphan with cost or blast radius: the controller's own **`LoadBalancer` Service** (and therefore its **CLB/NLB, security groups and any DNS records still pointing at it**), the **`ingress-nginx-admission` ValidatingWebhookConfiguration** and its **admission Service**, the controller's **IngressClass**, and any **external-dns TXT/A records** it owned. On a non-Helm install every one of these must be deleted explicitly. Verify with: no `ingress-nginx` Service of type `LoadBalancer` remains, `kubectl get validatingwebhookconfigurations` shows no ingress-nginx entry, and the old load balancer is gone from `elbv2 describe-load-balancers`.
+
 
 ## Checks to Execute
 
@@ -174,7 +207,7 @@ alb.ingress.kubernetes.io/group.order: "10"
 ### ALB.2 — ACM Certificate Readiness
 
 **What to check:**
-- All TLS hosts have matching ACM certificates (or can use certificate-discovery)
+- All TLS hosts have matching ACM certificates (or rely on certificate discovery by omitting `certificate-arn`)
 - Certificates are in ISSUED state in the correct region
 
 **Impact (per Impact Indicator):**
@@ -186,7 +219,7 @@ alb.ingress.kubernetes.io/group.order: "10"
 ### ALB.3 — AWS LB Controller Readiness
 
 **What to check:**
-- AWS LB Controller installed and version ≥ 2.7
+- AWS LB Controller installed and on a **currently supported release** (no documented minimum for the plain Ingress path; **≥ v2.14.1** if `transforms` URI rewrites are used)
 - IAM role with correct policy attached
 - IngressClass `alb` exists
 

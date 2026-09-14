@@ -1,0 +1,46 @@
+# Internal-only Ingress — should map to scheme: internal on ALB
+# Also uses proxy timeout annotations
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-api
+  namespace: platform
+  labels:
+    app: internal-api
+spec:
+  type: ClusterIP
+  selector:
+    app: internal-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: internal-api-ingress
+  namespace: platform
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    # This annotation signals internal-only access in NGINX setups
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: internal-api.corp.local
+      http:
+        paths:
+          - path: /v1(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: internal-api
+                port:
+                  number: 80

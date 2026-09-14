@@ -63,11 +63,36 @@
       "id": 6,
       "prompt": "A cluster is fully on the AWS Load Balancer Controller (ingressClassName: alb) with about 20 ALB Ingress resources and the team wants to move to the Gateway API. The installed controller is v2.12.1 and the cluster has Gateway API standard CRDs v1.2.0 installed. Can we use the lbc-migrate toolkit? Recommend the path.",
       "expectations": [
-        "States that controller v2.12.1 is below the Gateway API runtime baseline (L4 >= v2.13.3, L7 >= v2.14) and that standard CRDs v1.2.0 is below the v1.5.0 the path needs",
+        "States that controller v2.12.1 is below the Gateway API production floor of v3.0.0, and that standard CRDs v1.2.0 are below the version the target controller line requires",
         "Concludes lbc-migrate cannot be used on the estate as it stands, and that Option 1 (Gateway API) as a whole is blocked until the operator upgrades - not just the automation sub-path",
-        "Recommends upgrading the AWS Load Balancer Controller to the current v3.4.0 release line as the first step, noting it both clears the runtime baseline and provides the lbc-migrate CLI, in preference to hand-authoring ~20 HTTPRoutes against an unsupported controller",
-        "Does NOT state that Gateway API requires controller v3.4.0 at runtime - v3.4.0 is the release the CLI is built from, the runtime requirement is >= v2.13.3 (L4) / >= v2.14 (L7)",
+        "Recommends upgrading the AWS Load Balancer Controller to the v3.5.0 release line as the first step, noting it both clears the production floor and still carries the lbc-migrate CLI, in preference to hand-authoring ~20 HTTPRoutes against a controller upstream did not recommend for production",
+        "Does NOT conflate the CLI build tag with the runtime floor: v3.4.0 is a release the lbc-migrate CLI can be built from, while the Gateway API runtime requirement is the v3.0.0 production floor",
         "Treats the controller upgrade and the Gateway API CRD install as operator actions the assessment documents but does not run"
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "A cluster runs the AWS Load Balancer Controller v2.15.0 (ingressClassName: alb) with 12 ALB Ingress resources, Gateway API standard CRDs v1.5.0 installed, and one ingress using an alb.ingress.kubernetes.io/transforms url-rewrite. The team wants to move to the Gateway API and says the controller already supports HTTPRoute. Is the estate ready for the Gateway API path?",
+      "expectations": [
+        "Does NOT confirm the estate is production-ready for Gateway API on v2.15.0; identifies v3.0.0 as the production floor and v2.15.0 as below it",
+        "Distinguishes 'reconciliation began at v2.14.0 (L7)' from 'production floor v3.0.0', citing that the upstream not-suggested-for-production warning persisted across the whole v2.x line (still present at v2.17.1) and was removed at v3.0.0 - rather than treating v2.14.0 as sufficient",
+        "Recommends upgrading to the v3.5.0 release line before production cutover, and notes the standard Gateway API CRD pairing for that line is v1.6.0 (v1.5.0 pairs with v3.4.0)",
+        "Confirms the transforms url-rewrite annotation is supported at v2.15.0 because v2.15.0 is at or above the v2.14.1 release that introduced it, and does NOT flag it as silently ignored here",
+        "Treats the controller upgrade and CRD install as operator actions the assessment documents but does not run"
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "A cluster is on the AWS Load Balancer Controller v2.14.0 (ingressClassName: alb) with 9 ALB Ingress resources. Three of them carry alb.ingress.kubernetes.io/transforms.<svc> url-rewrite annotations that were copied from a migration guide, and the team reports that requests are arriving at the backends with the original, un-rewritten path. Assess the estate.",
+      "expectations": [
+        "Attributes the un-rewritten paths to the controller version, not to malformed JSON or a wrong regex",
+        "States the transforms floor is v2.14.1 and that v2.14.0 is below it (absent in v2.14.0 and all v2.13.x)",
+        "Explains that an unknown annotation is silently ignored, so the failure is silent rather than a visible error",
+        "Does NOT cite v2.15.0 as the transforms floor, and does NOT conflate it with the Gateway API HTTPRoute URLRewrite filter added in v2.15.0",
+        "Scopes the floor correction to the rewrite path only: the other six ingresses, which carry no transforms annotations, are unaffected and need only a currently supported controller release rather than a raised floor",
+        "Treats the controller upgrade as an operator action the assessment documents but does not run"
       ],
       "files": []
     }
