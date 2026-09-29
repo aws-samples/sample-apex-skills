@@ -36,7 +36,7 @@
     "should_trigger": true
   },
   {
-    "query": "Our marketing team is doing a big product launch at a fixed time. Should we pre-scale the EKS cluster ahead of it, and how — scheduled scaling, warm nodes, capacity reservations?",
+    "query": "Our marketing team is doing a big product launch at a fixed time. Should we pre-scale the EKS cluster ahead of it, and how \u2014 scheduled scaling, warm nodes, capacity reservations?",
     "should_trigger": true
   },
   {
@@ -44,7 +44,7 @@
     "should_trigger": true
   },
   {
-    "query": "We've got a big sale coming up on EKS — what should we change beforehand to be ready for the traffic? Looking for design guidance, not a tool run.",
+    "query": "We've got a big sale coming up on EKS \u2014 what should we change beforehand to be ready for the traffic? Looking for design guidance, not a tool run.",
     "should_trigger": true
   },
   {
@@ -145,6 +145,14 @@
   },
   {
     "query": "Our security team wants us to run the CIS benchmarks against our EKS cluster and remediate the failures. How should we approach that hardening?",
+    "should_trigger": false
+  },
+  {
+    "query": "review my live EKS cluster against Well-Architected and score each pillar",
+    "should_trigger": false
+  },
+  {
+    "query": "measure how Well-Architected our running cluster is and what to fix first",
     "should_trigger": false
   }
 ]

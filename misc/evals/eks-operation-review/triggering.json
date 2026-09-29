@@ -90,5 +90,13 @@
   {
     "query": "Prepare our EKS cluster for a HIPAA compliance audit \u2014 what controls and evidence (Audit Manager, control-plane logs) do we need?",
     "should_trigger": false
+  },
+  {
+    "query": "run a Well-Architected review of this cluster and score all five pillars",
+    "should_trigger": false
+  },
+  {
+    "query": "how far does our EKS cluster comply with the AWS Well-Architected Framework?",
+    "should_trigger": false
   }
 ]
