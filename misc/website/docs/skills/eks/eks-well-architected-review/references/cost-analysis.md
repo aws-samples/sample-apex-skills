@@ -28,10 +28,26 @@ Identify cost savings opportunities from cluster data. Prioritized by impact tie
 # EC2 capacity only. Fargate nodes carry NO instance-type label (they would read as
 # `null`, which naively counts as "not Graviton"), and EKS Auto Mode provisions nodes
 # AWS-side. A cluster with no EC2 capacity has nothing to migrate.
-jq -r '[.items[]|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")] as $ec2
-  | if ($ec2|length)==0 then "NO EC2 CAPACITY — Graviton migration is NOT APPLICABLE"
+# EKS Hybrid Nodes are excluded for a second reason as well as the first: Graviton is AWS
+# silicon, and an on-premises ARM machine reports `kubernetes.io/arch=arm64` truthfully while
+# being hardware the customer already bought — crediting it as Graviton adoption, or billing it
+# as an x86 node to migrate, are both fabrications. `ishy` is the same predicate the scorers use
+# (`references/*.md`, the `B='def b(...)'` prelude), and it is NOT the label OR the providerID: the
+# providerID decides and the label only breaks a tie. `eks-hybrid:` means hybrid, an `aws:` providerID
+# VETOES the label (a node AWS says is an EC2 instance is one, whatever it is labelled), and the label
+# is consulted only when no providerID contradicts it. Under OR, labelling two real EC2 nodes
+# `compute-type=hybrid` would drop them out of every node question -- an evasion path, not a synonym.
+# Windows nodes are excluded as well, and counted: this skill supports Linux nodes only. `iswin` is the
+# scorers' predicate too -- the `kubernetes.io/os` label, or the kubelet's `operatingSystem` when the
+# label is absent.
+jq -r 'def ishy: ((.spec.providerID? // "")|tostring) as $p | if ($p|test("^eks-hybrid:")) then true elif ($p|test("^aws:")) then false else ((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="hybrid") end;
+  def iswin: ((.metadata.labels["kubernetes.io/os"] // .status.nodeInfo.operatingSystem // "")|tostring)=="windows";
+  [.items[]|select(((.metadata.labels["eks.amazonaws.com/compute-type"]//"")!="fargate") and (ishy|not))] as $all | ([$all[]|select(iswin)]|length) as $w
+  | [$all[]|select(iswin|not)] as $ec2
+  | if ($ec2|length)==0 and $w>0 then "NO LINUX EC2 CAPACITY — Graviton migration is NOT APPLICABLE"+(if $w>0 then " (\($w) Windows node(s) not assessed — this skill supports Linux nodes only)" else "" end)
+    elif ($ec2|length)==0 then "NO EC2 CAPACITY — Graviton migration is NOT APPLICABLE"
     else ($ec2|map(.metadata.labels["node.kubernetes.io/instance-type"]//"unlabelled")
-               |group_by(.)|map({(.[0]):length})|add|tostring) end' "$WORK/nodes.json"
+               |group_by(.)|map({(.[0]):length})|add|tostring)+(if $w>0 then " (\($w) Windows node(s) not assessed — this skill supports Linux nodes only)" else "" end) end' "$WORK/nodes.json"
 jq -r 'if .cluster.computeConfig.enabled==true then "AUTO MODE — AWS selects instance types; recommend arm64-compatible workloads + a NodePool architecture requirement, NOT a node migration" else "not Auto Mode (customer-managed compute)" end' "$WORK/cluster.json"
 ```
 
@@ -40,17 +56,23 @@ jq -r 'if .cluster.computeConfig.enabled==true then "AUTO MODE — AWS selects i
 ```bash
 # kubernetes.io/arch is set by the kubelet from the machine it is running on. It is authoritative and
 # already collected, so no name matching is needed and no allowlist can go stale.
-jq -r '[.items[]|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")] as $ec2
+# Windows nodes are left out of both numbers: this skill supports Linux nodes only, so an x86 Windows
+# node is counted as not assessed, never as migratable.
+jq -r 'def ishy: ((.spec.providerID? // "")|tostring) as $p | if ($p|test("^eks-hybrid:")) then true elif ($p|test("^aws:")) then false else ((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="hybrid") end;
+  def iswin: ((.metadata.labels["kubernetes.io/os"] // .status.nodeInfo.operatingSystem // "")|tostring)=="windows";
+  [.items[]|select(((.metadata.labels["eks.amazonaws.com/compute-type"]//"")!="fargate") and (ishy|not))] as $all | ([$all[]|select(iswin)]|length) as $w
+  | [$all[]|select(iswin|not)] as $ec2
   | ($ec2|length) as $t
   | ([$ec2[]|select(.metadata.labels["kubernetes.io/arch"]=="arm64")]|length) as $arm
-  | if $t==0 then "NO EC2 CAPACITY"
-    else "\($arm)/\($t) EC2 nodes on arm64 (Graviton); \($t-$arm) on x86 and migratable" end' "$WORK/nodes.json"
+  | if $t==0 and $w>0 then "NO LINUX EC2 CAPACITY"+(if $w>0 then " (\($w) Windows node(s) not assessed — this skill supports Linux nodes only)" else "" end)
+    elif $t==0 then "NO EC2 CAPACITY"
+    else "\($arm)/\($t) Linux EC2 nodes on arm64 (Graviton); \($t-$arm) on x86 and migratable"+(if $w>0 then " (\($w) Windows node(s) not assessed — this skill supports Linux nodes only)" else "" end) end' "$WORK/nodes.json"
 ```
 
-**Do not classify by instance name.** The previous instruction here — "Graviton families carry a `g` in
+**Do not classify by instance name.** An instruction such as "Graviton families carry a `g` in
 the generation suffix — `m7g`, `c7g`, `r7g`, `m8g`, `c8g`, `m6g`, `c6g`, `t4g`. Anything else on EC2 is
-x86" — was a closed list applied by judgment, which is the opposite of how the rest of this skill
-decides anything, and it was wrong in three ways. If you ever do need to reason from a name, AWS's
+x86" is a closed list applied by judgment, which is the opposite of how the rest of this skill
+decides anything, and it is wrong in three ways. If you ever do need to reason from a name, AWS's
 [naming convention](https://docs.aws.amazon.com/ec2/latest/instancetypes/instance-type-names.html)
 splits a type into **series → generation → options → size** (`c7gn.xlarge` = series `c`, generation `7`,
 options `gn`, size `xlarge`), and:
@@ -90,15 +112,22 @@ The Price List API is served from three endpoints only — `us-east-1`, `ap-sout
 [price change notifications](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/price-changes.html))
 — which is why a fixed `--region us-east-1` is used above while the *priced* region goes in `regionCode`.
 Any of the three works; the endpoint you call does not change the answer. If the call is unavailable,
-say the percentage is unverified rather than quoting the example table below. The long-standing
-"~20%" in this file is the **Graviton2** delta; current-generation Graviton3 is nearer **15%**.
-Verified live in `ap-southeast-5` (Price List, published 2026-08-31):
+say the percentage is unverified rather than quoting the example table below. The commonly quoted
+"~20%" is the **Graviton2** delta; Graviton3 (`m7g`/`c7g`) is nearer **15%**, and Graviton4
+(`m8g`/`c8g`, the newest generation offered in `ap-southeast-5`) is nearer **6.5%** against the same
+x86 6th-generation pair (`m8g.large` $0.09538 and `c8g.large` $0.07788 in `ap-southeast-5`).
+Verified live in `ap-southeast-5` (Price List, published 2026-09-25). This is a price table for every
+Graviton generation the region offers at this size, not a recommendation: the row marked **recommended** is
+the one the Recommended State rule below picks, the newest generation still cheaper than the x86 type.
 
 | From (x86) | To (Graviton) | Hourly | Delta |
 |---|---|---|---|
-| `m6i.large` $0.1020 | `m7g.large` $0.0867 | −$0.0153 | **−15.0%** |
-| `c6i.large` $0.0833 | `c7g.large` $0.0708 | −$0.0125 | **−15.0%** |
-| `m6i.large` $0.1020 | `m6g.large` $0.0816 | −$0.0204 | −20.0% (Gen2) |
+| `m6i.large` $0.1020 | `m8g.large` $0.09538 (Gen4, **recommended**) | −$0.00662 | **−6.5%** |
+| `m6i.large` $0.1020 | `m7g.large` $0.0867 (Gen3) | −$0.0153 | −15.0% |
+| `m6i.large` $0.1020 | `m6g.large` $0.0816 (Gen2) | −$0.0204 | −20.0% |
+| `c6i.large` $0.0833 | `c8g.large` $0.07788 (Gen4, **recommended**) | −$0.00542 | **−6.5%** |
+| `c6i.large` $0.0833 | `c7g.large` $0.0708 (Gen3) | −$0.0125 | −15.0% |
+| `c6i.large` $0.0833 | `c6g.large` $0.0666 (Gen2) | −$0.0167 | −20.0% |
 
 Quote the real pair for the customer's region and node types. An inflated number is worse than no
 number: it is the fastest way to lose the operator's trust in the whole report.
@@ -113,10 +142,19 @@ number: it is the fastest way to lose the operator's trust in the whole report.
 - **Title:** Migrate the remaining x86 capacity to Graviton
   (Scope the title and the saving to the x86 nodes that are LEFT. On a fleet that is
   already part-Graviton, "migrate to Graviton" reads as though nothing has been done.)
-- **Current State:** X of Y nodes on x86 (list the types and their hourly rate)
+- **Current State:** X of Y Linux EC2 nodes on x86 (list the types and their hourly rate)
 - **Recommended State:** the same **series** and **size**, with `g` in the **options** position and the
-  newest Graviton **generation** the region actually offers: `m6i.large` → `m<gen>g.large`, resolved to
-  `m8g.large` where generation 8 is offered and `m7g.large` where it is not. Do not carry a fixed map
+  **newest** Graviton **generation** the region offers whose hourly rate is still below the current
+  type's: `m6i.large` → `m<gen>g.large`. List the generations the region offers (below), price each one
+  with the command above, and walk them from newest to oldest; recommend the first one that is cheaper
+  than the current type. Not simply the newest — the newest can cost more than the x86 type it
+  replaces — and not simply the cheapest, which is usually the oldest generation. Against `m6i.large`
+  ($0.0960) in `us-east-1` (Price List, read 2026-09-29), `m9g.large` is $0.09784 (+1.9%), so the rule
+  passes over it to `m8g.large` at $0.08976 (−6.5%), although `m7g.large` ($0.0816, −15.0%) and
+  `m6g.large` ($0.0770, −19.8%) are cheaper still. In `ap-southeast-5`, which offers no `m9g`, the
+  rule picks `m8g.large` ($0.09538 against $0.1020, −6.5%). If no offered generation is cheaper than
+  the current type, report no saving for that type rather than a negative one. Quote the delta of the
+  pair you recommend. Do not carry a fixed map
   (`m6i`→`m7g`, `c6i`→`c7g`) in your head: that is the closed list this section just argued against, and
   it goes stale the day a generation ships. Quote the region's real hourly delta alongside it.
 
@@ -128,11 +166,11 @@ number: it is the fastest way to lose the operator's trust in the whole report.
     --query 'InstanceTypeOfferings[].InstanceType' --output text
   ```
 
-  Take the highest generation returned. The rule holds across series, including the ones the trap table
+  Price every generation returned and take the newest one that is cheaper than the current type. The rule holds across series, including the ones the trap table
   warns about: `g5g` is series `g` (graphics), generation `5`, options `g` — a Graviton GPU instance —
   so the `g`-in-options test is what distinguishes it from the x86 `g5`. Options also carry `d` (local
   NVMe) and `n` (extra network); keep whichever the current type has if the workload depends on it.
-- **Estimated Savings:** (x86 rate − Graviton rate) × node count × 730, shown as $/month
+- **Estimated Savings:** (x86 rate − rate of the recommended Graviton type) × node count × 730, shown as $/month
 - **Effort:** Medium — confirm arm64 images, then roll a new node group (or set an
   architecture requirement on the Karpenter/Auto Mode NodePool) and drain the old one
 - **Prerequisite:** arm64 images for every workload that will land on those nodes
@@ -147,13 +185,22 @@ number: it is the fastest way to lose the operator's trust in the whole report.
 # Karpenter clusters have none to iterate, and a Fargate cluster has no EC2 capacity to move to
 # Spot at all. Coalesce BOTH capacity labels: managed node groups set
 # `eks.amazonaws.com/capacityType`, while Karpenter and Auto Mode set
-# `karpenter.sh/capacity-type` (lowercase value). Reading only the first bucketed genuinely-Spot
+# `karpenter.sh/capacity-type` (`on-demand`, not `ON_DEMAND`, so the value is upcased and `-`
+# becomes `_` to keep On-Demand in one bucket). Reading only the first bucketed genuinely-Spot
 # nodes as UNKNOWN, understating existing Spot adoption and inviting a fabricated saving.
-jq -r '[.items[]|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")]
-  | if length==0 then "NO EC2 CAPACITY — Spot adoption is NOT APPLICABLE"
+# EKS Hybrid Nodes are excluded: Spot is an EC2 purchase option, neither capacity label is set on a
+# hybrid node, so counting one would bucket it UNKNOWN or On-Demand and understate Spot adoption
+# against a machine that can never be Spot.
+# Windows nodes are excluded and counted: this skill supports Linux nodes only.
+jq -r 'def ishy: ((.spec.providerID? // "")|tostring) as $p | if ($p|test("^eks-hybrid:")) then true elif ($p|test("^aws:")) then false else ((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="hybrid") end;
+  def iswin: ((.metadata.labels["kubernetes.io/os"] // .status.nodeInfo.operatingSystem // "")|tostring)=="windows";
+  [.items[]|select(((.metadata.labels["eks.amazonaws.com/compute-type"]//"")!="fargate") and (ishy|not))] as $all | ([$all[]|select(iswin)]|length) as $w
+  | [$all[]|select(iswin|not)]
+  | if length==0 and $w>0 then "NO LINUX EC2 CAPACITY — Spot adoption is NOT APPLICABLE"+(if $w>0 then " (\($w) Windows node(s) not assessed — this skill supports Linux nodes only)" else "" end)
+    elif length==0 then "NO EC2 CAPACITY — Spot adoption is NOT APPLICABLE"
     else (map((.metadata.labels["eks.amazonaws.com/capacityType"]
-               // .metadata.labels["karpenter.sh/capacity-type"] // "UNKNOWN")|ascii_upcase)
-          |group_by(.)|map({(.[0]):length})|add|tostring) end' "$WORK/nodes.json"
+               // .metadata.labels["karpenter.sh/capacity-type"] // "UNKNOWN")|ascii_upcase|gsub("-";"_"))
+          |group_by(.)|map({(.[0]):length})|add|tostring)+(if $w>0 then " (\($w) Windows node(s) not assessed — this skill supports Linux nodes only)" else "" end) end' "$WORK/nodes.json"
 jq -r '"node groups: \((.nodegroups//[])|length)"' "$WORK/nodegroups.json"
 # Auto Mode: Spot is still available but the MECHANISM differs — there is no node group and no
 # mixed-instances policy; you set `capacity-type: spot` in a NodePool. Say that, and never quote
@@ -165,19 +212,32 @@ jq -r 'if .cluster.computeConfig.enabled==true then "AUTO MODE — express Spot 
 **Which workloads could actually take Spot.** "You are 100% On-Demand" is not actionable on its own —
 the operator's next question is always *which of my workloads is safe to move*. Answer it from data
 already collected. The EC2-capacity guard is inside the jq, not a note beside it, so a Fargate or
-serverless cluster cannot fall through into a recommendation it cannot act on:
+serverless cluster cannot fall through into a recommendation it cannot act on. Windows nodes, and the
+Deployments and StatefulSets whose pod template targets Windows (`spec.os.name`, or a nodeSelector or required
+node affinity that admits Windows and no Linux node on `[beta.]kubernetes.io/os` or `node.kubernetes.io/windows-build`), are left out and
+counted: this skill supports Linux nodes only.
 
 ```bash
-jq -r -s '.[0] as $d|.[1] as $s|.[2] as $n
-  | [$n.items[]?|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")] as $ec2
-  | if ($ec2|length)==0 then "NO EC2 CAPACITY — Spot readiness is NOT APPLICABLE" else
-    ([$d.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $dep
+jq -r -s 'def ishy: ((.spec.providerID? // "")|tostring) as $p | if ($p|test("^eks-hybrid:")) then true elif ($p|test("^aws:")) then false else ((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="hybrid") end;
+  def iswin: ((.metadata.labels["kubernetes.io/os"] // .status.nodeInfo.operatingSystem // "")|tostring)=="windows";
+  def iswinspec: ((.os.name // "")=="windows") or ((.nodeSelector["kubernetes.io/os"] // "")=="windows") or ((.nodeSelector["beta.kubernetes.io/os"] // "")=="windows") or (.nodeSelector["node.kubernetes.io/windows-build"] != null) or (((.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms)//[]) as $ts|(($ts|length)>0) and ($ts|any(.[]; any(.matchExpressions[]?; (.key//"") as $k|(.operator//"") as $o|(.values//[]) as $v|(((($k=="kubernetes.io/os") or ($k=="beta.kubernetes.io/os")) and ((($o=="In") and ($v|any(.[]; .=="windows")) and ($v|all(.[]; . != "linux"))) or (($o=="NotIn") and ($v|any(.[]; .=="linux")) and ($v|all(.[]; . != "windows"))))) or (($k=="node.kubernetes.io/windows-build") and ((($o=="In") and (($v|length)>0)) or ($o=="Exists"))))))) and ($ts|all(.[]; ((((.matchExpressions//[])|length)==0) and (((.matchFields//[])|length)==0)) or any(.matchExpressions[]?; (.key//"") as $k|(.operator//"") as $o|(.values//[]) as $v|(((($k=="kubernetes.io/os") or ($k=="beta.kubernetes.io/os")) and ((($o=="In") and ($v|all(.[]; . != "linux"))) or (($o=="NotIn") and ($v|any(.[]; .=="linux"))) or ($o=="DoesNotExist"))) or (($k=="node.kubernetes.io/windows-build") and (($o=="In") or ($o=="Exists"))))))));
+  .[0] as $d|.[1] as $s|.[2] as $n
+  | [$n.items[]?|select(((.metadata.labels["eks.amazonaws.com/compute-type"]//"")!="fargate") and (ishy|not))] as $all | ([$all[]|select(iswin)]|length) as $w
+  | [$all[]|select(iswin|not)] as $ec2
+  | if ($ec2|length)==0 and $w>0 then "NO LINUX EC2 CAPACITY — Spot readiness is NOT APPLICABLE"+(if $w>0 then " (\($w) Windows node(s) not assessed — this skill supports Linux nodes only)" else "" end)
+    elif ($ec2|length)==0 then "NO EC2 CAPACITY — Spot readiness is NOT APPLICABLE" else
+    ([$d.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $dall
+    | [$s.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)] as $sall
+    | ([$dall[],$sall[]|select(.spec.template.spec|iswinspec)]|length) as $ww
+    | [$dall[]|select(.spec.template.spec|iswinspec|not)] as $dep
     | [$dep[]|select(((.spec.replicas//1)>=2) and ((((.spec.template.spec.volumes//[])|map(select(.persistentVolumeClaim//empty)))|length)==0))|.metadata.namespace+"/"+.metadata.name] as $ready
     | [$dep[]|select(((.spec.replicas//1)<2) or ((((.spec.template.spec.volumes//[])|map(select(.persistentVolumeClaim//empty)))|length)>0))|.metadata.namespace+"/"+.metadata.name] as $hold
-    | [$s.items[]?|select(((.metadata.namespace//"")|test("^(kube-|amazon-)"))|not)|.metadata.namespace+"/"+.metadata.name] as $sts
+    | [$sall[]|select(.spec.template.spec|iswinspec|not)|.metadata.namespace+"/"+.metadata.name] as $sts
     | "SPOT-READY TODAY (>=2 replicas, no PVC): \($ready|length) \($ready)",
       "NOT YET SPOT-SAFE (single replica or PVC-backed): \($hold|length) \($hold)",
-      "STATEFULSETS (keep On-Demand unless the app tolerates node loss): \($sts|length) \($sts)")
+      "STATEFULSETS (keep On-Demand unless the app tolerates node loss): \($sts|length) \($sts)",
+      (if $w>0 then "WINDOWS NODES (not assessed — this skill supports Linux nodes only): \($w)" else empty end),
+      (if $ww>0 then "WINDOWS WORKLOADS (Deployments/StatefulSets targeting Windows, not assessed — this skill supports Linux nodes only): \($ww)" else empty end))
     end' "$WORK/deployments.json" "$WORK/statefulsets.json" "$WORK/nodes.json"
 ```
 
@@ -216,7 +276,9 @@ recommendation can carry its own preconditions. Do not move them into `cost-opti
 - **Estimated Savings:** current On-Demand spend for the movable share × the region's Spot discount —
   state the assumed discount, and state the share you assumed is movable
 - **Effort:** Medium — diversify instance types so a single pool reclaim cannot drain the tier, add
-  PDBs, and install the AWS Node Termination Handler (not needed on Auto Mode, which handles it)
+  PDBs, and handle the 2-minute notice: the AWS Node Termination Handler on self-managed nodes only.
+  Managed node groups and Auto Mode drain Spot nodes themselves, and Karpenter has its own
+  interruption handling (an SQS queue), which AWS advises against running alongside the Handler
 - **Do not recommend for:** the StatefulSets and single-replica Deployments listed above
 
 ---
@@ -225,20 +287,20 @@ recommendation can carry its own preconditions. Do not move them into `cost-opti
 
 **Detection:**
 ```bash
-# NB: compare the StorageClass `parameters.type`, never its NAME — captures have been seen
-# with a class named `gp3` that provisions gp2, and a class named `gp2` that provisions gp3.
+# NB: compare the StorageClass `parameters.type`, never its NAME — nothing stops a class
+# named `gp3` from provisioning gp2, or a class named `gp2` from provisioning gp3.
 jq -r '.items[] | {name: .metadata.name, provisioner: .provisioner, type: .parameters.type}' "$WORK/storageclasses.json"
-jq -r -s '.[1].cluster.name as $cn | [.[0].Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0)|select(.VolumeType=="gp2")|{Id:.VolumeId,Size:.Size,State:.State}]' "$WORK/volumes.json" "$WORK/cluster.json"
+jq -r -s '.[1].cluster.name as $cn | [.[0].Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0)|select(.VolumeType=="gp2")|{Id:.VolumeId,Size:.Size,State:.State}]' "$WORK/volumes.json" "$WORK/cluster.json"
 ```
 
 **Analysis:** Check for gp2 volumes or StorageClasses still using gp2.
 
-**The performance comparison — get this right, the old wording was wrong by 33×.**
+**The performance comparison — get this right; confusing gp2's floor with its rate is off by 33×.**
 
 | | gp2 | gp3 |
 |---|---|---|
 | Baseline IOPS | **3 IOPS/GiB**, minimum 100, maximum 16,000 | flat **3,000**, any size |
-| Baseline throughput | up to 250 MiB/s, scales with size | flat **125 MiB/s**, any size |
+| Baseline throughput | up to 128 MiB/s at 170 GiB and smaller; bursts to 250 MiB/s above 170 GiB; 250 MiB/s at 334 GiB and larger | flat **125 MiB/s**, any size |
 | Burst | to 3,000 IOPS below 1,000 GiB | none — baseline is not a credit pool |
 | Price | ~$0.10/GiB-mo | ~$0.08/GiB-mo (**~20% less**) |
 
@@ -249,21 +311,27 @@ quoting, the same discipline Opportunity 1 applies to the Graviton percentage:
 aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
   --filters Type=TERM_MATCH,Field=volumeApiName,Value=<gp2-or-gp3> \
             Type=TERM_MATCH,Field=regionCode,Value=<REGION> \
+            Type=TERM_MATCH,Field=productFamily,Value=Storage \
   --query 'PriceList[0]' --output text \
   | jq -r '.terms.OnDemand|to_entries[0].value.priceDimensions|to_entries[0].value.pricePerUnit.USD'
 ```
 
-This file previously said *"3000 IOPS vs 100 IOPS/GiB"*, which confuses gp2's 100-IOPS **floor** with
+Do not write *"3000 IOPS vs 100 IOPS/GiB"*: that confuses gp2's 100-IOPS **floor** with
 its 3 IOPS/GiB **rate** and overstates gp2 by 33× — a 100 GiB gp2 volume gets 300 baseline IOPS, not
 10,000.
 
-**gp3 is not universally faster — the crossover is 1,000 GiB, and the `size × 3` parity formula has its
+**gp3 is not universally faster — the IOPS crossover is 1,000 GiB, and the `size × 3` parity formula has its
 own ceiling.** gp2 reaches 3,000 baseline IOPS at exactly 1,000 GiB and keeps climbing — but **gp2's
 baseline stops climbing at 16,000 IOPS, reached at 5,334 GiB, and every larger gp2 volume gets the same
 16,000** ([EBS User Guide, General Purpose SSD volumes](https://docs.aws.amazon.com/ebs/latest/userguide/general-purpose.html),
 verified live 2026-09-11). So:
 
-- **Below ~1,000 GiB** → gp3 is cheaper *and* faster at baseline. Straight win, say so.
+- **Below ~1,000 GiB** → gp3 is cheaper and matches or beats gp2 on baseline IOPS. Throughput is the
+  exception: gp3's default 125 MiB/s is below the 250 MiB/s a gp2 volume of 334 GiB or larger sustains,
+  so provision `throughput: 250` on those volumes to hold parity. Between 170 and 334 GiB gp2 reaches
+  250 MiB/s only by burst, and gp3 throughput above 125 MiB/s costs about $0.04 per MiB/s-month
+  (`us-east-1`; region-dependent), so the extra 125 MiB/s (about $5/month) costs more than the storage
+  saving below about 250 GiB — provision it there only where the workload needs sustained throughput.
 - **1,000 GiB up to 5,334 GiB** → gp3 is still ~20% cheaper on storage, but its default 3,000 IOPS is a
   **downgrade**. Provision `iops: size × 3` (and matching throughput) on the gp3 volume to hold parity,
   and note that provisioned IOPS above the free 3,000 carry their own charge, which erodes part of the
@@ -272,9 +340,10 @@ verified live 2026-09-11). So:
   uncapped formula asks gp3 for more IOPS than gp2 ever delivered — an 8,192 GiB volume would request
   24,576 IOPS against gp2's real ceiling of 16,000, over-paying by roughly **$43/month** at gp3's
   provisioned-IOPS rate of $0.005/IOPS-month (`us-east-1`, AWS Price List API, verified live 2026-09-11),
-  rising to roughly **$166/month** at gp2's own 16 TiB size limit. The net gp2→gp3 saving stays positive
-  at every size — this erosion shrinks it (by about 46% at 8 TiB and 64% at 16 TiB against the ~20%
-  storage-only saving) but never inverts it into a loss.
+  rising to roughly **$166/month** at gp2's own 16 TiB size limit. From 1,000 GiB up, the net gp2→gp3
+  saving stays positive at every size, the `throughput: 250` charge included and `size × 3` left uncapped
+  or not. The over-payment alone takes about 26% at 8 TiB and 51% at 16 TiB of the ~20% storage-only
+  saving, on top of the charge for the IOPS gp2 did deliver, but never inverts it into a loss.
 
 Because gp2 also bursts to 3,000 IOPS below 1 TiB (1,024 GiB — AWS states the burst boundary in TiB; the ~1,000 GiB figure used here is the round number where baseline IOPS crosses 3,000, which is close but not the documented threshold), a small volume that relies on **sustained**
 burst is a genuine gp3 improvement (gp3's 3,000 is baseline, not a depleting credit balance) — worth
@@ -288,11 +357,14 @@ one sentence when the cluster's gp2 volumes are small.
 **Report as:**
 - **Title:** Migrate gp2 volumes to gp3 for ~20% storage savings
 - **Current State:** X gp2 volumes totalling Y GiB (list sizes; flag any ≥1,000 GiB separately)
-- **Recommended State:** gp3 — default 3,000 IOPS / 125 MiB/s for volumes under 1,000 GiB; `iops = size
+- **Recommended State:** gp3 — default 3,000 IOPS for volumes under 1,000 GiB, plus `throughput: 250`
+  for volumes of 334 GiB and larger (from 170 to 334 GiB only where the workload needs sustained
+  throughput, since gp2's 250 MiB/s there is burst only; default 125 MiB/s otherwise); `iops = size
   × 3` for volumes from 1,000 GiB up to 5,334 GiB; `iops = 16000` (gp2's own ceiling, never `size × 3`)
   for volumes 5,334 GiB and larger
-- **Estimated Savings:** ~20% of the gp2 storage line, minus any provisioned IOPS added above 3,000 —
-  and minus the excess IOPS charge if `size × 3` was provisioned uncapped past 5,334 GiB
+- **Estimated Savings:** ~20% of the gp2 storage line, minus any provisioned IOPS added above 3,000 and
+  any throughput provisioned above 125 MiB/s (about $0.04 per MiB/s-month in `us-east-1`) — and minus
+  the excess IOPS charge if `size × 3` was provisioned uncapped past 5,334 GiB
 - **Effort:** Easy — `modify-volume` is an online volume-type change, no downtime
 
 ---
@@ -301,21 +373,37 @@ one sentence when the cluster's gp2 volumes are small.
 
 **Detection:**
 ```bash
-jq -r '.items[] | select(.status.phase == "Released" or .status.phase == "Available") | {name: .metadata.name, capacity: .spec.capacity.storage, phase: .status.phase}' "$WORK/pv.json"
-jq -r -s '.[1].cluster.name as $cn | [.[0].Volumes[]?|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (.Value==$cn))]|length>0)|select(.State=="available")|{Id:.VolumeId,Size:.Size}]' "$WORK/volumes.json" "$WORK/cluster.json"
+jq -r '.items[] | select(.status.phase != "Bound") | {name: .metadata.name, capacity: .spec.capacity.storage, phase: .status.phase}' "$WORK/pv.json"
+jq -r -s '.[1].cluster.name as $cn | ([.[2].items[]?|(.spec.csi.volumeHandle?,.spec.awsElasticBlockStore.volumeID?)]|map(select((type=="string") and .!="")|split("/")|last)|unique) as $pvid | [.[0].Volumes[]?|select(([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0) or ((.VolumeId//"")|IN($pvid[])))|select((.State!="in-use") and (.State!="error") and (.State!="deleted"))|{Id:.VolumeId,Size:.Size,State:.State}]' "$WORK/volumes.json" "$WORK/cluster.json" "$WORK/pv.json"
+# THESE TWO QUERIES MUST AGREE WITH `cost-6` AND `cost-8` in references/cost-optimization.md, and
+# they are written to return the same objects those scorers put in `resources.fail`. Both test
+# POSITIVELY and report the complement, for the reason those scorers give: `Bound` is the only PV
+# phase that is serving a claim and `in-use` is the only volume state that is attached, so a
+# denylist of `Released`/`Available` misses a PV whose reclamation FAILED -- the longest-lived PV
+# leak, with nothing to clear it. `error` (failed EBS hardware, not billed) and `deleted` volumes are
+# excluded, as `cost-8` excludes them. On a 4-PV / 6-volume shape the denylist forms `phase ==
+# "Released" or "Available"` and `State == "available"` both return NOTHING while the scorers
+# fail a 500Gi `Failed` PV, a 200Gi `Pending` PV and a 100 GiB `creating` volume. `creating`/`deleting`
+# are transient and normally clear on their own; treat a volume that stays there as real.
 # Volume lists MUST be cluster-scoped. `describe-volumes` is collected region-wide with no
 # filter, so an unscoped read names volumes owned by OTHER clusters as this cluster's savings —
-# in the reference capture only 4 of 11 volumes carry a cluster tag.
+# in a shared region most volumes can belong to other clusters. The tag predicate is
+# `cost-8`'s and `sec-21`'s, which bind the cluster NAME to a cluster-ish KEY: a bare
+# `.Value==$cn` would accept an unrelated volume merely tagged
+# `Name=<cluster>`. On a shape carrying one such volume the bare form
+# reports 5 volumes where the scorers report 4, claiming 900 GiB of someone else's disk as this
+# cluster's saving. An ordinary cluster rarely carries such a tag, so only a hostile shape
+# shows it — which is why the form is copied from the scorer rather than re-derived.
 ```
 
-**Analysis:** PVs in Released or Available state are not attached to any workload but still incur EBS charges.
+**Analysis:** PVs in any phase other than `Bound` — `Released`, `Available`, `Failed` or `Pending` — are serving no claim; the EBS volume behind a `Released` or `Failed` one still exists and still bills.
 
 **Criteria for opportunity:**
-- If any PVs are in Released or Available state → opportunity exists
+- If any PVs are not `Bound` → opportunity exists
 
 **Report as:**
 - **Title:** Clean up idle Persistent Volumes
-- **Current State:** X PVs in Released/Available state (Y GiB total)
+- **Current State:** X PVs not Bound (Y GiB total)
 - **Recommended State:** Delete unused PVs and their backing EBS volumes
 - **Effort:** Easy (verify data is backed up, then delete)
 
@@ -326,8 +414,14 @@ jq -r -s '.[1].cluster.name as $cn | [.[0].Volumes[]?|select([.Tags[]?|select((.
 **Detection:**
 ```bash
 # Workload containers only — AWS-managed kube-*/amazon-* pods are context, not the
-# operator's to rightsize (matches the scope rule the pillar scorers use).
-jq -r '[.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)|.spec.containers[] | {name: .name, requests_cpu: .resources.requests.cpu, requests_mem: .resources.requests.memory, limits_cpu: .resources.limits.cpu, limits_mem: .resources.limits.memory}]' "$WORK/pods.json"
+# operator's to rightsize (matches the scope rule the pillar scorers use). Windows pods (`spec.os.name`,
+# a nodeSelector or required node affinity admitting Windows and no Linux node on `[beta.]kubernetes.io/os` or `node.kubernetes.io/windows-build`, on the
+# pod or its DaemonSet's template) are left out and counted: this skill supports Linux nodes only.
+jq -r 'def iswinspec: ((.os.name // "")=="windows") or ((.nodeSelector["kubernetes.io/os"] // "")=="windows") or ((.nodeSelector["beta.kubernetes.io/os"] // "")=="windows") or (.nodeSelector["node.kubernetes.io/windows-build"] != null) or (((.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms)//[]) as $ts|(($ts|length)>0) and ($ts|any(.[]; any(.matchExpressions[]?; (.key//"") as $k|(.operator//"") as $o|(.values//[]) as $v|(((($k=="kubernetes.io/os") or ($k=="beta.kubernetes.io/os")) and ((($o=="In") and ($v|any(.[]; .=="windows")) and ($v|all(.[]; . != "linux"))) or (($o=="NotIn") and ($v|any(.[]; .=="linux")) and ($v|all(.[]; . != "windows"))))) or (($k=="node.kubernetes.io/windows-build") and ((($o=="In") and (($v|length)>0)) or ($o=="Exists"))))))) and ($ts|all(.[]; ((((.matchExpressions//[])|length)==0) and (((.matchFields//[])|length)==0)) or any(.matchExpressions[]?; (.key//"") as $k|(.operator//"") as $o|(.values//[]) as $v|(((($k=="kubernetes.io/os") or ($k=="beta.kubernetes.io/os")) and ((($o=="In") and ($v|all(.[]; . != "linux"))) or (($o=="NotIn") and ($v|any(.[]; .=="linux"))) or ($o=="DoesNotExist"))) or (($k=="node.kubernetes.io/windows-build") and (($o=="In") or ($o=="Exists")))))))); def winds: [.items[]?|select((.spec.template.spec//{})|iswinspec)|{key:((.metadata.namespace//"")+"/"+(.metadata.name//"")),value:true}]|from_entries; def iswinpod($w): (.spec|iswinspec) or ((.metadata.namespace//"") as $ns|any(.metadata.ownerReferences[]?; ((.kind//"")=="DaemonSet") and ($w[$ns+"/"+(.name//"")]//false))); (input|winds) as $wds|
+  [.items[]|select((.metadata.namespace//"")|test("^(kube-|amazon-)")|not)] as $wl
+  | ([$wl[]|select(iswinpod($wds))]|length) as $wp
+  | [$wl[]|select(iswinpod($wds)|not)|.spec.containers[] | {name: .name, requests_cpu: .resources.requests.cpu, requests_mem: .resources.requests.memory, limits_cpu: .resources.limits.cpu, limits_mem: .resources.limits.memory}],
+    (if $wp>0 then "\($wp) Windows pod(s) not assessed — this skill supports Linux nodes only" else empty end)' "$WORK/pods.json" "$WORK/daemonsets.json"
 ```
 
 Also check for deployments without HPA:
@@ -360,25 +454,31 @@ jq -r '.items[] | {name: .spec.scaleTargetRef.name, ns: .metadata.namespace}' "$
 **Detection:**
 ```bash
 # Count JSON items, never `wc -l` on non-JSON: `kubectl get ... --no-headers` piped to
-# `wc -l` returns 1 for an empty result under replay, so every cluster looked like it had
-# Karpenter installed.
+# `wc -l` counts any line that comes back, a message or a blank one included, so a cluster can
+# look like it has Karpenter installed when it does not.
 jq -r '[.items[]|select((.metadata.namespace//"")=="karpenter" or (.metadata.name|test("karpenter")))]|length' "$WORK/pods.json"
 # Identify the autoscaler by IMAGE and app label, never by Deployment NAME — the same discipline
-# Opportunity 3 applies to StorageClasses. A captured cluster has been seen with a Deployment
-# NAMED `cluster-autoscaler` whose image is public.ecr.aws/karpenter/controller, so a name match
+# Opportunity 3 applies to StorageClasses. Nothing stops a Deployment being
+# NAMED `cluster-autoscaler` while its image is public.ecr.aws/karpenter/controller, so a name match
 # reports "using Cluster Autoscaler" about a cluster already running Karpenter.
 jq -r '[.items[]|{name:.metadata.name, ns:.metadata.namespace,
                   app:(.metadata.labels["app.kubernetes.io/name"]//""),
                   image:([.spec.template.spec.containers[]?.image]|join(","))}]
         |map(select((.image|test("karpenter"))or(.app=="karpenter")or(.image|test("cluster-autoscaler"))or(.app|test("cluster-autoscaler"))))' "$WORK/deployments.json"
 # Auto Mode AND Fargate both make this a NON-finding: AWS already provisions the compute, so
-# there is no in-cluster provisioner to adopt. (Fargate needs the nodes.json check — an earlier
-# revision promised this guard in a comment but only implemented the Auto Mode half.)
-jq -r -s '.[0] as $cl | .[1] as $n
+# there is no in-cluster provisioner to adopt. (Fargate needs the nodes.json check; the Auto Mode
+# test alone is only half of this guard.) Windows nodes are not assessed -- this skill supports Linux
+# nodes only -- so a cluster whose only non-Fargate nodes are Windows gets no Karpenter recommendation,
+# and a mixed one says how many Windows nodes the recommendation does not cover.
+jq -r -s 'def iswin: ((.metadata.labels["kubernetes.io/os"] // .status.nodeInfo.operatingSystem // "")|tostring)=="windows";
+  .[0] as $cl | .[1] as $n
+  | ([$n.items[]?|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")] as $nf | [$nf[]|select(iswin)]|length) as $w
+  | ([$n.items[]?|select(.metadata.labels["eks.amazonaws.com/compute-type"]!="fargate")]|length) as $nfn
   | if $cl.cluster.computeConfig.enabled==true then "AUTO MODE — node provisioning is AWS-managed; Karpenter adoption NOT APPLICABLE"
     elif (([$n.items[]?]|length)>0 and ([$n.items[]?|select(.metadata.labels["eks.amazonaws.com/compute-type"]=="fargate")]|length)==([$n.items[]?]|length))
       then "FARGATE-ONLY — no EC2 capacity to provision; Karpenter adoption NOT APPLICABLE"
-    else "standard/EC2 compute — Karpenter adoption applies" end' "$WORK/cluster.json" "$WORK/nodes.json"
+    elif ($w>0 and $w==$nfn) then "WINDOWS NODES ONLY — \($w) Windows node(s) not assessed (this skill supports Linux nodes only); Karpenter adoption NOT ASSESSED"
+    else "standard/EC2 compute — Karpenter adoption applies"+(if $w>0 then " (\($w) Windows node(s) not assessed — this skill supports Linux nodes only)" else "" end) end' "$WORK/cluster.json" "$WORK/nodes.json"
 ```
 
 **Analysis:** Check if Cluster Autoscaler is used instead of Karpenter.
