@@ -11,7 +11,7 @@
 > **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access.md).**
 > The per-question `Detection:` tags below are explanatory only; the scorer decides measured vs governance.
 
-Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`. ASK USER responses: "Yes, fully" → `all`, "Mostly" → `most`, "Partially" → `some`, "No" → `none`, "Doesn't apply" → `na`.
+Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`.
 
 ---
 
@@ -35,7 +35,7 @@ Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥7
 
 > Evaluate the use of automated security benchmarking tools for cluster configuration validation.
 
-**Remediation:** Run kube-bench as a CronJob: `kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-eks.yaml`. A pinned release tag in this URL eventually 404s as kube-bench cuts new releases (verified live, 2026-09-11: the latest tag is `v0.16.0`, well past the `v0.10.4` this used to point at) — `main` always resolves; pin a specific tag yourself only if you also own re-checking it. Review CIS Benchmark results regularly.
+**Remediation:** Run kube-bench as a Job: `kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-eks.yaml`. A pinned release tag in this URL keeps resolving — git tags do not expire — and that is the problem: it keeps applying the manifest that tag shipped, so the job goes on running the CIS EKS benchmark revision and the target list of the day it was pinned, and no 404 ever tells you it has stopped tracking new checks. Verified live 2026-09-12 with a plain HTTPS GET of each raw URL: `main`, `v0.16.0` (the latest release) and `v0.10.4` all return HTTP 200 and are byte-identical today, running `--targets node,policies,managedservices,controlplane --benchmark eks-1.5.0`; the 2021-era `v0.6.0` also returns HTTP 200, and its manifest runs the `node` target alone against `--benchmark eks-1.0`. So `main` is what tracks the current benchmark; pin a specific tag yourself only if you also own re-checking it. Review CIS Benchmark results regularly.
 
 ---
 
@@ -55,7 +55,13 @@ Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥7
 
 **Detection:** 🔬 AUTO-DETECTABLE
 
-> Audit logs record all API server requests for security investigation and compliance.
+> Audit logs record all API server requests for security investigation and compliance. **Enabled is not
+> monitored.** This reads `cluster.logging.clusterLogging` for an enabled `audit` type and nothing else:
+> it does not check that a CloudWatch log group is receiving events, that a retention policy is set, or
+> that any metric filter or alarm reads them. A pass means the control plane is emitting an audit trail,
+> not that anyone would find out when something in it matters: turning the log types on is only the first
+> half, and a metric filter plus an alarm over the audit stream is what turns a stored log into
+> detection. Neither is checked here, on a pass or a fail.
 
 **Commands:**
 ```bash
@@ -66,11 +72,11 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.log
 <!-- MAINTAINER NOTE — not report content, placed before **Remediation:** for the reason documented at
      lens-11 in workload-security.md: question_prose() in assets/render-report.py captures everything
      after "**Remediation:**" verbatim and html-escapes it, so a comment inside that span would reach
-     the customer as literal text. This remediation used to be one sentence with no command, High
-     severity, while lower-severity questions in this same file (sec-19, sec-36) already had one. It
-     now gives the actual CLI, flags that update-cluster-config is asynchronous the same way sec-38's
-     KMS remediation in data-protection.md already documents for its own async update, and adds the
-     retention-policy step because enabling `api`/`audit` logging is an open-ended CloudWatch Logs cost,
+     the customer as literal text. This remediation gives the actual CLI because it is High severity
+     and lower-severity questions in this same file (sec-19, sec-36) carry one. It flags that
+     update-cluster-config is asynchronous the same way sec-38's KMS remediation in
+     data-protection.md documents for its own async update, and it includes the retention-policy step
+     because enabling `api`/`audit` logging is an open-ended CloudWatch Logs cost,
      not a one-time toggle. -->
 
 **Remediation:** Enabling the log types is not the whole control — without a metric filter and an alarm,
@@ -108,7 +114,7 @@ threat it exists for.
 
 > Compliance scanning identifies configuration drift.
 
-**Remediation:** Run kube-bench as a CronJob: `kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-eks.yaml`. Review results regularly.
+**Remediation:** Run kube-bench as a Job: `kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-eks.yaml`. Review results regularly.
 
 ---
 
@@ -119,3 +125,5 @@ threat it exists for.
 > Assess the implementation of automated compliance scanning to identify configuration drift and maintain adherence to security standards.
 
 **Remediation:** Schedule regular compliance scans using kube-bench, Prowler, or AWS Security Hub. Integrate findings into your incident response workflow.
+
+---
