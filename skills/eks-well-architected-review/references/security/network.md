@@ -15,6 +15,21 @@ Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥7
 
 ---
 
+## Table of Contents
+
+1. [Pod & node network segmentation](#pod--node-network-segmentation)
+   - [sec-4: Are Kubernetes Network Policies deployed to control Pod-to-Pod traffic?](#sec-4-are-kubernetes-network-policies-deployed-to-control-pod-to-pod-traffic)
+   - [sec-14: Do you apply network separation to Pod networking using Kubernetes Network Policies or AWS security groups to control traffic between Pods and clusters?](#sec-14-do-you-apply-network-separation-to-pod-networking-using-kubernetes-network-policies-or-aws-security-groups-to-control-traffic-between-pods-and-clusters)
+   - [sec-30: Is inbound SSH (port 22) closed to the internet on the cluster security groups?](#sec-30-is-inbound-ssh-port-22-closed-to-the-internet-on-the-cluster-security-groups)
+   - [sec-31: Do you avoid sharing security groups between EKS worker nodes and the control plane? — RETIRED](#sec-31-do-you-avoid-sharing-security-groups-between-eks-worker-nodes-and-the-control-plane--retired)
+2. [Network Infrastructure](#network-infrastructure)
+   - [net-1: Do VPC subnets have sufficient available IP addresses (≥100 per subnet)?](#net-1-do-vpc-subnets-have-sufficient-available-ip-addresses-100-per-subnet)
+   - [net-2: Do security groups follow least-privilege (no 0.0.0.0/0 on non-standard ports)?](#net-2-do-security-groups-follow-least-privilege-no-00000-on-non-standard-ports)
+   - [net-3: Is VPC CNI prefix delegation enabled for improved IP capacity?](#net-3-is-vpc-cni-prefix-delegation-enabled-for-improved-ip-capacity)
+   - [net-4: Has the cluster security group's default allow-all egress been narrowed?](#net-4-has-the-cluster-security-groups-default-allow-all-egress-been-narrowed)
+
+---
+
 ## Pod & node network segmentation
 
 ### sec-4: Are Kubernetes Network Policies deployed to control Pod-to-Pod traffic?

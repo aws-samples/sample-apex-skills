@@ -10,6 +10,23 @@ Identify cost savings opportunities from cluster data. Prioritized by impact tie
 
 ---
 
+## Table of Contents
+
+1. [Opportunity 1: Graviton Migration (Tier 1 — High Impact)](#opportunity-1-graviton-migration-tier-1--high-impact)
+2. [Opportunity 2: Spot Instance Adoption (Tier 1 — High Impact)](#opportunity-2-spot-instance-adoption-tier-1--high-impact)
+3. [Opportunity 3: gp2 to gp3 Storage Migration (Tier 2 — Medium Impact)](#opportunity-3-gp2-to-gp3-storage-migration-tier-2--medium-impact)
+4. [Opportunity 4: Idle Persistent Volume Cleanup (Tier 2 — Medium Impact)](#opportunity-4-idle-persistent-volume-cleanup-tier-2--medium-impact)
+5. [Opportunity 5: Container Rightsizing (Tier 2 — Medium Impact)](#opportunity-5-container-rightsizing-tier-2--medium-impact)
+6. [Opportunity 6: Karpenter Adoption (Tier 3 — Quick Win)](#opportunity-6-karpenter-adoption-tier-3--quick-win)
+7. [Opportunity 7: Extended Support Pricing (Tier 1 — High Impact)](#opportunity-7-extended-support-pricing-tier-1--high-impact)
+8. [Cost Score Calculation (NON-AUTHORITATIVE — do not print this as "the cost score")](#cost-score-calculation-non-authoritative--do-not-print-this-as-the-cost-score)
+9. [Presenting Cost Opportunities](#presenting-cost-opportunities)
+   - [🔴 High Impact — Act Now (Tier 1)](#-high-impact--act-now-tier-1)
+   - [🟡 Medium Impact — Plan This Quarter (Tier 2)](#-medium-impact--plan-this-quarter-tier-2)
+   - [🟢 Quick Wins — Low Effort (Tier 3)](#-quick-wins--low-effort-tier-3)
+
+---
+
 ## Opportunity 1: Graviton Migration (Tier 1 — High Impact)
 
 **Detection:**

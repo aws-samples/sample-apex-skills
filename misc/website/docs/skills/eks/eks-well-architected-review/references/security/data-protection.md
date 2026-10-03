@@ -26,6 +26,26 @@ Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥7
 
 ---
 
+## Table of Contents
+
+1. [Secrets management](#secrets-management)
+   - [sec-8: Is an external secrets manager operator (e.g. External Secrets Operator) deployed on the cluster?](#sec-8-is-an-external-secrets-manager-operator-eg-external-secrets-operator-deployed-on-the-cluster)
+   - [sec-24: Do you leverage AWS Secrets Manager and Config Provider (ASCP), EKS secrets encryption, or third-party solutions like HashiCorp Vault to manage secrets in EKS?](#sec-24-do-you-leverage-aws-secrets-manager-and-config-provider-ascp-eks-secrets-encryption-or-third-party-solutions-like-hashicorp-vault-to-manage-secrets-in-eks)
+   - [sec-34: Do you implement automatic rotation of secrets, credentials, and TLS certificates?](#sec-34-do-you-implement-automatic-rotation-of-secrets-credentials-and-tls-certificates)
+   - [sec-35: Do you implement automatic rotation of secrets, credentials, database passwords, and TLS certificates used by your EKS workloads, using tools like AWS Secrets Manager, External Secrets Operator, or cert-manager?](#sec-35-do-you-implement-automatic-rotation-of-secrets-credentials-database-passwords-and-tls-certificates-used-by-your-eks-workloads-using-tools-like-aws-secrets-manager-external-secrets-operator-or-cert-manager)
+2. [Protect data at rest](#protect-data-at-rest)
+   - [sec-21: Are EBS volumes used by the cluster encrypted at rest?](#sec-21-are-ebs-volumes-used-by-the-cluster-encrypted-at-rest)
+   - [sec-38: Is the cluster configured to envelope-encrypt Kubernetes Secrets with a customer-managed KMS key?](#sec-38-is-the-cluster-configured-to-envelope-encrypt-kubernetes-secrets-with-a-customer-managed-kms-key)
+   - [sec-22: Do you enable encryption at rest for Amazon EFS file systems used by Pods?](#sec-22-do-you-enable-encryption-at-rest-for-amazon-efs-file-systems-used-by-pods)
+   - [sec-25: Are StorageClasses configured with encryption enabled for new volumes?](#sec-25-are-storageclasses-configured-with-encryption-enabled-for-new-volumes)
+3. [Protect data in transit](#protect-data-in-transit)
+   - [sec-23: Do you enable encryption in transit for Amazon EFS when using the EFS CSI driver?](#sec-23-do-you-enable-encryption-in-transit-for-amazon-efs-when-using-the-efs-csi-driver)
+   - [sec-27: Is a service mesh control plane (Istio, Linkerd or Consul) deployed?](#sec-27-is-a-service-mesh-control-plane-istio-linkerd-or-consul-deployed)
+   - [sec-28: Do workload pods carry a service-mesh sidecar (the data path for service-to-service mTLS)?](#sec-28-do-workload-pods-carry-a-service-mesh-sidecar-the-data-path-for-service-to-service-mtls)
+   - [sec-29: Are Ingress resources configured with TLS termination?](#sec-29-are-ingress-resources-configured-with-tls-termination)
+
+---
+
 ## Secrets management
 
 ### sec-8: Is an external secrets manager operator (e.g. External Secrets Operator) deployed on the cluster?

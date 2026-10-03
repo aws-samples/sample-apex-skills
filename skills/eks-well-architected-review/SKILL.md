@@ -3,7 +3,7 @@ name: eks-well-architected-review
 description: Deterministic AWS Well-Architected Framework review of an Amazon EKS cluster (Linux nodes only). Unofficial — not the AWS Well-Architected Tool, no official EKS lens exists, and it maps to no compliance framework (CIS, PCI or otherwise). Collects live data via kubectl and aws, scores it across five of the six pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization; not Sustainability, not cluster-observable) using fixed jq detections so scores are stable, separates measured from governance findings, withholds a pillar score when under half its measured questions apply, and the overall when fewer than four pillars score or no Linux node is Ready, and renders a self-contained HTML report. Use when asked to review, audit or score an EKS cluster against the Well-Architected Framework, assess its cost hygiene, or get a prioritized plan to raise that score. Not for operational audits, dollar cost analysis, inventory, static advice, hardening, or design documents.
 metadata:
   author: terjing
-  version: "2.1"
+  version: "1.0"
   framework: AWS Well-Architected Framework
   service: Amazon EKS
   compatibility: Requires the aws CLI (authenticated), kubectl with access to the target cluster, jq, and python3 (report renderer). Network access to the AWS account and cluster API is required. Collected files are written only to the work directory, and the rendered report makes no network requests.

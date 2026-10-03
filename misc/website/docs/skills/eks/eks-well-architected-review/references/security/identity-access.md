@@ -33,6 +33,28 @@ process-only and are not scored from cluster data.
 
 ---
 
+## Table of Contents
+
+1. [Security pillar scorer — run by `assets/score.sh`, not by hand (covers all 57 Security questions)](#security-pillar-scorer--run-by-assetsscoresh-not-by-hand-covers-all-57-security-questions)
+2. [Implement a strong identity foundation](#implement-a-strong-identity-foundation)
+   - [sec-1: Is the EKS cluster API server endpoint configured with private access enabled?](#sec-1-is-the-eks-cluster-api-server-endpoint-configured-with-private-access-enabled)
+   - [sec-2: Is public API server access restricted to specific CIDR ranges rather than reachable from the whole internet?](#sec-2-is-public-api-server-access-restricted-to-specific-cidr-ranges-rather-than-reachable-from-the-whole-internet)
+   - [sec-3: Do you allow users to assume an IAM Role and map that role to a Kubernetes RBAC group, rather than creating individual user mappings in the aws-auth ConfigMap?](#sec-3-do-you-allow-users-to-assume-an-iam-role-and-map-that-role-to-a-kubernetes-rbac-group-rather-than-creating-individual-user-mappings-in-the-aws-auth-configmap)
+   - [sec-5: Do you use a dedicated IAM role to create EKS clusters that is not used for routine cluster operations or day-to-day management tasks?](#sec-5-do-you-use-a-dedicated-iam-role-to-create-eks-clusters-that-is-not-used-for-routine-cluster-operations-or-day-to-day-management-tasks)
+   - [sec-6: Is pod-level workload identity (EKS Pod Identity or IRSA) configured for workloads that need AWS access?](#sec-6-is-pod-level-workload-identity-eks-pod-identity-or-irsa-configured-for-workloads-that-need-aws-access)
+   - [sec-7: Do you restrict access to the kube-system namespace to super administrators only, preventing regular users from modifying critical cluster components?](#sec-7-do-you-restrict-access-to-the-kube-system-namespace-to-super-administrators-only-preventing-regular-users-from-modifying-critical-cluster-components)
+   - [sec-9: Do non-system ClusterRoles avoid wildcard (star) resource and verb permissions?](#sec-9-do-non-system-clusterroles-avoid-wildcard-star-resource-and-verb-permissions)
+3. [Automate security best practices](#automate-security-best-practices)
+   - [sec-17: Is cluster access granted through EKS access entries (API authentication mode) rather than the legacy aws-auth ConfigMap?](#sec-17-is-cluster-access-granted-through-eks-access-entries-api-authentication-mode-rather-than-the-legacy-aws-auth-configmap)
+   - [sec-18: Is an OIDC provider configured for the EKS cluster to enable IRSA?](#sec-18-is-an-oidc-provider-configured-for-the-eks-cluster-to-enable-irsa)
+4. [RBAC Configuration](#rbac-configuration)
+   - [rbac-1: Is cluster-admin restricted to the two built-in subjects expected to hold it?](#rbac-1-is-cluster-admin-restricted-to-the-two-built-in-subjects-expected-to-hold-it)
+   - [rbac-2: Do service accounts use namespace-scoped permissions (not cluster-wide)?](#rbac-2-do-service-accounts-use-namespace-scoped-permissions-not-cluster-wide)
+   - [rbac-3: Are role bindings free of stale references to non-existent subjects?](#rbac-3-are-role-bindings-free-of-stale-references-to-non-existent-subjects)
+   - [rbac-4: Do default service accounts in non-system namespaces have automountServiceAccountToken disabled?](#rbac-4-do-default-service-accounts-in-non-system-namespaces-have-automountserviceaccounttoken-disabled)
+
+---
+
 ## Security pillar scorer — run by `assets/score.sh`, not by hand (covers all 57 Security questions)
 
 This single block scores the **entire Security pillar** (this file + data-protection, network,

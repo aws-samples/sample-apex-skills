@@ -15,6 +15,33 @@ Scoring (applies to every question except podsec-1 to podsec-5, which one offend
 
 ---
 
+## Table of Contents
+
+1. [Admission control & Pod Security Standards](#admission-control--pod-security-standards)
+   - [sec-10: Is any non-AWS validating admission webhook deployed whose rules match Pod creation?](#sec-10-is-any-non-aws-validating-admission-webhook-deployed-whose-rules-match-pod-creation)
+   - [sec-11: Are Pod Security Standards labels applied to namespaces to enforce security baselines?](#sec-11-are-pod-security-standards-labels-applied-to-namespaces-to-enforce-security-baselines)
+   - [sec-16: Is a policy engine (Kyverno or Gatekeeper) deployed with at least one policy loaded?](#sec-16-is-a-policy-engine-kyverno-or-gatekeeper-deployed-with-at-least-one-policy-loaded)
+   - [adm-1: Are admission controller policies (Gatekeeper/Kyverno) deployed on the cluster?](#adm-1-are-admission-controller-policies-gatekeeperkyverno-deployed-on-the-cluster)
+   - [adm-2: Is an admission policy engine deployed with at least one policy loaded, which is where a privileged-container restriction would live (whether any loaded policy restricts privileged is reported, not scored)?](#adm-2-is-an-admission-policy-engine-deployed-with-at-least-one-policy-loaded-which-is-where-a-privileged-container-restriction-would-live-whether-any-loaded-policy-restricts-privileged-is-reported-not-scored)
+   - [adm-3: Is an admission policy engine deployed with at least one policy loaded?](#adm-3-is-an-admission-policy-engine-deployed-with-at-least-one-policy-loaded)
+2. [Container & pod hardening](#container--pod-hardening)
+   - [sec-12: Are workload container images pinned to a digest or an explicit tag rather than :latest?](#sec-12-are-workload-container-images-pinned-to-a-digest-or-an-explicit-tag-rather-than-latest)
+   - [sec-15: Do containers have security contexts configured (runAsNonRoot, readOnlyRootFilesystem, or allowPrivilegeEscalation=false)?](#sec-15-do-containers-have-security-contexts-configured-runasnonroot-readonlyrootfilesystem-or-allowprivilegeescalationfalse)
+   - [podsec-1: Do containers run as non-root users?](#podsec-1-do-containers-run-as-non-root-users)
+   - [podsec-2: Are containers running without privileged mode?](#podsec-2-are-containers-running-without-privileged-mode)
+   - [podsec-3: Are pods free of host path volume mounts?](#podsec-3-are-pods-free-of-host-path-volume-mounts)
+   - [podsec-4: Do containers add only the Linux capabilities the Pod Security Standards Baseline profile allows (no NET_ADMIN, SYS_ADMIN, SYS_MODULE, ALL)?](#podsec-4-do-containers-add-only-the-linux-capabilities-the-pod-security-standards-baseline-profile-allows-no-net_admin-sys_admin-sys_module-all)
+   - [podsec-5: Do containers drop ALL Linux capabilities?](#podsec-5-do-containers-drop-all-linux-capabilities)
+   - [lens-11: Do EC2 worker nodes enforce IMDSv2 (HttpTokens=required)?](#lens-11-do-ec2-worker-nodes-enforce-imdsv2-httptokensrequired)
+3. [Supply chain & runtime security](#supply-chain--runtime-security)
+   - [sec-32: Do you implement container image signing and verification (Sigstore/Cosign, AWS Signer, Notary)?](#sec-32-do-you-implement-container-image-signing-and-verification-sigstorecosign-aws-signer-notary)
+   - [sec-33: Is a runtime security monitoring agent present (GuardDuty Runtime Monitoring, Falco, Sysdig or Tetragon)?](#sec-33-is-a-runtime-security-monitoring-agent-present-guardduty-runtime-monitoring-falco-sysdig-or-tetragon)
+4. [Image supply chain](#image-supply-chain)
+   - [lens-12: Do ECR repositories have scan-on-push enabled?](#lens-12-do-ecr-repositories-have-scan-on-push-enabled)
+   - [lens-13: Do ECR repositories use immutable image tags?](#lens-13-do-ecr-repositories-use-immutable-image-tags)
+
+---
+
 ## Admission control & Pod Security Standards
 
 ### sec-10: Is any non-AWS validating admission webhook deployed whose rules match Pod creation?

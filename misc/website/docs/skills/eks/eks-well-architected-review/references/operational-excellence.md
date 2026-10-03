@@ -31,6 +31,43 @@ Assessed). The per-question sections that follow give rationale and remediation 
 
 ---
 
+## Table of Contents
+
+1. [Operational Excellence scorer — run by `assets/score.sh`, not by hand](#operational-excellence-scorer--run-by-assetsscoresh-not-by-hand)
+2. [Infrastructure as Code](#infrastructure-as-code)
+   - [ope-1: Do you provision your EKS cluster and worker nodes using Infrastructure as Code (IaC) tools such as Terraform, CloudFormation, or AWS CDK?](#ope-1-do-you-provision-your-eks-cluster-and-worker-nodes-using-infrastructure-as-code-iac-tools-such-as-terraform-cloudformation-or-aws-cdk)
+   - [ope-2: Are AWS integrations (Load Balancer Controller, External DNS, EBS CSI Driver) deployed as EKS add-ons or controllers?](#ope-2-are-aws-integrations-load-balancer-controller-external-dns-ebs-csi-driver-deployed-as-eks-add-ons-or-controllers)
+   - [ope-3: Do you use GitOps workflows (ArgoCD, Flux) to minimize direct kubectl access?](#ope-3-do-you-use-gitops-workflows-argocd-flux-to-minimize-direct-kubectl-access)
+   - [ope-4: Are you using Helm charts or Kustomize for Kubernetes manifest templating?](#ope-4-are-you-using-helm-charts-or-kustomize-for-kubernetes-manifest-templating)
+3. [Centralized monitoring and logging](#centralized-monitoring-and-logging)
+   - [ope-5: Are control plane metrics monitored using CloudWatch Container Insights or Prometheus?](#ope-5-are-control-plane-metrics-monitored-using-cloudwatch-container-insights-or-prometheus)
+   - [ope-6: Are EKS control plane logs (API server, audit, authenticator, controller manager, scheduler) enabled?](#ope-6-are-eks-control-plane-logs-api-server-audit-authenticator-controller-manager-scheduler-enabled)
+   - [ope-7: Are worker node metrics (CPU, memory, disk) monitored using Node Exporter or CloudWatch?](#ope-7-are-worker-node-metrics-cpu-memory-disk-monitored-using-node-exporter-or-cloudwatch)
+   - [ope-8: Are application logs forwarded to a centralized system (Fluent Bit, Fluentd, CloudWatch)?](#ope-8-are-application-logs-forwarded-to-a-centralized-system-fluent-bit-fluentd-cloudwatch)
+   - [ope-9: Have you created CloudWatch alarms or alerts for API server 403/401 responses?](#ope-9-have-you-created-cloudwatch-alarms-or-alerts-for-api-server-403401-responses)
+   - [ope-10: Is the CNI metrics helper deployed to monitor VPC CNI IP address allocation and ENI usage?](#ope-10-is-the-cni-metrics-helper-deployed-to-monitor-vpc-cni-ip-address-allocation-and-eni-usage)
+   - [ope-11: Are you using AWS CloudTrail to audit EKS API calls and IRSA actions?](#ope-11-are-you-using-aws-cloudtrail-to-audit-eks-api-calls-and-irsa-actions)
+   - [ope-12: Is Kubernetes audit logging enabled to track API authorization decisions?](#ope-12-is-kubernetes-audit-logging-enabled-to-track-api-authorization-decisions)
+   - [ope-13: Do you have an ongoing upgrade plan aligned with the EKS Kubernetes version support lifecycle?](#ope-13-do-you-have-an-ongoing-upgrade-plan-aligned-with-the-eks-kubernetes-version-support-lifecycle)
+   - [ope-14: Do you have a non-production test environment for validating EKS upgrades before production?](#ope-14-do-you-have-a-non-production-test-environment-for-validating-eks-upgrades-before-production)
+   - [ope-15: Are worker nodes managed using EKS Managed Node Groups?](#ope-15-are-worker-nodes-managed-using-eks-managed-node-groups)
+   - [ope-16: Are core EKS add-ons (VPC CNI, CoreDNS, kube-proxy) managed as EKS managed add-ons?](#ope-16-are-core-eks-add-ons-vpc-cni-coredns-kube-proxy-managed-as-eks-managed-add-ons)
+4. [CronJob workload shape](#cronjob-workload-shape)
+   - [ope-18: Do CronJobs set a concurrency policy other than the default Allow?](#ope-18-do-cronjobs-set-a-concurrency-policy-other-than-the-default-allow)
+5. [EKS upgrade-readiness insights](#eks-upgrade-readiness-insights)
+   - [ope-20: Do the EKS upgrade-readiness insights AWS computes for this cluster all pass?](#ope-20-do-the-eks-upgrade-readiness-insights-aws-computes-for-this-cluster-all-pass)
+6. [Capacity Planning](#capacity-planning)
+   - [ope-19: Do you perform regular capacity planning reviews to ensure your EKS cluster can handle projected growth, seasonal traffic spikes, and maintain adequate resource headroom for scaling?](#ope-19-do-you-perform-regular-capacity-planning-reviews-to-ensure-your-eks-cluster-can-handle-projected-growth-seasonal-traffic-spikes-and-maintain-adequate-resource-headroom-for-scaling)
+7. [Fargate Profile Management](#fargate-profile-management)
+   - [fargate-1: Are Fargate profile namespace selectors specific (not just default/kube-system)?](#fargate-1-are-fargate-profile-namespace-selectors-specific-not-just-defaultkube-system)
+   - [fargate-2: Do Fargate pods have CPU and memory resource requests defined?](#fargate-2-do-fargate-pods-have-cpu-and-memory-resource-requests-defined)
+   - [fargate-4: Is the Fargate built-in log router configured with a log destination?](#fargate-4-is-the-fargate-built-in-log-router-configured-with-a-log-destination)
+8. [EKS Best Practices](#eks-best-practices)
+   - [lens-1: Is Node Problem Detector deployed for node health monitoring?](#lens-1-is-node-problem-detector-deployed-for-node-health-monitoring)
+   - [lens-7: Is the VPC CNI add-on managed, current, ACTIVE and free of reported health issues?](#lens-7-is-the-vpc-cni-add-on-managed-current-active-and-free-of-reported-health-issues)
+
+---
+
 ## Operational Excellence scorer — run by `assets/score.sh`, not by hand
 
 `${CLAUDE_SKILL_DIR}/assets/score.sh operational-excellence "$WORK"` extracts this block and runs it. Do

@@ -207,6 +207,16 @@ refused rather than defaulted.
 
 ---
 
+## Table of Contents
+
+1. [Security](#security)
+2. [Reliability](#reliability)
+3. [Operational Excellence](#operational-excellence)
+4. [Performance Efficiency](#performance-efficiency)
+5. [Cost Optimization](#cost-optimization)
+
+---
+
 ## Security
 
 ### High

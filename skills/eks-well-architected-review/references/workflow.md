@@ -24,6 +24,33 @@ requests.** Collection calls the AWS and Kubernetes APIs, and whatever this revi
 > drift. An EC2 *list* API that has gone quiet is **not** on that list and never will be; see
 > *Auto Mode hides instances and volumes from the list APIs*. **Do not score data that failed this gate.**
 
+## Table of Contents
+
+1. [Run it](#run-it)
+2. [What it collects](#what-it-collects)
+   - [Auto Mode hides instances and volumes from the list APIs](#auto-mode-hides-instances-and-volumes-from-the-list-apis)
+3. [Why it fails loud](#why-it-fails-loud)
+4. [What counts as "an EKS cluster" here](#what-counts-as-an-eks-cluster-here)
+5. [Read-only, grants and the work directory](#read-only-grants-and-the-work-directory)
+6. [Why parameters are arguments](#why-parameters-are-arguments)
+7. [Permission preflight and the read-only IAM policy](#permission-preflight-and-the-read-only-iam-policy)
+8. [Which surfaces are machine-generated](#which-surfaces-are-machine-generated)
+9. [Step 1 detail: binding the review to one cluster](#step-1-detail-binding-the-review-to-one-cluster)
+10. [Step 2 detail: the kubeconfig, the parameters, the work directory and the exit status](#step-2-detail-the-kubeconfig-the-parameters-the-work-directory-and-the-exit-status)
+11. [Step 3 detail: the seven mode labels, and why the numbers set no flags](#step-3-detail-the-seven-mode-labels-and-why-the-numbers-set-no-flags)
+12. [Step 4 detail: why the gates are shaped this way](#step-4-detail-why-the-gates-are-shaped-this-way)
+13. [Step 5 detail: the `resources` key](#step-5-detail-the-resources-key)
+14. [Step 5 detail: how `score.sh` runs the scorer blocks, and why there is no drift detection](#step-5-detail-how-scoresh-runs-the-scorer-blocks-and-why-there-is-no-drift-detection)
+15. [Step 7 detail: `-o`, four more refusals, and where severity lives](#step-7-detail--o-four-more-refusals-and-where-severity-lives)
+16. [Step 8 detail: themes, the internal report, resource lists and what the renderer reads](#step-8-detail-themes-the-internal-report-resource-lists-and-what-the-renderer-reads)
+17. [Step 8 detail: if the renderer exits non-zero](#step-8-detail-if-the-renderer-exits-non-zero)
+18. [Markdown-only report](#markdown-only-report)
+19. [Scoring model detail: buckets, states, bands and pillar weights](#scoring-model-detail-buckets-states-bands-and-pillar-weights)
+20. [Platform-credited answers](#platform-credited-answers)
+21. [Report content read from SKILL.md and from this file](#report-content-read-from-skillmd-and-from-this-file)
+
+---
+
 ## Run it
 
 ```bash

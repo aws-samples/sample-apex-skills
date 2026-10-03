@@ -29,6 +29,28 @@ Assessed). The per-question sections below give rationale and remediation.
 
 ---
 
+## Table of Contents
+
+1. [Performance Efficiency scorer — run by `assets/score.sh`, not by hand](#performance-efficiency-scorer--run-by-assetsscoresh-not-by-hand)
+2. [Workload sizing, scheduling and rollout](#workload-sizing-scheduling-and-rollout)
+   - [perf-1: Do containers have CPU and memory requests set for accurate scheduling?](#perf-1-do-containers-have-cpu-and-memory-requests-set-for-accurate-scheduling)
+   - [perf-2: Is Vertical Pod Autoscaler (VPA) deployed for right-sizing resource requests?](#perf-2-is-vertical-pod-autoscaler-vpa-deployed-for-right-sizing-resource-requests)
+   - [perf-3: Are appropriate EC2 instance types selected for the workload requirements?](#perf-3-are-appropriate-ec2-instance-types-selected-for-the-workload-requirements)
+   - [perf-4: Do deployments use RollingUpdate strategy for zero-downtime updates?](#perf-4-do-deployments-use-rollingupdate-strategy-for-zero-downtime-updates)
+   - [perf-5: Are pod anti-affinity or topology spread constraints configured?](#perf-5-are-pod-anti-affinity-or-topology-spread-constraints-configured)
+3. [Resource Optimization](#resource-optimization)
+   - [perf-6: Is there diversity in EC2 instance types across node groups?](#perf-6-is-there-diversity-in-ec2-instance-types-across-node-groups)
+4. [Node resource utilization](#node-resource-utilization)
+   - [perf-7: Are node CPU and memory resources being utilized efficiently (requests vs capacity)?](#perf-7-are-node-cpu-and-memory-resources-being-utilized-efficiently-requests-vs-capacity)
+5. [EKS Best Practices](#eks-best-practices)
+   - [lens-5: Do pods use Kubernetes standard labels (app.kubernetes.io/name)?](#lens-5-do-pods-use-kubernetes-standard-labels-appkubernetesioname)
+   - [lens-6: Do nodes use a SUPPORTED EKS-optimized AMI (Amazon Linux 2023 or Bottlerocket)?](#lens-6-do-nodes-use-a-supported-eks-optimized-ami-amazon-linux-2023-or-bottlerocket)
+   - [lens-8: Do pods override CoreDNS ndots to ≤2 for faster DNS resolution?](#lens-8-do-pods-override-coredns-ndots-to-2-for-faster-dns-resolution)
+   - [lens-9: Do LoadBalancer services use externalTrafficPolicy: Local?](#lens-9-do-loadbalancer-services-use-externaltrafficpolicy-local)
+   - [lens-10: Are services configured with topology-aware routing?](#lens-10-are-services-configured-with-topology-aware-routing)
+
+---
+
 ## Performance Efficiency scorer — run by `assets/score.sh`, not by hand
 
 `${CLAUDE_SKILL_DIR}/assets/score.sh performance-efficiency "$WORK"` extracts this block and runs it. Do not paste it

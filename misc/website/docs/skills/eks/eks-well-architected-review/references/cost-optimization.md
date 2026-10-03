@@ -57,6 +57,27 @@ Assessed).
 
 ---
 
+## Table of Contents
+
+1. [Cost Optimization scorer — run by `assets/score.sh`, not by hand](#cost-optimization-scorer--run-by-assetsscoresh-not-by-hand)
+2. [Cost Effective Resources](#cost-effective-resources)
+   - [cost-1: Are ResourceQuotas configured for namespaces to prevent resource over-consumption?](#cost-1-are-resourcequotas-configured-for-namespaces-to-prevent-resource-over-consumption)
+   - [cost-2: Are LimitRanges configured for namespaces to set default resource constraints?](#cost-2-are-limitranges-configured-for-namespaces-to-set-default-resource-constraints)
+   - [cost-3: Do you proactively optimize Pod hours by scaling down or terminating unnecessary Pods during off-peak hours, nights, and weekends?](#cost-3-do-you-proactively-optimize-pod-hours-by-scaling-down-or-terminating-unnecessary-pods-during-off-peak-hours-nights-and-weekends)
+   - [cost-4: Are you proactively monitoring and measuring data transfer costs between Availability Zones, regions, and to the internet?](#cost-4-are-you-proactively-monitoring-and-measuring-data-transfer-costs-between-availability-zones-regions-and-to-the-internet)
+   - [cost-5: Is storage provisioning efficient (requested capacity vs provisioned capacity)?](#cost-5-is-storage-provisioning-efficient-requested-capacity-vs-provisioned-capacity)
+3. [Expenditure and Usage Awareness](#expenditure-and-usage-awareness)
+   - [cost-6: Are PersistentVolumes actively used (every PV Bound)?](#cost-6-are-persistentvolumes-actively-used-every-pv-bound)
+   - [cost-7: Are cost allocation tags applied to the EKS cluster for chargeback?](#cost-7-are-cost-allocation-tags-applied-to-the-eks-cluster-for-chargeback)
+   - [cost-8: Are the cluster's EBS volumes all attached (none idle and still billing)?](#cost-8-are-the-clusters-ebs-volumes-all-attached-none-idle-and-still-billing)
+4. [StorageClass cost defaults](#storageclass-cost-defaults)
+   - [cost-9: Are StorageClasses configured with cost-optimized volume types (gp3, Delete reclaim policy)?](#cost-9-are-storageclasses-configured-with-cost-optimized-volume-types-gp3-delete-reclaim-policy)
+5. [EKS Best Practices](#eks-best-practices)
+   - [lens-4: Is cost visibility tooling (Kubecost/OpenCost) deployed?](#lens-4-is-cost-visibility-tooling-kubecostopencost-deployed)
+   - [lens-16: Are VPC endpoints for S3, ECR, and STS configured and available?](#lens-16-are-vpc-endpoints-for-s3-ecr-and-sts-configured-and-available)
+
+---
+
 ## Cost Optimization scorer — run by `assets/score.sh`, not by hand
 
 `${CLAUDE_SKILL_DIR}/assets/score.sh cost-optimization "$WORK"` extracts this block and runs it. Do not paste it

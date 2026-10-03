@@ -19,6 +19,47 @@ Assessed). The per-question sections below give rationale and remediation.
 
 ---
 
+## Table of Contents
+
+1. [Reliability scorer — run by `assets/score.sh`, not by hand](#reliability-scorer--run-by-assetsscoresh-not-by-hand)
+2. [Stop guessing capacity](#stop-guessing-capacity)
+   - [rel-1: Are worker nodes deployed across multiple Availability Zones?](#rel-1-are-worker-nodes-deployed-across-multiple-availability-zones)
+   - [rel-2: Are PodDisruptionBudgets configured for critical deployments?](#rel-2-are-poddisruptionbudgets-configured-for-critical-deployments)
+   - [rel-3: Do containers have CPU and memory limits set?](#rel-3-do-containers-have-cpu-and-memory-limits-set)
+   - [rel-4: Is a cluster autoscaler (Cluster Autoscaler or Karpenter) deployed?](#rel-4-is-a-cluster-autoscaler-cluster-autoscaler-or-karpenter-deployed)
+   - [rel-5: Are Horizontal Pod Autoscalers configured for deployments?](#rel-5-are-horizontal-pod-autoscalers-configured-for-deployments)
+   - [rel-6: Do containers have readiness probes configured?](#rel-6-do-containers-have-readiness-probes-configured)
+3. [Self-Healing Architecture](#self-healing-architecture)
+   - [rel-7: Do deployments run with more than one replica?](#rel-7-do-deployments-run-with-more-than-one-replica)
+   - [rel-8: Are pod anti-affinity rules configured to spread replicas across nodes?](#rel-8-are-pod-anti-affinity-rules-configured-to-spread-replicas-across-nodes)
+   - [rel-9: Are topology spread constraints configured to distribute pods across zones?](#rel-9-are-topology-spread-constraints-configured-to-distribute-pods-across-zones)
+   - [rel-10: Are VolumeSnapshot classes and snapshots configured for persistent volume backup?](#rel-10-are-volumesnapshot-classes-and-snapshots-configured-for-persistent-volume-backup)
+   - [rel-11: Are PersistentVolumeClaims in a Bound state?](#rel-11-are-persistentvolumeclaims-in-a-bound-state)
+   - [rel-12: Are VolumeSnapshot policies configured for automated backup?](#rel-12-are-volumesnapshot-policies-configured-for-automated-backup)
+4. [Failure Management](#failure-management)
+   - [rel-13: Are monitoring tools (Prometheus, CloudWatch, Datadog) deployed for alerting?](#rel-13-are-monitoring-tools-prometheus-cloudwatch-datadog-deployed-for-alerting)
+   - [rel-14: Are ingress controllers deployed with multiple replicas for high availability?](#rel-14-are-ingress-controllers-deployed-with-multiple-replicas-for-high-availability)
+   - [rel-15: Are LoadBalancer services used for external traffic exposure?](#rel-15-are-loadbalancer-services-used-for-external-traffic-exposure)
+   - [rel-16: Is a service mesh deployed for traffic management and circuit breaking?](#rel-16-is-a-service-mesh-deployed-for-traffic-management-and-circuit-breaking)
+   - [rel-17: Are CoreDNS and External DNS configured for service discovery?](#rel-17-are-coredns-and-external-dns-configured-for-service-discovery)
+   - [rel-18: Do deployments use RollingUpdate strategy?](#rel-18-do-deployments-use-rollingupdate-strategy)
+   - [rel-19: Do DaemonSets use RollingUpdate strategy?](#rel-19-do-daemonsets-use-rollingupdate-strategy)
+5. [StatefulSet and DaemonSet workload shape](#statefulset-and-daemonset-workload-shape)
+   - [rel-20: Do DaemonSet containers have resource requests and limits set?](#rel-20-do-daemonset-containers-have-resource-requests-and-limits-set)
+   - [rel-21: Do StatefulSets use persistent storage (volumeClaimTemplates or PVCs)?](#rel-21-do-statefulsets-use-persistent-storage-volumeclaimtemplates-or-pvcs)
+   - [rel-22: Do StatefulSets run more than one replica?](#rel-22-do-statefulsets-run-more-than-one-replica)
+6. [Protection against accidental deletion](#protection-against-accidental-deletion)
+   - [rel-24: Is cluster deletion protection enabled?](#rel-24-is-cluster-deletion-protection-enabled)
+7. [Observability](#observability)
+   - [rel-23: Do you implement distributed tracing (AWS X-Ray, Jaeger, Zipkin) for request flow visibility?](#rel-23-do-you-implement-distributed-tracing-aws-x-ray-jaeger-zipkin-for-request-flow-visibility)
+8. [EKS Best Practices](#eks-best-practices)
+   - [lens-2: Is NodeLocal DNSCache deployed for DNS performance?](#lens-2-is-nodelocal-dnscache-deployed-for-dns-performance)
+   - [lens-3: Is a CoreDNS autoscaler deployed?](#lens-3-is-a-coredns-autoscaler-deployed)
+   - [lens-14: Are NAT Gateways deployed per-AZ for redundancy?](#lens-14-are-nat-gateways-deployed-per-az-for-redundancy)
+   - [lens-15: Are worker nodes deployed in private subnets?](#lens-15-are-worker-nodes-deployed-in-private-subnets)
+
+---
+
 ## Reliability scorer — run by `assets/score.sh`, not by hand
 
 `${CLAUDE_SKILL_DIR}/assets/score.sh reliability "$WORK"` extracts this block and runs it. Do not paste it
