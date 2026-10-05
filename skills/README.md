@@ -344,6 +344,11 @@ Deterministic AWS Well-Architected Framework review of an Amazon EKS cluster (Li
 | [operational-excellence.md](./eks-well-architected-review/references/operational-excellence.md) | Operational excellence |
 | [performance-efficiency.md](./eks-well-architected-review/references/performance-efficiency.md) | Performance efficiency |
 | [reliability.md](./eks-well-architected-review/references/reliability.md) | Reliability |
+| [security/data-protection.md](./eks-well-architected-review/references/security/data-protection.md) | Data protection |
+| [security/governance-compliance.md](./eks-well-architected-review/references/security/governance-compliance.md) | Governance compliance |
+| [security/identity-access.md](./eks-well-architected-review/references/security/identity-access.md) | Identity access |
+| [security/network.md](./eks-well-architected-review/references/security/network.md) | Network |
+| [security/workload-security.md](./eks-well-architected-review/references/security/workload-security.md) | Workload security |
 | [severity.md](./eks-well-architected-review/references/severity.md) | Severity |
 | [workflow.md](./eks-well-architected-review/references/workflow.md) | Workflow |
 
