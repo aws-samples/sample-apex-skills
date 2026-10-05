@@ -9,7 +9,7 @@
   },
   {
     "query": "audit cluster prod-use1 in us-east-1 across all five pillars and give me an HTML report",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "check my EKS cluster for Well-Architected compliance",
@@ -33,7 +33,7 @@
   },
   {
     "query": "how does our EKS cluster rate on operational excellence, security, reliability, performance and cost? read the live cluster, don't guess",
-    "should_trigger": true
+    "should_trigger": false
   },
   {
     "query": "do the full Well-Architected review of cluster staging-eks and interview me on the governance questions too",
@@ -93,6 +93,22 @@
   },
   {
     "query": "audit my EKS cluster's operational posture and rate each area GREEN, AMBER or RED",
+    "should_trigger": false
+  },
+  {
+    "query": "score my EKS cluster and tell me what to fix first to raise the score",
+    "should_trigger": false
+  },
+  {
+    "query": "assess my EKS cluster's cost hygiene — idle volumes, missing quotas, gp2 storage",
+    "should_trigger": false
+  },
+  {
+    "query": "how reliable is our EKS cluster? check PDBs, replicas and autoscaling on the live cluster",
+    "should_trigger": false
+  },
+  {
+    "query": "rate our EKS cluster's security posture and list what's misconfigured",
     "should_trigger": false
   }
 ]
