@@ -39,18 +39,20 @@ Analyze existing Ingress resources to determine what must be converted to HTTPRo
 | `nginx.ingress.kubernetes.io/rewrite-target` | HTTPRoute `filters[].urlRewrite` |
 | `nginx.ingress.kubernetes.io/ssl-redirect` | Gateway listener `tls` config |
 | `nginx.ingress.kubernetes.io/cors-*` | No native equivalent — use AWS WAF or application-level |
-| `nginx.ingress.kubernetes.io/auth-url` | No equivalent — use ALB + Cognito/OIDC via Gateway annotation |
+| `nginx.ingress.kubernetes.io/auth-url` | No native equivalent — use ALB + Cognito/OIDC via `ListenerRuleConfiguration.authenticateOIDCConfig` |
 | `nginx.ingress.kubernetes.io/canary-*` | HTTPRoute `backendRefs[].weight` (traffic splitting) |
-| `nginx.ingress.kubernetes.io/affinity` | No native equivalent — use `alb.ingress.kubernetes.io/target-group-attributes` on Gateway |
+| `nginx.ingress.kubernetes.io/affinity` | No native equivalent — use `TargetGroupConfiguration` target-group attributes |
 | `nginx.ingress.kubernetes.io/configuration-snippet` | ❌ No equivalent — redesign needed |
 | `nginx.ingress.kubernetes.io/server-snippet` | ❌ No equivalent — redesign needed |
 | `nginx.ingress.kubernetes.io/lua-resty-waf` | ❌ No equivalent — use AWS WAF |
-| `alb.ingress.kubernetes.io/scheme` | Gateway annotation `alb.ingress.kubernetes.io/scheme` |
-| `alb.ingress.kubernetes.io/certificate-arn` | Gateway listener `tls.certificateRefs` or annotation |
+| `alb.ingress.kubernetes.io/scheme` | `LoadBalancerConfiguration` `spec.scheme` — **defaults to `internal`**, so it must be set explicitly for a public ALB |
+| `alb.ingress.kubernetes.io/certificate-arn` | `LoadBalancerConfiguration` `spec.listenerConfigurations[].defaultCertificate` (ACM ARN) — **not** the listener's `tls.certificateRefs` |
 | `alb.ingress.kubernetes.io/actions.*` | HTTPRoute `filters` + `backendRefs` |
 
+> **`alb.ingress.kubernetes.io/*` annotations do not work on a Gateway.** Their documented location is Ingress and Service only. On the Gateway API path the load balancer is configured through the LBC's own CRDs — `LoadBalancerConfiguration` (scheme, listeners, certificates, SSL policy, security groups), `TargetGroupConfiguration` (target type, health checks, target-group attributes) and `ListenerRuleConfiguration` (per-rule actions such as OIDC auth) — attached to the Gateway via `spec.infrastructure.parametersRef`. An annotation carried over from the Ingress is silently ignored, so the defaults apply: **internal** scheme and **no certificate**.
+
 **Impact (per Impact Indicator):**
-- 🟡 1–2 (Low): All annotations map to HTTPRoute features or Gateway annotations
+- 🟡 1–2 (Low): All annotations map to **HTTPRoute features or the LBC Gateway configuration CRDs** (`LoadBalancerConfiguration` / `TargetGroupConfiguration` / `ListenerRuleConfiguration`, attached via `spec.infrastructure.parametersRef`). Note this is **not** "maps to a Gateway annotation": `alb.ingress.kubernetes.io/*` annotations are ignored on a Gateway (see above).
 - 🟠 3–4 (Medium): Most map cleanly, some need AWS service substitution (WAF, Cognito)
 - 🔴 5 (High): Heavy use of nginx snippets/lua with no Gateway API equivalent
 - ⬜ Unknown: Cannot parse annotations
@@ -68,15 +70,15 @@ Analyze existing Ingress resources to determine what must be converted to HTTPRo
 3. Check for SSL passthrough annotations
 
 **Gateway API TLS model:**
-- TLS termination is configured on the **Gateway listener**, not on HTTPRoute
-- ACM certificates: referenced via Gateway annotation
-- K8s Secret certs: referenced via `tls.certificateRefs` in Gateway listener
+- TLS termination is configured on the **Gateway listener** (`tls.mode: Terminate`), not on HTTPRoute
+- ACM certificates: set on `LoadBalancerConfiguration` `spec.listenerConfigurations[].defaultCertificate` (plus `certificates` for SNI extras), or discovered from the listener `hostname`
+- **K8s Secret certs have no Gateway path on LBC** — `tls.certificateRefs` is *not* supported on a Gateway listener, so a Secret-based cert must first be imported into ACM. This is a migration task, not a reference change; do not plan for a `certificateRefs` carry-over.
 - SSL passthrough: use TLSRoute (not HTTPRoute)
 
 **Impact (per Impact Indicator):**
 - 🟡 1–2 (Low): Edge termination with ACM — maps directly to Gateway listener
 - 🟠 3–4 (Medium): Using K8s Secrets — need cert-manager Gateway integration or migrate to ACM
-- 🔴 5 (High): SSL passthrough required — needs TLSRoute (experimental channel CRD)
+- 🔴 5 (High): SSL passthrough required — needs **TLSRoute**, which is in the **standard** channel (graduated to `v1` in Gateway API **v1.5.0**), so both CRD versions this skill pins (v1.5.0 / v1.6.0) carry it without an experimental install. The Impact is driven by the **re-architecture**, not by CRD availability.
 - ⬜ Unknown: Cannot determine TLS configuration
 
 > **Cutover-risk caveat — the *migration action* is not Low.** Moving the cert store (K8s Secret → ACM) **at the same time as** the routing/class change risks **SSL/TLS handshake failures or downtime** if DNS lags or ACM domain validation hasn't completed. The "if-left-as-is" Impact may be low (the app serves TLS today), but the **remediation step** must be rated ≥ Medium and sequenced: **(1)** request/validate the ACM cert to `ISSUED` first, **(2)** keep the existing NGINX path live, **(3)** switch class / cut over DNS only after the new ALB + cert are verified. Never bundle "migrate TLS to ACM" into a Low/one-step task.

@@ -39,6 +39,7 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 **What to check:**
 - Deployments/DaemonSets running ingress controllers
 - Common controllers: nginx-ingress, AWS LB Controller, Traefik, HAProxy, Istio, Contour, Kong
+  - ⚠️ **Disambiguate the two NGINX controllers.** This skill's annotation mappings, CVE bands and retirement guidance are all for the **community `ingress-nginx`** controller (annotation prefix `nginx.ingress.kubernetes.io/`, image `registry.k8s.io/ingress-nginx/controller`). F5's commercial **NGINX Ingress Controller** (`nginx-ingress`, annotation prefix `nginx.org/`, image `nginx/nginx-ingress`) is a **different product on its own support lifecycle** — it is out of scope here. If you find `nginx.org/*` annotations or the F5 image, say so explicitly and do not apply this skill's ingress-nginx findings to it.
 
 **How to check:**
 1. List Deployments across all namespaces → filter for ingress-related names
@@ -92,6 +93,28 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 - 🔴 5 (High): >200 Ingress resources, or many without IngressClass assignment
 - ⬜ Unknown: Cannot list Ingress resources
 
+### 1.3-A — TCP/UDP Service Exposure (L4 flows with no Ingress object)
+
+**Why this is its own check:** ingress-nginx also proxies raw TCP/UDP via the `--tcp-services-configmap` / `--udp-services-configmap` flags. Those flows are declared in a **ConfigMap plus a controller Service port** — there is **no Ingress object anywhere**. §1.3's inventory therefore cannot see them, and neither can the Routing Topology table. Missing them silently drops working production traffic at cutover.
+
+**What to check (read-only):**
+- Controller Deployment `args` for `--tcp-services-configmap=<ns>/<name>` and `--udp-services-configmap=<ns>/<name>`
+- The referenced ConfigMaps — each entry is `<external-port>: <namespace>/<service>:<service-port>`
+- The controller Service's ports **other than 80/443** — an L4 entry only reaches the cluster if the Service publishes its port, so an entry with no matching Service port is dead config (record it as such, don't count it as a live route)
+
+**How to check:**
+1. Read the controller Deployment's container args; extract the two ConfigMap references
+2. Get each referenced ConfigMap and enumerate its `data` entries
+3. List the controller Service and record every non-80/443 port, matching it to the ConfigMap entries
+
+**Migration consequence (state it in the report):** TCP/UDP flows map to **TCPRoute / UDPRoute on an NLB Gateway** — a **separate Gateway** from the L7 ALB one, because LBC does not support mixing protocol layers on a single Gateway. They also need the L4 CRDs, and from Gateway API v1.6.0 TCPRoute/UDPRoute are in the standard channel (below v1.6.0 they require the experimental install). Plan a second Gateway, not an extra listener.
+
+**Impact (per Impact Indicator):**
+- 🟢 0: no `--tcp/udp-services-configmap` arg and no non-80/443 controller Service port
+- 🟡 1–2 (Low): a small number of L4 entries, all mapping cleanly to TCPRoute/UDPRoute
+- 🟠 3–4 (Medium): L4 entries present and carrying live business traffic — a second (NLB) Gateway plus its own cutover is now in scope
+- ⬜ Unknown: **fail closed.** If the controller args or the ConfigMaps cannot be read, record L4 exposure as **Unverified** and state that the route inventory is a **lower bound**. Never infer "no L4 services" from a failed or denied read.
+
 ### 1.4 — Controller Currency, EOL & CVE Exposure
 
 **What to check (read-only):**
@@ -101,7 +124,7 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 
 **How to check (read-only):**
 1. `kubectl get deploy <controller> -n <ns> -o jsonpath='{.spec.template.spec.containers[0].image}'` — extract the version tag for every controller found in 1.1.
-2. Compare each version against the project's supported/EOL matrix.
+2. Compare each version against the project's supported-versions table — but read it as a **frozen historical artifact, not a live support matrix**: for ingress-nginx that table stopped moving when the project was archived (see "Retirement status" below), so "appears in the table" does **not** mean "supported today".
 3. For ingress-nginx, read the controller ConfigMap: `kubectl get cm <controller> -n <ns> -o jsonpath='{.data.allow-snippet-annotations} {.data.annotations-risk-level}'`.
 4. **Admission-webhook exposure (required for the control-plane CVE band below):** confirm whether the validating admission webhook is actually present and reachable — do NOT assume from the version alone. Run `kubectl get validatingwebhookconfigurations` and look for the ingress-nginx entry (default name `ingress-nginx-admission`); cross-check the controller Deployment args and the `ingress-nginx-controller-admission` Service. **These object names are built from the chart's *fullname*, not the bare release name: it is the release name when that already contains the chart name, otherwise `<release>-ingress-nginx`. So the VWC is `ingress-nginx-admission` for a release named `ingress-nginx`, but `<release>-ingress-nginx-admission` otherwise (and the Service likewise `…-controller-admission`) — match by the controller's owner references / labels, not just the literal default names.** The webhook ships **enabled by default** in Helm installs. Decide exposure as follows and **record the exact state** (`webhook: exposed | not-exposed | unverified`) in the finding — do not collapse it to a bare present/absent flag:
    - **Exposed** — the controller Deployment is started with a **non-empty** `--validating-webhook=<address>` arg (e.g. `--validating-webhook=:8443`, the Helm default), so the **webhook server is actually listening on the controller pod** (pod-IP:8443). This is the CVE-2025-1974 attack surface: the exploit reaches the pod's webhook server **directly over the pod network**, so on a `< v1.11.5 / < v1.12.1` controller the control-plane path is live **regardless of route count** (🔴 5 band). A present `ingress-nginx-admission` VWC and a backed `ingress-nginx-controller-admission` Service **corroborate** that the webhook is also wired into the API server, but it is the **listening server** that makes it exploitable.
@@ -110,13 +133,17 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 
 **Deterministic version facts (cite in the finding):**
 - **ingress-nginx `< v1.9.0`** is affected by **CVE-2023-5043 / CVE-2023-5044** (configuration-snippet / permanent-redirect annotation injection → arbitrary command execution / privilege escalation). Treat any controller `< v1.9.0` as a security finding.
-- Since **v1.9.0**, `allow-snippet-annotations` defaults to **`false`** and `annotations-risk-level` to **`High`**. If a cluster sets `allow-snippet-annotations: "true"`, it re-opens the injection surface — flag it.
-- AWS Load Balancer Controller: **v2.7.2+** for the ALB Ingress path; **≥ v2.13.3 (L4) / ≥ v2.14 (L7)** for Gateway API.
+- **Retirement status — ingress-nginx is retired and permanently unpatched (checked 2026-09-13).** The `kubernetes/ingress-nginx` repository was **archived by its owners on 2026-03-24** and is now read-only. Upstream's own retirement notice states that after best-effort maintenance ended in March 2026 there are **"no further releases, no bugfixes, and no updates to resolve any security vulnerabilities"**; the supported-versions table is frozen at **v1.15.1**. Existing deployments keep running and published images/charts remain downloadable, so a cluster will **not** break on its own — but **every ingress-nginx version, including the newest, is now permanently unpatched against any CVE discovered from here on.** Cite the [retirement announcement](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/). State this as a fact in the report; never imply a "current"/"patched" ingress-nginx exists or that migration is optional maintenance.
+- Since **v1.9.1**, `allow-snippet-annotations` defaults to **`false`** — v1.9.1 is where the default **flipped**, not where the setting appeared. `allow-snippet-annotations` **does exist in v1.9.0**, where it defaults to **`true`**, so a v1.9.0 controller allows snippets by default (verified in `internal/ingress/controller/config/config.go` at tag `controller-v1.9.0`: the field is present and `NewDefault()` sets it `true`). What v1.9.0 lacks is `annotations-risk-level`, which landed in [v1.9.1](https://github.com/kubernetes/ingress-nginx/releases/tag/controller-v1.9.1) (2023-10-03). Note that `annotations-risk-level` defaults to **`High`**, which **admits** High-risk annotations and blocks only `Critical` — a default-configured controller is not "hardened to Low". If a cluster sets `allow-snippet-annotations: "true"`, it re-opens the injection surface — flag it.
+- AWS Load Balancer Controller: no separately documented minimum for the plain ALB Ingress path (use a currently supported release — the latest line is **v3.5.0**; currency is dated in `gateway-api.md`) — but **v2.14.1+** if `transforms` URI rewrites are needed, and **≥ v3.0.0** for Gateway API (the production floor; L4/L7 reconciliation began at v2.13.3 / v2.14.0 but upstream flagged the whole v2.x line as not for production).
 
 **Impact (per Impact Indicator — anchor on EXPOSURE / blast-radius for security, and on live traffic for business; never on patch effort):**
 > A CVE/EOL finding's severity comes from what it **exposes**, not how hard the upgrade is. Two exposure surfaces exist and are **independent**:
 > - **Data-plane exposure** scales with the **live traffic the controller serves** (business-critical routes > internal > none).
 > - **Control-plane exposure** is the controller's own attack surface (e.g. ingress-nginx's validating admission webhook) and **exists whenever the controller process is running and reachable — regardless of how many routes it serves.** "Zero routes" does NOT imply "not exploitable."
+>
+> **Floor — a running ingress-nginx controller is never Currency-clean (minimum 🟠 3).** Because the project is archived and permanently unpatched (see "Retirement status" above), there is no ingress-nginx version that can be called current. Any **running** ingress-nginx controller therefore scores **at least 🟠 3** on this category, even at the newest release (v1.15.1) with the webhook confirmed not-exposed and snippet hardening intact. Rationale: the estate carries a standing, unfixable security-patch gap, so a "clean" Currency row would tell the reader migration is optional when it is not. This floor **raises** a band, never lowers one — the 🔴 5 conditions below still govern where they apply, and 🟢 0 remains correct **only** for an absent or fully-down controller (nothing is running, so nothing is exposed). It applies to ingress-nginx specifically; other controllers are still judged against their own live support matrices.
+
 - 🟢 0 (Non-event): The controller is **absent, or fully down** — all replicas `CrashLoopBackOff`/unreachable, so neither the data plane nor the admission webhook is serving. Record as an informational note, deduct 0. *(A broken-with-zero-routes controller still earns its separate §1.1 tech-debt point — that is not a CVE deduction; a broken-with-bound-routes controller is an active outage, handled in §1.1.)*
 - 🟡 1–2 (Low): EOL/CVE controller serving only **non-critical / internal / low-traffic** routes, with no known control-plane RCE; snippet hardening intact.
 - 🟠 3–4 (Medium): A controller is behind/approaching EOL, **or** `allow-snippet-annotations=true` is set on a current controller (injection surface re-opened), serving routes of **moderate** business importance.
@@ -136,6 +163,6 @@ Discover all ingress controllers, IngressClass resources, and Ingress objects in
 1. `aws eks describe-cluster --name <cluster> --query 'cluster.computeConfig'` — Auto Mode is enabled when `computeConfig.enabled = true` (with managed `nodePools`).
 2. Recognize Auto Mode's managed load-balancing IngressClass: `spec.controller: eks.amazonaws.com/alb` (parameters `apiGroup: eks.amazonaws.com`, `kind: IngressClassParams`); NLB via `loadBalancerClass: eks.amazonaws.com/nlb`. This is **distinct** from the self-managed LBC (`ingress.k8s.aws/alb`).
 
-**Why it matters:** on Auto Mode the ALB Ingress path needs **no self-managed LBC install** (it's built in); a `eks.amazonaws.com/alb` IngressClass is a *managed* controller, not a missing one. Gateway API L7 still requires the LBC ≥ v2.14 unless/until Auto Mode exposes it natively.
+**Why it matters:** on Auto Mode the ALB Ingress path needs **no self-managed LBC install** (it's built in); a `eks.amazonaws.com/alb` IngressClass is a *managed* controller, not a missing one. Gateway API is **not** part of Auto Mode's built-in load balancing (Ingress + Service `type: LoadBalancer` only, as of 2026-09-01), so a Gateway API target still requires a **self-managed LBC at ≥ v3.0.0**.
 
 **Impact (per Impact Indicator):** informational — record Auto Mode status in Current Configuration; it does not by itself carry a migration impact, but it changes the Migration Options guidance.

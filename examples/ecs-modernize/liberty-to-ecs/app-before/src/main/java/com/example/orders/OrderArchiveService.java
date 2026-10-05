@@ -35,6 +35,9 @@ public class OrderArchiveService {
         }
 
         String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+        // Deliberately unguarded here: app-before is the rough pre-modernization
+        // sample. The servlet-layer accept-known-good allowlist (OrdersServlet)
+        // is the control that keeps a "../" orderId from reaching this path.
         File target = new File(dir, orderId + "-" + stamp + ".json");
 
         // PLANTED: authoritative business data written to the local disk.

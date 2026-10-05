@@ -6,7 +6,6 @@
       "name": "full-review-test-old-cluster",
       "prompt": "Run a full operational excellence assessment on the EKS cluster currently configured in my kubeconfig. Cover all 10 sections and produce the rated report.",
       "live_only": true,
-      "expected_output": "A markdown report with executive summary, maturity score, 10 sections of findings with consistent ratings, prioritized actions ordered by severity, items to investigate manually, and AWS reference links sourced from the pre-verified reference map.",
       "expectations": [
         "The report contains all required top-level sections in this order: Executive Summary, Maturity Score, Findings (with all 10 numbered sections present), Prioritized Actions (Critical, Important, Quick Wins), Items to Investigate Manually, AWS Reference Links. TODO: human review",
         "Every finding rated RED appears in the Critical actions table, and every finding rated AMBER appears in either Important or Quick Wins — no RED/AMBER finding is missing from Prioritized Actions. TODO: human review",
@@ -121,7 +120,6 @@
       "name": "section-scoped-networking-review",
       "prompt": "Run a networking-scoped operational review on the EKS cluster in my current kubeconfig context.",
       "live_only": true,
-      "expected_output": "A focused report containing only the networking section findings, with consistent ratings, prioritized actions for any networking RED/AMBER findings, and AWS reference links scoped to networking topics.",
       "expectations": [
         "The report focuses on Section 06 (Networking) only — does NOT include findings from other sections like Cluster Lifecycle, Access & Identity, etc. TODO: human review",
         "The skill loaded `references/networking.md` as the source for checks (visible from the assessment narrative or the report's reference links section). TODO: human review",

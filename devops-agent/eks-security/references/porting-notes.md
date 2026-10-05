@@ -2,7 +2,7 @@
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution.
 
-> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-08-23 (round-4/5 currency + precision hardening re-verified across both copies — AM→Config conformance packs, exact pack names, PCI Req 3.5.1.1, audit-logging retention, evals; the 3 per-regime deep files were ported 2026-08-19; other rows carried forward unchanged from 2026-07-17).
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-09-03 (round-4/5 currency + precision hardening re-verified across both copies — AM→Config conformance packs, exact pack names, PCI Req 3.5.1.1, audit-logging retention, evals; the 3 per-regime deep files were ported 2026-08-19; other rows carried forward unchanged from 2026-07-17; #207 both-siblings compliance-content sweep applied 2026-09-03 (AM availability-change + sample-templates citations, PCI global-resource-types selection rule, service-specific pack name, FedRAMP Class C/D note, HIPAA audit-log-floor hedge, org conformance packs + existing-AM decision guidance, maintenance-mode wording normalized)).
 
 ## Differences from Claude Code Version
 

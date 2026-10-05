@@ -135,7 +135,9 @@ def main() -> int:
             else:
                 seen_ids[pid] = idx
 
-        # --- New checks (warnings only = non-breaking) ---
+        # --- Additional checks (like the ones above, these append warnings
+        #     that fail hygiene; evals.yml runs this gate on every PR
+        #     touching misc/evals/** or skills/**) ---
 
         # 3. live_only field (if present) must be boolean.
         for p in prompts:

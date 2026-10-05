@@ -50,7 +50,7 @@ Example: `Ingress/nginx-alb: app.example.com/* → nginx-service:80 (Prefix, TLS
 - URL rewriting → HTTPRoute `filters[].urlRewrite`
 - Request redirect → HTTPRoute `filters[].requestRedirect`
 - Request/response header modification → HTTPRoute `filters[].requestHeaderModifier`
-- Authentication → No native Gateway API equivalent (use ALB Cognito/OIDC annotation — **interactive browser redirect only**; non-interactive callers need an app-level or token/mTLS scheme)
+- Authentication → No native Gateway API equivalent (use ALB Cognito/OIDC via `ListenerRuleConfiguration.authenticateOIDCConfig` — **interactive browser redirect only**; non-interactive callers need an app-level or token/mTLS scheme)
 - Rate limiting → No native equivalent (use AWS WAF)
 - CORS → No native equivalent (use application-level or WAF)
 
@@ -92,6 +92,8 @@ Example: `Ingress/nginx-alb: app.example.com/* → nginx-service:80 (Prefix, TLS
 ### 5.5 — Declarative Blind Spot & Optional Route Verification
 
 **Blind spot (always note when snippets are present):** topology and routing are derived from **Ingress objects only**. Routes injected via `server-snippet` / `configuration-snippet` (e.g. a raw `location` block) **do not appear** as Ingress rules/backends, so the Routing Topology table **and the HTML 3D Routing Diagram** (both derived from the same Ingress-only data) under-count them. State this limitation explicitly in the report whenever snippet annotations exist — these are exactly the routes that block migration.
+
+**Second blind spot — L4 (always check, not only when snippets exist):** `tcp-services` / `udp-services` ConfigMap entries are raw TCP/UDP flows with **no Ingress object at all**, so they are invisible to an Ingress-derived topology by construction. They are discovered separately in `ingress-discovery.md` §1.3-A (controller args → referenced ConfigMaps → non-80/443 controller Service ports) and must be carried into the Routing Topology table as their own rows, marked L4. They migrate to TCPRoute/UDPRoute on a **separate NLB Gateway** — LBC does not allow mixing protocol layers on one Gateway. If §1.3-A could not read the args or ConfigMaps, the route count is a **lower bound** and the inventory is **Unverified**; never report "no L4 exposure" from a denied read.
 
 **Optional deep read (requires `--allow-sensitive-data-access`, still read-only):**
 - Enumerate snippet-injected routes: `kubectl exec <nginx-pod> -n <ns> -- nginx -T` and scan for `location` blocks not represented by an Ingress.

@@ -40,7 +40,7 @@ Evaluate risk of migrating from Ingress to Gateway API.
 1. Compile annotation inventory from Section 3
 2. Map each to Gateway API equivalent or workaround:
    - nginx rate limiting → AWS WAF rate-based rules
-   - nginx basic auth → ALB + Cognito/OIDC (Gateway annotation) — **browser callers only**; non-interactive clients break (see `alb-migration.md` Authentication)
+   - nginx basic auth → ALB + Cognito/OIDC (on the Gateway path: `ListenerRuleConfiguration` with `authenticateOIDCConfig`, attached via `spec.infrastructure.parametersRef` — **not** an `alb.ingress.kubernetes.io/*` annotation, which LBC ignores on a Gateway) — **browser callers only**; non-interactive clients break (see `alb-migration.md` Authentication)
    - nginx custom error pages → CloudFront custom error responses
    - nginx modsecurity → AWS WAF managed rules
    - nginx configuration-snippet → ❌ No equivalent (redesign)

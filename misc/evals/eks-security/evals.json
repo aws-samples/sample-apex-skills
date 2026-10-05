@@ -4,7 +4,6 @@
     {
       "id": 1,
       "prompt": "We're a healthcare SaaS building a NEW EKS cluster to process PHI. HIPAA-eligible workload, no vendor-OS mandate, moderate Kubernetes skill, 6-month audit timeline, single cluster, low operational-overhead tolerance. Lay out the AWS-recommended security baseline across the full stack plus a 30/60/90 plan.",
-      "expected_output": "A discovery-confirmed, 7-layer recommendation: Bottlerocket (L1) with a note that EKS is HIPAA-ELIGIBLE and requires a signed BAA before processing PHI (not 'HIPAA-compliant'); EKS Pod Identity + Access Entries (L2); PSA restricted + Kyverno + VPC CNI default-deny NetworkPolicy + Security Groups for Pods (L3); ECR Enhanced Scanning + Cosign signing (L4); GuardDuty for EKS — EKS Protection + Runtime Monitoring (L5); control-plane audit+authenticator logging + CMK + CloudTrail (L6); HIPAA's 6-year retention requirement (§164.316(b)(2)) applies to documentation — HIPAA sets no fixed log-retention floor, though the documentation rule is commonly extended to logs; AWS Config conformance pack (Operational Best Practices for HIPAA Security) + Security Hub + confirm the signed BAA (Artifact → Agreements) + supporting SOC 2/ISO report — there is no HIPAA AOC (L7); a 30/60/90 roadmap; and the compliance-status disclaimer pointing to the live AWS Services in Scope page.",
       "expectations": [
         "Recommends Bottlerocket as the Layer-1 default for a container-first HIPAA workload with no vendor-OS mandate",
         "States EKS is HIPAA-ELIGIBLE and a signed BAA with AWS is required before processing PHI (does NOT say 'HIPAA-compliant')",
@@ -18,7 +17,6 @@
     {
       "id": 2,
       "prompt": "We want EKS Auto Mode for the operational simplicity, but our compliance team says they require CIS-hardened custom AMIs for our HIPAA workload. Can we use Auto Mode, and if not what's the alternative?",
-      "expected_output": "A trade-off analysis that hinges on whether the CIS-hardened custom AMI is a HARD regulatory requirement or an organizational preference: if hard, EKS Auto Mode is NOT viable because Auto Mode does not support custom AMIs (as of 2026), and the recommendation is Bottlerocket on self-managed Karpenter NodePools; if a preference, Auto Mode is viable and its reduced-permission node IAM is a security differentiator. Notes Cilium is also unsupported on Auto Mode and that most compliance-sensitive customers land on Bottlerocket+Karpenter. Layers 2-7 baseline are identical regardless.",
       "expectations": [
         "States EKS Auto Mode does NOT support custom AMIs",
         "Recommends Bottlerocket on self-managed Karpenter NodePools when a CIS-hardened custom AMI is a hard requirement",
@@ -30,7 +28,6 @@
     {
       "id": 3,
       "prompt": "Existing EKS cluster running cardholder-data workloads, PCI-DSS Level 1 audit in 4 months. Current state: aws-auth ConfigMap, no Pod Security Admission, no NetworkPolicy, IRSA in use, mixed AL2/AL2023 nodes. What's the priority order to get audit-ready?",
-      "expected_output": "A priority-ordered, non-big-bang hardening plan: start with non-disruptive baseline (enable control-plane audit+authenticator logging, GuardDuty for EKS, ECR Enhanced Scanning, Security Hub PCI-DSS pack, run kube-bench) without changing anything; then identity hardening (aws-auth -> Access Entries in a planned change window; audit IRSA least-privilege; IRSA->Pod Identity is lower priority since IRSA is fully supported); then workload security (PSA restricted in audit then enforce, Kyverno PCI policies, default-deny NetworkPolicy + Security Groups for Pods on the cardholder namespace); then OS migration (AL2 to AL2023/Bottlerocket — AL2 OS EOL June 30 2026); then audit prep (AWS Config conformance packs \"Operational Best Practices for PCI DSS 4.0 (Excluding global resource types)\" / \"...(Including global resource types)\" + Security Hub, download PCI AOC from Artifact). Maps to PCI requirements — including render-PAN-unreadable (Req 3) and mTLS for CHD in transit over open/public networks (Req 4) — and notes 1-year minimum log retention.",
       "expectations": [
         "Sequences non-disruptive baseline (logging, GuardDuty, ECR scanning, Security Hub, kube-bench) BEFORE making changes",
         "Recommends migrating aws-auth ConfigMap to EKS Access Entries during a planned change window",

@@ -4,7 +4,6 @@
     {
       "id": 1,
       "prompt": "I'm configuring Claude Code and want the Arm migration MCP server available so I can scan this repo for arm64 blockers. Docker is already installed. Give me the exact .mcp.json block to add at my repo root and tell me how to verify it loaded.",
-      "expected_output": "A project-scope .mcp.json snippet with an mcpServers entry (server keyed e.g. arm-mcp) whose command is docker and whose args run the container roughly `docker run --rm -i -v ${CLAUDE_PROJECT_DIR:-.}:/workspace:ro armlimited/arm-mcp:latest` — using the `${CLAUDE_PROJECT_DIR:-.}` form (with the `:-.` default, since a user-authored .mcp.json needs it) and a read-only `:ro` mount, plus a note that the entry needs no AWS credentials, followed by the restart-then-verify step (restart Claude Code, list MCP tools, smoke-test the readiness scanner).",
       "expectations": [
         "The output provides a JSON block for `.mcp.json` at the repo root with an `mcpServers` object containing an entry whose `command` is `docker`. — TODO: human review",
         "The `args` array runs the container with `--rm`, `-i`, a `-v` volume mount to `/workspace`, and the image `armlimited/arm-mcp:latest`. — TODO: human review",
@@ -48,7 +47,6 @@
     {
       "id": 2,
       "prompt": "My scanner run came back CLEAN for our checkout service. I run Karpenter and want to bring arm64 capacity into the cluster safely and cut this one service over as a canary without risking the amd64-only pods that share the cluster. Give me the NodePool and the canary Deployment pod-spec bits I need.",
-      "expected_output": "A Karpenter v1 (karpenter.sh/v1) NodePool that pins kubernetes.io/arch to arm64 and carries a NoSchedule taint so un-vetted pods stay off, plus a canary workload pod spec that adds BOTH a matching toleration and an arm64 nodeSelector (or nodeAffinity) so the canary is forced onto arm64. Should explain the taint-first rationale (prevents accidental scheduling of amd64-only images / exec format errors) and that the toleration only permits while the nodeSelector forces placement.",
       "expectations": [
         "The NodePool uses the Karpenter v1 apiVersion `karpenter.sh/v1`. — TODO: human review",
         "The NodePool has a `kubernetes.io/arch` requirement pinned to `arm64` and a NoSchedule taint keeping un-vetted pods off. — TODO: human review",
@@ -96,7 +94,6 @@
     {
       "id": 3,
       "prompt": "We push our images to ECR from GitHub Actions and it currently only builds amd64. I want every build to publish one tag that works on both amd64 and arm64 so the Graviton cutover sticks. Give me the GitHub Actions job.",
-      "expected_output": "A GitHub Actions job using Docker's buildx actions (setup-qemu-action for the emulated path, setup-buildx-action, login-action, build-push-action) that sets `platforms: linux/amd64,linux/arm64` and `push: true` to publish a single multi-arch manifest-list tag to ECR. Should note that platforms is what makes it a manifest-list build, and mention the native arm64-runner alternative (two per-arch builds joined with `docker buildx imagetools create`) as the faster option for compile-heavy builds.",
       "expectations": [
         "The job uses Docker buildx GitHub Actions (`docker/build-push-action` with `docker/setup-buildx-action`, and `docker/setup-qemu-action` for the emulated path). — TODO: human review",
         "The build sets `platforms: linux/amd64,linux/arm64` and `push: true`, producing one manifest-list tag. — TODO: human review",

@@ -4,7 +4,6 @@
     {
       "id": 1,
       "prompt": "Run EKS reconnaissance on the cluster currently configured in my kubeconfig. I'm planning an upgrade — focus on version info, compute strategy, and addon inventory.",
-      "expected_output": "A structured reconnaissance report for the currently-configured EKS cluster covering cluster-basics (name, region, version, platform version), compute strategy, EKS-managed add-ons with versions, and IaC tool — with upgrade-relevant observations surfaced.",
       "expectations": [
         "The output reports the current cluster version and platform version. TODO: human review",
         "The output identifies whether Karpenter, managed node groups, Auto Mode, or Fargate is the primary compute strategy. TODO: human review",
@@ -118,7 +117,6 @@
     {
       "id": 2,
       "prompt": "Run EKS reconnaissance on my current cluster for a handoff document. I need to understand the IaC tooling, CI/CD setup, and deployment patterns in use.",
-      "expected_output": "A handoff-oriented report for the currently-configured EKS cluster that focuses on compute (nodepools / node groups / Fargate profiles), IaC provenance, and CI/CD — both workspace pipelines (GitHub Actions, GitLab CI, Jenkins) and GitOps (ArgoCD, Flux).",
       "expectations": [
         "The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as applicable). TODO: human review",
         "The output identifies the IaC tool and, where possible, evidence (workspace files, stack names, module references). TODO: human review",
