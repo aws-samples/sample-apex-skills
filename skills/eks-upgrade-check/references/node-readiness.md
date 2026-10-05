@@ -13,6 +13,7 @@ Assess node groups, AMI types, version alignment, and migration requirements for
    - AMI type (AL2, AL2023, AL2_ARM_64, BOTTLEROCKET_x86_64, etc.)
    - Instance types
    - Scaling config (min/max/desired)
+   - Update config (`updateStrategy`, `maxUnavailable` or `maxUnavailablePercentage`)
    - Capacity type (ON_DEMAND, SPOT)
    - Health status
 2. List nodes via Kubernetes API → get:
@@ -106,7 +107,10 @@ upgrade, so it is scored HIGH but is NOT a hard blocker.
 **How to check:**
 1. List all nodes
 2. Compare against managed node group nodes (by labels or node group membership)
-3. Nodes not in any managed node group or Karpenter → self-managed
+3. Exclude AWS-managed Fargate and Auto Mode nodes using compute-type labels and
+   cluster configuration. An empty managed-node-group list alone does not establish
+   self-managed nodes. Classify remaining nodes outside managed groups and Karpenter
+   as self-managed; if ownership is unresolved, record it as unverified.
 
 **Rating:**
 - No self-managed nodes → PASS
@@ -115,14 +119,18 @@ upgrade, so it is scored HIGH but is NOT a hard blocker.
 ### 5.5 — Subnet IP Capacity
 
 **Why this matters:**
-- EKS places control-plane ENIs for the upgraded API server across the cluster's subnets. A
-  single subnet with < 5 available IPs is a warning, not a failure — EKS can place the ENIs in
-  other subnets. The `update-cluster-version` API call fails only when the cluster subnets
-  COLLECTIVELY cannot provide enough free IPs for ENI placement (collective insufficiency = sum
-  of `AvailableIpAddressCount` across all cluster subnets < 5).
-- During node group rolling updates, new nodes are launched before old nodes are terminated
-  (surge). Each new node consumes 1 IP for its primary ENI plus additional IPs for the VPC CNI
-  warm pool (pod IPs). Insufficient capacity causes the node group update to hang.
+- AWS documents **up to five** available IP addresses for control-plane updates, not a
+  universal five-address minimum. ENIs can be placed in different configured cluster
+  subnets than before. Subnet existence, address availability, and security-group
+  communication all matter; a sum of free addresses is not an ENI placement test.
+- This skill retains `sum(AvailableIpAddressCount) < 5` as a **conservative capacity
+  review guard** (5 additional points and the existing hard-blocker score cap). Describe
+  it as "capacity review required by the assessment policy", not proof that AWS will
+  reject the update. A total >= 5 only clears this numeric guard; it does not prove
+  the upgrade will succeed. Individual subnets with <= 15 addresses remain warnings.
+- The default managed-node update strategy launches replacement nodes before terminating
+  old ones. The minimal strategy terminates old nodes first. Address demand and temporary
+  spare compute capacity therefore depend on the selected strategy and VPC CNI settings.
 
 **How to check:**
 1. Get the cluster subnet IDs from the cluster description (already retrieved in pre-flight
@@ -133,22 +141,36 @@ upgrade, so it is scored HIGH but is NOT a hard blocker.
      --query 'Subnets[].{SubnetId:SubnetId,AZ:AvailabilityZone,AvailableIPs:AvailableIpAddressCount,CIDR:CidrBlock}' \
      --output table
    ```
-3. For each subnet, evaluate `AvailableIpAddressCount` against thresholds.
+3. For each subnet, evaluate `AvailableIpAddressCount` against the policy thresholds below.
+   Missing, denied, or partial subnet reads are Unassessed; never sum an incomplete list.
+   Report these as address-count checks only. Do not claim that security groups, subnet
+   reservations, prefix fragmentation, EC2 quotas, or actual ENI placement were verified
+   unless separately inspected.
 
 **Thresholds:**
 
 | Available IPs (single subnet) | Verdict | Severity |
 |---------------|---------|----------|
-| < 5 — single low subnet among otherwise-healthy subnets | **WARNING** — control plane OK (ENIs placed in other subnets); becomes a hard blocker ONLY under collective insufficiency (see below) | MEDIUM |
-| 5–15 | **WARNING** — control plane OK, but node rolling update at risk if surge needs more IPs | MEDIUM |
-| > 15 | PASS | — |
-| Collective: sum of `AvailableIpAddressCount` across ALL cluster subnets < 5 | **HARD BLOCKER** — control plane upgrade will fail (EKS cannot place ENIs in any subnet) | CRITICAL |
+| < 5 — single low subnet among otherwise-healthy subnets | **WARNING** — review capacity; this alone does not trigger the numeric score cap | MEDIUM |
+| 5–15 | **WARNING** — review control-plane and node-update capacity | MEDIUM |
+| > 15 | No address-count warning; not a placement guarantee | — |
+| Total `AvailableIpAddressCount` across ALL cluster subnets < 5 | **ASSESSMENT POLICY BLOCKER** — capacity review required; retain the existing score cap, without asserting AWS rejection | CRITICAL |
 
 **Important context for the 5–15 warning:**
 The exact number of IPs needed during node group surge depends on:
 - Instance type (determines max ENIs and IPs per ENI)
-- VPC CNI configuration (`WARM_IP_TARGET`, `MINIMUM_IP_TARGET`, `ENABLE_PREFIX_DELEGATION`)
-- Node group `maxSurge` setting (default: 1 additional node)
+- VPC CNI configuration (`WARM_IP_TARGET`, `MINIMUM_IP_TARGET`, `WARM_PREFIX_TARGET`,
+  `ENABLE_PREFIX_DELEGATION`)
+- Managed node group `updateConfig`: strategy, `maxUnavailable` or
+  `maxUnavailablePercentage`, and the Availability Zones used by its Auto Scaling group.
+  EKS does not expose a node-group `maxSurge` setting. For the default strategy, AWS
+  describes a scale-up allowance based on the larger of up to twice the AZ count and
+  the maximum unavailable count. For example, five AZs with `maxUnavailable: 1` can
+  launch up to ten additional nodes, not one. Percentage settings must be resolved
+  against the relevant group size before estimating concurrency.
+- The minimal strategy avoids that surge by terminating old nodes first; it reduces
+  available capacity during replacement. Do not recommend switching strategies solely
+  to avoid an IP warning without reviewing workload availability.
 
 Do NOT report a precise "you need X IPs" number — instead flag the risk and advise the user
 to verify capacity is sufficient for their instance type and CNI config.
@@ -158,26 +180,36 @@ to verify capacity is sufficient for their instance type and CNI config.
 > **⚠️ Subnet low on free IPs**
 >
 > Subnet `<subnet-id>` in `<az>` has only `<N>` available IPs (CIDR: `<cidr>`).
-> EKS places control-plane ENIs across the cluster's subnets during an upgrade; a single low
-> subnet is a warning. This becomes a hard blocker ONLY under collective insufficiency —
-> defined as the sum of `AvailableIpAddressCount` across ALL cluster subnets being < 5.
+> EKS may use other configured cluster subnets, but this count alone cannot establish
+> successful placement. The skill's capacity-review score cap applies when the total
+> across all cluster subnets is < 5; this is an assessment policy, not an AWS failure guarantee.
 >
-> **Remediation (choose one):**
-> 1. Remove unused ENIs: `aws ec2 describe-network-interfaces --filters Name=subnet-id,Values=<subnet-id> Name=status,Values=available --query 'NetworkInterfaces[].NetworkInterfaceId'`
-> 2. Add a new subnet to the cluster: `aws eks update-cluster-config --name <cluster> --resources-vpc-config subnetIds=<existing>,<new-subnet>`
-> 3. Expand the subnet CIDR (if VPC allows)
+> **Owner review options (recommendations only):**
+> 1. Inspect ENI ownership and dependencies before reclaiming unused addresses.
+> 2. Add suitable cluster subnets with sufficient address capacity and required connectivity.
+> 3. If the VPC lacks address space, plan an additional VPC CIDR and new subnets.
+>    Do not propose enlarging an existing subnet's CIDR in place.
 
 **If subnet has 5–15 IPs, report:**
 
 > **⚠️ Low subnet IP capacity — node group upgrade may stall**
 >
-> Subnet `<subnet-id>` in `<az>` has `<N>` available IPs. While this is sufficient for the
-> control plane upgrade (minimum 5), the node group rolling update launches new nodes before
-> terminating old ones. If your instance type + VPC CNI warm pool requires more IPs than are
-> available, the surge node will fail to launch.
+> Subnet `<subnet-id>` in `<az>` has `<N>` available IPs. The total may clear the skill's
+> numeric control-plane guard while still being insufficient for a node update. Review
+> the actual update strategy, replacement-node demand, and VPC CNI warm pool.
 >
 > **Before upgrading:** Verify capacity is sufficient for your configuration, or consider
-> adding subnets / enabling VPC CNI prefix delegation to reduce per-pod IP consumption.
+> adding suitable subnets. Prefix delegation improves ENI utilization and pod density;
+> it does not remove the need for a pod IP. IPv4 prefix mode allocates contiguous /28
+> blocks, so fragmentation and warm-prefix allocation can worsen address pressure.
+> Check contiguous space and warm-pool settings before recommending it; it is not a
+> generic remedy for an exhausted subnet.
+
+**AWS sources (verified 2026-10-01; recheck live when assessing):**
+- https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html
+- https://docs.aws.amazon.com/eks/latest/userguide/managed-node-update-behavior.html
+- https://docs.aws.amazon.com/eks/latest/best-practices/cluster-upgrades.html
+- https://docs.aws.amazon.com/eks/latest/best-practices/prefix-mode-linux.html
 
 ## Score Impact
 
@@ -190,7 +222,7 @@ to verify capacity is sufficient for their instance type and CNI config.
 | Finding | Deduction |
 |---------|-----------|
 | Subnet IPs < 5 — single low subnet (warning) | 2 pts (always applies, per low subnet) |
-| Control-plane subnets collectively can't place ENIs — sum of `AvailableIpAddressCount` across ALL subnets < 5 (hard blocker) | 5 pts + hard blocker override (caps score ≤ 59%); additional to any +2 warnings |
+| Capacity-review policy guard — total reported available IPs across ALL cluster subnets < 5; not a prediction of AWS rejection | 5 pts + hard blocker override (caps score ≤ 59%); additional to any +2 warnings |
 | Subnet IPs 5–15 (warning) | 2 pts |
 | AL2 nodes (target < 1.33) — Node count (Category 8) | 2-5 pts (max 5) |
 | AL2 nodes (target >= 1.33) — Breaking Change "AL2 AMI Not Available" (Category 1) | 10 pts (HIGH) |
