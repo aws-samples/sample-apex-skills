@@ -94,5 +94,9 @@
   {
     "query": "Harden my EKS cluster to meet PCI-DSS \u2014 give me the prioritized control list and 30/60/90 remediation plan.",
     "should_trigger": false
+  },
+  {
+    "query": "audit our EKS cluster against Well-Architected and give me a scored report",
+    "should_trigger": false
   }
 ]

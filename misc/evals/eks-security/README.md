@@ -18,6 +18,7 @@ These inputs exercise the discovery-driven EKS security & compliance scope: choo
 - **`account-security`** (org-wide AWS account security with no EKS-specific angle — SCPs, IAM Identity Center, multi-service GuardDuty) — negative 19 ("org-wide SCPs, Identity Center, GuardDuty across every account").
 - **`eks-upgrade-check`** (upgrade readiness — deprecated APIs, add-on compatibility) — negative 21 ("is my cluster ready to upgrade from 1.30 to 1.33").
 - **`eks-mcp-server`** (EKS MCP server setup in an AI assistant) — negative 22 ("configure the EKS MCP server so it can read my cluster").
+- **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster — five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) — negative 23 ("score our EKS cluster across all five W…").
 <!-- SIBLING_MAP_END -->
 
 The discriminator that separates `eks-security` from all neighbours: a **security control or compliance regime is the driver**, not cluster architecture, build, cost, discovery, or upgrade.
