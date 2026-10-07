@@ -68,7 +68,7 @@ esac
 if [ -f "$WORK/results.jsonl" ] && grep -q "\"pillar\":\"$PILLAR\"" "$WORK/results.jsonl" 2>/dev/null; then
   echo "score.sh: $WORK/results.jsonl already holds $PILLAR records -- this pillar has already been scored." >&2
   echo "score.sh: appending again would emit every id twice and reduce.sh would refuse the duplicates." >&2
-  echo "score.sh: to re-score from scratch, delete $WORK/results.jsonl and run all five pillars again." >&2
+  echo "score.sh: to re-score from scratch, re-collect into a new work directory whose name starts with eks-war- (collect.sh --work with a new path), then run all five pillars there." >&2
   exit 1
 fi
 

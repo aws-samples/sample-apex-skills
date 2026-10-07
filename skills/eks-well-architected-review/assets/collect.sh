@@ -364,7 +364,7 @@ if [ -n "$_prev" ]; then
   echo "  \`kjson\` write only on success, so a stale file from that run can silently satisfy a call" >&2
   echo "  that FAILS this time, and the validation gate -- whose whole purpose is to refuse" >&2
   echo "  un-collected data -- would then pass on data that was never collected." >&2
-  echo "  Move or rename that directory (or pass --work with a new path), then re-run. Other files are" >&2
+  echo "  Pass --work with a new path whose name starts with eks-war- (or move or rename that directory yourself), then re-run. Other files are" >&2
   echo "  fine to keep there (any *.json inside it must be valid JSON other than null/false): only" >&2
   echo "  this collector's own output is refused, not a non-empty directory." >&2
   exit 1

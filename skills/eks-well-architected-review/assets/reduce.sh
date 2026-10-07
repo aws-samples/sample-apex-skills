@@ -403,8 +403,8 @@ if [ -n "$DUPIDS" ]; then
   echo "  A duplicate double-counts its question: it moves the published pillar score and inflates the" >&2
   echo "  governance denominator, so it is refused here rather than merged or averaged." >&2
   echo "  Most likely cause: a pillar scorer block was re-run after a SCORER ABORT and appended a" >&2
-  echo "  second copy of everything it had already written. Fix by re-running collect.sh (it truncates" >&2
-  echo "  results.jsonl), or truncate it yourself with ': > $W/results.jsonl' and re-score ALL five" >&2
+  echo "  second copy of everything it had already written. Fix by re-collecting into a new work" >&2
+  echo "  directory whose name starts with eks-war- (collect.sh --work with a new path), and re-score ALL five" >&2
   echo "  pillars." >&2
   exit 1
 fi
@@ -2225,10 +2225,11 @@ if [ -n "$SEV_STALE" ]; then
   echo "reduce.sh: $SEV_MD documents a severity for question id(s) that $W/results.jsonl does not" \
     "contain, so the tables describe questions this skill does not ask" >&2
   printf '%s\n' "$SEV_STALE" | head -20 | sed 's/^/  /' >&2
-  echo "  Every pillar scorer emits every one of its questions on every run (a question that does not" >&2
-  echo "  apply is emitted as \`na\`), so a documented id that is absent is a row left behind by a" >&2
-  echo "  question that was renamed or removed -- not a cluster-specific omission. Delete the row, or" >&2
-  echo "  re-score all five pillars if results.jsonl is what is incomplete." >&2
+  echo "  If any pillar scorer did not exit 0, results.jsonl is incomplete: re-collect into a new" >&2
+  echo "  eks-war-* work directory and re-score all five pillars there. Only if all five scorers" >&2
+  echo "  exited 0: every scorer emits every one of its questions on every run (a question that does" >&2
+  echo "  not apply is emitted as \`na\`), so a documented id that is absent is a row left behind by a" >&2
+  echo "  question that was renamed or removed -- not a cluster-specific omission; delete the row." >&2
   exit 1
 fi
 

@@ -575,7 +575,7 @@ sufficient.** It does not cover `clusterroles`, `clusterrolebindings`,
 or `storageclasses` — all collected. Do not read that as a closed list: the preflight runs all 27
 Kubernetes probes and names whichever are denied, which is the authority. `AmazonEKSAdminViewPolicy`
 (`arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminViewPolicy`) covers them; note AWS documents that
-it also grants read on Kubernetes **Secrets**, which this skill never collects.
+it also grants read on Kubernetes **Secrets**, which this skill never collects. The collected workload JSON does hold every container's literal env values and arguments, so treat the work directory as credential material: keep it out of version control and delete it after the review.
 
 The AWS half needs these 23 actions, and every one is a `Describe*`/`List*`/`Get*` read.
 
