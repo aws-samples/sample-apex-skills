@@ -659,6 +659,13 @@ def main():
             # Strip "EKS-Ingress-Migration-" prefix and date suffix (YYYY-MM-DD-HHMM)
             stem = md_path.stem.replace("EKS-Ingress-Migration-", "")
             name = re.sub(r"-\d{4}-\d{2}-\d{2}-\d{4}$", "", stem)
+            # The documented layout is ~/ingress_migration/<cluster>/report.md, whose
+            # stem carries no cluster name. Fall back to the parent directory so the
+            # dropdown shows the cluster instead of "report" for every entry.
+            if name.lower() in ("report", "index", "readme"):
+                parent = md_path.resolve().parent.name
+                if parent:
+                    name = parent
 
         # Load manifests
         manifests = {}
