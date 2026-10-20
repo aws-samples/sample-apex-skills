@@ -1,0 +1,16 @@
+# Code owners for this repository.
+#
+# The owner below is requested for review on every pull request. When the
+# branch ruleset requires code owner review, a pull request that changes an
+# owned path needs that owner's approval before it can merge.
+#
+# PLACEHOLDER: replace OWNER-HANDLE-TBD with the maintainer's GitHub handle
+# (or an org team such as @aws-samples/<team>) before this file is merged.
+# Each owner needs write access to the repository. GitHub shows any errors in
+# this file when you open it on github.com.
+
+*           @OWNER-HANDLE-TBD
+
+# The CI workflows, the gate script and this file decide what can merge, so
+# they are owned explicitly as well.
+/.github/   @OWNER-HANDLE-TBD
