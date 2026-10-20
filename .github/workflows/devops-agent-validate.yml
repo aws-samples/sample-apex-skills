@@ -20,6 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          # Load-bearing: at depth 1 ci-gate.sh cannot find the base commit, so it
+          # reports relevant=true on every pull request (fails safe, saves nothing).
           fetch-depth: 0
 
       - name: Decide whether this change needs the check

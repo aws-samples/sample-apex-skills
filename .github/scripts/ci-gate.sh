@@ -6,6 +6,12 @@
 # request, asks this script whether the change touches its paths, and either
 # does its real work or prints a no-op line and succeeds.
 #
+# Two idioms use it. In a single-job workflow each real-work step carries
+# `if: steps.changes.outputs.relevant != 'false'`; a new step needs the same
+# `if:` or it also runs on no-op pull requests. A workflow whose real work runs
+# in other jobs (installer-test) uses `needs` plus an always() aggregate job
+# that calls `verdict` instead.
+#
 # Usage:
 #   ci-gate.sh changed <pattern>...
 #     Decides whether the checked-out change touches any pattern. Writes

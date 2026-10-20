@@ -1,9 +1,9 @@
 # Code owners for this repository.
 #
-# Once this file is on the default branch, the owner below is requested for
-# review on every non-draft pull request. When the branch ruleset requires
-# code owner review, a pull request that changes an owned path needs that
-# owner's approval before it can merge.
+# Once this file is on a pull request's base branch (main here), the owner
+# below is requested for review on every non-draft pull request. When the
+# branch ruleset requires code owner review, a pull request that changes an
+# owned path needs that owner's approval before it can merge.
 #
 # PLACEHOLDER: replace OWNER-HANDLE-TBD with the maintainer's GitHub handle
 # (or an org team such as @aws-samples/<team>) before this file is merged.
