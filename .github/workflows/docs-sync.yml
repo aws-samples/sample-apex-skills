@@ -38,6 +38,7 @@ jobs:
           'devops-agent/**'
           'README.md'
           'CONTRIBUTING.md'
+          'THIRD_PARTY_NOTICES.md'
           '.github/workflows/docs-sync.yml'
           '.github/scripts/ci-gate.sh'
       - name: No-op (no watched path changed)

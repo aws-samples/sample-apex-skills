@@ -359,7 +359,7 @@ Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` /
 
 The generator scripts (including `./misc/update-pages.sh`) parse frontmatter with PyYAML, so running them locally requires it: `pip install pyyaml`.
 
-**CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` runs `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check` on every PR. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
+**CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` reports a status on every PR, but it does real work only when the PR changes a path the workflow watches; otherwise it is a no-op that passes. The real work is `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check`. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
 
 CI also strict-parses `SKILL.md` frontmatter via `misc/validate-frontmatter.py` before regenerating. The frontmatter must satisfy all of these rules:
 
