@@ -556,6 +556,12 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 
 ## General
 
+### [apex](./apex/)
+
+APEX router and shared rules. Use when a request is about Amazon EKS, Amazon ECS or the APEX skills in general and does not clearly name one skill, spans several skills (for example design, then build, then upgrade), or asks which APEX skill to use. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no destructive action without confirmation. Skip when the request already matches one skill's own description: use that skill directly.
+
+---
+
 ### [dotnet-aws-ecs](./dotnet-aws-ecs/)
 
 Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET workload to Amazon ECS Fargate on Linux containers with an Application Load Balancer. Produces a VPC, ECS cluster, task definition, ALB, and auto-scaling. NOT for Windows containers, EC2 launch type, or Kubernetes/EKS deployments.
