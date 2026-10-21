@@ -55,9 +55,14 @@ jobs:
 
       - name: Determine dist-tag
         id: dist-tag
+        env:
+          PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          if echo "$VERSION" | grep -q '-'; then
+          # A Release marked pre-release publishes to next, so a final version
+          # (1.3.0) can ship on next first; promoting it to latest is a manual
+          # npm dist-tag add apex-skills@<version> latest (CONTRIBUTING.md).
+          if [ "$PRERELEASE" = "true" ] || echo "$VERSION" | grep -q '-'; then
             echo "tag=next" >> "$GITHUB_OUTPUT"
           else
             echo "tag=latest" >> "$GITHUB_OUTPUT"

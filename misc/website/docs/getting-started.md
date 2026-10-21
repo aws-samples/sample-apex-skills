@@ -19,11 +19,13 @@ APEX skills are plain folders of markdown + scripts. Any agent harness that supp
 npx apex-skills
 ```
 
-The installer detects which tools you have (Claude Code, Kiro CLI, or both), clones the repo to `~/.apex-skills/`, and symlinks all skills + steering workflows into the right locations.
+This describes installer 1.3.0. Once it is on npm's `next` tag and until it is promoted to `latest`, run it as `npx apex-skills@next` and add `@next` to every plain `npx apex-skills` command on this page and to every command the installer prints (such as `npx apex-skills --update`): a plain `npx apex-skills` runs installer 1.2.0. A 1.2.0 run (install or `--update`) over a 1.3.0 install changes paths that install recorded (a global install's skill links, and, when that run installs steering, its command link and Kiro steering copies), so a later `--uninstall` keeps them as changed (exit code 3): run `npx apex-skills@next --update` first (add `--project` for a project install), then `--uninstall`. A 1.2.0 run that installs steering for Kiro CLI (install or `--update`, unless `--no-steering` or `--claude-only`) also replaces a 1.3.0 install's Kiro steering copies, edited ones included, with always-loaded links. The note on the first line after the front matter of each Kiro copy describes installer 1.3.0 with an install record; a 1.2.0 install or `--update` replaces an edited copy, and so does a run with no record for the install (none, or its home or project directory moved or renamed since), whose `--uninstall` deletes it while `~/.apex-skills` exists. Back up customised files before upgrading, and before re-running after moving a folder: copy out edited Kiro steering copies and note links of your own into `~/.apex-skills`.
+
+Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and symlinks all skills into place. With steering enabled, Claude Code also gets the `/apex:*` commands plus `~/.claude/apex-steering` (the workflows those commands load), and Kiro CLI gets the workflows as manual steering files in `~/.kiro/steering/` (after a 1.2.0 install is updated or re-run with installer 1.3.0 or later, Kiro steering no longer loads on its own: invoke it by name (partial in Kiro CLI V1/V2)). `--no-steering` skips steering setup and does not remove steering an earlier run installed: the Kiro copies stay and are not updated (they go stale), while the Claude Code links stay and follow the clone. To remove it, run `npx apex-skills --uninstall` (`@next` before promotion, as above), then install with `--no-steering`. Before you upgrade a 1.2.0 install or run `--uninstall`, read the installer's [Installed paths](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#installed-paths) and [Uninstall](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#uninstall) notes: an install made by 1.2.0 has no install record, so `--uninstall` removes every link into the clone in the skill directories and the Kiro steering directory, whatever its name, and at the `.claude/commands/apex` and `.claude/apex-steering` paths (under `~`, or the current directory with `--project`), your own included. To remove an install that 1.3.0 made, run `npx apex-skills@1.3.0 --uninstall` (or `@next` before promotion; if a plain `npx apex-skills` ran installer 1.2.0 over it, run `npx apex-skills@1.3.0 --update` first, or `--uninstall` keeps the links 1.2.0 rewrote, exit code 3): installer 1.2.0's `--uninstall` usually leaves that install's skill links and always leaves `~/.claude/apex-steering` and the Kiro steering copies. After a Ctrl-C, run the installer again to finish before `--uninstall`: links a stopped run made are not recorded, so when an earlier run left a record, `--uninstall` keeps them and `rm -rf ~/.apex-skills` would leave them dangling; a second `--uninstall` then clears them when the first one kept nothing.
 
 ```bash
-npx apex-skills --update              # Pull latest skills
-npx apex-skills --version v1.2.0      # Pin to a specific release
+npx apex-skills --update              # Update (installer 1.3.0+: latest release of the clone's major line (v1), or the branch it follows; 1.2.0 and earlier: git pull of main)
+npx apex-skills --version v1.2.0      # Pin to a release (installer 1.3.0+: a later install or --update without --version or --branch moves it to the latest)
 npx apex-skills --branch feat/new-eks # Install from a branch
 npx apex-skills --help                # See all options
 ```
@@ -56,6 +58,8 @@ mkdir -p ~/.kiro/skills ~/.kiro/steering
 cp -r skills/* ~/.kiro/skills/
 cp steering/workflows/*.md ~/.kiro/steering/
 ```
+
+Files copied this way load into every Kiro interaction; add `inclusion: manual` frontmatter or use `npx apex-skills`.
 
 ### Other Agent Harnesses
 

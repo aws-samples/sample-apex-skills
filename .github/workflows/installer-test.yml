@@ -1,0 +1,103 @@
+name: installer-test
+
+# Install-path test for the npx installer (misc/installer). Runs the temp-HOME
+# harness against a fixture repo built from this checkout, so a broken install
+# path shows as a failed check on the PR. It blocks a merge only once its jobs
+# ("install paths (<os>, node <n>)" and "native Windows stops with a clear
+# message") are required checks, which they are not yet on main. With the
+# paths: filter below, a required job would also block every PR that does not
+# touch these paths: the workflow is skipped and the check stays pending. (The
+# release smoke test only runs --help.)
+
+on:
+  pull_request:
+    paths:
+      - "misc/installer/**"
+      - "steering/**"
+      - "skills/*/SKILL.md"
+      - ".github/workflows/installer-test.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "misc/installer/**"
+      - "steering/**"
+      - "skills/*/SKILL.md"
+      - ".github/workflows/installer-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install-paths:
+    name: install paths (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 18
+          - os: ubuntu-latest
+            node: 22
+          - os: macos-latest
+            node: 22
+    steps:
+      # Case V7 installs the real v1.2.0 tree and case OLD1 runs the installer
+      # at commit 6103231, so they need that tag and that commit. At the default
+      # depth of 1, fetch-tags only follows tags that point at the one fetched
+      # commit; depth 0 fetches every branch and tag.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: The v1.2.0 tag is present (case V7 must run, not skip)
+        run: git rev-parse -q --verify 'refs/tags/v1.2.0^{commit}'
+      - name: Commit 6103231 is present (case OLD1 must run, not skip)
+        run: git cat-file -e '6103231:misc/installer/bin/cli.mjs'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+      # Case SC1's tree check needs GNU find (-printf); macOS ships BSD find.
+      # gnubin holds the findutils commands under their plain names.
+      - name: GNU find first on PATH (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install findutils
+          echo "$(brew --prefix findutils)/libexec/gnubin" >> "$GITHUB_PATH"
+      - name: Shellcheck the harness
+        if: runner.os == 'Linux'
+        run: shellcheck misc/installer/test/install-paths.sh misc/installer/test/mutate.sh
+      - name: Syntax-check the installer
+        run: node --check misc/installer/bin/cli.mjs
+      - name: Run temp-HOME install cases
+        run: bash misc/installer/test/install-paths.sh
+      - name: Run the same cases against the npm pack tarball
+        run: bash misc/installer/test/install-paths.sh --pack
+
+  windows-stop:
+    name: native Windows stops with a clear message
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Installer refuses native Windows and writes nothing
+        shell: bash
+        run: |
+          set +e
+          h="$RUNNER_TEMP/apex-home"
+          mkdir -p "$h"
+          HOME="$h" USERPROFILE="$h" NO_COLOR=1 node misc/installer/bin/cli.mjs --claude-only > "$RUNNER_TEMP/out.txt" 2> "$RUNNER_TEMP/err.txt"
+          rc=$?
+          printf -- '--- stdout\n%s\n--- stderr\n%s\n[exit %s]\n' "$(cat "$RUNNER_TEMP/out.txt")" "$(cat "$RUNNER_TEMP/err.txt")" "$rc"
+          [ "$rc" -eq 1 ] || { echo "::error::expected exit 1, got $rc"; exit 1; }
+          grep -q 'Native Windows is not supported' "$RUNNER_TEMP/err.txt" || { echo "::error::missing the Windows stop message on stderr"; exit 1; }
+          grep -q 'WSL' "$RUNNER_TEMP/err.txt" || { echo "::error::missing the WSL pointer on stderr"; exit 1; }
+          if grep -q 'Windows' "$RUNNER_TEMP/out.txt"; then echo "::error::the Windows stop message went to stdout"; exit 1; fi
+          [ -z "$(ls -A "$h")" ] || { echo "::error::installer wrote to HOME: $(ls -A "$h")"; exit 1; }
