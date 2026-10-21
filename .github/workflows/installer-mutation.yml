@@ -1,0 +1,35 @@
+name: installer-mutation
+
+# The mutation gate for the npx installer (misc/installer/test/mutate.sh): the
+# install-path harness runs against copies of bin/cli.mjs with one deliberate
+# defect each and must fail on every one. A surviving mutant means a behavior
+# the harness claims to cover is not tested. It runs the whole harness once per
+# mutant, so it runs weekly and on demand, not on every pull request.
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-mutation
+  cancel-in-progress: false
+
+jobs:
+  mutate:
+    name: installer mutation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      # Cases V7 and OLD1 need the v1.2.0 tag and commit 6103231, so fetch the full history.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Every mutant is killed
+        run: bash misc/installer/test/mutate.sh
