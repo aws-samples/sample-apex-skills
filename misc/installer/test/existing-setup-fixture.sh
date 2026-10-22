@@ -6,12 +6,16 @@
 # Claude Code commands, agents and hooks, a memory directory, MCP configs, a
 # knowledge base, plus symlinks of their own (relative, absolute, dangling and a
 # whole skills directory linked into a dotfiles tree), odd modes and a file name
-# with spaces. existing-setup-check.mjs then records every path, so a run of any
-# installer over it can be checked: nothing of the user's may change.
+# with spaces. existing-setup-check.mjs then records every path, so a run of an
+# installer over it can be checked for the Claude Code and Kiro paths it lays
+# down: nothing of the user's may change. It has no Codex setup and its
+# clashing names are v1.3.0 flat names; a v2 or Codex-target run needs those
+# added first.
 #
 # Usage: misc/installer/test/existing-setup-fixture.sh <home> [<project>]
 #   <home>     a throwaway HOME (created; must be empty or missing)
-#   <project>  a project directory (default: <home>/work/app)
+#   <project>  a throwaway project directory (default: <home>/work/app; must
+#              be empty or missing: existing files are overwritten)
 #
 # Both Claude Code and Kiro CLI are detected by the 1.3.0 installer from the
 # existence of ~/.claude and ~/.kiro, so the fixture creates both.
@@ -28,6 +32,28 @@
 #                                     APEX Kiro workflow (steering/workflows/design.md)
 #   <project>/.claude/skills/eks-build and <project>/.kiro/steering/eks-security.md
 #                                     the same, for a --project install
+#
+# Documented 1.3.0 no-record cases (misc/installer/README.md, Installed paths
+# and Uninstall), laid down so a run shows what they do rather than hiding
+# them; under 1.3.0 the first two read as CHANGED or REMOVED:
+#   ~/.kiro/steering/eks-upgrade-check.md and <project>/.kiro/steering/eks-genai.md
+#       a Kiro steering copy carrying installer 1.3.0's marker line, edited by
+#       the user (as left by an earlier install whose record is gone). With no
+#       install record, "a marked file at a workflow name is overwritten"; the
+#       recorded --uninstall after it then removes the installer's copy.
+#   ~/.claude/skills/my-retired-pin
+#       the user's own link into ~/.apex-skills that stays dangling. 1.3.0
+#       removes it at the first install (bin/cli.mjs pruneArea: "With no
+#       record for the area, remove dangling links into the clone"); the
+#       README states that removal for --uninstall only.
+#   ~/.claude/skills/my-eks-design, <project>/.claude/skills/my-eks-recon
+#       the user's own links into ~/.apex-skills at non-APEX names (live once
+#       the clone exists). A recorded run keeps them, so a chain of recorded
+#       steps reads them as unchanged; with no record, --uninstall "removes
+#       every link into ~/.apex-skills in the skill directories", and that
+#       no-record --uninstall is not exercised by an install-first chain.
+# The marker line is installer 1.3.0's text (bin/cli.mjs KIRO_MARKER); another
+# installer version needs its own.
 set -eu
 
 if [ $# -lt 1 ] || [ $# -gt 2 ]; then
@@ -39,6 +65,7 @@ P="${2:-$1/work/app}"
 case "$H" in /*) ;; *) echo "<home> must be an absolute path: $H" >&2; exit 2 ;; esac
 case "$P" in /*) ;; *) echo "<project> must be an absolute path: $P" >&2; exit 2 ;; esac
 if [ -e "$H" ] && [ -n "$(ls -A "$H")" ]; then echo "<home> $H is not empty" >&2; exit 2; fi
+if [ -e "$P" ] && [ -n "$(ls -A "$P")" ]; then echo "<project> $P is not empty" >&2; exit 2; fi
 umask 022
 
 # put <path> <mode>: write stdin to <path> (parents created) and set its mode.
@@ -50,6 +77,13 @@ put() {
 # skill <dir> <name> <description>: a minimal SKILL.md with front matter.
 skill() {
   printf -- '---\nname: %s\ndescription: %s\n---\n\n# %s\n\nThe user'"'"'s own skill. Not from APEX.\n' "$2" "$3" "$2" | put "$1/SKILL.md" 0644
+}
+
+# marked_copy <path> <title>: a Kiro steering copy with installer 1.3.0's marker
+# line after its front matter, then the user's own edit.
+KIRO_MARKER_130='<!-- apex-skills installer: generated copy of steering/workflows; installer 1.3.0 install, --update and --uninstall keep this file once you edit it and list it (exit code 3), but replace or delete it when there is no install record for this home or project directory (no manifest, or the directory was moved or renamed since); a 1.2.0 install or --update replaces it (a plain npx apex-skills runs the version that npm view apex-skills version prints); to be safe, save your own version under another name -->'
+marked_copy() {
+  printf -- '---\ninclusion: manual\n---\n%s\n# %s\n- The user'"'"'s own rule, added after the install.\n' "$KIRO_MARKER_130" "$2" | put "$1" 0644
 }
 
 mkdir -p "$H"
@@ -89,6 +123,8 @@ skill "$H/.claude/skills/eks-best-practices" eks-best-practices "The user's own 
 ln -s ../../dotfiles/skills/terraform-skill "$H/.claude/skills/terraform-skill"   # relative, collides
 ln -s ../../dotfiles/skills/removed-helper "$H/.claude/skills/old-helper"         # dangling, relative
 ln -s "$H/dotfiles/skills/notes" "$H/.claude/skills/notes"                         # absolute
+ln -s ../../.apex-skills/skills/eks-design "$H/.claude/skills/my-eks-design"       # user's own link into the clone
+ln -s ../../.apex-skills/skills/retired-skill "$H/.claude/skills/my-retired-pin"   # user's own, dangling, into the clone
 put "$H/.claude/commands/deploy.md" 0644 <<'EOF'
 Deploy the current branch to staging.
 EOF
@@ -148,6 +184,8 @@ inclusion: always
 - Every service has an ADR.
 - Diagrams in Mermaid.
 EOF
+# A marked 1.3.0 Kiro copy the user edited (no install record): see the header.
+marked_copy "$H/.kiro/steering/eks-upgrade-check.md" "Upgrade checks (edited by the user)"
 put "$H/.kiro/steering/conventions.md" 0644 <<'EOF'
 ---
 inclusion: fileMatch
@@ -221,6 +259,8 @@ put "$P/.claude/commands/release.md" 0644 <<'EOF'
 Cut a release.
 EOF
 skill "$P/.kiro/skills/app-runbook" app-runbook "This app's runbook"
+ln -s "$H/.apex-skills/skills/eks-recon" "$P/.claude/skills/my-eks-recon"          # user's own link into the clone (absolute)
+marked_copy "$P/.kiro/steering/eks-genai.md" "GenAI notes (edited by the user)"
 put "$P/.kiro/steering/structure.md" 0644 <<'EOF'
 # Structure
 src/ holds the code.
