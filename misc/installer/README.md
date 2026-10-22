@@ -49,7 +49,7 @@ Before upgrading from installer 1.2.0 or earlier, and before re-running after mo
 | Claude Code | `~/.claude/skills/{name}` | `~/.claude/commands/apex/`, `~/.claude/apex-steering` |
 | Kiro CLI | `~/.kiro/skills/{name}` | `~/.kiro/steering/{workflow}.md` (copies, `inclusion: manual`) |
 
-With `--project`, the same paths go under the current directory. The clone stays in `~/.apex-skills`.
+With `--project`, the same paths go under the current directory and the clone stays in `~/.apex-skills`. Add `--project` to the commands the installer prints (such as `--update`), and don't use it where `.claude` or `.kiro` links into `~`: either way it acts on the global install.
 
 ## Uninstall
 
