@@ -95,6 +95,19 @@
         "Treats the controller upgrade as an operator action the assessment documents but does not run"
       ],
       "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "Assess one cluster and give it a Migration Difficulty Score. The cluster is ACTIVE and `eks:ListAddons` succeeds, but every Kubernetes read is rejected: listing Ingress, IngressClass and Deployments in kube-system each return `Error from server (Forbidden): ... is forbidden: User cannot list resource`. No ingress controller, IngressClass or Ingress object could therefore be enumerated. ACM and Route 53 reads also fail.",
+      "expectations": [
+        "Does NOT score the cluster 100/TRIVIAL and does NOT report 'nothing to migrate' — the denied reads mean absence was never observed, so the empty-estate short-circuit must not fire",
+        "Emits 'NOT ASSESSED — insufficient read coverage' in place of the headline score, with no numeric score and no band label (TRIVIAL/EASY/MODERATE/HARD/VERY HARD)",
+        "Explicitly distinguishes UNKNOWN (denied) from 'none found', and never renders a denied read as zero resources or as a clean/healthy estate",
+        "Names the missing permissions per denied read — K8s RBAC get/list on ingresses, ingressclasses and deployments — so the user can re-run with sufficient access",
+        "Attributes the failure to read coverage rather than to the cluster being empty, and does not emit a Migration Crew Alert (orphan downgrade also requires observed absence)",
+        "Does not treat the denied ACM/Route 53 reads as the cause: those are optional reads that degrade to UNKNOWN rows and do not by themselves withhold a score"
+      ],
+      "files": []
     }
   ]
 }
