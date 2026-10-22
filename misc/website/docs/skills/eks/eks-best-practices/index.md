@@ -421,3 +421,4 @@ This skill uses **progressive disclosure** — essential guidance is in this mai
 
 - [AWS EKS Best Practices Guide](https://docs.aws.amazon.com/eks/latest/best-practices/)
 - [terraform-aws-modules/terraform-aws-eks](https://github.com/terraform-aws-modules/terraform-aws-eks)
+
