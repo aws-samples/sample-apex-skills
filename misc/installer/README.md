@@ -1,74 +1,46 @@
 # APEX Skills Installer
 
-NPX-runnable installer for APEX platform engineering skills. Installs skills for Claude Code and Kiro CLI via symlinks from a local clone of the repository.
+Installs APEX skills for Claude Code and Kiro CLI. It clones the repo to `~/.apex-skills/` and links each skill into place. It needs Node.js 18+ and git on macOS or Linux (on Windows, use WSL).
 
 ## Usage
 
 ```bash
-npx apex-skills
+npx apex-skills            # install (a run on an existing clone updates it)
+npx apex-skills --update   # update, with no questions
 ```
 
-Or to update an existing installation:
+- A fresh install uses the newest `v1.x.y` release tag, not `main`. `--update` stays on the clone's major line.
+- With steering, Claude Code gets the `/apex:*` commands and Kiro CLI gets the workflows as manual steering files in `~/.kiro/steering/`.
+- `npx apex-skills` runs the version on npm's `latest` tag, which can be older than this page (`npm view apex-skills version`).
 
-```bash
-npx apex-skills --update
-```
-
-This page describes the installer in this repository (version in `package.json`); `npx apex-skills` runs the version on npm's `latest` tag, which can be older (`npm view apex-skills version`). While installer 1.3.0 is on npm's `next` tag and not yet on `latest`, add `@next` to every plain `npx apex-skills` command on this page and to every command the installer prints (such as `npx apex-skills --update`): a plain `npx apex-skills` runs installer 1.2.0, and a 1.2.0 run that installs steering for Kiro CLI over a 1.3.0 install replaces its Kiro steering copies, edited ones included, with always-loaded links. The note on the first line after the front matter of each Kiro copy describes installer 1.3.0 with an install record; a 1.2.0 install or `--update` replaces an edited copy, and so does a run with no record for the install (none, or its home or project directory moved or renamed since), whose `--uninstall` deletes it while `~/.apex-skills` exists.
-
-A fresh install uses the latest v1 release: the newest `v1.x.y` tag of the repository, in numeric order (`v1.10.0` is newer than `v1.9.0`), not the tip of `main`, which can hold unreleased changes. `--update`, and a plain run on an existing clone, stay on the major line the clone is on: a clone on a v1 tag moves to the newest `v1.x.y`, a clone on a v2 tag (pinned with `--version v2.0.0`, for example) to the newest `v2.x.y`. The line is read from the tag the clone is checked out at (a clone with none stays on v1), never from an install base's record, since every base shares the one clone; moving it with `--version` from one base moves it for the others too. If the manifest records a v2 tag for the base and `~/.apex-skills` is gone, the new clone is on v2. Pre-release tags (such as `v1.3.0-rc.0`) are never picked on their own, and a fresh install never picks another major line (such as `v2.0.0`) unless the manifest records one for the base, as above; name one with `--version` to use it. A pre-release pin counts for its line: `--update` from `v2.0.0-rc.0` moves to the newest `v2.x.y`. The tags are read with `git ls-remote`. On a v2 pre-release pin with no `v2.x.y` release yet, the run stays on the pin, says so in one line on stderr and exits 0. If no release tag of the line can be read otherwise (offline, or a fork without tags), the run stops with exit code 1 and changes nothing; it never falls back to `main` or to another line. In a clone with no remote named `origin`, the tag read fails the same way and the message says "Check your connection and git access.", though the connection is not the cause: move the clone aside (`mv ~/.apex-skills ~/.apex-skills.old`) and re-run. A release with no `skills/`, changed tracked files in `~/.apex-skills` (listed) that moving the clone would overwrite (files git ignores are not checked: one at a path the target release tracks is overwritten without a message), or commits in it that no branch or tag holds (listed; for example a commit made on a `--version` pin), also stop the run with exit code 1, with the files and HEAD of the clone unchanged (the fetch may have added tags and objects, or moved the tag the clone is on; then the next run lists that tag's former commit as one no branch or tag holds: keep it with `git -C ~/.apex-skills branch <name>` and re-run). The installer fetches into an existing clone with `--depth 1` (with `--branch`, only when the clone has no local branch of that name), so a full clone at `~/.apex-skills` becomes shallow, even on a run that stops; `git -C ~/.apex-skills fetch --unshallow origin` restores its history.
-
-When a `v2.0.0` or later release tag exists (pre-release tags such as `v2.0.0-rc.0` do not count; the `v2.0.0` tag does, even if its GitHub Release is marked pre-release), every run that leaves the clone on v1, on a tag of no major line or on a branch, and can read the remote's tags, prints one line on stderr (on a branch it names the branch, and on such a tag the tag, instead of v1); the exit code does not change:
-
-```
-! APEX v2.0.0 is available; this install stays on v1. For the v2 installer, see https://github.com/aws-samples/sample-apex-skills/releases
-```
-
-Release order for installer 1.3.0: the release tag `v1.3.0` goes on `main` first, then installer 1.3.0 is published once to npm's `next` tag (`npx apex-skills@next`), then the same version is promoted to `latest`. With `v1.3.0` tagged, it is the newest `v1.x.y` release tag, so `npx apex-skills@next` installs v1.3.0. Pass `--version <tag>` to choose another tag.
-
-In a script, add `-y` (`--yes`) to take the default answer to every question without a prompt. With stdin closed or empty (for example `</dev/null`), the defaults are taken too. At a terminal, Ctrl-C at a question, or Ctrl-D on an empty answer, cancels the run with exit code 130; every question comes before the clone or any link, so nothing is changed. Run one install at a time: each run reads the install manifest after the clone step and saves it whole, so of two overlapping runs the later save drops what the other recorded.
-
-## What it does
-
-1. Clones (or updates) the `sample-apex-skills` repo to `~/.apex-skills/`, checked out at the latest v1 release tag (detached HEAD), the `--version` tag or the `--branch` branch
-2. Symlinks each skill directory into your AI tool's skills folder (relative links for a global install, so they keep working if your home directory moves; absolute links with `--project`, so they keep working if the project moves; the install record does not follow a move, see Installed paths)
-3. Optionally installs steering: for Claude Code, the `/apex:*` commands plus the `~/.claude/apex-steering` link they import from; for Kiro CLI, copies of the workflows marked `inclusion: manual`
-4. Records every path it created in an install manifest, `~/.local/state/apex-skills/manifest.json` (or `$XDG_STATE_HOME/apex-skills/manifest.json` when that is set to an absolute path): links with their link text, Kiro copies with a SHA-256 of their content, the source URL, ref (the release tag, `--version` tag or branch) and commit, and the steering choice
+Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
 ## Flags
 
 | Flag | Description |
 |------|-------------|
-| `--claude-only` | Install for Claude Code only; asks no steering question: steering is installed unless `--no-steering` or a saved no-steering choice |
-| `--kiro-only` | Install for Kiro CLI only; asks no steering question: steering is installed unless `--no-steering` or a saved no-steering choice |
-| `--project` | Install to current project directory instead of global |
-| `--no-steering` | Skip steering/commands setup. It does not remove steering an earlier run installed: the Kiro copies stay and are not updated (they go stale), while the Claude Code links stay and follow the clone. To remove it, run `--uninstall`, then install with `--no-steering` |
-| `--update` | Move to the latest release of the clone's major line (v1 or v2) and reinstall links and steering copies (non-interactive; a branch chosen with `--branch` is followed instead). It keeps a no-steering choice (`--no-steering` or n) saved in the install manifest, as `--claude-only` and `--kiro-only` runs do; a run that asks the steering question records the answer again, and `-y` or closed stdin answers y |
-| `-v, --version <tag>` | Pin to a specific tag, pre-releases included (e.g. `v1.2.0`; on a fresh install the name goes to `git clone --branch`, so a branch name is accepted too and the clone is checked out on that branch: use `--branch` to follow a branch); a later run without `--version` (plain, `--update`, or one that only adds `--kiro-only`) moves a clone pinned to a tag to the latest release, so pass `--version <tag>` again to keep the pin; a clone that `--version` put on a branch other than `main` keeps following that branch |
-| `--branch <name>` | Follow a branch (e.g. `main`) instead of the latest v1 release; `--update` keeps following it |
-| `--uninstall` | Remove installed links and steering copies (keeps the cloned repo, the install manifest and the directories the installer created); add `--project` for a project install, `--claude-only` or `--kiro-only` for one tool's entries; it names `rm -rf ~/.apex-skills` only when the manifest records no other install, this base has no entries left, nothing was kept and `~/.apex-skills` is a git clone; with no manifest record, a `--claude-only` or `--kiro-only` run does not check the other tool's links and can still name `rm -rf ~/.apex-skills`, which would leave those links dangling: run `--uninstall` without a tool flag first |
-| `-y, --yes` | Take the default answer to every question (no prompts) |
+| `--claude-only` | Install for Claude Code only |
+| `--kiro-only` | Install for Kiro CLI only |
+| `--project` | Install into the current directory instead of `~` |
+| `--no-steering` | Skip steering and commands. Steering an earlier run installed stays |
+| `--update` | Move to the latest release of the clone's major line, or follow the `--branch` branch. Asks no questions |
+| `-v, --version <tag>` | Pin to a tag (e.g. `v1.2.0`). A later run without `--version` or `--branch` moves to the latest release |
+| `--branch <name>` | Follow a branch (e.g. `main`) instead of the latest release |
+| `--uninstall` | Remove installed links and steering copies. Keeps the clone. Honours `--project`, `--claude-only` and `--kiro-only` |
+| `-y, --yes` | Take the default answer to every question |
 | `-h, --help` | Show help |
 
-`--branch` and `--version` also take the `--branch=<name>` form. An unknown flag, a missing value or a contradictory pair (`--claude-only` with `--kiro-only`, `--branch` with `--version`, `--uninstall` with `--update`, `--branch` or `--version`) stops the run before anything changes.
+`--branch` and `--version` also take the `--branch=<name>` form.
 
 ## Exit codes
 
 | Code | Meaning |
 |------|---------|
 | 0 | Done |
-| 1 | Error (for example git missing, a failed clone, or no release tag of the major line found); the message is on stderr |
-| 2 | Bad command line; nothing was changed |
-| 3 | Done, but some paths were skipped because the installer did not create them (or they changed since it did, or could not be written or read; a run that installs Claude Code steering where `.claude` is missing and cannot be created (a `--project` directory, or for a global run the home directory, that cannot be written; a fresh global install there stops earlier, at the clone, with git's "Permission denied") stops with exit code 1 and a "no such file or directory" error for the `.claude/apex-steering` link, and prints no list of the paths it could not write (make the directory writable, then re-run); with `--kiro-only` or `--no-steering` the same run gives exit code 3 and the list), or the install manifest could not be saved; they are listed on stderr. Kept files that carry the installer's marker but are not a recorded copy of a current workflow (such as one a run stopped by Ctrl-C wrote before it saved the manifest), or that nothing says the installer wrote, are listed on stderr too, with exit code 0 |
-| 130 | Cancelled by Ctrl-C, or Ctrl-D on an empty answer, at a terminal: at a question, nothing was changed; a Ctrl-C later stops the run part way: run it again to finish, before any `--uninstall`. Links a stopped run made are not recorded, so when an earlier run left a record, `--uninstall` keeps them and `rm -rf ~/.apex-skills` would leave them dangling, and a second `--uninstall` then clears them when the first one kept nothing; a Kiro copy that run had already updated holds the release's text, so a re-run does not take it for an edit, and `--uninstall` before a re-run keeps it as changed since (exit code 3) |
-
-Progress goes to stdout; warnings and errors go to stderr. Every git call runs with `GIT_TERMINAL_PROMPT=0`, so git never prompts for a password on the terminal (an askpass program or credential helper you set up still runs; with none, an HTTPS repository that needs credentials fails); an ssh URL (or an `insteadOf` rewrite to ssh) can still prompt, for a host key for example.
-
-## Requirements
-
-- Node.js 18+
-- git
-- macOS or Linux (Windows is not supported; use WSL)
+| 1 | Error, for example git missing or no release tag found |
+| 2 | Bad command line, for example an unknown flag, a missing value or a contradictory pair. Nothing changed |
+| 3 | Done, but some paths were skipped or could not be written, or the install manifest was not saved. Listed on stderr |
+| 130 | Cancelled by Ctrl-C or Ctrl-D at a terminal. At a question nothing changed; later, run it again to finish before `--uninstall` |
 
 ## Installed paths
 
@@ -77,38 +49,13 @@ Progress goes to stdout; warnings and errors go to stderr. Every git call runs w
 | Claude Code | `~/.claude/skills/{name}` | `~/.claude/commands/apex/`, `~/.claude/apex-steering` |
 | Kiro CLI | `~/.kiro/skills/{name}` | `~/.kiro/steering/{workflow}.md` (copies, `inclusion: manual`) |
 
-`CLAUDE_CONFIG_DIR` is not supported in v1: the Claude Code paths are always under `~/.claude` (or the project with `--project`), even when that variable points Claude Code at another directory.
-
-With `--project`, the same paths are created under the current directory instead of `~`; the clone stays in `~/.apex-skills`, `~/.claude` may be created, and the commands still need a global install (it warns). Existing files, directories or symlinks the installer did not create are reported and left alone (exit code 3; a symlink into `~/.apex-skills` (or, when `~/.apex-skills` is itself a symlink, into the directory it points to) counts as the installer's, so it is replaced, or recorded as it is when its link text is already the one this installer writes), a file or a dangling symlink at `~/.claude` or `~/.kiro` itself included (that tool's paths are then skipped); a directory the installer cannot read is listed the same way, and nothing in it is removed or forgotten; a managed directory that is itself a symlink (a dotfiles link, for example) is followed, and the links go inside its target. A Kiro workflow file with the installer's marker line is overwritten, unless the manifest records it with different content and it does not hold the new release's text: an edited copy is kept and listed on stderr (exit code 3) by install, `--update`, the prune of workflows that left the repo and `--uninstall` alike, and its record is kept so later runs keep it too (to get the release's text instead, copy your edit out, then delete it and re-run). A recorded Kiro copy that a write error such as a full disk cut short (that run stops with exit code 1) is kept the same way, as changed since: delete it and re-run. A first-install copy that a disk error cut short before its marker line (often an empty file) is reported as not created by this installer: delete it and re-run. With no manifest record, a marked file at a workflow name is overwritten, so keep your own version under another name. The record is keyed on the real path of HOME (symlinks resolved) and, with `--project`, of the current directory, so a HOME reached through a symlink, and a `--project` run in the home directory, use the record of the real path: an install, `--update` or `--uninstall` from either path keeps an edited Kiro copy, and `--uninstall` from either path removes only that record's entries, plus dangling links into `~/.apex-skills` in the skill directories. The current directory's `.claude` and `.kiro` are not resolved: a `--project` run where either is a symlink to `~/.claude` or `~/.kiro` (or where both point at the same directory) acts on the global install's files under the project's record, and a first run there has none, so it uses the no-record rules: an install overwrites an edited Kiro copy, and `--uninstall` there removes the global install's links and unedited Kiro copies (with no record, an edited one too, with exit code 0; with a record, it keeps an edited one, exit code 3). Do not run `--project` there. The record does not follow a move: after the home directory or a `--project` directory is moved or renamed, the next run there has no record and uses the no-record rules (an install or `--update` overwrites an edited Kiro copy, and `--uninstall` removes every link into `~/.apex-skills` in the skill directories and the Kiro steering directory, whatever its name, and at the `.claude/commands/apex` and `.claude/apex-steering` paths (under `~`, or the current directory with `--project`), your own included, with exit code 0), and the old path's record stays in the manifest, so `--uninstall` keeps naming that path as an install that uses `~/.apex-skills` and never prints the `rm -rf` hint; once nothing else is installed, delete the manifest by hand. Copy edited Kiro copies out before you move one. Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
-
-Upgrading from v1.2.0 or earlier: back up customised files first, and before re-running after moving a folder (the last sentence of the paragraph above says which). Those installers followed `main`. `--update` now moves a clone on `main` to the latest v1 release and says so on stderr; skills added to `main` after that release are not in it, so their links are removed (the run prints how many); to keep following `main`, run `npx apex-skills --branch main` once, and later `--update` runs follow it. A clone on another branch (from `--branch`) keeps following that branch. A clone pinned to a tag with `--version` moves to the latest release of the pin's major line on `--update` and on any later run without `--version` (pass `--version <tag>` again to keep the pin); when the pin was not a release of that line (a pre-release, for example), a note on stderr names it and how to go back. The branch or tag the clone was set to is kept in its git config (`apex-skills.branch`, `apex-skills.tag`). `--update` also replaces the always-loaded Kiro workflow symlinks with manual copies; invoke them by name or with / (partial in Kiro CLI V1/V2). An edit made through such a link is in the clone: an `--update` that moves the clone lists it and stops until you copy it out; when the clone already sits at the release's commit, the run goes on and the new Kiro copy takes the edited text (the edit stays in the clone). With steering off and no steering from an earlier run still recorded, `--update`, `--claude-only` and `--kiro-only` print the command that adds it without moving the clone (`npx apex-skills --version <tag>` or `--branch <name>`; this run installs for every detected tool); otherwise it reports how many steering entries from an earlier run are still recorded (one deleted by hand since included). The `npx apex-skills` commands and flags the installer prints leave out `--project`: after a `--project` install, add it to them, except to the global install it asks for (`npx apex-skills --claude-only`), which is run as printed.
-
-## APEX v2
-
-The v2 installer is not released yet. Its release notes at https://github.com/aws-samples/sample-apex-skills/releases will say how to install it; until then, this installer stays on v1 (see Usage above for `--update` and a clone pinned to a v2 tag). A manifest a newer installer wrote in a later format version is not valid for this one: it is set aside as `manifest.json.corrupt`, with a warning, and the run uses the no-record rules (the warning calls them the built-in ownership rules): an install overwrites, and `--uninstall` deletes, marked Kiro copies at workflow names, edited ones included, and `--uninstall` also removes every link into `~/.apex-skills` in the skill directories and the Kiro steering directory, whatever its name, and at the `.claude/commands/apex` and `.claude/apex-steering` paths, your own included, with exit code 0. Do not run this installer after a newer one; use the newer one.
+With `--project`, the same paths go under the current directory and the clone stays in `~/.apex-skills`. Add `--project` to the commands the installer prints (such as `--update`), and don't use it where `.claude` or `.kiro` links into `~`: either way it acts on the global install.
 
 ## Uninstall
 
 ```bash
 npx apex-skills --uninstall
-rm -rf ~/.apex-skills  # optional, once no other install (global or --project, made before 1.3.0 included) uses it: remove the clone, and anything you changed or added in it
+rm -rf ~/.apex-skills  # optional, once no other install uses it: deletes the clone and your changes in it
 ```
 
-To remove an install that 1.3.0 made, run `npx apex-skills@1.3.0 --uninstall` (or `@next` before promotion; if a plain `npx apex-skills` ran installer 1.2.0 over it, run `npx apex-skills@1.3.0 --update` first, or `--uninstall` keeps the links 1.2.0 rewrote, exit code 3): installer 1.2.0's `--uninstall` usually leaves that install's skill links and always leaves `~/.claude/apex-steering` and the Kiro steering copies. After a Ctrl-C, run the installer again to finish before `--uninstall`: links a stopped run made are not recorded, so when an earlier run left a record, `--uninstall` keeps them and `rm -rf ~/.apex-skills` would leave them dangling; a second `--uninstall` then clears them when the first one kept nothing.
-
-`--uninstall` removes the paths the manifest records for that install base, as long as they still match what was recorded, plus dangling links into `~/.apex-skills` in the skill directories; it works after `~/.apex-skills` is removed. A recorded path that changed since (an edited Kiro copy, a link you repointed) is kept, listed and stays recorded, with exit code 3: delete it and re-run to drop it from the record. With both `~/.apex-skills` and the manifest gone, marked Kiro copies are kept and listed, since nothing says which ones the installer wrote. In an area the record does not hold (Kiro after a `--claude-only` install, for example), it removes nothing, so your own links there are kept, and so are links an installer before 1.3.0 made there: remove those by hand. With no manifest record for the install base (an install made by v1.2.0 or earlier, a home or `--project` directory moved or renamed since the install, or a run with a different `XDG_STATE_HOME`, which reads another manifest, or a manifest that is not valid, which is moved aside to `manifest.json.corrupt` with a warning; one entry that is not valid, in any install base's record, makes the whole manifest not valid, so the records of every install base are dropped and an earlier `manifest.json.corrupt` is replaced), it falls back to removing links into `~/.apex-skills` and marked Kiro copies named after a current workflow. A manifest that exists but cannot be read (permission denied, or a directory in its place) is left as it is: `--uninstall`, an install and `--update` stop with exit code 1 before they change anything, and say so; make it readable, then re-run. Apart from moving a manifest that is not valid aside (above), `--uninstall` never removes the install manifest (`$XDG_STATE_HOME/apex-skills/manifest.json`, default `~/.local/state/apex-skills/manifest.json`; once the last recorded install is removed it records none) or the directories the installer created; delete them by hand once no install is recorded.
-
-## Testing
-
-`test/install-paths.sh` runs the installer against a local fixture repository with `HOME` pointed at a scratch directory (it never touches your real `~/.claude` or `~/.kiro`). Each run gets a scrubbed environment, a network fence (only `file://` git transports, proxies pointed at a closed port) and a timeout. CI runs it on every pull request that changes `misc/installer/**`, `steering/**`, a `skills/*/SKILL.md` file or the workflow itself, against the source tree and against the `npm pack` tarball (`.github/workflows/installer-test.yml`).
-
-```bash
-misc/installer/test/install-paths.sh          # source tree
-misc/installer/test/install-paths.sh --pack   # the packed tarball
-```
-
-Before a review of an installer change, run the mutation check (manual; weekly in CI). It runs the harness against copies of `bin/cli.mjs` with one deliberate defect each and fails if any listed mutant survives or the harness does not run for it (a mutant counts as killed only when the harness reports at least one failed case; a case failed at the harness's own 60 s per-run limit counts too, so read each "killed by:" list and rerun with `--only <ID>` a mutant that only a timeout or load explains). Each harness run, the unmutated baseline included, is killed after 1200 s, or after `MUTATE_HARNESS_TIMEOUT` seconds when that is set (a whole number of seconds, 1 or more: 0, a fraction below 1 or a value that does not start with a number turns the limit off, and a negative value stops the harness from running): a mutant run killed there is reported as HARNESS DID NOT RUN, and a baseline run killed there fails the check. One pass took 99 to 135 s with 113 cases (116 at this head) on one 16-CPU Linux machine (the harness runs its cases one at a time), so the 116 passes (115 mutants and the baseline) take about 191 to 261 minutes there, and the weekly job can stop at its 240-minute cap (the range on that machine straddles it) on a GitHub-hosted runner, where a pass has not been timed. A job stopped at the cap is a timeout, not a surviving mutant: rerun each mutant it did not reach with `--only <ID>` (one ID per run). To run the check:
-
-```bash
-misc/installer/test/mutate.sh
-```
+`--uninstall` removes what the install manifest records (`~/.local/state/apex-skills/manifest.json`, or under `$XDG_STATE_HOME`) and still matches. A path you changed is kept and listed (exit code 3). With no record (an install by 1.2.0 or earlier, or a moved home or project directory), it removes every link into `~/.apex-skills` in the skill, steering and command paths, your own included, and marked Kiro copies named after a workflow.
