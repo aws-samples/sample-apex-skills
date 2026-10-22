@@ -2,26 +2,89 @@
 
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aws-samples.github.io/sample-apex-skills/)
 
-APEX gives AI coding agents such as Claude Code and Kiro CLI curated platform-engineering skills. AWS SSAs, TAMs and ProServe write them. They follow the [Agent Skills open standard](https://agentskills.io/), so any supported agent harness can load them.
+> Curated platform-engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, TAMs, and ProServe, delivered through agentic AI tools (Claude Code, Kiro CLI etc).
+
+**APEX** uses agentic AI (frontier models and agent harness like Claude Code) combined with curated "skills" to give engineers SSA-grade platform engineering output.
+
+Agent Skills are organized folders of instructions, scripts, and resources that frontier LLM models can discover and load dynamically to perform specialized tasks. By codifying expert platform engineering knowledge as Agent Skills, we amplify best practices and scale them across teams while reducing toil. They follow the Agent Skills [Agent Skills open standard](https://agentskills.io/) open standard and are compatible with any supported agent harness.
+
+---
+
+## What's in This Repo
+
+| Directory | Purpose |
+|-----------|---------|
+| `skills/` | **What** the agent knows — reusable domain knowledge |
+| `steering/` | **How** the agent runs an engagement — slash commands, questionnaires, routing |
+| `rules/` | **How** the agent behaves — verification, source-checking, guardrails |
+| `examples/` | **How** to try it — deployable labs with planted issues |
+| `misc/` | Maintenance tooling and evaluation framework |
+| `devops-agent/` | Non-executable skill ports for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/), Day 2 operational skills repackaged for managed autonomous execution |
+
+---
 
 ## Quick Start
 
-You need [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/).
+### NPX Installer (recommended)
+
+> **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/) must be installed.
 
 ```bash
 npx apex-skills
 ```
 
-This clones the repo to `~/.apex-skills/` and links the skills into Claude Code and Kiro CLI.
+Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and links the skills into place. Flags, exit codes, [installed paths](misc/installer/README.md#installed-paths) and [uninstall](misc/installer/README.md#uninstall): see the [installer README](misc/installer/README.md).
 
-Back up customised files before upgrading, and before re-running after moving a folder: copy out edited Kiro steering copies and note links of your own into `~/.apex-skills`.
+Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
 ```bash
-npx apex-skills --update              # Update to the latest release of the clone's major line
-npx apex-skills --version v1.2.0      # Pin to a release (a later run without --version moves it on)
+npx apex-skills --update              # Update an existing install
+npx apex-skills --version v1.2.0      # Pin to a release
+npx apex-skills --branch feat/new-eks # Install from a branch
+npx apex-skills --help                # See all options
 ```
 
-Flags, exit codes and uninstall: [installer README](misc/installer/README.md). Manual install, other harnesses and agent rules: [Getting Started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started).
+### Manual Install
+
+If you prefer not to use npx, clone the repo and copy skills directly.
+
+#### Claude Code
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.claude/skills ~/.claude/commands
+cp -r skills/* ~/.claude/skills/
+ln -sfn "$(pwd)/steering/commands/apex" ~/.claude/commands/apex
+ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
+```
+
+**Usage:** Start a Claude Code session and use slash commands:
+- `/apex:eks` — hub that auto-routes based on your request
+- `/apex:eks-design` — *"Help me design an EKS cluster"*
+- `/apex:eks-upgrade-check` — *"Is my cluster ready to upgrade to 1.32?"*
+
+#### Kiro CLI
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.kiro/skills ~/.kiro/steering
+cp -r skills/* ~/.kiro/skills/
+cp steering/workflows/*.md ~/.kiro/steering/
+```
+
+Files copied this way load into every Kiro interaction; add `inclusion: manual` frontmatter or use `npx apex-skills`.
+
+#### Other Agent Harnesses
+
+Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill lives in `skills/{skill-name}/` with a `SKILL.md` and optional `references/`, `scripts/`, and `assets/` directories. Clone and point your tool at them — see [skills/README.md](skills/README.md) for the layout.
+
+#### Agent Rules (optional)
+
+[AGENTS.md](./rules/AGENTS.md) contains project-level guardrails — verification habits, source-checking, safety boundaries. These are personal to each user's workflow, so they are **not** auto-loaded by the installer. To activate them, add the contents to whatever file your agent harness reads for project instructions (e.g., `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.kiro/steering/project.md`).
 
 <!-- SKILLS_REFERENCE_START -->
 ## Skills Reference
@@ -53,6 +116,8 @@ Flags, exit codes and uninstall: [installer README](misc/installer/README.md). M
 </table>
 <!-- SKILLS_REFERENCE_END -->
 
+---
+
 <!-- STEERING_REFERENCE_START -->
 ## Steering
 
@@ -75,6 +140,12 @@ Flags, exit codes and uninstall: [installer README](misc/installer/README.md). M
 </table>
 <!-- STEERING_REFERENCE_END -->
 
+Steering files define **how** the agent runs an engagement. Structured sequences with questionnaires, checkpoints, and routing. The hub (`/apex:eks`) detects what you want and routes to the right workflow. Slash commands (e.g., `/apex:eks-design`) are agent-harness entry points that trigger these workflows.
+
+**The key test:** Remove all steering files and the agent still knows the right answers (skills provide knowledge). But it wouldn't know how to run the engagement.
+
+---
+
 <!-- EXAMPLES_REFERENCE_START -->
 ## Examples
 
@@ -86,12 +157,20 @@ Flags, exit codes and uninstall: [installer README](misc/installer/README.md). M
 | **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](steering/workflows/eks-upgrade-check.md) |
 <!-- EXAMPLES_REFERENCE_END -->
 
-## Links
+---
 
-- [Documentation site](https://aws-samples.github.io/sample-apex-skills/)
-- [Contributing](CONTRIBUTING.md): add skills, steering workflows and examples
-- [License](LICENSE): MIT-0
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add skills, steering workflows, and examples.
+
+---
 
 ## Disclaimer
 
 This repository provides sample code for **educational and demonstration purposes only**. It is not intended for direct production use without proper review, testing, and validation. Always test generated infrastructure artifacts (Terraform, Helm charts, kubectl commands) in non-production environments first. Use at your own risk — the authors are not responsible for any issues, damages, or losses that may result from using this code in production.
+
+---
+
+## License
+
+This project is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.

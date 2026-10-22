@@ -24,8 +24,8 @@ Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and l
 Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
 ```bash
-npx apex-skills --update              # Update (installer 1.3.0+: latest release of the clone's major line (v1), or the branch it follows; 1.2.0 and earlier: git pull of main)
-npx apex-skills --version v1.2.0      # Pin to a release (installer 1.3.0+: a later install or --update without --version or --branch moves it to the latest)
+npx apex-skills --update              # Update an existing install
+npx apex-skills --version v1.2.0      # Pin to a release
 npx apex-skills --branch feat/new-eks # Install from a branch
 npx apex-skills --help                # See all options
 ```
