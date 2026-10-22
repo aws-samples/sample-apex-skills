@@ -31,7 +31,7 @@
 #                 for this and later steps; a path the user added between steps
 #                 is not in it
 #   --step        a label for this step's files (default: step<n>); a label
-#                 that was used already in this --work is refused
+#                 whose .out exists in this --work is refused
 # Example:
 #   misc/installer/test/existing-setup-run.sh --work /tmp/es --version 1.3.0 --step install -- -y
 #   misc/installer/test/existing-setup-run.sh --work /tmp/es --version 1.3.0 --step update -- --update
@@ -181,7 +181,7 @@ crc=$?
 grep -v '^unchanged ' "$WORK/$STEP.compare.txt"
 if [ -n "$invalid" ]; then echo "INVALID $STEP: $invalid; the compare above is not a result" >&2; exit 2; fi
 case "$crc" in
-  0) echo "PASS $STEP: no user path changed, removed or moved" ;;
+  0) echo "PASS $STEP (this checker's readings, open with the user: adds and same-bytes rewrites allowed; Claude Code and Kiro paths only): no user path changed, removed or moved" ;;
   1) echo "FAIL $STEP: a user path changed, was removed or moved (see $WORK/$STEP.compare.txt)"; exit 1 ;;
   *) echo "compare failed (exit $crc; the checker's message is above)" >&2; exit 2 ;;
 esac

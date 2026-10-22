@@ -5,7 +5,7 @@
 # installer: their own skills, AGENTS.md and CLAUDE.md files, Kiro steering,
 # Claude Code commands, agents and hooks, a memory directory, MCP configs, a
 # knowledge base, plus symlinks of their own (relative, absolute, dangling and a
-# whole skills directory linked into a dotfiles tree), odd modes and a file name
+# whole skills directory linked into a dotfiles tree), 0600 and 0700 private modes and a file name
 # with spaces. existing-setup-check.mjs then records every path, so a run of an
 # installer over it can be checked for the Claude Code and Kiro paths it lays
 # down: nothing of the user's may change. It has no Codex setup and its
@@ -33,7 +33,9 @@
 #   <project>/.claude/skills/eks-build and <project>/.kiro/steering/eks-security.md
 #                                     the same, for a --project install
 #
-# Documented 1.3.0 no-record cases (misc/installer/README.md, Installed paths
+# 1.3.0 no-record cases (the Kiro overwrite documented at README.md:82; the
+# install-time link removal covered only by its general caveat), from
+# misc/installer/README.md (Installed paths
 # and Uninstall), laid down so a run shows what they do rather than hiding
 # them; under 1.3.0 the first two read as CHANGED or REMOVED:
 #   ~/.kiro/steering/eks-upgrade-check.md and <project>/.kiro/steering/eks-genai.md
@@ -145,7 +147,11 @@ put "$H/.claude/hooks/pre-commit-check.sh" 0755 <<'EOF'
 #!/bin/sh
 exit 0
 EOF
-# Memory: Claude Code keeps per-project memory under ~/.claude/projects/<cwd with / as ->/memory/.
+# Memory: Claude Code keeps per-project memory under
+# ~/.claude/projects/<project root, or the git repo root, with / as ->/memory/
+# (per the Claude Code docs, code.claude.com/docs/en/memory, read 2026-10-22:
+# "The `<project>` path is derived from the git repository ... Outside a git
+# repo, the project root is used instead"). This project is not a git repo.
 MEM="$H/.claude/projects/$(printf '%s' "$P" | tr '/' '-')/memory"
 put "$MEM/MEMORY.md" 0644 <<'EOF'
 - [Prefer one-line commands](feedback_oneline.md)

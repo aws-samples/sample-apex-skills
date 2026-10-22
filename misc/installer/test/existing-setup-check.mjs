@@ -18,7 +18,7 @@
 //   node existing-setup-check.mjs compare <before> <after>
 //     Reports every path of <before> as unchanged, CHANGED (content, mode, type
 //     or link target), REMOVED or MOVED (removed, and the same file content or
-//     link text appeared at a new path), and lists paths only in <after> as
+//     link text appeared at a new path; first match in sort order), and lists paths only in <after> as
 //     added, one line per added top directory with a count. Added paths are
 //     allowed by this checker wherever they land, inside a user directory (a
 //     dotfiles tree linked in, a backup file beside a user's file) included;
