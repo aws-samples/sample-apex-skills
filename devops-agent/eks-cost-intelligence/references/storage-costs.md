@@ -170,7 +170,7 @@ For each unmounted PVC:
 ```bash
 # Verify the PVC is truly unused (check for Jobs, CronJobs that may mount it periodically)
 kubectl get jobs,cronjobs -n <namespace> -o json | \
-  jq -r '.items[].spec.template.spec.volumes[]? | 
+  jq -r '.items[].spec.template.spec.volumes[]? |
     select(.persistentVolumeClaim.claimName == "<pvc-name>") | 
     "Referenced by: \(.)"'
 
