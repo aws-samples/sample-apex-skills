@@ -1,11 +1,11 @@
 ---
 name: apex
-description: "APEX router and shared rules. Use first for any request about Amazon EKS, Amazon ECS or the APEX skills, including one that names a single skill, then load the skill it routes to, so the shared rules apply to that run. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no destructive action without confirmation."
+description: "APEX router and shared rules. Use first for any request about Amazon EKS, Amazon ECS or the APEX skills, including one that names a single skill, then load the skill it routes to, so the shared rules apply to that run. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no account or cluster change without confirmation."
 ---
 
 # APEX router
 
-Reader: an agent. This skill is the APEX router: it picks the APEX skill for a request and holds the shared APEX rules. It works when only the skills folder is copied: it needs no other file. Route by skill name. Each skill owns its own procedure; do not re-implement it here. A skill whose SKILL.md reads a `~/.claude/apex-steering/` path needs a full Claude Code install, not a skills-only copy or a Kiro install: say so when you route to it. An AGENTS.md, when the user's harness loads one, holds always-on project rules; this skill holds routing, hand-offs and the shared APEX rules, and is the one a skills-only copy has. APEX's `rules/AGENTS.md` is meant to be a subset of this skill's rules, so the two do not conflict.
+Reader: an agent. This skill is the APEX router: it picks the APEX skill for a request and holds the shared APEX rules. It works when only the skills folder is copied: it needs no other file. Route by skill name. Each skill owns its own procedure; do not re-implement it here. A skill whose SKILL.md reads a `~/.claude/apex-steering/` path needs a full Claude Code install, not a skills-only copy or a Kiro install: say so when you route to it. An AGENTS.md, when the user's harness loads one, holds always-on project rules; this skill holds routing, hand-offs and the shared APEX rules, and is the one a skills-only copy has. APEX's `rules/AGENTS.md` is a subset of this skill's rules, so the two do not conflict.
 
 ## Shared rules
 
@@ -22,9 +22,14 @@ These rules apply to every run this router starts: load this router first, then 
 | 7 | Assessment, audit and recon runs are read-only against the account and cluster: read verbs only (for example `aws ... describe-*` and `list-*`, `kubectl get`, `kubectl auth can-i`, `helm list`, MCP reads) and a report. Local kubeconfig setup the skill prescribes (`aws eks update-kubeconfig`) is allowed. Remediation snippets in a report are for the user to run: never execute them. A skill's own read-only rule may be stricter; it wins. The user decides what to do with the findings. |
 | 8 | MCP is opt-in; APEX ships no project-root `.mcp.json`. If the user wants live cluster reads and the EKS MCP tools fail or are missing, use `eks-mcp-server`. For the Arm migration MCP server, use `graviton-migration`. `eks-upgrade-check` falls back to AWS CLI and kubectl; `eks-operation-review` needs the EKS MCP server configured. |
 | 9 | Auth default for EKS workloads: EKS Pod Identity (recommended for new workloads). IRSA is a fully supported alternative: use it where Pod Identity is not available (Fargate, Windows nodes, Outposts, EKS Anywhere, self-managed Kubernetes on EC2) or where the install path needs it (Helm add-ons installed via eks-blueprints-addons). |
-| 10 | Never run destructive operations (node drain, cluster delete, force eviction) without explicit user confirmation. |
+| 10 | Never create, change or delete anything in the user's AWS account or cluster without explicit user confirmation first (for example node drain, cluster delete, force eviction). |
 | 11 | Never output secrets, credentials or kubeconfig contents. |
 | 12 | Use ASCII only in AWS resource names and descriptions; use hyphens, not em dashes. |
+| 13 | When configured, prefer the AWS MCP Server and the EKS MCP Server over the AWS CLI and kubectl. |
+| 14 | Check for a relevant AWS or APEX skill first; prefer skill guidance over general knowledge. |
+| 15 | Unsure of an AWS or EKS detail (API parameters, permissions, limits, add-on versions, controller behavior): check the AWS docs or the current release's upstream repo (Karpenter, VPC CNI, AWS Load Balancer Controller, CoreDNS, EKS AMI, terraform-aws-eks), never guess; if you cannot confirm it, say so. |
+| 16 | Prefer IaC (Terraform with `terraform-aws-modules/terraform-aws-eks`, AWS CDK or CloudFormation) over direct CLI commands. |
+| 17 | Follow AWS Well-Architected Framework principles. |
 
 ## Routing: EKS
 
@@ -32,7 +37,7 @@ These rules apply to every run this router starts: load this router first, then 
 |---|---|
 | What is running, describe my cluster, inventory before a change | `eks-recon` |
 | Design a cluster, architecture document, diagrams, ADRs; a design scoped to one domain (networking, security architecture); a formal review or validation of an existing design | `eks-design` (hardening or compliance guidance with no design document: `eks-security`) |
-| Quick opinion, "what do you think?", compare X vs Y (Karpenter vs MNG), any EKS judgment call with no document | `eks-best-practices` |
+| Quick opinion, "what do you think?", compare X vs Y (Karpenter vs MNG), any EKS judgment call with no document | `eks-best-practices` first |
 | Build a cluster, generate Terraform, pick a pattern (Terraform vs ArgoCD), resume or modify a build | `eks-build` |
 | Internal Developer Platform, golden paths, Backstage, GitOps and progressive delivery | `eks-platform-engineering` |
 | GenAI or LLM on EKS: GPU vs Neuron, vLLM, Ray, distributed training, RAG, AI gateway | `eks-genai` |
