@@ -112,4 +112,4 @@ After `eks-operation-review`, set tone from the rating mix (rating rules and the
 
 ## Runbooks
 
-A runbook is a skill's guided procedure (questionnaire, checkpoints, report). When a skill has one, it sits in that skill's own folder as `runbook/<file>.md`, and the skill's SKILL.md says when to follow it. Route to the skill, not to the runbook. For work that spans several skills, chain them by the routing tables and hand-offs above. There is no top-level runbook folder: a procedure that spans skills, environments or clouds is a flat skill of its own (for example `graviton-migration`) or a chain of skills.
+A runbook is a guided procedure (questionnaire, checkpoints, report) for one skill. Runbooks live in this skill's folder, one folder per skill: `runbooks/<skill>/<file>.md`. Only this router points at them; other skills' SKILL.md files do not. When a request routes to a skill and `runbooks/<skill>/` has a runbook for the task, follow it with that skill; if not, use the skill alone. For work that spans several skills, chain them by the routing tables and hand-offs above.
