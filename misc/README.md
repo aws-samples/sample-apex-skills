@@ -7,9 +7,9 @@ This folder contains miscellaneous scripts to help maintain this repo.
 
 Per-skill evaluation inputs live under [`evals/`](./evals/). The eval framework uses a 5-layer architecture (triggering → process → artifact → knowledge → quality) with composite scoring and letter grades. Scored eval runs are maintainer-run (a deterministic `check_hygiene.py` pre-flight runs on every PR touching `misc/evals/**` or `skills/**`); see [`evals/README.md`](./evals/README.md) for the manual update workflow.
 
-## Update README - Skills and Steering  
+## Update README - Skills and Examples  
 
-Various READMEs references Skills and Steering files. We do not want to have to manually edit everytime some change is made to either folder. Thus, created scripts to read the frontmatter of both and update the READMEs accordingly:  
+Various READMEs references Skills and Examples files. We do not want to have to manually edit everytime some change is made to either folder. Thus, created scripts to read the frontmatter of both and update the READMEs accordingly:  
 
 **For Skills**  
 
@@ -17,13 +17,6 @@ Various READMEs references Skills and Steering files. We do not want to have to 
 chmod +x update-skills-references.sh  
 ./update-skills-references.sh
 ```  
-
-**For Steering**  
-
-```bash
-chmod +x update-steering-references.sh  
-./update-steering-references.sh
-```
 
 **For Examples**  
 

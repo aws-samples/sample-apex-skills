@@ -221,11 +221,7 @@ make triggering-eks-best-practices RUNS_PER_QUERY=1     # cheap iteration
 
 Contributors only need to author `triggering.json`. Maintainers run the full eval suite after merge.
 
-### Happy path — `/apex:new-skill`
-
-The workflow handles: scope intake → skill draft → sibling survey → repo fan-out → triggering.json scaffold → PR prep. Full spec at [`steering/workflows/new-skill.md`](../../steering/workflows/new-skill.md).
-
-### Manual path
+### Steps
 
 ```bash
 cd misc/evals

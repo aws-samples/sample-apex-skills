@@ -40,13 +40,11 @@ If you prefer not to use npx, clone the repo and copy skills directly.
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-mkdir -p ~/.claude/skills ~/.claude/commands
+mkdir -p ~/.claude/skills
 cp -r skills/* ~/.claude/skills/
-ln -sfn "$(pwd)/steering/commands/apex" ~/.claude/commands/apex
-ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
-Restart Claude Code; skills become available via `/<skill-name>` and steering via `/apex:*`.
+Restart Claude Code; skills become available via `/<skill-name>`. Start with `/apex`: it routes your request to the right skill.
 
 ### Kiro CLI
 
@@ -54,12 +52,9 @@ Restart Claude Code; skills become available via `/<skill-name>` and steering vi
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-mkdir -p ~/.kiro/skills ~/.kiro/steering
+mkdir -p ~/.kiro/skills
 cp -r skills/* ~/.kiro/skills/
-cp steering/workflows/*.md ~/.kiro/steering/
 ```
-
-Files copied this way load into every Kiro interaction; add `inclusion: manual` frontmatter or use `npx apex-skills`.
 
 ### Other Agent Harnesses
 
@@ -113,4 +108,4 @@ See [`rules/AGENTS.md`](https://github.com/aws-samples/sample-apex-skills/blob/m
 ## Next steps
 
 - Browse the [Skills](./skills) catalog.
-- Try a [Steering](./steering) workflow for a phased engagement.
+- Start with the [APEX router](./skills/general/apex) skill for a phased engagement: it routes to the right skill and its runbook.

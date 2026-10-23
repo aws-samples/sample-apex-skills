@@ -10,7 +10,7 @@ This page is generated from [skills/ecs-genai/SKILL.md](https://github.com/aws-s
 :::
 
 
-<!-- Note: ecs-genai intentionally ships no `apex:ecs-genai` steering command (eks-genai has one). This is an omission, not by design — steering-command wiring is deferred repo-wide, so it is left unwired for now to match the rest of the ECS skills. Freshness: instance/spec claims verified against live AWS docs 2026-07-10. -->
+<!-- Freshness: instance/spec claims verified against live AWS docs 2026-07-10. -->
 
 # GenAI / GPU / ML Workloads on Amazon ECS
 

@@ -5,7 +5,7 @@ description: "APEX router and shared rules. Use first for any request about Amaz
 
 # APEX router
 
-Reader: an agent. This skill is the APEX router: it picks the APEX skill for a request and holds the shared APEX rules. It works when only the skills folder is copied: it needs no other file. Route by skill name. Each skill owns its own procedure; do not re-implement it here. A skill whose SKILL.md reads a `~/.claude/apex-steering/` path needs a full Claude Code install, not a skills-only copy or a Kiro install: say so when you route to it. An AGENTS.md, when the user's harness loads one, holds always-on project rules; this skill holds routing, hand-offs and the shared APEX rules, and is the one a skills-only copy has. APEX's `rules/AGENTS.md` is a subset of this skill's rules, so the two do not conflict.
+Reader: an agent. This skill is the APEX router: it picks the APEX skill for a request and holds the shared APEX rules. It works when only the skills folder is copied: it needs no other file. Route by skill name. Each skill owns its own procedure; do not re-implement it here. An AGENTS.md, when the user's harness loads one, holds always-on project rules; this skill holds routing, hand-offs and the shared APEX rules, and is the one a skills-only copy has. APEX's `rules/AGENTS.md` is a subset of this skill's rules, so the two do not conflict.
 
 ## Shared rules
 
@@ -75,7 +75,7 @@ These rules apply to every run this router starts: load this router first, then 
 
 | user intent | skill |
 |---|---|
-| Create or improve a skill, run its evals, tune its description | `skill-creator` (the skill itself only; adding it to this repo, with the README, site, manifest and eval edits, is the `/apex:new-skill` workflow in a full Claude Code install) |
+| Create or improve a skill, run its evals, tune its description | `skill-creator` (the skill itself only; adding it to this repo, with the README, site, manifest and eval edits, follows the repo's CONTRIBUTING.md) |
 | Update, sync or check the repo docs after a skill change | `update-docs` |
 
 ## Hand-offs between skills
