@@ -548,7 +548,7 @@ check_imports() { # <claude dir>
     if [ ! -e "$dir/apex-steering/$rel" ]; then bad=$((bad + 1)); err "unresolved import $ref (no $dir/apex-steering/$rel)"; fi
   done < <(/usr/bin/grep -H -o -E '~/\.claude/apex-steering/[A-Za-z0-9._/-]+' "${files[@]}" | sort -u)
   echo "    imports checked: $n, unresolved: $bad"
-  [ "$n" -ge 5 ] || err "expected at least 5 apex-steering references (4 shims plus SKILL.md files), found $n"
+  [ "$n" -ge 2 ] || err "expected at least 2 apex-steering references (one per shim), found $n"
 }
 
 finish_case() {
@@ -570,7 +570,7 @@ run_cli --claude-only
 expect_rc 0
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT resolving skill links, got $(count_resolving_links "$H/.claude/skills")"
 [ -e "$H/.claude/commands/apex/eks.md" ] || err "~/.claude/commands/apex/eks.md does not resolve"
-[ -e "$H/.claude/apex-steering/workflows/eks-operation-review.md" ] || err "~/.claude/apex-steering/workflows/eks-operation-review.md does not resolve"
+[ -e "$H/.claude/skills/apex/runbooks/eks-operation-review/eks-operation-review.md" ] || err "~/.claude/skills/apex/runbooks/eks-operation-review/eks-operation-review.md does not resolve"
 check_imports "$H/.claude"
 finish_case
 
