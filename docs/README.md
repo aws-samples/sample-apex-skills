@@ -4,7 +4,7 @@ This folder records how we design APEX skills and why. It is written for contrib
 
 | Path | What it holds |
 |------|---------------|
-| [design/skill-design.md](design/skill-design.md) | The skill design notes: the hub and children model, Day 0 / Day 1 / Day 2, runbooks, the standalone trade-off |
+| [design/skill-design.md](design/skill-design.md) | The skill design notes: the apex entry skill and standalone knowledge and solution skills, Day 0 / Day 1 / Day 2, runbooks, the standalone trade-off, the plan |
 | [adr/](adr/README.md) | Architecture Decision Records: one short file per decision we have made |
 
 These notes describe the target design for the next major version of APEX. Where the repo does not match them yet, each document says so. The notes fold into the release documentation when that version ships.
