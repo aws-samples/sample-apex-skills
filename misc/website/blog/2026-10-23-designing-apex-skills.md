@@ -16,9 +16,9 @@ The full notes and the decision records are in the repo, under [`docs/`](https:/
 
 ## Where we started
 
-Today the repo draws a clean line between knowledge and process. `skills/` holds domain knowledge: each skill is a self-contained folder in the open [Agent Skills](https://agentskills.io/) format. `steering/` holds process: the EKS hub routes your request to a workflow (design, build, upgrade check, operational review), and the workflow loads the skills it needs. Slash commands like `/apex:eks` and `/apex:eks-design` are the doors in.
+Today the repo draws a clean line between knowledge and process. `skills/` holds domain knowledge. Each skill is a folder (`SKILL.md` plus references and scripts) in the open [Agent Skills](https://agentskills.io/) format, and almost all of them work on their own. `steering/` holds process: the EKS hub routes your request to a workflow (design, build, upgrade check, operational review), and the workflow loads the skills it needs. Slash commands like `/apex:eks` and `/apex:eks-design` are the doors in.
 
-That line works, and we are keeping it. But two things were missing. There was no single front door, and there was no obvious place for a customer to say "this is how *we* run an upgrade".
+That line works, and we are keeping it, though process moves out of `steering/` and into runbooks in the `apex` skill. But two things were missing. There was no single front door, and there was no obvious place for a customer to say "this is how *we* run an upgrade".
 
 ## One entry skill, many standalone skills
 
@@ -52,7 +52,7 @@ Two questions are still open: whether runbooks become thin step-by-step guides, 
 
 This is the idea that ties it together. The rest of a skill is domain knowledge: facts, decision frameworks, references. That should stay close to upstream, because it gets better every time we update it. The runbook is different. It is where APEX meets *your* way of working: your approval gates, your naming, your tooling. We strongly advise customizing it.
 
-We are not enforcing that split with folder tricks. Instead, the design notes explain the decisions we made, so you can read them, understand them, and adapt or change them as you like. With every runbook in one folder, you have one place to fork, review and carry across upgrades.
+We are not enforcing that split with folder tricks. Instead, the design notes explain the decisions we made, so you can read them, understand them, and adapt or change them as you like. Having every runbook in one folder means a customer who forks the repo has one folder to review and rebase across upgrades. The installer does not keep in-place edits: an update stops and asks you to copy changed files out first.
 
 ## The trade-off we accept
 

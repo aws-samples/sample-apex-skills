@@ -5,7 +5,7 @@
 
 ## Context
 
-Skills follow the open [Agent Skills](https://agentskills.io/) format, so anyone can copy one skill folder into their agent and use it without the rest of APEX. Today that works: each skill in `skills/` is self-contained, and the steering workflows that run a full engagement sit outside the skills, in `steering/`.
+Skills follow the open [Agent Skills](https://agentskills.io/) format, so anyone can copy one skill folder into their agent and use it without the rest of APEX. Today that mostly works: almost every skill in `skills/` is self-contained (`eks-operation-review` still reads a steering workflow, and `ecs-modernize` reads `terraform-skill`'s files), and the steering workflows that run a full engagement sit outside the skills, in `steering/`.
 
 [ADR 0001](0001-runbooks-live-in-apex.md) puts every runbook under the apex skill. That makes the full engagement depend on apex. A skill picked up on its own keeps its domain knowledge but loses the runbook that tells the agent how to run the engagement.
 
