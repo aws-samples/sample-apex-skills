@@ -5,9 +5,8 @@ description: Day 2 upgrade-readiness assessment workflow. Runs the eks-upgrade-c
 
 # Upgrade-Readiness Assessment Workflow
 
-> **Part of:** [APEX EKS Hub](../eks.md)
 > **Lifecycle:** Day 2 — Operate (pre-upgrade)
-> **Skill:** `eks-upgrade-check` — [SKILL.md](../../skills/eks-upgrade-check/SKILL.md)
+> **Skill:** `eks-upgrade-check` — [SKILL.md](../../../eks-upgrade-check/SKILL.md)
 
 ---
 
@@ -46,7 +45,7 @@ When the report is complete:
 - **Score 60–79 (FAIR / RISKY):** Present the prioritized remediation list. Recommend resolving the top blockers and re-running the assessment.
 - **Score < 60 (NOT READY):** Hard blockers exist. Walk the user through the blocker section. Recommend not proceeding with an upgrade until the blockers are resolved.
 
-For full scoring rules and the hard-blocker list, see [eks-upgrade-check SKILL.md](../../skills/eks-upgrade-check/SKILL.md#readiness-score).
+For full scoring rules and the hard-blocker list, see [eks-upgrade-check SKILL.md](../../../eks-upgrade-check/SKILL.md#readiness-score).
 
 ---
 

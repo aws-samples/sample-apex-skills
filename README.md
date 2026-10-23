@@ -129,14 +129,13 @@ The apex skill's shared rules apply to runs it starts; a skill triggered directl
 ### Workflows
 
 <table>
-<tr><td><a href="steering/apex.md"><b>apex</b></a></td><td><a href="steering/eks.md"><b>eks</b></a></td><td><a href="steering/workflows/eks-operation-review.md"><b>eks-operation-review</b></a></td></tr>
-<tr><td><a href="steering/workflows/eks-upgrade-check.md"><b>eks-upgrade-check</b></a></td><td><a href="steering/workflows/new-skill.md"><b>new-skill</b></a></td><td></td></tr>
+<tr><td><a href="steering/apex.md"><b>apex</b></a></td><td><a href="steering/eks.md"><b>eks</b></a></td><td><a href="steering/workflows/new-skill.md"><b>new-skill</b></a></td></tr>
 </table>
 
 ### Slash Commands
 
 <table>
-<tr><td><a href="steering/commands/apex/eks-operation-review.md"><b>/apex:eks-operation-review</b></a></td><td><a href="steering/commands/apex/eks-upgrade-check.md"><b>/apex:eks-upgrade-check</b></a></td><td><a href="steering/commands/apex/eks.md"><b>/apex:eks</b></a></td><td><a href="steering/commands/apex/new-skill.md"><b>/apex:new-skill</b></a></td></tr>
+<tr><td><a href="steering/commands/apex/eks.md"><b>/apex:eks</b></a></td><td><a href="steering/commands/apex/new-skill.md"><b>/apex:new-skill</b></a></td></tr>
 </table>
 <!-- STEERING_REFERENCE_END -->
 

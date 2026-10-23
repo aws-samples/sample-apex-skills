@@ -1,20 +1,19 @@
 ---
 title: "eks-operation-review"
 description: "Day 2 operational-review workflow. Runs the eks-operation-review skill end-to-end — 10-section structured assessment of a live cluster's operational excellence, with GREEN/AMBER/RED ratings and a markdown/HTML report including prioritized actions and AWS reference links."
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/eks-operation-review.md
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/runbooks/eks-operation-review/eks-operation-review.md
 format: md
 ---
 
 :::info[Source]
-This page is generated from [steering/workflows/eks-operation-review.md](https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/eks-operation-review.md). Edit the source, not this page.
+This page is generated from [skills/apex/runbooks/eks-operation-review/eks-operation-review.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/runbooks/eks-operation-review/eks-operation-review.md). Edit the source, not this page.
 :::
 
 
 # Operational Review Workflow
 
-> **Part of:** [APEX EKS Hub](../eks)
 > **Lifecycle:** Day 2 — Operate
-> **Skill:** `eks-operation-review` — [SKILL.md](../../skills/eks/eks-operation-review/)
+> **Skill:** `eks-operation-review` — [SKILL.md](../../../../eks/eks-operation-review/)
 
 ---
 
@@ -69,7 +68,7 @@ Read the maturity score and use the rating distribution to set tone:
 - **Several AMBER, some RED**: typical state for production clusters. Walk the user through the Critical (RED) and Important (AMBER) priorities tables in the report.
 - **Many RED**: significant gaps. Recommend addressing the security-flagged RED findings first (per the report's blast-radius prioritization). Do not route to upgrade workflows until critical operational gaps are addressed.
 
-For full rating rules and the consistency contract, see [eks-operation-review SKILL.md](../../skills/eks/eks-operation-review/).
+For full rating rules and the consistency contract, see [eks-operation-review SKILL.md](../../../../eks/eks-operation-review/).
 
 ---
 
@@ -282,4 +281,4 @@ Do NOT fabricate URLs beyond the reference map. If a finding doesn't match a spe
 
 - **Primary:** `eks-operation-review` — owns the 10-section assessment, rating logic, and report generation
 - **Optional:** `eks-mcp-server` — guides MCP setup; this workflow has a hard dependency on the EKS MCP server
-- **Adjacent:** `eks-upgrade-check` — separately assesses upgrade readiness; if a review's RED finding is "version on extended support," route to `apex:eks-upgrade-check` for the upgrade-readiness workflow
+- **Adjacent:** `eks-upgrade-check` — separately assesses upgrade readiness; if a review's RED finding is "version on extended support," route to the `eks-upgrade-check` skill for the upgrade-readiness workflow
