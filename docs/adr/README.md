@@ -13,7 +13,7 @@ Each record captures one decision: the context, what we decided, and what follow
 
 Each record has these sections:
 
-- **Status**: Proposed, Accepted, or Superseded by a later ADR.
+- **Status**: Proposed, Accepted, or Superseded by a later ADR. Accepted means decided; it does not mean built.
 - **Date**: the day the decision was made.
 - **Context**: the problem and the forces behind it, including the options we did not take.
 - **Decision**: what we chose, in one or two paragraphs.
