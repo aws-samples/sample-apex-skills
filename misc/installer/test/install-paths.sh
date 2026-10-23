@@ -247,6 +247,7 @@ RC_TAG=v1.4.0-rc.0          # a pre-release on main, after LATEST_TAG
 V2_TAG=v2.0.0               # the next major line: no steering/, a v2-only skill
 V2_LOOKALIKES="v2.5.0 v1.50 v1.60.0x v1.70.0.1 release-v1.80.0 v0.9.0"
 FIXTURE_BRANCH=feat/fixture-branch
+FIXTURE_WF=zz-fixture-workflow   # a workflow present only in the fixture (K2, KM1)
 TAG_DROPPED_SKILLS="eks-recon eks-genai"
 MID_DROPPED_SKILL=eks-genai
 BRANCH_SKILL=zz-fixture-branch-only
@@ -275,6 +276,9 @@ build_fixture() {
   paths="$(git -C "$REPO_ROOT" ls-tree --name-only "$FIXTURE_SRC" skills steering | tr '\n' ' ')"
   [ "$paths" = "skills steering " ] || { echo "the fixture tree $FIXTURE_SRC lacks skills/ or steering/ (has: $paths)" >&2; exit 2; }
   (set -o pipefail; git -C "$REPO_ROOT" archive "$FIXTURE_SRC" skills steering | tar -x -C "$ORIGIN") || { echo "git archive of $FIXTURE_SRC failed" >&2; exit 2; }
+  # A second workflow, so the Kiro cases (K2, KM1) have a workflow name besides
+  # the sample, whatever steering/workflows/ held in $FIXTURE_SRC.
+  printf -- '---\nname: %s\ndescription: fixture workflow\n---\n# Fixture workflow\n' "$FIXTURE_WF" > "$ORIGIN/steering/workflows/$FIXTURE_WF.md"
   "${GITC[@]}" -C "$ORIGIN" init -q
   # Older release: two skills missing, like v1.1.0 against main.
   local s
@@ -725,12 +729,12 @@ finish_case
 
 new_case K2 "Kiro: a renamed marked copy, a note quoting the marker and a user file at a workflow name are kept"
 mkdir -p "$H/.kiro/steering"
-echo "my own eks-upgrade-check notes" > "$H/.kiro/steering/eks-upgrade-check.md"   # user file at a workflow name, no marker
+echo "my own zz-fixture-workflow notes" > "$H/.kiro/steering/zz-fixture-workflow.md"   # user file at a workflow name, no marker
 run_cli --kiro-only
 expect_rc 3
 expect_out "Skipped 1 path"
-expect_out "steering/eks-upgrade-check.md$"
-[ "$(cat "$H/.kiro/steering/eks-upgrade-check.md")" = "my own eks-upgrade-check notes" ] || err "user file eks-upgrade-check.md was overwritten"
+expect_out "steering/zz-fixture-workflow.md$"
+[ "$(cat "$H/.kiro/steering/zz-fixture-workflow.md")" = "my own zz-fixture-workflow notes" ] || err "user file zz-fixture-workflow.md was overwritten"
 # the user keeps a customized copy under a new name, marker line and all
 cp "$H/.kiro/steering/new-skill.md" "$H/.kiro/steering/my-new-skill.md"
 echo "my customization" >> "$H/.kiro/steering/my-new-skill.md"
@@ -749,7 +753,7 @@ expect_rc 0
 expect_out "Kept 1 file"
 cmp -s "$H/.kiro/steering/my-new-skill.md" "$WORK/K2/my-new-skill.expected" || err "--uninstall deleted or changed my-new-skill.md"
 cmp -s "$H/.kiro/steering/notes.md" "$WORK/K2/notes.expected" || err "--uninstall deleted or changed notes.md"
-[ "$(cat "$H/.kiro/steering/eks-upgrade-check.md")" = "my own eks-upgrade-check notes" ] || err "--uninstall changed the user file eks-upgrade-check.md"
+[ "$(cat "$H/.kiro/steering/zz-fixture-workflow.md")" = "my own zz-fixture-workflow notes" ] || err "--uninstall changed the user file zz-fixture-workflow.md"
 [ ! -e "$H/.kiro/steering/new-skill.md" ] || err "--uninstall left the installer copy new-skill.md"
 finish_case
 
@@ -2875,6 +2879,7 @@ chmod 555 "$H/.kiro/steering"
 run_cli --version "$V2_TAG" --kiro-only
 expect_rc 3
 expect_stderr "permission denied"
+expect_no_out "type / to list the APEX workflows"
 chmod 755 "$H/.kiro/steering"
 run_cli --uninstall --kiro-only
 expect_rc 0
