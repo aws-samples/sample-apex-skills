@@ -5,7 +5,6 @@ description: Day 1/Day 2 EKS security & compliance workflow. Guides hardening an
 
 # EKS Security & Compliance Workflow
 
-> **Part of:** [APEX EKS Hub](../eks.md)
 > **Lifecycle:** Day 1 (greenfield hardening) / Day 2 (audit prep for an existing cluster)
 > **Skill:** eks-security | os-ami-hardening.md, identity-and-access.md, compliance-regimes.md
 > **Access Model:** advisory
