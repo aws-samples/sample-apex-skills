@@ -725,12 +725,12 @@ finish_case
 
 new_case K2 "Kiro: a renamed marked copy, a note quoting the marker and a user file at a workflow name are kept"
 mkdir -p "$H/.kiro/steering"
-echo "my own eks-security notes" > "$H/.kiro/steering/eks-security.md"   # user file at a workflow name, no marker
+echo "my own eks-upgrade-check notes" > "$H/.kiro/steering/eks-upgrade-check.md"   # user file at a workflow name, no marker
 run_cli --kiro-only
 expect_rc 3
 expect_out "Skipped 1 path"
-expect_out "steering/eks-security.md$"
-[ "$(cat "$H/.kiro/steering/eks-security.md")" = "my own eks-security notes" ] || err "user file eks-security.md was overwritten"
+expect_out "steering/eks-upgrade-check.md$"
+[ "$(cat "$H/.kiro/steering/eks-upgrade-check.md")" = "my own eks-upgrade-check notes" ] || err "user file eks-upgrade-check.md was overwritten"
 # the user keeps a customized copy under a new name, marker line and all
 cp "$H/.kiro/steering/new-skill.md" "$H/.kiro/steering/my-new-skill.md"
 echo "my customization" >> "$H/.kiro/steering/my-new-skill.md"
@@ -749,7 +749,7 @@ expect_rc 0
 expect_out "Kept 1 file"
 cmp -s "$H/.kiro/steering/my-new-skill.md" "$WORK/K2/my-new-skill.expected" || err "--uninstall deleted or changed my-new-skill.md"
 cmp -s "$H/.kiro/steering/notes.md" "$WORK/K2/notes.expected" || err "--uninstall deleted or changed notes.md"
-[ "$(cat "$H/.kiro/steering/eks-security.md")" = "my own eks-security notes" ] || err "--uninstall changed the user file eks-security.md"
+[ "$(cat "$H/.kiro/steering/eks-upgrade-check.md")" = "my own eks-upgrade-check notes" ] || err "--uninstall changed the user file eks-upgrade-check.md"
 [ ! -e "$H/.kiro/steering/new-skill.md" ] || err "--uninstall left the installer copy new-skill.md"
 finish_case
 
