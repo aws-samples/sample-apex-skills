@@ -567,8 +567,10 @@ APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or
 | [eks-build/](./apex/runbooks/eks-build/) | Eks build |
 | [eks-design/](./apex/runbooks/eks-design/) | Eks design |
 | [eks-genai/](./apex/runbooks/eks-genai/) | Eks genai |
+| [eks-operation-review/](./apex/runbooks/eks-operation-review/) | Eks operation review |
 | [eks-platform-engineering/](./apex/runbooks/eks-platform-engineering/) | Eks platform engineering |
 | [eks-security/](./apex/runbooks/eks-security/) | Eks security |
+| [eks-upgrade-check/](./apex/runbooks/eks-upgrade-check/) | Eks upgrade check |
 
 ---
 

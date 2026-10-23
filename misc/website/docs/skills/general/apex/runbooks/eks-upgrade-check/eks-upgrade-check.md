@@ -1,20 +1,19 @@
 ---
 title: "eks-upgrade-check"
 description: "Day 2 upgrade-readiness assessment workflow. Runs the eks-upgrade-check skill end-to-end — 8 automated checks, 0-100 readiness score, markdown/HTML report with remediation steps."
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/eks-upgrade-check.md
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 format: md
 ---
 
 :::info[Source]
-This page is generated from [steering/workflows/eks-upgrade-check.md](https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/eks-upgrade-check.md). Edit the source, not this page.
+This page is generated from [skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md). Edit the source, not this page.
 :::
 
 
 # Upgrade-Readiness Assessment Workflow
 
-> **Part of:** [APEX EKS Hub](../eks)
 > **Lifecycle:** Day 2 — Operate (pre-upgrade)
-> **Skill:** `eks-upgrade-check` — [SKILL.md](../../skills/eks/eks-upgrade-check/)
+> **Skill:** `eks-upgrade-check` — [SKILL.md](../../../../eks/eks-upgrade-check/)
 
 ---
 
@@ -53,7 +52,7 @@ When the report is complete:
 - **Score 60–79 (FAIR / RISKY):** Present the prioritized remediation list. Recommend resolving the top blockers and re-running the assessment.
 - **Score < 60 (NOT READY):** Hard blockers exist. Walk the user through the blocker section. Recommend not proceeding with an upgrade until the blockers are resolved.
 
-For full scoring rules and the hard-blocker list, see [eks-upgrade-check SKILL.md](../../skills/eks/eks-upgrade-check/#readiness-score).
+For full scoring rules and the hard-blocker list, see [eks-upgrade-check SKILL.md](../../../../eks/eks-upgrade-check/#readiness-score).
 
 ---
 
