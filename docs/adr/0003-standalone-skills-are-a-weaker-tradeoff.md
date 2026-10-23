@@ -15,6 +15,6 @@ We accept this as a design trade-off. Users who take a single skill without the 
 
 ## Consequences
 
-- Standalone use keeps working for knowledge and advice.
+- Standalone use keeps working: knowledge skills keep their advice, solution skills their references and scripts; how much runs without a runbook is decided per skill in steps 3 to 5.
 - The best experience is the full setup: `/apex`, the apex skill and its runbooks.
 - We say this plainly in the docs so nobody is surprised: the [skill design notes](../design/skill-design.md#standalone-skills) explain what a standalone skill does and does not give you.
