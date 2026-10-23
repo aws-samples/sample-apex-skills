@@ -7,6 +7,7 @@ Each record captures one decision: the context, what we decided, and what follow
 | [0001](0001-runbooks-live-in-apex.md) | Runbooks live in one place under the apex skill | Accepted |
 | [0002](0002-apex-command-routes-to-apex-skill.md) | `/apex` routes directly into the apex skill | Accepted |
 | [0003](0003-standalone-skills-are-a-weaker-tradeoff.md) | A standalone skill is an accepted, weaker trade-off | Accepted |
+| [0004](0004-naming.md) | One entry skill, and standalone knowledge and solution skills | Accepted |
 
 ## Format
 
