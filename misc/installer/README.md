@@ -5,8 +5,8 @@ Installs APEX skills for Claude Code and Kiro CLI. It clones the repo to `~/.ape
 ## Usage
 
 ```bash
-npx apex-skills            # install (a run on an existing clone updates it)
-npx apex-skills --update   # update, with no questions
+npx apex-skills@1.3.0            # install (a run on an existing clone updates it)
+npx apex-skills@1.3.0 --update   # update, with no questions
 ```
 
 - A fresh install uses the newest `v1.x.y` release tag, not `main`. `--update` stays on the clone's major line.
@@ -54,7 +54,7 @@ With `--project`, the same paths go under the current directory and the clone st
 ## Uninstall
 
 ```bash
-npx apex-skills --uninstall
+npx apex-skills@1.3.0 --uninstall
 rm -rf ~/.apex-skills  # optional, once no other install uses it: deletes the clone and your changes in it
 ```
 
