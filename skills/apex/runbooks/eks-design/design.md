@@ -5,7 +5,6 @@ description: Day 0 architecture design workflow. 8-phase questionnaire for EKS c
 
 # Design Workflow
 
-> **Part of:** [APEX EKS Hub](../eks.md)
 > **Lifecycle:** Day 0 — Architect
 > **Skill:** `eks-best-practices`, `eks-design`
 

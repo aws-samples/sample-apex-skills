@@ -5,7 +5,6 @@ description: Day 1 GenAI-on-EKS workflow. Guides building, training, fine-tuning
 
 # GenAI on EKS Workflow
 
-> **Part of:** [APEX EKS Hub](../eks.md)
 > **Lifecycle:** Day 1 — Build
 > **Skill:** eks-genai | compute-hardware.md, inference-serving.md
 > **Access Model:** advisory
@@ -50,7 +49,7 @@ If the user already has an `eks-recon` report, an architecture doc, or a prior d
 
 Source: knowledge
 
-Frame the two foundational layers. Load `../../skills/eks-genai/references/compute-hardware.md` for the GPU-vs-Neuron decision and `cluster-and-scheduling.md` for the scheduler.
+Frame the two foundational layers. Load `../../../eks-genai/references/compute-hardware.md` for the GPU-vs-Neuron decision and `cluster-and-scheduling.md` for the scheduler.
 
 - **Hardware (Layer 1).** Default to **Neuron** (Trn2/Trn1 training, Inf2 inference) for Transformer-family models when cost-conscious and the team can absorb the compilation ramp; default to **NVIDIA GPU** (g6/g6e inference, p5 training) for fastest time-to-value, CUDA-only dependencies, or novel/multi-modal architectures. Present the trade-off, do not pick reflexively.
 - **Cluster (Layer 2).** Karpenter (only recommended autoscaler) with separate GPU + Neuron NodePools; EKS-optimized accelerated AMI; Neuron device plugin (not the DRA driver) with Karpenter; EFA + NUMA pinning + static CPU manager for multi-node training; Capacity Blocks for planned training; Spot only with checkpoint/resume.
