@@ -1,0 +1,19 @@
+design:
+  label: Design
+  permalink: /design
+  description: How we design APEX skills and why
+
+skills:
+  label: Skills
+  permalink: /skills
+  description: Posts about the structure of APEX skills
+
+runbooks:
+  label: Runbooks
+  permalink: /runbooks
+  description: Where runbooks live and how customers adapt them
+
+adr:
+  label: ADR
+  permalink: /adr
+  description: Posts that walk through an Architecture Decision Record
