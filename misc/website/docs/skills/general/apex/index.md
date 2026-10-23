@@ -1,6 +1,6 @@
 ---
 title: "apex"
-description: "APEX router and shared rules. Use when a request is about Amazon EKS, Amazon ECS or the APEX skills in general and does not clearly name one skill, spans several skills (for example design, then build, then upgrade), or asks which APEX skill to use. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no destructive action without confirmation. Skip when the request already matches one skill's own description: use that skill directly."
+description: "APEX router and shared rules. Use first for any request about Amazon EKS, Amazon ECS or the APEX skills, including one that names a single skill, then load the skill it routes to, so the shared rules apply to that run. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no destructive action without confirmation."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/SKILL.md
 format: md
 ---
@@ -12,9 +12,11 @@ This page is generated from [skills/apex/SKILL.md](https://github.com/aws-sample
 
 # APEX router
 
-Reader: an agent. This skill is the APEX router: it picks the APEX skill for a request and holds the shared APEX rules. It works when only the skills folder is copied: it needs no other file. Route by skill name. Each skill owns its own procedure; do not re-implement it here. One exception until it moves into the skill: `eks-operation-review` still reads its workflow from `~/.claude/apex-steering/workflows/eks-operation-review.md`, which a skills-only copy does not have.
+Reader: an agent. This skill is the APEX router: it picks the APEX skill for a request and holds the shared APEX rules. It works when only the skills folder is copied: it needs no other file. Route by skill name. Each skill owns its own procedure; do not re-implement it here. A skill whose SKILL.md reads a `~/.claude/apex-steering/` path needs a full Claude Code install, not a skills-only copy or a Kiro install: say so when you route to it. An AGENTS.md, when the user's harness loads one, holds always-on project rules; this skill holds routing, hand-offs and the shared APEX rules, and is the one a skills-only copy has. APEX's `rules/AGENTS.md` is meant to be a subset of this skill's rules, so the two do not conflict.
 
 ## Shared rules
+
+These rules apply to every run this router starts: load this router first, then the routed skill, even when the request names one skill.
 
 | # | rule |
 |---|---|
@@ -58,7 +60,7 @@ Reader: an agent. This skill is the APEX router: it picks the APEX skill for a r
 | Generate ECS Terraform for a settled design | `ecs-build` |
 | Deploy, release, blue/green or canary, CI/CD, stuck deployment | `ecs-devops` |
 | GPU, ML or GenAI on ECS | `ecs-genai` |
-| Assess or migrate an existing app (VMware, EC2) onto ECS, replatform vs rearchitect | `ecs-modernize` |
+| Assess or migrate an app not yet on ECS (VMware VMs, EC2 instances) onto ECS, replatform vs rearchitect | `ecs-modernize` |
 | Deploy a .NET app to ECS Fargate on Linux with CloudFormation or CDK | `dotnet-aws-ecs` |
 | Logs, metrics, tracing, alerting design for ECS | `ecs-observability` |
 | Audit, health check or GREEN/AMBER/RED score of a live ECS estate | `ecs-operation-review` |
@@ -75,7 +77,7 @@ Reader: an agent. This skill is the APEX router: it picks the APEX skill for a r
 
 | user intent | skill |
 |---|---|
-| Create or improve a skill, run its evals, tune its description | `skill-creator` |
+| Create or improve a skill, run its evals, tune its description | `skill-creator` (the skill itself only; adding it to this repo, with the README, site, manifest and eval edits, is the `/apex:new-skill` workflow in a full Claude Code install) |
 | Update, sync or check the repo docs after a skill change | `update-docs` |
 
 ## Hand-offs between skills
@@ -112,4 +114,4 @@ After `eks-operation-review`, set tone from the rating mix (rating rules and the
 
 ## Runbooks
 
-A runbook is a skill's guided procedure (questionnaire, checkpoints, report). When a skill has one, it sits in that skill's own folder as `runbook/<file>.md`, and the skill's SKILL.md says when to follow it. Route to the skill, not to the runbook. For work that spans several skills, chain them by the routing tables and hand-offs above.
+A runbook is a skill's guided procedure (questionnaire, checkpoints, report). When a skill has one, it sits in that skill's own folder as `runbook/<file>.md`, and the skill's SKILL.md says when to follow it. Route to the skill, not to the runbook. For work that spans several skills, chain them by the routing tables and hand-offs above. There is no top-level runbook folder: a procedure that spans skills, environments or clouds is a flat skill of its own (for example `graviton-migration`) or a chain of skills.
