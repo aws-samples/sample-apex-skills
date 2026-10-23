@@ -1,6 +1,6 @@
 # Anti-Patterns in Steering Workflows
 
-A catalogue of drift observed in `steering/workflows/design.md` — the existing workflow in this repo — plus a few more the convention was designed to head off before they appeared. Each entry shows a bad fragment, a good fragment, and one sentence on why.
+A catalogue of drift observed in `skills/apex/runbooks/eks-design/design.md` — the existing workflow in this repo — plus a few more the convention was designed to head off before they appeared. Each entry shows a bad fragment, a good fragment, and one sentence on why.
 
 Authors: read this file when you finish a draft. The linter will quote these entries in its error messages, so fixing them once here is a fix everywhere.
 

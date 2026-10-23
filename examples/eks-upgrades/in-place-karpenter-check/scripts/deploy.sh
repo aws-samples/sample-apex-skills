@@ -25,9 +25,7 @@ case "$TOOL_CHOICE" in
       name=$(basename "$skill")
       ln -sfn "../../skills/$name" "$REPO_ROOT/.claude/skills/$name"
     done
-    mkdir -p "$REPO_ROOT/.claude/commands"
-    ln -sfn ../../steering/commands/apex "$REPO_ROOT/.claude/commands/apex"
-    echo "Done: Claude Code skills and commands configured"
+    echo "Done: Claude Code skills configured"
     ;;
   2)
     DEFAULT_SUFFIX="check"
@@ -38,9 +36,7 @@ case "$TOOL_CHOICE" in
       name=$(basename "$skill")
       ln -sfn "../../skills/$name" "$REPO_ROOT/.kiro/skills/$name"
     done
-    mkdir -p "$REPO_ROOT/.kiro/steering"
-    cp "$REPO_ROOT/steering/eks.md" "$REPO_ROOT/.kiro/steering/eks.md"
-    echo "Done: Kiro skills and steering configured"
+    echo "Done: Kiro skills configured"
     ;;
   *)
     echo "Invalid choice. Please enter 1 or 2."
@@ -107,7 +103,7 @@ echo ""
 echo "Run the upgrade readiness check:"
 case "$TOOL_CHOICE" in
   1) echo "  cd $REPO_ROOT && claude"
-     echo "  Then: /apex:eks-upgrade-check"
+     echo "  Then: /apex Is my cluster ready to upgrade to 1.33?"
      echo "  Or ask: \"Is my cluster ready to upgrade to 1.33?\""
      ;;
   2) echo "  cd $REPO_ROOT && kiro-cli chat"
