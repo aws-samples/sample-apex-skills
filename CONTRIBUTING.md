@@ -359,7 +359,7 @@ Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` /
 
 The generator scripts (including `./misc/update-pages.sh`) parse frontmatter with PyYAML, so running them locally requires it: `pip install pyyaml`.
 
-**CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` runs `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check` on every PR. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
+**CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` reports a status on every PR event once its workflows are allowed to run (none run while a PR has merge conflicts, and a PR from someone outside both this repository and its organization waits until someone with write access approves the run), but it does real work only when the PR changes a path the workflow watches; otherwise it is a no-op that passes. The `eval set hygiene` and `validate` checks (`.github/workflows/evals.yml`, `.github/workflows/devops-agent-validate.yml`) work the same way: green on a PR that touches none of their watched paths means not needed, not tested. The real work is `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check`. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
 
 CI also strict-parses `SKILL.md` frontmatter via `misc/validate-frontmatter.py` before regenerating. The frontmatter must satisfy all of these rules:
 

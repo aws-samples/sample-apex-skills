@@ -1,11 +1,11 @@
 name: evals
 
 on:
+  # No paths filter on pull_request: a required check whose workflow is
+  # skipped by a paths filter stays Pending and blocks the merge. The job
+  # runs on every pull request and skips its real work when no watched path
+  # changed (see .github/scripts/ci-gate.sh).
   pull_request:
-    paths:
-      - "misc/evals/**"
-      - "skills/**"
-      - ".github/workflows/evals.yml"
   push:
     branches:
       - main
@@ -23,8 +23,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Load-bearing: at depth 1 ci-gate.sh cannot find the base commit, so it
+          # reports relevant=true on every pull request (fails safe, saves nothing).
+          fetch-depth: 0
+      - name: Decide whether this change needs the check
+        id: changes
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          bash .github/scripts/ci-gate.sh changed
+          'misc/evals/**'
+          'skills/**'
+          '.github/workflows/evals.yml'
+          '.github/scripts/ci-gate.sh'
+      - name: No-op (no watched path changed)
+        if: steps.changes.outputs.relevant == 'false'
+        run: echo "No change to skills/ or misc/evals/; eval hygiene check not needed."
+      # Anything but an explicit 'false' runs the real check.
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        if: steps.changes.outputs.relevant != 'false'
         with:
           python-version: '3.x'
       - name: Run eval hygiene pre-flight
+        if: steps.changes.outputs.relevant != 'false'
         run: pip install 'pyyaml>=6,<7' && python3 misc/evals/scripts/check_hygiene.py

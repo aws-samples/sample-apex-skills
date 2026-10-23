@@ -1,0 +1,16 @@
+# Code owners for this repository.
+#
+# Once this file is on a pull request's base branch (main here), the owner
+# below is requested for review on every non-draft pull request. When the
+# branch ruleset requires code owner review, a pull request that changes an
+# owned path needs that owner's approval before it can merge.
+#
+# Each owner needs write access to the repository. GitHub shows any errors in
+# this file when you open it on github.com.
+
+*           @utkarpun
+
+# CI workflows, the gate script and this file decide what can merge.
+# This line has effect only if the ruleset requires code owner review, and
+# adds nothing while it names the same owner as `*`.
+/.github/   @utkarpun
