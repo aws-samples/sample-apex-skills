@@ -5,7 +5,6 @@ description: Day 1 platform-engineering workflow. Guides building an Internal De
 
 # EKS Platform Engineering Workflow
 
-> **Part of:** [APEX EKS Hub](../eks.md)
 > **Lifecycle:** Day 1 — Build
 > **Skill:** eks-platform-engineering | golden-paths.md, gitops-delivery.md
 > **Access Model:** advisory
@@ -50,7 +49,7 @@ If the user already has an `eks-recon` report or an architecture doc, read it fi
 
 Source: knowledge
 
-Choose the opinionated stack for the golden paths confirmed in Phase 1. Load the skill's decision material rather than improvising: `../../skills/eks-platform-engineering/references/golden-paths.md` for the four core paths, plus the matching capability reference — `developer-portal-backstage.md`, `gitops-delivery.md`, `progressive-delivery.md`, and `infrastructure-abstraction.md`. Read `application-model-oam.md` only if the team wants to abstract Kubernetes YAML away from developers.
+Choose the opinionated stack for the golden paths confirmed in Phase 1. Load the skill's decision material rather than improvising: `../../../eks-platform-engineering/references/golden-paths.md` for the four core paths, plus the matching capability reference — `developer-portal-backstage.md`, `gitops-delivery.md`, `progressive-delivery.md`, and `infrastructure-abstraction.md`. Read `application-model-oam.md` only if the team wants to abstract Kubernetes YAML away from developers.
 
 For each golden path in scope, present the recommended tool, the trade-off, and one alternative — do not hand the user a generic matrix to interpret. Default to the PEEKS stack in the Defaults table unless the user's existing investment or constraints override it.
 
@@ -60,7 +59,7 @@ For each golden path in scope, present the recommended tool, the trade-off, and 
 
 Source: knowledge
 
-Frame how the chosen tools compose into a platform. Use `../../skills/eks-platform-engineering/references/idp-architecture.md` for the hub-and-spoke topology and `identity-and-tenancy.md` for tenant isolation, RBAC, and namespace/provisioning boundaries. If the platform serves ML or data teams, fold in `genai-platform-engineering.md` and `aiml-data-platform.md` for those golden paths.
+Frame how the chosen tools compose into a platform. Use `../../../eks-platform-engineering/references/idp-architecture.md` for the hub-and-spoke topology and `identity-and-tenancy.md` for tenant isolation, RBAC, and namespace/provisioning boundaries. If the platform serves ML or data teams, fold in `genai-platform-engineering.md` and `aiml-data-platform.md` for those golden paths.
 
 Produce: the topology (hub control plane vs spoke workload clusters), where the portal, GitOps engine, and infra controllers run, and how a new tenant is onboarded end to end.
 
@@ -70,7 +69,7 @@ Produce: the topology (hub control plane vs spoke workload clusters), where the 
 
 Source: knowledge
 
-Turn the decisions into a phased rollout and a way to prove it works. Use `../../skills/eks-platform-engineering/references/measuring-success.md` for the DORA metrics and platform-adoption signals to instrument from day one.
+Turn the decisions into a phased rollout and a way to prove it works. Use `../../../eks-platform-engineering/references/measuring-success.md` for the DORA metrics and platform-adoption signals to instrument from day one.
 
 Deliver: a sequenced build roadmap (portal → first golden path → GitOps → progressive delivery → self-service infra → measurement), the metrics to track, and the first milestone. Run the Quality Checklist before presenting.
 
