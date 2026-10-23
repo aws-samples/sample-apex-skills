@@ -1,6 +1,6 @@
 # APEX design docs
 
-This folder records how we design APEX skills and why. It is written for contributors, and for customers who want to understand the choices behind the skills before they adapt them.
+This folder explains our thinking to the people who use APEX skills: how we design them, why, and which parts you can adapt. The ADRs record the decisions we made and the options we considered.
 
 | Path | What it holds |
 |------|---------------|
