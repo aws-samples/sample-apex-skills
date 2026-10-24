@@ -30,18 +30,22 @@ Agent Skills are organized folders of instructions, scripts, and resources that 
 > **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/) must be installed.
 
 ```bash
-npx apex-skills
+npx apex-skills@1.3.0
 ```
+
+APEX v2 is in progress, so the commands here pin the installer to exactly version 1.3.0 until v2 ships, which also skips later 1.3.x installer releases. Installer 1.3.0 installs the newest v1.x.y release of the skills, never a v2 release unless you pass `--version`.
+
+The installer's own messages show `npx apex-skills`; add `@1.3.0` when you run them.
 
 Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and links the skills into place. Flags, exit codes, [installed paths](misc/installer/README.md#installed-paths) and [uninstall](misc/installer/README.md#uninstall): see the [installer README](misc/installer/README.md).
 
 Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
 ```bash
-npx apex-skills --update              # Update an existing install
-npx apex-skills --version v1.2.0      # Pin to a release
-npx apex-skills --branch feat/new-eks # Install from a branch
-npx apex-skills --help                # See all options
+npx apex-skills@1.3.0 --update              # Update an existing install
+npx apex-skills@1.3.0 --version v1.2.0      # Installer 1.3.0, skills release v1.2.0
+npx apex-skills@1.3.0 --branch feat/new-eks # Install from a branch
+npx apex-skills@1.3.0 --help                # See all options
 ```
 
 ### Manual Install
@@ -76,7 +80,7 @@ cp -r skills/* ~/.kiro/skills/
 cp steering/workflows/*.md ~/.kiro/steering/
 ```
 
-Files copied this way load into every Kiro interaction; add `inclusion: manual` frontmatter or use `npx apex-skills`.
+Files copied this way load into every Kiro interaction; add `inclusion: manual` frontmatter or use `npx apex-skills@1.3.0`.
 
 #### Other Agent Harnesses
 
