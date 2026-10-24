@@ -141,7 +141,7 @@ function HowItWorks() {
         <div className="apex-steps__item">
           <span className="apex-steps__number">1</span>
           <h3>Install</h3>
-          <p>npx apex-skills</p>
+          <p>npx apex-skills@1.3.0</p>
         </div>
         <div className="apex-steps__item">
           <span className="apex-steps__number">2</span>

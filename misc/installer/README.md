@@ -11,7 +11,7 @@ npx apex-skills@1.3.0 --update   # update, with no questions
 
 - A fresh install uses the newest `v1.x.y` release tag, not `main`. `--update` stays on the clone's major line.
 - With steering, Claude Code gets the `/apex:*` commands and Kiro CLI gets the workflows as manual steering files in `~/.kiro/steering/`.
-- `npx apex-skills` runs the version on npm's `latest` tag, which can be older than this page (`npm view apex-skills version`).
+- The commands on this page pin installer 1.3.0 exactly, so they skip later 1.3.x releases. A plain `npx apex-skills` runs the version on npm's `latest` tag, which can differ from that pin (`npm view apex-skills version`).
 
 Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
