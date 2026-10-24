@@ -107,7 +107,7 @@ echo ""
 echo "Run the upgrade readiness check:"
 case "$TOOL_CHOICE" in
   1) echo "  cd $REPO_ROOT && claude"
-     echo "  Then: /apex:eks-upgrade-check"
+     echo "  Then: /eks-upgrade-check"
      echo "  Or ask: \"Is my cluster ready to upgrade to 1.33?\""
      ;;
   2) echo "  cd $REPO_ROOT && kiro-cli chat"
