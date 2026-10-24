@@ -1,10 +1,13 @@
 # AWS & EKS Guidance
 
-- For EKS or ECS requests, load the `apex` skill first: it routes to the
-  matching skill and holds the shared rules this file is a subset of.
+- For EKS or ECS requests, load the `apex` skill first if it is installed:
+  it routes to the matching skill and holds the shared APEX rules. If it
+  is not installed, use the matching skill directly.
 - Before any task, check for a relevant AWS or APEX skill.
-  APEX skills are installed at `~/.claude/skills/` (Claude Code)
-  or `~/.kiro/skills/` (Kiro). Prefer skill guidance over general knowledge.
+  APEX skills are installed at `~/.claude/skills/` (Claude Code) or
+  `~/.kiro/skills/` (Kiro), or under `.claude/skills/` or `.kiro/skills/`
+  in the project for a `--project` install. Prefer skill guidance over
+  general knowledge.
 - Prefer the AWS MCP Server for AWS interactions: it provides scoped
   IAM access and CloudTrail-compatible audit logging. If unavailable,
   use the AWS CLI directly.
