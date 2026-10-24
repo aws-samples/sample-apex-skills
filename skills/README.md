@@ -558,7 +558,7 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 
 ### [apex](./apex/)
 
-APEX router and shared rules. Use first for any request about Amazon EKS, Amazon ECS or the APEX skills, including one that names a single skill, then load the skill it routes to, so the shared rules apply to that run. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no account or cluster change without confirmation.
+APEX router and shared rules. Use first for any request about Amazon EKS, Amazon ECS or the APEX skills, including one that names a single skill, then load the skill it routes to. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no account or cluster change without confirmation.
 
 ---
 

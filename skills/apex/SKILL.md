@@ -1,15 +1,15 @@
 ---
 name: apex
-description: "APEX router and shared rules. Use first for any request about Amazon EKS, Amazon ECS or the APEX skills, including one that names a single skill, then load the skill it routes to, so the shared rules apply to that run. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no account or cluster change without confirmation."
+description: "APEX router and shared rules. Use first for any request about Amazon EKS, Amazon ECS or the APEX skills, including one that names a single skill, then load the skill it routes to. Picks the right skill by name from a routing table grouped EKS, ECS, cross-cutting and contributor, carries context between skills, and holds shared rules for APEX work: read the user's context first, route early, read-only assessments, opt-in MCP, Pod Identity as the default auth model, no account or cluster change without confirmation."
 ---
 
 # APEX router
 
-Reader: an agent. This skill is the APEX router: it picks the APEX skill for a request and holds the shared APEX rules. It works when only the skills folder is copied: it needs no other file. Route by skill name. Each skill owns its own procedure; do not re-implement it here. A skill whose SKILL.md reads a `~/.claude/apex-steering/` path needs a full Claude Code install, not a skills-only copy or a Kiro install: say so when you route to it. An AGENTS.md, when the user's harness loads one, holds always-on project rules; this skill holds routing, hand-offs and the shared APEX rules, and is the one a skills-only copy has. APEX's `rules/AGENTS.md` is a subset of this skill's rules, so the two do not conflict.
+Reader: an agent. This skill is the APEX router: it picks the APEX skill for a request and holds the shared APEX rules. It works when only the skills folder is copied: it needs no other file. Route by skill name. Each skill owns its own procedure; do not re-implement it here. A skill whose SKILL.md reads a `~/.claude/apex-steering/` path needs a Claude Code install with steering (not `--no-steering`), not a skills-only copy or a Kiro install: say so when you route to it. An AGENTS.md, when the user's harness loads one, holds always-on project rules; this skill holds routing, hand-offs and the shared APEX rules, and is the one a skills-only copy has. APEX's `rules/AGENTS.md` repeats rules 10 to 17 (rule 10 only for destructive operations), adds install paths and CLI fallbacks, and does not conflict with these rules.
 
 ## Shared rules
 
-These rules apply to every run this router starts: load this router first, then the routed skill, even when the request names one skill.
+These rules apply to every run this router starts; when a request names one skill, load this router first, then that skill. A run that starts at a skill directly does not load these rules.
 
 | # | rule |
 |---|---|
@@ -19,9 +19,9 @@ These rules apply to every run this router starts: load this router first, then 
 | 4 | No row matches: EKS asks go to `eks-best-practices`, ECS asks go to `ecs-architect` (it holds the shared ECS best-practices corpus). ECS cost or TCO has no APEX skill yet (`ecs-cost-intelligence`, named in ECS skill descriptions, does not exist): use `ecs-architect` for cost posture as a design criterion and say a dollar TCO analysis is not covered. Anything else: if it names a skill, use that skill; otherwise ask one clarifying question. |
 | 5 | Read first. If the user gives architecture docs, Terraform, a pasted config or an `eks-recon` report, read it and skip questions it already answers. |
 | 6 | Be concise. Group related questions in one turn. |
-| 7 | Assessment, audit and recon runs are read-only against the account and cluster: read verbs only (for example `aws ... describe-*` and `list-*`, `kubectl get`, `kubectl auth can-i`, `helm list`, MCP reads) and a report. Local kubeconfig setup the skill prescribes (`aws eks update-kubeconfig`) is allowed. Remediation snippets in a report are for the user to run: never execute them. A skill's own read-only rule may be stricter; it wins. The user decides what to do with the findings. |
-| 8 | MCP is opt-in; APEX ships no project-root `.mcp.json`. If the user wants live cluster reads and the EKS MCP tools fail or are missing, use `eks-mcp-server`. For the Arm migration MCP server, use `graviton-migration`. `eks-upgrade-check` falls back to AWS CLI and kubectl; `eks-operation-review` needs the EKS MCP server configured. |
-| 9 | Auth default for EKS workloads: EKS Pod Identity (recommended for new workloads). IRSA is a fully supported alternative: use it where Pod Identity is not available (Fargate, Windows nodes, Outposts, EKS Anywhere, self-managed Kubernetes on EC2) or where the install path needs it (Helm add-ons installed via eks-blueprints-addons). |
+| 7 | Assessment, audit and recon runs are read-only against the account and cluster: read verbs only (for example `aws ... describe-*` and `list-*`, `kubectl get`, `kubectl auth can-i`, `helm list`, MCP reads) and a report. Local kubeconfig setup the skill prescribes (`aws eks update-kubeconfig`) is allowed. Remediation snippets in a report are for the user to run: never execute them during the assessment. A skill's own read-only rule may be stricter; it wins. The user decides what to do with the findings. |
+| 8 | MCP is opt-in; APEX ships no project-root `.mcp.json`. If the user wants live cluster reads and the Amazon EKS MCP Server tools fail or are missing, use `eks-mcp-server`. For the Arm migration MCP server, use `graviton-migration`. `eks-upgrade-check` and `eks-cost-intelligence` fall back to AWS CLI and kubectl, `eks-recon` does with the user's permission and `eks-ingress-migration` where possible; `eks-well-architected-review` uses only them; `eks-operation-review` needs the EKS MCP server configured. |
+| 9 | Auth default for EKS workloads: EKS Pod Identity (AWS recommends it whenever possible). IRSA is the alternative: use it where Pod Identity is not available (Fargate, Windows nodes, Outposts, EKS Anywhere, self-managed Kubernetes on EC2) or where the install path needs it (Helm add-ons installed via eks-blueprints-addons). |
 | 10 | Never create, change or delete anything in the user's AWS account or cluster without explicit user confirmation first (for example node drain, cluster delete, force eviction). |
 | 11 | Never output secrets, credentials or kubeconfig contents. |
 | 12 | Use ASCII only in AWS resource names and descriptions; use hyphens, not em dashes. |
@@ -39,7 +39,7 @@ These rules apply to every run this router starts: load this router first, then 
 | Design a cluster, architecture document, diagrams, ADRs; a design scoped to one domain (networking, security architecture); a formal review or validation of an existing design | `eks-design` (hardening or compliance guidance with no design document: `eks-security`) |
 | Quick opinion, "what do you think?", compare X vs Y (Karpenter vs MNG), any EKS judgment call with no document | `eks-best-practices` first |
 | Build a cluster, generate Terraform, pick a pattern (Terraform vs ArgoCD), resume or modify a build | `eks-build` |
-| Internal Developer Platform, golden paths, Backstage, GitOps and progressive delivery | `eks-platform-engineering` |
+| Internal Developer Platform, golden paths, Backstage, GitOps and progressive delivery for a developer platform | `eks-platform-engineering` (ArgoCD inside a cluster build: `eks-build`) |
 | GenAI or LLM on EKS: GPU vs Neuron, vLLM, Ray, distributed training, RAG, AI gateway | `eks-genai` |
 | Harden, compliance (HIPAA, PCI, FedRAMP, GDPR), CIS, Pod Identity vs IRSA, GuardDuty, image signing, PSA | `eks-security` |
 | Ready to upgrade to a target version, what blocks my upgrade | `eks-upgrade-check` |
@@ -78,6 +78,8 @@ These rules apply to every run this router starts: load this router first, then 
 | Create or improve a skill, run its evals, tune its description | `skill-creator` (the skill itself only; adding it to this repo, with the README, site, manifest and eval edits, is the `/apex:new-skill` workflow in a full Claude Code install) |
 | Update, sync or check the repo docs after a skill change | `update-docs` |
 
+`steering-workflow-creator` is being retired and gets no row; for an ask to author a steering workflow or runbook, say so and ask one clarifying question rather than routing by rule 4.
+
 ## Hand-offs between skills
 
 Carry known context forward when one skill leads to another; do not re-ask it.
@@ -87,28 +89,29 @@ Carry known context forward when one skill leads to another; do not re-ask it.
 | cluster name | design or the user | every skill that targets a cluster |
 | EKS version | design output or `kubectl version` | `eks-upgrade-check` |
 | compute strategy (Karpenter, MNG, Auto Mode) | design | `eks-upgrade-check` |
-| upgrade strategy (in-place, blue-green) | design | `eks-upgrade-check` |
-| add-on management (Terraform, ArgoCD) | design | `eks-upgrade-check` |
+| upgrade strategy (in-place, blue-green) | design | the upgrade path the user picks after `eks-upgrade-check` |
+| add-on management (Terraform, ArgoCD) | design | the upgrade path the user picks after `eks-upgrade-check` |
 | constraints (air-gapped, compliance) | design | every skill |
 
 If the user already did a design, cite its decisions. If not, the next skill gathers the minimum it needs.
 
-After `eks-upgrade-check` (the bands, the hard-blocker cap and the partial-assessment cap are the skill's own, in its Readiness Score section; a partial assessment never prints READY, so carry its Unassessed caveat forward):
+After `eks-upgrade-check` (the bands and the hard-blocker cap are in its Readiness Score section; the partial-assessment cap is in its Step 0 Pre-flight and `references/report-generation.md`; a partial assessment never prints READY, so carry its Unassessed caveat forward):
 
 | score | next step |
 |---|---|
-| 80 to 100 (READY, GOOD) | Ready to proceed. Forward cluster name, current version, target version and noted findings to whatever upgrade path the user picks. |
-| 60 to 79 (FAIR, RISKY) | Present the prioritized remediation list. Recommend the user resolve the top blockers, then re-run the assessment. |
-| 0 to 59 (NOT READY) | Hard blockers. Walk the blocker section. Do not upgrade until they are fixed. |
+| 80 to 100 (READY, GOOD) | READY: proceed. GOOD: proceed with caution on the noted findings. Forward cluster name, current version, target version and noted findings to whatever upgrade path the user picks. |
+| 60 to 79 (FAIR, RISKY) | Present the prioritized remediation list. Recommend the user resolve the top-priority findings (Critical Actions first), then re-run the assessment. |
+| 0 to 59 (NOT READY) | Critical issues. Walk the Blockers section, or, if it is empty, the Critical Actions and the highest deductions. Do not upgrade until they are resolved. |
 
-After `eks-operation-review`, set tone from the rating mix (rating rules and the consistency contract are the skill's own):
+After `eks-operation-review`, set tone from the rating mix (per-check rating bands are in the skill's `references/<section>.md` files, and the consistency checks in `references/report-generation.md`):
 
 | ratings | next step |
 |---|---|
-| mostly GREEN, no RED | Good shape. AMBER items are improvement opportunities. |
+| mostly GREEN, few AMBER, no RED | Good shape. AMBER items are improvement opportunities. |
 | several AMBER, some RED | Typical production state. Walk the RED, then AMBER priority tables in the report. |
 | many RED | Recommend the user address security-flagged RED first. Do not start an upgrade until critical gaps are addressed. |
-| RED "version on extended support" | Once the user picks a target version, run `eks-upgrade-check`. |
+
+Separately, if a RED finding is on the cluster version (extended support or unsupported), run `eks-upgrade-check` once the user picks a target version.
 
 ## Runbooks
 
