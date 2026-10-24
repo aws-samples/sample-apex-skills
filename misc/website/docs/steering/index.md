@@ -5,7 +5,7 @@ title: Steering
 
 # Steering
 
-**Steering** workflows are phased engagement playbooks that combine multiple APEX skills into a structured flow: for example, an EKS upgrade-readiness check or a new-skill authoring loop.
+**Steering** workflows are phased engagement playbooks that combine multiple APEX skills into a structured flow: for example, a new-skill authoring loop.
 
 Where skills give the agent knowledge, steering gives the agent *structure*: an ordered sequence of phases, each with a checkpoint and a clear handoff.
 

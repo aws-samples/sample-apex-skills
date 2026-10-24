@@ -1396,7 +1396,7 @@ async function main() {
   if (installClaude) log(`  ${c.bold}Claude Code:${c.reset} ask your agent about EKS best practices`);
   if (installKiro) {
     log(doSteering
-      ? `  ${c.bold}Kiro CLI:${c.reset} type / to list the APEX workflows (manual steering; Kiro CLI V1/V2 support it only partially), e.g. /eks-upgrade-check`
+      ? `  ${c.bold}Kiro CLI:${c.reset} type / to list the APEX workflows (manual steering; Kiro CLI V1/V2 support it only partially), e.g. /new-skill`
       : `  ${c.bold}Kiro CLI:${c.reset} ask your agent about EKS best practices`);
   }
   log(`\n  Update anytime: ${c.cyan}npx apex-skills --update${c.reset}`);
