@@ -61,7 +61,7 @@ ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
 **Usage:** Start a Claude Code session and use slash commands:
-- `/apex:eks` — hub that auto-routes based on your request
+- `/apex:eks`: the steering hub. Until steering/ is removed, its design, build, platform engineering, GenAI and security routes point at workflows that moved, so use `/apex` for those asks
 - `/apex` with your request (for example *"Help me design an EKS cluster"*): the apex skill routes it to the right skill and, when there is one, that skill's runbook
 - `/apex:eks-upgrade-check` — *"Is my cluster ready to upgrade to 1.32?"*
 
@@ -140,7 +140,7 @@ The apex skill's shared rules apply to runs it starts; a skill triggered directl
 </table>
 <!-- STEERING_REFERENCE_END -->
 
-Steering files define **how** the agent runs an engagement. Structured sequences with questionnaires, checkpoints, and routing. The hub (`/apex:eks`) detects what you want and routes to the right workflow. Slash commands (e.g., `/apex:eks-upgrade-check`) are agent-harness entry points that trigger these workflows.
+Steering files define **how** the agent runs an engagement. Structured sequences with questionnaires, checkpoints, and routing. The hub (`/apex:eks`) detects what you want and routes to the right workflow (until steering/ is removed, its design, build, platform engineering, GenAI and security routes point at workflows that moved: use `/apex` for those). Slash commands (e.g., `/apex:new-skill`) are agent-harness entry points that trigger these workflows.
 
 **The key test:** Remove all steering files and the agent still knows the right answers (skills provide knowledge). But it wouldn't know how to run the engagement.
 

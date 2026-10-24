@@ -322,7 +322,7 @@ LATEST_COUNT="$(count_skill_dirs "$LATEST_TAG")"
 MID_COUNT="$(count_skill_dirs "$MID_TAG")"
 TAG_COUNT="$(count_skill_dirs "$FIXTURE_TAG")"
 WF_COUNT="$(git -C "$ORIGIN" ls-tree --name-only "$LATEST_TAG:steering/workflows" | /usr/bin/grep -c '\.md$')"
-# Sample skills: the first two folders under skills/ that hold a SKILL.md (skills/apex can hold only runbooks/).
+# Sample skills: the first two folders under skills/ that hold a SKILL.md (on this branch skills/apex holds only runbooks/; #283 adds its SKILL.md).
 SKILLS_WITH_MD="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | while read -r d; do if git -C "$ORIGIN" cat-file -e "$LATEST_TAG:skills/$d/SKILL.md" 2>/dev/null; then echo "$d"; fi; done)"
 SKILL_A="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 1p)"
 SKILL_B="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 2p)"
@@ -727,12 +727,20 @@ finish_case
 
 new_case K2 "Kiro: a renamed marked copy, a note quoting the marker and a user file at a workflow name are kept"
 mkdir -p "$H/.kiro/steering"
-echo "my own eks-upgrade-check notes" > "$H/.kiro/steering/eks-upgrade-check.md"   # user file at a workflow name, no marker
+echo "my own new-skill notes" > "$H/.kiro/steering/new-skill.md"   # user file at a workflow name, no marker
 run_cli --kiro-only
 expect_rc 3
 expect_out "Skipped 1 path"
-expect_out "steering/eks-upgrade-check.md$"
-[ "$(cat "$H/.kiro/steering/eks-upgrade-check.md")" = "my own eks-upgrade-check notes" ] || err "user file eks-upgrade-check.md was overwritten"
+expect_out "steering/new-skill.md$"
+[ "$(cat "$H/.kiro/steering/new-skill.md")" = "my own new-skill notes" ] || err "user file new-skill.md was overwritten"
+run_cli --uninstall --kiro-only
+expect_rc 0
+[ "$(cat "$H/.kiro/steering/new-skill.md")" = "my own new-skill notes" ] || err "--uninstall changed the user file new-skill.md"
+# phase 2, a fresh HOME: the installer's own new-skill.md copy
+H="$WORK/K2/home2"
+mkdir -p "$H/.kiro"
+run_cli --kiro-only
+expect_rc 0
 # the user keeps a customized copy under a new name, marker line and all
 cp "$H/.kiro/steering/new-skill.md" "$H/.kiro/steering/my-new-skill.md"
 echo "my customization" >> "$H/.kiro/steering/my-new-skill.md"
@@ -741,7 +749,7 @@ printf 'note: the installer writes this line:\n%s\n' "$marker_line" > "$H/.kiro/
 cp "$H/.kiro/steering/my-new-skill.md" "$WORK/K2/my-new-skill.expected"
 cp "$H/.kiro/steering/notes.md" "$WORK/K2/notes.expected"
 run_cli --update --kiro-only
-expect_rc 3
+expect_rc 0   # a kept marked copy alone is not a skipped path (cli.mjs skippedSomething)
 expect_out "Kept 1 file"
 expect_out "steering/my-new-skill.md$"
 cmp -s "$H/.kiro/steering/my-new-skill.md" "$WORK/K2/my-new-skill.expected" || err "--update deleted or changed my-new-skill.md"
@@ -751,7 +759,6 @@ expect_rc 0
 expect_out "Kept 1 file"
 cmp -s "$H/.kiro/steering/my-new-skill.md" "$WORK/K2/my-new-skill.expected" || err "--uninstall deleted or changed my-new-skill.md"
 cmp -s "$H/.kiro/steering/notes.md" "$WORK/K2/notes.expected" || err "--uninstall deleted or changed notes.md"
-[ "$(cat "$H/.kiro/steering/eks-upgrade-check.md")" = "my own eks-upgrade-check notes" ] || err "--uninstall changed the user file eks-upgrade-check.md"
 [ ! -e "$H/.kiro/steering/new-skill.md" ] || err "--uninstall left the installer copy new-skill.md"
 finish_case
 
@@ -2984,14 +2991,23 @@ mkdir -p "$H/.kiro"
 run_cli --kiro-only
 expect_rc 0
 km1_a="$H/.kiro/steering/new-skill.md"
-km1_b="$(find "$H/.kiro/steering" -maxdepth 1 -name '*.md' ! -name new-skill.md | LC_ALL=C sort | sed -n 1p)"
 : > "$km1_a"
+run_cli --update --kiro-only
+expect_rc 3
+expect_stderr "Kept 1 path(s) the installer created that were changed since"
+expect_no_out "not created by this installer"
+[ ! -s "$km1_a" ] || err "the emptied copy was written again"
+# phase 2, a fresh HOME: the same copy replaced instead of emptied
+H="$WORK/KM1/home2"
+mkdir -p "$H/.kiro"
+run_cli --kiro-only
+expect_rc 0
+km1_b="$H/.kiro/steering/new-skill.md"
 echo "my own notes" > "$km1_b"
 run_cli --update --kiro-only
 expect_rc 3
-expect_stderr "Kept 2 path(s) the installer created that were changed since"
+expect_stderr "Kept 1 path(s) the installer created that were changed since"
 expect_no_out "not created by this installer"
-[ ! -s "$km1_a" ] || err "the emptied copy was written again"
 [ "$(cat "$km1_b")" = "my own notes" ] || err "the replaced copy was written again"
 finish_case
 
