@@ -5,9 +5,8 @@ description: Day 2 operational-review workflow. Runs the eks-operation-review sk
 
 # Operational Review Workflow
 
-> **Part of:** [APEX EKS Hub](../eks.md)
 > **Lifecycle:** Day 2 — Operate
-> **Skill:** `eks-operation-review` — [SKILL.md](../../skills/eks-operation-review/SKILL.md)
+> **Skill:** `eks-operation-review` — [SKILL.md](../../../eks-operation-review/SKILL.md)
 
 ---
 
@@ -62,7 +61,7 @@ Read the maturity score and use the rating distribution to set tone:
 - **Several AMBER, some RED**: typical state for production clusters. Walk the user through the Critical (RED) and Important (AMBER) priorities tables in the report.
 - **Many RED**: significant gaps. Recommend addressing the security-flagged RED findings first (per the report's blast-radius prioritization). Do not route to upgrade workflows until critical operational gaps are addressed.
 
-For full rating rules and the consistency contract, see [eks-operation-review SKILL.md](../../skills/eks-operation-review/SKILL.md).
+For full rating rules and the consistency contract, see [eks-operation-review SKILL.md](../../../eks-operation-review/SKILL.md).
 
 ---
 
@@ -275,4 +274,4 @@ Do NOT fabricate URLs beyond the reference map. If a finding doesn't match a spe
 
 - **Primary:** `eks-operation-review` — owns the 10-section assessment, rating logic, and report generation
 - **Optional:** `eks-mcp-server` — guides MCP setup; this workflow has a hard dependency on the EKS MCP server
-- **Adjacent:** `eks-upgrade-check` — separately assesses upgrade readiness; if a review's RED finding is "version on extended support," route to `apex:eks-upgrade-check` for the upgrade-readiness workflow
+- **Adjacent:** `eks-upgrade-check` — separately assesses upgrade readiness; if a review's RED finding is "version on extended support," route to the `eks-upgrade-check` skill for the upgrade-readiness workflow

@@ -126,17 +126,17 @@ Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill l
 ### Workflows
 
 <table>
-<tr><td><a href="steering/apex.md"><b>apex</b></a></td><td><a href="steering/eks.md"><b>eks</b></a></td><td><a href="steering/workflows/design.md"><b>design</b></a></td><td><a href="steering/workflows/eks-build.md"><b>eks-build</b></a></td></tr>
-<tr><td><a href="steering/workflows/eks-genai.md"><b>eks-genai</b></a></td><td><a href="steering/workflows/eks-operation-review.md"><b>eks-operation-review</b></a></td><td><a href="steering/workflows/eks-platform-engineering.md"><b>eks-platform-engineering</b></a></td><td><a href="steering/workflows/eks-security.md"><b>eks-security</b></a></td></tr>
-<tr><td><a href="steering/workflows/eks-upgrade-check.md"><b>eks-upgrade-check</b></a></td><td><a href="steering/workflows/new-skill.md"><b>new-skill</b></a></td><td></td><td></td></tr>
+<tr><td><a href="steering/apex.md"><b>apex</b></a></td><td><a href="steering/eks.md"><b>eks</b></a></td><td><a href="steering/workflows/design.md"><b>design</b></a></td></tr>
+<tr><td><a href="steering/workflows/eks-build.md"><b>eks-build</b></a></td><td><a href="steering/workflows/eks-genai.md"><b>eks-genai</b></a></td><td><a href="steering/workflows/eks-platform-engineering.md"><b>eks-platform-engineering</b></a></td></tr>
+<tr><td><a href="steering/workflows/eks-security.md"><b>eks-security</b></a></td><td><a href="steering/workflows/new-skill.md"><b>new-skill</b></a></td><td></td></tr>
 </table>
 
 ### Slash Commands
 
 <table>
 <tr><td><a href="steering/commands/apex/eks-build.md"><b>/apex:eks-build</b></a></td><td><a href="steering/commands/apex/eks-design.md"><b>/apex:eks-design</b></a></td><td><a href="steering/commands/apex/eks-genai.md"><b>/apex:eks-genai</b></a></td></tr>
-<tr><td><a href="steering/commands/apex/eks-operation-review.md"><b>/apex:eks-operation-review</b></a></td><td><a href="steering/commands/apex/eks-platform-engineering.md"><b>/apex:eks-platform-engineering</b></a></td><td><a href="steering/commands/apex/eks-security.md"><b>/apex:eks-security</b></a></td></tr>
-<tr><td><a href="steering/commands/apex/eks-upgrade-check.md"><b>/apex:eks-upgrade-check</b></a></td><td><a href="steering/commands/apex/eks.md"><b>/apex:eks</b></a></td><td><a href="steering/commands/apex/new-skill.md"><b>/apex:new-skill</b></a></td></tr>
+<tr><td><a href="steering/commands/apex/eks-platform-engineering.md"><b>/apex:eks-platform-engineering</b></a></td><td><a href="steering/commands/apex/eks-security.md"><b>/apex:eks-security</b></a></td><td><a href="steering/commands/apex/eks.md"><b>/apex:eks</b></a></td></tr>
+<tr><td><a href="steering/commands/apex/new-skill.md"><b>/apex:new-skill</b></a></td><td></td><td></td></tr>
 </table>
 <!-- STEERING_REFERENCE_END -->
 

@@ -322,8 +322,10 @@ LATEST_COUNT="$(count_skill_dirs "$LATEST_TAG")"
 MID_COUNT="$(count_skill_dirs "$MID_TAG")"
 TAG_COUNT="$(count_skill_dirs "$FIXTURE_TAG")"
 WF_COUNT="$(git -C "$ORIGIN" ls-tree --name-only "$LATEST_TAG:steering/workflows" | /usr/bin/grep -c '\.md$')"
-SKILL_A="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | sed -n 1p)"
-SKILL_B="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | sed -n 2p)"
+# Sample skills: the first two folders under skills/ that hold a SKILL.md (skills/apex can hold only runbooks/).
+SKILLS_WITH_MD="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | while read -r d; do if git -C "$ORIGIN" cat-file -e "$LATEST_TAG:skills/$d/SKILL.md" 2>/dev/null; then echo "$d"; fi; done)"
+SKILL_A="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 1p)"
+SKILL_B="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 2p)"
 
 # ---------------------------------------------------------------- helpers
 PASS=0
@@ -548,7 +550,7 @@ check_imports() { # <claude dir>
     if [ ! -e "$dir/apex-steering/$rel" ]; then bad=$((bad + 1)); err "unresolved import $ref (no $dir/apex-steering/$rel)"; fi
   done < <(/usr/bin/grep -H -o -E '~/\.claude/apex-steering/[A-Za-z0-9._/-]+' "${files[@]}" | sort -u)
   echo "    imports checked: $n, unresolved: $bad"
-  [ "$n" -ge 10 ] || err "expected at least 10 apex-steering references (9 shims plus SKILL.md files), found $n"
+  [ "$n" -ge 7 ] || err "expected at least 7 apex-steering references (one per shim), found $n"
 }
 
 finish_case() {
@@ -570,7 +572,7 @@ run_cli --claude-only
 expect_rc 0
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT resolving skill links, got $(count_resolving_links "$H/.claude/skills")"
 [ -e "$H/.claude/commands/apex/eks.md" ] || err "~/.claude/commands/apex/eks.md does not resolve"
-[ -e "$H/.claude/apex-steering/workflows/eks-operation-review.md" ] || err "~/.claude/apex-steering/workflows/eks-operation-review.md does not resolve"
+[ -e "$H/.claude/skills/apex/runbooks/eks-operation-review/eks-operation-review.md" ] || err "~/.claude/skills/apex/runbooks/eks-operation-review/eks-operation-review.md does not resolve"
 check_imports "$H/.claude"
 finish_case
 
