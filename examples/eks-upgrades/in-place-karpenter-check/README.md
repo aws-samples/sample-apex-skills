@@ -6,7 +6,7 @@ workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 
 # Assess Your EKS Cluster Upgrade Readiness with APEX EKS
 
-A hands-on exercise that demonstrates the APEX EKS [Upgrade Check Workflow](../../../skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md) in practice. Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
+A hands-on exercise that demonstrates the APEX [`eks-upgrade-check` skill](../../../skills/eks-upgrade-check/SKILL.md) in practice (the APEX upgrade check runbook, listed under Further Reading, applies when the apex skill routes the request). Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
 
 The upgrade-check workflow uses the [`eks-upgrade-check`](../../../skills/eks-upgrade-check/SKILL.md) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
 

@@ -12,7 +12,7 @@ This page is generated from [examples/eks-upgrades/in-place-karpenter-check/READ
 
 # Assess Your EKS Cluster Upgrade Readiness with APEX EKS
 
-A hands-on exercise that demonstrates the APEX EKS [Upgrade Check Workflow](../../../skills/general/apex/runbooks/eks-upgrade-check/eks-upgrade-check) in practice. Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
+A hands-on exercise that demonstrates the APEX [`eks-upgrade-check` skill](../../../skills/eks/eks-upgrade-check/) in practice (the APEX upgrade check runbook, listed under Further Reading, applies when the apex skill routes the request). Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
 
 The upgrade-check workflow uses the [`eks-upgrade-check`](../../../skills/eks/eks-upgrade-check/) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
 
