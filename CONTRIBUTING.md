@@ -101,15 +101,18 @@ steering/
 ├── commands/                 # Slash command wrappers (harness-specific entry points)
 │   └── apex/                 # Claude Code: symlinked into .claude/commands/apex/
 │       ├── eks.md            # /apex:eks → routes via steering/eks.md
-│       ├── eks-best-practices.md  # /apex:eks-best-practices → best practices guidance
 │       ├── eks-build.md      # /apex:eks-build → steering/workflows/eks-build.md
 │       ├── eks-design.md     # /apex:eks-design → steering/workflows/design.md
+│       ├── eks-genai.md      # /apex:eks-genai → steering/workflows/eks-genai.md
 │       ├── eks-platform-engineering.md  # /apex:eks-platform-engineering → platform design
+│       ├── eks-security.md   # /apex:eks-security → steering/workflows/eks-security.md
 │       └── new-skill.md      # /apex:new-skill → steering/workflows/new-skill.md
 └── workflows/
     ├── design.md             # Day 0: Architecture questionnaire + quality check
     ├── eks-build.md          # Day 1: Cluster build and provisioning
+    ├── eks-genai.md          # Day 1: GenAI and LLM workloads on EKS
     ├── eks-platform-engineering.md  # Day 2: Platform engineering assessment
+    ├── eks-security.md       # Day 1/2: Security hardening and compliance
     └── new-skill.md          # Meta: onboard a new skill end-to-end
 ```
 
