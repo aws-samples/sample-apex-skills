@@ -1,20 +1,23 @@
 # AWS & EKS Guidance
 
-- For EKS or ECS requests, load the `apex` skill first if it is installed:
-  it routes to the matching skill and holds the shared APEX rules. If it
-  is not installed, use the matching skill directly.
+- For EKS, ECS or APEX skill requests (including one that names a single
+  skill), load the skill named exactly `apex` first if it is installed: it
+  routes to the matching skill and holds the shared APEX rules. The
+  `/apex:*` commands, such as `apex:eks`, are not it. If it is not
+  installed, use the matching skill directly; the shared APEX rules then do
+  not apply.
 - Before any task, check for a relevant AWS or APEX skill.
   APEX skills are installed at `~/.claude/skills/` (Claude Code) or
   `~/.kiro/skills/` (Kiro), or under `.claude/skills/` or `.kiro/skills/`
-  in the project for a `--project` install. Prefer skill guidance over
-  general knowledge.
+  in the project for an `npx apex-skills --project` install. Prefer skill
+  guidance over general knowledge.
 - Prefer the AWS MCP Server for AWS interactions: it provides scoped
   IAM access and CloudTrail-compatible audit logging. If unavailable,
   use the AWS CLI directly.
 - Prefer the EKS MCP Server for live cluster interactions: it provides
-  Kubernetes API access (read by default, write if configured), upgrade
-  insights, and cluster discovery. If unavailable, use kubectl and AWS
-  CLI directly.
+  Kubernetes API access (read or write, depending on how the server is
+  configured), upgrade insights, and cluster discovery. If unavailable,
+  use kubectl and AWS CLI directly.
 - When uncertain about specific AWS details (API parameters, permissions,
   limits, error codes), verify against documentation rather than guessing.
   State uncertainty explicitly if you cannot confirm.
@@ -33,8 +36,9 @@
   direct CLI commands.
 - When working with infrastructure, follow AWS Well-Architected Framework
   principles.
-- Never execute destructive operations (node drain, cluster delete, force
-  eviction) without explicit user confirmation.
+- Never execute destructive operations (for example node drain, cluster or
+  service delete, stack delete, force eviction) without explicit user
+  confirmation.
 - Never output secrets, credentials, or kubeconfig contents in responses.
 - Avoid non-ASCII characters (including em dashes) in AWS resource names
   and descriptions. Use hyphens instead.
