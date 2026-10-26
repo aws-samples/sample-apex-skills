@@ -560,6 +560,16 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 
 APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the one skill that fits and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, Pod Identity as the default auth model, and no account or cluster change without confirmation.
 
+**Runbooks:**
+
+| File | Description |
+|------|-------------|
+| [eks-build/](./apex/runbooks/eks-build/) | Eks build |
+| [eks-design/](./apex/runbooks/eks-design/) | Eks design |
+| [eks-genai/](./apex/runbooks/eks-genai/) | Eks genai |
+| [eks-platform-engineering/](./apex/runbooks/eks-platform-engineering/) | Eks platform engineering |
+| [eks-security/](./apex/runbooks/eks-security/) | Eks security |
+
 ---
 
 ### [dotnet-aws-ecs](./dotnet-aws-ecs/)
