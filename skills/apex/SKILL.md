@@ -13,11 +13,10 @@ The user reaches this router in their harness's own way: `/apex <request>` in Cl
 
 ## Routing precedence
 
-- When this router is loaded, it decides the route, even if another APEX skill's description also matched the request. Load only the skill it routes to.
-- Provisional, not yet decided: if another APEX skill already loaded for this request and the route here differs, say so in one line and switch to the routed skill. If the route is the skill already loaded, carry on with it.
+- When this router is loaded, it decides the route, even if another APEX skill's description also matched the request. Load only the skill it routes to for the current step.
+- If another APEX skill already loaded for this request and the route here differs, say so in one line and switch to the routed skill. If the route is the skill already loaded, carry on with it.
 - If the conversation began in another skill without this router, apply these rules from the point this router loads.
 - Pick the most specific row in the routing tables. `eks-best-practices` is the EKS catch-all and `ecs-architect` the ECS one: use them only when no more specific row fits.
-- No harness guarantees this router loads first; a sibling whose description matches can run without it (ADR 0005, Open).
 
 ## Route a request
 
@@ -28,7 +27,7 @@ The user reaches this router in their harness's own way: `/apex <request>` in Cl
 5. **No row matches.** EKS asks go to `eks-best-practices`, ECS asks go to `ecs-architect` (it holds the shared ECS best-practices corpus). ECS cost or TCO has no APEX skill (`ecs-cost-intelligence`, which some ECS skill text names, is not installed): use `ecs-architect` for cost posture as a design criterion and say a dollar TCO analysis is not covered. Anything else: if it names a skill, use that skill; otherwise ask one clarifying question.
 6. **Say the route in one line**: the skill, why, and the stage when you know it, for example "Using `eks-upgrade-check` (Day 2, Operate): you asked what blocks the move to 1.34."
 
-Use what you learn about the customer's work only to route and suggest next skills in this session; send it nowhere.
+Use what you learn about the customer's work only to route, carry context to the next skill and suggest next skills; send it to no system beyond what the routed skill's own steps call.
 
 ## Stages and families
 
@@ -38,7 +37,7 @@ Infer the customer's stage from the request, the files and any skill they named:
 - **Day 1 (Build)**: generating code, provisioning or a first deploy.
 - **Day 2 (Operate)**: a running cluster or service to inspect, audit, upgrade, optimize or migrate.
 
-Use the stage only as a hint: to break a tie between two rows, to pick discovery questions and to pick next skills. Never rule out a skill because its family differs from the stage you inferred; when a request clearly matches a row, route there whatever the stage. Some skills that span stages are listed in more than one family; others (`eks-genai`, `eks-platform-engineering`) sit in one family for now.
+Use the stage only as a hint: to break a tie between two rows, to pick discovery questions and to pick next skills. Never rule out a skill because its family differs from the stage you inferred; when a request clearly matches a row, route there whatever the stage. Three ECS skills that span stages are listed in more than one family; others (`eks-genai`, `eks-platform-engineering`) sit in one family for now.
 
 | family | EKS | ECS | cross-cutting |
 |---|---|---|---|
@@ -95,7 +94,7 @@ Use the stage only as a hint: to break a tie between two rows, to pick discovery
 | Create or improve a skill, run its evals, tune its description | `skill-creator` |
 | Update, sync or check the repo docs after a skill change | `update-docs` |
 
-`steering-workflow-creator` gets no row: for an ask to author a steering workflow or runbook, say so and ask one clarifying question rather than routing to a catch-all.
+`steering-workflow-creator` gets no row and no family cell: for an ask to author a steering workflow or runbook, say so and ask one clarifying question rather than routing to a catch-all.
 
 ## Hand-offs and next skills
 
@@ -133,13 +132,13 @@ After `eks-operation-review`, set tone from the rating mix (these tone rows are 
 |---|---|
 | no RED | Good shape. AMBER items are improvement opportunities. |
 | RED present, fewer RED than AMBER | Typical production state. Walk the RED, then AMBER priority tables in the report. |
-| RED equal to or more than AMBER | Work the report's Critical table in its printed order (RED items, security first). Do not start an upgrade until critical gaps are addressed. |
+| RED present, equal to or more than AMBER | Work the report's Critical table in its printed order, then any RED Quick Wins (security first). Do not start an upgrade until critical gaps are addressed. |
 
 Separately, if a RED finding is on the cluster version (extended support or unsupported), run `eks-upgrade-check` once the user picks a target version.
 
 ## Runbooks
 
-A runbook is one skill's procedure for a task. Runbooks live in this skill's folder, one folder per skill: `runbooks/<skill>/<file>.md` (a skill may also call its own reference procedures runbooks). When a request routes to a skill and `runbooks/<skill>/` has a runbook for the task, follow it with that skill; if not, use the skill alone. No runbooks ship yet, and there is no rule yet for matching a runbook file to a task. Name a runbook only after you have found its file. For work that spans several skills, chain them by the routing tables and the hand-off table above.
+A runbook is one skill's procedure for a task. Runbooks live in this skill's folder, one folder per skill: `runbooks/<skill>/<file>.md` (a skill may also call its own reference procedures runbooks). When a request routes to a skill and `runbooks/<skill>/` has a runbook for the task, follow it with that skill; if not, use the skill alone. Name a runbook only after you have found its file. For work that spans several skills, chain them by the routing tables and the hand-off table above.
 
 ## Shared rules
 
@@ -158,5 +157,5 @@ These rules apply to every run this router starts, alongside the routed skill's 
 | 9 | Unsure of an AWS or EKS detail (API parameters, permissions, limits, add-on versions, controller behavior): check the AWS docs or the current release's upstream repo (Karpenter, VPC CNI, AWS Load Balancer Controller, CoreDNS, EKS AMI, terraform-aws-eks), never guess; if you cannot confirm it, say so. |
 | 10 | Prefer IaC (Terraform with `terraform-aws-modules/terraform-aws-eks`, AWS CDK or CloudFormation) over direct CLI commands. |
 | 11 | Follow AWS Well-Architected Framework principles. |
-| 12 | Provisional, not yet decided: if a skill you route to points at a file that is not installed, tell the user which file is missing and go on with what the skill's own folder holds. |
+| 12 | If a skill you route to points at a file that is not installed, tell the user which file is missing and go on with what the skill's own folder holds. |
 | 13 | Be concise. Group related questions in one turn. |

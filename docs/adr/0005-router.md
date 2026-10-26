@@ -5,7 +5,7 @@
 
 ## Context
 
-`apex` is the entry skill ([ADR 0004](0004-naming.md)) and `/apex` routes into it ([ADR 0002](0002-apex-command-routes-to-apex-skill.md)). The draft router in this PR's earlier commits (f9eb213), in `skills/apex/SKILL.md`, routes by intent from four tables (EKS, ECS, cross-cutting, contributor) and asks a question only on a tie between two skills or when nothing matches. It has no notion of the customer's stage, it reads no saved platform facts, and nothing tests it against its sibling skills.
+`apex` is the entry skill ([ADR 0004](0004-naming.md)) and `/apex` routes into it ([ADR 0002](0002-apex-command-routes-to-apex-skill.md)). The draft router first proposed in aws-samples/sample-apex-skills#283, before this rework (commit f9eb213 on its branch), in `skills/apex/SKILL.md`, routes by intent from four tables (EKS, ECS, cross-cutting, contributor) and asks a question only on a tie between two skills or when nothing matches. It has no notion of the customer's stage, it reads no saved platform facts, and nothing tests it against its sibling skills.
 
 A maintainer asked for the routing design to be thought through before the router is rebuilt: how the router knows where to send a request, whether it should ask a few questions first, whether the Day 0, Day 1 and Day 2 stages from the [skill design notes](../design/skill-design.md#day-0-day-1-day-2) should group skills into families, how a customer learns which other skills could help, and how we prove that routing works. We first planned one record per question. With few records in the repo, a maintainer preferred to keep related decisions together, so this record holds every router decision and [ADR 0006](0006-skill-content-and-auto-triggering.md) holds the decisions about skill content and automatic triggering.
 
@@ -31,7 +31,7 @@ Options we did not take, per question:
 1. A plain request that names no skill (for example "we are moving our app to EKS next quarter") lands in the right skill or runbook on each of Claude Code, Kiro and Codex, and the customer is told in one line which one and why.
 2. When the request is unclear, the customer is asked a small number of questions, grouped in one turn, and is not asked what their own files already answer.
 3. The customer learns where they are (Design, Build or Operate) and which other APEX skills could help next, without being pushed into them.
-4. Context carries between skills: a design's decisions reach the build and the upgrade check without being asked again.
+4. Context carries between skills: a design's decisions reach the build and, by the note under the hand-off table, the upgrade check without being asked again.
 5. The same request gets the same route on all three harnesses, and an eval shows it.
 
 **The router owns routing.** The apex router is the one place where routing, discovery and next-skill suggestions live. The other skills keep their automatic triggering for now ([ADR 0006](0006-skill-content-and-auto-triggering.md)) (reading, to confirm: see Open).
@@ -76,7 +76,7 @@ Options we did not take, per question:
 
 **Next skills: apex owns one map.** After a routed skill finishes, the router suggests next skills only when a natural next step exists: one line, one to three skills chosen by stage, never run automatically, and nothing when nothing fits. The one next-step map lives in the router, in its hand-off table (`skills/apex/SKILL.md`, section "Hand-offs and next skills"); the stage labels sit in its "Stages and families" table. The target is that standalone skills carry no next-step lists (some carry hand-off text today), and a skill run directly, without the router, gets no suggestion (reading, to confirm: see Open).
 
-**Hand-offs carry context.** For v2.0 the router's hand-off table names what each pair of skills passes to the next. A platform memory store replaces it in a later release.
+**Hand-offs carry context.** For v2.0 the router's hand-off table names what each pair of skills passes to the next. A platform memory store replaces it in v2.1: one store that holds what each skill passes to the next, in place of the table.
 
 **Who sees what the customer is doing.** The router reads what the customer is doing only so that the agent in the session can suggest next skills. The router sends it to no system of its own.
 
@@ -86,12 +86,12 @@ Options we did not take, per question:
 
 ## Consequences
 
-- Routing logic, discovery and next-skill suggestions sit in one file, so a routing change is made in one place.
+- The router's own routing rules sit in one file; plain-prompt routing still depends on every sibling's description and, until steering/ is removed (aws-samples/sample-apex-skills#288), on steering/eks.md and steering/apex.md, which differ on review and compare asks.
 - Because the other skills keep their automatic triggering, a plain request can still go straight to a sibling skill whose description matches, and no harness documents which of two matching descriptions wins (docs read 2026-10-26; Claude Code 2.1.310, Codex 0.163.0, Kiro CLI 1.27.0). The routing eval has to show how often that happens.
 - The stage is a hint, not a gate, so a wrong stage guess changes a suggestion or a question, never which skills can be reached.
 - Each skill's description is proposed to gain a stage label. That costs description space, which the repo caps at 1,024 characters.
 - Sibling skills' own hand-off text is reconciled with the router's next-skill map as each skill is rebuilt.
-- The router has to change: discovery that reads before it asks, stage inference, the stage labels, the next-skill rule in its hand-off table, and the front door per harness. This rework followed a local smoke check (16 prompts in two prompt wrappers, router loaded explicitly, one run each per harness), not the CI baseline.
+- The router has to change: discovery that reads before it asks, stage inference, the stage labels, the next-skill rule in its hand-off table, and the front door per harness. This rework followed a local no-change baseline of the old router (33b5b65) and a re-check of the reworked router: 16 prompts in two prompt wrappers, router loaded explicitly, routed skill not loaded, one run each per harness; not a CI eval.
 - The repo has to gain a routing eval that installs all skills together on each harness, as a customer would. It needs prompts that name no skill, ambiguous prompts whose expected result is a question, prompts per stage and per platform, negative cases, named-skill prompts, a check that the next-skill suggestion fires, and several runs per prompt. Today's runner stages one skill at a time on Claude Code only, so it does not cover this.
 - The wider reasoning is in the [skill design notes](../design/skill-design.md).
 
@@ -102,11 +102,13 @@ Options we did not take, per question:
 - Where questions live: "both" read as the router asks its own questions and each skill keeps its own, the skill's questions designed when that skill is rebuilt (reading, to confirm).
 - Router ownership while the other skills keep automatic triggering: read as the router owning routing for `/apex` and for the requests that reach it (reading, to confirm).
 - Whether the routing eval gates merges: not decided.
-- How the Kiro run of the routing eval signs in from CI: not established. Kiro's docs (kiro.dev/docs/skills, read 2026-10-26) document `/<skill-name> <text>` in the chat input, but in our test Kiro CLI 1.27.0's non-interactive chat rejected `/apex` ("unrecognized subcommand 'apex'"); interactive mode and later CLI versions are untested, so the form the CI eval can use is still to be found.
+- How the Kiro run of the routing eval invokes the router from CI: not established. Kiro's docs (kiro.dev/docs/skills, read 2026-10-26) document `/<skill-name> <text>` in the chat input, but in our test Kiro CLI 1.27.0's non-interactive chat rejected `/apex` ("unrecognized subcommand 'apex'"); interactive mode and later CLI versions are untested, so the form the CI eval can use is still to be found.
 - How the Codex run of the routing eval reaches Amazon Bedrock from CI: not established.
-- The plain-prompt path is unmeasured: the smoke check loaded the router explicitly, so criteria 1 and 2 above (a request that names no skill; a question when unclear) are untested.
+- The plain-prompt path is unmeasured: the smoke check loaded the router explicitly and asked only for the route in one fixed line, so the harness reaching the router on its own, the routed skill loading, the one-line notice (criterion 1) and the question path (criterion 2) are untested; the router's row choice for no-skill requests was checked.
 - The skill-listing budget: whether to trim sibling descriptions or accept that some are cut or dropped; the routing eval has to cover it (not decided).
 - Whether today's `/apex:<name>` commands stay as shortcuts or fold into the apex skill, left open by [ADR 0002](0002-apex-command-routes-to-apex-skill.md): not decided here.
 - Routing precedence the router cannot guarantee: `skills/apex/SKILL.md` tells the model that once the router is loaded it decides the route, even when a sibling's description also matched, and to switch if a sibling loaded first for the same request. Nothing makes a harness load the router first, so a sibling that triggers directly on a plain request runs without the router's discovery, shared rules and next-skill suggestions. The routing eval has to measure how often that happens (not decided).
 - Stage labels in sibling descriptions: a maintainer chose option B, each skill naming its stage in its description. The router rework edits no other skill, so the labels live only in the router's stage family table for now; when the sibling labels land is open.
 - The next-skill map's rows: the pairs in the router's hand-off table are a first draft for review. In the family table, eks-genai and eks-platform-engineering sit in Day 1 only, eks-security under any stage, and ecs-modernize, ecs-observability and ecs-devops in each family their row above names (reading, to confirm).
+- Shared rule 12 in `skills/apex/SKILL.md` (when a routed skill points at a file that is not installed, name the file and go on with the skill's own folder): not decided.
+- Where shared safety rules live for a sibling run directly: not decided.
