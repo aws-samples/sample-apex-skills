@@ -397,11 +397,11 @@ public.ecr.aws/aws-observability/aws-otel-collector:v0.35.0
 ```bash
 # Check for image policies in Kyverno
 kubectl get clusterpolicies.kyverno.io -o json 2>/dev/null | \
-  jq -r '.items[] | select(.spec.rules[].match.resources.kinds[] == "Pod") | .metadata.name'
+  jq -r '.items[] | select(.spec.rules[]?.match.resources.kinds[]? == "Pod") | .metadata.name'
 
 # Check for Gatekeeper image constraints
 kubectl get constraints -o json 2>/dev/null | \
-  jq -r '.items[] | select(.spec.match.kinds[].kinds[] == "Pod") | .metadata.name'
+  jq -r '.items[] | select(.spec.match.kinds[]?.kinds[]? == "Pod") | .metadata.name'
 ```
 
 ### 7. RBAC Summary
@@ -606,14 +606,14 @@ Identify validating and mutating admission webhooks to understand what policies 
 kubectl get validatingwebhookconfigurations -o json | jq '[
   .items[] | 
   select(.metadata.name | test("^(eks|vpc-resource|aws-)") | not) |
-  {name: .metadata.name, webhooks: [.webhooks[].name], failurePolicy: .webhooks[0].failurePolicy}
+  {name: .metadata.name, webhooks: [.webhooks[]?.name], failurePolicy: .webhooks[0].failurePolicy}
 ]'
 
 # List mutating webhooks (exclude system webhooks)
 kubectl get mutatingwebhookconfigurations -o json | jq '[
   .items[] | 
   select(.metadata.name | test("^(eks|vpc-resource|aws-)") | not) |
-  {name: .metadata.name, webhooks: [.webhooks[].name], failurePolicy: .webhooks[0].failurePolicy}
+  {name: .metadata.name, webhooks: [.webhooks[]?.name], failurePolicy: .webhooks[0].failurePolicy}
 ]'
 
 # Count all webhooks

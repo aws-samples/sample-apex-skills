@@ -147,7 +147,7 @@ same `aws eks describe-cluster` response — no extra API calls required. Report
 **Via AWS API:**
 ```bash
 aws eks describe-cluster --name <cluster-name> --region <region> \
-  --query 'cluster.{support_type:upgradePolicy.supportType,zonal_shift:zonalShiftConfig.enabled,ca_present:certificateAuthority.data,health_issues:health.issues,encryption:encryptionConfig}'
+  --query 'cluster.{support_type:upgradePolicy.supportType,zonal_shift:zonalShiftConfig.enabled,ca_present:certificateAuthority.data != `null`,health_issues:health.issues,encryption:encryptionConfig}'
 ```
 
 **Output Schema (Cluster Detail):**
