@@ -137,7 +137,7 @@ Additional control-plane identity/lifecycle facts owned by this module. All come
 **Detection command (fields not in the shared-block query):**
 ```bash
 aws eks describe-cluster --name <cluster-name> --region <region> \
-  --query 'cluster.{support_type:upgradePolicy.supportType,zonal_shift:zonalShiftConfig.enabled,ca_present:certificateAuthority.data,health_issues:health.issues,encryption:encryptionConfig}'
+  --query 'cluster.{support_type:upgradePolicy.supportType,zonal_shift:zonalShiftConfig.enabled,ca_present:certificateAuthority.data != `null`,health_issues:health.issues,encryption:encryptionConfig}'
 ```
 
 **Output Schema (Cluster Detail):**
