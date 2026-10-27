@@ -1,5 +1,5 @@
 ---
-title: "design"
+title: "eks-design"
 description: "Day 0 architecture design workflow. 8-phase questionnaire for EKS cluster design, architecture reviews, and option comparisons."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/runbooks/eks-design/design.md
 format: md

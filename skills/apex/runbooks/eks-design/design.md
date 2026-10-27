@@ -1,5 +1,5 @@
 ---
-name: design
+name: eks-design
 description: Day 0 architecture design workflow. 8-phase questionnaire for EKS cluster design, architecture reviews, and option comparisons.
 ---
 
