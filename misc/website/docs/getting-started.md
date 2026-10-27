@@ -58,6 +58,8 @@ mkdir -p ~/.kiro/skills
 cp -r skills/* ~/.kiro/skills/
 ```
 
+**Usage:** in Kiro, ask for apex by name in the chat, for example *"use apex to plan my EKS upgrade"*; Kiro CLI 1.27.0 does not accept `/apex`.
+
 ### Other Agent Harnesses
 
 Skills follow the [Agent Skills](https://agentskills.io/) standard. Clone and point your tool at `skills/{skill-name}/` — each contains a `SKILL.md` and optional `references/` directory.
