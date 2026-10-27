@@ -2886,6 +2886,7 @@ chmod 555 "$H/.kiro/steering"
 run_cli --version "$V2_TAG" --kiro-only
 expect_rc 3
 expect_stderr "permission denied"
+expect_no_out "type / to list the APEX workflows"
 chmod 755 "$H/.kiro/steering"
 run_cli --uninstall --kiro-only
 expect_rc 0
