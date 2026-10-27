@@ -9,7 +9,7 @@
 - Before any task, check for a relevant AWS or APEX skill.
   APEX skills are installed at `~/.claude/skills/` (Claude Code) or
   `~/.kiro/skills/` (Kiro), or under `.claude/skills/` or `.kiro/skills/`
-  in the project for an `npx apex-skills --project` install. Prefer skill
+  in the project for an `npx apex-skills@1.3.0 --project` install. Prefer skill
   guidance over general knowledge.
 - Prefer the AWS MCP Server for AWS interactions: it provides scoped
   IAM access and CloudTrail-compatible audit logging. If unavailable,
