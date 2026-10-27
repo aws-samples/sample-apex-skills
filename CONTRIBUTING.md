@@ -280,9 +280,9 @@ Steps:
 1. Understand the skill with concrete examples. A skill for an AWS service with no skills here yet: open an issue first; it needs maintainer changes to grouping and the docs sidebar.
 2. Plan reusable contents (scripts, references, assets).
 3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists — see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
-4. Author `misc/evals/<name>/triggering.json` (≥16 prompts: ≥8 positives, ≥8 near-miss negatives).
-5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py` — one call per neighbour.
-6. Fan out across the repo: update `skills/README.md`, `CONTRIBUTING.md`, the routing tables in [`skills/apex/SKILL.md`](skills/apex/SKILL.md), and any other catalogue that lists skills. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
+4. Scaffold `misc/evals/<name>/` with `cd misc/evals && make init-evals SKILL=<name> [SIBLINGS="a,b"]` (see misc/evals/README.md), then expand `triggering.json` to ≥16 prompts (≥8 positives, ≥8 near-miss negatives).
+5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py` — one call per neighbour. A neighbour shares vocabulary or domain; zero neighbours is valid; skill-creator and terraform-skill are upstream-synced and excluded.
+6. Fan out: add the routing row in [`skills/apex/SKILL.md`](skills/apex/SKILL.md) and any hand-written catalogue, then run `./misc/update-all-references.sh` (it regenerates `skills/README.md` and the README tables; never edit those blocks by hand). `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
 7. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`.
 
 ### Pre-PR checklist for new skills
@@ -292,7 +292,7 @@ Verify each item before opening the PR.
 - [ ] `skills/<name>/SKILL.md` present with valid frontmatter
 - [ ] `misc/evals/<name>/triggering.json` has ≥16 prompts (≥8 positives, ≥8 negatives)
 - [ ] Every neighbour's `SIBLING_MAP` block in `misc/evals/<neighbour>/README.md` lists this new skill, and the corresponding negatives are in `misc/evals/<neighbour>/triggering.json`
-- [ ] Catalogue entries landed: `skills/README.md`, `CONTRIBUTING.md`, and the routing tables in `skills/apex/SKILL.md`
+- [ ] Catalogue entries landed: the routing row in `skills/apex/SKILL.md` and any hand-written catalogue, then `./misc/update-all-references.sh` run (it regenerates `skills/README.md`)
 
 ### Keeping skill docs in sync after changes
 
@@ -302,7 +302,7 @@ Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter desc
 
 1. Create `skills/apex/runbooks/<skill>/<name>.md`, in the folder of the skill it runs with
 2. Add a header naming the lifecycle and the skill: `> **Lifecycle:** Day <n>` and `> **Skill:** <skill>`
-3. Add an intent routing table at the top
+3. Do not add a routing table: the apex skill's tables route (the seven moved runbooks still carry one; a later change removes them)
 4. Structure as phases with numbered checklists and STOP gates
 5. Check that a routing row in `skills/apex/SKILL.md` sends the request to that skill
 6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.

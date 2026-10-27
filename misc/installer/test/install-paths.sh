@@ -5,8 +5,9 @@
 # Every case runs the installer with HOME (and USERPROFILE) pointed at a fresh
 # directory under a scratch work dir, so the real ~/.claude, ~/.kiro and
 # ~/.apex-skills are never touched. The installer clones from a local fixture
-# repository (built from this checkout's skills/ and steering/) through the
-# APEX_SKILLS_REPO_URL override, so no network access is needed.
+# repository (built from skills/ and steering/ of one commit in this checkout's
+# history: see FIXTURE_SRC below) through the APEX_SKILLS_REPO_URL override, so
+# no network access is needed.
 #
 # Each installer run (run_cli) gets a scrubbed environment (env -i plus PATH,
 # HOME, the fixture URL and hermetic git settings; no XDG_*, CLAUDE_CONFIG_DIR

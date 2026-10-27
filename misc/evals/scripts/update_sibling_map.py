@@ -13,6 +13,8 @@ sibling's eval set needs two updates:
 
          - **`<new>`** (<scope>) — negatives N, M ("<first-prompt-snippet>").
 
+     Quote characters in the prompt or scope are not escaped.
+
 The script handles index math and markdown shape. It does NOT decide who is a
 sibling: that is agent+author judgment (CONTRIBUTING.md, Creating a New Skill, step 5).
 It does NOT compose the scope blurb or the negative-prompt phrasings — the
@@ -20,6 +22,7 @@ agent composes both, the script just inserts.
 
 Refuses to run if:
   - SIBLING_MAP markers missing from the sibling's README
+    (checked after triggering.json is written: on that error, revert triggering.json)
   - A bullet for <new> already exists in the SIBLING_MAP block
   - triggering.json is malformed
   - the sibling dir does not exist

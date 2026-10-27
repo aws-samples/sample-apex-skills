@@ -58,7 +58,7 @@ mkdir -p ~/.kiro/skills
 cp -r skills/* ~/.kiro/skills/
 ```
 
-**Usage:** in Kiro, ask for apex by name in the chat, for example *"use apex to plan my EKS upgrade"*; Kiro CLI 1.27.0 does not accept `/apex`.
+**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Kiro CLI added skills as slash commands in 2.1; 1.27.0 rejects `/apex`.
 
 ### Other Agent Harnesses
 

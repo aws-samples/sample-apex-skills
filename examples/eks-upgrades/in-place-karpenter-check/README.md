@@ -80,7 +80,7 @@ chmod +x ./scripts/deploy.sh
 
 **What it does:**
 
-1. **APEX setup** — asks which tool (Claude Code or Kiro), symlinks skills and commands
+1. **APEX setup** — asks which tool (Claude Code or Kiro) and symlinks the skills into `.claude/skills/` or `.kiro/skills/`
 2. **Deployment name** — asks for a suffix (default: `check`), cluster will be `ex-karpenter-<suffix>`
 3. **Terraform apply** — deploys EKS 1.32 with Karpenter v1.0.2 on Fargate from `examples/infrastructure/karpenter/`
 4. **Karpenter resources** — applies EC2NodeClass + NodePool, scales inflate to 3 replicas
@@ -182,6 +182,8 @@ chmod +x ./scripts/destroy.sh
 ```
 
 The destroy script: deletes planted manifests, terminates Karpenter EC2 instances, removes Karpenter K8s resources, and runs `terraform destroy`.
+
+If you ran this example's deploy.sh before v2, also remove `.claude/commands/apex` (a dangling link) and `.kiro/steering/eks.md` (a copy of the removed hub) in your checkout.
 
 ## Further Reading
 

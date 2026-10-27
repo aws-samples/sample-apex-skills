@@ -44,7 +44,7 @@ Before upgrading from installer 1.2.0 or earlier, and before re-running after mo
 
 ## Installed paths
 
-| Tool | Skills | Steering |
+| Tool | Skills | Steering (v1 release trees only) |
 |------|--------|----------|
 | Claude Code | `~/.claude/skills/{name}` | `~/.claude/commands/apex/`, `~/.claude/apex-steering` |
 | Kiro CLI | `~/.kiro/skills/{name}` | `~/.kiro/steering/{workflow}.md` (copies, `inclusion: manual`) |
@@ -58,4 +58,4 @@ npx apex-skills --uninstall
 rm -rf ~/.apex-skills  # optional, once no other install uses it: deletes the clone and your changes in it
 ```
 
-`--uninstall` removes what the install manifest records (`~/.local/state/apex-skills/manifest.json`, or under `$XDG_STATE_HOME`) and still matches. A path you changed is kept and listed (exit code 3). With no record (an install by 1.2.0 or earlier, or a moved home or project directory), it removes every link into `~/.apex-skills` in the skill, steering and command paths, your own included, and marked Kiro copies named after a workflow.
+`--uninstall` removes what the install manifest records (`~/.local/state/apex-skills/manifest.json`, or under `$XDG_STATE_HOME`) and still matches. A path you changed is kept and listed (exit code 3). With no record (an install by 1.2.0 or earlier, or a moved home or project directory), it removes every link into `~/.apex-skills` in the skill, steering and command paths, your own included, and marked Kiro copies named after a workflow (with a v2 clone, which has no steering/, those copies are kept and listed).
