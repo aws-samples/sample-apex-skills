@@ -257,9 +257,12 @@ V2_SKILL=zz-v2-only
 ORIGIN="$WORK/origin"
 # skills/ and steering/ come from one commit: HEAD, or, once steering/ is gone
 # from HEAD (the v2 layout), the parent of the last commit that touched it (the
-# last v1 tree), so this v1 installer keeps a tree it can install. R1 needs
-# skills/apex/runbooks in that tree too, so the commit that removes steering/
-# must not be a squash of the runbook moves onto a tree without them.
+# last v1 tree), so this v1 installer keeps a tree it can install. Once
+# steering/ is gone, skills/ and steering/ come from the last tree that had
+# steering/, not this checkout, so skill and runbook changes after step 1 are
+# not covered. R1 needs skills/apex/runbooks in that tree too, so the commit
+# that removes steering/ must not be a squash of the runbook moves onto a tree
+# without them.
 FIXTURE_SRC=HEAD
 if ! git -C "$REPO_ROOT" cat-file -e HEAD:steering 2>/dev/null; then
   last="$(git -C "$REPO_ROOT" rev-list -1 HEAD -- steering)"
