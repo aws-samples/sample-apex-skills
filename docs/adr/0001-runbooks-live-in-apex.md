@@ -23,7 +23,7 @@ Inside that folder we had to choose how to group runbooks: by task (`design/`, `
 
 All runbooks live under the apex skill, at `skills/apex/runbooks/<skill>/`, one folder per skill for now. Skills do not carry their own runbooks: the runbook content is removed from the other skills, which keep their domain knowledge, references and scripts.
 
-For now, only the apex skill points at runbooks. No other skill links into `apex/runbooks/`, so a standalone skill never depends on a file outside its own folder. The one exception is the vendored `eks-operation-review`, which keeps its upstream pointer to its runbook there.
+For now, only the apex skill points at runbooks. No other skill links into `apex/runbooks/`, so a standalone skill never depends on a file outside its own folder. The one exception is the vendored `eks-operation-review`, whose sync script rewrites upstream's pointer to its runbook there.
 
 Three questions stay open and are decided in steps 3 to 5 of the plan (see the [skill design notes](../design/skill-design.md#plan)): whether runbooks stay grouped by skill, whether runbooks become thin step-by-step guides, and where a runbook that spans several skills goes.
 
