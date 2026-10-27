@@ -15,6 +15,7 @@ Agent Skills are organized folders of instructions, scripts, and resources that 
 | Directory | Purpose |
 |-----------|---------|
 | `skills/` | **What** the agent knows — reusable domain knowledge |
+| `skills/apex/` | The APEX router skill and its runbooks: phased procedures that combine skills (the SA's playbook) |
 | `rules/` | **How** the agent behaves — verification, source-checking, guardrails |
 | `examples/` | **How** to try it — deployable labs with planted issues |
 | `misc/` | Maintenance tooling and evaluation framework |
@@ -47,6 +48,8 @@ npx apex-skills --help                # See all options
 
 If you prefer not to use npx, clone the repo and copy skills directly.
 
+**Upgrading a v1 manual install:** remove `~/.claude/commands/apex` and `~/.claude/apex-steering` (links into `steering/`, which v2 removes) and the APEX workflow files you copied into `~/.kiro/steering/`; the `/apex:<name>` commands are replaced by `/apex`.
+
 #### Claude Code
 
 ```bash
@@ -57,7 +60,7 @@ mkdir -p ~/.claude/skills
 cp -r skills/* ~/.claude/skills/
 ```
 
-**Usage:** Start a Claude Code session and type `/apex` with your request (for example *"Help me design an EKS cluster"* or *"Is my cluster ready to upgrade to 1.32?"*): the apex skill routes it to the right skill and, when there is one, that skill's runbook.
+**Usage (this manual install, from `main`):** Start a Claude Code session and type `/apex` with your request (for example *"Help me design an EKS cluster"* or *"Is my cluster ready to upgrade to 1.32?"*): the apex skill routes it to the right skill and, when there is one, that skill's runbook.
 
 #### Kiro CLI
 

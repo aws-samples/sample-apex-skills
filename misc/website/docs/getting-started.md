@@ -34,6 +34,8 @@ npx apex-skills --help                # See all options
 
 If you prefer not to use npx, clone the repo and copy skills directly.
 
+**Upgrading a v1 manual install:** remove `~/.claude/commands/apex` and `~/.claude/apex-steering` (links into `steering/`, which v2 removes) and the APEX workflow files you copied into `~/.kiro/steering/`; the `/apex:<name>` commands are replaced by `/apex`.
+
 ### Claude Code
 
 ```bash
@@ -44,7 +46,7 @@ mkdir -p ~/.claude/skills
 cp -r skills/* ~/.claude/skills/
 ```
 
-Restart Claude Code; skills become available via `/<skill-name>`. Start with `/apex`: it routes your request to the right skill.
+Restart Claude Code; skills become available via `/<skill-name>`. With this manual install (from `main`), start with `/apex`: it routes your request to the right skill.
 
 ### Kiro CLI
 
@@ -110,4 +112,4 @@ See [`rules/AGENTS.md`](https://github.com/aws-samples/sample-apex-skills/blob/m
 ## Next steps
 
 - Browse the [Skills](./skills) catalog.
-- Start with the [APEX router](./skills/general/apex) skill for a phased engagement: it routes to the right skill and its runbook.
+- With a manual install from `main`, start with the [APEX router](./skills/general/apex) skill for a phased engagement: it routes to the right skill and its runbook.

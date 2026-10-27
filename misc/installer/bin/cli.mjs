@@ -1369,7 +1369,8 @@ async function main() {
   run.touched = true;
 
   // Only a v1 release tree has steering/; with a v2 tree the steering steps
-  // just prune what an earlier install left, so no steering hint is printed.
+  // prune what an earlier install recorded (installer 1.3.0 or later); links an
+  // unrecorded 1.2.0 install made stay. No steering hint is printed.
   const steeringInTree = existsSync(join(INSTALL_DIR, 'steering'));
   if (doSteering) {
     if (installClaude) {

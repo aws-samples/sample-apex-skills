@@ -277,12 +277,12 @@ When adding new content to the repo, follow this flowchart:
 
 Steps:
 
-1. Understand the skill with concrete examples.
+1. Understand the skill with concrete examples. A skill for an AWS service with no skills here yet: open an issue first; it needs maintainer changes to grouping and the docs sidebar.
 2. Plan reusable contents (scripts, references, assets).
 3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists — see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
 4. Author `misc/evals/<name>/triggering.json` (≥16 prompts: ≥8 positives, ≥8 near-miss negatives).
 5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py` — one call per neighbour.
-6. Fan out across the repo: update `skills/README.md`, `CONTRIBUTING.md`, the routing tables in [`skills/apex/SKILL.md`](skills/apex/SKILL.md), and any other catalogue that lists skills.
+6. Fan out across the repo: update `skills/README.md`, `CONTRIBUTING.md`, the routing tables in [`skills/apex/SKILL.md`](skills/apex/SKILL.md), and any other catalogue that lists skills. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
 7. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`.
 
 ### Pre-PR checklist for new skills
@@ -305,7 +305,7 @@ Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter desc
 3. Add an intent routing table at the top
 4. Structure as phases with numbered checklists and STOP gates
 5. Check that a routing row in `skills/apex/SKILL.md` sends the request to that skill
-6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site
+6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
 7. Test with a real scenario and document results in `examples/`
 
 ## Keeping docs in sync (auto-generated catalogues)
@@ -396,7 +396,7 @@ GitHub provides additional document on [forking a repository](https://help.githu
 
 ## Releasing to npm
 
-From installer 1.3.0 on, a merged skill or steering change reaches `npx apex-skills` users at the next release tag, not at merge: the installer installs the newest `v1.x.y` release tag, not `main`. Installer 1.2.0 and earlier follow `main`: a default install clones it and `--update` runs `git pull` on it, so their users get a merged change at their next install or `--update`. Installer 1.3.0 was released by **Installer 1.3.0 (tag first)** below; later v1 releases use steps 1 to 7.
+From installer 1.3.0 on, a merged skill or runbook change reaches `npx apex-skills` users at the next release tag, not at merge: the installer installs the newest `v1.x.y` release tag, not `main`. Installer 1.2.0 and earlier follow `main`: a default install clones it and `--update` runs `git pull` on it, so their users get a merged change at their next install or `--update`. Installer 1.3.0 was released by **Installer 1.3.0 (tag first)** below; later v1 releases use steps 1 to 7.
 
 1. Run `./misc/bump-version.sh <version>` (e.g. `./misc/bump-version.sh 1.2.0`)
 2. Commit the version bump

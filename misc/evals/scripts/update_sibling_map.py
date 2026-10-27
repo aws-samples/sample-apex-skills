@@ -14,7 +14,7 @@ sibling's eval set needs two updates:
          - **`<new>`** (<scope>) — negatives N, M ("<first-prompt-snippet>").
 
 The script handles index math and markdown shape. It does NOT decide who is a
-sibling — that is agent+author judgment in the new-skill workflow's Phase 3.
+sibling: that is agent+author judgment (CONTRIBUTING.md, Creating a New Skill, step 5).
 It does NOT compose the scope blurb or the negative-prompt phrasings — the
 agent composes both, the script just inserts.
 

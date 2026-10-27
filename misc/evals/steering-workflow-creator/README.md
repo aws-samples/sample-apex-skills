@@ -6,10 +6,10 @@ The `steering-workflow-creator` skill is a meta-skill for authoring new steering
 
 ## Neighbour-skill disambiguation
 
-This skill has **no true siblings** in the eval sense. It is meta (about authoring workflows) rather than service-scoped, and the only other meta-skill in the repo, `skill-creator`, is upstream-synced and eval-excluded (see `misc/evals/Makefile`'s coverage exclusion). Negatives therefore bucket into three catchall groups by routing target: the `/apex:new-skill` meta workflow (different meta artefact), the service-scoped EKS skills (vocabulary overlap only in the generic "create" / "help me" verbs), and pure off-repo topics.
+This skill has **no true siblings** in the eval sense. It is meta (about authoring workflows) rather than service-scoped, and the only other meta-skill in the repo, `skill-creator`, is upstream-synced and eval-excluded (see `misc/evals/Makefile`'s coverage exclusion). Negatives therefore bucket into three catchall groups by routing target: requests to add a new skill (a different meta artefact, see CONTRIBUTING.md's Creating a New Skill), the service-scoped EKS skills (vocabulary overlap only in the generic "create" / "help me" verbs), and pure off-repo topics.
 
 <!-- SIBLING_MAP_START -->
-- **Meta workflow routing (not a sibling skill)** — the `/apex:new-skill` steering workflow onboards a new *skill*, while this skill authors new *workflows*. Negatives at items 9, 10 phrase the request as adding a skill and must route to the new-skill workflow, not here.
+- **Meta workflow routing (not a sibling skill)**: adding a new *skill* follows CONTRIBUTING.md's Creating a New Skill, while this skill authors new *workflows*. Negatives at items 9, 10 phrase the request as adding a skill and must not route here.
 - **`eks-best-practices`** — Day 0/Day 1 EKS architecture + decision frameworks. Negatives at items 11, 13 ("design an EKS cluster", "Karpenter vs MNG") must route there.
 - **`skill-creator`** — upstream-synced meta-skill for drafting SKILL.md frontmatter + references. Negative at item 12 is a pure frontmatter-review request that belongs to skill-creator, not to this workflow-authoring skill.
 - **`eks-mcp-server`** — setup-bridge skill for the EKS MCP server. Negative at item 14 asks how to configure MCP tooling.

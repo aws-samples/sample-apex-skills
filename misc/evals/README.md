@@ -248,6 +248,5 @@ pip install pyyaml
 
 ## Reference
 
-- **Design doc**: [`DESIGN.md`](./DESIGN.md) — full 5-layer architecture
 - **Source mapping**: [`SOURCE-MAPPING.md`](./SOURCE-MAPPING.md) — research sources per layer
 - **Skill-creator schemas**: [`skills/skill-creator/references/schemas.md`](../../skills/skill-creator/references/schemas.md)
