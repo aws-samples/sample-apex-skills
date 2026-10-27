@@ -3,9 +3,9 @@
 - For EKS, ECS or APEX skill requests (including one that names a single
   skill), load the skill named exactly `apex` first if it is installed: it
   routes to the matching skill and holds the shared APEX rules. The
-  `/apex:*` commands, such as `apex:eks`, are not it. If it is not
-  installed, use the matching skill directly; the shared APEX rules then do
-  not apply.
+  `/apex:*` commands of a v1 install, such as `apex:eks`, are not it. If it
+  is not installed, use the matching skill directly; the router's extra
+  rules are then not loaded, but the rules in this file still apply.
 - Before any task, check for a relevant AWS or APEX skill.
   APEX skills are installed at `~/.claude/skills/` (Claude Code) or
   `~/.kiro/skills/` (Kiro), or under `.claude/skills/` or `.kiro/skills/`
