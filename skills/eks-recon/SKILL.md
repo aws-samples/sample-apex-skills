@@ -190,7 +190,7 @@ Required:
 
 Optional:
 - Specific modules to run (default: all)
-- Output path prefix (default: `.eks-recon-report` → writes `.eks-recon-report.md` + `.eks-recon-report.yaml`)
+- Output path prefix, without an extension (default: `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` → writes `<output-prefix>.md` + `<output-prefix>.yaml`)
 ```
 
 **Auto-discovery when cluster name is not explicit:**
@@ -234,11 +234,16 @@ For each selected module:
 
 Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a machine artifact for optional hand-off to other skills.
 
+Resolve `<output-prefix>` once for both artifacts:
+- If the caller supplied a prefix, use it unchanged, including any directory component (for example, `reports/team-handoff` → `reports/team-handoff.md` + `reports/team-handoff.yaml`). Do not append a cluster name or timestamp to an explicit prefix.
+- Otherwise, use `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` in the current directory, with the discovered target cluster name and one timestamp captured at report generation (24-hour clock). Reuse that timestamp for both filenames.
+- Create the parent directory if needed. Do not overwrite an existing report: if either destination already exists, report the collision and request a different prefix. Concurrent runs for the same cluster within one minute should use distinct explicit prefixes.
+
 > **Facts only.** Both artifacts report what the cluster *is*. Never emit a verdict, score, readiness rating, or recommendation. A "Notable facts" line states an observation ("2 subnets have < 16 free IPs"); it never says "you should" or "this is a risk".
 
-#### 4a. Markdown fact report (primary) → `.eks-recon-report.md`
+#### 4a. Markdown fact report (primary) → `<output-prefix>.md`
 
-Render this structure, including **only modules that actually ran**:
+Render this structure, including **only modules that actually ran**. Replace `<output-prefix>` in the Machine artifact line with the resolved prefix so it names the actual YAML path:
 
 ```markdown
 # EKS Recon — <cluster> (<region>)
@@ -273,10 +278,10 @@ _generated <timestamp> · source: MCP | CLI · modules: N/N_
 - addons.helm_releases: unconfirmed (reason: helm CLI absent, secret fallback not run) — reported as `unconfirmed`, not `count: 0`
 
 ## Machine artifact
-- `.eks-recon-report.yaml` written (canonical schema, for hand-off to other skills)
+- `<output-prefix>.yaml` written (canonical schema, for hand-off to other skills)
 ```
 
-#### 4b. Machine YAML artifact → `.eks-recon-report.yaml`
+#### 4b. Machine YAML artifact → `<output-prefix>.yaml`
 
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` block and the `cluster_detail:` block (both from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
 

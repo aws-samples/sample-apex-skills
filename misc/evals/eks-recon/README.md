@@ -30,6 +30,34 @@ The `triggering.json` evals (run via `run_triggering.py`) are unaffected — the
 
 ## How to run
 
+### Offline artifact regression checks
+
+From the repository root, with Python 3 and PyYAML installed:
+
+```bash
+python3 misc/tests/test_eks_recon_artifacts.py -v
+```
+
+These hand-authored synthetic reports exercise the artifact validator using the
+assertions in `evals.json`: eval 1 checks timestamped default filenames, and
+eval 2 requests the explicit prefix `reports/team-handoff`. The checks cover
+both report files, YAML parsing/content, and the Markdown machine-artifact
+reference, including rejection of legacy output names. They require no model
+calls or AWS access and do not demonstrate that an agent follows the naming
+instructions, handles filename collisions, or produces a full recon report.
+
+The same test module covers the independent output oracle in
+`misc/tests/recon_output_oracle.py`. Given an agent run's output directory,
+pre-run file hashes, target cluster and start/end times, it checks exact
+Markdown/YAML basename pairing, the actual machine-artifact path, cluster name,
+timestamp bounds and preservation of existing files. Its regression cases include
+a mismatched pair that the generic glob-based eval assertions accept. Those
+generic assertions check filename patterns independently; they do not prove exact
+pairing. The fresh-sandbox evals forbid legacy output names, while the oracle
+allows preexisting legacy reports and checks that they remain unchanged.
+
+### Skill evaluations
+
 From `misc/evals/`:
 - `make validate-eks-recon` — frontmatter + 64/1024-char limits (deterministic)
 - `make triggering-eks-recon` — triggering accuracy score (LIVE)

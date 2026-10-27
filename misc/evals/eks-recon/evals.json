@@ -79,35 +79,48 @@
         "structural": [
           {
             "type": "file-exists",
-            "path": ".eks-recon-report.yaml"
-          },
-          {
-            "type": "yaml-valid",
-            "paths": [".eks-recon-report.yaml"]
+            "path": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].md"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].md",
+            "pattern": "EKS-Recon-[A-Za-z0-9][A-Za-z0-9_-]*-\\d{4}-\\d{2}-\\d{2}-\\d{4}\\.yaml"
+          },
+          {
+            "type": "file-not-exists",
+            "path": ".eks-recon-report.*"
+          },
+          {
+            "type": "file-exists",
+            "path": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].yaml"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": ["EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].yaml"]
+          },
+          {
+            "type": "contains",
+            "file": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].yaml",
             "pattern": "cluster:"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].yaml",
             "pattern": "compute:"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].yaml",
             "pattern": "addons:"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].yaml",
             "pattern": "version:"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].yaml",
             "pattern": "name:"
           }
         ],
@@ -116,7 +129,7 @@
     },
     {
       "id": 2,
-      "prompt": "Run EKS reconnaissance on my current cluster for a handoff document. I need to understand the IaC tooling, CI/CD setup, and deployment patterns in use.",
+      "prompt": "Run EKS reconnaissance on my current cluster for a handoff document. I need to understand the IaC tooling, CI/CD setup, and deployment patterns in use. Use the output path prefix `reports/team-handoff`.",
       "expectations": [
         "The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as applicable). TODO: human review",
         "The output identifies the IaC tool and, where possible, evidence (workspace files, stack names, module references). TODO: human review",
@@ -191,35 +204,48 @@
         "structural": [
           {
             "type": "file-exists",
-            "path": ".eks-recon-report.yaml"
-          },
-          {
-            "type": "yaml-valid",
-            "paths": [".eks-recon-report.yaml"]
+            "path": "reports/team-handoff.md"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "reports/team-handoff.md",
+            "pattern": "reports/team-handoff\\.yaml"
+          },
+          {
+            "type": "file-not-exists",
+            "path": ".eks-recon-report.*"
+          },
+          {
+            "type": "file-exists",
+            "path": "reports/team-handoff.yaml"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": ["reports/team-handoff.yaml"]
+          },
+          {
+            "type": "contains",
+            "file": "reports/team-handoff.yaml",
             "pattern": "cluster:"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "reports/team-handoff.yaml",
             "pattern": "compute:"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "reports/team-handoff.yaml",
             "pattern": "iac:"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "reports/team-handoff.yaml",
             "pattern": "cicd:"
           },
           {
             "type": "contains",
-            "file": ".eks-recon-report.yaml",
+            "file": "reports/team-handoff.yaml",
             "pattern": "detected:"
           }
         ],
