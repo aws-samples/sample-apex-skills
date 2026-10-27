@@ -302,7 +302,7 @@ Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter desc
 
 1. Create `skills/apex/runbooks/<skill>/<name>.md`, in the folder of the skill it runs with
 2. Add a header naming the lifecycle and the skill: `> **Lifecycle:** Day <n>` and `> **Skill:** <skill>`
-3. Do not add a routing table: the apex skill's tables route (the seven moved runbooks still carry one; a later change removes them)
+3. Do not add a routing table: the apex skill's tables route (five of the moved runbooks, eks-build, eks-design, eks-genai, eks-platform-engineering and eks-security, still carry one; a later change removes them)
 4. Structure as phases with numbered checklists and STOP gates
 5. Check that a routing row in `skills/apex/SKILL.md` sends the request to that skill
 6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
