@@ -180,6 +180,17 @@ ack_detected = bool(ack_groups)
 
 ---
 
+**Contradiction guard:** always reconcile workspace findings with the target
+cluster tags already collected by cluster-basics (or read them if not yet available).
+An empty/missing workspace is a limitation of that scan, not negative evidence against
+the cluster tags. If tags indicate Terraform, retain `Terraform` in `tools_detected`,
+`tags.terraform_managed: true` and `evidence.type: cluster_tags` with the actual key/value;
+do not emit an empty/unknown tool list or fabricate local `.tf` files/state backends.
+Use tag-only confidence from this runtime's table and explain that tags are hints,
+not independent proof of current IaC ownership. Preserve multiple evidenced tools
+if workspace files and tags differ; state the differing sources without discarding one.
+If tag reads fail, keep the tag facts unconfirmed/null and record the error.
+
 ## Output Schema
 
 This is the **single canonical schema** for the IaC module — it carries every IaC fact

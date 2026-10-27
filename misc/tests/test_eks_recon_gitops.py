@@ -1,0 +1,338 @@
+"""Offline issue229 fixtures for the maintained metadata extractor and lane contract.
+
+Expected values are hand-authored from the documented Argo tracking format and
+Flux Kustomization labels. These tests do not prove live reconciliation or a
+complete inventory of every resource kind/GitOps product.
+"""
+import copy
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import unittest
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "skills/eks-recon/scripts/gitops_signals.py"
+spec = importlib.util.spec_from_file_location("gitops_signals", SCRIPT)
+signals = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(signals)
+
+
+def resource(kind="Deployment", version="apps/v1", namespace="team", name="web", labels=None, annotations=None):
+    return {"apiVersion": version, "kind": kind,
+            "metadata": {"name": name, "namespace": namespace, "labels": labels, "annotations": annotations}}
+
+
+def collect(*items, key=None, full=False, cluster_scoped=False):
+    return signals.collect({"items": list(items)}, key, full, cluster_scoped)
+
+
+class TrackingFixtures(unittest.TestCase):
+    def test_annotation_only_spoke(self):
+        result = collect(resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}))
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertEqual(result["evidence"][0]["signal"], "tracking_annotation")
+        self.assertEqual(result["evidence"][0]["name"], "web")
+
+    def test_core_resource_annotation(self):
+        result = collect(resource("ConfigMap", "v1", annotations={signals.ARGO_TRACKING: "shop:/ConfigMap:team/web"}))
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+
+    def test_cluster_scoped_annotation(self):
+        result = collect(resource("Namespace", "v1", "", "team", annotations={signals.ARGO_TRACKING: "shop:/Namespace:/team"}), cluster_scoped=True)
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+
+    def test_cluster_scope_allows_tracking_destination_namespace(self):
+        # Argo v3.5.6 isSelfReferencedObj ignores the namespace comparison for
+        # actual cluster-scoped objects. API/discovery supplies that scope.
+        for kind, version, group in (("Namespace", "v1", ""), ("ClusterRole", "rbac.authorization.k8s.io/v1", "rbac.authorization.k8s.io")):
+            with self.subTest(kind=kind):
+                item = resource(kind, version, "", "team", annotations={signals.ARGO_TRACKING: f"shop:{group}/{kind}:destination/team"})
+                self.assertEqual(collect(item, cluster_scoped=True)["tools_with_tracking"], ["argocd"])
+
+    def test_cluster_scope_still_requires_group_kind_name(self):
+        for tracking in ("shop:/Namespace:destination/other", "shop:/Node:destination/team", "shop:other/Namespace:destination/team"):
+            with self.subTest(tracking=tracking):
+                item = resource("Namespace", "v1", "", "team", annotations={signals.ARGO_TRACKING: tracking})
+                self.assertEqual(collect(item, cluster_scoped=True)["tools_with_tracking"], [])
+
+    def test_missing_namespace_requires_confirmed_scope(self):
+        item = resource("Namespace", "v1", "", "team", annotations={signals.ARGO_TRACKING: "shop:/Namespace:destination/team"})
+        result = collect(item)
+        self.assertEqual(result["tools_with_tracking"], [])
+        self.assertEqual(result["warning_count"], 1)
+
+    def test_scope_flag_cannot_override_namespaced_object(self):
+        item = resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"})
+        result = collect(item, cluster_scoped=True)
+        self.assertEqual(result["tools_with_tracking"], [])
+        self.assertEqual(result["warning_count"], 1)
+
+    def test_copied_annotations_are_ambiguous(self):
+        for value in ("shop:apps/Deployment:other/web", "shop:apps/Deployment:team/other",
+                      "shop:apps/StatefulSet:team/web", "shop:other/Deployment:team/web"):
+            with self.subTest(value=value):
+                result = collect(resource(annotations={signals.ARGO_TRACKING: value}))
+                self.assertEqual(result["tools_with_tracking"], [])
+                self.assertEqual(result["evidence"][0]["strength"], "ambiguous")
+
+    def test_malformed_tracking_values(self):
+        for value in ("app", ":apps/Deployment:team/web", "app:apps/Deployment:team/web:extra"):
+            with self.subTest(value=value):
+                result = collect(resource(annotations={signals.ARGO_TRACKING: value}))
+                self.assertEqual(result["tools_with_tracking"], [])
+                self.assertEqual(len(result["evidence"]), 1)
+
+    def test_shared_instance_label_is_not_argo_proof(self):
+        result = collect(resource(labels={signals.INSTANCE_LABEL: "helm-or-any-tool"}))
+        self.assertEqual(result["tools_with_tracking"], [])
+        self.assertIsNone(result["evidence"][0]["tool"])
+        self.assertEqual(result["evidence"][0]["strength"], "ambiguous")
+
+    def test_declared_default_label_still_ambiguous(self):
+        result = collect(resource(labels={signals.INSTANCE_LABEL: "shop"}), key=signals.INSTANCE_LABEL)
+        self.assertEqual(result["tools_with_tracking"], [])
+        self.assertEqual(len(result["evidence"]), 1)
+
+    def test_annotation_plus_shared_label(self):
+        result = collect(resource(labels={signals.INSTANCE_LABEL: "shop"},
+                                  annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}))
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertEqual({e["strength"] for e in result["evidence"]}, {"specific", "ambiguous"})
+
+    def test_confirmed_custom_label(self):
+        result = collect(resource(labels={"team.example/argo": "shop"}), key="team.example/argo")
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertEqual(result["evidence"][0]["key"], "team.example/argo")
+
+    def test_unknown_custom_label_is_not_guessed(self):
+        result = collect(resource(labels={"team.example/argo": "shop"}))
+        self.assertEqual(result["tools_with_tracking"], [])
+        self.assertEqual(result["evidence"], [])
+
+    def test_supplied_shared_or_unqualified_key_stays_ambiguous(self):
+        for key in ("app.kubernetes.io/name", "helm.sh/chart", "argocd-instance"):
+            with self.subTest(key=key):
+                result = collect(resource(labels={key: "ordinary-value"}), key=key)
+                self.assertEqual(result["tools_with_tracking"], [])
+                self.assertEqual(result["evidence"][0]["strength"], "ambiguous")
+                self.assertIsNone(result["evidence"][0]["tool"])
+
+    def test_supplied_flux_key_does_not_infer_argo(self):
+        result = collect(resource(labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"}), key=signals.FLUX_NAME)
+        self.assertEqual(result["tools_with_tracking"], ["flux"])
+
+    def test_metadata_only_identity_requires_request_context(self):
+        item = resource("PartialObjectMetadata", "meta.k8s.io/v1",
+                        annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"})
+        self.assertEqual(collect(item)["tools_with_tracking"], [])
+        # The API request/discovery supplied this identity, not the annotation.
+        item.update({"kind": "Deployment", "apiVersion": "apps/v1"})
+        self.assertEqual(collect(item)["tools_with_tracking"], ["argocd"])
+
+    def test_no_invented_tracking_annotation(self):
+        result = collect(resource(annotations={signals.INSTANCE_LABEL: "shop"}))
+        self.assertEqual(result["evidence"], [])
+
+    def test_flux_pair(self):
+        result = collect(resource(labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"}))
+        self.assertEqual(result["tools_with_tracking"], ["flux"])
+        self.assertEqual(result["evidence"][0]["value"], {"name": "apps", "namespace": "hub"})
+
+    def test_partial_flux_pair(self):
+        for labels in ({signals.FLUX_NAME: "apps"}, {signals.FLUX_NAMESPACE: "hub"},
+                       {signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: ""}):
+            with self.subTest(labels=labels):
+                result = collect(resource(labels=labels))
+                self.assertEqual(result["tools_with_tracking"], [])
+                self.assertEqual(result["evidence"][0]["strength"], "ambiguous")
+
+    def test_mixed_tools_and_generic_labels(self):
+        result = collect(resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}),
+                         resource(labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"}),
+                         resource(labels={signals.INSTANCE_LABEL: "manual"}))
+        self.assertEqual(result["tools_with_tracking"], ["argocd", "flux"])
+        self.assertEqual(len(result["evidence"]), 3)
+
+    def test_missing_null_empty_metadata(self):
+        for labels, annotations in ((None, None), ({}, {})):
+            with self.subTest(labels=labels):
+                result = collect(resource(labels=labels, annotations=annotations))
+                self.assertEqual(result["resources_scanned"], 1)
+                self.assertEqual(result["evidence"], [])
+
+    def test_bad_entry_does_not_hide_later_match(self):
+        good = resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"})
+        result = collect(None, {}, {"metadata": {}}, resource(labels=[]), resource(labels=0), good)
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertEqual(len(result["warnings"]), 5)
+
+    def test_empty_successful_list_is_evidence_only(self):
+        result = collect()
+        self.assertEqual(result, {"resources_scanned": 0, "tools_with_tracking": [], "evidence_counts": [],
+                                 "evidence_count": 0, "evidence": [], "evidence_sample_limit_per_group": 3,
+                                 "evidence_sampled": False, "warning_count": 0, "warnings": []})
+        self.assertNotIn("detected", result)
+
+    def test_large_inventory_counts_all_and_keeps_late_flux(self):
+        argo = [resource(name=f"web-{i}", annotations={signals.ARGO_TRACKING: f"shop:apps/Deployment:team/web-{i}"}) for i in range(1000)]
+        generic = [resource(name=f"chart-{i}", labels={signals.INSTANCE_LABEL: f"release-{i}"}) for i in range(1000)]
+        late_flux = resource(name="last", labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"})
+        result = collect(*argo, *generic, late_flux)
+        self.assertEqual(result["resources_scanned"], 2001)
+        self.assertEqual(result["evidence_count"], 2001)
+        self.assertEqual(sorted(group["count"] for group in result["evidence_counts"]), [1, 1000, 1000])
+        self.assertEqual(result["tools_with_tracking"], ["argocd", "flux"])
+        self.assertEqual(len(result["evidence"]), 7)
+        self.assertTrue(result["evidence_sampled"])
+        self.assertLess(len(json.dumps(result)), 12000)
+
+    def test_large_malformed_annotation_sample_is_bounded(self):
+        value = "not-a-tracking-reference" * 10000
+        result = collect(resource(annotations={signals.ARGO_TRACKING: value}))
+        self.assertEqual(result["tools_with_tracking"], [])
+        self.assertEqual(result["evidence_count"], 1)
+        self.assertEqual(result["evidence"][0]["truncated_fields"]["value"], len(value))
+        self.assertTrue(result["evidence"][0]["value"].endswith("[truncated]"))
+        self.assertLessEqual(len(result["evidence"][0]["value"]), signals.DISPLAY_CHARS)
+        self.assertLess(len(json.dumps(result)), 3000)
+
+    def test_long_qualified_keys_preserve_group_identity(self):
+        prefix = ".".join(["a" * 63] * 3 + ["a" * 61])
+        keys = [prefix + "/" + suffix * 63 for suffix in ("x", "y")]
+        groups = []
+        for key in keys:
+            self.assertEqual(len(key), 317)
+            result = collect(resource(labels={key: "shop"}), key=key)
+            self.assertEqual(result["evidence_counts"][0]["key"], key)
+            self.assertEqual(result["evidence"][0]["key"], key)
+            groups.append(result["evidence_counts"][0])
+        self.assertNotEqual(groups[0], groups[1])
+
+    def test_oversized_custom_key_does_not_hide_standard_signals(self):
+        key = "a" * 318
+        result = collect(resource(labels={key: "shop", signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "flux-system"}), key=key)
+        self.assertEqual(result["tools_with_tracking"], ["flux"])
+        self.assertEqual(result["warning_count"], 1)
+        self.assertNotIn(key, json.dumps(result))
+
+    def test_classification_uses_original_not_shortened_sample(self):
+        name = ".".join(["x" * 60] * 4)
+        value = f"shop:apps/Deployment:team/{name}"
+        result = collect(resource(name=name, annotations={signals.ARGO_TRACKING: value}))
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertIn("value", result["evidence"][0]["truncated_fields"])
+
+    def test_warning_samples_are_bounded_without_losing_positive(self):
+        item = resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"})
+        result = collect(*([None] * 1000), item)
+        self.assertEqual(result["warning_count"], 1000)
+        self.assertEqual(len(result["warnings"]), 5)
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+
+    def test_full_export_is_explicit(self):
+        items = [resource(name=f"chart-{i}", labels={signals.INSTANCE_LABEL: "release"}) for i in range(10)]
+        self.assertEqual(len(collect(*items)["evidence"]), 3)
+        full = collect(*items, full=True)
+        self.assertEqual(len(full["evidence"]), 10)
+        self.assertIsNone(full["evidence_sample_limit_per_group"])
+        value = "malformed" * 1000
+        self.assertEqual(collect(resource(annotations={signals.ARGO_TRACKING: value}), full=True)["evidence"][0]["value"], value)
+
+    def test_non_string_tracking_annotation_warns(self):
+        result = collect(resource(annotations={signals.ARGO_TRACKING: 123}))
+        self.assertEqual(result["warning_count"], 1)
+        self.assertEqual(result["tools_with_tracking"], [])
+
+    def test_invalid_inventory_is_not_empty_success(self):
+        for value in (None, [], {}, {"items": None}, {"items": {}}):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                signals.collect(value)
+
+    def test_input_is_not_modified(self):
+        inventory = {"items": [resource(labels={signals.INSTANCE_LABEL: "manual"})]}
+        original = copy.deepcopy(inventory)
+        signals.collect(inventory)
+        self.assertEqual(inventory, original)
+
+    def test_only_top_level_tracking_counts(self):
+        item = resource()
+        item["spec"] = {"template": {"metadata": {"annotations": {signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}}}}
+        self.assertEqual(collect(item)["evidence"], [])
+
+
+class CliAndContract(unittest.TestCase):
+    def test_cli_cluster_scope_context(self):
+        item = resource("Namespace", "v1", "", "team", annotations={signals.ARGO_TRACKING: "shop:/Namespace:destination/team"})
+        result = subprocess.run([sys.executable, str(SCRIPT), "-", "--cluster-scoped"], input=json.dumps({"items": [item]}), capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(json.loads(result.stdout)["tools_with_tracking"], ["argocd"])
+
+    def test_cli_explicit_full_export(self):
+        items = [resource(name=f"chart-{i}", labels={signals.INSTANCE_LABEL: "release"}) for i in range(10)]
+        result = subprocess.run([sys.executable, str(SCRIPT), "-", "--full-evidence"], input=json.dumps({"items": items}), capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(json.loads(result.stdout)["evidence"]), 10)
+
+    def test_utf8_bom_stdin_ignores_windows_locale_codec(self):
+        item = resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web", "note": "\u4e01"})
+        payload = b"\xef\xbb\xbf" + json.dumps({"items": [item]}, ensure_ascii=False).encode("utf-8")
+        env = dict(os.environ, PYTHONIOENCODING="cp1252")
+        result = subprocess.run([sys.executable, str(SCRIPT), "-"], input=payload, capture_output=True, env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["tools_with_tracking"], ["argocd"])
+
+    def test_cli_stdin(self):
+        result = subprocess.run([sys.executable, str(SCRIPT), "-"], input='{"items": []}', capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(json.loads(result.stdout)["resources_scanned"], 0)
+
+    def test_cli_failed_or_invalid_read(self):
+        for value in ("", "Forbidden", '{"items": null}'):
+            with self.subTest(value=value):
+                result = subprocess.run([sys.executable, str(SCRIPT), "-"], input=value, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("unavailable", result.stderr)
+
+    def test_both_lanes_share_the_decision_rules(self):
+        sections = []
+        for lane in ("skills", "devops-agent"):
+            data = (ROOT / lane / "eks-recon/references/cicd.md").read_text(encoding="utf-8")
+            section = data.split("### Spoke-side tracking and the GitOps outcome\n", 1)[1]
+            sections.append(section.split("**CLI metadata collection:", 1)[0] if lane == "skills"
+                            else section.split("**Via Kubernetes API:** list each readable resource", 1)[0])
+        self.assertEqual(sections[0], sections[1])
+
+    def test_both_lanes_have_the_same_gitops_schema(self):
+        schemas = []
+        for lane in ("skills", "devops-agent"):
+            data = (ROOT / lane / "eks-recon/references/cicd.md").read_text(encoding="utf-8")
+            block = data.split("## Output Schema", 1)[1]
+            schema = re.search(r"```yaml\n(.*?)```", block, re.S).group(1)
+            # Strip runtime-specific comments; this checks the maintained shape.
+            gitops = schema.split("  gitops:", 1)[1]
+            gitops = gitops.split("\n  other_tools:", 1)[0]
+            schemas.append([line.split("#", 1)[0].rstrip() for line in gitops.splitlines() if line.split("#", 1)[0].strip()])
+        self.assertEqual(schemas[0], schemas[1])
+
+    def test_both_lanes_share_common_assembly_rules(self):
+        blocks = []
+        for lane in ("skills", "devops-agent"):
+            data = (ROOT / lane / "eks-recon/SKILL.md").read_text(encoding="utf-8")
+            blocks.append(data.split("**Common assembly rules", 1)[1].split("Assemble one top-level", 1)[0])
+        self.assertEqual(*blocks)
+
+    def test_both_lanes_share_iac_contradiction_guard(self):
+        blocks = []
+        for lane in ("skills", "devops-agent"):
+            data = (ROOT / lane / "eks-recon/references/iac.md").read_text(encoding="utf-8")
+            blocks.append(data.split("**Contradiction guard:**", 1)[1].split("## Output Schema", 1)[0])
+        self.assertEqual(*blocks)
+
+
+if __name__ == "__main__":
+    unittest.main()

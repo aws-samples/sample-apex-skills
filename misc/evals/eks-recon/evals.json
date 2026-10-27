@@ -146,7 +146,9 @@
         "The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as applicable). TODO: human review",
         "The output identifies the IaC tool and, where possible, evidence (workspace files, stack names, module references). TODO: human review",
         "The output reports on workspace CI pipelines (GitHub Actions / GitLab CI / Jenkins) with detection evidence. TODO: human review",
-        "The output reports on GitOps tooling (ArgoCD or Flux) including namespace and rough application / kustomization counts when available. TODO: human review"
+        "The output reports on GitOps tooling (ArgoCD or Flux) including namespace and rough application / kustomization counts when available. TODO: human review",
+        "The output inspects spoke-side workload tracking even when local controllers/CRDs are absent; ambiguous/denied reads stay unconfirmed and generic instance labels alone do not prove Argo. TODO: human review",
+        "The output preserves target-cluster IaC tag evidence even when no IaC files are available in the workspace. TODO: human review"
       ],
       "files": [],
       "live_only": true,

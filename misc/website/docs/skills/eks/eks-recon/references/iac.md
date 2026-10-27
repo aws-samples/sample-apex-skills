@@ -25,7 +25,7 @@ This page is generated from [skills/eks-recon/references/iac.md](https://github.
   - [4. eksctl Detection](#4-eksctl-detection)
   - [5. Pulumi Detection](#5-pulumi-detection)
   - [6. Crossplane and ACK Detection](#6-crossplane-and-ack-detection)
-  - [7. Tag-Based Detection (Fallback)](#7-tag-based-detection-fallback)
+  - [7. Tag-Based Detection](#7-tag-based-detection)
 - [Output Schema](#output-schema)
 - [Confidence Determination](#confidence-determination)
 - [Edge Cases](#edge-cases)
@@ -288,9 +288,9 @@ Record `crossplane.detected: bool` (compositions or crossplane.io CRDs present) 
 `ack.detected: bool` (any `services.k8s.aws` CRD present). For ACK, record the matched
 CRD groups (e.g. `eks.services.k8s.aws`, `iam.services.k8s.aws`) in `ack.controllers`.
 
-### 7. Tag-Based Detection (Fallback)
+### 7. Tag-Based Detection
 
-Use tag-based detection when workspace scan finds nothing. IaC tools often add identifying tags to the resources they create.
+Always check the target cluster tags, including when workspace files were found elsewhere. IaC tools often add identifying tags to the resources they create.
 
 **MCP:**
 ```
@@ -332,6 +332,17 @@ aws eks describe-cluster --name <cluster-name> \
 - Pulumi: `pulumi:*`
 
 ---
+
+**Contradiction guard:** always reconcile workspace findings with the target
+cluster tags already collected by cluster-basics (or read them if not yet available).
+An empty/missing workspace is a limitation of that scan, not negative evidence against
+the cluster tags. If tags indicate Terraform, retain `Terraform` in `tools_detected`,
+`tags.terraform_managed: true` and `evidence.type: cluster_tags` with the actual key/value;
+do not emit an empty/unknown tool list or fabricate local `.tf` files/state backends.
+Use tag-only confidence from this runtime's table and explain that tags are hints,
+not independent proof of current IaC ownership. Preserve multiple evidenced tools
+if workspace files and tags differ; state the differing sources without discarding one.
+If tag reads fail, keep the tag facts unconfirmed/null and record the error.
 
 ## Output Schema
 

@@ -31,6 +31,8 @@ Detect the CI/CD pipelines and GitOps tooling for the specified EKS cluster and 
    - Check workspace for CI/CD config files (.github/workflows, .gitlab-ci.yml)
    - Check cluster for GitOps controllers (ArgoCD, Flux)
    - Check for GitOps CRDs (Applications, Kustomizations)
+   - Always inspect readable workload metadata using the spoke-side rules in `references/cicd.md`; missing local CRDs do not mean no GitOps
+   - Keep ambiguous labels, API errors and unknown custom-key provenance in Coverage; overall unconfirmed uses `detected: null`, never false
 
 3. **Handle MCP 401 errors - IMPORTANT**:
    - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl

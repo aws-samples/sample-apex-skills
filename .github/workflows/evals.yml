@@ -48,3 +48,29 @@ jobs:
       - name: Run eval hygiene pre-flight
         if: steps.changes.outputs.relevant != 'false'
         run: pip install 'pyyaml>=6,<7' && python3 misc/evals/scripts/check_hygiene.py
+
+  gitops-regressions:
+    name: eks-recon GitOps regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Decide whether this change needs the check
+        id: changes
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          bash .github/scripts/ci-gate.sh changed
+          'skills/eks-recon/**'
+          'devops-agent/eks-recon/**'
+          'misc/tests/test_eks_recon_gitops.py'
+          '.github/workflows/evals.yml'
+          '.github/scripts/ci-gate.sh'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        if: steps.changes.outputs.relevant != 'false'
+        with:
+          python-version: '3.x'
+      - name: Run offline GitOps fixtures and lane contract checks
+        if: steps.changes.outputs.relevant != 'false'
+        run: python3 misc/tests/test_eks_recon_gitops.py -v

@@ -256,6 +256,12 @@ EKS cluster reconnaissance and environment discovery — reports the raw FACTS o
 | [storage.md](./eks-recon/references/storage.md) | Storage |
 | [workloads.md](./eks-recon/references/workloads.md) | Workloads |
 
+**Scripts:**
+
+| Script | Description |
+|--------|-------------|
+| [gitops_signals.py](./eks-recon/scripts/gitops_signals.py) | Gitops signals |
+
 **Agents:**
 
 | File | Description |

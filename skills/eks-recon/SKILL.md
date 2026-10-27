@@ -232,7 +232,7 @@ For each selected module:
 
 ### Step 4: Generate Report
 
-Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a machine artifact for optional hand-off to other skills.
+Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a secondary facts snapshot for inspection/export.
 
 Resolve `<output-prefix>` once for both artifacts:
 - If the caller supplied a prefix, use it unchanged, including any directory component (for example, `reports/team-handoff` → `reports/team-handoff.md` + `reports/team-handoff.yaml`). Do not append a cluster name or timestamp to an explicit prefix. Do not strip a supplied suffix: `reports/x.md` produces `reports/x.md.md` + `reports/x.md.yaml`.
@@ -278,10 +278,36 @@ _generated <timestamp> · source: MCP | CLI · modules: N/N_
 - addons.helm_releases: unconfirmed (reason: helm CLI absent, secret fallback not run) — reported as `unconfirmed`, not `count: 0`
 
 ## Machine artifact
-- `<output-prefix>.yaml` written (canonical schema, for hand-off to other skills)
+- `<output-prefix>.yaml` written (secondary point-in-time facts snapshot)
 ```
 
 #### 4b. Machine YAML artifact → `<output-prefix>.yaml`
+
+The YAML is a **secondary, point-in-time facts snapshot** for inspection/export.
+It is not a versioned consumer API: no downstream skill in this repository currently
+implements a YAML-schema hand-off. Workflow references to an eks-recon report mean
+reading the facts, not an implemented schema integration. Keep producing both files;
+the reference shapes govern this snapshot, while automated consumers need their own
+explicit version/compatibility contract before relying on them.
+
+**Common assembly rules — inline and subagent execution:**
+
+- Anchor the report to the shared `cluster:` identity obtained from cluster-basics.
+  Deduplicate matching module `cluster:` blocks. An actual target mismatch in
+  name/region/ARN/endpoint makes that module `{unavailable: true, reason: "cluster
+  context mismatch: <field>"}`; never merge another cluster's facts. If identity
+  agrees but mutable shared fields (version, platform, status, tags) differ, retain
+  the module facts and record both values, sources and known observation times in
+  Markdown Coverage. Keep cluster-basics as the YAML envelope's canonical snapshot;
+  the recorded disagreement must remain visible, not silently overwrite either
+  observation. Inline reads use the same target context without manufacturing
+  duplicate blocks.
+- On full recon, collect and retain `cluster_detail:` directly from cluster-basics;
+  there is no cluster-basics subagent. A targeted query may omit unrelated detail.
+- Preserve each module's reference shape. If a selected module errors or produces
+  no result, retain its top-level key with `unavailable: true` and a short `reason`,
+  regardless of execution mode. List unselected modules as out of scope, not failed.
+- Preserve positive facts alongside partial-read gaps; unknown is not false/zero.
 
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` block and the `cluster_detail:` block (both from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
 
@@ -383,10 +409,10 @@ Agent(
 When all subagents complete:
 1. Collect each subagent's YAML output
 2. Merge into single report structure, applying these normalization rules:
-   - Every subagent emits its own top-level `cluster:` block. Merge into a single top-level `cluster:` by deduplicating exact-match blocks (all subagents report the same cluster); if any field mismatches across subagents, flag it rather than silently picking one.
-   - **`cluster-basics` has no subagent** — it is always-loaded shared context. Beyond the shared `cluster:` block, it also owns the top-level **`cluster_detail:`** facts (support_type, zonal_shift, certificate_authority, health, encryption_config — see `references/cluster-basics.md` "## Cluster Detail (full recon)"). On a full recon, run those cluster-basics detection commands directly (inline, from the main thread — they are a handful of `describe-cluster` reads) and merge the result as the top-level `cluster_detail:` key. Skip on a targeted query that doesn't need them.
+   - Apply the mode-independent identity, mismatch and failure rules in Step 4b; do not maintain a second merge policy here.
+   - Collect shared cluster-basics facts directly as described in Step 4b.
    - Module outputs are already in the canonical shape defined by each `references/<module>.md` "## Output Schema". Preserve them verbatim under the matching top-level key: `compute:`, `networking:`, `security:`, `addons:`, `observability:`, `workloads:`, `storage:`, `iac:`, `cicd:`, `cluster_insights:`. Do not reshape, flatten, or rename keys.
-   - If a subagent fails to respond or errors out, set its key to `unavailable: true` with a short `reason:` string; do not omit the key.
+   - Treat subagent failures as selected-module failures under the common Step 4b rules.
 3. Note co-occurring or absent facts across modules — state the observation, draw no conclusion (e.g. "compute.strategy = Karpenter; security.iam_for_pods.irsa.detected = false"). These are neutral facts for the "Notable facts" section, never verdicts or recommendations.
 4. Render the **human-readable markdown fact report** (primary) and write the **machine YAML artifact** — see [Step 4](#step-4-generate-report).
 
@@ -403,7 +429,7 @@ The upgrade workflow can invoke eks-recon to gather Phase 1 context:
 2. Extract:
    - cluster.version -> Current version
    - compute.strategy -> Determines upgrade approach
-   - iac.tool -> Terraform vs CLI upgrade path
+   - iac.tools_detected -> Observed IaC tools (multiple tools and uncertainty are preserved)
    - addons -> Compatibility matrix input
 ```
 

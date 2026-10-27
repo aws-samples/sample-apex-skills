@@ -10,6 +10,7 @@
 - [Detection Commands](#detection-commands)
   - [Workspace CI/CD](#workspace-cicd)
   - [In-Cluster GitOps](#in-cluster-gitops)
+- [Spoke-side tracking and the GitOps outcome](#spoke-side-tracking-and-the-gitops-outcome)
 - [Output Schema](#output-schema)
 - [Integration Patterns](#integration-patterns)
 - [Edge Cases](#edge-cases)
@@ -20,7 +21,7 @@
 
 - **Cluster name required:** Partial (only for in-cluster GitOps detection)
 - **MCP tools used:** `list_k8s_resources` (for GitOps)
-- **CLI fallback:** `find`, `kubectl`
+- **CLI fallback:** `find`, `kubectl`, Python 3
 
 ---
 
@@ -29,7 +30,7 @@
 CI/CD detection has two parts:
 
 1. **Workspace scan** - Find CI/CD config files in local filesystem
-2. **In-cluster scan** - Detect GitOps controllers running in the cluster
+2. **Cluster scan** - Inspect local controllers AND spoke-side workload tracking; report unconfirmed where evidence is insufficient
 
 ```
 Workspace:
@@ -191,8 +192,8 @@ list_k8s_resources(
 
 **CLI:**
 ```bash
-# Check for ArgoCD namespace and deployments
-kubectl get deploy -n argocd 2>/dev/null
+# Presence-only shortcut; absence requires all-namespace Deployment/StatefulSet scans
+kubectl get deploy -n argocd
 ```
 
 **Example output:**
@@ -208,20 +209,19 @@ argocd-server                      1/1     1            1           45d
 
 ```bash
 # Check for Applications
-kubectl get applications.argoproj.io -A 2>/dev/null | head -10
+set -o pipefail
+kubectl get applications.argoproj.io -A -o json | python3 -c 'import json,sys; items=json.load(sys.stdin)["items"]; print("count:", len(items)); print("examples:", [(x["metadata"].get("namespace"), x["metadata"]["name"]) for x in items[:3]])'
 ```
 
 **Example output:**
 ```
-NAMESPACE   NAME              SYNC STATUS   HEALTH STATUS
-argocd      platform-addons   Synced        Healthy
-argocd      app-frontend      Synced        Healthy
-argocd      app-backend       Synced        Progressing
+count: 3
+examples: [('argocd', 'platform-addons'), ('argocd', 'app-frontend'), ('argocd', 'app-backend')]
 ```
 
 ```bash
 # Get ArgoCD version
-kubectl get deploy -n argocd argocd-server -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null
+kubectl get deploy -n argocd argocd-server -o jsonpath='{.spec.template.spec.containers[0].image}'
 ```
 
 **Example output:**
@@ -232,8 +232,8 @@ quay.io/argoproj/argocd:v2.10.5
 **EKS Managed ArgoCD (Capability):** Check if using EKS ArgoCD Capability (AWS-managed) vs self-managed:
 ```bash
 # Check if ArgoCD is EKS-managed
-kubectl get deploy -n argocd -o json 2>/dev/null | \
-  jq -r '.items[].metadata.labels["eks.amazonaws.com/component"]' 2>/dev/null
+kubectl get deploy -n argocd -o json | \
+  jq -r '.items[].metadata.labels["eks.amazonaws.com/component"]'
 ```
 
 **Example output (EKS-managed):**
@@ -266,8 +266,8 @@ list_k8s_resources(
 
 **CLI:**
 ```bash
-# Check for Flux namespace and deployments
-kubectl get deploy -n flux-system 2>/dev/null
+# Presence-only shortcut; absence requires all-namespace Deployment/StatefulSet scans
+kubectl get deploy -n flux-system
 ```
 
 **Example output:**
@@ -281,32 +281,31 @@ source-controller             1/1     1            1           90d
 
 ```bash
 # Check for GitRepositories
-kubectl get gitrepositories.source.toolkit.fluxcd.io -A 2>/dev/null | head -10
+set -o pipefail
+kubectl get gitrepositories.source.toolkit.fluxcd.io -A -o json | python3 -c 'import json,sys; items=json.load(sys.stdin)["items"]; print("count:", len(items)); print("examples:", [(x["metadata"].get("namespace"), x["metadata"]["name"]) for x in items[:3]])'
 ```
 
 **Example output:**
 ```
-NAMESPACE     NAME          URL                                       AGE    READY
-flux-system   flux-system   ssh://git@github.com/org/gitops-repo      90d    True
-flux-system   app-repo      ssh://git@github.com/org/app-manifests    45d    True
+count: 2
+examples: [('flux-system', 'flux-system'), ('flux-system', 'app-repo')]
 ```
 
 ```bash
 # Check for Kustomizations
-kubectl get kustomizations.kustomize.toolkit.fluxcd.io -A 2>/dev/null | head -10
+set -o pipefail
+kubectl get kustomizations.kustomize.toolkit.fluxcd.io -A -o json | python3 -c 'import json,sys; items=json.load(sys.stdin)["items"]; print("count:", len(items)); print("examples:", [(x["metadata"].get("namespace"), x["metadata"]["name"]) for x in items[:3]])'
 ```
 
 **Example output:**
 ```
-NAMESPACE     NAME          AGE   READY   STATUS
-flux-system   flux-system   90d   True    Applied revision: main@sha1:abc123
-flux-system   apps          90d   True    Applied revision: main@sha1:def456
+count: 2
+examples: [('flux-system', 'flux-system'), ('flux-system', 'apps')]
 ```
 
 ```bash
-# Get Flux version
-flux version --client 2>/dev/null || \
-  kubectl get deploy -n flux-system source-controller -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null
+# Read the observed controller image (a local flux CLI version is not this fact)
+kubectl get deploy -n flux-system source-controller -o jsonpath='{.spec.template.spec.containers[0].image}'
 ```
 
 **Example output:**
@@ -315,6 +314,113 @@ ghcr.io/fluxcd/source-controller:v1.2.4
 ```
 
 ---
+
+### Spoke-side tracking and the GitOps outcome
+
+**Always inspect workload metadata, even when local controller/CRD reads are empty.**
+A hub can manage this cluster without installing Argo/Flux controllers or CRDs here.
+Discover controllers in readable Deployments/StatefulSets across namespaces and inspect
+their container images. Establish local absence only from successful, complete
+Deployment AND StatefulSet lists across **all namespaces**. Namespaced examples
+are shortcuts for confirming presence and cannot establish absence. A namespace, CRD definition, or client CLI version alone does not
+prove a running controller.
+
+Read top-level `metadata.labels` and `metadata.annotations` on accessible Deployments,
+StatefulSets, DaemonSets, Jobs, CronJobs, Services and ConfigMaps. Read each resource
+kind separately so one denied kind does not discard successful reads of another.
+Include other relevant kinds when discovery/permissions allow; this bounded inventory
+does not cover every custom resource. Do not read Secrets for tracking detection.
+Retain each API error and the namespaces/kinds actually scanned in Coverage. Missing
+CRDs, an empty list, a failed list and incomplete permissions are different observations.
+
+| Signal | Interpretation |
+|--------|----------------|
+| `argocd.argoproj.io/tracking-id` annotation | Tool-specific tracking evidence only when `<application>:<group>/<kind>:<namespace>/<name>` names the resource it is on. Core resources have an empty group (e.g. `app:/ConfigMap:ns/name`). For a resource confirmed cluster-scoped by API discovery/request context, match group/kind/name; the tracking namespace may be the application destination namespace. Missing namespace/scope context is unconfirmed. Malformed or non-self-referencing/copied annotations are ambiguous. |
+| `app.kubernetes.io/instance` label | Ambiguous by itself: Helm and other tools also use it. Keep the observed value; do not attribute it to Argo without corroboration. This also covers Argo's `label` mode when the hub is inaccessible. |
+| Custom instance label | Use a dedicated key explicitly linked to this target by the user or accessible Argo tracking configuration/resource association. Record that provenance; a setting from an unrelated hub or annotation-only configuration is insufficient. Only qualified custom keys (`prefix/key`) are sufficient under this rule. Shared `app.kubernetes.io/*`, `helm.sh/*`, Flux tracking keys, unqualified keys and known collisions remain ambiguous even when supplied. Qualification alone does not establish dedicated use; do not guess a key or attribute ordinary labels to Argo. |
+| `kustomize.toolkit.fluxcd.io/name` AND `kustomize.toolkit.fluxcd.io/namespace` labels | Tool-specific Flux Kustomization tracking evidence when both values are nonempty. One label alone is ambiguous. This is not exhaustive detection of all Flux/Helm deployment paths. |
+
+`argocd.argoproj.io/tracking-id` is the tracking **annotation**; do not invent an
+`app.kubernetes.io/instance` tracking annotation. Tracking metadata can be stale or
+manually copied: report observed tracking, not a verified active hub, sync health,
+hub URL, controller namespace/version or remote application counts.
+
+**Assembly rule (both runtimes):** combine readable local-controller evidence and
+tool-specific tracking evidence. Set `gitops.tools_detected` to all supported tools
+with that evidence, `tool` to the single name or `multiple`, `status: detected` and
+`detected: true`. This means evidence observed, not live reconciliation verified.
+Keep `gitops.argocd.detected` / `gitops.flux.detected` scoped to **local controllers**:
+`false` requires successful, complete all-namespace Deployment AND StatefulSet scans;
+if either is unreadable and no controller was positively observed, use `null`. Do not set those local flags to true from spoke metadata.
+
+With only ambiguous signals, no signals, partial/denied reads or an unknown custom
+tracking key, emit `tool: unconfirmed`, `status: unconfirmed`, `detected: null`,
+`tools_detected: []`, and explain the evidence/coverage limit. Never turn absent
+local CRDs into `tool: none` / `detected: false` for overall GitOps management.
+Positive evidence survives unrelated denied reads: retain detected tools and list
+the remaining gaps rather than replacing a positive result with unknown.
+Use `null` for unobserved hub facts and inaccessible counts; do not infer a remote
+application count from the number of labeled resources. An empty evidence list is
+not a claim that no external GitOps exists.
+
+Sources: [Argo resource tracking](https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking/)
+and [Flux remote-cluster Kustomizations](https://fluxcd.io/flux/components/kustomize/kustomizations/#kubeconfig-remote-clusters).
+Argo permits the destination namespace on cluster-scoped tracking IDs; see its
+[version-matched self-reference check](https://github.com/argoproj/argo-cd/blob/v3.5.6/controller/state.go).
+For metadata-only API identity, see [Kubernetes metadata-only fetches](https://kubernetes.io/docs/reference/using-api/api-concepts/#metadata-only-fetches).
+
+**Bounded evidence contract (both runtimes):** classify/count the complete successful
+input before sampling. Aggregate `evidence_counts` by `(tool, signal, strength, key)`;
+counts are signal occurrences in the recorded scan scope, not applications, releases
+or unique managed resources. One object can contribute more than one signal.
+Keep at most **3 example identities per group across the final report**, not 3 for
+every query. Default displayed string fields are capped at **256 characters** with
+`truncated_fields` recording original lengths; never reclassify a shortened example.
+Grouping keys retain their full valid Kubernetes label key (up to 317 characters),
+because shortening a key would lose aggregation identity. An oversized configured
+custom key is invalid: warn once and ignore that key, retaining standard signals.
+Record total warnings and at most 5 warning examples in Coverage. Examples are the
+first observations, not a statistical sample. Sampling limits output, not the memory
+needed to parse an input or the scope/size of an API response.
+
+Combine counts only across proven disjoint kind/namespace/page inventories. A retry
+or namespaced scan overlapping an all-namespace scan must not be summed: select one
+successful encompassing snapshot, note the overlap and keep the other observation
+separate if needed. Do not cut the input off with `head` before counting. A truncated
+API/tool response is a coverage gap, not a complete zero inventory. Preserve positive
+groups alongside gaps. If every tracking read failed, counts are `null`, not zero.
+Only when the user explicitly requests full evidence, export it to a separate file
+and reference that file; keep the main report and model-visible output bounded.
+
+**CLI metadata collection:** use the maintained evidence extractor after each
+successful read. Use the installed Python 3 executable (`python3`, or `python` /
+`py -3` on Windows). For example, from the skill directory:
+
+```bash
+set -o pipefail
+kubectl get deployments -A -o json | python3 scripts/gitops_signals.py -
+# If the custom key was independently supplied/confirmed:
+kubectl get deployments -A -o json | python3 scripts/gitops_signals.py - \
+  --argocd-instance-label-key '<confirmed-custom-key>'
+```
+
+Repeat for the other readable kinds above. A failed/invalid input exits nonzero;
+do not replace it with `{items: []}`. The helper returns `resources_scanned`,
+`tools_with_tracking`, scoped `evidence_count` / `evidence_counts`, bounded `evidence`
+examples, and `warning_count` / warning examples. Copy counts and combine examples
+under the bounded contract above. `tools_with_tracking` excludes ambiguous signals.
+Do not infer missing positive tools from the first examples: counts/tool presence
+use the entire supplied inventory. `--full-evidence` is only for an explicitly
+requested separate export, never the default model-visible report.
+For an extra single-kind inventory confirmed cluster-scoped by API discovery,
+pass `--cluster-scoped` (e.g. when reading Namespaces); do not infer scope from a
+missing namespace field or the tracking annotation. The default seven-kind path
+is namespaced. Input bytes are decoded as UTF-8, including a possible BOM.
+Record scan scope/errors separately; this helper does not assess API coverage,
+scan for controllers, or decide overall absence. For MCP, perform the same metadata
+reads and bounded aggregation. Recover original group/kind AND scope for
+PartialObjectMetadata from request/discovery context, never from the annotation;
+obtain normal objects/context or leave evidence unconfirmed when unavailable.
 
 ## Output Schema
 
@@ -352,18 +458,25 @@ cicd:
       config_path: string     # path to atlantis.yaml, null if absent
 
   gitops:
-    tool: string              # primary GitOps controller detected: argocd | flux | none
-    detected: bool            # any GitOps controller present
+    tool: string              # argocd | flux | multiple | unconfirmed
+    status: string            # detected | unconfirmed (evidence, not verified active management)
+    detected: bool | null     # true when evidence observed; null when unconfirmed, never false from missing CRDs
+    tools_detected: list      # all tools evidenced by local controllers or specific tracking
+    evidence_count: int | null # scoped signal occurrences; null when every tracking read failed
+    evidence_counts: list | null # tool/signal/strength/key/count groups; null if no successful inventory
+    evidence: list            # <=3 examples/group globally; optional truncated_fields stores original lengths
+    # Configured custom-label provenance and scan gaps belong in Coverage.
+    # Each nested detected flag below describes LOCAL controllers only.
     argocd:
-      detected: bool
+      detected: bool | null   # local controller: false only after successful scan; null if unreadable
       namespace: string
       version: string         # from argocd-server container image tag
       eks_managed: bool       # EKS ArgoCD Capability (AWS-managed) vs self-managed
       applications: int       # count of Application resources
     flux:
-      detected: bool
+      detected: bool | null   # local controller, not remote management
       namespace: string
-      version: string         # from source-controller image tag or `flux version --client`
+      version: string         # observed source-controller image tag only, never a local client version
       git_repositories: int   # count of GitRepository resources
       kustomizations: int     # count of Kustomization resources
 
@@ -421,7 +534,8 @@ ApplicationSets generate multiple Applications from templates.
 
 ```bash
 # Check for ApplicationSets
-kubectl get applicationsets.argoproj.io -A 2>/dev/null | head -10
+set -o pipefail
+kubectl get applicationsets.argoproj.io -A -o json | python3 -c 'import json,sys; items=json.load(sys.stdin)["items"]; print("count:", len(items)); print("examples:", [(x["metadata"].get("namespace"), x["metadata"]["name"]) for x in items[:3]])'
 ```
 
 **Example output:**
