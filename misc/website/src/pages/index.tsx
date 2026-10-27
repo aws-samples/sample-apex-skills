@@ -177,7 +177,7 @@ function CtaSection() {
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
-    <Layout title="APEX Skills — AWS Platform Engineering for AI Agents" description="Curated agentic AI skills for AWS platform engineering. 12 open-source skills for EKS, Terraform, and infrastructure workflows, delivered through any coding agent.">
+    <Layout title="APEX Skills — AWS Platform Engineering for AI Agents" description="Curated agentic AI skills for AWS platform engineering. Open-source skills for EKS, Terraform, and infrastructure workflows, delivered through any coding agent.">
       <main className="landing-main">
         <HeroBanner />
         <ValueProps />

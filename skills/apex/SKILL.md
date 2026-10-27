@@ -9,7 +9,7 @@ You pick the APEX skill for a request, carry context between skills, suggest wha
 
 ## Front door
 
-The user reaches this router in their harness's own way: `/apex <request>` in Claude Code; `$apex <request>` in Codex, once the skills are copied into a Codex skills folder (not set up by the installer); and in Kiro by asking for it by name in the chat, for example "use apex to plan my EKS upgrade" (Kiro CLI 1.27.0 rejects `/apex` as an unrecognized command). It can also load on its own when its description matches. When you tell the user how to come back to the router, give the form for their harness.
+The user reaches this router in their harness's own way: `/apex <request>` in Claude Code; `$apex <request>` in Codex, once the skills are copied into a Codex skills folder (not set up by the installer); and in Kiro `/apex <request>`, or ask for it by name in the chat, for example "use apex to plan my EKS upgrade". It can also load on its own when its description matches. On Claude Code, the request typed after `/apex` follows this skill as `ARGUMENTS:`. When you tell the user how to come back to the router, give the form for their harness.
 
 ## Routing precedence
 
@@ -25,7 +25,7 @@ The user reaches this router in their harness's own way: `/apex <request>` in Cl
 2. **Read first.** Read the request, anything the user gave or pointed to (architecture docs, Terraform, a pasted config, an `eks-recon` report), the workspace files that bear on the route (IaC, manifests, CI config). Read local files only; discovery runs no account or cluster calls. Skip every question these already answer.
 3. **One clear match.** If the request maps to one row, route at once; do not ask "what would you like to do?"
 4. **Ask only what is missing.** If the route is still unclear, ask only what it needs, grouped in one turn: for example which platform (EKS or ECS), whether a cluster or service is already running, and what the user wants back (advice, a design document, code, a scored report). There is no fixed number of questions, but keep it short. Between two rows, follow the tie-break order under Routing precedence, then route.
-5. **No row matches.** EKS asks go to `eks-best-practices`, ECS asks go to `ecs-architect` (it holds the shared ECS best-practices corpus). ECS cost or TCO has no APEX skill (`ecs-cost-intelligence`, which some ECS skill text names, is not installed): use `ecs-architect` for cost posture as a design criterion and say a dollar TCO analysis is not covered. A request outside EKS and ECS: say in one line that APEX covers EKS and ECS only, with no question first. Anything else: if it names a skill, use that skill; otherwise ask one clarifying question, and if the answer still matches no row, say APEX has no skill for it.
+5. **No row matches.** EKS asks go to `eks-best-practices`, ECS asks go to `ecs-architect` (it holds the shared ECS best-practices corpus). ECS cost or TCO has no APEX skill (`ecs-cost-intelligence`, which some ECS skill text names, is not installed): use `ecs-architect` for cost posture as a design criterion and say a dollar TCO analysis is not covered. A request outside EKS and ECS: say in one line that APEX covers EKS and ECS only, with no question first. A request whose platform cannot be told (not clearly EKS, ECS or outside both): ask one clarifying question, and if the answer still matches no row, say APEX has no skill for it.
 6. **Say the route in one line**: the skill, why, and the stage when you know it, for example "Using `eks-upgrade-check` (Day 2, Operate): you asked what blocks the move to 1.34."
 
 Use what you learn about the customer's work only to route, carry context to the next skill and suggest next skills; send it to no system beyond what the routed skill's own steps call.
@@ -104,7 +104,7 @@ This table is the one next-skill map. Carry the listed context forward when one 
 
 | after | natural next skills | context to pass |
 |---|---|---|
-| `eks-design` | `eks-build`, `eks-security` | the design's decisions: compute strategy (Karpenter, MNG, Auto Mode), add-on management (Terraform, ArgoCD), upgrade strategy (in-place, blue-green), constraints (design Phase 5 Q22 and Q25; constraints from Phase 3) |
+| `eks-design` | `eks-build`, `eks-security` | the design's decisions: compute strategy (Karpenter, MNG, Auto Mode; design Phase 5 Q20), add-on management (Terraform, ArgoCD; Q22), upgrade strategy (in-place, blue-green; Q25), constraints (air-gapped, compliance; Phase 3) |
 | `eks-best-practices` | `eks-design`, `eks-build` | the options weighed and the choice made |
 | `eks-build` | `eks-security`, `eks-operation-review` | cluster name, compute strategy, add-on management |
 | `eks-recon` | `eks-upgrade-check`, `eks-operation-review`, `eks-cost-intelligence` | the recon report: EKS version, compute strategy, add-on inventory |
@@ -128,7 +128,7 @@ After `eks-upgrade-check`, take the band from the report; the score range of eac
 | FAIR, RISKY | Present the prioritized remediation list. Recommend the user resolve the top-priority findings (Critical Actions first), then re-run the assessment. |
 | NOT READY | Critical issues. Walk the Blockers section, or, if it is empty, the Critical Actions and the highest deductions. Do not upgrade until they are resolved. |
 
-After `eks-operation-review`, set tone from the rating mix (these tone rows are this router's own, not from that skill; per-check rating bands are in the skill's `references/<section>.md` files, and the consistency checks in `references/report-generation.md`):
+After `eks-operation-review`, set tone from the rating mix (per-check rating bands are in the skill's `references/<section>.md` files, and the consistency checks in `references/report-generation.md`):
 
 | ratings | next step |
 |---|---|
