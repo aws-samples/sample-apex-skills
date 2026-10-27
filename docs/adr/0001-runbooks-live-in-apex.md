@@ -5,7 +5,7 @@
 
 ## Context
 
-A runbook is the step-by-step part of an engagement: which questions to ask, in what order, which skill to load at each step, and what to hand back. Today the repo has no folder named `runbook` or `runbooks`. The closest thing is the set of steering workflows in `steering/workflows/` (for example `design.md`, `eks-build.md`, `eks-upgrade-check.md`), which the EKS hub `steering/eks.md` routes to. The domain knowledge sits in `skills/<name>/`.
+A runbook is the step-by-step part of an engagement: which questions to ask, in what order, which skill to load at each step, and what to hand back. Today (2026-10-23) the repo has no folder named `runbook` or `runbooks`. The closest thing is the set of steering workflows in `steering/workflows/` (for example `design.md`, `eks-build.md`, `eks-upgrade-check.md`), which the EKS hub `steering/eks.md` routes to. The domain knowledge sits in `skills/<name>/`.
 
 We had to decide where runbooks live in the new design. There were two options.
 
@@ -23,9 +23,9 @@ Inside that folder we had to choose how to group runbooks: by task (`design/`, `
 
 All runbooks live under the apex skill, at `skills/apex/runbooks/<skill>/`, one folder per skill for now. Skills do not carry their own runbooks: the runbook content is removed from the other skills, which keep their domain knowledge, references and scripts.
 
-For now, only the apex skill points at runbooks. No other skill links into `apex/runbooks/`, so a standalone skill never depends on a file outside its own folder. The one exception is the vendored `eks-operation-review`, whose sync script rewrites upstream's pointer to its runbook there.
+For now, only the apex skill points at runbooks. No other skill's SKILL.md loads a runbook from `apex/runbooks/`. The one exception is the vendored `eks-operation-review`, whose sync script rewrites upstream's pointer to its runbook there.
 
-Three questions stay open and are decided in steps 3 to 5 of the plan (see the [skill design notes](../design/skill-design.md#plan)): whether runbooks stay grouped by skill, whether runbooks become thin step-by-step guides, and where a runbook that spans several skills goes.
+Three questions stay open and are decided in steps 3 to 5 of the plan (see the [skill design notes](../design/skill-design.md#plan)): whether runbooks stay grouped by skill, whether runbooks become thin step-by-step guides, and where a runbook that spans several skills goes. Also left for steps 3 to 5: five of the seven moved runbooks still carry their own routing table ("How to Route Requests"), while the apex skill's tables route; step 1 does not edit them.
 
 ## Consequences
 
@@ -34,4 +34,4 @@ Three questions stay open and are decided in steps 3 to 5 of the plan (see the [
 - A skill used on its own, without apex, has no runbook. We accept that trade-off: see [ADR 0003](0003-standalone-skills-are-a-weaker-tradeoff.md).
 - The repo has to change: an apex skill has to exist (there is no `skills/apex/` today), the steering workflows have to move into `apex/runbooks/<skill>/`, and any skill that carries runbook-style steps has to hand them over. That work is part of the next major version, not this record.
 - The design notes explain how customers adapt runbooks, so the guidance lives in the docs rather than in the folder layout: [skill design notes](../design/skill-design.md#runbooks).
-- A runbook reaches its skill's files through `../../../<skill>/` or a repo-root path such as `skills/<skill>/references/`, a chain two levels deep, while the [Agent Skills specification](https://agentskills.io/specification) asks for file references one level deep from `SKILL.md`. Step 1 moves the runbooks without rewriting those paths; that is for steps 3 to 5.
+- A runbook reaches its skill's files through `../../../<skill>/` or a repo-root path such as `skills/<skill>/references/`, a chain two levels deep, while the [Agent Skills specification](https://agentskills.io/specification) asks for file references one level deep from `SKILL.md`. Step 1 repoints those paths to the new depth and keeps the two-level chain; flattening it is for steps 3 to 5.

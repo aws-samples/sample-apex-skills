@@ -1,6 +1,6 @@
 # APEX skill design
 
-> Status: working notes, 2026-10-23. This describes the target design for the next major version of APEX. Parts of it are decided (see the [ADRs](../adr/README.md)); parts are still open and marked as such. Where the repo works differently today, we say so.
+> Status: working notes, started 2026-10-23, revised 2026-10-27. This describes the target design for the next major version of APEX. Parts of it are decided (see the [ADRs](../adr/README.md)); parts are still open and marked as such. Where the repo works differently today, we say so.
 
 This document is about how we design skills: how they fit together, how the lifecycle of a platform shapes them, and where the customizable parts live. We are starting simple. Over time it will grow to cover how we test and evaluate skills and the harness around them.
 
@@ -9,7 +9,7 @@ This document is about how we design skills: how they fit together, how the life
 The repo splits knowledge from process:
 
 - `skills/` holds domain knowledge. Each skill is a folder (`SKILL.md` plus references and scripts) in the open [Agent Skills](https://agentskills.io/) format, and almost all of them work on their own.
-- `steering/` held process. The EKS hub `steering/eks.md` routes a request to a workflow in `steering/workflows/` (design, build, upgrade check, operational review and others), and each workflow loads the skills it needs. The slash commands in `steering/commands/apex/` (`/apex:eks`, `/apex:eks-design` and so on) are thin entry points into those steering files.
+- `steering/` held process. The EKS hub `steering/eks.md` routed a request to a workflow in `steering/workflows/` (design, build, upgrade check, operational review and others), and each workflow loaded the skills it needed. The slash commands in `steering/commands/apex/` (`/apex:eks`, `/apex:eks-design` and so on) were thin entry points into those steering files.
 
 That split works. What it lacks is one entry point and one place where a customer adapts the process to their own way of working. The rest of this document is about closing those two gaps.
 
@@ -17,7 +17,7 @@ That split works. What it lacks is one entry point and one place where a custome
 
 The new design has one entry skill, and every other skill stands on its own:
 
-- **`apex` is the entry skill.** It knows the engagements APEX can run, asks enough to pick the right one, and holds the runbooks that drive them. `/apex` takes you straight to it ([ADR 0002](../adr/0002-apex-command-routes-to-apex-skill.md)).
+- **`apex` is the entry skill.** It knows the engagements APEX can run, asks enough to pick the right one, and holds the runbooks that drive them. `/apex` takes you straight to it on Claude Code ([ADR 0002](../adr/0002-apex-command-routes-to-apex-skill.md)); the front door on other harnesses is in [ADR 0005](../adr/0005-router.md).
 - **Every other skill is a standalone skill**, of one of two kinds:
   - a **knowledge skill** gives guidance and advice on a domain, for example `eks-best-practices`;
   - a **solution skill** does a piece of work and hands back a result, for example `eks-design`, `eks-build` or `eks-cost-intelligence`.
@@ -56,7 +56,7 @@ We looked at two places.
 
 **Decision:** runbooks live in `skills/apex/runbooks/<skill>/`, one folder per skill, and we remove runbooks from the other skills. We group them by skill for now, not by task: a task name such as "design" blurs EKS and ECS (an `eks-design` and an `ecs-design` would be different work), while a skill name does not. For now, only the `apex` skill points at runbooks; no other skill links into `apex/runbooks/`, except the vendored `eks-operation-review`, whose sync script rewrites upstream's pointer to its runbook there. See [ADR 0001](../adr/0001-runbooks-live-in-apex.md).
 
-The steering workflows in `steering/workflows/` become these runbooks, and `steering/` goes away once they have moved.
+The steering workflows in `steering/workflows/` became these runbooks in step 1, and `steering/` went with them.
 
 **Still open, decided in steps 3 to 5 of the [plan](#plan):** whether runbooks stay grouped by skill, whether runbooks become thin step-by-step guides, and where a runbook that spans several skills goes.
 
@@ -71,7 +71,7 @@ We do not enforce this in the repo layout. Instead this document is where we exp
 
 ### Standalone skills
 
-A standalone skill works on its own, in any agent that reads the Agent Skills format. But without `apex` it has no runbook, so you get the knowledge without the guided engagement. We accept that as a design trade-off: users who do not take the full APEX setup get a weaker product. See [ADR 0003](../adr/0003-standalone-skills-are-a-weaker-tradeoff.md). Standalone use keeps working: a knowledge skill still gives its advice, and a solution skill keeps its references and scripts. How much of a solution skill's work runs without a runbook is decided per skill in steps 3 to 5.
+A standalone skill works on its own, in any agent that reads the Agent Skills format. But without `apex` it has no runbook, so you get the knowledge without the guided engagement. We accept that as a design trade-off: users who do not take the full APEX setup get a weaker product. See [ADR 0003](../adr/0003-standalone-skills-are-a-weaker-tradeoff.md). Standalone use keeps working: a knowledge skill still gives its advice, and a solution skill keeps its references and scripts. How much of a solution skill's work runs without a runbook is decided per skill in steps 3 to 5. One skill folder copied on its own, though, is not a supported install ([ADR 0006](../adr/0006-skill-content-and-auto-triggering.md), proposed); whether that narrows this trade-off is open there.
 
 ## Plan
 
@@ -80,16 +80,16 @@ We are building the next major version in nine steps (summary). In every step we
 | Step | What |
 |------|------|
 | 0 | Foundations: installer release, required checks on `main`, a test cluster |
-| 1 | Where things live (routing changes from steering: compare asks go to `eks-best-practices`, per the [apex router](../../skills/apex/SKILL.md); Kiro reaches the runbooks only through the `apex` skill): these docs and ADRs, the blog, the `apex` skill with `apex/runbooks/<skill>/`, steering removed, `/apex` routing, set up for Claude Code and Kiro, and for Codex by a manual copy |
+| 1 | Where things live (routing changes from steering: compare asks and casual review asks ('what do you think?') go to `eks-best-practices`, per the [apex router](../../skills/apex/SKILL.md); Kiro reaches the runbooks only through the `apex` skill): these docs and ADRs, the blog, the `apex` skill with `apex/runbooks/<skill>/`, steering removed, `/apex` routing, set up for Claude Code and Kiro, and for Codex by a manual copy |
 | 2 | How APEX fits AWS's agentic tooling (agents, toolkits, MCP servers, AWS Transform), and what each skill builds on |
 | 3 | What an APEX skill is, built on `eks-recon`: skill standards, design principles and the eval strategy |
 | 4 | The same for Day 0, Day 1 and Day 2: `eks-design`, `eks-build`, `eks-cost-intelligence` |
 | 5 | The same for every other repo-owned skill |
-| 6 | Vendored skills and skills owned by others: steering removed, an issue filed per skill |
-| 7 | Installer, SEO, README and site; the contributor skill for new skills, once we know what a skill is |
+| 6 | Vendored skills and skills owned by others: steering-file wording and pointers removed, an issue filed per skill |
+| 7 | Installer (drop the steering question and flag for v2 trees), SEO, README and site; the contributor skill for new skills, once we know what a skill is |
 | 8 | Publish |
 
-Step 1 removes the `/apex:new-skill` command and its workflow with `steering/`; we build the contributor skill in step 7, once steps 3 to 5 have settled what a skill is. Until then the steps in [CONTRIBUTING.md](../../CONTRIBUTING.md#creating-a-new-skill) (Creating a New Skill) apply. In step 1, `/apex` points to the `apex` skill, which takes over routing. Step 1 removes the `/apex:<name>` commands with `steering/`; only `/apex` stays ([ADR 0005](../adr/0005-router.md#open)).
+Step 1 removes the `/apex:new-skill` command and its workflow with `steering/`; we build the contributor skill in step 7, once steps 3 to 5 have settled what a skill is. Until then the steps in [CONTRIBUTING.md](../../CONTRIBUTING.md#creating-a-new-skill) (Creating a New Skill) apply. The contributor skill re-carries what the removed new-skill workflow held and CONTRIBUTING does not (retrofit mode, the scaffold-only refusal, sibling heuristics, the script-managed-surface exclusion, the DevOps Agent port check, the sourcing bar for references); the last copy is d4a7a02:steering/workflows/new-skill.md. In step 1, `/apex` points to the `apex` skill, which takes over routing. Step 1 removes the `/apex:<name>` commands with `steering/`; only `/apex` stays ([ADR 0005](../adr/0005-router.md#open)).
 
 ## What comes later
 

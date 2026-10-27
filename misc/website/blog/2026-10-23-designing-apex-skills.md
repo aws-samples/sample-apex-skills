@@ -16,7 +16,7 @@ The full notes and the decision records are in the repo, under [`docs/`](https:/
 
 ## Where we started
 
-Today the repo draws a clean line between knowledge and process. `skills/` holds domain knowledge. Each skill is a folder (`SKILL.md` plus references and scripts) in the open [Agent Skills](https://agentskills.io/) format, and almost all of them work on their own. `steering/` holds process: the EKS hub routes your request to a workflow (design, build, upgrade check, operational review), and the workflow loads the skills it needs. Slash commands like `/apex:eks` and `/apex:eks-design` are the doors in.
+When we started (2026-10-23), the repo drew a clean line between knowledge and process. `skills/` holds domain knowledge. Each skill is a folder (`SKILL.md` plus references and scripts) in the open [Agent Skills](https://agentskills.io/) format, and almost all of them work on their own. `steering/` held process: the EKS hub routed your request to a workflow (design, build, upgrade check, operational review), and the workflow loaded the skills it needed. Slash commands like `/apex:eks` and `/apex:eks-design` were the doors in.
 
 That line works, and we are keeping it, though process moves out of `steering/` and into runbooks in the `apex` skill. But two things were missing. There was no single front door, and there was no obvious place for a customer to say "this is how *we* run an upgrade".
 
@@ -24,7 +24,7 @@ That line works, and we are keeping it, though process moves out of `steering/` 
 
 The new design has one **entry skill**, `apex`: it knows the engagements APEX can run and holds the runbooks that drive them. Every other skill is a **standalone skill**, of one of two kinds. A **knowledge skill**, such as `eks-best-practices`, gives guidance and advice. A **solution skill**, such as `eks-design`, `eks-build` or `eks-cost-intelligence`, does a piece of work and hands back a result. A runbook in `apex` loads the skills it needs, step by step.
 
-And `/apex` becomes the front door. Today `apex` is only the prefix on commands like `/apex:eks`; there is no bare `/apex`, and nothing takes you straight to the APEX entry point. In the new design, `/apex` routes directly into the apex skill, which takes over routing.
+And `/apex` becomes the front door. Before step 1, `apex` was only the prefix on commands like `/apex:eks`; there was no bare `/apex`, and nothing took you straight to the APEX entry point. In the new design, `/apex` routes directly into the apex skill, which takes over routing.
 
 The names took a few rounds. We tried **hub and children**, **hub and spoke** and **parent and child**, and none of them fit. Each implied a relationship the skills do not have: a family, inheritance, or a skill that only connects through the hub. In practice a skill works on its own and inherits nothing. So we named the skills for what they are, not for how they relate.
 

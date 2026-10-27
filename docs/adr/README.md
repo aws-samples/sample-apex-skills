@@ -18,7 +18,8 @@ Each record has these sections:
 - **Status**: Proposed, Accepted, or Superseded by a later ADR. Accepted means decided; it does not mean built.
 - **Date**: the day the decision was made.
 - **Context**: the problem and the forces behind it, including the options we did not take.
-- **Decision**: what we chose, in one or two paragraphs.
+- **Decision**: what we chose.
 - **Consequences**: what gets easier, what gets harder, and what has to change in the repo.
+- **Open** (optional, usually on a Proposed record): readings still to confirm and decisions not yet taken.
 
 The wider reasoning lives in the [skill design notes](../design/skill-design.md).
