@@ -16,7 +16,7 @@ You pick the APEX skill for a request, carry context between skills, suggest wha
 
 ## Front door
 
-The user reaches this router in their harness's own way: `/apex <request>` in Claude Code, `$apex <request>` in Codex, and in Kiro by asking for it by name, for example "use apex to plan my EKS upgrade". It can also load on its own when its description matches. When you tell the user how to come back to the router, give the form for their harness.
+The user reaches this router in their harness's own way: `/apex <request>` in Claude Code; `$apex <request>` in Codex, once the skills are copied into a Codex skills folder (not set up by the installer); and in Kiro by asking for it by name in the chat, for example "use apex to plan my EKS upgrade" (Kiro CLI 1.27.0 rejects `/apex` as an unrecognized command). It can also load on its own when its description matches. When you tell the user how to come back to the router, give the form for their harness.
 
 ## Routing precedence
 

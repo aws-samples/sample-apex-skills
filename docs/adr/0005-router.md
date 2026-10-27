@@ -80,7 +80,7 @@ Options we did not take, per question:
 
 **Who sees what the customer is doing.** The router reads what the customer is doing only so that the agent in the session can suggest next skills. The router sends it to no system of its own.
 
-**The front door on each harness.** Each tool reaches the router in its own way: `/apex` on Claude Code, `$apex` on Codex, and on Kiro whatever form it accepts, for example asking it to "use apex".
+**The front door on each harness.** Each tool reaches the router in its own way: `/apex` on Claude Code; `$apex` on Codex, once the skills are copied into a Codex skills folder (not set up by the installer); and on Kiro asking for it by name, for example "use apex to plan my EKS upgrade", the form that loaded the router in Kiro CLI 1.27.0's interactive chat (tested 2026-10-27), which rejects `/apex` as an unrecognized command.
 
 **The routing eval.** We will add a routing eval that runs in CI on Claude Code, Kiro and Codex (Codex through Amazon Bedrock); none ships yet.
 
@@ -102,7 +102,7 @@ Options we did not take, per question:
 - Where questions live: "both" read as the router asks its own questions and each skill keeps its own, the skill's questions designed when that skill is rebuilt (reading, to confirm).
 - Router ownership while the other skills keep automatic triggering: read as the router owning routing for `/apex` and for the requests that reach it (reading, to confirm).
 - Whether the routing eval gates merges: not decided.
-- How the Kiro run of the routing eval invokes the router from CI: not established. Kiro's docs (kiro.dev/docs/skills, read 2026-10-26) document `/<skill-name> <text>` in the chat input, but in our test Kiro CLI 1.27.0's non-interactive chat rejected `/apex` ("unrecognized subcommand 'apex'"); interactive mode and later CLI versions are untested, so the form the CI eval can use is still to be found.
+- How the Kiro run of the routing eval invokes the router from CI: not established. Kiro's docs (kiro.dev/docs/skills, read 2026-10-26) document `/<skill-name> <text>` in the chat input, but Kiro CLI 1.27.0 rejected `/apex` ("unrecognized subcommand 'apex'") in non-interactive chat and, tested 2026-10-27, in interactive chat too; the Kiro IDE and CLI versions after 1.27.0 are untested, so the form the CI eval can use is still to be found.
 - How the Codex run of the routing eval reaches Amazon Bedrock from CI: not established.
 - The plain-prompt path is unmeasured: the smoke check loaded the router explicitly and asked only for the route in one fixed line, so the harness reaching the router on its own, the routed skill loading, the one-line notice (criterion 1) and the question path (criterion 2) are untested; the router's row choice for no-skill requests was checked.
 - The skill-listing budget: whether to trim sibling descriptions or accept that some are cut or dropped; the routing eval has to cover it (not decided).
