@@ -86,7 +86,7 @@ Options we did not take, per question:
 
 ## Consequences
 
-- The router's own routing rules sit in one file; plain-prompt routing still depends on every sibling's description and, until steering/ is removed (aws-samples/sample-apex-skills#288), on steering/eks.md and steering/apex.md, which differ on review and compare asks.
+- The router's own routing rules sit in one file; plain-prompt routing still depends on every sibling's description and, on this branch, on steering/eks.md and steering/apex.md, which differ on review and compare asks (aws-samples/sample-apex-skills#288, stacked after this PR, removes steering/).
 - Because the other skills keep their automatic triggering, a plain request can still go straight to a sibling skill whose description matches, and no harness documents which of two matching descriptions wins (docs read 2026-10-26; Claude Code 2.1.310, Codex 0.163.0, Kiro CLI 1.27.0). The routing eval has to show how often that happens.
 - The stage is a hint, not a gate, so a wrong stage guess changes a suggestion or a question, never which skills can be reached.
 - Each skill's description is proposed to gain a stage label. That costs description space, which the repo caps at 1,024 characters.
@@ -106,7 +106,7 @@ Options we did not take, per question:
 - How the Codex run of the routing eval reaches Amazon Bedrock from CI: not established.
 - The plain-prompt path is unmeasured: the smoke check loaded the router explicitly and asked only for the route in one fixed line, so the harness reaching the router on its own, the routed skill loading, the one-line notice (criterion 1) and the question path (criterion 2) are untested; the router's row choice for no-skill requests was checked.
 - The skill-listing budget: whether to trim sibling descriptions or accept that some are cut or dropped; the routing eval has to cover it (not decided).
-- Whether today's `/apex:<name>` commands stay as shortcuts or fold into the apex skill, left open by [ADR 0002](0002-apex-command-routes-to-apex-skill.md): not decided here.
+- Whether today's `/apex:<name>` commands stay as shortcuts or fold into the apex skill, left open by [ADR 0002](0002-apex-command-routes-to-apex-skill.md): not decided here. aws-samples/sample-apex-skills#285, #286 and #288, stacked after this PR, remove their command files.
 - Routing precedence the router cannot guarantee: `skills/apex/SKILL.md` tells the model that once the router is loaded it decides the route, even when a sibling's description also matched, and to switch if a sibling loaded first for the same request. Nothing makes a harness load the router first, so a sibling that triggers directly on a plain request runs without the router's discovery, shared rules and next-skill suggestions. The routing eval has to measure how often that happens (not decided).
 - Stage labels in sibling descriptions: a maintainer chose option B, each skill naming its stage in its description. The router rework edits no other skill, so the labels live only in the router's stage family table for now; when the sibling labels land is open.
 - The next-skill map's rows: the pairs in the router's hand-off table are a first draft for review. In the family table, eks-genai and eks-platform-engineering sit in Day 1 only, eks-security under any stage, and ecs-modernize, ecs-observability and ecs-devops in each family their row above names (reading, to confirm).
