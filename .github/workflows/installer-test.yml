@@ -13,7 +13,6 @@ on:
   pull_request:
     paths:
       - "misc/installer/**"
-      - "steering/**"
       - "skills/*/SKILL.md"
       - ".github/workflows/installer-test.yml"
   push:
@@ -21,7 +20,6 @@ on:
       - main
     paths:
       - "misc/installer/**"
-      - "steering/**"
       - "skills/*/SKILL.md"
       - ".github/workflows/installer-test.yml"
   workflow_dispatch:

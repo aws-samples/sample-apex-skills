@@ -10,10 +10,8 @@ APEX organizes content into four directories, each serving a distinct purpose in
 
 ```
 sample-apex-skills/
-├── steering/           → 🎯 HOW the agent behaves (conversation orchestration)
-│   ├── commands/       →   Slash command definitions (harness-specific entry points)
-│   └── workflows/      →   Structured engagement playbooks
 ├── skills/             → 📚 WHAT the agent knows (domain knowledge)
+│   └── apex/runbooks/  →   🎯 HOW the agent runs an engagement (guided procedures, routed by the apex skill)
 ├── rules/              → 📏 Project-level agent rules (AGENTS.md for consumers)
 ├── devops-agent/       → Non-executable ports for AWS DevOps Agent
 └── examples/           → 🏗️ HOW to try it (hands-on exercises)
@@ -67,10 +65,10 @@ skills/{skill-name}/
 
 | ❌ Does not belong | Why | Where it goes |
 |-------------------|-----|---------------|
-| "Ask the user these 8 phases of questions" | That's a conversation flow | `steering/workflows/` |
+| "Ask the user these 8 phases of questions" | That's a conversation flow | `skills/apex/runbooks/<skill>/` |
 | A Terraform module that deploys a cluster | That's runnable infrastructure | `examples/` |
 | A deploy.sh script that sets up a demo | That's a hands-on exercise | `examples/` |
-| Checkpoint templates with STOP gates | That's agent behavior control | `steering/workflows/` |
+| Checkpoint templates with STOP gates | That's agent behavior control | `skills/apex/runbooks/<skill>/` |
 
 ### Current Skills
 
@@ -78,65 +76,55 @@ See the auto-generated [Skills Reference](README.md#skills-reference) in `README
 
 ---
 
-## `steering/` — Conversation Orchestration
+## `skills/apex/runbooks/`: Runbooks
 
-**Purpose:** Files that control how the agent interacts with the user — routing intent, sequencing steps, gathering requirements, enforcing checkpoints, and validating output.
+**Purpose:** Guided procedures that control how the agent runs an engagement for one skill: sequencing steps, gathering requirements, enforcing checkpoints, and validating output.
 
-**Think of steering as:** A senior SA's playbook — not what they know (that's skills), but how they run an engagement. The structured questionnaire they follow, the checkpoints they enforce, the quality gates they apply before delivering recommendations.
+**Think of a runbook as:** A senior SA's playbook: not what they know (that's skills), but how they run an engagement. The structured questionnaire they follow, the checkpoints they enforce, the quality gates they apply before delivering recommendations.
 
 ### Characteristics
 
-- **Defines interaction patterns** — questionnaires, step-by-step procedures, STOP gates, checkpoint templates
-- **Routes user intent** — "if the user says 'upgrade my cluster', activate the upgrade workflow"
-- **References skills for knowledge** — steering files say "use the `eks-best-practices` skill's decision frameworks" but don't duplicate the knowledge
-- **Workflow-specific** — each workflow file handles one lifecycle phase (design, upgrade, troubleshoot)
-- **Has a hub** — `eks.md` is the central router that detects intent and dispatches to the right workflow
+- **Defines interaction patterns**: questionnaires, step-by-step procedures, STOP gates, checkpoint templates
+- **References skills for knowledge**: a runbook says "use the `eks-best-practices` skill's decision frameworks" but does not duplicate the knowledge
+- **One skill per folder**: each runbook lives in `skills/apex/runbooks/<skill>/` and is followed with that skill
+- **Routed by the apex skill**: [`skills/apex/SKILL.md`](skills/apex/SKILL.md) detects intent, picks the skill and, when `runbooks/<skill>/` has a runbook for the task, follows it. Only the apex skill points at runbooks; other skills' SKILL.md files do not. Start with `/apex`.
 
 ### Structure
 
 ```
-steering/
-├── eks.md                    # Service hub: EKS intent detection + routing
-├── apex.md                   # Meta hub: repo-wide contributor actions (new-skill, …)
-├── commands/                 # Slash command wrappers (harness-specific entry points)
-│   └── apex/                 # Claude Code: symlinked into .claude/commands/apex/
-│       ├── eks.md            # /apex:eks → routes via steering/eks.md
-│       ├── eks-build.md      # /apex:eks-build → steering/workflows/eks-build.md
-│       ├── eks-design.md     # /apex:eks-design → steering/workflows/design.md
-│       ├── eks-genai.md      # /apex:eks-genai → steering/workflows/eks-genai.md
-│       ├── eks-platform-engineering.md  # /apex:eks-platform-engineering → platform design
-│       ├── eks-security.md   # /apex:eks-security → steering/workflows/eks-security.md
-│       └── new-skill.md      # /apex:new-skill → steering/workflows/new-skill.md
-└── workflows/
-    ├── design.md             # Day 0: Architecture questionnaire + quality check
-    ├── eks-build.md          # Day 1: Cluster build and provisioning
-    ├── eks-genai.md          # Day 1: GenAI and LLM workloads on EKS
-    ├── eks-platform-engineering.md  # Day 2: Platform engineering assessment
-    ├── eks-security.md       # Day 1/2: Security hardening and compliance
-    └── new-skill.md          # Meta: onboard a new skill end-to-end
+skills/apex/
+├── SKILL.md                                   # Router: intent detection, routing, shared rules, hand-offs
+└── runbooks/
+    ├── eks-build/eks-build.md                 # Day 1: Cluster build and provisioning
+    ├── eks-design/design.md                   # Day 0: Architecture questionnaire + quality check
+    ├── eks-genai/eks-genai.md                 # Day 1: GenAI and LLM workloads
+    ├── eks-operation-review/eks-operation-review.md  # Day 2: Operational health review
+    ├── eks-platform-engineering/eks-platform-engineering.md  # Day 1: Internal Developer Platform
+    ├── eks-security/eks-security.md           # Day 1/2: Hardening and compliance
+    └── eks-upgrade-check/eks-upgrade-check.md # Day 2: Upgrade readiness assessment
 ```
 
-### Why Hub + Workflows (Not Monolithic)
+### Why Router + Runbooks (Not Monolithic)
 
-1. **Context efficiency** — the agent loads only the relevant workflow, not all of them
-2. **Independent iteration** — improve the upgrade workflow without touching design
-3. **Clear ownership** — different SAs can own different workflows
-4. **Shared context** — the hub carries context between workflows (design decisions inform upgrade planning)
+1. **Context efficiency**: the agent loads only the relevant runbook, not all of them
+2. **Independent iteration**: improve the upgrade runbook without touching design
+3. **Clear ownership**: different SAs can own different runbooks
+4. **Shared context**: the apex skill carries context between skills (design decisions inform upgrade planning)
 
-### What Belongs in Steering
+### What Belongs in a Runbook
 
 | ✅ Belongs | Example |
 |-----------|---------|
 | Questionnaires | The 8-phase design questionnaire (Phase 1: Project Context → Phase 8: Confirm & Generate) |
 | Pre-flight checklists | Upgrade pre-flight with STOP gates ("STOP if blocking PDBs found") |
 | Quality gates | Scoring rubric (80% threshold across Well-Architected pillars) |
-| Intent routing | "User says 'upgrade my cluster' → activate upgrade workflow" |
 | Checkpoint templates | "✅ Step N complete. Validation: ... Ready for Step N+1?" |
 | Mandatory warnings | "Once the control plane is upgraded, you CANNOT roll it back" |
 | Conditional branches | "Terraform detected? → Terraform path. CLI-managed? → CLI path." |
-| Slash command wrappers | Command files that map `/apex:eks-design` to the design workflow |
 
-### What Does NOT Belong in Steering
+Intent routing ("user says 'upgrade my cluster' → `eks-upgrade-check`") belongs in the apex skill's routing tables, not in a runbook.
+
+### What Does NOT Belong in a Runbook
 
 | ❌ Does not belong | Why | Where it goes |
 |-------------------|-----|---------------|
@@ -146,7 +134,7 @@ steering/
 
 ### The Key Test
 
-If you removed all steering files, would the agent still *know* the right answers? **Yes** — skills provide the knowledge. But the agent wouldn't know *how to run the engagement* — it wouldn't follow the questionnaire, enforce checkpoints, or validate output quality.
+If you removed all runbooks, would the agent still *know* the right answers? **Yes**: skills provide the knowledge. But the agent wouldn't know *how to run the engagement*: it wouldn't follow the questionnaire, enforce checkpoints, or validate output quality.
 
 ---
 
@@ -154,16 +142,16 @@ If you removed all steering files, would the agent still *know* the right answer
 
 **Purpose:** Deployable, runnable scenarios that demonstrate APEX workflows in practice. They include infrastructure code, planted issues, test scripts, and documented test results.
 
-**Think of examples as:** A workshop lab — the actual environment where someone can deploy infrastructure, run APEX against it, and see the agent in action. Examples are how we validate that steering + skills actually work, and how we deliver workshops to customers.
+**Think of examples as:** A workshop lab: the actual environment where someone can deploy infrastructure, run APEX against it, and see the agent in action. Examples are how we validate that runbooks + skills actually work, and how we deliver workshops to customers.
 
 ### Characteristics
 
 - **Runnable** — `deploy.sh` creates infrastructure, `destroy.sh` tears it down
 - **Self-contained** — each example includes everything needed to run the exercise
-- **Demonstrates a workflow** — each example maps to a steering workflow (e.g., an example demonstrating `steering/workflows/design.md`)
+- **Demonstrates a runbook**: each example maps to a runbook (e.g., an example demonstrating `skills/apex/runbooks/eks-design/design.md`)
 - **Contains planted issues** — realistic problems for the agent to discover and fix
 - **Documents test results** — conversation logs showing how the agent performed, with issue tables and fix tracking
-- **Used for iteration** — test results drive improvements to steering files (test-01 → fix steering → test-02)
+- **Used for iteration**: test results drive improvements to runbooks (test-01 → fix the runbook → test-02)
 
 ### Structure
 
@@ -192,7 +180,7 @@ workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 
 - `name` — short label (required)
 - `description` — one-line summary (required)
-- `workflow` — which steering workflow or runbook this example demonstrates (optional)
+- `workflow`: which runbook this example demonstrates (optional)
 
 ### What Belongs in Examples
 
@@ -209,7 +197,7 @@ workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 | ❌ Does not belong | Why | Where it goes |
 |-------------------|-----|---------------|
 | Best practices documentation | That's domain knowledge | `skills/` |
-| Conversation flow definitions | That's agent orchestration | `steering/` |
+| Conversation flow definitions | That's agent orchestration | `skills/apex/runbooks/` |
 | Generic reference material | That's skill reference content | `skills/{name}/references/` |
 
 ---
@@ -251,8 +239,8 @@ When adding new content to the repo, follow this flowchart:
                                   │                   │
                                   ▼                   ▼
                         ┌──────────────────┐  ┌─────────────────────┐
-                        │ steering/        │  │ Is it runnable       │
-                        │ workflows/       │  │ infrastructure or a  │
+                        │ skills/apex/     │  │ Is it runnable       │
+                        │ runbooks/<skill>/│  │ infrastructure or a  │
                         └──────────────────┘  │ hands-on exercise?   │
                                               │                     │
                                               │ (Terraform, deploy  │
@@ -287,70 +275,51 @@ When adding new content to the repo, follow this flowchart:
 
 ## Creating a New Skill
 
-The happy path is the `/apex:new-skill` workflow — it onboards a skill end-to-end, including the obligations to the rest of the repo (catalogues, sibling disambiguation, triggering prompts) that are easy to skip when hand-authoring. Running it produces exactly the artefacts the [Pre-PR checklist](#pre-pr-checklist-for-new-skills) below enumerates, so you do not need to cross-check two lists at review time.
-
-```
-/apex:new-skill
-```
-
-The workflow is bimodal:
-
-- **Greenfield** — `skills/<name>/` does not exist. Phase 2 invokes the [`skill-creator`](skills/skill-creator/SKILL.md) skill to draft `SKILL.md` + references.
-- **Retrofit** — `skills/<name>/` already exists (the skill was authored outside the workflow). Phase 2 is skipped; the workflow still walks sibling survey, fan-out, eval scaffold, and baseline so the skill catches up on its repo obligations.
-
-Both modes converge on Phase 3 (sibling survey) → Phase 4 (repo fan-out) → Phase 5 (triggering prompts) → Phase 6 (PR prep). Full spec at [`steering/workflows/new-skill.md`](steering/workflows/new-skill.md).
-
-### Manual path
-
-If you prefer to drive the steps yourself without the workflow:
+Steps:
 
 1. Understand the skill with concrete examples.
 2. Plan reusable contents (scripts, references, assets).
 3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists — see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
 4. Author `misc/evals/<name>/triggering.json` (≥16 prompts: ≥8 positives, ≥8 near-miss negatives).
 5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py` — one call per neighbour.
-6. Fan out across the repo: update `skills/README.md`, `CONTRIBUTING.md`, the relevant service hub (`steering/<service>.md`) if service-scoped, and any other catalogue that lists skills.
+6. Fan out across the repo: update `skills/README.md`, `CONTRIBUTING.md`, the routing tables in [`skills/apex/SKILL.md`](skills/apex/SKILL.md), and any other catalogue that lists skills.
 7. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`.
-
-Both paths land the same artefacts; the workflow just orchestrates and surfaces a fan-out diff you can review as a single unit.
 
 ### Pre-PR checklist for new skills
 
-Each item is something `/apex:new-skill` will have produced by the end of Phase 6. If you took the manual path, verify each one before opening the PR.
+Verify each item before opening the PR.
 
 - [ ] `skills/<name>/SKILL.md` present with valid frontmatter
 - [ ] `misc/evals/<name>/triggering.json` has ≥16 prompts (≥8 positives, ≥8 negatives)
 - [ ] Every neighbour's `SIBLING_MAP` block in `misc/evals/<neighbour>/README.md` lists this new skill, and the corresponding negatives are in `misc/evals/<neighbour>/triggering.json`
-- [ ] Catalogue entries landed: `skills/README.md`, `CONTRIBUTING.md`, and (if service-scoped) the relevant service hub
+- [ ] Catalogue entries landed: `skills/README.md`, `CONTRIBUTING.md`, and the routing tables in `skills/apex/SKILL.md`
 
 ### Keeping skill docs in sync after changes
 
 Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter description — should be followed by running the `update-docs` skill so wrappers, marker blocks, and prose references stay in sync. The skill walks both script-managed surfaces (`update-all-references.sh`, `update-pages.sh`) and hand-written prose, proposing diffs for anything stale.
 
-## Creating a New Steering Workflow
+## Creating a New Runbook
 
-1. Create `steering/workflows/<name>.md`
-2. Add a header linking back to the hub: `> **Part of:** [APEX EKS Hub](../eks.md)`
+1. Create `skills/apex/runbooks/<skill>/<name>.md`, in the folder of the skill it runs with
+2. Add a header naming the lifecycle and the skill: `> **Lifecycle:** Day <n>` and `> **Skill:** <skill>`
 3. Add an intent routing table at the top
 4. Structure as phases with numbered checklists and STOP gates
-5. Add the workflow to the hub's routing table in `steering/eks.md`
-6. Create a corresponding command file in `steering/commands/apex/eks-<name>.md` with frontmatter (`name`, `description`) and an `@steering/workflows/<name>.md` execution context reference
-7. Run `misc/update-steering-references.sh` to update the README
-8. Test with a real scenario and document results in `examples/`
+5. Check that a routing row in `skills/apex/SKILL.md` sends the request to that skill
+6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site
+7. Test with a real scenario and document results in `examples/`
 
 ## Keeping docs in sync (auto-generated catalogues)
 
-Three catalogues in the repo are **auto-generated** from each entry's frontmatter and must not be edited by hand:
+Two catalogues in the repo are **auto-generated** from each entry's frontmatter and must not be edited by hand:
 
 | Block | Rendered in | Source of truth | Regenerator |
 |---|---|---|---|
 | Skills Reference | `README.md`, `skills/README.md` | `skills/<name>/SKILL.md` frontmatter | `misc/update-skills-references.sh` |
-| Steering Reference | `README.md` | `steering/**/*.md` frontmatter | `misc/update-steering-references.sh` |
 | Examples Reference | `README.md` | `examples/**/README.md` frontmatter | `misc/update-examples-references.sh` |
 
 Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` / `<!-- SKILLS_REFERENCE_END -->`. The regenerator owns everything between the markers; anything outside them is free.
 
-**One-shot refresh** (run this whenever you add a skill, workflow, or example, or change a frontmatter field):
+**One-shot refresh** (run this whenever you add a skill, runbook, or example, or change a frontmatter field):
 
 ```bash
 ./misc/update-all-references.sh
@@ -378,7 +347,7 @@ For `skills/` each description must also match the generated `skills.json` manif
 3. Add `scripts/deploy.sh` and `scripts/destroy.sh`
 4. Add planted issues in `manifests/` or infrastructure code
 5. Run the exercise with APEX and document results in `tests/`
-6. Use test results to iterate on the corresponding steering workflow
+6. Use test results to iterate on the corresponding runbook
 7. Run `misc/update-examples-references.sh` to update the README
 
 ---
@@ -413,7 +382,7 @@ To send us a pull request, please:
 5. Send us a pull request, answering any default questions in the pull request interface.
 6. Pay attention to any automated CI failures reported in the pull request, and stay involved in the conversation.
 
-**Installer changes:** run the installer tests first. `install-paths.sh` runs the installer against a local fixture repository with `HOME` pointed at a scratch directory; CI runs it on pull requests that change `misc/installer/**`, `steering/**` or a `skills/*/SKILL.md` file. Before a review of an installer change, also run the mutation check (manual; weekly in CI): it fails if any deliberately broken copy of `bin/cli.mjs` passes the tests. A full run can take hours; rerun one mutant with `--only <ID>`.
+**Installer changes:** run the installer tests first. `install-paths.sh` runs the installer against a local fixture repository with `HOME` pointed at a scratch directory; CI runs it on pull requests that change `misc/installer/**` or a `skills/*/SKILL.md` file. Before a review of an installer change, also run the mutation check (manual; weekly in CI): it fails if any deliberately broken copy of `bin/cli.mjs` passes the tests. A full run can take hours; rerun one mutant with `--only <ID>`.
 
 ```bash
 misc/installer/test/install-paths.sh          # source tree

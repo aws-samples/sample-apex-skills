@@ -34,7 +34,6 @@ jobs:
         run: >-
           bash .github/scripts/ci-gate.sh changed
           'skills/**'
-          'steering/**'
           'examples/**'
           'misc/**'
           'devops-agent/**'
@@ -91,7 +90,7 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Docs auto-gen blocks are stale
 
-          One of the marker-delimited catalogues in `README.md` or `skills/README.md` (Skills Reference, Steering Reference, Examples Reference) diverged from the source of truth (`skills/*/SKILL.md`, `steering/**/*.md`, or `examples/**/README.md` frontmatter). The exact diff is in the job log above.
+          One of the marker-delimited catalogues in `README.md` or `skills/README.md` (Skills Reference, Examples Reference) diverged from the source of truth (`skills/*/SKILL.md` or `examples/**/README.md` frontmatter). The exact diff is in the job log above.
 
           **Fix:**
           ```bash

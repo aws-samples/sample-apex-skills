@@ -145,11 +145,6 @@ const config: Config = {
           label: 'Skills',
         },
         {
-          to: '/docs/steering',
-          position: 'left',
-          label: 'Steering',
-        },
-        {
           to: '/docs/examples',
           position: 'left',
           label: 'Examples',
@@ -180,7 +175,6 @@ const config: Config = {
             {label: 'Introduction', to: '/docs/intro'},
             {label: 'Getting Started', to: '/docs/getting-started'},
             {label: 'Skills', to: '/docs/skills'},
-            {label: 'Steering', to: '/docs/steering'},
           ],
         },
         {
