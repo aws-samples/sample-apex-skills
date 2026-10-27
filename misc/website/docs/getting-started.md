@@ -23,6 +23,8 @@ APEX v2 is in progress, so the commands here pin the installer to exactly versio
 
 The installer's own messages show `npx apex-skills`; add `@1.3.0` when you run them.
 
+Until v2 ships, a v1 release has the `/apex:*` commands and no `apex` skill or runbooks; for `/apex`, use the Manual Install below (from `main`).
+
 Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and links the skills into place. Flags, exit codes, [installed paths](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#installed-paths) and [uninstall](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#uninstall): see the [installer README](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md).
 
 Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
