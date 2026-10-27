@@ -1,6 +1,6 @@
 ---
 name: apex
-description: "APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the one skill that fits and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, Pod Identity as the default auth model, and no account or cluster change without confirmation."
+description: "APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison) and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, Pod Identity as the default auth model, and no account or cluster change without confirmation."
 ---
 
 # APEX router
@@ -93,7 +93,7 @@ Use the stage only as a hint: to break a tie between two equally specific rows (
 
 | user intent | skill |
 |---|---|
-| Create or improve a skill, run its evals, tune its description | `skill-creator` |
+| Create or improve a skill, run its evals, tune its description | `skill-creator`, then the new-skill steps in CONTRIBUTING.md (sibling map, triggering.json, catalogues) |
 | Update, sync or check the repo docs after a skill change | `update-docs` |
 
 `steering-workflow-creator` gets no row and no family cell: for an ask to author a steering workflow or runbook, say so and ask one clarifying question rather than routing to a catch-all.
@@ -104,7 +104,7 @@ This table is the one next-skill map. Carry the listed context forward when one 
 
 | after | natural next skills | context to pass |
 |---|---|---|
-| `eks-design` | `eks-build`, `eks-security` | the design's decisions: compute strategy (Karpenter, MNG, Auto Mode), add-on management (Terraform, ArgoCD), upgrade strategy (in-place, blue-green), constraints |
+| `eks-design` | `eks-build`, `eks-security` | the design's decisions: compute strategy (Karpenter, MNG, Auto Mode), add-on management (Terraform, ArgoCD), upgrade strategy (in-place, blue-green), constraints (design Phase 5 Q22 and Q25; constraints from Phase 3) |
 | `eks-best-practices` | `eks-design`, `eks-build` | the options weighed and the choice made |
 | `eks-build` | `eks-security`, `eks-operation-review` | cluster name, compute strategy, add-on management |
 | `eks-recon` | `eks-upgrade-check`, `eks-operation-review`, `eks-cost-intelligence` | the recon report: EKS version, compute strategy, add-on inventory |
