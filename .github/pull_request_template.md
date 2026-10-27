@@ -4,7 +4,7 @@
 
 ## If this PR adds or changes a skill
 
-- [ ] Ran `/apex:new-skill` (or walked the equivalent manual steps in `CONTRIBUTING.md`)
+- [ ] Walked the new-skill steps in `CONTRIBUTING.md`
 - [ ] `skills/<skill>/SKILL.md` present with valid frontmatter
 - [ ] `misc/evals/<skill>/triggering.json` authored (≥16 prompts; balanced positives and near-miss negatives)
 - [ ] For each neighbour: `misc/evals/<neighbour>/SIBLING_MAP` gained a bullet and its `triggering.json` gained the matching negatives (via `update_sibling_map.py` or hand-edit)

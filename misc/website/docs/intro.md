@@ -14,16 +14,16 @@ Each skill is a self-contained folder of instructions, scripts, and references t
 | Directory   | Purpose                                                              |
 | ----------- | -------------------------------------------------------------------- |
 | `skills/`   | Reusable domain knowledge (the agent's brain)                        |
-| `steering/` | Phased engagement playbooks that combine skills (the SA's playbook)  |
+| `skills/apex/` | The APEX router skill and its runbooks: phased procedures that combine skills (the SA's playbook) |
 | `rules/`    | Project-level agent rules — verification, source-checking, guardrails |
 | `examples/` | Hands-on labs to try APEX against real workloads                     |
 | `misc/`     | Maintenance scripts, evaluations, and this docs site                 |
 
-> **Key principle:** Skills provide the knowledge. Steering provides the structure. Rules provide the guardrails.
+> **Key principle:** Skills provide the knowledge. Runbooks provide the structure. Rules provide the guardrails.
 
 ## Where to go next
 
 - [Getting Started](./getting-started) — install APEX in Claude Code or Kiro CLI.
 - [Skills](./skills) — browse the catalog.
-- [Steering](./steering) — phased workflows that combine multiple skills.
+- [APEX router](./skills/general/apex): routes a request to the right skill and holds the runbooks, phased procedures that combine skills.
 - [Contributing](./contributing) — add or improve a skill.
