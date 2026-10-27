@@ -8,6 +8,8 @@ Each record captures one decision: the context, what we decided, and what follow
 | [0002](0002-apex-command-routes-to-apex-skill.md) | `/apex` routes directly into the apex skill | Accepted |
 | [0003](0003-standalone-skills-are-a-weaker-tradeoff.md) | A standalone skill is an accepted, weaker trade-off | Accepted |
 | [0004](0004-naming.md) | One entry skill, and standalone knowledge and solution skills | Accepted |
+| [0005](0005-router.md) | The apex router: purpose, ownership, discovery, stages, next skills, front door and eval | Proposed |
+| [0006](0006-skill-content-and-auto-triggering.md) | Skill content, supported installs and automatic triggering | Proposed |
 
 ## Format
 
