@@ -11,6 +11,11 @@
 
 ## Installation
 
+### NPX installer (Claude Code and Kiro CLI)
+```
+npx apex-skills@1.3.0
+```
+
 ### Claude Code
 ```
 claude mcp add-from-apex-skills

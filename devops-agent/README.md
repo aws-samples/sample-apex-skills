@@ -107,8 +107,8 @@ Skills activate automatically when the agent determines they are relevant (match
 | MCP servers | Local `.mcp.json` config | Configured at Agent Space level |
 | Tool access | `allowed-tools` frontmatter | Toolbox allowlist in Agent Space UI |
 | Execution model | Interactive (can ask questions) | Fully autonomous (hard-stop or proceed) |
-| Directory naming | `references/`, `scripts/`, `data/`, `tools/` | `references/`, `assets/` |
-| Deployment | Symlinked via `npx apex-skills@1.3.0` | Zip upload or GitHub import |
+| Directory naming | `references/`, `assets/`, `scripts/`, `data/`, `tools/` and others | `references/`, `assets/` |
+| Deployment | Symlinked via `npx apex-skills@1.3.0` (installs the newest v1 release until v2 ships; see the root README Install section) | Zip upload or GitHub import |
 
 ## Key constraints
 
