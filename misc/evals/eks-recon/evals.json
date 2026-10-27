@@ -78,6 +78,18 @@
         "root_glob": null,
         "structural": [
           {
+            "type": "file-count",
+            "glob": "**/EKS-Recon-*.md",
+            "min": 1,
+            "max": 1
+          },
+          {
+            "type": "file-count",
+            "glob": "**/EKS-Recon-*.yaml",
+            "min": 1,
+            "max": 1
+          },
+          {
             "type": "file-exists",
             "path": "EKS-Recon-*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].md"
           },
@@ -88,7 +100,7 @@
           },
           {
             "type": "file-not-exists",
-            "path": ".eks-recon-report.*"
+            "path": "**/.eks-recon-report.*"
           },
           {
             "type": "file-exists",
@@ -213,7 +225,11 @@
           },
           {
             "type": "file-not-exists",
-            "path": ".eks-recon-report.*"
+            "path": "**/.eks-recon-report.*"
+          },
+          {
+            "type": "file-not-exists",
+            "path": "**/EKS-Recon-*"
           },
           {
             "type": "file-exists",

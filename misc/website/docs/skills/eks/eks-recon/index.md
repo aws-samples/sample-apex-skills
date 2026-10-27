@@ -242,9 +242,9 @@ For each selected module:
 Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a machine artifact for optional hand-off to other skills.
 
 Resolve `<output-prefix>` once for both artifacts:
-- If the caller supplied a prefix, use it unchanged, including any directory component (for example, `reports/team-handoff` → `reports/team-handoff.md` + `reports/team-handoff.yaml`). Do not append a cluster name or timestamp to an explicit prefix.
-- Otherwise, use `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` in the current directory, with the discovered target cluster name and one timestamp captured at report generation (24-hour clock). Reuse that timestamp for both filenames.
-- Create the parent directory if needed. Do not overwrite an existing report: if either destination already exists, report the collision and request a different prefix. Concurrent runs for the same cluster within one minute should use distinct explicit prefixes.
+- If the caller supplied a prefix, use it unchanged, including any directory component (for example, `reports/team-handoff` → `reports/team-handoff.md` + `reports/team-handoff.yaml`). Do not append a cluster name or timestamp to an explicit prefix. Do not strip a supplied suffix: `reports/x.md` produces `reports/x.md.md` + `reports/x.md.yaml`.
+- Otherwise, use `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` in the current directory, with the discovered target cluster name. Capture the current UTC timestamp once at report generation using `date -u '+%Y-%m-%d-%H%M'` or an equivalent UTC clock tool (24-hour clock); reuse it for both filenames rather than guessing the time.
+- Create the parent directory if needed. Check both destination paths before writing either report. If either destination already exists, write neither file, name both paths in the collision message, and request a different prefix. Concurrent runs for the same cluster within one minute should use distinct explicit prefixes.
 
 > **Facts only.** Both artifacts report what the cluster *is*. Never emit a verdict, score, readiness rating, or recommendation. A "Notable facts" line states an observation ("2 subnets have < 16 free IPs"); it never says "you should" or "this is a risk".
 
