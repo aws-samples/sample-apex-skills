@@ -322,7 +322,7 @@ LATEST_COUNT="$(count_skill_dirs "$LATEST_TAG")"
 MID_COUNT="$(count_skill_dirs "$MID_TAG")"
 TAG_COUNT="$(count_skill_dirs "$FIXTURE_TAG")"
 WF_COUNT="$(git -C "$ORIGIN" ls-tree --name-only "$LATEST_TAG:steering/workflows" | /usr/bin/grep -c '\.md$')"
-# Sample skills: the first two folders under skills/ that hold a SKILL.md (on this branch skills/apex holds only runbooks/; #283 adds its SKILL.md).
+# Sample skills: the first two folders under skills/ that hold a SKILL.md.
 SKILLS_WITH_MD="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | while read -r d; do if git -C "$ORIGIN" cat-file -e "$LATEST_TAG:skills/$d/SKILL.md" 2>/dev/null; then echo "$d"; fi; done)"
 SKILL_A="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 1p)"
 SKILL_B="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 2p)"
