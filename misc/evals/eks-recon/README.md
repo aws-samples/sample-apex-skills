@@ -44,10 +44,10 @@ instance labels, confirmed/unknown/shared custom label keys, metadata-only reque
 Flux label pairs, mixed
 tools, UTF-8 stdin, missing/malformed input, and failed-read handling. Scale fixtures
 include 2,001 resources with a late Flux signal, large annotation values and 1,000
-malformed entries; they check complete counts with bounded, explicitly shortened
-examples/warnings and opt-in full export. Additional checks keep
-the two runtime lanes' decision rules, GitOps schema, common assembly rules and
-IaC contradiction guard aligned.
+malformed entries; they check full-input classification with bounded examples and
+warnings. Later positive annotations survive earlier ambiguous samples; malformed
+labels cannot erase a valid annotation. A schema check compares the two runtimes'
+GitOps field declarations, without requiring identical instruction wording.
 
 The `eks-recon GitOps regression` CI job runs these checks for relevant paths.
 These are metadata/query and contract checks, not agent evaluations or proof of
@@ -58,8 +58,11 @@ exhaustive detection of all GitOps products or resource kinds.
 For live task evals, retain actual reads and parsed YAML: overall GitOps is
 `detected: true` with tool-specific evidence, or `detected: null` with
 `status: unconfirmed`; missing local CRDs must not produce an overall false.
-Check local-controller flags separately from workload tracking, and compare IaC
-tags to `tools_detected` even with an empty workspace. Existing glob/keyword
+Check local-controller flags separately from workload tracking; retain positive
+evidence alongside denied kinds, and document custom-key provenance. Also assess
+the secondary YAML role, common assembly rules and IaC tag retention with an empty
+workspace. These instruction-level behaviors require task review; the offline
+script does not execute them. Existing glob/keyword
 assertions alone cannot establish these facts; assess them against independent
 API captures from the same target and time window.
 

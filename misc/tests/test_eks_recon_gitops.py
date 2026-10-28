@@ -26,8 +26,8 @@ def resource(kind="Deployment", version="apps/v1", namespace="team", name="web",
             "metadata": {"name": name, "namespace": namespace, "labels": labels, "annotations": annotations}}
 
 
-def collect(*items, key=None, full=False, cluster_scoped=False):
-    return signals.collect({"items": list(items)}, key, full, cluster_scoped)
+def collect(*items, key=None, cluster_scoped=False):
+    return signals.collect({"items": list(items)}, key, cluster_scoped)
 
 
 class TrackingFixtures(unittest.TestCase):
@@ -172,19 +172,16 @@ class TrackingFixtures(unittest.TestCase):
 
     def test_empty_successful_list_is_evidence_only(self):
         result = collect()
-        self.assertEqual(result, {"resources_scanned": 0, "tools_with_tracking": [], "evidence_counts": [],
-                                 "evidence_count": 0, "evidence": [], "evidence_sample_limit_per_group": 3,
+        self.assertEqual(result, {"resources_scanned": 0, "tools_with_tracking": [], "evidence": [],
                                  "evidence_sampled": False, "warning_count": 0, "warnings": []})
         self.assertNotIn("detected", result)
 
-    def test_large_inventory_counts_all_and_keeps_late_flux(self):
+    def test_large_inventory_scans_all_and_keeps_late_flux(self):
         argo = [resource(name=f"web-{i}", annotations={signals.ARGO_TRACKING: f"shop:apps/Deployment:team/web-{i}"}) for i in range(1000)]
         generic = [resource(name=f"chart-{i}", labels={signals.INSTANCE_LABEL: f"release-{i}"}) for i in range(1000)]
         late_flux = resource(name="last", labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"})
         result = collect(*argo, *generic, late_flux)
         self.assertEqual(result["resources_scanned"], 2001)
-        self.assertEqual(result["evidence_count"], 2001)
-        self.assertEqual(sorted(group["count"] for group in result["evidence_counts"]), [1, 1000, 1000])
         self.assertEqual(result["tools_with_tracking"], ["argocd", "flux"])
         self.assertEqual(len(result["evidence"]), 7)
         self.assertTrue(result["evidence_sampled"])
@@ -194,23 +191,20 @@ class TrackingFixtures(unittest.TestCase):
         value = "not-a-tracking-reference" * 10000
         result = collect(resource(annotations={signals.ARGO_TRACKING: value}))
         self.assertEqual(result["tools_with_tracking"], [])
-        self.assertEqual(result["evidence_count"], 1)
-        self.assertEqual(result["evidence"][0]["truncated_fields"]["value"], len(value))
         self.assertTrue(result["evidence"][0]["value"].endswith("[truncated]"))
         self.assertLessEqual(len(result["evidence"][0]["value"]), signals.DISPLAY_CHARS)
         self.assertLess(len(json.dumps(result)), 3000)
 
-    def test_long_qualified_keys_preserve_group_identity(self):
+    def test_long_qualified_keys_preserve_evidence_identity(self):
         prefix = ".".join(["a" * 63] * 3 + ["a" * 61])
         keys = [prefix + "/" + suffix * 63 for suffix in ("x", "y")]
-        groups = []
+        evidence = []
         for key in keys:
             self.assertEqual(len(key), 317)
             result = collect(resource(labels={key: "shop"}), key=key)
-            self.assertEqual(result["evidence_counts"][0]["key"], key)
             self.assertEqual(result["evidence"][0]["key"], key)
-            groups.append(result["evidence_counts"][0])
-        self.assertNotEqual(groups[0], groups[1])
+            evidence.append(result["evidence"][0])
+        self.assertNotEqual(*evidence)
 
     def test_oversized_custom_key_does_not_hide_standard_signals(self):
         key = "a" * 318
@@ -224,7 +218,7 @@ class TrackingFixtures(unittest.TestCase):
         value = f"shop:apps/Deployment:team/{name}"
         result = collect(resource(name=name, annotations={signals.ARGO_TRACKING: value}))
         self.assertEqual(result["tools_with_tracking"], ["argocd"])
-        self.assertIn("value", result["evidence"][0]["truncated_fields"])
+        self.assertTrue(result["evidence"][0]["value"].endswith("[truncated]"))
 
     def test_warning_samples_are_bounded_without_losing_positive(self):
         item = resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"})
@@ -233,14 +227,26 @@ class TrackingFixtures(unittest.TestCase):
         self.assertEqual(len(result["warnings"]), 5)
         self.assertEqual(result["tools_with_tracking"], ["argocd"])
 
-    def test_full_export_is_explicit(self):
-        items = [resource(name=f"chart-{i}", labels={signals.INSTANCE_LABEL: "release"}) for i in range(10)]
-        self.assertEqual(len(collect(*items)["evidence"]), 3)
-        full = collect(*items, full=True)
-        self.assertEqual(len(full["evidence"]), 10)
-        self.assertIsNone(full["evidence_sample_limit_per_group"])
-        value = "malformed" * 1000
-        self.assertEqual(collect(resource(annotations={signals.ARGO_TRACKING: value}), full=True)["evidence"][0]["value"], value)
+    def test_late_specific_annotation_survives_ambiguous_samples(self):
+        ambiguous = resource(annotations={signals.ARGO_TRACKING: "copied:/ConfigMap:elsewhere/other"})
+        positive = resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"})
+        result = collect(*([ambiguous] * 1000), positive)
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertEqual([e["strength"] for e in result["evidence"]], ["ambiguous"] * 3 + ["specific"])
+
+    def test_malformed_metadata_field_preserves_other_positive(self):
+        argo = resource(labels=[], annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"})
+        flux = resource(annotations=[], labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"})
+        result = collect(argo, flux)
+        self.assertEqual(result["tools_with_tracking"], ["argocd", "flux"])
+        self.assertEqual(result["warning_count"], 2)
+
+    def test_malformed_flux_value_is_ambiguous_and_bounded(self):
+        result = collect(resource(labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: ["x" * 1000] * 1000}))
+        self.assertEqual(result["tools_with_tracking"], [])
+        self.assertEqual(result["warning_count"], 1)
+        self.assertEqual(result["evidence"][0]["value"], {"name": "apps", "namespace": None})
+        self.assertLess(len(json.dumps(result)), 3000)
 
     def test_non_string_tracking_annotation_warns(self):
         result = collect(resource(annotations={signals.ARGO_TRACKING: 123}))
@@ -271,12 +277,6 @@ class CliAndContract(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(json.loads(result.stdout)["tools_with_tracking"], ["argocd"])
 
-    def test_cli_explicit_full_export(self):
-        items = [resource(name=f"chart-{i}", labels={signals.INSTANCE_LABEL: "release"}) for i in range(10)]
-        result = subprocess.run([sys.executable, str(SCRIPT), "-", "--full-evidence"], input=json.dumps({"items": items}), capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(len(json.loads(result.stdout)["evidence"]), 10)
-
     def test_utf8_bom_stdin_ignores_windows_locale_codec(self):
         item = resource(annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web", "note": "\u4e01"})
         payload = b"\xef\xbb\xbf" + json.dumps({"items": [item]}, ensure_ascii=False).encode("utf-8")
@@ -298,15 +298,6 @@ class CliAndContract(unittest.TestCase):
                 self.assertEqual(result.stdout, "")
                 self.assertIn("unavailable", result.stderr)
 
-    def test_both_lanes_share_the_decision_rules(self):
-        sections = []
-        for lane in ("skills", "devops-agent"):
-            data = (ROOT / lane / "eks-recon/references/cicd.md").read_text(encoding="utf-8")
-            section = data.split("### Spoke-side tracking and the GitOps outcome\n", 1)[1]
-            sections.append(section.split("**CLI metadata collection:", 1)[0] if lane == "skills"
-                            else section.split("**Via Kubernetes API:** list each readable resource", 1)[0])
-        self.assertEqual(sections[0], sections[1])
-
     def test_both_lanes_have_the_same_gitops_schema(self):
         schemas = []
         for lane in ("skills", "devops-agent"):
@@ -316,22 +307,11 @@ class CliAndContract(unittest.TestCase):
             # Strip runtime-specific comments; this checks the maintained shape.
             gitops = schema.split("  gitops:", 1)[1]
             gitops = gitops.split("\n  other_tools:", 1)[0]
+            for field in ("    tool: string", "    status: string", "    detected: bool | null",
+                          "    tools_detected: list", "    evidence: list"):
+                self.assertIn(field, gitops)
             schemas.append([line.split("#", 1)[0].rstrip() for line in gitops.splitlines() if line.split("#", 1)[0].strip()])
         self.assertEqual(schemas[0], schemas[1])
-
-    def test_both_lanes_share_common_assembly_rules(self):
-        blocks = []
-        for lane in ("skills", "devops-agent"):
-            data = (ROOT / lane / "eks-recon/SKILL.md").read_text(encoding="utf-8")
-            blocks.append(data.split("**Common assembly rules", 1)[1].split("Assemble one top-level", 1)[0])
-        self.assertEqual(*blocks)
-
-    def test_both_lanes_share_iac_contradiction_guard(self):
-        blocks = []
-        for lane in ("skills", "devops-agent"):
-            data = (ROOT / lane / "eks-recon/references/iac.md").read_text(encoding="utf-8")
-            blocks.append(data.split("**Contradiction guard:**", 1)[1].split("## Output Schema", 1)[0])
-        self.assertEqual(*blocks)
 
 
 if __name__ == "__main__":

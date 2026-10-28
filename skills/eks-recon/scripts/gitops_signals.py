@@ -26,28 +26,18 @@ def text(value):
     return isinstance(value, str) and bool(value.strip())
 
 
-def display(record):
-    """Bound displayed strings, retaining lengths instead of silently clipping."""
-    shortened = {}
-
-    def bound(value, path):
-        limit = LABEL_KEY_CHARS if path == "key" else DISPLAY_CHARS
-        if isinstance(value, str) and len(value) > limit:
-            shortened[path] = len(value)
-            marker = "...[truncated]"
-            return value[:limit - len(marker)] + marker
-        if isinstance(value, dict):
-            return {key: bound(item, f"{path}.{key}" if path else key)
-                    for key, item in value.items()}
-        return value
-
-    result = bound(record, "")
-    if shortened:
-        result["truncated_fields"] = shortened
-    return result
+def display(value, limit=DISPLAY_CHARS):
+    """Shorten examples only, after classification of the original values."""
+    if isinstance(value, str) and len(value) > limit:
+        marker = "...[truncated]"
+        return value[:limit - len(marker)] + marker
+    if isinstance(value, dict):
+        return {key: display(item, LABEL_KEY_CHARS if key == "key" else DISPLAY_CHARS)
+                for key, item in value.items()}
+    return value
 
 
-def collect(inventory, instance_label_key=None, full_evidence=False, cluster_scoped=False):
+def collect(inventory, instance_label_key=None, cluster_scoped=False):
     """Return evidence only; the caller retains API scope and coverage errors."""
     if not isinstance(inventory, dict) or not isinstance(inventory.get("items"), list):
         raise ValueError("Expected a successful Kubernetes List with an items array")
@@ -55,11 +45,12 @@ def collect(inventory, instance_label_key=None, full_evidence=False, cluster_sco
     warnings = []
     warning_count = 0
     scanned = 0
+    sampled = False
 
     def warn(message):
         nonlocal warning_count
         warning_count += 1
-        if full_evidence or len(warnings) < WARNING_SAMPLES:
+        if len(warnings) < WARNING_SAMPLES:
             warnings.append(message)
 
     if instance_label_key and len(instance_label_key) > LABEL_KEY_CHARS:
@@ -86,20 +77,24 @@ def collect(inventory, instance_label_key=None, full_evidence=False, cluster_sco
         annotations = metadata.get("annotations")
         labels = {} if labels is None else labels
         annotations = {} if annotations is None else annotations
-        if not isinstance(labels, dict) or not isinstance(annotations, dict):
-            warn(f"items[{index}]: invalid labels or annotations")
-            continue
+        if not isinstance(labels, dict):
+            warn(f"items[{index}]: invalid labels")
+            labels = {}
+        if not isinstance(annotations, dict):
+            warn(f"items[{index}]: invalid annotations")
+            annotations = {}
 
         def emit(tool, signal, key, value, strength):
+            nonlocal sampled
             group_key = (tool, signal, strength, key)
-            group = groups.setdefault(group_key, {"tool": tool, "signal": signal,
-                                      "strength": strength, "key": key, "count": 0, "samples": []})
-            group["count"] += 1
-            if full_evidence or len(group["samples"]) < SAMPLES_PER_GROUP:
+            samples = groups.setdefault(group_key, [])
+            if len(samples) < SAMPLES_PER_GROUP:
                 record = {"tool": tool, "signal": signal, "kind": kind,
                           "namespace": namespace, "name": name,
                           "key": key, "value": value, "strength": strength}
-                group["samples"].append(record if full_evidence else display(record))
+                samples.append(display(record))
+            else:
+                sampled = True
 
         tracking = annotations.get(ARGO_TRACKING)
         if text(tracking):
@@ -133,19 +128,16 @@ def collect(inventory, instance_label_key=None, full_evidence=False, cluster_sco
         flux_namespace = labels.get(FLUX_NAMESPACE)
         if text(flux_name) or text(flux_namespace):
             complete = text(flux_name) and text(flux_namespace)
+            if any(v is not None and not isinstance(v, str) for v in (flux_name, flux_namespace)):
+                warn(f"items[{index}]: non-string Flux label")
             emit("flux", "kustomization_labels", FLUX_NAME,
-                 {"name": flux_name, "namespace": flux_namespace},
+                 {"name": flux_name if text(flux_name) else None,
+                  "namespace": flux_namespace if text(flux_namespace) else None},
                  "specific" if complete else "ambiguous")
-    evidence = [sample for group in groups.values() for sample in group["samples"]]
-    counts = [{key: value for key, value in group.items() if key != "samples"}
-              for group in groups.values()]
-    count = sum(group["count"] for group in groups.values())
     return {"resources_scanned": scanned,
-            "tools_with_tracking": sorted({g["tool"] for g in groups.values() if g["strength"] == "specific"}),
-            "evidence_counts": counts if full_evidence else [display(group) for group in counts],
-            "evidence_count": count, "evidence": evidence,
-            "evidence_sample_limit_per_group": None if full_evidence else SAMPLES_PER_GROUP,
-            "evidence_sampled": count > len(evidence),
+            "tools_with_tracking": sorted({tool for tool, _, strength, _ in groups if strength == "specific"}),
+            "evidence": [sample for samples in groups.values() for sample in samples],
+            "evidence_sampled": sampled,
             "warning_count": warning_count, "warnings": warnings}
 
 
@@ -154,7 +146,6 @@ def main():
     parser.add_argument("inventory", nargs="?", default="-", help="Kubernetes List JSON file, or - for stdin")
     parser.add_argument("--argocd-instance-label-key", help="Confirmed dedicated, qualified Argo key for this target; do not pass shared/colliding keys")
     parser.add_argument("--cluster-scoped", action="store_true", help="Single-kind inventory confirmed cluster-scoped by API discovery/request context")
-    parser.add_argument("--full-evidence", action="store_true", help="Explicit full export; save to a separate file instead of model context")
     args = parser.parse_args()
     try:
         if args.inventory == "-":
@@ -163,7 +154,7 @@ def main():
             with open(args.inventory, encoding="utf-8-sig") as source:
                 inventory = json.load(source)
         print(json.dumps(collect(inventory, args.argocd_instance_label_key,
-                                 args.full_evidence, args.cluster_scoped), indent=2))
+                                 args.cluster_scoped), indent=2))
     except (OSError, ValueError) as error:
         parser.exit(2, f"GitOps inventory unavailable: {error}\n")
 

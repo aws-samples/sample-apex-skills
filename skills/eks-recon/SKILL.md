@@ -283,31 +283,26 @@ _generated <timestamp> · source: MCP | CLI · modules: N/N_
 
 #### 4b. Machine YAML artifact → `<output-prefix>.yaml`
 
-The YAML is a **secondary, point-in-time facts snapshot** for inspection/export.
-It is not a versioned consumer API: no downstream skill in this repository currently
-implements a YAML-schema hand-off. Workflow references to an eks-recon report mean
-reading the facts, not an implemented schema integration. Keep producing both files;
-the reference shapes govern this snapshot, while automated consumers need their own
-explicit version/compatibility contract before relying on them.
+The YAML is a **secondary, point-in-time facts snapshot**, not a versioned API:
+no downstream skill in this repository implements a YAML-schema hand-off.
 
-**Common assembly rules — inline and subagent execution:**
+**Assembly rules (inline and subagent execution):**
 
-- Anchor the report to the shared `cluster:` identity obtained from cluster-basics.
-  Deduplicate matching module `cluster:` blocks. An actual target mismatch in
-  name/region/ARN/endpoint makes that module `{unavailable: true, reason: "cluster
-  context mismatch: <field>"}`; never merge another cluster's facts. If identity
-  agrees but mutable shared fields (version, platform, status, tags) differ, retain
-  the module facts and record both values, sources and known observation times in
-  Markdown Coverage. Keep cluster-basics as the YAML envelope's canonical snapshot;
-  the recorded disagreement must remain visible, not silently overwrite either
-  observation. Inline reads use the same target context without manufacturing
-  duplicate blocks.
-- On full recon, collect and retain `cluster_detail:` directly from cluster-basics;
-  there is no cluster-basics subagent. A targeted query may omit unrelated detail.
-- Preserve each module's reference shape. If a selected module errors or produces
-  no result, retain its top-level key with `unavailable: true` and a short `reason`,
-  regardless of execution mode. List unselected modules as out of scope, not failed.
-- Preserve positive facts alongside partial-read gaps; unknown is not false/zero.
+- Use cluster-basics for the shared `cluster:` block; deduplicate matching module
+  blocks. For the same target, preserve module facts and record differing values
+  and their sources in Markdown Coverage rather than silently overwriting them. If a module identifies another target cluster,
+  retain its key as `{unavailable: true, reason: "cluster context mismatch"}`.
+- On full recon, collect `cluster_detail:` directly from cluster-basics, which has
+  no subagent. Targeted queries may omit unrelated detail.
+- If a selected module returns no usable result, retain its key with
+  `unavailable: true` and a short `reason` in either mode. Partial reads retain
+  known facts alongside Coverage gaps. Unselected modules are out of scope.
+- For partial modules, retain observed facts and every schema-defined object/key,
+  even when all its values are unreadable: use `ingresses: {count: null, list: null}`,
+  not `ingresses: null`. Set unreadable leaf values to `null` and put reasons in
+  Markdown Coverage. Use another representation only when the module reference
+  explicitly prescribes it for that field and failure condition (for example, Helm or
+  `node_subnets`); do not invent generic `{unconfirmed, reason}` wrappers.
 
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` block and the `cluster_detail:` block (both from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
 
@@ -409,7 +404,7 @@ Agent(
 When all subagents complete:
 1. Collect each subagent's YAML output
 2. Merge into single report structure, applying these normalization rules:
-   - Apply the mode-independent identity, mismatch and failure rules in Step 4b; do not maintain a second merge policy here.
+   - Apply the common assembly rules in Step 4b.
    - Collect shared cluster-basics facts directly as described in Step 4b.
    - Module outputs are already in the canonical shape defined by each `references/<module>.md` "## Output Schema". Preserve them verbatim under the matching top-level key: `compute:`, `networking:`, `security:`, `addons:`, `observability:`, `workloads:`, `storage:`, `iac:`, `cicd:`, `cluster_insights:`. Do not reshape, flatten, or rename keys.
    - Treat subagent failures as selected-module failures under the common Step 4b rules.

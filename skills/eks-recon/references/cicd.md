@@ -369,28 +369,16 @@ Argo permits the destination namespace on cluster-scoped tracking IDs; see its
 [version-matched self-reference check](https://github.com/argoproj/argo-cd/blob/v3.5.6/controller/state.go).
 For metadata-only API identity, see [Kubernetes metadata-only fetches](https://kubernetes.io/docs/reference/using-api/api-concepts/#metadata-only-fetches).
 
-**Bounded evidence contract (both runtimes):** classify/count the complete successful
-input before sampling. Aggregate `evidence_counts` by `(tool, signal, strength, key)`;
-counts are signal occurrences in the recorded scan scope, not applications, releases
-or unique managed resources. One object can contribute more than one signal.
-Keep at most **3 example identities per group across the final report**, not 3 for
-every query. Default displayed string fields are capped at **256 characters** with
-`truncated_fields` recording original lengths; never reclassify a shortened example.
-Grouping keys retain their full valid Kubernetes label key (up to 317 characters),
-because shortening a key would lose aggregation identity. An oversized configured
-custom key is invalid: warn once and ignore that key, retaining standard signals.
-Record total warnings and at most 5 warning examples in Coverage. Examples are the
-first observations, not a statistical sample. Sampling limits output, not the memory
-needed to parse an input or the scope/size of an API response.
-
-Combine counts only across proven disjoint kind/namespace/page inventories. A retry
-or namespaced scan overlapping an all-namespace scan must not be summed: select one
-successful encompassing snapshot, note the overlap and keep the other observation
-separate if needed. Do not cut the input off with `head` before counting. A truncated
-API/tool response is a coverage gap, not a complete zero inventory. Preserve positive
-groups alongside gaps. If every tracking read failed, counts are `null`, not zero.
-Only when the user explicitly requests full evidence, export it to a separate file
-and reference that file; keep the main report and model-visible output bounded.
+**Bounded evidence:** classify every item in each successful input, then retain
+at most **3 examples per `(tool, signal, strength, key)` across the final report**.
+Combine detected tools from all reads; never infer tool presence only from the first
+examples or cut input off with `head`. Examples are not resource/application counts.
+Shorten displayed strings to 256 characters with `...[truncated]`, preserving full
+label keys up to Kubernetes' 317-character limit. Classify original values, never
+shortened text. Ignore an oversized custom key with a warning; keep standard signals.
+Keep at most 5 warning examples and note sampling, shortening, failed reads or missing
+pages in Coverage. This applies when the helper samples or the final report drops
+additional examples. Output is bounded; API response size and parser memory are not.
 
 **CLI metadata collection:** use the maintained evidence extractor after each
 successful read. Use the installed Python 3 executable (`python3`, or `python` /
@@ -406,19 +394,16 @@ kubectl get deployments -A -o json | python3 scripts/gitops_signals.py - \
 
 Repeat for the other readable kinds above. A failed/invalid input exits nonzero;
 do not replace it with `{items: []}`. The helper returns `resources_scanned`,
-`tools_with_tracking`, scoped `evidence_count` / `evidence_counts`, bounded `evidence`
-examples, and `warning_count` / warning examples. Copy counts and combine examples
-under the bounded contract above. `tools_with_tracking` excludes ambiguous signals.
-Do not infer missing positive tools from the first examples: counts/tool presence
-use the entire supplied inventory. `--full-evidence` is only for an explicitly
-requested separate export, never the default model-visible report.
+`tools_with_tracking` from the complete input, bounded `evidence` examples,
+`evidence_sampled`, and `warning_count` / warning examples. `tools_with_tracking`
+excludes ambiguous signals; combine tools and cap examples as above.
 For an extra single-kind inventory confirmed cluster-scoped by API discovery,
 pass `--cluster-scoped` (e.g. when reading Namespaces); do not infer scope from a
 missing namespace field or the tracking annotation. The default seven-kind path
 is namespaced. Input bytes are decoded as UTF-8, including a possible BOM.
 Record scan scope/errors separately; this helper does not assess API coverage,
 scan for controllers, or decide overall absence. For MCP, perform the same metadata
-reads and bounded aggregation. Recover original group/kind AND scope for
+reads and bounded examples. Recover original group/kind AND scope for
 PartialObjectMetadata from request/discovery context, never from the annotation;
 obtain normal objects/context or leave evidence unconfirmed when unavailable.
 
@@ -462,9 +447,7 @@ cicd:
     status: string            # detected | unconfirmed (evidence, not verified active management)
     detected: bool | null     # true when evidence observed; null when unconfirmed, never false from missing CRDs
     tools_detected: list      # all tools evidenced by local controllers or specific tracking
-    evidence_count: int | null # scoped signal occurrences; null when every tracking read failed
-    evidence_counts: list | null # tool/signal/strength/key/count groups; null if no successful inventory
-    evidence: list            # <=3 examples/group globally; optional truncated_fields stores original lengths
+    evidence: list            # <=3 examples per tool/signal/strength/key; scan gaps in Coverage
     # Configured custom-label provenance and scan gaps belong in Coverage.
     # Each nested detected flag below describes LOCAL controllers only.
     argocd:
@@ -534,8 +517,7 @@ ApplicationSets generate multiple Applications from templates.
 
 ```bash
 # Check for ApplicationSets
-set -o pipefail
-kubectl get applicationsets.argoproj.io -A -o json | python3 -c 'import json,sys; items=json.load(sys.stdin)["items"]; print("count:", len(items)); print("examples:", [(x["metadata"].get("namespace"), x["metadata"]["name"]) for x in items[:3]])'
+kubectl get applicationsets.argoproj.io -A 2>/dev/null | head -10
 ```
 
 **Example output:**
