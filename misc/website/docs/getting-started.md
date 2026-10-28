@@ -108,6 +108,8 @@ Add the contents to your project's existing agent configuration:
 | Kiro | Add to `.kiro/steering/apex-rules.md` |
 | Gemini CLI | Append to your project's `GEMINI.md` |
 
+Claude Code (v2.1.277 or later), Codex and Kiro also read a root `AGENTS.md`: you can append these rules there. Claude Code reads `AGENTS.md` only when no `CLAUDE.md` is in the working directory or above, so if you have a `CLAUDE.md`, append there or import with `@AGENTS.md`.
+
 See [`rules/AGENTS.md`](https://github.com/aws-samples/sample-apex-skills/blob/main/rules/AGENTS.md) for the full content.
 
 ## Next steps

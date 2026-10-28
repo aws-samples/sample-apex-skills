@@ -556,6 +556,12 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 
 ## General
 
+### [apex](./apex/)
+
+APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison) and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, Pod Identity as the default auth model, and no account or cluster change without confirmation.
+
+---
+
 ### [dotnet-aws-ecs](./dotnet-aws-ecs/)
 
 Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET workload to Amazon ECS Fargate on Linux containers with an Application Load Balancer. Produces a VPC, ECS cluster, task definition, ALB, and auto-scaling. NOT for Windows containers, EC2 launch type, or Kubernetes/EKS deployments.
@@ -747,6 +753,6 @@ This simple format has some key advantages:
 
 ### Evaluating skills
 
-Every team-owned skill has a matching evaluation entry under [`misc/evals/`](../misc/evals/) — a `triggering.json` for trigger-accuracy tests and an `evals.json` for end-to-end task-usefulness tests, both runnable via the tooling in [`skills/skill-creator/`](./skill-creator/). Vendored skills (`skill-creator`, `terraform-skill`) are excluded since they're maintained upstream. See [`misc/evals/README.md`](../misc/evals/README.md) for the capability catalogue and how to run each eval type.
+Every team-owned skill except `apex` and nine ECS skills (`dotnet-aws-ecs` and every `ecs-*` skill but `ecs-modernize`) has a matching evaluation entry under [`misc/evals/`](../misc/evals/) (`make check-evals-coverage` in `misc/evals/` lists those still without one; it skips `apex` until its eval is designed): a `triggering.json` for trigger-accuracy tests and an `evals.json` for end-to-end task-usefulness tests, both runnable via the tooling in [`skills/skill-creator/`](./skill-creator/). Vendored skills (`skill-creator`, `terraform-skill`) are excluded since they're maintained upstream. See [`misc/evals/README.md`](../misc/evals/README.md) for the capability catalogue and how to run each eval type.
 
 ---

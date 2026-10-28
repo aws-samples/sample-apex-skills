@@ -25,6 +25,7 @@ See the documentation site for full installation instructions.
 
 ## Skills Catalog
 
+- **apex**: Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context between skills and suggests next skills
 - **eks-best-practices**: EKS design, architecture, and configuration decisions — compute strategy, multi-tenant isolation, networking, IAM, security, cost, and observability
 - **eks-build**: Generate complete production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support, and 29+ addon configurations
 - **eks-design**: Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture, and Well-Architected validation
