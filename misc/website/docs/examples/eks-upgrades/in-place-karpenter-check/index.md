@@ -199,7 +199,7 @@ If you ran this example's deploy.sh before v2, also remove `.claude/commands/ape
 
 ## Further Reading
 
-- [APEX EKS Upgrade Check Workflow](../../../skills/general/apex/runbooks/eks-upgrade-check/eks-upgrade-check)
+- [APEX EKS Upgrade Check Workflow](../../../skills/general/apex/runbooks/eks-upgrade-check/)
 - [EKS Upgrade Check Skill](../../../skills/eks/eks-upgrade-check/)
   - [Version Validation Reference](../../../skills/eks/eks-upgrade-check/references/version-validation)
   - [Add-on Compatibility Reference](../../../skills/eks/eks-upgrade-check/references/addon-compatibility)

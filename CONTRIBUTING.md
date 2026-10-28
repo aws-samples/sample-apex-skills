@@ -87,7 +87,7 @@ See the auto-generated [Skills Reference](README.md#skills-reference) in `README
 - **Defines interaction patterns**: questionnaires, step-by-step procedures, STOP gates, checkpoint templates
 - **References skills for knowledge**: a runbook says "use the `eks-best-practices` skill's decision frameworks" but does not duplicate the knowledge
 - **One skill per folder**: each runbook lives in `skills/apex/runbooks/<skill>/` and is followed with that skill
-- **Routed by the apex skill**: [`skills/apex/SKILL.md`](skills/apex/SKILL.md) detects intent, picks the skill and, when `runbooks/<skill>/` has a runbook for the task, follows it. Only the apex skill points at runbooks; other skills' SKILL.md files do not. Start with `/apex`.
+- **Routed by the apex skill**: [`skills/apex/SKILL.md`](skills/apex/SKILL.md) detects intent, picks the skill and, when `runbooks/<skill>/` has a runbook for the task, follows it. Only the apex skill points at runbooks; other skills' SKILL.md files do not, except the vendored `eks-operation-review`, whose sync script points it at `../apex/runbooks/eks-operation-review/eks-operation-review.md` (the one recorded exception; see its UPSTREAM.md). Start with `/apex`.
 
 ### Structure
 
@@ -337,6 +337,8 @@ CI also strict-parses `SKILL.md` frontmatter via `misc/validate-frontmatter.py` 
 - no YAML anchors or aliases (`&name` / `*name`)
 - the frontmatter block is under 64KB
 - nesting depth is at most 8
+
+These rules make the repo's frontmatter a compliant subset of the [Agent Skills specification](https://agentskills.io/specification): every allowed key is a spec field, and the spec's optional `compatibility` field is rejected here.
 
 For `skills/` each description must also match the generated `skills.json` manifest (`devops-agent/` is exempt from the manifest check; a missing manifest entry is only a warning). If validation fails, fix the frontmatter YAML and rerun the regeneration commands above.
 

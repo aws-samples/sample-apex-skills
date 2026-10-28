@@ -1,10 +1,9 @@
 name: installer-test
 
 # Install-path test for the npx installer (misc/installer). Runs the temp-HOME
-# harness against a fixture repo whose skills/ and steering/ come from the last
-# tree that had steering/, not this checkout, so skill and runbook changes after
-# step 1 are not covered; the installer (cli.mjs) is this checkout's, so a broken
-# install path shows as a failed check on the PR. It blocks a merge only once its jobs
+# harness against a fixture repo whose skills/ come from this checkout and whose
+# steering/ comes from the last tree that had it; the installer (cli.mjs) is this
+# checkout's, so a broken install path shows as a failed check on the PR. It blocks a merge only once its jobs
 # ("install paths (<os>, node <n>)" and "native Windows stops with a clear
 # message") are required checks, which they are not yet on main. With the
 # paths: filter below, a required job would also block every PR that does not

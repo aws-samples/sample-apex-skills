@@ -58,7 +58,19 @@ mkdir -p ~/.kiro/skills
 cp -r skills/* ~/.kiro/skills/
 ```
 
-**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Kiro CLI added skills as slash commands in 2.1; 1.27.0 rejects `/apex`.
+**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Tested on Kiro CLI 2.35.1 (2026-10-28); Kiro CLI 1.27.0 rejected `/apex`.
+
+### Codex
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.agents/skills
+cp -r skills/* ~/.agents/skills/
+```
+
+**Usage:** in Codex, type `$apex` with your request, for example *"$apex plan my EKS upgrade"*. Codex reads skills from `~/.agents/skills` (and a repository's `.agents/skills`); the installer does not set up Codex.
 
 ### Other Agent Harnesses
 

@@ -156,12 +156,6 @@
     "group": "general"
   },
   {
-    "name": "steering-workflow-creator",
-    "description": "Author a new steering workflow for any AWS service and pair it with a matching slash-command shim. Use when the user asks to create a steering workflow, add a workflow to apex, standardize steering, write a new workflow for EKS / RDS / Lambda / IAM / any AWS service, or build a phased playbook that plugs into a service hub. Covers the convention (frontmatter, header block, required sections), tool routing (knowledge vs. live MCP vs. setup-bridge), and the lint pass before handoff.",
-    "path": "/docs/skills/general/steering-workflow-creator",
-    "group": "general"
-  },
-  {
     "name": "terraform-skill",
     "description": "Use when writing, reviewing, or debugging Terraform/OpenTofu modules, tests, CI, scans, or state ops - diagnoses failure mode (identity churn, secrets, blast radius, CI drift, state corruption) with version-aware guards.",
     "path": "/docs/skills/general/terraform-skill",

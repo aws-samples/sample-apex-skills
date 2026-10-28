@@ -274,6 +274,12 @@ def rewrite(m):
         new_target = new_target[:-5]
     elif new_target == "index":
         new_target = "."
+    else:
+        # A doc named like its folder (<dir>/<dir>.md) is the index page
+        # of that folder in Docusaurus, so link to the folder.
+        parent, leaf = os.path.split(new_target)
+        if parent and leaf == os.path.basename(parent):
+            new_target = parent + "/"
     return f"[{text}]({new_target}{query}{anchor})"
 
 for line in sys.stdin:

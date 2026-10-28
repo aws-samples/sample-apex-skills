@@ -35,6 +35,5 @@ See the documentation site for full installation instructions.
 - **eks-recon**: EKS cluster reconnaissance and environment discovery — compute strategy, IaC tooling, CI/CD, add-ons, networking, and security posture
 - **eks-upgrade-check**: Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility, and workload risks
 - **skill-creator**: Create new skills, modify existing skills, run evals, benchmark performance, and optimize triggering accuracy
-- **steering-workflow-creator**: Author steering workflows for any AWS service with matching slash-command shims and tool routing
 - **terraform-skill**: Terraform and OpenTofu — modules, native tests, Terratest, CI/CD pipelines, state debugging, and security scanning
 - **update-docs**: Audit and sync all documentation surfaces after skill changes — README markers, Docusaurus site, and prose references

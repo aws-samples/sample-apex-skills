@@ -72,7 +72,19 @@ mkdir -p ~/.kiro/skills
 cp -r skills/* ~/.kiro/skills/
 ```
 
-**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Kiro CLI added skills as slash commands in 2.1; 1.27.0 rejects `/apex`.
+**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Tested on Kiro CLI 2.35.1 (2026-10-28); Kiro CLI 1.27.0 rejected `/apex`.
+
+#### Codex
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.agents/skills
+cp -r skills/* ~/.agents/skills/
+```
+
+**Usage:** in Codex, type `$apex` with your request, for example *"$apex plan my EKS upgrade"*. Codex reads skills from `~/.agents/skills` (and a repository's `.agents/skills`); the installer does not set up Codex.
 
 #### Other Agent Harnesses
 
@@ -110,8 +122,7 @@ The apex skill's shared rules apply to runs it starts; a skill triggered directl
 
 <table>
 <tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/"><b>apex</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/"><b>dotnet-aws-ecs</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/"><b>graviton-migration</b></a></td></tr>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/"><b>skill-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/steering-workflow-creator/"><b>steering-workflow-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/"><b>terraform-skill</b></a></td></tr>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/"><b>update-docs</b></a></td><td></td><td></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/"><b>skill-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/"><b>update-docs</b></a></td></tr>
 </table>
 <!-- SKILLS_REFERENCE_END -->
 
