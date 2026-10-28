@@ -71,5 +71,7 @@ PLAN-npm-release.md
 
 # DevOps Agent packaged skill zips
 devops-agent/**/*.zip
+
+# Workflow ready files (local agent state, never committed)
 READY.md
 .READY.md.*.tmp
