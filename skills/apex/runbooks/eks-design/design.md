@@ -1,18 +1,10 @@
 ---
-title: "design"
-description: "Day 0 architecture design workflow. 8-phase questionnaire for EKS cluster design, architecture reviews, and option comparisons."
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/design.md
-format: md
+name: eks-design
+description: Day 0 architecture design workflow. 8-phase questionnaire for EKS cluster design, architecture reviews, and option comparisons.
 ---
-
-:::info[Source]
-This page is generated from [steering/workflows/design.md](https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/design.md). Edit the source, not this page.
-:::
-
 
 # Design Workflow
 
-> **Part of:** [APEX EKS Hub](../eks)
 > **Lifecycle:** Day 0 — Architect
 > **Skill:** `eks-best-practices`, `eks-design`
 

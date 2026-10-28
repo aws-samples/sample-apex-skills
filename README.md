@@ -61,8 +61,8 @@ ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
 **Usage:** Start a Claude Code session and use slash commands:
-- `/apex:eks` — hub that auto-routes based on your request
-- `/apex:eks-design` — *"Help me design an EKS cluster"*
+- `/apex:eks`: the steering hub. Until steering/ is removed, its design, build, platform engineering, GenAI and security routes point at workflows that moved, so use `/apex` for those asks
+- `/apex` with your request (for example *"Help me design an EKS cluster"*): the apex skill routes it to the right skill and, when there is one, that skill's runbook
 - `/apex:eks-upgrade-check` — *"Is my cluster ready to upgrade to 1.32?"*
 
 #### Kiro CLI
@@ -129,21 +129,18 @@ The apex skill's shared rules apply to runs it starts; a skill triggered directl
 ### Workflows
 
 <table>
-<tr><td><a href="steering/apex.md"><b>apex</b></a></td><td><a href="steering/eks.md"><b>eks</b></a></td><td><a href="steering/workflows/design.md"><b>design</b></a></td><td><a href="steering/workflows/eks-build.md"><b>eks-build</b></a></td></tr>
-<tr><td><a href="steering/workflows/eks-genai.md"><b>eks-genai</b></a></td><td><a href="steering/workflows/eks-operation-review.md"><b>eks-operation-review</b></a></td><td><a href="steering/workflows/eks-platform-engineering.md"><b>eks-platform-engineering</b></a></td><td><a href="steering/workflows/eks-security.md"><b>eks-security</b></a></td></tr>
-<tr><td><a href="steering/workflows/eks-upgrade-check.md"><b>eks-upgrade-check</b></a></td><td><a href="steering/workflows/new-skill.md"><b>new-skill</b></a></td><td></td><td></td></tr>
+<tr><td><a href="steering/apex.md"><b>apex</b></a></td><td><a href="steering/eks.md"><b>eks</b></a></td><td><a href="steering/workflows/eks-operation-review.md"><b>eks-operation-review</b></a></td></tr>
+<tr><td><a href="steering/workflows/eks-upgrade-check.md"><b>eks-upgrade-check</b></a></td><td><a href="steering/workflows/new-skill.md"><b>new-skill</b></a></td><td></td></tr>
 </table>
 
 ### Slash Commands
 
 <table>
-<tr><td><a href="steering/commands/apex/eks-build.md"><b>/apex:eks-build</b></a></td><td><a href="steering/commands/apex/eks-design.md"><b>/apex:eks-design</b></a></td><td><a href="steering/commands/apex/eks-genai.md"><b>/apex:eks-genai</b></a></td></tr>
-<tr><td><a href="steering/commands/apex/eks-operation-review.md"><b>/apex:eks-operation-review</b></a></td><td><a href="steering/commands/apex/eks-platform-engineering.md"><b>/apex:eks-platform-engineering</b></a></td><td><a href="steering/commands/apex/eks-security.md"><b>/apex:eks-security</b></a></td></tr>
-<tr><td><a href="steering/commands/apex/eks-upgrade-check.md"><b>/apex:eks-upgrade-check</b></a></td><td><a href="steering/commands/apex/eks.md"><b>/apex:eks</b></a></td><td><a href="steering/commands/apex/new-skill.md"><b>/apex:new-skill</b></a></td></tr>
+<tr><td><a href="steering/commands/apex/eks-operation-review.md"><b>/apex:eks-operation-review</b></a></td><td><a href="steering/commands/apex/eks-upgrade-check.md"><b>/apex:eks-upgrade-check</b></a></td><td><a href="steering/commands/apex/eks.md"><b>/apex:eks</b></a></td><td><a href="steering/commands/apex/new-skill.md"><b>/apex:new-skill</b></a></td></tr>
 </table>
 <!-- STEERING_REFERENCE_END -->
 
-Steering files define **how** the agent runs an engagement. Structured sequences with questionnaires, checkpoints, and routing. The hub (`/apex:eks`) detects what you want and routes to the right workflow. Slash commands (e.g., `/apex:eks-design`) are agent-harness entry points that trigger these workflows.
+Steering files define **how** the agent runs an engagement. Structured sequences with questionnaires, checkpoints, and routing. The hub (`/apex:eks`) detects what you want and routes to the right workflow (until steering/ is removed, its design, build, platform engineering, GenAI and security routes point at workflows that moved: use `/apex` for those). Slash commands (e.g., `/apex:new-skill`) are agent-harness entry points that trigger these workflows.
 
 **The key test:** Remove all steering files and the agent still knows the right answers (skills provide knowledge). But it wouldn't know how to run the engagement.
 

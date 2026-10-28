@@ -1,18 +1,17 @@
 ---
 title: "eks-security"
 description: "Day 1/Day 2 EKS security & compliance workflow. Guides hardening an Amazon EKS cluster and preparing it for a compliance audit through the discovery-driven 7-layer stack — OS/AMI hardening, identity & access, workload security, image supply chain, runtime security, audit logging, and compliance accelerators — with the compliance-regime scope view (HIPAA/PCI/FedRAMP/GDPR/SOC2/ISO), a non-negotiable security baseline, and a 30/60/90 hardening roadmap."
-custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/eks-security.md
+custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/runbooks/eks-security/eks-security.md
 format: md
 ---
 
 :::info[Source]
-This page is generated from [steering/workflows/eks-security.md](https://github.com/aws-samples/sample-apex-skills/blob/main/steering/workflows/eks-security.md). Edit the source, not this page.
+This page is generated from [skills/apex/runbooks/eks-security/eks-security.md](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/runbooks/eks-security/eks-security.md). Edit the source, not this page.
 :::
 
 
 # EKS Security & Compliance Workflow
 
-> **Part of:** [APEX EKS Hub](../eks)
 > **Lifecycle:** Day 1 (greenfield hardening) / Day 2 (audit prep for an existing cluster)
 > **Skill:** eks-security | os-ami-hardening.md, identity-and-access.md, compliance-regimes.md
 > **Access Model:** advisory

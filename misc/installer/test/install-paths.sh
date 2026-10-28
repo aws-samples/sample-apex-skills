@@ -322,8 +322,10 @@ LATEST_COUNT="$(count_skill_dirs "$LATEST_TAG")"
 MID_COUNT="$(count_skill_dirs "$MID_TAG")"
 TAG_COUNT="$(count_skill_dirs "$FIXTURE_TAG")"
 WF_COUNT="$(git -C "$ORIGIN" ls-tree --name-only "$LATEST_TAG:steering/workflows" | /usr/bin/grep -c '\.md$')"
-SKILL_A="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | sed -n 1p)"
-SKILL_B="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | sed -n 2p)"
+# Sample skills: the first two folders under skills/ that hold a SKILL.md.
+SKILLS_WITH_MD="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | while read -r d; do if git -C "$ORIGIN" cat-file -e "$LATEST_TAG:skills/$d/SKILL.md" 2>/dev/null; then echo "$d"; fi; done)"
+SKILL_A="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 1p)"
+SKILL_B="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 2p)"
 
 # ---------------------------------------------------------------- helpers
 PASS=0
@@ -548,7 +550,7 @@ check_imports() { # <claude dir>
     if [ ! -e "$dir/apex-steering/$rel" ]; then bad=$((bad + 1)); err "unresolved import $ref (no $dir/apex-steering/$rel)"; fi
   done < <(/usr/bin/grep -H -o -E '~/\.claude/apex-steering/[A-Za-z0-9._/-]+' "${files[@]}" | sort -u)
   echo "    imports checked: $n, unresolved: $bad"
-  [ "$n" -ge 10 ] || err "expected at least 10 apex-steering references (9 shims plus SKILL.md files), found $n"
+  [ "$n" -ge 5 ] || err "expected at least 5 apex-steering references (4 shims plus SKILL.md files), found $n"
 }
 
 finish_case() {
@@ -657,18 +659,18 @@ finish_case
 new_case L1 "the user's own symlinks at every global install path are reported and kept"
 mkdir -p "$H/.claude/skills" "$H/.claude/commands" "$H/.kiro/skills" "$H/.kiro/steering" "$H/mine/skill" "$H/mine/commands" "$H/mine/steering"
 echo "my skill" > "$H/mine/skill/SKILL.md"
-echo "my workflow" > "$H/mine/eks-build.md"
+echo "my workflow" > "$H/mine/new-skill.md"
 ln -s "$H/mine/skill" "$H/.claude/skills/eks-recon"
 ln -s "$H/mine/missing-skill" "$H/.claude/skills/eks-genai"   # the user's own dangling link
 ln -s "$H/mine/commands" "$H/.claude/commands/apex"
 ln -s "$H/mine/steering" "$H/.claude/apex-steering"
 ln -s "$H/mine/skill" "$H/.kiro/skills/eks-recon"
-ln -s "$H/mine/eks-build.md" "$H/.kiro/steering/eks-build.md"
+ln -s "$H/mine/new-skill.md" "$H/.kiro/steering/new-skill.md"
 for run in install update; do
   if [ "$run" = install ]; then STDIN_TEXT=$'y\n' run_cli; else run_cli --update; fi
   expect_rc 3
   expect_out "Skipped 6 path"
-  for p in .claude/skills/eks-recon .claude/skills/eks-genai .claude/commands/apex .claude/apex-steering .kiro/skills/eks-recon .kiro/steering/eks-build.md; do
+  for p in .claude/skills/eks-recon .claude/skills/eks-genai .claude/commands/apex .claude/apex-steering .kiro/skills/eks-recon .kiro/steering/new-skill.md; do
     expect_out "$H/$p$"
   done
   expect_link "$H/.claude/skills/eks-recon" "$H/mine/skill"
@@ -676,21 +678,21 @@ for run in install update; do
   expect_link "$H/.claude/commands/apex" "$H/mine/commands"
   expect_link "$H/.claude/apex-steering" "$H/mine/steering"
   expect_link "$H/.kiro/skills/eks-recon" "$H/mine/skill"
-  expect_link "$H/.kiro/steering/eks-build.md" "$H/mine/eks-build.md"
+  expect_link "$H/.kiro/steering/new-skill.md" "$H/mine/new-skill.md"
 done
-[ "$(cat "$H/mine/eks-build.md")" = "my workflow" ] || err "the user's linked workflow file was changed"
+[ "$(cat "$H/mine/new-skill.md")" = "my workflow" ] || err "the user's linked workflow file was changed"
 [ "$(links_into_install "$H/.claude/skills")" -eq $((LATEST_COUNT - 2)) ] || err "expected $((LATEST_COUNT - 2)) installer skill links, got $(links_into_install "$H/.claude/skills")"
 finish_case
 
 new_case L2 "the user's own symlinks at every --project install path are reported and kept"
 P="$H/proj"
 mkdir -p "$H/.claude" "$H/.kiro" "$P/.claude/skills" "$P/.claude/commands" "$P/.kiro/skills" "$P/.kiro/steering" "$H/mine/skill" "$H/mine/commands" "$H/mine/steering"
-echo "my workflow" > "$H/mine/eks-build.md"
+echo "my workflow" > "$H/mine/new-skill.md"
 ln -s "$H/mine/skill" "$P/.claude/skills/eks-recon"
 ln -s "$H/mine/commands" "$P/.claude/commands/apex"
 ln -s "$H/mine/steering" "$P/.claude/apex-steering"
 ln -s "$H/mine/skill" "$P/.kiro/skills/eks-recon"
-ln -s "$H/mine/eks-build.md" "$P/.kiro/steering/eks-build.md"
+ln -s "$H/mine/new-skill.md" "$P/.kiro/steering/new-skill.md"
 STDIN_TEXT=$'y\n' RUN_CWD="$P" run_cli --project
 expect_rc 3
 expect_out "Skipped 5 path"
@@ -698,7 +700,7 @@ expect_link "$P/.claude/skills/eks-recon" "$H/mine/skill"
 expect_link "$P/.claude/commands/apex" "$H/mine/commands"
 expect_link "$P/.claude/apex-steering" "$H/mine/steering"
 expect_link "$P/.kiro/skills/eks-recon" "$H/mine/skill"
-expect_link "$P/.kiro/steering/eks-build.md" "$H/mine/eks-build.md"
+expect_link "$P/.kiro/steering/new-skill.md" "$H/mine/new-skill.md"
 [ "$(links_into_install "$P/.claude/skills")" -eq $((LATEST_COUNT - 1)) ] || err "expected $((LATEST_COUNT - 1)) installer project skill links, got $(links_into_install "$P/.claude/skills")"
 finish_case
 
@@ -706,7 +708,7 @@ new_case K1 "Kiro: workflows installed as copies with inclusion: manual"
 mkdir -p "$H/.kiro/steering"
 echo "my own steering" > "$H/.kiro/steering/mine.md"
 # a v1.2.0-style symlink for one workflow must be replaced by a copy
-ln -s "$H/.apex-skills/steering/workflows/eks-build.md" "$H/.kiro/steering/eks-build.md"
+ln -s "$H/.apex-skills/steering/workflows/new-skill.md" "$H/.kiro/steering/new-skill.md"
 run_cli --kiro-only
 expect_rc 0
 expect_no_out "use /apex commands"
@@ -725,61 +727,68 @@ finish_case
 
 new_case K2 "Kiro: a renamed marked copy, a note quoting the marker and a user file at a workflow name are kept"
 mkdir -p "$H/.kiro/steering"
-echo "my own eks-security notes" > "$H/.kiro/steering/eks-security.md"   # user file at a workflow name, no marker
+echo "my own new-skill notes" > "$H/.kiro/steering/new-skill.md"   # user file at a workflow name, no marker
 run_cli --kiro-only
 expect_rc 3
 expect_out "Skipped 1 path"
-expect_out "steering/eks-security.md$"
-[ "$(cat "$H/.kiro/steering/eks-security.md")" = "my own eks-security notes" ] || err "user file eks-security.md was overwritten"
+expect_out "steering/new-skill.md$"
+[ "$(cat "$H/.kiro/steering/new-skill.md")" = "my own new-skill notes" ] || err "user file new-skill.md was overwritten"
+run_cli --uninstall --kiro-only
+expect_rc 0
+[ "$(cat "$H/.kiro/steering/new-skill.md")" = "my own new-skill notes" ] || err "--uninstall changed the user file new-skill.md"
+# phase 2, a fresh HOME: the installer's own new-skill.md copy
+H="$WORK/K2/home2"
+mkdir -p "$H/.kiro"
+run_cli --kiro-only
+expect_rc 0
 # the user keeps a customized copy under a new name, marker line and all
-cp "$H/.kiro/steering/eks-build.md" "$H/.kiro/steering/my-eks-build.md"
-echo "my customization" >> "$H/.kiro/steering/my-eks-build.md"
-marker_line="$(sed -n '/^---$/,/^---$/!p' "$H/.kiro/steering/eks-build.md" | head -n 1)"
+cp "$H/.kiro/steering/new-skill.md" "$H/.kiro/steering/my-new-skill.md"
+echo "my customization" >> "$H/.kiro/steering/my-new-skill.md"
+marker_line="$(sed -n '/^---$/,/^---$/!p' "$H/.kiro/steering/new-skill.md" | head -n 1)"
 printf 'note: the installer writes this line:\n%s\n' "$marker_line" > "$H/.kiro/steering/notes.md"
-cp "$H/.kiro/steering/my-eks-build.md" "$WORK/K2/my-eks-build.expected"
+cp "$H/.kiro/steering/my-new-skill.md" "$WORK/K2/my-new-skill.expected"
 cp "$H/.kiro/steering/notes.md" "$WORK/K2/notes.expected"
 run_cli --update --kiro-only
-expect_rc 3
+expect_rc 0   # a kept marked copy alone is not a skipped path (cli.mjs skippedSomething)
 expect_out "Kept 1 file"
-expect_out "steering/my-eks-build.md$"
-cmp -s "$H/.kiro/steering/my-eks-build.md" "$WORK/K2/my-eks-build.expected" || err "--update deleted or changed my-eks-build.md"
+expect_out "steering/my-new-skill.md$"
+cmp -s "$H/.kiro/steering/my-new-skill.md" "$WORK/K2/my-new-skill.expected" || err "--update deleted or changed my-new-skill.md"
 cmp -s "$H/.kiro/steering/notes.md" "$WORK/K2/notes.expected" || err "--update deleted or changed notes.md"
 run_cli --uninstall --kiro-only
 expect_rc 0
 expect_out "Kept 1 file"
-cmp -s "$H/.kiro/steering/my-eks-build.md" "$WORK/K2/my-eks-build.expected" || err "--uninstall deleted or changed my-eks-build.md"
+cmp -s "$H/.kiro/steering/my-new-skill.md" "$WORK/K2/my-new-skill.expected" || err "--uninstall deleted or changed my-new-skill.md"
 cmp -s "$H/.kiro/steering/notes.md" "$WORK/K2/notes.expected" || err "--uninstall deleted or changed notes.md"
-[ "$(cat "$H/.kiro/steering/eks-security.md")" = "my own eks-security notes" ] || err "--uninstall changed the user file eks-security.md"
-[ ! -e "$H/.kiro/steering/eks-build.md" ] || err "--uninstall left the installer copy eks-build.md"
+[ ! -e "$H/.kiro/steering/new-skill.md" ] || err "--uninstall left the installer copy new-skill.md"
 finish_case
 
 new_case K3 "Kiro: install, --update and a --version pin keep an edited recorded copy at a workflow name"
 mkdir -p "$H/.kiro"
 run_cli --kiro-only
 expect_rc 0
-wf="$H/.kiro/steering/eks-build.md"
+wf="$H/.kiro/steering/new-skill.md"
 echo "my edit" >> "$wf"
-cp "$wf" "$WORK/K3/eks-build.expected"
+cp "$wf" "$WORK/K3/new-skill.expected"
 for args in "--kiro-only" "--update --kiro-only" "--version $FIXTURE_TAG --update --kiro-only"; do
   read -r -a argv <<< "$args"
   run_cli "${argv[@]}"
   expect_rc 3
   expect_stderr "changed since"
-  expect_stderr "steering/eks-build.md$"
-  expect_no_stdout "steering/eks-build.md$"
-  cmp -s "$wf" "$WORK/K3/eks-build.expected" || err "'$args' overwrote the edited eks-build.md"
+  expect_stderr "steering/new-skill.md$"
+  expect_no_stdout "steering/new-skill.md$"
+  cmp -s "$wf" "$WORK/K3/new-skill.expected" || err "'$args' overwrote the edited new-skill.md"
 done
 run_cli --uninstall --kiro-only
 expect_rc 3
-expect_stderr "steering/eks-build.md$"
-cmp -s "$wf" "$WORK/K3/eks-build.expected" || err "--uninstall deleted or changed the edited eks-build.md"
-left="$(cd "$H/.kiro/steering" && ls)"; [ "$left" = "eks-build.md" ] || err "~/.kiro/steering should hold only the edited eks-build.md, has: $(echo $left)"
+expect_stderr "steering/new-skill.md$"
+cmp -s "$wf" "$WORK/K3/new-skill.expected" || err "--uninstall deleted or changed the edited new-skill.md"
+left="$(cd "$H/.kiro/steering" && ls)"; [ "$left" = "new-skill.md" ] || err "~/.kiro/steering should hold only the edited new-skill.md, has: $(echo $left)"
 # once the user removes the edit, the next install writes the workflow again
 rm -f "$wf"
 run_cli --kiro-only
 expect_rc 0
 marker_line="$(sed -n '/^---$/,/^---$/!p' "$wf" 2>/dev/null | head -n 1)"
-case "$marker_line" in "<!-- apex-skills installer:"*) ;; *) err "eks-build.md was not written again as a marked copy";; esac
+case "$marker_line" in "<!-- apex-skills installer:"*) ;; *) err "new-skill.md was not written again as a marked copy";; esac
 finish_case
 
 new_case K4 "Kiro: the prune keeps an edited recorded copy of a workflow that left the repo"
@@ -790,8 +799,8 @@ MF="$(manifest_of)"
 # two copies recorded under workflow names the repo no longer has: zz-gone-a
 # stays as written, zz-gone-b is edited after the install
 gone_a="$H/.kiro/steering/zz-gone-a.md"; gone_b="$H/.kiro/steering/zz-gone-b.md"
-cp "$H/.kiro/steering/eks-build.md" "$gone_a"
-cp "$H/.kiro/steering/eks-build.md" "$gone_b"
+cp "$H/.kiro/steering/new-skill.md" "$gone_a"
+cp "$H/.kiro/steering/new-skill.md" "$gone_b"
 # shellcheck disable=SC2016  # JavaScript, not shell, expansions
 node -e '
   const fs = require("fs"), crypto = require("crypto");
@@ -860,7 +869,7 @@ expect_out "Done!"
 expect_out "default answers are used"
 [ "$(/usr/bin/grep -c "default answers are used" "$OUT")" -eq 1 ] || err "the defaults line should print once"
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT skill links (default target claude)"
-[ -e "$H/.claude/apex-steering/workflows/eks-build.md" ] || err "default steering answer (y) did not install apex-steering"
+[ -e "$H/.claude/apex-steering/workflows/new-skill.md" ] || err "default steering answer (y) did not install apex-steering"
 [ ! -e "$H/.kiro" ] || err "~/.kiro was created although the default target is claude"
 finish_case
 
@@ -896,11 +905,11 @@ if [ -e "$H/.claude/apex-steering" ] || [ -L "$H/.claude/apex-steering" ]; then 
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "--update did not keep the skill links"
 STDIN_TEXT=$'y\n' run_cli
 expect_rc 0
-[ -e "$H/.claude/apex-steering/workflows/eks-build.md" ] || err "an install that asked the question (answered y) did not add steering back"
+[ -e "$H/.claude/apex-steering/workflows/new-skill.md" ] || err "an install that asked the question (answered y) did not add steering back"
 run_cli --update
 expect_rc 0
 expect_no_out "Steering stays off"
-[ -e "$H/.kiro/steering/eks-build.md" ] || err "--update after steering was re-added did not keep it"
+[ -e "$H/.kiro/steering/new-skill.md" ] || err "--update after steering was re-added did not keep it"
 finish_case
 
 new_case N2 "answering n is kept by --update; the choice is per install base"
@@ -1058,7 +1067,7 @@ expect_no_out "Create directory for"
 expect_no_out "Install steering"
 expect_no_out "default answers are used"
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Claude skill links (default target claude)"
-[ -e "$H/.claude/apex-steering/workflows/eks-build.md" ] || err "default steering answer (y) was not taken"
+[ -e "$H/.claude/apex-steering/workflows/new-skill.md" ] || err "default steering answer (y) was not taken"
 [ ! -e "$H/.kiro" ] || err "~/.kiro was created: stdin was read despite -y"
 finish_case
 
@@ -1154,7 +1163,7 @@ expect_link "$H/.claude/skills" "$H/missing-skills-dir"
 expect_no_stdout "skills to $H/.claude/skills"
 expect_no_stdout "Nothing installed to $H/.claude/skills"
 [ ! -e "$H/missing-skills-dir" ] || err "the installer created the dangling link's target"
-[ -e "$H/.claude/apex-steering/workflows/eks-build.md" ] || err "steering was not installed"
+[ -e "$H/.claude/apex-steering/workflows/new-skill.md" ] || err "steering was not installed"
 finish_case
 
 new_case AC1 "every Claude Code skill path holds a directory of the user's: the run says nothing was installed there, not that 0 skills were"
@@ -1249,17 +1258,17 @@ new_case M4 "--uninstall keeps an edited recorded Kiro copy and a user link into
 mkdir -p "$H/.kiro"
 run_cli --kiro-only
 expect_rc 0
-echo "my edit" >> "$H/.kiro/steering/eks-build.md"
-cp "$H/.kiro/steering/eks-build.md" "$WORK/M4/eks-build.expected"
+echo "my edit" >> "$H/.kiro/steering/new-skill.md"
+cp "$H/.kiro/steering/new-skill.md" "$WORK/M4/new-skill.expected"
 ln -s "$H/.apex-skills/skills/$SKILL_A" "$H/.kiro/skills/my-alias"
 run_cli --uninstall --kiro-only
 expect_rc 3
 expect_stderr "changed since"
-expect_stderr "steering/eks-build.md$"
-cmp -s "$H/.kiro/steering/eks-build.md" "$WORK/M4/eks-build.expected" || err "--uninstall deleted or changed the edited eks-build.md"
+expect_stderr "steering/new-skill.md$"
+cmp -s "$H/.kiro/steering/new-skill.md" "$WORK/M4/new-skill.expected" || err "--uninstall deleted or changed the edited new-skill.md"
 expect_link "$H/.kiro/skills/my-alias" "$H/.apex-skills/skills/$SKILL_A"
 [ "$(links_into_install "$H/.kiro/skills")" -eq 1 ] || err "expected only my-alias left in ~/.kiro/skills, found $(links_into_install "$H/.kiro/skills") installer links"
-left="$(cd "$H/.kiro/steering" && ls)"; [ "$left" = "eks-build.md" ] || err "~/.kiro/steering should hold only the edited eks-build.md, has: $(echo $left)"
+left="$(cd "$H/.kiro/steering" && ls)"; [ "$left" = "new-skill.md" ] || err "~/.kiro/steering should hold only the edited new-skill.md, has: $(echo $left)"
 finish_case
 
 new_case M5 "a corrupt or wrong-shape manifest is set aside with a warning; built-in rules apply"
@@ -1825,43 +1834,43 @@ new_case UN1 "--uninstall keeps the record of an edited Kiro copy it kept; the n
 mkdir -p "$H/.kiro"
 run_cli --kiro-only
 expect_rc 0
-wf="$H/.kiro/steering/eks-build.md"
+wf="$H/.kiro/steering/new-skill.md"
 echo "my edit" >> "$wf"
-cp "$wf" "$WORK/UN1/eks-build.expected"
+cp "$wf" "$WORK/UN1/new-skill.expected"
 run_cli --uninstall --kiro-only
 expect_rc 3
-expect_stderr "steering/eks-build.md$"
+expect_stderr "steering/new-skill.md$"
 [ "$(mfq "$(manifest_of)" 'Object.keys(((m.bases[b] || {}).areas || {})["kiro-steering"] || {}).join(",")')" = "$wf" ] || err "--uninstall dropped the record of the kept copy"
 run_cli --kiro-only
 expect_rc 3
 expect_stderr "changed since"
-cmp -s "$wf" "$WORK/UN1/eks-build.expected" || err "the install after --uninstall overwrote the edited eks-build.md"
+cmp -s "$wf" "$WORK/UN1/new-skill.expected" || err "the install after --uninstall overwrote the edited new-skill.md"
 run_cli --uninstall --kiro-only
 expect_rc 3
-cmp -s "$wf" "$WORK/UN1/eks-build.expected" || err "the second --uninstall deleted or changed the edited eks-build.md"
+cmp -s "$wf" "$WORK/UN1/new-skill.expected" || err "the second --uninstall deleted or changed the edited new-skill.md"
 finish_case
 
 new_case HS1 "one HOME spelled several ways is one install base: an edited Kiro copy is kept"
 mkdir -p "$H/.kiro"
 RUN_ENV="HOME=$H/" run_cli --kiro-only -y
 expect_rc 0
-wf="$H/.kiro/steering/eks-build.md"
+wf="$H/.kiro/steering/new-skill.md"
 echo "my edit" >> "$wf"
-cp "$wf" "$WORK/HS1/eks-build.expected"
+cp "$wf" "$WORK/HS1/new-skill.expected"
 # $H is absolute, so "/$H" starts with //
 for home in "$H" "$H/." "/$H"; do
   RUN_ENV="HOME=$home" run_cli --kiro-only -y
   expect_rc 3
   expect_stderr "changed since"
-  cmp -s "$wf" "$WORK/HS1/eks-build.expected" || err "HOME=$home overwrote the edited eks-build.md"
+  cmp -s "$wf" "$WORK/HS1/new-skill.expected" || err "HOME=$home overwrote the edited new-skill.md"
 done
 bases="$(mfq "$(manifest_of)" 'Object.keys(m.bases || {}).join(",")')"
 [ "$bases" = "$H" ] || err "expected one install base $H in the manifest, got: $bases"
 RUN_ENV="HOME=$H/./" run_cli --uninstall --kiro-only
 expect_rc 3
-expect_stderr "steering/eks-build.md$"
-cmp -s "$wf" "$WORK/HS1/eks-build.expected" || err "--uninstall under another spelling deleted or changed the edited eks-build.md"
-left="$(cd "$H/.kiro/steering" && ls)"; [ "$left" = "eks-build.md" ] || err "~/.kiro/steering should hold only the edited eks-build.md, has: $(echo $left)"
+expect_stderr "steering/new-skill.md$"
+cmp -s "$wf" "$WORK/HS1/new-skill.expected" || err "--uninstall under another spelling deleted or changed the edited new-skill.md"
+left="$(cd "$H/.kiro/steering" && ls)"; [ "$left" = "new-skill.md" ] || err "~/.kiro/steering should hold only the edited new-skill.md, has: $(echo $left)"
 finish_case
 
 new_case SH1 "a HOME reached through a symlink is the install base of its real path: an edited Kiro copy is kept from either path and from a --project run in that home"
@@ -1872,18 +1881,18 @@ ln -s real "$SH1_LINK"
 H="$SH1_REAL"
 run_cli --kiro-only -y
 expect_rc 0
-wf="$SH1_REAL/.kiro/steering/eks-build.md"
+wf="$SH1_REAL/.kiro/steering/new-skill.md"
 echo "my edit" >> "$wf"
-cp "$wf" "$WORK/SH1/eks-build.expected"
+cp "$wf" "$WORK/SH1/new-skill.expected"
 H="$SH1_LINK"
 run_cli --kiro-only -y
 expect_rc 3
 expect_stderr "changed since"
-cmp -s "$wf" "$WORK/SH1/eks-build.expected" || err "a run with HOME reached through a symlink overwrote the edited eks-build.md"
+cmp -s "$wf" "$WORK/SH1/new-skill.expected" || err "a run with HOME reached through a symlink overwrote the edited new-skill.md"
 RUN_CWD="$SH1_LINK" run_cli --project --kiro-only -y
 expect_rc 3
 expect_stderr "changed since"
-cmp -s "$wf" "$WORK/SH1/eks-build.expected" || err "a --project run in the home directory reached through a symlink overwrote the edited eks-build.md"
+cmp -s "$wf" "$WORK/SH1/new-skill.expected" || err "a --project run in the home directory reached through a symlink overwrote the edited new-skill.md"
 bases="$(mfq "$SH1_REAL/.local/state/apex-skills/manifest.json" 'Object.keys(m.bases || {}).join(",")')"
 [ "$bases" = "$SH1_REAL" ] || err "expected one install base $SH1_REAL in the manifest, got: $bases"
 # the --project run in HOME writes absolute links, as --project does; the next
@@ -1895,8 +1904,8 @@ expect_rc 3
 [ "$(readlink "$SH1_REAL/.kiro/skills/$SKILL_A")" = "../../.apex-skills/skills/$SKILL_A" ] || err "~/.kiro/skills/$SKILL_A is $(readlink "$SH1_REAL/.kiro/skills/$SKILL_A"), not a relative link"
 run_cli --uninstall --kiro-only
 expect_rc 3
-expect_stderr "steering/eks-build.md$"
-cmp -s "$wf" "$WORK/SH1/eks-build.expected" || err "--uninstall with HOME reached through a symlink deleted or changed the edited eks-build.md"
+expect_stderr "steering/new-skill.md$"
+cmp -s "$wf" "$WORK/SH1/new-skill.expected" || err "--uninstall with HOME reached through a symlink deleted or changed the edited new-skill.md"
 [ "$(links_into_install "$SH1_REAL/.kiro/skills")" -eq 0 ] || err "--uninstall left $(links_into_install "$SH1_REAL/.kiro/skills") installer links"
 # a HOME that does not exist yet, under a symlinked directory: the base is the
 # real path from the first run on
@@ -1918,19 +1927,19 @@ ln -s real "$SH2_LINK"
 H="$SH2_REAL"
 run_cli -y
 expect_rc 0
-wf="$SH2_REAL/.kiro/steering/eks-build.md"
+wf="$SH2_REAL/.kiro/steering/new-skill.md"
 echo "my edit" >> "$wf"
-cp "$wf" "$WORK/SH2/eks-build.expected"
+cp "$wf" "$WORK/SH2/new-skill.expected"
 ln -s "$SH2_REAL/.apex-skills/skills/$SKILL_A" "$SH2_REAL/.claude/skills/my-alias"
 H="$SH2_LINK"
 run_cli --uninstall -y
 expect_rc 3
 expect_stderr "changed since"
-expect_stderr "steering/eks-build.md$"
+expect_stderr "steering/new-skill.md$"
 expect_stdout "installed entries from $SH2_REAL$"
 expect_no_out "still used by the install"
 H="$SH2_REAL"
-cmp -s "$wf" "$WORK/SH2/eks-build.expected" || err "--uninstall from the symlinked HOME deleted or changed the edited eks-build.md"
+cmp -s "$wf" "$WORK/SH2/new-skill.expected" || err "--uninstall from the symlinked HOME deleted or changed the edited new-skill.md"
 expect_link "$SH2_REAL/.claude/skills/my-alias" "$SH2_REAL/.apex-skills/skills/$SKILL_A"
 [ "$(links_into_install "$SH2_REAL/.claude/skills")" -eq 1 ] || err "--uninstall should leave only the user's my-alias link in ~/.claude/skills, left $(links_into_install "$SH2_REAL/.claude/skills")"
 [ "$(links_into_install "$SH2_REAL/.kiro/skills")" -eq 0 ] || err "--uninstall left $(links_into_install "$SH2_REAL/.kiro/skills") installer links in ~/.kiro/skills"
@@ -1943,9 +1952,9 @@ new_case KI1 "a Ctrl-C right after a Kiro copy was updated, before the manifest 
 KI1_ORIGIN="$WORK/KI1/origin.git"
 origin_copy "$KI1_ORIGIN"
 git clone -q "$KI1_ORIGIN" "$WORK/KI1/src"
-ki1_release() { # <tag> <line>: a new release on top of LATEST_TAG whose eks-build.md gains <line>
+ki1_release() { # <tag> <line>: a new release on top of LATEST_TAG whose new-skill.md gains <line>
   "${GITC[@]}" -C "$WORK/KI1/src" checkout -q --detach "${KI1_LAST:-$LATEST_TAG}"
-  echo "$2" >> "$WORK/KI1/src/steering/workflows/eks-build.md"
+  echo "$2" >> "$WORK/KI1/src/steering/workflows/new-skill.md"
   "${GITC[@]}" -C "$WORK/KI1/src" commit -q -am "fixture $1"
   "${GITC[@]}" -C "$WORK/KI1/src" tag "$1"
   git -C "$WORK/KI1/src" push -q origin "refs/tags/$1"
@@ -1970,25 +1979,25 @@ JS
 mkdir -p "$H/.kiro"
 RUN_ENV="APEX_SKILLS_REPO_URL=file://$KI1_ORIGIN" run_cli --kiro-only -y
 expect_rc 0
-wf="$H/.kiro/steering/eks-build.md"
+wf="$H/.kiro/steering/new-skill.md"
 ki1_release v1.3.1 "ki1 line one"
 RUN_ENV="APEX_SKILLS_REPO_URL=file://$KI1_ORIGIN" PRELOAD="$sigint_preload" run_cli --update
 expect_rc 130
-/usr/bin/grep -q "ki1 line one" "$wf" || err "the cut-off run did not write the new eks-build.md (the case needs it)"
+/usr/bin/grep -q "ki1 line one" "$wf" || err "the cut-off run did not write the new new-skill.md (the case needs it)"
 rec_sha="$(node -e 'const [f, b, p] = process.argv.slice(1); console.log(JSON.parse(require("fs").readFileSync(f, "utf8")).bases[b].areas["kiro-steering"][p].sha256)' "$(manifest_of)" "$H" "$wf")"
-if [ -z "$rec_sha" ] || [ "$rec_sha" = "$(ki1_sha "$wf")" ]; then err "the manifest already records the new eks-build.md (the case needs the old record)"; fi
+if [ -z "$rec_sha" ] || [ "$rec_sha" = "$(ki1_sha "$wf")" ]; then err "the manifest already records the new new-skill.md (the case needs the old record)"; fi
 RUN_ENV="APEX_SKILLS_REPO_URL=file://$KI1_ORIGIN" run_cli --update
 expect_rc 0
 expect_no_stderr "changed since"
-/usr/bin/grep -q "ki1 line one" "$wf" || err "the run after the Ctrl-C lost the new eks-build.md text"
+/usr/bin/grep -q "ki1 line one" "$wf" || err "the run after the Ctrl-C lost the new new-skill.md text"
 ki1_release v1.3.2 "ki1 line two"
 RUN_ENV="APEX_SKILLS_REPO_URL=file://$KI1_ORIGIN" run_cli --update
 expect_rc 0
 expect_no_stderr "changed since"
-/usr/bin/grep -q "ki1 line two" "$wf" || err "eks-build.md was not updated to v1.3.2 after the cut-off run"
+/usr/bin/grep -q "ki1 line two" "$wf" || err "new-skill.md was not updated to v1.3.2 after the cut-off run"
 run_cli --uninstall --kiro-only
 expect_rc 0
-if [ -e "$wf" ]; then err "--uninstall kept eks-build.md, which holds the installer's text"; fi
+if [ -e "$wf" ]; then err "--uninstall kept new-skill.md, which holds the installer's text"; fi
 finish_case
 
 new_case UE1 "--uninstall on a base with a record removes nothing in an area the record does not hold (Kiro after --claude-only); a base with no record still falls back"
@@ -2088,7 +2097,7 @@ new_case DC1 "a changed file in the clone (an edited v1.2.0 Kiro link target): -
 DC_ORIGIN="$WORK/DC1/origin"
 git clone -q "$ORIGIN" "$DC_ORIGIN"
 "${GITC[@]}" -C "$DC_ORIGIN" checkout -q -b rel "$LATEST_TAG"
-echo "upstream change" >> "$DC_ORIGIN/steering/workflows/eks-build.md"
+echo "upstream change" >> "$DC_ORIGIN/steering/workflows/new-skill.md"
 echo "a new upstream file" > "$DC_ORIGIN/steering/workflows/zz-new.md"
 "${GITC[@]}" -C "$DC_ORIGIN" add -A steering
 "${GITC[@]}" -C "$DC_ORIGIN" commit -q -m "fixture v1.3.1"
@@ -2098,17 +2107,17 @@ mkdir -p "$H/.kiro"
 dc_run --version "$LATEST_TAG" --kiro-only
 expect_rc 0
 # v1.2.0 linked Kiro workflows into the clone, so an edit there edits the clone
-rm -f "$H/.kiro/steering/eks-build.md"
-ln -s "$H/.apex-skills/steering/workflows/eks-build.md" "$H/.kiro/steering/eks-build.md"
-echo "my edit" >> "$H/.kiro/steering/eks-build.md"
-cp "$H/.apex-skills/steering/workflows/eks-build.md" "$WORK/DC1/eks-build.expected"
+rm -f "$H/.kiro/steering/new-skill.md"
+ln -s "$H/.apex-skills/steering/workflows/new-skill.md" "$H/.kiro/steering/new-skill.md"
+echo "my edit" >> "$H/.kiro/steering/new-skill.md"
+cp "$H/.apex-skills/steering/workflows/new-skill.md" "$WORK/DC1/new-skill.expected"
 head_before="$(install_head)"
 dc_run --update --kiro-only
 expect_rc 1
-expect_stderr "$H/.apex-skills/steering/workflows/eks-build.md"
+expect_stderr "$H/.apex-skills/steering/workflows/new-skill.md"
 expect_stderr "Copy them out of ~/.apex-skills"
 expect_no_out "removing"
-cmp -s "$H/.apex-skills/steering/workflows/eks-build.md" "$WORK/DC1/eks-build.expected" || err "--update lost the edit in the clone"
+cmp -s "$H/.apex-skills/steering/workflows/new-skill.md" "$WORK/DC1/new-skill.expected" || err "--update lost the edit in the clone"
 [ "$(install_head)" = "$head_before" ] || err "--update moved the clone although it holds a changed file"
 # A file added in the clone where the new release has one: the checkout fails,
 # and the advice names the file instead of suggesting removing the clone.
@@ -2135,7 +2144,7 @@ expect_stdout "to add it, run npx apex-skills --version $MID_TAG (without --upda
 run_cli --version "$MID_TAG"
 expect_rc 0
 [ "$(install_head)" = "$(commit_of "$MID_TAG")" ] || err "following the hint moved the clone off $MID_TAG"
-[ -e "$H/.claude/apex-steering/workflows/eks-build.md" ] || err "following the hint did not add steering"
+[ -e "$H/.claude/apex-steering/workflows/new-skill.md" ] || err "following the hint did not add steering"
 H="$WORK/HN1/home-b"; mkdir -p "$H/.claude"
 run_cli --no-steering --branch main --claude-only
 expect_rc 0
@@ -2251,16 +2260,16 @@ run_cli --kiro-only
 expect_rc 0
 RUN_CWD="$H/proj" run_cli --project --kiro-only
 expect_rc 0
-wf="$H/.kiro/steering/eks-build.md"
+wf="$H/.kiro/steering/new-skill.md"
 echo "my edit" >> "$wf"
-cp "$wf" "$WORK/MR1/eks-build.expected"
+cp "$wf" "$WORK/MR1/new-skill.expected"
 MF="$(manifest_of)"
 cp "$MF" "$WORK/MR1/manifest.expected"
 [ "$(mfq "$MF" 'Object.keys(m.bases).length')" = 2 ] || err "setup: expected 2 install bases in the manifest"
 mr_links="$(links_into_install "$H/.kiro/skills") $(links_into_install "$H/proj/.kiro/skills")"
 mr_head="$(install_head)"
 mr_check() { # <what ran>: nothing the manifest protects changed
-  cmp -s "$wf" "$WORK/MR1/eks-build.expected" || err "$1 deleted or changed the edited eks-build.md"
+  cmp -s "$wf" "$WORK/MR1/new-skill.expected" || err "$1 deleted or changed the edited new-skill.md"
   [ "$(links_into_install "$H/.kiro/skills") $(links_into_install "$H/proj/.kiro/skills")" = "$mr_links" ] || err "$1 changed the skill links (global, project: $mr_links before)"
   [ "$(install_head)" = "$mr_head" ] || err "$1 moved the clone"
   [ ! -e "$MF.corrupt" ] || err "$1 renamed the manifest to manifest.json.corrupt"
@@ -2299,7 +2308,7 @@ mv "$WORK/MR1/manifest.saved" "$MF"
 [ "$(mfq "$MF" 'Object.keys(m.bases).length')" = 2 ] || err "a record was lost"
 run_cli --uninstall --kiro-only
 expect_rc 3
-cmp -s "$wf" "$WORK/MR1/eks-build.expected" || err "--uninstall after the manifest was readable again deleted the edited eks-build.md"
+cmp -s "$wf" "$WORK/MR1/new-skill.expected" || err "--uninstall after the manifest was readable again deleted the edited new-skill.md"
 [ "$(count_resolving_links "$H/proj/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "the project install lost skill links"
 finish_case
 
@@ -2312,7 +2321,7 @@ expect_stderr "permission denied"
 expect_no_out "EACCES"
 [ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Kiro skill links"
 [ "$(find "$H/.kiro/steering" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')" -eq "$WF_COUNT" ] || err "expected $WF_COUNT Kiro steering copies"
-[ -e "$H/.claude/apex-steering/workflows/eks-build.md" ] || err "Claude steering was not installed"
+[ -e "$H/.claude/apex-steering/workflows/new-skill.md" ] || err "Claude steering was not installed"
 chmod 755 "$H/.claude/skills"
 run_cli --update
 expect_rc 0
@@ -2323,7 +2332,7 @@ chmod 555 "$H/.kiro/steering"
 run_cli --kiro-only
 expect_rc 3
 expect_stderr "permission denied"
-expect_stderr "steering/eks-build.md$"
+expect_stderr "steering/new-skill.md$"
 [ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Kiro skill links with a read-only steering dir"
 chmod 755 "$H/.kiro/steering"
 finish_case
@@ -2424,7 +2433,7 @@ expect_rc 0
 [ "$(links_into_install "$H/.kiro/skills")" -eq 0 ] || err "--uninstall --kiro-only left $(links_into_install "$H/.kiro/skills") Kiro skill links"
 [ "$(find "$H/.kiro/steering" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ] || err "--uninstall --kiro-only left Kiro steering copies"
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "--uninstall --kiro-only removed Claude skill links ($(count_resolving_links "$H/.claude/skills") of $LATEST_COUNT left)"
-[ -e "$H/.claude/apex-steering/workflows/eks-build.md" ] || err "--uninstall --kiro-only removed ~/.claude/apex-steering"
+[ -e "$H/.claude/apex-steering/workflows/new-skill.md" ] || err "--uninstall --kiro-only removed ~/.claude/apex-steering"
 [ -e "$H/.claude/commands/apex/eks.md" ] || err "--uninstall --kiro-only removed ~/.claude/commands/apex"
 us_areas="$(mfq "$(manifest_of)" 'Object.keys(((m.bases[b] || {}).areas) || {}).sort().join(",")')"
 [ "$us_areas" = "claude-skills,claude-steering" ] || err "the record should keep only the Claude areas, has: $us_areas"
@@ -2491,7 +2500,7 @@ if git -C "$REPO_ROOT" cat-file -e "$OLD_REV:misc/installer/bin/cli.mjs" 2>/dev/
   RUN_CLI="$old/bin/cli.mjs" run_cli --kiro-only
   expect_rc 0
   [ "$(install_branch)" = main ] || err "setup: the old installer's clone is not on main"
-  [ -L "$H/.kiro/steering/eks-build.md" ] || err "setup: the old installer did not link the Kiro workflows"
+  [ -L "$H/.kiro/steering/new-skill.md" ] || err "setup: the old installer did not link the Kiro workflows"
   [ -e "$H/.claude/skills/$MAIN_SKILL" ] || err "setup: the old install lacks the main-only $MAIN_SKILL"
   run_cli --update
   expect_rc 0
@@ -2501,7 +2510,7 @@ if git -C "$REPO_ROOT" cat-file -e "$OLD_REV:misc/installer/bin/cli.mjs" 2>/dev/
   default_skill_checks "$H/.kiro/skills"
   d="$(dangling_links "$H/.claude/skills") $(dangling_links "$H/.kiro/skills") $(dangling_links "$H/.claude/commands") $(dangling_links "$H/.kiro/steering")"
   [ -z "$(echo $d)" ] || err "dangling links after the upgrade: $(echo $d)"
-  if [ -L "$H/.kiro/steering/eks-build.md" ] || ! fm_manual "$H/.kiro/steering/eks-build.md"; then err "the Kiro workflow link was not replaced by a manual copy"; fi
+  if [ -L "$H/.kiro/steering/new-skill.md" ] || ! fm_manual "$H/.kiro/steering/new-skill.md"; then err "the Kiro workflow link was not replaced by a manual copy"; fi
   [ "$(cat "$H/.kiro/steering/mine.md")" = "my own steering" ] || err "the user's steering file changed"
   [ -d "$H/.claude/skills/my-skill" ] || err "the user's skill dir was removed"
   [ -f "$(manifest_of)" ] || err "the upgrade wrote no manifest"
@@ -2694,7 +2703,7 @@ expect_rc 0
 expect_stdout "Steering is off, as chosen at install (--no-steering or n): the Kiro copies are not updated and the Claude Code links follow the clone; $((2 + WF_COUNT)) steering entries from an earlier install are still recorded as installed (to remove them: --uninstall, then install with --no-steering)"
 expect_no_out "Steering stays off"
 [ "$(cd "$H" && find .claude .kiro | LC_ALL=C sort)" = "$ns_before" ] || err "--no-steering or --update added or removed paths: $(diff <(echo "$ns_before") <(cd "$H" && find .claude .kiro | LC_ALL=C sort) | head -n 5 | tr '\n' ' ')"
-[ -e "$H/.claude/apex-steering/workflows/eks-build.md" ] || err "~/.claude/apex-steering was removed"
+[ -e "$H/.claude/apex-steering/workflows/new-skill.md" ] || err "~/.claude/apex-steering was removed"
 [ "$(find "$H/.kiro/steering" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')" -eq "$WF_COUNT" ] || err "Kiro steering copies were removed"
 finish_case
 
@@ -2892,7 +2901,7 @@ cat > "$kd1_preload" <<'JS'
 const fs = require('fs');
 const write = fs.writeFileSync;
 fs.writeFileSync = (p, data, ...rest) => {
-  if (String(p).endsWith('/.kiro/steering/eks-build.md')) {
+  if (String(p).endsWith('/.kiro/steering/new-skill.md')) {
     write(p, String(data).slice(0, 10));
     const e = new Error('simulated ENOSPC: no space left on device'); e.code = 'ENOSPC'; throw e;
   }
@@ -2901,7 +2910,7 @@ fs.writeFileSync = (p, data, ...rest) => {
 require('module').syncBuiltinESMExports();
 JS
 # An up-to-date copy is not written again, so remove it: the update writes it.
-rm "$H/.kiro/steering/eks-build.md"
+rm "$H/.kiro/steering/new-skill.md"
 PRELOAD="$kd1_preload" run_cli --update --kiro-only
 expect_rc 1
 expect_stderr "simulated ENOSPC"
@@ -2916,7 +2925,7 @@ chmod 555 "$H/.kiro/steering"
 run_cli --uninstall --kiro-only
 expect_rc 3
 expect_stderr "Could not write or read $WF_COUNT path(s)"
-expect_stderr "steering/eks-build.md$"
+expect_stderr "steering/new-skill.md$"
 expect_no_out "not a recorded copy of a current workflow"
 chmod 755 "$H/.kiro/steering"
 finish_case
@@ -2968,7 +2977,7 @@ new_case KR1 "a read-only Kiro copy that already holds this release's text, as r
 mkdir -p "$H/.kiro"
 run_cli --kiro-only
 expect_rc 0
-kr1_f="$H/.kiro/steering/eks-build.md"
+kr1_f="$H/.kiro/steering/new-skill.md"
 chmod 444 "$kr1_f"
 run_cli --update --kiro-only
 expect_rc 0
@@ -2981,15 +2990,24 @@ new_case KM1 "recorded Kiro copies that lost their marker (one emptied, one repl
 mkdir -p "$H/.kiro"
 run_cli --kiro-only
 expect_rc 0
-km1_a="$H/.kiro/steering/eks-build.md"
-km1_b="$(find "$H/.kiro/steering" -maxdepth 1 -name '*.md' ! -name eks-build.md | LC_ALL=C sort | sed -n 1p)"
+km1_a="$H/.kiro/steering/new-skill.md"
 : > "$km1_a"
+run_cli --update --kiro-only
+expect_rc 3
+expect_stderr "Kept 1 path(s) the installer created that were changed since"
+expect_no_out "not created by this installer"
+[ ! -s "$km1_a" ] || err "the emptied copy was written again"
+# phase 2, a fresh HOME: the same copy replaced instead of emptied
+H="$WORK/KM1/home2"
+mkdir -p "$H/.kiro"
+run_cli --kiro-only
+expect_rc 0
+km1_b="$H/.kiro/steering/new-skill.md"
 echo "my own notes" > "$km1_b"
 run_cli --update --kiro-only
 expect_rc 3
-expect_stderr "Kept 2 path(s) the installer created that were changed since"
+expect_stderr "Kept 1 path(s) the installer created that were changed since"
 expect_no_out "not created by this installer"
-[ ! -s "$km1_a" ] || err "the emptied copy was written again"
 [ "$(cat "$km1_b")" = "my own notes" ] || err "the replaced copy was written again"
 finish_case
 
