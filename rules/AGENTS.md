@@ -1,4 +1,4 @@
-# AWS & EKS Guidance
+# AWS, EKS & ECS Guidance
 
 - For EKS, ECS or APEX skill requests (including one that names a single
   skill), load the skill named exactly `apex` first if it is installed: it
@@ -16,11 +16,14 @@
   IAM access and CloudTrail-compatible audit logging. If unavailable,
   use the AWS CLI directly.
 - Prefer the EKS MCP Server for live cluster interactions: it provides
-  Kubernetes API access (read or write, depending on how the server is
-  configured), upgrade insights, and cluster discovery. If its tools are
-  missing, ask the user whether they are willing and interested to install
-  the EKS MCP Server: if yes, load the `eks-mcp-server` skill to set it up;
-  if no, use kubectl and the AWS CLI directly.
+  Kubernetes API access (the self-hosted server is read-only unless run
+  with `--allow-write`; the AWS-hosted server allows the write tools its
+  IAM policy grants unless run with `--read-only`), upgrade insights, and
+  cluster discovery. If its tools are missing, ask the user whether they
+  are willing and interested to install the EKS MCP Server: if yes, load
+  the `eks-mcp-server` skill to set it up; if no, use kubectl and the AWS
+  CLI directly, except for `eks-operation-review`, which needs the EKS MCP
+  server and stops at its pre-flight (its runbook, Pre-flight Action 3).
 - When uncertain about specific AWS details (API parameters, permissions,
   limits, error codes), verify against documentation rather than guessing.
   State uncertainty explicitly if you cannot confirm.
