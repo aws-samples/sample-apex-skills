@@ -25,13 +25,12 @@
 # Apex-flavored deviations (deterministic edits applied at sync time):
 #
 # 1. steering/ -> references/ rename — Upstream's progressive-disclosure
-#    docs live under steering/, but apex already uses a top-level steering/
-#    directory at the repo root for workflow orchestration (different
-#    concept). To avoid the collision and align with the Anthropic skill
-#    spec's canonical name for "additional documentation agents read on
-#    demand," we rename the directory on copy and rewrite all internal
-#    cross-refs from `steering/` to `references/` inside SKILL.md and the
-#    11 progressive-disclosure files.
+#    docs live under steering/. Apex renames them to references/, the
+#    Anthropic skill spec's canonical name for additional documentation
+#    (this also avoided a clash with apex's former top-level steering/
+#    directory, removed in v2). We rename the directory on copy and
+#    rewrite all internal cross-refs from `steering/` to `references/`
+#    inside SKILL.md and the 11 progressive-disclosure files.
 #
 # 2. SKILL.md body path fix — Upstream's body says "Read and follow
 #    `.claude/commands/eks-operation-review.md`" — that path doesn't exist
@@ -218,7 +217,7 @@ SKILL_MD="$LOCAL_DIR/SKILL.md"
 # to point at apex's workflow, which lives in the apex skill's
 # runbooks/ folder (relative to this skill's folder, like references/).
 sed -i.bak \
-    's|`\.claude/commands/eks-operation-review\.md`|`../apex/runbooks/eks-operation-review/eks-operation-review.md`|g' \
+    's|`\.claude/commands/eks-operation-review\.md`|`../apex/runbooks/eks-operation-review/eks-operation-review.md` (relative to this skill'\''s folder)|g' \
     "$SKILL_MD"
 rm -f "$SKILL_MD.bak"
 
@@ -257,7 +256,7 @@ This skill is **vendored** from an upstream repo. Do not edit files here directl
 
 The sync script applies four deterministic edits to upstream content:
 
-1. **\`steering/\` -> \`references/\` rename.** Upstream's progressive-disclosure docs live under \`steering/\`, but apex already uses a top-level \`steering/\` directory at the repo root for workflow orchestration (different concept). The sync script renames the directory on copy and rewrites all internal cross-refs from \`steering/\` to \`references/\` inside \`SKILL.md\` and the 11 progressive-disclosure files. This aligns the layout with the Anthropic skill spec's canonical name for "additional documentation agents read on demand."
+1. **\`steering/\` -> \`references/\` rename.** Upstream's progressive-disclosure docs live under \`steering/\`. Apex renames them to \`references/\`, the Anthropic skill spec's canonical name for additional documentation (this also avoided a clash with apex's former top-level \`steering/\` directory, removed in v2). The sync script renames the directory on copy and rewrites all internal cross-refs from \`steering/\` to \`references/\` inside \`SKILL.md\` and the 11 progressive-disclosure files.
 
 2. **\`SKILL.md\` description block-scalar flattening.** Upstream uses YAML folded-scalar form (\`description: >\` followed by indented lines). Apex's catalog generator reads the same line as the key, so the catalog row would render just \`>\`. The sync flattens the block scalar to a single \`description: <one line>\` entry. Wording is preserved byte-for-byte; only the YAML representation changes.
 

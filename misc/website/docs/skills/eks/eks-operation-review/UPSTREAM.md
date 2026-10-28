@@ -29,7 +29,7 @@ This skill is **vendored** from an upstream repo. Do not edit files here directl
 
 The sync script applies four deterministic edits to upstream content:
 
-1. **`steering/` -> `references/` rename.** Upstream's progressive-disclosure docs live under `steering/`, but apex already uses a top-level `steering/` directory at the repo root for workflow orchestration (different concept). The sync script renames the directory on copy and rewrites all internal cross-refs from `steering/` to `references/` inside `SKILL.md` and the 11 progressive-disclosure files. This aligns the layout with the Anthropic skill spec's canonical name for "additional documentation agents read on demand."
+1. **`steering/` -> `references/` rename.** Upstream's progressive-disclosure docs live under `steering/`. Apex renames them to `references/`, the Anthropic skill spec's canonical name for additional documentation (this also avoided a clash with apex's former top-level `steering/` directory, removed in v2). The sync script renames the directory on copy and rewrites all internal cross-refs from `steering/` to `references/` inside `SKILL.md` and the 11 progressive-disclosure files.
 
 2. **`SKILL.md` description block-scalar flattening.** Upstream uses YAML folded-scalar form (`description: >` followed by indented lines). Apex's catalog generator reads the same line as the key, so the catalog row would render just `>`. The sync flattens the block scalar to a single `description: <one line>` entry. Wording is preserved byte-for-byte; only the YAML representation changes.
 
