@@ -7,17 +7,20 @@
   is not installed, use the matching skill directly; the router's extra
   rules are then not loaded, but the rules in this file still apply.
 - Before any task, check for a relevant AWS or APEX skill.
-  APEX skills are installed at `~/.claude/skills/` (Claude Code) or
-  `~/.kiro/skills/` (Kiro), or under `.claude/skills/` or `.kiro/skills/`
-  in the project for an `npx apex-skills@1.3.0 --project` install. Prefer skill
+  APEX skills are installed at `~/.claude/skills/` (Claude Code),
+  `~/.kiro/skills/` (Kiro) or `~/.agents/skills/` (Codex, by a manual copy),
+  or under `.claude/skills/` or `.kiro/skills/` in the project for an
+  `npx apex-skills@1.3.0 --project` install. Prefer skill
   guidance over general knowledge.
 - Prefer the AWS MCP Server for AWS interactions: it provides scoped
   IAM access and CloudTrail-compatible audit logging. If unavailable,
   use the AWS CLI directly.
 - Prefer the EKS MCP Server for live cluster interactions: it provides
   Kubernetes API access (read or write, depending on how the server is
-  configured), upgrade insights, and cluster discovery. If unavailable,
-  use kubectl and AWS CLI directly.
+  configured), upgrade insights, and cluster discovery. If its tools are
+  missing, ask the user whether they are willing and interested to install
+  the EKS MCP Server: if yes, load the `eks-mcp-server` skill to set it up;
+  if no, use kubectl and the AWS CLI directly.
 - When uncertain about specific AWS details (API parameters, permissions,
   limits, error codes), verify against documentation rather than guessing.
   State uncertainty explicitly if you cannot confirm.
