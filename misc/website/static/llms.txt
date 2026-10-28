@@ -15,20 +15,11 @@
 ```
 npx apex-skills@1.3.0
 ```
-
-### Claude Code
-```
-claude mcp add-from-apex-skills
-```
-
-### Kiro CLI
-```
-kiro skills add apex
-```
+Installs v1 (the `/apex:*` commands). The `apex` skill below needs the manual install from `main`.
 
 See the documentation site for full installation instructions.
 
-## Skills Catalog
+## Skills Catalog (partial: EKS and general skills only)
 
 - **apex**: Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context between skills and suggests next skills
 - **eks-best-practices**: EKS design, architecture, and configuration decisions — compute strategy, multi-tenant isolation, networking, IAM, security, cost, and observability
