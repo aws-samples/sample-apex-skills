@@ -44,7 +44,7 @@ Two scripts own deterministic regeneration. Detect staleness and re-run them. Ne
 
 | Surface | Stale when | Fix |
 |---|---|---|
-| Marker blocks (README.md, skills/README.md, devops-agent/README.md) | `./misc/update-all-references.sh --check` exits non-zero | `./misc/update-all-references.sh` |
+| Marker blocks (README.md, skills/README.md) | `./misc/update-all-references.sh --check` exits non-zero | `./misc/update-all-references.sh` |
 | Docusaurus wrappers, manifest, skills index | `./misc/update-pages.sh --check` exits non-zero | `./misc/update-pages.sh` |
 
 Run both `--check` commands. If either exits non-zero, re-run the corresponding script. In coding-agent mode, apply the changes directly. In chat-only mode, emit the fix command.
