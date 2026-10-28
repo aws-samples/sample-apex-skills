@@ -42,7 +42,6 @@ Composite scoring combines all layers via configurable weights in `.skilleval.ya
 | eks-platform-engineering | **A** | 98.8 | 100% (w=0.20) | 75% (w=0.05) | — | 100% (w=0.45) | 100% (w=0.30) |
 | eks-recon | **A** | 96.3 | 92% (w=0.15) | 100% (w=0.10) | 100% (w=0.30) | 100% (w=0.20) | 90% (w=0.25) |
 | eks-upgrade-check | **A** | 97.0 | 100% (w=0.25) | 80% (w=0.15) | — | 100% (w=0.35) | 100% (w=0.25) |
-| steering-workflow-creator | **D** | 64.9 | 88% (w=0.15) | 45% (w=0.15) | 50% (w=0.25) | 55% (w=0.25) | 94% (w=0.20) |
 | update-docs | **B** | 82.6 | 100% (w=0.20) | 62% (w=0.25) | — | 84% (w=0.30) | 88% (w=0.25) |
 
 > **—** = layer not applicable (skill has no artifact outputs). Weight is redistributed to other layers via `.skilleval.yaml`.
@@ -221,11 +220,7 @@ make triggering-eks-best-practices RUNS_PER_QUERY=1     # cheap iteration
 
 Contributors only need to author `triggering.json`. Maintainers run the full eval suite after merge.
 
-### Happy path — `/apex:new-skill`
-
-The workflow handles: scope intake → skill draft → sibling survey → repo fan-out → triggering.json scaffold → PR prep. Full spec at [`steering/workflows/new-skill.md`](../../steering/workflows/new-skill.md).
-
-### Manual path
+### Steps
 
 ```bash
 cd misc/evals
@@ -252,6 +247,5 @@ pip install pyyaml
 
 ## Reference
 
-- **Design doc**: [`DESIGN.md`](./DESIGN.md) — full 5-layer architecture
 - **Source mapping**: [`SOURCE-MAPPING.md`](./SOURCE-MAPPING.md) — research sources per layer
 - **Skill-creator schemas**: [`skills/skill-creator/references/schemas.md`](../../skills/skill-creator/references/schemas.md)

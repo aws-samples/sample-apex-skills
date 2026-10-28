@@ -2,12 +2,11 @@
 # update-pages.sh
 #
 # Generates Docusaurus wrappers for every tracked *.md under skills/,
-# steering/, examples/, and devops-agent/ into misc/website/docs/, plus
+# examples/, and devops-agent/ into misc/website/docs/, plus
 # manifests consumed by the homepage SkillGrid and examples grid.
 #
 # Inputs (sources of truth):
 #   skills/**/*.md        (except skills/README.md — marker-generated)
-#   steering/**/*.md
 #   examples/**/*.md      (README.md → index.md wrappers)
 #   examples/**/*.html    (copied to static/)
 #   examples/**/*.png     (copied to static/)
@@ -17,7 +16,6 @@
 #   misc/website/docs/skills/<group>/<name>/index.md       wrapper for SKILL.md
 #   misc/website/docs/skills/<group>/<name>/<sub>/<f>.md   wrapper for sub-files
 #   misc/website/docs/skills/index.md              card grid (overwritten)
-#   misc/website/docs/steering/<rel-path>.md       wrappers for steering
 #   misc/website/docs/examples/<path>/index.md     wrapper for README.md
 #   misc/website/docs/examples/index.md            card grid (overwritten)
 #   misc/website/static/examples/                  .html + .png assets
@@ -26,8 +24,6 @@
 #   misc/website/docs/devops-agent/index.md          listing page (overwritten)
 #   misc/website/static/manifests/skills.json
 #   misc/website/static/manifests/examples.json
-#
-# misc/website/docs/steering/index.md is HAND-WRITTEN and never touched.
 #
 # Usage:
 #   ./misc/update-pages.sh              # regenerate in place
@@ -63,7 +59,6 @@ python3 -c 'import yaml' 2>/dev/null || {
 }
 
 SKILLS_OUT="$REPO_ROOT/misc/website/docs/skills"
-STEERING_OUT="$REPO_ROOT/misc/website/docs/steering"
 EXAMPLES_OUT="$REPO_ROOT/misc/website/docs/examples"
 MANIFEST="$REPO_ROOT/misc/website/static/manifests/skills.json"
 EXAMPLES_MANIFEST="$REPO_ROOT/misc/website/static/manifests/examples.json"
@@ -78,7 +73,6 @@ GH_BASE="https://github.com/aws-samples/sample-apex-skills/blob/main"
 # Files this script may touch — the blast radius of --check.
 TOUCHED_PATHS=(
   "misc/website/docs/skills"
-  "misc/website/docs/steering"
   "misc/website/docs/examples"
   "misc/website/docs/devops-agent"
   "misc/website/static/manifests"
@@ -238,11 +232,11 @@ def rewrite(m):
 
     if resolved.startswith(".."):
         return f"[{text}]({GH_BASE}/{target}{query}{anchor})"
-    if not resolved.startswith(("skills/", "steering/", "examples/", "devops-agent/")):
+    if not resolved.startswith(("skills/", "examples/", "devops-agent/")):
         return f"[{text}]({GH_BASE}/{resolved}{query}{anchor})"
     if not target.endswith(".md"):
         return f"[{text}]({GH_BASE}/{resolved}{query}{anchor})"
-    # .md links within skills/steering/examples — rewrite for Docusaurus
+    # .md links within skills/examples/devops-agent: rewrite for Docusaurus
     if os.path.basename(resolved) == "SKILL.md":
         resolved = os.path.join(os.path.dirname(resolved), "index.md")
     elif os.path.basename(resolved) == "README.md" and resolved.startswith("examples/"):
@@ -280,6 +274,12 @@ def rewrite(m):
         new_target = new_target[:-5]
     elif new_target == "index":
         new_target = "."
+    else:
+        # A doc named like its folder (<dir>/<dir>.md) is the index page
+        # of that folder in Docusaurus, so link to the folder.
+        parent, leaf = os.path.split(new_target)
+        if parent and leaf == os.path.basename(parent):
+            new_target = parent + "/"
     return f"[{text}]({new_target}{query}{anchor})"
 
 for line in sys.stdin:
@@ -430,9 +430,6 @@ compute_out_path() {
     local group
     group="$(classify_skill "$skill_name")"
     echo "$SKILLS_OUT/$group/$rel"
-  elif [[ "$src" == steering/* ]]; then
-    local rel="${src#steering/}"
-    echo "$STEERING_OUT/$rel"
   elif [[ "$src" == examples/*/README.md ]]; then
     local rel="${src#examples/}"
     rel="${rel%/README.md}"
@@ -801,11 +798,10 @@ if [[ "$MODE" == "dry-run" ]]; then
   echo "=== DRY RUN — would write the following ==="
 fi
 
-# Collect all tracked .md under skills/ and steering/
-mapfile -t ALL_MD < <(git ls-files -- 'skills/**/*.md' 'steering/*.md' 'steering/**/*.md' 'examples/**/*.md' 'devops-agent/**/*.md')
+# Collect all tracked .md under skills/, examples/ and devops-agent/
+mapfile -t ALL_MD < <(git ls-files -- 'skills/**/*.md' 'examples/**/*.md' 'devops-agent/**/*.md')
 
 declare -a EXPECTED_SKILL_FILES=("index.md" "ecs/index.md")
-declare -a EXPECTED_STEERING_FILES=("index.md")
 declare -a EXPECTED_EXAMPLES_FILES=("index.md")
 declare -a EXPECTED_DEVOPS_FILES=("index.md")
 
@@ -821,8 +817,6 @@ for src in "${ALL_MD[@]}"; do
   # Track expected file for cleanup
   if [[ "$src" == skills/* ]]; then
     EXPECTED_SKILL_FILES+=("${out_file#"$SKILLS_OUT"/}")
-  elif [[ "$src" == steering/* ]]; then
-    EXPECTED_STEERING_FILES+=("${out_file#"$STEERING_OUT"/}")
   elif [[ "$src" == examples/* ]]; then
     EXPECTED_EXAMPLES_FILES+=("${out_file#"$EXAMPLES_OUT"/}")
   elif [[ "$src" == devops-agent/* ]]; then
@@ -994,7 +988,6 @@ copy_examples_static
 # --- Stale-wrapper cleanup (only in real-write mode, not --check) ---
 if [[ "$MODE" == "run" ]]; then
   cleanup_stale_tree "$SKILLS_OUT" "${EXPECTED_SKILL_FILES[@]}"
-  cleanup_stale_tree "$STEERING_OUT" "${EXPECTED_STEERING_FILES[@]}"
   cleanup_stale_tree "$EXAMPLES_OUT" "${EXPECTED_EXAMPLES_FILES[@]}"
   cleanup_stale_tree "$DEVOPS_OUT" "${EXPECTED_DEVOPS_FILES[@]}"
 fi
@@ -1030,19 +1023,17 @@ if [[ "$MODE" == "check" ]]; then
     echo "Fix: run ./misc/update-pages.sh locally, commit the result."
     exit 1
   fi
-  echo "✓ Docusaurus wrappers + manifests are in sync with skills/, steering/, examples/, and devops-agent/"
+  echo "✓ Docusaurus wrappers + manifests are in sync with skills/, examples/, and devops-agent/"
   exit 0
 fi
 
 # --- Run mode summary ---
 skill_count="$(find "$SKILLS_OUT" -name '*.md' | wc -l)"
-steering_count="$(find "$STEERING_OUT" -name '*.md' | wc -l)"
 examples_count="$(find "$EXAMPLES_OUT" -name '*.md' | wc -l)"
 devops_count="$(find "$DEVOPS_OUT" -name '*.md' 2>/dev/null | wc -l)"
 examples_static_count="$(find "$EXAMPLES_STATIC" -type f 2>/dev/null | wc -l)"
 echo "✅ Generated Docusaurus wrappers and manifests:"
 echo "   Skills:      $skill_count files in misc/website/docs/skills/"
-echo "   Steering:    $steering_count files in misc/website/docs/steering/"
 echo "   Examples:    $examples_count files in misc/website/docs/examples/"
 echo "   DevOps Agent: $devops_count files in misc/website/docs/devops-agent/"
 echo "   Static:      $examples_static_count files in misc/website/static/examples/"

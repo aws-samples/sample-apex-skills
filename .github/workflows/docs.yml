@@ -8,7 +8,7 @@ on:
       - "misc/website/**"
       - "misc/update-pages.sh"
       - "skills/**/SKILL.md"
-      - "steering/**"
+      - "skills/apex/runbooks/**"
       - "examples/**/README.md"
       - "devops-agent/**"
       - ".github/workflows/docs.yml"

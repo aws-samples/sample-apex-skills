@@ -34,19 +34,19 @@ npx apex-skills --help                # See all options
 
 If you prefer not to use npx, clone the repo and copy skills directly.
 
+**Upgrading a v1 manual install:** remove `~/.claude/commands/apex` and `~/.claude/apex-steering` (links into `steering/`, which v2 removes) and the APEX workflow files you copied into `~/.kiro/steering/`; the `/apex:<name>` commands are replaced by `/apex`.
+
 ### Claude Code
 
 ```bash
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-mkdir -p ~/.claude/skills ~/.claude/commands
+mkdir -p ~/.claude/skills
 cp -r skills/* ~/.claude/skills/
-ln -sfn "$(pwd)/steering/commands/apex" ~/.claude/commands/apex
-ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
-Restart Claude Code; skills become available via `/<skill-name>` and steering via `/apex:*`.
+Restart Claude Code; skills become available via `/<skill-name>`. With this manual install (from `main`), start with `/apex`: it routes your request to the right skill.
 
 ### Kiro CLI
 
@@ -54,12 +54,23 @@ Restart Claude Code; skills become available via `/<skill-name>` and steering vi
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-mkdir -p ~/.kiro/skills ~/.kiro/steering
+mkdir -p ~/.kiro/skills
 cp -r skills/* ~/.kiro/skills/
-cp steering/workflows/*.md ~/.kiro/steering/
 ```
 
-Files copied this way load into every Kiro interaction; add `inclusion: manual` frontmatter or use `npx apex-skills`.
+**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Tested on Kiro CLI 2.35.1 (2026-10-28); Kiro CLI 1.27.0 rejected `/apex`.
+
+### Codex
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.agents/skills
+cp -r skills/* ~/.agents/skills/
+```
+
+**Usage:** in Codex, type `$apex` with your request, for example *"$apex plan my EKS upgrade"*. Codex reads skills from `~/.agents/skills` (and a repository's `.agents/skills`); the installer does not set up Codex.
 
 ### Other Agent Harnesses
 
@@ -115,4 +126,4 @@ See [`rules/AGENTS.md`](https://github.com/aws-samples/sample-apex-skills/blob/m
 ## Next steps
 
 - Browse the [Skills](./skills) catalog.
-- Try a [Steering](./steering) workflow for a phased engagement.
+- With a manual install from `main`, start with the [APEX router](./skills/general/apex) skill for a phased engagement: it routes to the right skill and its runbook.

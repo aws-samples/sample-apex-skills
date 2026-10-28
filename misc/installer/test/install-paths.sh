@@ -5,8 +5,9 @@
 # Every case runs the installer with HOME (and USERPROFILE) pointed at a fresh
 # directory under a scratch work dir, so the real ~/.claude, ~/.kiro and
 # ~/.apex-skills are never touched. The installer clones from a local fixture
-# repository (built from this checkout's skills/ and steering/) through the
-# APEX_SKILLS_REPO_URL override, so no network access is needed.
+# repository (built from this checkout's skills/ and the steering/ of HEAD or,
+# once HEAD has none, of the last tree that had it: see STEERING_SRC below)
+# through the APEX_SKILLS_REPO_URL override, so no network access is needed.
 #
 # Each installer run (run_cli) gets a scrubbed environment (env -i plus PATH,
 # HOME, the fixture URL and hermetic git settings; no XDG_*, CLAUDE_CONFIG_DIR
@@ -2886,6 +2887,7 @@ chmod 555 "$H/.kiro/steering"
 run_cli --version "$V2_TAG" --kiro-only
 expect_rc 3
 expect_stderr "permission denied"
+expect_no_out "type / to list the APEX workflows"
 chmod 755 "$H/.kiro/steering"
 run_cli --uninstall --kiro-only
 expect_rc 0

@@ -2,7 +2,7 @@
 # update-all-references.sh
 #
 # Thin orchestrator: runs every auto-gen script that rebuilds marker-delimited
-# blocks in the repo's docs (Skills/Steering/Examples reference tables in
+# blocks in the repo's docs (Skills/Examples reference tables in
 # README.md + skills/README.md). One entry point so contributors and CI don't
 # have to remember which script owns which block.
 #
@@ -30,7 +30,6 @@ cd "$REPO_ROOT"
 
 SCRIPTS=(
   "misc/update-skills-references.sh"
-  "misc/update-steering-references.sh"
   "misc/update-examples-references.sh"
   "misc/update-devops-agent-references.sh"
 )
@@ -64,5 +63,5 @@ if [[ "$MODE" == "check" ]]; then
     echo "Fix: run ./misc/update-all-references.sh locally, commit the result."
     exit 1
   fi
-  echo "✓ docs are in sync with skills/, steering/, examples/"
+  echo "✓ docs are in sync with skills/, examples/, devops-agent/"
 fi

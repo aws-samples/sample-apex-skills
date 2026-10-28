@@ -48,7 +48,7 @@ function ValueProps() {
           </p>
         </div>
         <div className="apex-values__item">
-          <h3>Phased steering workflows</h3>
+          <h3>Guided runbooks</h3>
           <p>
             Combine skills into ordered sequences with guardrails, tool routing,
             and handoff criteria. The agent follows a structured path through
@@ -166,8 +166,8 @@ function CtaSection() {
         <Link className="apex-cta-section__link apex-cta-section__link--primary" to="/docs/skills">
           Browse Skills →
         </Link>
-        <Link className="apex-cta-section__link apex-cta-section__link--secondary" to="/docs/steering">
-          Steering Workflows →
+        <Link className="apex-cta-section__link apex-cta-section__link--secondary" to="/docs/skills/general/apex">
+          APEX Router and Runbooks →
         </Link>
       </div>
     </section>

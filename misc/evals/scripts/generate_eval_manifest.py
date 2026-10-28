@@ -12,7 +12,7 @@ REPO_ROOT = EVALS_ROOT.parent.parent
 OUTPUT_PATH = REPO_ROOT / "misc" / "website" / "static" / "manifests" / "evals.json"
 
 ALL_LAYERS = ("triggering", "process", "artifact", "knowledge", "quality")
-EXCLUDED_SKILLS = {"update-docs", "steering-workflow-creator"}
+EXCLUDED_SKILLS = {"update-docs"}
 
 
 def round1(val: float | None) -> float | None:
