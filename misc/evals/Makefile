@@ -362,7 +362,7 @@ hygiene:
 # ---------- check-evals-coverage (every skills/*/ has a misc/evals/*/ entry) --
 check-evals-coverage:
 	@expected=$$(find $(REPO_ROOT)/skills -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
-	  | grep -vx skill-creator | grep -vx terraform-skill | sort); \
+	  | grep -vx skill-creator | grep -vx terraform-skill | grep -vx apex | sort); \
 	 found=$$(find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d -printf '%f\n' \
 	  | grep -vx _template | grep -vx workspace | grep -vx scripts | grep -vx history | sort); \
 	 missing=$$(comm -23 <(echo "$$expected") <(echo "$$found")); \

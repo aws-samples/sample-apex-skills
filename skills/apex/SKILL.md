@@ -96,7 +96,7 @@ Use the stage only as a hint: to break a tie between two equally specific rows (
 | Create or improve a skill, run its evals, tune its description | `skill-creator`, then the new-skill steps in CONTRIBUTING.md (sibling map, triggering.json, catalogues) |
 | Update, sync or check the repo docs after a skill change | `update-docs` |
 
-`steering-workflow-creator` gets no row and no family cell: for an ask to author a steering workflow or runbook, say so and ask one clarifying question rather than routing to a catch-all.
+An ask to author a runbook gets no row: say that runbooks live in this skill's `runbooks/<skill>/` folders and are written by hand (CONTRIBUTING.md, Creating a New Runbook), then ask one clarifying question rather than routing to a catch-all.
 
 ## Hand-offs and next skills
 
@@ -149,7 +149,7 @@ These rules apply to every run this router starts, alongside the routed skill's 
 | # | rule |
 |---|---|
 | 1 | Assessment, audit and recon runs are read-only against the account and cluster: read verbs only (for example `aws ... describe-*` and `list-*`, `kubectl get`, `kubectl auth can-i`, `helm list`, MCP reads (read tools only, even when the server runs with `--allow-write`)) and a report. Local kubeconfig setup the skill prescribes (`aws eks update-kubeconfig`) is allowed; it writes the local kubeconfig (default `~/.kube/config`) and switches its current-context. Remediation snippets in a report are for the user to run: never execute them during the assessment. A skill's own read-only rule may be stricter; it wins. The user decides what to do with the findings. |
-| 2 | MCP is opt-in; APEX ships no project-root `.mcp.json`. If the user wants live cluster reads and the Amazon EKS MCP Server tools fail or are missing, use `eks-mcp-server`. For the Arm migration MCP server, use `graviton-migration`. `eks-upgrade-check` and `eks-cost-intelligence` run on AWS CLI and kubectl by default (MCP optional); `eks-recon` falls back to them with the user's permission and `eks-ingress-migration` where possible; `eks-well-architected-review` uses only them; `eks-operation-review` needs the EKS MCP server configured. |
+| 2 | MCP is opt-in; APEX ships no project-root `.mcp.json`. If the user wants live cluster reads and the Amazon EKS MCP Server tools fail or are missing, ask whether they are willing and interested to install the EKS MCP Server: if yes, load `eks-mcp-server`; if no, fall back to kubectl and the AWS CLI. For the Arm migration MCP server, use `graviton-migration`. `eks-upgrade-check` and `eks-cost-intelligence` run on AWS CLI and kubectl by default (MCP optional); `eks-recon` falls back to them with the user's permission and `eks-ingress-migration` where possible; `eks-well-architected-review` uses only them; `eks-operation-review` needs the EKS MCP server configured. |
 | 3 | Auth default for EKS workloads: EKS Pod Identity (AWS recommends it whenever possible). IRSA is the alternative: use it where Pod Identity is not available (Fargate, Windows nodes, Outposts, EKS Anywhere, self-managed Kubernetes on EC2, an AWS SDK too old for Pod Identity) or where the install path needs it (Helm add-ons installed via eks-blueprints-addons). |
 | 4 | Never create, change or delete anything in the user's AWS account or cluster without explicit user confirmation first (for example tagging a resource, node drain, cluster delete, force eviction). |
 | 5 | Never output secrets, credentials or kubeconfig contents. |
