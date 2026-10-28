@@ -1,4 +1,4 @@
-"""Offline issue229 fixtures for the maintained metadata extractor and lane contract.
+"""Offline GitOps fixtures for the metadata extractor and runtime schema.
 
 Expected values are hand-authored from the documented Argo tracking format and
 Flux Kustomization labels. These tests do not prove live reconciliation or a
@@ -92,16 +92,17 @@ class TrackingFixtures(unittest.TestCase):
         self.assertIsNone(result["evidence"][0]["tool"])
         self.assertEqual(result["evidence"][0]["strength"], "ambiguous")
 
-    def test_declared_default_label_still_ambiguous(self):
+    def test_user_confirmed_default_label_tracking(self):
         result = collect(resource(labels={signals.INSTANCE_LABEL: "shop"}), key=signals.INSTANCE_LABEL)
-        self.assertEqual(result["tools_with_tracking"], [])
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertEqual(result["evidence"][0]["signal"], "configured_tracking_label")
         self.assertEqual(len(result["evidence"]), 1)
 
     def test_annotation_plus_shared_label(self):
         result = collect(resource(labels={signals.INSTANCE_LABEL: "shop"},
                                   annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}))
         self.assertEqual(result["tools_with_tracking"], ["argocd"])
-        self.assertEqual({e["strength"] for e in result["evidence"]}, {"specific", "ambiguous"})
+        self.assertEqual({e["strength"] for e in result["evidence"]}, {"specific"})
 
     def test_confirmed_custom_label(self):
         result = collect(resource(labels={"team.example/argo": "shop"}), key="team.example/argo")
@@ -113,17 +114,93 @@ class TrackingFixtures(unittest.TestCase):
         self.assertEqual(result["tools_with_tracking"], [])
         self.assertEqual(result["evidence"], [])
 
-    def test_supplied_shared_or_unqualified_key_stays_ambiguous(self):
+    def test_explicit_tracking_key_is_not_rejected_by_prefix(self):
+        # A target-linked user statement is the provenance, not the key spelling.
         for key in ("app.kubernetes.io/name", "helm.sh/chart", "argocd-instance"):
             with self.subTest(key=key):
                 result = collect(resource(labels={key: "ordinary-value"}), key=key)
-                self.assertEqual(result["tools_with_tracking"], [])
-                self.assertEqual(result["evidence"][0]["strength"], "ambiguous")
-                self.assertIsNone(result["evidence"][0]["tool"])
+                self.assertEqual(result["tools_with_tracking"], ["argocd"])
+                self.assertEqual(result["evidence"][0]["strength"], "specific")
+                self.assertEqual(result["evidence"][0]["key"], key)
+                self.assertEqual(collect(resource(labels={key: "ordinary-value"}))["tools_with_tracking"], [])
 
-    def test_supplied_flux_key_does_not_infer_argo(self):
+    def test_explicit_colliding_key_preserves_both_tools(self):
         result = collect(resource(labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"}), key=signals.FLUX_NAME)
+        self.assertEqual(result["tools_with_tracking"], ["argocd", "flux"])
+
+    def test_argo_annotation_corroborates_only_same_resource_label(self):
+        annotation = {"argocd.argoproj.io/sync-options": "ServerSideApply=true"}
+        label = {signals.INSTANCE_LABEL: "shop"}
+        for custom_key in (None, "example.com/instance"):
+            with self.subTest(custom_key=custom_key):
+                matched = collect(resource(labels=label, annotations=annotation), key=custom_key)
+                self.assertEqual(matched["tools_with_tracking"], ["argocd"])
+                self.assertEqual(matched["evidence"][0]["corroboration"],
+                                 {"key": "argocd.argoproj.io/sync-options", "value": "present"})
+                separate = collect(resource(labels=label), resource(name="other", annotations=annotation), key=custom_key)
+                self.assertEqual(separate["tools_with_tracking"], [])
+                self.assertEqual(collect(resource(annotations=annotation), key=custom_key)["tools_with_tracking"], [])
+                self.assertEqual(collect(resource(labels=label), key=custom_key)["tools_with_tracking"], [])
+
+
+    def test_standalone_argo_annotation_is_ambiguous_and_private(self):
+        key = "argocd.argoproj.io/sync-wave"
+        marker = "PRIVATE_ANNOTATION_VALUE"
+        for extra in ({}, {signals.ARGO_TRACKING: "invalid"}):
+            with self.subTest(extra=extra):
+                result = collect(resource(annotations={key: marker, **extra}))
+                self.assertEqual(result["tools_with_tracking"], [])
+                weak = [e for e in result["evidence"] if e["signal"] == "unverified_argocd_annotation"]
+                self.assertEqual(len(weak), 1)
+                self.assertEqual((weak[0]["key"], weak[0]["value"], weak[0]["strength"]),
+                                 (key, "present", "ambiguous"))
+                self.assertNotIn(marker, json.dumps(result))
+        positive = collect(resource(labels={"my-key": "shop"}, annotations={key: marker}), key="my-key")
+        self.assertEqual(positive["tools_with_tracking"], ["argocd"])
+
+    def test_many_standalone_annotation_keys_are_bounded_and_keep_late_positive(self):
+        items = [resource(name=f"web-{i}", annotations={f"argocd.argoproj.io/key-{i}": "private"})
+                 for i in range(1000)]
+        items.append(resource(name="last", labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"}))
+        result = collect(*items)
+        self.assertEqual(result["resources_scanned"], 1001)
         self.assertEqual(result["tools_with_tracking"], ["flux"])
+        self.assertEqual(len(result["evidence"]), 4)
+        self.assertTrue(result["evidence_sampled"])
+        self.assertLess(len(json.dumps(result)), 5000)
+        self.assertNotIn("private", json.dumps(result))
+
+    def test_invalid_tracking_does_not_corroborate_shared_label(self):
+        for value in ("copied:apps/Deployment:other/web", "malformed", "", " ", 42):
+            with self.subTest(value=value):
+                result = collect(resource(labels={signals.INSTANCE_LABEL: "shop"},
+                                          annotations={signals.ARGO_TRACKING: value}))
+                self.assertEqual(result["tools_with_tracking"], [])
+
+    def test_empty_or_nonstring_argo_annotation_does_not_corroborate(self):
+        for value in ("", " ", None, 42, {}):
+            with self.subTest(value=value):
+                result = collect(resource(labels={signals.INSTANCE_LABEL: "shop"},
+                                          annotations={"argocd.argoproj.io/sync-wave": value}))
+                self.assertEqual(result["tools_with_tracking"], [])
+
+    def test_unrelated_metadata_values_are_not_disclosed(self):
+        marker = "PRIVATE_CONFIGMAP_BODY"
+        item = resource(labels={signals.INSTANCE_LABEL: "shop", "internal-data": marker}, annotations={
+            "kubectl.kubernetes.io/last-applied-configuration": marker,
+            "argocd.argoproj.io/sync-options": marker,
+            "private.example/notes": marker})
+        result = collect(item)
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertNotIn(marker, json.dumps(result))
+
+    def test_many_corroborating_keys_do_not_expand_sample_groups(self):
+        items = [resource(name=f"web-{i}", labels={signals.INSTANCE_LABEL: "shop"},
+                          annotations={f"argocd.argoproj.io/key-{i}": "present"}) for i in range(1000)]
+        result = collect(*items)
+        self.assertEqual(result["resources_scanned"], 1000)
+        self.assertEqual(len(result["evidence"]), 3)
+        self.assertTrue(result["evidence_sampled"])
 
     def test_metadata_only_identity_requires_request_context(self):
         item = resource("PartialObjectMetadata", "meta.k8s.io/v1",
@@ -248,10 +325,41 @@ class TrackingFixtures(unittest.TestCase):
         self.assertEqual(result["evidence"][0]["value"], {"name": "apps", "namespace": None})
         self.assertLess(len(json.dumps(result)), 3000)
 
-    def test_non_string_tracking_annotation_warns(self):
-        result = collect(resource(annotations={signals.ARGO_TRACKING: 123}))
-        self.assertEqual(result["warning_count"], 1)
-        self.assertEqual(result["tools_with_tracking"], [])
+    def test_empty_or_non_string_tracking_annotation_warns(self):
+        self.assertEqual(collect(resource())["warning_count"], 0)
+        for value in ("", " ", 123, None, {}):
+            with self.subTest(value=value):
+                result = collect(resource(annotations={signals.ARGO_TRACKING: value}))
+                self.assertEqual(result["warning_count"], 1)
+                self.assertEqual(result["tools_with_tracking"], [])
+                positive = collect(resource(
+                    annotations={signals.ARGO_TRACKING: value},
+                    labels={"appInstance": "shop", signals.FLUX_NAME: "apps",
+                            signals.FLUX_NAMESPACE: "hub"}), key="appInstance")
+                self.assertEqual(positive["tools_with_tracking"], ["argocd", "flux"])
+
+    def test_malformed_signal_values_cannot_look_like_clean_no_match(self):
+        for key in (signals.INSTANCE_LABEL, signals.FLUX_NAME, signals.FLUX_NAMESPACE, "my-argo-key"):
+            for value in (None, [], {}, 42):
+                with self.subTest(key=key, value=value):
+                    result = collect(resource(labels={key: value}), key=key if key == "my-argo-key" else None)
+                    self.assertGreater(result["warning_count"], 0)
+                    self.assertEqual(result["tools_with_tracking"], [])
+        both = collect(resource(labels={signals.FLUX_NAME: [], signals.FLUX_NAMESPACE: 42}))
+        self.assertGreater(both["warning_count"], 0)
+
+    def test_malformed_label_does_not_erase_other_positive(self):
+        result = collect(resource(labels={signals.INSTANCE_LABEL: {}},
+                                  annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}))
+        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertGreater(result["warning_count"], 0)
+
+    def test_malformed_corroborating_annotation_warns(self):
+        for value in (None, 42, {}):
+            with self.subTest(value=value):
+                result = collect(resource(annotations={"argocd.argoproj.io/sync-wave": value}))
+                self.assertEqual(result["warning_count"], 1)
+                self.assertEqual(result["tools_with_tracking"], [])
 
     def test_invalid_inventory_is_not_empty_success(self):
         for value in (None, [], {}, {"items": None}, {"items": {}}):
@@ -271,6 +379,13 @@ class TrackingFixtures(unittest.TestCase):
 
 
 class CliAndContract(unittest.TestCase):
+    def test_cli_user_supplied_unprefixed_tracking_key(self):
+        item = resource(labels={"argocd-instance": "shop"})
+        result = subprocess.run([sys.executable, str(SCRIPT), "-", "--argocd-instance-label-key", "argocd-instance"],
+                                input=json.dumps({"items": [item]}), capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["tools_with_tracking"], ["argocd"])
+
     def test_cli_cluster_scope_context(self):
         item = resource("Namespace", "v1", "", "team", annotations={signals.ARGO_TRACKING: "shop:/Namespace:destination/team"})
         result = subprocess.run([sys.executable, str(SCRIPT), "-", "--cluster-scoped"], input=json.dumps({"items": [item]}), capture_output=True, text=True)
@@ -310,6 +425,11 @@ class CliAndContract(unittest.TestCase):
             for field in ("    tool: string", "    status: string", "    detected: bool | null",
                           "    tools_detected: list", "    evidence: list"):
                 self.assertIn(field, gitops)
+            for field in ("detected: bool | null", "namespace: string | null", "version: string | null",
+                          "eks_managed: bool | null", "applications: int | null",
+                          "git_repositories: int | null", "kustomizations: int | null"):
+                self.assertIn("      " + field, gitops)
+            self.assertIn("not_observed", gitops)
             schemas.append([line.split("#", 1)[0].rstrip() for line in gitops.splitlines() if line.split("#", 1)[0].strip()])
         self.assertEqual(schemas[0], schemas[1])
 

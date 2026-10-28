@@ -37,34 +37,16 @@ python3 misc/tests/test_eks_recon_gitops.py -v
 ```
 
 Run from the repository root with Python 3; no cloud credentials or model calls
-are required. The shipped, hand-authored fixtures exercise the maintained
-`scripts/gitops_signals.py` extractor: self-referencing Argo annotations (including
-core and cluster-scoped resources), copied/malformed annotations, ambiguous
-instance labels, confirmed/unknown/shared custom label keys, metadata-only request identity,
-Flux label pairs, mixed
-tools, UTF-8 stdin, missing/malformed input, and failed-read handling. Scale fixtures
-include 2,001 resources with a late Flux signal, large annotation values and 1,000
-malformed entries; they check full-input classification with bounded examples and
-warnings. Later positive annotations survive earlier ambiguous samples; malformed
-labels cannot erase a valid annotation. A schema check compares the two runtimes'
-GitOps field declarations, without requiring identical instruction wording.
+are required. Hand-authored fixtures exercise the GitOps metadata extractor's
+tracking validity, shared/custom labels, corroboration, Flux pairs, malformed
+input, privacy and UTF-8 handling. Large inputs check full scanning and late
+positives with bounded examples. A schema check compares GitOps field declarations
+across runtimes without requiring identical prose.
 
 The `eks-recon GitOps regression` CI job runs these checks for relevant paths.
-These are metadata/query and contract checks, not agent evaluations or proof of
-live reconciliation. The expected values were authored from the referenced Argo
-tracking format and Flux Kustomization metadata conventions; they do not establish
-exhaustive detection of all GitOps products or resource kinds.
-
-For live task evals, retain actual reads and parsed YAML: overall GitOps is
-`detected: true` with tool-specific evidence, or `detected: null` with
-`status: unconfirmed`; missing local CRDs must not produce an overall false.
-Check local-controller flags separately from workload tracking; retain positive
-evidence alongside denied kinds, and document custom-key provenance. Also assess
-the secondary YAML role, common assembly rules and IaC tag retention with an empty
-workspace. These instruction-level behaviors require task review; the offline
-script does not execute them. Existing glob/keyword
-assertions alone cannot establish these facts; assess them against independent
-API captures from the same target and time window.
+They are not agent evaluations or proof of live reconciliation. Live task evals
+must check outcomes, read coverage, local facts, YAML assembly and IaC evidence
+against independent API captures; glob/keyword assertions alone are insufficient.
 
 From `misc/evals/`:
 - `make validate-eks-recon` — frontmatter + 64/1024-char limits (deterministic)

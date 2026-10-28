@@ -11,11 +11,10 @@ import sys
 
 
 ARGO_TRACKING = "argocd.argoproj.io/tracking-id"
+ARGO_PREFIX = "argocd.argoproj.io/"
 INSTANCE_LABEL = "app.kubernetes.io/instance"
 FLUX_NAME = "kustomize.toolkit.fluxcd.io/name"
 FLUX_NAMESPACE = "kustomize.toolkit.fluxcd.io/namespace"
-SHARED_PREFIXES = ("app.kubernetes.io/", "helm.sh/",
-                   "kustomize.toolkit.fluxcd.io/", "helm.toolkit.fluxcd.io/")
 SAMPLES_PER_GROUP = 3
 WARNING_SAMPLES = 5
 DISPLAY_CHARS = 256
@@ -84,19 +83,23 @@ def collect(inventory, instance_label_key=None, cluster_scoped=False):
             warn(f"items[{index}]: invalid annotations")
             annotations = {}
 
-        def emit(tool, signal, key, value, strength):
+        def emit(tool, signal, key, value, strength, corroboration=None):
             nonlocal sampled
-            group_key = (tool, signal, strength, key)
+            # Wildcard annotation names share one bounded evidence family.
+            group_key = (tool, signal, strength, ARGO_PREFIX if signal == "unverified_argocd_annotation" else key)
             samples = groups.setdefault(group_key, [])
             if len(samples) < SAMPLES_PER_GROUP:
                 record = {"tool": tool, "signal": signal, "kind": kind,
                           "namespace": namespace, "name": name,
                           "key": key, "value": value, "strength": strength}
+                if corroboration:
+                    record["corroboration"] = {"key": corroboration, "value": "present"}
                 samples.append(display(record))
             else:
                 sampled = True
 
         tracking = annotations.get(ARGO_TRACKING)
+        self_reference = False
         if text(tracking):
             group = version.rsplit("/", 1)[0] if "/" in version else ""
             parts = tracking.split(":")
@@ -107,29 +110,44 @@ def collect(inventory, instance_label_key=None, cluster_scoped=False):
                               and (cluster_scoped or target[0] == namespace))
             emit("argocd", "tracking_annotation" if self_reference else "unverified_tracking_annotation",
                  ARGO_TRACKING, tracking, "specific" if self_reference else "ambiguous")
-        elif tracking is not None and not isinstance(tracking, str):
-            warn(f"items[{index}]: non-string tracking-id annotation")
+        elif ARGO_TRACKING in annotations:
+            warn(f"items[{index}]: empty or non-string tracking-id annotation")
+        # Other Argo annotations corroborate a label on THIS resource only.
+        # Record presence, never their values (which may contain application data).
+        corroboration = ARGO_TRACKING if self_reference else None
+        for key, value in annotations.items():
+            if isinstance(key, str) and key.startswith(ARGO_PREFIX) and key != ARGO_TRACKING:
+                if not isinstance(value, str):
+                    warn(f"items[{index}]: non-string Argo annotation")
+                elif text(value) and corroboration is None:
+                    corroboration = key
+        if corroboration and not self_reference and not text(labels.get(INSTANCE_LABEL)):
+            emit("argocd", "unverified_argocd_annotation", corroboration, "present", "ambiguous")
         label_keys = {INSTANCE_LABEL}
         if instance_label_key:
             label_keys.add(instance_label_key)
         for key in sorted(label_keys):
             value = labels.get(key)
             if text(value):
-                # A supplied key must designate dedicated Argo tracking for this
-                # target. Qualification is necessary here, not proof of that
-                # provenance; shared labels remain ambiguous even when supplied.
-                custom = (key == instance_label_key and "/" in key
-                          and not key.startswith(SHARED_PREFIXES))
-                emit("argocd" if custom else None,
-                     "configured_tracking_label" if custom else
+                # The caller confirms target-linked tracking configuration;
+                # unprefixed keys require an explicit user-supplied key.
+                configured = key == instance_label_key
+                corroborated = key == INSTANCE_LABEL and corroboration is not None
+                emit("argocd" if configured or corroborated else None,
+                     "configured_tracking_label" if configured else
+                     "corroborated_instance_label" if corroborated else
                      "shared_instance_label" if key == INSTANCE_LABEL else "ambiguous_tracking_label",
-                     key, value, "specific" if custom else "ambiguous")
+                     key, value, "specific" if configured or corroborated else "ambiguous",
+                     corroboration if corroborated and not configured else None)
+            elif key in labels and not isinstance(value, str):
+                warn(f"items[{index}]: non-string instance label")
         flux_name = labels.get(FLUX_NAME)
         flux_namespace = labels.get(FLUX_NAMESPACE)
+        if any(key in labels and not isinstance(labels[key], str)
+               for key in (FLUX_NAME, FLUX_NAMESPACE)):
+            warn(f"items[{index}]: non-string Flux label")
         if text(flux_name) or text(flux_namespace):
             complete = text(flux_name) and text(flux_namespace)
-            if any(v is not None and not isinstance(v, str) for v in (flux_name, flux_namespace)):
-                warn(f"items[{index}]: non-string Flux label")
             emit("flux", "kustomization_labels", FLUX_NAME,
                  {"name": flux_name if text(flux_name) else None,
                   "namespace": flux_namespace if text(flux_namespace) else None},
@@ -144,7 +162,7 @@ def collect(inventory, instance_label_key=None, cluster_scoped=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("inventory", nargs="?", default="-", help="Kubernetes List JSON file, or - for stdin")
-    parser.add_argument("--argocd-instance-label-key", help="Confirmed dedicated, qualified Argo key for this target; do not pass shared/colliding keys")
+    parser.add_argument("--argocd-instance-label-key", help="Confirmed Argo tracking key for this target; unprefixed keys must be user-supplied")
     parser.add_argument("--cluster-scoped", action="store_true", help="Single-kind inventory confirmed cluster-scoped by API discovery/request context")
     args = parser.parse_args()
     try:

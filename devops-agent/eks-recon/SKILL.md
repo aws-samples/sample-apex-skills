@@ -181,18 +181,26 @@ _generated <timestamp> · source: AWS API + K8s API · modules: N/N_
 - addons.helm_releases: unconfirmed (reason: Helm release Secrets not readable) — reported as `unconfirmed`, not `count: 0`
 ```
 
+Keep every absence claim within the successfully inspected scope. State that
+scope with the claim, including in summaries and Notable facts; Coverage
+caveats do not qualify broader wording elsewhere.
+
 ### Machine YAML artifact
 
 - **Filename:** `EKS-Recon-{cluster}-{YYYY-MM-DD}-{HHMM}.yaml`
 
-The YAML is a **secondary, point-in-time facts snapshot**, not a versioned API:
-no downstream skill in this repository implements a YAML-schema hand-off.
+The YAML is a **secondary, point-in-time facts snapshot**, not a versioned API.
+Workflows may use its facts as context; that intended use does not establish a
+versioned schema hand-off. Preserve the canonical reference shapes for inspection,
+export and existing workflow guidance.
 
 **Assembly rules (inline and subagent execution):**
 
 - Use cluster-basics for the shared `cluster:` block; deduplicate matching module
   blocks. For the same target, preserve module facts and record differing values
-  and their sources in Markdown Coverage rather than silently overwriting them. If a module identifies another target cluster,
+  and their sources in Markdown Coverage rather than silently overwriting them.
+  Compare identity using target context (such as cluster ARN); a cosmetic endpoint
+  difference such as a trailing `/` is not another cluster. If a module identifies another target cluster,
   retain its key as `{unavailable: true, reason: "cluster context mismatch"}`.
 - On full recon, collect `cluster_detail:` directly from cluster-basics, which has
   no subagent. Targeted queries may omit unrelated detail.

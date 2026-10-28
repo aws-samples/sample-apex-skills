@@ -93,7 +93,10 @@ mechanism and, where labeled, whether the install is the EKS-managed ArgoCD Capa
   Capability, else self-managed).
 - **RBAC verbs:** `get`, `list` on `deployments.apps` AND `statefulsets.apps` across all namespaces for absence checks.
 
-**Via Kubernetes API** — count ArgoCD Applications:
+**Via Kubernetes API** — count Applications in the target cluster independently
+of controller discovery. Use complete, successful reads (including zero); failed
+reads (including missing resource-type errors), incomplete or unattempted reads
+remain null. Never infer remote-hub counts:
 
 - **Resource:** `Application`, group/version `argoproj.io/v1alpha1`, all namespaces.
 - **Fields to extract:** count of Application resources; `metadata.name`.
@@ -110,8 +113,9 @@ server = next((d for d in deploys if d.metadata.name == "argocd-server"), None)
 version = server.spec.template.spec.containers[0].image.split(":")[-1] if server else None
 eks_managed = any(
     (d.metadata.labels or {}).get("eks.amazonaws.com/component") == "argocd"
-    for d in deploys)
+    for d in deploys) if server else None
 
+# For a complete successful read; otherwise retain null and the Coverage reason.
 applications = custom.list_cluster_custom_object(
     "argoproj.io", "v1alpha1", "applications")["items"]
 app_count = len(applications)
@@ -133,7 +137,8 @@ GitRepository and Kustomization reconciliation.
   `spec.template.spec.containers[0].image` (parse the tag for the Flux version).
 - **RBAC verbs:** `get`, `list` on `deployments.apps` AND `statefulsets.apps` across all namespaces for absence checks.
 
-**Via Kubernetes API** — count Flux sources and Kustomizations:
+**Via Kubernetes API** — count sources and Kustomizations in the target cluster
+independently of controller discovery, using the same read-completeness rules:
 
 - **Resource:** `GitRepository`, group/version `source.toolkit.fluxcd.io/v1`; and
   `Kustomization`, group/version `kustomize.toolkit.fluxcd.io/v1`, all namespaces.
@@ -151,6 +156,7 @@ deploys = apps.list_namespaced_deployment("flux-system").items
 sc = next((d for d in deploys if d.metadata.name == "source-controller"), None)
 version = sc.spec.template.spec.containers[0].image.split(":")[-1] if sc else None
 
+# Count each complete successful list independently; failed/incomplete reads stay null.
 git_repos = custom.list_cluster_custom_object(
     "source.toolkit.fluxcd.io", "v1", "gitrepositories")["items"]
 kustomizations = custom.list_cluster_custom_object(
@@ -194,26 +200,40 @@ Record `other_tools.spinnaker`: `detected` and `namespace`.
 
 **Always inspect workload metadata, even when local controller/CRD reads are empty.**
 A hub can manage this cluster without installing Argo/Flux controllers or CRDs here.
-Discover controllers in readable Deployments/StatefulSets across namespaces and inspect
-their container images. Establish local absence only from successful, complete
+Apply the controller component names and image checks above to readable
+Deployments/StatefulSets across namespaces. An image match alone may be a CLI
+workload; an ambiguous component role leaves the local flag null.
+Metadata-only lists suffice for tracking, not controller
+absence: obtain full Deployment/StatefulSet objects for image inspection. If that
+inspection is unavailable, local flags remain null and, without positive evidence,
+the overall result is unconfirmed. Establish local absence only from successful, complete
 Deployment AND StatefulSet lists across **all namespaces**. Namespaced examples
 are shortcuts for confirming presence and cannot establish absence. A namespace, CRD definition, or client CLI version alone does not
 prove a running controller.
 
-Read top-level `metadata.labels` and `metadata.annotations` on accessible Deployments,
-StatefulSets, DaemonSets, Jobs, CronJobs, Services and ConfigMaps. Read each resource
-kind separately so one denied kind does not discard successful reads of another.
-Include other relevant kinds when discovery/permissions allow; this bounded inventory
-does not cover every custom resource. Do not read Secrets for tracking detection.
+Read top-level `metadata.labels` and `metadata.annotations` on Deployments,
+StatefulSets and DaemonSets across all namespaces by default. ConfigMaps are an
+optional extension, not a default cluster-wide list; fetching their full objects
+can transfer application data even if the report later filters it. Jobs, CronJobs,
+Services and other relevant kinds may extend the selected scope. Declare the scope
+and record skipped kinds (including ConfigMaps) as Coverage exclusions for each reported target. Read each
+selected kind separately; a denied/truncated selected read is a coverage failure,
+not permission to silently shrink the scope. Do not read Helm release Secrets to
+resolve tracking ambiguity. This inventory does not cover arbitrary custom resources
+or Flux HelmRelease-only tracking.
 Retain each API error and the namespaces/kinds actually scanned in Coverage. Missing
 CRDs, an empty list, a failed list and incomplete permissions are different observations.
 
 | Signal | Interpretation |
 |--------|----------------|
 | `argocd.argoproj.io/tracking-id` annotation | Tool-specific tracking evidence only when `<application>:<group>/<kind>:<namespace>/<name>` names the resource it is on. Core resources have an empty group (e.g. `app:/ConfigMap:ns/name`). For a resource confirmed cluster-scoped by API discovery/request context, match group/kind/name; the tracking namespace may be the application destination namespace. Missing namespace/scope context is unconfirmed. Malformed or non-self-referencing/copied annotations are ambiguous. |
-| `app.kubernetes.io/instance` label | Ambiguous by itself: Helm and other tools also use it. Keep the observed value; do not attribute it to Argo without corroboration. This also covers Argo's `label` mode when the hub is inaccessible. |
-| Custom instance label | Use a dedicated key explicitly linked to this target by the user or accessible Argo tracking configuration/resource association. Record that provenance; a setting from an unrelated hub or annotation-only configuration is insufficient. Only qualified custom keys (`prefix/key`) are sufficient under this rule. Shared `app.kubernetes.io/*`, `helm.sh/*`, Flux tracking keys, unqualified keys and known collisions remain ambiguous even when supplied. Qualification alone does not establish dedicated use; do not guess a key or attribute ordinary labels to Argo. |
+| `app.kubernetes.io/instance` label | Weak alone: Helm charts (by convention) and Argo CD label tracking both use it. Keep the evidence as ambiguous and `unconfirmed` with reason "instance label seen, could be Helm or Argo CD label mode". Attribute it to Argo only with a valid tracking-id or another nonempty `argocd.argoproj.io/*` annotation on the same resource, or the user's target-specific statement that the hub uses this key for label tracking. A hub-side check of Applications whose destination is this cluster resolves the ambiguity. |
+| Other `argocd.argoproj.io/*` annotations | Corroborate an instance label on the same resource only. Record one annotation key and its presence, never its value. An annotation alone is ambiguous (`unconfirmed` without other positive evidence), not a positive; malformed/non-self-referencing tracking-id cannot serve as this corroboration. |
+| Custom instance label | Accept the key the user supplies as this target's `application.instanceLabelKey`, including an unprefixed key; mark it as user-supplied in Coverage. Never auto-discover unprefixed keys. A qualified key may also come from accessible target-linked Argo configuration/resource association; record that provenance. An unrelated hub or annotation-only configuration is insufficient. Do not infer ownership from the key's spelling. If the confirmed key is conventionally shared, record that collision caveat; configuration corroborates tracking, not exclusive ownership or live reconciliation. |
 | `kustomize.toolkit.fluxcd.io/name` AND `kustomize.toolkit.fluxcd.io/namespace` labels | Tool-specific Flux Kustomization tracking evidence when both values are nonempty. One label alone is ambiguous. This is not exhaustive detection of all Flux/Helm deployment paths. |
+
+Evaluate each signal independently. A configured custom instance label key
+adds evidence when matched; it does not override other signal-table rules.
 
 `argocd.argoproj.io/tracking-id` is the tracking **annotation**; do not invent an
 `app.kubernetes.io/instance` tracking annotation. Tracking metadata can be stale or
@@ -224,19 +244,46 @@ hub URL, controller namespace/version or remote application counts.
 tool-specific tracking evidence. Set `gitops.tools_detected` to all supported tools
 with that evidence, `tool` to the single name or `multiple`, `status: detected` and
 `detected: true`. This means evidence observed, not live reconciliation verified.
+Keep `gitops.evidence` for signal-table tracking observations; put controller facts
+in their existing `argocd`/`flux` fields and supporting details in Markdown.
 Keep `gitops.argocd.detected` / `gitops.flux.detected` scoped to **local controllers**:
 `false` requires successful, complete all-namespace Deployment AND StatefulSet scans;
 if either is unreadable and no controller was positively observed, use `null`. Do not set those local flags to true from spoke metadata.
 
-With only ambiguous signals, no signals, partial/denied reads or an unknown custom
-tracking key, emit `tool: unconfirmed`, `status: unconfirmed`, `detected: null`,
-`tools_detected: []`, and explain the evidence/coverage limit. Never turn absent
-local CRDs into `tool: none` / `detected: false` for overall GitOps management.
-Positive evidence survives unrelated denied reads: retain detected tools and list
-the remaining gaps rather than replacing a positive result with unknown.
-Use `null` for unobserved hub facts and inaccessible counts; do not infer a remote
-application count from the number of labeled resources. An empty evidence list is
-not a claim that no external GitOps exists.
+A successful, complete equivalent retry through an available API capability can
+satisfy a selected logical read; retain the failed attempt in Coverage. Do not treat
+recovered reads as incomplete, or accept a narrower scope as equivalent. Agent Space
+has no CLI fallback; if no equivalent API read is available, the gap remains.
+
+Choose the overall outcome after combining the selected reads:
+- `detected`: positive controller or specific tracking evidence exists. Preserve it
+  despite unrelated denied reads and list the remaining gaps.
+- `unconfirmed`: no positive evidence and at least one ambiguous signal, unknown
+  required tracking key, denied/failed/malformed selected read, or missing/truncated
+  page. Set `tool: unconfirmed`, `status: unconfirmed`, `detected: null`.
+- `not_observed`: every selected read/page succeeded, resource identity is usable,
+  and no known signal (including weak signals) matched. Set `tool: not_observed`,
+  `status: not_observed`, `detected: false`, and list the checked signals, kinds and
+  namespaces. This describes that scope, not absence of external GitOps. An optional
+  ConfigMap inventory not selected is a disclosed exclusion, not a failed selected
+  read; a selected ConfigMap inventory that fails instead requires `unconfirmed`.
+
+For either nonpositive outcome use `tools_detected: []`. Missing local CRDs alone
+never determine the overall outcome. Sampling displayed examples does not mean
+input was truncated if all original items were classified. Incomplete input or
+helper warnings prevent `not_observed` unless positive evidence already establishes
+`detected`. Record the actual checked signals and limitations in Coverage.
+
+Every field under `argocd` and `flux` describes LOCAL observations only and allows
+`null`. On a spoke, do not fill hub namespace/version/management type/counts from
+workload metadata or turn unavailable hub facts into `false`/`0`. Keep those fields
+null; preserve counts from complete successful target-cluster reads independently
+of controller flags. Local `detected` can be false after the complete controller
+scans above.
+A local false does not rule out AWS-managed Argo CD capability; the separate AWS
+`ListCapabilities` API check (requiring `eks:ListCapabilities`) for this cluster can
+observe that capability when authorized. State its result or access gap separately;
+do not reinterpret it as a local controller, or expand permissions automatically.
 
 Sources: [Argo resource tracking](https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking/)
 and [Flux remote-cluster Kustomizations](https://fluxcd.io/flux/components/kustomize/kustomizations/#kubeconfig-remote-clusters).
@@ -244,20 +291,20 @@ Argo permits the destination namespace on cluster-scoped tracking IDs; see its
 [version-matched self-reference check](https://github.com/argoproj/argo-cd/blob/v3.5.6/controller/state.go).
 For metadata-only API identity, see [Kubernetes metadata-only fetches](https://kubernetes.io/docs/reference/using-api/api-concepts/#metadata-only-fetches).
 
-**Bounded evidence:** classify every item in each successful input, then retain
-at most **3 examples per `(tool, signal, strength, key)` across the final report**.
-Combine detected tools from all reads; never infer tool presence only from the first
-examples or cut input off with `head`. Examples are not resource/application counts.
-Shorten displayed strings to 256 characters with `...[truncated]`, preserving full
-label keys up to Kubernetes' 317-character limit. Classify original values, never
-shortened text. Ignore an oversized custom key with a warning; keep standard signals.
-Keep at most 5 warning examples and note sampling, shortening, failed reads or missing
-pages in Coverage, including when examples were sampled during collection or
-further limited in the final report. Output is bounded; API response size and parser memory are not.
+**Bounded evidence:** inspect every selected API page before choosing a small set
+of representative examples covering each observed tool and ambiguity. Keep the
+report concise, shorten long displayed values, and disclose sampling or shortening
+in Coverage. Do not calculate per-group totals or infer tool presence from only the
+examples displayed. Classify original values, not shortened text. Output limits do
+not limit API response size.
 
-**Via Kubernetes API:** list each readable resource above with `get`/`list`
-permission on its API group (`apps`, `batch`, or core). Inspect the top-level metadata
-fields in the signal table. Prefer metadata-only fetches when the capability supports
+**Via Kubernetes API** — inspect selected workload metadata:
+
+- **Resources:** selected kinds from the scope above; ConfigMaps remain optional.
+- **Fields to extract:** top-level metadata fields in the signal table.
+- **RBAC verbs:** `get`, `list` on each selected kind in its API group.
+
+Prefer metadata-only fetches when the capability supports
 them and request/discovery context is retained, particularly for ConfigMaps. Process
 every API page or namespace batch and retain bounded examples without copying full
 ConfigMap bodies into the report. Record truncation or missing pages as gaps.
@@ -270,7 +317,16 @@ original group/kind and the returned namespace/name for self-reference. Record e
 example with `tool`, `signal`, `kind`, `namespace`, `name`, `key`, `value`, and `strength`
 (`specific` or `ambiguous`). For the shared instance label, `tool` is `null` until
 corroborated; for the Flux pair, `value` contains both `name` and `namespace`.
-Apply the example limits above. No shell or executable helper is needed in Agent Space.
+Only signal-table values may appear in tracking evidence or its Coverage prose;
+unknown keys may be named without their values. Never record or quote other
+label/annotation values, including `kubectl.kubernetes.io/last-applied-configuration`:
+metadata-only responses still include that annotation and it can contain ConfigMap
+data. For wildcard Argo annotations retain representative key/presence examples,
+never values. With a same-resource instance label, retain one corroborating key;
+without that label, retain ambiguous annotation evidence. Treat wildcard names
+as one evidence family so distinct keys do not create unbounded examples. These
+privacy limits do not prohibit the local controller image/management observations.
+No shell or executable helper is needed in Agent Space.
 
 ## Output Schema
 
@@ -312,26 +368,25 @@ cicd:
       detected: bool          # unconfirmed — requires repository access
       config_path: string     # unconfirmed
 
-  gitops:                     # detectable via Kubernetes API
-    tool: string              # argocd | flux | multiple | unconfirmed
-    status: string            # detected | unconfirmed (evidence, not verified active management)
-    detected: bool | null     # true when evidence observed; null when unconfirmed, never false from missing CRDs
+  gitops:
+    tool: string              # argocd | flux | multiple | unconfirmed | not_observed
+    status: string            # detected | unconfirmed | not_observed; evidence in the checked scope, not active management
+    detected: bool | null     # true for evidence; false only for not_observed; null for unconfirmed
     tools_detected: list      # all tools evidenced by local controllers or specific tracking
-    evidence: list            # <=3 examples per tool/signal/strength/key; scan gaps in Coverage
-    # Configured custom-label provenance and scan gaps belong in Coverage.
-    # Each nested detected flag below describes LOCAL controllers only.
+    evidence: list            # representative signal-table observations; sampling and provenance in Coverage
+    # Every nested field below is LOCAL ONLY; unavailable hub facts remain null.
     argocd:
-      detected: bool | null   # local controller: false only after successful scan; null if unreadable
-      namespace: string
-      version: string         # from argocd-server container image tag
-      eks_managed: bool       # EKS ArgoCD Capability (AWS-managed) vs self-managed
-      applications: int       # count of Application resources
+      detected: bool | null   # false only after complete local controller scans
+      namespace: string | null
+      version: string | null # observed local server/controller image, never a client version
+      eks_managed: bool | null # observed local install; not a substitute for AWS ListCapabilities
+      applications: int | null # locally observable Applications only
     flux:
       detected: bool | null   # local controller, not remote management
-      namespace: string
-      version: string         # from source-controller image tag
-      git_repositories: int   # count of GitRepository resources
-      kustomizations: int     # count of Kustomization resources
+      namespace: string | null
+      version: string | null # observed local source-controller image only
+      git_repositories: int | null # locally observable sources only
+      kustomizations: int | null # locally observable Kustomizations only
 
   other_tools:                # additional CI/CD platforms detected in-cluster (Kubernetes API)
     spinnaker:
@@ -348,11 +403,15 @@ cicd:
 
 ## Integration Patterns
 
+These local Argo pattern checks require `gitops.argocd.detected: true`.
+Tracking evidence alone on a spoke does not enable them: hub-only Applications
+and ApplicationSets are not observable there; record that in Coverage.
+
 ### GitOps Bridge (Terraform + ArgoCD)
 
 The GitOps Bridge pattern uses Terraform to bootstrap ArgoCD, then ArgoCD manages applications.
 The Terraform half is a workspace-file signal and is **unavailable** in the Agent Space; only
-the ArgoCD half is observable (via the Kubernetes API). When ArgoCD is detected, note that a
+the ArgoCD half is observable (via the Kubernetes API). When `gitops.argocd.detected: true`, note that a
 GitOps Bridge may be present but the Terraform bootstrap cannot be confirmed here.
 
 ### App of Apps

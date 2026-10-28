@@ -339,7 +339,7 @@ The `iac-recon` agent emits exactly this shape (plus the shared `cluster:` block
 
 ```yaml
 iac:
-  tools_detected: list    # ALL IaC tools with evidence, flat — no "primary". e.g. ["terraform","cdk"]
+  tools_detected: list    # ALL IaC tools with evidence, flat — no "primary". e.g. ["Terraform","CDK"]
                           # (Terraform | CloudFormation | CDK | eksctl | Pulumi | Crossplane | ACK | CLI | unknown)
   confidence: string      # high | medium | low — evidence-strength metadata (fact), not a verdict
   evidence:               # object form (canonical)
