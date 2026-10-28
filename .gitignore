@@ -71,3 +71,5 @@ PLAN-npm-release.md
 
 # DevOps Agent packaged skill zips
 devops-agent/**/*.zip
+READY.md
+.READY.md.*.tmp
