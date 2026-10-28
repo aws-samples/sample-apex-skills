@@ -12,8 +12,8 @@ A maintainer asked for the routing design to be thought through before the route
 The facts that shaped the options:
 
 - On Claude Code, Kiro and Codex the model first sees each skill's name and description (Codex also lists its file path) and picks a skill from them; the full `SKILL.md` loads only once it is chosen. None of the three documents a precedence rule when two different skill descriptions both match a request (docs read 2026-10-26; versions installed for the local checks: Claude Code 2.1.310, Codex 0.163.0, Kiro CLI 1.27.0).
-- Claude Code and Codex also cap the whole skill listing. Claude Code's budget scales at 1% of the model's context window and drops the descriptions of the least-invoked skills first; Codex uses at most 2% of the context window (8,000 characters when the window is unknown), shortens descriptions first and may omit skills. Kiro documents only a 1,024-character limit per description. The 29 descriptions total about 24,400 characters, over both budgets on a 200k-token window, so the router's description can be cut or dropped (docs read 2026-10-26).
-- Stages do not fit every skill. Of the 29 skills, 11 fit one stage, 4 fit one stage only in part, 9 span stages and 4 have no stage (one tool-setup skill and three contributor skills). The router itself has no stage.
+- Claude Code and Codex also cap the whole skill listing. Claude Code's budget scales at 1% of the model's context window and drops the descriptions of the least-invoked skills first; Codex uses at most 2% of the context window (8,000 characters when the window is unknown), shortens descriptions first and may omit skills. Kiro documents only a 1,024-character limit per description. The 28 descriptions (the router's included) total about 23,900 characters, over both budgets on a 200k-token window, so the router's description can be cut or dropped (docs read 2026-10-26).
+- Stages do not fit every skill. Of the 28 skills, 11 fit one stage, 4 fit one stage only in part, 9 span stages and 3 have no stage (one tool-setup skill and two contributor skills). The router itself has no stage.
 - Some skills already run their own questionnaire, for example `eks-build`.
 - The repo's eval runner stages one skill per sandbox and runs on Claude Code only, so it tests each description alone, not the router against its siblings.
 
@@ -49,7 +49,7 @@ Options we did not take, per question:
 | eks-build | Day 1 (Build) | |
 | eks-platform-engineering | Day 1 (Build) | partly Day 0: designs and builds a platform |
 | eks-genai | Day 1 (Build) | partly: spans stages |
-| eks-security | Day 0 to Day 2 | to confirm |
+| eks-security | Day 0 to Day 2 | to confirm; its runbook header (`skills/apex/runbooks/eks-security/eks-security.md:8`) says Day 1 / Day 2 |
 | eks-upgrade-check | Day 2 (Operate) | |
 | eks-operation-review | Day 2 (Operate) | |
 | eks-cost-intelligence | Day 2 (Operate) | |
@@ -101,7 +101,7 @@ Options we did not take, per question:
 - Where questions live: "both" read as the router asks its own questions and each skill keeps its own, the skill's questions designed when that skill is rebuilt (reading, to confirm).
 - Router ownership while the other skills keep automatic triggering: read as the router owning routing for `/apex` and for the requests that reach it (reading, to confirm).
 - Whether the routing eval gates merges: not decided.
-- How the Kiro run of the routing eval invokes the router from CI: not established. Kiro's docs (kiro.dev/docs/skills, read 2026-10-26) document `/<skill-name> <text>` in the chat input, but Kiro CLI 1.27.0 rejected `/apex` ("unrecognized subcommand 'apex'") in non-interactive chat and, tested 2026-10-27, in interactive chat too; tested on Kiro CLI 2.35.1 (2026-10-28), `kiro-cli chat --no-interactive --trust-tools=read,glob,grep "/apex <request>"` loaded the router, a form the CI eval can use; the Kiro IDE is untested. Kiro's CLI changelog (kiro.dev/changelog/cli/page/4/, read 2026-10-27) lists skills defined in `.kiro/skills/` as `/skill-name` slash commands from 2.1 (Apr 24, 2026); the newest release it lists is 2.34.0 (Oct 23, 2026).
+- How the Kiro run of the routing eval invokes the router from CI: not established. Kiro's docs (kiro.dev/docs/skills, read 2026-10-26) document `/<skill-name> <text>` in the chat input, but Kiro CLI 1.27.0 rejected `/apex` ("unrecognized subcommand 'apex'") in non-interactive chat and, tested 2026-10-27, in interactive chat too; tested on Kiro CLI 2.35.1 (2026-10-28), `kiro-cli chat --no-interactive --trust-tools=read,glob,grep "/apex <request>"` loaded the router, a form the CI eval can use; the Kiro IDE is untested. Kiro's CLI changelog lists skills defined in `.kiro/skills/` as `/skill-name` slash commands from 2.1 (Apr 24, 2026; kiro.dev/changelog/cli/page/4/, read 2026-10-28); the newest release it lists is 2.34.0 (Oct 23, 2026; kiro.dev/changelog/cli/, read 2026-10-28).
 - How the Codex run of the routing eval reaches Amazon Bedrock from CI: not established.
 - The plain-prompt path is unmeasured: the smoke check loaded the router explicitly and asked only for the route in one fixed line, so the harness reaching the router on its own, the routed skill loading, the one-line notice (criterion 1) and the question path (criterion 2) are untested; the router's row choice for no-skill requests was checked.
 - The skill-listing budget: whether to trim sibling descriptions or accept that some are cut or dropped; the routing eval has to cover it (not decided).
