@@ -255,20 +255,17 @@ V2_SKILL=zz-v2-only
 
 # ---------------------------------------------------------------- fixture repo
 ORIGIN="$WORK/origin"
-# skills/ and steering/ come from one commit: HEAD, or, once steering/ is gone
-# from HEAD (the v2 layout), the parent of the last commit that touched it (the
-# last v1 tree), so this v1 installer keeps a tree it can install. Once
-# steering/ is gone, skills/ and steering/ come from the last tree that had
-# steering/, not this checkout, so skill and runbook changes after step 1 are
-# not covered. R1 needs skills/apex/runbooks in that tree too, so the commit
-# that removes steering/ must not be a squash of the runbook moves onto a tree
-# without them.
-FIXTURE_SRC=HEAD
+# skills/ always comes from HEAD, so the cases install this checkout's skills
+# and runbooks. steering/ comes from HEAD too or, once steering/ is gone from
+# HEAD (the v2 layout), from the parent of the last commit that touched it (the
+# last v1 tree), so this v1 installer still has steering to install. After a
+# squash that removes steering/, that parent is the tree the squash landed on.
+STEERING_SRC=HEAD
 if ! git -C "$REPO_ROOT" cat-file -e HEAD:steering 2>/dev/null; then
   last="$(git -C "$REPO_ROOT" rev-list -1 HEAD -- steering)"
   [ -n "$last" ] || { echo "no commit in this checkout has steering/; fetch the full history" >&2; exit 2; }
-  FIXTURE_SRC="$last^"
-  echo "HEAD has no steering/: the fixture tree is $FIXTURE_SRC ($(git -C "$REPO_ROOT" rev-parse --short "$FIXTURE_SRC"))"
+  STEERING_SRC="$last^"
+  echo "HEAD has no steering/: the fixture takes skills/ from HEAD and steering/ from $STEERING_SRC ($(git -C "$REPO_ROOT" rev-parse --short "$STEERING_SRC"))"
 fi
 add_fixture_skill() { # <repo> <name> <note>
   mkdir -p "$1/skills/$2"
@@ -276,10 +273,10 @@ add_fixture_skill() { # <repo> <name> <note>
 }
 build_fixture() {
   mkdir -p "$ORIGIN"
-  local paths
-  paths="$(git -C "$REPO_ROOT" ls-tree --name-only "$FIXTURE_SRC" skills steering | tr '\n' ' ')"
-  [ "$paths" = "skills steering " ] || { echo "the fixture tree $FIXTURE_SRC lacks skills/ or steering/ (has: $paths)" >&2; exit 2; }
-  (set -o pipefail; git -C "$REPO_ROOT" archive "$FIXTURE_SRC" skills steering | tar -x -C "$ORIGIN") || { echo "git archive of $FIXTURE_SRC failed" >&2; exit 2; }
+  git -C "$REPO_ROOT" cat-file -e HEAD:skills 2>/dev/null || { echo "HEAD has no skills/" >&2; exit 2; }
+  git -C "$REPO_ROOT" cat-file -e "$STEERING_SRC:steering" 2>/dev/null || { echo "the steering tree $STEERING_SRC has no steering/" >&2; exit 2; }
+  (set -o pipefail; git -C "$REPO_ROOT" archive HEAD skills | tar -x -C "$ORIGIN") || { echo "git archive of HEAD skills/ failed" >&2; exit 2; }
+  (set -o pipefail; git -C "$REPO_ROOT" archive "$STEERING_SRC" steering | tar -x -C "$ORIGIN") || { echo "git archive of $STEERING_SRC steering/ failed" >&2; exit 2; }
   "${GITC[@]}" -C "$ORIGIN" init -q
   # Older release: two skills missing, like v1.1.0 against main.
   local s
