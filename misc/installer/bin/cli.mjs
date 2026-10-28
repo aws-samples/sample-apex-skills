@@ -958,7 +958,7 @@ function symlinkSteeringClaude(claudeBase) {
       success(`Steering commands linked to ${c.dim}${link}${c.reset}`);
     }
   }
-  // The /apex:* commands import @~/.claude/apex-steering/...; the eks-operation-review skill tells Claude to read a file there.
+  // The /apex:* commands import files from @~/.claude/apex-steering/.
   const steeringLink = join(claudeBase, 'apex-steering');
   if (safeSymlink(area, join(INSTALL_DIR, 'steering'), steeringLink) !== 'conflict') {
     success(`Steering workflows linked to ${c.dim}${steeringLink}${c.reset}`);

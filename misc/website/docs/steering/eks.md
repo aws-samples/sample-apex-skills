@@ -33,9 +33,9 @@ Read the user's request and match it to the appropriate workflow:
 | "Which pattern — Terraform vs ArgoCD?" | → [Build Workflow](workflows/eks-build) (pattern selection) | Day 1 |
 | "Build an IDP" / "developer self-service" / "golden paths" / "Backstage portal" / "GitOps + progressive delivery" | → [Platform Engineering](workflows/eks-platform-engineering) | Day 1 |
 | "Build / serve a GenAI or LLM workload" / "self-host an LLM" / "GPU vs Neuron" / "vLLM / Ray Serve" / "RAG / agentic on EKS" | → [GenAI on EKS](workflows/eks-genai) | Day 1 |
-| "Is my cluster ready to upgrade?" / "Run upgrade readiness check" / "Score my upgrade readiness" | → [Upgrade-Readiness Assessment](workflows/eks-upgrade-check) | Day 2 |
-| "Run an EKS operational review" / "Audit my cluster" / "EKS health check" / "Review my EKS posture" | → [Operational Review](workflows/eks-operation-review) | Day 2 |
-| "Check my EKS networking" / "Review RBAC on my cluster" / "Audit observability on my cluster" | → [Operational Review](workflows/eks-operation-review) (section-scoped) | Day 2 |
+| "Is my cluster ready to upgrade?" / "Run upgrade readiness check" / "Score my upgrade readiness" | → use the `eks-upgrade-check` skill | Day 2 |
+| "Run an EKS operational review" / "Audit my cluster" / "EKS health check" / "Review my EKS posture" | → use the `eks-operation-review` skill | Day 2 |
+| "Check my EKS networking" / "Review RBAC on my cluster" / "Audit observability on my cluster" | → use the `eks-operation-review` skill (section-scoped) | Day 2 |
 | "Assess my ingress" / "migrate off nginx ingress" / "move to Gateway API or ALB" / "ingress controller audit" / "how hard is it to leave nginx?" | → use the `eks-ingress-migration` skill | Day 2 |
 | "Run a Well-Architected review of my EKS cluster" / "WAFR for our EKS cluster" / "score my cluster against the Well-Architected Framework" (only when the Framework is named — a generic audit or score goes to Operational Review) | → use the `eks-well-architected-review` skill | Day 2 |
 | "Harden my cluster" / "HIPAA / PCI / FedRAMP / GDPR on EKS" / "CIS benchmark" / "compliance audit prep" / "Pod Identity vs IRSA" / "GuardDuty / image signing / Pod Security Admission" | → [Security & Compliance](workflows/eks-security) | Day 1/2 |
@@ -81,8 +81,8 @@ When routing between workflows, carry forward any known context. This is critica
 | **Build** | [workflows/eks-build.md](workflows/eks-build) | ✅ Complete | Multi-phase requirements gathering and Terraform code generation |
 | **Platform Engineering** | [workflows/eks-platform-engineering.md](workflows/eks-platform-engineering) | ✅ Complete | Build an Internal Developer Platform — golden paths, portal, GitOps/progressive delivery, self-service infra, tenancy, DORA |
 | **GenAI on EKS** | [workflows/eks-genai.md](workflows/eks-genai) | ✅ Complete | Build/serve GenAI & LLM workloads — GPU vs Neuron, Karpenter, vLLM/Ray, distributed training, ML storage, observability, AI gateway |
-| **Upgrade-Readiness Assessment** | [workflows/eks-upgrade-check.md](workflows/eks-upgrade-check) | ✅ Complete | Pre-upgrade readiness scoring and remediation report (vendored skill) |
-| **Operational Review** | [workflows/eks-operation-review.md](workflows/eks-operation-review) | ✅ Complete | 10-section operational excellence audit with GREEN/AMBER/RED ratings (vendored skill) |
+| **Upgrade-Readiness Assessment** | use the `eks-upgrade-check` skill | ✅ Complete | Pre-upgrade readiness scoring and remediation report (vendored skill) |
+| **Operational Review** | use the `eks-operation-review` skill | ✅ Complete | 10-section operational excellence audit with GREEN/AMBER/RED ratings (vendored skill) |
 | **Security & Compliance** | [workflows/eks-security.md](workflows/eks-security) | ✅ Complete | Discovery-driven 7-layer hardening + compliance-regime scope (HIPAA/PCI/FedRAMP/GDPR) + 30/60/90 audit-prep roadmap |
 
 ---

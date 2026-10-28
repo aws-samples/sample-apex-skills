@@ -101,19 +101,18 @@ steering/
 ├── commands/                 # Slash command wrappers (harness-specific entry points)
 │   └── apex/                 # Claude Code: symlinked into .claude/commands/apex/
 │       ├── eks.md            # /apex:eks → routes via steering/eks.md
-│       ├── eks-best-practices.md  # /apex:eks-best-practices → best practices guidance
 │       ├── eks-build.md      # /apex:eks-build → steering/workflows/eks-build.md
 │       ├── eks-design.md     # /apex:eks-design → steering/workflows/design.md
-│       ├── eks-operation-review.md  # /apex:eks-operation-review → operational review
+│       ├── eks-genai.md      # /apex:eks-genai → steering/workflows/eks-genai.md
 │       ├── eks-platform-engineering.md  # /apex:eks-platform-engineering → platform design
-│       ├── eks-upgrade-check.md  # /apex:eks-upgrade-check → upgrade readiness check
+│       ├── eks-security.md   # /apex:eks-security → steering/workflows/eks-security.md
 │       └── new-skill.md      # /apex:new-skill → steering/workflows/new-skill.md
 └── workflows/
     ├── design.md             # Day 0: Architecture questionnaire + quality check
     ├── eks-build.md          # Day 1: Cluster build and provisioning
-    ├── eks-operation-review.md  # Day 2: Operational health review
+    ├── eks-genai.md          # Day 1: GenAI and LLM workloads on EKS
     ├── eks-platform-engineering.md  # Day 2: Platform engineering assessment
-    ├── eks-upgrade-check.md  # Day 2: Pre-flight → plan → execute → validate
+    ├── eks-security.md       # Day 1/2: Security hardening and compliance
     └── new-skill.md          # Meta: onboard a new skill end-to-end
 ```
 
@@ -187,13 +186,13 @@ Each example's `README.md` must include YAML frontmatter:
 ---
 name: EKS Upgrade Readiness
 description: Assess cluster upgrade readiness across 8 dimensions with a scored report.
-workflow: steering/workflows/eks-upgrade-check.md
+workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 ---
 ```
 
 - `name` — short label (required)
 - `description` — one-line summary (required)
-- `workflow` — which steering workflow this example demonstrates (optional)
+- `workflow` — which steering workflow or runbook this example demonstrates (optional)
 
 ### What Belongs in Examples
 

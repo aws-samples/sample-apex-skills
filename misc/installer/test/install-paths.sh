@@ -255,15 +255,17 @@ V2_SKILL=zz-v2-only
 
 # ---------------------------------------------------------------- fixture repo
 ORIGIN="$WORK/origin"
-# skills/ and steering/ come from one commit: HEAD, or, once steering/ is gone
-# from HEAD (the v2 layout), the parent of the last commit that touched it (the
-# last v1 tree), so this v1 installer keeps a tree it can install.
-FIXTURE_SRC=HEAD
+# skills/ always comes from HEAD, so the cases install this checkout's skills
+# and runbooks. steering/ comes from HEAD too or, once steering/ is gone from
+# HEAD (the v2 layout), from the parent of the last commit that touched it (the
+# last v1 tree), so this v1 installer still has steering to install. After a
+# squash that removes steering/, that parent is the tree the squash landed on.
+STEERING_SRC=HEAD
 if ! git -C "$REPO_ROOT" cat-file -e HEAD:steering 2>/dev/null; then
   last="$(git -C "$REPO_ROOT" rev-list -1 HEAD -- steering)"
   [ -n "$last" ] || { echo "no commit in this checkout has steering/; fetch the full history" >&2; exit 2; }
-  FIXTURE_SRC="$last^"
-  echo "HEAD has no steering/: the fixture tree is $FIXTURE_SRC ($(git -C "$REPO_ROOT" rev-parse --short "$FIXTURE_SRC"))"
+  STEERING_SRC="$last^"
+  echo "HEAD has no steering/: the fixture takes skills/ from HEAD and steering/ from $STEERING_SRC ($(git -C "$REPO_ROOT" rev-parse --short "$STEERING_SRC"))"
 fi
 add_fixture_skill() { # <repo> <name> <note>
   mkdir -p "$1/skills/$2"
@@ -271,10 +273,10 @@ add_fixture_skill() { # <repo> <name> <note>
 }
 build_fixture() {
   mkdir -p "$ORIGIN"
-  local paths
-  paths="$(git -C "$REPO_ROOT" ls-tree --name-only "$FIXTURE_SRC" skills steering | tr '\n' ' ')"
-  [ "$paths" = "skills steering " ] || { echo "the fixture tree $FIXTURE_SRC lacks skills/ or steering/ (has: $paths)" >&2; exit 2; }
-  (set -o pipefail; git -C "$REPO_ROOT" archive "$FIXTURE_SRC" skills steering | tar -x -C "$ORIGIN") || { echo "git archive of $FIXTURE_SRC failed" >&2; exit 2; }
+  git -C "$REPO_ROOT" cat-file -e HEAD:skills 2>/dev/null || { echo "HEAD has no skills/" >&2; exit 2; }
+  git -C "$REPO_ROOT" cat-file -e "$STEERING_SRC:steering" 2>/dev/null || { echo "the steering tree $STEERING_SRC has no steering/" >&2; exit 2; }
+  (set -o pipefail; git -C "$REPO_ROOT" archive HEAD skills | tar -x -C "$ORIGIN") || { echo "git archive of HEAD skills/ failed" >&2; exit 2; }
+  (set -o pipefail; git -C "$REPO_ROOT" archive "$STEERING_SRC" steering | tar -x -C "$ORIGIN") || { echo "git archive of $STEERING_SRC steering/ failed" >&2; exit 2; }
   "${GITC[@]}" -C "$ORIGIN" init -q
   # Older release: two skills missing, like v1.1.0 against main.
   local s
@@ -550,7 +552,7 @@ check_imports() { # <claude dir>
     if [ ! -e "$dir/apex-steering/$rel" ]; then bad=$((bad + 1)); err "unresolved import $ref (no $dir/apex-steering/$rel)"; fi
   done < <(/usr/bin/grep -H -o -E '~/\.claude/apex-steering/[A-Za-z0-9._/-]+' "${files[@]}" | sort -u)
   echo "    imports checked: $n, unresolved: $bad"
-  [ "$n" -ge 5 ] || err "expected at least 5 apex-steering references (4 shims plus SKILL.md files), found $n"
+  [ "$n" -ge 2 ] || err "expected at least 2 apex-steering references (one per shim), found $n"
 }
 
 finish_case() {
@@ -572,7 +574,7 @@ run_cli --claude-only
 expect_rc 0
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT resolving skill links, got $(count_resolving_links "$H/.claude/skills")"
 [ -e "$H/.claude/commands/apex/eks.md" ] || err "~/.claude/commands/apex/eks.md does not resolve"
-[ -e "$H/.claude/apex-steering/workflows/eks-operation-review.md" ] || err "~/.claude/apex-steering/workflows/eks-operation-review.md does not resolve"
+[ -e "$H/.claude/skills/apex/runbooks/eks-operation-review/eks-operation-review.md" ] || err "~/.claude/skills/apex/runbooks/eks-operation-review/eks-operation-review.md does not resolve"
 check_imports "$H/.claude"
 finish_case
 
