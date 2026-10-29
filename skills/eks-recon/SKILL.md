@@ -191,8 +191,14 @@ Required:
 
 Optional:
 - Specific modules to run (default: all)
+- Prior report: path to an earlier recon YAML artifact (optional; never auto-select one)
 - Output path prefix, without an extension (default: `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` → writes `<output-prefix>.md` + `<output-prefix>.yaml`)
 ```
+
+When a prior report is supplied, load [report-comparison.md](references/report-comparison.md)
+and read the prior artifact before generating outputs. After collecting the current
+facts, append the comparison to the Markdown report using that contract. Without a
+prior report, omit the Changes since section.
 
 **Auto-discovery when cluster name is not explicit:**
 
@@ -314,6 +320,22 @@ export and existing workflow guidance.
   `node_subnets`); do not invent generic `{unconfirmed, reason}` wrappers.
 
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` block and the `cluster_detail:` block (both from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
+
+
+Include a `report` metadata block alongside the canonical module blocks in every
+new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
+report (reuse the filename's clock reading where applicable). `unconfirmed_paths`
+lists canonical dot-separated field paths whose reads were incomplete or denied;
+list the enclosing inventory path if only part of an inventory was collected.
+Use an empty list only when no collected sub-facts are unconfirmed. Omitted modules
+and explicit unavailable/unconfirmed markers remain authoritative coverage gaps.
+This metadata is not a recon module and is excluded from module counts and deltas.
+
+```yaml
+report:
+  generated_at: "2026-10-29T08:30:00Z"  # actual report time, not this example
+  unconfirmed_paths: []                # e.g. [security.authentication.access_entries]
+```
 
 > **The reference Output Schemas are the single source of truth for the YAML shape** — do not hand-copy a schema here (that is how the old example drifted). The illustrative fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
 

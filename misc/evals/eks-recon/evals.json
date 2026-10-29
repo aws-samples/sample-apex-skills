@@ -271,6 +271,260 @@
         ],
         "validators": []
       }
+    },
+    {
+      "id": 3,
+      "prompt": "This is an offline report-generation test, not a live cluster task. The selected modules have already been collected in current.yaml; use those supplied facts without calling AWS, Kubernetes, or module subagents. Fields not present in these selective synthetic snapshots are unknown. Generate the eks-recon Markdown and YAML report with output prefix reports/delta, using prior.yaml as the prior report. The supplied current report.generated_at is the capture time to retain for this fixture.",
+      "expectations": [
+        "Classifies green as Added, retired as Removed, and blue desired_size as Changed from 2 to 3.",
+        "Reports vpc-cni version v1.19.0-eksbuild.1 to v1.19.2-eksbuild.1, subnet-a free IPs 200 to 199, removed/added access principal ARNs, and reader role v1 to v2.",
+        "Does not report list reordering, coredns, subnet-b, viewer, storage, or report metadata as changed facts.",
+        "Preserves prior.yaml and retains current facts in YAML, with no historical delta inside module blocks.",
+        "Reports the add-on service_account_role ARN to null as a confirmed absence change and reports orderedStages array reversal, while ignoring inventory reordering."
+      ],
+      "files": [
+        "eval-3/prior.yaml",
+        "eval-3/current.yaml"
+      ],
+      "live_only": false,
+      "artifact_assertions": {
+        "root_glob": null,
+        "structural": [
+          {
+            "type": "file-exists",
+            "path": "reports/delta.md"
+          },
+          {
+            "type": "file-exists",
+            "path": "reports/delta.yaml"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [
+              "reports/delta.yaml"
+            ]
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "reports/delta\\.yaml"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "## Changes since .*2026-10-20"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Added[^\\n]*green"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Removed[^\\n]*compute\\.mng\\.groups[^\\n]*retired"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Changed[^\\n]*blue[^\\n]*2[^\\n]*3"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "v1\\.19\\.0-eksbuild\\.1[^\\n]*v1\\.19\\.2-eksbuild\\.1"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Changed[^\\n]*subnet-a[^\\n]*200[^\\n]*199"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Removed[^\\n]*role/retired"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Added[^\\n]*role/new-viewer"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Changed[^\\n]*reader-v1[^\\n]*reader-v2"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Changed[^\\n]*service_account_role[^\\n]*role/cni[^\\n]*(null|none)"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Changed[^\\n]*orderedStages"
+          }
+        ],
+        "validators": []
+      }
+    },
+    {
+      "id": 4,
+      "prompt": "This is an offline report-generation test, not a live cluster task. The selected modules have already been collected in current.yaml; use those supplied facts without calling AWS, Kubernetes, or module subagents. Fields not present in these selective synthetic snapshots are unknown. Generate the eks-recon Markdown and YAML report with output prefix reports/delta, using prior.yaml as the prior report. The supplied current report.generated_at is the capture time to retain for this fixture.",
+      "expectations": [
+        "Labels the legacy prior timestamp unknown and discloses missing machine coverage metadata.",
+        "Marks compute.mng.groups, addons.helm_releases, storage, security.authentication.access_entries and the null subnet free count as not comparable, without claiming removals.",
+        "Does not claim a newly observed fixed-schema iam_for_pods field was newly deployed; it was omitted from the prior selective snapshot.",
+        "Still reports the confirmed vpc-cni version and subnet-a free-count changes; preserves prior.yaml."
+      ],
+      "files": [
+        "eval-4/prior.yaml",
+        "eval-4/current.yaml"
+      ],
+      "live_only": false,
+      "artifact_assertions": {
+        "root_glob": null,
+        "structural": [
+          {
+            "type": "file-exists",
+            "path": "reports/delta.md"
+          },
+          {
+            "type": "file-exists",
+            "path": "reports/delta.yaml"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [
+              "reports/delta.yaml"
+            ]
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "reports/delta\\.yaml"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)unknown timestamp"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Comparison coverage"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "v1\\.19\\.0-eksbuild\\.1[^\\n]*v1\\.19\\.2-eksbuild\\.1"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Changed[^\\n]*subnet-a[^\\n]*200[^\\n]*199"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/delta.md",
+            "pattern": "(?im)^\\|\\s*(Added|Removed)\\s*\\|"
+          }
+        ],
+        "validators": []
+      }
+    },
+    {
+      "id": 5,
+      "prompt": "This is an offline report-generation test, not a live cluster task. The selected modules have already been collected in current.yaml; use those supplied facts without calling AWS, Kubernetes, or module subagents. Fields not present in these selective synthetic snapshots are unknown. Generate the eks-recon Markdown and YAML report with output prefix reports/delta, using prior.yaml as the prior report. The supplied current report.generated_at is the capture time to retain for this fixture.",
+      "expectations": [
+        "Produces both current fact reports, but makes comparison unavailable because the prior cluster ARN belongs to a different account.",
+        "Does not emit Added, Removed, or Changed inventory rows from the mismatched prior; preserves prior.yaml.",
+        "Current YAML retains the current cluster ARN rather than copying the prior cluster identity."
+      ],
+      "files": [
+        "eval-5/prior.yaml",
+        "eval-5/current.yaml"
+      ],
+      "live_only": false,
+      "artifact_assertions": {
+        "root_glob": null,
+        "structural": [
+          {
+            "type": "file-exists",
+            "path": "reports/delta.md"
+          },
+          {
+            "type": "file-exists",
+            "path": "reports/delta.yaml"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [
+              "reports/delta.yaml"
+            ]
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "reports/delta\\.yaml"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Changes since prior report.*unavailable"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)(ARN|account).*(mismatch|different)|(?i:mismatch|different).*(?:ARN|account)"
+          }
+        ],
+        "validators": []
+      }
+    },
+    {
+      "id": 6,
+      "prompt": "This is an offline report-generation test, not a live cluster task. The selected modules have already been collected in current.yaml; use those supplied facts without calling AWS, Kubernetes, or module subagents. Fields not present in these selective synthetic snapshots are unknown. Generate the eks-recon Markdown and YAML report with output prefix reports/delta, using prior.yaml as the prior report. The supplied current report.generated_at is the capture time to retain for this fixture.",
+      "expectations": [
+        "States No changes in comparable facts despite reordered resource and principal lists.",
+        "Excludes report.generated_at from the delta and preserves prior.yaml.",
+        "Writes both reports with the requested prefix and the correct machine-artifact link."
+      ],
+      "files": [
+        "eval-6/prior.yaml",
+        "eval-6/current.yaml"
+      ],
+      "live_only": false,
+      "artifact_assertions": {
+        "root_glob": null,
+        "structural": [
+          {
+            "type": "file-exists",
+            "path": "reports/delta.md"
+          },
+          {
+            "type": "file-exists",
+            "path": "reports/delta.yaml"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [
+              "reports/delta.yaml"
+            ]
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "reports/delta\\.yaml"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "No changes in comparable facts"
+          }
+        ],
+        "validators": []
+      }
     }
   ]
 }

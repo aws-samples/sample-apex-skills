@@ -77,6 +77,15 @@ Kubernetes-API facts (nodes, CRDs, workloads, RBAC, StorageClasses, etc.) are re
 **Recommendation:** <remediation guidance for next run>
 ```
 
+**Optional prior report:** the caller may supply an earlier recon YAML artifact as
+accessible report content or an attachment. Load
+[report-comparison.md](references/report-comparison) when supplied. Use the
+artifact's source label in place of a filesystem path; do not assume local file or
+shell access. For multi-cluster discovery, compare only the cluster matching the
+prior artifact's ARN and explicitly mark other clusters as having no matching prior.
+If no discovered cluster matches, report the comparison as unavailable. Without a
+prior report, omit the Changes since section.
+
 ### Step 0: Pre-flight — Cluster Discovery and Validation
 
 **Action 1 — Discover clusters.** Use the EKS ListClusters API to discover available clusters in the target region.
@@ -109,7 +118,7 @@ Each reference describes detection **declaratively** as capability blocks (AWS A
 
 ### Step 2: Generate the Report
 
-Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a secondary facts snapshot.
+Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a secondary facts snapshot. When a prior report was supplied, append the comparison defined in [report-comparison.md](references/report-comparison.md).
 
 ---
 
@@ -214,6 +223,22 @@ export and existing workflow guidance.
   `node_subnets`); do not invent generic `{unconfirmed, reason}` wrappers.
 
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` and `cluster_detail:` blocks (from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
+
+
+Include a `report` metadata block alongside the canonical module blocks in every
+new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
+report (reuse the filename's clock reading where applicable). `unconfirmed_paths`
+lists canonical dot-separated field paths whose reads were incomplete or denied;
+list the enclosing inventory path if only part of an inventory was collected.
+Use an empty list only when no collected sub-facts are unconfirmed. Omitted modules
+and explicit unavailable/unconfirmed markers remain authoritative coverage gaps.
+This metadata is not a recon module and is excluded from module counts and deltas.
+
+```yaml
+report:
+  generated_at: "2026-10-29T08:30:00Z"  # actual report time, not this example
+  unconfirmed_paths: []                # e.g. [security.authentication.access_entries]
+```
 
 > **The reference Output Schemas are the single source of truth for the YAML shape** — do not hand-copy a schema. The fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
 

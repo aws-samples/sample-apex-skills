@@ -252,6 +252,7 @@ EKS cluster reconnaissance and environment discovery — reports the raw FACTS o
 | [iac.md](./eks-recon/references/iac.md) | Iac |
 | [networking.md](./eks-recon/references/networking.md) | Networking |
 | [observability.md](./eks-recon/references/observability.md) | Observability |
+| [report-comparison.md](./eks-recon/references/report-comparison.md) | Report comparison |
 | [security.md](./eks-recon/references/security.md) | Security |
 | [storage.md](./eks-recon/references/storage.md) | Storage |
 | [workloads.md](./eks-recon/references/workloads.md) | Workloads |

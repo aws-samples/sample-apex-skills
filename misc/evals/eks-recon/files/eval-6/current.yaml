@@ -1,0 +1,73 @@
+report:
+  generated_at: '2026-10-21T10:00:00Z'
+  unconfirmed_paths: []
+cluster:
+  name: delta-fixture
+  region: us-west-2
+  arn: arn:aws:eks:us-west-2:111122223333:cluster/delta-fixture
+  version: '1.34'
+  platform_version: eks.1
+  status: ACTIVE
+  created_at: '2026-09-01T00:00:00Z'
+  tags:
+    team: platform
+compute:
+  mng:
+    detected: true
+    count: 2
+    groups:
+    - name: retired
+      version: '1.34'
+      desired_size: 1
+    - name: blue
+      version: '1.34'
+      desired_size: 2
+networking:
+  subnets:
+    count: 2
+    list:
+    - id: subnet-b
+      az: us-west-2b
+      cidr: 10.0.1.0/24
+      free: 180
+    - id: subnet-a
+      az: us-west-2a
+      cidr: 10.0.0.0/24
+      free: 200
+addons:
+  eks_managed:
+    count: 2
+    list:
+    - name: coredns
+      version: v1.11.4-eksbuild.1
+    - name: vpc-cni
+      version: v1.19.0-eksbuild.1
+  helm_releases:
+    count: 1
+    list:
+    - name: dns
+      namespace: system
+      chart: external-dns-1.0
+      revision: '1'
+      status: deployed
+      app_version: '1.0'
+security:
+  authentication:
+    mode: API
+    access_entries:
+      count: 2
+      principal_arns:
+      - arn:aws:iam::111122223333:role/retired
+      - arn:aws:iam::111122223333:role/viewer
+  iam_for_pods:
+    pod_identity:
+      associations:
+        count: 1
+        list:
+        - namespace: app
+          service_account: reader
+          role_arn: arn:aws:iam::111122223333:role/reader-v1
+storage:
+  csi_drivers:
+    ebs:
+      detected: true
