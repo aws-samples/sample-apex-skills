@@ -258,9 +258,10 @@ V2_SKILL=zz-v2-only
 ORIGIN="$WORK/origin"
 # skills/ always comes from HEAD, so the cases install this checkout's skills
 # and runbooks. steering/ comes from HEAD too or, once steering/ is gone from
-# HEAD (the v2 layout), from the parent of the last commit that touched it (the
-# last v1 tree), so this v1 installer still has steering to install. After a
-# squash that removes steering/, that parent is the tree the squash landed on.
+# HEAD (the v2 layout), from the parent of the last commit that touched it, so
+# this v1 installer still has steering to install. On this branch that parent
+# is a partial tree (5 steering files); after a squash that removes steering/,
+# it is the tree the squash landed on, the full v1 tree.
 STEERING_SRC=HEAD
 if ! git -C "$REPO_ROOT" cat-file -e HEAD:steering 2>/dev/null; then
   last="$(git -C "$REPO_ROOT" rev-list -1 HEAD -- steering)"

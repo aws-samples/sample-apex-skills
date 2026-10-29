@@ -46,13 +46,13 @@ A maintainer pushed for the other answer, and it won us over: give customers **o
 
 For now we group them by skill, not by task. A folder called `design/` would blur EKS and ECS design, which are different work; `eks-design/` does not. And for now only the apex skill points at runbooks, so a standalone skill never depends on `apex/runbooks/`. The one exception is the vendored `eks-operation-review`, whose sync script rewrites upstream's pointer to its runbook there.
 
-Three questions are still open: whether runbooks stay grouped by skill, whether they become thin step-by-step guides, and where a runbook that spans several skills goes. We answer those in steps 3 to 5.
+One thing is set: a runbook is a procedure, not an information source; domain knowledge lives only in the skill, so there is one surface to maintain. Still open, and answered in steps 3 to 5: how thin each runbook gets, whether runbooks stay grouped by skill, and where a runbook that spans several skills goes.
 
 ## The runbook is the part you change
 
 This is the idea that ties it together. The rest of a skill is domain knowledge: facts, decision frameworks, references. That should stay close to upstream, because it gets better every time we update it. The runbook is different. It is where APEX meets *your* way of working: your approval gates, your naming, your tooling. We strongly advise customizing it.
 
-We are not enforcing that split with folder tricks. Instead, the design notes explain the decisions we made, so you can read them, understand them, and adapt or change them as you like. Having every runbook in one folder means a customer who forks the repo has one folder to review and rebase across upgrades. How the installer treats your edits is in the [installer README](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#uninstall).
+We are not enforcing that split with folder tricks. Instead, the design notes explain the decisions we made, so you can read them, understand them, and adapt or change them as you like. Having every runbook in one folder means a customer who forks the repo has one folder to review and rebase across upgrades. How `--uninstall` treats a path you changed is in the [installer README](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#uninstall) (Uninstall). The clone `~/.apex-skills` is a git checkout: `--update` refuses to move it while tracked files are changed, so keep runbook edits in a fork.
 
 ## The trade-off we accept
 
@@ -60,7 +60,7 @@ There is a cost. A standalone skill works on its own in any agent that reads the
 
 ## The plan
 
-We are building the next major version in nine steps. Step 0 lays the foundations: an installer release, required checks on `main` and a test cluster. Step 1 moves things to where they live: these docs, the `apex` skill and its runbooks, `/apex` routing, and steering removed (routing changes from steering: compare asks go to `eks-best-practices`, and Kiro reaches the runbooks only through the `apex` skill). Step 2 looks at how APEX fits AWS's own agentic tooling, such as agents, MCP servers and AWS Transform. Step 3 defines what an APEX skill is, on `eks-recon`, with our standards and eval strategy. Step 4 applies that to the Day 0, Day 1 and Day 2 skills, and step 5 to every other skill we own. Step 6 covers vendored skills and skills owned by others. Step 7 is the installer, SEO, README and site, plus the contributor skill for writing new skills, which we only build once we know what a skill is. Step 8 is the release.
+We are building the next major version in nine steps. Step 0 lays the foundations: an installer release, required checks on `main` and a test cluster. Step 1 moves things to where they live: these docs, the `apex` skill and its runbooks, `/apex` routing, and steering removed (routing changes from steering include: compare asks and casual review asks ("what do you think?") go to `eks-best-practices`, and Kiro reaches the runbooks only through the `apex` skill). Step 2 looks at how APEX fits AWS's own agentic tooling, such as agents, MCP servers and AWS Transform. Step 3 defines what an APEX skill is, on `eks-recon`, with our standards and eval strategy. Step 4 applies that to the Day 0, Day 1 and Day 2 skills, and step 5 to every other skill we own. Step 6 covers vendored skills and skills owned by others. Step 7 is the installer (dropping the steering question and flag for v2 trees), SEO, README and site, plus the contributor skill for writing new skills, which we only build once we know what a skill is. Step 8 is the release.
 
 ## What comes next
 

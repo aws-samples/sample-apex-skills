@@ -14,7 +14,7 @@ This page is generated from [examples/eks-upgrades/in-place-karpenter-check/READ
 
 A hands-on exercise that demonstrates the APEX [`eks-upgrade-check` skill](../../../skills/eks/eks-upgrade-check/) in practice (the APEX upgrade check runbook, listed under Further Reading, applies when the apex skill routes the request). Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
 
-The upgrade-check workflow uses the [`eks-upgrade-check`](../../../skills/eks/eks-upgrade-check/) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
+The upgrade-check runbook uses the [`eks-upgrade-check`](../../../skills/eks/eks-upgrade-check/) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
 
 ## Overview
 
@@ -195,11 +195,11 @@ chmod +x ./scripts/destroy.sh
 
 The destroy script: deletes planted manifests, terminates Karpenter EC2 instances, removes Karpenter K8s resources, and runs `terraform destroy`.
 
-If you ran this example's deploy.sh before v2, also remove `.claude/commands/apex` (a dangling link) and `.kiro/steering/eks.md` (a copy of the removed hub) in your checkout.
+If you ran this example's deploy.sh before v2, also remove `.claude/commands/apex` (a dangling link) and `.kiro/steering/eks.md` (a copy of the removed hub) in your checkout, and the dangling `.claude/skills/steering-workflow-creator` or `.kiro/skills/steering-workflow-creator` link (`find .claude/skills .kiro/skills -xtype l` lists every dangling link).
 
 ## Further Reading
 
-- [APEX EKS Upgrade Check Workflow](../../../skills/general/apex/runbooks/eks-upgrade-check/)
+- [APEX EKS Upgrade Check Runbook](../../../skills/general/apex/runbooks/eks-upgrade-check/)
 - [EKS Upgrade Check Skill](../../../skills/eks/eks-upgrade-check/)
   - [Version Validation Reference](../../../skills/eks/eks-upgrade-check/references/version-validation)
   - [Add-on Compatibility Reference](../../../skills/eks/eks-upgrade-check/references/addon-compatibility)

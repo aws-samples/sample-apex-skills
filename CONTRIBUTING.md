@@ -281,8 +281,8 @@ Steps:
 2. Plan reusable contents (scripts, references, assets).
 3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists — see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
 4. Scaffold `misc/evals/<name>/` with `cd misc/evals && make init-evals SKILL=<name> [SIBLINGS="a,b"]` (see misc/evals/README.md), then expand `triggering.json` to ≥16 prompts (≥8 positives, ≥8 near-miss negatives).
-5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py` — one call per neighbour. A neighbour shares vocabulary or domain; zero neighbours is valid; skill-creator and terraform-skill are upstream-synced and excluded.
-6. Fan out: add the routing row in [`skills/apex/SKILL.md`](skills/apex/SKILL.md) and any hand-written catalogue, then run `./misc/update-all-references.sh` (it regenerates `skills/README.md` and the README tables; never edit those blocks by hand). `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
+5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py`, one call per neighbour. A neighbour shares vocabulary or domain; zero neighbours is valid; skill-creator and terraform-skill are upstream-synced and excluded, and `apex` (the router, which has no eval folder) is excluded too.
+6. Fan out: add the routing row in [`skills/apex/SKILL.md`](skills/apex/SKILL.md) and any hand-written catalogue, then run `./misc/update-all-references.sh` (it regenerates `skills/README.md` and the README tables; never edit those blocks by hand) and `./misc/update-pages.sh`. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
 7. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`.
 
 ### Pre-PR checklist for new skills
@@ -300,9 +300,9 @@ Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter desc
 
 ## Creating a New Runbook
 
-1. Create `skills/apex/runbooks/<skill>/<name>.md`, in the folder of the skill it runs with
+1. Create `skills/apex/runbooks/<skill>/<name>.md`, in the folder of the skill it runs with (every runbook is named after its folder except `eks-design/design.md`)
 2. Add a header naming the lifecycle and the skill: `> **Lifecycle:** Day <n>` and `> **Skill:** <skill>`
-3. Do not add a routing table: the apex skill's tables route (five of the moved runbooks, eks-build, eks-design, eks-genai, eks-platform-engineering and eks-security, still carry one; a later change removes them)
+3. Do not add a routing table: the apex skill's tables route (five of the moved runbooks, eks-build, eks-design, eks-genai, eks-platform-engineering and eks-security, still carry one; a later change removes them; the runbooks for the two vendored skills, eks-operation-review and eks-upgrade-check, keep a `## Routing` section on scope)
 4. Structure as phases with numbered checklists and STOP gates
 5. Check that a routing row in `skills/apex/SKILL.md` sends the request to that skill
 6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.

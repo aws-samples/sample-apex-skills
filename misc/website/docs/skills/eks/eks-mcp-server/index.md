@@ -83,7 +83,7 @@ Wait for the user's answer before proceeding.
 | Self-Hosted | `${CLAUDE_SKILL_DIR}/references/self-hosted-setup.md` |
 
 - Success → Proceed to Action 2.
-- Failure (file not found) → STOP. Show: "Cannot read reference file at `<path>`. Verify the skill is installed correctly (`npx apex-skills` or check `skills/eks-mcp-server/references/`)." Wait for the user to resolve.
+- Failure (file not found) → STOP. Show: "Cannot read reference file at `<path>`. Verify the skill is installed correctly (`npx apex-skills@1.3.0` or check `skills/eks-mcp-server/references/`)." Wait for the user to resolve.
 
 **Action 2 — Generate config**
 

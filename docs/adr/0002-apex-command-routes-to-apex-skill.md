@@ -5,7 +5,7 @@
 
 ## Context
 
-Today `apex` is a command namespace, not a command. The folder `steering/commands/apex/` holds the slash commands `/apex:eks`, `/apex:eks-design`, `/apex:eks-build`, `/apex:new-skill` and the others, and the installer links that folder into `~/.claude/commands/apex`. Each command loads one steering file: `/apex:eks` loads the EKS hub `steering/eks.md`, and `/apex:new-skill` loads `steering/workflows/new-skill.md`.
+Today `apex` is a command namespace, not a command. The folder `steering/commands/apex/` holds the slash commands `/apex:eks`, `/apex:eks-design`, `/apex:eks-build`, `/apex:new-skill` and the others, and the installer links that folder into `~/.claude/commands/apex`. Each command loads one steering file: `/apex:eks` loads the EKS hub `steering/eks.md`, and `/apex:new-skill` loads `steering/workflows/new-skill.md`. Done in step 1: aws-samples/sample-apex-skills#285, #286 and #288 removed these command files on 2026-10-28, and only `/apex` stays.
 
 There is no bare `/apex` command. The APEX meta hub, `steering/apex.md`, is a steering file that no slash command loads. There is also no apex skill in `skills/` yet. So by design there is a gap: a user has no single, direct way to reach the apex entry point.
 
