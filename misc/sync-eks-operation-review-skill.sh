@@ -260,7 +260,7 @@ The sync script applies four deterministic edits to upstream content:
 
 2. **\`SKILL.md\` description block-scalar flattening.** Upstream uses YAML folded-scalar form (\`description: >\` followed by indented lines). Apex's catalog generator reads the same line as the key, so the catalog row would render just \`>\`. The sync flattens the block scalar to a single \`description: <one line>\` entry. Wording is preserved byte-for-byte; only the YAML representation changes.
 
-3. **\`SKILL.md\` body path fix.** Upstream's body says "Read and follow \`.claude/commands/eks-operation-review.md\`": that path doesn't exist in apex. The slash-command content is apex's own workflow, kept outside this folder at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\`, which the sync does not touch. The sync rewrites the reference to that file, relative to this skill's folder (\`../apex/runbooks/eks-operation-review/eks-operation-review.md\`).
+3. **\`SKILL.md\` body path fix.** Upstream's body says "Read and follow \`.claude/commands/eks-operation-review.md\`": that path doesn't exist in apex. The slash-command content is apex's own workflow, kept outside this folder at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\`. The sync rewrites the reference to that file, relative to this skill's folder (\`../apex/runbooks/eks-operation-review/eks-operation-review.md\`).
 
 4. **\`SKILL.md\` Prerequisites MCP line.** Upstream lists "MCP servers configured in \`.mcp.json\`" as a prerequisite. Apex doesn't ship \`.mcp.json\`; MCP setup is handled by the \`eks-mcp-server\` skill. The sync rewrites the line to point users at that skill instead.
 
