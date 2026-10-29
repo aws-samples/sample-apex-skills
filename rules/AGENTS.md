@@ -43,9 +43,10 @@
   direct CLI commands.
 - When working with infrastructure, follow AWS Well-Architected Framework
   principles.
-- Never execute destructive operations (for example node drain, cluster or
-  service delete, stack delete, force eviction) without explicit user
-  confirmation.
+- Never create, change or delete anything in the user's AWS account or
+  cluster without explicit user confirmation first (for example tagging a
+  resource, node drain, cluster or service delete, stack delete, force
+  eviction).
 - Never output secrets, credentials, or kubeconfig contents in responses.
 - Avoid non-ASCII characters (including em dashes) in AWS resource names
   and descriptions. Use hyphens instead.
