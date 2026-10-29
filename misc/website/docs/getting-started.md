@@ -21,11 +21,9 @@ npx apex-skills@1.3.0
 
 APEX v2 is in progress, so the commands here pin the installer to exactly version 1.3.0 until v2 ships, which also skips later 1.3.x installer releases. A fresh install with no earlier install record takes the newest v1.x.y release of the skills; `--version` picks a release, `--branch` follows a branch, and `--update` stays on the clone's major line or the branch it follows.
 
-On a tree without steering/ (any v2 branch, and `main` once v2 merges), installer 1.3.0 still asks about steering, prints `No steering commands found in repo` and `No steering workflows found in repo`, and for Kiro CLI suggests `/eks-build`; ignore these, the skills, `apex` included, install correctly.
-
 The installer's own messages show `npx apex-skills`; add `@1.3.0` when you run them.
 
-Until v2 ships, a v1 release has the `/apex:*` commands and no `apex` skill or runbooks; for `/apex`, run `npx apex-skills@1.3.0 --branch main` or use the Manual Install below (both from `main`).
+For v2 and its `/apex` router, use the Manual Install below (from `main`).
 
 Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and links the skills into place. Flags, exit codes, [installed paths](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#installed-paths) and [uninstall](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#uninstall): see the [installer README](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md).
 
@@ -41,10 +39,6 @@ npx apex-skills@1.3.0 --help                # See all options
 ## Manual Install
 
 If you prefer not to use npx, clone the repo and copy skills directly.
-
-If you installed v1 with npx, run `npx apex-skills@1.3.0 --uninstall` first (or install with `npx apex-skills@1.3.0 --branch main` instead): `cp` cannot overwrite the links the npx install made and exits with an error.
-
-**Upgrading a v1 manual install:** remove `~/.claude/commands/apex` and `~/.claude/apex-steering` (links into `steering/`, which v2 removes) and the eight APEX workflow files you copied into `~/.kiro/steering/` (design.md, eks-build.md, eks-genai.md, eks-operation-review.md, eks-platform-engineering.md, eks-security.md, eks-upgrade-check.md and new-skill.md; `grep -l 'APEX EKS Hub\|APEX Meta Hub' ~/.kiro/steering/*.md` lists them); the `/apex:<name>` commands are replaced by `/apex`, except `/apex:new-skill`, which is removed (for a new skill, follow [CONTRIBUTING.md](https://github.com/aws-samples/sample-apex-skills/blob/main/CONTRIBUTING.md#creating-a-new-skill), Creating a New Skill). `cp -r` does not remove the retired skill: also `rm -rf ~/.claude/skills/steering-workflow-creator ~/.kiro/skills/steering-workflow-creator`.
 
 ### Claude Code
 

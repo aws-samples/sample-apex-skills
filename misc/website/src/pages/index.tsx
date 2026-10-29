@@ -142,7 +142,7 @@ function HowItWorks() {
           <span className="apex-steps__number">1</span>
           <h3>Install</h3>
           <p>npx apex-skills@1.3.0</p>
-          <p>Installs v1 (the <code>/apex:*</code> commands). For the <code>/apex</code> router, use the manual install from <code>main</code> (<Link to="/docs/getting-started#manual-install">Getting Started</Link>).</p>
+          <p>For v2 and its <code>/apex</code> router, use the manual install from <code>main</code> (<Link to="/docs/getting-started#manual-install">Getting Started</Link>).</p>
         </div>
         <div className="apex-steps__item">
           <span className="apex-steps__number">2</span>

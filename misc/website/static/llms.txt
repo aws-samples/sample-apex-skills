@@ -15,7 +15,7 @@
 ```
 npx apex-skills@1.3.0
 ```
-Installs v1 (the `/apex:*` commands). The `apex` skill below needs the manual install from `main`.
+For v2 and its `/apex` router, use the manual install from `main`.
 
 See the documentation site for full installation instructions.
 
