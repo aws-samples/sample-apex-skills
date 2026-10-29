@@ -18,8 +18,8 @@
 - Prefer the EKS MCP Server for live cluster interactions: it provides
   Kubernetes API access (the self-hosted server is read-only unless run
   with `--allow-write`; the AWS-hosted server allows the write tools its
-  IAM policy grants unless run with `--read-only`), upgrade insights, and
-  cluster discovery. If its tools are missing, ask the user whether they
+  IAM policy grants unless the MCP Proxy for AWS runs it with
+  `--read-only`), upgrade insights, and cluster discovery. If its tools are missing, ask the user whether they
   are willing and interested to install the EKS MCP Server: if yes, load
   the `eks-mcp-server` skill to set it up; if no, use kubectl and the AWS
   CLI directly, except for `eks-operation-review`, which needs the EKS MCP
