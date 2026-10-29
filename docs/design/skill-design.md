@@ -17,7 +17,7 @@ That split works. What it lacks is one entry point and one place where a custome
 
 The new design has one entry skill, and every other skill stands on its own:
 
-- **`apex` is the entry skill.** It knows the engagements APEX can run, asks enough to pick the right one, and holds the runbooks that drive them. `/apex` takes you straight to it on Claude Code ([ADR 0002](../adr/0002-apex-command-routes-to-apex-skill.md)); the front door on other harnesses is in [ADR 0005](../adr/0005-router.md).
+- **`apex` is the entry skill.** It knows the engagements APEX can run, asks enough to pick the right one, and holds the runbooks that drive them. `/apex` takes you straight to it on Claude Code ([ADR 0002](../adr/0002-apex-command-routes-to-apex-skill.md)).
 - **Every other skill is a standalone skill**, of one of two kinds:
   - a **knowledge skill** gives guidance and advice on a domain, for example `eks-best-practices`;
   - a **solution skill** does a piece of work and hands back a result, for example `eks-design`, `eks-build` or `eks-cost-intelligence`.
@@ -71,7 +71,7 @@ We do not enforce this in the repo layout. Instead this document is where we exp
 
 ### Standalone skills
 
-A standalone skill works on its own, in any agent that reads the Agent Skills format. But without `apex` it has no runbook, so you get the knowledge without the guided engagement. We accept that as a design trade-off: users who do not take the full APEX setup get a weaker product. See [ADR 0003](../adr/0003-standalone-skills-are-a-weaker-tradeoff.md). Standalone use keeps working: a knowledge skill still gives its advice, and a solution skill keeps its references and scripts. How much of a solution skill's work runs without a runbook is decided per skill in steps 3 to 5. One skill folder copied on its own, though, is not a supported install ([ADR 0006](../adr/0006-skill-content-and-auto-triggering.md), proposed); whether that narrows this trade-off is open there.
+A standalone skill works on its own, in any agent that reads the Agent Skills format. But without `apex` it has no runbook, so you get the knowledge without the guided engagement. We accept that as a design trade-off: users who do not take the full APEX setup get a weaker product. See [ADR 0003](../adr/0003-standalone-skills-are-a-weaker-tradeoff.md). Standalone use keeps working: a knowledge skill still gives its advice, and a solution skill keeps its references and scripts. How much of a solution skill's work runs without a runbook is decided per skill in steps 3 to 5.
 
 ## How descriptions are limited
 
@@ -93,7 +93,7 @@ We are building the next major version in nine steps (summary). In every step we
 | 7 | Installer (drop the steering question and flag for v2 trees), SEO, README and site; the contributor skill for new skills, once we know what a skill is |
 | 8 | Publish |
 
-Step 1 removes the `/apex:new-skill` command and its workflow with `steering/`; we build the contributor skill in step 7, once steps 3 to 5 have settled what a skill is. Until then the steps in [CONTRIBUTING.md](../../CONTRIBUTING.md#creating-a-new-skill) (Creating a New Skill) apply. The contributor skill re-carries what the removed new-skill workflow held and CONTRIBUTING does not (among them retrofit mode, the scaffold-only refusal, the sibling-count heuristics, the DevOps Agent port check, the sourcing bar for references; the neighbour definition and the rule not to hand-edit script-managed blocks are in CONTRIBUTING.md, Creating a New Skill, steps 5 and 6); the last copy is d4a7a02:steering/workflows/new-skill.md. In step 1, `/apex` points to the `apex` skill, which takes over routing. Step 1 removes the `/apex:<name>` commands with `steering/`; only `/apex` stays ([ADR 0005](../adr/0005-router.md#open)).
+Step 1 removes the `/apex:new-skill` command and its workflow with `steering/`; we build the contributor skill in step 7, once steps 3 to 5 have settled what a skill is. Until then the steps in [CONTRIBUTING.md](../../CONTRIBUTING.md#creating-a-new-skill) (Creating a New Skill) apply. The contributor skill re-carries what the removed new-skill workflow held and CONTRIBUTING does not (among them retrofit mode, the scaffold-only refusal, the sibling-count heuristics, the DevOps Agent port check, the sourcing bar for references; the neighbour definition and the rule not to hand-edit script-managed blocks are in CONTRIBUTING.md, Creating a New Skill, steps 5 and 6); the last copy is d4a7a02:steering/workflows/new-skill.md. In step 1, `/apex` points to the `apex` skill, which takes over routing. Step 1 removes the `/apex:<name>` commands with `steering/`; only `/apex` stays.
 
 ## What comes later
 
