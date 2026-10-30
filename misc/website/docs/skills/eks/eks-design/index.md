@@ -54,7 +54,7 @@ Generate architecture design documents for production-ready EKS deployments. All
 
 **Internet search (MANDATORY before generating):** Before writing any design content, you MUST search the internet to determine the latest EKS version, tool versions (Karpenter, ArgoCD, Kyverno, etc.), and AWS service updates. Do NOT use version numbers from reference files — they are illustrative only and may be outdated. Always verify the chosen EKS version is in standard support (not extended or EOL). Never rely solely on cached knowledge for version numbers.
 
-If the mandated search cannot reach the web, mark every version claim and recommendation that depends on it UNVERIFIED in the design and its ADRs.
+If the mandated search cannot reach the web, mark every version claim and recommendation that depends on it UNVERIFIED in the design and its ADRs; a search that was attempted and failed satisfies the Stage 5 search item when those marks are present.
 
 ## Design Workflow
 
