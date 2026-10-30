@@ -566,7 +566,7 @@ Cluster has 5 Spot-eligible workloads:
 | `workload_architecture` | Node label `kubernetes.io/arch` | amd64 |
 | `image_supports_arm64` | `docker manifest inspect` or ECR image index | true |
 | `workload_monthly_cost` | Allocated node cost | $192.00 |
-| `graviton_discount` | Graviton vs x86 price differential | 0.20 (20% cheaper) |
+| `graviton_discount` | Graviton vs x86 price differential, by generation ([spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1) | 0.20 Graviton2, 0.19 Graviton3, 0.15 Graviton4 |
 
 #### Graviton Eligibility Criteria
 
@@ -588,7 +588,7 @@ graviton_eligible = [
 
 # Per workload
 x86_cost = workload_monthly_cost
-graviton_savings = x86_cost * graviton_discount  # typically 20%
+graviton_savings = x86_cost * graviton_discount  # by target Graviton generation
 
 monthly_waste = graviton_savings  # "waste" = premium paid for x86
 monthly_savings = graviton_savings
@@ -610,7 +610,7 @@ Workload: api/order-service
   arm64 support: yes (multi-arch image)
   Monthly cost on x86: $192.00
 
-Graviton equivalent: m6g.xlarge (20% cheaper than m5.xlarge)
+Graviton equivalent: m6g.xlarge (Graviton2, 0.20 discount)
   m5.xlarge:  $0.192/hr
   m6g.xlarge: $0.154/hr  (19.8% savings)
 
@@ -787,7 +787,7 @@ def determine_confidence(data_sources: list[str]) -> str:
 
 - All prices are US East (N. Virginia) On-Demand rates. **Use the AWS Price List API for region-specific pricing** (see `cost-estimation-fallback.md` Step 2).
 - Spot discounts vary by instance type and region (40–90%). Use 65% as conservative default. **For production accuracy:** Use the EC2 DescribeSpotPriceHistory API to get current Spot pricing for the customer's instance types and region.
-- Graviton savings vary by instance family (15–40%). Use 20% as conservative default.
+- Graviton savings vary by generation, family and Region (us-east-1 On-Demand, 2026-10-30: 0.20 Graviton2, 0.19 Graviton3, 0.15 Graviton4). Use the target generation's figure, or 0.15 when it is unknown.
 - Cross-AZ pricing is consistent across regions ($0.01/GiB each direction).
 - NAT Gateway pricing is consistent across regions ($0.045/GiB processed).
 - Storage pricing varies by region; us-east-1 rates used as reference.
