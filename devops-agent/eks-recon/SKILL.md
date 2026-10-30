@@ -15,7 +15,7 @@ description: EKS cluster reconnaissance and environment discovery — reports th
 
 ## Overview
 
-This skill discovers and documents the current state of an EKS cluster and its environment. It connects via AWS control-plane APIs and the Kubernetes API, runs detection across up to 11 modules, and produces a **facts-only** report: a markdown fact report (primary) plus a machine-readable YAML artifact for hand-off to other skills.
+This skill discovers and documents the current state of an EKS cluster and its environment. It connects via AWS control-plane APIs and the Kubernetes API, runs detection across up to 11 modules, and produces a **facts-only** report: a markdown fact report (primary) plus a secondary YAML facts snapshot for inspection/export.
 
 Recon answers the question: *"What is this cluster, right now?"* It **reports facts only** — it never scores, rates, plans, or recommends. Reporting a fact that also matters to another skill (upgrade, security, cost, design) is expected and fine; the dividing line is discovery-of-facts (here) vs. verdict/score/artifact (route elsewhere).
 
@@ -110,7 +110,7 @@ Each reference describes detection **declaratively** as capability blocks (AWS A
 
 ### Step 2: Generate the Report
 
-Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a machine artifact for hand-off.
+Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a secondary facts snapshot.
 
 ---
 
@@ -138,7 +138,7 @@ For **full recon**, load all rows. For a **targeted query** (e.g. "am I using Ka
 
 ## Report Output
 
-Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a machine artifact for optional hand-off to other skills. The agent generates both directly — no external conversion tools or scripts.
+Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a secondary facts snapshot for inspection/export. The agent generates both directly — no external conversion tools or scripts.
 
 > **Facts only.** Both artifacts report what the cluster *is*. Never emit a verdict, score, readiness rating, or recommendation. A "Notable facts" line states an observation ("2 subnets have < 16 free IPs"); it never says "you should" or "this is a risk".
 
@@ -181,9 +181,38 @@ _generated <timestamp> · source: AWS API + K8s API · modules: N/N_
 - addons.helm_releases: unconfirmed (reason: Helm release Secrets not readable) — reported as `unconfirmed`, not `count: 0`
 ```
 
+Keep every absence claim within the successfully inspected scope. State that
+scope with the claim, including in summaries and Notable facts; Coverage
+caveats do not qualify broader wording elsewhere.
+
 ### Machine YAML artifact
 
 - **Filename:** `EKS-Recon-{cluster}-{YYYY-MM-DD}-{HHMM}.yaml`
+
+The YAML is a **secondary, point-in-time facts snapshot**, not a versioned API.
+Workflows may use its facts as context; that intended use does not establish a
+versioned schema hand-off. Preserve the canonical reference shapes for inspection,
+export and existing workflow guidance.
+
+**Assembly rules (inline and subagent execution):**
+
+- Use cluster-basics for the shared `cluster:` block; deduplicate matching module
+  blocks. For the same target, preserve module facts and record differing values
+  and their sources in Markdown Coverage rather than silently overwriting them.
+  Compare identity using target context (such as cluster ARN); a cosmetic endpoint
+  difference such as a trailing `/` is not another cluster. If a module identifies another target cluster,
+  retain its key as `{unavailable: true, reason: "cluster context mismatch"}`.
+- On full recon, collect `cluster_detail:` directly from cluster-basics, which has
+  no subagent. Targeted queries may omit unrelated detail.
+- If a selected module returns no usable result, retain its key with
+  `unavailable: true` and a short `reason` in either mode. Partial reads retain
+  known facts alongside Coverage gaps. Unselected modules are out of scope.
+- For partial modules, retain observed facts and every schema-defined object/key,
+  even when all its values are unreadable: use `ingresses: {count: null, list: null}`,
+  not `ingresses: null`. Set unreadable leaf values to `null` and put reasons in
+  Markdown Coverage. Use another representation only when the module reference
+  explicitly prescribes it for that field and failure condition (for example, Helm or
+  `node_subnets`); do not invent generic `{unconfirmed, reason}` wrappers.
 
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` and `cluster_detail:` blocks (from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
 

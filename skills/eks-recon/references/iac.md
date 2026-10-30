@@ -14,7 +14,7 @@
   - [4. eksctl Detection](#4-eksctl-detection)
   - [5. Pulumi Detection](#5-pulumi-detection)
   - [6. Crossplane and ACK Detection](#6-crossplane-and-ack-detection)
-  - [7. Tag-Based Detection (Fallback)](#7-tag-based-detection-fallback)
+  - [7. Tag-Based Detection](#7-tag-based-detection)
 - [Output Schema](#output-schema)
 - [Confidence Determination](#confidence-determination)
 - [Edge Cases](#edge-cases)
@@ -277,9 +277,9 @@ Record `crossplane.detected: bool` (compositions or crossplane.io CRDs present) 
 `ack.detected: bool` (any `services.k8s.aws` CRD present). For ACK, record the matched
 CRD groups (e.g. `eks.services.k8s.aws`, `iam.services.k8s.aws`) in `ack.controllers`.
 
-### 7. Tag-Based Detection (Fallback)
+### 7. Tag-Based Detection
 
-Use tag-based detection when workspace scan finds nothing. IaC tools often add identifying tags to the resources they create.
+Always check the target cluster tags, including when workspace files were found elsewhere. IaC tools often add identifying tags to the resources they create.
 
 **MCP:**
 ```
@@ -322,6 +322,15 @@ aws eks describe-cluster --name <cluster-name> \
 
 ---
 
+**Contradiction guard:** always reconcile workspace findings with the target
+cluster tags from cluster-basics (read them if not yet collected). An empty or unavailable workspace
+cannot negate Terraform tags: retain `Terraform` in `tools_detected`,
+`tags.terraform_managed: true` and `evidence.type: cluster_tags` with the observed
+key/value. Do not invent workspace files or state backends. Preserve evidenced
+tools from both sources when they differ, recording both in `evidence.details`
+and using this runtime's confidence table. Tags are hints, not proof of current
+ownership. Failed tag reads stay unknown without erasing workspace evidence.
+
 ## Output Schema
 
 This is the **single canonical schema** for the IaC module — it carries every IaC fact.
@@ -330,7 +339,7 @@ The `iac-recon` agent emits exactly this shape (plus the shared `cluster:` block
 
 ```yaml
 iac:
-  tools_detected: list    # ALL IaC tools with evidence, flat — no "primary". e.g. ["terraform","cdk"]
+  tools_detected: list    # ALL IaC tools with evidence, flat — no "primary". e.g. ["Terraform","CDK"]
                           # (Terraform | CloudFormation | CDK | eksctl | Pulumi | Crossplane | ACK | CLI | unknown)
   confidence: string      # high | medium | low — evidence-strength metadata (fact), not a verdict
   evidence:               # object form (canonical)

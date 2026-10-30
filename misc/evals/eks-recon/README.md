@@ -30,6 +30,27 @@ The `triggering.json` evals (run via `run_triggering.py`) are unaffected — the
 
 ## How to run
 
+### Offline GitOps regression checks
+
+```bash
+python3 misc/tests/test_eks_recon_gitops.py -v
+```
+
+Run from the repository root with Python 3; no cloud credentials or model calls
+are required. Hand-authored fixtures exercise the GitOps metadata extractor's
+tracking validity, shared/custom labels, corroboration, Flux pairs, malformed
+input, privacy and UTF-8 handling. Large inputs check full scanning and late
+positives with bounded examples. A schema check compares GitOps field declarations
+across runtimes without requiring identical prose.
+With `jq` installed, the same suite executes the documented controller projection
+against privacy, executable-hint and pagination fixtures; those checks skip without
+`jq` locally and are required in CI.
+
+The `eks-recon GitOps regression` CI job runs these checks for relevant paths.
+They are not agent evaluations or proof of live reconciliation. Live task evals
+must check outcomes, read coverage, local facts, YAML assembly and IaC evidence
+against independent API captures; glob/keyword assertions alone are insufficient.
+
 From `misc/evals/`:
 - `make validate-eks-recon` — frontmatter + 64/1024-char limits (deterministic)
 - `make triggering-eks-recon` — triggering accuracy score (LIVE)

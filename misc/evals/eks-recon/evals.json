@@ -146,7 +146,11 @@
         "The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as applicable). TODO: human review",
         "The output identifies the IaC tool and, where possible, evidence (workspace files, stack names, module references). TODO: human review",
         "The output reports on workspace CI pipelines (GitHub Actions / GitLab CI / Jenkins) with detection evidence. TODO: human review",
-        "The output reports on GitOps tooling (ArgoCD or Flux) including namespace and rough application / kustomization counts when available. TODO: human review"
+        "The output reports on GitOps tooling (ArgoCD or Flux) including namespace and rough application / kustomization counts when available. TODO: human review",
+        "The output inspects spoke-side workload tracking without local controllers/CRDs. Complete selected reads with no matched signal yield not_observed; ambiguity or incomplete selected reads yield unconfirmed; positives survive unrelated denied reads. Workload tool output excludes raw env/args and unrelated annotation values; controller role uses projected evidence. Target ARGOCD capabilities contribute overall evidence without populating local controller fields. Shared labels need valid self-referencing tracking-id or target-specific user-confirmed label mode; chart annotations and discovered standard-key configuration alone cannot corroborate them; user-supplied unprefixed keys retain their provenance. Checked signals and optional ConfigMap exclusions are disclosed, unrelated annotation values are not quoted, and unavailable local Argo/Flux details remain null. TODO: human review",
+        "The output preserves target-cluster IaC tag evidence even when no IaC files are available in the workspace. TODO: human review",
+        "The YAML remains a secondary facts snapshot with canonical reference shapes; intended workflow use is distinguished from a versioned schema hand-off. TODO: human review",
+        "Inline and subagent assembly preserve selected failed-module keys, flag differing cluster observations, preserve facts across cosmetic endpoint differences, and exclude facts from another target. Partial modules retain canonical keys/types with null unknowns and Coverage reasons; reference-defined exceptions remain valid. TODO: human review"
       ],
       "files": [],
       "live_only": true,
