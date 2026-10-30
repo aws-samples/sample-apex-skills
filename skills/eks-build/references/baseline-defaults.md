@@ -169,6 +169,7 @@ configuration_values = jsonencode({
 - **Intra subnets**: EKS control plane ENIs (when available)
 - **All subnets**: Tagged `kubernetes.io/cluster/<cluster-name> = shared`
 - **NAT Gateway**: One per AZ for production (eliminates inter-AZ NAT traversal)
+- **EIP quota pre-flight**: The `terraform-aws-modules/vpc` module creates one Elastic IP per NAT gateway, so one NAT gateway per AZ takes one EIP per AZ against a default quota of 5 EIPs per Region ([VPC quotas](https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html#vpc-limits-eips)). Check the account's free EIPs in the target Region before apply and request an increase if short, or use a single NAT gateway (`single_nat_gateway = true`) for non-prod.
 
 ### kube-proxy
 
@@ -361,6 +362,10 @@ Strict sequence:
 | 1.25 | PodSecurityPolicy, batch/v1beta1 CronJob |
 | 1.26 | flowcontrol.apiserver.k8s.io/v1beta1 |
 | 1.27 | storage.k8s.io/v1beta1 CSIStorageCapacity |
+| 1.29 | flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema, PriorityLevelConfiguration |
+| 1.32 | flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema, PriorityLevelConfiguration |
+
+Rows after 1.27 are from the Kubernetes [Deprecated API Migration Guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/) (checked 2026-10-30; no removals listed after 1.32). Re-check it for the target version before each upgrade.
 
 ### Version Support
 

@@ -188,6 +188,8 @@ S3 buckets persist after `terraform destroy` because the controller is deleted f
 
 OpenTofu v1.10.6 has severe `depends_on` performance regression (30+ min plan vs < 2 min with Terraform v1.14.5). Require HashiCorp Terraform v1.14.5+.
 
+Pin it in `versions.tf` with `required_version = ">= 1.14.5"` (see [versions.tf and backend.hcl](#versionstf-and-backendhcl)). Pre-flight before `terraform init`: the first line of `terraform version` must read `Terraform v1.14.5` or later; `OpenTofu v...` means the binary is OpenTofu (fix in [lessons-learned.md Section 12](references/lessons-learned#12-use-hashicorp-terraform-not-opentofu)).
+
 ### 12. ArgoCD EKS Capability Requires IAM Identity Center
 
 The AWS-managed ArgoCD EKS Capability requires an existing IAM Identity Center instance. Self-managed ArgoCD can use any auth method.
@@ -237,6 +239,32 @@ projects/<project-name>/code/
 │   └── tenants/applicationset.yaml
 └── validation-checklist.md
 ```
+
+### versions.tf and backend.hcl
+
+`versions.tf` pins the Terraform version and declares the S3 backend as a partial configuration; `configs/backend.hcl` supplies its values at `terraform init -backend-config=configs/backend.hcl`.
+
+```hcl
+# versions.tf
+terraform {
+  required_version = ">= 1.14.5" # HashiCorp Terraform, not OpenTofu (Critical Rule 11)
+
+  backend "s3" {} # values come from configs/backend.hcl
+
+  # required_providers: pin every provider per references/version-matrix.md
+}
+```
+
+```hcl
+# configs/backend.hcl
+bucket       = "<STATE_BUCKET>"
+key          = "<project-name>/terraform.tfstate"
+region       = "<REGION>"
+encrypt      = true
+use_lockfile = true # S3-native state locking (DynamoDB locking is deprecated)
+```
+
+Enable versioning on the state bucket so state can be recovered after an accidental delete.
 
 ### Deployment
 

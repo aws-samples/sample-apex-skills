@@ -136,9 +136,15 @@ echo "6. Module source paths"
 echo "-------------------------------------------"
 
 if [ -f "$MAIN_TF" ]; then
-    # Extract module source paths and check they exist
-    MODULE_SOURCES=$(grep -oP 'source\s*=\s*"\./modules/[^"]+' "$MAIN_TF" | sed 's/source *= *"//g' || true)
-    if [ -n "$MODULE_SOURCES" ]; then
+    # Extract module source paths and check they exist.
+    # POSIX sed -E only (no grep -P, which BSD/macOS grep lacks).
+    if ! MODULE_SOURCES=$(sed -n -E 's|.*source[[:space:]]*=[[:space:]]*"(\./modules/[^"]+)".*|\1|p' "$MAIN_TF"); then
+        fail "Could not read module sources from main.tf"
+        MODULE_SOURCES=""
+    fi
+    if [ -z "$MODULE_SOURCES" ] && grep -q '"\./modules/' "$MAIN_TF"; then
+        fail "main.tf references ./modules/ but no module source could be parsed"
+    elif [ -n "$MODULE_SOURCES" ]; then
         while IFS= read -r mod_path; do
             FULL_PATH="$PROJECT_DIR/$mod_path"
             if [ -d "$FULL_PATH" ]; then
