@@ -24,15 +24,15 @@ Right hardware = f(workload type × model family × latency × cost posture × t
 
 ## NVIDIA GPU Instance Quick-Reference
 
-Network/EFA values are the per-instance maximums from the EC2 instance-type pages; EFA generation follows the Nitro version (Nitro v3 = EFA v1, no RDMA; Nitro v4+ = EFA v2/v3, with RDMA). The P6 rows use fourth-generation EFA (EFA v4); their GPU memory (GB) and network totals follow the [P6 instance page](https://aws.amazon.com/ec2/instance-types/p6/), and the p6e-gb200 EFA figure follows the [EFA instance-types page](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-acc-inst-types.html).
+Network/EFA values are the per-instance maximums from the EC2 instance-type pages; EFA generation follows the Nitro version on the [EFA page](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html): Nitro v3 = EFA v1, v4 = EFA v2, v5 = EFA v3, v6 = EFA v4, with RDMA read on all Nitro v4 and later instances. The EFA page lists the P6 rows under Nitro v6 (EFA v4); their GPU memory (GB) and network totals follow the [P6 instance page](https://aws.amazon.com/ec2/instance-types/p6/), and the p6e-gb200 EFA figure follows the [EFA instance-types page](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-acc-inst-types.html).
 
 | Instance | Accelerator | GPU Memory | Network / EFA | Best for |
 |---|---|---|---|---|
 | **p5.48xlarge** | 8× NVIDIA H100 SXM5 | 640 GB HBM3 | 3200 Gbps, EFA v2 (GPUDirect RDMA) | Frontier pre-training, 100B+ models, multi-node FSDP |
 | **p5e.48xlarge** | 8× NVIDIA H200 SXM5 | ~1.1 TB HBM3e | 3200 Gbps, EFA v2 (GPUDirect RDMA) | Same as p5 + larger memory for longer contexts |
-| **p6-b200.48xlarge** | 8× NVIDIA B200 (Blackwell) | 1,432 GB HBM3e | 3200 Gbps, EFA v4 | Medium-to-large-scale training and inference; up to 2x P5en performance ([P6 instance page](https://aws.amazon.com/ec2/instance-types/p6/)) |
+| **p6-b200.48xlarge** | 8× NVIDIA B200 (Blackwell) | 1,432 GB HBM3e | 3200 Gbps, EFA v4 | Medium-to-large-scale training and inference; up to 2x P5en (H200) performance ([P6 instance page](https://aws.amazon.com/ec2/instance-types/p6/)) |
 | **p6-b300.48xlarge** | 8× NVIDIA B300 (Blackwell Ultra) | 2,144 GB HBM3e | 6400 Gbps, EFA v4 | Large-scale distributed deep learning training ([P6 instance page](https://aws.amazon.com/ec2/instance-types/p6/)) |
-| **p6e-gb200.36xlarge** | 4× NVIDIA B200 (GB200 superchips, Grace CPU) | 740 GB HBM3e | 3200 Gbps total; EFA v4 up to 1,600 Gbps (4 GPUs × 400) | Frontier models at multi-trillion-parameter scale; only available in UltraServers ([P6 instance page](https://aws.amazon.com/ec2/instance-types/p6/)) |
+| **p6e-gb200.36xlarge** | 4× NVIDIA GB200 GPUs (2 Grace Blackwell superchips, 2 Grace CPUs) | 740 GB HBM3e | 3200 Gbps total; EFA v4 up to 1,600 Gbps (4 GPUs × 400) | Frontier models at multi-trillion-parameter scale; only available in UltraServers ([P6 instance page](https://aws.amazon.com/ec2/instance-types/p6/)) |
 | **g6e.48xlarge** | 8× NVIDIA L40S | 384 GB GDDR6 | 400 Gbps, EFA v2 | 70B inference, multi-GPU PEFT fine-tune |
 | **g6e.2xlarge** | 1× NVIDIA L40S | 48 GB GDDR6 | Up to 20 Gbps (no EFA) | Single-GPU inference (7B–13B), dev/test, workshop validated |
 | **g6.12xlarge** | 4× NVIDIA L4 | 96 GB GDDR6 | 40 Gbps, EFA v2 | 7B–30B inference, cost-sensitive production |
@@ -61,15 +61,15 @@ Note: Inf2 instances do **not** support EFA — their `inf2.48xlarge` chip-to-ch
 | Fastest time-to-production, any model | **NVIDIA GPU (g6e/p5)** | Broadest ecosystem; zero compilation ramp |
 | Novel architecture / custom CUDA kernels | **NVIDIA GPU** | Neuron compilation may not support custom ops |
 | Multi-modal (vision+language, audio) | **NVIDIA GPU** | Neuron support is model-specific; verify first |
-| Shared dev cluster, multiple small models | **NVIDIA GPU (g6/g5)** | Time-slicing enables multi-tenant sharing (L4 and A10G do not support MIG) |
+| Shared dev cluster, multiple small models | **NVIDIA GPU (g6/g5, or g7/g7e for MIG)** | Time-slicing enables multi-tenant sharing on g6/g5 (L4 and A10G do not support MIG); g7/g7e support MIG for hardware isolation |
 
 ## GPU Optimization Techniques
 
-### Multi-Instance GPU (MIG): A100, A30, H100, H20, H200, GH200, B200, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell
+### Multi-Instance GPU (MIG): A100, A30, H100, H20, H200, H100 on GH200, B200, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell
 
-MIG runs only on the GPUs in the [NVIDIA MIG supported-GPU list](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-gpus.html) (it starts at the Ampere generation but names specific products). On EC2 that covers p4d/p4de (A100), p5 (H100), p5e/p5en (H200), p6-b200 (B200) and p6e-gb200 (GB200); the A10G (g5), L4 (g6) and L40S (g6e) are not on the list, so use time-slicing there. The B300 (p6-b300) is not on NVIDIA's list as of 2026-10-30.
+MIG runs only on the GPUs in the [NVIDIA MIG supported-GPU list](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-gpus.html) (it starts at the Ampere generation but names specific products). On EC2, the [EKS MIG guide](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia-mig.html) lists p4d/p4de (A100), p5 (H100), p5e/p5en (H200), p6-b200 (B200), p6-b300 (B300), p6e-gb200 (GB200), g7 (RTX PRO 4500 Blackwell) and g7e (RTX PRO 6000 Blackwell Server Edition) as MIG-capable, and says MIG is not available on g5, g6 or g6e, so use time-slicing there. NVIDIA's supported-GPU list does not name the B300 as of 2026-10-30.
 
-Partitions a single physical GPU into up to 7 isolated instances (4 on A30, 2 to 4 on RTX PRO Blackwell), each with dedicated memory, cache, and compute. Use for:
+Partitions a single physical GPU into up to 7 isolated instances (4 on A30, 2 to 4 on RTX PRO Blackwell; counts are for the list's data-center and workstation entries), each with dedicated memory, cache, and compute. Use for:
 
 - **Multi-tenant dev clusters** — isolate teams on a single p5 node
 - **Small-model inference** — run multiple 7B models on one H100 slice
@@ -90,7 +90,7 @@ Multiplexes multiple pods onto a single GPU via temporal sharing (no memory isol
 
 - **Dev/test** environments where isolation is not critical
 - **Low-utilization workloads** that don't saturate GPU compute
-- Simpler than MIG; no MIG-capable GPU required, so it works on any NVIDIA GPU
+- Simpler than MIG; no MIG-capable GPU required, so it works on any GPU the NVIDIA device plugin exposes as `nvidia.com/gpu`
 - Configure via `nvidia.com/gpu.replicas` in the device plugin ConfigMap
 
 ```yaml
@@ -134,7 +134,7 @@ spec:
 
 | Technique | Isolation | Memory isolation | Karpenter compatible | Best for |
 |---|---|---|---|---|
-| **MIG** | Hardware-level | ✅ Yes | ✅ Yes | Production multi-tenant on MIG-capable GPUs (A100, A30, H100, H20, H200, GH200, B200, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell) |
+| **MIG** | Hardware-level | ✅ Yes | ✅ Yes | Production multi-tenant on MIG-capable GPUs (A100, A30, H100, H20, H200, H100 on GH200, B200, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell) |
 | **Time-slicing** | None (temporal only) | ❌ No | ✅ Yes | Dev/test density, low-utilization workloads |
 | **DRA** | Scheduler-managed | ✅ Yes | Static capacity only (no dynamic provisioning); not on Auto Mode | Fine-grained sharing on Karpenter static NodePools, managed node groups, or self-managed nodes |
 
