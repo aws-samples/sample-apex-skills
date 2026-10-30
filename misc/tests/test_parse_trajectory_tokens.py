@@ -66,6 +66,23 @@ SUBAGENT_MODEL_USAGE = {
     },
 }
 
+# `modelUsage` with no readable entry: a non-dict entry and one with
+# snake_case keys. The counts should come from `usage` instead.
+UNREADABLE_MODEL_USAGE = {
+    "model-a": 5,
+    "model-b": {"input_tokens": 99, "output_tokens": 99},
+}
+
+# A string count, which should read as 0 rather than raise.
+STRING_MODEL_USAGE = {
+    "model-a": {
+        "inputTokens": "56",
+        "outputTokens": 10,
+        "cacheReadInputTokens": 100,
+        "cacheCreationInputTokens": 0,
+    },
+}
+
 
 def _events(usage, model_usage=None):
     result = {
@@ -116,7 +133,7 @@ class ParseEventsTokenTests(unittest.TestCase):
             self.assertIsNone(getattr(t, key))
         self.assertIsNone(t.token_source)
 
-    def test_model_usage_includes_subagents(self):
+    def test_model_usage_preferred_over_usage(self):
         t = parse_events(_events(SUBAGENT_USAGE, SUBAGENT_MODEL_USAGE))
         self.assertEqual(t.token_source, "modelUsage")
         self.assertEqual(t.input_tokens, 400 + 13929)
@@ -140,6 +157,19 @@ class ParseEventsTokenTests(unittest.TestCase):
         t = parse_events(_events(FULL_USAGE, {}))
         self.assertEqual(t.token_source, "usage")
         self.assertEqual(t.input_tokens, 7)
+
+    def test_unreadable_model_usage_falls_back_to_usage(self):
+        t = parse_events(_events(FULL_USAGE, UNREADABLE_MODEL_USAGE))
+        self.assertEqual(t.token_source, "usage")
+        self.assertEqual(t.input_tokens, 7)
+        self.assertEqual(t.cache_read_input_tokens, 33441)
+
+    def test_string_count_reads_zero(self):
+        t = parse_events(_events(FULL_USAGE, STRING_MODEL_USAGE))
+        self.assertEqual(t.token_source, "modelUsage")
+        self.assertEqual(t.input_tokens, 0)
+        self.assertEqual(t.output_tokens, 10)
+        self.assertEqual(t.cache_read_input_tokens, 100)
 
 
 class ExtractResultSummaryTests(unittest.TestCase):
@@ -165,7 +195,7 @@ class ExtractResultSummaryTests(unittest.TestCase):
             self.assertEqual(s[key], 0)
         self.assertIsNone(s["token_source"])
 
-    def test_model_usage_includes_subagents(self):
+    def test_model_usage_preferred_over_usage(self):
         s = extract_result_summary(_events(SUBAGENT_USAGE, SUBAGENT_MODEL_USAGE))
         self.assertEqual(s["token_source"], "modelUsage")
         self.assertEqual(s["input_tokens"], 400 + 13929)
@@ -179,6 +209,19 @@ class ExtractResultSummaryTests(unittest.TestCase):
         self.assertEqual(s["token_source"], "usage")
         self.assertEqual(s["cache_read_input_tokens"], 33441)
         self.assertEqual(s["cache_creation_input_tokens"], 10262)
+
+    def test_unreadable_model_usage_falls_back_to_usage(self):
+        s = extract_result_summary(_events(FULL_USAGE, UNREADABLE_MODEL_USAGE))
+        self.assertEqual(s["token_source"], "usage")
+        self.assertEqual(s["input_tokens"], 7)
+        self.assertEqual(s["cache_read_input_tokens"], 33441)
+
+    def test_string_count_reads_zero(self):
+        s = extract_result_summary(_events(FULL_USAGE, STRING_MODEL_USAGE))
+        self.assertEqual(s["token_source"], "modelUsage")
+        self.assertEqual(s["input_tokens"], 0)
+        self.assertEqual(s["output_tokens"], 10)
+        self.assertEqual(s["cache_read_input_tokens"], 100)
 
 
 class AggregateTokenUsageTests(unittest.TestCase):
@@ -224,6 +267,17 @@ class AggregateTokenUsageTests(unittest.TestCase):
             agg = aggregate_token_usage(root)
             self.assertEqual(agg["with_skill"]["runs"], 1)
             self.assertEqual(agg["with_skill"]["total"]["total_tokens"], 9)
+
+    def test_string_count_in_timing_reads_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_timing(
+                root, "with_skill", 1, 1, {"total_tokens": "56", "input_tokens": 4}
+            )
+            agg = aggregate_token_usage(root)
+            self.assertEqual(agg["with_skill"]["runs"], 1)
+            self.assertEqual(agg["with_skill"]["total"]["total_tokens"], 0)
+            self.assertEqual(agg["with_skill"]["total"]["input_tokens"], 4)
 
     def test_empty_runs_dir(self):
         with tempfile.TemporaryDirectory() as tmp:

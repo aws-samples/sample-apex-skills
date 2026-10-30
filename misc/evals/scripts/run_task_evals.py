@@ -52,7 +52,13 @@ from run_triggering import (
     stage_skill_sandbox,
     read_skill_meta,
 )
-from parse_trajectory import MODEL_USAGE_KEYS, USAGE_TOKEN_KEYS, parse_events
+from parse_trajectory import (
+    MODEL_USAGE_KEYS,
+    USAGE_TOKEN_KEYS,
+    model_usage_entries,
+    parse_events,
+    token_count,
+)
 from process_assertions import evaluate
 from artifact_validation import validate_run as validate_artifacts
 from elicitation import ElicitationConfig, run_multiturn_subject
@@ -253,29 +259,34 @@ def extract_result_summary(events: list[dict]) -> dict:
     """Pull the last `result` event's tokens + duration if present.
 
     Only the last result event is read, so a multi-turn run records its
-    last result's counts.
+    last result's counts. On Claude Code v2.1.277 or later the last
+    result's `modelUsage` includes earlier turns' spend; before that it
+    covers only the last turn. The docs do not say whether a resumed call
+    restores `usage`.
 
     The per-category counts (USAGE_TOKEN_KEYS) are summed over the event's
     `modelUsage` entries, which include subagent requests; the event's
-    `usage` counts only the top-level agent loop and is read only when
-    `modelUsage` is absent or empty. `token_source` names the object read
-    ("modelUsage", "usage", or None when the event has neither, in which
-    case the categories read 0). A missing key reads as 0.
+    `usage` counts only the top-level agent loop and is read only when no
+    `modelUsage` entry is a dict carrying one of MODEL_USAGE_KEYS.
+    `token_source` names the object read ("modelUsage", "usage", or None
+    when the event has neither, in which case the categories read 0). A
+    missing key reads as 0, and so does a `modelUsage` count that is not
+    an int.
 
     `total_tokens` keeps its meaning and source: `usage` input + output,
-    else the event's own `total_tokens`, so it stays comparable with earlier
-    runs. With `modelUsage` it can be below input_tokens + output_tokens.
+    else a `total_tokens` key if present (none in stored result events),
+    else 0, so it stays comparable with earlier runs. With `modelUsage` it
+    can be below input_tokens + output_tokens.
     """
     for evt in reversed(events):
         if evt.get("type") == "result":
             usage = evt.get("usage") or {}
-            model_usage = evt.get("modelUsage")
-            if isinstance(model_usage, dict) and model_usage:
+            entries = model_usage_entries(evt.get("modelUsage"))
+            if entries:
                 counts = dict.fromkeys(USAGE_TOKEN_KEYS, 0)
-                for per_model in model_usage.values():
-                    if isinstance(per_model, dict):
-                        for key, camel in MODEL_USAGE_KEYS.items():
-                            counts[key] += per_model.get(camel) or 0
+                for per_model in entries:
+                    for key, camel in MODEL_USAGE_KEYS.items():
+                        counts[key] += token_count(per_model.get(camel))
                 token_source = "modelUsage"
             else:
                 counts = {key: usage.get(key, 0) for key in USAGE_TOKEN_KEYS}
@@ -311,7 +322,8 @@ def aggregate_token_usage(runs_dir: Path) -> dict:
     partial counts), so it counts in `runs` and in the mean. A timing.json
     that is unreadable or not a JSON object is skipped.
 
-    A missing key reads as 0. That fallback is defensive: run_skill calls
+    A missing key, or a value that is not an int, reads as 0. That
+    fallback is defensive: run_skill calls
     this only on the fresh runs/<ts> directory it just created, so old and
     new timing.json files are not mixed here.
     """
@@ -329,7 +341,7 @@ def aggregate_token_usage(runs_dir: Path) -> dict:
                 continue
             n += 1
             for key in keys:
-                totals[key] += timing.get(key) or 0
+                totals[key] += token_count(timing.get(key))
         out[config] = {
             "runs": n,
             "total": totals,
