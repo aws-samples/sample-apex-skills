@@ -37,7 +37,7 @@ Wait for the user's answer before proceeding.
 
 ### Step 2: Access Level
 
-Ask what access level: **Read-only** (list, describe, view: cannot modify anything) or **Full access** (read-only plus create/update/delete on K8s resources, CloudFormation, IAM). Recommend read-only to start; to upgrade later, add the write flag (self-hosted: `--allow-write`; AWS-hosted: remove `--read-only`) and attach the write IAM permissions.
+Ask what access level: **Read-only** (list, describe, view: cannot modify anything) or **Full access** (read-only plus create/update/delete on K8s resources, CloudFormation, IAM). Recommend read-only to start; to upgrade later, add the write flag (self-hosted: `--allow-write`; AWS-hosted: remove `--read-only` if set) and attach the write IAM permissions.
 
 Wait for the user's answer before proceeding.
 
