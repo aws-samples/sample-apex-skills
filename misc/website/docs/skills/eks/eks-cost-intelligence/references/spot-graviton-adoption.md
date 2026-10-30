@@ -18,7 +18,7 @@ This page is generated from [skills/eks-cost-intelligence/references/spot-gravit
 
 ## Overview
 
-Spot and Graviton adoption is the second-highest weighted dimension (20 points max deduction). It evaluates whether the cluster takes advantage of Graviton processors (AWS states Graviton-based instances "cost up to 20% less than comparable x86-based Amazon EC2 instances" per [AWS Graviton](https://aws.amazon.com/ec2/graviton/); the On-Demand gap is about 20%, 19% and 15% for Graviton2, 3 and 4, see Check 1) and Spot instances (up to 90% discount) where workloads are eligible.
+Spot and Graviton adoption is the second-highest weighted dimension (20 points max deduction). It evaluates whether the cluster takes advantage of Graviton processors (AWS states Graviton-based instances "cost up to 20% less than comparable x86-based Amazon EC2 instances" per [AWS Graviton](https://aws.amazon.com/ec2/graviton/); in us-east-1 for the m family, against same-generation Intel types, the On-Demand gap is about 20%, 19% and 15% for Graviton2, 3 and 4, see Check 1) and Spot instances (up to 90% discount) where workloads are eligible.
 
 ### Checks Summary
 
@@ -38,7 +38,7 @@ Spot and Graviton adoption is the second-highest weighted dimension (20 points m
 
 These checks require:
 - **kubectl access** to the cluster (for node labels, pod specs, affinity rules)
-- **AWS CLI access** for `eks:DescribeNodegroup`, `ec2:DescribeInstances`
+- **AWS CLI access** for `eks:DescribeNodegroup`, `ec2:DescribeInstances`, `ec2:DescribeInstanceTypes`
 
 No metrics sources are required — all checks use configuration and label inspection.
 
@@ -94,7 +94,7 @@ for NG in $(aws eks list-nodegroups --cluster-name $CLUSTER --query 'nodegroups[
 done
 
 # Check if instance types are Graviton: Graviton types report arm64 architecture.
-# Do not match on the name: a pattern such as \d+g misses a1, c6gn, im4gn and is4gen.
+# Do not match on the name: a pattern such as \d+g[de]?\. misses a1, c6gn, im4gn and is4gen.
 aws ec2 describe-instance-types \
   --instance-types m6g.large m6i.large c6g.xlarge c6i.xlarge \
   --query 'InstanceTypes[].{Type: InstanceType, Arch: ProcessorInfo.SupportedArchitectures[0]}' \
@@ -133,17 +133,21 @@ If graviton_pct < 50%:
   # graviton_discount depends on the Graviton generation (table below)
 ```
 
-**Graviton discount by generation.** Use the figure for the Graviton generation the finding recommends (the remediation below uses `7g`, Graviton3); use 0.15 when the target generation is unknown. Source: AWS Price List API, us-east-1, on-demand Linux, shared tenancy, fetched 2026-10-30; each pair is 4 vCPU / 16 GiB, same generation:
+**Graviton discount by generation.** Use the figure for the Graviton generation the finding recommends. The managed node group remediation below pins `7g` (Graviton3, 0.19). The Karpenter NodePool admits generation 6 and later, so for a Karpenter finding, or whenever the target generation is unknown, use 0.15. Basis: each row compares a same-generation Intel x86 type with its Graviton peer, m family, xlarge (4 vCPU / 16 GiB), us-east-1, On-Demand Linux, shared tenancy, from the AWS Price List API, checked 2026-10-30. Other Regions can differ widely (ap-south-1 m6i vs m6g is 49.9%); outside us-east-1, price both types:
 
-| Generation | x86 vs Graviton pair | x86 $/hr | Graviton $/hr | `graviton_discount` |
+| Generation | Intel x86 vs Graviton | x86 $/hr | Graviton $/hr | `graviton_discount` |
 |------------|----------------------|----------|---------------|---------------------|
 | Graviton2 | m6i.xlarge vs m6g.xlarge | $0.192 | $0.154 | 0.20 (19.8%) |
 | Graviton3 | m7i.xlarge vs m7g.xlarge | $0.2016 | $0.1632 | 0.19 (19.0%) |
 | Graviton4 | m8i.xlarge vs m8g.xlarge | $0.21168 | $0.17952 | 0.15 (15.2%) |
 
-The gap depends on which x86 instance is replaced: m6i.xlarge vs m7g.xlarge is 15.0%. When the current and target instance types are known, price both (see [cost-estimation-fallback.md](cost-estimation-fallback)) instead of using the table. The figure is price only, not performance.
+Graviton5 (m9g, c9g, r9g) has no same-generation x86 pair; m9g.xlarge is $0.19568/hr, 7.6% below m8i.xlarge and 1.9% above m6i.xlarge, so price the current and target types when the NodePool admits generation 9.
 
-> **Caveats for the Graviton finding:** the estimate is On-Demand. Spot capacity is per instance type, so moving Spot nodes to Graviton also needs enough Graviton types in each Spot pool (Check 6). Nodes are replaced during the move, so workloads need multiple replicas and a PodDisruptionBudget (the Spot eligibility criteria in Check 5), and images must support linux/arm64 (the note at the end of Check 3).
+For AMD (`*a`) nodes the gap differs (us-east-1: m6a vs m6g 10.9%, m7a vs m7g 29.6%, m8a vs m8g 26.3%); price the current type.
+
+The gap depends on which x86 instance is replaced: m6i.xlarge vs m7g.xlarge is 15.0% and m6i.xlarge vs m8g.xlarge is 6.5%. The [eks-well-architected-review cost analysis](../../eks-well-architected-review/references/cost-analysis) compares Graviton against an older x86 generation, so its figures differ from this table. When the current and target instance types are known, price both (see [cost-estimation-fallback.md](cost-estimation-fallback)) instead of using the table. The figure is price only, not performance.
+
+> **Caveats for the Graviton finding:** the estimate prices every amd64 node at On-Demand rates, Spot nodes included, so it overstates savings for Spot nodes; count only On-Demand amd64 nodes (capacity_type above), or price Spot nodes with describe-spot-price-history. Spot capacity is per instance type, so moving Spot nodes to Graviton also needs enough Graviton types in each Spot pool (Check 6). Nodes are replaced during the move, so workloads need multiple replicas and a PodDisruptionBudget (the Spot eligibility criteria in Check 5), and images must support linux/arm64 (the note at the end of Check 3).
 
 ### Severity classification
 
@@ -234,9 +238,20 @@ for NG in $(aws eks list-nodegroups --cluster-name $CLUSTER --query 'nodegroups[
   TYPES=$(aws eks describe-nodegroup --cluster-name $CLUSTER --nodegroup-name $NG \
     --query 'nodegroup.instanceTypes' --output json)
   
+  # instanceTypes is null for a launch-template node group: nothing to check here
+  if ! echo "$TYPES" | jq -e 'type == "array" and length > 0' >/dev/null 2>&1; then
+    echo "UNASSESSED: $NG (launch template)"
+    continue
+  fi
+  
   # Check if any instance type is Graviton (reports arm64 architecture)
   HAS_GRAVITON=$(aws ec2 describe-instance-types --instance-types $(echo "$TYPES" | jq -r '.[]') \
     --query 'InstanceTypes[].ProcessorInfo.SupportedArchitectures[]' --output json | jq 'index("arm64") != null')
+  
+  if [ -z "$HAS_GRAVITON" ]; then
+    echo "UNASSESSED: $NG (DescribeInstanceTypes failed)"
+    continue
+  fi
   
   if [ "$HAS_GRAVITON" = "false" ]; then
     echo "NO_GRAVITON: $NG uses only x86 types: $TYPES"
@@ -275,7 +290,11 @@ For each NodePool:
 
 For each Managed Node Group:
   instance_types = nodegroup.instanceTypes
+  If instance_types is null or empty:
+    → UNASSESSED: node group (launch template); continue
   has_graviton = any("arm64" in ProcessorInfo.SupportedArchitectures(type) for type in instance_types)
+  If DescribeInstanceTypes fails:
+    → UNASSESSED: node group (DescribeInstanceTypes failed); continue
   
   If NOT has_graviton:
     → Finding: Node group uses only x86 instance types

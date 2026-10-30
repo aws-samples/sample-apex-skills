@@ -159,7 +159,7 @@ Use this table ONLY when:
 
 **Pricing adjustments:**
 - **Spot instances:** Apply ~70% discount → `spot_rate ≈ on_demand_rate × 0.30` (see Spot pricing note below)
-- **Graviton (arm64):** Already reflected in table (the gap depends on generation, see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1)
+- **Graviton (arm64):** The table covers Graviton2 and Graviton3 (`6g` and `7g`) only; for a Graviton4 or later target use the Price List API (Option B). The gap depends on generation, see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1
 - **Other regions:** Rates vary ±5–15% from us-east-1; **use Price List API (Option B) for accuracy**
 - **Unknown instance type:** Use the Price List API. If unavailable, default to $0.192/hour (m5.xlarge equivalent) and flag as Low confidence
 
