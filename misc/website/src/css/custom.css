@@ -1057,7 +1057,7 @@ a, button, .navbar__link, .menu__link {
 /* Blog: readable title size and line length.
    The theme's post title class is a hashed CSS module (3rem, 2rem under
    576px), so target it through the stable plugin-blog page class. Covers
-   the post page (h1) and the list, tag and author pages (h2).
+   the post page (h1) and the list and tag pages (h2).
    See docs/contributing/blog-standard.md. */
 .plugin-blog article > header > h1 {
   font-size: 2.25rem;
