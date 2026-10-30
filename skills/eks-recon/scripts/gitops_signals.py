@@ -112,33 +112,33 @@ def collect(inventory, instance_label_key=None, cluster_scoped=False):
                  ARGO_TRACKING, tracking, "specific" if self_reference else "ambiguous")
         elif ARGO_TRACKING in annotations:
             warn(f"items[{index}]: empty or non-string tracking-id annotation")
-        # Other Argo annotations corroborate a label on THIS resource only.
+        # Chart-authored Argo annotations are hints, not tracking corroboration.
         # Record presence, never their values (which may contain application data).
-        corroboration = ARGO_TRACKING if self_reference else None
+        annotation_hint = None
         for key, value in annotations.items():
             if isinstance(key, str) and key.startswith(ARGO_PREFIX) and key != ARGO_TRACKING:
                 if not isinstance(value, str):
                     warn(f"items[{index}]: non-string Argo annotation")
-                elif text(value) and corroboration is None:
-                    corroboration = key
-        if corroboration and not self_reference and not text(labels.get(INSTANCE_LABEL)):
-            emit("argocd", "unverified_argocd_annotation", corroboration, "present", "ambiguous")
+                elif text(value) and annotation_hint is None:
+                    annotation_hint = key
+        if annotation_hint and not self_reference:
+            emit("argocd", "unverified_argocd_annotation", annotation_hint, "present", "ambiguous")
         label_keys = {INSTANCE_LABEL}
         if instance_label_key:
             label_keys.add(instance_label_key)
         for key in sorted(label_keys):
             value = labels.get(key)
             if text(value):
-                # The caller confirms target-linked tracking configuration;
-                # unprefixed keys require an explicit user-supplied key.
+                # The caller verifies provenance; the standard shared key requires
+                # explicit user confirmation of this target's label-tracking mode.
                 configured = key == instance_label_key
-                corroborated = key == INSTANCE_LABEL and corroboration is not None
+                corroborated = key == INSTANCE_LABEL and self_reference
                 emit("argocd" if configured or corroborated else None,
                      "configured_tracking_label" if configured else
                      "corroborated_instance_label" if corroborated else
                      "shared_instance_label" if key == INSTANCE_LABEL else "ambiguous_tracking_label",
                      key, value, "specific" if configured or corroborated else "ambiguous",
-                     corroboration if corroborated and not configured else None)
+                     ARGO_TRACKING if corroborated and not configured else None)
             elif key in labels and not isinstance(value, str):
                 warn(f"items[{index}]: non-string instance label")
         flux_name = labels.get(FLUX_NAME)
@@ -162,7 +162,7 @@ def collect(inventory, instance_label_key=None, cluster_scoped=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("inventory", nargs="?", default="-", help="Kubernetes List JSON file, or - for stdin")
-    parser.add_argument("--argocd-instance-label-key", help="Confirmed Argo tracking key for this target; unprefixed keys must be user-supplied")
+    parser.add_argument("--argocd-instance-label-key", help="Confirmed Argo tracking key; standard instance key requires user-confirmed label mode, unprefixed keys require user provenance")
     parser.add_argument("--cluster-scoped", action="store_true", help="Single-kind inventory confirmed cluster-scoped by API discovery/request context")
     args = parser.parse_args()
     try:

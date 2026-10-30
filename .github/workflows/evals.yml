@@ -73,4 +73,4 @@ jobs:
           python-version: '3.x'
       - name: Run offline GitOps fixtures and lane contract checks
         if: steps.changes.outputs.relevant != 'false'
-        run: python3 misc/tests/test_eks_recon_gitops.py -v
+        run: jq --version && python3 misc/tests/test_eks_recon_gitops.py -v

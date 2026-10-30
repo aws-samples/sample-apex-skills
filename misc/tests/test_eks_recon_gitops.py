@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import unittest
@@ -98,6 +99,14 @@ class TrackingFixtures(unittest.TestCase):
         self.assertEqual(result["evidence"][0]["signal"], "configured_tracking_label")
         self.assertEqual(len(result["evidence"]), 1)
 
+    def test_addon_name_does_not_exempt_tracking_signals(self):
+        item = resource("DaemonSet", "apps/v1", "kube-system", "aws-node",
+                        labels={signals.INSTANCE_LABEL: "aws-vpc-cni"})
+        self.assertEqual(collect(item)["evidence"][0]["strength"], "ambiguous")
+        item["metadata"]["annotations"] = {
+            signals.ARGO_TRACKING: "addons:apps/DaemonSet:kube-system/aws-node"}
+        self.assertEqual(collect(item)["tools_with_tracking"], ["argocd"])
+
     def test_annotation_plus_shared_label(self):
         result = collect(resource(labels={signals.INSTANCE_LABEL: "shop"},
                                   annotations={signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}))
@@ -128,18 +137,28 @@ class TrackingFixtures(unittest.TestCase):
         result = collect(resource(labels={signals.FLUX_NAME: "apps", signals.FLUX_NAMESPACE: "hub"}), key=signals.FLUX_NAME)
         self.assertEqual(result["tools_with_tracking"], ["argocd", "flux"])
 
-    def test_argo_annotation_corroborates_only_same_resource_label(self):
-        annotation = {"argocd.argoproj.io/sync-options": "ServerSideApply=true"}
+    def test_chart_annotations_do_not_corroborate_shared_label(self):
         label = {signals.INSTANCE_LABEL: "shop"}
+        for key in ("sync-wave", "sync-options", "installation-id"):
+            annotation = {signals.ARGO_PREFIX + key: "present"}
+            for custom_key in (None, "example.com/instance"):
+                with self.subTest(annotation=key, custom_key=custom_key):
+                    matched = collect(resource(labels=label, annotations=annotation), key=custom_key)
+                    self.assertEqual(matched["tools_with_tracking"], [])
+                    self.assertEqual({e["signal"] for e in matched["evidence"]},
+                                     {"unverified_argocd_annotation", "shared_instance_label"})
+                    self.assertTrue(all(e["strength"] == "ambiguous" and
+                                        "corroboration" not in e for e in matched["evidence"]))
+        annotation = {signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}
         for custom_key in (None, "example.com/instance"):
             with self.subTest(custom_key=custom_key):
                 matched = collect(resource(labels=label, annotations=annotation), key=custom_key)
                 self.assertEqual(matched["tools_with_tracking"], ["argocd"])
-                self.assertEqual(matched["evidence"][0]["corroboration"],
-                                 {"key": "argocd.argoproj.io/sync-options", "value": "present"})
+                self.assertEqual(matched["evidence"][-1]["corroboration"],
+                                 {"key": signals.ARGO_TRACKING, "value": "present"})
                 separate = collect(resource(labels=label), resource(name="other", annotations=annotation), key=custom_key)
                 self.assertEqual(separate["tools_with_tracking"], [])
-                self.assertEqual(collect(resource(annotations=annotation), key=custom_key)["tools_with_tracking"], [])
+                self.assertEqual(collect(resource(annotations=annotation), key=custom_key)["tools_with_tracking"], ["argocd"])
                 self.assertEqual(collect(resource(labels=label), key=custom_key)["tools_with_tracking"], [])
 
 
@@ -191,15 +210,15 @@ class TrackingFixtures(unittest.TestCase):
             "argocd.argoproj.io/sync-options": marker,
             "private.example/notes": marker})
         result = collect(item)
-        self.assertEqual(result["tools_with_tracking"], ["argocd"])
+        self.assertEqual(result["tools_with_tracking"], [])
         self.assertNotIn(marker, json.dumps(result))
 
-    def test_many_corroborating_keys_do_not_expand_sample_groups(self):
+    def test_many_chart_annotation_keys_do_not_expand_sample_groups(self):
         items = [resource(name=f"web-{i}", labels={signals.INSTANCE_LABEL: "shop"},
                           annotations={f"argocd.argoproj.io/key-{i}": "present"}) for i in range(1000)]
         result = collect(*items)
         self.assertEqual(result["resources_scanned"], 1000)
-        self.assertEqual(len(result["evidence"]), 3)
+        self.assertEqual(len(result["evidence"]), 6)  # Three per bounded signal family.
         self.assertTrue(result["evidence_sampled"])
 
     def test_metadata_only_identity_requires_request_context(self):
@@ -354,7 +373,7 @@ class TrackingFixtures(unittest.TestCase):
         self.assertEqual(result["tools_with_tracking"], ["argocd"])
         self.assertGreater(result["warning_count"], 0)
 
-    def test_malformed_corroborating_annotation_warns(self):
+    def test_malformed_argo_annotation_warns(self):
         for value in (None, 42, {}):
             with self.subTest(value=value):
                 result = collect(resource(annotations={"argocd.argoproj.io/sync-wave": value}))
@@ -376,6 +395,72 @@ class TrackingFixtures(unittest.TestCase):
         item = resource()
         item["spec"] = {"template": {"metadata": {"annotations": {signals.ARGO_TRACKING: "shop:apps/Deployment:team/web"}}}}
         self.assertEqual(collect(item)["evidence"], [])
+
+
+@unittest.skipUnless(shutil.which("jq"), "jq required for controller projection checks")
+class ControllerProjection(unittest.TestCase):
+    def project(self, inventory):
+        reference = (ROOT / "skills/eks-recon/references/cicd.md").read_text(encoding="utf-8")
+        query = re.search(r"kubectl get deployments -A -o json \| jq '\n(.*?)'\n", reference, re.S).group(1)
+        return subprocess.run(["jq", query], input=json.dumps(inventory), capture_output=True, text=True)
+
+    def test_private_fields_do_not_reach_controller_output(self):
+        item = resource(annotations={"kubectl.kubernetes.io/last-applied-configuration": "PRIVATE_BODY"},
+                        labels={"internal": "PRIVATE_LABEL"})
+        item["spec"] = {"template": {"spec": {"containers": [{
+            "image": "quay.io/argoproj/argocd:v3.5.6", "command": ["/PRIVATE_PATH/argocd-server"],
+            "args": ["PRIVATE_ARG"], "env": [{"name": "TOKEN", "value": "PRIVATE_ENV"}]}]}}}
+        result = self.project({"items": [item]})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("PRIVATE", result.stdout)
+        observed = json.loads(result.stdout)["items"][0]
+        self.assertEqual((observed["kind"], observed["namespace"], observed["name"]),
+                         ("Deployment", "team", "web"))
+        self.assertEqual(observed["containers"][0]["executable"], "argocd-server")
+
+    def test_default_command_and_unknown_override_remain_distinct(self):
+        for command, expected in ((None, "image-default"), ([], "image-default"),
+                                  (["sh", "-c", "PRIVATE_SCRIPT"], "other"),
+                                  (["argocd", "version", "--client"], "other"),
+                                  (["/usr/local/bin/source-controller"], "source-controller")):
+            with self.subTest(command=command):
+                item = resource()
+                item["spec"] = {"template": {"spec": {"containers": [{"image": "controller:v1", "command": command}]}}}
+                result = self.project({"items": [item]})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout)["items"][0]["containers"][0]["executable"], expected)
+                self.assertNotIn("PRIVATE", result.stdout)
+
+    def test_argo_default_entrypoint_accepts_only_known_executable_argument(self):
+        for command, args, expected in ((None, ["/usr/local/bin/argocd-server", "PRIVATE"], "argocd-server"),
+                                        (None, ["--PRIVATE_TOKEN"], "image-default"),
+                                        (["sh"], ["argocd-server", "PRIVATE"], "other")):
+            with self.subTest(command=command, args=args):
+                item = resource()
+                item["spec"] = {"template": {"spec": {"containers": [{
+                    "image": "quay.io/argoproj/argocd:v3.5.6", "command": command, "args": args}]}}}
+                result = self.project({"items": [item]})
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout)["items"][0]["containers"][0]["executable"], expected)
+                self.assertNotIn("PRIVATE", result.stdout)
+
+    def test_continuation_and_late_items_are_preserved(self):
+        items = []
+        for i in range(20):
+            item = resource(name=f"web-{i}")
+            item["spec"] = {"template": {"spec": {"containers": [{"image": f"image-{i}"}]}}}
+            items.append(item)
+        result = self.project({"metadata": {"continue": "next-page"}, "items": items})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        observed = json.loads(result.stdout)
+        self.assertEqual(observed["metadata"]["continue"], "next-page")
+        self.assertEqual(len(observed["items"]), 20)
+        self.assertEqual(observed["items"][-1]["containers"][0]["image"], "image-19")
+
+    def test_invalid_list_is_not_projected_as_empty_success(self):
+        for inventory in ({}, {"items": None}, {"items": {}}, {"items": False}):
+            with self.subTest(inventory=inventory):
+                self.assertNotEqual(self.project(inventory).returncode, 0)
 
 
 class CliAndContract(unittest.TestCase):

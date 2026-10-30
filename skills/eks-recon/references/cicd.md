@@ -169,6 +169,9 @@ find . -name "pipeline*.json" -o -name "codepipeline*.json" 2>/dev/null | head -
 
 #### ArgoCD Detection
 
+Use the projected collection below for controller inspection. MCP resource examples
+specify scope; use them only with tool-side projection, otherwise use the CLI pipelines.
+
 **Why detect ArgoCD:** ArgoCD is the most popular GitOps tool for Kubernetes. Understanding ArgoCD setup helps coordinate cluster upgrades with application deployments and reveals the GitOps repository structure.
 
 **MCP (check for deployment):**
@@ -234,20 +237,9 @@ kubectl get deploy -n argocd argocd-server -o jsonpath='{.spec.template.spec.con
 quay.io/argoproj/argocd:v2.10.5
 ```
 
-**Local install management evidence:** inspect labels only when a local Argo
-controller was observed. With no local controller, `eks_managed` is null. This
-local check cannot rule out the AWS-managed capability; see `ListCapabilities`
-in the outcome rules below.
-```bash
-# Check if ArgoCD is EKS-managed
-kubectl get deploy -n argocd -o json | \
-  jq -r '.items[].metadata.labels["eks.amazonaws.com/component"]'
-```
-
-**Example output (EKS-managed):**
-```
-argocd
-```
+A local Argo installation is self-managed (`eks_managed: false`); with no
+identified local controller, keep that field null. A Deployment label does not
+identify the AWS-hosted capability; see the separate `ListCapabilities` check below.
 
 #### Flux Detection
 
@@ -330,11 +322,12 @@ ghcr.io/fluxcd/source-controller:v1.2.4
 
 **Always inspect workload metadata, even when local controller/CRD reads are empty.**
 A hub can manage this cluster without installing Argo/Flux controllers or CRDs here.
-Apply the controller component names and image checks above to readable
-Deployments/StatefulSets across namespaces. An image match alone may be a CLI
-workload; an ambiguous component role leaves the local flag null.
-Metadata-only lists suffice for tracking, not controller
-absence: obtain full Deployment/StatefulSet objects for image inspection. If that
+Inspect projected Deployment/StatefulSet identities, container images and executable
+hints across namespaces. Correlate the component and image with the executable;
+a shared Argo image alone can be a CLI workload. An unrecognized command override
+or ambiguous role leaves the local flag null. With no override, a dedicated Flux
+controller image/component can support detection, but its entrypoint was not inspected.
+Metadata-only lists do not establish controller absence. If safe controller
 inspection is unavailable, local flags remain null and, without positive evidence,
 the overall result is unconfirmed. Establish local absence only from successful, complete
 Deployment AND StatefulSet lists across **all namespaces**. Namespaced examples
@@ -357,9 +350,9 @@ CRDs, an empty list, a failed list and incomplete permissions are different obse
 | Signal | Interpretation |
 |--------|----------------|
 | `argocd.argoproj.io/tracking-id` annotation | Tool-specific tracking evidence only when `<application>:<group>/<kind>:<namespace>/<name>` names the resource it is on. Core resources have an empty group (e.g. `app:/ConfigMap:ns/name`). For a resource confirmed cluster-scoped by API discovery/request context, match group/kind/name; the tracking namespace may be the application destination namespace. Missing namespace/scope context is unconfirmed. Malformed or non-self-referencing/copied annotations are ambiguous. |
-| `app.kubernetes.io/instance` label | Weak alone: Helm charts (by convention) and Argo CD label tracking both use it. Keep the evidence as ambiguous and `unconfirmed` with reason "instance label seen, could be Helm or Argo CD label mode". Attribute it to Argo only with a valid tracking-id or another nonempty `argocd.argoproj.io/*` annotation on the same resource, or the user's target-specific statement that the hub uses this key for label tracking. A hub-side check of Applications whose destination is this cluster resolves the ambiguity. |
-| Other `argocd.argoproj.io/*` annotations | Corroborate an instance label on the same resource only. Record one annotation key and its presence, never its value. An annotation alone is ambiguous (`unconfirmed` without other positive evidence), not a positive; malformed/non-self-referencing tracking-id cannot serve as this corroboration. |
-| Custom instance label | Accept the key the user supplies as this target's `application.instanceLabelKey`, including an unprefixed key; mark it as user-supplied in Coverage. Never auto-discover unprefixed keys. A qualified key may also come from accessible target-linked Argo configuration/resource association; record that provenance. An unrelated hub or annotation-only configuration is insufficient. Do not infer ownership from the key's spelling. If the confirmed key is conventionally shared, record that collision caveat; configuration corroborates tracking, not exclusive ownership or live reconciliation. |
+| `app.kubernetes.io/instance` label | Specific Argo evidence when a valid tracking-id names the same resource (no label-mode confirmation needed), or when the user confirms that the managing Argo instance uses this key in `label` mode (not `annotation+label`) for this target. Otherwise keep it ambiguous and `unconfirmed`: "instance label seen, could be Helm or Argo CD label mode". Check hub Applications targeting this cluster and their resource/tracking associations to resolve the ambiguity. |
+| Other `argocd.argoproj.io/*` annotations | Chart-authored keys such as `sync-wave` do not corroborate tracking. Record representative key/presence only, never values; these hints remain ambiguous, including when an instance label is present. `installation-id` alone is not a substitute for valid self-reference or confirmed label mode. |
+| Custom instance label | Accept the key the user supplies as this target's `application.instanceLabelKey`, including an unprefixed key; mark it as user-supplied in Coverage. Never auto-discover unprefixed keys. A qualified custom key may also come from accessible target-linked Argo configuration/resource association; record that provenance. For the standard `app.kubernetes.io/instance` key, configuration discovery alone is insufficient: require the user's target-specific confirmation of `label` mode. An unrelated hub or annotation-only configuration is insufficient. Do not infer ownership from the key's spelling. If the confirmed key is conventionally shared, record that collision caveat; configuration corroborates tracking, not exclusive ownership or live reconciliation. |
 | `kustomize.toolkit.fluxcd.io/name` AND `kustomize.toolkit.fluxcd.io/namespace` labels | Tool-specific Flux Kustomization tracking evidence when both values are nonempty. One label alone is ambiguous. This is not exhaustive detection of all Flux/Helm deployment paths. |
 
 Evaluate each signal independently. A configured custom instance label key
@@ -370,8 +363,8 @@ adds evidence when matched; it does not override other signal-table rules.
 manually copied: report observed tracking, not a verified active hub, sync health,
 hub URL, controller namespace/version or remote application counts.
 
-**Assembly rule (both runtimes):** combine readable local-controller evidence and
-tool-specific tracking evidence. Set `gitops.tools_detected` to all supported tools
+**Assembly rule (both runtimes):** combine local-controller, specific tracking and
+observed target-cluster Argo capability evidence. Set `gitops.tools_detected` to all supported tools
 with that evidence, `tool` to the single name or `multiple`, `status: detected` and
 `detected: true`. This means evidence observed, not live reconciliation verified.
 Keep `gitops.evidence` for signal-table tracking observations; put controller facts
@@ -380,29 +373,32 @@ Keep `gitops.argocd.detected` / `gitops.flux.detected` scoped to **local control
 `false` requires successful, complete all-namespace Deployment AND StatefulSet scans;
 if either is unreadable and no controller was positively observed, use `null`. Do not set those local flags to true from spoke metadata.
 
-For tracking evidence and its Coverage prose, use only signal-table values. Unknown
-label/annotation keys may be named without quoting their values. Other Argo
-annotations contribute key/presence only, never raw values. This does not prohibit
-the separately documented local-controller image and management observations. In the
-MCP path, exclude `kubectl.kubernetes.io/last-applied-configuration` values too:
-even metadata-only responses can contain serialized ConfigMap data there.
+Only signal-table values may appear in tracking evidence or Coverage. Never
+record or quote other label/annotation values, including
+`kubectl.kubernetes.io/last-applied-configuration`, on any collection path.
+Other Argo annotations contribute key/presence only. Controller images and
+filtered executable hints are separate observations, not tracking evidence.
 
 A successful, complete equivalent CLI fallback can satisfy a selected logical read
 after an MCP failure; retain the failed attempt in Coverage. Do not treat recovered
 reads as incomplete, or accept a fallback with a narrower scope as equivalent.
 
 Choose the overall outcome after combining the selected reads:
-- `detected`: positive controller or specific tracking evidence exists. Preserve it
+- `detected`: controller, specific tracking or target Argo capability evidence exists. Preserve it
   despite unrelated denied reads and list the remaining gaps.
 - `unconfirmed`: no positive evidence and at least one ambiguous signal, unknown
   required tracking key, denied/failed/malformed selected read, or missing/truncated
-  page. Set `tool: unconfirmed`, `status: unconfirmed`, `detected: null`.
+  page. Set `tool: unconfirmed`, `status: unconfirmed`, `detected: null`. For shared-label
+  ambiguity, Coverage must suggest checking hub Applications targeting this cluster
+  and their resource/tracking associations. Access failures still need their own reasons.
 - `not_observed`: every selected read/page succeeded, resource identity is usable,
   and no known signal (including weak signals) matched. Set `tool: not_observed`,
   `status: not_observed`, `detected: false`, and list the checked signals, kinds and
   namespaces. This describes that scope, not absence of external GitOps. An optional
   ConfigMap inventory not selected is a disclosed exclusion, not a failed selected
   read; a selected ConfigMap inventory that fails instead requires `unconfirmed`.
+  Coverage must name the uninspected Flux Helm label pair
+  `helm.toolkit.fluxcd.io/name` + `/namespace`; this is not exhaustive Flux detection.
 
 For either nonpositive outcome use `tools_detected: []`. Missing local CRDs alone
 never determine the overall outcome. Sampling displayed examples does not mean
@@ -418,8 +414,14 @@ of controller flags. Local `detected` can be false after the complete controller
 scans above.
 A local false does not rule out AWS-managed Argo CD capability; the separate AWS
 `ListCapabilities` check (`aws eks list-capabilities --cluster-name <cluster>`) can
-observe that capability when authorized. State its result or access gap separately;
-do not reinterpret it as a local controller, or expand permissions automatically.
+observe capabilities created on this target only, not on a remote hub. Report the
+result or access gap separately; an empty result does not exclude hub management.
+An observed `type: ARGOCD` capability adds Argo to the overall detected tools; retain
+its lifecycle status in Coverage, not the tracking evidence list or local fields.
+This is configuration evidence, not readiness or successful reconciliation, and can
+coexist with a local install. Keep pagination/access failures visible; without positive
+evidence, a failed selected capability read requires `unconfirmed`. Run this optional
+check only when requested; otherwise disclose it as uninspected. Do not expand permissions automatically.
 
 Sources: [Argo resource tracking](https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking/)
 and [Flux remote-cluster Kustomizations](https://fluxcd.io/flux/components/kustomize/kustomizations/#kubeconfig-remote-clusters).
@@ -440,31 +442,43 @@ Keep at most 5 warning examples and note sampling, shortening, failed reads or m
 pages in Coverage. This applies when the helper samples or the final report drops
 additional examples. Output is bounded; API response size and parser memory are not.
 
-**CLI collection:** inspect full responses for controller identity/images; the
-extractor retains tracking metadata only. Use the installed Python 3 executable (`python3`, or `python` /
-`py -3` on Windows). For example, from the skill directory:
+**CLI collection:** project controller reads before tool output enters the model
+context. Keep raw env, args, command paths and annotation values out of that output;
+filtering only the final report is insufficient. The tracking pipeline below already
+emits only the extractor result. Use Python 3 (`python3`, or `python` / `py -3`
+on Windows). From the skill directory, run each selected kind independently:
 
 ```bash
-# Controller inspection: full objects, independent reads.
-kubectl get deployments -A -o json
-kubectl get statefulsets -A -o json
-
-# Tracking extraction after successful collection:
 set -o pipefail
+# Controller projection; repeat independently for StatefulSets.
+kubectl get deployments -A -o json | jq '
+  if (.items | type) != "array" then error("expected resource List") else
+  {metadata: {continue: .metadata.continue}, items: [.items[] |
+    {apiVersion, kind, namespace: .metadata.namespace, name: .metadata.name,
+     containers: [.spec.template.spec.containers[] |
+       {image, executable: ((.command // [] | length > 0) as $override |
+         (if $override then .command[0] else (.args[0] // "") end | split("/") | last) as $exe |
+         if ($exe | IN("argocd-server", "argocd-application-controller", "argocd-repo-server",
+                       "argocd-applicationset-controller", "source-controller", "kustomize-controller",
+                       "helm-controller", "notification-controller")) then $exe
+         elif $override then "other" else "image-default" end)}]}]} end'
+
+# Tracking extraction; do not print the raw response:
 kubectl get deployments -A -o json | python3 scripts/gitops_signals.py -
-# Only with target-linked user/configuration provenance (including label mode):
+# Only with confirmed custom-key provenance; standard key requires user label-mode confirmation:
 kubectl get deployments -A -o json | python3 scripts/gitops_signals.py - \
   --argocd-instance-label-key '<confirmed-tracking-key>'
 ```
 
 Repeat for StatefulSets and DaemonSets, then only the explicitly selected optional
 kinds. Do not list all ConfigMaps by default. When the user confirms the hub uses
-standard label tracking, pass `--argocd-instance-label-key app.kubernetes.io/instance`.
+standard `label` mode (not `annotation+label`), pass `--argocd-instance-label-key app.kubernetes.io/instance`.
 Pass an unprefixed key only when user-supplied; record that provenance in Coverage. A failed/invalid input exits nonzero;
 do not replace it with `{items: []}`. The helper returns `resources_scanned`,
 `tools_with_tracking` from the complete input, bounded `evidence` examples,
 `evidence_sampled`, and `warning_count` / warning examples. `tools_with_tracking`
-excludes ambiguous signals; combine tools and cap examples as above. A corroborated
+excludes ambiguous signals. Combine detected tools from all reads, then apply the
+3-example group cap again after merging evidence from all selected kinds. A corroborated
 label may include one `corroboration: {key: ..., value: present}` record. The helper
 uses only signal-table keys and never emits unrelated annotation/label values.
 For an extra single-kind inventory confirmed cluster-scoped by API discovery,
@@ -473,9 +487,12 @@ missing namespace field or the tracking annotation. The default three-kind path
 is namespaced. Input bytes are decoded as UTF-8, including a possible BOM.
 Record scan scope/errors separately; this helper does not assess API coverage,
 scan for controllers, or decide overall absence. For MCP, perform the same metadata
-reads and bounded examples. Recover original group/kind AND scope for
+reads with projection before tool output enters context; if unavailable, use the
+CLI pipelines above or record an inspection gap rather than request raw objects.
+Preserve API errors and continuation tokens independently of displayed examples.
+Recover original group/kind AND scope for
 PartialObjectMetadata from request/discovery context, never from the annotation;
-obtain normal objects/context or leave evidence unconfirmed when unavailable.
+obtain projected identity/context or leave evidence unconfirmed when unavailable.
 
 ## Output Schema
 
@@ -516,14 +533,14 @@ cicd:
     tool: string              # argocd | flux | multiple | unconfirmed | not_observed
     status: string            # detected | unconfirmed | not_observed; evidence in the checked scope, not active management
     detected: bool | null     # true for evidence; false only for not_observed; null for unconfirmed
-    tools_detected: list      # all tools evidenced by local controllers or specific tracking
+    tools_detected: list      # all tools evidenced by controllers, tracking or target Argo capability
     evidence: list            # representative signal-table observations; sampling and provenance in Coverage
     # Every nested field below is LOCAL ONLY; unavailable hub facts remain null.
     argocd:
       detected: bool | null   # false only after complete local controller scans
       namespace: string | null
       version: string | null # observed local server/controller image, never a client version
-      eks_managed: bool | null # observed local install; not a substitute for AWS ListCapabilities
+      eks_managed: bool | null # false for observed local self-managed install; otherwise null; hosted capabilities separate
       applications: int | null # locally observable Applications only
     flux:
       detected: bool | null   # local controller, not remote management

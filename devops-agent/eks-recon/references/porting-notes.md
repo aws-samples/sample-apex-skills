@@ -18,6 +18,10 @@ This file documents the differences between the Claude Code version and the DevO
 | MCP dependencies | References eks-mcp-server for richer live data | No MCP dependencies; uses Agent Space APIs directly |
 | iac `evidence.type` enum | 4 values (`iac.md:337`): includes `workspace_files` and `cfn_stacks` | 2 values (`iac.md:186`): `cluster_tags` \| `in_cluster_crds`. Drops `workspace_files` (no filesystem in Agent Space) and `cfn_stacks` (the port's `iam-policy.json` grants no `cloudformation:*` permission). **No CFN fact is lost** — CloudFormation is still detected via `aws:cloudformation:*` cluster TAGS → `cluster_tags` evidence + `tags.cfn_stack_id`; only the `evidence.type` label changes. |
 
+GitOps workload reads require projection before tool output reaches the model.
+Without it, both spoke-side tracking and controller inspection are unavailable;
+report those Coverage gaps. The API port has no shell fallback.
+
 ## Access-entry mechanism (why iam-policy.json has no `eks:AccessKubernetesApi`)
 
 The DevOps Agent reaches the Kubernetes API through an **EKS Access Entry** that binds the Agent Space role to the AWS-managed `AmazonAIOpsAssistantPolicy` cluster-access policy (cluster scope), provisioned by `devops-agent/setup.sh`. The cluster's `authenticationMode` must include `API` (i.e. `API` or `API_AND_CONFIG_MAP`). Because the access entry — not an IAM action — grants K8s-API **authentication**, `iam-policy.json` contains **only AWS control-plane reads** and deliberately omits `eks:AccessKubernetesApi`.

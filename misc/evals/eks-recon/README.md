@@ -42,6 +42,9 @@ tracking validity, shared/custom labels, corroboration, Flux pairs, malformed
 input, privacy and UTF-8 handling. Large inputs check full scanning and late
 positives with bounded examples. A schema check compares GitOps field declarations
 across runtimes without requiring identical prose.
+With `jq` installed, the same suite executes the documented controller projection
+against privacy, executable-hint and pagination fixtures; those checks skip without
+`jq` locally and are required in CI.
 
 The `eks-recon GitOps regression` CI job runs these checks for relevant paths.
 They are not agent evaluations or proof of live reconciliation. Live task evals
