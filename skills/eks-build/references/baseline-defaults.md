@@ -116,6 +116,8 @@ spec:
   weight: 50
 ```
 
+Multi-arch nodes need multi-arch images: with `arm64` in the NodePool, each workload image must be a manifest list that covers `linux/amd64` and `linux/arm64` (built per architecture and joined), so a pod scheduled onto a Graviton node pulls the arm64 binary. See [graviton-migration multi-arch pipelines](../../graviton-migration/references/multi-arch-pipelines.md).
+
 EC2NodeClass defaults:
 
 ```yaml
