@@ -166,7 +166,7 @@ Skip if single-team cluster.
       If yes: how many accounts? Cross-account IAM? Organizations/Control Tower?
 
 29. IAM auth model: Pod Identity (default) or IRSA? (Helm add-ons installed via eks-blueprints-addons use IRSA)
-    → Per-addon overrides? (e.g., Helm add-ons via eks-blueprints-addons → IRSA, rest → Pod Identity)
+    → Per-addon overrides? (e.g., Velero → Pod Identity, per question 20; other Helm add-ons via eks-blueprints-addons → IRSA)
 ```
 
 **STOP.** Wait for user confirmation before proceeding. Present a mid-point summary of compute, addons, security, and tenancy decisions. Confirm before moving to operations and generation.
