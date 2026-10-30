@@ -243,6 +243,7 @@ spec:
       - maxSkew: 2
         topologyKey: topology.kubernetes.io/zone
         whenUnsatisfiable: DoNotSchedule
+        minDomains: 3          # = zones the NodePool can launch in
         labelSelector:
           matchLabels:
             app: myapp

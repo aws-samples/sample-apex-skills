@@ -440,6 +440,7 @@ spec:
       - maxSkew: 1
         topologyKey: topology.kubernetes.io/zone
         whenUnsatisfiable: DoNotSchedule
+        minDomains: 3          # = zones the NodePool can launch in
         labelSelector:
           matchLabels:
             app: my-app
@@ -455,10 +456,14 @@ spec:
 
 | `whenUnsatisfiable` | Behavior | Use When |
 |--------------------|----------|----------|
-| **DoNotSchedule** | Strict — pod stays pending | Critical services, hard HA requirement |
+| **DoNotSchedule** | Strict: pod stays Pending, including when a zone has no capacity | Critical services, hard HA requirement |
 | **ScheduleAnyway** | Best-effort — may be uneven | Non-critical, prefer availability over balance |
 
 **Recommended pattern:** Use `DoNotSchedule` for zone spread + `ScheduleAnyway` for host spread. This ensures AZ distribution while allowing scheduling flexibility across nodes.
+
+**Why `DoNotSchedule` for the zone key:** kube-scheduler only knows the zones of nodes that already exist ("The scheduler doesn't have prior knowledge of all the zones or other topology domains that a cluster has. They are determined from the existing nodes in the cluster.", [Kubernetes docs](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)). With `ScheduleAnyway` on the zone key, Karpenter (or any autoscaler scaling up from few nodes) can launch nodes in several zones, yet the pending pods bind to whichever node is Ready first and the empty nodes are then consolidated away: a cold-start rollout can put every replica in one zone. Karpenter maintainers treat this as working as designed and point to `DoNotSchedule` plus `minDomains` ([kubernetes-sigs/karpenter#517](https://github.com/kubernetes-sigs/karpenter/issues/517)). The [AWS EKS Best Practices Guide](https://docs.aws.amazon.com/eks/latest/best-practices/application.html) example uses `ScheduleAnyway` on the zone key; do not copy it for zone spread on an autoscaled cluster (its `labelSelector`, `app: express-test`, also does not match its own Pod label `app: web-server`, so as written it spreads nothing).
+
+**Set `minDomains`** to the number of zones the NodePool can launch in. While fewer zones than `minDomains` have nodes, the scheduler treats the global minimum as 0, so each zone takes at most `maxSkew` matching pods and the rest stay Pending until nodes exist in more zones. A value higher than the zones the NodePool can use leaves replicas Pending indefinitely (see [aws/karpenter-provider-aws#7585](https://github.com/aws/karpenter-provider-aws/issues/7585) for a Pending report with a NodePool limited to two zones). `minDomains` is valid only with `whenUnsatisfiable: DoNotSchedule` and needs no feature gate from Kubernetes 1.30.
 
 ### Pod Anti-Affinity Alternative
 
@@ -569,6 +574,7 @@ spec:
       - maxSkew: 1
         topologyKey: topology.kubernetes.io/zone
         whenUnsatisfiable: DoNotSchedule
+        minDomains: 3          # = zones the NodePool can launch in
         labelSelector:
           matchLabels:
             app: my-app

@@ -233,6 +233,7 @@ topologySpreadConstraints:
 - maxSkew: 1
   topologyKey: topology.kubernetes.io/zone
   whenUnsatisfiable: DoNotSchedule
+  minDomains: 3   # = zones the NodePool can launch in
 ```
 
 **For detailed reliability guidance, see:** [Reliability & Resiliency — Core](references/reliability-core) (see also [reliability-advanced.md](references/reliability-advanced) for DR, deployment strategies, and large-cluster guidance)
