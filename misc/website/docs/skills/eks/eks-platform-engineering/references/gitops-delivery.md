@@ -20,6 +20,8 @@ The delivery backbone. Git is the single source of truth; ArgoCD reconciles clus
 
 Keeping CI and CD separate (rather than one monolithic pipeline) means a failed build never half-deploys, and the deployed state is always exactly what's in Git.
 
+**Never fix an ArgoCD-managed resource imperatively.** With self-heal on, ArgoCD syncs again when the live cluster's state deviates from Git, and retries after the self-heal timeout (5 seconds by default) even on the same commit, so a `kubectl patch`, `edit` or `scale` on a managed resource is reverted and you get a flap loop. Make the change in Git (an MR/PR) and let ArgoCD sync it. If the live cluster must change first, use a scoped, recorded break-glass window: for that one Application only, turn off self-heal (remove `selfHeal: true`) or switch it to manual sync (`argocd app set <app> --sync-policy none`), record who, why and until when, make the fix, land the same change in Git, then restore the sync policy. Semantics: [Argo CD Automated Sync Policy](https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/).
+
 ## ArgoCD patterns
 
 - **App-of-apps / ApplicationSets** — a bootstrap `Application` points at a Git path of child `Application`s; ApplicationSets template one app per cluster/environment from a generator (e.g. the cluster-registration secrets from the GitOps Bridge). This is how 60+ platform add-ons stay in sync across hub + spokes.
