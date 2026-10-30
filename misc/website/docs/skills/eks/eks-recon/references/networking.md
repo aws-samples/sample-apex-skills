@@ -291,22 +291,22 @@ aws eks describe-addon --cluster-name <cluster-name> --region <region> --addon-n
 ```bash
 # All AWS_/ENABLE_/WARM_/MINIMUM_ env vars in one map
 kubectl get daemonset aws-node -n kube-system -o json 2>/dev/null | jq -r '
-  .spec.template.spec.containers[0].env |
+  (.spec.template.spec.containers[0].env // []) |
   map(select(.name | startswith("AWS_") or startswith("ENABLE_")
              or startswith("WARM_") or startswith("MINIMUM_"))) |
   from_entries'
 
 # Prefix delegation
 kubectl get daemonset aws-node -n kube-system -o json 2>/dev/null | \
-  jq -r '.spec.template.spec.containers[0].env[] | select(.name=="ENABLE_PREFIX_DELEGATION") | .value'
+  jq -r '.spec.template.spec.containers[0].env[]? | select(.name=="ENABLE_PREFIX_DELEGATION") | .value'
 
 # Security groups for pods
 kubectl get daemonset aws-node -n kube-system -o json 2>/dev/null | \
-  jq -r '.spec.template.spec.containers[0].env[] | select(.name=="ENABLE_POD_ENI") | .value'
+  jq -r '.spec.template.spec.containers[0].env[]? | select(.name=="ENABLE_POD_ENI") | .value'
 
 # Custom networking config flag
 kubectl get daemonset aws-node -n kube-system -o json 2>/dev/null | \
-  jq -r '.spec.template.spec.containers[0].env[] | select(.name=="AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG") | .value'
+  jq -r '.spec.template.spec.containers[0].env[]? | select(.name=="AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG") | .value'
 
 # Custom networking ENIConfig CRs
 kubectl get eniconfigs.crd.k8s.amazonaws.com --no-headers 2>/dev/null | wc -l
@@ -604,7 +604,7 @@ kubectl get applicationnetworkpolicies.networking.k8s.aws -A --no-headers 2>/dev
 kubectl get deploy -A -l app.kubernetes.io/name=external-dns -o json 2>/dev/null | jq -r '
   .items[] | {
     ns: .metadata.namespace,
-    domain_filters: [.spec.template.spec.containers[0].args[]
+    domain_filters: [.spec.template.spec.containers[0].args[]?
                      | select(startswith("--domain-filter"))]
   }'
 ```

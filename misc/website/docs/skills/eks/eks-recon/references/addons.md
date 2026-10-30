@@ -439,7 +439,7 @@ Check for orphaned CRDs when you suspect incomplete add-on uninstalls. Orphaned 
 # Check for CRDs without controller
 kubectl get crds -o json | jq -r '
   .items[] | 
-  select(.status.conditions[].type == "NamesAccepted" and .status.conditions[].status == "True") |
+  select(.status.conditions[]?.type == "NamesAccepted" and .status.conditions[]?.status == "True") |
   .metadata.name'
 ```
 

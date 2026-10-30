@@ -135,7 +135,7 @@ Check for AMP when you need managed Prometheus with automatic scaling and AWS in
 # Check for ADOT or Prometheus remote write config
 kubectl get configmap -A -o json | jq -r '
   .items[] |
-  select(.data | to_entries | .[] | .value | contains("aps-workspaces")) |
+  select((.data // {}) | to_entries | .[] | .value | contains("aps-workspaces")) |
   {namespace: .metadata.namespace, name: .metadata.name}'
 ```
 
@@ -302,7 +302,7 @@ amazon-cloudwatch  fluent-bit   3         3         3       60d
 # Check for OpenSearch endpoint in configs
 kubectl get configmap -A -o json | jq -r '
   .items[] |
-  select(.data | to_entries | .[] | .value | contains("opensearch") or contains("elasticsearch")) |
+  select((.data // {}) | to_entries | .[] | .value | contains("opensearch") or contains("elasticsearch")) |
   {namespace: .metadata.namespace, name: .metadata.name}'
 ```
 
