@@ -634,7 +634,7 @@ Workload: api/order-service
   Monthly cost on x86: $192.00
 
 Graviton equivalent: m6g.xlarge (Graviton2, 0.20 discount)
-  m5.xlarge:  $0.192/hr
+  m5.xlarge:  $0.192/hr  (same rate as m6i.xlarge, the Graviton2 table pair)
   m6g.xlarge: $0.154/hr  (19.8% savings)
 
 Calculation:
@@ -818,7 +818,7 @@ def determine_confidence(data_sources: list[str]) -> str:
     --query 'SpotPriceHistory[].{Type:InstanceType,AZ:AvailabilityZone,Price:SpotPrice}' \
     --output table
   ```
-- Graviton savings vary by generation, family and Region (us-east-1 On-Demand, 2026-10-30: 0.20 Graviton2, 0.19 Graviton3, 0.15 Graviton4). Use the target generation's figure, or 0.15 when it is unknown.
+- Graviton savings vary by generation, family and Region (us-east-1 On-Demand, 2026-10-30: 0.20 Graviton2, 0.19 Graviton3, 0.15 Graviton4). Each figure compares same-generation Intel x86 with Graviton, m family. Price both types when they are known (see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1); otherwise use the target generation's figure, or 0.15 when it is unknown.
 - Cross-AZ pricing is consistent across regions ($0.01/GiB each direction).
 - NAT Gateway pricing is consistent across regions ($0.045/GiB processed).
 - Storage pricing varies by region; us-east-1 rates used as reference.
