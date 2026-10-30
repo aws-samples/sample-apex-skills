@@ -1,7 +1,7 @@
 ---
 slug: designing-apex-skills
-title: "Designing APEX skills: one entry skill, standalone skills, and where runbooks live"
-description: How we are redesigning APEX skills around a single entry skill and standalone knowledge and solution skills, how Day 0, Day 1 and Day 2 shape them, why every runbook moves into one place that customers can adapt, and the plan for the next major version.
+title: How we design APEX skills
+description: "One entry skill, standalone skills and where runbooks live: how Day 0, Day 1 and Day 2 shape APEX skills, and the plan for the next major version."
 authors: [apex-maintainers]
 tags: [design, skills, runbooks, adr]
 date: 2026-10-23
