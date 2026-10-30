@@ -59,9 +59,11 @@ For write access (cluster creation, deployments), also attach:
 - `AWSCloudFormationFullAccess`
 - EKS Full Access: `"Action": "eks:*"`
 
+These are broad grants. Attach them only with the opt-in write profile below, and where you can, replace them with policies scoped to the clusters, stacks and roles the server manages (least privilege).
+
 ## Step 2: Configure Your AI Assistant
 
-### Basic Configuration (IAM Mode)
+### Basic Configuration (IAM Mode, read-only)
 
 ```json
 {
@@ -69,9 +71,7 @@ For write access (cluster creation, deployments), also attach:
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
-        "--allow-write",
-        "--allow-sensitive-data-access"
+        "awslabs.eks-mcp-server@latest"
       ],
       "env": {
         "AWS_PROFILE": "default",
@@ -83,7 +83,7 @@ For write access (cluster creation, deployments), also attach:
 }
 ```
 
-### Kubeconfig Mode (OIDC/Non-IAM)
+### Kubeconfig Mode (OIDC/Non-IAM, read-only)
 
 ```json
 {
@@ -91,9 +91,7 @@ For write access (cluster creation, deployments), also attach:
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
-        "--allow-write",
-        "--allow-sensitive-data-access"
+        "awslabs.eks-mcp-server@latest"
       ],
       "env": {
         "EKS_AUTH_MODE": "kubeconfig",
@@ -111,12 +109,16 @@ For write access (cluster creation, deployments), also attach:
 - `get_eks_vpc_config`, `get_eks_insights`
 - `get_policies_for_role`, `add_inline_policy`
 
-### Read-Only Mode
+### Opt-in: Write and Sensitive-Data Access
 
-Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
+The examples above are read-only, the recommended start. Add a flag only when you need what it enables (see Command-Line Arguments below), and attach the write IAM permissions above for `--allow-write`:
 
 ```json
-"args": ["awslabs.eks-mcp-server@latest"]
+"args": [
+  "awslabs.eks-mcp-server@latest",
+  "--allow-write",
+  "--allow-sensitive-data-access"
+]
 ```
 
 ## Config File Locations by Assistant
@@ -130,23 +132,23 @@ Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 
 ## Windows Users
 
-Use this format for the args array:
+Use this format for the args array (read-only):
 
 ```json
 "args": [
   "--from", "awslabs.eks-mcp-server@latest",
-  "awslabs.eks-mcp-server.exe",
-  "--allow-write",
-  "--allow-sensitive-data-access"
+  "awslabs.eks-mcp-server.exe"
 ]
 ```
+
+For the opt-in profile, append `"--allow-write"` and `"--allow-sensitive-data-access"` after the `.exe` entry.
 
 ## Command-Line Arguments
 
 | Argument | Description |
 |----------|-------------|
-| `--allow-write` | Enable create/update/delete operations |
-| `--allow-sensitive-data-access` | Enable logs, events, secrets access |
+| `--allow-write` | Opt-in: enable create/update/delete operations (omit for read-only) |
+| `--allow-sensitive-data-access` | Opt-in: enable logs, events, secrets access (omit for read-only) |
 
 To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see Environment Variables below) — the JSON examples above use this approach.
 
