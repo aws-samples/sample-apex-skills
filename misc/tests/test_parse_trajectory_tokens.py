@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Tests for the per-category token counts parsed from eval trajectories.
+
+Run directly with:
+
+    python3 misc/tests/test_parse_trajectory_tokens.py
+"""
+
+import json
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+# Make misc/evals/scripts importable regardless of CWD.
+MISC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCRIPTS_DIR = os.path.join(MISC_DIR, "evals", "scripts")
+sys.path.insert(0, SCRIPTS_DIR)
+
+from parse_trajectory import USAGE_TOKEN_KEYS, parse_events  # noqa: E402
+from run_task_evals import (  # noqa: E402
+    aggregate_token_usage,
+    extract_result_summary,
+)
+
+# Shape of a Claude Code stream-json `result` event's usage object.
+FULL_USAGE = {
+    "input_tokens": 7,
+    "cache_creation_input_tokens": 10262,
+    "cache_read_input_tokens": 33441,
+    "output_tokens": 917,
+    "server_tool_use": {"web_search_requests": 0, "web_fetch_requests": 0},
+    "service_tier": "standard",
+    "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 10262,
+    },
+}
+
+# An older usage object with no cache keys.
+LEGACY_USAGE = {"input_tokens": 120, "output_tokens": 30}
+
+
+def _events(usage):
+    return [
+        {"type": "system", "subtype": "init"},
+        {
+            "type": "assistant",
+            "message": {"content": [{"type": "text", "text": "done"}]},
+        },
+        {
+            "type": "result",
+            "subtype": "success",
+            "duration_ms": 1234,
+            "num_turns": 1,
+            "usage": usage,
+        },
+    ]
+
+
+class ParseEventsTokenTests(unittest.TestCase):
+    def test_full_usage_reports_each_category(self):
+        t = parse_events(_events(FULL_USAGE))
+        self.assertEqual(t.input_tokens, 7)
+        self.assertEqual(t.output_tokens, 917)
+        self.assertEqual(t.cache_read_input_tokens, 33441)
+        self.assertEqual(t.cache_creation_input_tokens, 10262)
+        # total_tokens keeps its meaning: input + output only.
+        self.assertEqual(t.total_tokens, 7 + 917)
+        d = t.to_dict()
+        for key in USAGE_TOKEN_KEYS:
+            self.assertIn(key, d)
+        self.assertEqual(d["cache_read_input_tokens"], 33441)
+
+    def test_usage_without_cache_keys_reads_zero(self):
+        t = parse_events(_events(LEGACY_USAGE))
+        self.assertEqual(t.input_tokens, 120)
+        self.assertEqual(t.output_tokens, 30)
+        self.assertEqual(t.cache_read_input_tokens, 0)
+        self.assertEqual(t.cache_creation_input_tokens, 0)
+        self.assertEqual(t.total_tokens, 150)
+
+    def test_no_result_event_leaves_counts_none(self):
+        t = parse_events(_events(FULL_USAGE)[:2])
+        self.assertIsNone(t.total_tokens)
+        for key in USAGE_TOKEN_KEYS:
+            self.assertIsNone(getattr(t, key))
+
+
+class ExtractResultSummaryTests(unittest.TestCase):
+    def test_full_usage(self):
+        s = extract_result_summary(_events(FULL_USAGE))
+        self.assertEqual(s["total_tokens"], 7 + 917)
+        self.assertEqual(s["input_tokens"], 7)
+        self.assertEqual(s["output_tokens"], 917)
+        self.assertEqual(s["cache_read_input_tokens"], 33441)
+        self.assertEqual(s["cache_creation_input_tokens"], 10262)
+        self.assertEqual(s["duration_ms"], 1234)
+
+    def test_usage_without_cache_keys(self):
+        s = extract_result_summary(_events(LEGACY_USAGE))
+        self.assertEqual(s["total_tokens"], 150)
+        self.assertEqual(s["cache_read_input_tokens"], 0)
+        self.assertEqual(s["cache_creation_input_tokens"], 0)
+
+    def test_no_result_event(self):
+        s = extract_result_summary([])
+        self.assertEqual(s["total_tokens"], 0)
+        for key in USAGE_TOKEN_KEYS:
+            self.assertEqual(s[key], 0)
+
+
+class AggregateTokenUsageTests(unittest.TestCase):
+    def _write_timing(self, root, config, eval_id, run, timing):
+        run_dir = root / f"eval-{eval_id}" / config / f"run-{run}"
+        run_dir.mkdir(parents=True)
+        (run_dir / "timing.json").write_text(json.dumps(timing))
+
+    def test_sums_and_means_per_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            full = extract_result_summary(_events(FULL_USAGE))
+            legacy = extract_result_summary(_events(LEGACY_USAGE))
+            self._write_timing(root, "with_skill", 1, 1, full)
+            self._write_timing(root, "with_skill", 2, 1, legacy)
+            # A timing.json written before the split: total_tokens only.
+            self._write_timing(
+                root, "without_skill", 1, 1, {"total_tokens": 40, "duration_ms": 5}
+            )
+
+            agg = aggregate_token_usage(root)
+
+            ws = agg["with_skill"]
+            self.assertEqual(ws["runs"], 2)
+            self.assertEqual(ws["total"]["total_tokens"], 924 + 150)
+            self.assertEqual(ws["total"]["input_tokens"], 127)
+            self.assertEqual(ws["total"]["output_tokens"], 947)
+            self.assertEqual(ws["total"]["cache_read_input_tokens"], 33441)
+            self.assertEqual(ws["total"]["cache_creation_input_tokens"], 10262)
+            self.assertEqual(ws["mean"]["cache_read_input_tokens"], 16720.5)
+
+            wos = agg["without_skill"]
+            self.assertEqual(wos["runs"], 1)
+            self.assertEqual(wos["total"]["total_tokens"], 40)
+            self.assertEqual(wos["total"]["cache_read_input_tokens"], 0)
+
+    def test_empty_runs_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            agg = aggregate_token_usage(Path(tmp))
+            self.assertEqual(agg["with_skill"]["runs"], 0)
+            self.assertEqual(agg["with_skill"]["mean"]["total_tokens"], 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

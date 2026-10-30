@@ -9,6 +9,15 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
+# Token categories in the stream-json `result` event's `usage` object.
+# `total_tokens` stays input + output; the cache counts are reported apart.
+USAGE_TOKEN_KEYS = (
+    "input_tokens",
+    "output_tokens",
+    "cache_read_input_tokens",
+    "cache_creation_input_tokens",
+)
+
 
 @dataclass
 class ToolCall:
@@ -45,6 +54,12 @@ class Trajectory:
     tools_used: set[str]
     duration_ms: int | None
     total_tokens: int | None
+    # Per-category counts from the result event's usage object. None when
+    # no result event carried a usage object; a missing key inside one is 0.
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    cache_read_input_tokens: int | None = None
+    cache_creation_input_tokens: int | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -55,6 +70,10 @@ class Trajectory:
             "tools_used": sorted(self.tools_used),
             "duration_ms": self.duration_ms,
             "total_tokens": self.total_tokens,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "cache_read_input_tokens": self.cache_read_input_tokens,
+            "cache_creation_input_tokens": self.cache_creation_input_tokens,
         }
 
 
@@ -80,6 +99,7 @@ def parse_events(events: list[dict]) -> Trajectory:
     global_tool_index = 0
     duration_ms: int | None = None
     total_tokens: int | None = None
+    token_counts: dict[str, int | None] = dict.fromkeys(USAGE_TOKEN_KEYS)
 
     pending_calls: list[ToolCall] = []
     pending_text: list[str] = []
@@ -143,6 +163,9 @@ def parse_events(events: list[dict]) -> Trajectory:
             output_t = usage.get("output_tokens", 0)
             if input_t or output_t:
                 total_tokens = input_t + output_t
+            if isinstance(evt.get("usage"), dict):
+                for key in USAGE_TOKEN_KEYS:
+                    token_counts[key] = usage.get(key, 0)
 
         i += 1
 
@@ -156,6 +179,7 @@ def parse_events(events: list[dict]) -> Trajectory:
         tools_used=tools_used,
         duration_ms=duration_ms,
         total_tokens=total_tokens,
+        **token_counts,
     )
 
 

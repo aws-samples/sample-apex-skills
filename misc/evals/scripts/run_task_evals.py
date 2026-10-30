@@ -52,7 +52,7 @@ from run_triggering import (
     stage_skill_sandbox,
     read_skill_meta,
 )
-from parse_trajectory import parse_events
+from parse_trajectory import USAGE_TOKEN_KEYS, parse_events
 from process_assertions import evaluate
 from artifact_validation import validate_run as validate_artifacts
 from elicitation import ElicitationConfig, run_multiturn_subject
@@ -250,19 +250,59 @@ def compute_metrics(events: list[dict], transcript_text: str, outputs_dir: Path)
 
 
 def extract_result_summary(events: list[dict]) -> dict:
-    """Pull the `result` event's tokens + duration if present."""
+    """Pull the `result` event's tokens + duration if present.
+
+    `total_tokens` stays input + output. The per-category counts
+    (USAGE_TOKEN_KEYS) are copied apart; a missing key reads as 0.
+    """
     for evt in reversed(events):
         if evt.get("type") == "result":
+            usage = evt.get("usage") or {}
             return {
                 "total_tokens": (
                     (evt.get("usage") or {}).get("input_tokens", 0)
                     + (evt.get("usage") or {}).get("output_tokens", 0)
                 ) or evt.get("total_tokens", 0),
+                **{key: usage.get(key, 0) for key in USAGE_TOKEN_KEYS},
                 "duration_ms": evt.get("duration_ms", 0),
                 "num_turns": evt.get("num_turns", 0),
                 "subtype": evt.get("subtype"),
             }
-    return {"total_tokens": 0, "duration_ms": 0, "num_turns": 0, "subtype": None}
+    return {
+        "total_tokens": 0,
+        **dict.fromkeys(USAGE_TOKEN_KEYS, 0),
+        "duration_ms": 0,
+        "num_turns": 0,
+        "subtype": None,
+    }
+
+
+def aggregate_token_usage(runs_dir: Path) -> dict:
+    """Sum and average the per-run token counts in each config's timing.json.
+
+    The skill-creator benchmark.json carries only `tokens` (total_tokens);
+    this keeps the cache categories visible across a whole run directory.
+    A timing.json without a key (written before the split) reads as 0.
+    """
+    keys = ("total_tokens",) + USAGE_TOKEN_KEYS
+    out: dict[str, dict] = {}
+    for config in ("with_skill", "without_skill"):
+        totals = dict.fromkeys(keys, 0)
+        n = 0
+        for timing_file in sorted(runs_dir.glob(f"eval-*/{config}/run-*/timing.json")):
+            try:
+                timing = json.loads(timing_file.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            n += 1
+            for key in keys:
+                totals[key] += timing.get(key) or 0
+        out[config] = {
+            "runs": n,
+            "total": totals,
+            "mean": {key: (round(totals[key] / n, 1) if n else 0) for key in keys},
+        }
+    return out
 
 
 # ---------- fixture staging ----------------------------------------------------
@@ -429,6 +469,7 @@ def run_subject(
 
     timing = {
         "total_tokens": summary["total_tokens"],
+        **{key: summary[key] for key in USAGE_TOKEN_KEYS},
         "duration_ms": summary["duration_ms"],
         "total_duration_seconds": round(wall, 2),
         "executor_start": start_iso,
@@ -879,6 +920,7 @@ def run_skill(
         "without_skill_stddev": wo_pr.get("stddev", 0),
         "delta": round(delta, 4),
         "eval_ids": [p["id"] for p in prompts],
+        "token_usage": aggregate_token_usage(runs_dir),
     }
     append_history(skill, entry)
 
