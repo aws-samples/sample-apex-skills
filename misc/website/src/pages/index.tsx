@@ -48,7 +48,7 @@ function ValueProps() {
           </p>
         </div>
         <div className="apex-values__item">
-          <h3>Phased steering workflows</h3>
+          <h3>Guided runbooks</h3>
           <p>
             Combine skills into ordered sequences with guardrails, tool routing,
             and handoff criteria. The agent follows a structured path through
@@ -141,7 +141,8 @@ function HowItWorks() {
         <div className="apex-steps__item">
           <span className="apex-steps__number">1</span>
           <h3>Install</h3>
-          <p>npx apex-skills</p>
+          <p>npx apex-skills@1.3.0</p>
+          <p>For v2 and its <code>/apex</code> router, use the manual install from <code>main</code> (<Link to="/docs/getting-started#manual-install">Getting Started</Link>).</p>
         </div>
         <div className="apex-steps__item">
           <span className="apex-steps__number">2</span>
@@ -166,8 +167,8 @@ function CtaSection() {
         <Link className="apex-cta-section__link apex-cta-section__link--primary" to="/docs/skills">
           Browse Skills →
         </Link>
-        <Link className="apex-cta-section__link apex-cta-section__link--secondary" to="/docs/steering">
-          Steering Workflows →
+        <Link className="apex-cta-section__link apex-cta-section__link--secondary" to="/docs/skills/general/apex">
+          APEX Router and Runbooks →
         </Link>
       </div>
     </section>
@@ -177,7 +178,7 @@ function CtaSection() {
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
-    <Layout title="APEX Skills — AWS Platform Engineering for AI Agents" description="Curated agentic AI skills for AWS platform engineering. 12 open-source skills for EKS, Terraform, and infrastructure workflows, delivered through any coding agent.">
+    <Layout title="APEX Skills — AWS Platform Engineering for AI Agents" description="Curated agentic AI skills for AWS platform engineering. Open-source skills for EKS, Terraform, and infrastructure workflows, delivered through any coding agent.">
       <main className="landing-main">
         <HeroBanner />
         <ValueProps />

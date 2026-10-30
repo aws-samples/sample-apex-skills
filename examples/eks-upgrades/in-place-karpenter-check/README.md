@@ -1,14 +1,14 @@
 ---
 name: EKS Upgrade Readiness Check
 description: Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status.
-workflow: steering/workflows/eks-upgrade-check.md
+workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 ---
 
 # Assess Your EKS Cluster Upgrade Readiness with APEX EKS
 
-A hands-on exercise that demonstrates the APEX EKS [Upgrade Check Workflow](../../../steering/workflows/eks-upgrade-check.md) in practice. Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
+A hands-on exercise that demonstrates the APEX [`eks-upgrade-check` skill](../../../skills/eks-upgrade-check/SKILL.md) in practice (the APEX upgrade check runbook, listed under Further Reading, applies when the apex skill routes the request). Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
 
-The upgrade-check workflow uses the [`eks-upgrade-check`](../../../skills/eks-upgrade-check/SKILL.md) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
+The upgrade-check runbook uses the [`eks-upgrade-check`](../../../skills/eks-upgrade-check/SKILL.md) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
 
 ## Overview
 
@@ -19,7 +19,7 @@ EKS 1.32 → 1.33 (assessment target)
    ├─ Blocking PDB (singleton-app with minAvailable: 1)
    └─ Deprecated endpoints API (RBAC grants watch on endpoints)
    
-   ↓ Run /apex:eks-upgrade-check
+   ↓ Run the eks-upgrade-check skill (/eks-upgrade-check in Claude Code)
    
    📊 Readiness Report: NOT READY (score ≤ 59)
       Hard blocker: Karpenter incompatibility
@@ -80,7 +80,7 @@ chmod +x ./scripts/deploy.sh
 
 **What it does:**
 
-1. **APEX setup** — asks which tool (Claude Code or Kiro), symlinks skills and commands
+1. **APEX setup** — asks which tool (Claude Code or Kiro) and symlinks the skills into `.claude/skills/` or `.kiro/skills/`
 2. **Deployment name** — asks for a suffix (default: `check`), cluster will be `ex-karpenter-<suffix>`
 3. **Terraform apply** — deploys EKS 1.32 with Karpenter v1.0.2 on Fargate from `examples/infrastructure/karpenter/`
 4. **Karpenter resources** — applies EC2NodeClass + NodePool, scales inflate to 3 replicas
@@ -101,7 +101,7 @@ claude
 Then use the slash command:
 
 ```
-/apex:eks-upgrade-check
+/eks-upgrade-check
 ```
 
 Or just ask: **"Is my cluster ready to upgrade to 1.33?"**
@@ -183,9 +183,11 @@ chmod +x ./scripts/destroy.sh
 
 The destroy script: deletes planted manifests, terminates Karpenter EC2 instances, removes Karpenter K8s resources, and runs `terraform destroy`.
 
+If you ran this example's deploy.sh before v2, also remove `.claude/commands/apex` (a dangling link) and `.kiro/steering/eks.md` (a copy of the removed hub) in your checkout, and the dangling `.claude/skills/steering-workflow-creator` or `.kiro/skills/steering-workflow-creator` link (`find .claude/skills .kiro/skills -xtype l` lists every dangling link).
+
 ## Further Reading
 
-- [APEX EKS Upgrade Check Workflow](../../../steering/workflows/eks-upgrade-check.md)
+- [APEX EKS Upgrade Check Runbook](../../../skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md)
 - [EKS Upgrade Check Skill](../../../skills/eks-upgrade-check/SKILL.md)
   - [Version Validation Reference](../../../skills/eks-upgrade-check/references/version-validation.md)
   - [Add-on Compatibility Reference](../../../skills/eks-upgrade-check/references/addon-compatibility.md)

@@ -958,7 +958,7 @@ function symlinkSteeringClaude(claudeBase) {
       success(`Steering commands linked to ${c.dim}${link}${c.reset}`);
     }
   }
-  // The /apex:* commands import @~/.claude/apex-steering/...; the eks-operation-review skill tells Claude to read a file there.
+  // The /apex:* commands of a v1 release import @~/.claude/apex-steering/... (a v2 tree has no steering/).
   const steeringLink = join(claudeBase, 'apex-steering');
   if (safeSymlink(area, join(INSTALL_DIR, 'steering'), steeringLink) !== 'conflict') {
     success(`Steering workflows linked to ${c.dim}${steeringLink}${c.reset}`);
@@ -1368,10 +1368,15 @@ async function main() {
   run.steering = (!flags.update || flags.noSteering) ? doSteering : !steeringOff;
   run.touched = true;
 
+  // Only a v1 release tree has steering/; with a v2 tree the steering steps
+  // prune what an earlier install recorded (installer 1.3.0 or later); links an
+  // unrecorded 1.2.0 install made stay. No steering hint is printed (the two
+  // 'No steering ... found' warnings still print).
+  const steeringInTree = existsSync(join(INSTALL_DIR, 'steering'));
   if (doSteering) {
     if (installClaude) {
       symlinkSteeringClaude(join(installBase, '.claude'));
-      if (flags.project && !existsSync(join(claudeDir, 'apex-steering'))) {
+      if (flags.project && steeringInTree && !existsSync(join(claudeDir, 'apex-steering'))) {
         warn('The /apex:* commands import @~/.claude/apex-steering (your home directory);');
         warn('run a global install (npx apex-skills --claude-only) so those imports resolve.');
       }
@@ -1395,7 +1400,7 @@ async function main() {
   log(`${c.dim}  Skills: ${skills.join(', ')}${c.reset}\n`);
   if (installClaude) log(`  ${c.bold}Claude Code:${c.reset} ask your agent about EKS best practices`);
   if (installKiro) {
-    log(doSteering
+    log(doSteering && steeringInTree
       ? `  ${c.bold}Kiro CLI:${c.reset} type / to list the APEX workflows (manual steering; Kiro CLI V1/V2 support it only partially), e.g. /eks-build`
       : `  ${c.bold}Kiro CLI:${c.reset} ask your agent about EKS best practices`);
   }

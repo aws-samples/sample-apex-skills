@@ -15,7 +15,7 @@ Not for: upgrade readiness assessment against a target version, cluster discover
 
 ## Instructions
 
-Read and follow `~/.claude/apex-steering/workflows/eks-operation-review.md` — it contains the full workflow, tool usage rules, and steering file map. Load each steering file from `references/` before running its corresponding section.
+Read and follow `../apex/runbooks/eks-operation-review/eks-operation-review.md` (relative to this skill's folder) — it contains the full workflow, tool usage rules, and steering file map. Load each steering file from `references/` before running its corresponding section.
 
 ## Prerequisites
 

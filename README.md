@@ -15,7 +15,7 @@ Agent Skills are organized folders of instructions, scripts, and resources that 
 | Directory | Purpose |
 |-----------|---------|
 | `skills/` | **What** the agent knows — reusable domain knowledge |
-| `steering/` | **How** the agent runs an engagement — slash commands, questionnaires, routing |
+| `skills/apex/` | The APEX router skill and its runbooks: phased procedures that combine skills (the SA's playbook) |
 | `rules/` | **How** the agent behaves — verification, source-checking, guardrails |
 | `examples/` | **How** to try it — deployable labs with planted issues |
 | `misc/` | Maintenance tooling and evaluation framework |
@@ -30,18 +30,24 @@ Agent Skills are organized folders of instructions, scripts, and resources that 
 > **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/) must be installed.
 
 ```bash
-npx apex-skills
+npx apex-skills@1.3.0
 ```
+
+APEX v2 is in progress, so the commands here pin the installer to exactly version 1.3.0 until v2 ships, which also skips later 1.3.x installer releases. A fresh install with no earlier install record takes the newest v1.x.y release of the skills; `--version` picks a release, `--branch` follows a branch, and `--update` stays on the clone's major line or the branch it follows.
+
+The installer's own messages show `npx apex-skills`; add `@1.3.0` when you run them.
+
+For v2 and its `/apex` router, use the Manual Install below (from `main`).
 
 Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and links the skills into place. Flags, exit codes, [installed paths](misc/installer/README.md#installed-paths) and [uninstall](misc/installer/README.md#uninstall): see the [installer README](misc/installer/README.md).
 
 Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
 ```bash
-npx apex-skills --update              # Update an existing install
-npx apex-skills --version v1.2.0      # Pin to a release
-npx apex-skills --branch feat/new-eks # Install from a branch
-npx apex-skills --help                # See all options
+npx apex-skills@1.3.0 --update              # Update an existing install
+npx apex-skills@1.3.0 --version v1.2.0      # Installer 1.3.0, skills release v1.2.0
+npx apex-skills@1.3.0 --branch feat/new-eks # Install from a branch
+npx apex-skills@1.3.0 --help                # See all options
 ```
 
 ### Manual Install
@@ -54,16 +60,11 @@ If you prefer not to use npx, clone the repo and copy skills directly.
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-mkdir -p ~/.claude/skills ~/.claude/commands
+mkdir -p ~/.claude/skills
 cp -r skills/* ~/.claude/skills/
-ln -sfn "$(pwd)/steering/commands/apex" ~/.claude/commands/apex
-ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
-**Usage:** Start a Claude Code session and use slash commands:
-- `/apex:eks` — hub that auto-routes based on your request
-- `/apex:eks-design` — *"Help me design an EKS cluster"*
-- `/apex:eks-upgrade-check` — *"Is my cluster ready to upgrade to 1.32?"*
+**Usage (this manual install, from `main`):** Start a Claude Code session and type `/apex` with your request (for example *"Help me design an EKS cluster"* or *"Is my cluster ready to upgrade to 1.32?"*): the apex skill routes it to the right skill and, when there is one, that skill's runbook.
 
 #### Kiro CLI
 
@@ -71,12 +72,23 @@ ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-mkdir -p ~/.kiro/skills ~/.kiro/steering
+mkdir -p ~/.kiro/skills
 cp -r skills/* ~/.kiro/skills/
-cp steering/workflows/*.md ~/.kiro/steering/
 ```
 
-Files copied this way load into every Kiro interaction; add `inclusion: manual` frontmatter or use `npx apex-skills`.
+**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Tested on Kiro CLI 2.35.1 (2026-10-28); Kiro CLI 1.27.0 rejected `/apex`.
+
+#### Codex
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.agents/skills
+cp -r skills/* ~/.agents/skills/
+```
+
+**Usage:** in Codex, type `$apex` with your request, for example *"$apex plan my EKS upgrade"*. Codex reads skills from `~/.agents/skills` (and a repository's `.agents/skills`); the installer does not set up Codex.
 
 #### Other Agent Harnesses
 
@@ -84,7 +96,9 @@ Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill l
 
 #### Agent Rules (optional)
 
-[AGENTS.md](./rules/AGENTS.md) contains project-level guardrails — verification habits, source-checking, safety boundaries. These are personal to each user's workflow, so they are **not** auto-loaded by the installer. To activate them, add the contents to whatever file your agent harness reads for project instructions (e.g., `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.kiro/steering/project.md`).
+[AGENTS.md](./rules/AGENTS.md) contains project-level guardrails: skill routing, verification habits, source-checking, safety boundaries. These are personal to each user's workflow, so they are **not** auto-loaded by the installer. To activate them, add the contents to whatever file your agent harness reads for project instructions (e.g., `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.kiro/steering/project.md`).
+
+The apex skill's shared rules apply to runs it starts; a skill triggered directly follows its own rules, plus AGENTS.md if you added it.
 
 <!-- SKILLS_REFERENCE_START -->
 ## Skills Reference
@@ -111,38 +125,10 @@ Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill l
 ### General
 
 <table>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/"><b>dotnet-aws-ecs</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/"><b>graviton-migration</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/"><b>skill-creator</b></a></td></tr>
-<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/steering-workflow-creator/"><b>steering-workflow-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/"><b>update-docs</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/"><b>apex</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/"><b>dotnet-aws-ecs</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/"><b>graviton-migration</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/"><b>skill-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/"><b>update-docs</b></a></td></tr>
 </table>
 <!-- SKILLS_REFERENCE_END -->
-
----
-
-<!-- STEERING_REFERENCE_START -->
-## Steering
-
-> _This table is auto-generated by [`misc/update-steering-references.sh`](misc/update-steering-references.sh). Do not edit manually._
-
-### Workflows
-
-<table>
-<tr><td><a href="steering/apex.md"><b>apex</b></a></td><td><a href="steering/eks.md"><b>eks</b></a></td><td><a href="steering/workflows/design.md"><b>design</b></a></td><td><a href="steering/workflows/eks-build.md"><b>eks-build</b></a></td></tr>
-<tr><td><a href="steering/workflows/eks-genai.md"><b>eks-genai</b></a></td><td><a href="steering/workflows/eks-operation-review.md"><b>eks-operation-review</b></a></td><td><a href="steering/workflows/eks-platform-engineering.md"><b>eks-platform-engineering</b></a></td><td><a href="steering/workflows/eks-security.md"><b>eks-security</b></a></td></tr>
-<tr><td><a href="steering/workflows/eks-upgrade-check.md"><b>eks-upgrade-check</b></a></td><td><a href="steering/workflows/new-skill.md"><b>new-skill</b></a></td><td></td><td></td></tr>
-</table>
-
-### Slash Commands
-
-<table>
-<tr><td><a href="steering/commands/apex/eks-build.md"><b>/apex:eks-build</b></a></td><td><a href="steering/commands/apex/eks-design.md"><b>/apex:eks-design</b></a></td><td><a href="steering/commands/apex/eks-genai.md"><b>/apex:eks-genai</b></a></td></tr>
-<tr><td><a href="steering/commands/apex/eks-operation-review.md"><b>/apex:eks-operation-review</b></a></td><td><a href="steering/commands/apex/eks-platform-engineering.md"><b>/apex:eks-platform-engineering</b></a></td><td><a href="steering/commands/apex/eks-security.md"><b>/apex:eks-security</b></a></td></tr>
-<tr><td><a href="steering/commands/apex/eks-upgrade-check.md"><b>/apex:eks-upgrade-check</b></a></td><td><a href="steering/commands/apex/eks.md"><b>/apex:eks</b></a></td><td><a href="steering/commands/apex/new-skill.md"><b>/apex:new-skill</b></a></td></tr>
-</table>
-<!-- STEERING_REFERENCE_END -->
-
-Steering files define **how** the agent runs an engagement. Structured sequences with questionnaires, checkpoints, and routing. The hub (`/apex:eks`) detects what you want and routes to the right workflow. Slash commands (e.g., `/apex:eks-design`) are agent-harness entry points that trigger these workflows.
-
-**The key test:** Remove all steering files and the agent still knows the right answers (skills provide knowledge). But it wouldn't know how to run the engagement.
 
 ---
 
@@ -154,14 +140,14 @@ Steering files define **how** the agent runs an engagement. Structured sequences
 | Example | Description | Workflow |
 |---------|-------------|----------|
 | **[Liberty to ECS Modernization](examples/ecs-modernize/liberty-to-ecs/)** | Assess a Java 8 / WebSphere Liberty application carrying planted modernization blockers, score it with the APEX ecs-modernize skill, then execute both migration paths on ECS — Replatform as-is onto ECS on EC2 and Rearchitect onto Fargate — and re-assess to see the Fit_Score rise from the Replatform band into the Rearchitect band. | -- |
-| **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](steering/workflows/eks-upgrade-check.md) |
+| **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md) |
 <!-- EXAMPLES_REFERENCE_END -->
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add skills, steering workflows, and examples.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add skills, runbooks, and examples.
 
 ---
 

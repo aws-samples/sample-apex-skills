@@ -13,6 +13,9 @@
 #   - references/*.md    (11 progressive-disclosure docs — RENAMED from upstream's `steering/` for apex compatibility, see Apex-flavored deviations below)
 #   - tools/*.py         (markdown-to-HTML report converter)
 #
+# Not touched: apex's workflow for this skill, kept outside this folder at
+#   skills/apex/runbooks/eks-operation-review/eks-operation-review.md
+#
 # Excluded (deliberately NOT copied):
 #   - .git/, .github/, .claude/, .mcp.json
 #   - evals/, docs/, reports/
@@ -22,20 +25,19 @@
 # Apex-flavored deviations (deterministic edits applied at sync time):
 #
 # 1. steering/ -> references/ rename — Upstream's progressive-disclosure
-#    docs live under steering/, but apex already uses a top-level steering/
-#    directory at the repo root for workflow orchestration (different
-#    concept). To avoid the collision and align with the Anthropic skill
-#    spec's canonical name for "additional documentation agents read on
-#    demand," we rename the directory on copy and rewrite all internal
-#    cross-refs from `steering/` to `references/` inside SKILL.md and the
-#    11 progressive-disclosure files.
+#    docs live under steering/. Apex renames them to references/, the
+#    Anthropic skill spec's canonical name for additional documentation
+#    (this also avoided a clash with apex's former top-level steering/
+#    directory, removed in v2). We rename the directory on copy and
+#    rewrite all internal cross-refs from `steering/` to `references/`
+#    inside SKILL.md and the 11 progressive-disclosure files.
 #
 # 2. SKILL.md body path fix — Upstream's body says "Read and follow
 #    `.claude/commands/eks-operation-review.md`" — that path doesn't exist
-#    in apex (the slash-command content is baked into apex's
-#    steering/workflows/eks-operation-review.md instead). We rewrite the
-#    line to point at the apex workflow location via the apex-steering
-#    symlink convention used by other apex slash commands.
+#    in apex (the slash-command content is apex's own workflow, kept
+#    outside the vendored folder at
+#    skills/apex/runbooks/eks-operation-review/eks-operation-review.md).
+#    We rewrite the line to that path, relative to this skill's folder.
 #
 # 3. SKILL.md Prerequisites MCP line — Upstream lists "MCP servers
 #    configured in .mcp.json" as a prereq. Apex doesn't ship .mcp.json;
@@ -212,10 +214,10 @@ SKILL_MD="$LOCAL_DIR/SKILL.md"
 #
 # After the Step 4 rename, "steering/" inside that line has already
 # become "references/". Now we need to fix the .claude/commands/ path
-# to point at apex's workflow location. Apex slash commands use the
-# `~/.claude/apex-steering/workflows/<name>.md` symlink convention.
+# to point at apex's workflow, which lives in the apex skill's
+# runbooks/ folder (relative to this skill's folder, like references/).
 sed -i.bak \
-    's|`\.claude/commands/eks-operation-review\.md`|`~/.claude/apex-steering/workflows/eks-operation-review.md`|g' \
+    's|`\.claude/commands/eks-operation-review\.md`|`../apex/runbooks/eks-operation-review/eks-operation-review.md` (relative to this skill'\''s folder)|g' \
     "$SKILL_MD"
 rm -f "$SKILL_MD.bak"
 
@@ -254,11 +256,11 @@ This skill is **vendored** from an upstream repo. Do not edit files here directl
 
 The sync script applies four deterministic edits to upstream content:
 
-1. **\`steering/\` -> \`references/\` rename.** Upstream's progressive-disclosure docs live under \`steering/\`, but apex already uses a top-level \`steering/\` directory at the repo root for workflow orchestration (different concept). The sync script renames the directory on copy and rewrites all internal cross-refs from \`steering/\` to \`references/\` inside \`SKILL.md\` and the 11 progressive-disclosure files. This aligns the layout with the Anthropic skill spec's canonical name for "additional documentation agents read on demand."
+1. **\`steering/\` -> \`references/\` rename.** Upstream's progressive-disclosure docs live under \`steering/\`. Apex renames them to \`references/\`, the Anthropic skill spec's canonical name for additional documentation. The sync script renames the directory on copy and rewrites all internal cross-refs from \`steering/\` to \`references/\` inside \`SKILL.md\` and the 11 progressive-disclosure files.
 
 2. **\`SKILL.md\` description block-scalar flattening.** Upstream uses YAML folded-scalar form (\`description: >\` followed by indented lines). Apex's catalog generator reads the same line as the key, so the catalog row would render just \`>\`. The sync flattens the block scalar to a single \`description: <one line>\` entry. Wording is preserved byte-for-byte; only the YAML representation changes.
 
-3. **\`SKILL.md\` body path fix.** Upstream's body says "Read and follow \`.claude/commands/eks-operation-review.md\`" — that path doesn't exist in apex (the slash-command content is baked into apex's \`steering/workflows/eks-operation-review.md\` instead). The sync rewrites the reference to point at the apex workflow via the \`~/.claude/apex-steering\` symlink convention used by other apex slash commands.
+3. **\`SKILL.md\` body path fix.** Upstream's body says "Read and follow \`.claude/commands/eks-operation-review.md\`": that path doesn't exist in apex. The slash-command content is apex's own workflow, kept outside this folder at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\`. The sync rewrites the reference to that file, relative to this skill's folder (\`../apex/runbooks/eks-operation-review/eks-operation-review.md\`).
 
 4. **\`SKILL.md\` Prerequisites MCP line.** Upstream lists "MCP servers configured in \`.mcp.json\`" as a prerequisite. Apex doesn't ship \`.mcp.json\`; MCP setup is handled by the \`eks-mcp-server\` skill. The sync rewrites the line to point users at that skill instead.
 

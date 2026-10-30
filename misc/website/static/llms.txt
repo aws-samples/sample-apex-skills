@@ -11,20 +11,17 @@
 
 ## Installation
 
-### Claude Code
+### NPX installer (Claude Code and Kiro CLI)
 ```
-claude mcp add-from-apex-skills
+npx apex-skills@1.3.0
 ```
-
-### Kiro CLI
-```
-kiro skills add apex
-```
+For v2 and its `/apex` router, use the manual install from `main`.
 
 See the documentation site for full installation instructions.
 
-## Skills Catalog
+## Skills Catalog (a selection; the full list is the Skills page and static/manifests/skills.json)
 
+- **apex**: Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context between skills and suggests next skills
 - **eks-best-practices**: EKS design, architecture, and configuration decisions — compute strategy, multi-tenant isolation, networking, IAM, security, cost, and observability
 - **eks-build**: Generate complete production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support, and 29+ addon configurations
 - **eks-design**: Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture, and Well-Architected validation
@@ -34,6 +31,5 @@ See the documentation site for full installation instructions.
 - **eks-recon**: EKS cluster reconnaissance and environment discovery — compute strategy, IaC tooling, CI/CD, add-ons, networking, and security posture
 - **eks-upgrade-check**: Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility, and workload risks
 - **skill-creator**: Create new skills, modify existing skills, run evals, benchmark performance, and optimize triggering accuracy
-- **steering-workflow-creator**: Author steering workflows for any AWS service with matching slash-command shims and tool routing
 - **terraform-skill**: Terraform and OpenTofu — modules, native tests, Terratest, CI/CD pipelines, state debugging, and security scanning
 - **update-docs**: Audit and sync all documentation surfaces after skill changes — README markers, Docusaurus site, and prose references

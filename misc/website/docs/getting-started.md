@@ -16,18 +16,24 @@ APEX skills are plain folders of markdown + scripts. Any agent harness that supp
 > **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/) must be installed.
 
 ```bash
-npx apex-skills
+npx apex-skills@1.3.0
 ```
+
+APEX v2 is in progress, so the commands here pin the installer to exactly version 1.3.0 until v2 ships, which also skips later 1.3.x installer releases. A fresh install with no earlier install record takes the newest v1.x.y release of the skills; `--version` picks a release, `--branch` follows a branch, and `--update` stays on the clone's major line or the branch it follows.
+
+The installer's own messages show `npx apex-skills`; add `@1.3.0` when you run them.
+
+For v2 and its `/apex` router, use the Manual Install below (from `main`).
 
 Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and links the skills into place. Flags, exit codes, [installed paths](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#installed-paths) and [uninstall](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#uninstall): see the [installer README](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md).
 
 Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
 ```bash
-npx apex-skills --update              # Update an existing install
-npx apex-skills --version v1.2.0      # Pin to a release
-npx apex-skills --branch feat/new-eks # Install from a branch
-npx apex-skills --help                # See all options
+npx apex-skills@1.3.0 --update              # Update an existing install
+npx apex-skills@1.3.0 --version v1.2.0      # Installer 1.3.0, skills release v1.2.0
+npx apex-skills@1.3.0 --branch feat/new-eks # Install from a branch
+npx apex-skills@1.3.0 --help                # See all options
 ```
 
 ## Manual Install
@@ -40,13 +46,11 @@ If you prefer not to use npx, clone the repo and copy skills directly.
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-mkdir -p ~/.claude/skills ~/.claude/commands
+mkdir -p ~/.claude/skills
 cp -r skills/* ~/.claude/skills/
-ln -sfn "$(pwd)/steering/commands/apex" ~/.claude/commands/apex
-ln -sfn "$(pwd)/steering" ~/.claude/apex-steering
 ```
 
-Restart Claude Code; skills become available via `/<skill-name>` and steering via `/apex:*`.
+Restart Claude Code; skills become available via `/<skill-name>`. With this manual install (from `main`), start with `/apex`: it routes your request to the right skill.
 
 ### Kiro CLI
 
@@ -54,12 +58,23 @@ Restart Claude Code; skills become available via `/<skill-name>` and steering vi
 git clone https://github.com/aws-samples/sample-apex-skills.git
 cd sample-apex-skills
 
-mkdir -p ~/.kiro/skills ~/.kiro/steering
+mkdir -p ~/.kiro/skills
 cp -r skills/* ~/.kiro/skills/
-cp steering/workflows/*.md ~/.kiro/steering/
 ```
 
-Files copied this way load into every Kiro interaction; add `inclusion: manual` frontmatter or use `npx apex-skills`.
+**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Tested on Kiro CLI 2.35.1 (2026-10-28); Kiro CLI 1.27.0 rejected `/apex`.
+
+### Codex
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.agents/skills
+cp -r skills/* ~/.agents/skills/
+```
+
+**Usage:** in Codex, type `$apex` with your request, for example *"$apex plan my EKS upgrade"*. Codex reads skills from `~/.agents/skills` (and a repository's `.agents/skills`); the installer does not set up Codex.
 
 ### Other Agent Harnesses
 
@@ -108,9 +123,11 @@ Add the contents to your project's existing agent configuration:
 | Kiro | Add to `.kiro/steering/apex-rules.md` |
 | Gemini CLI | Append to your project's `GEMINI.md` |
 
+Claude Code (v2.1.277 or later; v2.1.281 or later in some sessions, such as on Amazon Bedrock or with telemetry disabled), Codex and Kiro also read a root `AGENTS.md`: you can append these rules there. Claude Code reads `AGENTS.md` only when no `CLAUDE.md` is in the working directory or above, so if you have a `CLAUDE.md`, append there or import with `@AGENTS.md`.
+
 See [`rules/AGENTS.md`](https://github.com/aws-samples/sample-apex-skills/blob/main/rules/AGENTS.md) for the full content.
 
 ## Next steps
 
 - Browse the [Skills](./skills) catalog.
-- Try a [Steering](./steering) workflow for a phased engagement.
+- With a manual install from `main`, start with the [APEX router](./skills/general/apex) skill for a phased engagement: it routes to the right skill and its runbook.

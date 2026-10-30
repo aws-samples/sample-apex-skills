@@ -110,8 +110,8 @@ The exercise needs a container that actually starts, so two blockers are declawe
 - APEX skills installed, so the agent can find `ecs-modernize`:
 
   ```bash
-  npx apex-skills          # first time
-  npx apex-skills --update # already installed
+  npx apex-skills@1.3.0    # first time
+  npx apex-skills@1.3.0 --update # already installed
   ```
 
   See [Quick Start](../../../README.md#quick-start) for the other install options. The installer clones the repo to `~/.apex-skills/` and symlinks every skill into place; confirm `ecs-modernize` landed with:

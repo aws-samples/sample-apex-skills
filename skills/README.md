@@ -556,6 +556,24 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 
 ## General
 
+### [apex](./apex/)
+
+APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison) and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, and no account or cluster change without confirmation.
+
+**Runbooks:**
+
+| File | Description |
+|------|-------------|
+| [eks-build/](./apex/runbooks/eks-build/) | Eks build |
+| [eks-design/](./apex/runbooks/eks-design/) | Eks design |
+| [eks-genai/](./apex/runbooks/eks-genai/) | Eks genai |
+| [eks-operation-review/](./apex/runbooks/eks-operation-review/) | Eks operation review |
+| [eks-platform-engineering/](./apex/runbooks/eks-platform-engineering/) | Eks platform engineering |
+| [eks-security/](./apex/runbooks/eks-security/) | Eks security |
+| [eks-upgrade-check/](./apex/runbooks/eks-upgrade-check/) | Eks upgrade check |
+
+---
+
 ### [dotnet-aws-ecs](./dotnet-aws-ecs/)
 
 Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET workload to Amazon ECS Fargate on Linux containers with an Application Load Balancer. Produces a VPC, ECS cluster, task definition, ALB, and auto-scaling. NOT for Windows containers, EC2 launch type, or Kubernetes/EKS deployments.
@@ -634,34 +652,6 @@ Create new skills, modify and improve existing skills, and measure skill perform
 |------|-------------|
 | [generate_review.py](./skill-creator/eval-viewer/generate_review.py) | Generate review |
 | [viewer.html](./skill-creator/eval-viewer/viewer.html) | Viewer |
-
----
-
-### [steering-workflow-creator](./steering-workflow-creator/)
-
-Author a new steering workflow for any AWS service and pair it with a matching slash-command shim. Use when the user asks to create a steering workflow, add a workflow to apex, standardize steering, write a new workflow for EKS / RDS / Lambda / IAM / any AWS service, or build a phased playbook that plugs into a service hub. Covers the convention (frontmatter, header block, required sections), tool routing (knowledge vs. live MCP vs. setup-bridge), and the lint pass before handoff.
-
-**References** (loaded on demand):
-
-| Reference | Description |
-|-----------|-------------|
-| [anti-patterns.md](./steering-workflow-creator/references/anti-patterns.md) | Anti patterns |
-| [convention.md](./steering-workflow-creator/references/convention.md) | Convention |
-| [examples/eks.md](./steering-workflow-creator/references/examples/eks.md) | Eks |
-| [tool-routing.md](./steering-workflow-creator/references/tool-routing.md) | Tool routing |
-
-**Scripts:**
-
-| Script | Description |
-|--------|-------------|
-| [quick_validate.py](./steering-workflow-creator/scripts/quick_validate.py) | Quick validate |
-
-**Assets:**
-
-| Asset | Description |
-|-------|-------------|
-| [command-shim-skeleton.md](./steering-workflow-creator/assets/command-shim-skeleton.md) | Command shim skeleton |
-| [workflow-skeleton.md](./steering-workflow-creator/assets/workflow-skeleton.md) | Workflow skeleton |
 
 ---
 
@@ -747,6 +737,6 @@ This simple format has some key advantages:
 
 ### Evaluating skills
 
-Every team-owned skill has a matching evaluation entry under [`misc/evals/`](../misc/evals/) — a `triggering.json` for trigger-accuracy tests and an `evals.json` for end-to-end task-usefulness tests, both runnable via the tooling in [`skills/skill-creator/`](./skill-creator/). Vendored skills (`skill-creator`, `terraform-skill`) are excluded since they're maintained upstream. See [`misc/evals/README.md`](../misc/evals/README.md) for the capability catalogue and how to run each eval type.
+Every team-owned skill except `apex` and nine ECS skills (`dotnet-aws-ecs` and every `ecs-*` skill but `ecs-modernize`) has a matching evaluation entry under [`misc/evals/`](../misc/evals/) (`make check-evals-coverage` in `misc/evals/` lists those still without one; it skips `apex` until its eval is designed): a `triggering.json` for trigger-accuracy tests and an `evals.json` for end-to-end task-usefulness tests, both runnable via the tooling in [`skills/skill-creator/`](./skill-creator/). Vendored skills (`skill-creator`, `terraform-skill`) are excluded since they're maintained upstream. See [`misc/evals/README.md`](../misc/evals/README.md) for the capability catalogue and how to run each eval type.
 
 ---

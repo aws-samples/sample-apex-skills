@@ -89,7 +89,24 @@ const config: Config = {
           editUrl: 'https://github.com/aws-samples/sample-apex-skills/edit/main/misc/website/',
           showLastUpdateTime: true,
         },
-        blog: false,
+        blog: {
+          path: 'blog',
+          routeBasePath: 'blog',
+          blogTitle: 'APEX Skills Blog',
+          blogDescription: 'Design notes and thought processes behind the APEX skills: how we design skills, the decisions we made and why.',
+          blogSidebarTitle: 'Recent posts',
+          showReadingTime: true,
+          editUrl: 'https://github.com/aws-samples/sample-apex-skills/edit/main/misc/website/',
+          onInlineAuthors: 'throw',
+          onInlineTags: 'throw',
+          onUntruncatedBlogPosts: 'warn',
+          feedOptions: {
+            type: ['rss', 'atom'],
+            title: 'APEX Skills Blog',
+            description: 'Design notes and thought processes behind the APEX skills.',
+            copyright: `Copyright ${new Date().getFullYear()} Amazon.com, Inc. or its affiliates.`,
+          },
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -145,11 +162,6 @@ const config: Config = {
           label: 'Skills',
         },
         {
-          to: '/docs/steering',
-          position: 'left',
-          label: 'Steering',
-        },
-        {
           to: '/docs/examples',
           position: 'left',
           label: 'Examples',
@@ -163,6 +175,11 @@ const config: Config = {
           to: '/docs/contributing',
           position: 'left',
           label: 'Contributing',
+        },
+        {
+          to: '/blog',
+          position: 'left',
+          label: 'Blog',
         },
         {
           href: 'https://github.com/aws-samples/sample-apex-skills',
@@ -180,7 +197,6 @@ const config: Config = {
             {label: 'Introduction', to: '/docs/intro'},
             {label: 'Getting Started', to: '/docs/getting-started'},
             {label: 'Skills', to: '/docs/skills'},
-            {label: 'Steering', to: '/docs/steering'},
           ],
         },
         {
@@ -195,6 +211,7 @@ const config: Config = {
           items: [
             {label: 'GitHub', href: 'https://github.com/aws-samples/sample-apex-skills'},
             {label: 'Contributing', to: '/docs/contributing'},
+            {label: 'Blog', to: '/blog'},
           ],
         },
       ],
