@@ -41,21 +41,49 @@ FULL_USAGE = {
 # An older usage object with no cache keys.
 LEGACY_USAGE = {"input_tokens": 120, "output_tokens": 30}
 
+# A run that spawned a subagent: `usage` counts only the top-level loop,
+# `modelUsage` counts the whole tree, one entry per model.
+SUBAGENT_USAGE = {
+    "input_tokens": 20,
+    "cache_creation_input_tokens": 133484,
+    "cache_read_input_tokens": 79001,
+    "output_tokens": 12345,
+}
+SUBAGENT_MODEL_USAGE = {
+    "model-small": {
+        "inputTokens": 400,
+        "outputTokens": 16,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "costUSD": 0.0005,
+    },
+    "model-large": {
+        "inputTokens": 13929,
+        "outputTokens": 48757,
+        "cacheReadInputTokens": 938453,
+        "cacheCreationInputTokens": 322780,
+        "costUSD": 3.78,
+    },
+}
 
-def _events(usage):
+
+def _events(usage, model_usage=None):
+    result = {
+        "type": "result",
+        "subtype": "success",
+        "duration_ms": 1234,
+        "num_turns": 1,
+        "usage": usage,
+    }
+    if model_usage is not None:
+        result["modelUsage"] = model_usage
     return [
         {"type": "system", "subtype": "init"},
         {
             "type": "assistant",
             "message": {"content": [{"type": "text", "text": "done"}]},
         },
-        {
-            "type": "result",
-            "subtype": "success",
-            "duration_ms": 1234,
-            "num_turns": 1,
-            "usage": usage,
-        },
+        result,
     ]
 
 
@@ -86,6 +114,32 @@ class ParseEventsTokenTests(unittest.TestCase):
         self.assertIsNone(t.total_tokens)
         for key in USAGE_TOKEN_KEYS:
             self.assertIsNone(getattr(t, key))
+        self.assertIsNone(t.token_source)
+
+    def test_model_usage_includes_subagents(self):
+        t = parse_events(_events(SUBAGENT_USAGE, SUBAGENT_MODEL_USAGE))
+        self.assertEqual(t.token_source, "modelUsage")
+        self.assertEqual(t.input_tokens, 400 + 13929)
+        self.assertEqual(t.output_tokens, 16 + 48757)
+        self.assertEqual(t.cache_read_input_tokens, 938453)
+        self.assertEqual(t.cache_creation_input_tokens, 322780)
+        # modelUsage exceeds the top-level usage object.
+        self.assertGreater(
+            t.cache_read_input_tokens, SUBAGENT_USAGE["cache_read_input_tokens"]
+        )
+        # total_tokens keeps its source: usage input + output.
+        self.assertEqual(t.total_tokens, 20 + 12345)
+        self.assertEqual(t.to_dict()["token_source"], "modelUsage")
+
+    def test_no_model_usage_falls_back_to_usage(self):
+        t = parse_events(_events(FULL_USAGE))
+        self.assertEqual(t.token_source, "usage")
+        self.assertEqual(t.cache_read_input_tokens, 33441)
+
+    def test_empty_model_usage_falls_back_to_usage(self):
+        t = parse_events(_events(FULL_USAGE, {}))
+        self.assertEqual(t.token_source, "usage")
+        self.assertEqual(t.input_tokens, 7)
 
 
 class ExtractResultSummaryTests(unittest.TestCase):
@@ -109,6 +163,22 @@ class ExtractResultSummaryTests(unittest.TestCase):
         self.assertEqual(s["total_tokens"], 0)
         for key in USAGE_TOKEN_KEYS:
             self.assertEqual(s[key], 0)
+        self.assertIsNone(s["token_source"])
+
+    def test_model_usage_includes_subagents(self):
+        s = extract_result_summary(_events(SUBAGENT_USAGE, SUBAGENT_MODEL_USAGE))
+        self.assertEqual(s["token_source"], "modelUsage")
+        self.assertEqual(s["input_tokens"], 400 + 13929)
+        self.assertEqual(s["output_tokens"], 16 + 48757)
+        self.assertEqual(s["cache_read_input_tokens"], 938453)
+        self.assertEqual(s["cache_creation_input_tokens"], 322780)
+        self.assertEqual(s["total_tokens"], 20 + 12345)
+
+    def test_no_model_usage_falls_back_to_usage(self):
+        s = extract_result_summary(_events(FULL_USAGE))
+        self.assertEqual(s["token_source"], "usage")
+        self.assertEqual(s["cache_read_input_tokens"], 33441)
+        self.assertEqual(s["cache_creation_input_tokens"], 10262)
 
 
 class AggregateTokenUsageTests(unittest.TestCase):
@@ -144,6 +214,16 @@ class AggregateTokenUsageTests(unittest.TestCase):
             self.assertEqual(wos["runs"], 1)
             self.assertEqual(wos["total"]["total_tokens"], 40)
             self.assertEqual(wos["total"]["cache_read_input_tokens"], 0)
+
+    def test_skips_timing_that_is_not_an_object(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_timing(root, "with_skill", 1, 1, [1, 2])
+            self._write_timing(root, "with_skill", 2, 1, "text")
+            self._write_timing(root, "with_skill", 3, 1, {"total_tokens": 9})
+            agg = aggregate_token_usage(root)
+            self.assertEqual(agg["with_skill"]["runs"], 1)
+            self.assertEqual(agg["with_skill"]["total"]["total_tokens"], 9)
 
     def test_empty_runs_dir(self):
         with tempfile.TemporaryDirectory() as tmp:

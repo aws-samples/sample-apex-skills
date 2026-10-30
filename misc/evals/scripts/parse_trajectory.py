@@ -9,14 +9,28 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
-# Token categories in the stream-json `result` event's `usage` object.
-# `total_tokens` stays input + output; the cache counts are reported apart.
+# Token categories recorded per run, named as in the result event's `usage`.
+# The counts come from the result event's `modelUsage` (one entry per model,
+# summed), which includes subagent requests; `usage` counts only the
+# top-level agent loop and leaves subagent tokens out. `usage` is read only
+# when `modelUsage` is absent or empty (older trajectories). `token_source`
+# records which object was read: "modelUsage", "usage" or None.
+# `total_tokens` keeps its meaning (input + output) and its source, `usage`,
+# so it stays comparable with earlier runs and benchmark.json.
 USAGE_TOKEN_KEYS = (
     "input_tokens",
     "output_tokens",
     "cache_read_input_tokens",
     "cache_creation_input_tokens",
 )
+
+# The same categories as named inside each `modelUsage` entry.
+MODEL_USAGE_KEYS = {
+    "input_tokens": "inputTokens",
+    "output_tokens": "outputTokens",
+    "cache_read_input_tokens": "cacheReadInputTokens",
+    "cache_creation_input_tokens": "cacheCreationInputTokens",
+}
 
 
 @dataclass
@@ -54,12 +68,17 @@ class Trajectory:
     tools_used: set[str]
     duration_ms: int | None
     total_tokens: int | None
-    # Per-category counts from the result event's usage object. None when
-    # no result event carried a usage object; a missing key inside one is 0.
+    # Per-category counts (see USAGE_TOKEN_KEYS for the source). They come
+    # from the last result event that carries a non-empty `modelUsage` or a
+    # `usage` object, so a multi-turn run records its last result's counts.
+    # None when no result event carried either; a missing key inside one is 0.
+    # total_tokens is set from the last result whose `usage` input + output
+    # is non-zero, so it can come from an earlier result than the categories.
     input_tokens: int | None = None
     output_tokens: int | None = None
     cache_read_input_tokens: int | None = None
     cache_creation_input_tokens: int | None = None
+    token_source: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -74,6 +93,7 @@ class Trajectory:
             "output_tokens": self.output_tokens,
             "cache_read_input_tokens": self.cache_read_input_tokens,
             "cache_creation_input_tokens": self.cache_creation_input_tokens,
+            "token_source": self.token_source,
         }
 
 
@@ -100,6 +120,7 @@ def parse_events(events: list[dict]) -> Trajectory:
     duration_ms: int | None = None
     total_tokens: int | None = None
     token_counts: dict[str, int | None] = dict.fromkeys(USAGE_TOKEN_KEYS)
+    token_source: str | None = None
 
     pending_calls: list[ToolCall] = []
     pending_text: list[str] = []
@@ -163,9 +184,18 @@ def parse_events(events: list[dict]) -> Trajectory:
             output_t = usage.get("output_tokens", 0)
             if input_t or output_t:
                 total_tokens = input_t + output_t
-            if isinstance(evt.get("usage"), dict):
+            model_usage = evt.get("modelUsage")
+            if isinstance(model_usage, dict) and model_usage:
+                token_counts = dict.fromkeys(USAGE_TOKEN_KEYS, 0)
+                for per_model in model_usage.values():
+                    if isinstance(per_model, dict):
+                        for key, camel in MODEL_USAGE_KEYS.items():
+                            token_counts[key] += per_model.get(camel) or 0
+                token_source = "modelUsage"
+            elif isinstance(evt.get("usage"), dict):
                 for key in USAGE_TOKEN_KEYS:
                     token_counts[key] = usage.get(key, 0)
+                token_source = "usage"
 
         i += 1
 
@@ -180,6 +210,7 @@ def parse_events(events: list[dict]) -> Trajectory:
         duration_ms=duration_ms,
         total_tokens=total_tokens,
         **token_counts,
+        token_source=token_source,
     )
 
 
