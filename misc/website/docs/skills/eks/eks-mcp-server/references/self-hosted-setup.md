@@ -63,6 +63,8 @@ For IAM authentication, attach these permissions to your IAM role/user:
 }
 ```
 
+`logs:StartQuery` and `logs:GetQueryResults` serve only `get_cloudwatch_logs`, which needs `--allow-sensitive-data-access`; drop them for a strict read-only profile.
+
 ### Write Operations
 For write access (cluster creation, deployments), also attach:
 - `IAMFullAccess`
@@ -120,9 +122,9 @@ These are broad grants. Attach them only with the opt-in write profile below, an
 - `get_eks_vpc_config`, `get_eks_insights`
 - `get_policies_for_role`, `add_inline_policy`
 
-### Opt-in: Write and Sensitive-Data Access
+### Opt-in: Write Access and Sensitive-Data Reads
 
-The examples above are read-only, the recommended start. Add a flag only when you need what it enables (see Command-Line Arguments below), and attach the write IAM permissions above for `--allow-write`:
+The examples above are read-only with sensitive data restricted, the recommended start. Add only the flag you need (see Command-Line Arguments below): `--allow-write` for mutations (attach the write IAM permissions above), `--allow-sensitive-data-access` for logs, events and Secrets. Both shown:
 
 ```json
 "args": [
@@ -132,13 +134,15 @@ The examples above are read-only, the recommended start. Add a flag only when yo
 ]
 ```
 
+`--allow-sensitive-data-access` puts pod logs, events, CloudWatch logs and Kubernetes Secrets into the model's context; `--allow-write` lets it change K8s resources, CloudFormation stacks and IAM inline policies. Upstream: "Only enable these flags when necessary and in trusted environments" (EKS MCP Server README, Important Security Note).
+
 ## Config File Locations by Assistant
 
 | Assistant | Config File |
 |-----------|-------------|
 | Claude Code | `.mcp.json` (project) or `~/.claude.json` (user, via `claude mcp add -s user`) |
 | Cursor | Settings → Tools & MCP |
-| Kiro | `~/.kiro/settings/mcp.json` |
+| Kiro | `~/.kiro/settings/mcp.json` (user) or `.kiro/settings/mcp.json` (project) |
 | VS Code (Cline) | Cmd+Shift+P → MCP → User Config |
 
 ## Windows Users
@@ -152,14 +156,14 @@ Use this format for the args array (read-only):
 ]
 ```
 
-For the opt-in profile, append `"--allow-write"` and `"--allow-sensitive-data-access"` after the `.exe` entry.
+For the opt-in profile, append only the flag(s) you need (`"--allow-write"`, `"--allow-sensitive-data-access"`) after the `.exe` entry.
 
 ## Command-Line Arguments
 
 | Argument | Description |
 |----------|-------------|
 | `--allow-write` | Opt-in: enable create/update/delete operations (omit for read-only) |
-| `--allow-sensitive-data-access` | Opt-in: enable logs, events, secrets access (omit for read-only) |
+| `--allow-sensitive-data-access` | Opt-in: enable logs, events and Kubernetes Secrets reads (still read-only; omit to keep sensitive data restricted) |
 
 To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see Environment Variables below) — the JSON examples above use this approach.
 
@@ -183,8 +187,10 @@ To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see 
 
 ## Available Tools
 
+With no flags (the read-only examples above), `manage_k8s_resource` allows only `read` and `manage_eks_stacks` only `describe`; `apply_yaml`, `generate_app_manifest`, `add_inline_policy` and the other operations need `--allow-write`; `get_pod_logs`, `get_k8s_events`, `get_cloudwatch_logs` and reading Secrets need `--allow-sensitive-data-access`. Without the flag, these calls return an error.
+
 ### Always Available
-- `list_k8s_resources`, `manage_k8s_resource` (supports `create`, `read`, `update`, `delete` operations — `read` replaces the older standalone `read_k8s_resource` tool)
+- `list_k8s_resources`, `manage_k8s_resource` (supports `create`, `read`, `replace`, `patch`, `delete` operations; `read` replaces the older standalone `read_k8s_resource` tool)
 - `apply_yaml`, `generate_app_manifest`
 - `get_pod_logs`, `get_k8s_events`
 - `list_api_versions`

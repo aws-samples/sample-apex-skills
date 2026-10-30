@@ -114,7 +114,7 @@ Use this format for the args array:
 
 | Issue | Solution |
 |-------|----------|
-| "Access Denied" | Check IAM policy has `eks-mcp:*` actions |
+| "Access Denied" | Check the IAM policy grants `eks-mcp:InvokeMcp` and `eks-mcp:CallReadOnlyTool` (both in `AmazonEKSMCPReadOnlyAccess`); add `eks-mcp:CallPrivilegedTool` only for write mode |
 | Tools not appearing | Restart IDE/CLI after config change |
 | Connection timeout | Verify region matches your EKS clusters |
 | Proxy issues | Set `HTTP_PROXY`/`HTTPS_PROXY` env vars |
