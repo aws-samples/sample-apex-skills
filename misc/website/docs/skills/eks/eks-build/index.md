@@ -247,7 +247,7 @@ projects/<project-name>/code/
 ```hcl
 # versions.tf
 terraform {
-  required_version = ">= 1.14.5" # HashiCorp Terraform, not OpenTofu (Critical Rule 11)
+  required_version = ">= 1.14.5" # OpenTofu 1.12+ ignores this in .tf files: also run the terraform version pre-flight (Critical Rule 11)
 
   backend "s3" {} # values come from configs/backend.hcl
 
