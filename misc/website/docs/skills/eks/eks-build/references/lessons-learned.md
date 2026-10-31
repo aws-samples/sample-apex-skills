@@ -35,6 +35,7 @@ This page is generated from [skills/eks-build/references/lessons-learned.md](htt
 - [20. EKS Capability Destroy Hangs Terraform](#20-eks-capability-destroy-hangs-terraform)
 - [21. CIS Policies Cannot Be Deployed as Helm Chart](#21-cis-policies-cannot-be-deployed-as-helm-chart)
 - [22. Pattern 2a Custom-Addons Require Real Git Repo](#22-pattern-2a-custom-addons-require-real-git-repo)
+- [23. Karpenter Controller IAM Policy Size Limit](#23-karpenter-controller-iam-policy-size-limit)
 
 Consolidated findings from two EKS deployment patterns:
 - **Pattern 1 (terraform-eks)**: Full Terraform with eks-blueprints-addons, two-phase module architecture
@@ -357,7 +358,7 @@ resource "aws_eks_pod_identity_association" "ebs_csi" {
   cluster_name    = module.eks_cluster.cluster_name
   namespace       = "kube-system"
   service_account = "ebs-csi-controller-sa"
-  role_arn        = module.ebs_csi_pod_identity[0].iam_role_arn
+  role_arn        = module.ebs_csi_pod_identity.iam_role_arn
 }
 ```
 
@@ -440,7 +441,7 @@ Always set a cluster-prefixed policy name:
 ```hcl
 module "ebs_csi_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
-  version = "~> 2.7"
+  version = "<LOOK_UP>"  # Look up latest from Terraform Registry
   name            = "${local.cluster_config.name}-ebs-csi"
   use_name_prefix = false
   attach_aws_ebs_csi_policy  = true
@@ -512,3 +513,13 @@ terraform destroy -auto-approve
 **Problem:** Custom-addons ApplicationSets use ArgoCD's git directory generator, which requires a real, accessible git repository URL.
 
 **Fix:** For resources needed at deploy time (Velero S3, CIS policies), create them in Terraform rather than relying on ArgoCD custom-addons.
+
+---
+
+## 23. Karpenter Controller IAM Policy Size Limit
+
+**Patterns:** Both
+
+**Problem:** The controller IAM policy that the `terraform-aws-modules/eks/aws//modules/karpenter` submodule generates (Section 17) can exceed the 6,144-character limit on a customer managed policy (IAM does not count white space). Apply then fails with `LimitExceeded: Cannot exceed quota for PolicySize: 6144`.
+
+**Fix:** Set `enable_inline_policy = true` on the submodule (available since v21.8.0). The controller policy is then created as an inline role policy, whose limit is 10,240 characters across all inline policies on the role. Upstream Karpenter has split its controller policy into several policies (aws/karpenter-provider-aws PR 8690), but the submodule does not follow that split yet (terraform-aws-modules/terraform-aws-eks issue 3637 is open, checked 2026-10-30), so the inline policy is the mitigation until it does.
