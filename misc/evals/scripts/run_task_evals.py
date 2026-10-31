@@ -52,7 +52,13 @@ from run_triggering import (
     stage_skill_sandbox,
     read_skill_meta,
 )
-from parse_trajectory import parse_events
+from parse_trajectory import (
+    MODEL_USAGE_KEYS,
+    USAGE_TOKEN_KEYS,
+    model_usage_entries,
+    parse_events,
+    token_count,
+)
 from process_assertions import evaluate
 from artifact_validation import validate_run as validate_artifacts
 from elicitation import ElicitationConfig, run_multiturn_subject
@@ -250,19 +256,98 @@ def compute_metrics(events: list[dict], transcript_text: str, outputs_dir: Path)
 
 
 def extract_result_summary(events: list[dict]) -> dict:
-    """Pull the `result` event's tokens + duration if present."""
+    """Pull the last `result` event's tokens + duration if present.
+
+    Only the last result event is read, so a multi-turn run records its
+    last result's counts. On Claude Code v2.1.277 or later the last
+    result's `modelUsage` includes earlier turns' spend; before that it
+    covers only the last turn. The docs do not say whether a resumed call
+    restores `usage`.
+
+    The per-category counts (USAGE_TOKEN_KEYS) are summed over the event's
+    `modelUsage` entries, which include subagent requests; the event's
+    `usage` counts only the top-level agent loop and is read only when no
+    `modelUsage` entry is a dict carrying one of MODEL_USAGE_KEYS.
+    `token_source` names the object read ("modelUsage", "usage", or None
+    when the event has neither, in which case the categories read 0). A
+    missing key reads as 0, and so does a `modelUsage` count that is not
+    an int.
+
+    `total_tokens` keeps its meaning and source: `usage` input + output,
+    else a `total_tokens` key if present (none in stored result events),
+    else 0, so it stays comparable with earlier runs. With `modelUsage` it
+    can be below input_tokens + output_tokens.
+    """
     for evt in reversed(events):
         if evt.get("type") == "result":
+            usage = evt.get("usage") or {}
+            entries = model_usage_entries(evt.get("modelUsage"))
+            if entries:
+                counts = dict.fromkeys(USAGE_TOKEN_KEYS, 0)
+                for per_model in entries:
+                    for key, camel in MODEL_USAGE_KEYS.items():
+                        counts[key] += token_count(per_model.get(camel))
+                token_source = "modelUsage"
+            else:
+                counts = {key: usage.get(key, 0) for key in USAGE_TOKEN_KEYS}
+                token_source = "usage" if isinstance(evt.get("usage"), dict) else None
             return {
                 "total_tokens": (
                     (evt.get("usage") or {}).get("input_tokens", 0)
                     + (evt.get("usage") or {}).get("output_tokens", 0)
                 ) or evt.get("total_tokens", 0),
+                **counts,
+                "token_source": token_source,
                 "duration_ms": evt.get("duration_ms", 0),
                 "num_turns": evt.get("num_turns", 0),
                 "subtype": evt.get("subtype"),
             }
-    return {"total_tokens": 0, "duration_ms": 0, "num_turns": 0, "subtype": None}
+    return {
+        "total_tokens": 0,
+        **dict.fromkeys(USAGE_TOKEN_KEYS, 0),
+        "token_source": None,
+        "duration_ms": 0,
+        "num_turns": 0,
+        "subtype": None,
+    }
+
+
+def aggregate_token_usage(runs_dir: Path) -> dict:
+    """Sum and average the per-run token counts in each config's timing.json.
+
+    The skill-creator benchmark.json carries only `tokens` (total_tokens);
+    this keeps the cache categories visible across a whole run directory.
+
+    A timed-out or failed run still writes timing.json (with zero or
+    partial counts), so it counts in `runs` and in the mean. A timing.json
+    that is unreadable or not a JSON object is skipped.
+
+    A missing key, or a value that is not an int, reads as 0. That
+    fallback is defensive: run_skill calls
+    this only on the fresh runs/<ts> directory it just created, so old and
+    new timing.json files are not mixed here.
+    """
+    keys = ("total_tokens",) + USAGE_TOKEN_KEYS
+    out: dict[str, dict] = {}
+    for config in ("with_skill", "without_skill"):
+        totals = dict.fromkeys(keys, 0)
+        n = 0
+        for timing_file in sorted(runs_dir.glob(f"eval-*/{config}/run-*/timing.json")):
+            try:
+                timing = json.loads(timing_file.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(timing, dict):
+                continue
+            n += 1
+            for key in keys:
+                totals[key] += token_count(timing.get(key))
+        out[config] = {
+            "runs": n,
+            "total": totals,
+            "mean": {key: (round(totals[key] / n, 1) if n else 0) for key in keys},
+        }
+    return out
 
 
 # ---------- fixture staging ----------------------------------------------------
@@ -429,6 +514,8 @@ def run_subject(
 
     timing = {
         "total_tokens": summary["total_tokens"],
+        **{key: summary[key] for key in USAGE_TOKEN_KEYS},
+        "token_source": summary["token_source"],
         "duration_ms": summary["duration_ms"],
         "total_duration_seconds": round(wall, 2),
         "executor_start": start_iso,
@@ -879,6 +966,7 @@ def run_skill(
         "without_skill_stddev": wo_pr.get("stddev", 0),
         "delta": round(delta, 4),
         "eval_ids": [p["id"] for p in prompts],
+        "token_usage": aggregate_token_usage(runs_dir),
     }
     append_history(skill, entry)
 

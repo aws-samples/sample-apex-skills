@@ -9,6 +9,49 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
+# Token categories recorded per run, named as in the result event's `usage`.
+# The counts come from the result event's `modelUsage` (one entry per model,
+# summed), which includes subagent requests; `usage` counts only the
+# top-level agent loop and leaves subagent tokens out. `usage` is read only
+# when no `modelUsage` entry is a dict carrying one of MODEL_USAGE_KEYS
+# (absent, empty or unreadable `modelUsage`). `token_source`
+# records which object was read: "modelUsage", "usage" or None.
+# `total_tokens` keeps its meaning (input + output) and its source, `usage`,
+# so it stays comparable with earlier runs and benchmark.json.
+USAGE_TOKEN_KEYS = (
+    "input_tokens",
+    "output_tokens",
+    "cache_read_input_tokens",
+    "cache_creation_input_tokens",
+)
+
+# The same categories as named inside each `modelUsage` entry.
+MODEL_USAGE_KEYS = {
+    "input_tokens": "inputTokens",
+    "output_tokens": "outputTokens",
+    "cache_read_input_tokens": "cacheReadInputTokens",
+    "cache_creation_input_tokens": "cacheCreationInputTokens",
+}
+
+
+def token_count(value: Any) -> int:
+    """Return `value` if it is an int count, else 0 (a string or float too)."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return 0
+
+
+def model_usage_entries(model_usage: Any) -> list[dict]:
+    """The `modelUsage` entries that are dicts carrying a known key."""
+    if not isinstance(model_usage, dict):
+        return []
+    return [
+        per_model
+        for per_model in model_usage.values()
+        if isinstance(per_model, dict)
+        and any(camel in per_model for camel in MODEL_USAGE_KEYS.values())
+    ]
+
 
 @dataclass
 class ToolCall:
@@ -45,6 +88,21 @@ class Trajectory:
     tools_used: set[str]
     duration_ms: int | None
     total_tokens: int | None
+    # Per-category counts (see USAGE_TOKEN_KEYS for the source). They come
+    # from the last result event that carries a non-empty `modelUsage` or a
+    # `usage` object, so a multi-turn run records its last result's counts.
+    # On Claude Code v2.1.277 or later the last result's `modelUsage`
+    # includes earlier turns' spend; before that it covers only the last
+    # turn. The docs do not say whether a resumed call restores `usage`.
+    # None when no result event carried either; a missing key inside one is 0,
+    # and so is a count that is not an int.
+    # total_tokens is set from the last result whose `usage` input + output
+    # is non-zero, so it can come from an earlier result than the categories.
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    cache_read_input_tokens: int | None = None
+    cache_creation_input_tokens: int | None = None
+    token_source: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -55,6 +113,11 @@ class Trajectory:
             "tools_used": sorted(self.tools_used),
             "duration_ms": self.duration_ms,
             "total_tokens": self.total_tokens,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "cache_read_input_tokens": self.cache_read_input_tokens,
+            "cache_creation_input_tokens": self.cache_creation_input_tokens,
+            "token_source": self.token_source,
         }
 
 
@@ -80,6 +143,8 @@ def parse_events(events: list[dict]) -> Trajectory:
     global_tool_index = 0
     duration_ms: int | None = None
     total_tokens: int | None = None
+    token_counts: dict[str, int | None] = dict.fromkeys(USAGE_TOKEN_KEYS)
+    token_source: str | None = None
 
     pending_calls: list[ToolCall] = []
     pending_text: list[str] = []
@@ -143,6 +208,17 @@ def parse_events(events: list[dict]) -> Trajectory:
             output_t = usage.get("output_tokens", 0)
             if input_t or output_t:
                 total_tokens = input_t + output_t
+            entries = model_usage_entries(evt.get("modelUsage"))
+            if entries:
+                token_counts = dict.fromkeys(USAGE_TOKEN_KEYS, 0)
+                for per_model in entries:
+                    for key, camel in MODEL_USAGE_KEYS.items():
+                        token_counts[key] += token_count(per_model.get(camel))
+                token_source = "modelUsage"
+            elif isinstance(evt.get("usage"), dict):
+                for key in USAGE_TOKEN_KEYS:
+                    token_counts[key] = usage.get(key, 0)
+                token_source = "usage"
 
         i += 1
 
@@ -156,6 +232,8 @@ def parse_events(events: list[dict]) -> Trajectory:
         tools_used=tools_used,
         duration_ms=duration_ms,
         total_tokens=total_tokens,
+        **token_counts,
+        token_source=token_source,
     )
 
 
