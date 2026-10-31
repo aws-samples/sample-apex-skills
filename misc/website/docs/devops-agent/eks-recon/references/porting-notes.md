@@ -13,7 +13,7 @@ This page is generated from [devops-agent/eks-recon/references/porting-notes.md]
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution. **This file is excluded from the uploaded skill zip** (see the `-x './references/porting-notes.md'` flag in the README's zip instructions) — it ships in the repository for maintainers only.
 
-> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-recon/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-07-19.
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-recon/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified against source: 2026-10-31. This is a source comparison, not a native Agent Space execution test.
 
 ## Differences from Claude Code Version
 
@@ -23,11 +23,12 @@ This file documents the differences between the Claude Code version and the DevO
 | Tool access | `aws` CLI, `kubectl`, `helm`, optional EKS MCP server | AWS control-plane APIs (read-only) + Kubernetes API via the Agent Space EKS access entry (read-only). No Bash, no kubectl, no MCP. |
 | Kubernetes API access | `kubectl` against local kubeconfig, or MCP `list_k8s_resources` | EKS Access Entry binding the Agent Space role to `AmazonAIOpsAssistantPolicy` (cluster scope); expressed in references as "**Via Kubernetes API**" capability blocks, not `kubectl` pipelines |
 | Subagent orchestration | 10 module subagents spawned in parallel via the Agent tool (`agents/*.md`) | No Agent tool — collapsed into SKILL.md reference-loading. Each module is a `references/<module>.md` file loaded on demand via the routing table. |
-| Report generation | Markdown fact report + YAML artifact, written to `<output-prefix>.{md,yaml}`; caller-supplied prefix honored, default `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` | Same dual output (markdown primary + YAML machine artifact), generated directly — no file-writing scripts |
+| Report generation | Markdown fact report + YAML artifact, written to `<output-prefix>.{md,yaml}`; caller-supplied prefix honored, default `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` | Markdown primary + YAML snapshot, fixed UTC timestamped names; no caller prefix. Named-destination collision checks only when supported by the service; no filesystem APIs assumed |
+| Prior-run comparison | Optional caller-selected YAML path; facts-only delta; collision prompts for a new prefix after showing facts inline | Optional accessible YAML content/attachment; same fact-comparison semantics, but collision returns an error without prompting; facts remain inline |
 | Script dependencies | Python 3 for the GitOps metadata extractor ([invocation](../../../skills/eks/eks-recon/references/cicd#spoke-side-tracking-and-the-gitops-outcome)) | None — no scripts permitted |
 | Cluster selection | Auto-discovers, asks user on ambiguity | Auto-selects single cluster; assesses all discovered on ambiguity; HARD STOP on API failure / zero clusters |
 | MCP dependencies | References eks-mcp-server for richer live data | No MCP dependencies; uses Agent Space APIs directly |
-| iac `evidence.type` enum | 4 values (`iac.md:337`): includes `workspace_files` and `cfn_stacks` | 2 values (`iac.md:186`): `cluster_tags` \| `in_cluster_crds`. Drops `workspace_files` (no filesystem in Agent Space) and `cfn_stacks` (the port's `iam-policy.json` grants no `cloudformation:*` permission). **No CFN fact is lost** — CloudFormation is still detected via `aws:cloudformation:*` cluster TAGS → `cluster_tags` evidence + `tags.cfn_stack_id`; only the `evidence.type` label changes. |
+| iac `evidence.type` enum | 4 values (upstream Output Schema): includes `workspace_files` and `cfn_stacks` | 2 values (port Output Schema): `cluster_tags` \| `in_cluster_crds`. Drops `workspace_files` (no filesystem in Agent Space) and `cfn_stacks` (the port's `iam-policy.json` grants no `cloudformation:*` permission). CloudFormation cluster-tag evidence remains available via `aws:cloudformation:*` tags → `cluster_tags` evidence + `tags.cfn_stack_id`; stack API observations are unavailable in the port. |
 
 GitOps workload reads require projection before tool output reaches the model.
 Without it, both spoke-side tracking and controller inspection are unavailable;

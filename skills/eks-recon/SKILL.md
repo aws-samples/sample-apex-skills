@@ -191,8 +191,14 @@ Required:
 
 Optional:
 - Specific modules to run (default: all)
+- Prior report: path to an earlier recon YAML artifact (optional; never auto-select one)
 - Output path prefix, without an extension (default: `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` → writes `<output-prefix>.md` + `<output-prefix>.yaml`)
 ```
+
+When a prior report is supplied, load [report-comparison.md](references/report-comparison.md)
+and read the prior artifact before generating outputs. After collecting the current
+facts, append the comparison to the Markdown report using that contract. Without a
+prior report, omit the Changes since section.
 
 **Auto-discovery when cluster name is not explicit:**
 
@@ -237,10 +243,18 @@ Produce **two** artifacts. The **markdown fact report is the primary deliverable
 
 Resolve `<output-prefix>` once for both artifacts:
 - If the caller supplied a prefix, use it unchanged, including any directory component (for example, `reports/team-handoff` → `reports/team-handoff.md` + `reports/team-handoff.yaml`). Do not append a cluster name or timestamp to an explicit prefix. Do not strip a supplied suffix: `reports/x.md` produces `reports/x.md.md` + `reports/x.md.yaml`.
-- Otherwise, use `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` in the current directory, with the discovered target cluster name. Capture the current UTC timestamp once at report generation using `date -u '+%Y-%m-%d-%H%M'` or an equivalent UTC clock tool (24-hour clock); reuse it for both filenames rather than guessing the time.
+- Otherwise, use `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` in the current directory, with the discovered target cluster name. Capture the current UTC timestamp once at report generation using `date -u '+%Y-%m-%dT%H:%M:%SZ'` or an equivalent UTC clock tool (24-hour clock); derive the filename date/minute and both report timestamps from that one reading rather than guessing the time.
 - Create the parent directory if needed. Check both destination paths before writing either report. If either destination already exists, write neither file, name both paths in the collision message, and request a different prefix. Concurrent runs for the same cluster within one minute should use distinct explicit prefixes.
 
 > **Facts only.** Both artifacts report what the cluster *is*. Never emit a verdict, score, readiness rating, or recommendation. A "Notable facts" line states an observation ("2 subnets have < 16 free IPs"); it never says "you should" or "this is a risk".
+
+Use one actual UTC clock reading for the default filename, Markdown
+`_generated` header and `report.generated_at`; label the header timestamp UTC.
+On an output collision, write neither artifact, identify both intended paths and
+show the current facts inline while requesting a different prefix.
+
+> Reports can contain cluster ARNs, account/resource identifiers and infrastructure
+> details. Review and redact before sharing; keep generated reports out of source control.
 
 #### 4a. Markdown fact report (primary) → `<output-prefix>.md`
 
@@ -312,14 +326,42 @@ export and existing workflow guidance.
   Markdown Coverage. Use another representation only when the module reference
   explicitly prescribes it for that field and failure condition (for example, Helm or
   `node_subnets`); do not invent generic `{unconfirmed, reason}` wrappers.
+  Carry each incomplete/denied read into `report.unconfirmed_paths`, even when
+  its canonical value is `null`. For partial inventories, record the entire
+  inventory path. Collect gaps alongside facts from every module result; never
+  infer complete coverage from a successful module response. A GitOps
+  `status: unconfirmed` records `cicd.gitops`, not just the status leaf.
 
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` block and the `cluster_detail:` block (both from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
 
-> **The reference Output Schemas are the single source of truth for the YAML shape** — do not hand-copy a schema here (that is how the old example drifted). The illustrative fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
+Include a `report` metadata block alongside the canonical module blocks in every
+new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
+report (reuse the filename's clock reading where applicable). Set `schema_revision`
+to `eks-recon/2026-10-31`, identifying the fact definitions used here, not a promised
+versioned API. Update this marker when fact types, value sets or meanings change,
+and document affected comparison boundaries in the comparison reference.
+`unconfirmed_paths` lists canonical dot-separated field paths whose reads were incomplete or denied;
+list the enclosing inventory path if only part of an inventory was collected.
+Use an empty list only when no collected sub-facts are unconfirmed. Omitted modules
+and explicit unavailable/unconfirmed markers remain authoritative coverage gaps.
+This metadata is not a recon module and is excluded from module counts and deltas.
+
+```yaml
+report:
+  schema_revision: "eks-recon/2026-10-31"
+  generated_at: "2026-10-29T08:30:00Z"  # actual report time, not this example
+  unconfirmed_paths: []                # e.g. [security.authentication.access_entries]
+```
+
+> **The reference Output Schemas are the single source of truth for each module's shape** — do not hand-copy a schema here (that is how the old example drifted). The illustrative fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
 
 ```yaml
 # EKS Reconnaissance Report — illustrative envelope only.
 # Canonical shape per module = references/<module>.md "## Output Schema".
+report:              # metadata defined above; not a module
+  schema_revision: "eks-recon/2026-10-31"
+  generated_at: "2026-10-29T08:30:00Z"  # replace with actual report time
+  unconfirmed_paths: []
 cluster:              # shape: references/cluster-basics.md "## Shared Cluster Block"
   name: my-cluster
   region: us-west-2
@@ -386,14 +428,19 @@ Else:
 
 **Step 2: Spawn module subagents in parallel**
 
-Spawn ALL module subagents in a SINGLE message for parallel execution:
+Spawn ALL module subagents in a SINGLE message for parallel execution. Include
+this coverage instruction in **every** module prompt: return canonical YAML facts
+with YAML comments `# Coverage: <canonical path> — <short reason>` for each
+incomplete/denied read. Use `# Coverage: complete` only when all selected reads
+succeeded. Comments carry coverage without adding fields to the module schema.
 
 ```
 Agent(
   description: "EKS compute recon",
   prompt: "Recon compute for cluster {cluster_name} in {region}. 
            Read agents/compute-recon.md and references/compute.md.
-           Return YAML output only.",
+           Return canonical YAML plus # Coverage: <path> — <reason> comments
+           for incomplete reads; # Coverage: complete only if all selected reads succeeded.",
   subagent_type: "general-purpose"
 )
 
@@ -401,7 +448,8 @@ Agent(
   description: "EKS networking recon",
   prompt: "Recon networking for cluster {cluster_name} in {region}.
            Read agents/networking-recon.md and references/networking.md.
-           Return YAML output only.",
+           Return canonical YAML plus # Coverage: <path> — <reason> comments
+           for incomplete reads; # Coverage: complete only if all selected reads succeeded.",
   subagent_type: "general-purpose"
 )
 
@@ -411,9 +459,9 @@ Agent(
 **Step 3: Aggregate results**
 
 When all subagents complete:
-1. Collect each subagent's YAML output
+1. Collect each subagent's YAML output and read its Coverage comments before parsing facts. If the coverage declaration is absent, retain the facts but mark the module path unconfirmed for comparison; do not infer complete reads.
 2. Merge into single report structure, applying these normalization rules:
-   - Apply the common assembly rules in Step 4b.
+   - Apply the common assembly rules in Step 4b. Collect each subagent's partial-read paths and reasons alongside its facts, and union those paths into `report.unconfirmed_paths`; retain reasons in Markdown Coverage.
    - Collect shared cluster-basics facts directly as described in Step 4b.
    - Module outputs are already in the canonical shape defined by each `references/<module>.md` "## Output Schema". Preserve them verbatim under the matching top-level key: `compute:`, `networking:`, `security:`, `addons:`, `observability:`, `workloads:`, `storage:`, `iac:`, `cicd:`, `cluster_insights:`. Do not reshape, flatten, or rename keys.
    - Treat subagent failures as selected-module failures under the common Step 4b rules.
@@ -447,4 +495,3 @@ The design workflow can use eks-recon for existing clusters:
 3. Ask user: "I detected Karpenter + Terraform + ArgoCD. Correct?"
 4. Only ask questions for undetected values
 ```
-
