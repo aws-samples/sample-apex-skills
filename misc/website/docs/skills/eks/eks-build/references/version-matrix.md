@@ -39,6 +39,7 @@ Use these methods in order of preference:
 - **EKS managed addons**: Use `most_recent: true` in Terraform -- EKS auto-selects compatible versions. No manual lookup needed.
 - **Helm chart addons**: Look up each enabled addon's latest stable chart version.
 - **cluster-autoscaler**: Image tag MUST match the EKS K8s minor version (e.g., `v1.x.y` for EKS 1.x).
+- **karpenter**: Chart version MUST be one the [Karpenter compatibility matrix](#karpenter) allows for the project's `cluster_version`.
 - **Terraform modules**: Check registry for latest compatible version. Use `~>` constraint for minor version flexibility.
 
 ## Authoritative Version Sources
@@ -81,6 +82,15 @@ The `eks-blueprints-addons` module ships chart defaults that lag behind. These a
 | kyverno (custom-addons) | Custom-addons module default is behind stable | Always override |
 
 ## Addon-Specific Version Rules
+
+### karpenter
+- Pick a chart version the matrix allows for the cluster's `cluster_version`:
+
+| Kubernetes | 1.31 | 1.32 | 1.33 | 1.34 | 1.35 | 1.36 | 1.37 |
+|------------|------|------|------|------|------|------|------|
+| Karpenter  | >= 1.0.5 | >= 1.2 | >= 1.5 | >= 1.6 | >= 1.9 | >= 1.13 | 1.15.x |
+
+- Source: https://karpenter.sh/docs/upgrading/compatibility/ (checked 2026-10-30). The matrix changes with each Karpenter release: re-check it before every generation, and treat a `cluster_version` the page does not list as unverified.
 
 ### cluster-autoscaler
 - Image tag **MUST match** EKS K8s minor version (e.g., `v1.x.0` for EKS 1.x)
