@@ -47,6 +47,8 @@ Generate architecture design documents for production-ready EKS deployments. All
 
 **Internet search (MANDATORY before generating):** Before writing any design content, you MUST search the internet to determine the latest EKS version, tool versions (Karpenter, ArgoCD, Kyverno, etc.), and AWS service updates. Do NOT use version numbers from reference files — they are illustrative only and may be outdated. Always verify the chosen EKS version is in standard support (not extended or EOL). Never rely solely on cached knowledge for version numbers.
 
+If the mandated search cannot reach the web, mark every version claim and recommendation that depends on it UNVERIFIED in the design and its ADRs; a search that was attempted and failed satisfies the Stage 5 search item when those marks are present.
+
 ## Design Workflow
 
 > **MANDATORY: The validation loop (Stages 3-4) is NOT optional.** Every design MUST be scored after generation. If the score is below threshold, you MUST fix the gaps and re-score. Do NOT skip to Stage 5 (Handoff) without a passing score. Do NOT present the design to the user as "complete" until it passes. The scoring loop is what separates a draft from a validated design.
@@ -88,7 +90,7 @@ Refer to `eks-best-practices` skill for detailed reference material on autoscali
 - **Focused design** (user asks for "security design", "CI/CD design", "networking design", etc.): Generate `architecture/<focus>-architecture.md` as the PRIMARY document, going deep on that specific domain. Do NOT force comprehensive coverage when the user asked for a focused design.
 - **Comprehensive + supplementary**: When generating a comprehensive design, optionally also generate a `<focus>-architecture.md` deep-dive if a domain is complex enough (e.g., HIPAA security, multi-tenant CI/CD).
 
-**ADRs**: `architecture/architecture-decision-records/ADR-*.md`. Every significant technology choice must have an ADR. Each ADR follows the format: Context → Decision → Alternatives Considered → Rationale → Consequences → Research Sources. Name files `ADR-001-compute-strategy.md`, `ADR-002-networking-model.md`, etc. For comprehensive designs, produce 7-9+ ADRs. For focused designs, produce ADRs relevant to the focus area.
+**ADRs**: `architecture/architecture-decision-records/ADR-*.md`. Every significant technology choice must have an ADR. Each ADR follows the format: Context → Decision → Alternatives Considered → Rationale → Consequences → Research Sources (checked on `<YYYY-MM-DD>`). Name files `ADR-001-compute-strategy.md`, `ADR-002-networking-model.md`, etc. For comprehensive designs, produce 7-9+ ADRs. For focused designs, produce ADRs relevant to the focus area.
 
 ### Stage 3: Architecture Validation (MANDATORY — DO NOT SKIP)
 
