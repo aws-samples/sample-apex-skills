@@ -165,8 +165,8 @@ Skip if single-team cluster.
     → Multi-account — centralized EKS, tenants have own AWS accounts
       If yes: how many accounts? Cross-account IAM? Organizations/Control Tower?
 
-29. IAM auth model: IRSA (default) or Pod Identity?
-    → Per-addon overrides? (e.g., Velero → Pod Identity, rest → IRSA)
+29. IAM auth model: Pod Identity (default) or IRSA? (Helm add-ons installed via eks-blueprints-addons use IRSA)
+    → Per-addon overrides? (e.g., Velero → Pod Identity, per question 20; other Helm add-ons via eks-blueprints-addons → IRSA)
 ```
 
 **STOP.** Wait for user confirmation before proceeding. Present a mid-point summary of compute, addons, security, and tenancy decisions. Confirm before moving to operations and generation.
@@ -288,7 +288,7 @@ Before presenting the generated project, verify:
 | Node scaling | Cluster Autoscaler |
 | AMI | AL2023_x86_64_STANDARD |
 | Registry | ECR |
-| Auth model | IRSA |
+| Auth model | Pod Identity (IRSA for Helm add-ons via eks-blueprints-addons) |
 | Backup | Velero (Pod Identity) |
 | Policy as Code | Gatekeeper + Kyverno |
 | PSS | baseline (platform), restricted (tenants) |
