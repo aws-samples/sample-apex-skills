@@ -46,7 +46,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 2. **kubectl access** to the target cluster (for Kubernetes API queries)
 3. **Required AWS Permissions (minimum):**
    - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`, `eks:ListFargateProfiles`, `eks:DescribeFargateProfile`
-   - `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
+   - `ec2:DescribeInstances`, `ec2:DescribeInstanceTypes`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
    - `elasticloadbalancing:DescribeLoadBalancers`, `elasticloadbalancing:DescribeTargetHealth`
 4. **Optional permissions (enable richer analysis):**
    - `ce:GetCostAndUsage` — enables dollar-accurate spend data from Cost Explorer
