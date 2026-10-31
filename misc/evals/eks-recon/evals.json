@@ -317,52 +317,77 @@
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Added[^\\n]*green"
+            "pattern": "(?im)^\\|[ \\t]*Added[ \\t]*\\|[^|\\n]*compute\\.mng\\.groups\\[name=green\\][^|\\n]*\\|[ \\t]*`?(?:—|-|null|none|absent|not present)`?[ \\t]*\\|[ \\t]*(?=[^|\\n]*version[\\\"\\x27 ]*:[\\\"\\x27 ]*1\\.34[\\\"\\x27 ,}])(?=[^|\\n]*desired_size[\\\"\\x27 ]*:[\\\"\\x27 ]*1(?:[\\\"\\x27 ,}]|`))[^|\\n]+[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Removed[^\\n]*compute\\.mng\\.groups[^\\n]*retired"
+            "pattern": "(?im)^\\|[ \\t]*Removed[ \\t]*\\|[^|\\n]*compute\\.mng\\.groups\\[name=retired\\][^|\\n]*\\|[ \\t]*(?=[^|\\n]*version[\\\"\\x27 ]*:[\\\"\\x27 ]*1\\.34[\\\"\\x27 ,}])(?=[^|\\n]*desired_size[\\\"\\x27 ]*:[\\\"\\x27 ]*1(?:[\\\"\\x27 ,}]|`))[^|\\n]+[ \\t]*\\|[ \\t]*`?(?:—|-|null|none|absent|not present)`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Changed[^\\n]*blue[^\\n]*2[^\\n]*3"
+            "pattern": "(?im)^\\|[ \\t]*Changed[ \\t]*\\|[^|\\n]*blue[^|\\n]*desired_size[^|\\n]*\\|[ \\t]*`?2`?[ \\t]*\\|[ \\t]*`?3`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "v1\\.19\\.0-eksbuild\\.1[^\\n]*v1\\.19\\.2-eksbuild\\.1"
+            "pattern": "(?im)^\\|[ \\t]*Changed[ \\t]*\\|[^|\\n]*vpc-cni[^|\n]*version[^|\\n]*\\|[ \\t]*`?v1\\.19\\.0-eksbuild\\.1`?[ \\t]*\\|[ \\t]*`?v1\\.19\\.2-eksbuild\\.1`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Changed[^\\n]*subnet-a[^\\n]*200[^\\n]*199"
+            "pattern": "(?im)^\\|[ \\t]*Changed[ \\t]*\\|[^|\\n]*subnet-a[^|\n]*free[^|\\n]*\\|[ \\t]*`?200`?[ \\t]*\\|[ \\t]*`?199`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Removed[^\\n]*role/retired"
+            "pattern": "(?im)^\\|[ \\t]*Removed[ \\t]*\\|[^|\\n]*security\\.authentication\\.access_entries\\.principal_arns[^|\\n]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/retired`?[ \\t]*\\|[ \\t]*`?(?:—|-|null|none|absent|not present)`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Added[^\\n]*role/new-viewer"
+            "pattern": "(?im)^\\|[ \\t]*Added[ \\t]*\\|[^|\\n]*security\\.authentication\\.access_entries\\.principal_arns[^|\\n]*\\|[ \\t]*`?(?:—|-|null|none|absent|not present)`?[ \\t]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/new\\-viewer`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Changed[^\\n]*reader-v1[^\\n]*reader-v2"
+            "pattern": "(?im)^\\|[ \\t]*Changed[ \\t]*\\|[^|\\n]*pod_identity\\.associations\\.list[^|\\n]*reader[^|\\n]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/reader\\-v1`?[ \\t]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/reader\\-v2`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Changed[^\\n]*service_account_role[^\\n]*role/cni[^\\n]*(null|none)"
+            "pattern": "(?im)^\\|[ \\t]*Changed[ \\t]*\\|[^|\\n]*addons\\.eks_managed\\.list[^|\\n]*service_account_role[^|\\n]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/cni`?[ \\t]*\\|[ \\t]*`?(?:null|none)`?(?:[ \\t]+\\(no IRSA role\\))?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Changed[^\\n]*orderedStages"
+            "pattern": "(?im)^\\|[ \\t]*Changed[ \\t]*\\|[^|\\n]*orderedStages[^|\\n]*\\|[ \\t]*`?\\[[\\\"\\x27 ]*authenticate[\\\"\\x27 ]*,[\\\"\\x27 ]*route[\\\"\\x27 ]*\\]`?[ \\t]*\\|[ \\t]*`?\\[[\\\"\\x27 ]*route[\\\"\\x27 ]*,[\\\"\\x27 ]*authenticate[\\\"\\x27 ]*\\]`?[ \\t]*\\|[ \\t]*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^report:\\s*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  generated_at:"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  unconfirmed_paths:"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/delta.md",
+            "pattern": "(?im)^\\|[ \\t]*(?:Added|Removed|Changed)[ \\t]*\\|[^|\\n]*(?:coredns|subnet-b|storage|report\\.)"
           }
         ],
         "validators": []
@@ -375,7 +400,8 @@
         "Labels the legacy prior timestamp unknown and discloses missing machine coverage metadata.",
         "Marks compute.mng.groups, addons.helm_releases, storage, security.authentication.access_entries and the null subnet free count as not comparable, without claiming removals.",
         "Does not claim a newly observed fixed-schema iam_for_pods field was newly deployed; it was omitted from the prior selective snapshot.",
-        "Still reports the confirmed vpc-cni version and subnet-a free-count changes; preserves prior.yaml."
+        "Still reports the confirmed vpc-cni version and subnet-a free-count changes; preserves prior.yaml.",
+        "GitOps status unconfirmed invalidates sibling results including tools_detected and nullable local Argo fields, without claiming removal."
       ],
       "files": [
         "eval-4/prior.yaml",
@@ -417,17 +443,57 @@
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "v1\\.19\\.0-eksbuild\\.1[^\\n]*v1\\.19\\.2-eksbuild\\.1"
+            "pattern": "(?im)^\\|[ \\t]*Changed[ \\t]*\\|[^|\\n]*vpc-cni[^|\n]*version[^|\\n]*\\|[ \\t]*`?v1\\.19\\.0-eksbuild\\.1`?[ \\t]*\\|[ \\t]*`?v1\\.19\\.2-eksbuild\\.1`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)Changed[^\\n]*subnet-a[^\\n]*200[^\\n]*199"
+            "pattern": "(?im)^\\|[ \\t]*Changed[ \\t]*\\|[^|\\n]*subnet-a[^|\n]*free[^|\\n]*\\|[ \\t]*`?200`?[ \\t]*\\|[ \\t]*`?199`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "not-contains",
             "file": "reports/delta.md",
             "pattern": "(?im)^\\|\\s*(Added|Removed)\\s*\\|"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^report:\\s*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  generated_at:"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  unconfirmed_paths:"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/delta.md",
+            "pattern": "(?im)^\\|[ \\t]*(?:Added|Removed|Changed)[ \\t]*\\|[^|\\n]*cicd"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^[ \\t]*(?:-[ \\t]*[\\\"\\x27]?cicd\\.gitops[\\\"\\x27]?[ \\t]*$|unconfirmed_paths:[ \\t]*\\[[^\\]\\n]*cicd\\.gitops[^\\]\\n]*\\])"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^[ \\t]*(?:-[ \\t]*[\\\"\\x27]?addons\\.helm_releases[\\\"\\x27]?[ \\t]*$|unconfirmed_paths:[ \\t]*\\[[^\\]\\n]*addons\\.helm_releases[^\\]\\n]*\\])"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/delta.md",
+            "pattern": "(?im)^\\|[ \\t]*(?:Added|Removed|Changed)[ \\t]*\\|[^|\\n]*(?:compute\\.mng|addons\\.helm_releases|storage|security\\.authentication\\.access_entries|security\\.iam_for_pods|cicd\\.gitops|coredns|subnet-b)"
           }
         ],
         "validators": []
@@ -476,7 +542,32 @@
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?i)(ARN|account).*(mismatch|different)|(?i:mismatch|different).*(?:ARN|account)"
+            "pattern": "(?i)(ARN|account)[^\\n]*(mismatch|differ|not match)|(?:mismatch|differ|not match)[^\\n]*(?:ARN|account)"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^report:\\s*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  generated_at:"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  unconfirmed_paths:"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/delta.md",
+            "pattern": "(?im)^\\|[ \\t]*(?:Added|Removed|Changed)[ \\t]*\\|"
           }
         ],
         "validators": []
@@ -488,7 +579,8 @@
       "expectations": [
         "States No changes in comparable facts despite reordered resource and principal lists.",
         "Excludes report.generated_at from the delta and preserves prior.yaml.",
-        "Writes both reports with the requested prefix and the correct machine-artifact link."
+        "Writes both reports with the requested prefix and the correct machine-artifact link.",
+        "Excluded or omitted modules are disclosed as not comparable; a changed capped GitOps evidence sample is not a delta."
       ],
       "files": [
         "eval-6/prior.yaml",
@@ -521,6 +613,61 @@
             "type": "contains",
             "file": "reports/delta.md",
             "pattern": "No changes in comparable facts"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^report:\\s*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  generated_at:"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^  unconfirmed_paths:"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/delta.md",
+            "pattern": "(?im)^\\|[ \\t]*(?:Added|Removed|Changed)[ \\t]*\\|"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?i)Comparison coverage"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?is)### Comparison coverage.*observability"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?is)### Comparison coverage.*workloads"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?is)### Comparison coverage.*iac"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?is)### Comparison coverage.*cluster[_-]insights"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?is)### Comparison coverage.*cicd\\.gitops\\.evidence"
           }
         ],
         "validators": []

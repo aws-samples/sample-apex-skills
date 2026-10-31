@@ -80,7 +80,8 @@ Kubernetes-API facts (nodes, CRDs, workloads, RBAC, StorageClasses, etc.) are re
 **Optional prior report:** the caller may supply an earlier recon YAML artifact as
 accessible report content or an attachment. Load
 [report-comparison.md](references/report-comparison) when supplied. Use the
-artifact's source label in place of a filesystem path; do not assume local file or
+artifact's attachment filename, asset name, or `inline content` as its source label;
+read it before generating outputs and do not assume local file or
 shell access. For multi-cluster discovery, compare only the cluster matching the
 prior artifact's ARN and explicitly mark other clusters as having no matching prior.
 If no discovered cluster matches, report the comparison as unavailable. Without a
@@ -118,7 +119,7 @@ Each reference describes detection **declaratively** as capability blocks (AWS A
 
 ### Step 2: Generate the Report
 
-Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a secondary facts snapshot. When a prior report was supplied, append the comparison defined in [report-comparison.md](references/report-comparison.md).
+Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a secondary facts snapshot. When a prior report was supplied, append the comparison defined in [report-comparison.md](references/report-comparison).
 
 ---
 
@@ -149,6 +150,15 @@ For **full recon**, load all rows. For a **targeted query** (e.g. "am I using Ka
 Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a secondary facts snapshot for inspection/export. The agent generates both directly — no external conversion tools or scripts.
 
 > **Facts only.** Both artifacts report what the cluster *is*. Never emit a verdict, score, readiness rating, or recommendation. A "Notable facts" line states an observation ("2 subnets have < 16 free IPs"); it never says "you should" or "this is a risk".
+
+Use one actual UTC clock reading for both filenames, the Markdown `_generated`
+header (labelled UTC), and `report.generated_at`. No caller prefix is supported.
+If named destinations can be checked, a collision writes neither artifact and
+returns an error without prompting; current facts remain visible inline. If the
+service cannot inspect destinations, do not claim collision checks were performed.
+
+> Reports can contain cluster ARNs, account/resource identifiers and infrastructure
+> details. Review and redact before sharing.
 
 ### Markdown fact report (primary)
 
@@ -221,14 +231,21 @@ export and existing workflow guidance.
   Markdown Coverage. Use another representation only when the module reference
   explicitly prescribes it for that field and failure condition (for example, Helm or
   `node_subnets`); do not invent generic `{unconfirmed, reason}` wrappers.
+  Carry each incomplete/denied read into `report.unconfirmed_paths`, even when
+  its canonical value is `null`. For partial inventories, record the entire
+  inventory path. Collect gaps alongside facts from every module result; never
+  infer complete coverage from a successful module response. A GitOps
+  `status: unconfirmed` records `cicd.gitops`, not just the status leaf.
 
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` and `cluster_detail:` blocks (from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
 
-
 Include a `report` metadata block alongside the canonical module blocks in every
 new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
-report (reuse the filename's clock reading where applicable). `unconfirmed_paths`
-lists canonical dot-separated field paths whose reads were incomplete or denied;
+report (reuse the filename's clock reading where applicable). Set `schema_revision`
+to `eks-recon/2026-10-31`, identifying the fact definitions used here, not a promised
+versioned API. Update this marker when fact types, value sets or meanings change,
+and document affected comparison boundaries in the comparison reference.
+`unconfirmed_paths` lists canonical dot-separated field paths whose reads were incomplete or denied;
 list the enclosing inventory path if only part of an inventory was collected.
 Use an empty list only when no collected sub-facts are unconfirmed. Omitted modules
 and explicit unavailable/unconfirmed markers remain authoritative coverage gaps.
@@ -236,15 +253,20 @@ This metadata is not a recon module and is excluded from module counts and delta
 
 ```yaml
 report:
+  schema_revision: "eks-recon/2026-10-31"
   generated_at: "2026-10-29T08:30:00Z"  # actual report time, not this example
   unconfirmed_paths: []                # e.g. [security.authentication.access_entries]
 ```
 
-> **The reference Output Schemas are the single source of truth for the YAML shape** — do not hand-copy a schema. The fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
+> **The reference Output Schemas are the single source of truth for each module's shape** — do not hand-copy a schema. The fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
 
 ```yaml
 # EKS Reconnaissance Report — illustrative envelope only.
 # Canonical shape per module = references/<module>.md "## Output Schema".
+report:              # metadata defined above; not a module
+  schema_revision: "eks-recon/2026-10-31"
+  generated_at: "2026-10-29T08:30:00Z"  # replace with actual report time
+  unconfirmed_paths: []
 cluster:              # shape: references/cluster-basics.md "## Shared Cluster Block"
   name: my-cluster
   region: us-west-2

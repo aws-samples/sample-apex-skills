@@ -59,3 +59,14 @@ security:
 storage:
   unavailable: true
   reason: Kubernetes API denied
+
+cicd:
+  gitops:
+    tool: unconfirmed
+    status: unconfirmed
+    detected: null
+    tools_detected: []
+    evidence: []
+    argocd:
+      detected: null
+      applications: null

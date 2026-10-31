@@ -2,7 +2,7 @@
 
 ## What these evals target
 
-These artifacts exercise the `eks-recon` skill, whose job is read-only discovery of an existing EKS cluster: current version, compute strategy (Karpenter / MNG / Auto Mode / Fargate), IaC tooling, CI/CD pipelines, add-on inventory, networking, security posture, and observability. `triggering.json` checks that the skill fires on realistic recon phrasings and does NOT fire on near-miss requests that belong to its sibling skills. `evals.json` sketches two end-to-end recon tasks (upgrade-prep context and a team handoff) that a good recon response must cover.
+These artifacts exercise the `eks-recon` skill, whose job is read-only discovery of an existing EKS cluster: current version, compute strategy (Karpenter / MNG / Auto Mode / Fargate), IaC tooling, CI/CD pipelines, add-on inventory, networking, security posture, and observability. `triggering.json` checks that the skill fires on realistic recon phrasings and does NOT fire on near-miss requests that belong to its sibling skills. `evals.json` contains two live recon tasks (upgrade-prep context and a team handoff) and four offline report-comparison tasks (cases 3–6).
 
 ## Neighbour-skill disambiguation
 
@@ -63,7 +63,6 @@ From `misc/evals/`:
 
 See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
 
-
 ## Offline prior-report comparisons
 
 Cases 3–6 use manually authored selective YAML snapshots under `files/eval-<id>/`.
@@ -81,3 +80,14 @@ facts, coverage, and byte-for-byte prior preservation. The runner snapshots inpu
 fixtures too: validate `reports/delta.*`, not any matching YAML in the output tree.
 These are agent report-generation evaluations, not live-cluster tests. CI runs
 eval hygiene, not these model-backed tasks.
+
+The offline cases also cover an unconfirmed GitOps result with empty sibling fields
+and differing capped evidence samples. Missing modules remain outside comparison
+coverage, even when all comparable facts are unchanged. Structural checks anchor
+selected before/after cells and forbid delta rows in mismatch/reorder-only cases;
+they do not establish complete semantic correctness.
+
+Case 4 intentionally supplies incomplete coverage metadata, as a legacy or partial
+collection input may do. Explicit unconfirmed markers still take precedence; the
+new output must record the GitOps and Helm gaps even though the input list omits
+them. Unknown nulls must not become removals.

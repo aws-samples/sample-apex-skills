@@ -71,3 +71,11 @@ storage:
   csi_drivers:
     ebs:
       detected: true
+
+cicd:
+  gitops:
+    tool: argocd
+    status: detected
+    detected: true
+    tools_detected: [argocd]
+    evidence: ["tracking-id on app-a"]
