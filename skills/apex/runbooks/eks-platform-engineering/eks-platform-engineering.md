@@ -101,7 +101,7 @@ Self-grade before presenting the plan. Each item is binary — passes or fails.
 - [ ] The roadmap is sequenced with a named first milestone, not a flat feature list.
 - [ ] Success metrics (DORA + adoption) are specified before any build starts.
 
-Pass threshold: 5/6. Below 4/6 means rework — most often the plan defaulted to the tool stack without grounding it in this team's Phase 1 answers.
+Pass threshold: 5/6 or more. At 4/6, fix the failed items and re-check. Under 4/6 means rework: most often the plan defaulted to the tool stack without grounding it in this team's Phase 1 answers.
 
 ## Conversation Style
 
