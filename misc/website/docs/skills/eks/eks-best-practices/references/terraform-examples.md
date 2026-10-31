@@ -184,6 +184,8 @@ module "ack_capability" {
   cluster_name = module.eks.cluster_name
   capability_type = "ACK"
   iam_role_policies = {
+    # AdministratorAccess mirrors the upstream example for brevity. In production,
+    # replace it with policies scoped to the AWS services ACK manages (least privilege).
     admin = "arn:aws:iam::aws:policy/AdministratorAccess"
   }
 }
