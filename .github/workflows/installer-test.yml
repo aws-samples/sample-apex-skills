@@ -64,7 +64,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
-      # Case SC1's tree check needs GNU find (-printf); macOS ships BSD find.
+      # Cases SC1 and IS1 to IS3 need GNU find (-printf); macOS ships BSD find.
       # gnubin holds the findutils commands under their plain names.
       - name: GNU find first on PATH (macOS)
         if: runner.os == 'macOS'

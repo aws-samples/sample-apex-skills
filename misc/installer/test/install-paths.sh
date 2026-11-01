@@ -164,10 +164,12 @@
 #       line while anything was kept (exit 3); once the rest is removed, the line is back
 #   SC1 --claude-only -y and --kiro-only -y with both ~/.claude and ~/.kiro present leave the other
 #       tree byte-identical
-#   IS1 install over an existing Claude Code, Kiro and Codex setup: a file-level diff of the user's files is empty
+#   IS1 install over an existing Claude Code, Kiro and Codex setup (the Codex files are untouched
+#       bystanders: the installer has no Codex target): a file-level diff of the user's files is empty
 #   IS2 the same for a --project install, over the project's and the global setup
-#   IS3 upgrade from the 1.3.0 installer (the v1.3.0 tag): --update and -y exit 0 with no user steps,
-#       and the diff is empty after each run (skipped without that tag)
+#   IS3 upgrade: the 1.3.0 installer (the v1.3.0 tag's cli.mjs, run against the fixture) installs
+#       MID_TAG, then this installer's --update moves it to LATEST_TAG and -y follows; each run exits
+#       0 and asks nothing, and the diff is empty after each run (skipped without that tag)
 #   RW1 a read-only directory over recorded entries (a stale skill link, Kiro copies the prune
 #       removes): with write access back, --uninstall leaves no installer entry
 #   KD1 a Kiro copy whose write fails with a disk error (not a refused write): exit 1 with that
@@ -230,10 +232,10 @@ fi
 # One that hangs is killed after 60 s (perl's alarm, as in run_cli) and stops it too.
 mkdir -p "$WORK/preflight-home"
 HOME="$WORK/preflight-home" USERPROFILE="$WORK/preflight-home" perl -e 'alarm shift @ARGV; exec @ARGV or exit 127' 60 node "$CLI" --help >/dev/null 2>&1 || { echo "--cli $CLI does not start within 60 s (it needs ../package.json beside bin/)" >&2; exit 2; }
-# Preflight: case SC1's tree check lists the tree with find -printf. BSD find
+# Preflight: cases SC1 and IS1 to IS3 list trees with find -printf. BSD find
 # (macOS) rejects -printf, and the listing would drop out of the hash without a
 # sign, leaving a content-only check, so the run stops instead.
-find "$WORK" -maxdepth 0 -printf x >/dev/null 2>&1 || { echo "find does not support -printf: case SC1's tree check needs GNU find (findutils)" >&2; exit 2; }
+find "$WORK" -maxdepth 0 -printf x >/dev/null 2>&1 || { echo "find does not support -printf: cases SC1 and IS1 to IS3 need GNU find (findutils)" >&2; exit 2; }
 
 # Hermetic git: no system or global config from the real HOME.
 export GIT_CONFIG_NOSYSTEM=1
@@ -2868,31 +2870,33 @@ done
 finish_case
 
 # The user's own Claude Code, Kiro CLI and Codex setup, which no install or
-# upgrade may change (cases IS1 to IS3). Under ~/.claude and ~/.kiro only these
-# paths are checked, since the installer's own entries sit beside them; the
-# installer writes nothing for Codex, so ~/.codex and ~/.agents (and their
-# project copies) are listed whole and an added file shows too.
+# upgrade may change (cases IS1 to IS3). Under ~/.claude and ~/.kiro these
+# paths are checked and the user's own skill dirs (skills/my-skill) are listed
+# whole; additions beside the listed files under commands/ and steering/ are
+# not checked, since the installer's own entries sit there. The installer has
+# no Codex target, so ~/.codex and ~/.agents (and their project copies) are
+# untouched bystanders, listed whole, and an added file shows too.
 USER_GLOBAL=".claude/settings.json .claude.json .claude/CLAUDE.md .claude/skills/my-skill/SKILL.md .claude/commands/mine.md .claude/agents/mine.md
   .kiro/skills/my-skill/SKILL.md .kiro/steering/mine.md .kiro/settings/cli.json
-  .codex/AGENTS.md .codex/AGENTS.override.md .codex/config.toml .codex/skills/my-skill/SKILL.md .agents/skills/my-skill/SKILL.md"
+  .codex/AGENTS.md .codex/AGENTS.override.md .codex/config.toml .agents/skills/my-skill/SKILL.md"
 USER_PROJECT=".claude/settings.json .claude/settings.local.json CLAUDE.md .claude/skills/my-skill/SKILL.md .claude/commands/mine.md .claude/agents/mine.md
-  .kiro/settings/cli.json AGENTS.md .codex/skills/my-skill/SKILL.md .agents/skills/my-skill/SKILL.md"
+  .kiro/skills/my-skill/SKILL.md .kiro/steering/mine.md .kiro/settings/cli.json AGENTS.md .agents/skills/my-skill/SKILL.md"
 seed_user_setup() { # <dir> <paths...>
   local d="$1" p; shift
   for p in "$@"; do
     mkdir -p "$d/$(dirname "$p")"
-    case "$p" in *.json) echo '{"mine": true}' ;; *) echo "# mine" ;; esac > "$d/$p"
+    echo "# mine" > "$d/$p"
   done
 }
-# One line per path (type, link text, mode, md5), then every entry under .codex and .agents.
+# One line per path (type, link text, mode, and md5 for regular files), then every entry under
+# the user's own skill dirs, .codex and .agents.
 user_snap() { # <dir> <paths...>
   local d="$1" p; shift
   (cd "$d" && for p in "$@"; do
-    if [ ! -e "$p" ] && [ ! -L "$p" ]; then echo "$p missing"; continue; fi
     find "$p" -maxdepth 0 -printf '%p %y %l %m '
     if [ -f "$p" ] && [ ! -L "$p" ]; then md5sum < "$p"; else echo; fi
   done
-  find .codex .agents -printf '%p %y %l %s %m\n' 2>/dev/null | LC_ALL=C sort)
+  find .claude/skills/my-skill .kiro/skills/my-skill .codex .agents -printf '%p %y %l %s %m\n' 2>/dev/null | LC_ALL=C sort)
 }
 expect_user_setup() { # <before file> <dir> <paths...>: the file-level diff names each changed path
   local before="$1" d; shift
@@ -2911,7 +2915,6 @@ expect_user_setup "$WORK/IS1/before" "$H" $USER_GLOBAL
 finish_case
 
 new_case IS2 "--project install over an existing project and global setup changes none of the user's files"
-mkdir -p "$H/proj"
 seed_user_setup "$H" $USER_GLOBAL
 seed_user_setup "$H/proj" $USER_PROJECT
 user_snap "$H" $USER_GLOBAL > "$WORK/IS2/before-global"
@@ -2919,37 +2922,44 @@ user_snap "$H/proj" $USER_PROJECT > "$WORK/IS2/before-project"
 RUN_CWD="$H/proj" run_cli --project -y
 expect_rc 0
 [ "$(count_resolving_links "$H/proj/.claude/skills")" -eq "$LATEST_COUNT" ] || err "setup: no Claude Code project install beside the user's files"
+[ "$(count_resolving_links "$H/proj/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "setup: no Kiro project install beside the user's files"
 expect_user_setup "$WORK/IS2/before-global" "$H" $USER_GLOBAL
 expect_user_setup "$WORK/IS2/before-project" "$H/proj" $USER_PROJECT
 finish_case
 
-# The released 1.3.0 installer, from the v1.3.0 tag of this checkout (not the
-# fixture's LATEST_TAG); it already reads APEX_SKILLS_REPO_URL. The upgrade is
-# --update, then a plain -y run, with nothing done by hand between them.
-if git -C "$REPO_ROOT" cat-file -e "v1.3.0:misc/installer/bin/cli.mjs" 2>/dev/null; then
-  new_case IS3 "upgrade from the 1.3.0 installer over an existing setup: --update and -y exit 0, no user steps, none of the user's files change"
-  rel="$WORK/IS3/installer-1.3.0"
+# The released 1.3.0 installer: the v1.3.0 tag's cli.mjs and package.json from
+# this checkout, run against the local fixture (it already reads
+# APEX_SKILLS_REPO_URL). It installs MID_TAG; this installer's --update then
+# moves the install to LATEST_TAG, and a plain -y run follows, with nothing done
+# by hand between them.
+REL_REV=v1.3.0
+if git -C "$REPO_ROOT" cat-file -e "refs/tags/$REL_REV:misc/installer/bin/cli.mjs" 2>/dev/null; then
+  new_case IS3 "upgrade from the 1.3.0 installer ($MID_TAG) to $LATEST_TAG over an existing setup: --update and -y exit 0 and ask nothing, none of the user's files change"
+  rel="$WORK/IS3/installer-$REL_REV"
   mkdir -p "$rel/bin"
-  git -C "$REPO_ROOT" show "v1.3.0:misc/installer/package.json" > "$rel/package.json"
-  git -C "$REPO_ROOT" show "v1.3.0:misc/installer/bin/cli.mjs" > "$rel/bin/cli.mjs"
+  git -C "$REPO_ROOT" show "refs/tags/$REL_REV:misc/installer/package.json" > "$rel/package.json"
+  git -C "$REPO_ROOT" show "refs/tags/$REL_REV:misc/installer/bin/cli.mjs" > "$rel/bin/cli.mjs"
   seed_user_setup "$H" $USER_GLOBAL
   user_snap "$H" $USER_GLOBAL > "$WORK/IS3/before"
-  RUN_CLI="$rel/bin/cli.mjs" run_cli -y
+  RUN_CLI="$rel/bin/cli.mjs" run_cli -y --version "$MID_TAG"
   expect_rc 0
-  [ "$(install_head)" = "$(commit_of "$LATEST_TAG")" ] || err "setup: the 1.3.0 installer did not install $LATEST_TAG"
+  expect_no_out "Install steering"; expect_no_out "by hand"; expect_no_out "Copy them out"
+  [ "$(install_head)" = "$(commit_of "$MID_TAG")" ] || err "setup: the 1.3.0 installer did not install $MID_TAG"
   expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
   for args in --update -y; do
     run_cli "$args"
     expect_rc 0
+    expect_no_out "Install steering"; expect_no_out "by hand"; expect_no_out "Copy them out"
     expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
   done
   [ "$(install_head)" = "$(commit_of "$LATEST_TAG")" ] || err "the upgrade is not on $LATEST_TAG"
   [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Claude Code skill links after the upgrade, got $(count_resolving_links "$H/.claude/skills")"
+  [ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Kiro skill links after the upgrade, got $(count_resolving_links "$H/.kiro/skills")"
   d="$(dangling_links "$H/.claude/skills") $(dangling_links "$H/.kiro/skills") $(dangling_links "$H/.claude/commands")"
   [ -z "$(echo $d)" ] || err "dangling links after the upgrade: $(echo $d)"
   finish_case
 else
-  echo "=== IS3: SKIP (this checkout lacks the v1.3.0 tag; fetch the full history to run it)"
+  echo "=== IS3: SKIP (this checkout lacks the $REL_REV tag; fetch the full history to run it)"
 fi
 
 new_case RW1 "a read-only directory over recorded entries (a stale skill link, Kiro copies the prune removes): with write access back, --uninstall leaves no installer entry"
