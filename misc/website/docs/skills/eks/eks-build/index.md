@@ -137,6 +137,7 @@ Non-negotiable lessons from production deployments. Violating any causes deploym
 Split `eks-blueprints-addons` into TWO module calls:
 - **Phase 1**: LBC + Gatekeeper only, `wait: true`
 - **Phase 2**: All other addons, `depends_on = [module.eks_addons_webhooks]`
+- **Standalone Karpenter `helm_release`** (outside both module calls): also `depends_on = [module.eks_addons_webhooks]`
 
 LBC and Gatekeeper register webhooks (`failurePolicy: Fail`) before pods are ready. Without two-phase, these webhooks block all other addon deployments.
 
