@@ -21,7 +21,7 @@
 # explains is not a kill; rerun that mutant with --only. Run it
 # before each review of an installer change; CI also runs it every week
 # (.github/workflows/installer-mutation.yml). It runs the whole harness once
-# per mutant. One pass took 99 to 135 s with 113 cases (116 at this head) on
+# per mutant. One pass took 99 to 135 s with 113 cases (119 at this head) on
 # one 16-CPU Linux machine on 2026-10-20 (the harness runs its cases one at a
 # time; a pass takes longer when a mutant makes an installer run hang until
 # its 60 s limit). With 115 mutants and the baseline, the 116 passes take
