@@ -168,8 +168,9 @@
 #       bystanders: the installer has no Codex target): a file-level diff of the user's files is empty
 #   IS2 the same for a --project install, over the project's and the global setup
 #   IS3 upgrade: the 1.3.0 installer (the v1.3.0 tag's cli.mjs, run against the fixture) installs
-#       MID_TAG, then this installer's --update moves it to LATEST_TAG and -y follows; each run exits
-#       0 and asks nothing, and the diff is empty after each run (skipped without that tag)
+#       fixture MID_TAG, then this installer's --update must move it to fixture LATEST_TAG (the
+#       head is checked right after --update) and -y follows; each run exits 0 and asks nothing,
+#       and the diff is empty after each run (skipped without that tag)
 #   RW1 a read-only directory over recorded entries (a stale skill link, Kiro copies the prune
 #       removes): with write access back, --uninstall leaves no installer entry
 #   KD1 a Kiro copy whose write fails with a disk error (not a refused write): exit 1 with that
@@ -2927,14 +2928,10 @@ expect_user_setup "$WORK/IS2/before-global" "$H" $USER_GLOBAL
 expect_user_setup "$WORK/IS2/before-project" "$H/proj" $USER_PROJECT
 finish_case
 
-# The released 1.3.0 installer: the v1.3.0 tag's cli.mjs and package.json from
-# this checkout, run against the local fixture (it already reads
-# APEX_SKILLS_REPO_URL). It installs MID_TAG; this installer's --update then
-# moves the install to LATEST_TAG, and a plain -y run follows, with nothing done
-# by hand between them.
+# The v1.3.0 tag's cli.mjs and package.json, run against the local fixture (it reads APEX_SKILLS_REPO_URL).
 REL_REV=v1.3.0
 if git -C "$REPO_ROOT" cat-file -e "refs/tags/$REL_REV:misc/installer/bin/cli.mjs" 2>/dev/null; then
-  new_case IS3 "upgrade from the 1.3.0 installer ($MID_TAG) to $LATEST_TAG over an existing setup: --update and -y exit 0 and ask nothing, none of the user's files change"
+  new_case IS3 "the 1.3.0 installer installs fixture $MID_TAG, then --update to fixture $LATEST_TAG over an existing setup: --update and -y exit 0 and ask nothing, none of the user's files change"
   rel="$WORK/IS3/installer-$REL_REV"
   mkdir -p "$rel/bin"
   git -C "$REPO_ROOT" show "refs/tags/$REL_REV:misc/installer/package.json" > "$rel/package.json"
@@ -2943,16 +2940,18 @@ if git -C "$REPO_ROOT" cat-file -e "refs/tags/$REL_REV:misc/installer/bin/cli.mj
   user_snap "$H" $USER_GLOBAL > "$WORK/IS3/before"
   RUN_CLI="$rel/bin/cli.mjs" run_cli -y --version "$MID_TAG"
   expect_rc 0
-  expect_no_out "Install steering"; expect_no_out "by hand"; expect_no_out "Copy them out"
+  expect_no_out "Install steering"; expect_no_out "by hand"
   [ "$(install_head)" = "$(commit_of "$MID_TAG")" ] || err "setup: the 1.3.0 installer did not install $MID_TAG"
   expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
-  for args in --update -y; do
-    run_cli "$args"
-    expect_rc 0
-    expect_no_out "Install steering"; expect_no_out "by hand"; expect_no_out "Copy them out"
-    expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
-  done
+  run_cli --update
+  expect_rc 0
+  expect_no_out "Install steering"; expect_no_out "by hand"
   [ "$(install_head)" = "$(commit_of "$LATEST_TAG")" ] || err "the upgrade is not on $LATEST_TAG"
+  expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
+  run_cli -y
+  expect_rc 0
+  expect_no_out "Install steering"; expect_no_out "by hand"
+  expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
   [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Claude Code skill links after the upgrade, got $(count_resolving_links "$H/.claude/skills")"
   [ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Kiro skill links after the upgrade, got $(count_resolving_links "$H/.kiro/skills")"
   d="$(dangling_links "$H/.claude/skills") $(dangling_links "$H/.kiro/skills") $(dangling_links "$H/.claude/commands")"
