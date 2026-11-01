@@ -164,6 +164,10 @@
 #       line while anything was kept (exit 3); once the rest is removed, the line is back
 #   SC1 --claude-only -y and --kiro-only -y with both ~/.claude and ~/.kiro present leave the other
 #       tree byte-identical
+#   IS1 install over an existing Claude Code, Kiro and Codex setup: a file-level diff of the user's files is empty
+#   IS2 the same for a --project install, over the project's and the global setup
+#   IS3 upgrade from the 1.3.0 installer (the v1.3.0 tag): --update and -y exit 0 with no user steps,
+#       and the diff is empty after each run (skipped without that tag)
 #   RW1 a read-only directory over recorded entries (a stale skill link, Kiro copies the prune
 #       removes): with write access back, --uninstall leaves no installer entry
 #   KD1 a Kiro copy whose write fails with a disk error (not a refused write): exit 1 with that
@@ -2862,6 +2866,91 @@ for scope in claude kiro; do
   [ "$(count_resolving_links "$H/.$scope/skills")" -eq "$LATEST_COUNT" ] || err "--$scope-only -y did not install $LATEST_COUNT skill links in ~/.$scope/skills"
 done
 finish_case
+
+# The user's own Claude Code, Kiro CLI and Codex setup, which no install or
+# upgrade may change (cases IS1 to IS3). Under ~/.claude and ~/.kiro only these
+# paths are checked, since the installer's own entries sit beside them; the
+# installer writes nothing for Codex, so ~/.codex and ~/.agents (and their
+# project copies) are listed whole and an added file shows too.
+USER_GLOBAL=".claude/settings.json .claude.json .claude/CLAUDE.md .claude/skills/my-skill/SKILL.md .claude/commands/mine.md .claude/agents/mine.md
+  .kiro/skills/my-skill/SKILL.md .kiro/steering/mine.md .kiro/settings/cli.json
+  .codex/AGENTS.md .codex/AGENTS.override.md .codex/config.toml .codex/skills/my-skill/SKILL.md .agents/skills/my-skill/SKILL.md"
+USER_PROJECT=".claude/settings.json .claude/settings.local.json CLAUDE.md .claude/skills/my-skill/SKILL.md .claude/commands/mine.md .claude/agents/mine.md
+  .kiro/settings/cli.json AGENTS.md .codex/skills/my-skill/SKILL.md .agents/skills/my-skill/SKILL.md"
+seed_user_setup() { # <dir> <paths...>
+  local d="$1" p; shift
+  for p in "$@"; do
+    mkdir -p "$d/$(dirname "$p")"
+    case "$p" in *.json) echo '{"mine": true}' ;; *) echo "# mine" ;; esac > "$d/$p"
+  done
+}
+# One line per path (type, link text, mode, md5), then every entry under .codex and .agents.
+user_snap() { # <dir> <paths...>
+  local d="$1" p; shift
+  (cd "$d" && for p in "$@"; do
+    if [ ! -e "$p" ] && [ ! -L "$p" ]; then echo "$p missing"; continue; fi
+    find "$p" -maxdepth 0 -printf '%p %y %l %m '
+    if [ -f "$p" ] && [ ! -L "$p" ]; then md5sum < "$p"; else echo; fi
+  done
+  find .codex .agents -printf '%p %y %l %s %m\n' 2>/dev/null | LC_ALL=C sort)
+}
+expect_user_setup() { # <before file> <dir> <paths...>: the file-level diff names each changed path
+  local before="$1" d; shift
+  d="$(user_snap "$@" | diff "$before" - | /usr/bin/grep '^[<>]' | tr '\n' ' ')"
+  [ -z "$d" ] || err "the user's setup in $1 changed (< before, > after): $d"
+}
+
+new_case IS1 "install over an existing Claude Code, Kiro and Codex setup changes none of the user's files"
+seed_user_setup "$H" $USER_GLOBAL
+user_snap "$H" $USER_GLOBAL > "$WORK/IS1/before"
+run_cli -y
+expect_rc 0
+[ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "setup: no Claude Code install beside the user's files"
+[ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "setup: no Kiro install beside the user's files"
+expect_user_setup "$WORK/IS1/before" "$H" $USER_GLOBAL
+finish_case
+
+new_case IS2 "--project install over an existing project and global setup changes none of the user's files"
+mkdir -p "$H/proj"
+seed_user_setup "$H" $USER_GLOBAL
+seed_user_setup "$H/proj" $USER_PROJECT
+user_snap "$H" $USER_GLOBAL > "$WORK/IS2/before-global"
+user_snap "$H/proj" $USER_PROJECT > "$WORK/IS2/before-project"
+RUN_CWD="$H/proj" run_cli --project -y
+expect_rc 0
+[ "$(count_resolving_links "$H/proj/.claude/skills")" -eq "$LATEST_COUNT" ] || err "setup: no Claude Code project install beside the user's files"
+expect_user_setup "$WORK/IS2/before-global" "$H" $USER_GLOBAL
+expect_user_setup "$WORK/IS2/before-project" "$H/proj" $USER_PROJECT
+finish_case
+
+# The released 1.3.0 installer, from the v1.3.0 tag of this checkout (not the
+# fixture's LATEST_TAG); it already reads APEX_SKILLS_REPO_URL. The upgrade is
+# --update, then a plain -y run, with nothing done by hand between them.
+if git -C "$REPO_ROOT" cat-file -e "v1.3.0:misc/installer/bin/cli.mjs" 2>/dev/null; then
+  new_case IS3 "upgrade from the 1.3.0 installer over an existing setup: --update and -y exit 0, no user steps, none of the user's files change"
+  rel="$WORK/IS3/installer-1.3.0"
+  mkdir -p "$rel/bin"
+  git -C "$REPO_ROOT" show "v1.3.0:misc/installer/package.json" > "$rel/package.json"
+  git -C "$REPO_ROOT" show "v1.3.0:misc/installer/bin/cli.mjs" > "$rel/bin/cli.mjs"
+  seed_user_setup "$H" $USER_GLOBAL
+  user_snap "$H" $USER_GLOBAL > "$WORK/IS3/before"
+  RUN_CLI="$rel/bin/cli.mjs" run_cli -y
+  expect_rc 0
+  [ "$(install_head)" = "$(commit_of "$LATEST_TAG")" ] || err "setup: the 1.3.0 installer did not install $LATEST_TAG"
+  expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
+  for args in --update -y; do
+    run_cli "$args"
+    expect_rc 0
+    expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
+  done
+  [ "$(install_head)" = "$(commit_of "$LATEST_TAG")" ] || err "the upgrade is not on $LATEST_TAG"
+  [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Claude Code skill links after the upgrade, got $(count_resolving_links "$H/.claude/skills")"
+  d="$(dangling_links "$H/.claude/skills") $(dangling_links "$H/.kiro/skills") $(dangling_links "$H/.claude/commands")"
+  [ -z "$(echo $d)" ] || err "dangling links after the upgrade: $(echo $d)"
+  finish_case
+else
+  echo "=== IS3: SKIP (this checkout lacks the v1.3.0 tag; fetch the full history to run it)"
+fi
 
 new_case RW1 "a read-only directory over recorded entries (a stale skill link, Kiro copies the prune removes): with write access back, --uninstall leaves no installer entry"
 mkdir -p "$H/.claude"
