@@ -19,7 +19,7 @@ These artifacts exercise the `eks-mcp-server` skill, which is **meta**: it is ab
 
 ## Live-MCP caveat
 
-The two eval prompts in `evals.json` are about **talking about** the EKS MCP Server — explaining how to install it and diagnosing IAM errors when calling it. Answering them requires no live MCP tools and no real EKS cluster; the model should respond from the skill's reference docs. Triggering evals are pure classification and are never affected by MCP availability either.
+The eval prompts in `evals.json` are about **talking about** the EKS MCP Server — explaining how to install it and diagnosing IAM errors when calling it. Answering them requires no live MCP tools and no real EKS cluster; the model should respond from the skill's reference docs. Triggering evals are pure classification and are never affected by MCP availability either.
 
 ## How to run
 

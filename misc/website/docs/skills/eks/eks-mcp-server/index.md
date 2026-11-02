@@ -25,12 +25,21 @@ This skill guides you through configuring the EKS MCP Server to enable live EKS 
 
 ### Step 0: Quick Check — Is EKS MCP Already Configured?
 
-Before proceeding with setup, check if EKS MCP tools are already available:
+First inspect whether EKS MCP tools are available. Tool discovery and AWS cluster discovery do not query Kubernetes. For a discovery-only request, successful AWS discovery is enough to stop here; describe that limited result.
 
-1. Look for MCP tools in your current environment starting with `eks` or `mcp__eks`
-2. Try a simple command: Ask to list EKS clusters — if it works, you're already set up
+Inspect only the selected EKS connection's non-secret routing and credential-provider settings. Parse JSON/TOML locally **before displaying its contents**, then print an explicit allowlist of non-secret scalar fields. Do not emit whole files, argument arrays, environment/header maps, raw lines or grep context; these can expose adjacent secrets, URL credentials or inline provider credentials. If parsing fails, report the file path and error category and leave the binding unverified rather than falling back to a raw dump. Authentication tools may consume credentials without displaying them.
 
-If MCP tools are available and working, **stop here** — skip this skill and proceed with your EKS task directly.
+For a connection check or live Kubernetes work, complete these gates **in order**, inspecting each result before the next call. Record the connection, target and caller evidence; an unknown field stays unknown rather than being filled from a likely match.
+
+| Gate | Evidence required | When evidence is missing |
+|------|-------------------|--------------------------|
+| **1. Target** | The active MCP connection's account/region/cluster binding tied to the intended DescribeCluster ARN or endpoint. For kubeconfig/OIDC, inspect the connection's selected context and endpoint; when AWS discovery is unavailable for external OIDC or a non-AWS cluster, use the operator-confirmed endpoint. | Stop before **any Kubernetes request**, including `list_api_versions` and identity checks. Report **Target unverified; Kubernetes access not tested**, naming the missing connection metadata. Continue only configuration or AWS metadata diagnostics. |
+| **2. Caller** | The actual connection's active credential/provider configuration or identity evidence from that verified connection. Resolve IAM credentials with the same effective configuration; for OIDC use its configured provider/subject or an identity check against the verified target. | Only an identity check through the verified connection or the same verified active credential configuration is permitted. If that cannot establish the caller, stop before inventory and report **Caller unverified; Kubernetes access not tested**. |
+| **3. Read access** | A successful required resource read through that verified connection, scoped to the intended cluster. | Report the observed failure or unverified coverage; do not claim the connection is ready for live work. |
+
+A VPC, subnet, cluster display name or profile name is not cluster-unique binding evidence. Two clusters can share them. DescribeCluster through an unrelated CLI connection does not establish where the MCP server will send requests; a likely shared CLI role is not proof of the MCP caller. Do not use a Kubernetes request to fill a missing target binding, even if the tool advertises itself as a quick connection check.
+
+`list_api_versions` is Kubernetes API discovery, so it is subject to the target gate. Its success does not prove resource-read authorization. Do not batch inventory calls with unresolved verification calls. Skip setup only when these gates pass; otherwise retain the diagnostic-only result and request the missing connection configuration without changing credentials or permissions.
 
 ---
 
@@ -104,7 +113,8 @@ Guide the user through verification:
 
 1. **Restart** — Tell the user to restart their AI assistant (IDE, CLI, or extension) to load the new MCP config
 2. **Test** — Ask the user to try: "List my EKS clusters" or "What EKS MCP tools are available?"
-3. **Confirm** — Ask if the tools appeared and the command worked
+3. **Cluster access** — For live cluster reads, follow the loaded setup reference's target and Kubernetes authorization checks. A working cluster list does not prove access to the Kubernetes API; use the actual MCP principal/connection. When explaining verification, give complete diagnostic commands/tool calls scoped to the selected cluster and region, including `aws eks list-access-entries --cluster-name <cluster> --region <region>` when the authentication mode enables entries.
+4. **Confirm** — Ask if the tools appeared and the required read against the intended cluster worked (or explicitly record that only tool discovery was tested)
 
 **If verification fails**, diagnose in this order:
 

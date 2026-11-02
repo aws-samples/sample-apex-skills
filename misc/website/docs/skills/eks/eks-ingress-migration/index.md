@@ -118,7 +118,7 @@ The assessment logic (`references/*.md`), the HTML report tool (`tools/report_to
 
 ## Prerequisites
 
-1. **AWS credentials configured** with EKS read access
+1. **AWS credentials configured** with EKS read access, plus separate Kubernetes authorization for the principal used by kubectl or MCP. For IAM-authenticated Kubernetes access with EKS authentication mode `API`, this requires an access entry and an associated access policy and/or Kubernetes RBAC grants. `API_AND_CONFIG_MAP` also accepts existing `aws-auth` mappings; `CONFIG_MAP` uses that legacy path. `AmazonEKSViewPolicy` (`arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`) grants Kubernetes permissions, not IAM permissions, and omits `nodes` and `ingressclasses`. Verify the required reads below rather than assuming entry/policy existence is sufficient.
 2. **Python 3.10+** installed (report tool uses only stdlib — no pip packages needed)
 3. **EKS MCP server** for live-cluster reads (`list_k8s_resources`, etc.) — apex ships no project-root `.mcp.json`; see the `eks-mcp-server` skill for setup. Falls back to `aws` CLI + `kubectl` where possible.
 4. **AWS CLI** or AWS MCP tools available (for `eks`, `acm`, `route53`, `iam`, `elbv2` calls)
@@ -178,6 +178,10 @@ aws eks describe-cluster --name <cluster> --region <region> --output json
 ```
 
 **Action 4 — Validate permissions (per cluster)**
+
+**First verify the target, before any Kubernetes read.** From Action 3, record the intended cluster ARN (account and region), endpoint and `accessConfig.authenticationMode`. Record the original `kubectl config current-context` (including an unset context). Inspect the candidate with `kubectl --context <context> config view --minify -o jsonpath='{.clusters[0].cluster.server}'` and compare its endpoint with DescribeCluster. Complete this comparison before issuing Kubernetes requests: inspect the metadata result first, or guard subsequent reads with a fail-closed comparison in the same command. Printing the endpoint alongside unguarded reads is not verification. An alias is valid if it resolves to that endpoint; matching context names alone prove nothing. If no context can be verified, STOP before querying Kubernetes and explain the mismatch or missing setup. Pass `--context <verified-context>` to every subsequent kubectl read, and repeat verification for each cluster. Prefer leaving current-context unchanged; if local setup changes it, tell the user first and restore the original context on completion or failure (if originally unset, unset it again). For MCP reads, verify the connection's account, region and cluster binding instead; a local context switch does not prove the server changed targets.
+
+Use the **actual kubectl/MCP principal**, not necessarily the discovery CLI profile. For IAM authentication when access entries are enabled, inspect `aws eks list-access-entries --cluster-name <cluster> --region <region>` for its IAM user/role ARN (not an STS session ARN). A denied listing means entry verification is unavailable, not that an entry is absent; mixed-mode `aws-auth` access may still work without an entry. For an external OIDC kubeconfig identity, verify Kubernetes RBAC and actual reads instead; EKS access entries do not apply to that identity. Validate the required reads below and the Node read in Action 5 against the verified target. A denied required read means STOP with the failed read and required permission, not an empty ingress estate. Do not create entries, associate policies or change RBAC during the assessment; provide administrator remediation guidance.
 
 | Check Command | Required IAM Permission |
 |---------------|------------------------|

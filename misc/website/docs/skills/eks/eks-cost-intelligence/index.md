@@ -50,7 +50,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 ## Prerequisites
 
 1. **AWS credentials configured** — `aws configure` or `~/.aws/credentials` with EKS access
-2. **kubectl access** to the target cluster (for Kubernetes API queries)
+2. **Kubernetes access** for the principal used by kubectl or MCP, separate from AWS IAM permissions. For IAM-authenticated Kubernetes access with EKS authentication mode `API`, an access entry plus an associated access policy and/or Kubernetes RBAC grants is required; `API_AND_CONFIG_MAP` also accepts existing `aws-auth` mappings, and `CONFIG_MAP` uses that legacy path. `AmazonEKSViewPolicy` (`arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`) grants Kubernetes permissions, not IAM permissions, and does not include `nodes`. Verify the reads needed below; entry existence alone is insufficient.
 3. **Required AWS Permissions (minimum):**
    - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`, `eks:ListFargateProfiles`, `eks:DescribeFargateProfile`
    - `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
@@ -120,6 +120,12 @@ Check the `status` field. If status is NOT `ACTIVE`:
 Do NOT proceed if cluster status is not ACTIVE.
 
 **Action 4 — Gather cluster context**
+
+**Live-assessment gate:** Do not produce or accept a scored assessment, including delegated results, until nodes, namespaces, pods and the workload inventories used by compute/idle checks have been read successfully against the verified target. If Kubernetes tooling, target binding or core inventory is unavailable or unverified, stop with an Assessment Error; AWS-only discovery or estimates are diagnostic, not a substitute. Delegates may gather the required evidence, but their scores require the same gate. Individual-check UNKNOWN/SKIPPED handling applies only after this core gate passes.
+
+**Before any Kubernetes read, verify the target.** Use the selected account/profile and region for `aws eks describe-cluster --name <cluster> --region <region>`; record its cluster ARN, endpoint and `accessConfig.authenticationMode`. Record the original `kubectl config current-context` (including an unset context). For the candidate context, inspect `kubectl --context <context> config view --minify -o jsonpath='{.clusters[0].cluster.server}'` and compare that endpoint with DescribeCluster. Complete this comparison before issuing Kubernetes requests: inspect the metadata result first, or guard subsequent reads with a fail-closed comparison in the same command. Printing the endpoint alongside unguarded reads is not verification. Context names may be aliases: a matching name is not proof, and a different name is not a failure. If no context can be verified, STOP before querying Kubernetes and explain the mismatch or missing setup. For every subsequent kubectl read, pass `--context <verified-context>` explicitly. Prefer leaving current-context unchanged; if local setup changes it, tell the user first and restore the original context on completion or failure (if originally unset, unset it again). For MCP reads, verify the connection's account, region and cluster binding instead; do not assume a local context switch retargets the server. Repeat verification for each selected cluster.
+
+Check access using the **actual kubectl/MCP principal**, which may differ from the discovery CLI profile or use an assumed role. For IAM authentication when access entries are enabled, `aws eks list-access-entries --cluster-name <cluster> --region <region>` checks entries for IAM user/role ARNs (not STS session ARNs). A denied listing means entry verification is unavailable, not that an entry is absent; in mixed mode, an absent entry does not exclude `aws-auth` access. For an external OIDC kubeconfig identity, verify Kubernetes RBAC and actual reads instead; EKS access entries do not apply to that identity. Test the core inventory reads against the verified target: nodes, namespaces, pods and the workload inventories used by the compute/idle checks. If a core read is denied, STOP this cluster's assessment with the failed read and required permission; do not treat denied inventory as empty or merely skip utilization checks. Missing data for an individual dimension (for example, denied Secret, ConfigMap or EndpointSlice reads) leaves the affected checks UNKNOWN/SKIPPED with the denied coverage stated; it does not by itself abort otherwise-valid core inventory. Any access-entry/policy/RBAC changes belong to an authorized administrator, not this read-only assessment.
 
 Collect:
 - Kubernetes version and platform version
@@ -271,7 +277,7 @@ The following are intentionally excluded from the initial release and may be add
 
 1. **Do NOT call any tools when this skill is first activated.** Wait for the user to explicitly ask for a cost assessment.
 2. **Do NOT hardcode or guess cluster names.** Always discover clusters by listing them first.
-3. **Do NOT retry a failed command more than once.** If it fails twice, log the failure, skip that check, and continue.
+3. **Do NOT retry a failed command more than once.** If it fails twice, log the failure, skip that check, and continue, except that Step 0 core-inventory failures stop this cluster's assessment.
 4. **Always read the relevant reference file before executing checks for that dimension.**
 5. **Use `aws` CLI and `kubectl` for cluster queries.** If MCP servers are available, prefer them for EKS operations.
 6. **Do NOT duplicate advisory content from eks-best-practices.** Reference it in recommendations where relevant.
