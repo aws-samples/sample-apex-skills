@@ -23,24 +23,9 @@ The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade ca
 - AWS CLI installed and configured (`aws configure list`)
 - Python 3.10+ (`python3 --version`)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **Kubernetes authorization for the MCP caller** — separate from the IAM permissions that allow MCP invocation and AWS discovery. With authentication mode `API`, the caller needs an EKS access entry plus an associated access policy and/or Kubernetes RBAC grants. `API_AND_CONFIG_MAP` also accepts existing `aws-auth` mappings; `CONFIG_MAP` uses that legacy path.
+- **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
 
-### Verify the target and access prerequisites
-
-Use the same AWS profile/role and region as the proxy, including any assumed role:
-
-```bash
-aws sts get-caller-identity
-aws eks describe-cluster --name <cluster> --region <region> --query 'cluster.{arn:arn,endpoint:endpoint,authenticationMode:accessConfig.authenticationMode}'
-# Only for API or API_AND_CONFIG_MAP authentication modes:
-aws eks list-access-entries --cluster-name <cluster> --region <region>
-```
-
-Match entries to the caller's IAM user/role ARN, not an STS session ARN. Listing needs `eks:ListAccessEntries`; denial means entry verification is unavailable, not an absent entry. In mixed mode, no entry does not exclude valid `aws-auth` access. Verify associated policy scopes/RBAC grants and actual Kubernetes reads in Step 3; an entry alone is insufficient.
-
-`AmazonEKSViewPolicy` (`arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`) grants Kubernetes permissions, **no IAM permissions**, and omits nodes and ingressclasses. Keep the IAM permissions for MCP invocation and the AWS APIs used (including EKS Describe/List actions and `eks:AccessKubernetesApi` for AWS-hosted Kubernetes reads), and grant supplementary RBAC for required reads the access policy omits. Entry creation and policy association require `eks:CreateAccessEntry` and `eks:AssociateAccessPolicy`: an authorized administrator with effective `PowerUserAccess` can perform them unless constrained by other policies, but that IAM policy alone gives no Kubernetes access. Do not change access during a read-only assessment.
-
-Bind MCP reads to the cluster ARN/account/region verified by DescribeCluster and the intended Kubernetes endpoint. A local kubectl current-context neither selects nor verifies the AWS-hosted server's target. If using kubectl as a diagnostic fallback, compare `kubectl --context <context> config view --minify -o jsonpath='{.clusters[0].cluster.server}'` with that endpoint before any read, then pass `--context <verified-context>` explicitly; aliases are valid, matching names alone are insufficient. Complete this comparison before issuing Kubernetes requests: inspect the metadata result first, or guard subsequent reads with a fail-closed comparison in the same command. Printing the endpoint alongside unguarded reads is not verification. Stop if the target cannot be verified. Preserve current-context; if local setup changes it, tell the user first and restore the original value on completion or failure (unset it again if originally unset).
+`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs with `kubectl auth can-i`. Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
 
 ## Step 1: Configure IAM Permissions
 
@@ -138,14 +123,13 @@ Use this format for the args array:
 
 1. Restart your AI assistant
 2. Ask: "List my EKS clusters" or "What EKS MCP tools are available?"
-3. For live cluster access, request a required Kubernetes read through MCP against the verified target, such as listing Deployments in a known namespace. For cost/ingress assessments also test Node reads, and for ingress test IngressClass and Ingress reads. A working cluster list verifies discovery only; entry existence or a successful read using a different CLI principal does not verify the MCP caller's Kubernetes access. Report denied reads with the required permission, never as an empty inventory.
+3. For EKS, compare the MCP connection's cluster ARN or endpoint with `aws eks describe-cluster --name <cluster> --region <region>` before any Kubernetes request. Stop if the match cannot be verified. Through the verified connection, test a required read such as listing nodes for cost or ingressclasses for ingress. If it fails, report the missing read. Where entries are enabled, `aws eks list-access-entries --cluster-name <cluster> --region <region>` can help diagnose the failure. An empty or denied listing alone does not establish whether the read is authorized.
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | "Access Denied" | Check IAM policy has `eks-mcp:*` actions |
-| Kubernetes read denied | Check the actual caller's access entry or legacy mapping, policy scope and RBAC for that resource; MCP invocation permission alone is insufficient |
 | Tools not appearing | Restart IDE/CLI after config change |
 | Connection timeout | Verify region matches your EKS clusters |
 | Proxy issues | Set `HTTP_PROXY`/`HTTPS_PROXY` env vars |

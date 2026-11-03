@@ -10,24 +10,9 @@ The open-source EKS MCP server from [awslabs/mcp](https://github.com/awslabs/mcp
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **For IAM mode**: AWS CLI configured (`aws configure list`)
 - **For kubeconfig mode**: Valid kubeconfig with cluster access
-- **For IAM-authenticated EKS Kubernetes reads**: The server's actual IAM principal needs Kubernetes authorization independently of its AWS permissions. In authentication mode `API`, create an access entry and associate an access policy and/or grant Kubernetes RBAC. `API_AND_CONFIG_MAP` also accepts existing `aws-auth` mappings; `CONFIG_MAP` uses that legacy path. Kubeconfig mode using OIDC or non-AWS Kubernetes does not require EKS access entries.
+- **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
 
-### Verify the target and access prerequisites
-
-For IAM-authenticated EKS connections, use the same AWS profile/role and region as the server (including any assumed role). These IAM identity/entry checks do not apply to external OIDC identities; verify their Kubernetes RBAC and actual reads instead:
-
-```bash
-aws sts get-caller-identity
-aws eks describe-cluster --name <cluster> --region <region> --query 'cluster.{arn:arn,endpoint:endpoint,authenticationMode:accessConfig.authenticationMode}'
-# Only for API or API_AND_CONFIG_MAP authentication modes:
-aws eks list-access-entries --cluster-name <cluster> --region <region>
-```
-
-Match entries to the IAM user/role ARN, not an STS session ARN. The last command needs `eks:ListAccessEntries`; if denied, entry verification is unavailable, not evidence that an entry is missing. An absent entry in mixed mode does not rule out valid `aws-auth` access. Entry existence alone does not establish authorization: inspect the associated access policies/scopes or RBAC grants and test required reads in Step 3.
-
-`AmazonEKSViewPolicy` (`arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`) grants Kubernetes permissions, **no IAM permissions**, and omits nodes and ingressclasses. In IAM mode, the server still needs the AWS permissions in Step 1, and supplementary RBAC for reads not covered by its access policy. An authorized administrator can create entries (`eks:CreateAccessEntry`) and associate policies (`eks:AssociateAccessPolicy`); `PowerUserAccess` allows those EKS actions unless constrained by other policies, but does not automatically grant Kubernetes access. Do not change permissions merely to run a read-only assessment.
-
-For kubeconfig mode, record the original current-context and inspect the selected context's endpoint with `kubectl --context <context> config view --minify -o jsonpath='{.clusters[0].cluster.server}'`. For IAM-authenticated EKS, compare it with DescribeCluster above; for external OIDC or non-AWS setups, use the operator-confirmed target endpoint. Context aliases are valid; names alone are insufficient. Ensure the server uses that verified binding; changing the CLI's current-context does not prove a running server retargeted. Pin CLI verification reads with `--context <verified-context>`. Complete this comparison before issuing Kubernetes requests: inspect the metadata result first, or guard subsequent reads with a fail-closed comparison in the same command. Printing the endpoint alongside unguarded reads is not verification. Stop on an unverified target. If setup changes current-context, tell the user first and restore its original value on completion or failure (unset it again if originally unset).
+`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs with `kubectl auth can-i`. Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
 
 ## Authentication Modes
 
@@ -185,7 +170,7 @@ To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see 
 
 1. Restart your AI assistant
 2. Ask: "List my EKS clusters" or "What tools are available?"
-3. For live cluster access, verify the server's target account/region/cluster (or selected kubeconfig binding), then request a required Kubernetes read such as listing Deployments in a known namespace. Discovery success alone does not prove Kubernetes access. For cost/ingress assessments also test Node reads, and for ingress test IngressClass and Ingress reads. Report a denied read with its required permission, never as an empty inventory; test through MCP itself, since another CLI principal's success does not verify the server.
+3. For EKS, compare the MCP connection's target endpoint (including the server's selected kubeconfig context) with `aws eks describe-cluster --name <cluster> --region <region>` before any Kubernetes request. For kubeconfig setups without AWS discovery, compare the selected endpoint with the operator-confirmed target. Stop if the match cannot be verified. Through the verified connection, test a required read such as listing nodes for cost or ingressclasses for ingress. If it fails, report the missing read. Where entries are enabled, `aws eks list-access-entries --cluster-name <cluster> --region <region>` can help diagnose the failure. An empty or denied listing alone does not establish whether the read is authorized.
 
 ## Available Tools
 
@@ -209,7 +194,7 @@ To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see 
 |-------|----------|
 | Permission errors | Verify IAM policy or kubeconfig RBAC |
 | Tools not appearing | Restart IDE/CLI; check `FASTMCP_LOG_LEVEL=DEBUG` |
-| K8s API errors | Verify target endpoint/reachability, actual auth principal, authentication mode, access entry or legacy mapping, and policy/RBAC coverage; denied reads are not empty results |
+| K8s API errors | Verify the MCP caller and failed read as described in Step 3 |
 | kubeconfig not found | Set `KUBECONFIG` env var to correct path |
 
 ## References

@@ -146,9 +146,7 @@ A ready-to-use policy document is at [`references/iam-policy.json`](https://gith
 
 ### Kubernetes API access
 
-Cluster reads come from an **EKS access entry** binding the Agent Space role to a cluster-access policy (`devops-agent/setup.sh` associates `AmazonAIOpsAssistantPolicy`); the cluster's `authenticationMode` must include `API`.
-
-This is the Agent Space setup path, not a claim that all Kubernetes clients require entries: `API_AND_CONFIG_MAP` can also authorize existing `aws-auth` mappings, while `CONFIG_MAP` uses the legacy path. IAM read permissions alone grant no Kubernetes access. Entry existence must be paired with an access policy and/or RBAC grants covering the actual reads. `AmazonEKSViewPolicy` (`arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`) grants no IAM permissions and omits nodes and ingressclasses.
+Cluster reads come from an **EKS access entry** binding the Agent Space role to a cluster-access policy (`devops-agent/setup.sh` associates `AmazonAIOpsAssistantPolicy`); the cluster's `authenticationMode` must include `API`. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the verified connection.
 
 > **Do not assume the managed policy's coverage — verify it.** As of 2026-08-30, `AmazonAIOpsAssistantPolicy` is listed among the available cluster-access policies in the EKS reference but its rules are **not enumerated** there, unlike most access policies on that page (`AmazonARCRegionSwitchScalingPolicy` is likewise unenumerated) ([Review access policy permissions](https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html)). So the exact API groups it grants are unconfirmed from an authoritative source. This skill therefore treats **every** Kubernetes read as possibly denied and fails closed (below) rather than relying on assumed coverage. To make the outcome deterministic, bind the supplementary read-only ClusterRole in `references/supplementary-rbac.md`, which grants exactly the reads this skill needs, and confirm with `kubectl auth can-i`.
 
@@ -215,7 +213,7 @@ Then apply this decision table:
 
 **Action 3 — Describe the selected cluster**
 
-EKS `DescribeCluster`. Record name, version, platform version, region, status, endpoint access, account ID.
+EKS `DescribeCluster`. Record name, version, platform version, region, status, endpoint access, account ID, cluster ARN, endpoint and `accessConfig.authenticationMode`.
 
 > **Account ID hygiene:** the account ID is sensitive. If the report will be shared outside the account, mask or omit it.
 
@@ -223,9 +221,9 @@ If cluster `status` is not `ACTIVE` → **HARD STOP**: a cluster mid-transition 
 
 **Action 4 — Validate permissions**
 
-A Kubernetes-capable tool/connection must be available in the Agent Space. AWS service-API discovery alone cannot satisfy this pre-flight; if the required Kubernetes reads are unavailable, use the HARD STOP error format above.
-
-**Before any Kubernetes read, verify the connection's cluster binding/endpoint against the ARN, account, region and endpoint from DescribeCluster.** Bind every subsequent read to that verified cluster; a display name alone is insufficient. The Kubernetes tool's explicit cluster ARN, or its explicit cluster name together with its verified execution account and region, is a valid binding when corroborated by DescribeCluster; an unrelated discovery connection's identity is insufficient. Await and compare the binding evidence before issuing Kubernetes requests; dependent reads must not run alongside unresolved verification calls. If the Kubernetes tool omits region or endpoint from its arguments, establish that binding from its active connection configuration or cluster metadata through the same verified regional connection (for example, MCP describe_eks_resource with resource_type=cluster). Await and compare the returned cluster ARN/endpoint before any Kubernetes request; a Kubernetes list is not a binding probe, and DescribeCluster through a separate AWS connection does not establish this binding. If the connection cannot be verified, **HARD STOP** using the format above. When the authentication mode enables entries and inspection is permitted, inspect ListAccessEntries for the actual Agent Space IAM role ARN (not its STS session ARN). A denied listing means entry metadata is unverified, not that an entry is absent. Verify the required reads below even when an entry/policy exists; do not convert denied reads into absence or create access entries, associate policies or change RBAC during this assessment.
+1. Match the selected Kubernetes connection's cluster ARN or endpoint to DescribeCluster for the intended account and region. Stop if the target cannot be verified.
+2. Bind each subsequent read to that target using the Agent Space role.
+3. Run the required reads below. On denial, report the failed read and apply its stop condition.
 
 | Read | Required permission | If denied |
 |---------------|------------------------|---|
@@ -246,7 +244,7 @@ A Kubernetes-capable tool/connection must be available in the Agent Space. AWS s
 
 **Action 5 — Verify Kubernetes API reachability**
 
-List `Node` (core/v1) for the verified target cluster. If that required read fails, report the observed authentication, authorization or network-reachability failure and **HARD STOP**. An absent access entry or the authentication mode alone does not establish a failed read; legacy `aws-auth` access can remain valid. Do not fall back to an AWS-control-plane-only assessment: the estate lives in the Kubernetes API, and a control-plane-only view would silently under-report routes.
+List `Node` (core/v1) for the target cluster. If the Kubernetes API is unreachable — no access entry, `authenticationMode` excludes `API`, or the endpoint is private and unreachable from the Agent Space → **HARD STOP**. Do not fall back to an AWS-control-plane-only assessment: the estate lives in the Kubernetes API, and a control-plane-only view would silently under-report routes.
 
 **Action 6 — Cluster health gate (read-only) — REQUIRED before assessing**
 

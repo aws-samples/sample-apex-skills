@@ -20,12 +20,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 
 ## Start Here — Verify the Assessment Connection
 
-Complete this pre-flight before collecting assessment data or delegating assessment checks. **No Cost Score, including a provisional or diagnostic score, is valid until nodes, namespaces, pods and the workload inventories used by compute/idle checks have been read successfully against the verified target.** AWS-only findings may be reported as unscored diagnostics. Individual-check UNKNOWN/SKIPPED handling starts only after this core gate passes.
-
-1. **Inspect the available tools and active connection configuration.** Use `list_associations` when available to identify the selected AWS or custom MCP association. The Agent Space's AWS association is also used by its native `use_kubectl` tool; a separate custom MCP association is **not required** for native Kubernetes access. Do not infer that Kubernetes tooling is absent from an AWS-only association list: inspect or discover the native tool before reporting it unavailable.
-2. **Select the connection and inspect caller evidence.** Honor an explicitly requested connection; otherwise prefer native read-only `use_kubectl` when it exposes full resource specifications. For native access, record the selected AWS association's configured target account and executing `assumableRoleArn`; do not infer the target account solely from a caller ARN in cross-account configurations. For custom MCP, match the tool's server to its actual association and inspect its endpoint, region and credential configuration (`mcpRoleArn`, or its documented AWS association fallback). If association lookup is unavailable, equivalent active configuration or STS GetCallerIdentity through that same credential configuration is valid evidence. Normalize STS assumed-role sessions to IAM roles. Never choose a caller from the cluster's access-entry list.
-3. **Bind the intended cluster before any Kubernetes request.** Complete Step 0's DescribeCluster/status checks. Match its account, region and cluster ARN/endpoint to the selected connection. Native calls must pass the verified `aws_account_id`, `aws_region` and `cluster_name` every time. For regional AWS-hosted MCP, its active SigV4 account/region configuration plus the explicit cluster name must match DescribeCluster; a same-connection DescribeCluster ARN/endpoint is another valid route. A cluster name, VPC or subnet alone is insufficient. If the target is unverified, return Assessment Error before any Kubernetes request, including API discovery (`list_api_versions`) and identity requests. Once the target is verified, a supported identity check through the selected connection or the same verified active credentials may establish its caller; if the caller remains unknown, return Assessment Error before inventory. A tool's suggestion to try API discovery does not bypass this gate.
-4. **Perform Action 4's core reads, then assess.** A required read failure stops scoring. Do not delegate or replace the selected connection to bypass a failed gate. An alternative connection needs verified target and caller evidence, must use the same principal, and must respect the user's requested transport.
+Before delegating any audit work, the agent receiving the request must verify the connection and list nodes, namespaces, pods and deployments itself. For native reads, use the Agent Space’s read-only Kubernetes capability on its AWS association, even when no MCP association is listed. If the user selects MCP, keep all Kubernetes calls on that connection. Verify the executing role and bind each call to the account, region and cluster confirmed by DescribeCluster. **If any of the four results is missing or denied, return Assessment Error without a numeric score, including a provisional, AWS-only or delegated score.** Other denied reads affect only their own checks (UNKNOWN/SKIPPED).
 
 ## Prerequisites
 
@@ -70,11 +65,9 @@ The following permissions are included:
 - `elasticfilesystem:DescribeLifecycleConfiguration`
 
 **Kubernetes API access (required):**
-- A Kubernetes-capable tool/connection must be available in the Agent Space; AWS service-API discovery alone is insufficient.
-- The Agent Space must have Kubernetes API access to the target cluster (via EKS Access Entry or aws-auth ConfigMap)
-- RBAC used across assessment checks (core blocking reads are defined in Action 4): `get`, `list` on pods, nodes, deployments, services, persistentvolumeclaims, configmaps, secrets, namespaces, events, endpointslices
-
-IAM permissions do not grant Kubernetes access. In authentication mode `API`, the Agent Space role needs an access entry plus an associated access policy and/or Kubernetes RBAC grants; `API_AND_CONFIG_MAP` also accepts existing `aws-auth` mappings, while `CONFIG_MAP` uses that legacy path. `AmazonEKSViewPolicy` (`arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`) grants no IAM permissions and omits nodes. Check actual read coverage, not just entry existence.
+- The Agent Space role requires an authentication mode that includes the EKS API and an access entry associated with `AmazonAIOpsAssistantPolicy`.
+- `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the verified connection.
+- RBAC used across the assessment: `get`, `list` on pods, nodes, deployments, services, persistentvolumeclaims, configmaps, secrets, namespaces, events, endpointslices
 
 ---
 
@@ -132,7 +125,7 @@ Use the EKS ListClusters API to discover available clusters in the current regio
 
 **Action 2 — Describe the selected cluster**
 
-Use the EKS DescribeCluster API for the target cluster. Extract: cluster name, Kubernetes version, platform version, region, status, account ID.
+Use the EKS DescribeCluster API for the target cluster. Extract: cluster name, Kubernetes version, platform version, region, status, account ID, cluster ARN, endpoint and `accessConfig.authenticationMode`.
 
 **Action 3 — Validate cluster status**
 
@@ -144,25 +137,10 @@ Use the EKS DescribeCluster API for the target cluster. Extract: cluster name, K
 
 **Action 4 — Gather cluster context**
 
-Use the connection verified in **Start Here**; repeat its target binding for every assessed cluster. For that executing IAM role, inspect ListAccessEntries if permitted and the authentication mode enables entries; compare IAM role ARNs, not STS session ARNs. A denied listing means unverified entry metadata, not an absent entry; mixed-mode `aws-auth` access can remain valid.
-
-| Verification state | Next permitted action |
-|--------------------|-----------------------|
-| Target unverified | Configuration/AWS metadata diagnostics only; no Kubernetes requests. |
-| Target verified, caller unknown | Identity verification only; no inventory. |
-| Target and caller verified | Required core reads. |
-| Core read fails | Assessment Error with the observed failure; no score. |
-| Core reads succeed | Assessment; unavailable individual checks remain UNKNOWN/SKIPPED. |
-
-Read nodes, namespaces, pods and the workload inventories used by compute/idle checks through the verified connection. If a core read fails, stop without a score and classify the evidence below. Only after this core gate passes, missing data for an individual dimension (for example, denied Secret, ConfigMap or EndpointSlice reads) leaves the affected checks UNKNOWN/SKIPPED with the coverage stated; it does not by itself abort otherwise-valid core inventory.
-
-| Observed error | Supported diagnosis |
-|----------------|---------------------|
-| Kubernetes `Forbidden` identifies the caller, resource and verb | That caller lacks the stated Kubernetes permission; request only the missing scoped read grant. For denied Node reads, request appropriately scoped RBAC granting `get`/`list` on `nodes`; `AmazonEKSViewPolicy` cannot supply those reads and is not a remedy for this denial. |
-| AWS `AccessDenied` names an IAM action and caller | Diagnose that IAM action separately from Kubernetes authorization. |
-| Generic MCP/tool HTTP error, including HTTP 403 without Kubernetes error details | **Error origin and Kubernetes authorization are unverified.** Report the failed tool and available request ID. Do not name an access policy or role as the cause without connection-specific evidence; listing other roles' policies is not evidence of the caller. |
-
-Entry/policy/RBAC changes are administrator remediation, not assessment actions. Request only the missing get/list permissions on the required resources through appropriately scoped read-only RBAC or access policies; do not recommend Admin or ClusterAdmin policies to enable this read-only audit.
+| Observed failure | Action |
+|---|---|
+| Kubernetes forbids listing nodes | Stop without a score. Request read-only RBAC granting `get`/`list` on nodes. `AmazonEKSViewPolicy` omits nodes. |
+| Generic MCP HTTP 403 during connection verification or a core list | Stop on the selected connection. Report the failed operation and available request ID. Leave the cause unverified, including IAM and Kubernetes policy attribution. |
 
 Collect the following using AWS and Kubernetes APIs:
 - Kubernetes version and platform version (from DescribeCluster response)
@@ -283,7 +261,7 @@ Data collection uses:
 
 Read `references/report-generation.md` for the scoring algorithm.
 
-Apply the scoring model:
+Apply the scoring model only after confirming the core reads in **Start Here**, including when a delegate supplies findings:
 - Start at 100 points
 - Apply severity-weighted deductions per dimension (capped at dimension maximum)
 - Skipped dimensions contribute zero deduction
@@ -369,7 +347,7 @@ The following are intentionally excluded from the initial release and may be add
 ## Operational Rules
 
 1. **Do NOT hardcode or guess cluster names.** Always discover clusters by listing them first.
-2. **Do NOT retry a failed API call more than once.** If it fails twice, log the failure, skip that check, and continue, except that Step 0 core-inventory failures stop this cluster's assessment.
+2. **Do NOT retry a failed API call more than once.** If it fails twice, stop if it is a Step 0 core read. Otherwise log the failure, skip that check, and continue.
 3. **Always read the relevant reference file before executing checks for that dimension.**
 4. **Do NOT duplicate general advisory content.** Keep recommendations specific to cost findings with actionable remediation steps.
 5. **Emit findings as structured output** following the schema in `references/findings-format.md`.

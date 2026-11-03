@@ -134,33 +134,12 @@
     },
     {
       "id": 3,
-      "name": "iam-and-kubernetes-access-prerequisites",
-      "prompt": "I am comparing the self-hosted IAM and AWS-hosted EKS MCP setup instructions for Claude Code. Use the setup skill for a desk check only; do not run commands or change policies. In both modes AWS discovery works. For each of these independent configurations, explain what is established and what to check next: A: authenticationMode API, caller has PowerUserAccess but no access entry. B: API_AND_CONFIG_MAP, caller has no access entry but has an aws-auth mapping and its required Kubernetes reads succeed. C: API, caller has an entry with cluster-scoped AmazonEKSViewPolicy and no Kubernetes group bindings; Deployments can be listed, Nodes and IngressClasses return Forbidden. A colleague using a different CLI role can read everything. D: MCP tools are available but the active server configuration is hidden; MCP returns VPC/subnet metadata shared by two clusters, while an unrelated CLI DescribeCluster succeeds. Also explain what to conclude if list-access-entries itself is denied, and how to verify the selected target before Kubernetes reads.",
+      "name": "legacy-mapping",
+      "prompt": "My self-hosted MCP connection points to the verified EKS endpoint. The cluster uses API_AND_CONFIG_MAP. My role has no access entry, but it is mapped in aws-auth and can list the resources I need through MCP. Is the Kubernetes connection ready?",
       "expectations": [
-        "Reads both setup references and distinguishes AWS/MCP discovery success from Kubernetes authorization through the actual MCP principal.",
-        "Does not skip live-access verification merely because MCP discovery works; establishes the target/principal from active server configuration or server-side evidence before a required MCP read, and reports unverified bindings without querying an unverified target.",
-        "For A, explains the separate access entry and policy/RBAC requirements; effective PowerUserAccess can allow EKS entry creation/association but does not automatically grant Kubernetes access, and restrictions can override it.",
-        "For B, recognizes valid legacy aws-auth access in mixed mode and does not require migration or create an unnecessary access entry.",
-        "For C, identifies missing nodes/ingressclasses coverage in AmazonEKSViewPolicy, distinguishes EKS access policy from IAM policy, and recommends scoped administrator grants plus actual read verification.",
-        "Provides list-access-entries with explicit cluster and region; a denied listing is unverified metadata, not proof of an absent entry, and an entry listing alone is not proof of authorization.",
-        "Uses the MCP caller IAM user/role identity rather than a colleague or STS session ARN, and verifies account/region/cluster binding independently of local current-context.",
-        "Completes target/principal verification before dependent Kubernetes requests; does not treat printing connection metadata alongside unguarded reads as verification.",
-        "Requires cluster-unique ARN/endpoint evidence from the active connection; shared VPC/subnets and an unrelated CLI identity do not establish MCP target or caller. Unknown target stops all Kubernetes requests, including API discovery and identity checks; a verified target with unknown caller permits only an identity check before inventory.",
-        "For AWS-hosted Kubernetes reads, distinguishes IAM eks:AccessKubernetesApi (included in AmazonEKSMCPReadOnlyAccess) from the separate Kubernetes grants; AmazonEKSViewPolicy supplies no IAM permissions.",
-        "Does not execute access changes or claim live verification."
-      ],
-      "files": []
-    },
-    {
-      "id": 4,
-      "name": "kubeconfig-target-and-oidc",
-      "prompt": "Use the EKS MCP setup skill to advise on two independent self-hosted kubeconfig-mode configurations; do not run commands or edit files. A: non-AWS Kubernetes with OIDC, no AWS credentials, current context team-east; its endpoint matches the operator-confirmed target and listing Deployments succeeds. B: IAM-authenticated EKS kubeconfig; the named context prod points to staging, while DescribeCluster for the intended account/region/prod cluster has a different endpoint. The server is already running and I changed my CLI current-context after starting it. What should I verify before considering each connection ready, and what should happen to my original current-context if setup changes it?",
-      "expectations": [
-        "Loads the self-hosted setup reference and accepts OIDC/non-AWS kubeconfig mode without requiring AWS credentials or EKS access entries.",
-        "Case A uses the operator-confirmed endpoint and actual server-side read to establish access, without relying only on the context display name.",
-        "Case B requires endpoint comparison with DescribeCluster and stops unverified Kubernetes reads despite the context being named prod.",
-        "Does not assume changing local current-context retargets the running MCP server; verifies the actual server binding and read separately.",
-        "Pins any diagnostic kubectl reads to the verified context and preserves/restores the original current-context, including failure and originally-unset cases."
+        "Accepts successful required reads through the verified MCP connection.",
+        "Recognizes that the existing aws-auth mapping can grant mixed-mode access without an access entry.",
+        "Distinguishes AWS discovery from verification of the MCP caller's Kubernetes reads."
       ],
       "files": []
     }

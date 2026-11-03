@@ -49,20 +49,12 @@
     },
     {
       "id": 4,
-      "name": "target-and-access-preflight",
-      "prompt": "Use eks-cost-intelligence for a pre-flight-only desk check of these independent recorded environments. Do not connect to any cluster, modify configuration, or generate an assessment report. Explain the next permitted action and any blocker for each case. A: target prod in account 111122223333, us-east-1, ACTIVE; DescribeCluster returns https://prod.example.invalid. Current context is named prod but its kubeconfig endpoint is https://staging.example.invalid; no other context is configured. B: target prod in the same account/region; DescribeCluster returns https://prod.example.invalid, authenticationMode API_AND_CONFIG_MAP. Context team-alias resolves to that endpoint. The actual kubectl role has no access entry but has an existing aws-auth mapping, and all required Kubernetes reads succeeded. The original current-context is personal-dev. C: the target endpoint is verified, authenticationMode API, and the actual role has an access entry with cluster-scoped AmazonEKSViewPolicy, no Kubernetes group bindings. Listing Deployments succeeds but Nodes and IngressClasses return Forbidden. Listing access entries itself returns AccessDenied. D: the EKS target endpoint is verified and authenticationMode is API, but kubeconfig authenticates through an external OIDC provider with Kubernetes RBAC; all required reads succeed. AWS discovery uses a separate IAM role. E: target and actual IAM principal are verified; Nodes, Namespaces, Pods and workload inventories can all be listed, but listing Secrets returns Forbidden. F: AWS discovery works, but no Kubernetes-capable tool is available; a delegate returns a scored report from AWS APIs only. G: a custom MCP describe-cluster call returns only HTTP403 without a Kubernetes error body; listing access entries shows several roles with different policies, but the MCP caller is not established. An operator proposes printing the selected endpoint and then listing Nodes in the same command, without a conditional comparison. What does each observation establish, and how should subsequent reads and local context state be handled?",
+      "name": "insufficient-node-access",
+      "prompt": "Can I run a cost assessment? My context matches the EKS endpoint. The operator associated AmazonEKSViewPolicy with my access entry. I can list deployments, but listing nodes returns Forbidden and I cannot list access entries.",
       "expectations": [
-        "Case A stops before Kubernetes reads against the mismatched endpoint; matching the context name prod is not accepted as target verification.",
-        "Rejects the proposed unguarded batch: target metadata must be compared before Kubernetes requests, either after receiving its result or through a fail-closed comparison before the reads.",
-        "Case B accepts the verified alias and valid aws-auth authorization in mixed mode; does not demand an access entry solely because none exists.",
-        "Case D does not require an IAM access entry for the external OIDC identity; preserves endpoint verification and validates Kubernetes RBAC/actual reads separately from the discovery IAM role.",
-        "Case F stops the live assessment without accepting or producing a Cost Score, including the delegated AWS-only result; unavailable tooling/core inventory cannot be treated as optional per-dimension degradation.",
-        "Case E preserves the valid core inventory and marks only Secret-dependent checks UNKNOWN/SKIPPED with denied coverage; a per-dimension read denial does not abort the entire cost assessment or become an empty Secret inventory.",
-        "Subsequent kubectl reads explicitly select the verified context for each cluster and preserve personal-dev, or restore it after any setup changes even on failure.",
-        "Case C treats failed required reads as an assessment blocker rather than empty inventory or optional missing utilization; explains that an existing entry and AmazonEKSViewPolicy do not cover all reads.",
-        "Distinguishes denied access-entry inspection from an absent entry; checks the actual Kubernetes principal and recommends administrator remediation without performing permission changes.",
-        "Does not attribute a generic MCP/tool HTTP403 to Kubernetes RBAC, a role or an access policy without connection-specific error evidence; keeps the error origin and authorization unverified.",
-        "Does not claim to have queried live clusters or generate a score/report from the recorded pre-flight cases."
+        "Reports the denied Node read and withholds the Cost Score.",
+        "Explains that AmazonEKSViewPolicy omits nodes and identifies the missing scoped read permission.",
+        "Treats denied access-entry inspection as unverified metadata."
       ],
       "files": []
     }

@@ -98,17 +98,12 @@
     },
     {
       "id": 9,
-      "name": "target-and-access-preflight",
-      "prompt": "Use eks-ingress-migration for a pre-flight-only desk check of these independent recorded environments. Do not connect to any cluster, modify configuration, or generate an assessment report. Explain the next permitted action and any blocker for each case. A: target prod in account 111122223333, us-east-1, ACTIVE; DescribeCluster returns https://prod.example.invalid. Current context is named prod but its kubeconfig endpoint is https://staging.example.invalid; no other context is configured. B: target prod in the same account/region; DescribeCluster returns https://prod.example.invalid, authenticationMode API_AND_CONFIG_MAP. Context team-alias resolves to that endpoint. The actual kubectl role has no access entry but has an existing aws-auth mapping, and all required Kubernetes reads succeeded. The original current-context is personal-dev. C: the target endpoint is verified, authenticationMode API, and the actual role has an access entry with cluster-scoped AmazonEKSViewPolicy, no Kubernetes group bindings. Listing Deployments succeeds but Nodes and IngressClasses return Forbidden. Listing access entries itself returns AccessDenied. D: the EKS target endpoint is verified and authenticationMode is API, but kubeconfig authenticates through an external OIDC provider with Kubernetes RBAC; all required reads succeed. AWS discovery uses a separate IAM role. An operator proposes printing the selected endpoint and then listing Nodes in the same command, without a conditional comparison. What does each observation establish, and how should subsequent reads and local context state be handled?",
+      "name": "mismatched-context",
+      "prompt": "Use eks-ingress-migration for a preflight check on prod. DescribeCluster returns https://prod.example.invalid, but my only context is named prod and points to https://stage.example.invalid. Can I start?",
       "expectations": [
-        "Case A stops before Kubernetes reads against the mismatched endpoint; matching the context name prod is not accepted as target verification.",
-        "Rejects the proposed unguarded batch: target metadata must be compared before Kubernetes requests, either after receiving its result or through a fail-closed comparison before the reads.",
-        "Case B accepts the verified alias and valid aws-auth authorization in mixed mode; does not demand an access entry solely because none exists.",
-        "Case D does not require an IAM access entry for the external OIDC identity; preserves endpoint verification and validates Kubernetes RBAC/actual reads separately from the discovery IAM role.",
-        "Subsequent kubectl reads explicitly select the verified context for each cluster and preserve personal-dev, or restore it after any setup changes even on failure.",
-        "Case C treats failed required reads as an assessment blocker rather than empty inventory or optional missing utilization; explains that an existing entry and AmazonEKSViewPolicy do not cover all reads.",
-        "Distinguishes denied access-entry inspection from an absent entry; checks the actual Kubernetes principal and recommends administrator remediation without performing permission changes.",
-        "Does not claim to have queried live clusters or generate a score/report from the recorded pre-flight cases."
+        "Identifies the endpoint mismatch despite the matching context name.",
+        "Stops before Kubernetes reads and asks for a kubeconfig entry for the target cluster.",
+        "Preserves the current context and scopes later reads to a verified context for each cluster."
       ],
       "files": []
     }
