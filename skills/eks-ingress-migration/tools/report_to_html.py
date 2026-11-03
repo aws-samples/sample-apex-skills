@@ -633,6 +633,20 @@ def main():
 
     topos = args.topology or []
     manifest_dirs = args.manifests or []
+
+    # Reports, topologies and manifest dirs are paired POSITIONALLY. A short list
+    # silently shifts every later cluster's data onto the wrong cluster (and labels
+    # its download button with the wrong cluster name), so refuse to guess.
+    for flag, paths in (("--topology", topos), ("--manifests", manifest_dirs)):
+        if paths and len(paths) != len(args.reports):
+            print(
+                f"{flag}: got {len(paths)} path(s) for {len(args.reports)} report(s). "
+                f"These are paired positionally, so pass exactly one {flag} path per report "
+                f"(use a placeholder path for a cluster that has none) or omit {flag} entirely.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     clusters = []
 
     for i, report_path in enumerate(args.reports):
@@ -659,6 +673,13 @@ def main():
             # Strip "EKS-Ingress-Migration-" prefix and date suffix (YYYY-MM-DD-HHMM)
             stem = md_path.stem.replace("EKS-Ingress-Migration-", "")
             name = re.sub(r"-\d{4}-\d{2}-\d{2}-\d{4}$", "", stem)
+            # The documented layout is ~/ingress_migration/<cluster>/report.md, whose
+            # stem carries no cluster name. Fall back to the parent directory so the
+            # dropdown shows the cluster instead of "report" for every entry.
+            if name.lower() in ("report", "index", "readme"):
+                parent = md_path.resolve().parent.name
+                if parent:
+                    name = parent
 
         # Load manifests
         manifests = {}

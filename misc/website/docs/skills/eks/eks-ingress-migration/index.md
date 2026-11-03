@@ -29,22 +29,24 @@ This skill assesses your live EKS cluster's current Ingress architecture and eva
 ## Workflow
 
 ```
-Pre-flight → Assess (7 sections) → Current Architecture Topology → Dual Report (md + html) → Export Materials
+Pre-flight → Assess (7 sections) → Current Architecture Topology → Export Materials → Dual Report (md + html)
 ```
 
 1. **Pre-flight** — Discover cluster, validate permissions
 2. **Assessment** — Run 7 sections, collect findings and topology data
 3. **Current Architecture** — Compile topology data into JSON for the HTML report's interactive 3D view (nodes, controllers, ingresses, services)
-4. **Dual Report** — Automatically generate both:
-   - **Markdown** (detailed) — full findings, ratings, options, CLI commands
-   - **HTML** (visual summary) — interactive dashboard with 3D Routing Diagram view, collapsible sections
-   - Both lead with the **Migration Difficulty Score (0–100)** — a deterministic roll-up of the per-finding Impact ratings (high = easy to leave NGINX, low = hard / high business impact). See `references/report-generation.md` Step 1.
-5. **Export Materials** — Generate ready-to-apply YAML files:
+4. **Export Materials** — Generate ready-to-apply YAML files:
    - `current/` — existing Ingress resources (clean, no status fields)
    - `target/gateway-api/` — Gateway API resources (GatewayClass, Gateway, HTTPRoute) in apply order
    - `target/alb/` — ALB Controller Ingress resources (converted annotations)
+5. **Dual Report** — Automatically generate both:
+   - **Markdown** (detailed) — full findings, ratings, options, CLI commands
+   - **HTML** (visual summary) — interactive dashboard with 3D Routing Diagram view, collapsible sections
+   - Both lead with the **Migration Difficulty Score (0–100)** — a deterministic roll-up of the per-finding Impact ratings (high = easy to leave NGINX, low = hard / high business impact). See `references/report-generation.md` Step 1.
 
-**Important:** After assessment completes, proceed directly to report generation and manifest export. Do NOT pause to ask the user — generate all outputs automatically.
+> **Export precedes the report, and the order is load-bearing.** `report_to_html.py --manifests` reads the manifests directory that Export Materials creates. Run it the other way round and the renderer finds nothing: it **silently drops the Export Materials section** and still exits 0, so the HTML looks complete while shipping no manifests. Steps 9 → 10 below are the authoritative execution order.
+
+**Important:** After assessment completes, proceed directly to manifest export and report generation. Do NOT pause to ask the user — generate all outputs automatically.
 
 ## What Gets Assessed
 
@@ -93,7 +95,7 @@ Before executing checks for any section, read the corresponding reference file f
 3. **Do NOT retry a failed MCP tool call more than once.**
 4. **Always load the relevant reference file before executing checks.**
 5. **Only rate based on what was actually observed — never assume.**
-6. If a check fails or returns no data, mark UNKNOWN.
+6. If a check fails or returns no data, mark UNKNOWN. A read denied by RBAC or IAM is UNKNOWN — **never** a negative finding and never "none found" (see `references/report-generation.md` §1.0 *Coverage gate*).
 7. Every high-impact (4–5) finding must have a specific, actionable recommendation.
 8. **Collect topology data during assessment** — every Ingress host, path, backend, controller, namespace, and the nodes (EC2 instances). This feeds the 3D Routing Diagram view.
 9. **Do NOT paste raw YAML/config in findings.** Summarize what was found.
@@ -179,12 +181,17 @@ aws eks describe-cluster --name <cluster> --region <region> --output json
 
 **Action 4 — Validate permissions (per cluster)**
 
-| Check Command | Required IAM Permission |
-|---------------|------------------------|
-| `aws eks list-addons --cluster-name <cluster> --region <region>` | `eks:ListAddons` |
-| `list_k8s_resources(kind="Ingress", api_version="networking.k8s.io/v1")` | K8s RBAC: `get`/`list` on `ingresses` |
-| `list_k8s_resources(kind="IngressClass", api_version="networking.k8s.io/v1")` | K8s RBAC: `get`/`list` on `ingressclasses` |
-| `list_k8s_resources(kind="Deployment", api_version="apps/v1", namespace="kube-system")` | K8s RBAC: `get`/`list` on `deployments` |
+| Check Command | Required IAM Permission | If denied |
+|---------------|------------------------|-----------|
+| `aws eks list-addons --cluster-name <cluster> --region <region>` | `eks:ListAddons` | Mark UNKNOWN |
+| `list_k8s_resources(kind="Ingress", api_version="networking.k8s.io/v1")` | K8s RBAC: `get`/`list` on `ingresses` | **UNKNOWN — trips the Coverage gate** |
+| `list_k8s_resources(kind="IngressClass", api_version="networking.k8s.io/v1")` | K8s RBAC: `get`/`list` on `ingressclasses` | **UNKNOWN — trips the Coverage gate** |
+| `list_k8s_resources(kind="Deployment", api_version="apps/v1")` — **all namespaces** | K8s RBAC: `get`/`list` on `deployments` (cluster-wide) | **UNKNOWN — trips the Coverage gate** |
+| `list_k8s_resources(kind="DaemonSet", api_version="apps/v1")` — **all namespaces** | K8s RBAC: `get`/`list` on `daemonsets` (cluster-wide) | **UNKNOWN — trips the Coverage gate** |
+
+> **Why these two are cluster-wide, not `kube-system`-scoped.** Controller presence is decided from the **all-namespace Deployment *and* DaemonSet lists** (`references/ingress-discovery.md` §1.1, *How to check*) — ingress-nginx is frequently a DaemonSet, and controllers live in `ingress-nginx` / `aws-load-balancer-controller` as often as `kube-system`. A namespace-scoped or Deployment-only grant would let the gate pass while controller detection silently returns empty, which is the 100/TRIVIAL false-clean this gate exists to prevent.
+
+A denial on **any** of these Kubernetes reads means the estate was **not** enumerated, so no score is defensible: the report emits `NOT ASSESSED — insufficient read coverage` instead of a number. See `references/report-generation.md` §1.0 *Coverage gate*.
 
 **Optional permissions** (degrades gracefully if missing):
 
@@ -225,8 +232,8 @@ For each cluster, run the full assessment:
 ### Step 8: Current Architecture Topology (per cluster)
 
 1. Compile topology data collected during Steps 1–7
-2. Write JSON: `~/ingress_migration/<cluster>-topology.json`
-3. Briefly show topology summary, then proceed to Step 9
+2. Write JSON: `~/ingress_migration/<cluster>/topology.json`
+3. Briefly show topology summary, then proceed to Step 9 (Export Materials)
 
 **Topology JSON schema:**
 
@@ -262,43 +269,28 @@ For each cluster, run the full assessment:
 }
 ```
 
-### Step 9: Generate Dual Report (per cluster)
+### Step 9: Export Materials (per cluster)
 
-Read `references/report-generation.md` and produce a **markdown report per cluster**:
+For each cluster that has Ingress resources, generate manifest files. **Run this before Step 10** — the HTML step reads this directory via `--manifests`, so it must already exist.
 
-`~/ingress_migration/EKS-Ingress-Migration-<cluster>-<YYYY-MM-DD>-<HHMM>.md`
-
-After ALL cluster markdown reports are written, generate a **single combined HTML report**:
-
-```bash
-python3 tools/report_to_html.py \
-  ~/ingress_migration/report-cluster-a.md ~/ingress_migration/report-cluster-b.md \
-  --topology ~/ingress_migration/cluster-a-topology.json ~/ingress_migration/cluster-b-topology.json \
-  --manifests ~/ingress_migration/cluster-a-manifests ~/ingress_migration/cluster-b-manifests \
-  -o ~/ingress_migration/EKS-Ingress-Migration-<YYYY-MM-DD>-<HHMM>.html
-```
-
-The HTML report has a **cluster dropdown** in the left nav — selecting a cluster switches all content and the 3D routing diagram.
-
-**Always generate both.** Markdown files are the source of truth; the HTML is for presentation.
-
-### Step 10: Export Materials (per cluster)
-
-For each cluster that has Ingress resources, generate manifest files:
-
-**Output directory:** `~/ingress_migration/<cluster>-manifests/`
+**Output directory:** `~/ingress_migration/<cluster>/manifests/` (see **Report Output** for the full layout — that section is the single source of truth for every path).
 
 ```
-<cluster>-manifests/
+<cluster>/manifests/
 ├── current/
 │   └── <namespace>-<ingress-name>.yaml
 └── target/
-    ├── 00-gateway-api-crds.yaml
-    ├── 01-gatewayclass.yaml
-    ├── 02-gateway.yaml
-    ├── 03-httproute-<name>.yaml
-    └── 04-referencegrant-<name>.yaml  (only if needed)
+    ├── gateway-api/
+    │   ├── 00-gateway-api-crds.yaml
+    │   ├── 01-gatewayclass.yaml
+    │   ├── 02-gateway.yaml
+    │   ├── 03-httproute-<name>.yaml
+    │   └── 04-referencegrant-<name>.yaml  (only if needed)
+    └── alb/
+        └── <namespace>-<ingress-name>.yaml
 ```
+
+The `target/gateway-api/` and `target/alb/` sub-directories are **required**, not cosmetic: `tools/report_to_html.py` groups the download buttons by those exact prefixes, and manifests placed directly under `target/` are all labelled Gateway API — so ALB output would be mislabelled.
 
 **Rules:**
 1. `current/` — Each Ingress as clean YAML (strip status, managedFields, resourceVersion, uid, creationTimestamp, generation)
@@ -309,13 +301,37 @@ For each cluster that has Ingress resources, generate manifest files:
 6. Skip clusters with 0 Ingress resources (nothing to export)
 7. For ALB target, apply annotation mapping from `references/alb-migration.md`
 
+### Step 10: Generate Dual Report (per cluster)
+
+Read `references/report-generation.md` and produce a **markdown report per cluster**:
+
+`~/ingress_migration/<cluster>/report.md`
+
+After ALL cluster markdown reports are written, generate a **single combined HTML report**:
+
+```bash
+python3 tools/report_to_html.py \
+  ~/ingress_migration/cluster-a/report.md ~/ingress_migration/cluster-b/report.md \
+  --topology ~/ingress_migration/cluster-a/topology.json ~/ingress_migration/cluster-b/topology.json \
+  --manifests ~/ingress_migration/cluster-a/manifests ~/ingress_migration/cluster-b/manifests \
+  -o ~/ingress_migration/EKS-Ingress-Migration-<YYYY-MM-DD>-<HHMM>.html
+```
+
+Pass **one path per report, in the same order**, for all three arguments — the tool pairs reports, topologies and manifest directories **positionally**.
+
+> **Skipped clusters must still hold their slot.** Step 9 rule 6 skips clusters with 0 Ingress resources, so those have **no** manifests directory. Still pass the cluster's `<cluster>/manifests` path as a placeholder — a path that does not exist simply renders no manifest section. If you instead drop that one entry while keeping the cluster's report, **every later cluster's manifests shift onto the wrong cluster**: the download button is labelled `<wrong-cluster>-alb-manifests.yaml` and carries another cluster's YAML, which is a wrong-cluster apply hazard. The tool now **exits non-zero** when a `--topology` / `--manifests` count does not match the report count, but a *consistent* mis-ordering is undetectable — keep the three lists in lockstep. The same applies to a cluster with no `topology.json`.
+
+The HTML report has a **cluster dropdown** in the left nav — selecting a cluster switches all content and the 3D routing diagram. The dropdown label comes from the topology JSON's `cluster` field, falling back to the report's parent directory name, so keep each cluster's files in their own `<cluster>/` directory.
+
+**Always generate both.** Markdown files are the source of truth; the HTML is for presentation.
+
 ## Rating Rubric
 
-Score every finding by **Impact 0–5** using the **Impact Indicator** rubric (defined in the report, before Assessment Summary). Set severity by **priority order: (1) business logic / revenue — the live traffic at stake · (2) security / reputation · (3) effort to remediate**. **Effort is NOT a severity driver** — never move a score because a fix looks easy or hard. **Presence is decided by estate state:** an absent controller / empty estate / orphaned dead config is a **non-event (0)**; a present-but-broken controller with **zero bound routes** is **tech debt (1) + cleanup note**, while broken **with bound routes** is a **suspected active outage** flagged urgently **outside** the 0–100 score. **Carve-out:** a running controller with a control-plane CVE (e.g. an admission-webhook RCE) is a security finding **even at zero routes**. Security anchors on exposure/blast-radius, business on live traffic.
+Score every finding by **Impact 0–5** using the **Impact Indicator** rubric (defined in the report, before Assessment Summary). Set severity by **priority order: (1) business logic / revenue — the live traffic at stake · (2) security / reputation · (3) effort to remediate**. **Effort is NOT a severity driver** — never move a score because a fix looks easy or hard. **Presence is decided by estate state:** an absent controller / empty estate / orphaned dead config is a **non-event (0)** (**observed** absence only — a denied read is UNKNOWN, not 0); a present-but-broken controller with **zero bound routes** is **tech debt (1) + cleanup note**, while broken **with bound routes** is a **suspected active outage** flagged urgently **outside** the 0–100 score. **Carve-out:** a running controller with a control-plane CVE (e.g. an admission-webhook RCE) is a security finding **even at zero routes**. Security anchors on exposure/blast-radius, business on live traffic.
 
 | Impact | Band | Meaning |
 |--------|------|---------|
-| 🟢 0 | Non-event | Absent controller, empty estate, or orphaned/dead config — nothing to migrate. List it, deduct 0. *Not a non-event:* a reachable known-CVE/EOL controller (control-plane exposure survives zero routes), or a broken controller with bound routes (active outage — flag separately, outside the score). |
+| 🟢 0 | Non-event | Absent controller, empty estate, or orphaned/dead config — nothing to migrate. List it, deduct 0. **Absence must be *observed*** — a denied read is ⬜ Unknown, not 0. *Not a non-event:* a reachable known-CVE/EOL controller (control-plane exposure survives zero routes), or a broken controller with bound routes (active outage — flag separately, outside the score). |
 | 🟡 1–2 | Low | No revenue/downtime impact; hardening gap / best-practice; **or a present-but-broken controller with zero bound routes = tech debt (1)**. |
 | 🟠 3–4 | Medium | Short-downtime revenue loss or moderately-important live flow; limited-reputation breach; tech debt hard to reverse. |
 | 🔴 5 | High | Business-critical revenue loss / prolonged downtime on live traffic, or a major/reputational breach on a live path; needs re-design/re-architecture (may need approval). |
@@ -328,8 +344,8 @@ Score every finding by **Impact 0–5** using the **Impact Indicator** rubric (d
 Every report leads with a single **Migration Difficulty Score (0–100)** plus a separate **Re-architecture Gate** badge:
 
 - **High score = little change (easy); low score = much change (hard).** It measures the *amount of the estate that must change*, rolled up from the per-finding Impact ratings — **not** a manday estimate and **not** a remediation-effort index (we cannot know who implements, and effort never sets severity).
-- **Empty / non-migratable estate = 100.** No controller + no IngressClass + no Ingress → **100 / TRIVIAL** with a "nothing to migrate" note (cluster/node upgrades are out of scope, not counted as migration). This **also** applies when the only controller present is a healthy migration-*target* controller (e.g. AWS LB Controller) with nothing bound to migrate **and it is not CVE/EOL-affected** — a reachable vulnerable controller is a security finding even at zero routes, so do **not** short-circuit it (see `references/report-generation.md` §1.0-A). **Orphaned Ingress objects with no controller = dead config = 0** with a loud "Migration Crew Alert" note (headline is 100 / TRIVIAL only if there are no other live findings). See `references/report-generation.md` §1.0.
-- **Presence vs. absence.** Absent controller = **0** (non-event). Present-but-broken (CrashLoopBackOff/unreachable) with **zero bound routes** = **1 tech-debt** deduction + mandatory cleanup note; **with bound routes** = **suspected active outage**, flagged urgently **outside** the 0–100 score. Neither replaces the migration-difficulty of that controller's config (its routes remain migratable). Verify "no traffic" by read-only evidence (all nginx replicas down; ALB/target-group state for the LBC) — if you cannot verify, treat the estate as live.
+- **Empty / non-migratable estate = 100.** No controller + no IngressClass + no Ingress → **100 / TRIVIAL** with a "nothing to migrate" note (cluster/node upgrades are out of scope, not counted as migration). **All three must have been *observed* empty** — if any of those reads was denied it is UNKNOWN, not zero, and the report emits `NOT ASSESSED — insufficient read coverage` instead of a score (see `references/report-generation.md` §1.0 *Coverage gate*). This **also** applies when the only controller present is a healthy migration-*target* controller (e.g. AWS LB Controller) with nothing bound to migrate **and it is not CVE/EOL-affected** — a reachable vulnerable controller is a security finding even at zero routes, so do **not** short-circuit it (see `references/report-generation.md` §1.0-A). **Orphaned Ingress objects with no controller = dead config = 0** with a loud "Migration Crew Alert" note (headline is 100 / TRIVIAL only if there are no other live findings). See `references/report-generation.md` §1.0.
+- **Presence vs. absence.** **Observed-absent** controller = **0** (non-event) — a *denied or failed* controller read is ⬜ Unknown and trips the Coverage gate, never 0 (see `references/report-generation.md` §1.0). Present-but-broken (CrashLoopBackOff/unreachable) with **zero bound routes** = **1 tech-debt** deduction + mandatory cleanup note; **with bound routes** = **suspected active outage**, flagged urgently **outside** the 0–100 score. Neither replaces the migration-difficulty of that controller's config (its routes remain migratable). Verify "no traffic" by read-only evidence (all nginx replicas down; ALB/target-group state for the LBC) — if you cannot verify, treat the estate as live.
 - **Deduction model, no artificial cap.** Start at 100, subtract weighted points per finding (Impact 5→10, 4→6, 3→4, 2→2, 1→1, non-event 0), cap per category, `score = max(0, 100 − Σ)`. The score is **never** locked at a ceiling — a single hard route no longer flattens it.
 - **Re-architecture Gate (separate, informational):** routes **and non-route conditions** needing redesign/approval — routes (Lua/snippet/mirror, TLS passthrough/mTLS, cross-namespace ownership, **plus any Tier-B feature escalated to Tier-A** — e.g. CORS, or Basic-Auth→OIDC with non-interactive callers, on a closed/unmodifiable backend) plus conditions (no-rollback cutover, **EOL/CVE control-plane exposure**, Auto Mode LB ownership race) — are reported as a `⛔ N blocker(s) need(s) redesign / approval` badge next to the score (a *blocker* is any such route **or** condition); they do not overwrite the number. Score = "how much work?"; gate = "does anything need a redesign decision?".
 - **Clean routes count at 0 effort:** an Ingress already on the ALB controller, Gateway API, or a supported 3rd-party controller contributes 0 and is excluded from the Volume work-count, so "X of N already done" is visible and lifts the score.
@@ -339,7 +355,7 @@ Every report leads with a single **Migration Difficulty Score (0–100)** plus a
 
 ## Report Output
 
-All files go to `~/ingress_migration/` organized by cluster:
+All files go to `~/ingress_migration/` organized by cluster. **This layout is the single source of truth** — Steps 8–10 and `references/report-generation.md` all write into it, and no other layout is supported:
 
 ```
 ~/ingress_migration/
@@ -354,7 +370,8 @@ All files go to `~/ingress_migration/` organized by cluster:
 │           │   ├── 00-gateway-api-crds.yaml
 │           │   ├── 01-gatewayclass.yaml
 │           │   ├── 02-gateway.yaml
-│           │   └── 03-httproute-<name>.yaml
+│           │   ├── 03-httproute-<name>.yaml
+│           │   └── 04-referencegrant-<name>.yaml   # only if cross-namespace
 │           └── alb/                 # ALB Controller Ingress (converted)
 │               └── <ns>-<ingress>.yaml
 └── EKS-Ingress-Migration-<YYYY-MM-DD>-<HHMM>.html  # Combined HTML (all clusters)
@@ -367,7 +384,8 @@ The single HTML report contains all clusters with a **dropdown selector** in the
 # Single cluster
 python3 tools/report_to_html.py ~/ingress_migration/<cluster>/report.md \
   --topology ~/ingress_migration/<cluster>/topology.json \
-  --manifests ~/ingress_migration/<cluster>/manifests/
+  --manifests ~/ingress_migration/<cluster>/manifests/ \
+  -o ~/ingress_migration/EKS-Ingress-Migration-<YYYY-MM-DD>-<HHMM>.html
 
 # Multiple clusters — one HTML with dropdown
 python3 tools/report_to_html.py \
@@ -376,3 +394,5 @@ python3 tools/report_to_html.py \
   --manifests ~/ingress_migration/cluster-a/manifests ~/ingress_migration/cluster-b/manifests \
   -o ~/ingress_migration/EKS-Ingress-Migration-<YYYY-MM-DD>-<HHMM>.html
 ```
+
+> **`-o` is not optional if you want the layout above.** With no `-o` the tool writes beside the first report — `<cluster>/report.html` — which is not a path this layout defines. Pass `-o` in every invocation, single-cluster included. Pass **one path per report** to `--topology` and `--manifests`, in the same order (see Step 10) — the tool exits non-zero on a count mismatch.
