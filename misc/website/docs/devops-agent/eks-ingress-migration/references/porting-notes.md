@@ -26,7 +26,7 @@ This file documents the differences between the Claude Code version (`skills/eks
 | Report output | Markdown file written to `~/ingress_migration/<cluster>/report.md` | Markdown rendered **inline in the response**; no files written, no output path reported |
 | HTML report | `tools/report_to_html.py` renders an interactive dashboard with a 3D routing diagram, score gauge, gate badge, cluster dropdown, and per-option download buttons | **Omitted** — no script execution. Report generation is expressed as instructions + the markdown template; the tool's deterministic renders became literal text (see "Renderer tokens" below). |
 | Topology JSON | Written to `~/ingress_migration/<cluster>/topology.json`, consumed by the 3D view | Emitted as one fenced `json` block in the report's References section; same schema, same controller-naming contract, now joined against the Routing Topology table instead of a 3D renderer |
-| Manifest export | YAML files written under `<cluster>-manifests/current/` and `target/` | Same content rendered inline as labelled fenced `yaml` blocks, with a **volume guard** (all routes at ≤ 10; above that, shared target resources + the 10 highest-Impact routes + a table of the deferred remainder, counts stated) |
+| Manifest export | YAML files written under `<cluster>/manifests/current/` and `<cluster>/manifests/target/` | Same content rendered inline as labelled fenced `yaml` blocks, with a **volume guard** (all routes at ≤ 10; above that, shared target resources + the 10 highest-Impact routes + a table of the deferred remainder, counts stated) |
 | Snippet route enumeration | `kubectl exec <nginx-pod> -- nginx -T` as an optional deep read | **Not reachable** — no pod exec. The snippet blind spot becomes a permanent, mandatory caveat and the routing inventory is marked Unverified (see below). |
 | Directory naming | `references/samples/`, `references/atx/` nested under `references/` | `assets/samples/`, `assets/atx/` — matches the port convention (`references/` stays flat; data files live in `assets/`) |
 | Prerequisites | AWS credentials, Python 3.10+, EKS MCP server, AWS CLI | `references/iam-policy.json` for the Agent Space role + an EKS access entry; no Python, no CLI, no MCP |
@@ -39,11 +39,13 @@ This file documents the differences between the Claude Code version (`skills/eks
 | Upstream token | Port replacement |
 |---|---|
 | `[[SCORE:nn:LABEL]]` (colored gauge) | `**Migration Difficulty Score: <nn> / 100 — <LABEL>**` |
-| `[[GATE:n]]` (badge) | The tool's own strings, verbatim: `✓ No re-architecture blockers` (n = 0) / `⛔ <n> blocker(s) need(s) redesign / approval` (n > 0) |
+| `[[GATE:n]]` (badge) | `✓ No re-architecture blockers` (n = 0) — verbatim / `⛔ <n> blocker(s) need(s) redesign / approval` (n > 0) — **deliberately not verbatim**, see below |
 | `[[DL:current]]` / `[[DL:gateway-api]]` / `[[DL:alb]]` / `[[DL:atx]]` (download buttons) | Cross-references to the **Export Materials** section, where the YAML is rendered inline |
 | `!!red highlight!!` | `**bold**` |
 
 The `!!…!!` conversion is not cosmetic: `report_to_html.py`'s `inline()` implements `**bold**`, backticks, links and `!!hot!!`, so an unrendered `!!…!!` in a markdown-only runtime would reach the reader as literal exclamation marks. The same applies to the `[[…]]` tokens.
+
+**The `n > 0` gate badge is the one token replacement that is *not* byte-identical to the renderer, and that is deliberate.** `_gate_badge` is grammar-aware: it emits `⛔ 1 blocker needs redesign / approval` for `n == 1` and `⛔ 2 blockers need redesign / approval` for `n > 1`. The `blocker(s) need(s)` form appears only in that function's docstring, never in its output. This port has no inflection step, so `report-generation.md` *Gate badge strings* deliberately standardises on the neutral `(s)` form for the emitted headline badge — correct for any `n` without the agent having to inflect — while allowing explanatory prose and the §1.7 walkthrough to inflect naturally for their specific `n`. Round 4 corrected this row, which previously described all the gate strings as "the tool's own strings, verbatim"; only the `n = 0` string is verbatim.
 
 ## Capability losses (and how each fails closed)
 
@@ -68,6 +70,21 @@ The Migration Difficulty Score is the part most at risk from a port, so it was c
 - The **#129 learning is present**: an empty/absent estate is **not rated** — no controller + no IngressClass + no Ingress → 100 / TRIVIAL with a "nothing to migrate" note (`report-generation.md` §1.0), including the §1.0-A carve-out that a reachable CVE/EOL controller is still a security finding at zero routes, and the orphaned-Ingress "Migration Crew Alert" path.
 - The #153 auth-tier resolution (Basic Auth → OIDC is Tier-B, escalating to Tier-A only with **both** a closed/unmodifiable backend **and** non-interactive callers) and the #154 `lbc-migrate` toolkit path with its assessor/operator fence are carried over intact.
 - The §1.7 worked example is byte-identical between the two copies. As of round 2 it totals 10+6+6+4+2+1+4+4+0 = 37 → **63 HARD**, gate 1 (round 1 shipped 34 → 66; the two cutover categories the example had been omitting are now priced — see round 2 item 6 below).
+
+## Deliberate behavioural differences — degraded-read handling
+
+These are **intentional divergences**, not drift, and they are the reason a grep-level "same strings present in both copies" check is not a parity claim. Each one exists because the two runtimes have different capabilities.
+
+| Concern | Claude Code skill (`skills/`) | DevOps Agent port (here) | Why they differ |
+|---|---|---|---|
+| A **required** read comes back UNKNOWN | **Continues** and emits the headline `NOT ASSESSED — insufficient read coverage` (plain bold, no `[[SCORE:]]` token), listing the remediation per read | **HARD STOP** per `SKILL.md` Action 4 — no score, no report, just the stop notice plus whatever was observed | The upstream skill renders a file an operator keeps, so a durable "could not assess" artifact is more useful than silence. This runtime answers inline, where a stop notice *is* the answer. Introducing a second `NOT ASSESSED` path here would have created a two-path rule against Action 4. |
+| **Gateway API / CRD** reads | Expected to succeed; no "unconfirmed" state documented | Reported **`unconfirmed`** — never `crdsInstalled: false`, and never a "install the CRDs" recommendation off a `403` | `AmazonAIOpsAssistantPolicy` coverage of CRD groups is unpublished, so the port must fail closed on a read the upstream runtime normally has. |
+| **`ValidatingWebhookConfiguration`** read | A normal discovery read | Usually denied → lands in the #153 **Unverified-means-exposed** branch, keeping the 🔴 5 CVE-2025-1974 band | Same reason; the port leans on the controller Deployment `args` as the primary signal and treats the webhook read as corroboration. |
+| **`eks:ListAddons`** denied | Marked UNKNOWN (and currently consumed by nothing downstream) | **HARD STOP** — core inventory unavailable | The port has fewer compensating reads, so it refuses rather than proceeding on a partial inventory. The asymmetry is deliberate; the upstream UNKNOWN is a known no-op and is tracked under *Still open* below. |
+| **Snippet route enumeration** | Optional deep read via `kubectl exec` | **Not reachable** — permanent mandatory caveat, inventory marked Unverified | No pod exec in this runtime (see *Capability losses*). |
+| **Output layout / file paths** (#227) | Canonicalised onto the `<cluster>/` tree; Export Materials precedes report generation | **Not applicable** — renders inline, writes no files, so there is no layout to canonicalise and no ordering dependency | #227 is skills-only **by design**, not an unported fix. |
+
+**Mirrored in both copies** (same defect in both, so fixed in both): the §1.0 Coverage gate's unguarded short-circuit, the required controller reads being cluster-wide **Deployment *and* DaemonSet** lists, timeouts counting as UNKNOWN with a *retry* remediation rather than a *grant-permission* one, and the five unqualified-absence statements now requiring absence to have been **observed**.
 
 ## Mutating commands are documentation, not actions
 
@@ -127,6 +144,27 @@ Also corrected in both copies from the round-2 should-fix list: the ALB parallel
 - **`iam-policy.json` gains `cloudwatch:GetMetricData` + `GetMetricStatistics`**, with the SKILL.md IAM table row explaining that without them the dead-vs-live orphan check degrades and the estate is scored fail-closed as live.
 - **Export path removed** from the Option-2 template (`<cluster>-manifests/target/alb/`) — this runtime writes no files; it now defers to **Export Materials** like its siblings.
 - **"so they render red" dropped** from the Executive-Summary rule: this port emits `**bold**`, and colourisation belongs to the upstream renderer.
+
+### Round 4 — corrections in both copies
+
+Prompted by the #257 review. All of these were defects in **both** copies except where noted:
+
+1. **The Coverage gate guarded a narrower read than the predicate it protects.** The gate required the `kube-system` Deployment list (skills) / the Deployment list (port), but controller presence is decided from the **cluster-wide Deployment *and* DaemonSet** lists (`ingress-discovery.md` §1.1). A principal with a namespace-scoped or Deployment-only grant passed the gate while controller detection silently returned empty — reproducing the exact 100/TRIVIAL false-clean the gate was added to prevent. Both required reads are now cluster-wide, and **DaemonSet is now a required read in both copies** (it was missing from the port too, not only from `skills/`). ingress-nginx is frequently a DaemonSet.
+2. **Timeouts got the wrong remediation.** `skills/` counted a timeout as a denial but told the reader to grant a permission they may already hold; the port's gate did not mention timeouts at all. Both now separate an **authorization failure** (name the permission) from a **timeout / transport error** (re-run against a reachable endpoint).
+3. **A tripped gate had no effect on the scoring algorithm's own instruction.** §1.4 says "follow EXACTLY" and then gives an unconditional `Score = 100 − Σ`. Both copies now carry the gate exception at that line, inside the byte-identical §1.3–§1.7 region.
+4. **"Still scored" contradicted "emit no number."** Clarified in both copies: observed findings keep their Impact ratings, are listed, and still raise the gate badge; what is withheld is the **roll-up** (no 0–100 number, no band), because the estate was never enumerated. The port's wording is phrased against its HARD STOP rather than against a `NOT ASSESSED` headline.
+5. **Five more unqualified-absence statements** (the §1.0 Presence paragraph and the `SKILL.md` rating prose in both copies) now require absence to have been **observed**, matching the rule changed in round 3.
+
+Skills-only this round, because the port writes no files and renders inline:
+
+6. **The `NOT ASSESSED` headline had no documented render form.** Emitting it as `[[SCORE:0:NOT ASSESSED]]` produces a **red `0 / 100` gauge** — verified on a fixture — which reads as *the worst possible estate*, the exact inverse of *unassessed*. `report-generation.md` §1.0 now specifies plain bold text, no `SCORE` token, keep `[[GATE:n]]`, and skip the Step 2 checks that assume a number.
+7. **Step 9/10 order survived in three more places** — `report-generation.md`'s Step 6 intro ("After generating the HTML report, export…"), and the `SKILL.md` Workflow overview in both its arrow diagram and its numbered list. The dependency is real: `--manifests` reads a directory the export step creates, and the renderer silently drops the section and exits 0 if it is absent.
+8. **Positional pairing could attach one cluster's manifests to another.** A cluster skipped by Step 9 rule 6 has no manifests directory; omitting its entry while keeping its report shifted every later cluster's manifests onto the wrong cluster, with the download button labelled with the wrong cluster name — verified on a fixture, exit 0 and a success message. `report_to_html.py` now **exits non-zero on a `--topology`/`--manifests` count mismatch**, and both files document passing a placeholder path to hold the slot.
+
+Found by this round's own self-review, not by the review:
+
+9. **An inaccurate parity claim about the gate badge** — *not* a wrong badge. `[[GATE:n]]` is grammar-aware: `_gate_badge` emits `⛔ 1 blocker needs redesign / approval` for `n == 1` and `⛔ 2 blockers need redesign / approval` for `n > 1`, and the `blocker(s) need(s)` form appears only in that function's docstring, never in output. The *Renderer tokens* row above nevertheless described all the gate strings as "the tool's own strings, verbatim". Only the `n = 0` string is verbatim; the `n > 0` form is a **deliberate** neutral substitution, because this port has no inflection step — a rule `report-generation.md` *Gate badge strings* already states explicitly. The row is corrected; the badge text is unchanged.
+   > **My first attempt at this was wrong and is worth recording.** Having found the renderer inflects, I "fixed" the §1.7 template headline to the singular form — which directly contradicted the *Gate badge strings* rule three lines above it and would have left two conflicting instructions for the emitted badge. The parity matrix caught it. The defect was in the *claim*, not the text; chasing byte-equality with the renderer here would have broken a documented, coherent port adaptation.
 
 ### Still open, deliberately not in this PR
 
