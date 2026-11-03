@@ -24,11 +24,12 @@ This is an **assessment report** — present findings and options, do not prescr
 
 Before scoring anything, decide whether there is a live estate to migrate at all. **A high score is correct when there is little/nothing to migrate — the number measures change required, not cluster wealth.**
 
-**Coverage gate — UNKNOWN is never "none found" (CHECK THIS BEFORE A AND B).** Both cases below key on *absence*, so they are only sound when absence was actually **observed**. A read that was denied (`403`/`Forbidden`, RBAC denial, MCP error, timeout) is **UNKNOWN**, not zero — see `SKILL.md` rule 6. The three **required** reads these cases depend on are **Ingress**, **IngressClass**, and the **`kube-system` Deployment list** (`SKILL.md` *Action 4 — Validate permissions*):
+**Coverage gate — UNKNOWN is never "none found" (CHECK THIS BEFORE A AND B).** Both cases below key on *absence*, so they are only sound when absence was actually **observed**. A read that did not return data is **UNKNOWN**, not zero — see `SKILL.md` rule 6. The **required** reads these cases depend on are **Ingress**, **IngressClass**, and the **all-namespace Deployment and DaemonSet lists** (`SKILL.md` *Action 4 — Validate permissions*). The last two are cluster-wide and both are required because controller presence is decided from *both* lists (`ingress-discovery.md` §1.1) — a `kube-system`-only or Deployment-only grant would pass the gate while controller detection silently returned empty.
 
-- **All three returned data** — including a legitimately empty list — coverage is complete: continue to A/B as written.
-- **Any one of them is UNKNOWN** — do **NOT** short-circuit, and do **NOT** downgrade orphans. Replace the headline score with **`NOT ASSESSED — insufficient read coverage`** and list, per denied read, the permission to grant. `NOT ASSESSED` is **not a band**: emit no number and no TRIVIAL/EASY/MODERATE/HARD/VERY HARD label, so the 0–100 bands keep their meaning. An all-denied run therefore reports that it could not see the estate — **never** `100 / TRIVIAL — nothing to migrate`.
-- **Findings that *were* observed still stand.** This gate suppresses only the *estate-level* empty/orphaned verdict. Anything actually read — e.g. a visible CVE/EOL controller caught by the security gate below — is still scored, still listed, and still raises the Re-architecture Gate. The two guards compose; they never contradict each other.
+- **All required reads returned data** — including a legitimately empty list — coverage is complete: continue to A/B as written.
+- **Any one of them is UNKNOWN** — do **NOT** short-circuit, and do **NOT** downgrade orphans. Replace the headline score with **`NOT ASSESSED — insufficient read coverage`** and list, per unresolved read, the correct remediation: for an **authorization failure** (`403`/`Forbidden`, RBAC denial) name the permission to grant; for a **timeout or transport/MCP error** say so explicitly and ask for a re-run against a reachable endpoint — do **not** tell the reader to grant a permission for a read that may already be permitted. `NOT ASSESSED` is **not a band**: emit no number and no TRIVIAL/EASY/MODERATE/HARD/VERY HARD label, so the 0–100 bands keep their meaning. An all-denied run therefore reports that it could not see the estate — **never** `100 / TRIVIAL — nothing to migrate`.
+  - **How to render it (headline only):** write the headline as **plain bold text** — `**NOT ASSESSED — insufficient read coverage**`. Do **not** emit a `[[SCORE:nn:LABEL]]` token for it. `[[SCORE:0:NOT ASSESSED]]` renders a **red `0 / 100` gauge**, which reads as *the worst possible estate* rather than *unassessed* — the exact inverse of the finding. Keep the `[[GATE:n]]` token (the gate count is still meaningful), and skip the Step 2 consistency checks that assume a number (`100 − Σ` reconciliation and the band↔number match).
+- **Findings that *were* observed still stand.** This gate suppresses only the *estate-level* empty/orphaned verdict and the headline number. Anything actually read — e.g. a visible CVE/EOL controller caught by the security gate below — keeps its per-finding Impact rating, is still listed in the Score Breakdown, and still raises the Re-architecture Gate badge. What is withheld is the **roll-up**: no 0–100 headline and no band, because the denominator (the estate) was never enumerated. The two guards compose; they never contradict each other.
 - **Optional reads do not trip this gate.** A denied **ACM / Route 53 / IAM** read (`SKILL.md` *Optional permissions*) degrades that row to UNKNOWN as already documented and says nothing about whether an ingress estate exists — treating it as a coverage failure would wrongly withhold a verdict on a genuinely empty cluster.
 
 **A) Truly empty estate** — no ingress controller **AND** no IngressClass **AND** no Ingress resources (this case **also** applies when the only controller present is a healthy migration-*target* controller — e.g. AWS LB Controller — with nothing bound to migrate, **and that controller is not CVE/EOL-affected**):
@@ -185,6 +186,8 @@ Before writing the headline, produce this table so the math is auditable. Sum `b
 
 Then: `Score = 100 − (total capped deductions) = XX — [LABEL]`, plus the gate badge.
 
+> **Unless the §1.0 *Coverage gate* tripped.** If any **required** discovery read came back UNKNOWN, this arithmetic has no defensible denominator — the estate was never enumerated. Emit **no number and no band**; §1.0 governs what the headline says instead. Findings that *were* observed keep their Impact ratings and still raise the gate badge.
+
 ### 1.7 — Worked example (reflecting the feedback)
 
 Estate: **18 ingresses** — **6 already on ALB** (0 effort, done) and **12 needing work** (per §1.3: routes needing work = total − 0-effort = 18 − 6 = **12**). The 12 are **2 plain class-switch moves** + **10 with feature complexity**. A bare nginx→alb class switch is **at least Medium** (it provisions a new ALB and only takes traffic after a DNS cutover — see `alb-migration.md`), so the 2 annotation-only moves are **not** free: they count in Scale/Volume and share the estate's single new-ALB cutover — they simply add no **feature-gap** complexity of their own. Of the 10: `configuration-snippet` Lua on `/checkout` (Tier A, no workaround), CORS + rate-limit + IP-allowlist (Tier B, performance-only → Impact 2), `rewrite-target` on 3 routes (Routing, Impact 2 each = annotation-grade), cert-manager→ACM (TLS, Impact 3), NGINX 1.9.x EOL (Controller, Impact 3 — **see the webhook stipulation below**).
@@ -312,7 +315,7 @@ Save to `~/ingress_migration/<cluster>/topology.json`. Include nodes (EC2 instan
 
 > Place this rubric **before Assessment Summary** (Overview group). EVERY Impact score in the report MUST follow it — do not invent ad-hoc severities. Impact is set by **priority order: (1) business logic / revenue — the live traffic at stake · (2) security / reputation · (3) effort to remediate**. Priority order applies **within a single finding** — it ranks which dimension sets that finding's Impact and breaks ties. It does **not** override presence, and it does **not** zero out a real security exposure just because the business traffic behind it is small: **security anchors on exposure / blast-radius, business on live traffic.** Where the *same object* carries migration-difficulty **and** tech-debt **and** security concerns, those **stack** as separate Score Breakdown rows (see `ingress-discovery.md`). **Effort is NOT a severity driver** — never raise or lower Impact because a fix looks easy or hard (that depends on who does it). Render as a table, one row per band, each cell a bullet list.
 >
-> **Presence is decided by estate state — not by a "serves no live traffic" test:** an **absent** controller / **empty estate** / **orphaned dead config** is a **non-event (0)** — nothing to migrate. A **present-but-broken** controller with **zero bound routes** is **tech debt (+1)** with a cleanup note; **with bound routes** it is a **suspected active outage**, flagged urgently **outside** the 0–100 score. **Carve-out:** a running controller with a **control-plane CVE** (e.g. an admission-webhook RCE) is a security finding **even at zero routes**. Only **live** traffic anchors the *business* dimension; *security* is anchored by exposure.
+> **Presence is decided by estate state — not by a "serves no live traffic" test:** an **observed-absent** controller / **observed-empty estate** / **orphaned dead config** is a **non-event (0)** — nothing to migrate. **Absence must have been read, not merely unread:** a denied or failed controller/Ingress/IngressClass read is ⬜ **Unknown** and trips the §1.0 *Coverage gate*, never 0. A **present-but-broken** controller with **zero bound routes** is **tech debt (+1)** with a cleanup note; **with bound routes** it is a **suspected active outage**, flagged urgently **outside** the 0–100 score. **Carve-out:** a running controller with a **control-plane CVE** (e.g. an admission-webhook RCE) is a security finding **even at zero routes**. Only **live** traffic anchors the *business* dimension; *security* is anchored by exposure.
 >
 > **Execution risk counts — do NOT score by YAML-edit size.** A small manifest change can still be high-impact. Specifically: changing `ingressClassName` to a *different controller* (e.g. nginx→alb) **provisions a brand-new load balancer** and only takes traffic after a **DNS cutover** (it is a parallel-run + cutover, not a no-op edit); moving a feature with **no native ALB annotation** (CORS, rate-limit, external auth) to WAF/app usually needs **application/code changes** — note those three are **Tier-B** under §1.3 **precisely because** that app/WAF workaround exists, so this line is about execution risk, never a reason to score them Tier-A (that needs §1.3's escalation conditions); and any TLS/cert-store change done together with routing changes risks **SSL handshake errors / downtime**. Score these by the operational risk, not the diff size.
 
@@ -648,14 +651,17 @@ Note: There is **no Migration Planning section** (scope/complexity/timeline fold
 
 ## Step 5: Generate HTML Report
 
-After ALL cluster markdown reports are written, generate a **single combined HTML**:
+> **Run this AFTER Step 6 (Export Materials).** `--manifests` reads the directory Step 6 creates. If it does not exist yet the renderer **silently drops the Export Materials section and still exits 0** — the HTML looks complete while shipping no manifests. `SKILL.md` Steps 9 → 10 are the authoritative execution order; this file's step *numbering* is section order, not run order.
+
+After ALL cluster markdown reports are written **and the manifests are exported**, generate a **single combined HTML**:
 
 ```bash
 # Single cluster
 python3 tools/report_to_html.py \
   ~/ingress_migration/<cluster>/report.md \
   --topology ~/ingress_migration/<cluster>/topology.json \
-  --manifests ~/ingress_migration/<cluster>/manifests
+  --manifests ~/ingress_migration/<cluster>/manifests \
+  -o ~/ingress_migration/EKS-Ingress-Migration-<YYYY-MM-DD>-<HHMM>.html
 
 # Multiple clusters — one HTML with cluster dropdown
 python3 tools/report_to_html.py \
@@ -665,13 +671,17 @@ python3 tools/report_to_html.py \
   -o ~/ingress_migration/EKS-Ingress-Migration-<YYYY-MM-DD>-<HHMM>.html
 ```
 
+> **Always pass `-o`.** Without it the tool writes next to the first report — `<cluster>/report.html` — which is **not** in the `SKILL.md` *Report Output* layout.
+>
+> **One path per report, in the same order, for all three arguments.** The tool pairs reports, topologies and manifest directories **positionally**. A cluster that Step 6 skipped (0 Ingress resources) has no manifests directory — still pass its `<cluster>/manifests` path as a placeholder so the alignment holds; the tool renders no manifest section for a path that does not exist. **Never** omit one list's entry while keeping the others: that shifts every later cluster's manifests onto the wrong cluster, and the download button is then labelled with the wrong cluster name. The tool rejects a count mismatch with a non-zero exit, but it cannot detect a *consistent* mis-ordering — so keep the lists in lockstep.
+
 Do NOT generate HTML manually. Always use the script.
 
 ## Step 6: Export Materials
 
 > **Directory contract (required by `report_to_html.py`):** lay manifests out as `current/`, `target/gateway-api/`, and `target/alb/` under the cluster's `manifests/` dir. The renderer recursively loads these subtrees (`rglob`) and powers the `[[DL:current]]` / `[[DL:gateway-api]]` / `[[DL:alb]]` download buttons — a flat `target/*.yaml` layout will not be found.
 
-After generating the HTML report, export manifest files for each cluster:
+Export manifest files for each cluster **before** running Step 5 — the HTML renderer reads this directory:
 
 **Output directory:** `~/ingress_migration/<cluster>/manifests/`
 
