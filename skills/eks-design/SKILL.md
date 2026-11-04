@@ -104,7 +104,7 @@ Refer to `eks-best-practices` skill for detailed reference material on autoscali
 | Component Integration | /20 | All interfaces defined and compatible, data flows documented |
 | Service Limits | /15 | AWS service limits assessed with mitigation for high-risk items |
 | Technical Feasibility | /20 | Technology choices validated, EKS-specific checks pass |
-| Documentation Completeness | /20 | All required docs present, **narrative quality** (not just tables), ADR quality, diagrams rendered to PNG and embedded in docx/pptx |
+| Documentation Completeness | /20 | All required docs present, **narrative quality** (not just tables), ADR quality, diagrams rendered to PNG and, if generated, embedded in docx/pptx |
 
 **Output**: `appendices/architecture-integration-validation.md`
 
@@ -169,8 +169,8 @@ Generate handoff artifacts for `eks-build`:
 1. **AGENTS.md** — machine-readable instructions listing which design files the build agent must read
 2. **README.md** — human-readable navigation guide
 3. Verify output structure matches specification
-4. **Render Mermaid diagrams to PNG** — extract every Mermaid code block from the architecture markdown files, save each as a `.mmd` file, then convert to PNG in `diagrams/`. Install and convert: `npm install -g @mermaid-js/mermaid-cli && mmdc -i diagram.mmd -o diagrams/<name>.png -b white -s 4`. `mmdc` renders through a headless Chrome driven by puppeteer (a peer dependency of `@mermaid-js/mermaid-cli`); where puppeteer's browser download is blocked or the host lacks Chrome's shared libraries, point it at an installed Chrome or Chromium with `PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`, or pass `mmdc -p puppeteer-config.json` with `{"executablePath": "/path/to/chrome"}`. If `mmdc` still doesn't work, **search the internet for how to use mermaid-cli to convert .mmd to .png**. Requirements: 4x scale, white background, auto-sized canvas (no fixed width/height). Use descriptive kebab-case names (e.g., `defense-in-depth-layers.png`, `pod-identity-flow.png`).
-5. **Ask the user** if they want Word (.docx) and PowerPoint (.pptx) versions. Only generate if confirmed. Generation uses the `docx` and `pptx` skills from [anthropics/skills](https://github.com/anthropics/skills), which this repo does not ship: check they are installed first, and if they are not, tell the user and skip the documents. When generating, embed the rendered PNGs from `diagrams/` into the documents.
+4. **Render Mermaid diagrams to PNG** — extract every Mermaid code block from the architecture markdown files, save each as a `.mmd` file, then convert to PNG in `diagrams/`. Install and convert: `npm install -g @mermaid-js/mermaid-cli && mmdc -i diagram.mmd -o diagrams/<name>.png -b white -s 4`. `mmdc` renders through a headless Chrome driven by puppeteer (a peer dependency of `@mermaid-js/mermaid-cli`); where puppeteer's browser download is blocked or the host lacks Chrome's shared libraries, point it at an installed Chrome or Chromium with `PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`. If `mmdc` still doesn't work, **search the internet for how to use mermaid-cli to convert .mmd to .png**. Requirements: 4x scale, white background, auto-sized canvas (no fixed width/height). Use descriptive kebab-case names (e.g., `defense-in-depth-layers.png`, `pod-identity-flow.png`).
+5. **Ask the user** if they want Word (.docx) and PowerPoint (.pptx) versions. Only generate if confirmed. Generation uses the `docx` and `pptx` skills from [anthropics/skills](https://github.com/anthropics/skills), which this repo does not ship. They are under Anthropic's own licence (all rights reserved; not Apache 2.0, unlike `skill-creator`) and are for Claude where they are available: check they are installed first, and do not install them or write a document generator yourself. Where they are not available, tell the user and skip the documents. When generating, embed the rendered PNGs from `diagrams/` into the documents.
 
 **Output**: `AGENTS.md`, `README.md`, `diagrams/*.png`, optionally `.docx` and `.pptx`
 
@@ -192,8 +192,9 @@ projects/<project-name>/design/
 │   ├── cluster-topology.png
 │   ├── network-architecture.png
 │   └── addon-dependencies.png
-├── system-architecture.docx                 # Word document (optional — with embedded diagrams)
-├── system-architecture.pptx                 # PowerPoint deck (optional — with embedded diagrams)
+├── exports/                                 # Optional: generated documents, with embedded diagrams
+│   ├── architecture-document.docx           # Word document
+│   └── architecture-presentation.pptx       # PowerPoint deck
 └── appendices/
     ├── input-assessment-analysis.md         # Stage 1 output
     ├── architecture-integration-validation.md # Stage 3 output
