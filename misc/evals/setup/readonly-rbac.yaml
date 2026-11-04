@@ -1,8 +1,10 @@
 # Read-only cluster access for misc/evals/ task-axis runs and the
 # "Read-only operating profile" recipe (misc/website/docs/read-only-operating-profile.md).
 #
-# Applied by setup/bootstrap-readonly.sh. Idempotent: re-applying refreshes
-# the token Secret without churning the SA or bindings.
+# Applied by setup/bootstrap-readonly.sh. Idempotent: re-applying leaves the
+# SA, bindings and token unchanged. To rotate the token:
+# `kubectl -n kube-system delete secret evals-readonly-token`, then re-run
+# bootstrap-readonly.sh.
 #
 # Scope: get/list/watch only. No create/update/patch/delete. Enforcement is
 # at the API server, not at the script level: a misbehaving subject
@@ -18,8 +20,9 @@
 # eks-recon Secret-based checks return nothing under this SA.
 #
 # Non-core groups are listed by name with "*" resources: the built-in groups,
-# then the CRD groups eks-recon reads. Add your own CRD groups to the last
-# rule; a group not listed here is not readable.
+# then the CRD groups the APEX skills read. Add your own CRD groups to the
+# third rule. A group not listed reads as Forbidden, and a skill that hides
+# errors then reports 0 objects for it, not "unreadable".
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -77,6 +80,8 @@ rules:
       - appmesh.k8s.aws
       - argoproj.io
       - autoscaling.k8s.io
+      - cilium.io
+      - constraints.gatekeeper.sh
       - crd.k8s.amazonaws.com
       - crd.projectcalico.org
       - eks.amazonaws.com
@@ -85,6 +90,7 @@ rules:
       - gateway.networking.k8s.io
       - karpenter.k8s.aws
       - karpenter.sh
+      - keda.sh
       - kustomize.toolkit.fluxcd.io
       - kyverno.io
       - monitoring.coreos.com
@@ -94,6 +100,8 @@ rules:
       - snapshot.storage.k8s.io
       - source.toolkit.fluxcd.io
       - tekton.dev
+      - templates.gatekeeper.sh
+      - velero.io
     resources: ["*"]
     verbs: ["get", "list", "watch"]
   - nonResourceURLs: ["*"]
@@ -112,10 +120,11 @@ subjects:
     name: evals-readonly
     namespace: kube-system
 ---
-# Long-lived SA token. TokenRequest-issued tokens cap at ~24h; a Secret-bound
-# token lives alongside the SA, which is what we want for a task runner that
-# may take 2h per run. The Secret is k8s-internal: it never leaves the
-# cluster's etcd until bootstrap-readonly.sh reads it into a kubeconfig.
+# Long-lived SA token, so the kubeconfig needs no refresh between runs; it
+# never expires until the Secret is deleted. `kubectl create token --duration`
+# is the shorter-lived alternative. The Secret is k8s-internal: it never
+# leaves the cluster's etcd until bootstrap-readonly.sh reads it into a
+# kubeconfig.
 apiVersion: v1
 kind: Secret
 metadata:
