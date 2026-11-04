@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Getting Started
+description: "How to install APEX skills in Claude Code, Kiro CLI or another Agent Skills harness, verify them and add the agent rules."
 ---
 
 # Getting Started
