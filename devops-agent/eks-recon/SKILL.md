@@ -15,7 +15,7 @@ description: EKS cluster reconnaissance and environment discovery — reports th
 
 ## Overview
 
-This skill discovers and documents the current state of an EKS cluster and its environment. It connects via AWS control-plane APIs and the Kubernetes API, runs detection across up to 11 modules, and produces a **facts-only** report: a markdown fact report (primary) plus a machine-readable YAML artifact for hand-off to other skills.
+This skill discovers and documents the current state of an EKS cluster and its environment. It connects via AWS control-plane APIs and the Kubernetes API, runs detection across up to 11 modules, and produces a **facts-only** report: a markdown fact report (primary) plus a secondary YAML facts snapshot for inspection/export.
 
 Recon answers the question: *"What is this cluster, right now?"* It **reports facts only** — it never scores, rates, plans, or recommends. Reporting a fact that also matters to another skill (upgrade, security, cost, design) is expected and fine; the dividing line is discovery-of-facts (here) vs. verdict/score/artifact (route elsewhere).
 
@@ -78,6 +78,16 @@ Kubernetes-API facts (nodes, CRDs, workloads, RBAC, StorageClasses, etc.) are re
 **Recommendation:** <remediation guidance for next run>
 ```
 
+**Optional prior report:** the caller may supply an earlier recon YAML artifact as
+accessible report content or an attachment. Load
+[report-comparison.md](references/report-comparison.md) when supplied. Use the
+artifact's attachment filename, asset name, or `inline content` as its source label;
+read it before generating outputs and do not assume local file or
+shell access. For multi-cluster discovery, compare only the cluster matching the
+prior artifact's ARN and explicitly mark other clusters as having no matching prior.
+If no discovered cluster matches, report the comparison as unavailable. Without a
+prior report, omit the Changes since section.
+
 ### Step 0: Pre-flight — Cluster Discovery and Validation
 
 **Action 1 — Discover clusters.** Use the EKS ListClusters API to discover available clusters in the target region.
@@ -110,7 +120,7 @@ Each reference describes detection **declaratively** as capability blocks (AWS A
 
 ### Step 2: Generate the Report
 
-Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a machine artifact for hand-off.
+Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a secondary facts snapshot. When a prior report was supplied, append the comparison defined in [report-comparison.md](references/report-comparison.md).
 
 ---
 
@@ -138,9 +148,18 @@ For **full recon**, load all rows. For a **targeted query** (e.g. "am I using Ka
 
 ## Report Output
 
-Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a machine artifact for optional hand-off to other skills. The agent generates both directly — no external conversion tools or scripts.
+Produce **two** artifacts. The **markdown fact report is the primary deliverable** (rendered inline to the user); the YAML is a secondary facts snapshot for inspection/export. The agent generates both directly — no external conversion tools or scripts.
 
 > **Facts only.** Both artifacts report what the cluster *is*. Never emit a verdict, score, readiness rating, or recommendation. A "Notable facts" line states an observation ("2 subnets have < 16 free IPs"); it never says "you should" or "this is a risk".
+
+Use one actual UTC clock reading for both filenames, the Markdown `_generated`
+header (labelled UTC), and `report.generated_at`. No caller prefix is supported.
+If named destinations can be checked, a collision writes neither artifact and
+returns an error without prompting; current facts remain visible inline. If the
+service cannot inspect destinations, do not claim collision checks were performed.
+
+> Reports can contain cluster ARNs, account/resource identifiers and infrastructure
+> details. Review and redact before sharing.
 
 ### Markdown fact report (primary)
 
@@ -181,17 +200,74 @@ _generated <timestamp> · source: AWS API + K8s API · modules: N/N_
 - addons.helm_releases: unconfirmed (reason: Helm release Secrets not readable) — reported as `unconfirmed`, not `count: 0`
 ```
 
+Keep every absence claim within the successfully inspected scope. State that
+scope with the claim, including in summaries and Notable facts; Coverage
+caveats do not qualify broader wording elsewhere.
+
 ### Machine YAML artifact
 
 - **Filename:** `EKS-Recon-{cluster}-{YYYY-MM-DD}-{HHMM}.yaml`
 
+The YAML is a **secondary, point-in-time facts snapshot**, not a versioned API.
+Workflows may use its facts as context; that intended use does not establish a
+versioned schema hand-off. Preserve the canonical reference shapes for inspection,
+export and existing workflow guidance.
+
+**Assembly rules (inline and subagent execution):**
+
+- Use cluster-basics for the shared `cluster:` block; deduplicate matching module
+  blocks. For the same target, preserve module facts and record differing values
+  and their sources in Markdown Coverage rather than silently overwriting them.
+  Compare identity using target context (such as cluster ARN); a cosmetic endpoint
+  difference such as a trailing `/` is not another cluster. If a module identifies another target cluster,
+  retain its key as `{unavailable: true, reason: "cluster context mismatch"}`.
+- On full recon, collect `cluster_detail:` directly from cluster-basics, which has
+  no subagent. Targeted queries may omit unrelated detail.
+- If a selected module returns no usable result, retain its key with
+  `unavailable: true` and a short `reason` in either mode. Partial reads retain
+  known facts alongside Coverage gaps. Unselected modules are out of scope.
+- For partial modules, retain observed facts and every schema-defined object/key,
+  even when all its values are unreadable: use `ingresses: {count: null, list: null}`,
+  not `ingresses: null`. Set unreadable leaf values to `null` and put reasons in
+  Markdown Coverage. Use another representation only when the module reference
+  explicitly prescribes it for that field and failure condition (for example, Helm or
+  `node_subnets`); do not invent generic `{unconfirmed, reason}` wrappers.
+  Carry each incomplete/denied read into `report.unconfirmed_paths`, even when
+  its canonical value is `null`. For partial inventories, record the entire
+  inventory path. Collect gaps alongside facts from every module result; never
+  infer complete coverage from a successful module response. A GitOps
+  `status: unconfirmed` records `cicd.gitops`, not just the status leaf.
+
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` and `cluster_detail:` blocks (from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
 
-> **The reference Output Schemas are the single source of truth for the YAML shape** — do not hand-copy a schema. The fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
+Include a `report` metadata block alongside the canonical module blocks in every
+new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
+report (reuse the filename's clock reading where applicable). Set `schema_revision`
+to `eks-recon/2026-10-31`, identifying the fact definitions used here, not a promised
+versioned API. Update this marker when fact types, value sets or meanings change,
+and document affected comparison boundaries in the comparison reference.
+`unconfirmed_paths` lists canonical dot-separated field paths whose reads were incomplete or denied;
+list the enclosing inventory path if only part of an inventory was collected.
+Use an empty list only when no collected sub-facts are unconfirmed. Omitted modules
+and explicit unavailable/unconfirmed markers remain authoritative coverage gaps.
+This metadata is not a recon module and is excluded from module counts and deltas.
+
+```yaml
+report:
+  schema_revision: "eks-recon/2026-10-31"
+  generated_at: "2026-10-29T08:30:00Z"  # actual report time, not this example
+  unconfirmed_paths: []                # e.g. [security.authentication.access_entries]
+```
+
+> **The reference Output Schemas are the single source of truth for each module's shape** — do not hand-copy a schema. The fragment below shows only the envelope; the authoritative per-module shape lives in each reference.
 
 ```yaml
 # EKS Reconnaissance Report — illustrative envelope only.
 # Canonical shape per module = references/<module>.md "## Output Schema".
+report:              # metadata defined above; not a module
+  schema_revision: "eks-recon/2026-10-31"
+  generated_at: "2026-10-29T08:30:00Z"  # replace with actual report time
+  unconfirmed_paths: []
 cluster:              # shape: references/cluster-basics.md "## Shared Cluster Block"
   name: my-cluster
   region: us-west-2

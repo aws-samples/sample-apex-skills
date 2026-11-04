@@ -352,6 +352,10 @@ For `skills/` each description must also match the generated `skills.json` manif
 6. Use test results to iterate on the corresponding runbook
 7. Run `misc/update-examples-references.sh` to update the README
 
+## Writing a Blog Post
+
+Blog posts live in `misc/website/blog/` and follow the blog standard in `misc/website/docs/contributing/blog-standard.md`.
+
 ---
 
 ## Reporting Bugs / Feature Requests

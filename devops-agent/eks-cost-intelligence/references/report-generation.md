@@ -7,7 +7,7 @@
 
 ## Scoring Algorithm
 
-The Cost Score starts at 100 and applies severity-weighted deductions per dimension. The algorithm is deterministic: the same set of findings always produces the same score.
+Confirm successful lists of nodes, namespaces, pods and deployments on the verified connection before publishing any Cost Score, including a delegate's score. If any of those four lists failed or cannot be confirmed, return Assessment Error and leave the score unset. Otherwise start at 100 and apply severity-weighted deductions per dimension.
 
 ### Dimension Weights (Max Deductions)
 
@@ -53,7 +53,7 @@ actual_deduction = min(sum_of_finding_deductions, dimension.max_deduction)
 
 ### SKIPPED Dimension Handling
 
-When a dimension cannot be assessed (missing data source, insufficient permissions):
+After core inventory succeeds, when an individual dimension cannot be assessed (missing data source, insufficient permissions):
 
 - The dimension's status is set to `SKIPPED`
 - The dimension contributes **zero deduction** to the total score
@@ -63,6 +63,9 @@ When a dimension cannot be assessed (missing data source, insufficient permissio
 ### Complete Pseudocode
 
 ```
+if any required core list is denied or unverified:
+    return Assessment Error with no score
+
 score = 100
 
 for each dimension in [compute, spot_graviton, networking, storage, observability, idle]:

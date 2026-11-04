@@ -46,6 +46,17 @@
         "The final Cost Score reflects only the 5 assessed dimensions and the classification is consistent with the scoring algorithm (SKIPPED dimensions excluded from total). TODO: human review"
       ],
       "files": []
+    },
+    {
+      "id": 4,
+      "name": "insufficient-node-access",
+      "prompt": "Can I run a cost assessment? My context matches the EKS endpoint. The operator associated AmazonEKSViewPolicy with my access entry. I can list deployments, but listing nodes returns Forbidden and I cannot list access entries.",
+      "expectations": [
+        "Reports the denied Node read and withholds the Cost Score.",
+        "Explains that AmazonEKSViewPolicy omits nodes and identifies the missing scoped read permission.",
+        "Treats denied access-entry inspection as unverified metadata."
+      ],
+      "files": []
     }
   ]
 }
