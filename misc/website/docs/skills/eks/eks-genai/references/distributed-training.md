@@ -118,11 +118,11 @@ spec:
     - subnet-same-az-as-gpu       # CRITICAL: same AZ as compute nodes
 ```
 
-The S3 link is a separate resource: the FSx `CreateFileSystem` Lustre configuration has no data repository association member, and the ACK fsx-controller has no kind for one. Create the DRA with the FSx API once the file system exists (`.status.id` on the `FileSystem` resource holds its ID):
+The S3 link is a separate resource: the FSx `CreateFileSystem` Lustre configuration has no data repository association member, and the ACK fsx-controller, as of v0.1.0 (2026-11-03), has no kind for one. Create the DRA with the FSx API once the file system exists (`.status.id` on the `FileSystem` resource holds its ID). This call is outside any reconcile loop, so re-run it if the file system is recreated; CloudFormation `AWS::FSx::DataRepositoryAssociation` and Terraform `aws_fsx_data_repository_association` own it declaratively. With the AWS CLI:
 
 ```bash
 aws fsx create-data-repository-association \
-  --file-system-id "$(kubectl get filesystems.fsx.services.k8s.aws training-lustre -o jsonpath='{.status.id}')" \
+  --file-system-id fs-0123456789abcdef0 \
   --file-system-path /checkpoints \
   --data-repository-path s3://my-bucket/checkpoints/ \
   --s3 "AutoImportPolicy={Events=[NEW,CHANGED,DELETED]},AutoExportPolicy={Events=[NEW,CHANGED,DELETED]}"
