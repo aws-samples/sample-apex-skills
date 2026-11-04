@@ -17,7 +17,7 @@ from typing import Any
 # (absent, empty or unreadable `modelUsage`). `token_source`
 # records which object was read: "modelUsage", "usage" or None.
 # `total_tokens` keeps its meaning (input + output) and its source, `usage`,
-# so it stays comparable with earlier runs and benchmark.json.
+# so it stays comparable with earlier runs.
 USAGE_TOKEN_KEYS = (
     "input_tokens",
     "output_tokens",

@@ -315,7 +315,7 @@ def extract_result_summary(events: list[dict]) -> dict:
 def aggregate_token_usage(runs_dir: Path) -> dict:
     """Sum and average the per-run token counts in each config's timing.json.
 
-    The skill-creator benchmark.json carries only `tokens` (total_tokens);
+    The skill-creator benchmark.json carries one `tokens` value per run (usually `output_chars`);
     this keeps the cache categories visible across a whole run directory.
 
     A timed-out or failed run still writes timing.json (with zero or
