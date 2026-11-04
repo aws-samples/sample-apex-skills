@@ -26,7 +26,7 @@ my-template/
 
 ## Worked example: environment template (illustrative)
 
-Illustrative, not a drop-in: hosts, names and the `EKSCluster` spec fields are placeholders, and the fields must match the platform team's own kro `ResourceGraphDefinition` schema. It assumes the GitLab scaffolder module (`@backstage/plugin-scaffolder-backend-module-gitlab`) is installed.
+Illustrative, not a drop-in: hosts, names and the `EKSCluster` spec fields are placeholders, and the fields must match the platform team's own kro `ResourceGraphDefinition` schema. It assumes the GitLab scaffolder module (`@backstage/plugin-scaffolder-backend-module-gitlab`) is installed and `integrations.gitlab` in `app-config.yaml` lists `gitlab.example.com` with a token.
 
 ```yaml
 # template.yaml
@@ -35,7 +35,7 @@ kind: Template
 metadata:
   name: eks-environment
   title: EKS environment
-  description: VPC + EKS Auto Mode cluster + add-ons, registered with the hub ArgoCD
+  description: VPC + EKS Auto Mode cluster + add-ons, synced by the hub ArgoCD
 spec:
   owner: group:platform-team
   type: environment
@@ -102,7 +102,7 @@ spec:
         entityRef: ${{ steps.register.output.entityRef }}
 ```
 
-The kro instance the skeleton carries (`skeleton/manifests/ekscluster.yaml`; a kro instance's `apiVersion` is `kro.run/` plus the RGD schema's `apiVersion`):
+The kro instance the skeleton carries beside its `catalog-info.yaml` (`skeleton/manifests/ekscluster.yaml`; a kro instance's `apiVersion` is `kro.run/` plus the RGD schema's `apiVersion`):
 
 ```yaml
 apiVersion: kro.run/v1alpha1
@@ -116,14 +116,14 @@ spec:
   region: ${{ values.region }}
 ```
 
-The hub ArgoCD syncs the new repo (for example through an ApplicationSet SCM Provider generator over the platform's GitLab group); kro then composes the VPC, cluster and add-ons and writes the cluster's GitOps Bridge secret, which the hub `ApplicationSet` in `idp-architecture.md` reads.
+The hub ArgoCD syncs the new repo (for example through an ApplicationSet SCM Provider generator over the platform's GitLab group); kro then creates what the platform's `EKSCluster` RGD declares (for example the cluster, add-on IAM and a GitOps Bridge cluster secret), and the hub `ApplicationSet` in `idp-architecture.md` installs the add-ons from that secret, so the secret must carry the `enable_` labels and `addons_repo_*` annotations that `ApplicationSet` reads.
 
 ## The self-service flow (every template follows this shape)
 
 ```
 Developer fills Backstage form
    → template creates a new GitLab repo with rendered skeleton (manifests)
-   → registers the repo/app with ArgoCD (and the catalog)
+   → registers the repo/app in the catalog; ArgoCD picks it up (a template step or a hub generator)
    → ArgoCD syncs the manifests to the target cluster
    → controllers reconcile (KubeVela renders the app; ACK provisions AWS resources)
 ```
