@@ -107,7 +107,7 @@ spec:
     - subnet-same-az-as-gpu       # CRITICAL: same AZ as compute nodes
 ```
 
-The S3 link is a separate resource: the FSx `CreateFileSystem` Lustre configuration has no data repository association member, and the ACK fsx-controller, as of v0.1.0 (2026-11-03), has no kind for one. Create the DRA with the FSx API once the file system exists (`.status.id` on the `FileSystem` resource holds its ID). This call is outside any reconcile loop, so re-run it if the file system is recreated; CloudFormation `AWS::FSx::DataRepositoryAssociation` and Terraform `aws_fsx_data_repository_association` own it declaratively. With the AWS CLI:
+For PERSISTENT_2, the S3 link is a separate resource: the FSx `CreateFileSystem` Lustre configuration has no data repository association member, and the ACK fsx-controller, as of v0.1.0 (2026-11-03), has no kind for one. Create the DRA with the FSx API once the file system exists (`.status.id` on the `FileSystem` resource holds its ID). This call is outside any reconcile loop, so re-run it if the file system is recreated; CloudFormation `AWS::FSx::DataRepositoryAssociation` and Terraform `aws_fsx_data_repository_association` own it declaratively. With the AWS CLI, using that ID in place of the example one:
 
 ```bash
 aws fsx create-data-repository-association \
