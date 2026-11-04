@@ -109,21 +109,23 @@ kind: FileSystem
 metadata:
   name: training-lustre
 spec:
-  fileSystemType: LUSTRE
+  type: LUSTRE
   storageCapacity: 4800          # GiB; minimum 1200 for Persistent-SSD
   lustreConfiguration:
     deploymentType: PERSISTENT_2
     perUnitStorageThroughput: 500  # MB/s per TiB
-    dataRepositoryAssociations:
-      - dataRepositoryPath: s3://my-bucket/checkpoints/
-        fileSystemPath: /checkpoints
-        s3:
-          autoExportPolicy:
-            events: ["NEW", "CHANGED", "DELETED"]
-          autoImportPolicy:
-            events: ["NEW", "CHANGED", "DELETED"]
-  subnetIds:
+  subnetIDs:
     - subnet-same-az-as-gpu       # CRITICAL: same AZ as compute nodes
+```
+
+The S3 link is a separate resource: the FSx `CreateFileSystem` Lustre configuration has no data repository association member, and the ACK fsx-controller has no kind for one. Create the DRA with the FSx API once the file system exists (`.status.id` on the `FileSystem` resource holds its ID):
+
+```bash
+aws fsx create-data-repository-association \
+  --file-system-id "$(kubectl get filesystems.fsx.services.k8s.aws training-lustre -o jsonpath='{.status.id}')" \
+  --file-system-path /checkpoints \
+  --data-repository-path s3://my-bucket/checkpoints/ \
+  --s3 "AutoImportPolicy={Events=[NEW,CHANGED,DELETED]},AutoExportPolicy={Events=[NEW,CHANGED,DELETED]}"
 ```
 
 **Critical rule:** FSx in the same AZ as GPU/Neuron nodes — cross-AZ latency dwarfs FSx's native microsecond-class performance. Pre-warm FSx with training data via an administrative pod before launching Spot capacity.
