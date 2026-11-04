@@ -50,7 +50,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 ## Prerequisites
 
 1. **AWS credentials configured** — `aws configure` or `~/.aws/credentials` with EKS access
-2. **kubectl access** to the target cluster (for Kubernetes API queries)
+2. **Kubernetes access** for the assessment caller. An access entry with a suitable policy or RBAC binding, or an existing `aws-auth` mapping in mixed mode, can grant the required reads. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs with `kubectl auth can-i`.
 3. **Required AWS Permissions (minimum):**
    - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`, `eks:ListFargateProfiles`, `eks:DescribeFargateProfile`
    - `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
@@ -120,6 +120,8 @@ Check the `status` field. If status is NOT `ACTIVE`:
 Do NOT proceed if cluster status is not ACTIVE.
 
 **Action 4 — Gather cluster context**
+
+For each kubectl target, compare the candidate context's server (`kubectl --context <ctx> config view --minify -o jsonpath='{.clusters[0].cluster.server}'`) with the endpoint from `aws eks describe-cluster --name <cluster> --region <region>`. Complete this comparison before issuing Kubernetes requests. Accept a matching alias. If no context matches, stop and ask the user to add the target's kubeconfig entry. Leave current-context unchanged. Every kubectl command in this skill runs with `--context <verified-context>` added, even where the example omits it. For MCP instead, match the active connection to the intended cluster ARN or endpoint before reading. Stop if the binding cannot be verified. Read nodes, namespaces, pods and deployments through the verified connection before scoring, including delegated assessments. If a core read fails, stop without a score. Other denied reads affect only their checks (UNKNOWN/SKIPPED). On denial, report the failed read. Use the cluster's authentication mode and any available access-entry information to diagnose it. A denied entry listing leaves the entries unverified.
 
 Collect:
 - Kubernetes version and platform version
@@ -271,7 +273,7 @@ The following are intentionally excluded from the initial release and may be add
 
 1. **Do NOT call any tools when this skill is first activated.** Wait for the user to explicitly ask for a cost assessment.
 2. **Do NOT hardcode or guess cluster names.** Always discover clusters by listing them first.
-3. **Do NOT retry a failed command more than once.** If it fails twice, log the failure, skip that check, and continue.
+3. **Do NOT retry a failed command more than once.** If it fails twice, stop if it is a Step 0 core read. Otherwise log the failure, skip that check, and continue.
 4. **Always read the relevant reference file before executing checks for that dimension.**
 5. **Use `aws` CLI and `kubectl` for cluster queries.** If MCP servers are available, prefer them for EKS operations.
 6. **Do NOT duplicate advisory content from eks-best-practices.** Reference it in recommendations where relevant.

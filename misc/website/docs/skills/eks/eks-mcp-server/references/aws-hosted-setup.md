@@ -23,6 +23,9 @@ The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade ca
 - AWS CLI installed and configured (`aws configure list`)
 - Python 3.10+ (`python3 --version`)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
+
+`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs with `kubectl auth can-i`. Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
 
 ## Step 1: Configure IAM Permissions
 
@@ -120,6 +123,7 @@ Use this format for the args array:
 
 1. Restart your AI assistant
 2. Ask: "List my EKS clusters" or "What EKS MCP tools are available?"
+3. For EKS, compare the MCP connection's cluster ARN or endpoint with `aws eks describe-cluster --name <cluster> --region <region>` before any Kubernetes request. Stop if the match cannot be verified. Through the verified connection, test a required read such as listing nodes for cost or ingressclasses for ingress. If it fails, report the missing read. Where entries are enabled, `aws eks list-access-entries --cluster-name <cluster> --region <region>` can help diagnose the failure. An empty or denied listing alone does not establish whether the read is authorized.
 
 ## Troubleshooting
 

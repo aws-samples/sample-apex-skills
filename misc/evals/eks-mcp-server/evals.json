@@ -131,6 +131,17 @@
         {"type": "no-tool-called", "tool": "Bash"}
       ],
       "files": []
+    },
+    {
+      "id": 3,
+      "name": "legacy-mapping",
+      "prompt": "My self-hosted MCP connection points to the verified EKS endpoint. The cluster uses API_AND_CONFIG_MAP. My role has no access entry, but it is mapped in aws-auth and can list the resources I need through MCP. Is the Kubernetes connection ready?",
+      "expectations": [
+        "Accepts successful required reads through the verified MCP connection.",
+        "Recognizes that the existing aws-auth mapping can grant mixed-mode access without an access entry.",
+        "Distinguishes AWS discovery from verification of the MCP caller's Kubernetes reads."
+      ],
+      "files": []
     }
   ]
 }
