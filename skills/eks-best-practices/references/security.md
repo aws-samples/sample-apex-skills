@@ -452,7 +452,7 @@ aws eks associate-encryption-config \
 ### External Secrets Operator (Recommended for GitOps)
 
 ```yaml
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: app-secrets
