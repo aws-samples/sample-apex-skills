@@ -158,8 +158,8 @@ const config: Config = {
 
   themeConfig: {
     metadata: [
-      {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
-      {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
+      {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.png'},
+      {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.png'},
       {name: 'twitter:card', content: 'summary_large_image'},
       {name: 'keywords', content: 'AWS, EKS, platform engineering, AI agent skills, Claude Code, Kiro CLI, AWS DevOps Agent, Kubernetes, infrastructure as code, agentic AI, DevOps automation'},
     ],
