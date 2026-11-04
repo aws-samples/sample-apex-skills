@@ -5,7 +5,7 @@
 # What this creates:
 #   1. In the cluster pointed at by your current KUBECONFIG:
 #        - ServiceAccount kube-system/evals-readonly
-#        - ClusterRole / ClusterRoleBinding evals-readonly (get/list/watch)
+#        - ClusterRole / ClusterRoleBinding evals-readonly (get/list/watch, no Secrets)
 #        - Secret kube-system/evals-readonly-token (SA-bound token)
 #   2. In misc/evals/.secrets/ (gitignored):
 #        - kubeconfig.readonly   — auths as the SA; read-only
@@ -109,6 +109,11 @@ KUBECONFIG="${KUBECONFIG_OUT}" kubectl get nodes --request-timeout=10s >/dev/nul
 log "verifying write denial..."
 if KUBECONFIG="${KUBECONFIG_OUT}" kubectl auth can-i create pods --all-namespaces 2>&1 | grep -qx yes; then
   die "readonly kubeconfig is allowed to CREATE pods — RBAC binding is wrong"
+fi
+
+log "verifying Secret denial..."
+if KUBECONFIG="${KUBECONFIG_OUT}" kubectl auth can-i list secrets --all-namespaces 2>&1 | grep -qx yes; then
+  die "readonly kubeconfig is allowed to LIST secrets; re-apply ${RBAC_YAML}"
 fi
 
 log "verifying AWS federation-token minting..."
