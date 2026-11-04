@@ -26,7 +26,7 @@ my-template/
 
 ## Worked example: environment template (illustrative)
 
-Illustrative, not a drop-in: hosts, names and the `EKSCluster` spec fields are placeholders, and the fields must match the platform team's own kro `ResourceGraphDefinition` schema. It assumes the GitLab scaffolder module (`@backstage/plugin-scaffolder-backend-module-gitlab`) is installed and `integrations.gitlab` in `app-config.yaml` lists `gitlab.example.com` with a token.
+Illustrative, not a drop-in: hosts, names and the `EKSCluster` spec fields are placeholders, and the fields must match the platform team's own kro `ResourceGraphDefinition` schema. It assumes the GitLab scaffolder module (`@backstage/plugin-scaffolder-backend-module-gitlab`) is installed and `integrations.gitlab` in `app-config.yaml` lists `gitlab.example.com` with its `apiBaseUrl` (`https://gitlab.example.com/api/v4`) and a token.
 
 ```yaml
 # template.yaml
@@ -35,7 +35,7 @@ kind: Template
 metadata:
   name: eks-environment
   title: EKS environment
-  description: VPC + EKS Auto Mode cluster + add-ons, synced by the hub ArgoCD
+  description: EKS Auto Mode cluster + add-ons, synced by the hub ArgoCD
 spec:
   owner: group:platform-team
   type: environment
@@ -116,7 +116,7 @@ spec:
   region: ${{ values.region }}
 ```
 
-The hub ArgoCD syncs the new repo (for example through an ApplicationSet SCM Provider generator over the platform's GitLab group); kro then creates what the platform's `EKSCluster` RGD declares (for example the cluster, add-on IAM and a GitOps Bridge cluster secret), and the hub `ApplicationSet` in `idp-architecture.md` installs the add-ons from that secret, so the secret must carry the `enable_` labels and `addons_repo_*` annotations that `ApplicationSet` reads.
+The hub ArgoCD syncs the new repo (for example through an ApplicationSet SCM Provider generator over the platform's GitLab group); kro then creates what the platform's `EKSCluster` RGD declares (for example the cluster, add-on IAM and a GitOps Bridge cluster secret), and the hub `ApplicationSet` in `idp-architecture.md` installs the add-ons from that secret, so the secret must carry the `enable_` and `environment` labels and the `addons_repo_*` annotations that `ApplicationSet` reads.
 
 ## The self-service flow (every template follows this shape)
 

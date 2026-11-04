@@ -126,7 +126,7 @@ spec:
         automated: {}
 ```
 
-GitOps Bridge's control-plane template keeps one `ApplicationSet` per add-on; a spoke gets the add-on as soon as its bridge-written secret carries the `enable_` label.
+GitOps Bridge's control-plane template keeps one `ApplicationSet` per add-on; a spoke gets the add-on as soon as its secret carries the `enable_` label.
 
 ## Component map (what each tool owns)
 
