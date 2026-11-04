@@ -67,7 +67,7 @@ projects/<project-name>/design/
 - **Created**: Stage 2 (Architecture Generation)
 - **Content**: Individual ADR per significant technology decision
 - **Naming**: `ADR-001-compute-strategy.md`, `ADR-002-networking-model.md`, etc.
-- **Format**: Context -> Decision -> Alternatives -> Rationale -> Consequences -> Research Sources
+- **Format**: Context -> Decision -> Alternatives -> Rationale -> Consequences -> Research Sources (checked on `<YYYY-MM-DD>`)
 
 ### architecture/security-architecture.md
 
