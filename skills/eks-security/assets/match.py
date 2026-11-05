@@ -202,7 +202,7 @@ class Matcher:
         f["nodes_pending"] = pending
         if pending:
             f["verdict"] = "aws_managed_rotation_pending"
-            f["reason"] = ("%d Auto Mode node(s) created before the fix date %s still run the earlier build "
+            f["reason"] = ("%d Auto Mode node(s) created before the fix date %s run the vulnerable build "
                            "until they are replaced" % (len(pending), rec.get("fixed_at")))
         else:
             f["verdict"] = "aws_managed_patched"

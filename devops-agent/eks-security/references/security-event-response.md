@@ -71,7 +71,7 @@ Every item is printed for the team to review and apply. The order and the contro
 | Fargate or Windows pods | `kubectl get pod <pod> -n <ns> -o wide` (node name and OS) | never by VPC CNI: its policies do not apply to Fargate or Windows pods. Say so, and propose the pod's security group (Security Groups for Pods) where it has one. |
 | Admin tier available? | `kubectl get crd clusternetworkpolicies.networking.k8s.aws` | the CRD exists |
 
-**Pod-scoped network isolation, by label.** Select only the suspect pods; do **not** propose a namespace-wide deny-all, which cuts every neighbour. Propose an added label (`kubectl label pod <pod> -n <ns> quarantine=true`; the app labels stay) with the event id in an annotation (`kubectl annotate pod <pod> -n <ns> quarantine-event=<event-id>`; label values are limited to 63 characters of `[A-Za-z0-9._-]`), then:
+**Pod-scoped network isolation, by label.** Select only the suspect pods; do **not** propose a namespace-wide deny-all, which cuts every neighbour. Propose an added label (`kubectl label pod <pod> -n <ns> quarantine=true`; the app labels stay) with the event id in an annotation (`kubectl annotate pod <pod> -n <ns> quarantine-event=<event-id>`; label values are limited to 63 characters of `[A-Za-z0-9._-]`, beginning and ending with an alphanumeric character), then:
 
 ```yaml
 apiVersion: networking.k8s.io/v1

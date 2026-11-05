@@ -92,7 +92,7 @@ Why: continuous rescan surfaces a new CVE on an image already running; digest pi
 
 ## Currency rule
 
-No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: it belongs to an upgrade readiness assessment, which owns version lag. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are read in the C1 inventory (`eks:DescribeAddonVersions`) for a manual read.
+No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: plain version lag goes to eks-upgrade-check against a target version, or to eks-operation-review with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are read in the C1 inventory (`eks:DescribeAddonVersions`) for a manual read.
 
 ## Repository checks (not in this port)
 

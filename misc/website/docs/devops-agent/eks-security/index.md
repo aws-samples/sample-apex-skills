@@ -24,7 +24,7 @@ This skill does security reviews of a real EKS cluster and gives the hardening a
 
 | Capability | Question it answers | Reference |
 |---|---|---|
-| **C1 CVE and advisory review** | Is this cluster exposed to this CVE, bulletin or advisory, or to anything published since a date? | [cve-advisory-review.md](references/cve-advisory-review) |
+| **C1 CVE and advisory review** | Is this cluster exposed to this CVE, bulletin or advisory, or to anything published since a date? A computed verdict needs an AWS bulletin or a repository advisory; Kubernetes feed, ALAS and Bottlerocket items are listed for review | [cve-advisory-review.md](references/cve-advisory-review) |
 | **C2 Security event response** | Something is compromised or leaked: what is in scope and what do we do now? | [security-event-response.md](references/security-event-response) |
 | **C3 Posture check** | If one pod is compromised tomorrow, does this cluster contain it? | [posture-check.md](references/posture-check) |
 
@@ -64,7 +64,7 @@ A ready-to-use IAM policy is at [`references/iam-policy.json`](https://github.co
 - Non-EKS container platforms: **ECS/Fargate-without-EKS** or **ROSA**
 - **AWS account-level / org-wide security** with no EKS-specific angle (IAM org policy, SCPs, SSO, multi-service GuardDuty)
 - **GenAI/GPU workload security** specifically (model-artifact provenance, training-data confidentiality): EKS GenAI guidance covers it
-- A component that is behind the latest release with no advisory: that is upgrade readiness, not a security finding
+- A component that is behind the latest release with no advisory: that is plain version lag, not a security finding; it goes to eks-upgrade-check against a target version, or to eks-operation-review with no target version
 - Generating Terraform/Helm, or a general operational review with no security driver
 
 ## Common rules (all three capabilities)
@@ -267,7 +267,7 @@ Load a reference only when the task needs that depth:
 ## Sources
 
 - [EKS Best Practices: Compliance](https://docs.aws.amazon.com/eks/latest/best-practices/compliance.html) · [Runtime Security](https://docs.aws.amazon.com/eks/latest/best-practices/runtime-security.html) · [Cluster Access Management](https://docs.aws.amazon.com/eks/latest/best-practices/cluster-access-management.html)
-- [AWS security bulletins](https://aws.amazon.com/security/security-bulletins/) · [Kubernetes official CVE feed](https://kubernetes.io/docs/reference/issues-security/official-cve-feed/) · [Amazon Linux security center](https://alas.aws.amazon.com/) · [Bottlerocket advisories](https://advisories.bottlerocket.aws/updateinfo.xml.gz)
+- [AWS security bulletins](https://aws.amazon.com/security/security-bulletins/) · [Kubernetes official CVE feed](https://kubernetes.io/docs/reference/issues-security/official-cve-feed/) · [Amazon Linux security center](https://alas.aws.amazon.com/) · [Bottlerocket security advisories](https://github.com/bottlerocket-os/bottlerocket/security/advisories) (feed: `https://advisories.bottlerocket.aws/updateinfo.xml.gz`)
 - [Inspector ECR scanning](https://docs.aws.amazon.com/inspector/latest/user/scanning-ecr.html) · [GuardDuty EKS integration](https://docs.aws.amazon.com/eks/latest/userguide/integration-guardduty.html) · [Control-plane logs](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html) · [VPC CNI NetworkPolicy](https://docs.aws.amazon.com/eks/latest/userguide/cni-network-policy.html)
 - [EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/automode.html) · [Auto Mode security](https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html) · [Auto Mode network policies](https://docs.aws.amazon.com/eks/latest/userguide/auto-net-pol.html) · [Auto Mode release notes](https://docs.aws.amazon.com/eks/latest/userguide/auto-change.html)
 - [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) · [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) · [Access Entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html)

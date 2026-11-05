@@ -280,7 +280,7 @@ def findings_blocks(fd, inv):
         rows.sort(key=lambda r: s(r[3]))
         blocks += [("h2", "Auto Mode nodes pending rotation"),
                    ("p", "AWS manages these components on Auto Mode nodes. Nodes created before the fix date keep "
-                         "the earlier build until they are replaced. Your lever is the NodePool's expireAfter or a "
+                         "the vulnerable build until they are replaced. Your lever is the NodePool's expireAfter or a "
                          "planned rotation of the nodes below in a maintenance window, not a patch. Read the "
                          "NodePool settings first:"),
                    ("code", ["kubectl get nodepools -o custom-columns=NAME:.metadata.name,"
@@ -292,9 +292,11 @@ def findings_blocks(fd, inv):
         shown = set()
         for f in act:
             note, cmds = proposed_actions(f, inv, cluster, region)
-            blocks.append(("p", "%s on %s (%s, %s): %s" % (s(f.get("advisory")), s(f.get("component")),
-                                                           s(f.get("priority")), s(f.get("severity")), note)))
-            if cmds and tuple(cmds) not in shown:
+            dup = bool(cmds) and tuple(cmds) in shown
+            blocks.append(("p", "%s on %s (%s, %s): %s%s" % (s(f.get("advisory")), s(f.get("component")),
+                                                             s(f.get("priority")), s(f.get("severity")), note,
+                                                             " (commands as above)" if dup else "")))
+            if cmds and not dup:
                 shown.add(tuple(cmds))
                 blocks.append(("code", cmds))
     return blocks, bool(cov.get("complete"))

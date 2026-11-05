@@ -23,7 +23,7 @@ Notes per feed:
 
 ## Freshness
 
-Each run reads the feeds live and records `read_at` per source. Where the feed carries its own timestamp (the Kubernetes feed's `updated_at`, RSS `lastBuildDate` or item `pubDate`) the report prints it beside the read time. A sweep reports the newest item date it saw per feed, which is where the next sweep should start. Nothing in this skill is a cache of a feed.
+Each run reads the feeds live and records `read_at` per source. Where the feed carries its own timestamp (the Kubernetes feed's `updated_at`, RSS `lastBuildDate` or item `pubDate`) the report prints it beside the read time. Start the next sweep from the last sweep's read time. Nothing in this skill is a cache of a feed.
 
 ## When a feed is unreachable
 
