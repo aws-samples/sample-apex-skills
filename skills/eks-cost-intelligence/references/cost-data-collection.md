@@ -110,7 +110,7 @@ for group in response["ResultsByTime"][0]["Groups"]:
 
 Split cost allocation data is CUR only, not in Cost Explorer; this query groups by the user tags kubernetes-namespace and kubernetes-deployment.
 
-Split Cost Allocation Data distributes shared EC2 and EKS costs to individual pods/namespaces based on resource requests. Must be enabled in Cost Management console (regular or payer account only; see the account tier check below).
+Split cost allocation data is in CUR (legacy CUR and CUR 2.0 with Data Exports) only, not Cost Explorer, and only a regular or payer account can opt in to it, in Cost Management preferences (see the account tier check below), so this Cost Explorer query uses the user tags instead ([Enabling split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/enabling-split-cost-allocation-data.html), read 2026-11-05).
 
 **Via AWS CLI:**
 ```bash
