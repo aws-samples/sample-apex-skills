@@ -279,6 +279,7 @@ else
     # modules from terraform-aws-eks (root, karpenter), eks-pod-identity and eks-blueprints-addon(s).
     # A text scan per block: it cannot see inside
     # each add-on map of eks-blueprints-addons or a node-group map built in locals.
+    SCAN_RC=0
     MISSING=$(find "$PROJECT_DIR" -name '*.tf' -not -path '*/.terraform/*' -print0 \
         | xargs -0 -r awk '
             FNR == 1 { depth = 0; inblk = 0 }
@@ -294,10 +295,13 @@ else
                     if (kind == "role" && blk !~ /permissions_boundary/) print start
                     if (kind == "module" && blk ~ /source[[:space:]]*=[[:space:]]*"[^"]*(terraform-aws-modules\/eks\/aws|eks-pod-identity|eks-blueprints-addons?\/aws)/ && blk !~ /boundary/) print start
                 }
-            }' || true)
-    if [ -z "$MISSING" ]; then
+            }') || SCAN_RC=$?
+    if [ "$SCAN_RC" -ne 0 ]; then
+        fail "Boundary scan could not read every .tf file (exit $SCAN_RC): later files were not checked"
+    fi
+    if [ -z "$MISSING" ] && [ "$SCAN_RC" -eq 0 ]; then
         pass "Every scanned block names a boundary input (text scan; check each role by hand)"
-    else
+    elif [ -n "$MISSING" ]; then
         while IFS= read -r loc; do
             fail "No permissions boundary input at $loc (see baseline-defaults.md IAM)"
         done <<< "$MISSING"

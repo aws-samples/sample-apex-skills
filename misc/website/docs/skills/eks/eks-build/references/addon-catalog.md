@@ -249,6 +249,8 @@ module "my_addon" {
   values = try(var.custom_addons_config.my_addon.values, [])
   set    = try(var.custom_addons_config.my_addon.set, [])
   tags   = var.tags
+
+  role_permissions_boundary_arn = var.permissions_boundary  # used when create_role = true
 }
 ```
 
