@@ -166,7 +166,7 @@ write_meta() {
 }
 if [ "$PREFLIGHT_ONLY" -eq 1 ]; then
   write_meta; rm -f -- "$OUT/cluster.json" "$ERRS" "$PF"
-  jq -c '{ok:([.preflight|to_entries[]|select(.key|startswith("k8s:"))|.value=="ok"]|any),preflight_only:true,preflight:.preflight,errors:(.errors|length)}' "$OUT/meta.json"
+  jq -c '{ok:([.preflight|to_entries[]|select(.key|startswith("k8s:"))|.value=="ok"]|all),preflight_only:true,preflight:.preflight,errors:(.errors|length)}' "$OUT/meta.json"
   exit 0
 fi
 

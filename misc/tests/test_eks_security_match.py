@@ -849,6 +849,19 @@ class CollectReadOnly(TmpCase):
         self.assertEqual(doc["overall"], "exposed")
 
     @NEEDS_JQ
+    def test_collect_preflight_partial_k8s_not_ok(self):
+        cc = CASES["collect"]
+        kubectl = dict(cc["kubectl"], **{"auth can-i": {"text": "yes", "if_arg": {"--all-namespaces": {"text": "no"}}}})
+        p, _ = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--preflight-only",
+                                                  "--out", os.path.join(self.tmp, "work")],
+                             {"aws": cc["aws"], "kubectl": kubectl, "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        out = last_json(p.stdout)
+        self.assertEqual(out["preflight"]["k8s:list nodes"], "ok")
+        self.assertEqual(out["preflight"]["k8s:list pods"], "denied")
+        self.assertFalse(out["ok"])
+
+    @NEEDS_JQ
     def test_posture_collect_run_with_stubs(self):
         pc = CASES["posture"]
         work = os.path.join(self.tmp, "work")

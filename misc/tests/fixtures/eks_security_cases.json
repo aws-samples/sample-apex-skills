@@ -1360,7 +1360,7 @@
             "image": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon-k8s-cni:v1.21.1-eksbuild.3"
            },
            {
-            "name": "aws-network-policy-agent",
+            "name": "aws-eks-nodeagent",
             "image": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon/aws-network-policy-agent:v1.2.0-eksbuild.1"
            }
           ]
@@ -1387,7 +1387,7 @@
           "image": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon-k8s-cni:v1.21.1-eksbuild.3"
          },
          {
-          "name": "aws-network-policy-agent",
+          "name": "aws-eks-nodeagent",
           "image": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon/aws-network-policy-agent:v1.2.0-eksbuild.1"
          }
         ]
@@ -1399,7 +1399,7 @@
           "imageID": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon-k8s-cni@sha256:1111111111111111111111111111111111111111111111111111111111111111"
          },
          {
-          "name": "aws-network-policy-agent",
+          "name": "aws-eks-nodeagent",
           "imageID": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon/aws-network-policy-agent@sha256:2222222222222222222222222222222222222222222222222222222222222222"
          }
         ]
