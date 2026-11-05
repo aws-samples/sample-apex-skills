@@ -391,13 +391,13 @@
         },
         {
           "type": "must-contain",
-          "pattern": "iam_role_permissions_boundary_arn",
+          "pattern": "(?<![a-z_])iam_role_permissions_boundary_arn",
           "context": "The Karpenter submodule takes the controller role boundary as iam_role_permissions_boundary_arn",
           "source": "https://github.com/terraform-aws-modules/terraform-aws-eks/blob/v21.29.0/modules/karpenter/variables.tf"
         },
         {
           "type": "must-contain",
-          "pattern": "node_iam_role_permissions_boundary",
+          "pattern": "node_iam_role_permissions_boundary(?![a-z_])",
           "context": "The Karpenter submodule takes the node role boundary as node_iam_role_permissions_boundary",
           "source": "https://github.com/terraform-aws-modules/terraform-aws-eks/blob/v21.29.0/modules/karpenter/variables.tf"
         },
