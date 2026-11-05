@@ -565,7 +565,7 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 
 **Step 2:** Use the Kubernetes API to check for aws-node-termination-handler as a Deployment or DaemonSet in kube-system namespace, or search by label `app.kubernetes.io/name=aws-node-termination-handler`.
 
-**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. Interruption handling is enabled only when the INTERRUPTION_QUEUE env var names an SQS queue. Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0; v0.30 to v0.31 hold the queue only in the karpenter-global-settings ConfigMap).
+**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. Interruption handling is enabled only when an interruption queue is set (INTERRUPTION_QUEUE from v0.32; aws.interruptionQueueName in karpenter-global-settings on v0.30-v0.31). Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0; v0.30 to v0.31 hold the queue only in the karpenter-global-settings ConfigMap).
 
 **Step 4:** Check that the queue INTERRUPTION_QUEUE names exists (`aws sqs get-queue-url --queue-name "$QUEUE"`); the default name is the cluster name. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
 

@@ -39,7 +39,7 @@ This reference documents the exact API calls needed to collect cost and utilizat
 
 ### Prerequisites
 
-- Cost Allocation Tags activated in Billing console (`eks:cluster-name`, `kubernetes-namespace`)
+- Cost Allocation Tags activated in Billing console (`aws:eks:cluster-name`, `kubernetes-namespace`); managed node groups also set `eks:cluster-name`, which misses Karpenter and self-managed nodes
 - Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can view the data in CUR once its payer opts in)
 - IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
@@ -56,7 +56,7 @@ Call the Cost Explorer GetCostAndUsage API with:
 - TimePeriod: last 30 days
 - Granularity: MONTHLY
 - Metrics: BlendedCost, UnblendedCost, UsageQuantity
-- Filter: Tag eks:cluster-name = <cluster-name>
+- Filter: Tag aws:eks:cluster-name = <cluster-name>
 - GroupBy: SERVICE dimension
 
 Note: Cost Explorer API is only available in us-east-1 regardless of cluster region.
@@ -79,7 +79,7 @@ response = ce.get_cost_and_usage(
     Metrics=["BlendedCost", "UnblendedCost", "UsageQuantity"],
     Filter={
         "Tags": {
-            "Key": "eks:cluster-name",
+            "Key": "aws:eks:cluster-name",
             "Values": ["<cluster-name>"]
         }
     },
@@ -105,7 +105,7 @@ for group in response["ResultsByTime"][0]["Groups"]:
 
 ---
 
-### 1.2 Namespace-Level Cost Attribution (Split Cost Allocation)
+### 1.2 Namespace-Level Cost Attribution (cost allocation tags)
 
 Split Cost Allocation Data distributes shared EC2 and EKS costs to individual pods/namespaces based on resource requests. Must be enabled in Cost Management console (regular or payer account only; see the account tier check below).
 
@@ -115,7 +115,7 @@ Call the Cost Explorer GetCostAndUsage API with:
 - TimePeriod: last 30 days
 - Granularity: MONTHLY
 - Metrics: BlendedCost
-- Filter: AND condition — SERVICE = Amazon Elastic Kubernetes Service AND Tag eks:cluster-name = <cluster-name>
+- Filter: AND condition — SERVICE = Amazon Elastic Kubernetes Service AND Tag aws:eks:cluster-name = <cluster-name>
 - GroupBy: TAG kubernetes-namespace, TAG kubernetes-deployment
 
 **API pattern (reference pseudocode):**
@@ -130,7 +130,7 @@ response = ce.get_cost_and_usage(
     Filter={
         "And": [
             {"Dimensions": {"Key": "SERVICE", "Values": ["Amazon Elastic Kubernetes Service"]}},
-            {"Tags": {"Key": "eks:cluster-name", "Values": ["<cluster-name>"]}}
+            {"Tags": {"Key": "aws:eks:cluster-name", "Values": ["<cluster-name>"]}}
         ]
     },
     GroupBy=[

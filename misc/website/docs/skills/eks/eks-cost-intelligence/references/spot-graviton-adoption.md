@@ -935,7 +935,6 @@ kubectl get configmap -n kube-system -l app.kubernetes.io/name=aws-node-terminat
 **Step 3: Check Karpenter interruption handling**
 
 ```bash
-# Karpenter handles Spot interruptions only when INTERRUPTION_QUEUE names an SQS queue
 # Verify Karpenter is running and has the interruption controller
 # Find its namespace once (kube-system is the recommended install namespace; older installs use karpenter)
 KARPENTER_NS=$(for ns in kube-system karpenter; do kubectl get deployment -n "$ns" karpenter >/dev/null 2>&1 && echo "$ns" && break; done)
@@ -947,7 +946,7 @@ kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
     version: .metadata.labels["app.kubernetes.io/version"]
   }'
 
-# Interruption handling runs only when INTERRUPTION_QUEUE is set; with no queue it is disabled
+# Interruption handling runs only when an interruption queue is set (INTERRUPTION_QUEUE from v0.32; aws.interruptionQueueName in karpenter-global-settings on v0.30-v0.31); with no queue it is disabled
 # Settings live in the container env (the karpenter-global-settings ConfigMap was dropped in v0.33.0;
 # v0.30 to v0.31 hold the queue only in the karpenter-global-settings ConfigMap)
 kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
@@ -998,7 +997,6 @@ If spot_node_count > 0:
   nth_installed = (aws-node-termination-handler deployment/daemonset exists)
   
   If karpenter_installed:
-    # Karpenter handles interruptions only when INTERRUPTION_QUEUE names an SQS queue
     karpenter_version = parse version from deployment labels
     If karpenter_version >= "0.30":
       If INTERRUPTION_QUEUE is unset (Step 3) AND NOT nth_installed:

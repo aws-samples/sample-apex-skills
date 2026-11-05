@@ -687,7 +687,7 @@ START
   │
   ├─ Run Check 3: VPC Endpoints
   │   ├─ ec2:DescribeVpcEndpoints available?
-  │   │   ├─ YES → Check for ECR, S3, STS endpoints
+  │   │   ├─ YES → Check for ECR, S3, STS endpoints, or served by an associated hosted zone
   │   │   └─ NO  → Skip Check 3, note permission gap
   │   └─ Missing endpoints found?
   │       ├─ YES → Generate MEDIUM finding (per Req 7.5)

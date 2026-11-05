@@ -29,7 +29,7 @@ This reference documents the exact API calls needed to collect cost and utilizat
 
 ### Prerequisites
 
-- Cost Allocation Tags activated in Billing console (`eks:cluster-name`, `kubernetes-namespace`)
+- Cost Allocation Tags activated in Billing console (`aws:eks:cluster-name`, `kubernetes-namespace`); managed node groups also set `eks:cluster-name`, which misses Karpenter and self-managed nodes
 - Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can view the data in CUR once its payer opts in)
 - IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
@@ -60,7 +60,7 @@ aws ce get-cost-and-usage \
   --metrics "BlendedCost" "UnblendedCost" "UsageQuantity" \
   --filter '{
     "Tags": {
-      "Key": "eks:cluster-name",
+      "Key": "aws:eks:cluster-name",
       "Values": ["<cluster-name>"]
     }
   }' \
@@ -83,7 +83,7 @@ response = ce.get_cost_and_usage(
     Metrics=["BlendedCost", "UnblendedCost", "UsageQuantity"],
     Filter={
         "Tags": {
-            "Key": "eks:cluster-name",
+            "Key": "aws:eks:cluster-name",
             "Values": ["<cluster-name>"]
         }
     },
@@ -109,7 +109,7 @@ for group in response["ResultsByTime"][0]["Groups"]:
 
 ---
 
-### 1.2 Namespace-Level Cost Attribution (Split Cost Allocation)
+### 1.2 Namespace-Level Cost Attribution (cost allocation tags)
 
 Split Cost Allocation Data distributes shared EC2 and EKS costs to individual pods/namespaces based on resource requests. Must be enabled in Cost Management console (regular or payer account only; see the account tier check below).
 
@@ -122,7 +122,7 @@ aws ce get-cost-and-usage \
   --filter '{
     "And": [
       {"Dimensions": {"Key": "SERVICE", "Values": ["Amazon Elastic Kubernetes Service"]}},
-      {"Tags": {"Key": "eks:cluster-name", "Values": ["<cluster-name>"]}}
+      {"Tags": {"Key": "aws:eks:cluster-name", "Values": ["<cluster-name>"]}}
     ]
   }' \
   --group-by Type=TAG,Key=kubernetes-namespace Type=TAG,Key=kubernetes-deployment \
@@ -138,7 +138,7 @@ response = ce.get_cost_and_usage(
     Filter={
         "And": [
             {"Dimensions": {"Key": "SERVICE", "Values": ["Amazon Elastic Kubernetes Service"]}},
-            {"Tags": {"Key": "eks:cluster-name", "Values": ["<cluster-name>"]}}
+            {"Tags": {"Key": "aws:eks:cluster-name", "Values": ["<cluster-name>"]}}
         ]
     },
     GroupBy=[
@@ -160,8 +160,9 @@ for group in response["ResultsByTime"][0]["Groups"]:
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 PAYER=$(aws organizations describe-organization --query Organization.MasterAccountId --output text 2>/dev/null)
 # PAYER is the management account (MasterAccountId); empty (AWSOrganizationsNotInUseException or no permission): a regular account, or unknown
-[ -n "$PAYER" ] && [ "$PAYER" != "$ACCOUNT" ] && echo "member account: split cost allocation opt-in needs payer $PAYER"
-[ -z "$PAYER" ] && echo "account tier unknown: standalone, or no organizations permission"
+if [ -n "$PAYER" ] && [ "$PAYER" != "$ACCOUNT" ]; then echo "member account: split cost allocation opt-in needs payer $PAYER"
+elif [ -z "$PAYER" ]; then echo "account tier unknown: standalone, or no organizations permission"
+else echo "management or regular account: opt-in is in this account's Cost Management preferences"; fi
 ```
 
 **When Split Cost Allocation is not enabled:**

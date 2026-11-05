@@ -42,7 +42,7 @@ The following permissions are included:
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`
-- `route53:ListHostedZonesByVPC`
+- `route53:ListHostedZonesByVPC` (optional: centralized VPC endpoint zones)
 
 **Elastic Load Balancing (required):**
 - `elasticloadbalancing:DescribeLoadBalancers`
@@ -362,7 +362,7 @@ Before executing checks for any dimension, read the corresponding reference file
 
 | User Request | Reference File(s) to Load |
 |---|---|
-| Full cost assessment / audit / review | ALL dimension files in order (Steps 1-6), then `report-generation.md`; the `cost-data-collection.md` account tier check |
+| Full cost assessment / audit / review | ALL dimension files in order (Steps 1-6), then `report-generation.md` |
 | Compute efficiency / over-provisioning / CPU waste | `references/compute-efficiency.md` |
 | Spot / Graviton / instance types / arm64 | `references/spot-graviton-adoption.md` |
 | Networking costs / cross-AZ / NAT / VPC endpoints | `references/networking-costs.md` |
