@@ -1,6 +1,8 @@
+> **Candidate README for comparison; not the repo's README.**
+
 <div align="center">
 
-<img src="../website/static/img/logo.svg" alt="APEX Skills" width="120">
+<img src="../../misc/website/static/img/logo.svg" alt="APEX Skills" width="120">
 
 # APEX Skills
 
@@ -21,7 +23,7 @@
 - **The `/apex` router**: one entry point. Type `/apex` with your request and it picks the right skill and, when there is one, that skill's runbook.
 - **DevOps Agent ports**: 6 skills repackaged for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/).
 
-Built by the APEX team at AWS. 5 skills are vendored from upstream projects; see [Provenance](#provenance).
+Built by AWS Solutions Architects, TAMs, and ProServe. 5 skills are vendored from upstream projects; see [Provenance](#provenance).
 
 <!-- INSTALL_SNIPPET_START -->
 ## Quick start
@@ -31,6 +33,8 @@ You need [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/).
 ```bash
 npx apex-skills@1.3.0
 ```
+
+For v2 and its `/apex` router, use the Manual Install (from `main`) in [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started#manual-install).
 
 The installer detects Claude Code and Kiro CLI, clones the repo to `~/.apex-skills/` and links the skills into place. Then ask your agent:
 
@@ -43,9 +47,9 @@ Codex, other harnesses and manual installs: [Getting started](https://aws-sample
 
 The [EKS Upgrade Readiness Check](../../examples/eks-upgrades/in-place-karpenter-check/) example, run in Claude Code:
 
-| The skill triggers | The scored result |
+| The agent finds your clusters | The scored result |
 |---|---|
-| ![Skill trigger](../../examples/eks-upgrades/in-place-karpenter-check/static/cc/01-skill-trigger.png) | ![Assessment result](../../examples/eks-upgrades/in-place-karpenter-check/static/cc/04-assessment-result.png) |
+| ![Cluster discovery](../../examples/eks-upgrades/in-place-karpenter-check/static/cc/02-cluster-discovery.png) | ![Assessment result](../../examples/eks-upgrades/in-place-karpenter-check/static/cc/04-assessment-result.png) |
 
 ## How it fits
 
@@ -54,7 +58,7 @@ flowchart LR
   U[You] --> H[Agent harness<br/>Claude Code, Kiro CLI, Codex]
   H --> R["/apex router"]
   R --> S[Skill + runbook]
-  S --> T[EKS MCP server<br/>or AWS CLI and kubectl]
+  S --> T["AWS CLI, kubectl or MCP servers,<br/>when the skill needs them"]
   T --> O[Report or code]
 ```
 
@@ -70,7 +74,7 @@ flowchart LR
 | [eks-best-practices](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/) | Advisory guidance on EKS architecture and configuration |
 | [eks-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-build/) | Generates apply-ready Terraform for EKS, with optional ArgoCD GitOps |
 | [eks-cost-intelligence](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/) | Scores a live cluster's cost efficiency with dollar-quantified findings |
-| [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/) | Design documents with diagrams and ADRs for a new cluster |
+| [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/) | Design documents with diagrams and ADRs |
 | [eks-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/) | Building, training and serving GenAI and LLM workloads on EKS |
 | [eks-ingress-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/) | Plans a move off NGINX Ingress to Gateway API, ALB or AWS Transform |
 | [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/) | Sets up and troubleshoots the EKS MCP Server connection |
@@ -79,7 +83,7 @@ flowchart LR
 | [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/) | Reports the raw facts of a cluster and its environment |
 | [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/) | Security hardening and compliance guidance for EKS |
 | [eks-upgrade-check](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-upgrade-check/) † | Scores a cluster's upgrade readiness across 8 areas |
-| [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/) | Well-Architected Framework review of an EKS cluster |
+| [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/) | Unofficial Well-Architected Framework review of an EKS cluster (Linux nodes) |
 
 ### ECS
 
@@ -100,7 +104,7 @@ flowchart LR
 | Skill | What it does |
 |---|---|
 | [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) | The `/apex` router for EKS and ECS work |
-| [dotnet-aws-ecs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/) † | Deploys a .NET workload to ECS Fargate with CloudFormation or CDK |
+| [dotnet-aws-ecs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/) † | Generates CloudFormation or CDK and a guide to deploy .NET to ECS Fargate |
 | [graviton-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/) | Migrates a workload from x86 to AWS Graviton |
 | [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/) † | Creates, improves and evaluates skills |
 | [terraform-skill](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/) † | Writing, reviewing and debugging Terraform and OpenTofu |
@@ -140,7 +144,7 @@ See [CONTRIBUTING.md](../../CONTRIBUTING.md) for adding skills, runbooks and exa
 
 ## Disclaimer
 
-Sample code for **educational and demonstration purposes only**. Test generated infrastructure (Terraform, Helm charts, kubectl commands) in non-production environments first. Use at your own risk.
+Sample code for **educational and demonstration purposes only**. It is not intended for direct production use without proper review, testing, and validation. Test generated infrastructure (Terraform, Helm charts, kubectl commands) in non-production environments first. Use at your own risk.
 
 ## License
 

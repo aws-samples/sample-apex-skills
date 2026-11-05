@@ -1,8 +1,10 @@
+> **Candidate README for comparison; not the repo's README.**
+
 # APEX Skills - Agentic Platform Engineering eXperience
 
 [![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aws-samples.github.io/sample-apex-skills/)
 
-> Curated platform-engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, TAMs, and ProServe, delivered through agentic AI tools (Claude Code, Kiro CLI etc). 5 of the 28 skills are vendored from upstream projects: see [Third-Party Notices](../../THIRD_PARTY_NOTICES.md).
+> Curated platform-engineering skills that compress onboarding from months to weeks. Domain knowledge for the APEX-owned skills authored by senior AWS SSAs, TAMs, and ProServe, delivered through agentic AI tools (Claude Code, Kiro CLI etc). 5 of the 28 skills are vendored from upstream projects: 3 are listed in [Third-Party Notices](../../THIRD_PARTY_NOTICES.md); eks-operation-review and eks-upgrade-check come from aws-samples repos (see each skill's UPSTREAM.md).
 
 **APEX** uses agentic AI (frontier models and agent harness like Claude Code) combined with curated "skills" to give engineers SSA-grade platform engineering output.
 
