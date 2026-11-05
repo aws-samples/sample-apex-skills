@@ -17,7 +17,7 @@ Each check reads only files the collector wrote, returns a result with the evide
 
 ## How it runs
 
-Run from any directory with `aws`, `kubectl` and `jq` 1.6 or later on `PATH`. Every step is read-only; nothing is applied to the cluster.
+Run from any directory with `aws`, `kubectl`, `jq` 1.6 or later, and `timeout` and `sha256sum` (GNU coreutils) on `PATH`. Every step is read-only; nothing is applied to the cluster.
 
 | Step | Command | Writes | Exit codes |
 |---|---|---|---|
@@ -42,9 +42,9 @@ The collected pod and workload JSON carries container environment values and arg
 
 ## Layers, results, score and coverage
 
-Every check counts toward one of seven containment layers: `node-credential`, `lateral-movement`, `privilege`, `identity`, `detection`, `api-exposure`, `supply-chain`.
+Every check counts toward one of seven containment layers: `node-credential`, `lateral-movement`, `privilege`, `identity`, `detection`, `api-exposure`, `supply-chain`. The exceptions are SEC-POSTURE-18, 19, 21 and 25 (encryption at rest and TLS settings, which a compromised pod does not depend on): they are scored and shown in the checks table but count toward no layer verdict.
 
-**Buckets.** A scorer counts the objects a check applies to and buckets the passing share, the same rule for both scorers (`posture_extra.sh`: "Same bucket rule as the WAR prelude b(): >=90% all, >=70% most, >0 some, 0 none, empty na"). Some checks are all-or-nothing and emit only `all` or `none`.
+**Buckets.** A scorer counts the objects a check applies to and buckets the passing share, the same rule for both scorers (`posture_extra.sh`: "Same bucket rule as the WAR prelude b(): >=90% all, >=70% most, >0 some, 0 none, empty na"). Some checks are all-or-nothing and emit only `all` or `none`. A bucketed check at 90% or more reads pass, with the failing objects only in the evidence (for example one node open to IMDS under SEC-POSTURE-55, or one namespace without default-deny under SEC-POSTURE-56).
 
 **Result.** `posture_reduce.sh`: "state all -> pass; most, some, none -> fail; na -> na; unknown -> unknown." A check with no token at all is `unknown`. Governance checks (process questions with no cluster evidence) are always `unknown` and are left out of coverage, score and layer verdicts.
 
@@ -73,7 +73,7 @@ eks-well-architected-review's security pillar does not measure these, or measure
 | SEC-POSTURE-61 | GuardDuty Runtime Monitoring | `guardduty.json` | pass when feature `RUNTIME_MONITORING` or `EKS_RUNTIME_MONITORING` is `ENABLED`; the `EKS_ADDON_MANAGEMENT` setting is reported. Whether the agent runs on every node is SEC-POSTURE-48 | detection | medium |
 | SEC-POSTURE-62 | ECR registry scanning, continuous | `ecr-scanning.json` | `all` (pass): `ENHANCED` with a `CONTINUOUS_SCAN` rule whose filter is `*`; `some` (fail): `ENHANCED` with narrower or on-push rules only; `none`: `BASIC` or no rule | supply-chain | medium |
 | SEC-POSTURE-63 | Workload images pinned by digest | `pods.json` | Per container and init container of unfinished workload pods: pass when the image ends in `@sha256:<64 hex>`; bucketed. A tag resolved at pull time does not count | supply-chain | low |
-| SEC-POSTURE-64 | Cluster admin through EKS access entries | `accessentries.json`, `cluster.json` | Admin is `AmazonEKSClusterAdminPolicy` at any scope, or `AmazonEKSAdminPolicy` at cluster scope. Holders that are IAM service-linked roles (path `/aws-service-role/`) or match `--admin-allow` are listed under pass; any other holder fails the check (`none`) and its ARN and policy are listed. A `CONFIG_MAP`-only cluster has no access entries: na (its `aws-auth` `system:masters` mappings are SEC-POSTURE-10). When the cluster was created with `bootstrapClusterCreatorAdminPermissions` true and no `--admin-allow` is given, the evidence says one holder is likely the creator | identity | high |
+| SEC-POSTURE-64 | Cluster admin through an access policy | `accessentries.json`, `cluster.json` | Admin is `AmazonEKSClusterAdminPolicy` at any scope, or `AmazonEKSAdminPolicy` at cluster scope. Holders that match `--admin-allow` are listed under pass; any other holder fails the check (`none`) and its ARN and policy are listed. An entry's `kubernetesGroups` are not read: a group binding to cluster admin shows under SEC-POSTURE-10. A `CONFIG_MAP`-only cluster has no access entries: na (its `aws-auth` `system:masters` mappings are SEC-POSTURE-10); on it the cluster creator holds `system:masters` in no visible configuration, and the evidence prints `bootstrapClusterCreatorAdminPermissions=<value>`. When the cluster was created with `bootstrapClusterCreatorAdminPermissions` true and no `--admin-allow` is given, the evidence says one holder is likely the creator | identity | high |
 
 SEC-POSTURE-64's recommendation proposes scoping, printed only: grant each listed principal what it needs at a narrower scope (`AmazonEKSAdminPolicy` with a namespace access scope, or a Kubernetes group bound to a narrower RBAC role), then remove the cluster-wide grant with `aws eks disassociate-access-policy --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --policy-arn arn:aws:eks::aws:cluster-access-policy/<the listed policy>`, keeping one break-glass admin role whose use is logged. AWS's EKS best practices recommend removing the creator's cluster-admin grant the same way ([Identity and Access Management](https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html), "Remove the cluster-admin permissions from the cluster creator principal"; policy scopes from [Review access policy permissions](https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html), both read 2026-11-05).
 
@@ -85,19 +85,20 @@ These 54 checks are adapted from eks-well-architected-review's security pillar a
 
 | Layer | Checks (SEC-POSTURE id: war_id, severity) |
 |---|---|
-| node-credential | 18: sec-21 high; 20: sec-22 medium G; 21: sec-25 medium; 22: sec-23 low G; 46: lens-11 high |
+| node-credential | 20: sec-22 medium G; 22: sec-23 low G; 46: lens-11 high |
 | lateral-movement | 23: sec-27 low; 24: sec-28 low; 26: sec-4 high; 27: sec-14 medium G; 32: net-4 medium |
 | privilege | 6: sec-7 medium G; 7: sec-9 medium; 10: rbac-1 high; 11: rbac-2 medium; 12: rbac-3 medium; 33: sec-10 medium; 34: sec-11 high; 35: sec-16 medium; 36: adm-1 medium; 37: adm-2 medium; 38: adm-3 medium; 40: sec-15 medium; 41: podsec-1 medium; 42: podsec-2 high; 43: podsec-3 medium; 44: podsec-4 high; 45: podsec-5 medium |
-| identity | 3: sec-3 medium G; 4: sec-5 low G; 5: sec-6 high; 8: sec-17 low; 9: sec-18 high; 13: rbac-4 medium; 14: sec-8 low; 15: sec-24 medium G; 16: sec-34 medium G; 17: sec-35 low G; 19: sec-38 high; 49: sec-13 medium G |
+| identity | 3: sec-3 medium G; 4: sec-5 low G; 5: sec-6 high; 8: sec-17 low; 9: sec-18 high; 13: rbac-4 medium; 14: sec-8 low; 15: sec-24 medium G; 16: sec-34 medium G; 17: sec-35 low G; 49: sec-13 medium G |
 | detection | 48: sec-33 medium; 50: sec-19 medium G; 52: sec-26 high; 53: sec-36 low G; 54: sec-37 low G |
-| api-exposure | 1: sec-1 medium; 2: sec-2 high; 25: sec-29 high; 28: sec-30 high; 29: net-2 high |
+| api-exposure | 1: sec-1 medium; 2: sec-2 high; 28: sec-30 high; 29: net-2 high |
+| no layer (scored, shown in the checks table) | 18: sec-21 high; 19: sec-38 high; 21: sec-25 medium; 25: sec-29 high |
 | supply-chain | 30: lens-12 medium; 31: lens-13 low; 39: sec-12 low; 47: sec-32 low G; 51: sec-20 medium G |
 
 Each check's title, source files and recommendation are in the catalog at the top of `assets/posture_reduce.sh`; each question's rule is its line in `assets/posture_score.sh`. Of the 64 checks, 15 are governance and 49 are measured, so the coverage gate needs 25 answered.
 
 ## Currency rule
 
-The posture scripts do not read C1 output: no posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: route it to eks-upgrade-check, which owns version lag.
+The posture scripts do not read C1 output: no posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: route it to eks-upgrade-check against a target version, or to eks-operation-review (version currency) with no target version.
 
 ## Repository checks (manual, not scripted)
 
@@ -109,5 +110,5 @@ No script reads a repository. When the team names a local repository path, the m
 
 ## Output
 
-- `posture.json` as above, and the rendered report: one row per check with its result, severity and evidence, the coverage line, the score (or "incomplete" below the gate), and one verdict row per containment layer.
+- `posture.json` as above, and the rendered report: failed and unknown checks get one row each with result, severity and evidence; passed and na are counted; the coverage line, the score (or "incomplete" below the gate), and one verdict row per containment layer.
 - Fixes are the catalog's printed recommendations for the team to review (for example a default-deny NetworkPolicy per namespace, hop limit 1 in the launch template, the PSA label, scoping an admin access entry). Nothing is applied. The hardening knowledge behind each fix is in eks-best-practices and the layer references of this skill.

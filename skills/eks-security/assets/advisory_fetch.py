@@ -296,8 +296,8 @@ def ghsa_records(data, aliases, read_at, origin, fallback_url):
                                         "ranges": [rng] if rng else [], "quote": rstr})
                 continue
             e = merged.setdefault(comp, {"component": comp, "ranges": [], "quote": []})
-            if rng:
-                e["ranges"].append(rng)
+            if rng or rstr:
+                e["ranges"].append(rng or rstr)  # an unparsed range stays, so match.py gives bad_range
             if rstr:
                 e["quote"].append(rstr)
         for e in merged.values():

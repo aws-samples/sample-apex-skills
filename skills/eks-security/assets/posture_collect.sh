@@ -58,7 +58,7 @@ while [ $# -gt 0 ]; do
     --work)    [ $# -ge 2 ] || usage; WORK="$2";    shift 2 ;;
     --profile) [ $# -ge 2 ] || usage; export AWS_PROFILE="$2"
                # A profile must win over static keys in the environment, which the CLI would otherwise prefer.
-               for _v in $(env | sed -n 's/^\(AWS_[A-Z_]*\(ACCESS_KEY\|ACCESS_KEY_ID\|SESSION_TOKEN\|SECURITY_TOKEN\|ROLE_ARN\|WEB_IDENTITY_TOKEN_FILE\)\)=.*/\1/p'); do unset "$_v"; done
+               for _v in $(env | sed -nE 's/^(AWS_[A-Z_]*(ACCESS_KEY|ACCESS_KEY_ID|SESSION_TOKEN|SECURITY_TOKEN|ROLE_ARN|WEB_IDENTITY_TOKEN_FILE))=.*/\1/p'); do unset "$_v"; done
                shift 2 ;;
     --kubeconfig) [ $# -ge 2 ] || usage; KCFG="$2"; shift 2 ;;
     --preflight-only) PF_ONLY=1; shift ;;
@@ -113,7 +113,7 @@ PF_JSON='{}'
 pf_set() { PF_JSON=$(printf '%s' "$PF_JSON" | jq -c --arg k "$1" --arg v "$2" '.[$k]=$v'); }
 pf_classify() {
   case "$1" in
-    *ExpiredToken*|*InvalidClientTokenId*|*AuthFailure*|*security\ token*|*SSO\ Token*|*sso\ session*|*Token\ has\ expired*|*NoCredentials*|*Unable\ to\ locate\ credentials*)
+    *ExpiredToken*|*InvalidClientTokenId*|*AuthFailure*|*security\ token*|*SSO\ Token*|*sso\ session*|*Token\ has\ expired*|*NoCredentials*|*Unable\ to\ locate\ credentials*|*getting\ credentials*)
       echo expired ;;
     *UnauthorizedOperation*|*AccessDenied*|*not\ authorized*|*explicit\ deny*) echo denied ;;
     *DryRunOperation*|*ResourceNotFoundException*|*InvalidParameterException*) echo ok ;;
@@ -176,7 +176,7 @@ unset _r
 pfv() { printf '%s' "$PF_JSON" | jq -r --arg k "$1" '.[$k] // "unprobed"'; }
 [ "$(pfv eks:DescribeCluster)" = ok ] || die describe_cluster_failed "eks:DescribeCluster did not succeed ($(pfv eks:DescribeCluster)); nothing can be judged without it."
 [ "$(pfv 'kubernetes: list namespaces')" = ok ] \
-  || die kubernetes_unreachable "kubectl auth can-i list namespaces did not answer yes on context '$KCTX': the API endpoint is unreachable from here, the context names another cluster, or its token has expired."
+  || die kubernetes_unreachable "kubectl auth can-i list namespaces did not answer yes on context '$KCTX': RBAC does not grant this identity list namespaces (see read-only-access.md), the API endpoint is unreachable from here, the context names another cluster, or its token has expired."
 
 ERRORS='[]'
 err() { ERRORS=$(printf '%s' "$ERRORS" | jq -c --arg s "$1" --arg c "$2" --arg m "$3" '.+[{step:$s,code:$c,message:$m}]'); }

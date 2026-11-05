@@ -51,7 +51,9 @@
 #    left out of both sums. Below the coverage gate the score is null (WAR: INSUFFICIENT).
 #  - layer verdict (new): over the measured checks of the layer, unknown when none is answered;
 #    not-contained when any high-severity check fails; contained when every answered check passes and
-#    none is unknown; partly otherwise.
+#    none is unknown; partly otherwise. SEC-POSTURE-18, 19, 21 and 25 (encryption at rest and TLS
+#    settings, which a compromised pod does not depend on) are scored and listed but count toward no
+#    layer verdict.
 #  - refusals (WAR's): a token that is not an object with a string id and a legal state and track, a
 #    duplicate id, or an id the catalog does not know is refused with exit 2 and nothing is written.
 #    Unlike WAR, a catalog check with no token is not refused; it is `unknown`, so the gate counts it.
@@ -133,7 +135,7 @@ CATALOG=$(cat <<'CATALOG_EOF'
 {"id":"SEC-POSTURE-61","token":"SEC-POSTURE-61","war_id":null,"title":"Is GuardDuty Runtime Monitoring enabled for EKS in this Region?","layer":"detection","severity":"medium","source_file":"posture/guardduty.json","governance":false,"recommendation":"Enable GuardDuty Runtime Monitoring with automated agent management for EKS (EKS_ADDON_MANAGEMENT)."},
 {"id":"SEC-POSTURE-62","token":"SEC-POSTURE-62","war_id":null,"title":"Is ECR registry scanning enhanced, with continuous rescan of every repository?","layer":"supply-chain","severity":"medium","source_file":"posture/ecr-scanning.json","governance":false,"recommendation":"Set registry scanning to ENHANCED with a CONTINUOUS_SCAN rule whose filter covers the repositories this cluster pulls (for example *)."},
 {"id":"SEC-POSTURE-63","token":"SEC-POSTURE-63","war_id":null,"title":"Are workload images referenced by immutable digest?","layer":"supply-chain","severity":"low","source_file":"posture/pods.json","governance":false,"recommendation":"Reference images as repo@sha256:<digest> (CI can resolve tags to digests at deploy time)."},
-{"id":"SEC-POSTURE-64","token":"SEC-POSTURE-64","war_id":null,"title":"Is cluster-wide admin through EKS access entries held only by the expected principals (AWS service-linked roles and the roles named with --admin-allow)?","layer":"identity","severity":"high","source_file":"posture/accessentries.json, posture/cluster.json","governance":false,"recommendation":"For each failing principal, grant what it needs at a narrower scope (AmazonEKSAdminPolicy with a namespace access scope, or a Kubernetes group bound to a narrower RBAC role), then remove the cluster-wide grant: aws eks disassociate-access-policy --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --policy-arn arn:aws:eks::aws:cluster-access-policy/<the listed policy, AmazonEKSClusterAdminPolicy or AmazonEKSAdminPolicy>. Keep one break-glass admin role whose use is logged. Printed for review; nothing is changed."}
+{"id":"SEC-POSTURE-64","token":"SEC-POSTURE-64","war_id":null,"title":"Is cluster-wide admin through an access policy held only by the expected principals (the roles named with --admin-allow)?","layer":"identity","severity":"high","source_file":"posture/accessentries.json, posture/cluster.json","governance":false,"recommendation":"For each failing principal, grant what it needs at a narrower scope (AmazonEKSAdminPolicy with a namespace access scope, or a Kubernetes group bound to a narrower RBAC role), then remove the cluster-wide grant: aws eks disassociate-access-policy --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --policy-arn arn:aws:eks::aws:cluster-access-policy/<the listed policy, AmazonEKSClusterAdminPolicy or AmazonEKSAdminPolicy>. Keep one break-glass admin role whose use is logged. Printed for review; nothing is changed."}
 ]
 CATALOG_EOF
 )
@@ -183,7 +185,7 @@ jq -s --argjson cat "$CATALOG" --arg cl "$CLUSTER_NAME" --arg now "$NOW" '
      coverage:{checks_total:$tot, checks_answered:$ac, ratio:(if $tot==0 then 0 else ((($ac/$tot)*1000)|round/1000) end), gate:0.5, complete:$complete},
      score:(if $complete and $ac>0 then (($ans|map((.state|pts)*(.severity|wt))|add) / ($ans|map(.severity|wt)|add) | round) else null end),
      layers:[ ["node-credential","lateral-movement","privilege","identity","detection","api-exposure","supply-chain"][] as $l
-       | [$m[]|select(.layer==$l)] as $q | [$q[]|select(.result=="pass" or .result=="fail")] as $a
+       | [$m[]|select(.layer==$l and (.id|IN("SEC-POSTURE-18","SEC-POSTURE-19","SEC-POSTURE-21","SEC-POSTURE-25")|not))] as $q | [$q[]|select(.result=="pass" or .result=="fail")] as $a
        | {layer:$l, verdict:(if ($a|length)==0 then "unknown"
                              elif any($a[]; .result=="fail" and .severity=="high") then "not-contained"
                              elif all($a[]; .result=="pass") and (any($q[]; .result=="unknown")|not) then "contained"

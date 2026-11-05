@@ -81,7 +81,7 @@ firstline() { grep -m1 -v '^[[:space:]]*$' "$1" 2>/dev/null | cut -c1-300 || tru
 classify() {
   case "$1" in
     *AccessDenied*|*UnauthorizedOperation*|*not\ authorized*|*explicit\ deny*|*Forbidden*|*forbidden*) echo denied ;;
-    *ExpiredToken*|*InvalidClientTokenId*|*Unable\ to\ locate\ credentials*|*Token\ has\ expired*|*security\ token*) echo credentials ;;
+    *ExpiredToken*|*InvalidClientTokenId*|*Unable\ to\ locate\ credentials*|*Token\ has\ expired*|*security\ token*|*getting\ credentials*) echo credentials ;;
     *ResourceNotFound*|*NotFound*|*not\ found*) echo not_found ;;
     *Throttl*|*Rate\ exceeded*|*TooManyRequests*) echo throttled ;;
     *) echo error ;;
@@ -149,8 +149,9 @@ probe_aws ec2:DescribeInstances aws ec2 describe-instances --dry-run --max-resul
 probe_aws ec2:DescribeImages aws ec2 describe-images --dry-run --owners self --region "$REGION" || true
 probe_aws ecr:GetRegistryScanningConfiguration aws ecr get-registry-scanning-configuration --region "$REGION" || true
 [ "$SKIP_INSPECTOR" -eq 1 ] || probe_aws inspector2:BatchGetAccountStatus aws inspector2 batch-get-account-status --region "$REGION" || true
-for r in nodes namespaces clusterrolebindings; do probe_k8s "$r"; done
-for r in pods daemonsets deployments statefulsets networkpolicies serviceaccounts rolebindings; do
+[ "$SKIP_INSPECTOR" -eq 1 ] || probe_aws inspector2:ListFindings aws inspector2 list-findings --region "$REGION" --max-results 1 || true
+probe_k8s nodes
+for r in pods daemonsets deployments statefulsets; do
   if [ ${#NS_LIST[@]} -eq 0 ]; then probe_k8s "$r"; else for n in "${NS_LIST[@]}"; do probe_k8s "$r" "$n"; done; fi
 done
 
@@ -165,7 +166,7 @@ write_meta() {
 }
 if [ "$PREFLIGHT_ONLY" -eq 1 ]; then
   write_meta; rm -f -- "$OUT/cluster.json" "$ERRS" "$PF"
-  jq -c '{ok:true,preflight_only:true,preflight:.preflight,errors:(.errors|length)}' "$OUT/meta.json"
+  jq -c '{ok:([.preflight|to_entries[]|select(.key|startswith("k8s:"))|.value=="ok"]|any),preflight_only:true,preflight:.preflight,errors:(.errors|length)}' "$OUT/meta.json"
   exit 0
 fi
 
@@ -266,7 +267,8 @@ else
       else insp_ok=0; fi
     done < <(jq -c '
       def eq: {comparison:"EQUALS",value:.};
-      ([.digests | _nwise(10) | {ecrImageHash: map(eq)}] + [.repos | _nwise(10) | {ecrImageRepositoryName: map(eq)}])[]
+      ([.digests | _nwise(10) | select(length>0) | {ecrImageHash: map(eq)}]
+       + [.repos | _nwise(10) | select(length>0) | {ecrImageRepositoryName: map(eq)}])[]
       | . + {findingStatus:[("ACTIVE"|eq)]}' "$OUT/.insp-targets.json")
     jq -s --argjson ok "$insp_ok" --slurpfile t "$OUT/.insp-targets.json" \
       '{findings: (unique_by(.findingArn)), complete: ($ok==1), queried: $t[0]}' "$OUT/.insp.jsonl" >"$OUT/inspector-findings.json"
@@ -282,7 +284,7 @@ else rec_err catalog error "components.json not readable or has no components li
 
 if jq -n \
   --arg cl "$CLUSTER" --arg rg "$REGION" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --arg st_addons "$ST_ADDONS" --arg st_nodes "$ST_NODES" --arg st_wl "$ST_WL" \
+  --arg st_addons "$ST_ADDONS" --arg st_nodes "$ST_NODES" --arg st_wl "$ST_WL" --arg reg "${reg:-}" \
   --slurpfile c "$(pick "$OUT/cluster.json")" --slurpfile ad "$(pick "$OUT/addons.json")" \
   --slurpfile nd "$(pick "$OUT/nodes.json")" --slurpfile wl "$(pick "$OUT/workloads.json")" \
   --slurpfile ins "$(pick "$OUT/instances.json")" --slurpfile insp "$(pick "$OUT/inspector-findings.json")" \
@@ -311,6 +313,10 @@ if jq -n \
   | (if ($insp[0] | type) == "object" and ($insp[0] | has("findings")) then $insp[0].findings else null end) as $ifs
   | ($imgs | map(. as $im
       | if $ifs == null then . + {inspector: {skipped: ($insp[0].skipped // "not collected")}}
+        elif ($im.image // "") | startswith($reg) | not then
+          . + {inspector: {skipped: "not in this account'"'"'s ECR registry in this Region"}}
+        elif ($insp[0].complete == true) | not then
+          . + {inspector: {skipped: "inspector2 list-findings failed for some targets; see meta.json errors"}}
         else ([$ifs[] | select(any(.resources[]?.details.awsEcrContainerImage; . as $r |
                  (($im.digest != null) and .imageHash == $im.digest)
                  or (($im.digest == null) and ($im.image | sub("[@:][^/]*$";"") | endswith("/" + $r.repositoryName))

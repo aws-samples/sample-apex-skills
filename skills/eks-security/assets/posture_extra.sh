@@ -187,32 +187,30 @@ x SEC-POSTURE-63 pods '
      detail:(if ($c|length)==0 then "no workload containers outside kube-* and amazon-*" else "\($p|length)/\($c|length) workload containers and init containers reference their image by @sha256: digest (the pod spec as written; a tag resolved at pull time does not count)" end),
      pass:[$p[]|.n], fail:[($c-$p)[]|.n]}'
 
-# ── SEC-POSTURE-64 identity: cluster admin granted through EKS access entries ──
-# Admin = AmazonEKSClusterAdminPolicy at any scope, or AmazonEKSAdminPolicy at cluster scope. IAM
-# service-linked roles (path /aws-service-role/) and principals matching --admin-allow are listed under
-# pass, not failed; every other holder fails. A CONFIG_MAP-only cluster has no access entries: na (its
-# aws-auth system:masters mappings are SEC-POSTURE-10, WAR rbac-1).
+# ── SEC-POSTURE-64 identity: cluster admin granted through an access policy ──
+# Admin = AmazonEKSClusterAdminPolicy at any scope, or AmazonEKSAdminPolicy at cluster scope. Principals
+# matching --admin-allow are listed under pass, not failed; every other holder fails. An entry's
+# kubernetesGroups are not read: a group binding to cluster admin shows under SEC-POSTURE-10. A
+# CONFIG_MAP-only cluster has no access entries: na (its aws-auth system:masters mappings are
+# SEC-POSTURE-10, WAR rbac-1); on it the cluster creator holds system:masters in no visible configuration.
 x SEC-POSTURE-64 accessentries cluster '
   input as $cl
   | ($cl.cluster.accessConfig.bootstrapClusterCreatorAdminPermissions // null) as $boot
   | def adm: [.associatedAccessPolicies[]? | (.policyArn // "") as $a | (.accessScope.type // "?") as $s
                | select(($a|endswith("/AmazonEKSClusterAdminPolicy")) or (($a|endswith("/AmazonEKSAdminPolicy")) and $s=="cluster"))
                | ($a|split("/")|last)+" ("+$s+" scope)"];
-    def slr: test(":role/aws-service-role/");
     def allowed: ($allow != "" and test($allow));
     def n: .p+" holds "+(.a|join(", "));
   [.associations[]? | {p:(.principalArn // "?"), a:adm} | select((.a|length)>0)] as $h
-  | [$h[]|select(.p|slr)] as $svc
-  | [$h[]|select((.p|slr|not) and (.p|allowed))] as $ok
-  | [$h[]|select((.p|slr|not) and (.p|allowed|not))] as $bad
+  | [$h[]|select(.p|allowed)] as $ok
+  | [$h[]|select(.p|allowed|not)] as $bad
   | (.authenticationMode // "") as $mode
   | {state:(if $mode=="CONFIG_MAP" then "na" elif ($bad|length)>0 then "none" else "all" end),
-     detail:(if $mode=="CONFIG_MAP" then "authentication mode CONFIG_MAP: no access entries, so no access policy grants admin (aws-auth system:masters mappings are SEC-POSTURE-10, WAR rbac-1)"
-             else "\(.accessEntries|length) access entries read; \($bad|length) principal(s) hold cluster-wide admin through an access policy"
-               +(if ($svc|length)>0 then ", \($svc|length) AWS service-linked role(s) listed, not failed" else "" end)
+     detail:(if $mode=="CONFIG_MAP" then "authentication mode CONFIG_MAP: no access entries, so no access policy grants admin (aws-auth system:masters mappings are SEC-POSTURE-10, WAR rbac-1); the cluster creator holds system:masters in no visible configuration; bootstrapClusterCreatorAdminPermissions=\($boot|tostring)"
+             else "\(.accessEntries|length) access entries read; \($bad|length) principal(s) hold cluster-wide admin through an access policy (kubernetesGroups are not read: a group binding to cluster admin shows under SEC-POSTURE-10)"
                +(if $allow!="" then ", \($ok|length) matched --admin-allow (\($allow))" else "" end)
                +(if $boot==true and $allow=="" and ($bad|length)>0 then "; the cluster was created with bootstrapClusterCreatorAdminPermissions=true, so one holder is likely the creator: the EKS API does not name it, so rerun with --admin-allow naming that role to exempt it, or revoke it and keep a break-glass role" else "" end) end),
-     pass:[($svc+$ok)[]|n], fail:[$bad[]|n],
+     pass:[$ok[]|n], fail:[$bad[]|n],
      context:["authenticationMode="+(if $mode=="" then "unknown" else $mode end), "bootstrapClusterCreatorAdminPermissions="+($boot|tostring)]}'
 
 echo "posture_extra.sh: 10 checks scored into $OUTF" >&2

@@ -479,7 +479,7 @@ class RenderReport(TmpCase):
         fd, inv = self.fixture()
         rc, md, ht, log = self.render(fd, inv)
         self.assertEqual(rc, 0, log)
-        footer = "This report was produced read-only. Nothing was changed."
+        footer = "The scripts that produced this report are read-only; they changed nothing."
         self.assertIn(footer, md)
         self.assertIn("<footer><p>" + footer + "</p></footer>", ht)
         self.assertIn("from file, not live", md)
@@ -967,7 +967,7 @@ class PostureScoring(TmpCase):
         self.assertNotIn("&amp;lt;", h)
         self.assertIn("Score: %d of 100" % doc["score"], m)
         self.assertIn("not-contained", h)
-        self.assertIn("This report was produced read-only. Nothing was changed.", m)
+        self.assertIn("The scripts that produced this report are read-only; they changed nothing.", m)
 
     def test_sparse_workdir_score_null(self):
         q, doc = self.pipeline(self.build(self.PC["sparse_files"]))

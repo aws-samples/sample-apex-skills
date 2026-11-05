@@ -1294,6 +1294,11 @@
       }
      ]
     }
+   },
+   "inspector2 list-findings": {
+    "json": {
+     "findings": []
+    }
    }
   },
   "kubectl": {

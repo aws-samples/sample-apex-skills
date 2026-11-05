@@ -138,5 +138,9 @@
   {
     "query": "Run a full Well-Architected review of our EKS cluster across reliability, cost, performance, operations and security.",
     "should_trigger": false
+  },
+  {
+    "query": "Document the networking and security posture of our dev cluster for the new platform engineer starting Monday.",
+    "should_trigger": false
   }
 ]

@@ -1,6 +1,6 @@
 # Read-only access per capability
 
-Every AWS action below is a Describe, List, Get or query read. Every Kubernetes permission is `get` or `list`. The lists follow what the collector calls, and `collect.sh` probes each one in its preflight (dry read calls plus `kubectl auth can-i`), so a missing grant shows up as a named `denied` probe and the matching parts of the inventory read `unknown`, never clean.
+Every AWS action below is a Describe, List, Get or query read. Every Kubernetes permission is `get` or `list`. The C1 and C3 lists are what collect.sh and posture_collect.sh call; each collector's preflight probes its main reads. The C2 reads are the commands in security-event-response.md, which the skill runs directly; no preflight probes them.
 
 Action names were checked against the Service Authorization Reference service pages on 2026-11-05 ([EKS](https://docs.aws.amazon.com/service-authorization/latest/reference/list_eks.html), [EC2](https://docs.aws.amazon.com/service-authorization/latest/reference/list_ec2.html), [ECR](https://docs.aws.amazon.com/service-authorization/latest/reference/list_ecr.html), [Inspector](https://docs.aws.amazon.com/service-authorization/latest/reference/list_inspector2.html), [GuardDuty](https://docs.aws.amazon.com/service-authorization/latest/reference/list_guardduty.html), [CloudTrail](https://docs.aws.amazon.com/service-authorization/latest/reference/list_cloudtrail.html), [IAM](https://docs.aws.amazon.com/service-authorization/latest/reference/list_iam.html), [STS](https://docs.aws.amazon.com/service-authorization/latest/reference/list_sts.html)).
 
@@ -18,21 +18,20 @@ Use a dedicated role for these reviews. Scope `Resource` further where your acco
       "Resource": "*",
       "Action": [
         "sts:GetCallerIdentity",
-        "eks:ListClusters", "eks:DescribeCluster",
+        "eks:DescribeCluster",
         "eks:ListAddons", "eks:DescribeAddon", "eks:DescribeAddonVersions",
         "eks:ListNodegroups", "eks:DescribeNodegroup",
-        "eks:ListInsights", "eks:DescribeInsight",
-        "ec2:DescribeInstances", "ec2:DescribeImages", "ec2:DescribeLaunchTemplateVersions",
-        "ecr:DescribeRepositories", "ecr:DescribeImages",
-        "ecr:GetRegistryScanningConfiguration", "ecr:DescribeImageScanFindings",
-        "inspector2:BatchGetAccountStatus", "inspector2:ListCoverage", "inspector2:ListFindings"
+        "eks:ListInsights",
+        "ec2:DescribeInstances", "ec2:DescribeImages",
+        "ecr:GetRegistryScanningConfiguration",
+        "inspector2:BatchGetAccountStatus", "inspector2:ListFindings"
       ]
     }
   ]
 }
 ```
 
-Inspector is optional: without the three `inspector2` reads (or with `--skip-inspector`) the image leg reports `unknown` for findings, and add-on, kubelet and node-OS checks still run.
+Inspector is optional: without the two `inspector2` reads (or with `--skip-inspector`) the image leg reports `unknown` for findings, and add-on, kubelet and node-OS checks still run.
 
 ## C2: security event response
 
@@ -87,7 +86,7 @@ GuardDuty is read for its configuration only (is EKS protection on), never for f
 
 ## Kubernetes: read-only ClusterRole
 
-The built-in `view` ClusterRole does not cover `nodes`, cluster-scoped RBAC objects or the Auto Mode objects, and AWS documents that `AmazonEKSAdminViewPolicy` also grants read on Secrets. This role grants neither Secrets nor write. One role covers all three capabilities; trim it to C1's first rule if that is all you run.
+The built-in `view` ClusterRole does not cover `nodes`, cluster-scoped RBAC objects or the Auto Mode objects, and AWS documents that `AmazonEKSAdminViewPolicy` also grants read on Secrets. This role grants neither Secrets nor write. One role covers all three capabilities; trim it to the two rules under `# C1` if that is all you run.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -111,6 +110,32 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
+    verbs: ["get", "list"]
+  # C2: logs, events and the policy-engine check (pods/log can carry credentials a process printed)
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list"]
+  # C3: storage, admission webhooks, ingresses and Gatekeeper constraints
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations", "mutatingwebhookconfigurations"]
+    verbs: ["get", "list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list"]
+  - apiGroups: ["constraints.gatekeeper.sh"]
+    resources: ["*"]
     verbs: ["get", "list"]
   # C3: Auto Mode node settings and admission policy engines, where installed
   - apiGroups: ["eks.amazonaws.com"]
@@ -140,7 +165,7 @@ rules:
     verbs: ["get"]
 ```
 
-Rules for API groups that are not installed (Kyverno, Gatekeeper, Auto Mode objects) are harmless. `posture_collect.sh` also reads webhook configurations, PersistentVolumes and StorageClasses for the pillar checks; its preflight names any read it is refused, and that list is the authority.
+Rules for API groups that are not installed (Kyverno, Gatekeeper, Auto Mode objects) are harmless. The role above is the full read set; the preflight confirms it.
 
 ## Binding it with an EKS access entry
 

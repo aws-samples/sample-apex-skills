@@ -28,7 +28,7 @@ Do NOT proceed to a recommendation without these. The first four determine ~80% 
 
 ## Discovery: Recommended questions (sharpen the answer when depth allows)
 
-Org standardization mandate (AWS-native / vendor-OS / OSS / CNAPP-vendor / none) · cluster scale envelope (the **5,000 Pod-Identity-association** hard limit matters >~ that many SAs) · data residency / sovereignty · encryption posture (default KMS / CMK / FIPS 140-3 / BYOK / CloudHSM) · image-supply-chain posture · runtime-tooling preference · secrets-management posture · audit-log retention requirement · SIEM in use · network topology constraints · existing pentest/red-team findings · customer segment (XS–XXL+, drives escalation).
+Org standardization mandate (AWS-native / vendor-OS / OSS / CNAPP-vendor / none) · cluster scale envelope (the **5,000 Pod-Identity-association** hard limit matters >~ that many SAs) · data residency / sovereignty · encryption posture (default KMS / CMK / FIPS 140-3 / BYOK / CloudHSM) · image-supply-chain posture · runtime-tooling preference · secrets-management posture · audit-log retention requirement · SIEM in use · network topology constraints · existing pentest/red-team findings.
 
 > **The #1 mistake:** recommending "use Bottlerocket" or "AL2023 + CIS hardening" reflexively without confirming compliance regime, OS-standardization mandate, audit timeline, and operational-overhead tolerance. The right stack is a function of *(compliance regime × OS mandate × team skill × audit timeline × workload sensitivity × air-gap × scale × ops tolerance)*.
 
@@ -55,9 +55,8 @@ Skip a step only if the question is narrow enough that it doesn't apply. For a l
 
 ## Escalation criteria
 
-Escalate (SpecReq / Specialist / Security review) when any holds:
+Escalate (your AWS account team) when any holds:
 - First-time certification on a **mission-critical regulated workload** (highest stakes).
-- **XXL+ segment** (all security/compliance recommendations require human review).
 - **FedRAMP High / GovCloud** → federal partner engagement.
 - **Top Secret / Secret classified** → AWS Top Secret/Secret region partner (out of scope here, commercial + GovCloud only).
 - **EKS Anywhere (air-gapped) or Hybrid Nodes inside a FedRAMP boundary** → shared-responsibility boundary mapping (AWS manages no control plane in air-gapped EKS Anywhere; Hybrid on-prem nodes are outside the FedRAMP boundary).

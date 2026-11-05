@@ -18,7 +18,7 @@ The two access-entry reads list which principals hold cluster admin through an a
 
 ## Kubernetes: the access entry and a supplementary ClusterRole
 
-The Agent Space reaches the Kubernetes API through an EKS access entry for its role, which `devops-agent/setup.sh` associates with the AWS-managed `AmazonAIOpsAssistantPolicy`. That policy authorizes reads on built-in API groups, enough for C1's nodes, pods, DaemonSets and Deployments, but not on custom resource groups. C2 and C3 also read RBAC objects, service accounts, NetworkPolicies, Auto Mode NodeClasses, Karpenter NodePools and policy engine objects. Bind this read-only ClusterRole for them; it grants no Secrets and no write. Rules for API groups that are not installed are harmless.
+The Agent Space reaches the Kubernetes API through an EKS access entry for its role, which `devops-agent/setup.sh` associates with the AWS-managed `AmazonAIOpsAssistantPolicy`. That policy grants get/list on pods, pods/log, services, nodes, namespaces, events, ConfigMaps, PVs and PVCs, apps and batch workloads, Ingresses and StorageClasses; not on RBAC objects, service accounts, NetworkPolicies or custom resources, CRDs (`customresourcedefinitions`) included. C2 and C3 also read RBAC objects, service accounts, NetworkPolicies, CRDs, Auto Mode NodeClasses, Karpenter NodePools and policy engine objects. Bind this read-only ClusterRole for them; it grants no Secrets and no write. Rules for API groups that are not installed are harmless.
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -43,6 +43,9 @@ rules:
   - apiGroups: ["networking.k8s.io"]
     resources: ["networkpolicies"]
     verbs: ["get", "list"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list"]
   # C3: Auto Mode node settings and admission policy engines, where installed
   - apiGroups: ["eks.amazonaws.com"]
     resources: ["nodeclasses"]
@@ -58,7 +61,7 @@ rules:
     verbs: ["get", "list"]
 ---
 # C3: the aws-auth mapping and the VPC CNI settings (the Auto Mode network policy switch) live in two ConfigMaps.
-# Scoped by name so no other ConfigMap is readable.
+# The Agent Space's AmazonAIOpsAssistantPolicy already reads every ConfigMap; this Role is for a principal that does not carry it.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:

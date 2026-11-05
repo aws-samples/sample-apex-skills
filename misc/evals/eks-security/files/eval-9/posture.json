@@ -9,7 +9,7 @@
     "gate": 0.5,
     "complete": true
   },
-  "score": 62,
+  "score": 59,
   "layers": [
     {
       "layer": "node-credential",
@@ -135,7 +135,7 @@
       "source_file": "posture/cluster.json",
       "recommendation": "Move authenticationMode to API and grant access through EKS access entries.",
       "layer": "identity",
-      "state": "none"
+      "state": "some"
     },
     {
       "id": "SEC-POSTURE-9",
@@ -531,7 +531,7 @@
       "source_file": "posture/pods.json, posture/daemonsets.json",
       "recommendation": "Run containers as non-root (runAsNonRoot: true and a non-zero runAsUser).",
       "layer": "privilege",
-      "state": "most"
+      "state": "none"
     },
     {
       "id": "SEC-POSTURE-42",
@@ -555,7 +555,7 @@
       "source_file": "posture/pods.json, posture/daemonsets.json",
       "recommendation": "Replace hostPath volumes with CSI or emptyDir volumes outside the system namespaces.",
       "layer": "privilege",
-      "state": "most"
+      "state": "none"
     },
     {
       "id": "SEC-POSTURE-44",
@@ -579,7 +579,7 @@
       "source_file": "posture/pods.json, posture/daemonsets.json",
       "recommendation": "Drop ALL capabilities and add back only what each container needs.",
       "layer": "privilege",
-      "state": "some"
+      "state": "none"
     },
     {
       "id": "SEC-POSTURE-46",
@@ -800,10 +800,10 @@
     {
       "id": "SEC-POSTURE-64",
       "war_id": null,
-      "title": "Is cluster-wide admin through EKS access entries held only by the expected principals (AWS service-linked roles and the roles named with --admin-allow)?",
+      "title": "Is cluster-wide admin through an access policy held only by the expected principals (the roles named with --admin-allow)?",
       "result": "fail",
       "severity": "high",
-      "evidence": "2 principal(s) hold cluster admin through an access entry outside the service-linked roles and --admin-allow (not given); the cluster was created with bootstrapClusterCreatorAdminPermissions true, so one of them is likely the creator; failing: arn:aws:iam::111122223333:role/platform-admin (AmazonEKSClusterAdminPolicy, cluster), arn:aws:iam::111122223333:role/ci-deployer (AmazonEKSClusterAdminPolicy, cluster)",
+      "evidence": "2 principal(s) hold cluster admin through an access policy outside --admin-allow (not given); the cluster was created with bootstrapClusterCreatorAdminPermissions true, so one of them is likely the creator; failing: arn:aws:iam::111122223333:role/platform-admin (AmazonEKSClusterAdminPolicy, cluster), arn:aws:iam::111122223333:role/ci-deployer (AmazonEKSClusterAdminPolicy, cluster)",
       "source_file": "posture/accessentries.json, posture/cluster.json",
       "recommendation": "For each failing principal, grant what it needs at a narrower scope (AmazonEKSAdminPolicy with a namespace access scope, or a Kubernetes group bound to a narrower RBAC role), then remove the cluster-wide grant: aws eks disassociate-access-policy --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --policy-arn arn:aws:eks::aws:cluster-access-policy/<the listed policy, AmazonEKSClusterAdminPolicy or AmazonEKSAdminPolicy>. Keep one break-glass admin role whose use is logged. Printed for review; nothing is changed.",
       "layer": "identity",

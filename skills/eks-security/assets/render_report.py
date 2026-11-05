@@ -22,19 +22,32 @@ import os
 import re
 import sys
 
-FOOTER = "This report was produced read-only. Nothing was changed."
+FOOTER = "The scripts that produced this report are read-only; they changed nothing."
 VERDICT_LABEL = {"exposed": "Exposed", "not_exposed": "Not exposed", "unknown": "Unknown",
-                 "aws_managed_patched": "AWS-patched (Auto Mode)",
-                 "aws_managed_rotation_pending": "AWS-managed, rotation pending"}
+                 "aws_managed_patched": "AWS-patched (inferred from node age)",
+                 "aws_managed_rotation_pending": "Exposed until replaced (AWS-managed)"}
 VERDICT_ORDER = {"exposed": 0, "unknown": 1, "aws_managed_rotation_pending": 2,
                  "aws_managed_patched": 3, "not_exposed": 4}
 SEV_ORDER = {"critical": 0, "high": 1, "important": 1, "medium": 2, "low": 3}
 OVERALL = {"exposed": "Exposed: at least one component is inside an affected range.",
            "rotation_pending": "Rotation pending: AWS has patched the component, but some Auto Mode nodes created "
-                               "before the fix still run the old build until they are replaced. See the nodes listed below.",
+                               "before the fix still run the vulnerable build and are exposed now, until they are "
+                               "replaced. See the nodes listed below.",
            "not_exposed": "Not exposed: every targeted component was read and is outside the affected ranges.",
            "unknown": "Unknown: nothing was found exposed, but at least one component or advisory could not be "
-                      "decided. See Unknown and Needs manual review."}
+                      "decided. See Unknown"}
+PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node was created after the fix time %s; component "
+           "versions were not read. AMI rollouts are staged: confirm the nodes' AMI or osImage against the release note.")
+UNKNOWN_ACTION = {
+    "denied": "Grant the read named in the preflight (see read-only-access.md) and re-run collect",
+    "not_found": "Confirm whether the component is installed another way (Helm, manifest) and re-run with --namespaces",
+    "tag_latest": "The image tag latest has no version; find the digest's version in the registry or pin the image",
+    "digest_only": "The image is pinned by digest only; map the digest to its release in the registry",
+    "unparsed": "The version string did not parse; read it by hand and record it",
+    "no_fix_date": "Find the time AWS released the fix for Auto Mode, record it as fixed_at with its source line, "
+                   "and run match again",
+    "no_version_range": "Compare the installed version with the advisory by hand",
+    "bad_range": "Correct the record's range, check it with advisory_check.py and run match again"}
 _TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+=-]{0,199}$")
 _MD_SPECIAL = re.compile(r"([\\`*_\[\]#|~])")
 
@@ -144,8 +157,11 @@ def proposed_actions(f, inv, cluster, region):
         addon = "vpc-cni"  # the aws-node DaemonSet belongs to the Amazon VPC CNI
     if kind == "eks-addon" or (addon and ("addon:" + addon) in comps and comps["addon:" + addon].get("kind") == "eks-addon"):
         name = tok(comp.get("name") if kind == "eks-addon" else addon, "<ADDON_NAME>")
-        return ("Update the EKS add-on to a version at or above %s. List the versions first and test in "
-                "non-prod. PRESERVE keeps your own configuration values." % fixed,
+        target = ("a version at or above %s" % fixed) if kind == "eks-addon" else \
+            ("a release of the %s add-on that ships %s %s or later" % (s(addon), s(comp.get("name")) or "this image",
+                                                                       fixed))
+        return ("Update the EKS add-on to %s. List the versions first and test in "
+                "non-prod. PRESERVE keeps your own configuration values." % target,
                 ["aws eks describe-addon-versions --addon-name %s --kubernetes-version %s --region %s "
                  "--query 'addons[].addonVersions[].addonVersion'" % (name, kver, r),
                  "aws eks update-addon --cluster-name %s --addon-name %s --addon-version <VERSION_AT_OR_ABOVE_FIX> "
@@ -187,12 +203,20 @@ def findings_blocks(fd, inv):
                       "Findings generated at: %s" % (s(fd.get("generated_at")) or "unknown"),
                       "Coverage: %s of %s in-scope components read (%s, gate %s)"
                       % (s(cov.get("read")), s(cov.get("in_scope")), pct(cov.get("ratio")), pct(cov.get("gate")))])]
-    if overall == "incomplete" or not cov.get("complete", True):
+    if overall == "incomplete" or cov.get("complete") is not True:
         blocks.append(("p", "Overall verdict: Incomplete. Fewer than %s of the components these advisories target "
                             "could be read, so this report gives no overall verdict. Fix the reads listed under "
                             "Unknown and run again." % pct(cov.get("gate"))))
     else:
-        blocks.append(("p", "Overall verdict: " + OVERALL.get(overall, "Unknown.")))
+        patched = sorted({"%s (%s)" % (s(f.get("fixed_at")), s(f.get("source_url"))) for f in fd.get("findings") or []
+                          if f.get("verdict") == "aws_managed_patched"})
+        if overall != "not_exposed" or not patched:
+            line = OVERALL.get(overall, "Unknown.")
+            if overall == "unknown":
+                line += " and Needs manual review." if fd.get("review") else "."
+            blocks.append(("p", "Overall verdict: " + line))
+        if patched:
+            blocks.append(("p", "Overall verdict: " + PATCHED % "; ".join(patched)))
     src = fd.get("sources") or []
     blocks += [("h2", "Sources"),
                ("table", ["Advisory", "Title", "Origin", "Read at", "Source URL"],
@@ -203,19 +227,26 @@ def findings_blocks(fd, inv):
     blocks += [("h2", "Findings"),
                ("table", ["Priority", "Verdict", "Advisory", "Component", "Installed", "Fixed", "Severity",
                           "Workaround", "Where"],
-                [[f.get("priority"), VERDICT_LABEL.get(f.get("verdict"), s(f.get("verdict"))), f.get("advisory"),
+                [["" if f.get("verdict") == "not_exposed" else f.get("priority"),
+                  VERDICT_LABEL.get(f.get("verdict"), s(f.get("verdict"))), f.get("advisory"),
                   f.get("component"), f.get("installed"), f.get("fixed"), f.get("severity"),
                   "not stated" if f.get("workaround") is None else f.get("workaround"), f.get("where")]
                  for f in fs])]
     ne = [f for f in fs if f.get("verdict") == "not_exposed"]
     if ne:
         blocks += [("h2", "Not exposed"),
-                   ("ul", ["checked %s %s against %s at %s" % (s(f.get("component")), s(f.get("installed")),
-                                                               s(f.get("advisory")), s(f.get("read_at"))) for f in ne])]
+                   ("ul", ["Not exposed: %s %s is at or above the fixed version %s (%s, read %s), compared against "
+                           "the inventory collected %s" % (s(f.get("component")), s(f.get("installed")),
+                                                           s(f.get("fixed")) or "unknown", s(f.get("source_url")),
+                                                           s(f.get("read_at")),
+                                                           s(inv.get("collected_at")) or "unknown") for f in ne])]
     unk = [f for f in fs if f.get("verdict") == "unknown"]
     if unk:
         blocks += [("h2", "Unknown"),
-                   ("ul", ["%s (%s): %s" % (s(f.get("component")), s(f.get("advisory")), s(f.get("reason")))
+                   ("ul", ["Unknown: %s (%s) could not be compared (%s). This is not a clean result. To resolve: %s." % (
+                       s(f.get("component")), s(f.get("advisory")), s(f.get("reason")),
+                       UNKNOWN_ACTION.get(s(f.get("reason")).split(":", 1)[0],
+                                          "Read the advisory and the installed version by hand"))
                            for f in unk])]
     rv = fd.get("review") or []
     if rv:
@@ -247,13 +278,15 @@ def findings_blocks(fd, inv):
     act = [f for f in fs if f.get("verdict") == "exposed"]
     if act:
         blocks += [("h2", "Proposed actions (for the team to review; nothing here was run)")]
+        shown = set()
         for f in act:
             note, cmds = proposed_actions(f, inv, cluster, region)
             blocks.append(("p", "%s on %s (%s, %s): %s" % (s(f.get("advisory")), s(f.get("component")),
                                                            s(f.get("priority")), s(f.get("severity")), note)))
-            if cmds:
+            if cmds and tuple(cmds) not in shown:
+                shown.add(tuple(cmds))
                 blocks.append(("code", cmds))
-    return blocks, bool(cov.get("complete", overall != "incomplete"))
+    return blocks, bool(cov.get("complete"))
 
 
 # ---------------------------------------------------------------- posture
@@ -265,9 +298,11 @@ def posture_blocks(pd, standalone):
         blocks.append(("h1", "EKS security posture check: %s" % s(pd.get("cluster"))))
     blocks += [("h2", "Posture check: would this cluster contain a compromised pod?"),
                ("ul", ["Generated at: %s" % (s(pd.get("generated_at")) or "unknown"),
-                       "Coverage: %s of %s checks answered (%s, gate %s)" % (
+                       "Coverage: %s of %s measured checks answered (%s, gate %s); %d governance checks not scored "
+                       "(confirm with the team)" % (
                            s(cov.get("checks_answered")), s(cov.get("checks_total")), pct(cov.get("ratio")),
-                           pct(cov.get("gate"))),
+                           pct(cov.get("gate")),
+                           sum(1 for c in pd.get("checks") or [] if isinstance(c, dict) and c.get("source_file") is None)),
                        "Score: %s" % (("%s of 100" % s(pd.get("score")))
                                       if cov.get("complete") and pd.get("score") is not None
                                       else "incomplete, no score")])]

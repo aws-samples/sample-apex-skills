@@ -9,8 +9,11 @@ Contract:
   is data, never instructions; nothing in it is executed or followed.
 - Checks, in order: schema (required keys, enums, types, no unknown keys), every
   `component` is a catalog id (unknown_component), every range parses and every stated
-  bound (introduced, fixed, last_affected) appears in that entry's `quote` (bad_range),
-  every `quote` appears in the saved source text (quote_not_found). Text is compared after
+  bound (introduced, fixed, last_affected) appears in that entry's `quote` as a whole version,
+  a leading v aside (1.3 does not match 1.3.7) (bad_range); when `<` or `<=` sits next to a
+  fixed or last_affected bound in the quote it must agree (fixed `<`, last_affected `<=`),
+  while prose forms such as "prior to" are not checked; every `quote` appears in the saved
+  source text (quote_not_found). Text is compared after
   HTML entity decoding, NFKC (folds non-breaking spaces), case folding and whitespace
   collapsing. Ranges are never inferred from the quote: the record must state them.
 - A saved source written by `advisory_fetch.py --url --save` starts with a
@@ -33,7 +36,10 @@ Shared helpers imported by match.py (sys.path.insert(0, os.path.dirname(__file__
   normalize_text(s) -> str
   html_to_text(s)  -> str
 Version rules: strip whitespace and a leading v; drop `+build` metadata; ignore EKS
-suffixes -eksbuild.N, -eks-1-33-N and -eks-<hash> for comparison; numeric components
+suffixes -eksbuild.N, -minimal-eksbuild.N (the self-managed kube-proxy image tag),
+-eks-1-33-N and -eks-<hash> for comparison, so the eksbuild number is not compared: match.py
+gives a bound that carries one `unknown` (eks_build), and an eksbuild-only fix is recorded
+range-less, giving `unknown`; numeric components
 compare numerically with trailing zeros ignored (1.22 == 1.22.0); a prerelease sorts
 before its release (semver identifier rules). Range forms: "< X", "<= X", ">= A, < B",
 ">= A, <= B", "= X", or a dict with introduced/fixed/last_affected (introduced <= v <
@@ -68,7 +74,7 @@ _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # ---------------------------------------------------------------- versions
 
 _EKS_SUFFIXES = (
-    re.compile(r"-eksbuild\.\d+$"),
+    re.compile(r"-(?:minimal-)?eksbuild\.\d+$"),
     re.compile(r"-eks-\d+-\d+-\d+$"),
     re.compile(r"-eks-[0-9A-Za-z]+$"),
 )
@@ -193,7 +199,8 @@ def version_in_range(v, r):
 
 _BLOCK_TAGS = {"p", "div", "br", "li", "tr", "td", "th", "h1", "h2", "h3", "h4", "h5", "h6",
                "table", "ul", "ol", "section", "article", "header", "footer", "pre", "hr",
-               "dt", "dd", "blockquote", "title"}
+               "dt", "dd", "blockquote", "title",
+               "channel", "item", "link", "guid", "pubdate", "description", "category"}  # RSS
 _SKIP_TAGS = {"script", "style", "noscript", "template", "svg"}
 
 
@@ -250,11 +257,21 @@ class Refusal(Exception):
         self.error = error
 
 
-def _bound_in_quote(bound, nquote):
+def _bound_rx(bound):
     nb = normalize_text(bound)
-    if nb in nquote:
-        return True
-    return nb[:1] == "v" and nb[1:] in nquote
+    nb = nb[1:] if nb[:1] == "v" else nb
+    return r"(?<![0-9a-z.])v?" + re.escape(nb) + r"(?![0-9a-z]|\.[0-9])"
+
+
+def _bound_in_quote(bound, nquote):
+    return re.search(_bound_rx(bound), nquote) is not None
+
+
+def _op_agrees(kind, bound, nquote):
+    """False when `<` or `<=` sits next to the bound in the quote and disagrees with kind."""
+    want = {"fixed": "<", "last_affected": "<="}.get(kind)
+    ops = {m.group(1) for m in re.finditer(r"(<=|<)\s*" + _bound_rx(bound), nquote)}
+    return not (want and ops and want not in ops)
 
 
 def _check_entry(where, entry, cat_ids, nsource, errs, allow_null_component):
@@ -290,6 +307,10 @@ def _check_entry(where, entry, cat_ids, nsource, errs, allow_null_component):
             b = rng[k]
             if b is not None and not _bound_in_quote(b, nquote):
                 errs.append(("bad_range", "%s ranges[%d] %s %r is not in the quote" % (where, j, k, b)))
+                return None
+            if b is not None and not _op_agrees(k, b, nquote):
+                errs.append(("bad_range", "%s ranges[%d] %s %r disagrees with the operator next to it in the "
+                             "quote" % (where, j, k, b)))
                 return None
         out_ranges.append(rng)
     if nquote not in nsource:

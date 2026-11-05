@@ -31,17 +31,17 @@ Cluster names, account ids, instance ids and digests in the fixtures are made up
 
 ## Neighbour-skill disambiguation
 
-eks-security owns live security reviews (an advisory verdict, an event response, a posture check) and the security, compliance and hardening lane. It hands off to eks-best-practices for knowledge with no live check (including how to stay informed and set a patch cadence), to eks-upgrade-check for version lag with no advisory, to eks-recon for an inventory with no verdict, to eks-well-architected-review for a full five-pillar review, and to the other siblings for their non-security lanes.
+eks-security owns live security reviews (an advisory verdict, an event response, a posture check) and the security, compliance and hardening lane. It hands off to eks-best-practices for knowledge with no live check (including how to stay informed and set a patch cadence), to eks-upgrade-check for upgrade readiness to a target version (version currency with no target version goes to eks-operation-review), to eks-recon for an inventory with no verdict, to eks-well-architected-review for a full five-pillar review, and to the other siblings for their non-security lanes.
 
 <!-- SIBLING_MAP_START -->
 - **`eks-best-practices`** (general EKS architecture, configuration and security operating practice with no live check: compute, networking, cost, how to follow bulletins and set a patch cadence) negatives 21, 28, 32 ("Karpenter vs managed node groups + subnet/CIDR planning", "reduce my EKS bill with Spot/Graviton/consolidation", "stay informed about EKS security bulletins and set a patch cadence").
 - **`eks-design`** (architecture design documents, Mermaid diagrams, ADRs) negative 22 ("generate an EKS architecture design document with diagrams and ADRs").
 - **`eks-operation-review`** (operational-excellence audit of a live cluster with GREEN/AMBER/RED scoring) negative 23 ("run an operational excellence review and score it").
-- **`eks-recon`** (cluster discovery and inventory of what is running, no verdict) negatives 24, 34 ("what Kubernetes version and add-ons is my cluster running", "list every add-on, AMI and image version for a handover document").
+- **`eks-recon`** (cluster discovery and inventory of what is running, no verdict) negatives 24, 34, 36 ("what Kubernetes version and add-ons is my cluster running", "list every add-on, AMI and image version for a handover document", "document the networking and security posture of our dev cluster").
 - **`eks-genai`** (GenAI/GPU workload guidance, including ML-specific security like model-artifact provenance) negative 25 ("self-hosting Llama 3 on GPUs: secure model artifacts and pick GPU vs Inferentia").
 - **`eks-build`** (generating deployable EKS Terraform / Helm) negative 26 ("generate the Terraform and Helm values to build a cluster").
 - **`account-security`** (org-wide AWS account security with no EKS-specific angle: SCPs, IAM Identity Center, multi-service GuardDuty) negative 27 ("org-wide SCPs, Identity Center, GuardDuty across every account").
-- **`eks-upgrade-check`** (upgrade readiness and version lag with no advisory: deprecated APIs, add-on compatibility) negatives 29, 33 ("is my cluster ready to upgrade from 1.30 to 1.33", "vpc-cni two minor versions behind latest, no advisory").
+- **`eks-upgrade-check`** (upgrade readiness to a target version with no advisory: deprecated APIs, add-on compatibility) negatives 29, 33 ("is my cluster ready to upgrade from 1.30 to 1.33", "vpc-cni two minor versions behind latest, no advisory").
 - **`eks-mcp-server`** (EKS MCP server setup in an AI assistant) negative 30 ("configure the EKS MCP server so it can read my cluster").
 - **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster: five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) negatives 31, 35 ("score our EKS cluster across all five Well-Architected pillars", "full Well-Architected review across all pillars").
 <!-- SIBLING_MAP_END -->

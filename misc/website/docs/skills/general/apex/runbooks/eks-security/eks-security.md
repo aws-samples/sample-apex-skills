@@ -35,7 +35,7 @@ This workflow covers two kinds of work. The three reviews read a live cluster wi
 | "audit logging / control-plane logs / SIEM / retention" | Layer 6 (audit logging) | Day 2 |
 | "Audit Manager / Config / Security Hub / Artifact" | Layer 7 (compliance accelerators) | Day 2 |
 
-A component that is only behind the latest release, with no advisory, is upgrade readiness (`eks-upgrade-check`), not a security finding.
+A component that is only behind the latest release, with no advisory, is not a security finding: upgrade readiness against a target version goes to `eks-upgrade-check`, version currency with no target version to `eks-operation-review`.
 
 ## Review phases (C1, C2, C3)
 
@@ -44,7 +44,7 @@ Confirm the cluster and Region and, for C1, the advisory (CVE id, bulletin URL, 
 
 ### Phase R2: Read and compare
 - **C1:** read the cluster once, get the advisory as a record (structured feeds as published; a bulletin extracted with every version line quoted from the page and checked), and compare by the skill's verdict rules.
-- **C2:** scope the event (workloads, images by digest, packages, identities), preserve evidence before any containment, then propose pod-scoped containment, the remediation on the emergency path, verification and the record.
+- **C2:** scope the event (workloads, images by digest, packages, identities), take a quick record (seconds, read through the API server), propose pod-scoped containment at once, propose snapshots after isolation, then the remediation on the emergency path, verification and the report.
 - **C3:** run the posture checks (security pillar plus the containment checks) and score them.
 
 ### Phase R3: Report
@@ -82,4 +82,4 @@ Include the non-negotiable baseline regardless of regime; surface 3-5 relevant g
 - [ ] IRSA framed as a fully supported alternative (Pod Identity recommended for new), **never** "legacy".
 - [ ] Every recommendation cites an AWS-published source; no synthesized compliance claims.
 - [ ] Non-negotiable security baseline included; 3-5 relevant gotchas surfaced; shared-responsibility split given per layer.
-- [ ] Escalation flagged when first-time cert + mission-critical, XXL+, FedRAMP High, or any ungroundable claim.
+- [ ] Escalation flagged when first-time cert + mission-critical, FedRAMP High, or any ungroundable claim.

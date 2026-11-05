@@ -1,6 +1,6 @@
 # Advisory sources
 
-The feeds C1 reads during a run. No version numbers are stored in this skill: every finding carries the URL it came from and the time it was read. The same list as the Claude Code skill's `assets/components.json` `feeds`.
+The feeds C1 reads during a run. No version table is kept in this skill; the worked example's versions illustrate the record format and are never a source for a verdict. Every finding carries the URL it came from and the time it was read. The same list as the Claude Code skill's `assets/components.json` `feeds`.
 
 Checked 2026-11-05.
 
@@ -16,7 +16,7 @@ Checked 2026-11-05.
 Notes per feed:
 - **Bulletins** are the authoritative AWS statement for AWS-owned components, including the severity word and whether a workaround exists. The page has no machine-readable range, which is why the extracted record is checked line by line against the page text.
 - **Repository advisories** are read by repository path, not from the global advisory database: an AWS repository advisory can be published there while the global API returns not found for the same id. GitHub rate-limits unauthenticated API calls; a sweep reads only the advisories it is given.
-- **Kubernetes feed**: a CVE may list several fixed lines (one per minor version); these become several ranges, ORed. Many items concern components AWS runs for you (the API server) or node types the cluster may not have (Windows); the report says so instead of dropping them.
+- **Kubernetes feed**: a CVE may list several fixed lines (one per minor version); the record keeps them as published text in `notes`, not as ranges, and is a review item: compare them with the kubelet and control plane versions by hand. Many items concern components AWS runs for you (the API server) or node types the cluster may not have (Windows); the report says so instead of dropping them.
 - **ALAS** gives package names and CVE ids. A node's OS package versions are not in the cluster API, so for a node-OS advisory the verdict depends on whether the record can name the fixed node image release; when it cannot, the finding is `unknown` and the action is to compare the node group's AMI release with the latest one for its Kubernetes version.
 - **Bottlerocket** advisories sometimes state that an issue does not apply to the default configuration. That is a note on the finding, not a verdict change.
 - **Inspector findings** are not a feed here: they are read for the images the cluster runs (where Inspector is on), and they appear in the same report.
