@@ -59,42 +59,30 @@ Plus the Kubernetes reads on `serviceaccounts`, `rolebindings`, `clusterrolebind
 
 ## C3: posture check
 
-C3 reads C1's collection for the containment checks (instances, images, workloads), so grant C1's policy too. `posture_collect.sh` is adapted from eks-well-architected-review's collector, and its reads are the 23 actions that skill documents in its `references/workflow.md`, in the first statement below. The second statement adds the containment reads:
+`posture_collect.sh` (adapted from eks-well-architected-review's collector, security pillar only) and `posture_extra.sh` read only what `posture_collect.sh` collected, and its preflight probes each of these actions before the run:
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "EksSecurityC3PostureCollect",
+      "Sid": "EksSecurityC3Posture",
       "Effect": "Allow",
       "Resource": "*",
       "Action": [
-        "eks:ListClusters", "eks:DescribeCluster", "eks:ListNodegroups", "eks:ListAddons",
-        "eks:DescribeAddon", "eks:DescribeAddonVersions", "eks:ListInsights",
-        "eks:ListFargateProfiles", "eks:DescribeFargateProfile", "eks:ListPodIdentityAssociations",
-        "ec2:DescribeInstances", "ec2:DescribeVolumes", "ec2:DescribeSecurityGroups", "ec2:DescribeSubnets",
-        "ec2:DescribeNatGateways", "ec2:DescribeRouteTables", "ec2:DescribeVpcEndpoints",
-        "ec2:DescribeInstanceTypeOfferings", "iam:ListOpenIDConnectProviders", "ecr:DescribeRepositories",
-        "cloudtrail:DescribeTrails", "sts:GetCallerIdentity", "pricing:GetProducts"
-      ]
-    },
-    {
-      "Sid": "EksSecurityC3Containment",
-      "Effect": "Allow",
-      "Resource": "*",
-      "Action": [
-        "guardduty:ListDetectors", "guardduty:GetDetector",
-        "eks:ListAccessEntries", "eks:ListAccessPolicies", "eks:ListAssociatedAccessPolicies",
-        "eks:DescribeNodegroup", "ecr:GetRegistryScanningConfiguration",
-        "iam:ListAttachedRolePolicies", "iam:ListRolePolicies"
+        "sts:GetCallerIdentity",
+        "eks:DescribeCluster", "eks:ListAddons", "eks:DescribeAddon", "eks:ListPodIdentityAssociations",
+        "iam:ListOpenIDConnectProviders",
+        "ec2:DescribeInstances", "ec2:DescribeVolumes", "ec2:DescribeSecurityGroups",
+        "ecr:DescribeRepositories", "ecr:GetRegistryScanningConfiguration",
+        "guardduty:ListDetectors", "guardduty:GetDetector"
       ]
     }
   ]
 }
 ```
 
-The second statement's last four actions serve the node-role and registry-scanning checks; `eks:DescribeNodegroup` and `ecr:GetRegistryScanningConfiguration` are already in C1's policy.
+GuardDuty is read for its configuration only (is EKS protection on), never for findings. On the Kubernetes side C3 uses `get` and `auth can-i`, plus two named ConfigMaps in `kube-system`: `aws-auth` and `amazon-vpc-cni`.
 
 ## Kubernetes: read-only ClusterRole
 
@@ -137,17 +125,17 @@ rules:
     resources: ["constrainttemplates"]
     verbs: ["get", "list"]
 ---
-# C3 on Auto Mode: the network policy controller switch lives in one ConfigMap.
+# C3: the aws-auth mapping and the VPC CNI settings (the Auto Mode network policy switch) live in two ConfigMaps.
 # Scoped by name so no other ConfigMap is readable.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: eks-security-reader-cni-config
+  name: eks-security-reader-configmaps
   namespace: kube-system
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
-    resourceNames: ["amazon-vpc-cni"]
+    resourceNames: ["aws-auth", "amazon-vpc-cni"]
     verbs: ["get"]
 ```
 
@@ -166,8 +154,8 @@ kubectl apply -f eks-security-reader.yaml   # the ClusterRole and Role above
 
 kubectl create clusterrolebinding eks-security-reader \
   --clusterrole=eks-security-reader --group=eks-security-readers
-kubectl create rolebinding eks-security-reader-cni-config -n kube-system \
-  --role=eks-security-reader-cni-config --group=eks-security-readers
+kubectl create rolebinding eks-security-reader-configmaps -n kube-system \
+  --role=eks-security-reader-configmaps --group=eks-security-readers
 ```
 
 No access policy is associated with the entry: authorization comes only from the RBAC above ([Create an access entry using Kubernetes groups](https://docs.aws.amazon.com/eks/latest/userguide/create-k8s-group-access-entry.html)). Then confirm with `collect.sh --preflight-only`.

@@ -17,7 +17,7 @@ C3 has two parts, both run by eks-security's own scripts on one collection:
 | `assets/posture_reduce.sh` | Severity-weighted score with the coverage gate |
 | `assets/render_report.py` | Markdown and HTML report |
 
-Order: collect (`posture_collect.sh`, plus `collect.sh` for the C1 inventory the containment checks also read), score, extra, reduce, render. Scoring: severity weights High 3, Medium 2, Low 1; pass counts full weight, fail zero, n.a. is left out; below 50% of applicable weight read, the score says "incomplete" and no number is given.
+Order: collect (`posture_collect.sh`), score, extra, reduce, render. C3 does not need the C1 inventory. Scoring: severity weights High 3, Medium 2, Low 1; pass counts full weight, fail zero, n.a. is left out; below 50% of applicable weight read, the score says "incomplete" and no number is given.
 
 The access needed is in [read-only-access.md](read-only-access.md), C3 section.
 
