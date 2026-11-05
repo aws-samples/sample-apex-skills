@@ -287,15 +287,15 @@ kubectl get daemonset aws-node -n kube-system -o json 2>/dev/null | jq -r '
 
 # Prefix delegation
 kubectl get daemonset aws-node -n kube-system -o json 2>/dev/null | \
-  jq -r '.spec.template.spec.containers[0].env[]? | select(.name=="ENABLE_PREFIX_DELEGATION") | .value'
+  jq -r '(.spec.template.spec.containers[0].env // [])[] | select(.name=="ENABLE_PREFIX_DELEGATION") | .value'
 
 # Security groups for pods
 kubectl get daemonset aws-node -n kube-system -o json 2>/dev/null | \
-  jq -r '.spec.template.spec.containers[0].env[]? | select(.name=="ENABLE_POD_ENI") | .value'
+  jq -r '(.spec.template.spec.containers[0].env // [])[] | select(.name=="ENABLE_POD_ENI") | .value'
 
 # Custom networking config flag
 kubectl get daemonset aws-node -n kube-system -o json 2>/dev/null | \
-  jq -r '.spec.template.spec.containers[0].env[]? | select(.name=="AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG") | .value'
+  jq -r '(.spec.template.spec.containers[0].env // [])[] | select(.name=="AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG") | .value'
 
 # Custom networking ENIConfig CRs
 kubectl get eniconfigs.crd.k8s.amazonaws.com --no-headers 2>/dev/null | wc -l
