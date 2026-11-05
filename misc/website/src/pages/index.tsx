@@ -19,7 +19,7 @@ function HeroBanner() {
       <div className="apex-hero__glow" />
       <div className="apex-hero__container">
         <span className="apex-hero__badge">APEX Skills · Open Source · MIT-0</span>
-        <h1 className="apex-hero__title">EKS and ECS skills for AI coding agents</h1>
+        <h1 className="apex-hero__title">APEX Skills</h1>
         <p className="apex-hero__subtitle">
           Curated AWS platform engineering skills that your coding agent loads
           when your request needs them.

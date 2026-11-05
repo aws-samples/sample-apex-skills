@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'APEX Skills',
-  tagline: 'EKS and ECS skills for AI coding agents: curated AWS platform engineering skills for Claude Code, Kiro CLI and Codex',
+  tagline: 'Platform engineering with agents — curated AWS skills delivered through your AI coding agent',
   favicon: 'img/favicon.svg',
 
   url: 'https://aws-samples.github.io',
