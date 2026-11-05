@@ -19,7 +19,7 @@ These artifacts exercise the `eks-mcp-server` skill, which is **meta**: it is ab
 
 ## Live-MCP caveat
 
-The setup and troubleshooting prompts run offline. The access checks supply verified endpoints, successful legacy `aws-auth` reads in mixed or CONFIG_MAP mode, or a fresh setup where the MCP caller is denied despite successful local kubectl access. They check interpretation of those observations. Verifying an actual connection requires repeating the required read through that server, for both fresh and existing setups.
+The setup and troubleshooting prompts run offline. The access check supplies a verified endpoint, an existing `aws-auth` mapping and a successful resource read through MCP. It checks how the skill interprets those observations. Verifying an actual connection requires repeating the read through that server.
 
 ## How to run
 

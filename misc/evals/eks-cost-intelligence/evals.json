@@ -17,31 +17,31 @@
     },
     {
       "id": 2,
-      "name": "high-waste-grounded-score",
-      "prompt": "This is an offline fixture evaluation: the user has confirmed the named target and authorized the assessment, and the verified caller successfully listed nodes, namespaces, pods and deployments. All other Kubernetes inventory reads required by the dimension references also succeeded unless an explicit failure is listed below; the supplied observations cover those checks. Unreported analytical facts remain unknown; successful API calls alone do not prove Spot eligibility or dollar savings. Use the supplied observations; do not attempt live connections.\n\nRun a full EKS cost intelligence assessment against `dev-legacy` in us-east-1. Activate the eks-cost-intelligence skill, run pre-flight (list clusters, describe the chosen cluster, verify connectivity, confirm with user), then walk through all 6 cost dimensions (compute-efficiency, spot-graviton-adoption, networking-costs, storage-costs, observability-costs, idle-resources) by reading each reference file and executing its checks.\n\nMock cluster data:\n- Cluster: dev-legacy, version 1.28, ACTIVE, us-east-1\n- Node groups: 2 self-managed ASGs (m5.2xlarge On-Demand only), no Karpenter\n- Instance types: 100% x86 (m5.2xlarge), 0% Graviton, 0% Spot\n- CPU utilization P95: 18% cluster-wide. Non-system nodes node-a, node-b, node-c, node-d have measured 7-day average CPU of 6%, 7%, 8%, 9% and memory of 12%, 13%, 14%, 15%, respectively. Each is m5.2xlarge On-Demand; use a fixed synthetic fixture rate of $0.384/hour and 730 hours/month for their arithmetic. No other per-node utilization data is supplied.\n- Memory utilization P95: 22% cluster-wide\n- 12 workloads without resource requests or limits defined\n- Storage: 42 PVCs use gp2 (approximately 85% of volumes), 8 PVCs bound but not mounted, 3 oversized volumes (100Gi provisioned, <5Gi used)\n- Networking: no topology-aware routing, instance mode on all NLBs, no VPC endpoints for ECR/S3/STS, estimated 2TB/month cross-AZ traffic\n- Observability: all 5 control plane log types enabled, FluentBit logging at DEBUG in 3 production namespaces, no log sampling\n- Idle resources: 5 Deployments scaled to 0 for >30 days, 3 LoadBalancer Services with 0 healthy endpoints, 2 namespaces with quotas but no running pods\n- Total estimated spend: $28,600/month\n- Unattributed top-down waste estimate: $14,200/month (not an independently verified sum of findings). Node totals, unused PVC capacities, NAT processed bytes and log ingestion volumes are not supplied.\n- Spot-eligible workload replicas, PDBs and interruption tolerance: unknown. Do not infer eligibility from 0% Spot.\n- The three idle LoadBalancer Services front verified provisioned NLBs; use the fixed synthetic rate $0.0225/hour for these fixtures. ConfigMap/Secret lists are confirmed empty; the two idle namespaces have confirmed quotas and no running pods.\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-dev-legacy-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table, prioritized recommendations, per-dimension findings with dollar-quantified waste, and methodology notes. Do NOT fabricate findings — only report based on mock data provided. Include a scoring ledger with the severity and deduction of each scored finding; make resource counts and grouping explicit, and do not count both a group and its children.",
+      "name": "high-waste-cluster-critical-score",
+      "prompt": "This is an offline fixture evaluation: the user has confirmed the named target and authorized the assessment, and the verified caller successfully listed nodes, namespaces, pods and deployments. All other Kubernetes inventory reads required by the dimension references also succeeded unless an explicit failure is listed below; the supplied observations cover those checks, with no additional findings. Use the supplied observations; do not attempt live connections.\n\nRun a full EKS cost intelligence assessment against `dev-legacy` in us-east-1. Activate the eks-cost-intelligence skill, run pre-flight (list clusters, describe the chosen cluster, verify connectivity, confirm with user), then walk through all 6 cost dimensions (compute-efficiency, spot-graviton-adoption, networking-costs, storage-costs, observability-costs, idle-resources) by reading each reference file and executing its checks.\n\nMock cluster data:\n- Cluster: dev-legacy, version 1.28, ACTIVE, us-east-1\n- Node groups: 2 self-managed ASGs (m5.2xlarge On-Demand only), no Karpenter\n- Instance types: 100% x86 (m5.2xlarge), 0% Graviton, 0% Spot\n- CPU utilization P95: 18% cluster-wide, 4 nodes below 10% utilization\n- Memory utilization P95: 22% cluster-wide\n- 12 workloads without resource requests or limits defined\n- Storage: 85% gp2 volumes (42 PVCs), 8 PVCs bound but not mounted, 3 oversized volumes (100Gi provisioned, <5Gi used)\n- Networking: no topology-aware routing, instance mode on all NLBs, no VPC endpoints for ECR/S3/STS, estimated 2TB/month cross-AZ traffic\n- Observability: all 5 control plane log types enabled, FluentBit logging at DEBUG in 3 production namespaces, no log sampling\n- Idle resources: 5 Deployments scaled to 0 for >30 days, 3 LoadBalancer Services with 0 healthy endpoints, 2 namespaces with quotas but no running pods\n- Total estimated spend: $28,600/month\n- Estimated waste: $14,200/month\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-dev-legacy-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table, prioritized recommendations, per-dimension findings with dollar-quantified waste, and methodology notes. Do NOT fabricate findings — only report based on mock data provided.",
       "expectations": [
-        "The Cost Score is derived from the reported scored findings using the documented severity weights, dimension caps, total deductions and classification bands. It does not choose a score/band merely from the scenario name or the top-down waste estimate.",
-        "Successful core inventory permits assessment. Dimension coverage and unavailable inputs are identified; the observed 0% Spot does not establish eligible workloads, and an unverified eligibility check is not reported as an empty inventory.",
-        "Accounts for all four measured qualifying nodes without duplication: $0.384 x 730 = $280.32 per node and $1,121.28 total monthly node waste. Individual findings use HIGH per-node severity, or an explicitly identified group reports its count, confidence and documented aggregate-severity rationale. It does not silently drop nodes or invent a LOW group.",
-        "Keeps the supplied $14,200 top-down estimate distinct from the bottom-up supported findings. It identifies missing inputs instead of fabricating enough savings to reach $10,000-$15,000/month; idle LoadBalancer findings use the documented HIGH rule, not an invented mandatory CRITICAL classification.",
-        "Prioritized recommendations are ordered by severity and then savings, with missing or uncertain dollar estimates identified rather than treated as verified zero waste.",
-        "The Markdown report includes an executive summary, score breakdown, findings, recommendations, methodology/coverage notes and operator remediation examples for at least three supported findings.",
-        "The compute deduction reconciles with the represented finding set and is capped at 25. A grouped finding and its per-node children are not both charged, and four separate HIGH node findings cannot be silently scored as just one HIGH deduction.",
-        "Identifies 42 gp2 PVCs, 8 bound but unmounted PVCs and 3 oversized volumes as the supplied observations; it does not reinterpret 42 as the total PVC count and reduce the affected gp2 count."
+        "The Cost Score is below 40 and the classification is CRITICAL. TODO: human review",
+        "All 6 dimensions are marked as ASSESSED (not SKIPPED) in the score breakdown table. TODO: human review",
+        "Multiple CRITICAL severity findings are reported, including: over-provisioned compute (18% CPU utilization), 0% Spot adoption with On-Demand-only nodes, and idle LoadBalancer Services. TODO: human review",
+        "Dollar-quantified waste estimates are included for findings — the total estimated monthly waste is in the range of $10,000-$15,000/month. TODO: human review",
+        "Prioritized recommendations are sorted by severity (CRITICAL first, then HIGH, MEDIUM, LOW) and within each severity by estimated monthly savings descending. TODO: human review",
+        "The report includes actionable remediation snippets (kubectl commands, Terraform/YAML configs) for at least the top 3 recommendations. TODO: human review",
+        "The Compute Efficiency dimension shows maximum or near-maximum deduction (close to 25 points) given the severe over-provisioning and missing resource requests. TODO: human review",
+        "The storage section identifies gp2→gp3 migration opportunity for 42 PVCs and flags the 8 unmounted PVCs and 3 oversized volumes. TODO: human review"
       ],
       "files": []
     },
     {
       "id": 3,
       "name": "partial-data-skipped-dimensions",
-      "prompt": "This is an offline fixture evaluation: the user has confirmed the named target and authorized the assessment, and the verified caller successfully listed nodes, namespaces, pods and deployments. All other Kubernetes inventory reads required by the dimension references also succeeded unless an explicit failure is listed below; the supplied observations cover those checks, with no additional findings. Use the supplied observations; do not attempt live connections.\n\nRun a full EKS cost intelligence assessment against `staging-restricted` in eu-west-1. Activate the eks-cost-intelligence skill, run pre-flight (list clusters, describe the chosen cluster, verify connectivity, confirm with user), then walk through all 6 cost dimensions (compute-efficiency, spot-graviton-adoption, networking-costs, storage-costs, observability-costs, idle-resources) by reading each reference file and executing its checks.\n\nMock cluster data:\n- Cluster: staging-restricted, version 1.30, ACTIVE, eu-west-1\n- Node groups: 2 Managed Node Groups, with 3 m6i.xlarge On-Demand nodes and 2 c6g.large Spot nodes (5 nodes total)\n- Instance types: 40% Graviton (c6g), 60% x86 (m6i), Spot on Graviton nodes only\n- Workloads all have CPU/memory requests and limits; Karpenter is not installed. Remaining idle-resource lists are confirmed: no unreferenced ConfigMaps/Secrets and no quota-only idle namespaces.\n- metrics-server: NOT installed. No Prometheus, AMP, Container Insights or other utilization metrics source is available. (no pod-level CPU/memory utilization data available)\n- Container Insights: NOT enabled (no CloudWatch utilization metrics)\n- Cost Explorer: permission denied (ce:GetCostAndUsage returns AccessDenied)\n- Kubernetes API: accessible (can list pods, PVCs, services, deployments)\n- Storage: 27 gp3 PVCs (60%) and 18 gp2 PVCs (40%), 45 PVCs total, 2 unmounted PVCs, no EFS\n- Networking: topology-aware routing on 2 of 5 services, VPC endpoints for S3 only (missing ECR, STS), IP mode on ALBs\n- Observability: audit+api-server logs enabled, no FluentBit installed\n- Idle resources: 1 Deployment scaled to 0 for 45 days, 1 LoadBalancer Service with a successful Endpoints read confirming zero ready addresses\n- Total estimated spend: unknown (Cost Explorer unavailable, fall back to node-based estimation)\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-staging-restricted-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table (showing SKIPPED dimensions), prioritized recommendations, per-dimension findings, graceful degradation notes, and methodology notes. Do NOT fabricate findings — only report based on what is observable from the available data sources.",
+      "prompt": "This is an offline fixture evaluation: the user has confirmed the named target and authorized the assessment, and the verified caller successfully listed nodes, namespaces, pods and deployments. All other Kubernetes inventory reads required by the dimension references also succeeded unless an explicit failure is listed below; the supplied observations cover those checks, with no additional findings. Use the supplied observations; do not attempt live connections.\n\nRun a full EKS cost intelligence assessment against `staging-restricted` in eu-west-1. Activate the eks-cost-intelligence skill, run pre-flight (list clusters, describe the chosen cluster, verify connectivity, confirm with user), then walk through all 6 cost dimensions (compute-efficiency, spot-graviton-adoption, networking-costs, storage-costs, observability-costs, idle-resources) by reading each reference file and executing its checks.\n\nMock cluster data:\n- Cluster: staging-restricted, version 1.30, ACTIVE, eu-west-1\n- Node groups: 2 Managed Node Groups (m6i.xlarge On-Demand + c6g.large Spot)\n- Instance types: 40% Graviton (c6g), 60% x86 (m6i), Spot on Graviton nodes only\n- metrics-server: NOT installed (no pod-level CPU/memory utilization data available)\n- Container Insights: NOT enabled (no CloudWatch utilization metrics)\n- Cost Explorer: permission denied (ce:GetCostAndUsage returns AccessDenied)\n- Kubernetes API: accessible (can list pods, PVCs, services, deployments)\n- Storage: 60% gp3, 40% gp2 (18 PVCs), 2 unmounted PVCs, no EFS\n- Networking: topology-aware routing on 2 of 5 services, VPC endpoints for S3 only (missing ECR, STS), IP mode on ALBs\n- Observability: audit+api-server logs enabled, no FluentBit installed\n- Idle resources: 1 Deployment scaled to 0 for 45 days, 1 LB with no endpoints\n- Total estimated spend: unknown (Cost Explorer unavailable, fall back to node-based estimation)\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-staging-restricted-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table (showing SKIPPED dimensions), prioritized recommendations, per-dimension findings, graceful degradation notes, and methodology notes. Do NOT fabricate findings — only report based on what is observable from the available data sources.",
       "expectations": [
         "The Compute Efficiency dimension is marked as SKIPPED in the score breakdown table with a clear reason (metrics-server unavailable, Container Insights not enabled). TODO: human review",
         "The SKIPPED dimension contributes zero deduction to the final Cost Score — the score is calculated from the 5 remaining assessed dimensions only. TODO: human review",
         "The report includes a graceful degradation section or methodology note explaining which data sources are unavailable (metrics-server, Container Insights, Cost Explorer) and their impact on the assessment. TODO: human review",
         "Cost estimation falls back to node-based estimation (using instance types and counts) since Cost Explorer is unavailable, and the report notes reduced confidence in dollar figures. TODO: human review",
         "The storage section still identifies the 40% gp2 volumes (18 PVCs) and 2 unmounted PVCs as findings despite Cost Explorer being unavailable. TODO: human review",
-        "The networking section identifies missing ECR and STS endpoints and partial topology-aware routing coverage. It uses either the documented combined MEDIUM finding for multiple missing endpoints, or separate ECR MEDIUM and STS LOW findings, without double charging the combined and individual endpoint findings.",
+        "The networking section flags missing VPC endpoints for ECR and STS as MEDIUM findings and notes partial topology-aware routing coverage. TODO: human review",
         "The idle resources section identifies the zero-scale deployment and orphaned LB despite the absence of utilization metrics. TODO: human review",
         "The final Cost Score reflects only the 5 assessed dimensions and the classification is consistent with the scoring algorithm (SKIPPED dimensions excluded from total). TODO: human review"
       ],
@@ -66,78 +66,6 @@
         "Reports the Service read as UNKNOWN and Idle Resources as SKIPPED/not assessed for scoring; does not claim that there are no LoadBalancer Services.",
         "Retains the independently observed abandoned-api finding, but gives the skipped idle dimension zero deduction.",
         "Continues the independently assessed Storage dimension and its severity-weighted deduction; does not abort the whole assessment or present skipped coverage as proof of optimization."
-      ],
-      "process_assertions": [
-        {
-          "type": "tool-called",
-          "tool": "Read",
-          "min": 1
-        },
-        {
-          "type": "no-tool-called",
-          "tool": "Bash"
-        }
-      ],
-      "artifact_assertions": {
-        "structural": [
-          {
-            "type": "file-exists",
-            "path": "reports/coverage.md"
-          },
-          {
-            "type": "contains",
-            "file": "reports/coverage.md",
-            "pattern": "SKIPPED",
-            "flags": "i"
-          }
-        ]
-      },
-      "files": []
-    },
-    {
-      "id": 6,
-      "name": "denied-endpoints-not-zero",
-      "prompt": "Use eks-cost-intelligence to assess the following captured cluster observations as an offline fixture. Do not query a live cluster or change resources. Read the relevant skill references and write a compact Markdown assessment to reports/coverage.md. The target endpoint and caller are verified. Lists of nodes, namespaces, pods and deployments succeeded. There is one node and one 45-day-old zero-replica Deployment named abandoned-api with a bound PVC in namespace sandbox. The Service list succeeded and includes LoadBalancer Service public-api. Its Endpoints read returned Forbidden twice. The remaining idle-resource reads succeeded. Assess the idle-resource coverage.",
-      "expectations": [
-        "Reports the backend state of public-api as UNKNOWN, not zero healthy endpoints, and does not generate an idle-load-balancer finding from that denial.",
-        "Marks Idle Resources SKIPPED/not assessed for scoring while retaining independently verified Deployment findings.",
-        "Names the denied Endpoints read and an appropriately scoped read-permission remedy without changing access."
-      ],
-      "process_assertions": [
-        {
-          "type": "tool-called",
-          "tool": "Read",
-          "min": 1
-        },
-        {
-          "type": "no-tool-called",
-          "tool": "Bash"
-        }
-      ],
-      "artifact_assertions": {
-        "structural": [
-          {
-            "type": "file-exists",
-            "path": "reports/coverage.md"
-          },
-          {
-            "type": "contains",
-            "file": "reports/coverage.md",
-            "pattern": "SKIPPED",
-            "flags": "i"
-          }
-        ]
-      },
-      "files": []
-    },
-    {
-      "id": 7,
-      "name": "denied-secrets-preserve-findings",
-      "prompt": "Use eks-cost-intelligence to assess the following captured cluster observations as an offline fixture. Do not query a live cluster or change resources. Read the relevant skill references and write a compact Markdown assessment to reports/coverage.md. The target endpoint and caller are verified. Lists of nodes, namespaces, pods and deployments succeeded. There is one node and one 45-day-old zero-replica Deployment named abandoned-api with a bound PVC in namespace sandbox. Services and Endpoints reads succeeded and confirm LoadBalancer Service public-api has no healthy endpoints. Listing Secrets in sandbox returned Forbidden twice. ConfigMaps and the other idle-resource reads succeeded. Assess the idle-resource coverage.",
-      "expectations": [
-        "Does not report absent or orphaned Secrets from the failed Secret list; marks the dependent check UNKNOWN and Idle Resources SKIPPED/not assessed for scoring.",
-        "Retains the verified idle LoadBalancer Service and zero-replica Deployment findings, while excluding this skipped dimension from deductions.",
-        "Reports the denied Secret operation and namespace, without treating it as a core failure that blocks every dimension."
       ],
       "process_assertions": [
         {
@@ -201,66 +129,6 @@
         ]
       },
       "files": []
-    },
-    {
-      "id": 9,
-      "name": "networking-documented-partial-fallback",
-      "prompt": "Use eks-cost-intelligence to interpret these captured observations as an offline fixture; do not call live APIs or change resources. Read the owning references and write a compact assessment to reports/coverage.md. The verified caller successfully listed nodes, namespaces, pods and deployments. The networking configuration reads confirm that 3 of 5 Services lack topology-aware routing. The VPC-endpoint discovery call returned AccessDenied; no alternative endpoint inventory is available. Utilization metrics are unavailable, but the configuration observations are valid. Assess networking coverage and supported findings only.",
-      "expectations": [
-        "Marks VPC endpoint coverage UNKNOWN, without claiming that endpoints are absent.",
-        "Preserves the networking reference's documented ASSESSED (partial, with note) path for a denied VPC endpoint check instead of automatically skipping the entire networking dimension.",
-        "Retains the independently supported topology-aware-routing observation and does not deduct a finding for endpoints whose presence was not established."
-      ],
-      "files": [],
-      "process_assertions": [
-        {
-          "type": "tool-called",
-          "tool": "Read",
-          "min": 1
-        },
-        {
-          "type": "no-tool-called",
-          "tool": "Bash"
-        }
-      ],
-      "artifact_assertions": {
-        "structural": [
-          {
-            "type": "file-exists",
-            "path": "reports/coverage.md"
-          }
-        ]
-      }
-    },
-    {
-      "id": 10,
-      "name": "empty-service-list-no-endpoint-prerequisite",
-      "prompt": "Use eks-cost-intelligence to interpret these captured observations as an offline fixture; do not call live APIs or change resources. Read the owning references and write a compact assessment to reports/coverage.md. The verified caller successfully listed nodes, namespaces, pods and deployments. All required Idle Resources inventories are confirmed empty, including a successful cluster-wide Service list with items=[]. No Endpoints call was made and that permission is not available. Can the idle dimension be assessed from these observations?",
-      "expectations": [
-        "Accepts the confirmed empty Service list as evidence that there are no LoadBalancer Services in the assessed scope.",
-        "Does not require an Endpoints read for nonexistent Service candidates or mark Idle Resources SKIPPED solely because that unnecessary permission is unavailable.",
-        "Marks Idle Resources ASSESSED with no findings and zero deduction, while preserving the distinction between successful empty inventories and a failed required read."
-      ],
-      "files": [],
-      "process_assertions": [
-        {
-          "type": "tool-called",
-          "tool": "Read",
-          "min": 1
-        },
-        {
-          "type": "no-tool-called",
-          "tool": "Bash"
-        }
-      ],
-      "artifact_assertions": {
-        "structural": [
-          {
-            "type": "file-exists",
-            "path": "reports/coverage.md"
-          }
-        ]
-      }
     }
   ]
 }

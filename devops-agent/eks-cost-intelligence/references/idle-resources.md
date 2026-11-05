@@ -120,6 +120,8 @@ Use the Kubernetes API to list Services of type LoadBalancer and their correspon
 
 Cross-reference with the ELBv2 DescribeTargetHealth API for backend health status. Use ELBv2 DescribeLoadBalancers to get load balancer details and ELB DescribeLoadBalancers for Classic Load Balancers.
 
+Selector-less LoadBalancer Services do not receive automatic Endpoints. A missing Endpoints object is UNKNOWN, not zero healthy backends; confirm operator-managed backends or the documented load-balancer target-health alternative. Otherwise Idle Resources remains SKIPPED for scoring.
+
 ### Analysis logic
 
 ```

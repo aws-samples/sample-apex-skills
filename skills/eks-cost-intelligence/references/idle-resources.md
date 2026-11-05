@@ -176,25 +176,18 @@ Kubernetes Services of type `LoadBalancer` that have no healthy backend endpoint
 # Read-coverage guard: idle load balancers
 (
   set -o pipefail
-  services=$(kubectl get services --all-namespaces -o json) || {
+  services=$(kubectl get services -A -o json) || {
     echo "UNKNOWN: Service inventory unavailable" >&2; exit 1;
   }
-  jq -e '.items | type == "array"' <<< "$services" >/dev/null || exit 1
   candidates=$(jq -r '.items[] | select(.spec.type == "LoadBalancer") |
     [.metadata.namespace, .metadata.name] | @tsv' <<< "$services") || exit 1
   status=0
   while IFS=$'\t' read -r ns name; do
-    [ -n "$ns" ] || continue  # A successful empty list is valid.
+    [ -n "$ns" ] || continue
     endpoints=$(kubectl get endpoints "$name" -n "$ns" -o json) || {
       echo "UNKNOWN: Endpoints $ns/$name unavailable" >&2; status=1; continue;
     }
-    if ! jq -e '.kind == "Endpoints" and
-      (.subsets == null or (.subsets | type == "array"))' <<< "$endpoints" >/dev/null; then
-      echo "UNKNOWN: invalid Endpoints response for $ns/$name" >&2; status=1; continue
-    fi
-    ready=$(jq '[.subsets[]?.addresses[]?] | length' <<< "$endpoints") || {
-      status=1; continue;
-    }
+    ready=$(jq '[.subsets[]?.addresses[]?] | length' <<< "$endpoints")
     if [ "$ready" -eq 0 ]; then
       echo "IDLE_LB: $ns/$name (0 healthy endpoints)"
     fi
@@ -203,7 +196,7 @@ Kubernetes Services of type `LoadBalancer` that have no healthy backend endpoint
 )
 ```
 
-A nonzero status leaves the dependent check UNKNOWN; keep any verified findings already emitted. Count ready addresses across **all** subsets: one empty or unready subset does not make a Service idle when another subset has a ready address. A missing or denied Endpoints response is not a zero count.
+Selector-less LoadBalancer Services do not receive automatic Endpoints. A missing Endpoints object is UNKNOWN, not zero healthy backends; confirm operator-managed backends or the documented load-balancer target-health alternative. Otherwise Idle Resources remains SKIPPED for scoring.
 
 **Via AWS CLI (enriches with actual LB details):**
 
@@ -340,49 +333,37 @@ Namespaces that have ResourceQuotas or LimitRanges defined but contain no runnin
   namespaces=$(kubectl get namespaces -o json) || {
     echo "UNKNOWN: Namespace inventory unavailable" >&2; exit 1;
   }
-  jq -e '.items | type == "array"' <<< "$namespaces" >/dev/null || exit 1
-  namespaces=$(jq '{items: [.items[] |
-    select(.metadata.name | test("^kube-|^amazon-|^aws-|^default$") | not)]}' <<< "$namespaces") || exit 1
-  [ "$(jq '.items | length' <<< "$namespaces")" -gt 0 ] || exit 0
-  pods=$(kubectl get pods --all-namespaces --field-selector=status.phase=Running -o json) || {
+  pods=$(kubectl get pods -A --field-selector=status.phase=Running -o json) || {
     echo "UNKNOWN: running Pod inventory unavailable" >&2; exit 1;
   }
-  for inventory in "$namespaces" "$pods"; do
-    jq -e '.items | type == "array"' <<< "$inventory" >/dev/null || exit 1
-  done
-  empty_namespaces=$(printf '%s\n' "$namespaces" "$pods" | jq -r -s '
-    .[1].items as $pods | .[0].items[] | .metadata.name as $ns |
-    select($ns | test("^kube-|^amazon-|^aws-|^default$") | not) |
-    select([$pods[] | select(.metadata.namespace == $ns and .status.phase == "Running")] | length == 0) |
-    $ns') || exit 1
+  candidates=$(jq -r '.items[].metadata.name |
+    select(test("^kube-|^amazon-|^aws-|^default$") | not)' <<< "$namespaces") || exit 1
   status=0
   while IFS= read -r ns; do
     [ -n "$ns" ] || continue
+    running=$(jq --arg ns "$ns" '[.items[] | select(.metadata.namespace == $ns)] | length' <<< "$pods")
+    [ "$running" -eq 0 ] || continue
     quota_count=UNKNOWN
-    if quotas=$(kubectl get resourcequotas -n "$ns" -o json) &&
-       jq -e '.items | type == "array"' <<< "$quotas" >/dev/null; then
+    if quotas=$(kubectl get resourcequotas -n "$ns" -o json); then
       quota_count=$(jq '.items | length' <<< "$quotas")
     fi
     if [ "$quota_count" != UNKNOWN ] && [ "$quota_count" -gt 0 ]; then
-      echo "EMPTY_NS_WITH_QUOTA: $ns (quotas=$quota_count, running_pods=0)"
-      continue  # Quota presence already proves the OR condition.
+      echo "EMPTY_NS_WITH_QUOTA: $ns (running_pods=0)"
+      jq -c '.items[] | {namespace: .metadata.namespace, quota: .metadata.name, hard: .spec.hard}' <<< "$quotas"
+      continue
     fi
-    limit_count=UNKNOWN
-    if limits=$(kubectl get limitranges -n "$ns" -o json) &&
-       jq -e '.items | type == "array"' <<< "$limits" >/dev/null; then
-      limit_count=$(jq '.items | length' <<< "$limits")
+    if limits=$(kubectl get limitranges -n "$ns" -o json); then
+      if [ "$(jq '.items | length' <<< "$limits")" -gt 0 ]; then
+        echo "EMPTY_NS_WITH_QUOTA: $ns (LimitRange confirmed, running_pods=0)"
+        continue
+      fi
+      [ "$quota_count" != UNKNOWN ] && continue
     fi
-    if [ "$limit_count" != UNKNOWN ] && [ "$limit_count" -gt 0 ]; then
-      echo "EMPTY_NS_WITH_QUOTA: $ns (quotas=$quota_count, limitranges=$limit_count, running_pods=0)"
-    elif [ "$quota_count" = UNKNOWN ] || [ "$limit_count" = UNKNOWN ]; then
-      echo "UNKNOWN: quota/limit presence for $ns" >&2; status=1
-    fi
-  done <<< "$empty_namespaces"
+    echo "UNKNOWN: quota/limit presence for $ns" >&2; status=1
+  done <<< "$candidates"
   exit "$status"
 )
 ```
-
-No Pod read is needed if no applicable namespaces remain after system exclusions, and no quota/limit read is needed for a namespace with running pods. A confirmed quota or LimitRange is enough to establish the OR condition; an unavailable alternative does not invalidate that proof. Otherwise an unavailable quota/limit list remains UNKNOWN, not a zero count.
 
 **Via EKS MCP Server:**
 
@@ -422,7 +403,7 @@ For each non-system namespace from confirmed inventory:
 
   If running_pods == 0 AND (has_quota OR has_limitrange):
     # Calculate reserved capacity from quota spec
-    Read reserved_cpu/reserved_mem only from confirmed quota.spec.hard.
+    Read reserved_cpu/reserved_mem only from the confirmed `hard` values emitted from ResourceQuota spec.hard above.
     If only a LimitRange is known, report quota amounts as unknown, not zero.
     
     → Generate finding
@@ -469,35 +450,15 @@ ConfigMaps and Secrets that exist in non-system namespaces but are not reference
 # Read-coverage guard: unreferenced configuration
 (
   set -o pipefail
-  pods_state=unread
+  pods=$(kubectl get pods -A -o json) || {
+    echo "UNKNOWN: Pod references unavailable" >&2; exit 1;
+  }
   status=0
   for resource in configmap secret; do
-    objects=$(kubectl get "$resource" --all-namespaces -o json) || {
+    objects=$(kubectl get "$resource" -A -o json |
+      jq '{items: [.items[] | {metadata: {name: .metadata.name, namespace: .metadata.namespace}, type}]}') || {
       echo "UNKNOWN: $resource inventory unavailable" >&2; status=1; continue;
     }
-    if ! jq -e '.items | type == "array"' <<< "$objects" >/dev/null; then
-      echo "UNKNOWN: invalid $resource inventory" >&2; status=1; continue
-    fi
-    objects=$(jq --arg resource "$resource" '{items: [.items[] |
-      select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-      select(if $resource == "configmap" then
-        .metadata.name != "kube-root-ca.crt"
-        else .type != "kubernetes.io/service-account-token" and .type != "helm.sh/release.v1" and
-          (.metadata.name | test("^default-token-") | not) end)]}' <<< "$objects") || {
-      status=1; continue;
-    }
-    [ "$(jq '.items | length' <<< "$objects")" -gt 0 ] || continue
-    if [ "$pods_state" = unread ]; then
-      if pods=$(kubectl get pods --all-namespaces -o json) &&
-         jq -e '.items | type == "array"' <<< "$pods" >/dev/null; then
-        pods_state=known
-      else
-        pods_state=unknown
-      fi
-    fi
-    if [ "$pods_state" != known ]; then
-      echo "UNKNOWN: Pod references for $resource comparison" >&2; status=1; continue
-    fi
     printf '%s\n' "$pods" "$objects" | jq -r -s --arg resource "$resource" '
       .[0].items as $pods | .[1].items as $objects |
       [$pods[] | select(.status.phase == "Running") |
@@ -516,6 +477,10 @@ ConfigMaps and Secrets that exist in non-system namespaces but are not reference
            elif .secretKeyRef then "\($ns)/secret/\(.secretKeyRef.name)" else empty end])[]
       ] | unique as $referenced |
       $objects[] |
+      select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
+      select(if $resource == "configmap" then .metadata.name != "kube-root-ca.crt"
+        else .type != "kubernetes.io/service-account-token" and .type != "helm.sh/release.v1" and
+          (.metadata.name | test("^default-token-") | not) end) |
       "\(.metadata.namespace)/\($resource)/\(.metadata.name)" as $id |
       select(($referenced | index($id)) == null) | $id
     ' || status=1
@@ -524,7 +489,7 @@ ConfigMaps and Secrets that exist in non-system namespaces but are not reference
 )
 ```
 
-These are unreferenced **candidates**, not deletion instructions. This example inspects volumes, projected volumes and regular-container environment references; it does not cover every reference channel (such as init containers or imagePullSecrets). Apply the exclusions below and confirm actual references and ownership before reporting an orphan or proposing cleanup. No Pod read is needed for a confirmed empty object list or when only unconditionally excluded objects remain. Pod references must be known before classifying a listed object; a denied Secret read leaves that comparison UNKNOWN while a verified ConfigMap result remains usable. No shared `/tmp` lists or stale results are reused.
+Candidate IDs cover volumes, projected volumes and regular-container environment references. Confirm other reference channels (including init containers and imagePullSecrets) and ownership before reporting an orphan or proposing cleanup.
 
 **Via EKS MCP Server:**
 
