@@ -1,0 +1,1002 @@
+#!/usr/bin/env python3
+"""Offline regression tests for the eks-security advisory scripts.
+
+Covers skills/eks-security/assets/: advisory_check.py (version and range helpers, record
+validation), advisory_fetch.py (saved feed responses through --input), match.py (verdicts,
+priority, coverage gate, exit codes), render_report.py (escaping, footer, origin) and
+collect.sh (read-only command guard, run against fake aws and kubectl on PATH).
+
+Stdlib only, no network, no cluster. All data comes from
+misc/tests/fixtures/eks_security_cases.json. Run from the repo root:
+  python3 -B misc/tests/test_eks_security_match.py -v
+"""
+import base64
+import copy
+import json
+import os
+import re
+import shlex
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+import unittest
+
+sys.dont_write_bytecode = True
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ASSETS = os.path.join(ROOT, "skills", "eks-security", "assets")
+CATALOG = os.path.join(ASSETS, "components.json")
+FIXTURES = os.path.join(ROOT, "misc", "tests", "fixtures", "eks_security_cases.json")
+sys.path.insert(0, ASSETS)
+
+import advisory_check  # noqa: E402
+import match  # noqa: E402
+
+with open(FIXTURES, "r", encoding="utf-8") as _f:
+    CASES = json.load(_f)
+with open(CATALOG, "r", encoding="utf-8") as _f:
+    CAT = json.load(_f)
+
+
+def run_py(script, args, timeout=60):
+    """Run an asset script; return (rc, stdout, stderr)."""
+    p = subprocess.run([sys.executable, "-B", os.path.join(ASSETS, script)] + list(args),
+                       capture_output=True, text=True, timeout=timeout, cwd=ROOT)
+    return p.returncode, p.stdout, p.stderr
+
+
+def last_json(out):
+    lines = [ln for ln in out.splitlines() if ln.strip()]
+    return json.loads(lines[-1]) if lines else None
+
+
+class TmpCase(unittest.TestCase):
+    def setUp(self):
+        self._td = tempfile.TemporaryDirectory(prefix="eks-sec-test-")
+        self.tmp = self._td.name
+
+    def tearDown(self):
+        self._td.cleanup()
+
+    def write(self, name, data, mode="w"):
+        path = os.path.join(self.tmp, name)
+        if mode == "wb":
+            with open(path, "wb") as f:
+                f.write(data)
+        else:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(data if isinstance(data, str) else json.dumps(data))
+        return path
+
+
+# ------------------------------------------------------------------ versions and ranges
+
+class VersionParsing(unittest.TestCase):
+    V = CASES["versions"]
+
+    def test_equal_forms(self):
+        # v prefix, -eksbuild.N, -eks-<hash>, -eks-1-33-N, trailing zeros, +build metadata
+        for a, b in self.V["equal"]:
+            with self.subTest(a=a, b=b):
+                ka, kb = advisory_check.parse_version(a), advisory_check.parse_version(b)
+                self.assertIsNotNone(ka, a)
+                self.assertEqual(ka, kb, "%s should compare equal to %s" % (a, b))
+
+    def test_less_than(self):
+        # prerelease sorts before its release; numeric parts compare numerically
+        for a, b in self.V["less"]:
+            with self.subTest(a=a, b=b):
+                self.assertLess(advisory_check.parse_version(a), advisory_check.parse_version(b))
+
+    def test_garbage_is_none(self):
+        for g in self.V["none"]:
+            with self.subTest(value=g):
+                self.assertIsNone(advisory_check.parse_version(g))
+
+
+class RangeParsing(unittest.TestCase):
+    R = CASES["ranges"]
+
+    def test_parse_forms(self):
+        for text, want in self.R["parse"]:
+            with self.subTest(range=text):
+                self.assertEqual(advisory_check.parse_range(text), want)
+
+    def test_unsupported_forms_are_none(self):
+        # "> X" (no upper bound form), duplicate bounds, inverted, bare version, junk
+        for text in self.R["none"]:
+            with self.subTest(range=text):
+                self.assertIsNone(advisory_check.parse_range(text))
+
+    def test_version_in_range(self):
+        # includes: boundary equal to fixed is not affected, eksbuild suffix at fixed is not affected
+        for v, r, want in self.R["in_range"]:
+            with self.subTest(v=v, r=r):
+                self.assertIs(advisory_check.version_in_range(v, r), want)
+
+    def test_multi_interval_or(self):
+        ranges = self.R["multi"]["ranges"]
+        for v, want in self.R["multi"]["cases"]:
+            with self.subTest(v=v):
+                got = any(advisory_check.version_in_range(v, r) for r in ranges)
+                self.assertIs(got, want)
+
+
+# ------------------------------------------------------------------ match verdicts
+
+def build_case(case):
+    m = CASES["match"]
+    inv = copy.deepcopy(m["inventory_base"])
+    inv["components"] = copy.deepcopy(case["components"])
+    rec = copy.deepcopy(m["advisory_base"])
+    rec.update(copy.deepcopy(case["advisory"]))
+    return inv, rec
+
+
+class MatchVerdicts(TmpCase):
+    def check_case(self, case):
+        inv, rec = build_case(case)
+        doc = match.run(inv, [rec], CAT, 0.5)
+        by_comp = {f["component"]: f for f in doc["findings"]}
+        for exp in case["expect"]:
+            f = by_comp.get(exp["component"])
+            self.assertIsNotNone(f, "%s: no finding for %s in %s" % (case["name"], exp["component"], list(by_comp)))
+            self.assertEqual(f["verdict"], exp["verdict"], "%s: %s" % (case["name"], f))
+            if "reason_prefix" in exp:
+                self.assertTrue(f["reason"].startswith(exp["reason_prefix"]), "%s: reason %r" % (case["name"], f["reason"]))
+            for k in ("priority", "fixed", "installed", "nodes_pending"):
+                if k in exp:
+                    self.assertEqual(f[k], exp[k], "%s: %s" % (case["name"], k))
+            if f["verdict"] == "not_exposed":
+                comp = next((c for c in inv["components"] if c["id"] == f["component"]), None)
+                self.assertTrue(comp and comp["readable"], "not_exposed given for a component that was not read")
+        for absent in case.get("absent", []):
+            self.assertNotIn(absent, by_comp, "%s: %s should not be targeted" % (case["name"], absent))
+        self.assertEqual(doc["overall"], case["overall"], "%s: overall" % case["name"])
+        self.assertEqual(doc["coverage"]["complete"], case["exit"] == 0, "%s: coverage %s" % (case["name"], doc["coverage"]))
+        # the same case through the CLI, for the exit code and the written file
+        ip = self.write("inv-%s.json" % case["name"], inv)
+        ap = self.write("adv-%s.json" % case["name"], [rec])
+        op = os.path.join(self.tmp, "findings-%s.json" % case["name"])
+        rc, out, err = run_py("match.py", ["--inventory", ip, "--advisories", ap, "--catalog", CATALOG, "--out", op])
+        self.assertEqual(rc, case["exit"], "%s: exit %d, stderr %s" % (case["name"], rc, err))
+        with open(op, encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["overall"], case["overall"])
+        self.assertEqual(stat.S_IMODE(os.stat(op).st_mode), 0o600)
+
+
+def _add_match_tests():
+    for case in CASES["match"]["cases"]:
+        def t(self, case=case):
+            self.check_case(case)
+        t.__doc__ = "match: %s" % case["name"]
+        setattr(MatchVerdicts, "test_%s" % case["name"], t)
+
+
+_add_match_tests()
+
+
+class MatchInputErrors(TmpCase):
+    def test_bad_inventory_schema_exit_2(self):
+        ip = self.write("inv.json", {"schema": "something-else"})
+        ap = self.write("adv.json", [CASES["match"]["advisory_base"]])
+        rc, out, _ = run_py("match.py", ["--inventory", ip, "--advisories", ap, "--catalog", CATALOG])
+        self.assertEqual(rc, 2)
+        self.assertEqual(last_json(out)["ok"], False)
+
+    def test_no_traceback_on_garbage(self):
+        ip = self.write("inv.json", "not json")
+        ap = self.write("adv.json", "[]")
+        rc, out, err = run_py("match.py", ["--inventory", ip, "--advisories", ap, "--catalog", CATALOG])
+        self.assertEqual(rc, 2)
+        self.assertNotIn("Traceback", err + out)
+
+
+# ------------------------------------------------------------------ advisory_check
+
+class AdvisoryCheck(TmpCase):
+    AC = CASES["advisory_check"]
+
+    def check(self, record, source_text=None, source_path=None):
+        rp = self.write("record.json", record)
+        sp = source_path or self.write("source.txt", source_text if source_text is not None else self.AC["saved_page"])
+        return run_py("advisory_check.py", ["--record", rp, "--source", sp, "--catalog", CATALOG])
+
+    def refused(self, record, code, **kw):
+        rc, out, err = self.check(record, **kw)
+        self.assertEqual(rc, 2, out + err)
+        j = last_json(out)
+        self.assertFalse(j["ok"])
+        self.assertEqual(j["code"], code, j)
+        self.assertNotIn("Traceback", err)
+        return j
+
+    def test_bulletin_worked_example_passes(self):
+        rc, out, err = self.check(self.AC["record"])
+        self.assertEqual(rc, 0, out + err)
+        rec = json.loads(out)
+        self.assertEqual(rec["affected"][1]["ranges"], [{"introduced": None, "fixed": "1.22.3", "last_affected": None}])
+        self.assertIs(rec["workaround"], False)
+
+    def test_user_saved_html_page_passes(self):
+        rc, out, err = self.check(self.AC["record"], source_text=self.AC["html_page"])
+        self.assertEqual(rc, 0, out + err)
+
+    def test_quote_inside_script_tag_does_not_count(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["affected"] = [{"component": "image:aws-node/aws-network-policy-agent", "ranges": ["< 9.9.9"],
+                            "quote": "aws-network-policy-agent < 9.9.9"}]
+        self.refused(rec, "quote_not_found", source_text=self.AC["html_page"])
+
+    def test_quote_not_found(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["affected"][0] = {"component": "image:aws-node/aws-network-policy-agent", "ranges": ["< 1.3.8"],
+                              "quote": "aws-network-policy-agent < 1.3.8"}
+        j = self.refused(rec, "quote_not_found")
+        self.assertIn("1.3.8", j["error"])
+
+    def test_one_bad_entry_refuses_whole_record(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["affected"].append({"component": "addon:coredns", "ranges": ["< 1.11.5"], "quote": "CoreDNS < 1.11.5"})
+        rc, out, _ = self.check(rec)
+        self.assertEqual(rc, 2)
+        self.assertNotIn('"affected"', out, "a refused record must not be printed as normalized output")
+
+    def test_unknown_component(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["affected"][0]["component"] = "addon:not-in-catalog"
+        self.refused(rec, "unknown_component")
+
+    def test_bad_range_unparseable(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["affected"][0]["ranges"] = ["> 1.3.7"]
+        self.refused(rec, "bad_range")
+
+    def test_bad_range_bound_not_in_quote(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["affected"][0]["ranges"] = ["< 1.3.9"]
+        self.refused(rec, "bad_range")
+
+    def test_schema_unknown_key(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["run_this"] = "kubectl delete ns kube-system"
+        self.refused(rec, "schema")
+
+    def test_schema_bad_severity(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["severity"] = "urgent"
+        self.refused(rec, "schema")
+
+    def test_source_unreadable_missing_file(self):
+        self.refused(self.AC["record"], "source_unreadable", source_path=os.path.join(self.tmp, "missing.txt"))
+
+    def test_source_url_mismatch(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["source_url"] = "https://aws.amazon.com/security/security-bulletins/2026-171-aws/"
+        self.refused(rec, "source_unreadable")
+
+    def test_live_origin_host_not_allowed(self):
+        rec = copy.deepcopy(self.AC["record"])
+        rec["origin"] = "live"
+        rec["source_url"] = "https://example.com/bulletin"
+        self.refused(rec, "schema", source_text="\n".join(self.AC["saved_page"].splitlines()[1:]))
+
+
+# ------------------------------------------------------------------ advisory_fetch --input
+
+class AdvisoryFetch(TmpCase):
+    F = CASES["feeds"]
+
+    def fetch(self, args, data, mode="w"):
+        p = self.write("feed.in", data, mode)
+        rc, out, err = run_py("advisory_fetch.py", list(args) + ["--input", p, "--catalog", CATALOG])
+        return rc, out, err
+
+    def ok(self, args, data, mode="w"):
+        rc, out, err = self.fetch(args, data, mode)
+        self.assertEqual(rc, 0, out + err)
+        recs = json.loads(out)
+        for r in recs:
+            self.assertEqual(r["schema"], "eks-security/advisory@1")
+            self.assertEqual(r["origin"], "file")
+            self.assertTrue(re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", r["read_at"]), r["read_at"])
+            self.assertIsNone(r["workaround"], "feeds do not state a workaround")
+        return recs
+
+    def test_ghsa_repo_advisory_maps_both_components(self):
+        recs = self.ok(["--ghsa", "aws/aws-network-policy-agent/GHSA-mm5f-ggvx-hmvw"], json.dumps(self.F["ghsa_repo"]))
+        self.assertEqual(len(recs), 1)
+        r = recs[0]
+        self.assertEqual(r["severity"], "high")
+        self.assertEqual(r["severity_source"], "ghsa")
+        aff = {e["component"]: e for e in r["affected"]}
+        self.assertEqual(set(aff), {"addon:vpc-cni", "image:aws-node/aws-network-policy-agent"})
+        self.assertEqual(aff["addon:vpc-cni"]["ranges"], [{"introduced": None, "fixed": "1.22.3", "last_affected": None}])
+        self.assertEqual(aff["image:aws-node/aws-network-policy-agent"]["ranges"],
+                         [{"introduced": None, "fixed": "1.3.7", "last_affected": None}])
+        self.assertEqual(aff["addon:vpc-cni"]["quote"], "< 1.22.3")
+        self.assertEqual(r["unmapped"], [])
+
+    def test_ghsa_record_matches_inventory(self):
+        recs = self.ok(["--ghsa", "aws/aws-network-policy-agent/GHSA-mm5f-ggvx-hmvw"], json.dumps(self.F["ghsa_repo"]))
+        inv = copy.deepcopy(CASES["match"]["inventory_base"])
+        inv["components"] = [
+            {"id": "addon:vpc-cni", "kind": "eks-addon", "name": "vpc-cni", "version": "v1.22.3-eksbuild.1",
+             "managed_by": "customer", "where": ["cluster"], "readable": True, "reason": None},
+            {"id": "image:aws-node/aws-network-policy-agent", "kind": "container-image", "name": "aws-network-policy-agent",
+             "version": "v1.3.6-eksbuild.1", "managed_by": "customer", "where": ["kube-system/daemonset/aws-node"],
+             "readable": True, "reason": None}]
+        doc = match.run(inv, recs, CAT, 0.5)
+        v = {f["component"]: f["verdict"] for f in doc["findings"]}
+        self.assertEqual(v, {"addon:vpc-cni": "not_exposed", "image:aws-node/aws-network-policy-agent": "exposed"})
+        self.assertEqual(doc["overall"], "exposed")
+
+    def test_ghsa_not_found(self):
+        rc, out, _ = self.fetch(["--ghsa", "aws/aws-network-policy-agent/GHSA-mm5f-ggvx-hmvw"],
+                                json.dumps(self.F["ghsa_not_found"]))
+        self.assertEqual(rc, 2)
+        self.assertEqual(last_json(out)["code"], "not_found")
+
+    def test_ghsa_bad_id_refused(self):
+        for bad in ("aws/aws-network-policy-agent/GHSA-zzzz", "aws/a b/GHSA-mm5f-ggvx-hmvw", "aws/GHSA-mm5f-ggvx-hmvw"):
+            with self.subTest(ghsa=bad):
+                rc, out, _ = self.fetch(["--ghsa", bad], json.dumps(self.F["ghsa_repo"]))
+                self.assertEqual(rc, 2)
+                self.assertEqual(last_json(out)["code"], "usage")
+
+    def test_ghsa_dot_segment_refused(self):
+        # "." and ".." are not GitHub owner or repo names; accepted, they change the API path that is fetched
+        for bad in ("aws/../GHSA-mm5f-ggvx-hmvw", "../aws-network-policy-agent/GHSA-mm5f-ggvx-hmvw"):
+            with self.subTest(ghsa=bad):
+                rc, out, _ = self.fetch(["--ghsa", bad], json.dumps(self.F["ghsa_repo"]))
+                self.assertEqual(rc, 2, "BUG advisory_fetch.py _REPO_PART accepts a dot segment %r as owner/repo "
+                                        "(exit %d); expected usage refusal" % (bad, rc))
+
+    def test_k8s_json_feed(self):
+        recs = self.ok(["--k8s", "--since", "2000-01-01"], json.dumps(self.F["k8s"]))
+        by = {r["id"]: r for r in recs}
+        self.assertEqual(set(by), {"CVE-2026-76654", "CVE-2026-2270", "CVE-2099-0001"})
+        self.assertEqual(by["CVE-2026-76654"]["severity"], "medium")  # published label "Medium (5.8)"
+        self.assertEqual(by["CVE-2026-2270"]["severity"], "medium")   # computed from the CVSS 3.1 vector (5.9)
+        self.assertIn("kubelet: <= v1.34.11", by["CVE-2026-76654"]["notes"])
+        self.assertEqual(by["CVE-2026-76654"]["affected"], [])
+
+    def test_injected_instruction_kept_as_data(self):
+        inject = self.F["injected_text"]
+        recs = self.ok(["--k8s", "--since", "2000-01-01"], json.dumps(self.F["k8s"]))
+        r = next(x for x in recs if x["id"] == "CVE-2099-0001")
+        self.assertEqual(r["title"], inject, "advisory text must be copied verbatim, not acted on")
+        self.assertEqual(r["affected"], [])
+        inv = copy.deepcopy(CASES["match"]["inventory_base"])
+        inv["components"] = [{"id": "addon:vpc-cni", "kind": "eks-addon", "name": "vpc-cni", "version": "v1.23.0",
+                              "managed_by": "customer", "where": ["cluster"], "readable": True, "reason": None}]
+        doc = match.run(inv, [r], CAT, 0.5)
+        self.assertNotEqual(doc["overall"], "not_exposed", "an instruction in advisory text must not set the verdict")
+        self.assertEqual([x["title"] for x in doc["review"]], [inject])
+        fp = self.write("findings.json", doc)
+        ip = self.write("inventory.json", inv)
+        md, ht = os.path.join(self.tmp, "r.md"), os.path.join(self.tmp, "r.html")
+        rc, out, err = run_py("render_report.py", ["--findings", fp, "--inventory", ip, "--out-md", md, "--out-html", ht])
+        self.assertEqual(rc, 0, out + err)
+        with open(ht, encoding="utf-8") as f:
+            h = f.read()
+        self.assertNotIn("<script", h)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", h)
+        self.assertIn("kubectl delete namespace kube-system", h)
+
+    def test_alas_al2023_rss(self):
+        recs = self.ok(["--alas", "al2023", "--since", "2000-01-01"], self.F["alas_al2023"])
+        self.assertEqual(len(recs), 1)
+        r = recs[0]
+        self.assertEqual(r["id"], "ALAS2023-2026-3338")
+        self.assertEqual(r["severity"], "important")
+        self.assertEqual(r["packages"], [{"name": "emacs"}])
+        self.assertEqual(r["affected"][0]["component"], "node-os:al2023")
+        self.assertEqual(r["aliases"], ["CVE-2026-108976"])
+
+    def test_alas_al2_rss_and_flavor_filter(self):
+        recs = self.ok(["--alas", "al2", "--since", "2000-01-01"], self.F["alas_al2"])
+        self.assertEqual([(r["id"], r["affected"][0]["component"], r["severity"]) for r in recs],
+                         [("ALAS2DOCKER-2026-156", "node-os:al2", "medium")])
+        self.assertEqual(self.ok(["--alas", "al2", "--since", "2000-01-01"], self.F["alas_al2023"]), [])
+
+    def test_bottlerocket_updateinfo_gzip(self):
+        recs = self.ok(["--bottlerocket", "--since", "2000-01-01"], base64.b64decode(self.F["bottlerocket_gz_b64"]), "wb")
+        self.assertEqual(len(recs), 1)
+        r = recs[0]
+        self.assertEqual(r["id"], "GHSA-mgxf-pj6m-9494")
+        self.assertEqual(r["severity"], "medium")
+        self.assertEqual(r["aliases"], ["CVE-2020-10711"])
+        self.assertEqual(r["packages"], [{"name": "kernel", "fixed": "0.3.3-b7d91846"}])
+        self.assertEqual(r["affected"][0]["component"], "node-os:bottlerocket")
+        self.assertTrue(r["source_url"].startswith("https://github.com/bottlerocket-os/"))
+
+    def test_xml_doctype_entity_refused(self):
+        for key in ("doctype_xml", "entity_only_xml"):
+            with self.subTest(fixture=key):
+                rc, out, err = self.fetch(["--alas", "al2023", "--since", "2000-01-01"], self.F[key])
+                self.assertEqual(rc, 2, out)
+                j = last_json(out)
+                self.assertEqual(j["code"], "parse_error")
+                self.assertIn("DOCTYPE", j["error"])
+                self.assertNotIn("boom", out)
+
+
+# ------------------------------------------------------------------ render_report
+
+class RenderReport(TmpCase):
+    RD = CASES["render"]
+
+    def render(self, fd, inv=None):
+        fp = self.write("findings.json", fd)
+        args = ["--findings", fp]
+        if inv is not None:
+            args += ["--inventory", self.write("inventory.json", inv)]
+        md, ht = os.path.join(self.tmp, "report.md"), os.path.join(self.tmp, "report.html")
+        rc, out, err = run_py("render_report.py", args + ["--out-md", md, "--out-html", ht])
+        texts = []
+        for p in (md, ht):
+            with open(p, encoding="utf-8") as f:
+                texts.append(f.read())
+        return rc, texts[0], texts[1], out + err
+
+    def fixture(self):
+        fd = copy.deepcopy(self.RD["findings"])
+        fd["sources"][0]["title"] = self.RD["xss_title"]
+        fd["sources"][1]["title"] = self.RD["pipe_title"]
+        fd["findings"][1]["reason"] = self.RD["xss_title"]
+        inv = copy.deepcopy(CASES["match"]["inventory_base"])
+        inv["components"] = [{"id": "addon:vpc-cni", "kind": "eks-addon", "name": "vpc-cni", "version": "v1.21.1-eksbuild.3",
+                              "managed_by": "customer", "where": ["cluster"], "readable": True, "reason": None}]
+        return fd, inv
+
+    def test_html_escaped_once(self):
+        fd, inv = self.fixture()
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertNotIn("<script", ht)
+        self.assertNotIn("<img", ht)
+        self.assertNotIn("onerror=1>", ht)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt; and &quot;&gt;&lt;img src=x onerror=1&gt;", ht)
+        for double in ("&amp;lt;", "&amp;gt;", "&amp;quot;", "&amp;amp;"):
+            self.assertNotIn(double, ht, "double escape %s" % double)
+
+    def test_markdown_escaped(self):
+        fd, inv = self.fixture()
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertNotIn("<script", md)
+        self.assertNotIn("<img", md)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", md)
+        self.assertIn("left\\|right", md)
+        row = next(ln for ln in md.splitlines() if "left\\|right" in ln)
+        cells = re.split(r"(?<!\\)\|", row.strip())[1:-1]
+        self.assertEqual(len(cells), 5, "pipe in a cell must not add a column: %r" % row)
+
+    def test_footer_and_origin(self):
+        fd, inv = self.fixture()
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        footer = "This report was produced read-only. Nothing was changed."
+        self.assertIn(footer, md)
+        self.assertIn("<footer><p>" + footer + "</p></footer>", ht)
+        self.assertIn("from file, not live", md)
+        self.assertIn("from file, not live", ht)
+
+    def test_no_active_content_in_html(self):
+        fd, inv = self.fixture()
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertNotRegex(ht, r"(?i)<script|javascript:|<iframe|<object|<embed|<img|<[a-z][^>]*\son[a-z]+\s*=")
+        self.assertIn("default-src 'none'", ht)
+
+    def test_rotation_pending_overall(self):
+        fd, inv = self.fixture()
+        fd["findings"] = [dict(fd["findings"][0], component="addon:vpc-cni@auto-mode", verdict="aws_managed_rotation_pending",
+                               nodes_pending=["i-old"], priority="P2")]
+        fd["overall"] = "rotation_pending"
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("Overall verdict: Rotation pending", md)
+        self.assertIn("Auto Mode nodes pending rotation", md)
+
+    def test_incomplete_exit_3(self):
+        fd, inv = self.fixture()
+        fd["coverage"].update({"read": 0, "ratio": 0.0, "complete": False})
+        fd["overall"] = "incomplete"
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 3, log)
+        self.assertIn("Incomplete", md)
+
+    def test_unsafe_value_not_placed_in_command(self):
+        fd, inv = self.fixture()
+        fd["cluster"] = "demo; rm -rf ~"
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        cmds = [ln for ln in md.splitlines() if ln.startswith("aws ")]
+        self.assertTrue(cmds, "expected proposed commands for an exposed add-on")
+        for ln in cmds:
+            self.assertNotIn("rm -rf", ln)
+        self.assertTrue(any("<CLUSTER>" in ln for ln in cmds))
+
+
+# ------------------------------------------------------------------ collectors: read-only guard
+
+RULES = CASES["collect"]["rules"]
+COMMANDS = CASES["collect"]["commands"]
+_KW_END = re.compile(r"(?:^|[\s;&|({])(then|do|else|elif|if|while|until|time)$")
+_SEP_END = re.compile(r"(;|\||&&|\$\(|\(|\{|!|`)$")
+_WRAP_END = re.compile(r"(?:^|[\s;&|({])(call\s+\S+\s+\S+|probe_aws\s+\S+)$")
+_PREFIX_TAIL = re.compile(r"(?:^|\s)(?:\w+=\S*|timeout\s+\d+)$")
+_VAR = re.compile(r"^\$\{?(\w+|@|\*)\}?$")
+
+
+def command_position(before):
+    b = before.rstrip()
+    while True:  # drop trailing VAR=value assignments and `timeout N` prefixes
+        nb = _PREFIX_TAIL.sub("", b).rstrip()
+        if nb == b:
+            break
+        b = nb
+    return b == "" or bool(_SEP_END.search(b) or _KW_END.search(b) or _WRAP_END.search(b))
+
+
+def logical_lines(src):
+    """(first line number, text) with backslash continuations joined and comments removed."""
+    out, buf, start = [], "", None
+    for n, line in enumerate(src.splitlines(), 1):
+        code = re.sub(r"(^|\s)#.*$", "", line)
+        if start is None:
+            start = n
+        if code.rstrip().endswith("\\"):
+            buf += code.rstrip()[:-1] + " "
+            continue
+        out.append((start, buf + code))
+        buf, start = "", None
+    return out
+
+
+def for_values(src):
+    """{var: set of words} from every `for VAR in w1 w2 ...;` loop with literal words."""
+    vals = {}
+    for _, code in logical_lines(src):
+        for m in re.finditer(r"\bfor\s+(\w+)\s+in\s+([^;]+);", code):
+            words = m.group(2).split()
+            if all(re.match(r"^[A-Za-z0-9._:/-]+$", w) for w in words):
+                vals.setdefault(m.group(1), set()).update(words)
+    return vals
+
+
+def scan_invocations(src, commands):
+    """[(line, tool, args, function)] for every command-table name in command position.
+
+    args are the command's own arguments: a wrapper's leading skip arguments are dropped and its
+    fixed prefix is prepended. Shell variables stay as `$NAME` tokens.
+    """
+    names = sorted(commands, key=len, reverse=True)
+    rx = re.compile(r"(?<![\w./$:@-])(" + "|".join(re.escape(n) for n in names) + r")(?![\w.:-])")
+    found, func = [], None
+    for n, code in logical_lines(src):
+        fm = re.match(r"^\s*(\w+)\(\)\s*\{", code)
+        if fm:
+            func = fm.group(1)
+        elif re.match(r"^\}", code):
+            func = None
+            continue
+        for m in rx.finditer(code):
+            if not command_position(code[:m.start()]):
+                continue
+            rest = code[m.end():]
+            if rest.lstrip().startswith("()"):
+                continue  # a function definition, not a call
+            rest = re.split(r"[;|)<>]|&&", rest)[0]
+            try:
+                toks = shlex.split(rest)
+            except ValueError:
+                toks = rest.split()
+            spec = commands[m.group(1)]
+            toks = list(spec.get("prefix", [])) + toks[spec.get("skip", 0):]
+            found.append((n, spec["tool"], toks, func))
+        if fm and code.rstrip().endswith("}"):
+            func = None  # one-line function
+    return found
+
+
+def strip_globals(tool, args):
+    a = list(args)
+    while a:
+        if tool == "kubectl" and a[0] in RULES["kubectl_global_flags"]:
+            a = a[2:]
+        elif a[0].startswith("$"):
+            a = a[1:]  # ${KCFG:+--kubeconfig "$KCFG"} and similar optional flag groups
+        else:
+            break
+    return a
+
+
+def invocation_problem(tool, args):
+    """None if the call is read-only by the rule, else a description. args hold no shell variables."""
+    for a in args:
+        low = a.lower()
+        bad = (set(re.split(r"[,/.=:]", low)) | {low}) & set(RULES["forbidden_words"])
+        if bad:
+            return "forbidden word %s in %r" % (sorted(bad), a)
+    a = strip_globals(tool, args)
+    if tool == "aws":
+        if not a:
+            return "bare aws"
+        if a[0].startswith("-"):
+            return None if a[0] in RULES["aws_flag_only"] else "aws flag form %s" % a[0]
+        if len(a) < 2:
+            return "aws without an operation"
+        svc, op = a[0], a[1]
+        if any(op.startswith(p) for p in RULES["aws_op_prefixes"]) or "%s %s" % (svc, op) in RULES["aws_extra"]:
+            return None
+        return "aws %s %s is not a read call" % (svc, op)
+    if not a:
+        return "kubectl with no subcommand"
+    if a[0] in RULES["kubectl_verbs"]:
+        return None
+    if len(a) > 1 and "%s %s" % (a[0], a[1]) in RULES["kubectl_pairs"]:
+        return None
+    return "kubectl %s is not a read call" % a[0]
+
+
+def static_problems(src, commands):
+    """Check every invocation; resolve `$VAR` from literal for-loops; allow pass-through only in wrappers."""
+    loops = for_values(src)
+    wrappers = set(commands) - {"aws", "kubectl"}
+    problems, checked = [], []
+    for n, tool, args, func in scan_invocations(src, commands):
+        a = strip_globals(tool, args)
+        verb_n = 2 if tool == "aws" else (2 if a[:1] in (["auth"], ["config"]) else 1)
+        unresolved = [t for t in a[:verb_n] if _VAR.match(t)] + [t for t in args if _VAR.match(t) and _VAR.match(t).group(1) in ("@", "*")]
+        if unresolved:
+            if func in wrappers:
+                continue  # the wrapper's own body: its call sites are checked instead
+            var = _VAR.match(unresolved[0]).group(1)
+            if var not in loops:
+                problems.append((n, tool, args, "unresolved pass-through %s outside a known wrapper" % unresolved[0]))
+                continue
+        variants = [[]]
+        for t in args:
+            m = _VAR.match(t)
+            if m and m.group(1) in loops:
+                variants = [v + [w] for v in variants for w in sorted(loops[m.group(1)])]
+            elif m:
+                continue  # a value we cannot know; verbs were resolved above
+            else:
+                variants = [v + [t] for v in variants]
+        for v in variants:
+            checked.append((tool, v))
+            p = invocation_problem(tool, v)
+            if p:
+                problems.append((n, tool, v, p))
+    return problems, checked
+
+
+def write_stubs(bindir):
+    os.mkdir(bindir)
+    for tool in ("aws", "kubectl"):
+        p = os.path.join(bindir, tool)
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(STUB.replace("{python}", sys.executable))
+        os.chmod(p, 0o700)
+
+
+STUB = r'''#!{python} -B
+import json, os, sys
+tool = os.path.basename(sys.argv[0])
+args = sys.argv[1:]
+cfg = json.load(open(os.environ["STUB_RESP"]))
+resp = cfg[tool]
+a = list(args)
+while a and a[0] in ("--context", "--kubeconfig", "--cache-dir"):
+    a = a[2:]
+if tool == "aws" and a and a[0].startswith("--"):
+    keys = [a[0]]
+else:
+    keys = [" ".join(a[:3]), " ".join(a[:2]), a[0] if a else ""]
+    if "--addon-name" in a:
+        keys.insert(0, " ".join(a[:2]) + " " + a[a.index("--addon-name") + 1])
+r = next((resp[k] for k in keys if k in resp), None)
+with open(os.environ["STUB_LOG"], "a") as f:
+    f.write(json.dumps({"tool": tool, "args": args, "known": r is not None}) + "\n")
+if r is None and cfg.get("lenient"):
+    r = {"json": {} if tool == "aws" else {"apiVersion": "v1", "kind": "List", "items": []}}
+if r is None:
+    sys.stderr.write("An error occurred (ResourceNotFoundException): stub has no response for %s\n" % keys)
+    sys.exit(254)
+for flag, alt in (r.get("if_arg") or {}).items():
+    if flag in args:
+        r = alt
+if "--query" in args and args[args.index("--query") + 1] in (r.get("query") or {}):
+    print(r["query"][args[args.index("--query") + 1]])
+    sys.exit(0)
+if "rc" in r:
+    sys.stderr.write(r.get("stderr", "") + "\n")
+    sys.exit(r["rc"])
+if "file" in r:
+    r = {"json": cfg["files"][r["file"]]}
+if "text" in r and ("json" not in r or ("--output" in args and args[args.index("--output") + 1] == "text")):
+    print(r["text"])
+else:
+    print(json.dumps(r["json"]))
+'''
+
+
+def run_collector(test, script, args, responses):
+    """Run a collector with fake aws/kubectl first on PATH; return (process, recorded calls)."""
+    bindir = os.path.join(test.tmp, "bin")
+    write_stubs(bindir)
+    resp = test.write("responses.json", responses)
+    log = os.path.join(test.tmp, "calls.jsonl")
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("AWS_", "KUBECONFIG"))}
+    env.update({"PATH": bindir + os.pathsep + env.get("PATH", "/usr/bin:/bin"), "STUB_RESP": resp, "STUB_LOG": log,
+                "HOME": test.tmp})
+    p = subprocess.run(["bash", os.path.join(ASSETS, script)] + list(args), capture_output=True, text=True,
+                       timeout=300, env=env, cwd=test.tmp)
+    calls = []
+    if os.path.exists(log):
+        with open(log, encoding="utf-8") as f:
+            calls = [json.loads(ln) for ln in f if ln.strip()]
+    return p, calls
+
+
+def assert_private_tree(test, top):
+    test.assertEqual(stat.S_IMODE(os.stat(top).st_mode), 0o700, "%s must be 0700" % top)
+    for name in os.listdir(top):
+        p = os.path.join(top, name)
+        if os.path.isdir(p):
+            test.assertEqual(stat.S_IMODE(os.stat(p).st_mode), 0o700, p)
+        else:
+            test.assertEqual(stat.S_IMODE(os.stat(p).st_mode), 0o600, p)
+
+
+NEEDS_JQ = unittest.skipUnless(shutil.which("jq") and shutil.which("bash"), "needs bash and jq")
+
+
+class CollectReadOnly(TmpCase):
+    def src(self, script):
+        with open(os.path.join(ASSETS, script), encoding="utf-8") as f:
+            return f.read()
+
+    def test_scanner_negative_control(self):
+        sample = "\n".join([
+            "for t in aws kubectl jq; do command -v \"$t\"; done",
+            "x=oldest_node_created; y=--output",
+            "fail usage \"aws eks update-addon is never run\"",
+            "# kubectl delete ns kube-system",
+            "kubectl exec -it pod -- sh",
+            "aws eks update-addon --cluster-name c",
+            "kc get secrets -A",
+            "v=\"$(kubectl get nodes -o json)\"",
+            "call \"$OUT/x.json\" step aws eks describe-cluster --name c",
+            "for op in describe-volumes delete-volume; do timeout 9 aws ec2 \"$op\"; done",
+            "kubectl \"$@\"",
+            "kubectl port-forward svc/x 8080:80",
+        ])
+        problems, checked = static_problems(sample, COMMANDS["collect.sh"])
+        lines = sorted({p[0] for p in problems})
+        self.assertEqual(lines, [5, 6, 7, 10, 11, 12], problems)
+        self.assertIn(("kubectl", ["get", "nodes", "-o", "json"]), checked)
+        self.assertIn(("aws", ["ec2", "describe-volumes"]), checked)
+
+    def check_static(self, script, min_aws, min_kube, must_see):
+        src = self.src(script)
+        problems, checked = static_problems(src, COMMANDS[script])
+        aws = [a for t, a in checked if t == "aws"]
+        kube = [a for t, a in checked if t == "kubectl"]
+        self.assertGreaterEqual(len(aws), min_aws, "scanner found too few aws calls in %s: %s" % (script, aws))
+        self.assertGreaterEqual(len(kube), min_kube, "scanner found too few kubectl calls in %s: %s" % (script, kube))
+        seen = {" ".join(strip_globals(t, a)[:2]) for t, a in checked}
+        for s in must_see:
+            self.assertIn(s, seen, "%s: expected to see %s" % (script, s))
+        self.assertEqual(problems, [], "%s has a command that is not read-only" % script)
+
+    def test_collect_static_commands_read_only(self):
+        self.check_static("collect.sh", 15, 4, ["eks describe-cluster", "get nodes", "auth can-i", "inspector2 list-findings"])
+
+    def test_posture_collect_static_commands_read_only(self):
+        self.check_static("posture_collect.sh", 15, 15, ["eks describe-cluster", "get nodes", "auth can-i", "config view",
+                                                          "ec2 describe-instances", "guardduty get-detector"])
+
+    def test_no_forbidden_words_in_code(self):
+        for script in ("collect.sh", "posture_collect.sh"):
+            code = "\n".join(c for _, c in logical_lines(self.src(script)))
+            for w in ("exec", "port-forward", "secret", "secrets"):
+                with self.subTest(script=script, word=w):
+                    self.assertIsNone(re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(w), code), w)
+
+    @NEEDS_JQ
+    def test_collect_run_with_stubs(self):
+        cc = CASES["collect"]
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                                 {"aws": cc["aws"], "kubectl": cc["kubectl"], "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertTrue(last_json(p.stdout)["ok"])
+        assert_private_tree(self, work)
+        self.assertTrue(calls)
+        self.assertEqual([c for c in calls if not c["known"]], [], "collect.sh made a call the stub has no response for")
+        bad = [(c["tool"], c["args"], invocation_problem(c["tool"], c["args"])) for c in calls
+               if invocation_problem(c["tool"], c["args"])]
+        self.assertEqual(bad, [], "a recorded call is not read-only")
+        with open(os.path.join(work, "inventory.json"), encoding="utf-8") as f:
+            inv = json.load(f)
+        comps = {c["id"]: c for c in inv["components"]}
+        self.assertFalse(comps["addon:vpc-cni"]["readable"])
+        self.assertEqual(comps["addon:vpc-cni"]["reason"], "denied")
+        self.assertTrue(comps["addon:coredns"]["readable"])
+        npa = comps["image:aws-node/aws-network-policy-agent"]
+        self.assertEqual((npa["version"], npa["readable"]), ("v1.2.0-eksbuild.1", True))
+        with open(os.path.join(work, "meta.json"), encoding="utf-8") as f:
+            meta = json.load(f)
+        self.assertIn({"step": "describe-addon:vpc-cni", "code": "denied"},
+                      [{"step": e["step"], "code": e["code"]} for e in meta["errors"]])
+        # end to end: the worked example record against this inventory
+        ap = self.write("adv.json", [CASES["advisory_check"]["record"]])
+        fp = os.path.join(self.tmp, "findings.json")
+        rc, out, err = run_py("match.py", ["--inventory", os.path.join(work, "inventory.json"), "--advisories", ap,
+                                           "--catalog", CATALOG, "--out", fp])
+        self.assertEqual(rc, 0, out + err)
+        with open(fp, encoding="utf-8") as f:
+            doc = json.load(f)
+        v = {f["component"]: (f["verdict"], f["priority"]) for f in doc["findings"]}
+        self.assertEqual(v["image:aws-node/aws-network-policy-agent"], ("exposed", "P1"))
+        self.assertEqual(v["addon:vpc-cni"][0], "unknown")
+        self.assertEqual(doc["overall"], "exposed")
+
+    @NEEDS_JQ
+    def test_posture_collect_run_with_stubs(self):
+        pc = CASES["posture"]
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "posture_collect.sh",
+                                 ["--cluster", "demo", "--region", "us-west-2", "--context", "demo-ctx", "--work", work],
+                                 {"aws": pc["stub_aws"], "kubectl": pc["stub_kubectl"], "files": pc["files"], "lenient": True})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertTrue(last_json(p.stdout)["ok"])
+        assert_private_tree(self, os.path.join(work, "posture"))
+        self.assertTrue(calls)
+        bad = [(c["tool"], c["args"], invocation_problem(c["tool"], c["args"])) for c in calls
+               if invocation_problem(c["tool"], c["args"])]
+        self.assertEqual(bad, [], "a recorded call is not read-only")
+        seen = {" ".join(strip_globals(c["tool"], c["args"])[:2]) for c in calls}
+        for s in ("eks describe-cluster", "get nodes", "get pods", "ec2 describe-instances", "guardduty list-detectors"):
+            self.assertIn(s, seen)
+        P = os.path.join(work, "posture")
+        self.assertFalse(os.path.exists(os.path.join(P, "guardduty.json")), "a denied read must not leave a file")
+        with open(os.path.join(P, "meta.json"), encoding="utf-8") as f:
+            meta = json.load(f)
+        self.assertEqual(meta["preflight"].get("guardduty:ListDetectors"), "denied")
+        self.assertTrue(any(e["code"] == "denied" for e in meta["errors"]), meta["errors"])
+        with open(os.path.join(P, "nodes.json"), encoding="utf-8") as f:
+            self.assertEqual(json.load(f), pc["files"]["nodes"])
+        for script in ("posture_score.sh", "posture_extra.sh"):
+            q = subprocess.run(["bash", os.path.join(ASSETS, script), work], capture_output=True, text=True, timeout=300)
+            self.assertEqual(q.returncode, 0, q.stderr)
+        q = subprocess.run(["bash", os.path.join(ASSETS, "posture_reduce.sh"), work], capture_output=True, text=True, timeout=120)
+        self.assertIn(q.returncode, (0, 3), q.stdout + q.stderr)
+        with open(os.path.join(work, "posture.json"), encoding="utf-8") as f:
+            checks = {c["id"]: c for c in json.load(f)["checks"]}
+        for cid in pc["expect"]["unknown_denied"]:
+            self.assertEqual(checks[cid]["result"], "unknown", cid)
+
+
+# ------------------------------------------------------------------ posture scorers and reducer
+
+POSTURE_CHECK_KEYS = {"id", "war_id", "title", "result", "severity", "evidence", "source_file", "recommendation", "layer", "state"}
+POSTURE_LAYERS = ["node-credential", "lateral-movement", "privilege", "identity", "detection", "api-exposure", "supply-chain"]
+
+
+@NEEDS_JQ
+class PostureScoring(TmpCase):
+    PC = CASES["posture"]
+
+    def build(self, names):
+        work = os.path.join(self.tmp, "work")
+        os.makedirs(os.path.join(work, "posture"), mode=0o700)
+        for name in names:
+            self.write(os.path.join("work", "posture", name + ".json"), self.PC["files"][name])
+        return work
+
+    def pipeline(self, work):
+        for script in ("posture_score.sh", "posture_extra.sh"):
+            q = subprocess.run(["bash", os.path.join(ASSETS, script), work], capture_output=True, text=True, timeout=300)
+            self.assertEqual(q.returncode, 0, "%s: %s" % (script, q.stderr))
+        for name in ("results.jsonl", "results-extra.jsonl"):
+            with open(os.path.join(work, "posture", name), encoding="utf-8") as f:
+                for ln in f:
+                    t = json.loads(ln)
+                    self.assertTrue({"pillar", "id", "track", "state", "detail"} <= set(t), t)
+                    self.assertIn(t["state"], ("all", "most", "some", "none", "na", "unknown"))
+                    self.assertIn(t["track"], ("measured", "governance"))
+        q = subprocess.run(["bash", os.path.join(ASSETS, "posture_reduce.sh"), work], capture_output=True, text=True, timeout=120)
+        with open(os.path.join(work, "posture.json"), encoding="utf-8") as f:
+            doc = json.load(f)
+        self.assertEqual(stat.S_IMODE(os.stat(os.path.join(work, "posture.json")).st_mode), 0o600)
+        return q, doc
+
+    def check_shape(self, doc):
+        self.assertEqual(doc["schema"], "eks-security/posture@1")
+        self.assertEqual([x["layer"] for x in doc["layers"]], POSTURE_LAYERS)
+        for x in doc["layers"]:
+            self.assertIn(x["verdict"], ("contained", "partly", "not-contained", "unknown"))
+        cov = doc["coverage"]
+        self.assertEqual(cov["complete"], cov["checks_answered"] * 2 >= cov["checks_total"] > 0)
+        for c in doc["checks"]:
+            self.assertTrue(POSTURE_CHECK_KEYS <= set(c), c)
+            self.assertIn(c["result"], ("pass", "fail", "na", "unknown"))
+            if c["state"] in ("all",):
+                self.assertEqual(c["result"], "pass")
+            if c["state"] in ("most", "some", "none"):
+                self.assertEqual(c["result"], "fail")
+
+    def test_full_workdir(self):
+        names = [n for n in self.PC["files"] if n != self.PC["denied_file"]]
+        q, doc = self.pipeline(self.build(names))
+        self.assertEqual(q.returncode, 0, q.stdout + q.stderr)
+        self.check_shape(doc)
+        checks = {c["id"]: c for c in doc["checks"]}
+        layers = {x["layer"]: x["verdict"] for x in doc["layers"]}
+        self.assertTrue(doc["coverage"]["complete"])
+        self.assertIsInstance(doc["score"], int)
+        self.assertTrue(0 <= doc["score"] <= 100)
+        for cid in self.PC["expect"]["pass"]:
+            self.assertEqual(checks[cid]["result"], "pass", checks[cid])
+        hi = checks[self.PC["expect"]["fail_high"]]
+        self.assertEqual((hi["result"], hi["severity"]), ("fail", "high"), hi)
+        self.assertEqual(layers[self.PC["expect"]["fail_layer"]], "not-contained")
+        for cid in self.PC["expect"]["unknown_denied"]:
+            self.assertEqual(checks[cid]["result"], "unknown", checks[cid])
+            self.assertIn("not collected", checks[cid]["evidence"])
+        self.assertIn(self.PC["xss_tag"], hi["evidence"], "evidence names the failing node type, verbatim")
+        # render: escaped evidence, posture section present
+        md, ht = os.path.join(self.tmp, "p.md"), os.path.join(self.tmp, "p.html")
+        rc, out, err = run_py("render_report.py", ["--posture", os.path.join(self.tmp, "work", "posture.json"),
+                                                   "--out-md", md, "--out-html", ht])
+        self.assertEqual(rc, 0, out + err)
+        with open(ht, encoding="utf-8") as f:
+            h = f.read()
+        with open(md, encoding="utf-8") as f:
+            m = f.read()
+        self.assertNotIn("<script", h)
+        self.assertNotIn("<script", m)
+        self.assertIn("ng1&lt;script&gt;alert(1)&lt;/script&gt;", h)
+        self.assertNotIn("&amp;lt;", h)
+        self.assertIn("Score: %d of 100" % doc["score"], m)
+        self.assertIn("not-contained", h)
+        self.assertIn("This report was produced read-only. Nothing was changed.", m)
+
+    def test_sparse_workdir_score_null(self):
+        q, doc = self.pipeline(self.build(self.PC["sparse_files"]))
+        self.assertEqual(q.returncode, 3, q.stdout + q.stderr)
+        self.check_shape(doc)
+        self.assertFalse(doc["coverage"]["complete"])
+        self.assertIsNone(doc["score"])
+        md, ht = os.path.join(self.tmp, "p.md"), os.path.join(self.tmp, "p.html")
+        rc, out, err = run_py("render_report.py", ["--posture", os.path.join(self.tmp, "work", "posture.json"),
+                                                   "--out-md", md, "--out-html", ht])
+        self.assertEqual(rc, 3, out + err)
+        with open(md, encoding="utf-8") as f:
+            self.assertIn("incomplete, no score", f.read())
+
+    def test_reducer_refuses_unknown_and_duplicate_tokens(self):
+        work = self.build(["cluster"])
+        tok = {"pillar": "security", "id": "SEC-POSTURE-59", "track": "measured", "state": "all", "detail": "x"}
+        for name, lines, code in (("dup", [tok, tok], "duplicate_id"),
+                                  ("unk", [dict(tok, id="SEC-POSTURE-999")], "unknown_check"),
+                                  ("bad", [dict(tok, state="great")], "bad_token")):
+            with self.subTest(case=name):
+                with open(os.path.join(work, "posture", "results-extra.jsonl"), "w", encoding="utf-8") as f:
+                    f.write("".join(json.dumps(x) + "\n" for x in lines))
+                q = subprocess.run(["bash", os.path.join(ASSETS, "posture_reduce.sh"), work], capture_output=True,
+                                   text=True, timeout=60)
+                self.assertEqual(q.returncode, 2, q.stdout + q.stderr)
+                self.assertEqual(last_json(q.stdout)["code"], code)
+                self.assertFalse(os.path.exists(os.path.join(work, "posture.json")))
+
+
+if __name__ == "__main__":
+    unittest.main()

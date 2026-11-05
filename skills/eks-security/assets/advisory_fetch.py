@@ -70,7 +70,7 @@ MAX_REDIRECTS = 5
 SEVERITY_MAP = {"critical": "critical", "high": "high", "important": "important",
                 "medium": "medium", "moderate": "medium", "low": "low"}
 _GHSA_ID = re.compile(r"^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$", re.I)
-_REPO_PART = re.compile(r"^[A-Za-z0-9_.-]{1,100}$")
+_REPO_PART = re.compile(r"^(?!\.{1,2}$)[A-Za-z0-9_.-]{1,100}$")
 _ALAS_TITLE = re.compile(r"^(ALAS[0-9A-Z._-]*?-\d{4}-\d+)\s*\(([a-z]+)\)\s*:\s*(.+)$", re.I)
 
 
