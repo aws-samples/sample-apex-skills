@@ -85,6 +85,8 @@ eks_addons:
 
 EKS managed addons (EBS CSI, EFS CSI, FSx CSI, Mountpoint S3 CSI, CloudWatch) use **Pod Identity** instead of IRSA. IAM roles are created by `terraform-aws-modules/eks-pod-identity/aws` modules. Associations are **separate `aws_eks_pod_identity_association` resources** -- not inline in addon config.
 
+When `permissions_boundary` is set in `cluster.yaml`, every add-on role in this catalog carries it: `permissions_boundary_arn` on each `eks-pod-identity` module, `role_permissions_boundary_arn` in each IRSA add-on map of `eks-blueprints-addons` and on each `eks-blueprints-addon` custom add-on that creates a role. See [baseline-defaults.md](baseline-defaults#permissions-boundary-optional).
+
 **Why separate resources (not inline `pod_identity_association`):**
 1. Terraform v1.14's strict `for_each` rejects unknown module outputs in the upstream EKS module's filter expression
 2. Separate resources create correct destroy ordering -- associations destroyed before IAM roles

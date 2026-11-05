@@ -323,6 +323,30 @@ For addons behind ALB:
 - Node role: Only `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`
 - Access entries: Use scoped AWS-managed policies, not aws-auth ConfigMap
 
+### Permissions Boundary (Optional)
+
+Some organisations require a permissions boundary on every IAM role that automation creates. `cluster.yaml` takes one optional policy ARN, null by default:
+
+```yaml
+permissions_boundary: null   # e.g. "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"
+```
+
+When it is set, pass `try(local.cluster_config.permissions_boundary, null)` to every IAM role the project emits. A null value leaves the role without a boundary. The input name differs by module (names checked at terraform-aws-eks v21.29.0, eks-pod-identity v2.10.0, eks-blueprints-addons v1.24.3, eks-blueprints-addon v1.3.0; re-check them at the version you pin):
+
+| Role | Module or resource | Input |
+|------|--------------------|-------|
+| Cluster role | `terraform-aws-modules/eks/aws` | `iam_role_permissions_boundary` |
+| EKS Auto Mode node role | `terraform-aws-modules/eks/aws` | `node_iam_role_permissions_boundary` |
+| Node group and Fargate roles | each entry of `eks_managed_node_groups`, `self_managed_node_groups`, `fargate_profiles` | `iam_role_permissions_boundary` |
+| Karpenter controller role | `terraform-aws-modules/eks/aws//modules/karpenter` | `iam_role_permissions_boundary_arn` |
+| Karpenter node role | `terraform-aws-modules/eks/aws//modules/karpenter` | `node_iam_role_permissions_boundary` |
+| Pod Identity add-on roles | `terraform-aws-modules/eks-pod-identity/aws` | `permissions_boundary_arn` |
+| IRSA add-on roles (Pattern 1, 2a) | `aws-ia/eks-blueprints-addons/aws`, inside each add-on map (e.g. `aws_load_balancer_controller = { role_permissions_boundary_arn = ... }`) | `role_permissions_boundary_arn` |
+| Custom add-on roles | `aws-ia/eks-blueprints-addon/aws` | `role_permissions_boundary_arn` |
+| Any `aws_iam_role` resource (Pattern 2b Velero role, ACK and ArgoCD capability roles) | `aws_iam_role` | `permissions_boundary` |
+
+A boundary caps a role: its effective permissions are what both its policies and the boundary allow. The boundary must allow every action the role's policies grant, or the add-on fails at runtime with `AccessDenied`. `scripts/validate_project.sh` check 12 confirms the ARN shape and that every role in the generated code carries the boundary.
+
 ## Observability
 
 ### Container Insights

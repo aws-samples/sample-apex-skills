@@ -193,6 +193,7 @@ The AWS-managed ArgoCD EKS Capability requires an existing IAM Identity Center i
 | Enterprise proxy | `network.proxy.enabled = true` | [customization-guide.md S2](references/customization-guide.md) |
 | Private registry | `registry.type = "private"` | [customization-guide.md S3](references/customization-guide.md) |
 | Compliance-strict | Security posture requirement | [customization-guide.md S4](references/customization-guide.md) |
+| Permissions boundary | `permissions_boundary` set in `cluster.yaml` (optional, null by default) | [baseline-defaults.md IAM](references/baseline-defaults.md#permissions-boundary-optional) |
 
 ## Output Structure
 
@@ -276,6 +277,7 @@ Every item must be done before handoff:
 - [ ] Two-phase module architecture present (Pattern 1)
 - [ ] All versions explicitly pinned
 - [ ] Multus NOT enabled
+- [ ] If `permissions_boundary` is set, every generated IAM role carries it
 - [ ] `validation-checklist.md` generated
 
 ## References

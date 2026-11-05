@@ -372,6 +372,39 @@
           {"type": "file-count", "glob": "**/*.tfvars", "min": 2}
         ]
       }
+    },
+    {
+      "id": 4,
+      "prompt": "Generate a Pattern 1 EKS Terraform project for a customer whose security team requires the permissions boundary arn:aws:iam::123456789012:policy/OrgBoundary on every IAM role that automation creates. Requirements: EKS managed node group, Karpenter, AWS Load Balancer Controller and the EBS CSI driver with Pod Identity.",
+      "expectations": [
+        "Sets the boundary ARN once in configs/cluster.yaml as permissions_boundary and references it from the Terraform code rather than repeating the literal ARN in each role TODO: human review",
+        "Passes the boundary to the cluster role and node group roles of terraform-aws-modules/eks (iam_role_permissions_boundary) TODO: human review",
+        "Passes the boundary to both Karpenter roles (iam_role_permissions_boundary_arn and node_iam_role_permissions_boundary) TODO: human review",
+        "Passes the boundary to the EBS CSI Pod Identity role (permissions_boundary_arn) and the LBC IRSA role (role_permissions_boundary_arn in its eks-blueprints-addons map) TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "permissions_boundary",
+          "context": "The boundary must be an input in cluster.yaml and threaded into every generated IAM role",
+          "source": "https://github.com/aws-samples/sample-apex-skills/issues/249"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "iam_role_permissions_boundary_arn",
+            "node_iam_role_permissions_boundary"
+          ],
+          "context": "The Karpenter submodule takes its own boundary inputs for the controller and node roles",
+          "source": "https://github.com/terraform-aws-modules/terraform-aws-eks/blob/v21.29.0/modules/karpenter/variables.tf"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "permissions_boundary_arn",
+          "context": "The eks-pod-identity module takes the boundary as permissions_boundary_arn",
+          "source": "https://github.com/terraform-aws-modules/terraform-aws-eks-pod-identity/blob/v2.10.0/variables.tf"
+        }
+      ]
     }
   ]
 }
