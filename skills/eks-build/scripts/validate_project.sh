@@ -263,7 +263,8 @@ fi
 if [ -z "$BOUNDARY" ] || [ "$BOUNDARY" = "null" ] || [ "$BOUNDARY" = "~" ]; then
     pass "permissions_boundary not set: no boundary check needed"
 else
-    if [[ "$BOUNDARY" =~ ^arn:aws[a-z-]*:iam::[0-9]{12}:policy/.+$ ]]; then
+    # A customer managed (account id) or AWS managed (`aws`) policy can be a boundary
+    if [[ "$BOUNDARY" =~ ^arn:aws[a-z-]*:iam::([0-9]{12}|aws):policy/.+$ ]]; then
         pass "permissions_boundary is an IAM policy ARN"
     else
         fail "permissions_boundary is not an IAM policy ARN: $BOUNDARY"

@@ -332,7 +332,8 @@ When it is set, pass `try(local.cluster_config.permissions_boundary, null)` to e
 | Pod Identity add-on roles | `terraform-aws-modules/eks-pod-identity/aws` | `permissions_boundary_arn` |
 | IRSA add-on roles (Pattern 1, 2a) | `aws-ia/eks-blueprints-addons/aws`, inside each add-on map (e.g. `aws_load_balancer_controller = { role_permissions_boundary_arn = ... }`) | `role_permissions_boundary_arn` |
 | Custom add-on roles | `aws-ia/eks-blueprints-addon/aws` | `role_permissions_boundary_arn` |
-| Any `aws_iam_role` resource (Pattern 2b Velero role, ACK and ArgoCD capability roles) | `aws_iam_role` | `permissions_boundary` |
+| ACK and ArgoCD capability roles | `terraform-aws-modules/eks/aws//modules/capability` | `iam_role_permissions_boundary_arn` |
+| Any `aws_iam_role` resource (e.g. the Pattern 2b Velero role) | `aws_iam_role` | `permissions_boundary` |
 
 A boundary caps a role: its effective permissions are what both its policies and the boundary allow. The boundary must allow every action the role's policies grant, or the add-on fails at runtime with `AccessDenied`. `scripts/validate_project.sh` check 12 confirms the ARN shape and that every role in the generated code carries the boundary.
 
