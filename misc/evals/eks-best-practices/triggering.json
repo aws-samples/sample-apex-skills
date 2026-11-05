@@ -168,7 +168,7 @@
     "should_trigger": false
   },
   {
-    "query": "We think a pod in our production EKS cluster was compromised an hour ago. Walk through our live cluster: what is affected, was the role used, and what should we contain right now?",
+    "query": "We think a pod in our production EKS cluster was compromised an hour ago. Walk through our live cluster: what is affected, and what should we contain right now?",
     "should_trigger": false
   }
 ]

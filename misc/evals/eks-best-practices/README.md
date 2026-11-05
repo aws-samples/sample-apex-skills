@@ -6,7 +6,7 @@ These inputs exercise the `eks-best-practices` skill's declared scope: EKS archi
 
 ## Neighbour-skill disambiguation
 
-The 25 negative prompts in `triggering.json` (entries 13–37, 0-indexed 12–36) are deliberate near-misses targeting sibling skills:
+The 29 negative prompts in `triggering.json` (entries 13-39 and 42-43) are deliberate near-misses targeting sibling skills:
 
 <!-- SIBLING_MAP_START -->
 - **`eks-recon`** (discovery / "what's currently running" / pre-upgrade inventory) — negatives 13, 14, 15 (what version am I running; inventory what's in my EKS cluster; snapshot of everything running).

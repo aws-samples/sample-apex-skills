@@ -216,8 +216,8 @@
       "expectations": [
         "The output names concrete sources to watch across layers (for example AWS security bulletins, the Kubernetes CVE feed, node OS advisories, add-on releases, image scan findings) and recommends routing them into alerting rather than periodic review. TODO: human review",
         "The output separates a normal patch cadence from an emergency path for security fixes, and the emergency path still tests in non-production before production. TODO: human review",
-        "The output explains that on EKS Auto Mode AWS patches the node image but existing nodes keep the old build until they are replaced, and gives the customer's lever (node expiry or planned rotation). TODO: human review",
-        "The output recommends digest-pinned base images moved through review, installing dependencies from a committed lockfile in an isolated build step, and rebuilding on a cadence because scanners only report CVE-indexed packages. TODO: human review",
+        "The output explains that on EKS Auto Mode AWS patches the node image but existing nodes keep the old build until they are replaced (drift to the new AMI, node expiry, or planned rotation). TODO: human review",
+        "The output recommends digest-pinned base images moved through review, installing dependencies from a committed lockfile in an isolated build step, and rebuilding on a cadence because package scanners (such as ECR enhanced scanning) match only packages tracked in CVE advisories. TODO: human review",
         "The output routes live checks (whether a cluster is exposed to a specific advisory, live event response) to eks-security rather than claiming to inspect the clusters itself. TODO: human review"
       ],
       "knowledge_assertions": [

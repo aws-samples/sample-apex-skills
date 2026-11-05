@@ -206,12 +206,12 @@ Hardening is half the job; the other half is running security over time. Four pr
 |----------|----------|
 | **Staying informed** | Watch AWS security bulletins, the Kubernetes CVE feed, node OS advisories, add-on releases and image findings; route them into on-call alerting, not a review meeting |
 | **Patch cadence** | A fixed cadence for add-ons, node images and base images, plus a separate emergency path for a security fix that does not wait for the upgrade window (non-production first, then roll out) |
-| **Build hygiene** | Pin base images by digest and move the pin through review; install from a committed lockfile in an isolated build step; rebuild on a cadence, since scanners only see CVE-indexed packages |
-| **Event response** | One shape: scope, assess and preserve, contain (pod-scoped), remediate, verify, record |
+| **Build hygiene** | Pin base images by digest and move the pin through review; install from a committed lockfile in an isolated build step; rebuild on a cadence, since package scanners (such as ECR enhanced scanning) match only packages tracked in CVE advisories |
+| **Event response** | One shape: prepare, scope, record, contain (pod-scoped), investigate, remediate, verify, report |
 
 **Live checks: eks-security.** This skill does not read a cluster. Route these asks to eks-security:
 - "Am I exposed to this CVE, bulletin or advisory?": eks-security C1 CVE and advisory review
-- "We have a security event on the cluster; what do we do, and was it used?": eks-security C2 security event response
+- "We have a security event on the cluster; what do we do?": eks-security C2 security event response
 - "Would our setup contain a compromised pod?": eks-security C3 posture check
 - "How far behind latest are we?" with no CVE in play: eks-upgrade-check
 

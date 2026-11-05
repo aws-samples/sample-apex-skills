@@ -215,8 +215,6 @@ metadata:
 | **Baseline** | Prevents known privilege escalations | The floor: a namespace that cannot meet restricted yet, with `warn` and `audit` at restricted |
 | **Restricted** | Hardened, follows best practices | Default for application workloads |
 
-The stance (restricted for workloads, baseline as the floor) is stated in [SKILL.md: Pod Security Admission](../SKILL.md#pod-security-admission); the examples below follow it.
-
 **Apply via namespace labels:**
 
 ```yaml
@@ -290,7 +288,7 @@ spec:
 ### Pod Security Rules
 
 - Set `runAsNonRoot: true` on all workloads
-- Drop ALL capabilities and add back only what's needed
+- Drop ALL capabilities; under restricted only NET_BIND_SERVICE may be added back
 - Use `readOnlyRootFilesystem: true` where possible
 - Set `seccompProfile: RuntimeDefault`
 - Never run Docker-in-Docker or mount the Docker socket — use buildah, CodeBuild, or BuildKit instead (Kaniko is archived — prefer buildah/CodeBuild/BuildKit) (as of 2026-08-04)
@@ -379,6 +377,8 @@ metadata:
   name: team-alpha
   labels:
     pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
     tenant: team-alpha
 ```
 
