@@ -1,0 +1,162 @@
+# APEX Skills - Agentic Platform Engineering eXperience
+
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://aws-samples.github.io/sample-apex-skills/)
+
+> Curated platform-engineering skills that compress onboarding from months to weeks. Domain knowledge authored by senior AWS SSAs, TAMs, and ProServe, delivered through agentic AI tools (Claude Code, Kiro CLI etc). 5 of the 28 skills are vendored from upstream projects: see [Third-Party Notices](../../THIRD_PARTY_NOTICES.md).
+
+**APEX** uses agentic AI (frontier models and agent harness like Claude Code) combined with curated "skills" to give engineers SSA-grade platform engineering output.
+
+Agent Skills are organized folders of instructions, scripts, and resources that frontier LLM models can discover and load dynamically to perform specialized tasks. By codifying expert platform engineering knowledge as Agent Skills, we amplify best practices and scale them across teams while reducing toil. They follow the [Agent Skills open standard](https://agentskills.io/) and are compatible with any supported agent harness.
+
+---
+
+## What's in This Repo
+
+| Directory | Purpose |
+|-----------|---------|
+| `skills/` | **What** the agent knows: reusable domain knowledge |
+| `skills/apex/` | The APEX router skill and its runbooks: phased procedures that combine skills (the SA's playbook) |
+| `rules/` | **How** the agent behaves: verification, source-checking, guardrails |
+| `examples/` | **How** to try it: deployable labs with planted issues |
+| `misc/` | Maintenance tooling and evaluation framework |
+| `devops-agent/` | Non-executable skill ports for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/), Day 2 operational skills repackaged for managed autonomous execution |
+
+---
+
+## Quick Start
+
+### NPX Installer (recommended)
+
+> **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/) must be installed.
+
+```bash
+npx apex-skills@1.3.0
+```
+
+APEX v2 is in progress, so the commands here pin the installer to exactly version 1.3.0 until v2 ships, which also skips later 1.3.x installer releases. A fresh install with no earlier install record takes the newest v1.x.y release of the skills; `--version` picks a release, `--branch` follows a branch, and `--update` stays on the clone's major line or the branch it follows.
+
+The installer's own messages show `npx apex-skills`; add `@1.3.0` when you run them.
+
+For v2 and its `/apex` router, use the Manual Install below (from `main`).
+
+Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and links the skills into place. Flags, exit codes, [installed paths](../../misc/installer/README.md#installed-paths) and [uninstall](../../misc/installer/README.md#uninstall): see the [installer README](../../misc/installer/README.md).
+
+Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
+
+```bash
+npx apex-skills@1.3.0 --update              # Update an existing install
+npx apex-skills@1.3.0 --version v1.2.0      # Installer 1.3.0, skills release v1.2.0
+npx apex-skills@1.3.0 --branch feat/new-eks # Install from a branch
+npx apex-skills@1.3.0 --help                # See all options
+```
+
+### Manual Install
+
+If you prefer not to use npx, clone the repo and copy skills directly.
+
+#### Claude Code
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.claude/skills
+cp -r skills/* ~/.claude/skills/
+```
+
+**Usage (this manual install, from `main`):** Start a Claude Code session and type `/apex` with your request (for example *"Help me design an EKS cluster"* or *"Is my cluster ready to upgrade to 1.32?"*): the apex skill routes it to the right skill and, when there is one, that skill's runbook.
+
+#### Kiro CLI
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.kiro/skills
+cp -r skills/* ~/.kiro/skills/
+```
+
+**Usage:** in Kiro, type `/apex` with your request, or ask for apex by name, for example *"use apex to plan my EKS upgrade"*. Tested on Kiro CLI 2.35.1 (2026-10-28); Kiro CLI 1.27.0 rejected `/apex`.
+
+#### Codex
+
+```bash
+git clone https://github.com/aws-samples/sample-apex-skills.git
+cd sample-apex-skills
+
+mkdir -p ~/.agents/skills
+cp -r skills/* ~/.agents/skills/
+```
+
+**Usage:** in Codex, type `$apex` with your request, for example *"$apex plan my EKS upgrade"*. Codex reads skills from `~/.agents/skills` (and a repository's `.agents/skills`); the installer does not set up Codex.
+
+#### Other Agent Harnesses
+
+Skills follow the [Agent Skills standard](https://agentskills.io/). Each skill lives in `skills/{skill-name}/` with a `SKILL.md` and optional `references/`, `scripts/`, and `assets/` directories. Clone and point your tool at them; see [skills/README.md](../../skills/README.md) for the layout.
+
+#### Agent Rules (optional)
+
+[AGENTS.md](../../rules/AGENTS.md) contains project-level guardrails: skill routing, verification habits, source-checking, safety boundaries. These are personal to each user's workflow, so they are **not** auto-loaded by the installer. To activate them, add the contents to whatever file your agent harness reads for project instructions (e.g., `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.github/copilot-instructions.md`, `.kiro/steering/project.md`).
+
+The apex skill's shared rules apply to runs it starts; a skill triggered directly follows its own rules, plus AGENTS.md if you added it.
+
+<!-- SKILLS_REFERENCE_START -->
+## Skills Reference
+
+> _This table is auto-generated by [`misc/update-skills-references.sh`](../../misc/update-skills-references.sh). Do not edit manually._
+
+### EKS Skills
+
+<table>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/"><b>eks-best-practices</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-build/"><b>eks-build</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/"><b>eks-cost-intelligence</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/"><b>eks-design</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/"><b>eks-genai</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/"><b>eks-ingress-migration</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/"><b>eks-mcp-server</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/"><b>eks-operation-review</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-platform-engineering/"><b>eks-platform-engineering</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/"><b>eks-recon</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/"><b>eks-security</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-upgrade-check/"><b>eks-upgrade-check</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/"><b>eks-well-architected-review</b></a></td><td></td><td></td><td></td></tr>
+</table>
+
+### ECS Skills
+
+<table>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/"><b>ecs-architect</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-build/"><b>ecs-build</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-devops/"><b>ecs-devops</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-genai/"><b>ecs-genai</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-modernize/"><b>ecs-modernize</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/"><b>ecs-observability</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-operation-review/"><b>ecs-operation-review</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-recon/"><b>ecs-recon</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/"><b>ecs-security</b></a></td></tr>
+</table>
+
+### General
+
+<table>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/"><b>apex</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/"><b>dotnet-aws-ecs</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/"><b>graviton-migration</b></a></td></tr>
+<tr><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/"><b>skill-creator</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/"><b>terraform-skill</b></a></td><td><a href="https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/"><b>update-docs</b></a></td></tr>
+</table>
+<!-- SKILLS_REFERENCE_END -->
+
+---
+
+<!-- EXAMPLES_REFERENCE_START -->
+## Examples
+
+> _This table is auto-generated by [`misc/update-examples-references.sh`](../../misc/update-examples-references.sh). Do not edit manually._
+
+| Example | Description | Workflow |
+|---------|-------------|----------|
+| **[Liberty to ECS Modernization](../../examples/ecs-modernize/liberty-to-ecs/)** | Assess a Java 8 / WebSphere Liberty application carrying planted modernization blockers, score it with the APEX ecs-modernize skill, then execute both migration paths on ECS (Replatform as-is onto ECS on EC2 and Rearchitect onto Fargate) and re-assess to see the Fit_Score rise from the Replatform band into the Rearchitect band. | -- |
+| **[EKS Upgrade Readiness Check](../../examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](../../skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md) |
+<!-- EXAMPLES_REFERENCE_END -->
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for how to add skills, runbooks, and examples.
+
+---
+
+## Disclaimer
+
+This repository provides sample code for **educational and demonstration purposes only**. It is not intended for direct production use without proper review, testing, and validation. Always test generated infrastructure artifacts (Terraform, Helm charts, kubectl commands) in non-production environments first. Use at your own risk: the authors are not responsible for any issues, damages, or losses that may result from using this code in production.
+
+---
+
+## License
+
+This project is licensed under the MIT-0 License. See the [LICENSE](../../LICENSE) file.
