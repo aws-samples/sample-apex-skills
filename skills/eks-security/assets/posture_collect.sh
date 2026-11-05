@@ -18,8 +18,8 @@
 # the work dir as sensitive: keep it out of version control and remove it after the review.
 #
 # What differs from the Well-Architected collector, on purpose:
-#  - only the files the security questions read, plus three the containment checks need
-#    (guardduty.json, ecr-scanning.json; instances.json is shared);
+#  - only the files the security questions read, plus the ones the containment checks need
+#    (guardduty.json, ecr-scanning.json, accessentries.json; instances.json is shared);
 #  - a denied preflight probe does NOT abort the run. The matching file is not collected, the denial
 #    is recorded in meta.json, and every check that needs that file reports `unknown`, which the
 #    reducer's coverage gate counts. Only a failed eks:DescribeCluster or an unreachable Kubernetes
@@ -29,7 +29,8 @@
 # (one JSON line on stdout: {"ok":false,"code":"...","error":"..."}).
 #
 # IAM actions this script calls (exactly these): sts:GetCallerIdentity, eks:DescribeCluster,
-# eks:ListAddons, eks:DescribeAddon, eks:ListPodIdentityAssociations, iam:ListOpenIDConnectProviders,
+# eks:ListAddons, eks:DescribeAddon, eks:ListPodIdentityAssociations, eks:ListAccessEntries,
+# eks:ListAssociatedAccessPolicies, iam:ListOpenIDConnectProviders,
 # ec2:DescribeInstances, ec2:DescribeVolumes, ec2:DescribeSecurityGroups, ecr:DescribeRepositories,
 # ecr:GetRegistryScanningConfiguration, guardduty:ListDetectors, guardduty:GetDetector.
 set -uo pipefail
@@ -141,6 +142,7 @@ fi
 pf_aws "eks:DescribeCluster"              eks describe-cluster --name "$CLUSTER"
 pf_aws "eks:ListAddons"                   eks list-addons --cluster-name "$CLUSTER"
 pf_aws "eks:ListPodIdentityAssociations"  eks list-pod-identity-associations --cluster-name "$CLUSTER"
+pf_aws "eks:ListAccessEntries"            eks list-access-entries --cluster-name "$CLUSTER"
 pf_aws "iam:ListOpenIDConnectProviders"   iam list-open-id-connect-providers
 pf_aws "ecr:DescribeRepositories"         ecr describe-repositories --max-items 1
 pf_aws "ecr:GetRegistryScanningConfiguration" ecr get-registry-scanning-configuration
@@ -156,7 +158,9 @@ _ad=$(timeout 30 aws eks list-addons --cluster-name "$CLUSTER" --region "$REGION
 [ -n "$_ad" ] && pf_aws "eks:DescribeAddon" eks describe-addon --cluster-name "$CLUSTER" --addon-name "$_ad"
 _dt=$(timeout 30 aws guardduty list-detectors --region "$REGION" 2>/dev/null | jq -r '.DetectorIds[0] // empty' 2>/dev/null)
 [ -n "$_dt" ] && pf_aws "guardduty:GetDetector" guardduty get-detector --detector-id "$_dt"
-unset _op _act _e _v _ad _dt _id
+_pa=$(timeout 30 aws eks list-access-entries --cluster-name "$CLUSTER" --region "$REGION" 2>/dev/null | jq -r '.accessEntries[0] // empty' 2>/dev/null)
+[ -n "$_pa" ] && pf_aws "eks:ListAssociatedAccessPolicies" eks list-associated-access-policies --cluster-name "$CLUSTER" --principal-arn "$_pa"
+unset _op _act _e _v _ad _dt _id _pa
 
 for _r in nodes namespaces persistentvolumes storageclasses clusterroles clusterrolebindings \
           validatingwebhookconfigurations mutatingwebhookconfigurations; do
@@ -259,6 +263,35 @@ if awsjson addons eks:ListAddons -- eks list-addons --cluster-name "$CLUSTER"; t
   rm -f -- "$P/.ad.json"
 fi
 awsjson podidentity   eks:ListPodIdentityAssociations -- eks list-pod-identity-associations --cluster-name "$CLUSTER"
+# Access entries (SEC-POSTURE-64): the list, then each entry's associated access policies. Written only
+# when every entry was read, so a partial list never passes. A CONFIG_MAP-only cluster has no access
+# entries: an empty document says so (its aws-auth mapping is read for SEC-POSTURE-10).
+AUTHMODE=$(jq -r '.cluster.accessConfig.authenticationMode // empty' "$P/cluster.json")
+if [ "$AUTHMODE" = CONFIG_MAP ]; then
+  printf '{"authenticationMode":"CONFIG_MAP","accessEntries":[],"associations":[]}\n' > "$P/accessentries.json"
+elif awsjson .ae-list eks:ListAccessEntries -- eks list-access-entries --cluster-name "$CLUSTER"; then
+  if [ "$(pfv eks:ListAssociatedAccessPolicies)" = denied ]; then
+    err accessentries denied "eks:ListAssociatedAccessPolicies was denied in the preflight; accessentries.json not collected"
+  else
+    printf '{"associations":[]}\n' > "$P/.ae.json"
+    _ae_ok=1
+    for PA in $(jq -r '.accessEntries[]?' "$P/.ae-list.json"); do
+      if ! printf '%s' "$PA" | grep -Eq '^arn:aws[a-z-]*:iam::[0-9]{12}:[A-Za-z0-9+=,.@_/-]{1,512}$'; then
+        _ae_ok=0; err accessentries error "access entry principal '$(printf '%s' "$PA" | cut -c1-120)' is not an IAM ARN; not read"; continue
+      fi
+      if timeout 60 aws eks list-associated-access-policies --cluster-name "$CLUSTER" --principal-arn "$PA" --region "$REGION" > "$P/.ae1.json" 2>/dev/null \
+         && jq -e . "$P/.ae1.json" >/dev/null 2>&1; then
+        jq -s --arg p "$PA" '{associations: (.[0].associations + [{principalArn:$p, associatedAccessPolicies:(.[1].associatedAccessPolicies // [])}])}' \
+          "$P/.ae.json" "$P/.ae1.json" > "$P/.ae.m" && mv "$P/.ae.m" "$P/.ae.json"
+      else
+        _ae_ok=0; err accessentries error "eks list-associated-access-policies failed for $PA"
+      fi
+    done
+    [ "$_ae_ok" -eq 1 ] && jq -s --arg m "${AUTHMODE:-unknown}" '{authenticationMode:$m, accessEntries:(.[0].accessEntries // []), associations:.[1].associations}' \
+      "$P/.ae-list.json" "$P/.ae.json" > "$P/accessentries.json"
+  fi
+  rm -f -- "$P/.ae-list.json" "$P/.ae.json" "$P/.ae1.json" "$P/.ae.m"
+fi
 awsjson oidcproviders iam:ListOpenIDConnectProviders  -- iam list-open-id-connect-providers
 if [ -n "$VPC" ]; then
   awsjson sg ec2:DescribeSecurityGroups -- ec2 describe-security-groups --filters Name=vpc-id,Values="$VPC"

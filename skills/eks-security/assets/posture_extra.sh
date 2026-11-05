@@ -2,7 +2,10 @@
 # Containment checks the Well-Architected security pillar does not have. Companion to posture_score.sh,
 # with the same token format and the same bucket rule, so posture_reduce.sh reduces both.
 #
-# Usage:  posture_extra.sh <workdir>
+# Usage:  posture_extra.sh <workdir> [--admin-allow <regex>]
+#   --admin-allow: a regular expression (jq test, Oniguruma syntax) for principal ARNs expected to hold cluster
+#   admin through an access entry, such as the role that created the cluster or a break-glass role. The
+#   EKS API does not name the cluster creator, so without it the creator's entry fails SEC-POSTURE-64.
 #   Reads <workdir>/posture/*.json (written by posture_collect.sh) and appends one JSONL token per check to
 #   <workdir>/posture/results-extra.jsonl:
 #   {"pillar":"security","id":"SEC-POSTURE-<n>","track":"measured","state":"all|most|some|none|na|unknown",
@@ -19,6 +22,7 @@
 #   SEC-POSTURE-61  GuardDuty Runtime Monitoring      (same) the detector feature, not the agent pod
 #   SEC-POSTURE-62  ECR registry scanning, continuous lens-12 is always na: it does not read the registry config
 #   SEC-POSTURE-63  images pinned by digest           sec-12 also passes an explicit tag, which can move
+#   SEC-POSTURE-64  cluster admin via access entries   rbac-1 reads ClusterRoleBindings and aws-auth, not access policies
 # Overlaps NOT added (WAR already measures them): public endpoint 0.0.0.0/0 (sec-2), PSA enforce labels
 # (sec-11), cluster-admin bindings incl. service accounts (rbac-1), audit log (sec-26), privileged pods
 # (podsec-2), hostPath (podsec-3), secrets envelope encryption with a customer key (sec-38), IMDSv2
@@ -29,10 +33,18 @@
 set -uo pipefail
 umask 077
 
-WORK="${1:?usage: posture_extra.sh <workdir>}"
+WORK="${1:?usage: posture_extra.sh <workdir> [--admin-allow <regex>]}"
 W="$WORK/posture"
 [ -f "$W/cluster.json" ] || { echo "posture_extra.sh: $W has no cluster.json; run posture_collect.sh first" >&2; exit 2; }
 command -v jq >/dev/null 2>&1 || { echo "posture_extra.sh: jq not found on PATH" >&2; exit 2; }
+ADMIN_ALLOW=""
+if [ $# -gt 1 ]; then
+  [ $# -eq 3 ] && [ "$2" = --admin-allow ] && [ -n "$3" ] \
+    || { echo "posture_extra.sh: usage: posture_extra.sh <workdir> [--admin-allow <regex>]" >&2; exit 2; }
+  ADMIN_ALLOW="$3"
+  jq -n --arg r "$ADMIN_ALLOW" '"" | test($r)' >/dev/null 2>&1 \
+    || { echo "posture_extra.sh: --admin-allow '$ADMIN_ALLOW' is not a valid regular expression" >&2; exit 2; }
+fi
 OUTF="$W/results-extra.jsonl"
 if [ -s "$OUTF" ]; then
   echo "posture_extra.sh: $OUTF already holds tokens; this work dir has been scored." >&2; exit 2
@@ -48,7 +60,7 @@ x(){ local id="$1"; shift; local fs=() m="" r
   if [ -n "$m" ]; then
     r=$(jq -cn --arg d "not collected:$m (the read was denied or failed; see posture/meta.json errors), so this check was NOT measured" '{state:"unknown",detail:$d}')
   else
-    r=$(jq -c "$X $1" "${fs[@]}" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed; a malformed collection file is NOT a finding. jq said: %s\n' "$id" "$r" >&2; exit 1; }
+    r=$(jq -c --arg allow "$ADMIN_ALLOW" "$X $1" "${fs[@]}" 2>&1) || { printf 'SCORER ABORT [%s]: jq failed; a malformed collection file is NOT a finding. jq said: %s\n' "$id" "$r" >&2; exit 1; }
   fi
   printf '%s' "$r" | jq -c --arg id "$id" '
     if (.state|IN("all","most","some","none","na","unknown"))|not then error("bad state") else . end
@@ -175,5 +187,33 @@ x SEC-POSTURE-63 pods '
      detail:(if ($c|length)==0 then "no workload containers outside kube-* and amazon-*" else "\($p|length)/\($c|length) workload containers and init containers reference their image by @sha256: digest (the pod spec as written; a tag resolved at pull time does not count)" end),
      pass:[$p[]|.n], fail:[($c-$p)[]|.n]}'
 
-echo "posture_extra.sh: 9 checks scored into $OUTF" >&2
+# ── SEC-POSTURE-64 identity: cluster admin granted through EKS access entries ──
+# Admin = AmazonEKSClusterAdminPolicy at any scope, or AmazonEKSAdminPolicy at cluster scope. IAM
+# service-linked roles (path /aws-service-role/) and principals matching --admin-allow are listed under
+# pass, not failed; every other holder fails. A CONFIG_MAP-only cluster has no access entries: na (its
+# aws-auth system:masters mappings are SEC-POSTURE-10, WAR rbac-1).
+x SEC-POSTURE-64 accessentries cluster '
+  input as $cl
+  | ($cl.cluster.accessConfig.bootstrapClusterCreatorAdminPermissions // null) as $boot
+  | def adm: [.associatedAccessPolicies[]? | (.policyArn // "") as $a | (.accessScope.type // "?") as $s
+               | select(($a|endswith("/AmazonEKSClusterAdminPolicy")) or (($a|endswith("/AmazonEKSAdminPolicy")) and $s=="cluster"))
+               | ($a|split("/")|last)+" ("+$s+" scope)"];
+    def slr: test(":role/aws-service-role/");
+    def allowed: ($allow != "" and test($allow));
+    def n: .p+" holds "+(.a|join(", "));
+  [.associations[]? | {p:(.principalArn // "?"), a:adm} | select((.a|length)>0)] as $h
+  | [$h[]|select(.p|slr)] as $svc
+  | [$h[]|select((.p|slr|not) and (.p|allowed))] as $ok
+  | [$h[]|select((.p|slr|not) and (.p|allowed|not))] as $bad
+  | (.authenticationMode // "") as $mode
+  | {state:(if $mode=="CONFIG_MAP" then "na" elif ($bad|length)>0 then "none" else "all" end),
+     detail:(if $mode=="CONFIG_MAP" then "authentication mode CONFIG_MAP: no access entries, so no access policy grants admin (aws-auth system:masters mappings are SEC-POSTURE-10, WAR rbac-1)"
+             else "\(.accessEntries|length) access entries read; \($bad|length) principal(s) hold cluster-wide admin through an access policy"
+               +(if ($svc|length)>0 then ", \($svc|length) AWS service-linked role(s) listed, not failed" else "" end)
+               +(if $allow!="" then ", \($ok|length) matched --admin-allow (\($allow))" else "" end)
+               +(if $boot==true and $allow=="" and ($bad|length)>0 then "; the cluster was created with bootstrapClusterCreatorAdminPermissions=true, so one holder is likely the creator: the EKS API does not name it, so rerun with --admin-allow naming that role to exempt it, or revoke it and keep a break-glass role" else "" end) end),
+     pass:[($svc+$ok)[]|n], fail:[$bad[]|n],
+     context:["authenticationMode="+(if $mode=="" then "unknown" else $mode end), "bootstrapClusterCreatorAdminPermissions="+($boot|tostring)]}'
+
+echo "posture_extra.sh: 10 checks scored into $OUTF" >&2
 exit 0

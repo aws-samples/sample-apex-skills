@@ -72,6 +72,7 @@ Plus the Kubernetes reads on `serviceaccounts`, `rolebindings`, `clusterrolebind
       "Action": [
         "sts:GetCallerIdentity",
         "eks:DescribeCluster", "eks:ListAddons", "eks:DescribeAddon", "eks:ListPodIdentityAssociations",
+        "eks:ListAccessEntries", "eks:ListAssociatedAccessPolicies",
         "iam:ListOpenIDConnectProviders",
         "ec2:DescribeInstances", "ec2:DescribeVolumes", "ec2:DescribeSecurityGroups",
         "ecr:DescribeRepositories", "ecr:GetRegistryScanningConfiguration",
@@ -82,7 +83,7 @@ Plus the Kubernetes reads on `serviceaccounts`, `rolebindings`, `clusterrolebind
 }
 ```
 
-GuardDuty is read for its configuration only (is EKS protection on), never for findings. On the Kubernetes side C3 uses `get` and `auth can-i`, plus two named ConfigMaps in `kube-system`: `aws-auth` and `amazon-vpc-cni`.
+GuardDuty is read for its configuration only (is EKS protection on), never for findings. The two access-entry reads list which principals hold cluster admin through an access policy (SEC-POSTURE-64); without them that check is `unknown`. On the Kubernetes side C3 uses `get` and `auth can-i`, plus two named ConfigMaps in `kube-system`: `aws-auth` and `amazon-vpc-cni`.
 
 ## Kubernetes: read-only ClusterRole
 

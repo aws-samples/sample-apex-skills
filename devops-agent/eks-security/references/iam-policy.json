@@ -15,6 +15,7 @@
         "eks:ListInsights",
         "eks:DescribeInsight",
         "eks:ListAccessEntries",
+        "eks:ListAssociatedAccessPolicies",
         "eks:ListPodIdentityAssociations",
         "eks:DescribePodIdentityAssociation"
       ],

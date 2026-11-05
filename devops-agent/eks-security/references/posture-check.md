@@ -1,97 +1,106 @@
 # C3: posture check ("does my setup contain the next one?")
 
-The question is not "is every setting perfect" but "if one pod is compromised tomorrow, does this cluster keep it contained?". Each check below reads live state, returns one of pass / fail / n.a. / unknown with the evidence it read, and carries a severity. A check that could not read its evidence is `unknown`, never pass.
+The question is not "is every setting perfect" but "if one pod is compromised tomorrow, does this cluster keep it contained?". Each check below reads live state, returns a result with the evidence it read, and carries a severity. A check that could not read its evidence is `unknown`, never pass.
 
 ## How it runs
 
-This port runs no scripts. The agent reads the live evidence for each containment check below through the Agent Space's read-only AWS and Kubernetes API access, applies the check's pass / fail / n.a. / unknown rule, and scores the result. The Claude Code skill also runs a scripted security pillar adapted from its Well-Architected review sibling; that part is not in this port, and the "Relation to the pillar" column below only records how each check relates to it.
-
-Scoring: severity weights High 3, Medium 2, Low 1; pass counts full weight, fail zero, n.a. is left out; below 50% of applicable weight read, the score says "incomplete" and no number is given.
+This port runs no scripts. The agent makes the reads named in each row through the Agent Space's read-only AWS and Kubernetes API access, applies the row's rule and scores the result. The Claude Code skill runs the same checks as scripts (`posture_collect.sh`, `posture_score.sh`, `posture_extra.sh`, `posture_reduce.sh`); each row here carries that skill's check id (`SEC-POSTURE-<n>`) and, for checks it copied from the Well-Architected review's security pillar, the pillar question id, so the two copies report the same check under the same id. Of that skill's 64 checks this port walks the containment subset below; the rest of the copied pillar is not ported and the report lists it under "not checked". Two rows are port-only (marked): they are reported but kept out of the score and the layer verdicts, so the score rule is the scripted one.
 
 The access needed is in [read-only-access.md](read-only-access.md), C3 section. Checks that read RBAC objects or policy engine objects need the supplementary ClusterRole named there; without it they are `unknown`, never pass.
 
-"Workload namespaces" below means every namespace except `kube-system`, `kube-public`, `kube-node-lease` and namespaces the team names as system (for example the GuardDuty agent's and a policy engine's). The report prints the list it used.
+## Results, score and coverage
+
+These rules are the Claude Code skill's `posture_reduce.sh` rules.
+
+- **Bucket.** For a check over many objects, count the objects it applies to and the share that passes: 90% or more is `all`, 70% or more `most`, more than 0 `some`, 0 `none`, nothing to count `na`. All-or-nothing checks give `all` or `none`.
+- **Result.** `all` is pass; `most`, `some` and `none` are fail; `na` is n.a.; a read that was refused or failed is `unknown`.
+- **Coverage gate.** A check is answered when its state is `all`, `most`, `some` or `none` (`na` and `unknown` are not answered). With fewer than half of the scored checks answered the report says "incomplete" and gives no score.
+- **Score.** Sum of points times weight over answered checks, divided by the sum of their weights, rounded: points `all` 100, `most` 75, `some` 50, `none` 0; weight high 3, medium 2, low 1.
+- **Layer verdict** ("would this contain a compromised pod?"), over the scored checks of the layer: `unknown` when none is answered; `not-contained` when any high-severity check fails; `contained` when every answered check passes and none is `unknown`; `partly` otherwise.
+- **Workload namespaces** are every namespace whose name does not start with `kube-` or `amazon-`. The report prints the list it used.
 
 ## Containment checks
 
-### A compromised pod can't reach the node role
+### Node credentials (layer node-credential)
 
-| Id | Check | Live evidence | Pass / fail / n.a. / unknown | Severity | Relation to the pillar |
-|---|---|---|---|---|---|
-| PC-1 | IMDSv2 required on every node | `aws ec2 describe-instances` for the node instance ids: `MetadataOptions.HttpTokens` | pass: every instance `required`; fail: any `optional`; unknown: instances not readable; Auto Mode nodes whose instances are not returned: n.a. with the note "AWS-managed" | High | adapted (lens-11) |
-| PC-2 | IMDS hop limit 1 on nodes that run non-host-network pods | same call: `MetadataOptions.HttpPutResponseHopLimit` | pass: every instance `1`; fail: any `2` or more, listing the node groups; unknown as PC-1 | High | added |
+| Id | Check | Reads the agent makes | Rule | Severity |
+|---|---|---|---|---|
+| SEC-POSTURE-46 (lens-11) | IMDSv2 required on every node | `aws ec2 describe-instances` for the cluster's node instances: `MetadataOptions.HttpTokens` | Per running instance: pass when `required`; bucketed over instances | high |
+| SEC-POSTURE-55 | Pods cannot reach IMDS | same read: `HttpEndpoint`, `HttpTokens`, `HttpPutResponseHopLimit`; `kubectl get nodes -o json` to tell Auto Mode nodes (label `eks.amazonaws.com/compute-type: auto`) | Per running Linux instance: pass when the endpoint is `disabled`, or `HttpTokens` is `required` with hop limit 1; bucketed; list the failing instances by node type (managed node group, Karpenter node pool, Auto Mode, other); Windows not assessed; no Linux instance: na | high |
+| Port only: node role | Node role carries only node permissions | `aws eks describe-nodegroup` `nodeRole` (Auto Mode: NodeClass `spec.role`); `aws iam list-attached-role-policies` and `list-role-policies` for that role | pass: only the EKS worker node, CNI and ECR pull managed policies; fail: any other attached or inline policy, named. Reported, not scored | high |
 
-Why: with IMDSv1 allowed, or IMDSv2 with a hop limit above 1, any pod can fetch the node role's credentials and act as the node. A workload that genuinely needs IMDS from a pod should get its own identity (PC-7) instead of a higher hop limit.
+Why: with IMDSv1 allowed, or IMDSv2 with a hop limit above 1, any pod can fetch the node role's credentials and act as the node. A workload that needs AWS access from a pod should get its own identity (EKS Pod Identity or IRSA) instead of a higher hop limit.
 
-### A compromised pod can't move sideways
+### Lateral movement (layer lateral-movement)
 
-| Id | Check | Live evidence | Pass / fail / n.a. / unknown | Severity | Relation to the pillar |
-|---|---|---|---|---|---|
-| PC-3 | NetworkPolicy is enforced | Standard cluster: `aws eks describe-addon --addon-name vpc-cni` `configurationValues` has `enableNetworkPolicy: "true"`, or another enforcing engine runs (Calico or Cilium pods). Auto Mode: ConfigMap `kube-system/amazon-vpc-cni` key `enable-network-policy-controller: "true"` ([Auto Mode network policies](https://docs.aws.amazon.com/eks/latest/userguide/auto-net-pol.html)) | pass: enforcement on; fail: off and no other engine; unknown: not readable | High | added |
-| PC-4 | Default-deny ingress in every workload namespace | `kubectl get networkpolicies -A -o json`: a policy with `podSelector: {}`, `policyTypes` including `Ingress` and no `ingress` rules | pass: every workload namespace has one; fail: list the namespaces without; n.a.: no workload namespaces; unknown: networkpolicies not readable | High | extends sec-4 (policies exist) |
-| PC-5 | Egress is controlled | same read: a default-deny `Egress` policy per workload namespace, or egress rules on the policies that select its pods | pass: every workload namespace; fail: list the rest | Medium | added |
+| Id | Check | Reads the agent makes | Rule | Severity |
+|---|---|---|---|---|
+| SEC-POSTURE-26 (sec-4) | NetworkPolicy is enforced, and policies exist | `kubectl get daemonsets -A -o json`: the `kube-system/aws-node` DaemonSet's `aws-eks-nodeagent` container runs with `--enable-network-policy=true`, or a ready `calico-node` or `cilium` DaemonSet runs. Auto Mode: ConfigMap `kube-system/amazon-vpc-cni` key `enable-network-policy-controller: "true"` ([Auto Mode network policies](https://docs.aws.amazon.com/eks/latest/userguide/auto-net-pol.html)); `kubectl get networkpolicies -A -o json` | Enforcement off and no other engine: fail. Enforcement on: bucket the workload namespaces that have any NetworkPolicy | high |
+| SEC-POSTURE-56 | Default-deny ingress per workload namespace | `kubectl get networkpolicies -A -o json` and `kubectl get namespaces -o json` | A namespace passes when it has a policy with an empty `podSelector`, `Ingress` in `policyTypes` (implied when absent) and no ingress rule; bucketed; list the namespaces without one | high |
+| SEC-POSTURE-57 | Egress limited per workload namespace | same reads | A namespace passes when a policy with an empty `podSelector` lists `Egress` in `policyTypes`; bucketed. Allowed destinations are not judged | medium |
 
-Why: without enforcement, NetworkPolicy objects are text. Without a default deny, one compromised pod can reach every service in the cluster; without egress control it can reach the internet and the instance metadata of neighbours. PC-4 and PC-5 count only when PC-3 passes; with PC-3 failing they report fail with "not enforced".
+Why: without enforcement, NetworkPolicy objects are text. Without a default deny, one compromised pod can reach every service in the cluster; without egress control it can reach the internet.
 
-### A compromised pod can't escalate
+### Privilege (layer privilege)
 
-| Id | Check | Live evidence | Pass / fail / n.a. / unknown | Severity | Relation to the pillar |
-|---|---|---|---|---|---|
-| PC-6a | Pod Security Admission enforce level per workload namespace | `kubectl get namespaces -o json`: label `pod-security.kubernetes.io/enforce` | pass: `baseline` or `restricted` on every workload namespace (report which; `restricted` is the target for workloads); fail: missing or `privileged`, listing them | High | extends sec-11 (labels exist) |
-| PC-6b | No privileged or host-sharing pods outside system namespaces | Kubernetes `pods` specs: `securityContext.privileged`, `hostPath` volumes, `hostNetwork`, `hostPID`, `hostIPC` | pass: none in workload namespaces; fail: list each pod and field | High | extends podsec-2, podsec-3 (privileged, hostPath) |
+| Id | Check | Reads the agent makes | Rule | Severity |
+|---|---|---|---|---|
+| SEC-POSTURE-34 (sec-11) | Pod Security Admission enforce label per workload namespace | `kubectl get namespaces -o json`: label `pod-security.kubernetes.io/enforce` | A namespace passes with `baseline` or `restricted` (report which; `restricted` is the target for workloads); bucketed; list the rest | high |
+| SEC-POSTURE-42 (podsec-2) | No privileged containers | `kubectl get pods -A -o json` (the agent's own read): `securityContext.privileged` per container | Per container, init and ephemeral container of unfinished workload pods: pass when not privileged; bucketed; list each pod and container; Windows pods not assessed | high |
+| SEC-POSTURE-43 (podsec-3) | No hostPath volumes | same read: `spec.volumes[].hostPath` | Per workload pod: pass without a hostPath volume; bucketed; list each pod | medium |
+| SEC-POSTURE-58 | No host namespaces | same read: `spec.hostNetwork`, `hostPID`, `hostIPC` on pods not finished (phase other than `Succeeded` or `Failed`) | Any workload pod with one of them true fails the check; otherwise pass; no workload pods: na | high |
+| SEC-POSTURE-10 (rbac-1) | cluster-admin held only by the built-in subjects | `kubectl get clusterrolebindings -o json`; ConfigMap `kube-system/aws-auth` | Fail on any `cluster-admin` binding subject other than Group `system:masters` and User `eks:addon-manager`, and on any `system:masters` mapping in `aws-auth` (not read when the authentication mode is `API`); list them | high |
 
-Why: a privileged or host-sharing pod is a node compromise waiting to happen; PSA is the admission gate that stops the next one being created.
+Why: a privileged or host-sharing pod is a node compromise waiting to happen; PSA is the admission gate that stops the next one being created. A workload with cluster-admin turns a pod compromise into a cluster compromise.
 
-### A compromised pod can't use broad identity
+### Identity (layer identity)
 
-| Id | Check | Live evidence | Pass / fail / n.a. / unknown | Severity | Relation to the pillar |
-|---|---|---|---|---|---|
-| PC-7 | Node role carries only node permissions | `aws eks describe-nodegroup` `nodeRole` (Auto Mode: NodeClass `spec.role`); `aws iam list-attached-role-policies` and `list-role-policies` for that role | pass: only the EKS worker node, CNI and ECR pull managed policies; fail: any other attached or inline policy, named; unknown: IAM not readable | High | added |
-| PC-8 | No workload holds cluster-admin | `kubectl get clusterrolebindings -o json`: bindings to `cluster-admin` whose subjects are service accounts outside `kube-system`; `aws eks list-associated-access-policies` per access entry for the cluster admin policy, reported as a count | pass: no workload service account bound; fail: list them; access entries with the admin policy are listed for review, not failed | High | extends rbac-1 |
+| Id | Check | Reads the agent makes | Rule | Severity |
+|---|---|---|---|---|
+| SEC-POSTURE-64 | Cluster admin through EKS access entries | `aws eks describe-cluster` `accessConfig`; `aws eks list-access-entries`; per entry `aws eks list-associated-access-policies --principal-arn <arn>` | Admin is `AmazonEKSClusterAdminPolicy` at any scope, or `AmazonEKSAdminPolicy` at cluster scope. IAM service-linked roles (path `/aws-service-role/`) and the roles the team names as expected admins (the cluster creator, a break-glass role) are listed, not failed; any other holder fails the check, listed with its policy. `CONFIG_MAP` authentication mode: na. When `bootstrapClusterCreatorAdminPermissions` is true and the team named no creator role, say one holder is likely the creator (the EKS API does not name it) | high |
 
-Why: if workloads lean on the node role, every pod on the node holds those rights. A workload with cluster-admin turns a pod compromise into a cluster compromise.
+Fix for SEC-POSTURE-64, printed only: grant each listed principal what it needs at a narrower scope (`AmazonEKSAdminPolicy` with a namespace access scope, or a Kubernetes group bound to a narrower RBAC role), then `aws eks disassociate-access-policy --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --policy-arn arn:aws:eks::aws:cluster-access-policy/<the listed policy>`, keeping one break-glass admin role whose use is logged ([EKS best practices: identity and access](https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html)).
 
-### It is seen
+### Detection (layer detection)
 
-| Id | Check | Live evidence | Pass / fail / n.a. / unknown | Severity | Relation to the pillar |
-|---|---|---|---|---|---|
-| PC-9 | Audit and authenticator logs on | `aws eks describe-cluster` `cluster.logging.clusterLogging`: types `audit` and `authenticator` enabled | pass: both; fail: either missing | High | extends sec-26 (audit only) |
-| PC-10 | GuardDuty EKS audit log monitoring on | `aws guardduty list-detectors`, `get-detector`: feature `EKS_AUDIT_LOGS` status `ENABLED` | pass: enabled; fail: no detector or disabled; unknown: not readable | High | added |
-| PC-11 | GuardDuty runtime monitoring on, agent running | `get-detector`: feature `RUNTIME_MONITORING` or `EKS_RUNTIME_MONITORING` `ENABLED`; the GuardDuty agent DaemonSet is present and ready on every Linux node | pass: feature on and agent on all nodes; fail: feature off or agent missing on nodes (listed) | Medium | extends sec-33 (an agent is present) |
+| Id | Check | Reads the agent makes | Rule | Severity |
+|---|---|---|---|---|
+| SEC-POSTURE-52 (sec-26) | Audit log on | `aws eks describe-cluster` `cluster.logging.clusterLogging` | pass when type `audit` is enabled | high |
+| SEC-POSTURE-59 | Authenticator log on | same read | pass when type `authenticator` is enabled | medium |
+| SEC-POSTURE-60 | GuardDuty EKS Audit Log Monitoring | `aws guardduty list-detectors`, `get-detector` | pass when an `ENABLED` detector has feature `EKS_AUDIT_LOGS` `ENABLED`; no detector or the feature off: fail. Configuration only, findings are never read | medium |
+| SEC-POSTURE-61 | GuardDuty Runtime Monitoring | same reads | pass when feature `RUNTIME_MONITORING` or `EKS_RUNTIME_MONITORING` is `ENABLED`; report the `EKS_ADDON_MANAGEMENT` setting | medium |
+| SEC-POSTURE-48 (sec-33) | A runtime security agent is present | `aws eks list-addons` / `describe-addon`; `kubectl get pods -A -o json` | pass when a GuardDuty add-on is installed, or DaemonSet pods named for the GuardDuty agent, Falco, Sysdig or Tetragon run | medium |
 
 Feature names as in the [GuardDuty API reference](https://docs.aws.amazon.com/guardduty/latest/APIReference/API_DetectorFeatureConfiguration.html), checked 2026-11-05. Why: containment is also about finding out. Audit history from before logging was turned on cannot be recovered.
 
-### The API is not open
+### API exposure (layer api-exposure)
 
-| Id | Check | Live evidence | Pass / fail / n.a. / unknown | Severity | Relation to the pillar |
-|---|---|---|---|---|---|
-| PC-12 | Public endpoint not open to the internet | `describe-cluster` `resourcesVpcConfig.endpointPublicAccess` and `publicAccessCidrs` | pass: public access off, or CIDRs that exclude `0.0.0.0/0`; fail: public with `0.0.0.0/0` | High | adapted (sec-1, sec-2) |
+| Id | Check | Reads the agent makes | Rule | Severity |
+|---|---|---|---|---|
+| SEC-POSTURE-1 (sec-1) | Private endpoint access on | `aws eks describe-cluster` `resourcesVpcConfig.endpointPrivateAccess` | pass when true | medium |
+| SEC-POSTURE-2 (sec-2) | Public endpoint not open to the internet | same read: `endpointPublicAccess`, `publicAccessCidrs` | pass: public access off, or `publicAccessCidrs` restricted; fail: public with a `/0` prefix, or CIDRs that together cover the whole IPv4 range; a CIDR that cannot be parsed makes it `some` (fail, coverage not measured) | high |
 
-### Supply chain
+### Supply chain (layer supply-chain)
 
-| Id | Check | Live evidence | Pass / fail / n.a. / unknown | Severity | Relation to the pillar |
-|---|---|---|---|---|---|
-| PC-13 | Registry scanning is enhanced with continuous rescan | `aws ecr get-registry-scanning-configuration`: `scanType` `ENHANCED` and a rule with `scanFrequency` `CONTINUOUS_SCAN` covering the cluster's repositories | pass: both; fail: basic scanning or scan on push only | Medium | extends lens-12 (scan on push) |
-| PC-14 | Running images pinned by digest | Kubernetes `pods` specs: whether each running image reference carries a digest | pass: every workload image; fail: list images pinned by tag; report the share | Medium | extends sec-12 (accepts an explicit tag) |
-| PC-15 | Admission policy for signed or allowed images, where an engine is installed | Kyverno `ClusterPolicy` with a `verifyImages` rule, or a Gatekeeper constraint on image sources | pass: present and in enforce mode; fail: engine installed, no such policy; n.a.: no engine installed (reported, with guidance on choosing one in [workload-security.md](workload-security.md)) | Medium | extends sec-32 |
+| Id | Check | Reads the agent makes | Rule | Severity |
+|---|---|---|---|---|
+| SEC-POSTURE-62 | Registry scanning is enhanced with continuous rescan | `aws ecr get-registry-scanning-configuration` | `all` (pass): `ENHANCED` with a `CONTINUOUS_SCAN` rule whose filter is `*`; `some` (fail): `ENHANCED` with narrower or on-push rules only; `none`: `BASIC` or no rule | medium |
+| SEC-POSTURE-63 | Workload images pinned by digest | `kubectl get pods -A -o json` (the agent's own read): `image` of every container and init container of unfinished workload pods | Per container: pass when the image ends in `@sha256:<64 hex>`; bucketed; list the rest | low |
+| Port only: image admission | Admission policy for signed or allowed images, where an engine is installed | Kyverno `ClusterPolicy` with a `verifyImages` rule, or a Gatekeeper constraint on image sources | pass: present and in enforce mode; fail: engine installed, no such policy; n.a.: no engine. Reported, not scored (the scripted copy treats image signing, sec-32, as a governance question) | low |
 
 Why: continuous rescan surfaces a new CVE on an image already running; digest pinning makes "what is running" a fact C1 can compare; admission policy stops an unknown image starting.
 
-### Currency
+## Currency rule
 
-| Id | Check | Live evidence | Pass / fail / n.a. / unknown | Severity | Relation to the pillar |
-|---|---|---|---|---|---|
-| PC-16 | No component below a fixed version | C1 findings from a sweep (see [cve-advisory-review.md](cve-advisory-review.md)) | pass: no `exposed`; fail: each exposed finding with its priority; unknown: no sweep run or coverage incomplete | per finding | added |
-
-Only a gap to a published fixed version is a C3 finding. A component that is merely behind the latest release, with no advisory, is not: it belongs to an upgrade readiness assessment, which owns version lag.
+No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: it belongs to an upgrade readiness assessment, which owns version lag.
 
 ## Repository checks (not in this port)
 
-The Claude Code skill can also check a local repository path (lockfiles committed, base images pinned by digest, no `latest` tag). The Agent Space has no file access to a team's repository, so this port does not run them; the report says so under "not checked".
+The Claude Code skill can walk a manual repository check list (lockfiles committed, base images pinned by digest, no `latest` tag) when the team names a local path; it is not scripted there either. The Agent Space has no file access to a team's repository, so this port does not run it; the report says so under "not checked".
 
 ## Output
 
-- Per check: id, result, evidence (the command and field, with the values read), severity.
-- Score: by the scoring rule above, with its coverage line.
-- One summary row per containment layer: "would this contain a compromised pod?" yes / partly / no / unknown, from that layer's checks.
-- Fixes as printed commands or manifests for the team to review (for example a default-deny NetworkPolicy per namespace, a launch template with hop limit 1, the PSA label). Nothing is applied. Hardening knowledge behind each fix is in the layer references of this skill.
+- Per check: id (with the pillar question id where there is one), result, evidence (the read and field, with the values read), severity, layer.
+- Score: by the rules above, with its coverage line, or "incomplete".
+- One verdict row per containment layer.
+- Fixes as printed commands or manifests for the team to review (for example a default-deny NetworkPolicy per namespace, a launch template with hop limit 1, the PSA label, scoping an admin access entry). Nothing is applied. Hardening knowledge behind each fix is in the layer references of this skill.
