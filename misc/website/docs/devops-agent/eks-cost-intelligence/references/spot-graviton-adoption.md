@@ -561,11 +561,11 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 
 ### Data collection
 
-**Step 1:** Use the Kubernetes API to list Nodes and count those with `karpenter.sh/capacity-type=spot` or `eks.amazonaws.com/capacityType=SPOT` labels.
+**Step 1:** Use the Kubernetes API to list Nodes and count those with `karpenter.sh/capacity-type=spot` or `eks.amazonaws.com/capacityType=SPOT` labels, leaving out EKS Auto Mode nodes (`eks.amazonaws.com/compute-type=auto`), since Auto Mode handles Spot interruptions itself.
 
 **Step 2:** Use the Kubernetes API to check for aws-node-termination-handler as a Deployment or DaemonSet in kube-system namespace, or search by label `app.kubernetes.io/name=aws-node-termination-handler`.
 
-**Step 3:** Use the Kubernetes API to check for the Karpenter Deployment in kube-system and its version label. For Karpenter v0.30+, interruption handling is built-in. Check ConfigMaps and environment variables for interruption queue configuration.
+**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. For Karpenter v0.30+, interruption handling is built-in. Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0).
 
 **Step 4:** Use the SQS ListQueues API filtered by naming convention (queue name prefix "karpenter") to verify the interruption queue exists. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
 

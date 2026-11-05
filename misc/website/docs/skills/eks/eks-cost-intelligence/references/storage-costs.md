@@ -429,7 +429,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --region <region>
 ```

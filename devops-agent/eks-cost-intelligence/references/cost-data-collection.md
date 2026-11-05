@@ -29,8 +29,8 @@ This reference documents the exact API calls needed to collect cost and utilizat
 ### Prerequisites
 
 - Cost Allocation Tags activated in Billing console (`eks:cluster-name`, `kubernetes-namespace`)
-- Split Cost Allocation Data enabled for namespace-level attribution
-- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`
+- Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can only view the data once its payer opts in)
+- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
 
 ### Time Window
@@ -136,8 +136,10 @@ for group in response["ResultsByTime"][0]["Groups"]:
     namespace_costs[ns] = namespace_costs.get(ns, 0) + cost
 ```
 
+**Account tier check (pre-flight):** compare the STS GetCallerIdentity `Account` with the Organizations DescribeOrganization `MasterAccountId` (callable from any account in the organization). If they differ, this is a member account and the split cost allocation opt-in needs that payer account. An error (not in an organization, or no permission) means a regular account, or unknown.
+
 **When Split Cost Allocation is not enabled:**
-Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md).
+Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md). Say why in the report: in a member account, name the payer account that must opt in; otherwise, the opt-in is in this account's Cost Management preferences.
 
 ---
 

@@ -908,11 +908,13 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 **Step 1: Check if Spot nodes exist**
 
 ```bash
-# Quick check for any Spot nodes
+# Quick check for any Spot nodes; EKS Auto Mode nodes (eks.amazonaws.com/compute-type=auto)
+# are left out, since Auto Mode handles Spot interruptions itself
 SPOT_COUNT=$(kubectl get nodes -o json | \
   jq '[.items[] | select(
-    .metadata.labels["karpenter.sh/capacity-type"] == "spot" or
-    .metadata.labels["eks.amazonaws.com/capacityType"] == "SPOT"
+    (.metadata.labels["karpenter.sh/capacity-type"] == "spot" or
+     .metadata.labels["eks.amazonaws.com/capacityType"] == "SPOT") and
+    .metadata.labels["eks.amazonaws.com/compute-type"] != "auto"
   )] | length')
 
 echo "Spot nodes: $SPOT_COUNT"
@@ -935,20 +937,18 @@ kubectl get configmap -n kube-system -l app.kubernetes.io/name=aws-node-terminat
 ```bash
 # Karpenter natively handles Spot interruptions (v0.30+)
 # Verify Karpenter is running and has the interruption controller
-kubectl get deployment -n kube-system karpenter -o json 2>/dev/null | \
+# Find its namespace once (kube-system is the recommended install namespace; older installs use karpenter)
+KARPENTER_NS=$(for ns in kube-system karpenter; do kubectl get deployment -n "$ns" karpenter >/dev/null 2>&1 && echo "$ns" && break; done)
+kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
   jq '{
     name: .metadata.name,
     replicas: .status.readyReplicas,
     version: .metadata.labels["app.kubernetes.io/version"]
   }'
 
-# Check Karpenter settings for interruption handling
-kubectl get configmap -n kube-system karpenter-global-settings -o json 2>/dev/null | \
-  jq '.data'
-
 # For Karpenter v1+, interruption is always enabled (built-in)
-# For older versions, check if aws.interruptionQueue is configured
-kubectl get deployment -n kube-system karpenter -o json 2>/dev/null | \
+# Settings live in the container env (the karpenter-global-settings ConfigMap was dropped in v0.33.0)
+kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
   jq '.spec.template.spec.containers[0].env[] | select(.name | test("INTERRUPTION"))'
 ```
 

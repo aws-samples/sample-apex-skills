@@ -41,8 +41,8 @@ This reference documents the exact API calls needed to collect cost and utilizat
 ### Prerequisites
 
 - Cost Allocation Tags activated in Billing console (`eks:cluster-name`, `kubernetes-namespace`)
-- Split Cost Allocation Data enabled for namespace-level attribution
-- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`
+- Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can only view the data once its payer opts in)
+- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
 
 ### Time Window
@@ -66,7 +66,7 @@ get_cloudwatch_metrics(
 **Via AWS CLI:**
 ```bash
 aws ce get-cost-and-usage \
-  --time-period Start=$(date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
+  --time-period Start=$(date -v-30d +%Y-%m-%d 2>/dev/null || date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
   --granularity MONTHLY \
   --metrics "BlendedCost" "UnblendedCost" "UsageQuantity" \
   --filter '{
@@ -127,7 +127,7 @@ Split Cost Allocation Data distributes shared EC2 and EKS costs to individual po
 **Via AWS CLI:**
 ```bash
 aws ce get-cost-and-usage \
-  --time-period Start=$(date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
+  --time-period Start=$(date -v-30d +%Y-%m-%d 2>/dev/null || date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
   --granularity MONTHLY \
   --metrics "BlendedCost" \
   --filter '{
@@ -166,8 +166,16 @@ for group in response["ResultsByTime"][0]["Groups"]:
     namespace_costs[ns] = namespace_costs.get(ns, 0) + cost
 ```
 
+**Account tier check (pre-flight):**
+```bash
+ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+PAYER=$(aws organizations describe-organization --query Organization.MasterAccountId --output text 2>/dev/null)
+# empty PAYER (AWSOrganizationsNotInUseException or no permission): a regular account, or unknown
+[ -n "$PAYER" ] && [ "$PAYER" != "$ACCOUNT" ] && echo "member account: split cost allocation opt-in needs payer $PAYER"
+```
+
 **When Split Cost Allocation is not enabled:**
-Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback).
+Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback). Say why in the report: in a member account, name the payer account that must opt in; otherwise, the opt-in is in this account's Cost Management preferences.
 
 ---
 
@@ -177,14 +185,14 @@ Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estim
 ```bash
 # Savings Plans coverage
 aws ce get-savings-plans-coverage \
-  --time-period Start=$(date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
+  --time-period Start=$(date -v-30d +%Y-%m-%d 2>/dev/null || date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
   --granularity MONTHLY \
   --group-by Type=DIMENSION,Key=INSTANCE_TYPE_FAMILY \
   --region us-east-1
 
 # Savings Plans utilization
 aws ce get-savings-plans-utilization \
-  --time-period Start=$(date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
+  --time-period Start=$(date -v-30d +%Y-%m-%d 2>/dev/null || date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
   --granularity MONTHLY \
   --region us-east-1
 ```
@@ -293,7 +301,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time $(date -d '7 days ago' -u +%Y-%m-%dT%H:%M:%SZ) \
+  --start-time $(( $(date +%s) - 7*86400 )) \
   --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
   --region <region>
 ```
@@ -474,7 +482,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time $(date -d '7 days ago' -u +%Y-%m-%dT%H:%M:%SZ) \
+  --start-time $(( $(date +%s) - 7*86400 )) \
   --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
   --region <region>
 ```
@@ -539,7 +547,7 @@ When Container Insights metrics are not available (add-on not installed, metrics
 # Pod-level CPU and memory utilization
 aws logs start-query \
   --log-group-name "/aws/containerinsights/<cluster-name>/performance" \
-  --start-time $(date -d '7 days ago' +%s) \
+  --start-time $(( $(date +%s) - 7*86400 )) \
   --end-time $(date +%s) \
   --query-string '
     fields @timestamp, kubernetes.namespace_name, kubernetes.pod_name,
@@ -615,7 +623,7 @@ for row in result["results"]:
 ```bash
 aws logs start-query \
   --log-group-name "/aws/containerinsights/<cluster-name>/performance" \
-  --start-time $(date -d '7 days ago' +%s) \
+  --start-time $(( $(date +%s) - 7*86400 )) \
   --end-time $(date +%s) \
   --query-string '
     fields @timestamp, NodeName, node_cpu_utilization, node_memory_utilization
