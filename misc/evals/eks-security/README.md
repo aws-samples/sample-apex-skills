@@ -1,40 +1,65 @@
-# Evals — eks-security
+# Evals: eks-security
 
 ## What these evals target
 
-These inputs exercise the discovery-driven EKS security & compliance scope: choosing the OS/AMI + identity + workload + image + runtime + audit + compliance-accelerator stack for regulated workloads (HIPAA, PCI-DSS, FedRAMP, GDPR). `triggering.json` checks that security/compliance/hardening/audit-prep prompts activate the skill while adjacent EKS concerns (architecture, build, ops-review, recon, cost, upgrade, GenAI-workload, account-level security) do not. `evals.json` checks task usefulness on three canonical scenarios (HIPAA greenfield, Auto-Mode-vs-CIS-AMI trade-off, PCI existing-cluster hardening) including the accuracy guardrails (HIPAA-eligible-not-compliant, IRSA-not-legacy, Auto-Mode-no-custom-AMI).
+eks-security runs three read-only security reviews of a live EKS cluster (C1 CVE and advisory review, C2 security event response, C3 posture check) and gives hardening and compliance guidance. `triggering.json` checks that CVE, advisory, "am I affected", incident, posture and compliance prompts activate the skill while adjacent EKS concerns (general knowledge and security practice, architecture, build, ops review, recon, cost, upgrade and version lag, GenAI workloads, a full Well-Architected review, account-level security) do not.
+
+`evals.json` has nine cases:
+
+| Id | Capability | What it checks |
+|---|---|---|
+| 1 to 3 | Hardening and compliance guidance | HIPAA greenfield baseline, Auto Mode vs CIS custom AMI, PCI existing-cluster priority (HIPAA-eligible not compliant, IRSA not legacy, Audit Manager maintenance mode) |
+| 4 | C1 exposed | Add-on and agent below the fixed versions: verdict exposed, priority raised for no workaround, add-on update printed for the team, source URL and read time |
+| 5 | C1 not exposed | Installed at the fixed versions: "not exposed" lines naming what was compared, against which source, read when; no false alarm |
+| 6 | C1 unknown | Agent image on tag `latest`: unknown with reason and action, never "not exposed", coverage line 1 of 2 |
+| 7 | C1 Auto Mode | AWS-managed components: no add-on update, nodes created before the fix date listed for rotation, NodePool `expireAfter` lever |
+| 8 | C2 event | Compromised image that leaks the pod's credentials: scope, preserve before containing, pod-scoped quarantine, session revocation, read and propose only, exploitation checks stated as not covered |
+| 9 | C3 posture | Per-check results: containment summary per layer, failed checks with evidence, unknown never pass, fixes printed only |
+
+## Fixtures
+
+Cases 4 to 9 are offline: each prompt says not to run `aws`, `kubectl` or `collect.sh`, and the inputs are staged from `files/eval-<id>/` into the working directory.
+
+| Path | Content |
+|---|---|
+| `files/eval-4/`, `eval-5/`, `eval-6/`, `eval-7/` | `inventory.json` (schema `eks-security/inventory@1`), `advisory-record.json` (schema `eks-security/advisory@1`) and `bulletin.txt`, a recorded excerpt of the public bulletin [2026-170-AWS](https://aws.amazon.com/security/security-bulletins/2026-170-aws/) quoted in `skills/eks-security/references/cve-advisory-review.md` |
+| `files/eval-7/auto-mode-release-note.txt` | A mock release-note line that supplies the record's `fixed_at`; it is labelled as not an AWS publication |
+| `files/eval-8/` | `event.md` (event notes) and `scope.json` (read-only scope facts) |
+| `files/eval-9/` | `posture-results.json` (per-check C3 results in the posture-check.md format) |
+
+Cluster names, account ids, instance ids and digests in the fixtures are made up. The C1 fixtures give the same verdicts when run through the skill's own scripts: `advisory_check.py` accepts each record against its `bulletin.txt`, and `match.py` returns exposed (4), not exposed (5), unknown at coverage 0.5 (6) and rotation pending for two nodes (7).
 
 ## Neighbour-skill disambiguation
 
-`eks-security` owns the security/compliance/hardening/regulated-workload lane. It hands off to siblings that own the cluster's *non-security* lifecycle (architecture, build, ops review, discovery, cost, upgrade) and to `eks-genai` for ML-workload-specific security. The discriminator: if the driver is a compliance regime, audit, hardening, or a security control (identity, network policy, image trust, runtime detection, audit logging), it's this skill; otherwise route to the sibling.
+eks-security owns live security reviews (an advisory verdict, an event response, a posture check) and the security, compliance and hardening lane. It hands off to eks-best-practices for knowledge with no live check (including how to stay informed and set a patch cadence), to eks-upgrade-check for version lag with no advisory, to eks-recon for an inventory with no verdict, to eks-well-architected-review for a full five-pillar review, and to the other siblings for their non-security lanes.
 
 <!-- SIBLING_MAP_START -->
-- **`eks-best-practices`** (general EKS architecture/config advice — compute, networking, IAM, cost — no security/compliance driver) — negatives 13, 20 ("Karpenter vs managed node groups + subnet/CIDR planning", "reduce my EKS bill with Spot/Graviton/consolidation").
-- **`eks-design`** (architecture design documents, Mermaid diagrams, ADRs) — negative 14 ("generate an EKS architecture design document with diagrams and ADRs").
-- **`eks-operation-review`** (operational-excellence audit of a live cluster with GREEN/AMBER/RED scoring) — negative 15 ("run an operational excellence review and score it").
-- **`eks-recon`** (cluster discovery / inventory of what is running) — negative 16 ("what Kubernetes version and add-ons is my cluster running").
-- **`eks-genai`** (GenAI/GPU workload guidance, including ML-specific security like model-artifact provenance) — negative 17 ("self-hosting Llama 3 on GPUs — secure model artifacts and pick GPU vs Inferentia").
-- **`eks-build`** (generating deployable EKS Terraform / Helm) — negative 18 ("generate the Terraform and Helm values to build a cluster").
-- **`account-security`** (org-wide AWS account security with no EKS-specific angle — SCPs, IAM Identity Center, multi-service GuardDuty) — negative 19 ("org-wide SCPs, Identity Center, GuardDuty across every account").
-- **`eks-upgrade-check`** (upgrade readiness — deprecated APIs, add-on compatibility) — negative 21 ("is my cluster ready to upgrade from 1.30 to 1.33").
-- **`eks-mcp-server`** (EKS MCP server setup in an AI assistant) — negative 22 ("configure the EKS MCP server so it can read my cluster").
-- **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster — five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) — negative 23 ("score our EKS cluster across all five W…").
+- **`eks-best-practices`** (general EKS architecture, configuration and security operating practice with no live check: compute, networking, cost, how to follow bulletins and set a patch cadence) negatives 21, 28, 32 ("Karpenter vs managed node groups + subnet/CIDR planning", "reduce my EKS bill with Spot/Graviton/consolidation", "stay informed about EKS security bulletins and set a patch cadence").
+- **`eks-design`** (architecture design documents, Mermaid diagrams, ADRs) negative 22 ("generate an EKS architecture design document with diagrams and ADRs").
+- **`eks-operation-review`** (operational-excellence audit of a live cluster with GREEN/AMBER/RED scoring) negative 23 ("run an operational excellence review and score it").
+- **`eks-recon`** (cluster discovery and inventory of what is running, no verdict) negatives 24, 34 ("what Kubernetes version and add-ons is my cluster running", "list every add-on, AMI and image version for a handover document").
+- **`eks-genai`** (GenAI/GPU workload guidance, including ML-specific security like model-artifact provenance) negative 25 ("self-hosting Llama 3 on GPUs: secure model artifacts and pick GPU vs Inferentia").
+- **`eks-build`** (generating deployable EKS Terraform / Helm) negative 26 ("generate the Terraform and Helm values to build a cluster").
+- **`account-security`** (org-wide AWS account security with no EKS-specific angle: SCPs, IAM Identity Center, multi-service GuardDuty) negative 27 ("org-wide SCPs, Identity Center, GuardDuty across every account").
+- **`eks-upgrade-check`** (upgrade readiness and version lag with no advisory: deprecated APIs, add-on compatibility) negatives 29, 33 ("is my cluster ready to upgrade from 1.30 to 1.33", "vpc-cni two minor versions behind latest, no advisory").
+- **`eks-mcp-server`** (EKS MCP server setup in an AI assistant) negative 30 ("configure the EKS MCP server so it can read my cluster").
+- **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster: five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) negatives 31, 35 ("score our EKS cluster across all five Well-Architected pillars", "full Well-Architected review across all pillars").
 <!-- SIBLING_MAP_END -->
 
-The discriminator that separates `eks-security` from all neighbours: a **security control or compliance regime is the driver**, not cluster architecture, build, cost, discovery, or upgrade.
+The discriminator: a **security verdict on a live cluster, a security event, or a security control or compliance regime** is the driver. Knowledge with no check, version lag, inventory, cost, build and a full Well-Architected review go to the sibling.
 
 ## Live-MCP caveat
 
-The `evals.json` tasks are advisory and **do not require a live cluster or MCP server** — each prompt carries enough context (regime, sensitivity, OS strategy, timeline, topology, skill, ops tolerance, current baseline) to be answered from the skill's knowledge alone. No MCP availability is needed to run these evals.
+No case needs a live cluster or an MCP server. Cases 1 to 3 carry enough context to answer from the skill's guidance; cases 4 to 9 carry recorded inputs in `files/`.
 
 ## How to run
 
 From `misc/evals/`:
-- `make validate-eks-security` — frontmatter + 64/1024-char limits (deterministic)
-- `make triggering-eks-security` — triggering accuracy score (LIVE)
-- `make task-eks-security` — task evals with grader (LIVE)
-- `make process-eks-security` — process assertions against latest trajectory (deterministic)
-- `make artifact-eks-security` — artifact validation against outputs/ (deterministic)
-- `make composite-eks-security` — weighted composite score + letter grade (deterministic)
+- `make validate-eks-security`: frontmatter + 64/1024-char limits (deterministic)
+- `make triggering-eks-security`: triggering accuracy score (LIVE)
+- `make task-eks-security`: task evals with grader (LIVE)
+- `make process-eks-security`: process assertions against latest trajectory (deterministic)
+- `make artifact-eks-security`: artifact validation against outputs/ (deterministic)
+- `make composite-eks-security`: weighted composite score + letter grade (deterministic)
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
+See `misc/evals/README.md` for the full capability catalogue (A to K) and `.skilleval.yaml` for weight configuration.

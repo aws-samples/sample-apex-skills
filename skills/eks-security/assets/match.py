@@ -253,6 +253,8 @@ def run(inventory, records, catalog, gate):
         overall = "incomplete"
     elif "exposed" in verdicts:
         overall = "exposed"
+    elif "aws_managed_rotation_pending" in verdicts:
+        overall = "rotation_pending"
     elif "unknown" in verdicts or review:
         overall = "unknown"
     else:

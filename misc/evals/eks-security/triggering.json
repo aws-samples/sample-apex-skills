@@ -36,7 +36,7 @@
     "should_trigger": true
   },
   {
-    "query": "Our compliance team requires CIS-hardened custom AMIs but we wanted EKS Auto Mode for simplicity \u2014 what are our options?",
+    "query": "Our compliance team requires CIS-hardened custom AMIs but we wanted EKS Auto Mode for simplicity. What are our options?",
     "should_trigger": true
   },
   {
@@ -44,7 +44,39 @@
     "should_trigger": true
   },
   {
-    "query": "GDPR-bound EU customer data on EKS \u2014 what's the data-residency architecture and what's our shared responsibility?",
+    "query": "GDPR-bound EU customer data on EKS: what's the data-residency architecture and what's our shared responsibility?",
+    "should_trigger": true
+  },
+  {
+    "query": "Are we affected by CVE-2026-122266 on our EKS clusters? Check our VPC CNI add-on and network policy agent versions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check this AWS security bulletin against my EKS cluster: https://aws.amazon.com/security/security-bulletins/2026-170-aws/",
+    "should_trigger": true
+  },
+  {
+    "query": "Here is a GHSA advisory for one of our EKS add-ons. Is our cluster exposed, and what is the fixed version?",
+    "should_trigger": true
+  },
+  {
+    "query": "Do a CVE review of our EKS cluster: check every advisory published since 2026-10-01 against what we actually run.",
+    "should_trigger": true
+  },
+  {
+    "query": "We think an image running on our EKS cluster has been compromised. How do we contain it without taking down the rest of the namespace?",
+    "should_trigger": true
+  },
+  {
+    "query": "An access key used by one of our EKS workloads leaked on a public repo an hour ago. What do we do on the cluster right now?",
+    "should_trigger": true
+  },
+  {
+    "query": "If one pod in our EKS cluster gets compromised tomorrow, would our setup contain it? Check IMDS, network policy, PSA and identity.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run a security health check on our live EKS cluster and tell me which security controls are missing, with evidence.",
     "should_trigger": true
   },
   {
@@ -64,7 +96,7 @@
     "should_trigger": false
   },
   {
-    "query": "We're self-hosting Llama 3 on EKS with GPUs \u2014 how do we secure the model artifacts and training data, and pick GPU vs Inferentia?",
+    "query": "We're self-hosting Llama 3 on EKS with GPUs. How do we secure the model artifacts and training data, and pick GPU vs Inferentia?",
     "should_trigger": false
   },
   {
@@ -72,11 +104,11 @@
     "should_trigger": false
   },
   {
-    "query": "Help us set up org-wide AWS security \u2014 SCPs, IAM Identity Center, and GuardDuty across every account and service with no EKS angle.",
+    "query": "Help us set up org-wide AWS security: SCPs, IAM Identity Center, and GuardDuty across every account and service with no EKS angle.",
     "should_trigger": false
   },
   {
-    "query": "How do I reduce my EKS bill \u2014 Spot, Graviton, and Karpenter consolidation strategy?",
+    "query": "How do I reduce my EKS bill with Spot, Graviton, and a Karpenter consolidation strategy?",
     "should_trigger": false
   },
   {
@@ -89,6 +121,22 @@
   },
   {
     "query": "score our EKS cluster across all five Well-Architected pillars, security included",
+    "should_trigger": false
+  },
+  {
+    "query": "How should our platform team stay informed about EKS security bulletins and set a patch cadence for add-ons? No cluster check, just the practice.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our vpc-cni add-on is two minor versions behind the latest release and there is no advisory for it. Should we move it before our 1.34 upgrade?",
+    "should_trigger": false
+  },
+  {
+    "query": "List every add-on, node AMI and container image version running in our EKS cluster for a handover document.",
+    "should_trigger": false
+  },
+  {
+    "query": "Run a full Well-Architected review of our EKS cluster across reliability, cost, performance, operations and security.",
     "should_trigger": false
   }
 ]

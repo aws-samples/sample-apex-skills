@@ -10,9 +10,10 @@
         "Recommends EKS Pod Identity for new workloads AND EKS Access Entries instead of the aws-auth ConfigMap",
         "Includes the non-negotiable baseline: PSA restricted, default-deny NetworkPolicy, control-plane audit+authenticator logging, GuardDuty for EKS, ECR Enhanced Scanning, secrets via Secrets Manager + CSI driver (not plain K8s Secrets)",
         "Includes the compliance-status disclaimer to verify on the live AWS Services in Scope page",
-        "Does NOT call IRSA 'legacy' — frames Pod Identity as recommended-for-new while IRSA is a fully supported alternative — TODO: human review"
+        "Does NOT call IRSA 'legacy': frames Pod Identity as recommended-for-new while IRSA is a fully supported alternative. TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "name": "hipaa-greenfield-baseline"
     },
     {
       "id": 2,
@@ -21,9 +22,10 @@
         "States EKS Auto Mode does NOT support custom AMIs",
         "Recommends Bottlerocket on self-managed Karpenter NodePools when a CIS-hardened custom AMI is a hard requirement",
         "Distinguishes a hard regulatory requirement from an organizational preference before recommending",
-        "Notes the Layer 2-7 security baseline is identical regardless of the Layer-1 choice — TODO: human review"
+        "Notes that on Auto Mode the identity, image, runtime, audit and compliance layers (2, 4, 5, 6, 7) and all policy content stay the customer's, so Auto Mode is not 'security handled'. TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "name": "automode-vs-cis-custom-ami"
     },
     {
       "id": 3,
@@ -33,10 +35,442 @@
         "Recommends migrating aws-auth ConfigMap to EKS Access Entries during a planned change window",
         "Recommends PSA restricted rolled out in audit mode before enforce mode",
         "Notes AL2 must be migrated (AL2023 or Bottlerocket) and references the correct AL2 timing (EKS stopped AL2 AMIs Nov 2025 / AL2 OS EOL June 30 2026)",
-        "Recommends AWS Config conformance packs (the PCI DSS 4.0 pack) + Security Hub as the audit-prep path, and does NOT prescribe standing up AWS Audit Manager for this audit — Audit Manager is in maintenance mode / closed to new accounts (as of 2026-04-30); its PCI framework continues for existing setups only.",
-        "States PCI-DSS requires 1-year minimum audit-log retention — TODO: human review"
+        "Recommends AWS Config conformance packs (the PCI DSS 4.0 pack) + Security Hub as the audit-prep path, and does NOT prescribe standing up AWS Audit Manager for this audit: Audit Manager is in maintenance mode / closed to new accounts (as of 2026-04-30); its PCI framework continues for existing setups only.",
+        "States PCI-DSS requires 1-year minimum audit-log retention. TODO: human review"
       ],
-      "files": []
+      "files": [],
+      "name": "pci-existing-cluster-priority"
+    },
+    {
+      "id": 4,
+      "name": "c1-exposed-no-workaround",
+      "prompt": "This is an offline test with recorded inputs, not a live cluster task. Do NOT run any aws or kubectl commands and do not run collect.sh. The working directory holds `inventory.json` (an eks-security/inventory@1 collection of the cluster), `advisory-record.json` (an eks-security/advisory@1 record already extracted from the bulletin) and `bulletin.txt` (the saved bulletin text the record was checked against). You may run the skill's offline scripts (advisory_check.py, match.py, render_report.py) on these files. We got pointed at the AWS security bulletin https://aws.amazon.com/security/security-bulletins/2026-170-aws/ about the network policy agent in the VPC CNI. Is our cluster demo-standard exposed, how urgent is it, and what should we do?",
+      "files": [
+        "eval-4/inventory.json",
+        "eval-4/advisory-record.json",
+        "eval-4/bulletin.txt"
+      ],
+      "expectations": [
+        "Gives the verdict exposed for both the vpc-cni add-on (v1.21.1-eksbuild.3, fixed 1.22.3) and the aws-network-policy-agent image (v1.2.0-eksbuild.1, fixed 1.3.7)",
+        "Uses the bulletin's own severity (Important) and raises the priority one step (P2 to P1) because the bulletin states there is no workaround; it does not invent its own severity rating",
+        "Proposes the add-on update as a command for the team to review and run (describe-addon-versions first, a non-prod test, then update-addon to 1.22.3 or later with --resolve-conflicts PRESERVE) and does not claim to have run it",
+        "Cites the source URL and the advisory read time (2026-11-05T15:04:00Z), and opens with a coverage line (2 of 2 components read)",
+        "Treats the advisory's NetworkPolicy condition as a note, not as a reason to lower the priority"
+      ],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Read",
+          "min": 1
+        },
+        {
+          "type": "step-count",
+          "min": 2,
+          "max": 30
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 5
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "exposed",
+          "context": "Both components are below the fixed versions",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Verdict rules; worked example table, standard cluster row)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "P1",
+          "context": "Important is base P2; no workaround raises it one step",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Verdict rules: Priority)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "resolve-conflicts\\s+PRESERVE",
+          "context": "Proposed add-on fix shape",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Report sections: proposed fixes, EKS add-on)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "1\\.22\\.3",
+          "context": "Fixed add-on version from the bulletin",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Worked example: impacted versions line)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "2026-170-aws",
+          "context": "Finding cites its source URL",
+          "source": "skills/eks-security/SKILL.md (accuracy bar: every version fact with its URL and read time)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "no workaround",
+            "no workarounds"
+          ],
+          "context": "Workaround status is printed per finding",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Report sections: findings table, workaround yes/no)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "c1-not-exposed",
+      "prompt": "This is an offline test with recorded inputs, not a live cluster task. Do NOT run any aws or kubectl commands and do not run collect.sh. The working directory holds `inventory.json` (an eks-security/inventory@1 collection of the cluster), `advisory-record.json` (an eks-security/advisory@1 record already extracted from the bulletin) and `bulletin.txt` (the saved bulletin text the record was checked against). You may run the skill's offline scripts (advisory_check.py, match.py, render_report.py) on these files. Same bulletin (https://aws.amazon.com/security/security-bulletins/2026-170-aws/), different cluster: demo-patched. Are we exposed? If not, tell me exactly what you checked so I can put it in our change record.",
+      "files": [
+        "eval-5/inventory.json",
+        "eval-5/advisory-record.json",
+        "eval-5/bulletin.txt"
+      ],
+      "expectations": [
+        "Gives the verdict not exposed: vpc-cni v1.22.3-eksbuild.1 is at the fixed 1.22.3 and the agent v1.3.7-eksbuild.1 is at the fixed 1.3.7 (build suffix ignored for the compare)",
+        "Each not-exposed line names the component, installed version, fixed version, the source URL, the advisory read time and the inventory collection time (2026-11-05T18:00:00Z)",
+        "Does not raise a false alarm: no exposed finding and no urgent upgrade or patch proposal for this advisory",
+        "Opens with a coverage line showing every targeted component was read (2 of 2)"
+      ],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Read",
+          "min": 1
+        },
+        {
+          "type": "step-count",
+          "min": 2,
+          "max": 30
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 5
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "not exposed",
+            "not_exposed"
+          ],
+          "context": "Both components at or above the fixed versions",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: Not exposed)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "2026-11-05T15:04",
+          "context": "Read time of the advisory source is printed",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: Not exposed line)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "2026-11-05T18:00",
+          "context": "Inventory collection time is printed",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: compared against the inventory collected <collected_at>)"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "update-addon\\s+--cluster-name",
+          "context": "No fix proposed when not exposed",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Report sections: proposed fixes are for exposed items)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "c1-unknown-tag-latest",
+      "prompt": "This is an offline test with recorded inputs, not a live cluster task. Do NOT run any aws or kubectl commands and do not run collect.sh. The working directory holds `inventory.json` (an eks-security/inventory@1 collection of the cluster), `advisory-record.json` (an eks-security/advisory@1 record already extracted from the bulletin) and `bulletin.txt` (the saved bulletin text the record was checked against). You may run the skill's offline scripts (advisory_check.py, match.py, render_report.py) on these files. Same bulletin (https://aws.amazon.com/security/security-bulletins/2026-170-aws/). Cluster demo-override: the add-on is on the fixed version, so I assume we're fine. Can you confirm we're not exposed?",
+      "files": [
+        "eval-6/inventory.json",
+        "eval-6/advisory-record.json",
+        "eval-6/bulletin.txt"
+      ],
+      "expectations": [
+        "Does NOT confirm 'not exposed': the overall result is unknown because the aws-network-policy-agent image runs with tag `latest` and could not be compared",
+        "Gives the reason for the unknown (tag_latest) and the action to resolve it (find the digest's version in the registry or pin the image), and says it is not a clean result",
+        "Reports the vpc-cni add-on line as not exposed on its own while keeping the overall verdict unknown",
+        "Prints a coverage line showing 1 of 2 targeted components read"
+      ],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Read",
+          "min": 1
+        },
+        {
+          "type": "step-count",
+          "min": 2,
+          "max": 30
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 5
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "unknown",
+            "could not be compared"
+          ],
+          "context": "Unreadable component is unknown",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Verdict rules; Wording in the report: Unknown)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "latest",
+          "context": "Reason for the unknown is named",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Unknown reasons table: tag_latest)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "not a clean result",
+            "not clean",
+            "cannot confirm",
+            "can't confirm",
+            "can not confirm"
+          ],
+          "context": "Unknown is never phrased as clean",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: Unknown is never phrased as clean)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "1\\s*/\\s*2",
+            "1 of 2",
+            "50\\s*%",
+            "0\\.5"
+          ],
+          "context": "Coverage line",
+          "source": "skills/eks-security/SKILL.md (Common rule 3: coverage gate)"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "c1-auto-mode-rotation-pending",
+      "prompt": "This is an offline test with recorded inputs, not a live cluster task. Do NOT run any aws or kubectl commands and do not run collect.sh. The working directory holds `inventory.json` (an eks-security/inventory@1 collection of the cluster), `advisory-record.json` (an eks-security/advisory@1 record already extracted from the bulletin) and `bulletin.txt` (the saved bulletin text the record was checked against). You may run the skill's offline scripts (advisory_check.py, match.py, render_report.py) on these files. The file `auto-mode-release-note.txt` is a mock release-note line for this test; the record's `fixed_at` was taken from it. Cluster demo-automode is an EKS Auto Mode cluster. Same bulletin (https://aws.amazon.com/security/security-bulletins/2026-170-aws/): are we exposed and do we need to update the VPC CNI add-on?",
+      "files": [
+        "eval-7/inventory.json",
+        "eval-7/advisory-record.json",
+        "eval-7/bulletin.txt",
+        "eval-7/auto-mode-release-note.txt"
+      ],
+      "expectations": [
+        "States that on Auto Mode AWS manages and patches the VPC CNI and the network policy agent, so the team runs no add-on update for them",
+        "Lists the nodes created before the fix date 2026-11-03T00:00:00Z as pending rotation, oldest first with creation times (i-0a1b2c3d4e5f60001 created 2026-10-22, i-0a1b2c3d4e5f60002 created 2026-10-25), and treats i-0a1b2c3d4e5f60003 (created 2026-11-04) as already on the fixed build",
+        "Proposes the customer's lever as a printed proposal for review: a shorter NodePool expireAfter or a planned replacement of the pending nodes, and notes Auto Mode instances live at most 21 days",
+        "Does not propose an aws eks update-addon command for an AWS-managed component and does not call the result a plain clean 'not exposed' while nodes are pending",
+        "Keeps the base priority (P2) for the Auto Mode verdict rather than raising it"
+      ],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Read",
+          "min": 1
+        },
+        {
+          "type": "step-count",
+          "min": 2,
+          "max": 30
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 5
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "expireAfter",
+          "context": "The customer's lever on Auto Mode",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: proposes a shorter expireAfter or planned replacement)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "i-0a1b2c3d4e5f60001",
+          "context": "Oldest pending node is listed",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: lists nodes_pending oldest first)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "i-0a1b2c3d4e5f60002",
+          "context": "Second pending node is listed",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: lists nodes_pending oldest first)"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "update-addon\\s+--cluster-name",
+          "context": "Never a patch command for an AWS-managed component",
+          "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: never a patch command for an AWS-managed component)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "AWS-managed",
+            "AWS managed",
+            "managed by AWS",
+            "AWS patches",
+            "AWS-patched"
+          ],
+          "context": "Component reported as AWS-managed",
+          "source": "skills/eks-security/SKILL.md (Common rule 5: Auto Mode split)"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "c2-compromised-image-leaked-credential",
+      "prompt": "This is an offline test with recorded inputs, not a live cluster task. Do NOT run any aws or kubectl commands and do not run collect.sh. The working directory holds `event.md` (what we know) and `scope.json` (read-only scope facts already collected). A malicious package in our orders-api image has been stealing the pod's AWS credentials. What do we do now? Give me the response plan.",
+      "files": [
+        "eval-8/event.md",
+        "eval-8/scope.json"
+      ],
+      "expectations": [
+        "Scopes first: the cluster, the shop namespace, the two orders-api pods and their nodes, the image digest, and the identity (the orders-api service account, its Pod Identity association and role orders-api-pod with its S3 and SQS policies)",
+        "Preserves evidence before containment: records pod specs, node records, the running digest and logs, proposes an EBS snapshot of the node volumes, and says not to delete, scale down or restart the pods until evidence is captured",
+        "Proposes pod-scoped NetworkPolicy isolation by a unique quarantine label on the two orders-api pods, and explicitly not a namespace-wide deny-all that would cut cart, checkout and catalog",
+        "Proposes identity containment for the leaked credentials: revoke the role's active sessions and remove or narrow the Pod Identity association, plus blocking the digest at admission since Kyverno is installed",
+        "Every change is printed for the team to review and run; the answer does not claim to have applied anything",
+        "States that checking whether the stolen credentials were used (GuardDuty findings, CloudTrail, audit log queries) is not covered by the skill"
+      ],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Read",
+          "min": 1
+        },
+        {
+          "type": "step-count",
+          "min": 2,
+          "max": 30
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 5
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "quarantine",
+          "context": "Pod-scoped isolation by a unique label",
+          "source": "skills/eks-security/references/security-event-response.md (Step 3: pod-scoped network isolation, by label)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "revoke active sessions",
+            "revoke.{0,20}sessions",
+            "AWSRevokeOlderSessions"
+          ],
+          "context": "Issued credentials stay valid until revoked",
+          "source": "skills/eks-security/references/security-event-response.md (Step 3: identity revocation)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "create-snapshot",
+            "snapshot"
+          ],
+          "context": "Propose a snapshot before containment",
+          "source": "skills/eks-security/references/security-event-response.md (Step 2: propose, do not run, a snapshot)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "not covered",
+            "does not cover",
+            "doesn't cover",
+            "out of scope"
+          ],
+          "context": "Exploitation checks are not covered",
+          "source": "skills/eks-security/references/security-event-response.md (Step 2: checking whether an exposure was exploited is not covered yet)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "do not delete",
+            "don't delete",
+            "not delete"
+          ],
+          "context": "Preserve before containing",
+          "source": "skills/eks-security/references/security-event-response.md (Step 2: do not delete, scale down or restart the pod)"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "c3-posture-containment-summary",
+      "prompt": "This is an offline test with recorded inputs, not a live cluster task. Do NOT run any aws or kubectl commands and do not run collect.sh. The working directory holds `posture-results.json`, the per-check results of a posture check on cluster demo-shared. Would this cluster contain a compromised pod? Give me the posture report and what to fix first.",
+      "files": [
+        "eval-9/posture-results.json"
+      ],
+      "expectations": [
+        "Gives a containment summary with one row per layer (node role, lateral movement, escalation, broad identity, being seen, open API, supply chain), each yes / partly / no / unknown from that layer's checks",
+        "Lists each failed check with its evidence (for example PC-2 hop limit 2 on node group general, PC-4 orders and web without default-deny, PC-6a legacy without a PSA enforce label, PC-6b the hostPath and hostNetwork pod, PC-7 the extra S3 policy on the node role, PC-12 public endpoint open to 0.0.0.0/0)",
+        "Reports PC-10, PC-11 and PC-16 as unknown with their reasons (GuardDuty read denied, no sweep run), never as pass",
+        "Fixes are printed for the team to review (for example a launch template with hop limit 1, a default-deny NetworkPolicy per namespace, the PSA label, restricting the endpoint CIDRs) and nothing is applied",
+        "Does not treat plain version lag as a posture finding; a currency gap is only a component below a fixed version from C1"
+      ],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Read",
+          "min": 1
+        },
+        {
+          "type": "step-count",
+          "min": 2,
+          "max": 30
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 5
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "PC-2",
+          "context": "Failed check listed by id",
+          "source": "skills/eks-security/references/posture-check.md (Containment checks: PC-2 IMDS hop limit)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "0\\.0\\.0\\.0/0",
+          "context": "Open public endpoint evidence",
+          "source": "skills/eks-security/references/posture-check.md (PC-12)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "unknown",
+          "context": "Unread checks are unknown, never pass",
+          "source": "skills/eks-security/references/posture-check.md (A check that could not read its evidence is unknown)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "partly",
+            "partial"
+          ],
+          "context": "Per-layer summary row values",
+          "source": "skills/eks-security/references/posture-check.md (Output: summary row per containment layer yes / partly / no / unknown)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "hop limit (of )?1",
+            "HttpPutResponseHopLimit\\W+1",
+            "hop-limit 1",
+            "http-put-response-hop-limit 1"
+          ],
+          "context": "IMDS fix shape",
+          "source": "skills/eks-security/references/posture-check.md (Output: a launch template with hop limit 1)"
+        }
+      ]
     }
   ]
 }

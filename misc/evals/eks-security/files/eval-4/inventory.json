@@ -1,0 +1,100 @@
+{
+  "schema": "eks-security/inventory@1",
+  "cluster": "demo-standard",
+  "region": "us-west-2",
+  "collected_at": "2026-11-05T18:00:00Z",
+  "control_plane": {
+    "version": "1.33",
+    "platform_version": "eks.9",
+    "auto_mode": false,
+    "endpoint_public": false,
+    "public_cidrs": []
+  },
+  "components": [
+    {
+      "id": "k8s:control-plane",
+      "kind": "control-plane",
+      "name": "kubernetes",
+      "version": "1.33",
+      "platform_version": "eks.9",
+      "managed_by": "aws",
+      "where": [
+        "cluster"
+      ],
+      "readable": true,
+      "reason": null
+    },
+    {
+      "id": "addon:vpc-cni",
+      "kind": "eks-addon",
+      "name": "vpc-cni",
+      "version": "v1.21.1-eksbuild.3",
+      "managed_by": "customer",
+      "where": [
+        "cluster"
+      ],
+      "readable": true,
+      "reason": null
+    },
+    {
+      "id": "image:aws-node/aws-network-policy-agent",
+      "kind": "container-image",
+      "name": "aws-network-policy-agent",
+      "image": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon/aws-network-policy-agent:v1.2.0-eksbuild.1",
+      "version": "v1.2.0-eksbuild.1",
+      "digest": null,
+      "namespace": "kube-system",
+      "workload": "daemonset/aws-node",
+      "addon": "vpc-cni",
+      "managed_by": "customer",
+      "where": [
+        "kube-system/daemonset/aws-node"
+      ],
+      "readable": true,
+      "reason": null
+    },
+    {
+      "id": "addon:coredns",
+      "kind": "eks-addon",
+      "name": "coredns",
+      "version": "v1.12.4-eksbuild.1",
+      "managed_by": "customer",
+      "where": [
+        "cluster"
+      ],
+      "readable": true,
+      "reason": null
+    },
+    {
+      "id": "node-os:general",
+      "kind": "node-os",
+      "os_image": "Amazon Linux 2023.9.20251020",
+      "kernel": "6.1.155-176.282.amzn2023.x86_64",
+      "kubelet": "v1.33.5-eks-113cf36",
+      "runtime": "containerd://1.7.27",
+      "ami": "ami-0123456789abcdef0",
+      "nodes": [
+        "ip-10-0-1-11.us-west-2.compute.internal",
+        "ip-10-0-2-12.us-west-2.compute.internal",
+        "ip-10-0-3-13.us-west-2.compute.internal"
+      ],
+      "node_created": {
+        "ip-10-0-1-11.us-west-2.compute.internal": "2026-10-20T08:00:00Z",
+        "ip-10-0-2-12.us-west-2.compute.internal": "2026-10-20T08:05:00Z",
+        "ip-10-0-3-13.us-west-2.compute.internal": "2026-10-28T09:00:00Z"
+      },
+      "oldest_node_created": "2026-10-20T08:00:00Z",
+      "managed_by": "customer",
+      "where": [
+        "general"
+      ],
+      "readable": true,
+      "reason": null
+    }
+  ],
+  "images": [],
+  "coverage": {
+    "components_total": 5,
+    "components_readable": 5
+  }
+}

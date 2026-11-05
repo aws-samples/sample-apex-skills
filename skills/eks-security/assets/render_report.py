@@ -30,6 +30,8 @@ VERDICT_ORDER = {"exposed": 0, "unknown": 1, "aws_managed_rotation_pending": 2,
                  "aws_managed_patched": 3, "not_exposed": 4}
 SEV_ORDER = {"critical": 0, "high": 1, "important": 1, "medium": 2, "low": 3}
 OVERALL = {"exposed": "Exposed: at least one component is inside an affected range.",
+           "rotation_pending": "Rotation pending: AWS has patched the component, but some Auto Mode nodes created "
+                               "before the fix still run the old build until they are replaced. See the nodes listed below.",
            "not_exposed": "Not exposed: every targeted component was read and is outside the affected ranges.",
            "unknown": "Unknown: nothing was found exposed, but at least one component or advisory could not be "
                       "decided. See Unknown and Needs manual review."}
