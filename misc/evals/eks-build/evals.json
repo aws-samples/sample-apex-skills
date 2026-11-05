@@ -385,22 +385,25 @@
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "permissions_boundary",
+          "pattern": "permissions_boundary\\s*:",
           "context": "The boundary must be an input in cluster.yaml and threaded into every generated IAM role",
           "source": "https://github.com/aws-samples/sample-apex-skills/issues/249"
         },
         {
-          "type": "must-contain-one-of",
-          "patterns": [
-            "iam_role_permissions_boundary_arn",
-            "node_iam_role_permissions_boundary"
-          ],
-          "context": "The Karpenter submodule takes its own boundary inputs for the controller and node roles",
+          "type": "must-contain",
+          "pattern": "iam_role_permissions_boundary_arn",
+          "context": "The Karpenter submodule takes the controller role boundary as iam_role_permissions_boundary_arn",
           "source": "https://github.com/terraform-aws-modules/terraform-aws-eks/blob/v21.29.0/modules/karpenter/variables.tf"
         },
         {
           "type": "must-contain",
-          "pattern": "permissions_boundary_arn",
+          "pattern": "node_iam_role_permissions_boundary",
+          "context": "The Karpenter submodule takes the node role boundary as node_iam_role_permissions_boundary",
+          "source": "https://github.com/terraform-aws-modules/terraform-aws-eks/blob/v21.29.0/modules/karpenter/variables.tf"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "(?<![a-z_])permissions_boundary_arn",
           "context": "The eks-pod-identity module takes the boundary as permissions_boundary_arn",
           "source": "https://github.com/terraform-aws-modules/terraform-aws-eks-pod-identity/blob/v2.10.0/variables.tf"
         }

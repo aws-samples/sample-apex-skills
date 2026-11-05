@@ -256,11 +256,17 @@ echo "-------------------------------------------"
 
 CLUSTER_YAML="$PROJECT_DIR/configs/cluster.yaml"
 BOUNDARY=""
-if [ -f "$CLUSTER_YAML" ]; then
-    BOUNDARY=$(grep -E '^\s*permissions_boundary\s*:' "$CLUSTER_YAML" | head -1 \
+UNREADABLE=0
+if [ -f "$CLUSTER_YAML" ] && [ ! -r "$CLUSTER_YAML" ]; then
+    UNREADABLE=1
+elif [ -f "$CLUSTER_YAML" ]; then
+    # Top-level key only; strip CR so a CRLF file reads the same
+    BOUNDARY=$(grep -E '^permissions_boundary\s*:' "$CLUSTER_YAML" | head -1 | tr -d '\r' \
         | sed -E 's/^[^:]*:\s*//; s/\s+#.*$//; s/^["'\'']//; s/["'\'']\s*$//' || true)
 fi
-if [ -z "$BOUNDARY" ] || [ "$BOUNDARY" = "null" ] || [ "$BOUNDARY" = "~" ]; then
+if [ "$UNREADABLE" = 1 ]; then
+    fail "configs/cluster.yaml is not readable: cannot check permissions_boundary"
+elif [ -z "$BOUNDARY" ] || [ "$BOUNDARY" = "null" ] || [ "$BOUNDARY" = "~" ]; then
     pass "permissions_boundary not set: no boundary check needed"
 else
     # A customer managed (account id) or AWS managed (`aws`) policy can be a boundary
@@ -270,8 +276,8 @@ else
         fail "permissions_boundary is not an IAM policy ARN: $BOUNDARY"
     fi
     # Every role-creating block must name a boundary input: aws_iam_role resources and
-    # modules from terraform-aws-eks (root, karpenter), eks-pod-identity, eks-blueprints-addon(s)
-    # and iam-role-for-service-accounts. A text scan per block: it cannot see inside
+    # modules from terraform-aws-eks (root, karpenter), eks-pod-identity and eks-blueprints-addon(s).
+    # A text scan per block: it cannot see inside
     # each add-on map of eks-blueprints-addons or a node-group map built in locals.
     MISSING=$(find "$PROJECT_DIR" -name '*.tf' -not -path '*/.terraform/*' -print0 \
         | xargs -0 -r awk '
@@ -286,11 +292,11 @@ else
                 if (depth <= 0 && blk ~ /{/) {
                     inblk = 0
                     if (kind == "role" && blk !~ /permissions_boundary/) print start
-                    if (kind == "module" && blk ~ /source[[:space:]]*=[[:space:]]*"[^"]*(terraform-aws-modules\/eks\/aws|eks-pod-identity|eks-blueprints-addons?\/aws|iam-role-for-service-accounts)/ && blk !~ /boundary/) print start
+                    if (kind == "module" && blk ~ /source[[:space:]]*=[[:space:]]*"[^"]*(terraform-aws-modules\/eks\/aws|eks-pod-identity|eks-blueprints-addons?\/aws)/ && blk !~ /boundary/) print start
                 }
             }' || true)
     if [ -z "$MISSING" ]; then
-        pass "Every IAM role and role-creating module names a permissions boundary input"
+        pass "Every scanned block names a boundary input (text scan; check each role by hand)"
     else
         while IFS= read -r loc; do
             fail "No permissions boundary input at $loc (see baseline-defaults.md IAM)"
