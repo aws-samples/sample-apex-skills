@@ -209,7 +209,7 @@ spec:
       priorityClassName: overprovisioning
       containers:
       - name: pause
-        image: registry.k8s.io/pause
+        image: registry.k8s.io/pause:3.10.2
         resources:
           requests:
             cpu: "1"
