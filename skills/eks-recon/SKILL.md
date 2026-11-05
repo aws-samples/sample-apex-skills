@@ -259,6 +259,8 @@ show the current facts inline while requesting a different prefix.
 
 > Reports can contain cluster ARNs, account/resource identifiers and infrastructure
 > details. Review and redact before sharing; keep generated reports out of source control.
+> Before sharing outside the account, mask or omit the account ID and cluster ARNs
+> (CONTRIBUTING.md, Report masking).
 
 #### 4a. Markdown fact report (primary) → `<output-prefix>.md`
 

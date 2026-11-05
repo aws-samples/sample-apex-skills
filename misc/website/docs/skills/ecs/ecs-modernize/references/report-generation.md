@@ -281,6 +281,10 @@ This applies to — at minimum — the recommended Migration_Strategy (or the pa
 
 No part of any detected credential value — whole or partial — appears anywhere in the report. Blockers of category `hardcoded_credentials` are rendered with file path, category, and a value-free description only (naming the credential type is allowed). This is the all-phases invariant from SKILL.md; the report is where it is most easily violated, so audit for it explicitly (procedure step 5).
 
+### Report masking
+
+The report can carry hostnames, private repository URLs and other identifiers found in the source. Treat it as confidential to the owner; before sharing it outside the organization, mask or omit account IDs and ARNs (CONTRIBUTING.md, Report masking).
+
 ### Artifact examples: code blocks only, no IaC
 
 When any section illustrates a containerization artifact (a Dockerfile sketch, a task-definition fragment), the illustration appears **only as a fenced code block inside the report** — never as a separate file on disk. **No IaC code** (Terraform, CloudFormation, CDK) appears anywhere in the report: Linux container path environment IaC is delegated to `ecs-build` by name (§8), and Windows_Environment_Terraform is generated only during Migration_Execution, behind the Execution_Gate.

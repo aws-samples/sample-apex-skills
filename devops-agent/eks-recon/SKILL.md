@@ -159,7 +159,8 @@ returns an error without prompting; current facts remain visible inline. If the
 service cannot inspect destinations, do not claim collision checks were performed.
 
 > Reports can contain cluster ARNs, account/resource identifiers and infrastructure
-> details. Review and redact before sharing.
+> details. Review and redact before sharing. Before sharing outside the account, mask or
+> omit the account ID and cluster ARNs (CONTRIBUTING.md, Report masking).
 
 ### Markdown fact report (primary)
 
