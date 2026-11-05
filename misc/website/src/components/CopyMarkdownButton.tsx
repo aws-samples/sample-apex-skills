@@ -87,7 +87,6 @@ export default function CopyMarkdownButton({editUrl}: Props): React.JSX.Element 
       <button
         type="button"
         className="copy-page-button copy-page-toggle"
-        aria-haspopup="menu"
         aria-expanded={open}
         aria-label="More page actions"
         onClick={() => setOpen(!open)}
@@ -97,19 +96,19 @@ export default function CopyMarkdownButton({editUrl}: Props): React.JSX.Element 
         </svg>
       </button>
       {open && (
-        <ul className="copy-page-list" role="menu">
-          <li role="none">
-            <button type="button" role="menuitem" onClick={handleCopy}>
+        <ul className="copy-page-list">
+          <li>
+            <button type="button" onClick={handleCopy}>
               Copy as markdown
             </button>
           </li>
-          <li role="none">
-            <a role="menuitem" href={rawUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+          <li>
+            <a href={rawUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
               View .md
             </a>
           </li>
-          <li role="none">
-            <a role="menuitem" href={claudeUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+          <li>
+            <a href={claudeUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
               Open in Claude
             </a>
           </li>

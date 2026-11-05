@@ -3,6 +3,7 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import skills from '@site/static/manifests/skill-finder.json';
 import type {FinderSkill} from '@site/src/components/SkillFinder';
+import {INSTALLER} from '@site/src/apexPin';
 
 const allSkills = skills as FinderSkill[];
 
@@ -61,7 +62,7 @@ function AgentDemo() {
       </pre>
       <p className="apex-terminal__caption">
         Ask in your own words. In Claude Code and Kiro CLI you can also type{' '}
-        <code>/apex</code>; in Codex, <code>$apex</code>.{' '}
+        <code>/apex</code>; in Codex, <code>$apex</code> (manual install from main).{' '}
         <Link to="/docs/skills/general/apex/">How the router works</Link>
       </p>
     </section>
@@ -138,7 +139,7 @@ function HowItWorks() {
         <div className="apex-steps__item">
           <span className="apex-steps__number">1</span>
           <h3>Install</h3>
-          <p>npx apex-skills@1.3.0</p>
+          <p>{INSTALLER}</p>
           <p>
             Pick your agent and skills in the <Link to="/install">install composer</Link>.
             For v2 and its <code>/apex</code> router, use the manual install from{' '}
@@ -178,9 +179,7 @@ function CtaSection() {
 
 export default function Home(): ReactNode {
   return (
-    <Layout
-      title="EKS and ECS skills for AI coding agents"
-      description={`${allSkills.length} open-source EKS and ECS skills for AI coding agents: design, build, upgrade and review AWS container platforms from Claude Code, Kiro CLI or Codex.`}>
+    <Layout title="APEX Skills — AWS Platform Engineering for AI Agents" description="Curated agentic AI skills for AWS platform engineering. Open-source skills for EKS, Terraform, and infrastructure workflows, delivered through any coding agent.">
       <main className="landing-main">
         <HeroBanner />
         <AgentDemo />

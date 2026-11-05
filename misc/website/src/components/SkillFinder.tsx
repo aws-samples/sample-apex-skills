@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState, type ReactNode} from 'react';
 import Link from '@docusaurus/Link';
+import {useLocation} from '@docusaurus/router';
 import skills from '@site/static/manifests/skill-finder.json';
 
 // One row of static/manifests/skill-finder.json, written by
@@ -10,7 +11,6 @@ export type FinderSkill = {
   description: string;
   group: 'eks' | 'ecs' | 'general';
   path: string;
-  allowedTools: boolean;
   upstream: boolean;
   devopsAgent: boolean;
   eval: {score: number | null; grade: string | null} | null;
@@ -83,14 +83,12 @@ export default function SkillFinder(): ReactNode {
   const [group, setGroup] = useState<FinderSkill['group'] | 'all'>('all');
   const [flags, setFlags] = useState<Flag[]>([]);
 
-  // Deep links such as /skill-finder?group=eks or ?q=upgrade.
+  // Deep links such as /skill-finder?group=eks, re-read on every navigation.
+  const {search} = useLocation();
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const g = params.get('group');
-    if (g === 'eks' || g === 'ecs' || g === 'general') setGroup(g);
-    const q = params.get('q');
-    if (q) setQuery(q);
-  }, []);
+    const g = new URLSearchParams(search).get('group');
+    setGroup(g === 'eks' || g === 'ecs' || g === 'general' ? g : 'all');
+  }, [search]);
 
   const results = useMemo(
     () =>

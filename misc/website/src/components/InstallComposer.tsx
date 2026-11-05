@@ -2,10 +2,11 @@ import {useEffect, useMemo, useState, type ReactNode} from 'react';
 import Link from '@docusaurus/Link';
 import skills from '@site/static/manifests/skill-finder.json';
 import type {FinderSkill} from '@site/src/components/SkillFinder';
+import {INSTALLER, INSTALLER_VERSION} from '@site/src/apexPin';
 
-// Commands come only from what the repo documents: the installer flags in
+// Commands come only from what the repo documents: the installer flags it uses in
 // misc/installer/bin/cli.mjs (--claude-only, --kiro-only, --project,
-// --no-steering) with the 1.3.0 pin from Getting Started, and the manual
+// --no-steering) with the pin in src/apexPin.ts (from Getting Started), and the manual
 // copy recipes in Getting Started (Claude Code, Kiro CLI, Codex). The
 // installer installs every skill for Claude Code and Kiro CLI only, so a
 // skill subset or Codex always gets the manual recipe.
@@ -20,7 +21,6 @@ const AGENTS: {id: Agent; label: string; dir: string}[] = [
   {id: 'codex', label: 'Codex', dir: '~/.agents/skills'},
 ];
 
-const INSTALLER = 'npx apex-skills@1.3.0';
 const REPO = 'https://github.com/aws-samples/sample-apex-skills.git';
 
 type Plan = {kind: 'installer' | 'manual'; command: string; why: string};
@@ -44,7 +44,8 @@ function compose(
     return {
       kind: 'installer',
       command: [INSTALLER, ...flags].join(' '),
-      why: 'The installer clones the repo to ~/.apex-skills/ and links every skill into place.',
+      why:
+        'The installer clones the repo to ~/.apex-skills/ and links every skill (the skills of the newest v1 release) into place for each of Claude Code and Kiro CLI it detects (~/.claude, ~/.kiro).',
     };
   }
   const sources = chosen === 'all' ? ['skills/*'] : chosen.map((name) => `skills/${name}`);
@@ -59,7 +60,9 @@ function compose(
   return {
     kind: 'manual',
     command: lines.join('\n'),
-    why: `Manual copy from main, because ${reasons.join(' and ')}.`,
+    why: `Manual copy from main, because ${reasons.join(' and ')}${
+      source === 'release' ? ' (this recipe installs v2 from main, not the v1 release)' : ''
+    }.`,
   };
 }
 
@@ -152,7 +155,7 @@ export default function InstallComposer(): ReactNode {
         <legend className="apex-finder__label">3. Source</legend>
         <label>
           <input type="radio" name="apex-source" checked={source === 'release'} onChange={() => setSource('release')} />
-          Latest v1 release (installer 1.3.0)
+          Latest v1 release (installer {INSTALLER_VERSION})
         </label>
         <label>
           <input type="radio" name="apex-source" checked={source === 'main'} onChange={() => setSource('main')} />

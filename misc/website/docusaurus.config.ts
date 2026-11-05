@@ -158,13 +158,10 @@ const config: Config = {
 
   themeConfig: {
     metadata: [
-      {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.png'},
-      {property: 'og:image:width', content: '1200'},
-      {property: 'og:image:height', content: '630'},
-      {property: 'og:image:alt', content: 'APEX Skills: EKS and ECS skills for AI coding agents'},
-      {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.png'},
-      {name: 'twitter:image:alt', content: 'APEX Skills: EKS and ECS skills for AI coding agents'},
+      {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
+      {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
       {name: 'twitter:card', content: 'summary_large_image'},
+      {name: 'keywords', content: 'AWS, EKS, platform engineering, AI agent skills, Claude Code, Kiro CLI, AWS DevOps Agent, Kubernetes, infrastructure as code, agentic AI, DevOps automation'},
     ],
     navbar: {
       title: 'APEX Skills',

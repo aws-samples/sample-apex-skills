@@ -6,7 +6,6 @@ Every field comes from a file in this repo, never from hand-written text:
   summary             first sentence of the description (cut at 160 chars)
   group               the same eks- / ecs- / general split as update-pages.sh classify_skill
   path                the generated docs page, /docs/skills/<group>/<name>
-  allowedTools        true when the frontmatter sets allowed-tools
   upstream            true when a misc/sync-*.sh script sets LOCAL_SKILL_PATH="skills/<name>"
   devopsAgent         true when devops-agent/<name>/SKILL.md exists (a DevOps Agent port)
   eval                score and grade from misc/website/static/manifests/evals.json, else null
@@ -95,7 +94,6 @@ def build() -> str:
             "description": description,
             "group": group,
             "path": f"/docs/skills/{group}/{folder}",
-            "allowedTools": "allowed-tools" in fm,
             "upstream": folder in synced,
             "devopsAgent": (ROOT / "devops-agent" / folder / "SKILL.md").exists(),
             "eval": evals.get(folder),

@@ -531,6 +531,10 @@
   text-decoration: none;
 }
 
+[data-theme='light'] .apex-card__btn {
+  color: #b45309;
+}
+
 [data-theme='light'] .apex-card__btn:hover {
   color: #0a0e17;
 }
@@ -953,6 +957,10 @@ a, button, .navbar__link, .menu__link {
 
 .apex-eval__grade--A {
   color: #10b981;
+}
+
+[data-theme='light'] .apex-eval__grade--A {
+  color: #047857;
 }
 
 .apex-eval__grade--B {
