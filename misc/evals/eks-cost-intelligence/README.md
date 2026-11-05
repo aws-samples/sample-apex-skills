@@ -21,7 +21,9 @@ The `triggering.json` positives (entries 0–9) use two phrasing styles: explici
 
 ## Live-MCP caveat
 
-The skill combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis to produce dollar-quantified findings. Running full task evals end-to-end **requires live cluster access** plus either the EKS MCP server (`awslabs.eks-mcp-server`) or fallback AWS CLI / kubectl connectivity. The skill's pre-flight phase explicitly verifies access before proceeding.
+The task prompts use offline observations: the report fixtures supply successful core reads and prior user confirmation, and the coverage cases distinguish successful empty lists from denied Service, Endpoints and Secret reads. Their expectations check interpretation, dimension coverage and scoring, not actual API access. The coverage cases also assert reference reads and report creation; the grader checks the report's claims against the supplied observations.
+
+A full discovery-to-report execution **requires live cluster access** plus either the EKS MCP server (`awslabs.eks-mcp-server`) or fallback AWS CLI / kubectl connectivity. Repeat the required reads through the actual assessment caller to verify integration; the offline fixtures do not establish live EKS or DevOps Agent behavior.
 
 If MCP and CLI are both unavailable, the skill stops cleanly with troubleshooting guidance. Triggering evals are pure classification and are never affected by MCP availability.
 
@@ -30,6 +32,8 @@ If MCP and CLI are both unavailable, the skill stops cleanly with troubleshootin
 From `misc/evals/`:
 - `make validate-eks-cost-intelligence` — frontmatter + 64/1024-char limits
 - `make triggering-eks-cost-intelligence` — triggering accuracy score
+- `make task-eks-cost-intelligence` — fixture tasks with grader (requires model access)
+- `make process-eks-cost-intelligence` / `make artifact-eks-cost-intelligence` — check captured tool traces and report artifacts
 - `make benchmark-eks-cost-intelligence` — aggregate task-eval stats
 
 See `misc/evals/README.md` for the full capability catalogue (A–K).

@@ -142,6 +142,28 @@
         "Distinguishes AWS discovery from verification of the MCP caller's Kubernetes reads."
       ],
       "files": []
+    },
+    {
+      "id": 4,
+      "name": "fresh-setup-mcp-caller-denied",
+      "prompt": "I just completed a fresh AWS-hosted EKS MCP setup. Discovery lists my cluster, and the MCP target endpoint matches DescribeCluster. Local kubectl can list nodes as my administrator. Listing nodes through the MCP server returns Forbidden. Is setup verified for a cost assessment?",
+      "expectations": [
+        "Requires a successful required read through the MCP server even for a fresh setup; discovery and local kubectl access do not verify that caller.",
+        "Reports the MCP caller's denied Node read and does not declare Kubernetes assessment access ready.",
+        "Uses Step 3 of the AWS-hosted setup reference for verification, without treating a local kubectl auth can-i result as proof of MCP authorization."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "config-map-legacy-access",
+      "prompt": "My self-hosted MCP server points to the verified EKS endpoint. Authentication mode is CONFIG_MAP. The server role is mapped in aws-auth and its required Kubernetes reads succeed through MCP. There are no access entries. Is that connection usable?",
+      "expectations": [
+        "Accepts the successful required Kubernetes reads through the verified MCP connection.",
+        "Explains that CONFIG_MAP mode can use the existing aws-auth mapping without access entries or an authentication-mode migration.",
+        "Bases readiness on the supplied MCP resource-read results rather than cluster discovery or local kubectl authorization."
+      ],
+      "files": []
     }
   ]
 }

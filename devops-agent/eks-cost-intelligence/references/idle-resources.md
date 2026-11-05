@@ -123,9 +123,12 @@ Cross-reference with the ELBv2 DescribeTargetHealth API for backend health statu
 ### Analysis logic
 
 ```
+Only iterate Services from a confirmed successful inventory; a successful empty list completes this check.
 For each Service with spec.type == "LoadBalancer":
   endpoints = get Endpoints object with same name/namespace
-  healthy_count = count(endpoints.subsets[].addresses[])
+  If that read fails and no confirmed same-scope alternative is available:
+    → Mark this Service check UNKNOWN; continue other Services without an idle-LB finding for this one
+  Otherwise healthy_count = count(all endpoints.subsets[].addresses[])
 
   If healthy_count == 0:
     # Determine LB type from annotations
@@ -195,15 +198,18 @@ Use the Kubernetes API to list all namespaces, then for each, count running pods
 ### Analysis logic
 
 ```
-For each non-system namespace:
-  running_pods = count pods with status.phase == "Running"
-  has_quota = (ResourceQuotas exist in namespace)
-  has_limitrange = (LimitRanges exist in namespace)
+For each non-system namespace from confirmed inventory:
+  If Pod inventory is unavailable, mark the check UNKNOWN; do not count it as zero.
+  running_pods = count confirmed pods with status.phase == "Running"
+  If running_pods > 0, no quota/limit read is required for this check.
+  has_quota = confirmed ResourceQuota presence (otherwise UNKNOWN)
+  has_limitrange = confirmed LimitRange presence (otherwise UNKNOWN)
+  If neither presence is true and either is UNKNOWN, mark the check UNKNOWN.
 
   If running_pods == 0 AND (has_quota OR has_limitrange):
     # Calculate reserved capacity from quota spec
-    reserved_cpu = quota.spec.hard["requests.cpu"]
-    reserved_mem = quota.spec.hard["requests.memory"]
+    Read reserved_cpu/reserved_mem only from confirmed quota.spec.hard.
+    If only a LimitRange is known, report quota amounts as unknown, not zero.
     
     → Generate finding
     # Note: quotas don't directly consume resources, but indicate 
@@ -245,6 +251,8 @@ ConfigMaps and Secrets that exist in non-system namespaces but are not reference
 
 Use the Kubernetes API to list all ConfigMaps and Secrets in non-system namespaces. Cross-reference with all running Pods' spec.volumes[].configMap, spec.volumes[].secret, spec.volumes[].projected.sources[], spec.containers[].envFrom, and spec.containers[].env[].valueFrom to identify unreferenced resources. Exclude system-managed objects (kube-root-ca.crt, service-account-token secrets, Helm release secrets).
 
+These channels produce candidates; confirm actual references and ownership before reporting an orphan or proposing cleanup. They do not cover every reference channel, such as init containers or imagePullSecrets. Apply unconditional exclusions before requiring a Pod reference inventory.
+
 ### Exclusions
 
 Always exclude from orphan detection:
@@ -259,14 +267,18 @@ Always exclude from orphan detection:
 
 ```
 For each non-system namespace:
+  A confirmed empty ConfigMap or Secret list, or one containing only unconditionally excluded objects, needs no reference comparison.
+  For listed objects, require confirmed Pod references; otherwise mark the comparison UNKNOWN.
+  Classify ConfigMaps and Secrets independently, only when their own inventory succeeded.
+  A failed ConfigMap or Secret list does not discard findings supported by the other successful list.
   referenced_cms = set of ConfigMap names used by running pods (volumes, envFrom, valueFrom)
   referenced_secrets = set of Secret names used by running pods (volumes, envFrom, valueFrom)
   
   all_cms = set of all ConfigMaps in namespace (excluding system CMs)
   all_secrets = set of all Secrets in namespace (excluding SA tokens, Helm releases)
   
-  orphaned_cms = all_cms - referenced_cms
-  orphaned_secrets = all_secrets - referenced_secrets
+  orphaned_cms = all_cms - referenced_cms only if both inputs are confirmed
+  orphaned_secrets = all_secrets - referenced_secrets only if both inputs are confirmed
   
   If len(orphaned_cms) + len(orphaned_secrets) > 0:
     → Generate finding
@@ -300,16 +312,7 @@ kubectl get secret <name> -n <namespace> -o yaml | head -20  # Check type and an
 kubectl delete secret <name> -n <namespace>
 ```
 
-```bash
-# Bulk cleanup: delete all orphaned ConfigMaps in a namespace (use with caution)
-# First generate the list, review it, then delete
-comm -23 /tmp/all_configmaps.txt /tmp/referenced_configs.txt | \
-  grep "^<namespace>/" | \
-  sed 's|.*/configmap/||' | \
-  xargs -I{} kubectl delete configmap {} -n <namespace> --dry-run=client
 
-# Remove --dry-run=client after confirming the list is correct
-```
 
 ---
 
@@ -336,10 +339,11 @@ actual_deduction = min(deduction, 15)  # Cap at maximum
 | Condition | Status |
 |-----------|--------|
 | All checks completed | ASSESSED |
-| Some checks partially completed | ASSESSED (with note) |
+| An applicable check lacks a required inventory after core inventory succeeds and no confirmed same-scope alternative is available | SKIPPED (not assessed); retain independently verified findings |
+| Only optional enrichment unavailable; required reads succeeded | ASSESSED (with note) |
 | No Kubernetes API access | Cannot assess — skill halts at pre-flight |
 
-This dimension is never SKIPPED because all checks require only the Kubernetes API (no metrics sources needed).
+Kubernetes API connectivity alone does not prove permission for every resource. Apply the read-coverage rule in `report-generation.md`: a denied Service read does not mean "no LoadBalancer Services", and a denied Endpoints read does not mean "zero healthy endpoints". The same rule applies to ConfigMaps, Secrets and other required inputs.
 
 ---
 

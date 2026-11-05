@@ -106,6 +106,17 @@
         "Preserves the current context and scopes later reads to a verified context for each cluster."
       ],
       "files": []
+    },
+    {
+      "id": 10,
+      "name": "config-map-node-read-required",
+      "prompt": "Use eks-ingress-migration for preflight on a verified EKS target in CONFIG_MAP mode. My caller has a valid aws-auth mapping. The required table reads for Ingress, IngressClass and kube-system Deployments succeeded, but the Node read in Action 5 returned Forbidden. Can the assessment proceed?",
+      "expectations": [
+        "Recognizes the valid CONFIG_MAP aws-auth access path without requiring an access entry.",
+        "Identifies the required Node read in Action 5 and stops this cluster assessment on its failure, despite the successful table reads.",
+        "Does not change the caller permissions or treat the denied Node list as zero nodes."
+      ],
+      "files": []
     }
   ]
 }

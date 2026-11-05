@@ -18,7 +18,7 @@ This page is generated from [skills/eks-cost-intelligence/references/report-gene
 
 ## Scoring Algorithm
 
-The Cost Score starts at 100 and applies severity-weighted deductions per dimension. The algorithm is deterministic: the same set of findings always produces the same score.
+Confirm successful lists of nodes, namespaces, pods and deployments on the verified connection before scoring; a failed, denied or unverified core read stops the assessment without a score. Successful empty lists are valid. The Cost Score starts at 100 and applies severity-weighted deductions per dimension. The algorithm is deterministic: the same set of findings always produces the same score.
 
 ### Dimension Weights (Max Deductions)
 
@@ -62,6 +62,12 @@ Each dimension's actual deduction is **capped** at its max_deduction. Multiple f
 actual_deduction = min(sum_of_finding_deductions, dimension.max_deduction)
 ```
 
+### Read Coverage
+
+A denied, failed or unverified read is **UNKNOWN**, never an empty inventory or evidence that a resource is absent. A successful empty list is valid evidence only for the resource and scope actually read. Reuse a confirmed inventory from this assessment at the same verified target and scope, or a documented alternative when available; do not replace a failed response with an empty result. Required inputs are those needed for an applicable check: a confirmed empty Service list needs no Endpoints read.
+
+After core inventory succeeds, **Idle Resources is SKIPPED (not assessed) for scoring** if an applicable check still lacks a required inventory. Retain independently verified findings, but exclude that dimension's deductions. Other dimensions keep their documented partial-assessment and fallback rules; without such a rule or adequate evidence, mark the dimension SKIPPED rather than fully ASSESSED. Deduct only supported findings in a permitted partial assessment, and continue unrelated dimensions. Report the failed operation, scope and observed error; name a missing permission only when established, leaving transport or other causes unverified.
+
 ### SKIPPED Dimension Handling
 
 When a dimension cannot be assessed (missing data source, insufficient permissions):
@@ -74,6 +80,9 @@ When a dimension cannot be assessed (missing data source, insufficient permissio
 ### Complete Pseudocode
 
 ```
+if any required core list failed, was denied or is unverified:
+    return Assessment Error with no score
+
 score = 100
 
 for each dimension in [compute, spot_graviton, networking, storage, observability, idle]:
