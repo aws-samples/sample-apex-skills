@@ -554,7 +554,7 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 
 **Step 2:** Use the Kubernetes API to check for aws-node-termination-handler as a Deployment or DaemonSet in kube-system namespace, or search by label `app.kubernetes.io/name=aws-node-termination-handler`.
 
-**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. For Karpenter v0.30+, interruption handling is built-in. Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0).
+**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. Interruption handling is enabled only when the INTERRUPTION_QUEUE env var names an SQS queue. Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0; v0.30 to v0.31 hold the queue only in the karpenter-global-settings ConfigMap).
 
 **Step 4:** Use the SQS ListQueues API filtered by naming convention (queue name prefix "karpenter") to verify the interruption queue exists. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
 
@@ -569,13 +569,13 @@ If spot_node_count > 0:
   nth_installed = (aws-node-termination-handler deployment/daemonset exists)
   
   If karpenter_installed:
-    # Karpenter v0.30+ has native interruption handling
+    # Karpenter handles interruptions only when INTERRUPTION_QUEUE names an SQS queue
     karpenter_version = parse version from deployment labels
     If karpenter_version >= "0.30":
-      → Interruption handling is built-in (OK)
-      # Verify SQS queue exists for optimal handling
-      If no SQS queue configured:
-        → LOW finding: SQS queue recommended for faster interruption response
+      If no SQS queue configured AND NOT nth_installed:
+        → HIGH finding: Karpenter with no interruption queue and no NTH
+      Else:
+        → OK (interruption handling present)
     Else:
       If NOT nth_installed:
         → HIGH finding: older Karpenter without NTH
@@ -594,7 +594,7 @@ If spot_node_count > 0:
 |-----------|----------|
 | Spot nodes present + no interruption handler (no Karpenter, no NTH) | HIGH |
 | Older Karpenter (< v0.30) without NTH | HIGH |
-| Karpenter v0.30+ without SQS queue | LOW |
+| Karpenter with no interruption queue and no NTH | HIGH |
 | NTH or Karpenter v0.30+ with SQS present | No finding |
 
 ### Remediation
@@ -715,7 +715,7 @@ START
 - Check 2: No finding (NodePools allow arm64)
 - Check 4: No finding (>30% Spot)
 - Check 6: No finding (broad instance categories)
-- Check 7: No finding (Karpenter v1 handles interruptions)
+- Check 7: No finding (Karpenter v1 with its interruption queue set)
 - **Expected deduction:** 0 points
 
 ### Scenario C: Spot Without Proper Handling

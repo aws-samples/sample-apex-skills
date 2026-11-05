@@ -58,6 +58,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 4. **Optional permissions (enable richer analysis):**
    - `ce:GetCostAndUsage` — enables dollar-accurate spend data from Cost Explorer
    - `cloudwatch:GetMetricData` — enables utilization-based analysis from Container Insights
+   - `route53:ListHostedZonesByVPC`, `organizations:DescribeOrganization` (centralized VPC endpoint zones; the account tier check)
    - `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration` — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension
 
 ### Data Sources
@@ -92,6 +93,8 @@ The skill will discover your clusters, confirm which one to assess, then run the
 ## Assessment Workflow
 
 ### Step 0: Pre-flight — Cluster Discovery
+
+Run the account tier check in `references/cost-data-collection.md` (section 1.2) before the dimension checks.
 
 **Action 1 — List clusters (test connectivity & discover clusters)**
 
@@ -286,7 +289,7 @@ Before executing checks for any dimension, read the corresponding reference file
 
 | User Request | Reference File(s) to Load |
 |---|---|
-| Full cost assessment / audit / review | ALL dimension files in order (Steps 1–6), then `report-generation.md` |
+| Full cost assessment / audit / review | ALL dimension files in order (Steps 1–6), then `report-generation.md` and `findings-format.md`; the `cost-data-collection.md` account tier check |
 | Compute efficiency / over-provisioning / CPU waste | `references/compute-efficiency.md` |
 | Spot / Graviton / instance types / arm64 | `references/spot-graviton-adoption.md` |
 | Networking costs / cross-AZ / NAT / VPC endpoints | `references/networking-costs.md` |

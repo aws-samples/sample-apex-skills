@@ -29,7 +29,7 @@ This reference documents the exact API calls needed to collect cost and utilizat
 ### Prerequisites
 
 - Cost Allocation Tags activated in Billing console (`eks:cluster-name`, `kubernetes-namespace`)
-- Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can only view the data once its payer opts in)
+- Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can view the data in CUR once its payer opts in)
 - IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
 
@@ -96,7 +96,7 @@ for group in response["ResultsByTime"][0]["Groups"]:
 
 ### 1.2 Namespace-Level Cost Attribution (Split Cost Allocation)
 
-Split Cost Allocation Data distributes shared EC2 and EKS costs to individual pods/namespaces based on resource requests. Must be enabled in Cost Management console.
+Split Cost Allocation Data distributes shared EC2 and EKS costs to individual pods/namespaces based on resource requests. Must be enabled in Cost Management console (regular or payer account only; see the account tier check below).
 
 **Via Cost Explorer GetCostAndUsage API:**
 
@@ -139,7 +139,7 @@ for group in response["ResultsByTime"][0]["Groups"]:
 **Account tier check (pre-flight):** compare the STS GetCallerIdentity `Account` with the Organizations DescribeOrganization `MasterAccountId` (callable from any account in the organization). If they differ, this is a member account and the split cost allocation opt-in needs that payer account. An error (not in an organization, or no permission) means a regular account, or unknown.
 
 **When Split Cost Allocation is not enabled:**
-Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md). Say why in the report: in a member account, name the payer account that must opt in; otherwise, the opt-in is in this account's Cost Management preferences.
+Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
 
 ---
 

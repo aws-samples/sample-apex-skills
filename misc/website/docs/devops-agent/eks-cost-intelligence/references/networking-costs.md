@@ -236,7 +236,7 @@ EKS clusters access these services constantly:
 
 ### Data collection
 
-Use the EKS DescribeCluster API to get the cluster's VPC ID from resourcesVpcConfig.vpcId. Use the EC2 DescribeVpcEndpoints API to list existing VPC endpoints in that VPC, and the Route 53 ListHostedZonesByVPC API to find private hosted zones associated with it (endpoints centralized in a hub or shared-services VPC serve it that way). Check for endpoints serving `com.amazonaws.<region>.s3`, `com.amazonaws.<region>.ecr.dkr`, `com.amazonaws.<region>.ecr.api`, and `com.amazonaws.<region>.sts`. Use EC2 DescribeNatGateways to identify NAT Gateways in the VPC, and CloudWatch GetMetricData API for NATGateway BytesOutToDestination metrics to estimate traffic volume.
+Use the EKS DescribeCluster API to get the cluster's VPC ID from resourcesVpcConfig.vpcId. Use the EC2 DescribeVpcEndpoints API to list existing VPC endpoints in that VPC, and the Route 53 ListHostedZonesByVPC API to find private hosted zones associated with it (endpoints centralized in a hub or shared-services VPC serve it that way; zones shared through a Route 53 Profile are not listed). Check for endpoints serving `com.amazonaws.<region>.s3`, `com.amazonaws.<region>.ecr.dkr`, `com.amazonaws.<region>.ecr.api`, and `com.amazonaws.<region>.sts`. Use EC2 DescribeNatGateways to identify NAT Gateways in the VPC, and CloudWatch GetMetricData API for NATGateway BytesOutToDestination metrics to estimate traffic volume.
 
 ### Analysis logic
 
@@ -249,7 +249,7 @@ required_endpoints = [
 ]
 
 existing_endpoints = list VPC endpoints in cluster VPC
-                   + services a centralized endpoint serves (a private hosted zone for the service associated with the cluster VPC, Route 53 ListHostedZonesByVPC)
+                   + services a centralized endpoint serves (a private hosted zone for the service associated with the cluster VPC, Route 53 ListHostedZonesByVPC; zones shared through a Route 53 Profile are not listed)
 
 missing = required_endpoints - existing_endpoints
 

@@ -418,6 +418,8 @@ EXISTING_ENDPOINTS=$(aws ec2 describe-vpc-endpoints \
 # above; they serve this VPC through private hosted zones associated with it, possibly owned by another account
 aws route53 list-hosted-zones-by-vpc --vpc-id "$CLUSTER_VPC" --vpc-region "$REGION" \
   --query 'HostedZoneSummaries[].Name' --output text
+# The zone for com.amazonaws.<r>.<svc> is named <svc>.<r>.amazonaws.com (ecr.api is api.ecr.<r>.amazonaws.com);
+# treat a service as served when its zone is listed (zones shared through a Route 53 Profile are not listed)
 
 for svc in "${REQUIRED_SERVICES[@]}"; do
   if echo "$EXISTING_ENDPOINTS" | grep -q "$svc"; then
@@ -472,7 +474,7 @@ required_endpoints = [
 ]
 
 existing_endpoints = list VPC endpoints in cluster VPC
-                   + services a centralized endpoint serves (a private hosted zone for the service associated with the cluster VPC, Route 53 ListHostedZonesByVPC)
+                   + services a centralized endpoint serves (a private hosted zone for the service associated with the cluster VPC, Route 53 ListHostedZonesByVPC; zones shared through a Route 53 Profile are not listed)
 
 missing = required_endpoints - existing_endpoints
 
@@ -1117,7 +1119,7 @@ START
   │
   ├─ Run Check 3: VPC Endpoints
   │   ├─ ec2:DescribeVpcEndpoints available?
-  │   │   ├─ YES → Check for ECR, S3, STS endpoints
+  │   │   ├─ YES → Check for ECR, S3, STS endpoints, or served by an associated hosted zone
   │   │   └─ NO  → Skip Check 3, note permission gap
   │   └─ Missing endpoints found?
   │       ├─ YES → Generate MEDIUM finding (per Req 7.5)

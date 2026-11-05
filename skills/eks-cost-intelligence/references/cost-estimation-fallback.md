@@ -632,7 +632,7 @@ Include this section in the report's Methodology & Confidence Notes:
 
 **To improve accuracy:**
 1. Enable Cost Explorer and tag EKS resources with `eks:cluster-name`
-2. Enable Split Cost Allocation Data for namespace-level attribution
+2. Enable Split Cost Allocation Data for namespace-level attribution (payer or regular account; see the account tier check)
 3. Install metrics-server or enable Container Insights for utilization data
 ```
 

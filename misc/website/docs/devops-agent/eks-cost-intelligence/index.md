@@ -44,6 +44,7 @@ The following permissions are included:
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`
+- `route53:ListHostedZonesByVPC`
 
 **Elastic Load Balancing (required):**
 - `elasticloadbalancing:DescribeLoadBalancers`
@@ -53,6 +54,7 @@ The following permissions are included:
 **Cost Explorer (optional — enables dollar-accurate spend):**
 - `ce:GetCostAndUsage`
 - `ce:GetCostForecast`
+- `organizations:DescribeOrganization`
 
 **CloudWatch (optional — enables utilization-based analysis):**
 - `cloudwatch:GetMetricData`
@@ -108,6 +110,8 @@ The following permissions are included:
 ```
 
 ### Step 0: Pre-flight — Cluster Discovery and Validation
+
+Run the account tier check in `references/cost-data-collection.md` (section 1.2) before the dimension checks.
 
 **Action 1 — Discover clusters**
 
@@ -360,7 +364,7 @@ Before executing checks for any dimension, read the corresponding reference file
 
 | User Request | Reference File(s) to Load |
 |---|---|
-| Full cost assessment / audit / review | ALL dimension files in order (Steps 1-6), then `report-generation.md` |
+| Full cost assessment / audit / review | ALL dimension files in order (Steps 1-6), then `report-generation.md`; the `cost-data-collection.md` account tier check |
 | Compute efficiency / over-provisioning / CPU waste | `references/compute-efficiency.md` |
 | Spot / Graviton / instance types / arm64 | `references/spot-graviton-adoption.md` |
 | Networking costs / cross-AZ / NAT / VPC endpoints | `references/networking-costs.md` |
