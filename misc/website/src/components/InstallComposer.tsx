@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState, type ReactNode} from 'react';
 import Link from '@docusaurus/Link';
+import {useLocation} from '@docusaurus/router';
 import skills from '@site/static/manifests/skill-finder.json';
 import type {FinderSkill} from '@site/src/components/SkillFinder';
 import {INSTALLER, INSTALLER_VERSION} from '@site/src/apexPin';
@@ -91,11 +92,12 @@ export default function InstallComposer(): ReactNode {
   const [project, setProject] = useState(false);
   const [steering, setSteering] = useState(true);
 
-  // Deep link from the skill finder: /install?skill=<name>.
+  // Deep link from the skill finder: /install?skill=<name>, re-read on every navigation.
+  const {search} = useLocation();
   useEffect(() => {
-    const skill = new URLSearchParams(window.location.search).get('skill');
+    const skill = new URLSearchParams(search).get('skill');
     if (skill && allSkills.includes(skill)) setChosen([skill]);
-  }, []);
+  }, [search]);
 
   const plan = useMemo(
     () => compose(agents, chosen, source, project, steering),
