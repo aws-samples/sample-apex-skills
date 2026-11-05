@@ -408,7 +408,7 @@ EXISTING_ENDPOINTS=$(aws ec2 describe-vpc-endpoints \
 aws route53 list-hosted-zones-by-vpc --vpc-id "$CLUSTER_VPC" --vpc-region "$REGION" \
   --query 'HostedZoneSummaries[].Name' --output text
 # The zone for com.amazonaws.<r>.<svc> is named <svc>.<r>.amazonaws.com (ecr.api is api.ecr.<r>.amazonaws.com, ecr.dkr is dkr.ecr.<r>.amazonaws.com);
-# treat a service as served when its zone, or a parent zone of that name, is listed (zones shared through a Route 53 Profile are not listed)
+# treat a service as served when its zone is listed (zones shared through a Route 53 Profile are not listed)
 
 for svc in "${REQUIRED_SERVICES[@]}"; do
   if echo "$EXISTING_ENDPOINTS" | grep -q "$svc"; then

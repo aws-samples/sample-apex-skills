@@ -936,8 +936,8 @@ kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
   }'
 
 # Interruption handling runs only when an interruption queue is set (INTERRUPTION_QUEUE from v0.32; aws.interruptionQueueName in karpenter-global-settings on v0.30-v0.31); with no queue it is disabled
-# Settings live in the container env (the karpenter-global-settings ConfigMap was dropped in v0.33.0;
-# v0.30 to v0.31 hold the queue only in the karpenter-global-settings ConfigMap)
+# Settings live in the container env (the karpenter-global-settings ConfigMap was dropped in v0.33.0);
+# this check reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH
 kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
   jq '.spec.template.spec.containers[0].env[] | select(.name | test("INTERRUPTION"))'
 ```
@@ -988,6 +988,7 @@ If spot_node_count > 0:
   If karpenter_installed:
     karpenter_version = parse version from deployment labels
     If karpenter_version >= "0.30":
+      # Step 3 reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH
       If INTERRUPTION_QUEUE is unset (Step 3) AND NOT nth_installed:
         → HIGH finding: Karpenter with no interruption queue and no NTH
       Else:

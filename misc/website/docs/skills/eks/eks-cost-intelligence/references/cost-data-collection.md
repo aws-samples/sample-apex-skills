@@ -40,7 +40,7 @@ This reference documents the exact API calls needed to collect cost and utilizat
 
 ### Prerequisites
 
-- Cost Allocation Tags activated in Billing console (`aws:eks:cluster-name`, `kubernetes-namespace`); managed node groups also set `eks:cluster-name`, which misses Karpenter and self-managed nodes
+- Cost Allocation Tags activated in Billing console (`aws:eks:cluster-name`, `kubernetes-namespace`); `eks:cluster-name` (set only by managed node groups) misses Karpenter and self-managed nodes
 - Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can view the data in CUR once its payer opts in)
 - IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
@@ -111,16 +111,15 @@ for group in response["ResultsByTime"][0]["Groups"]:
 ```
 
 **Expected services in results:**
-- Amazon Elastic Kubernetes Service (control plane)
 - Amazon Elastic Compute Cloud (EC2 nodes)
-- Amazon Elastic Block Store (EBS volumes)
-- Amazon Elastic Load Balancing (ALB/NLB)
-- Amazon CloudWatch (monitoring)
-- Amazon VPC (NAT Gateway, data transfer)
+
+`aws:eks:cluster-name` covers EC2 instances only; the control plane, EBS, ELB and NAT need their own queries.
 
 ---
 
 ### 1.2 Namespace-Level Cost Attribution (cost allocation tags)
+
+Split cost allocation data is CUR only, not in Cost Explorer; this query groups by the user tags kubernetes-namespace and kubernetes-deployment.
 
 Split Cost Allocation Data distributes shared EC2 and EKS costs to individual pods/namespaces based on resource requests. Must be enabled in Cost Management console (regular or payer account only; see the account tier check below).
 
@@ -173,7 +172,7 @@ PAYER=$(aws organizations describe-organization --query Organization.MasterAccou
 # PAYER is the management account (MasterAccountId); empty (AWSOrganizationsNotInUseException or no permission): a regular account, or unknown
 if [ -n "$PAYER" ] && [ "$PAYER" != "$ACCOUNT" ]; then echo "member account: split cost allocation opt-in needs payer $PAYER"
 elif [ -z "$PAYER" ]; then echo "account tier unknown: standalone, or no organizations permission"
-else echo "management or regular account: opt-in is in this account's Cost Management preferences"; fi
+else echo "management account: opt-in is in this account's Cost Management preferences"; fi
 ```
 
 **When Split Cost Allocation is not enabled:**

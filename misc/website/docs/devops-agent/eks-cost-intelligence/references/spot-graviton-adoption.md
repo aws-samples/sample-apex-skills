@@ -565,7 +565,7 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 
 **Step 2:** Use the Kubernetes API to check for aws-node-termination-handler as a Deployment or DaemonSet in kube-system namespace, or search by label `app.kubernetes.io/name=aws-node-termination-handler`.
 
-**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. Interruption handling is enabled only when an interruption queue is set (INTERRUPTION_QUEUE from v0.32; aws.interruptionQueueName in karpenter-global-settings on v0.30-v0.31). Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0; v0.30 to v0.31 hold the queue only in the karpenter-global-settings ConfigMap).
+**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. Interruption handling is enabled only when an interruption queue is set (INTERRUPTION_QUEUE from v0.32; aws.interruptionQueueName in karpenter-global-settings on v0.30-v0.31). Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0). This check reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH.
 
 **Step 4:** Check that the queue INTERRUPTION_QUEUE names exists (`aws sqs get-queue-url --queue-name "$QUEUE"`); the default name is the cluster name. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
 
@@ -580,9 +580,9 @@ If spot_node_count > 0:
   nth_installed = (aws-node-termination-handler deployment/daemonset exists)
   
   If karpenter_installed:
-    # Karpenter handles interruptions only when INTERRUPTION_QUEUE names an SQS queue
     karpenter_version = parse version from deployment labels
     If karpenter_version >= "0.30":
+      # Step 3 reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH
       If INTERRUPTION_QUEUE is unset (Step 3) AND NOT nth_installed:
         → HIGH finding: Karpenter with no interruption queue and no NTH
       Else:
