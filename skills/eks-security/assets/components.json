@@ -28,7 +28,7 @@
     {
       "id": "image:aws-node/aws-network-policy-agent",
       "aliases": ["aws-network-policy-agent", "github.com/aws/aws-network-policy-agent", "Amazon EKS Network Policy Agent"],
-      "read": {"kind": "container-image", "namespace": "kube-system", "workload": "daemonset/aws-node", "container": "aws-network-policy-agent"},
+      "read": {"kind": "container-image", "namespace": "kube-system", "workload": "daemonset/aws-node", "container": "aws-network-policy-agent", "addon": "vpc-cni"},
       "auto_mode_managed": true
     },
     {
