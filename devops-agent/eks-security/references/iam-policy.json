@@ -9,8 +9,14 @@
         "eks:ListClusters",
         "eks:ListAddons",
         "eks:DescribeAddon",
+        "eks:DescribeAddonVersions",
+        "eks:ListNodegroups",
+        "eks:DescribeNodegroup",
+        "eks:ListInsights",
+        "eks:DescribeInsight",
         "eks:ListAccessEntries",
-        "eks:ListPodIdentityAssociations"
+        "eks:ListPodIdentityAssociations",
+        "eks:DescribePodIdentityAssociation"
       ],
       "Resource": "*"
     },
@@ -20,8 +26,30 @@
       "Action": [
         "ec2:DescribeInstances",
         "ec2:DescribeLaunchTemplates",
+        "ec2:DescribeLaunchTemplateVersions",
         "ec2:DescribeSecurityGroups",
         "ec2:DescribeImages"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:GetRegistryScanningConfiguration",
+        "ecr:DescribeImageScanFindings"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "InspectorReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "inspector2:BatchGetAccountStatus",
+        "inspector2:ListCoverage",
+        "inspector2:ListFindings"
       ],
       "Resource": "*"
     },
@@ -31,6 +59,8 @@
       "Action": [
         "iam:ListRoles",
         "iam:GetRole",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
         "iam:ListPolicies",
         "iam:GetPolicyVersion",
         "iam:ListOpenIDConnectProviders"
