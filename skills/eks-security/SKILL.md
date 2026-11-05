@@ -74,13 +74,14 @@ Full procedure, record schema, verdict rules, wording and a worked example: [cve
 One workflow for any event, every action proposed for the team to run:
 
 1. **Scope** from the C1 inventory: clusters, namespaces, workloads, images by digest, packages (from lockfiles when the team gives a repository path) and identities (Pod Identity associations, IRSA roles, node role).
-2. **Preserve** before containing: record the pod spec, node, image digest and logs; propose a volume snapshot; do not delete the pod. Checking whether an exposure was exploited is not covered yet: https://github.com/aws-samples/sample-apex-skills/issues/351
-3. **Contain** (proposed): pod-scoped NetworkPolicy isolation by label (not a namespace-wide deny, which takes down neighbours), egress limit, cordon the node, revoke or scope the workload identity, block the image digest at admission where a policy engine runs.
-4. **Remediate**: patched add-on or AMI, image rebuilt on a patched base, pinned package version. A security fix takes the emergency path, not the next upgrade window.
-5. **Verify**: re-run C1 for the advisory and the C3 checks for the affected control.
-6. **Record**: what happened, exposure, what was read, actions proposed and taken, open items.
+2. **Quick record** (seconds, read through the API server): pod spec, node, image digest, logs. AWS: "Your first course of action should be to isolate the damage" ([incident response and forensics](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html)). Deleting, scaling down or draining destroys evidence; isolating does not. Checking whether an exposure was exploited is not covered yet: https://github.com/aws-samples/sample-apex-skills/issues/351
+3. **Contain at once** (proposed): pause rollouts and scale-downs; pod-scoped NetworkPolicy isolation by an added label (not a namespace-wide deny, which takes down neighbours), which holds only where policy is enforced and no other policy allows the traffic, so an Admin-tier ClusterNetworkPolicy Deny where the cluster has one; cordon the node; revoke or scope the workload identity after checking who shares it; block the image digest at admission where a policy engine runs.
+4. **Snapshot and investigate** after isolation: propose volume snapshots (not promised on Auto Mode) and volatile capture.
+5. **Remediate**: patched add-on or AMI, image rebuilt on a patched base, pinned package version. A security fix takes the emergency path, not the next upgrade window.
+6. **Verify**: re-run C1 for the advisory and the C3 checks for the affected control.
+7. **Record**: what happened, exposure, what was read, actions proposed and taken, open items.
 
-If step 1 finds nothing in scope, the record says what was read and stops. Procedure and containment manifests: [security-event-response.md](references/security-event-response.md).
+If step 1 finds nothing in scope, the record says what was read and stops. Procedure and the proposals to print: [security-event-response.md](references/security-event-response.md). The why and the full quarantine and identity patterns: eks-best-practices, references/security-operations.md, section "Responding to a Security Event".
 
 ## C3: Posture check
 
