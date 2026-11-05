@@ -483,6 +483,15 @@ else
     if [ "${#KARP_TF_FILES[@]}" -gt 0 ]; then
         KARP_APPLIED=$(awk "$KARP_TAG_AWK" "${KARP_TF_FILES[@]}" || true)
     fi
+    # The Pattern 2 shape applies local.cluster_config.name, decoded from
+    # configs/cluster.yaml: judge it as that file's top-level name literal.
+    KARP_CNAME=""
+    if [ -r "$PROJECT_DIR/configs/cluster.yaml" ]; then
+        KARP_CNAME=$(awk '/^name[[:space:]]*:/ { sub(/^name[[:space:]]*:[[:space:]]*/, ""); sub(/[[:space:]]+#.*$/, ""); gsub(/["'\''[:space:]]/, ""); if ($0 !~ /[${}]/) print; exit }' "$PROJECT_DIR/configs/cluster.yaml")
+    fi
+    if [ -n "$KARP_CNAME" ] && [ -n "$KARP_APPLIED" ]; then
+        KARP_APPLIED=$(printf '%s\n' "$KARP_APPLIED" | awk -v n="$KARP_CNAME" 'BEGIN { FS = OFS = "\t" } $3 == "local.cluster_config.name" && $4 == "E" { $3 = n; $4 = "L" } { print }')
+    fi
 
     if [ -z "$KARP_SELECTORS" ]; then
         warn "EC2NodeClass found but its subnet/security group selector tags could not be read -- check manually"
