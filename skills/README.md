@@ -45,6 +45,7 @@ Advisory guidance for Amazon EKS architecture and configuration — compute stra
 | [reliability-advanced.md](./eks-best-practices/references/reliability-advanced.md) | Reliability advanced |
 | [reliability-core.md](./eks-best-practices/references/reliability-core.md) | Reliability core |
 | [scalability.md](./eks-best-practices/references/scalability.md) | Scalability |
+| [security-operations.md](./eks-best-practices/references/security-operations.md) | Security operations |
 | [security-runtime-network.md](./eks-best-practices/references/security-runtime-network.md) | Security runtime network |
 | [security-supply-chain.md](./eks-best-practices/references/security-supply-chain.md) | Security supply chain |
 | [security.md](./eks-best-practices/references/security.md) | Security |

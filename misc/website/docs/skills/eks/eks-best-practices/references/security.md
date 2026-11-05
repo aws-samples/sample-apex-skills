@@ -222,9 +222,11 @@ metadata:
 
 | Level | Description | Use When |
 |-------|-------------|----------|
-| **Privileged** | Unrestricted | System namespaces (kube-system), CNI daemonsets |
-| **Baseline** | Prevents known privilege escalations | Default for most workloads |
-| **Restricted** | Hardened, follows best practices | Security-sensitive workloads |
+| **Privileged** | Unrestricted | System namespaces only (kube-system, CNI, CSI and agent daemonsets) |
+| **Baseline** | Prevents known privilege escalations | The floor: a namespace that cannot meet restricted yet, with `warn` and `audit` at restricted |
+| **Restricted** | Hardened, follows best practices | Default for application workloads |
+
+The stance (restricted for workloads, baseline as the floor) is stated in [SKILL.md: Pod Security Admission](../#pod-security-admission); the examples below follow it.
 
 **Apply via namespace labels:**
 
@@ -286,7 +288,7 @@ spec:
       type: RuntimeDefault
   containers:
   - name: app
-    image: app:latest
+    image: <account>.dkr.ecr.<region>.amazonaws.com/app@sha256:<digest>  # pinned by digest, never latest
     securityContext:
       allowPrivilegeEscalation: false
       readOnlyRootFilesystem: true
@@ -334,7 +336,7 @@ For each tenant namespace, apply:
 2. **Network policies** — Default deny + explicit allow rules
 3. **Resource quotas** — CPU, memory, pod count limits
 4. **Limit ranges** — Default/max container resource limits
-5. **Pod security** — PSA labels at baseline or restricted level
+5. **Pod security**: PSA labels, enforce restricted, baseline only as the floor (see the PSA table above)
 6. **Service account** — Disable automount of default SA token
 
 ```yaml
@@ -387,7 +389,7 @@ kind: Namespace
 metadata:
   name: team-alpha
   labels:
-    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce: restricted
     tenant: team-alpha
 ```
 

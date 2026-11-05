@@ -291,23 +291,25 @@ The benefit of shift-left is that developers get feedback before their applicati
 
 ## Incident Response
 
+The response shape (scope, assess and preserve, contain, remediate, verify, record) and the patch paths it relies on are in [Security Operations: Responding to a Security Event](security-operations#responding-to-a-security-event). To run it on a live cluster, use **eks-security C2 security event response**.
+
 ### EKS-Specific Forensics Steps
 
-1. **Isolate the pod** — apply deny-all network policy to the namespace
-2. **Capture pod state** — `kubectl get pod -o yaml`, `kubectl logs`, `kubectl exec -- ps aux`
-3. **Snapshot the node** — create EBS snapshot of the node's root volume
-4. **Cordon the node** — `kubectl cordon node-name` to prevent new scheduling
-5. **Preserve logs** — export CloudWatch Logs, audit logs, VPC Flow Logs
-6. **Review GuardDuty findings** — check for related security findings
-7. **Analyze with EKS audit logs** — trace the attack timeline via API server logs
+1. **Preserve first:** `kubectl get pod -o yaml`, `kubectl logs` (and `--previous`), the image digest and the node name; snapshot the node's root volume and protect the node from termination
+2. **Isolate the pod, not the namespace:** label the affected pod and apply a pod-scoped quarantine NetworkPolicy (a namespace-wide deny-all also cuts off healthy neighbours); see [Security Operations](security-operations#containment-that-stays-pod-scoped)
+3. **Cordon the node:** `kubectl cordon <node-name>` to prevent new scheduling
+4. **Cut off the identity:** remove the Pod Identity association or tighten the role trust, then revoke the role's active sessions
+5. **Preserve logs:** export CloudWatch Logs, audit logs, VPC Flow Logs
+6. **Review GuardDuty findings:** check for related security findings
+7. **Analyze with EKS audit logs:** trace the attack timeline via API server logs
 
-**Do NOT delete pods or nodes before capturing evidence.**
+**Do NOT delete or scale down pods or nodes before capturing evidence.**
 
 ### Automated Response Patterns
 
-Use GuardDuty findings with EventBridge to automate initial response:
-- GuardDuty finding -> EventBridge rule -> Lambda function -> apply network policy isolation
-- Alert security team via SNS/Slack while automated containment runs
+Use GuardDuty findings with EventBridge to automate the first containment step only:
+- GuardDuty finding -> EventBridge rule -> Lambda function -> apply the quarantine label to the affected pod (pod-scoped isolation)
+- Alert the security team through your on-call channel while containment runs; keep further steps a human decision
 
 ### Key Investigation Tools
 
@@ -325,4 +327,4 @@ Use GuardDuty findings with EventBridge to automate initial response:
 - [AWS EKS Best Practices Guide — Image Security](https://docs.aws.amazon.com/eks/latest/best-practices/image-security.html)
 - [AWS EKS Best Practices Guide — Infrastructure Security](https://docs.aws.amazon.com/eks/latest/best-practices/protecting-the-infrastructure.html)
 - [AWS EKS Best Practices Guide — Compliance](https://docs.aws.amazon.com/eks/latest/best-practices/compliance.html)
-- [AWS EKS Best Practices Guide — Incident Response](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response.html)
+- [AWS EKS Best Practices Guide: Incident Response and Forensics](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html)

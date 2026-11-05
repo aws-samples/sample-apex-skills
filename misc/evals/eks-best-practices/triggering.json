@@ -154,5 +154,21 @@
   {
     "query": "measure how Well-Architected our running cluster is and what to fix first",
     "should_trigger": false
+  },
+  {
+    "query": "A critical CVE was just published for one of our EKS add-ons. How should a platform team decide whether a fix skips our monthly patch window, and what should the emergency patch path look like?",
+    "should_trigger": true
+  },
+  {
+    "query": "How should our EKS platform team stay informed about new security issues in Kubernetes, node AMIs, add-ons and our container images, and set up alerting instead of finding out at the next review?",
+    "should_trigger": true
+  },
+  {
+    "query": "Check our running EKS cluster against this AWS security bulletin and tell me which of our clusters are exposed.",
+    "should_trigger": false
+  },
+  {
+    "query": "We think a pod in our production EKS cluster was compromised an hour ago. Walk through our live cluster: what is affected, was the role used, and what should we contain right now?",
+    "should_trigger": false
   }
 ]
