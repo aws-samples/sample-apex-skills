@@ -1,8 +1,8 @@
 # Security Event Response
 
-What to do when a security event touches an EKS cluster: a new CVE or advisory, a compromised image or package, a leaked credential, or a suspicious runtime finding. One generic workflow covers every event type, in six steps: **scope, assess and preserve, contain (proposed only), remediate, verify, record.** Detection (Layer 5, [runtime-security.md](runtime-security.md)) and audit logging (Layer 6, [audit-logging.md](audit-logging.md)) produce the signals; this reference is how you respond.
+What to do when a security event touches an EKS cluster: a new CVE or advisory, a compromised image or package, a leaked credential, or a suspicious runtime finding. One generic workflow covers every event type, in six steps: **scope, preserve evidence, contain (proposed only), remediate, verify, record.** Detection (Layer 5, [runtime-security.md](runtime-security.md)) and audit logging (Layer 6, [audit-logging.md](audit-logging.md)) produce the signals; this reference is how you respond.
 
-**Read and propose only.** Every command below that the skill runs is a read (`aws ... describe-*`, `list-*`, `get-*`, `lookup-events`, a Logs Insights query; `kubectl get`). Every change (NetworkPolicy, cordon, identity revocation, admission block, patch) is printed as a command or manifest for the team to review and run. The skill never applies, patches, scales, deletes, cordons, execs into a pod or reads a Secret's data.
+**Read and propose only.** Every command below that the skill runs is a read (`aws ... describe-*`, `list-*`, `get-*`; `kubectl get`, `kubectl logs`). Every change (NetworkPolicy, cordon, identity revocation, admission block, patch) is printed as a command or manifest for the team to review and run. The skill never applies, patches, scales, deletes, cordons, execs into a pod or reads a Secret's data.
 
 ## Before an event (prerequisites)
 
@@ -13,13 +13,13 @@ What to do when a security event touches an EKS cluster: a new CVE or advisory, 
 
 ## Event types
 
-| Event | Step 1 scopes by | Step 2 asks | Typical containment proposal | Typical remediation |
+| Event | Step 1 scopes by | Step 2 preserves | Typical containment proposal | Typical remediation |
 |---|---|---|---|---|
-| **New CVE or advisory** | Component and installed version (run [cve-advisory-review.md](cve-advisory-review.md) first) | Is there a public exploit; any finding or audit-log sign of use? | Usually none beyond the advisory's workaround, if it has one | Patched add-on, AMI or image on the emergency path |
-| **Compromised image** (malware, known-bad, exploited CVE) | Image digest: every pod running it | Did any pod running it make unexpected API or network calls? | Pod-scoped isolation of those pods; block the digest at admission | Rebuild on a clean, patched base; redeploy by digest |
-| **Compromised package** (a dependency in an image) | Images whose lockfile or SBOM contains the package version; then their pods | Same as compromised image, plus build-system access in the window | Pod-scoped isolation; block the affected digests | Rebuild from a lockfile pinned to a clean version, in an isolated build step |
-| **Leaked credential** (access key, role session, service account token) | The principal: which roles, Pod Identity associations, IRSA service accounts and pods use it | CloudTrail calls by that key or role in the exposure window | Revoke or rotate the credential; revoke the role's active sessions | Rotate secrets the principal could read; narrow the role's policy |
-| **Suspicious runtime finding** (GuardDuty, Falco, a CNAPP) | The finding's pod, node, namespace, service account and image | Is it a true positive; what did the pod and its identity touch? | Pod-scoped isolation; cordon the node; revoke the pod's identity | Close the entry vector (patch, permission, misconfiguration); replace the node |
+| **New CVE or advisory** | Component and installed version (run [cve-advisory-review.md](cve-advisory-review.md) first) | Specs, digests and logs of the affected pods, if the team will contain them | Usually none beyond the advisory's workaround, if it has one | Patched add-on, AMI or image on the emergency path |
+| **Compromised image** (malware, known-bad, exploited CVE) | Image digest: every pod running it | Specs, logs and nodes of every pod running the digest | Pod-scoped isolation of those pods; block the digest at admission | Rebuild on a clean, patched base; redeploy by digest |
+| **Compromised package** (a dependency in an image) | Images whose lockfile or SBOM contains the package version; then their pods | Same as compromised image, plus the lockfile or SBOM that names the package | Pod-scoped isolation; block the affected digests | Rebuild from a lockfile pinned to a clean version, in an isolated build step |
+| **Leaked credential** (access key, role session, service account token) | The principal: which roles, Pod Identity associations, IRSA service accounts and pods use it | The principal's attached policies and the pods and service accounts that use it | Revoke or rotate the credential; revoke the role's active sessions | Rotate secrets the principal could read; narrow the role's policy |
+| **Suspicious runtime finding** (GuardDuty, Falco, a CNAPP) | The finding's pod, node, namespace, service account and image | The finding as exported, plus the pod, node and identity records | Pod-scoped isolation; cordon the node; revoke the pod's identity | Close the entry vector (patch, permission, misconfiguration); replace the node |
 
 ## Step 1: Scope
 
@@ -42,49 +42,11 @@ For a compromised package, the cluster cannot see lockfiles: ask for the reposit
 
 **Not exposed path:** when step 1 finds nothing in scope, write the record (step 6) with what was read and when, and stop.
 
-## Step 2: Assess and preserve
+## Step 2: Preserve evidence
 
-Two questions come before any containment: **was it used**, and **is the evidence safe**. Scaling down, deleting or restarting a pod destroys its process state and local filesystem.
+Evidence comes before any containment: scaling down, deleting or restarting a pod destroys its process state and local filesystem.
 
-### Assess: was it used? (optional block)
-
-These reads need the IAM actions listed in [read-only-access.md](read-only-access.md) (GuardDuty `ListDetectors`, `ListFindings`, `GetFindings`; CloudTrail `LookupEvents`; CloudWatch Logs `StartQuery`, `GetQueryResults`). When a source cannot be read (no access, the service not enabled, the log type not on), the record says **`not checked: no access`** (or `not checked: <source> not enabled`) for that source. It never says "no evidence" for a source that was not read.
-
-**GuardDuty EKS findings for the cluster** ([filter attributes](https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_filter-findings.html)):
-
-```bash
-DET=$(aws guardduty list-detectors --query 'DetectorIds[0]' --output text)
-aws guardduty list-findings --detector-id "$DET" \
-  --finding-criteria '{"Criterion":{"resource.eksClusterDetails.name":{"Equals":["<cluster>"]}}}'
-aws guardduty get-findings --detector-id "$DET" --finding-ids <id> [<id> ...]
-```
-
-Fields that answer it: `Type`, `Severity` (7 to 8 high, 9 to 10 critical), `Service.EventFirstSeen` and `EventLastSeen`, `Resource.KubernetesDetails.KubernetesWorkloadDetails` (`Name`, `Namespace`, `Containers[].Image`, `ServiceAccountName`) and `Resource.KubernetesDetails.KubernetesUserDetails.Username`. Narrow to a namespace or image with the criteria `resource.kubernetesDetails.kubernetesWorkloadDetails.namespace` or `resource.kubernetesDetails.kubernetesWorkloadDetails.containers.image`. An attack-sequence finding (Extended Threat Detection) carries the correlated timeline.
-
-**CloudTrail for an involved role or access key** ([LookupAttribute keys](https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_LookupAttribute.html): `EventId`, `EventName`, `ReadOnly`, `Username`, `ResourceType`, `ResourceName`, `EventSource`, `AccessKeyId`):
-
-```bash
-aws cloudtrail lookup-events --start-time <ISO8601> --end-time <ISO8601> \
-  --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=<AKIA...|ASIA...>
-aws cloudtrail lookup-events --start-time <ISO8601> --end-time <ISO8601> \
-  --lookup-attributes AttributeKey=Username,AttributeValue=<role-session-name>
-```
-
-Fields: `Events[].EventName`, `EventSource`, `EventTime`, and inside `CloudTrailEvent` (a JSON string): `sourceIPAddress`, `userAgent`, `userIdentity.arn`, `errorCode`. `lookup-events` reads management events in the current Region only, one attribute per call; data events (for example S3 object reads) need a trail or CloudTrail Lake. IAM and STS events land in us-east-1. For a Pod Identity or IRSA role, the session name differs per pod, so search by `ResourceName` with the role ARN or filter `userIdentity.sessionContext.sessionIssuer.arn` in the returned events.
-
-**Cluster audit log for a service account or pod**, CloudWatch Logs Insights on the log group `/aws/eks/<cluster>/cluster` ([control-plane logs](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html), [query examples](https://docs.aws.amazon.com/eks/latest/best-practices/auditing-and-logging.html)); needs the `audit` log type enabled:
-
-```bash
-QID=$(aws logs start-query --log-group-name /aws/eks/<cluster>/cluster \
-  --start-time <epoch-seconds> --end-time <epoch-seconds> \
-  --query-string 'fields @timestamp, verb, objectRef.resource, objectRef.namespace, objectRef.name, responseStatus.code, sourceIPs.0
-| filter @logStream like "kube-apiserver-audit"
-| filter user.username = "system:serviceaccount:<ns>:<sa>"
-| sort @timestamp desc | limit 500' --query queryId --output text)
-aws logs get-query-results --query-id "$QID"
-```
-
-For a pod, filter `objectRef.name = "<pod>" and objectRef.namespace = "<ns>"` (with `objectRef.subresource` showing `exec`, `attach` or `portforward` attempts against it). Fields: `verb`, `objectRef.*`, `responseStatus.code` (403 means tried and refused), `sourceIPs`, `annotations.authorization.k8s.io/decision`. Watch for `get`/`list` on `secrets`, `create` on `pods/exec`, and new `rolebindings` or `clusterrolebindings`.
+Checking whether an exposure was exploited (GuardDuty findings, CloudTrail and audit log queries) is not covered yet: https://github.com/aws-samples/sample-apex-skills/issues/351
 
 ### Preserve before containing
 
@@ -138,7 +100,7 @@ Patched add-on or node AMI, an image rebuilt on a patched base and redeployed by
 
 ## Step 5: Verify
 
-Re-run [cve-advisory-review.md](cve-advisory-review.md) for the advisory (verdict "not exposed" for every component in scope) and the [posture-check.md](posture-check.md) checks that touch the affected control (for example IMDS hop limit, NetworkPolicy default-deny, PSA level, workload identity). Re-run the step 2 queries for the period after containment: no new findings, API calls or audit entries from the revoked identity.
+Re-run [cve-advisory-review.md](cve-advisory-review.md) for the advisory (verdict "not exposed" for every component in scope) and the [posture-check.md](posture-check.md) checks that touch the affected control (for example IMDS hop limit, NetworkPolicy default-deny, PSA level, workload identity).
 
 ## Step 6: Record
 
@@ -149,10 +111,7 @@ Write the record even on the not-exposed path. After the event, find the root ca
 - Event: <type> <identifier, e.g. CVE id, digest, access key id (last 4)>; source <URL or finding id>, read <UTC time>
 - Clusters and scope: <clusters, namespaces, workloads, digests, identities>; read at <UTC time>
 - Exposure: exposed | not exposed | unknown (<reason>)
-- Evidence of use, per source and window:
-  - GuardDuty: <findings ids> | no findings for <window> | not checked: no access
-  - CloudTrail: <events> | no events for <principal> in <window> | not checked: no access
-  - Audit log: <entries> | no entries in <window> | not checked: no access | not checked: audit log not enabled
+- Evidence of use: not checked by this skill (exploitation checks are not covered yet)
 - Preserved: <pod spec, node, digest, logs, snapshot ids (proposed or taken by the team)>
 - Actions proposed: <list, with the printed command or manifest>
 - Actions taken by the team: <list, who, when>
@@ -168,7 +127,6 @@ Write the record even on the not-exposed path. After the event, find the root ca
 
 ## Sources
 - [EKS Best Practices: Incident response and forensics](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html) · [EKS Best Practices: Auditing and logging](https://docs.aws.amazon.com/eks/latest/best-practices/auditing-and-logging.html) · [EKS Best Practices: Runtime security](https://docs.aws.amazon.com/eks/latest/best-practices/runtime-security.html)
-- [GuardDuty filter attributes](https://docs.aws.amazon.com/guardduty/latest/ug/guardduty_filter-findings.html) · [GuardDuty EKS integration](https://docs.aws.amazon.com/eks/latest/userguide/integration-guardduty.html)
-- [CloudTrail LookupAttribute](https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_LookupAttribute.html) · [EKS control-plane logs](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html)
+- [GuardDuty EKS integration](https://docs.aws.amazon.com/eks/latest/userguide/integration-guardduty.html) · [EKS control-plane logs](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html)
 - [Revoke IAM role temporary security credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_revoke-sessions.html) · [AWS Security Incident Response Guide](https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/welcome.html)
 - All checked 2026-11-05.
