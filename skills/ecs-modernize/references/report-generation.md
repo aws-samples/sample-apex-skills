@@ -272,7 +272,7 @@ No part of any detected credential value — whole or partial — appears anywhe
 
 ### Report masking
 
-The report can carry hostnames, private repository URLs and other identifiers found in the source. Before sharing the report outside the organization, mask or omit the AWS account ID and any cluster ARNs (CONTRIBUTING.md, Report masking).
+The report can carry hostnames, private repository URLs and other identifiers found in the source; the contract below does not cover those, so review them before sharing. Before sharing the report outside the organization, mask or omit the AWS account ID and any cluster ARNs (CONTRIBUTING.md, Report masking).
 
 ### Artifact examples: code blocks only, no IaC
 

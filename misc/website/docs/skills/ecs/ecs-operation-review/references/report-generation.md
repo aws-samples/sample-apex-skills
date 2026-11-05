@@ -179,7 +179,7 @@ The generated report should follow this structure (headings, Maturity Score tabl
 
 - Title line: `# ECS Operation Review Report`
 - Header lines: Cluster / Region / Account; Capacity mix; Services count; Date.
-- **Confidentiality caution (immediately under the header):** a one-line note such as *"Treat this report as customer-confidential — it contains account IDs, ARNs, security-group findings, and other estate details. Share only with authorized parties."* Before sharing the report outside the organization, mask or omit the AWS account ID and any cluster ARNs (CONTRIBUTING.md, Report masking).
+- **Confidentiality caution (immediately under the header):** a one-line note such as *"Treat this report as customer-confidential — it contains account IDs, ARNs, security-group findings, and other estate details. Share only with authorized parties."* Before sharing the report outside the organization, mask or omit the AWS account ID and any cluster ARNs, and never include any part of a credential value the skill detects (CONTRIBUTING.md, Report masking).
 - `## Executive Summary` - 2-3 paragraphs, strengths first then gaps; every rating matches findings.
 - `## Maturity Score` - table with columns Rating | Count | Percentage for GREEN/AMBER/RED/UNKNOWN (N/A items excluded from the table). The UNKNOWN row shows "—" in the Percentage column — UNKNOWN is excluded from the percentage denominator, so giving it a percentage would make the rows not sum to 100%. Immediately below the table:
   - the **coverage line**: "N of M items assessable (X% coverage)" (see Step 2), and
