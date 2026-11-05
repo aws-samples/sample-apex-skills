@@ -62,7 +62,7 @@ function AgentDemo() {
       </pre>
       <p className="apex-terminal__caption">
         Ask in your own words. In Claude Code and Kiro CLI you can also type{' '}
-        <code>/apex</code>; in Codex, <code>$apex</code> (manual install from main).{' '}
+        <code>/apex</code>; in Codex, <code>$apex</code>. Both need the manual install from main.{' '}
         <Link to="/docs/skills/general/apex/">How the router works</Link>
       </p>
     </section>
