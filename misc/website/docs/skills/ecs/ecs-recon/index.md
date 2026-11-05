@@ -203,7 +203,7 @@ Write report to `.ecs-recon-report.yaml` and present summary to user.
 
 **Summarize facts, not verdicts** — this skill must not emit health/quality judgments (that is `ecs-operation-review`'s lane).
 
-**Report sensitivity:** the report embeds account IDs, subnet/security-group IDs, IAM role ARNs, and secret ARNs. Treat it as sensitive — write it only inside the workspace, and do not commit it (recommend adding `.ecs-recon-report.yaml` to `.gitignore`). Before sharing it outside the account, mask or omit the account ID and ARNs (CONTRIBUTING.md, Report masking).
+**Report sensitivity:** the report embeds account IDs, subnet/security-group IDs, IAM role ARNs, and secret ARNs. Treat it as sensitive — write it only inside the workspace, and do not commit it (recommend adding `.ecs-recon-report.yaml` to `.gitignore`). Before sharing the report outside the organization, mask or omit the AWS account ID and any cluster ARNs (CONTRIBUTING.md, Report masking).
 
 ---
 

@@ -375,7 +375,7 @@ python3 -B ${CLAUDE_SKILL_DIR}/assets/render-report.py "$PWD/eks-war-<CLUSTER>" 
 
 **Tell the user the report is internal before they forward it.** It names the cluster, region, node and
 volume IDs, security group and subnet IDs, and IAM role/OIDC ARNs — which carry the AWS account ID — and
-those identifiers should be masked before it leaves the cluster owner's circle.
+those identifiers should be masked before it leaves the cluster owner's circle (CONTRIBUTING.md, Report masking).
 **Say *the work directory* is internal, not just `report.html`**: `results.jsonl` and the collected JSON
 name the same identifiers, and the collected workload JSON holds every container's literal env values and arguments: treat the work directory as credential material, keep it out of version control and delete it after the review. Detail: [references/workflow.md](references/workflow) §*Step 8 detail: themes, the internal report, resource lists and what the renderer reads*.
 

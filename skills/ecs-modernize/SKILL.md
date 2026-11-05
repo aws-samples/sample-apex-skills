@@ -205,7 +205,6 @@ Full template and generation rules: [references/report-generation.md](references
 - **Default output location:** the current working directory. The report must be written **outside** the target source code directory — if the CWD is inside the source tree, confirm an external location with the user before writing.
 - **User-specified filename/directory takes priority** over the defaults. If the specified destination is inside the target source directory, surface the conflict, confirm an alternative destination, and never write into the source tree without that confirmation.
 - **Overwrite confirmation:** if a file with the same name already exists at the destination, ask the user before overwriting. Never overwrite without confirmation.
-- **Report masking:** the report can carry hostnames, private repository URLs and other identifiers found in the source. Treat it as confidential to the owner; before sharing it outside the organization, mask or omit account IDs and ARNs (CONTRIBUTING.md, Report masking). Credential values never appear (see above).
 
 ## Delegation Boundaries
 
