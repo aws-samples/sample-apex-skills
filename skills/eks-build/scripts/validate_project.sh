@@ -235,152 +235,236 @@ echo "11. Karpenter discovery tags"
 echo "-------------------------------------------"
 
 # Karpenter launches nodes only into subnets and security groups whose tags
-# match the EC2NodeClass selector terms; a mismatch fails silently at runtime.
-# POSIX awk only (no gawk extensions, no grep -P), so this runs on macOS too.
+# match the EC2NodeClass selector terms (terms are ORed, the tags inside one
+# term are ANDed); a mismatch fails silently at runtime. Intended to run on
+# macOS too (POSIX awk, no grep -P), but not run there; section 6 uses grep -P.
 
-# Shared parser: split a `key: value` (YAML) or `"key" = value` (HCL) line.
-# Sets PK (key), PV (normalised value), PKIND (L = literal, E = expression).
-KARP_PARSE_AWK=$(cat <<'AWK'
+# Shared helpers. strip() drops # and // comments; tok() splits a line into
+# T[1..n]: { } [ ] ( ) , outside quotes and ${...}, and trimmed text between;
+# parse() reads `key: value` (YAML) or `"key" = value` (HCL) into PK, PV and
+# PKIND (L literal, E expression): 1 with a value, 2 for a bare key, else 0.
+KARP_LIB_AWK=$(cat <<'AWK'
+BEGIN { OFS = "\t" }
 function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
-function parse(line,   sep, hcl) {
-    line = trim(line)
-    sub(/^-[[:space:]]*/, "", line)
-    sub(/^(merge\(|\{|\()[[:space:]]*/, "", line)
-    if (!match(line, /^["']?[A-Za-z0-9._\/-]+["']?[[:space:]]*[:=]/)) return 0
-    sep = substr(line, RLENGTH, 1)
-    if (substr(line, RLENGTH + 1, 1) == "=") return 0
-    hcl = (sep == "=")
-    PK = substr(line, 1, RLENGTH - 1)
-    gsub(/["'[:space:]]/, "", PK)
-    PV = substr(line, RLENGTH + 1)
-    sub(/[[:space:]]+#.*$/, "", PV)
-    PV = trim(PV)
-    if (PV == "" || PV ~ /^\{/) return 0
+function strip(s) { sub(/(^|[[:space:]])(#|\/\/).*$/, "", s); return s }
+function tok(s,   n, i, c, q, b, ip) {
+    n = 0; q = ""; b = ""; ip = 0
+    for (i = 1; i <= length(s); i++) {
+        c = substr(s, i, 1)
+        if (q != "") { b = b c; if (c == q) q = ""; continue }
+        if (ip) { b = b c; if (c == "{") ip++; else if (c == "}") ip--; continue }
+        if (c == "\"" || c == "'") { q = c; b = b c; continue }
+        if (c == "$" && substr(s, i + 1, 1) == "{") { b = b "${"; i++; ip = 1; continue }
+        if (index("{}[](),", c)) { if (trim(b) != "") T[++n] = trim(b); b = ""; T[++n] = c; continue }
+        b = b c
+    }
+    if (trim(b) != "") T[++n] = trim(b)
+    return n
+}
+function parse(s,   q, r, hcl) {
+    s = trim(s); sub(/^-[[:space:]]*/, "", s)
+    if (s ~ /^["']/) {
+        q = substr(s, 1, 1); r = index(substr(s, 2), q)
+        if (!r) return 0
+        PK = substr(s, 2, r - 1); s = trim(substr(s, r + 2))
+        if (s !~ /^[:=]/) return 0
+        hcl = (substr(s, 1, 1) == "="); s = substr(s, 2)
+    } else if (match(s, /^[A-Za-z0-9._\/:-]+[[:space:]]*=/)) {
+        PK = trim(substr(s, 1, RLENGTH - 1)); hcl = 1; s = substr(s, RLENGTH + 1)
+    } else if (match(s, /^[A-Za-z0-9._\/:-]*[A-Za-z0-9._\/-]:([[:space:]]|$)/)) {
+        PK = substr(s, 1, RLENGTH); sub(/:[[:space:]]*$/, "", PK); hcl = 0; s = substr(s, RLENGTH + 1)
+    } else return 0
+    if (s ~ /^[=>]/) return 0
+    PV = trim(s)
+    if (PV == "") return 2
     if (index(PV, "${") > 0) PKIND = "E"
     else if (PV ~ /^["']/) PKIND = "L"
     else PKIND = (hcl ? "E" : "L")
-    gsub(/\$\{/, "", PV)
-    gsub(/[]}"',[:space:]]/, "", PV)
-    if (PV == "") return 0
-    return 1
+    gsub(/\$\{/, "", PV); gsub(/[]}"'[:space:]]/, "", PV)
+    return (PV == "") ? 0 : 1
 }
 AWK
 )
 
-# EC2NodeClass selectors: prints "<subnet|sg> <key> <value> <L|E>" per selector.
-KARP_SEL_AWK="$KARP_PARSE_AWK"$(cat <<'AWK'
+# EC2NodeClass selectors: "<subnet|sg> <list> <term> <key> <value> <L|E> <file>"
+# per tag of every term; key __id__ (id term), __ref__ (tags by reference),
+# __bad__ (unreadable tag) or __other__ (no tags or id).
+KARP_SEL_AWK="$KARP_LIB_AWK"$(cat <<'AWK'
 
-BEGIN { OFS = "\t" }
-FNR == 1 { sel = ""; want = 0; nxt = 0 }
+function out(k, v, kd) { if (!tm) tm = 1; print sel, g, tm, k, v, kd, FILENAME; to++ }
+function flush() { if (reg && tm && !to) print sel, g, tm, "__other__", "-", "L", FILENAME }
+function newterm() { flush(); tm++; to = 0; tagd = -1; tagc = -1; pend = 0 }
+FNR == 1 { flush(); reg = 0 }
+END { flush() }
 {
-    line = $0
-    if (match(line, /subnetSelectorTerms/)) {
-        sel = "subnet"; want = 1; nxt = 0; line = substr(line, RSTART + RLENGTH)
-    } else if (match(line, /securityGroupSelectorTerms/)) {
-        sel = "sg"; want = 1; nxt = 0; line = substr(line, RSTART + RLENGTH)
-    } else if (line ~ /SelectorTerms|^---|kind[[:space:]]*[:=]/) {
-        want = 0; nxt = 0; next
+    line = strip($0)
+    if (line !~ /[^[:space:]]/) next
+    ind = match(line, /[^[:space:]]/) - 1
+    if (match(line, /(subnet|securityGroup)SelectorTerms/)) {
+        flush(); sel = (substr(line, RSTART, 2) == "su") ? "subnet" : "sg"
+        g++; reg = 1; ri = ind; d = 0; ld = -1; tm = 0; to = 0; tagd = -1; tagc = -1; pend = 0
+        line = substr(line, RSTART + RLENGTH); sub(/^["']?[[:space:]]*[:=]/, "", line); first = 1
+    } else if (line ~ /SelectorTerms|^---|^[[:space:]]*["']?kind["']?[[:space:]]*[:=]/) { flush(); reg = 0; next }
+    else if (!reg) next
+    else first = 0
+    if (!first && d == 0) {
+        if (ind < ri || (ind == ri && line !~ /^[[:space:]]*-/)) { flush(); reg = 0; next }
+        if (tagc >= 0 && ind <= tagc) tagc = -1
+        if (match(line, /^[[:space:]]*-[[:space:]]*/)) { newterm(); ind = RLENGTH; line = substr(line, RLENGTH + 1) }
     }
-    if (!want) next
-    if (nxt) {
-        if (trim(line) == "") next
-        if (parse(line)) print sel, PK, PV, PKIND
-        want = 0; nxt = 0; next
-    }
-    if (line ~ /(^|[^A-Za-z0-9_])id[[:space:]]*[:=]/) { print sel, "__id__", "-", "L"; want = 0; next }
-    if (match(line, /tags[[:space:]]*[:=]/)) {
-        rest = trim(substr(line, RSTART + RLENGTH))
-        sub(/^\{[[:space:]]*/, "", rest)
-        if (rest == "") { nxt = 1; next }
-        if (parse(rest)) print sel, PK, PV, PKIND
-        want = 0
+    n = tok(line)
+    for (i = 1; i <= n; i++) {
+        t = T[i]
+        if (t == "{" || t == "[") {
+            d++
+            if (t == "[" && ld < 0 && d == 1 && !tm) ld = 1
+            else if (t == "{" && ld > 0 && d == ld + 1) newterm()
+            if (pend) { tagd = d; pend = 0 }
+            continue
+        }
+        if (t == "}" || t == "]") {
+            if (d == tagd) tagd = -1
+            d--; if (ld > 0 && d < ld) { flush(); reg = 0; break }
+            continue
+        }
+        pend = 0
+        if (t == "," || t == "(" || t == ")") continue
+        r = parse(t)
+        if ((tagd > 0 && d == tagd) || (tagc >= 0 && d == 0)) {
+            if (r == 1) out(PK, PV, PKIND); else out("__bad__", "-", "L")
+        } else if (r == 2 && PK == "tags") {
+            if (i == n && d == 0) tagc = ind; else pend = 1
+        } else if (r == 1 && PK == "tags") out("__ref__", "-", "E")
+        else if (r == 1 && PK == "id") out("__id__", "-", "L")
     }
 }
 AWK
 )
 
-# Tags the Terraform applies: prints "<subnet|sg|clustersg> <key> <value> <L|E>".
-# Sources: aws_ec2_tag resources, the VPC module's private_subnet_tags and the
-# EKS module's node_security_group_tags. A map passed by reference (for example
-# `private_subnet_tags = local.subnet_tags`) prints key "__ref__".
-KARP_TAG_AWK="$KARP_PARSE_AWK"$(cat <<'AWK'
+# Tags the Terraform applies: "<type> <key> <value> <L|E>", type subnet (private
+# subnets), pubsubnet, subunk (a subnet target that is neither), sg, clustersg
+# or unk (aws_ec2_tag target not identifiable). Inputs read: aws_ec2_tag
+# resources and the private_subnet_tags, public_subnet_tags and
+# node_security_group_tags maps; a map by reference prints key __ref__.
+KARP_TAG_AWK="$KARP_LIB_AWK"$(cat <<'AWK'
 
-BEGIN { OFS = "\t" }
+function emit(k, v, kd,   x) {
+    if (mode != "ec2tag") { print mode, k, v, kd; return }
+    x = 0
+    if (blob ~ /private_subnet/) { print "subnet", k, v, kd; x = 1 }
+    if (blob ~ /public_subnet/) { print "pubsubnet", k, v, kd; x = 1 }
+    if (!x && blob ~ /subnet/) { print "subunk", k, v, kd; x = 1 }
+    if (blob ~ /cluster_primary_security_group|cluster_security_group/) print "clustersg", k, v, kd
+    if (blob ~ /security_group/) { print "sg", k, v, kd; x = 1 }
+    if (!x) print "unk", k, v, kd
+}
 FNR == 1 { mode = "" }
 {
-    line = $0
-    if (line ~ /^[[:space:]]*#/) next
+    line = strip($0)
     if (mode == "") {
         if (line ~ /resource[[:space:]]+"aws_ec2_tag"/) {
-            mode = "ec2tag"; depth = 0; seen = 0; blob = ""; tk = ""; tv = ""; tkind = ""
-        } else if (match(line, /private_subnet_tags[[:space:]]*=/)) {
-            mode = "subnet"; depth = 0; seen = 0; line = substr(line, RSTART + RLENGTH)
-        } else if (match(line, /node_security_group_tags[[:space:]]*=/)) {
-            mode = "sg"; depth = 0; seen = 0; line = substr(line, RSTART + RLENGTH)
+            mode = "ec2tag"; d = 0; p = 0; seen = 0; blob = ""; tk = ""; tv = ""; kk = ""; tkind = ""
+        } else if (match(line, /(private_subnet|public_subnet|node_security_group)_tags[[:space:]]*=/)) {
+            mode = substr(line, RSTART, 2)
+            mode = (mode == "pr") ? "subnet" : (mode == "pu") ? "pubsubnet" : "sg"
+            d = 0; p = 0; seen = 0; ref = 0; line = substr(line, RSTART + RLENGTH)
         } else next
     }
-    o = gsub(/\{/, "{", line); c = gsub(/\}/, "}", line)
-    if (o > 0) seen = 1
+    n = tok(line)
+    for (i = 1; i <= n; i++) {
+        t = T[i]
+        if (t == "{") { d++; seen = 1; continue }
+        if (t == "}") { d--; continue }
+        if (t == "(") { p++; continue }
+        if (t == ")") { p--; continue }
+        if (t ~ /^[],[]$/) continue
+        r = parse(t)
+        if (mode == "ec2tag") {
+            if (r == 1 && PK == "key") { tk = PV; kk = PKIND }
+            else if (r == 1 && PK == "value") { tv = PV; tkind = PKIND }
+            else if (d >= 1) blob = blob " " t
+        } else if (d >= 1) {
+            if (r == 1) print mode, PK, PV, PKIND
+        } else if (!(i < n && T[i + 1] == "(")) ref = 1
+    }
+    if (d > 0 || p > 0 || (mode == "ec2tag" && !seen)) next
     if (mode == "ec2tag") {
-        blob = blob " " line
-        if (parse(line)) {
-            if (PK == "key") tk = PV
-            else if (PK == "value") { tv = PV; tkind = PKIND }
-        }
-    } else if (!seen) {
-        print mode, "__ref__", "-", "E"; mode = ""; next
-    } else if (parse(line)) {
-        print mode, PK, PV, PKIND
-    }
-    depth += o - c
-    if (seen && depth <= 0) {
-        if (mode == "ec2tag" && tk != "" && tv != "") {
-            if (blob ~ /subnet/) print "subnet", tk, tv, tkind
-            if (blob ~ /security_group/) print "sg", tk, tv, tkind
-            if (blob ~ /cluster_primary_security_group|cluster_security_group/) print "clustersg", tk, tv, tkind
-        }
-        mode = ""
-    }
+        if (tk != "" && kk == "L" && tv != "") emit(tk, tv, tkind)
+        else emit("__ref__", "-", "E")
+    } else if (ref || !seen) print mode, "__ref__", "-", "E"
+    mode = ""
 }
 AWK
 )
 
-# Compare one selector against the applied tags of its resource type.
-karp_check() {
-    local type="$1" key="$2" val="$3" kind="$4" label
-    local matched=0 same_key=0 lit_diff=0 has_ref=0 seen_vals="" t k v vk
-    [ "$type" = "subnet" ] && label="subnet" || label="security group"
-    if [ "$key" = "__id__" ]; then
-        pass "EC2NodeClass $label selector uses ids (no discovery tag to check)"
-        return
-    fi
-    while IFS="$(printf '\t')" read -r t k v vk; do
-        [ "$t" = "$type" ] || continue
-        if [ "$k" = "__ref__" ]; then has_ref=1; continue; fi
-        [ "$k" = "$key" ] || continue
-        if [ "$v" = "$val" ]; then matched=1; break; fi
-        same_key=1
-        seen_vals="$seen_vals $v"
-        if [ "$kind" = "L" ] && [ "$vk" = "L" ]; then lit_diff=1; fi
-    done <<< "$KARP_APPLIED"
-    if [ "$matched" -eq 1 ]; then
-        pass "EC2NodeClass $label selector $key=$val matches a tag the project applies"
-    elif [ "$lit_diff" -eq 1 ]; then
-        fail "EC2NodeClass $label selector $key=$val does not match the applied value(s):$seen_vals -- Karpenter will find no $label"
-    elif [ "$same_key" -eq 1 ]; then
-        warn "EC2NodeClass $label selector $key=$val vs applied value(s):$seen_vals -- expressions differ, confirm they resolve to the same value"
-    elif [ "$has_ref" -eq 1 ]; then
-        warn "EC2NodeClass $label selector $key=$val: $label tags are passed by reference, check them manually"
-    else
-        fail "EC2NodeClass $label selector tag $key is not applied to any $label by this project (aws_ec2_tag, private_subnet_tags or node_security_group_tags)"
-    fi
+# Judge each selector term. Input: "A" + applied rows, then "S" + selector rows.
+# Prints "<P|W|F> <message>" per term, then the cluster security group line.
+KARP_EVAL_AWK=$(cat <<'AWK'
+BEGIN { FS = OFS = "\t" }
+$1 == "A" {
+    if ($3 == "__ref__") { REF[$2] = 1; next }
+    if (index(KV[$2, $3] " ", " " $4 " ") == 0) KV[$2, $3] = KV[$2, $3] " " $4
+    HAS[$2, $3, $4] = 1
+    if ($5 == "L") KL[$2, $3] = 1
+    next
 }
+$1 == "S" {
+    s = $2 SUBSEP $3
+    if (!(s in GS)) { GS[s] = 1; GL[++ng] = s; GT[s] = $2 }
+    tid = s SUBSEP $4
+    if (!(tid in TS)) { TS[tid] = "P"; TN[s] = $4; f = $8; sub(/.*\//, "", f); TF[tid] = f; TT[tid] = "" }
+    if ($5 != "__id__" && $5 != "__other__" && $5 != "__ref__" && $5 != "__bad__")
+        TT[tid] = TT[tid] (TT[tid] == "" ? "" : ", ") $5 "=" $6
+    judge($2, $5, $6, $7)
+    if (res == "W" && TS[tid] == "P") TS[tid] = "W"
+    if (res == "F") TS[tid] = "F"
+    if (res == "I" && TS[tid] == "P") TS[tid] = "I"
+    if (res != "P" && res != "I") TM[tid] = TM[tid] (TM[tid] == "" ? "" : "; ") msg
+    if ($2 == "sg" && $5 ~ /discovery/ && SGK != "karpenter.sh/discovery") SGK = $5
+}
+function judge(ty, k, v, kd,   pub) {
+    res = "W"; pub = (ty == "subnet")
+    if (k == "__id__") { res = "I"; return }
+    if (k == "__other__") { msg = "no tags or id selector, not checked"; return }
+    if (k == "__ref__") { msg = "tags passed by reference, check them manually"; return }
+    if (k == "__bad__") { msg = "a tag could not be read, check it manually"; return }
+    if ((ty, k, v) in HAS) { res = "P"; return }
+    if (pub && (("pubsubnet", k, v) in HAS)) { msg = k "=" v " is applied only to public subnets (public_subnet_tags or an aws_ec2_tag on them): Karpenter would launch nodes there"; return }
+    if ((("unk", k, v) in HAS) || (pub && (("subunk", k, v) in HAS))) { msg = k "=" v ": tag target not identifiable, check manually"; return }
+    if ((ty, k) in KV) {
+        if (kd == "L" && ((ty, k) in KL)) { res = "F"; msg = k "=" v " does not match the applied value(s):" KV[ty, k]; return }
+        msg = k "=" v " vs applied value(s):" KV[ty, k] " -- expressions differ (expected when GitOps YAML holds a literal name and Terraform an expression), confirm they resolve to the same value"; return
+    }
+    if ((("unk", k) in KV) || (pub && ((("subunk", k) in KV) || (("pubsubnet", k) in KV)))) { msg = k "=" v ": tag target not identifiable, check manually"; return }
+    if (REF[ty] || REF["unk"] || (pub && REF["subunk"])) { msg = k "=" v ": tags are passed by reference, check them manually"; return }
+    msg = "tag " k " not found in the inputs scanned (aws_ec2_tag, private_subnet_tags, public_subnet_tags, node_security_group_tags); module-level tags and other inputs are not read, check manually"
+}
+END {
+    for (j = 1; j <= ng; j++) {
+        s = GL[j]; ok = 0; allf = 1; lab = (GT[s] == "subnet") ? "subnet" : "security group"
+        for (x = 1; x <= TN[s]; x++) { tid = s SUBSEP x; if (TS[tid] == "P" || TS[tid] == "I") ok = 1; if (TS[tid] != "F") allf = 0 }
+        for (x = 1; x <= TN[s]; x++) {
+            tid = s SUBSEP x; h = "EC2NodeClass " lab " selector term " x " (" TF[tid] ")"
+            if (TS[tid] == "I") print "P", h " uses ids (no discovery tag to check)"
+            else if (TS[tid] == "P") print "P", h " " TT[tid] ": every tag matches a tag the project applies to " (GT[s] == "subnet" ? "private subnets" : "security groups")
+            else if (TS[tid] == "W" || ok) print "W", h ": " TM[tid] (ok ? " (another term matches)" : "")
+            else print "F", h ": " TM[tid] (allf ? " -- no term matches, Karpenter will find no " lab : "")
+        }
+    }
+    if (SGK == "") exit
+    for (z in HAS) { split(z, q, SUBSEP); if (q[1] == "clustersg" && q[2] == SGK) cs = 1; if (q[1] == "unk" && q[2] == SGK) cu = 1 }
+    if (cs) print "P", "Cluster security group carries the " SGK " tag"
+    else if (cu) print "W", "Cluster security group: an aws_ec2_tag with key " SGK " has a target that is not identifiable, check manually"
+    else print "W", "Cluster security group: no aws_ec2_tag with key " SGK " on cluster_primary_security_group_id found (module-level tags are not read)"
+}
+AWK
+)
 
 KARP_DIRS=("$PROJECT_DIR")
 if [ -n "$GITOPS_DIR" ] && [ "$GITOPS_DIR" = "$PROJECT_DIR/../gitops" ]; then
     KARP_DIRS+=("$GITOPS_DIR")
 fi
-KARP_NC_LIST=$(find "${KARP_DIRS[@]}" -type f \( -name '*.tf' -o -name '*.yaml' -o -name '*.yml' -o -name '*.tftpl' -o -name '*.tpl' \) ! -path '*/.terraform/*' -exec grep -l 'EC2NodeClass' {} + 2>/dev/null || true)
+KARP_NC_LIST=$(find "${KARP_DIRS[@]}" -type f \( -name '*.tf' -o -name '*.yaml' -o -name '*.yml' -o -name '*.tftpl' -o -name '*.tpl' \) ! -path '*/.terraform/*' -exec grep -l -E "kind[\"']?[[:space:]]*[:=][[:space:]]*[\"']?EC2NodeClass" {} + 2>/dev/null || true)
 
 if [ -z "$KARP_NC_LIST" ]; then
     pass "Karpenter not configured (no EC2NodeClass found)"
@@ -389,31 +473,22 @@ else
     while IFS= read -r f; do KARP_NC_FILES+=("$f"); done <<< "$KARP_NC_LIST"
     KARP_TF_FILES=()
     while IFS= read -r f; do
-        [ -n "$f" ] && KARP_TF_FILES+=("$f")
+        [ -n "$f" ] || continue
+        if [ -r "$f" ]; then KARP_TF_FILES+=("$f"); else warn "Cannot read $f -- skipped by the Karpenter tag check"; fi
     done <<< "$(find "$PROJECT_DIR" -type f -name '*.tf' ! -path '*/.terraform/*' 2>/dev/null || true)"
 
-    KARP_SELECTORS=$(awk "$KARP_SEL_AWK" "${KARP_NC_FILES[@]}")
+    KARP_SELECTORS=$(awk "$KARP_SEL_AWK" "${KARP_NC_FILES[@]}" || true)
     KARP_APPLIED=""
     if [ "${#KARP_TF_FILES[@]}" -gt 0 ]; then
-        KARP_APPLIED=$(awk "$KARP_TAG_AWK" "${KARP_TF_FILES[@]}")
+        KARP_APPLIED=$(awk "$KARP_TAG_AWK" "${KARP_TF_FILES[@]}" || true)
     fi
 
     if [ -z "$KARP_SELECTORS" ]; then
         warn "EC2NodeClass found but its subnet/security group selector tags could not be read -- check manually"
     else
-        while IFS="$(printf '\t')" read -r s_type s_key s_val s_kind; do
-            karp_check "$s_type" "$s_key" "$s_val" "$s_kind"
-        done <<< "$KARP_SELECTORS"
-    fi
-
-    # The baseline tags the cluster primary security group for discovery.
-    KARP_SG_KEY=$(printf '%s\n' "$KARP_SELECTORS" | awk -F '\t' '$1 == "sg" && $2 != "__id__" { print $2; exit }')
-    if [ -n "$KARP_SG_KEY" ]; then
-        if printf '%s\n' "$KARP_APPLIED" | awk -F '\t' -v k="$KARP_SG_KEY" '$1 == "clustersg" && $2 == k { f = 1 } END { exit !f }'; then
-            pass "Cluster security group carries the $KARP_SG_KEY tag"
-        else
-            warn "Cluster security group is not tagged $KARP_SG_KEY (no aws_ec2_tag on cluster_primary_security_group_id)"
-        fi
+        while IFS="$(printf '\t')" read -r k_lvl k_msg; do
+            case "$k_lvl" in P) pass "$k_msg" ;; F) fail "$k_msg" ;; W) warn "$k_msg" ;; esac
+        done <<< "$( { printf '%s\n' "$KARP_APPLIED" | awk 'NF { print "A\t" $0 }'; printf '%s\n' "$KARP_SELECTORS" | awk '{ print "S\t" $0 }'; } | awk "$KARP_EVAL_AWK")"
     fi
 fi
 

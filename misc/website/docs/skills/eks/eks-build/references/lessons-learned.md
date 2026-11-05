@@ -414,7 +414,7 @@ module "karpenter" {
 }
 ```
 
-Then deploy the Helm chart via `helm_release` and NodePool/EC2NodeClass via `kubectl_manifest`. Tag private subnets and cluster primary SG with `karpenter.sh/discovery: <cluster-name>`.
+Then deploy the Helm chart via `helm_release` with `depends_on = [module.eks_addons_webhooks]` (Section 2) and NodePool/EC2NodeClass via `kubectl_manifest`. Tag private subnets and cluster primary SG with `karpenter.sh/discovery: <cluster-name>`.
 
 ### EC2 Spot Service-Linked Role
 
