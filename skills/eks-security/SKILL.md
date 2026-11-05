@@ -1,6 +1,6 @@
 ---
 name: eks-security
-description: Security reviews of a live Amazon EKS cluster, plus hardening and compliance guidance. Three read-only, scripted capabilities, verdict exposed / not exposed / unknown. (1) CVE and advisory review - "am I exposed to CVE-...", "check this AWS bulletin or GHSA against my cluster", "CVE review for EKS", "check what is current since a date" - for add-ons, images, kubelet, node OS. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, preserve, contain, fix, verify, record. (3) Posture check - "would my cluster contain a compromised pod", IMDS, NetworkPolicy, PSA, identity, logging, GuardDuty, endpoint, supply chain. Also hardening and audit prep - 7-layer stack, CIS, HIPAA / PCI-DSS / FedRAMP / SOC 2, Pod Identity vs IRSA, Access Entries, image signing. Skip for general EKS knowledge (eks-best-practices), a full Well-Architected review (eks-well-architected-review), version lag (eks-upgrade-check), inventory (eks-recon), GenAI workloads (eks-genai), non-EKS.
+description: Security reviews of a live Amazon EKS cluster, plus hardening and compliance guidance. Three read-only, scripted capabilities, verdict exposed / not exposed / unknown. (1) CVE and advisory review - "am I exposed to CVE-...", "check this AWS bulletin or GHSA against my cluster", "CVE review for EKS", "check what is current since a date" - for add-ons, images, kubelet, node OS. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, record, contain, snapshot, fix, verify. (3) Posture check - "would my cluster contain a compromised pod", IMDS, NetworkPolicy, PSA, identity, logging, GuardDuty, endpoint, supply chain. Also hardening and audit prep - 7-layer stack, CIS, HIPAA / PCI-DSS / FedRAMP / SOC 2, Pod Identity vs IRSA, Access Entries, image signing. Skip for general EKS knowledge (eks-best-practices), a full Well-Architected review (eks-well-architected-review), version lag (eks-upgrade-check), inventory (eks-recon), GenAI workloads (eks-genai), non-EKS.
 ---
 
 # EKS Security: reviews, response and hardening
@@ -49,13 +49,13 @@ Scripts (in `assets/`, Python 3.9+ standard library, bash with the AWS CLI v2, `
 
 | Command | What it does |
 |---|---|
-| `collect.sh --cluster <name> --region <r> [--out <dir>] [--namespaces a,b] [--skip-inspector] [--preflight-only]` | Read-only collection plus preflight probes of every read; denied probes downgrade the matching parts to unknown |
+| `collect.sh --cluster <name> --region <r> [--out <dir>] [--namespaces a,b] [--skip-inspector] [--preflight-only] [--context <ctx>] [--kubeconfig <file>] [--profile <p>]` | Read-only collection plus preflight probes of every read; denied probes downgrade the matching parts to unknown |
 | `advisory_fetch.py --ghsa <owner/repo/GHSA-id> \| --k8s [--since YYYY-MM-DD] \| --alas al2\|al2023 [--since] \| --bottlerocket [--since] \| --url <bulletin url> --save <file>` | Structured feeds straight to records; `--url --save` saves a bulletin page for extraction |
 | `advisory_check.py --record <file> --source <saved page> --catalog components.json` | Validates a model-written record: every version line must be a verbatim quote found in the page |
 | `match.py --inventory <workdir>/inventory.json --advisories <file> [--advisories <file> ...] --catalog components.json --out <workdir>/findings.json` | Deterministic compare and priority |
-| `render_report.py --findings <file> --inventory <file> --out-md <f> [--out-html <f>]` | Markdown and HTML report |
+| `render_report.py [--findings <file> [--inventory <file>]] [--posture <file>] --out-md <f> [--out-html <f>]` | Markdown and HTML report; at least one of `--findings` (C1) and `--posture` (C3) |
 
-Exit codes: 0 ok; 2 usage or validation error (one JSON line with `code` on stdout); 3 ran, coverage below the gate.
+Exit codes: 0 ok; 2 usage or validation error (one JSON line with `code` on stdout); 3 ran, coverage below the gate. The C3 scripts are in the C3 section below.
 
 ## C1: CVE and advisory review
 
@@ -85,12 +85,15 @@ If step 1 finds nothing in scope, the record says what was read and stops. Proce
 
 ## C3: Posture check
 
-Two parts, scripted and scored together on one collection:
+64 checks, `SEC-POSTURE-1` to `64`, on one collection, in this order (all read-only):
 
-1. **The security pillar checks**, adapted from eks-well-architected-review's scripted security pillar (identity and access, network, data protection, workload security, governance). A full five-pillar Well-Architected review stays in eks-well-architected-review.
-2. **Containment checks the pillar lacks**, each pass / fail / n.a. / unknown with live evidence and a severity: IMDS hop limit 1 per node; NetworkPolicy enforcement, default-deny ingress and egress control per workload namespace; PSA enforce level per namespace and no host-sharing pods outside system namespaces; node role carrying only node permissions; audit and authenticator logs, GuardDuty EKS audit log and runtime monitoring; enhanced registry scanning with continuous rescan, images pinned by digest, signed-image admission where an engine runs; and no component below a fixed version from C1.
+1. `posture_collect.sh --cluster <name> --region <r> --context <kubectl-context> [--work <dir>] [--profile <p>] [--kubeconfig <file>] [--preflight-only]` writes `<workdir>/posture/`. `--context` is required and must match the cluster's endpoint and CA. A denied read leaves its file out; every check that needs it is unknown.
+2. `posture_score.sh <workdir>`: SEC-POSTURE-1 to 54, adapted from eks-well-architected-review's security pillar with its question ids (`war_id`) and severities. 15 are governance questions: always unknown, confirm them with the team. A full five-pillar review stays in eks-well-architected-review.
+3. `posture_extra.sh <workdir> [--admin-allow <regex>]`: SEC-POSTURE-55 to 64, containment checks the pillar lacks: pod access to IMDS (IMDSv2 with hop limit 1) per node type, default-deny ingress and egress per workload namespace, host namespaces in workload pods, authenticator log, GuardDuty EKS Audit Log Monitoring and Runtime Monitoring (detector configuration only), continuous ECR registry scanning, images pinned by digest, cluster admin through access entries. `--admin-allow` names the principal ARNs expected to hold admin (the cluster creator, a break-glass role); without it the creator's entry fails SEC-POSTURE-64.
+4. `posture_reduce.sh <workdir>` writes `<workdir>/posture.json` (`eks-security/posture@1`): each check pass / fail / na / unknown with evidence, severity and a printed recommendation; a severity-weighted 0-100 score (high 3, medium 2, low 1); a coverage gate (at least half of the 49 measured checks answered, else score null and exit 3); one verdict per containment layer: contained, partly, not-contained or unknown.
+5. `render_report.py --posture <workdir>/posture.json --out-md <f> [--out-html <f>]`.
 
-Scripts, in order: `posture_collect.sh`, `posture_score.sh`, `posture_extra.sh`, `posture_reduce.sh` (severity-weighted, 50% coverage gate), `render_report.py`. Only fixed-version gaps are C3 findings; plain version lag goes to eks-upgrade-check. An optional repository path adds lockfile, base-image digest and `latest`-tag checks in their own section. Checks, evidence and rules: [posture-check.md](references/posture-check.md).
+No posture check judges component versions: fixed-version gaps come from a C1 sweep reported beside it, and plain version lag goes to eks-upgrade-check. When the team names a local repository path, the model may also walk a manual list (lockfiles committed, base images pinned by digest, no `latest` tag) by file reads only, reported in its own section and never scored. Flags, exit codes, checks and rules: [posture-check.md](references/posture-check.md).
 
 ## Knowledge lives in eks-best-practices
 
@@ -233,8 +236,8 @@ Escalate (SpecReq or the AWS account team) for: first-time certification of a mi
 |-----------|------------------------------|
 | [cve-advisory-review.md](references/cve-advisory-review.md) | C1: inputs, record schema, extraction, verdict and priority rules, Auto Mode, report wording, sweep and offline modes, worked example |
 | [advisory-sources.md](references/advisory-sources.md) | The feeds C1 reads, their formats, what each maps to, freshness, unreachable feeds |
-| [security-event-response.md](references/security-event-response.md) | C2: scope, preserve, contain, remediate, verify, record |
-| [posture-check.md](references/posture-check.md) | C3: containment checks with evidence and rules, scoring, repository checks |
+| [security-event-response.md](references/security-event-response.md) | C2: scope, quick record, contain at once, snapshot and investigate after isolation, remediate, verify, record |
+| [posture-check.md](references/posture-check.md) | C3: the posture scripts and their flags, SEC-POSTURE-1 to 64 with evidence and rules, score, coverage and layer verdicts, manual repository checks |
 | [read-only-access.md](references/read-only-access.md) | IAM policy per capability, Kubernetes ClusterRole, access entry binding, what the skill never does |
 | [engagement-and-response.md](references/engagement-and-response.md) | Full discovery question set, adoption archetypes, response framework, escalation |
 | [os-ami-hardening.md](references/os-ami-hardening.md) | Layer 1: Bottlerocket vs AL2023 vs Ubuntu/RHEL, CIS benchmarks, Image Builder, FIPS |

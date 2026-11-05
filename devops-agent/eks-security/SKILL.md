@@ -1,6 +1,6 @@
 ---
 name: eks-security
-description: EKS security reviews of a live cluster, plus hardening and compliance guidance. Three read-only capabilities with verdict exposed / not exposed / unknown. (1) CVE and advisory review - "am I exposed to CVE-...", "check this AWS security bulletin or GHSA against my cluster", "CVE review for EKS", "check what is current since a date" - for add-ons, images, kubelet and node OS. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, preserve, contain, fix, verify, record. (3) Security posture check - "would my cluster contain a compromised pod", IMDS, NetworkPolicy, PSA, workload identity, logging, GuardDuty, endpoint, supply chain. Also the 7-layer hardening stack, CIS/HIPAA/PCI-DSS/FedRAMP/SOC 2/GDPR audit prep, 30/60/90 roadmap; OS/AMI, Pod Identity vs IRSA, Access Entries, PSA, image signing, GuardDuty. Advisory only, changes are printed for the team. Not for non-EKS platforms (ECS/ROSA), account-level security with no EKS angle, or GenAI-workload security.
+description: EKS security reviews of a live cluster, plus hardening and compliance guidance. Three read-only capabilities with verdict exposed / not exposed / unknown. (1) CVE and advisory review - "am I exposed to CVE-...", "check this AWS security bulletin or GHSA against my cluster", "CVE review for EKS", "check what is current since a date" - for add-ons, images, kubelet and node OS. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, record, contain, snapshot, fix, verify. (3) Security posture check - "would my cluster contain a compromised pod", IMDS, NetworkPolicy, PSA, workload identity, logging, GuardDuty, endpoint, supply chain. Also the 7-layer hardening stack, CIS/HIPAA/PCI-DSS/FedRAMP/SOC 2/GDPR audit prep, 30/60/90 roadmap; OS/AMI, Pod Identity vs IRSA, Access Entries, PSA, image signing, GuardDuty. Advisory only, changes are printed for the team. Not for non-EKS platforms (ECS/ROSA), account-level security with no EKS angle, or GenAI-workload security.
 ---
 
 # EKS Security: reviews, response and hardening
@@ -31,7 +31,7 @@ A ready-to-use IAM policy is at [`references/iam-policy.json`](references/iam-po
 
 | Service | Read actions | Purpose |
 |---------|-----------------|---------|
-| **EKS** | `ListClusters`, `DescribeCluster`, `ListAddons`, `DescribeAddon`, `DescribeAddonVersions`, `ListNodegroups`, `DescribeNodegroup`, `ListInsights`, `DescribeInsight`, `ListAccessEntries`, `ListPodIdentityAssociations`, `DescribePodIdentityAssociation` | Versions, add-ons, node groups, access model, workload identity |
+| **EKS** | `ListClusters`, `DescribeCluster`, `ListAddons`, `DescribeAddon`, `DescribeAddonVersions`, `ListNodegroups`, `DescribeNodegroup`, `ListInsights`, `DescribeInsight`, `ListAccessEntries`, `ListAssociatedAccessPolicies`, `ListPodIdentityAssociations`, `DescribePodIdentityAssociation` | Versions, add-ons, node groups, access model, workload identity |
 | **EC2** | `DescribeInstances`, `DescribeLaunchTemplates`, `DescribeLaunchTemplateVersions`, `DescribeSecurityGroups`, `DescribeImages` | Node AMIs, IMDS settings, security groups |
 | **ECR** | `DescribeRepositories`, `DescribeImages`, `GetRegistryScanningConfiguration`, `DescribeImageScanFindings` | Image tags and digests, scanning configuration |
 | **Inspector** | `BatchGetAccountStatus`, `ListCoverage`, `ListFindings` | Findings for the images the cluster runs (optional) |
@@ -84,9 +84,9 @@ Verdicts: `exposed`, `not_exposed`, `unknown`, `aws_managed_rotation_pending`, `
 
 - Version parse fails or component unreadable gives `unknown` (never `not_exposed`).
 - Version compare: strip leading `v`; EKS build suffixes `-eksbuild.N`, `-eks-<hash>`, `-eks-1-33-N` ignored for range checks (kept in `installed`); prerelease sorts before release; ranges are `introduced <= v < fixed` or `v <= last_affected`; several ranges OR.
-- Auto Mode components: if `managed_by == aws-auto-mode`, verdict `aws_managed_patched` when every node in scope was created after the advisory's `read_at`-independent fix date (`fixed_at` if the record carries it, else unknown) else `aws_managed_rotation_pending` with `nodes_pending` listing nodes created before it; with no fix date, `unknown` with reason `no_fix_date`.
+- Auto Mode components: if `managed_by == aws-auto-mode`, verdict `aws_managed_patched` when every node in scope was created at or after the record's `fixed_at` (the fix's release time, not the bulletin's `read_at`), else `aws_managed_rotation_pending` with `nodes_pending` listing the nodes created before it or whose creation time could not be read; with no `fixed_at`, `unknown` with reason `no_fix_date`.
 - Priority: base from severity (critical P1, high/important P2, medium P3, low P4, unknown P3), one step up (toward P1, floor P1) when `workaround == false` and verdict is exposed; Auto Mode verdicts keep base priority.
-- `overall`: `incomplete` if coverage ratio < gate; else `exposed` if any exposed; else `rotation_pending` if any `aws_managed_rotation_pending`; else `unknown` if any unknown; else `not_exposed`.
+- `overall`: `incomplete` if coverage ratio < gate; else `exposed` if any exposed; else `rotation_pending` if any `aws_managed_rotation_pending`; else `unknown` if any unknown or any advisory needs manual review; else `not_exposed`.
 - Coverage counts only components an advisory targets. The gate is 0.5.
 
 Context never lowers a verdict or a priority. Full procedure, component catalog, record schema, report wording and a worked example: [cve-advisory-review.md](references/cve-advisory-review.md).
@@ -107,7 +107,7 @@ If step 1 finds nothing in scope, the record says what was read and stops. Proce
 
 ## C3: Posture check
 
-Sixteen containment checks, each pass / fail / n.a. / unknown with live evidence and a severity: IMDSv2 required and hop limit 1 per node; NetworkPolicy enforcement, default-deny ingress and egress control per workload namespace; PSA enforce level per namespace and no privileged or host-sharing pods outside system namespaces; node role carrying only node permissions and no workload with cluster-admin; audit and authenticator logs, GuardDuty EKS audit log and runtime monitoring; no public endpoint open to `0.0.0.0/0`; enhanced registry scanning with continuous rescan, images pinned by digest, signed-image admission where an engine runs; and no component below a fixed version from C1. Severity-weighted score (High 3, Medium 2, Low 1) with a 50% coverage gate, and one "would this contain a compromised pod?" row per layer. Only fixed-version gaps are C3 findings. Checks, evidence and rules: [posture-check.md](references/posture-check.md).
+Twenty scored containment checks, each under the Claude Code skill's `SEC-POSTURE-<n>` id (with the Well-Architected pillar question id where it has one), each pass / fail / n.a. / unknown with live evidence and a severity: IMDSv2 required and pods blocked from IMDS (hop limit 1) per node; NetworkPolicy enforcement, default-deny ingress and egress control per workload namespace; PSA enforce label per workload namespace, no privileged containers, hostPath volumes or host namespaces in workload pods; cluster-admin bindings held only by the built-in subjects, and cluster admin through access entries held only by service-linked roles and the admins the team names; audit and authenticator logs, GuardDuty EKS Audit Log Monitoring and Runtime Monitoring, a runtime security agent; private endpoint access and no public endpoint open to the internet; continuous ECR registry scanning and images pinned by digest. Two port-only rows (node role scope, image admission policy) are reported but not scored; the rest of the scripted skill's 64 checks are listed under "not checked". Severity-weighted score (high 3, medium 2, low 1) over answered checks with a 50% coverage gate, and one verdict per containment layer: contained, partly, not-contained or unknown. No posture check judges versions; only fixed-version gaps from C1 are security findings. Checks, reads and rules: [posture-check.md](references/posture-check.md).
 
 ## Hardening and compliance guidance
 
@@ -238,8 +238,8 @@ Load a reference only when the task needs that depth:
 |-----------|------------------------------|
 | [cve-advisory-review.md](references/cve-advisory-review.md) | C1: inputs, reads, component catalog, record schema, extraction, verdict and priority rules, Auto Mode, report wording, sweep and offline input, worked example |
 | [advisory-sources.md](references/advisory-sources.md) | The feeds C1 reads, their formats, what each maps to, freshness, unreachable feeds |
-| [security-event-response.md](references/security-event-response.md) | C2: scope, preserve, contain, remediate, verify, record |
-| [posture-check.md](references/posture-check.md) | C3: containment checks with evidence and rules, scoring |
+| [security-event-response.md](references/security-event-response.md) | C2: scope, quick record, contain at once, snapshot and investigate after isolation, remediate, verify, record |
+| [posture-check.md](references/posture-check.md) | C3: containment checks by SEC-POSTURE id with reads and rules, score, coverage and layer verdicts |
 | [read-only-access.md](references/read-only-access.md) | IAM actions per capability, the Kubernetes ClusterRole and its binding, what the skill never does |
 | [engagement-and-response.md](references/engagement-and-response.md) | Full discovery check set, adoption archetypes, response framework, escalation |
 | [os-ami-hardening.md](references/os-ami-hardening.md) | Layer 1: Bottlerocket vs AL2023 vs Ubuntu/RHEL, CIS benchmarks, Image Builder, FIPS |

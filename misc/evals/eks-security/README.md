@@ -13,8 +13,8 @@ eks-security runs three read-only security reviews of a live EKS cluster (C1 CVE
 | 5 | C1 not exposed | Installed at the fixed versions: "not exposed" lines naming what was compared, against which source, read when; no false alarm |
 | 6 | C1 unknown | Agent image on tag `latest`: unknown with reason and action, never "not exposed", coverage line 1 of 2 |
 | 7 | C1 Auto Mode | AWS-managed components: no add-on update, nodes created before the fix date listed for rotation, NodePool `expireAfter` lever |
-| 8 | C2 event | Compromised image that leaks the pod's credentials: scope, preserve before containing, pod-scoped quarantine, session revocation, read and propose only, exploitation checks stated as not covered |
-| 9 | C3 posture | Per-check results: containment summary per layer, failed checks with evidence, unknown never pass, fixes printed only |
+| 8 | C2 event | Compromised image that leaks the pod's credentials: scope, quick record, contain at once (pods kept in place, pod-scoped quarantine with its limits, session revocation), snapshot after isolation, read and propose only, exploitation checks stated as not covered |
+| 9 | C3 posture | A reduced `posture.json`: coverage and score, verdict per containment layer, failed checks by SEC-POSTURE id with evidence, unknown never pass, `--admin-allow` for expected admins, fixes printed only |
 
 ## Fixtures
 
@@ -25,7 +25,7 @@ Cases 4 to 9 are offline: each prompt says not to run `aws`, `kubectl` or `colle
 | `files/eval-4/`, `eval-5/`, `eval-6/`, `eval-7/` | `inventory.json` (schema `eks-security/inventory@1`), `advisory-record.json` (schema `eks-security/advisory@1`) and `bulletin.txt`, a recorded excerpt of the public bulletin [2026-170-AWS](https://aws.amazon.com/security/security-bulletins/2026-170-aws/) quoted in `skills/eks-security/references/cve-advisory-review.md` |
 | `files/eval-7/auto-mode-release-note.txt` | A mock release-note line that supplies the record's `fixed_at`; it is labelled as not an AWS publication |
 | `files/eval-8/` | `event.md` (event notes) and `scope.json` (read-only scope facts) |
-| `files/eval-9/` | `posture-results.json` (per-check C3 results in the posture-check.md format) |
+| `files/eval-9/` | `posture.json` (schema `eks-security/posture@1`), written by `posture_reduce.sh` from recorded scorer tokens |
 
 Cluster names, account ids, instance ids and digests in the fixtures are made up. The C1 fixtures give the same verdicts when run through the skill's own scripts: `advisory_check.py` accepts each record against its `bulletin.txt`, and `match.py` returns exposed (4), not exposed (5), unknown at coverage 0.5 (6) and rotation pending for two nodes (7).
 

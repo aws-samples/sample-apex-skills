@@ -330,9 +330,10 @@
       ],
       "expectations": [
         "Scopes first: the cluster, the shop namespace, the two orders-api pods and their nodes, the image digest, and the identity (the orders-api service account, its Pod Identity association and role orders-api-pod with its S3 and SQS policies)",
-        "Preserves evidence before containment: records pod specs, node records, the running digest and logs, proposes an EBS snapshot of the node volumes, and says not to delete, scale down or restart the pods until evidence is captured",
-        "Proposes pod-scoped NetworkPolicy isolation by a unique quarantine label on the two orders-api pods, and explicitly not a namespace-wide deny-all that would cut cart, checkout and catalog",
-        "Proposes identity containment for the leaked credentials: revoke the role's active sessions and remove or narrow the Pod Identity association, plus blocking the digest at admission since Kyverno is installed",
+        "Takes only a quick record before containing (pod specs, node records, the running digest and logs, read through the API server), then contains at once; says not to delete, scale down, drain or restart the pods, and proposes pausing the orders-api rollout so the pods stay in place",
+        "Proposes pod-scoped NetworkPolicy isolation by an added quarantine label on the two orders-api pods (app labels unchanged), explicitly not a namespace-wide deny-all that would cut cart, checkout and catalog, and states its limits: policies are additive, so it holds only where policy is enforced and no other policy selecting the pods allows the traffic",
+        "Proposes identity containment for the leaked credentials and names what each breaks: revoke the role's active sessions (credentials already issued stay valid until then) and remove or narrow the Pod Identity association, plus blocking the digest at admission since Kyverno is installed",
+        "Proposes EBS snapshots of the node volumes and volatile capture only after the pods are isolated, not before containment",
         "Every change is printed for the team to review and run; the answer does not claim to have applied anything",
         "States that checking whether the stolen credentials were used (GuardDuty findings, CloudTrail, audit log queries) is not covered by the skill"
       ],
@@ -356,7 +357,7 @@
         {
           "type": "must-contain",
           "pattern": "quarantine",
-          "context": "Pod-scoped isolation by a unique label",
+          "context": "Pod-scoped isolation by an added label",
           "source": "skills/eks-security/references/security-event-response.md (Step 3: pod-scoped network isolation, by label)"
         },
         {
@@ -367,7 +368,7 @@
             "AWSRevokeOlderSessions"
           ],
           "context": "Issued credentials stay valid until revoked",
-          "source": "skills/eks-security/references/security-event-response.md (Step 3: identity revocation)"
+          "source": "skills/eks-security/references/security-event-response.md (Step 3: identity)"
         },
         {
           "type": "must-contain-one-of",
@@ -375,8 +376,8 @@
             "create-snapshot",
             "snapshot"
           ],
-          "context": "Propose a snapshot before containment",
-          "source": "skills/eks-security/references/security-event-response.md (Step 2: propose, do not run, a snapshot)"
+          "context": "Propose a snapshot after isolation",
+          "source": "skills/eks-security/references/security-event-response.md (Step 4: snapshot and investigate, after isolation)"
         },
         {
           "type": "must-contain-one-of",
@@ -396,24 +397,25 @@
             "don't delete",
             "not delete"
           ],
-          "context": "Preserve before containing",
-          "source": "skills/eks-security/references/security-event-response.md (Step 2: do not delete, scale down or restart the pod)"
+          "context": "Keep the pods in place: no delete, scale-down or drain",
+          "source": "skills/eks-security/references/security-event-response.md (Step 2: deleting, scaling down or draining destroys evidence; isolating does not)"
         }
       ]
     },
     {
       "id": 9,
       "name": "c3-posture-containment-summary",
-      "prompt": "This is an offline test with recorded inputs, not a live cluster task. Do NOT run any aws or kubectl commands and do not run collect.sh. The working directory holds `posture-results.json`, the per-check results of a posture check on cluster demo-shared. Would this cluster contain a compromised pod? Give me the posture report and what to fix first.",
+      "prompt": "This is an offline test with recorded inputs, not a live cluster task. Do NOT run any aws or kubectl commands and do not run collect.sh or posture_collect.sh. The working directory holds `posture.json`, the reduced output of a posture check on cluster demo-shared (schema eks-security/posture@1, as posture_reduce.sh writes it). Would this cluster contain a compromised pod? Give me the posture report and what to fix first.",
       "files": [
-        "eval-9/posture-results.json"
+        "eval-9/posture.json"
       ],
       "expectations": [
-        "Gives a containment summary with one row per layer (node role, lateral movement, escalation, broad identity, being seen, open API, supply chain), each yes / partly / no / unknown from that layer's checks",
-        "Lists each failed check with its evidence (for example PC-2 hop limit 2 on node group general, PC-4 orders and web without default-deny, PC-6a legacy without a PSA enforce label, PC-6b the hostPath and hostNetwork pod, PC-7 the extra S3 policy on the node role, PC-12 public endpoint open to 0.0.0.0/0)",
-        "Reports PC-10, PC-11 and PC-16 as unknown with their reasons (GuardDuty read denied, no sweep run), never as pass",
-        "Fixes are printed for the team to review (for example a launch template with hop limit 1, a default-deny NetworkPolicy per namespace, the PSA label, restricting the endpoint CIDRs) and nothing is applied",
-        "Does not treat plain version lag as a posture finding; a currency gap is only a component below a fixed version from C1"
+        "Gives the coverage line (46 of 49 measured checks answered, gate 50%) and the score (62 of 100) as posture.json states them, and one verdict row per containment layer (node-credential, lateral-movement, privilege, identity, detection, api-exposure, supply-chain) with the file's verdicts: not-contained for the first four and api-exposure, partly for detection and supply-chain",
+        "Lists the failed high-severity checks by SEC-POSTURE id with their evidence: SEC-POSTURE-55 hop limit 2 on the four general node group instances, SEC-POSTURE-56 orders and web without default-deny ingress, SEC-POSTURE-34 legacy without a PSA enforce label, SEC-POSTURE-58 the hostNetwork log-shipper pod, SEC-POSTURE-2 public endpoint open to 0.0.0.0/0, SEC-POSTURE-64 two principals with cluster admin through access entries",
+        "Reports SEC-POSTURE-60 and SEC-POSTURE-61 (GuardDuty) as unknown because guardduty.json was not collected, and the governance checks as unknown to confirm with the team, never as pass",
+        "For SEC-POSTURE-64, says one holder is likely the cluster creator and that a re-run of posture_extra.sh with --admin-allow naming the expected admin roles (creator, break-glass) lists them under pass; the fix is to scope the others, printed only",
+        "Fixes are printed for the team to review (for example hop limit 1 in the launch template, a default-deny NetworkPolicy per namespace, the PSA label, restricting the endpoint CIDRs, scoping the admin access entries) and nothing is applied",
+        "Does not treat plain version lag as a posture finding: no posture check judges component versions, and a currency gap is only a component below a fixed version from a C1 sweep"
       ],
       "process_assertions": [
         {
@@ -434,21 +436,30 @@
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "PC-2",
-          "context": "Failed check listed by id",
-          "source": "skills/eks-security/references/posture-check.md (Containment checks: PC-2 IMDS hop limit)"
+          "pattern": "SEC-POSTURE-55",
+          "context": "Failed check listed by its SEC-POSTURE id",
+          "source": "skills/eks-security/references/posture-check.md (The added containment checks: SEC-POSTURE-55 IMDS)"
         },
         {
           "type": "must-contain",
           "pattern": "0\\.0\\.0\\.0/0",
           "context": "Open public endpoint evidence",
-          "source": "skills/eks-security/references/posture-check.md (PC-12)"
+          "source": "skills/eks-security/references/posture-check.md (The copied checks: SEC-POSTURE-2, sec-2)"
         },
         {
           "type": "must-contain",
           "pattern": "unknown",
           "context": "Unread checks are unknown, never pass",
-          "source": "skills/eks-security/references/posture-check.md (A check that could not read its evidence is unknown)"
+          "source": "skills/eks-security/references/posture-check.md (A check whose input file was not collected is unknown, never pass)"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "not-contained",
+            "not contained"
+          ],
+          "context": "Per-layer verdict values",
+          "source": "skills/eks-security/references/posture-check.md (Layer verdict: contained, partly, not-contained, unknown)"
         },
         {
           "type": "must-contain-one-of",
@@ -456,8 +467,8 @@
             "partly",
             "partial"
           ],
-          "context": "Per-layer summary row values",
-          "source": "skills/eks-security/references/posture-check.md (Output: summary row per containment layer yes / partly / no / unknown)"
+          "context": "Per-layer verdict values",
+          "source": "skills/eks-security/references/posture-check.md (Layer verdict)"
         },
         {
           "type": "must-contain-one-of",
@@ -468,7 +479,13 @@
             "http-put-response-hop-limit 1"
           ],
           "context": "IMDS fix shape",
-          "source": "skills/eks-security/references/posture-check.md (Output: a launch template with hop limit 1)"
+          "source": "skills/eks-security/references/posture-check.md (Output: hop limit 1 in the launch template)"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "--admin-allow",
+          "context": "Expected admins are named with --admin-allow",
+          "source": "skills/eks-security/references/posture-check.md (Notes on the flags: --admin-allow)"
         }
       ]
     }
