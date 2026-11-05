@@ -13,7 +13,7 @@ Verdicts per (advisory, inventory component):
   exposed / not_exposed      the installed version was read and compared with the ranges
   unknown                    not read (reason from the collector), version or range did not
                              parse, the record has no range (no_version_range), a range bound
-                             carries an -eksbuild.N number (eks_build), the installed version
+                             carries an EKS build suffix (eks_build), the installed version
                              names no patch release (minor_only), or the component was not
                              found where the catalog reads it (not_found)
   aws_managed_patched        Auto Mode component, every node in scope created at or after the
@@ -23,8 +23,11 @@ Verdicts per (advisory, inventory component):
   unknown / no_fix_date      Auto Mode component, record has no fixed_at
   unknown / no_nodes_read    Auto Mode component, no Auto Mode node was read (not counted as read)
 "not_exposed" is never given for a component that was not read and compared.
+Top-level `overall` is also `not_exposed` when every verdict is `aws_managed_patched` (node age only,
+no version read); render_report.py prints the AWS-patched line instead.
 
 Records (or entries) that name no catalog component go to the top-level "review" list.
+Node groups that share an os_image count once in coverage.
 Exit: 0 ok; 3 coverage below the gate of 0.5 (findings still written, overall "incomplete");
 2 usage or input error (one JSON line {"ok":false,"code","error"} on stdout).
 """
@@ -163,12 +166,12 @@ class Matcher:
                 f["reason"] = "unparsed: installed version %r does not parse" % (inst,)
             elif any(p is None for p in parsed):
                 f["reason"] = "bad_range: a range in the record does not parse"
-            elif any("eksbuild" in (b or "") for p in parsed for b in p.values()):
-                f["reason"] = ("eks_build: a range bound carries an -eksbuild.N build number, which is not "
-                               "compared; review manually")
+            elif any("eksbuild" in (b or "") or "-eks-" in (b or "") for p in parsed for b in p.values()):
+                f["reason"] = ("eks_build: a range bound carries an EKS build suffix (-eksbuild.N, -eks-N-N-N, "
+                               "-eks-<hash>), which is not compared; review manually")
             elif nums is None or nums.group(1).count(".") < 2:
-                f["reason"] = ("minor_only: installed version %r names no patch release, so it cannot be "
-                               "compared with patch bounds" % (inst,))
+                f["reason"] = ("minor_only: installed version %r names no patch release, so it is not "
+                               "compared" % (inst,))
             else:
                 hit = next((p for p in parsed if version_in_range(inst, p)), None)
                 if hit is not None:

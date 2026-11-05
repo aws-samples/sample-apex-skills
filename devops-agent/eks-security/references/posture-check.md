@@ -12,7 +12,7 @@ The access needed is in [read-only-access.md](read-only-access.md), C3 section. 
 
 These rules are the Claude Code skill's `posture_reduce.sh` rules.
 
-- **Bucket.** For a check over many objects, count the objects it applies to and the share that passes: 90% or more is `all`, 70% or more `most`, more than 0 `some`, 0 `none`, nothing to count `na`. All-or-nothing checks give `all` or `none`. A bucketed check at 90% or more reads pass, with the failing objects only in the evidence (for example one node open to IMDS under SEC-POSTURE-55, or one namespace without default-deny under SEC-POSTURE-56).
+- **Bucket.** For a check over many objects, count the objects it applies to and the share that passes: 90% or more is `all`, 70% or more `most`, more than 0 `some`, 0 `none`, nothing to count `na`. All-or-nothing checks give `all` or `none`. A bucketed check at 90% or more reads pass; the report still lists it, with its failing objects, as `pass (exceptions)` (for example one node open to IMDS under SEC-POSTURE-55, or one namespace without default-deny under SEC-POSTURE-56).
 - **Result.** `all` is pass; `most`, `some` and `none` are fail; `na` is n.a.; a read that was refused or failed is `unknown`.
 - **Coverage gate.** A check is answered when its state is `all`, `most`, `some` or `none` (`na` and `unknown` are not answered). With fewer than half of the scored checks answered the report says "incomplete" and gives no score.
 - **Score.** Sum of points times weight over answered checks, divided by the sum of their weights, rounded: points `all` 100, `most` 75, `some` 50, `none` 0; weight high 3, medium 2, low 1.
@@ -92,7 +92,7 @@ Why: continuous rescan surfaces a new CVE on an image already running; digest pi
 
 ## Currency rule
 
-No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: it belongs to an upgrade readiness assessment, which owns version lag.
+No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: it belongs to an upgrade readiness assessment, which owns version lag. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are read in the C1 inventory (`eks:DescribeAddonVersions`) for a manual read.
 
 ## Repository checks (not in this port)
 
@@ -100,7 +100,7 @@ The Claude Code skill can walk a manual repository check list (lockfiles committ
 
 ## Output
 
-- Per check: id (with the pillar question id where there is one), result, evidence (the read and field, with the values read), severity, layer.
+- Per check: id (with the pillar question id where there is one), result (a pass with failing objects reads `pass (exceptions)`), evidence (the read and field, with the values read), severity, layer.
 - Score: by the rules above, with its coverage line, or "incomplete".
 - One verdict row per containment layer.
 - Fixes as printed commands or manifests for the team to review (for example a default-deny NetworkPolicy per namespace, a launch template with hop limit 1, the PSA label, scoping an admin access entry). Nothing is applied. Hardening knowledge behind each fix is in the layer references of this skill.

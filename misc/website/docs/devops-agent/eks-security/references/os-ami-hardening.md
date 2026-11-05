@@ -28,7 +28,7 @@ The single biggest decision in EKS security. It depends on whether the customer 
 ## The AWS opinionated default for new clusters
 
 1. **First choice: Bottlerocket** for container-first workloads with no vendor-OS mandate: immutable root filesystem, SELinux enforcing, minimal attack surface, AWS-published CIS hardening, FIPS 140-3 variant, HIPAA-eligible. Reference: [Meet compliance requirements with Bottlerocket](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-compliance-support.html).
-2. **Second choice: AL2023 with a CIS-hardened Image Builder pipeline** for customers needing a general-purpose OS. Reference: [Automating AL2023 custom hardened AMI updates for EKS managed nodes](https://aws.amazon.com/blogs/containers/automating-al2023-custom-hardened-ami-updates-for-amazon-eks-managed-nodes) (Containers TFC, 2026).
+2. **Second choice: AL2023 with a CIS-hardened Image Builder pipeline** for customers needing a general-purpose OS. Reference: [Automating AL2023 custom hardened AMI updates for EKS managed nodes](https://aws.amazon.com/blogs/containers/automating-al2023-custom-hardened-ami-updates-for-amazon-eks-managed-nodes) (2026).
 3. **Third choice: EKS Auto Mode** for zero data-plane management (no custom AMI possible).
 
 > **Bottlerocket CIS posture (use the precise, current numbers).** The `apiclient report cis --level 1` sample on auto-cis.html lists **15 Level-1 checks, 11 passed and 4 skipped**; the 2023 validation blog counts **13 Level-1 and 15 Level-2 recommendations (28)** and 18 of 28 passing across both levels. Out of the box, the EKS-optimized Bottlerocket AMI passes **11 of the 15 Level-1 checks, with 4 skipped** (manual checks, e.g. update-repo, host-firewall, that require environment-specific configuration); the current [Bottlerocket compliance support page](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-compliance-support.html) summarizes this as "most of the controls required by the CIS Level 1 configuration profile," and you can reproduce the exact `Passed: 11, Skipped: 4, Total: 15` report on a node (`apiclient report cis --level 1`, see [Generate CIS compliance reports](https://docs.aws.amazon.com/eks/latest/userguide/auto-cis.html)). **Do not cite "18 of 28" as a Level-1 figure**: 18 is the count of passing checks across **both Level 1 + Level 2 combined** (per the [validation blog](https://aws.amazon.com/blogs/containers/validating-amazon-eks-optimized-bottlerocket-ami-against-the-cis-benchmark/)), and "18 of 22" was wrong on both numbers.
@@ -60,7 +60,7 @@ The upstream **CIS Kubernetes Benchmark** applies to the data plane and is what 
 
 ## Image Builder pipeline pattern for CIS-hardened AMIs at scale
 
-[EC2 Image Builder](https://aws.amazon.com/image-builder/) is the AWS-native solution and is FedRAMP in scope. Two TFC-endorsed approaches:
+[EC2 Image Builder](https://aws.amazon.com/image-builder/) is the AWS-native solution and is FedRAMP in scope. Two approaches:
 1. **EKS-optimized AL2023 AMI as base + add hardening components**: preserves EKS components (kubelet, containerd, CNI binaries); layer CIS hardening on top.
 2. **Marketplace hardened AMI as base + add EKS components**: preserves the vendor's CIS hardening; install EKS components in a build phase.
 

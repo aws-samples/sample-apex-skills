@@ -40,7 +40,7 @@ Answer: which clusters, namespaces, workloads, images (by digest), packages and 
 |---|---|---|
 | Which node runs a known pod? | `kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.nodeName}{"\n"}'` | `.spec.nodeName` |
 | Which pods belong to a compromised workload? | `kubectl get deploy <name> -n <ns> -o jsonpath='{.spec.selector.matchLabels}'` then `kubectl get pods -n <ns> -l <key>=<value> -o wide` | label selector; `NODE` column |
-| Which pods run a given image, by digest? | `kubectl get pods -A -o json \| jq -r '.items[] \| . as $p \| .status.containerStatuses[]? \| select(.imageID \| contains("<sha256:digest>")) \| "\($p.metadata.namespace) \($p.metadata.name) \($p.spec.nodeName)"'` | `.status.containerStatuses[].imageID` (the digest actually running; `.spec.containers[].image` is only the reference asked for) |
+| Which pods run a given image, by digest? | `kubectl get pods -A -o json \| jq -r '.items[] \| . as $p \| (.status.containerStatuses[]?, .status.initContainerStatuses[]?, .status.ephemeralContainerStatuses[]?) \| select(.imageID \| contains("<sha256:digest>")) \| "\($p.metadata.namespace) \($p.metadata.name) \($p.spec.nodeName)"'` | `.status.containerStatuses[].imageID`, `.status.initContainerStatuses[].imageID`, `.status.ephemeralContainerStatuses[].imageID` (the digest actually running; `.spec.containers[].image` is only the reference asked for) |
 | Which pods use a compromised service account? | `kubectl get pods -n <ns> -o json \| jq -r '.items[] \| select(.spec.serviceAccountName=="<sa>") \| "\(.metadata.name) \(.spec.nodeName)"'` | `.spec.serviceAccountName` |
 | Which IAM role does that service account get (Pod Identity)? | `aws eks list-pod-identity-associations --cluster-name <c> --namespace <ns> --service-account <sa>` then `aws eks describe-pod-identity-association --cluster-name <c> --association-id <id>` | `association.roleArn` (and `targetRoleArn` for cross-account chaining) |
 | Which IAM role does it get (IRSA)? | `kubectl get sa <sa> -n <ns> -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}'` | the `eks.amazonaws.com/role-arn` annotation |
@@ -49,9 +49,9 @@ Answer: which clusters, namespaces, workloads, images (by digest), packages and 
 | Which IAM principals have cluster access? | `aws eks list-access-entries --cluster-name <c>` | `accessEntries[]` |
 | Which node group or NodePool, and is it Auto Mode? | `kubectl get node <node> --show-labels`; `aws eks describe-cluster --name <c> --query cluster.computeConfig.enabled` | label `eks.amazonaws.com/compute-type=auto`; `computeConfig.enabled` |
 
-For a compromised package, the cluster cannot see lockfiles: ask for the repository path, find the lockfiles that pin the affected version, map them to image repositories, then to digests and pods with the image query above.
+For a compromised package, the cluster cannot see lockfiles and the agent cannot read a repository: the team supplies the image repositories (or digests) built from the affected lockfiles; with none supplied the package scope is `unknown`, and the report says what to supply. Then map the images to digests and pods with the image query above.
 
-**Not exposed path:** when step 1 finds nothing in what it read (running pods only: CronJob, Job and scaled-to-zero templates are not covered; read their templates' `containers[].image`), write the report (step 7) with what was read and when, and stop.
+**Not exposed path:** when step 1 finds nothing in what it read (running pods' containers, init and sidecar containers and ephemeral containers only: CronJob, Job and scaled-to-zero templates are not covered; read their templates' `containers[].image`), write the report (step 7) with what was read and when, and stop.
 
 ## Step 2: Quick record (seconds)
 
@@ -59,7 +59,7 @@ AWS's guide puts isolation first: "Your first course of action should be to isol
 
 Record, and keep with the event report (treat the record as sensitive: pod specs can hold literal environment values):
 
-- `kubectl get pod <pod> -n <ns> -o yaml` (full spec and status, including `status.containerStatuses[].imageID`, the running digest).
+- `kubectl get pod <pod> -n <ns> -o yaml` (full spec and status, including `imageID` under `status.containerStatuses`, `initContainerStatuses` and `ephemeralContainerStatuses`, the running digests).
 - `kubectl get node <node> -o yaml` (node, `nodeInfo`, labels, provider ID with the instance id).
 - `kubectl logs <pod> -n <ns> --all-containers --timestamps` and `--previous` where a container restarted.
 - `kubectl get events -n <ns> --field-selector involvedObject.name=<pod>`.
@@ -71,7 +71,7 @@ Checking whether an exposure was exploited (GuardDuty findings, CloudTrail and a
 
 Every item is printed for the team to review and apply. The order and the controls follow [EKS Best Practices: Incident response and forensics](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html). This step reads what applies to this cluster and prints the proposals for it.
 
-**Keep the pod in place.** The pod stays in its ReplicaSet, so a rollout or scale-down can delete it with its evidence. Propose pausing rollouts (`kubectl rollout pause deploy/<name> -n <ns>`) until the evidence is taken. `rollout pause` exists for Deployments only; for other controllers, and for an HPA (`behavior.scaleDown.selectPolicy: Disabled`) or Karpenter (`karpenter.sh/do-not-disrupt: "true"` on the pod), propose holding scale in source control. Do not change the pod's app labels: the ReplicaSet would replace it.
+**Keep the pod in place.** The pod stays in its ReplicaSet, so a rollout or scale-down can delete it with its evidence. Propose pausing rollouts (`kubectl rollout pause deploy/<name> -n <ns>`) until the evidence is taken. `rollout pause` exists for Deployments only; for other controllers, and for an HPA (`behavior.scaleDown.selectPolicy: Disabled`) or Karpenter (`karpenter.sh/do-not-disrupt: "true"` on the pod), propose holding scale in source control. Do not change the pod's app labels: the ReplicaSet would replace it. Scaling the workload to zero is a containment option once the step 4 snapshot is taken; before that it deletes the pod and its evidence.
 
 **Read whether NetworkPolicy is enforced here** before proposing one:
 
@@ -108,7 +108,7 @@ Print these limits with it:
 **Node.** Propose `kubectl cordon <node>` (stop new scheduling) and detaching the node from load balancer target groups if it serves traffic. Do not drain: it evicts the compromised process. Node protection, with what each does not cover:
 
 - EC2 termination protection (`aws ec2 modify-instance-attribute --instance-id <id> --disable-api-termination`): not available on Spot, and it does not stop Auto Scaling scale-in, so on a node group also propose scale-in protection (`aws autoscaling set-instance-protection --instance-ids <id> --auto-scaling-group-name <asg> --protected-from-scale-in`).
-- Karpenter: `kubectl annotate node <node> karpenter.sh/do-not-disrupt=true`, which does not stop expiry, Spot interruption or manual deletion.
+- Karpenter: `kubectl annotate node <node> karpenter.sh/do-not-disrupt=true`, which does not stop expiry, Spot interruption, manual deletion or Node Auto Repair.
 - Auto Mode: do not promise termination protection or a snapshot; neither is confirmed to work on Auto Mode instances, and every node has a 21-day maximum lifetime ([auto-mode-security.md](auto-mode-security)). Propose `kubectl annotate pod <pod> -n <ns> karpenter.sh/do-not-disrupt=true` on the pod, which Auto Mode honours ([Auto Mode disruption controls](https://docs.aws.amazon.com/eks/latest/userguide/auto-cost-control.html)).
 
 **Identity.** Each proposal names what it breaks; use the step 1 reads to list who shares the identity first.
@@ -121,7 +121,7 @@ Print these limits with it:
 - IAM principal with an access entry: `aws eks delete-access-entry --cluster-name <c> --principal-arn <arn>`.
 - Node role (reached through IMDS from a pod): contain the pod and keep the node for step 4; replace it in step 5. Credentials already taken stay valid until they expire; revoking the role's sessions denies every node that uses the role until it fetches new credentials, so check that impact first.
 
-**Image digest block at admission**, only if a policy engine is installed (`kubectl get crd | grep -E 'kyverno|gatekeeper'`): propose a Kyverno or Gatekeeper rule that denies the compromised digest cluster-wide, in enforce mode (Kyverno rule `failureAction: Enforce`; Gatekeeper `enforcementAction: deny`). It stops new pods only; running pods stay. Block the tag only if the fix ships under a new tag. Without a policy engine, say so; installing one is a step for after the event.
+**Image digest block at admission**, only if a policy engine is installed (`kubectl get crd | grep -E 'kyverno|gatekeeper'`): propose a Kyverno or Gatekeeper rule that denies the compromised digest cluster-wide, in enforce mode (Kyverno ClusterPolicy rule `validate.failureAction: Enforce`; Gatekeeper `enforcementAction: deny`). It stops new pods only; running pods stay. Block the tag only if the fix ships under a new tag. Without a policy engine, say so; installing one is a step for after the event.
 
 ## Step 4: Snapshot and investigate (after isolation)
 

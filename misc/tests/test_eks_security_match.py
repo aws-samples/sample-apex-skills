@@ -520,6 +520,53 @@ class RenderReport(TmpCase):
             self.assertNotIn("rm -rf", ln)
         self.assertTrue(any("<CLUSTER>" in ln for ln in cmds))
 
+    def test_not_exposed_wording_introduced_and_last_affected(self):
+        # M1: a version below `introduced`, and a `last_affected`-only range, are outside the ranges, not "at or above"
+        inv = copy.deepcopy(CASES["match"]["inventory_base"])
+        inv["components"] = [{"id": "addon:vpc-cni", "kind": "eks-addon", "name": "vpc-cni", "version": "v1.22.3-eksbuild.1",
+                              "managed_by": "customer", "where": ["cluster"], "readable": True, "reason": None}]
+        base = CASES["match"]["advisory_base"]
+        recs = [dict(base, id=i, affected=[{"component": "addon:vpc-cni", "ranges": [r], "quote": "vpc-cni " + r}])
+                for i, r in (("CVE-TEST-0001", ">= 1.23.0, < 1.23.4"), ("CVE-TEST-0003", "<= 1.20.0"))]
+        fd = match.run(inv, recs, CAT, 0.5)
+        self.assertEqual({f["verdict"] for f in fd["findings"]}, {"not_exposed"}, fd["findings"])
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("Not exposed: addon:vpc-cni v1.22.3-eksbuild.1 is outside every affected range of CVE-TEST-0001 "
+                      "(fixed in: 1.23.4)", md)
+        self.assertIn("Not exposed: addon:vpc-cni v1.22.3-eksbuild.1 is outside every affected range of CVE-TEST-0003 "
+                      "(fixed in: none stated)", md)
+        self.assertNotIn("at or above the fixed version", md)
+
+    def test_patched_with_exposed_one_overall_line(self):
+        # M8: an AWS-patched Auto Mode finding beside an exposed one prints one "Overall verdict:" line
+        fd, inv = self.fixture()
+        fd["findings"].append(dict(fd["findings"][0], component="addon:vpc-cni@auto-mode", verdict="aws_managed_patched",
+                                   fixed_at="2026-11-01", priority="P4"))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertEqual(len([ln for ln in md.splitlines() if ln.startswith("Overall verdict:")]), 1, md)
+        self.assertIn("Overall verdict: Exposed", md)
+        self.assertIn("Auto Mode components: AWS-patched (inferred, not read): every Auto Mode node was created at or "
+                      "after the fix time", md)
+
+    def test_unknown_actions_for_nodes_build_and_minor(self):
+        # S2: no_nodes_read, eks_build and minor_only each get their own action, not the generic one
+        fd, inv = self.fixture()
+        fd["findings"] = [dict(fd["findings"][1], component="c%d" % i, reason=r + ": x")
+                          for i, r in enumerate(("no_nodes_read", "eks_build", "minor_only"))]
+        fd["overall"] = "unknown"
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        for text in ("No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and that "
+                     "the NodePools have nodes, then re-run collect",
+                     "A range bound carries an eksbuild number, which is not compared; compare the add-on build with "
+                     "the advisory by hand",
+                     "The installed version names no patch release; find the patch release (for the control plane, "
+                     "from its platform version) and compare by hand"):
+            self.assertIn(text, md)
+        self.assertNotIn("Read the advisory and the installed version by hand", md)
+
 
 # ------------------------------------------------------------------ collectors: read-only guard
 
@@ -861,6 +908,63 @@ class CollectReadOnly(TmpCase):
         self.assertEqual(out["preflight"]["k8s:list pods"], "denied")
         self.assertFalse(out["ok"])
 
+    def collect_inspector(self):
+        """Full collect run with Inspector enabled: one running ECR image, one pod with no containerStatuses."""
+        cc = CASES["collect"]
+        ie = cc["inspector_enabled"]
+        kubectl = copy.deepcopy(cc["kubectl"])
+        kubectl["get pods,daemonsets,deployments,statefulsets"]["json"]["items"] += copy.deepcopy(ie["pods"])
+        work = os.path.join(self.tmp, "work")
+        p, _ = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                             {"aws": dict(cc["aws"], **ie["aws"]), "kubectl": kubectl, "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        with open(os.path.join(work, "inventory.json"), encoding="utf-8") as f:
+            return {i["image"].rsplit("/", 1)[-1]: i["inspector"] for i in json.load(f)["images"]}
+
+    @NEEDS_JQ
+    def test_collect_zero_findings_carry_not_scanned_note(self):
+        # M3: 0 findings is not proof of a scan; the image says so
+        insp = self.collect_inspector()["app:v1"]
+        self.assertEqual((insp["critical"], insp["high"], insp["findings"]), (0, 0, []), insp)
+        self.assertEqual(insp["note"], "0 ACTIVE findings returned; whether Inspector scanned this image was not read "
+                                       "(coverage is not collected)")
+
+    @NEEDS_JQ
+    def test_collect_pod_without_container_status_skipped(self):
+        # M5: an image no running container reports was never queried, so it reads skipped, not 0 critical / 0 high
+        insp = self.collect_inspector()["pending:v9"]
+        self.assertEqual(insp, {"skipped": "image not queried: no running container reports it (pod has no "
+                                           "containerStatuses)"})
+
+    @NEEDS_JQ
+    def test_collect_kubectl_not_logged_in_is_denied(self):
+        # S8: kubectl's "must be logged in" (an unmapped principal) is denied, and not retried
+        cc = CASES["collect"]
+        kubectl = dict(cc["kubectl"], **{"get nodes": {"rc": 1, "stderr": "error: You must be logged in to the server "
+                                                                         "(Unauthorized)"}})
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                                 {"aws": cc["aws"], "kubectl": kubectl, "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        with open(os.path.join(work, "meta.json"), encoding="utf-8") as f:
+            errs = {e["step"]: e["code"] for e in json.load(f)["errors"]}
+        self.assertEqual(errs.get("kubectl-get-nodes"), "denied", errs)
+        self.assertEqual(len([c for c in calls if c["tool"] == "kubectl" and c["args"][:2] == ["get", "nodes"]]), 1)
+
+    @NEEDS_JQ
+    def test_collect_result_names_preflight_not_ok(self):
+        # S9: the result line lists every probe that is not ok under preflight_not_ok
+        cc = CASES["collect"]
+        kubectl = dict(cc["kubectl"], **{"auth can-i": {"text": "yes", "if_arg": {"--all-namespaces": {"text": "no"}}}})
+        p, _ = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2",
+                                                  "--out", os.path.join(self.tmp, "work")],
+                             {"aws": cc["aws"], "kubectl": kubectl, "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        out = last_json(p.stdout)
+        self.assertNotIn("preflight_denied", out)
+        self.assertIn("k8s:list pods", out["preflight_not_ok"])
+        self.assertNotIn("k8s:list nodes", out["preflight_not_ok"])
+
     @NEEDS_JQ
     def test_posture_collect_run_with_stubs(self):
         pc = CASES["posture"]
@@ -981,6 +1085,42 @@ class PostureScoring(TmpCase):
         self.assertIn("Score: %d of 100" % doc["score"], m)
         self.assertIn("not-contained", h)
         self.assertIn("The scripts that produced this report are read-only; they changed nothing.", m)
+
+    def test_pass_with_failing_node_listed_as_exception(self):
+        # M2: 9 of 10 nodes block IMDS, so the check passes, but the report still names the failing node
+        names = [n for n in self.PC["files"] if n != self.PC["denied_file"]]
+        work = self.build(names)
+        node0 = self.PC["files"]["nodes"]["items"][0]
+        inst0 = self.PC["files"]["instances"]["Reservations"][0]["Instances"][0]
+        nodes, insts = [], []
+        for i in range(10):
+            iid = "i-0bad" if i == 9 else "i-0good%d" % i
+            n = copy.deepcopy(node0)
+            n["metadata"]["name"] = "node-%d" % i
+            n["metadata"]["labels"]["eks.amazonaws.com/nodegroup"] = "general"
+            n["spec"]["providerID"] = "aws:///us-west-2a/" + iid
+            nodes.append(n)
+            x = copy.deepcopy(inst0)
+            x["InstanceId"] = iid
+            x["Tags"] = [{"Key": "eks:nodegroup-name", "Value": "general"}, {"Key": "kubernetes.io/cluster/demo", "Value": "owned"}]
+            x["MetadataOptions"] = {"HttpTokens": "required", "HttpPutResponseHopLimit": 2 if i == 9 else 1,
+                                    "HttpEndpoint": "enabled"}
+            insts.append(x)
+        self.write(os.path.join("work", "posture", "nodes.json"), dict(self.PC["files"]["nodes"], items=nodes))
+        self.write(os.path.join("work", "posture", "instances.json"), {"Reservations": [{"Instances": insts}]})
+        q, doc = self.pipeline(work)
+        c55 = next(c for c in doc["checks"] if c["id"] == "SEC-POSTURE-55")
+        self.assertEqual(c55["result"], "pass", c55)
+        self.assertIn("; failing: i-0bad", c55["evidence"])
+        md, ht = os.path.join(self.tmp, "p.md"), os.path.join(self.tmp, "p.html")
+        rc, out, err = run_py("render_report.py", ["--posture", os.path.join(work, "posture.json"), "--out-md", md,
+                                                   "--out-html", ht])
+        with open(md, encoding="utf-8") as f:
+            m = f.read()
+        self.assertIn("## Failed, unknown and passed-with-exceptions checks", m)
+        row = next((ln for ln in m.splitlines() if "SEC-POSTURE-55" in ln), "")
+        self.assertTrue(row.startswith("| pass (exceptions) |"), row)
+        self.assertIn("i-0bad", row)
 
     def test_sparse_workdir_score_null(self):
         q, doc = self.pipeline(self.build(self.PC["sparse_files"]))

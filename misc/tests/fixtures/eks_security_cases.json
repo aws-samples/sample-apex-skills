@@ -1059,6 +1059,43 @@
     ],
     "overall": "exposed",
     "exit": 0
+   },
+   {
+    "name": "unknown_eks_build_suffix_eks_n_n_n",
+    "components": [
+     {
+      "id": "addon:vpc-cni",
+      "kind": "eks-addon",
+      "name": "vpc-cni",
+      "version": "v1.22.3-eks-1-33-3",
+      "managed_by": "customer",
+      "where": [
+       "cluster"
+      ],
+      "readable": true,
+      "reason": null
+     }
+    ],
+    "advisory": {
+     "affected": [
+      {
+       "component": "addon:vpc-cni",
+       "ranges": [
+        "< 1.22.3-eks-1-33-5"
+       ],
+       "quote": "Amazon VPC CNI Managed Add-on < 1.22.3-eks-1-33-5"
+      }
+     ]
+    },
+    "expect": [
+     {
+      "component": "addon:vpc-cni",
+      "verdict": "unknown",
+      "reason_prefix": "eks_build"
+     }
+    ],
+    "overall": "unknown",
+    "exit": 0
    }
   ]
  },
@@ -1504,6 +1541,73 @@
      "skip": 1
     }
    }
+  },
+  "inspector_enabled": {
+   "aws": {
+    "inspector2 batch-get-account-status": {
+     "json": {
+      "accounts": [
+       {
+        "accountId": "111122223333",
+        "resourceState": {
+         "ecr": {
+          "status": "ENABLED"
+         }
+        }
+       }
+      ]
+     }
+    },
+    "inspector2 list-findings": {
+     "json": {
+      "findings": []
+     }
+    }
+   },
+   "pods": [
+    {
+     "kind": "Pod",
+     "metadata": {
+      "name": "app-1",
+      "namespace": "default"
+     },
+     "spec": {
+      "containers": [
+       {
+        "name": "app",
+        "image": "111122223333.dkr.ecr.us-west-2.amazonaws.com/app:v1"
+       }
+      ]
+     },
+     "status": {
+      "containerStatuses": [
+       {
+        "name": "app",
+        "image": "111122223333.dkr.ecr.us-west-2.amazonaws.com/app:v1",
+        "imageID": "111122223333.dkr.ecr.us-west-2.amazonaws.com/app@sha256:3333333333333333333333333333333333333333333333333333333333333333"
+       }
+      ]
+     }
+    },
+    {
+     "kind": "Pod",
+     "metadata": {
+      "name": "pending-1",
+      "namespace": "default"
+     },
+     "spec": {
+      "containers": [
+       {
+        "name": "pending",
+        "image": "111122223333.dkr.ecr.us-west-2.amazonaws.com/pending:v9"
+       }
+      ]
+     },
+     "status": {
+      "phase": "Pending"
+     }
+    }
+   ]
   }
  },
  "posture": {
@@ -1706,7 +1810,7 @@
            "image": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon-k8s-cni:v1.21.1-eksbuild.3"
           },
           {
-           "name": "aws-network-policy-agent",
+           "name": "aws-eks-nodeagent",
            "image": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon/aws-network-policy-agent:v1.2.0-eksbuild.1",
            "args": [
             "--enable-network-policy=true"
@@ -2050,7 +2154,8 @@
   "expect": {
    "pass": [
     "SEC-POSTURE-59",
-    "SEC-POSTURE-62"
+    "SEC-POSTURE-62",
+    "SEC-POSTURE-26"
    ],
    "fail_high": "SEC-POSTURE-55",
    "fail_layer": "node-credential",

@@ -39,7 +39,7 @@
     {
       "id": "image:aws-node/aws-network-policy-agent@auto-mode",
       "kind": "container-image",
-      "name": "aws-network-policy-agent",
+      "name": "aws-eks-nodeagent",
       "version": null,
       "managed_by": "aws-auto-mode",
       "where": [

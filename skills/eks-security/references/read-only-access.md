@@ -54,7 +54,7 @@ C2 adds the identity reads it needs to scope an event (which roles a workload ca
 }
 ```
 
-Plus the Kubernetes reads on `serviceaccounts`, `rolebindings`, `clusterrolebindings` and `networkpolicies` in the ClusterRole below. Checking whether an exposure was exploited is not covered yet: https://github.com/aws-samples/sample-apex-skills/issues/351
+Plus the Kubernetes reads under `# C1` and `# C2` in the ClusterRole below (pods, nodes, deployments, service accounts, role and cluster role bindings, pod logs, events, CRDs) and the `amazon-vpc-cni` ConfigMap in `kube-system`. Checking whether an exposure was exploited is not covered yet: https://github.com/aws-samples/sample-apex-skills/issues/351
 
 ## C3: posture check
 
@@ -165,7 +165,7 @@ rules:
     verbs: ["get"]
 ```
 
-Rules for API groups that are not installed (Kyverno, Gatekeeper, Auto Mode objects) are harmless. The role above is the full read set; the preflight confirms it.
+Rules for API groups that are not installed (Kyverno, Gatekeeper, Auto Mode objects) are harmless. The role above is the full read set. Each collector's preflight confirms its own reads; the C2 reads and the optional policy-engine and Auto Mode objects have no preflight.
 
 ## Binding it with an EKS access entry
 

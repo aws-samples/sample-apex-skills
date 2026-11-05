@@ -37,6 +37,7 @@
 #     "source_file": "posture/<file>.json[, ...]" | null,             null for governance checks
 #     "recommendation": "<printed advice for the team to review; nothing is changed>",
 #     "layer": "<layer>",                  extra key: the containment layer this check counts toward
+#                                          (for SEC-POSTURE-18, 19, 21 and 25 the catalog grouping only)
 #     "state": "all|most|some|none|na|unknown"   extra key: the scorer's bucket, which the score uses
 #   } ]
 # }

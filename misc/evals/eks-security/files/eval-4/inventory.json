@@ -39,7 +39,7 @@
     {
       "id": "image:aws-node/aws-network-policy-agent",
       "kind": "container-image",
-      "name": "aws-network-policy-agent",
+      "name": "aws-eks-nodeagent",
       "image": "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon/aws-network-policy-agent:v1.2.0-eksbuild.1",
       "version": "v1.2.0-eksbuild.1",
       "digest": null,

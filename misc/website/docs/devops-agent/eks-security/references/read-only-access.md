@@ -70,6 +70,9 @@ rules:
   - apiGroups: ["templates.gatekeeper.sh"]
     resources: ["constrainttemplates"]
     verbs: ["get", "list"]
+  - apiGroups: ["constraints.gatekeeper.sh"]
+    resources: ["*"]
+    verbs: ["get", "list"]
 ---
 # C3: the aws-auth mapping and the VPC CNI settings (the Auto Mode network policy switch) live in two ConfigMaps.
 # The Agent Space's AmazonAIOpsAssistantPolicy already reads every ConfigMap; this Role is for a principal that does not carry it.

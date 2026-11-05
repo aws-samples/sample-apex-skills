@@ -80,7 +80,7 @@ kc() { kubectl ${KARGS[@]+"${KARGS[@]}"} "$@"; }
 firstline() { grep -m1 -v '^[[:space:]]*$' "$1" 2>/dev/null | cut -c1-300 || true; }
 classify() {
   case "$1" in
-    *AccessDenied*|*UnauthorizedOperation*|*not\ authorized*|*explicit\ deny*|*Forbidden*|*forbidden*) echo denied ;;
+    *AccessDenied*|*UnauthorizedOperation*|*not\ authorized*|*explicit\ deny*|*Forbidden*|*forbidden*|*must\ be\ logged\ in*) echo denied ;;
     *ExpiredToken*|*InvalidClientTokenId*|*Unable\ to\ locate\ credentials*|*Token\ has\ expired*|*security\ token*|*getting\ credentials*) echo credentials ;;
     *ResourceNotFound*|*NotFound*|*not\ found*) echo not_found ;;
     *Throttl*|*Rate\ exceeded*|*TooManyRequests*) echo throttled ;;
@@ -314,9 +314,12 @@ if jq -n \
   | ($imgs | map(. as $im
       | if $ifs == null then . + {inspector: {skipped: ($insp[0].skipped // "not collected")}}
         elif ($im.image // "") | startswith($reg) | not then
-          . + {inspector: {skipped: "not in this account'"'"'s ECR registry in this Region"}}
+          . + {inspector: {skipped: ("image host is not " + ($reg | rtrimstr("/")) + " (another account, Region or registry host)")}}
         elif ($insp[0].complete == true) | not then
           . + {inspector: {skipped: "inspector2 list-findings failed for some targets; see meta.json errors"}}
+        elif if $im.digest != null then ($insp[0].queried.digests // []) | any(.[]; . == $im.digest) | not
+             else ($insp[0].queried.repos // []) | any(.[]; . == ($im.image | ltrimstr($reg) | sub("[@:].*$";""))) | not end then
+          . + {inspector: {skipped: "image not queried: no running container reports it (pod has no containerStatuses)"}}
         else ([$ifs[] | select(any(.resources[]?.details.awsEcrContainerImage; . as $r |
                  (($im.digest != null) and .imageHash == $im.digest)
                  or (($im.digest == null) and ($im.image | sub("[@:][^/]*$";"") | endswith("/" + $r.repositoryName))
@@ -325,8 +328,9 @@ if jq -n \
                      package: (.packageVulnerabilityDetails.vulnerablePackages[0].name // ""),
                      installed: (.packageVulnerabilityDetails.vulnerablePackages[0].version // ""),
                      fixed: (.packageVulnerabilityDetails.vulnerablePackages[0].fixedInVersion // "")})) as $f
-             | . + {inspector: {critical: ([$f[] | select(.severity == "CRITICAL")] | length),
-                                high: ([$f[] | select(.severity == "HIGH")] | length), findings: $f}}
+             | . + {inspector: ({critical: ([$f[] | select(.severity == "CRITICAL")] | length),
+                                high: ([$f[] | select(.severity == "HIGH")] | length), findings: $f}
+                    + (if ($f|length)==0 then {note:"0 ACTIVE findings returned; whether Inspector scanned this image was not read (coverage is not collected)"} else {} end))}
         end)) as $images
   # control plane
   | [{id: "k8s:control-plane", kind: "control-plane", name: "kubernetes", version: $cj.version,
@@ -411,4 +415,4 @@ write_meta
 rm -f -- "$OUT"/.[a-z]*.json "$OUT"/.[a-z]*.jsonl
 chmod 600 -- "$OUT"/*.json 2>/dev/null || true
 [ -s "$OUT/inventory.json" ] || fail inventory_failed "inventory.json was not built; see meta.json errors in $OUT"
-jq -c --arg d "$OUT" '{ok:true,workdir:$d,errors:(.errors|length),preflight_denied:([.preflight|to_entries[]|select(.value!="ok")|.key])}' "$OUT/meta.json"
+jq -c --arg d "$OUT" '{ok:true,workdir:$d,errors:(.errors|length),preflight_not_ok:([.preflight|to_entries[]|select(.value!="ok")|.key])}' "$OUT/meta.json"

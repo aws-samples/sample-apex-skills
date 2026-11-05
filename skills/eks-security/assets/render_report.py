@@ -36,8 +36,9 @@ OVERALL = {"exposed": "Exposed: at least one component is inside an affected ran
            "not_exposed": "Not exposed: every targeted component was read and is outside the affected ranges.",
            "unknown": "Unknown: nothing was found exposed, but at least one component or advisory could not be "
                       "decided. See Unknown"}
-PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node was created after the fix time %s; component "
-           "versions were not read. AMI rollouts are staged: confirm the nodes' AMI or osImage against the release note.")
+PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node was created at or after the fix time %s; the Auto "
+           "Mode components' versions were not read. AMI rollouts can lag the fix date: confirm the nodes' AMI or "
+           "osImage against the release note.")
 UNKNOWN_ACTION = {
     "denied": "Grant the read named in the preflight (see read-only-access.md) and re-run collect",
     "not_found": "Confirm whether the component is installed another way (Helm, manifest) and re-run with --namespaces",
@@ -45,9 +46,16 @@ UNKNOWN_ACTION = {
     "digest_only": "The image is pinned by digest only; map the digest to its release in the registry",
     "unparsed": "The version string did not parse; read it by hand and record it",
     "no_fix_date": "Find the time AWS released the fix for Auto Mode, record it as fixed_at with its source line, "
-                   "and run match again",
+                   "and run match again (Auto Mode release notes: "
+                   "https://docs.aws.amazon.com/eks/latest/userguide/auto-change.html)",
     "no_version_range": "Compare the installed version with the advisory by hand",
-    "bad_range": "Correct the record's range, check it with advisory_check.py and run match again"}
+    "bad_range": "Correct the record's range, check it with advisory_check.py and run match again",
+    "no_nodes_read": "No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and "
+                     "that the NodePools have nodes, then re-run collect",
+    "eks_build": "A range bound carries an eksbuild number, which is not compared; compare the add-on build with "
+                 "the advisory by hand",
+    "minor_only": "The installed version names no patch release; find the patch release (for the control plane, "
+                  "from its platform version) and compare by hand"}
 _TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+=-]{0,199}$")
 _MD_SPECIAL = re.compile(r"([\\`*_\[\]#|~])")
 
@@ -210,13 +218,15 @@ def findings_blocks(fd, inv):
     else:
         patched = sorted({"%s (%s)" % (s(f.get("fixed_at")), s(f.get("source_url"))) for f in fd.get("findings") or []
                           if f.get("verdict") == "aws_managed_patched"})
-        if overall != "not_exposed" or not patched:
+        printed = overall != "not_exposed" or not patched
+        if printed:
             line = OVERALL.get(overall, "Unknown.")
             if overall == "unknown":
                 line += " and Needs manual review." if fd.get("review") else "."
             blocks.append(("p", "Overall verdict: " + line))
         if patched:
-            blocks.append(("p", "Overall verdict: " + PATCHED % "; ".join(patched)))
+            blocks.append(("p", ("Auto Mode components: " if printed else "Overall verdict: ")
+                           + PATCHED % "; ".join(patched)))
     src = fd.get("sources") or []
     blocks += [("h2", "Sources"),
                ("table", ["Advisory", "Title", "Origin", "Read at", "Source URL"],
@@ -235,9 +245,10 @@ def findings_blocks(fd, inv):
     ne = [f for f in fs if f.get("verdict") == "not_exposed"]
     if ne:
         blocks += [("h2", "Not exposed"),
-                   ("ul", ["Not exposed: %s %s is at or above the fixed version %s (%s, read %s), compared against "
-                           "the inventory collected %s" % (s(f.get("component")), s(f.get("installed")),
-                                                           s(f.get("fixed")) or "unknown", s(f.get("source_url")),
+                   ("ul", ["Not exposed: %s %s is outside every affected range of %s (fixed in: %s) (%s, read %s), "
+                           "compared against the inventory collected %s" % (s(f.get("component")), s(f.get("installed")),
+                                                           s(f.get("advisory")),
+                                                           s(f.get("fixed")) or "none stated", s(f.get("source_url")),
                                                            s(f.get("read_at")),
                                                            s(inv.get("collected_at")) or "unknown") for f in ne])]
     unk = [f for f in fs if f.get("verdict") == "unknown"]
@@ -309,13 +320,15 @@ def posture_blocks(pd, standalone):
     blocks.append(("table", ["Containment layer", "Verdict"],
                    [[x.get("layer"), x.get("verdict")] for x in pd.get("layers") or [] if isinstance(x, dict)]))
     checks = [c for c in pd.get("checks") or [] if isinstance(c, dict)]
-    bad = sorted([c for c in checks if c.get("result") in ("fail", "unknown")],
-                 key=lambda c: (SEV_ORDER.get(s(c.get("severity")).lower(), 9), 0 if c.get("result") == "fail" else 1,
-                                s(c.get("id"))))
+    key = lambda c: (SEV_ORDER.get(s(c.get("severity")).lower(), 9), 0 if c.get("result") == "fail" else 1,  # noqa: E731
+                     s(c.get("id")))
+    bad = sorted([c for c in checks if c.get("result") in ("fail", "unknown")], key=key)
+    bad += sorted([c for c in checks if c.get("result") == "pass" and "; failing: " in s(c.get("evidence"))], key=key)
     if bad:
-        blocks += [("h2", "Failed and unknown checks"),
+        blocks += [("h2", "Failed, unknown and passed-with-exceptions checks"),
                    ("table", ["Result", "Severity", "Check", "Evidence", "Recommendation"],
-                    [[c.get("result"), c.get("severity"), "%s %s" % (s(c.get("id")), s(c.get("title"))),
+                    [["pass (exceptions)" if c.get("result") == "pass" else c.get("result"), c.get("severity"),
+                      "%s %s" % (s(c.get("id")), s(c.get("title"))),
                       c.get("evidence"), c.get("recommendation")] for c in bad])]
     npass = sum(1 for c in checks if c.get("result") == "pass")
     nna = sum(1 for c in checks if c.get("result") == "na")
