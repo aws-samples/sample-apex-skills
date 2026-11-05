@@ -21,7 +21,7 @@
 
 - **Cluster name required:** Partial (only for in-cluster GitOps detection)
 - **MCP tools used:** `list_k8s_resources` (for GitOps)
-- **CLI fallback:** `find`, `kubectl`, Python 3
+- **CLI fallback:** `find`, `kubectl`, `jq`, Python 3
 
 ---
 
@@ -245,6 +245,9 @@ identify the AWS-hosted capability; see the separate `ListCapabilities` check be
 
 **Why detect Flux:** Flux is the CNCF GitOps tool, often preferred for multi-cluster setups. Understanding Flux configuration helps coordinate upgrades with GitRepository and Kustomization reconciliation cycles.
 
+Before recording any repository URL, remove its userinfo (`user[:password]@`);
+never quote the userinfo, including in Coverage or error summaries.
+
 **MCP (check for deployment):**
 ```
 list_k8s_resources(
@@ -284,14 +287,15 @@ source-controller             1/1     1            1           90d
 
 ```bash
 # Check for GitRepositories
-kubectl get gitrepositories.source.toolkit.fluxcd.io -A
+kubectl get gitrepositories.source.toolkit.fluxcd.io -A \
+  -o 'custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,READY:.status.conditions[?(@.type=="Ready")].status'
 ```
 
 **Example output:**
 ```
-NAMESPACE     NAME          URL                                       AGE    READY
-flux-system   flux-system   ssh://git@github.com/org/gitops-repo      90d    True
-flux-system   app-repo      ssh://git@github.com/org/app-manifests    45d    True
+NAMESPACE     NAME          READY
+flux-system   flux-system   True
+flux-system   app-repo      True
 ```
 
 ```bash
