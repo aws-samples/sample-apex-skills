@@ -181,7 +181,7 @@ S3 buckets persist after `terraform destroy` because the controller is deleted f
 
 OpenTofu v1.10.6 has severe `depends_on` performance regression (30+ min plan vs < 2 min with Terraform v1.14.5). Require HashiCorp Terraform v1.14.5+.
 
-Pin it in `versions.tf` with `required_version = ">= 1.14.5"` (see [versions.tf and backend.hcl](#versionstf-and-backendhcl)). Pre-flight before `terraform init`: the first line of `terraform version` must read `Terraform v1.14.5` or later; `OpenTofu v...` means the binary is OpenTofu (fix in [lessons-learned.md Section 12](references/lessons-learned.md#12-use-hashicorp-terraform-not-opentofu)).
+Pin it in `versions.tf` with `required_version = ">= 1.14.5"` (see [versions.tf and backend.hcl](#versionstf-and-backendhcl)); this is a floor on purpose, not terraform-skill's minor pin, so any later release passes. Pre-flight before `terraform init`: the first line of `terraform version` must read `Terraform v1.14.5` or later; `OpenTofu v...` means the binary is OpenTofu (fix in [lessons-learned.md Section 12](references/lessons-learned.md#12-use-hashicorp-terraform-not-opentofu)).
 
 ### 12. ArgoCD EKS Capability Requires IAM Identity Center
 

@@ -137,14 +137,15 @@ echo "-------------------------------------------"
 
 if [ -f "$MAIN_TF" ]; then
     # Extract module source paths and check they exist.
-    # POSIX sed -E only (no grep -P, which BSD/macOS grep lacks).
-    # Anchored at line start: only a real `source = "./modules/..."` attribute
-    # is read, never a commented-out line or a second match in a trailing comment.
-    if ! MODULE_SOURCES=$(sed -n -E 's|^[[:space:]]*source[[:space:]]*=[[:space:]]*"(\./modules/[^"]+)".*|\1|p' "$MAIN_TF"); then
+    # sed -E (POSIX.1-2024; GNU and BSD sed); no grep -P, which BSD/macOS grep lacks.
+    # The `source = "./modules/..."` attribute must start the line or follow a `{`
+    # on it (a one-line module block), so a `#` or `//` commented line and a second
+    # match in a trailing comment are not read; lines inside a /* */ block are.
+    if ! MODULE_SOURCES=$(sed -n -E 's|^([^#/]*[{])?[[:space:]]*source[[:space:]]*=[[:space:]]*"(\./modules/[^"]+)".*|\2|p' "$MAIN_TF"); then
         # Unreadable main.tf: report once and skip the rest of this section.
         fail "Could not read module sources from main.tf"
-    elif [ -z "$MODULE_SOURCES" ] && grep -Eq '^[[:space:]]*source[[:space:]]*=[[:space:]]*"\./modules/' "$MAIN_TF"; then
-        fail "main.tf references ./modules/ but no module source could be parsed"
+    elif [ "$(grep -Ec '^([^#/]*[{])?[[:space:]]*source[[:space:]]*=[[:space:]]*"\./modules/' "$MAIN_TF")" -gt "$(printf '%s' "$MODULE_SOURCES" | grep -c .)" ]; then
+        fail "main.tf references ./modules/ but not every module source could be parsed"
     elif [ -n "$MODULE_SOURCES" ]; then
         while IFS= read -r mod_path; do
             FULL_PATH="$PROJECT_DIR/$mod_path"
