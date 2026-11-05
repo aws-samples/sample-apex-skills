@@ -277,7 +277,7 @@ function parse(s,   q, r, hcl) {
     if (s ~ /^[=>]/) return 0
     PV = trim(s)
     if (PV == "") return 2
-    if (index(PV, "${") > 0) PKIND = "E"
+    if (index(PV, "${") > 0 || index(PV, "{{") > 0) PKIND = "E"
     else if (PV ~ /^["']/) PKIND = "L"
     else PKIND = (hcl ? "E" : "L")
     gsub(/\$\{/, "", PV); gsub(/[]}"'[:space:]]/, "", PV)
@@ -354,7 +354,7 @@ function emit(k, v, kd,   x) {
     if (blob ~ /private_subnet/) { print "subnet", k, v, kd; x = 1 }
     if (blob ~ /public_subnet/) { print "pubsubnet", k, v, kd; x = 1 }
     if (!x && blob ~ /subnet/) { print "subunk", k, v, kd; x = 1 }
-    if (blob ~ /cluster_primary_security_group|cluster_security_group/) print "clustersg", k, v, kd
+    if (blob ~ /cluster_primary_security_group|vpc_config/) print "clustersg", k, v, kd
     if (blob ~ /security_group/) { print "sg", k, v, kd; x = 1 }
     if (!x) print "unk", k, v, kd
 }
@@ -405,7 +405,7 @@ $1 == "A" {
     if ($3 == "__ref__") { REF[$2] = 1; next }
     if (index(KV[$2, $3] " ", " " $4 " ") == 0) KV[$2, $3] = KV[$2, $3] " " $4
     HAS[$2, $3, $4] = 1
-    if ($5 == "L") KL[$2, $3] = 1
+    if ($5 == "E") KE[$2, $3] = 1
     next
 }
 $1 == "S" {
@@ -428,11 +428,12 @@ function judge(ty, k, v, kd,   pub) {
     if (k == "__other__") { msg = "no tags or id selector, not checked"; return }
     if (k == "__ref__") { msg = "tags passed by reference, check them manually"; return }
     if (k == "__bad__") { msg = "a tag could not be read, check it manually"; return }
+    if (index(v, "*")) { msg = k "=" v ": wildcard value, not compared, check manually"; return }
     if ((ty, k, v) in HAS) { res = "P"; return }
     if (pub && (("pubsubnet", k, v) in HAS)) { msg = k "=" v " is applied only to public subnets (public_subnet_tags or an aws_ec2_tag on them): Karpenter would launch nodes there"; return }
     if ((("unk", k, v) in HAS) || (pub && (("subunk", k, v) in HAS))) { msg = k "=" v ": tag target not identifiable, check manually"; return }
     if ((ty, k) in KV) {
-        if (kd == "L" && ((ty, k) in KL)) { res = "F"; msg = k "=" v " does not match the applied value(s):" KV[ty, k]; return }
+        if (kd == "L" && !((ty, k) in KE)) { res = "F"; msg = k "=" v " does not match the applied value(s):" KV[ty, k]; return }
         msg = k "=" v " vs applied value(s):" KV[ty, k] " -- expressions differ (expected when GitOps YAML holds a literal name and Terraform an expression), confirm they resolve to the same value"; return
     }
     if ((("unk", k) in KV) || (pub && ((("subunk", k) in KV) || (("pubsubnet", k) in KV)))) { msg = k "=" v ": tag target not identifiable, check manually"; return }
@@ -448,7 +449,7 @@ END {
             if (TS[tid] == "I") print "P", h " uses ids (no discovery tag to check)"
             else if (TS[tid] == "P") print "P", h " " TT[tid] ": every tag matches a tag the project applies to " (GT[s] == "subnet" ? "private subnets" : "security groups")
             else if (TS[tid] == "W" || ok) print "W", h ": " TM[tid] (ok ? " (another term matches)" : "")
-            else print "F", h ": " TM[tid] (allf ? " -- no term matches, Karpenter will find no " lab : "")
+            else print "F", h ": " TM[tid] (allf ? " -- no term matches and no scanned input carries this value, so Karpenter would find no " lab : "")
         }
     }
     if (SGK == "") exit
@@ -464,7 +465,7 @@ KARP_DIRS=("$PROJECT_DIR")
 if [ -n "$GITOPS_DIR" ] && [ "$GITOPS_DIR" = "$PROJECT_DIR/../gitops" ]; then
     KARP_DIRS+=("$GITOPS_DIR")
 fi
-KARP_NC_LIST=$(find "${KARP_DIRS[@]}" -type f \( -name '*.tf' -o -name '*.yaml' -o -name '*.yml' -o -name '*.tftpl' -o -name '*.tpl' \) ! -path '*/.terraform/*' -exec grep -l -E "kind[\"']?[[:space:]]*[:=][[:space:]]*[\"']?EC2NodeClass" {} + 2>/dev/null || true)
+KARP_NC_LIST=$(find -H "${KARP_DIRS[@]}" -type f \( -name '*.tf' -o -name '*.yaml' -o -name '*.yml' -o -name '*.tftpl' -o -name '*.tpl' \) ! -path '*/.terraform/*' -exec grep -l -E "kind[\"']?[[:space:]]*[:=][[:space:]]*[\"']?EC2NodeClass" {} + 2>/dev/null || true)
 
 if [ -z "$KARP_NC_LIST" ]; then
     pass "Karpenter not configured (no EC2NodeClass found)"
@@ -475,7 +476,7 @@ else
     while IFS= read -r f; do
         [ -n "$f" ] || continue
         if [ -r "$f" ]; then KARP_TF_FILES+=("$f"); else warn "Cannot read $f -- skipped by the Karpenter tag check"; fi
-    done <<< "$(find "$PROJECT_DIR" -type f -name '*.tf' ! -path '*/.terraform/*' 2>/dev/null || true)"
+    done <<< "$(find -H "$PROJECT_DIR" -type f -name '*.tf' ! -path '*/.terraform/*' 2>/dev/null || true)"
 
     KARP_SELECTORS=$(awk "$KARP_SEL_AWK" "${KARP_NC_FILES[@]}" || true)
     KARP_APPLIED=""

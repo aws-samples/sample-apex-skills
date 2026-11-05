@@ -126,7 +126,7 @@ Generate the `gitops/` tree with ArgoCD ApplicationSets. Use cluster ARN as dest
 
 ### Step 9-10: README and Validate
 
-Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration. A section 11 (Karpenter discovery tags) FAIL is a literal tag mismatch: fix it. A section 11 WARN means the match could not be proved from the files (an expression, a map passed by reference, a tag target or input the script does not read); resolve each one by hand before deploying. A literal cluster name in GitOps YAML against a Terraform expression, the usual Pattern 2 shape, always gives this WARN.
+Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration. A section 11 (Karpenter discovery tags) FAIL is a literal tag mismatch: fix it. A section 11 WARN means the match could not be proved from the files (an expression, a wildcard value, a map passed by reference, a tag target or input the script does not read), or is risky (a tag only on public subnets, a stray term beside a matching one); resolve each one by hand before deploying. A literal cluster name in GitOps YAML against a Terraform expression, the usual Pattern 2 shape, always gives this WARN.
 
 ## Critical Build Rules
 
