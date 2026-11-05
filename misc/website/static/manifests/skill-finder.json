@@ -305,7 +305,7 @@
     "group": "general",
     "path": "/docs/skills/general/skill-creator",
     "allowedTools": false,
-    "upstream": false,
+    "upstream": true,
     "devopsAgent": false,
     "eval": null
   },
@@ -316,7 +316,7 @@
     "group": "general",
     "path": "/docs/skills/general/terraform-skill",
     "allowedTools": false,
-    "upstream": false,
+    "upstream": true,
     "devopsAgent": false,
     "eval": null
   },

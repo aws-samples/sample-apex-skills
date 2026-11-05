@@ -7,7 +7,7 @@ Every field comes from a file in this repo, never from hand-written text:
   group               the same eks- / ecs- / general split as update-pages.sh classify_skill
   path                the generated docs page, /docs/skills/<group>/<name>
   allowedTools        true when the frontmatter sets allowed-tools
-  upstream            true when misc/sync-<name>-skill.sh or skills/<name>/UPSTREAM.md exists
+  upstream            true when a misc/sync-*.sh script sets LOCAL_SKILL_PATH="skills/<name>"
   devopsAgent         true when devops-agent/<name>/SKILL.md exists (a DevOps Agent port)
   eval                score and grade from misc/website/static/manifests/evals.json, else null
 
@@ -17,6 +17,7 @@ Usage (from the repo root):
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -61,6 +62,13 @@ def summary(description: str) -> str:
     return text
 
 
+def synced_skills() -> set:
+    found = set()
+    for script in (ROOT / "misc").glob("sync-*.sh"):
+        found.update(re.findall(r'^LOCAL_SKILL_PATH="skills/([^"/]+)"', script.read_text(encoding="utf-8"), re.M))
+    return found
+
+
 def load_evals() -> dict:
     if not EVALS.exists():
         return {}
@@ -73,6 +81,7 @@ def load_evals() -> dict:
 
 def build() -> str:
     evals = load_evals()
+    synced = synced_skills()
     skills = []
     for skill_md in sorted(SKILLS.glob("*/SKILL.md")):
         folder = skill_md.parent.name
@@ -87,8 +96,7 @@ def build() -> str:
             "group": group,
             "path": f"/docs/skills/{group}/{folder}",
             "allowedTools": "allowed-tools" in fm,
-            "upstream": (ROOT / f"misc/sync-{folder}-skill.sh").exists()
-            or (skill_md.parent / "UPSTREAM.md").exists(),
+            "upstream": folder in synced,
             "devopsAgent": (ROOT / "devops-agent" / folder / "SKILL.md").exists(),
             "eval": evals.get(folder),
         })
