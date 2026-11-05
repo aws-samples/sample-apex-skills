@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'APEX Skills',
-  tagline: 'Platform engineering with agents — curated AWS skills delivered through your AI coding agent',
+  tagline: 'EKS and ECS skills for AI coding agents: curated AWS platform engineering skills for Claude Code, Kiro CLI and Codex',
   favicon: 'img/favicon.svg',
 
   url: 'https://aws-samples.github.io',
@@ -25,7 +25,7 @@ const config: Config = {
     // Docusaurus treats README.md as a directory-index doc, so a generated
     // README.md wrapper sitting next to an index.md (e.g. the
     // eks-cost-intelligence contributor README next to its SKILL.md wrapper)
-    // would claim the same route — "Duplicate routes found!" — and make
+    // would claim the same route ("Duplicate routes found!") and make
     // plugin-client-redirects emit the same redirect twice. Give such
     // READMEs an explicit non-index slug instead of dropping the page.
     parseFrontMatter: async (params) => {
@@ -158,10 +158,13 @@ const config: Config = {
 
   themeConfig: {
     metadata: [
-      {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
-      {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.svg'},
+      {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.png'},
+      {property: 'og:image:width', content: '1200'},
+      {property: 'og:image:height', content: '630'},
+      {property: 'og:image:alt', content: 'APEX Skills: EKS and ECS skills for AI coding agents'},
+      {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.png'},
+      {name: 'twitter:image:alt', content: 'APEX Skills: EKS and ECS skills for AI coding agents'},
       {name: 'twitter:card', content: 'summary_large_image'},
-      {name: 'keywords', content: 'AWS, EKS, platform engineering, AI agent skills, Claude Code, Kiro CLI, AWS DevOps Agent, Kubernetes, infrastructure as code, agentic AI, DevOps automation'},
     ],
     navbar: {
       title: 'APEX Skills',
@@ -180,6 +183,16 @@ const config: Config = {
           to: '/docs/skills',
           position: 'left',
           label: 'Skills',
+        },
+        {
+          to: '/skill-finder',
+          position: 'left',
+          label: 'Skill finder',
+        },
+        {
+          to: '/install',
+          position: 'left',
+          label: 'Install',
         },
         {
           to: '/docs/examples',
@@ -217,6 +230,8 @@ const config: Config = {
             {label: 'Introduction', to: '/docs/intro'},
             {label: 'Getting Started', to: '/docs/getting-started'},
             {label: 'Skills', to: '/docs/skills'},
+            {label: 'Skill finder', to: '/skill-finder'},
+            {label: 'Install', to: '/install'},
           ],
         },
         {

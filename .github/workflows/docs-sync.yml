@@ -60,6 +60,7 @@ jobs:
         run: |
           ./misc/update-all-references.sh --check
           ./misc/update-pages.sh --check
+          python3 misc/build-skill-finder.py --check
       - name: How to fix frontmatter validation (shown on failure)
         if: failure() && steps.validate.outcome == 'failure'
         run: |
@@ -94,7 +95,7 @@ jobs:
 
           **Fix:**
           ```bash
-          ./misc/update-all-references.sh && ./misc/update-pages.sh && git add -A
+          ./misc/update-all-references.sh && ./misc/update-pages.sh && python3 misc/build-skill-finder.py && git add -A
           git commit -m "docs: regenerate reference tables and pages"
           ```
 

@@ -1,4 +1,4 @@
-/* APEX Skills — premium dark-first theme */
+/* APEX Skills: premium dark-first theme */
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -1081,4 +1081,220 @@ a, button, .navbar__link, .menu__link {
 
 .plugin-blog article .markdown {
   max-width: 70ch;
+}
+
+/* Copy page menu */
+.copy-page-menu {
+  position: relative;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.copy-page-toggle {
+  padding: 6px 8px;
+}
+
+.copy-page-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 180px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--apex-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.copy-page-list button,
+.copy-page-list a {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 13px;
+  text-align: left;
+  color: var(--apex-text);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.copy-page-list button:hover,
+.copy-page-list a:hover {
+  background: var(--apex-surface);
+  text-decoration: none;
+}
+
+/* Homepage: agent demo and skills by platform */
+.apex-terminal {
+  max-width: 760px;
+  margin: 2.5rem auto 0;
+  border: 1px solid var(--apex-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.apex-terminal__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #1e293b;
+}
+
+.apex-terminal__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #475569;
+}
+
+.apex-terminal__label {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.apex-terminal__body {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  background: none;
+  color: #f1f5f9;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.apex-terminal__prompt {
+  color: #ff9900;
+}
+
+.apex-terminal__muted {
+  color: #94a3b8;
+}
+
+.apex-terminal__caption {
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  font-size: 14px;
+  color: #cbd5e1;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.apex-group {
+  margin-bottom: 2.5rem;
+}
+
+.apex-group__title {
+  max-width: 1200px;
+  margin: 0 auto 1rem;
+  font-size: 1.25rem;
+}
+
+/* Skill finder and install composer */
+.apex-finder__controls,
+.apex-composer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  margin: 1.5rem 0;
+}
+
+.apex-finder__search {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 280px;
+}
+
+.apex-finder__search input {
+  padding: 8px 12px;
+  font-size: 15px;
+  color: var(--apex-text);
+  background: var(--apex-surface);
+  border: 1px solid var(--apex-border);
+  border-radius: 8px;
+}
+
+.apex-finder__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--apex-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.apex-finder__facet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.apex-finder__facet label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.apex-finder__count {
+  color: var(--apex-text-muted);
+}
+
+.apex-finder__results {
+  padding: 0;
+  list-style: none;
+}
+
+.apex-finder__card .apex-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.apex-finder__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 1.25rem;
+}
+
+.apex-finder__tag {
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--apex-text-muted);
+  border: 1px solid var(--apex-border);
+  border-radius: 9999px;
+}
+
+.apex-finder__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.apex-composer {
+  flex-direction: column;
+}
+
+.apex-composer__skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 1rem;
+  margin: 0.5rem 0 0 1.5rem;
+}
+
+.apex-composer__command {
+  margin-bottom: 0.75rem;
+  white-space: pre-wrap;
+}
+
+.apex-composer__why {
+  margin: 0.5rem 0 0;
+  color: var(--apex-text-muted);
 }

@@ -1,32 +1,37 @@
 import type {ReactNode} from 'react';
 import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
-import {skillCount} from '@site/src/components/SkillGrid';
+import skills from '@site/static/manifests/skill-finder.json';
+import type {FinderSkill} from '@site/src/components/SkillFinder';
+
+const allSkills = skills as FinderSkill[];
+
+const GROUPS: {id: FinderSkill['group']; title: string; to: string}[] = [
+  {id: 'eks', title: 'Amazon EKS skills', to: '/skill-finder?group=eks'},
+  {id: 'ecs', title: 'Amazon ECS skills', to: '/docs/skills/ecs/'},
+  {id: 'general', title: 'Router and general skills', to: '/skill-finder?group=general'},
+];
 
 function HeroBanner() {
   return (
     <header className="apex-hero">
       <div className="apex-hero__glow" />
       <div className="apex-hero__container">
-        <span className="apex-hero__badge">Open Source · MIT-0</span>
-        <h1 className="apex-hero__title">APEX Skills</h1>
+        <span className="apex-hero__badge">APEX Skills · Open Source · MIT-0</span>
+        <h1 className="apex-hero__title">EKS and ECS skills for AI coding agents</h1>
         <p className="apex-hero__subtitle">
-          Platform engineering with agents — curated AWS skills delivered through
-          your AI coding agent
+          Curated AWS platform engineering skills that your coding agent loads
+          when your request needs them.
         </p>
         <p className="apex-hero__meta">
-          {skillCount} skills · MIT-0 · agentskills.io · Claude Code · Kiro CLI
+          {allSkills.length} skills · agentskills.io · Claude Code · Kiro CLI · Codex
         </p>
         <div className="apex-hero__actions">
-          <Link className="apex-hero__cta apex-hero__cta--primary" to="/docs/getting-started">
-            Get Started
+          <Link className="apex-hero__cta apex-hero__cta--primary" to="/skill-finder">
+            Find a skill
           </Link>
-          <Link
-            className="apex-hero__cta apex-hero__cta--secondary"
-            href="https://github.com/aws-samples/sample-apex-skills"
-          >
-            GitHub →
+          <Link className="apex-hero__cta apex-hero__cta--secondary" to="/install">
+            Build your install command
           </Link>
         </div>
       </div>
@@ -34,17 +39,46 @@ function HeroBanner() {
   );
 }
 
+// The prompt is the documented Kiro example from Getting Started; the
+// router behaviour is quoted from skills/apex/SKILL.md.
+function AgentDemo() {
+  return (
+    <section className="apex-terminal" aria-label="Example: asking your agent">
+      <div className="apex-terminal__bar">
+        <span className="apex-terminal__dot" />
+        <span className="apex-terminal__dot" />
+        <span className="apex-terminal__dot" />
+        <span className="apex-terminal__label">your coding agent</span>
+      </div>
+      <pre className="apex-terminal__body">
+        <span className="apex-terminal__prompt">&gt; </span>
+        use apex to plan my EKS upgrade{'\n'}
+        <span className="apex-terminal__muted">  skill loaded: apex (router){'\n'}</span>
+        <span className="apex-terminal__muted">
+          {'  '}infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate),{'\n'}
+          {'  '}then loads the skill that fits and its runbook, if any{'\n'}
+        </span>
+      </pre>
+      <p className="apex-terminal__caption">
+        Ask in your own words. In Claude Code and Kiro CLI you can also type{' '}
+        <code>/apex</code>; in Codex, <code>$apex</code>.{' '}
+        <Link to="/docs/skills/general/apex/">How the router works</Link>
+      </p>
+    </section>
+  );
+}
+
 function ValueProps() {
   return (
     <section className="apex-values">
-      <h2 className="apex-values__title">Why Platform Engineers Use APEX Skills</h2>
+      <h2 className="apex-values__title">Why platform engineers use APEX Skills</h2>
       <div className="apex-values__grid">
         <div className="apex-values__item">
           <h3>Agent-native skills</h3>
           <p>
             Built for the agentskills.io spec. Load a skill and your AI coding
-            agent gains deep AWS platform-engineering knowledge — no plugins, no
-            configuration.
+            agent gains deep AWS platform engineering knowledge, with no plugins
+            and no configuration.
           </p>
         </div>
         <div className="apex-values__item">
@@ -67,68 +101,31 @@ function ValueProps() {
   );
 }
 
-function FeaturedSkills() {
-  const skills = [
-    {
-      name: 'EKS Design',
-      path: '/docs/skills/eks/eks-design/',
-      description:
-        'Architecture design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices.',
-    },
-    {
-      name: 'EKS Build',
-      path: '/docs/skills/eks/eks-build/',
-      description:
-        'Generate production-ready EKS Terraform projects with optional ArgoCD GitOps. Handles air-gapped networks, enterprise proxies, compliance requirements, and 29+ addon configurations.',
-    },
-    {
-      name: 'EKS Upgrade Check',
-      path: '/docs/skills/eks/eks-upgrade-check/',
-      description:
-        'Automated readiness assessment across 8 categories — deprecated APIs, add-on compatibility, node health, workload risks — producing a 0–100 score with prioritized remediation.',
-    },
-    {
-      name: 'EKS Operation Review',
-      path: '/docs/skills/eks/eks-operation-review/',
-      description:
-        'Structured operational excellence assessment covering 10 areas with GREEN/AMBER/RED ratings and prioritized recommendations for production clusters.',
-    },
-    {
-      name: 'EKS Platform Engineering',
-      path: '/docs/skills/eks/eks-platform-engineering/',
-      description:
-        'Internal Developer Platform design — Backstage portal, ArgoCD delivery, progressive rollouts with Kargo, infrastructure abstraction, golden paths, and DORA measurement.',
-    },
-    {
-      name: 'EKS Best Practices',
-      path: '/docs/skills/eks/eks-best-practices/',
-      description:
-        'Architecture and design guidance — compute strategy with Karpenter and Auto Mode, multi-tenant isolation, VPC planning, Pod Identity, upgrade strategies, and cost optimization.',
-    },
-    {
-      name: 'EKS Reconnaissance',
-      path: '/docs/skills/eks/eks-recon/',
-      description:
-        'Cluster discovery and environment mapping. Detects compute strategy, IaC tooling, CI/CD pipelines, add-on inventory, networking topology, security posture, and observability automatically.',
-    },
-    {
-      name: 'EKS MCP Server',
-      path: '/docs/skills/eks/eks-mcp-server/',
-      description:
-        'Live cluster operations via Model Context Protocol. List clusters, read Kubernetes resources, troubleshoot pods, deploy workloads, and check upgrade insights in real time.',
-    },
-  ];
+function SkillsByGroup() {
   return (
     <section className="apex-featured">
-      <h2 className="apex-featured__title">Featured Platform Engineering Skills</h2>
-      <div className="apex-featured__grid">
-        {skills.map((s) => (
-          <Link key={s.name} className="apex-featured__card" to={s.path}>
-            <h3>{s.name}</h3>
-            <p>{s.description}</p>
-          </Link>
-        ))}
-      </div>
+      <h2 className="apex-featured__title">Skills by platform</h2>
+      {GROUPS.map((group) => {
+        const members = allSkills.filter((s) => s.group === group.id);
+        if (members.length === 0) return null;
+        return (
+          <div key={group.id} className="apex-group">
+            <h3 className="apex-group__title">
+              <Link to={group.to}>
+                {group.title} ({members.length})
+              </Link>
+            </h3>
+            <div className="apex-featured__grid">
+              {members.map((s) => (
+                <Link key={s.name} className="apex-featured__card" to={`${s.path}/`}>
+                  <h3>{s.name}</h3>
+                  <p>{s.summary}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </section>
   );
 }
@@ -136,13 +133,17 @@ function FeaturedSkills() {
 function HowItWorks() {
   return (
     <section className="apex-steps">
-      <h2 className="apex-steps__title">How APEX Skills Work with Your AI Coding Agent</h2>
+      <h2 className="apex-steps__title">How APEX Skills work with your AI coding agent</h2>
       <div className="apex-steps__timeline">
         <div className="apex-steps__item">
           <span className="apex-steps__number">1</span>
           <h3>Install</h3>
           <p>npx apex-skills@1.3.0</p>
-          <p>For v2 and its <code>/apex</code> router, use the manual install from <code>main</code> (<Link to="/docs/getting-started#manual-install">Getting Started</Link>).</p>
+          <p>
+            Pick your agent and skills in the <Link to="/install">install composer</Link>.
+            For v2 and its <code>/apex</code> router, use the manual install from{' '}
+            <code>main</code> (<Link to="/docs/getting-started/#manual-install">Getting Started</Link>).
+          </p>
         </div>
         <div className="apex-steps__item">
           <span className="apex-steps__number">2</span>
@@ -152,7 +153,7 @@ function HowItWorks() {
         <div className="apex-steps__item">
           <span className="apex-steps__number">3</span>
           <h3>Ship with confidence</h3>
-          <p>Platform-engineering best practices applied directly to your infrastructure.</p>
+          <p>Platform engineering best practices applied directly to your infrastructure.</p>
         </div>
       </div>
     </section>
@@ -164,10 +165,10 @@ function CtaSection() {
     <section className="apex-cta-section">
       <p className="apex-cta-section__headline">Ready to explore?</p>
       <div className="apex-cta-section__actions">
-        <Link className="apex-cta-section__link apex-cta-section__link--primary" to="/docs/skills">
-          Browse Skills →
+        <Link className="apex-cta-section__link apex-cta-section__link--primary" to="/skill-finder">
+          Find a skill →
         </Link>
-        <Link className="apex-cta-section__link apex-cta-section__link--secondary" to="/docs/skills/general/apex">
+        <Link className="apex-cta-section__link apex-cta-section__link--secondary" to="/docs/skills/general/apex/">
           APEX Router and Runbooks →
         </Link>
       </div>
@@ -176,13 +177,15 @@ function CtaSection() {
 }
 
 export default function Home(): ReactNode {
-  const {siteConfig} = useDocusaurusContext();
   return (
-    <Layout title="APEX Skills — AWS Platform Engineering for AI Agents" description="Curated agentic AI skills for AWS platform engineering. Open-source skills for EKS, Terraform, and infrastructure workflows, delivered through any coding agent.">
+    <Layout
+      title="EKS and ECS skills for AI coding agents"
+      description={`${allSkills.length} open-source EKS and ECS skills for AI coding agents: design, build, upgrade and review AWS container platforms from Claude Code, Kiro CLI or Codex.`}>
       <main className="landing-main">
         <HeroBanner />
+        <AgentDemo />
         <ValueProps />
-        <FeaturedSkills />
+        <SkillsByGroup />
         <HowItWorks />
         <CtaSection />
       </main>
