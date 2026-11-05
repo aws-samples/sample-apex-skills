@@ -160,10 +160,10 @@ const config: Config = {
     metadata: [
       {property: 'og:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.png'},
       {name: 'twitter:image', content: 'https://aws-samples.github.io/sample-apex-skills/img/og-image.png'},
-      {property: 'og:image:alt', content: 'APEX Skills logo and title on a dark navy background, with the tagline Curated AI skills for AWS platform engineering and badges for Agent Skills, MIT-0 and Open Source'},
+      {property: 'og:image:alt', content: 'APEX Skills title beside an orange diamond mark on a dark navy background, with the tagline Curated AI skills for AWS platform engineering and badges for Agent Skills, MIT-0 and Open Source'},
       {property: 'og:image:width', content: '1200'},
       {property: 'og:image:height', content: '630'},
-      {name: 'twitter:image:alt', content: 'APEX Skills logo and title on a dark navy background, with the tagline Curated AI skills for AWS platform engineering and badges for Agent Skills, MIT-0 and Open Source'},
+      {name: 'twitter:image:alt', content: 'APEX Skills title beside an orange diamond mark on a dark navy background, with the tagline Curated AI skills for AWS platform engineering and badges for Agent Skills, MIT-0 and Open Source'},
       {name: 'twitter:card', content: 'summary_large_image'},
       {name: 'keywords', content: 'AWS, EKS, platform engineering, AI agent skills, Claude Code, Kiro CLI, AWS DevOps Agent, Kubernetes, infrastructure as code, agentic AI, DevOps automation'},
     ],
