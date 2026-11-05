@@ -1,5 +1,5 @@
 ---
-title: "Layer 6 — Audit Logging & Forensics"
+title: "Layer 6: Audit Logging & Forensics"
 description: ""
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/audit-logging.md
 format: md
@@ -9,11 +9,11 @@ format: md
 This page is generated from [devops-agent/eks-security/references/audit-logging.md](https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/audit-logging.md). Edit the source, not this page.
 :::
 
-# Layer 6 — Audit Logging & Forensics
+# Layer 6: Audit Logging & Forensics
 
 Proving *what happened* is the backbone of every compliance audit. Three sources compound: Kubernetes-level (control-plane logs), AWS-API-level (CloudTrail), and network-level (VPC Flow Logs).
 
-## EKS control-plane logging — 5 log types (all to CloudWatch Logs)
+## EKS control-plane logging: 5 log types (all to CloudWatch Logs)
 
 | Log type | Purpose | Recommended? |
 |---|---|---|
@@ -25,13 +25,15 @@ Proving *what happened* is the backbone of every compliance audit. Three sources
 
 For compliance regimes, **always enable `audit` and `authenticator` at minimum.** Reference: [Send control plane logs to CloudWatch](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html).
 
-> **Gotcha:** EKS audit-log **filtering is not supported** — it's all-or-nothing per log type. Large clusters can generate substantial audit-log volume → meaningful CloudWatch Logs cost. Budget for it and set a retention policy that meets the regime (below) without over-retaining.
+> **Gotcha:** EKS audit-log **filtering is not supported**: it's all-or-nothing per log type. Large clusters can generate substantial audit-log volume → meaningful CloudWatch Logs cost. Budget for it and set a retention policy that meets the regime (below) without over-retaining.
 
-## CloudTrail — EKS API audit trail
+During a security event, the Logs Insights and CloudTrail queries for a service account, pod or role are in [security-event-response.md](security-event-response) step 2.
 
-Records all EKS API calls (`CreateCluster`, `UpdateClusterConfig`, `AssociateAccessPolicy`, …). Required for the audit trail of **cluster-level configuration changes** — and the reason Access Entries (which write through the EKS API) are auditable while `aws-auth` ConfigMap edits were not.
+## CloudTrail: EKS API audit trail
 
-## VPC Flow Logs — pod-level network forensics
+Records all EKS API calls (`CreateCluster`, `UpdateClusterConfig`, `AssociateAccessPolicy`, …). Required for the audit trail of **cluster-level configuration changes**: and the reason Access Entries (which write through the EKS API) are auditable while `aws-auth` ConfigMap edits were not.
+
+## VPC Flow Logs: pod-level network forensics
 
 Especially valuable combined with **Security Groups for Pods** (Layer 3), giving network-flow evidence at pod granularity for incident investigation and segmentation proof.
 
@@ -49,7 +51,7 @@ CloudWatch Logs subscription → Kinesis Data Streams → Firehose → SIEM dest
 | **SOX** | 7 years (17 CFR 210.2-06) |
 | FedRAMP | per System Security Plan; continuous-monitoring cadence |
 
-Apply the retention to the CloudWatch Logs groups holding `audit`/`authenticator` (and to CloudTrail/S3) — and encrypt those groups with a customer-managed KMS key for high-sensitivity workloads.
+Apply the retention to the CloudWatch Logs groups holding `audit`/`authenticator` (and to CloudTrail/S3), and encrypt those groups with a customer-managed KMS key for high-sensitivity workloads.
 
 ## Shared responsibility (Layer 6)
 
