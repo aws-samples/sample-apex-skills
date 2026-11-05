@@ -30,6 +30,20 @@ The `triggering.json` evals (run via `run_triggering.py`) are unaffected — the
 
 ## How to run
 
+### Optional-field query regression checks
+
+```bash
+python3 misc/tests/test_eks_recon_jq_null.py -v
+```
+
+Run from the repository root with Python 3 and jq on `PATH`. Hand-authored
+fixtures exercise networking env/args and observability ConfigMap data when
+missing, null, empty or populated, including valid entries after incomplete
+ones. Queries are extracted from the maintained Markdown; the DevOps Agent
+env pseudocode is checked with client-shaped Python objects. The existing
+recon regression CI job runs these offline checks. They do not execute an
+agent or prove live-cluster behavior.
+
 ### Offline GitOps regression checks
 
 ```bash

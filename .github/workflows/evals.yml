@@ -65,6 +65,7 @@ jobs:
           'skills/eks-recon/**'
           'devops-agent/eks-recon/**'
           'misc/tests/test_eks_recon_gitops.py'
+          'misc/tests/test_eks_recon_jq_null.py'
           '.github/workflows/evals.yml'
           '.github/scripts/ci-gate.sh'
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -74,3 +75,6 @@ jobs:
       - name: Run offline GitOps fixtures and lane contract checks
         if: steps.changes.outputs.relevant != 'false'
         run: jq --version && python3 misc/tests/test_eks_recon_gitops.py -v
+      - name: Run optional-field query fixtures
+        if: steps.changes.outputs.relevant != 'false'
+        run: python3 misc/tests/test_eks_recon_jq_null.py -v
