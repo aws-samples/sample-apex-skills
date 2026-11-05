@@ -61,9 +61,9 @@ If MCP tools are NOT available:
 | `kubectl` | K8s resource detection (deployments, CRDs, service accounts) |
 | `helm` | Helm release inventory (optional) |
 | Python 3 | CLI GitOps metadata extractor (standard library) |
-| `jq` | CLI GitOps controller projection |
+| `jq` | CLI JSON filtering and projections across recon modules |
 
-If a required projection cannot run because `jq` or Python 3 is missing, record
+If a projection cannot run because `jq` or Python 3 is missing, record
 the inspection gap in Coverage; never run the read without its projection.
 
 ### MCP Troubleshooting

@@ -460,9 +460,7 @@ additional examples. Output is bounded; API response size and parser memory are 
 **CLI collection:** project controller reads before tool output enters the model
 context. Keep raw env, args, command paths and annotation values out of that output;
 filtering only the final report is insufficient. The tracking pipeline below already
-emits only the extractor result. If a required projection cannot run because `jq`
-or Python 3 is missing, record the inspection gap in Coverage; never run the read
-without its projection. Use Python 3 (`python3`, or `python` / `py -3`
+emits only the extractor result. Use Python 3 (`python3`, or `python` / `py -3`
 on Windows). From the skill directory, run each selected kind independently:
 
 ```bash
