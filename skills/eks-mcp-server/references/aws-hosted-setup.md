@@ -10,7 +10,7 @@ The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade ca
 
 - AWS account with EKS clusters
 - AWS CLI installed and configured (`aws configure list`)
-- Python 3.10+ (`python3 --version`)
+- Python 3.11+ (`python3 --version`)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
 
@@ -41,7 +41,7 @@ Add the EKS MCP server to your assistant's MCP configuration. Replace `{region}`
 
 The same JSON below works for every supported assistant — only the config file path (or UI entry point) differs.
 
-The examples pin `mcp-proxy-for-aws@1.8.0`. Pin a reviewed version and bump it on purpose after reading the release notes.
+Pin a reviewed version and bump it on purpose after reading the release notes.
 
 ```json
 {

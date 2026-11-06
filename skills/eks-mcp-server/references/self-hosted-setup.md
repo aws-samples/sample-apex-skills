@@ -66,7 +66,7 @@ For write access (cluster creation, deployments), also attach:
 
 ### Basic Configuration (IAM Mode)
 
-The examples pin `awslabs.eks-mcp-server@0.2.1`. Pin a reviewed version and bump it on purpose after reading the release notes.
+Pin a reviewed version and bump it on purpose after reading the release notes.
 
 ```json
 {
