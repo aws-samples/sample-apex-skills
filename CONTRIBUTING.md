@@ -329,8 +329,6 @@ The generator scripts (including `./misc/update-pages.sh`) parse frontmatter wit
 
 **CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` reports a status on every PR event once its workflows are allowed to run (none run while a PR has merge conflicts, and a PR from someone outside both this repository and its organization waits until someone with write access approves the run), but it does real work only when the PR changes a path the workflow watches; otherwise it is a no-op that passes. The `eval set hygiene` and `validate` checks (`.github/workflows/evals.yml`, `.github/workflows/devops-agent-validate.yml`) work the same way: green on a PR that touches none of their watched paths means not needed, not tested. The real work is `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check`. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
 
-**SkillSpector scan (advisory).** `.github/workflows/skillspector.yml` runs [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) (static, `--no-llm`, pinned to a release commit) on each skill a PR changes under `skills/` or `devops-agent/`, and shows its findings as PR annotations. It never fails the check and does not replace review: a clean scan is not an approval, and a finding is for the reviewer to weigh. The reviewed baseline of findings on `main` is `misc/skillspector/baseline.md`.
-
 CI also strict-parses `SKILL.md` frontmatter via `misc/validate-frontmatter.py` before regenerating. The frontmatter must satisfy all of these rules:
 
 - it is a valid YAML mapping between `---` delimiters
@@ -343,6 +341,8 @@ CI also strict-parses `SKILL.md` frontmatter via `misc/validate-frontmatter.py` 
 These rules make the repo's frontmatter a compliant subset of the [Agent Skills specification](https://agentskills.io/specification): every allowed key is a spec field, and the spec's optional `compatibility` field is rejected here.
 
 For `skills/` each description must also match the generated `skills.json` manifest (`devops-agent/` is exempt from the manifest check; a missing manifest entry is only a warning). If validation fails, fix the frontmatter YAML and rerun the regeneration commands above.
+
+**SkillSpector scan (advisory).** `.github/workflows/skillspector.yml` runs [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) (static, `--no-llm`, pinned to a release commit) on each skill a PR changes under `skills/` or `devops-agent/`, and writes each finding to the job log as a workflow command. GitHub shows at most 10 warning and 10 notice annotations per step, and one step covers every changed skill, so the annotations show only the first ones; the full list is in the job log. A green check with no annotations can also mean the scan did not run; read the job log. The check fails only if the repository checkout itself fails, and it does not replace review: a clean scan is not an approval, and a finding is for the reviewer to weigh. The reviewed baseline of findings on `main` is `misc/skillspector/baseline.md`. The workflow does not read this file; compare each annotation against it by hand.
 
 ## Creating a New Example
 

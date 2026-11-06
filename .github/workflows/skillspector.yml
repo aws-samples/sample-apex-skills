@@ -1,9 +1,15 @@
 name: SkillSpector (advisory)
 
-# Advisory only: this scan never fails the check and does not replace review.
+# Advisory only: this scan fails only if the repository checkout itself fails,
+# and it does not replace review.
 # It runs NVIDIA SkillSpector (static, --no-llm) on the skills a pull request
-# changes and writes each finding as a PR annotation. It is not a required
-# check, so the paths filter below cannot leave a required status Pending.
+# changes and writes each finding to the job log as a workflow command. GitHub
+# shows at most 10 warning and 10 notice annotations per step, and this one
+# step covers every changed skill, so the annotations show only the first ones;
+# the full list is in the job log. A green check with no annotations can also
+# mean the scan did not run; read the job log.
+# Do not mark this check required: the paths filter below would leave a
+# required status Pending on PRs outside those paths.
 on:
   pull_request:
     paths:
@@ -49,7 +55,9 @@ jobs:
           version: '0.13.7'
           enable-cache: false
 
-      # Installs from SkillSpector's own uv.lock, which pins every dependency by hash.
+      # Installs from SkillSpector's own uv.lock, which pins every runtime dependency
+      # by hash; SkillSpector itself is pinned by commit, and its build backend
+      # (hatchling) is resolved unpinned at build time.
       - name: Install SkillSpector
         id: install
         if: steps.tool.outcome == 'success'
@@ -61,11 +69,10 @@ jobs:
         # A step timeout under continue-on-error ends the scan without failing the check.
         timeout-minutes: 60
         continue-on-error: true
-        env:
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set +e
-          dirs=$(git diff --name-only "$PR_BASE_SHA" HEAD -- skills devops-agent \
+          # HEAD is the PR merge commit; HEAD^1 is the base tip it was built on.
+          dirs=$(git diff --name-only HEAD^1 HEAD -- skills devops-agent \
             | sed -nE 's#^((skills|devops-agent)/[^/]+)/.*#\1#p' | sort -u)
           if [ -z "$dirs" ]; then
             echo "No changed skill; nothing to scan."
@@ -92,16 +99,16 @@ jobs:
           skill_dir, path = sys.argv[1], sys.argv[2]
           report = json.load(open(path, encoding='utf-8'))
           risk = report.get('risk_assessment', {})
-          issues = report.get('issues') or report.get('findings') or []
+          issues = report.get('issues') or []
           print(f"{skill_dir}: risk {risk.get('score')} {risk.get('severity')}, {len(issues)} finding(s)")
           for i in issues:
               loc = i.get('location') or {}
-              rel = loc.get('file') or i.get('file') or 'SKILL.md'
-              line = loc.get('start_line') or i.get('start_line') or 1
+              rel = loc.get('file') or 'SKILL.md'
+              line = loc.get('start_line') or 1
               sev = str(i.get('severity', '')).upper()
               level = 'warning' if sev in ('HIGH', 'CRITICAL') else 'notice'
-              rule = i.get('rule_id') or i.get('id') or i.get('category') or 'finding'
-              parts = [i.get('pattern'), i.get('explanation') or i.get('message'), i.get('finding')]
+              rule = i.get('id') or 'finding'
+              parts = [i.get('pattern'), i.get('explanation'), i.get('finding')]
               msg = ': '.join(str(x) for x in parts if x) or rule
               print(f"::{level} file={esc(skill_dir + '/' + rel, True)},line={int(line)},"
                     f"title={esc('SkillSpector ' + sev + ' ' + rule, True)}::{esc(msg)}")
