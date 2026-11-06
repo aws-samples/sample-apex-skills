@@ -191,7 +191,7 @@ Recommendations in the report are sorted by:
 ## Cost Score: {score}/100 — {classification}
 
 {If any dimension is SKIPPED and at least one is assessed: **Computed over {N} of {M} dimensions ({assessed_max} of 100 points).** Not assessed: {skipped dimensions and weights}.}
-{If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks}.}
+{If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks}; the executive summary names it too.}
 
 {executive_summary: 2-3 sentences summarizing the cluster's cost posture, top waste
 areas, and projected total savings if all recommendations are implemented.}
@@ -206,7 +206,7 @@ areas, and projected total savings if all recommendations are implemented.}
 | Storage Costs | 15 | -{storage_deduction} | {status_icon} | {top_finding_summary} |
 | Observability Costs | 10 | -{observability_deduction} | {status_icon} | {top_finding_summary} |
 | Idle Resources | 15 | -{idle_deduction} | {status_icon} | {top_finding_summary} |
-| **Total** | **{assessed_max}** | **-{total_deduction}** | {N} of {M} dimensions ({assessed_max} of 100 points) | **Score: {score}** |
+| **Total** | **{assessed_max}** | **-{total_deduction}** | {N} of {M} dimensions | **Score: {score}** |
 
 With no dimension assessed the cell reads **Score: not computed**.
 
