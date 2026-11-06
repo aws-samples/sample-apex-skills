@@ -42,6 +42,7 @@ The following permissions are included:
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`
+- `route53:ListHostedZonesByVPC` (optional: centralized VPC endpoint zones)
 
 **Elastic Load Balancing (required):**
 - `elasticloadbalancing:DescribeLoadBalancers`
@@ -51,6 +52,7 @@ The following permissions are included:
 **Cost Explorer (optional — enables dollar-accurate spend):**
 - `ce:GetCostAndUsage`
 - `ce:GetCostForecast`
+- `organizations:DescribeOrganization`
 
 **CloudWatch (optional — enables utilization-based analysis):**
 - `cloudwatch:GetMetricData`
@@ -106,6 +108,8 @@ The following permissions are included:
 ```
 
 ### Step 0: Pre-flight — Cluster Discovery and Validation
+
+Run the account tier check in `references/cost-data-collection.md` (section 1.2) before the dimension checks.
 
 **Action 1 — Discover clusters**
 
