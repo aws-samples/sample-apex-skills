@@ -26,6 +26,8 @@ Two distinct concerns: **pod-level IAM** (how a pod gets AWS credentials) and **
 
 > **Limit (checked 2026-11-05):** EKS Pod Identity supports **up to 5,000 associations per cluster**; the docs give no Service Quotas increase path, so plan for it as fixed. For workloads exceeding it: consolidate roles, use IRSA for the overflow, or split across clusters. IRSA has no equivalent association limit. Reference: [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html).
 
+> **Credential caching (checked 2026-11-06):** the Pod Identity Agent caches credentials based on the association as it was when they were fetched: 6 hours for an association with only a Pod Identity role, 59 minutes when it also has a Target IAM Role. Modifying an existing association (its role ARN, adding a Target IAM Role, its session policy) does not reset that cache, so recreate the pods to apply the change sooner, or wait for the cache to expire. Reference: [Caching considerations](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-assign-target-role.html).
+
 When a workload identity is implicated in a security event, revoke it as in [security-event-response.md](security-event-response) step 3.
 
 Fine-grained scoping and at-scale management: [Session policies for EKS Pod Identity](https://aws.amazon.com/blogs/containers/session-policies-for-amazon-eks-pod-identity) · [Managing Pod Identities at scale with Argo CD and ACK](https://aws.amazon.com/blogs/containers/how-to-manage-eks-pod-identities-at-scale-using-argo-cd-and-aws-ack).
