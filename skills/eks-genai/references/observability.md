@@ -189,7 +189,7 @@ GenAI clusters are expensive. "How much does Team X's inference cost?" is a boar
 | Tool | Granularity | Effort |
 |------|-------------|--------|
 | **Kubecost** | Per-namespace, per-deployment, per-label | Low — Helm install + configure |
-| **AWS Split Cost Allocation Data (SCAD)** | Per-pod EKS cost allocation (GA) | Low — enable in Cost Explorer |
+| **AWS Split Cost Allocation Data (SCAD)** | Per-pod EKS cost allocation (GA), in CUR and CUR 2.0, not Cost Explorer | Low — opt in under Cost Management preferences |
 | **LiteLLM token accounting** | Per-API-key, per-tenant token + cost | Medium — requires LiteLLM gateway |
 | **Custom (Prometheus + recording rules)** | Per-label GPU-hours × instance cost | High — manual but flexible |
 
