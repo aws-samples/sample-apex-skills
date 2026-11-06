@@ -32,7 +32,7 @@ This file documents the differences between the Claude Code version and the DevO
 | **Kubernetes access** | kubeconfig plus the `eks-security-reader` ClusterRole bound through an access entry with a Kubernetes group | The Agent Space access entry (associated with `AmazonAIOpsAssistantPolicy` by `devops-agent/setup.sh`) plus the same ClusterRole, bound by adding a Kubernetes group to that entry (`read-only-access.md`) |
 | **Knowledge references** (15 hardening and compliance files) | Upstream copies | Copies of upstream as of 2026-11-05. Two keep port wording: `engagement-and-response.md` (autonomous "checks" instead of "questions", Professional Services escalation, no sibling routing) and `image-supply-chain.md` (one sentence). Edit both copies together |
 | **Auto Mode security reference** | `references/auto-mode-security.md` | In sync; security facts are launch-agnostic. Edit both copies together |
-| **Compliance references** | 3 per-regime deep files plus `compliance-regimes.md` | At full parity, byte-identical. Keep the compliance facts in sync across both copies |
+| **Compliance references** | 4 per-regime deep files plus `compliance-regimes.md` | At full parity, byte-identical. Keep the compliance facts in sync across both copies |
 
 ## Change log
 
