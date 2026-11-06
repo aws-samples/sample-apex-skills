@@ -234,7 +234,7 @@ No findings.
 
 | File:line | Rule | Severity | Verdict | Reason |
 |---|---|---|---|---|
-| skills/eks-mcp-server/SKILL.md:3 | RP1 | MEDIUM | true positive | the setup examples run the server unpinned with no pinning advice, for a server that holds cluster access: `awslabs.eks-mcp-server@latest` at references/self-hosted-setup.md:75, :97, :122, :140 and `mcp-proxy-for-aws@latest` at references/aws-hosted-setup.md:50, :75, :89, :103, plus the same run in skills/apex/runbooks/eks-operation-review/eks-operation-review.md:152; no fix is open for this finding as of 2026-11-06 |
+| skills/eks-mcp-server/SKILL.md:3 | RP1 | MEDIUM | true positive | the setup examples run the server unpinned with no pinning advice, for a server that holds cluster access: `awslabs.eks-mcp-server@latest` at references/self-hosted-setup.md:75, :97, :122, :140 and `mcp-proxy-for-aws@latest` at references/aws-hosted-setup.md:50, :75, :89, :103, plus the same run in skills/apex/runbooks/eks-operation-review/eks-operation-review.md:152; the fix is open as https://github.com/aws-samples/sample-apex-skills/pull/366 (2026-11-06) |
 | skills/eks-mcp-server/SKILL.md:32 | PE3 | HIGH | false positive | explains the self-hosted mode supports kubeconfig/OIDC auth; setup prose, no credential read |
 | skills/eks-mcp-server/SKILL.md:32 | PE3 | HIGH | false positive | explains the self-hosted mode supports kubeconfig/OIDC auth; setup prose, no credential read |
 | skills/eks-mcp-server/SKILL.md:115 | EA1 | MEDIUM | false positive | forbids tool calls on activation; starts with Step 0 then asks: a restriction |
