@@ -281,7 +281,7 @@ livenessProbe:
     path: /healthz?check=database
 ```
 
-✅ **DO keep readiness checks pod-local (warm-up done, local caches loaded):**
+✅ **DO prefer pod-local readiness checks (warm-up done, local caches loaded); avoid external dependencies such as a database:**
 ```yaml
 # ✅ GOOD: readiness checks only this pod's own state
 readinessProbe:
@@ -290,8 +290,8 @@ readinessProbe:
 ```
 
 **Why:** AWS's EKS guide says to avoid readiness probes that depend on a resource external to the pod, such as a database. If a shared dependency (database, cache) becomes unavailable, ALL pods fail readiness simultaneously, removing all endpoints from the Service and making the entire application unreachable. Instead:
-- Implementing circuit breakers in the application instead of failing readiness on transient dependency issues
-- For shared dependencies, prefer degraded responses over failing the readiness check entirely
+- Handle transient dependency failures in the application, for example with a circuit breaker
+- Serve a degraded response while a shared dependency is down, and keep the pod ready
 
 ### Probe Timing Rules
 
@@ -700,10 +700,10 @@ Use startup probes for applications with slow initialization (>10 seconds). The 
 
 | Rule | Readiness Probe | Liveness Probe |
 |---|---|---|
-| **Check dependencies?** | NO: pod-local only (warm-up, local caches); avoid checking resources external to the pod, such as a database, which can fail every replica at once | NEVER — only check the process itself |
+| **Check dependencies?** | Prefer pod-local (warm-up, local caches); avoid external dependencies such as a database, which can fail every replica at once | NEVER — only check the process itself |
 | **What happens on failure?** | Pod removed from Service endpoints (no traffic) | Pod restarted (container killed) |
 | **Use for** | "Can this pod serve traffic right now?" | "Is this process deadlocked or hung?" |
-| **Endpoint** | `/ready` with pod-local checks only | `/livez` or simple TCP check |
+| **Endpoint** | `/ready`: prefer pod-local; avoid external dependencies such as a database | `/livez` or simple TCP check |
 
 **Critical rule:** Liveness probes must NOT check external dependencies. If the database goes down and liveness checks the DB, ALL pods restart simultaneously — causing cascading failure instead of graceful degradation.
 
