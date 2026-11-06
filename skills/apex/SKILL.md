@@ -58,7 +58,7 @@ Use the stage only as a hint: to break a tie between two equally specific rows (
 | Build a cluster, generate Terraform, pick a pattern (Terraform vs ArgoCD), resume or modify a build | `eks-build` |
 | Internal Developer Platform, golden paths, Backstage, GitOps and progressive delivery for a developer platform | `eks-platform-engineering` (ArgoCD inside a cluster build: `eks-build`) |
 | GenAI or LLM on EKS: GPU vs Neuron, vLLM, Ray, distributed training, RAG, AI gateway | `eks-genai` |
-| Harden, compliance (HIPAA, PCI, FedRAMP, GDPR), CIS, Pod Identity vs IRSA, GuardDuty, image signing, PSA | `eks-security` |
+| Harden, compliance (HIPAA, PCI, FedRAMP, GDPR), CIS, Pod Identity vs IRSA, GuardDuty, image signing, PSA; CVE or advisory review ("am I exposed to CVE-...", check a security bulletin against my cluster); security event response (compromised image or package, leaked credential); security posture check (would my cluster contain a compromised pod) | `eks-security` |
 | Ready to upgrade to a target version, what blocks my upgrade | `eks-upgrade-check` |
 | Operational review, audit, health check, score my posture, one section (networking, RBAC, observability), version currency with no target version | `eks-operation-review` |
 | Cost audit, waste, biggest cost driver, Spot or Graviton savings | `eks-cost-intelligence` |

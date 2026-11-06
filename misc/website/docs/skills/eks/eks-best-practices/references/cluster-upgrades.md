@@ -500,6 +500,8 @@ kubectl-convert -f old-deployment.yaml --output-version apps/v1
 
 This applies to MNG, self-managed nodes, and Fargate. However, keep AMI versions current for security — older kubelet versions may have unpatched CVEs.
 
+Set a node image cadence and an emergency path for security fixes: see [Security Operations](security-operations#patch-cadence-and-the-emergency-path).
+
 ### Karpenter Node Upgrades
 
 **Automatic via drift detection:**
@@ -694,7 +696,7 @@ To verify SSM connectivity: check that the SSM agent is running on the node, the
 | Security patch for Bottlerocket OS | OS update in-place | BUO | Reboot only |
 | New Bottlerocket AMI (same K8s version) | Node replacement | Karpenter drift or MNG update | Pod eviction + reschedule |
 | K8s minor version upgrade (e.g., 1.34 → 1.35) | Control plane + data plane upgrade | EKS API + Karpenter drift | Full upgrade sequence |
-| Critical CVE requiring immediate patch | OS update (if BUO patch available) or node replacement | BUO or Karpenter | Depends on patch availability |
+| Critical CVE requiring immediate patch | OS update (if BUO patch available) or node replacement, through the emergency path in [Security Operations](security-operations#the-emergency-path); confirm exposure first with eks-security C1 | BUO or Karpenter | Depends on patch availability |
 
 ---
 

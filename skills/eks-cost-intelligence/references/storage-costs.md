@@ -263,6 +263,8 @@ kubectl get pvc --all-namespaces -o json | \
     [.[] | select(.key as $k | $mounted[0] | index($k) | not)]'
 ```
 
+If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+
 **Via kubectl (simplified — single pipeline):**
 
 ```bash
@@ -271,6 +273,8 @@ comm -23 \
   <(kubectl get pvc -A -o jsonpath='{range .items[?(@.status.phase=="Bound")]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' | sort) \
   <(kubectl get pods -A -o json | jq -r '.items[] | select(.status.phase=="Running") | .metadata.namespace as $ns | .spec.volumes[]? | select(.persistentVolumeClaim) | "\($ns)/\(.persistentVolumeClaim.claimName)"' | sort -u)
 ```
+
+If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via EKS MCP Server:**
 

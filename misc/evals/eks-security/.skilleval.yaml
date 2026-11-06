@@ -16,8 +16,8 @@ layers:
 
 weights:
   triggering: 0.20
-  process: 0.05
-  knowledge: 0.45
+  process: 0.10
+  knowledge: 0.40
   quality: 0.30
 
 regression:

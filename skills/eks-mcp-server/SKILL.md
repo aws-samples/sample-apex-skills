@@ -97,7 +97,7 @@ Guide the user through verification:
 
 1. **Restart** — Tell the user to restart their AI assistant (IDE, CLI, or extension) to load the new MCP config
 2. **Test** — Ask the user to try: "List my EKS clusters" or "What EKS MCP tools are available?"
-3. **Confirm** — For an existing connection, go directly to Step 3 of the [self-hosted](references/self-hosted-setup.md) or [AWS-hosted](references/aws-hosted-setup.md) reference and confirm a required read through that server.
+3. **Confirm** — Go to Step 3 of the [self-hosted](references/self-hosted-setup.md) or [AWS-hosted](references/aws-hosted-setup.md) reference and confirm a required read through that server.
 
 **If verification fails**, diagnose in this order:
 

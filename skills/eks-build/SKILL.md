@@ -119,7 +119,7 @@ Generate the `gitops/` tree with ArgoCD ApplicationSets. Use cluster ARN as dest
 
 ### Step 9-10: README and Validate
 
-Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration.
+Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration. A section 11 (Karpenter discovery tags) FAIL is a literal tag mismatch: fix it. A section 11 WARN means the match could not be proved from the files (an expression, a wildcard value, a map passed by reference, a tag target or input the script does not read), or is risky (a tag only on public subnets, a stray term beside a matching one); resolve each one by hand before deploying. For the usual Pattern 2 shape, a literal cluster name in GitOps YAML against Terraform's `local.cluster_config.name`, the script reads `name` from configs/cluster.yaml and gives PASS on a match and FAIL on a mismatch; WARN only when that name cannot be read.
 
 ## Critical Build Rules
 
@@ -130,8 +130,9 @@ Non-negotiable lessons from production deployments. Violating any causes deploym
 Split `eks-blueprints-addons` into TWO module calls:
 - **Phase 1**: LBC + Gatekeeper only, `wait: true`
 - **Phase 2**: All other addons, `depends_on = [module.eks_addons_webhooks]`
+- **Standalone Karpenter `helm_release`** (outside both module calls): also `depends_on = [module.eks_addons_webhooks]`
 
-LBC and Gatekeeper register webhooks (`failurePolicy: Fail`) before pods are ready. Without two-phase, these webhooks block all other addon deployments.
+LBC and Gatekeeper register webhooks (`failurePolicy: Fail`) before pods are ready. Without two-phase, these webhooks block all other addon deployments. Karpenter (chart v1.1 and later) registers no webhooks, but its Service passes through the Phase 1 LBC webhook, so it is gated too.
 
 ### 2. before_compute: true
 
@@ -180,6 +181,8 @@ S3 buckets persist after `terraform destroy` because the controller is deleted f
 ### 11. Use HashiCorp Terraform, NOT OpenTofu
 
 OpenTofu v1.10.6 has severe `depends_on` performance regression (30+ min plan vs < 2 min with Terraform v1.14.5). Require HashiCorp Terraform v1.14.5+.
+
+Pin it in `versions.tf` with `required_version = ">= 1.14.5"` (see [versions.tf and backend.hcl](#versionstf-and-backendhcl)); this is a floor on purpose, not terraform-skill's minor pin, so any later release passes. Pre-flight before `terraform init`: the first line of `terraform version` must read `Terraform v1.14.5` or later; `OpenTofu v...` means the binary is OpenTofu (fix in [lessons-learned.md Section 12](references/lessons-learned.md#12-use-hashicorp-terraform-not-opentofu)).
 
 ### 12. ArgoCD EKS Capability Requires IAM Identity Center
 
@@ -230,6 +233,32 @@ projects/<project-name>/code/
 │   └── tenants/applicationset.yaml
 └── validation-checklist.md
 ```
+
+### versions.tf and backend.hcl
+
+`versions.tf` pins the Terraform version and declares the S3 backend as a partial configuration; `configs/backend.hcl` supplies its values at `terraform init -backend-config=configs/backend.hcl`.
+
+```hcl
+# versions.tf
+terraform {
+  required_version = ">= 1.14.5" # OpenTofu 1.12+ ignores this in .tf files: also run the terraform version pre-flight (Critical Rule 11)
+
+  backend "s3" {} # values come from configs/backend.hcl
+
+  # required_providers: pin every provider per references/version-matrix.md
+}
+```
+
+```hcl
+# configs/backend.hcl
+bucket       = "<STATE_BUCKET>"
+key          = "<project-name>/terraform.tfstate"
+region       = "<REGION>"
+encrypt      = true
+use_lockfile = true # S3-native state locking (DynamoDB locking is deprecated)
+```
+
+Enable versioning on the state bucket so state can be recovered after an accidental delete.
 
 ### Deployment
 
