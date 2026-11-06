@@ -142,7 +142,7 @@ Checks:
 - Workloads without resource requests or limits
 - Fargate pod request right-sizing against Fargate's vCPU/memory combinations — only when Step 0 found Fargate profiles (read `references/fargate-costs.md`, Check F1)
 
-If metrics-server or Container Insights is unavailable, mark utilization checks as SKIPPED and proceed with request-only analysis.
+If metrics-server or Container Insights is unavailable, mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency is then SKIPPED for scoring, with request-only findings reported and no deduction.
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
@@ -206,8 +206,9 @@ Read `references/report-generation.md` for the scoring algorithm.
 Apply the scoring model:
 - Start at 100 points
 - Apply severity-weighted deductions per dimension (capped at dimension maximum)
-- Skipped dimensions contribute zero deduction
+- Skipped dimensions contribute zero deduction and leave the denominator: the score is renormalised over the assessed dimensions
 - Classify final score: OPTIMIZED (90–100), GOOD (75–89), FAIR (60–74), NEEDS_WORK (40–59), CRITICAL (0–39)
+- With no dimension assessed, give no score and no band, and say no dimension could be assessed
 
 ### Step 8: Report Generation
 
@@ -240,11 +241,12 @@ The skill calculates a weighted cost efficiency score:
 - 60–74: **FAIR** — Several areas need attention
 - 40–59: **NEEDS_WORK** — Significant waste detected
 - 0–39: **CRITICAL** — Major cost inefficiencies across multiple dimensions
+- A partly assessed dimension (a SKIPPED check) caps the band at GOOD; with no dimension assessed there is no score or band
 
 **Key differences from eks-upgrade-check scoring:**
 - No hard-blocker override (cost issues don't prevent cluster operation)
 - Severity-weighted deductions within each dimension
-- Skipped dimensions excluded entirely (not penalized)
+- Skipped dimensions renormalised out (neither penalized nor counted as clean)
 
 ---
 
@@ -305,7 +307,7 @@ Do NOT generate HTML manually. Always use the conversion script.
 
 The report includes:
 - Executive summary with total estimated spend and projected savings
-- Cost Score with classification and per-dimension breakdown
+- Cost Score with classification and per-dimension breakdown ("not computed" when no dimension is assessed)
 - Prioritized recommendations sorted by savings impact
 - Per-dimension findings with remediation snippets
 - Methodology and confidence notes

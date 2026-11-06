@@ -770,14 +770,14 @@ If NONE available:
 When metrics are unavailable, include this in the report:
 
 ```markdown
-### Compute Efficiency — PARTIALLY SKIPPED
+### Compute Efficiency: SKIPPED for scoring
 
 **Checks completed:** Karpenter consolidation, missing resource requests/limits
 **Checks skipped:** CPU/memory utilization ratios, over-provisioned workloads, idle node detection
 
 **Reason:** No metrics source available (metrics-server, Container Insights, or Prometheus not detected)
 
-**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable.
+**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. The Cost Score is computed over the other dimensions; findings above are reported with no deduction.
 
 **Remediation:**
 - Install metrics-server: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
@@ -811,7 +811,7 @@ actual_deduction = min(deduction, 25)  # Cap at maximum
 |-----------|--------|
 | All checks completed | ASSESSED |
 | Some checks skipped (partial metrics) | ASSESSED (with note) |
-| All utilization checks skipped (no metrics) | SKIPPED if checks 4+5 also produce no findings |
+| All utilization checks skipped (no metrics) | SKIPPED (request-only findings reported, no deduction) |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.
 
