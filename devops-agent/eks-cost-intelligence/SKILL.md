@@ -169,7 +169,7 @@ Data collection uses:
 - CloudWatch Container Insights metrics (pod CPU/memory utilization) via CloudWatch GetMetricData API
 - Kubernetes API to list nodes with allocatable resources and current allocations
 
-If metrics-server or Container Insights is unavailable, mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency is then SKIPPED for scoring, with request-only findings reported and no deduction.
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (4 and 5), and the report names it partly assessed.
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
@@ -264,7 +264,6 @@ Apply the scoring model only after confirming the core reads in **Start Here**, 
 - Apply severity-weighted deductions per dimension (capped at dimension maximum)
 - Skipped dimensions contribute zero deduction and leave the denominator: the score is renormalised over the assessed dimensions
 - Classify final score: OPTIMIZED (90-100), GOOD (75-89), FAIR (60-74), NEEDS_WORK (40-59), CRITICAL (0-39)
-- With no dimension assessed, give no score and no band, and say no dimension could be assessed
 
 ### Step 8: Report Generation
 
@@ -277,7 +276,7 @@ Generate the report directly in markdown:
 
 The report includes:
 - Executive summary with total estimated spend and projected savings
-- Cost Score with classification and per-dimension breakdown ("not computed" when no dimension is assessed)
+- Cost Score with classification and per-dimension breakdown
 - Prioritized recommendations sorted by savings impact
 - Per-dimension findings with remediation snippets
 - Methodology and confidence notes
@@ -304,12 +303,11 @@ The skill calculates a weighted cost efficiency score:
 - 60-74: **FAIR** — Several areas need attention
 - 40-59: **NEEDS_WORK** — Significant waste detected
 - 0-39: **CRITICAL** — Major cost inefficiencies across multiple dimensions
-- A partly assessed dimension (a SKIPPED check) caps the band at GOOD; with no dimension assessed there is no score or band
 
 **Key differences from eks-upgrade-check scoring:**
 - No hard-blocker override (cost issues don't prevent cluster operation)
 - Severity-weighted deductions within each dimension
-- Skipped dimensions renormalised out (neither penalized nor counted as clean)
+- Skipped dimensions renormalised out: scored at the assessed dimensions' average rate
 
 ---
 
@@ -386,7 +384,7 @@ The agent generates the report directly — no external conversion tools require
 
 The report includes:
 - Executive summary with total estimated spend and projected savings
-- Cost Score with classification and per-dimension breakdown ("not computed" when no dimension is assessed)
+- Cost Score with classification and per-dimension breakdown
 - Prioritized recommendations sorted by savings impact
 - Per-dimension findings with remediation snippets
 - Methodology and confidence notes

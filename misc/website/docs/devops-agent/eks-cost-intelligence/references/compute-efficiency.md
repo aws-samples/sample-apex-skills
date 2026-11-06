@@ -40,7 +40,7 @@ These checks require at least one of:
 - **Container Insights** enabled (CloudWatch metrics available)
 - **Prometheus** with kube-state-metrics and node-exporter
 
-If none are available, the entire compute efficiency dimension is marked **SKIPPED**.
+If none are available, checks 1 to 3 are SKIPPED and the dimension stays assessed on checks 4 and 5, named partly assessed.
 
 ---
 
@@ -522,14 +522,14 @@ If NONE available:
 When metrics are unavailable, include this in the report:
 
 ```markdown
-### Compute Efficiency: SKIPPED for scoring
+### Compute Efficiency: partly assessed
 
-**Checks completed:** Karpenter consolidation, missing resource requests/limits
+**Checks completed:** {Check 4 if Karpenter: Karpenter consolidation,} missing resource requests/limits
 **Checks skipped:** CPU/memory utilization ratios, over-provisioned workloads, idle node detection
 
 **Reason:** No metrics source available (metrics-server, Container Insights, or Prometheus not detected)
 
-**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. The Cost Score is computed over the other dimensions; findings above are reported with no deduction.
+**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. Compute Efficiency is scored on checks 4 and 5 only; their findings, listed in this section, deduct as usual.
 
 **Remediation:**
 - Install metrics-server: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
@@ -563,7 +563,7 @@ actual_deduction = min(deduction, 25)  # Cap at maximum
 |-----------|--------|
 | All checks completed | ASSESSED |
 | Some checks skipped (partial metrics) | ASSESSED (with note) |
-| All utilization checks skipped (no metrics) | SKIPPED (request-only findings reported, no deduction) |
+| All utilization checks skipped (no metrics) | ASSESSED (partly assessed: utilization checks) |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.
 

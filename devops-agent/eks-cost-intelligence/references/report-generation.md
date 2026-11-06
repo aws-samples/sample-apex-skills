@@ -105,8 +105,6 @@ else: score = floor(max(0, 100 - 100 * total_deductions / assessed_max))  # scor
 | 40–59 | NEEDS_WORK | Significant cost inefficiencies across multiple dimensions |
 | 0–39 | CRITICAL | Severe waste; immediate action recommended |
 
-With a partly assessed dimension (an assessed dimension with a SKIPPED check) the band is capped at GOOD, whatever the score (Classification Logic).
-
 ### Classification Logic
 
 ```
@@ -116,7 +114,6 @@ elif score >= 75: classification = "GOOD"
 elif score >= 60: classification = "FAIR"
 elif score >= 40: classification = "NEEDS_WORK"
 else:            classification = "CRITICAL"
-if any assessed dimension has a SKIPPED check and classification == "OPTIMIZED": classification = "GOOD"  # capped: a dimension is partly assessed
 ```
 
 ### Status Icons for Report
@@ -185,7 +182,7 @@ Recommendations in the report are sorted by:
 {If no dimension is assessed: the heading reads ## Cost Score: not computed, with no band or status icon, and the next line says no dimension could be assessed, with each dimension's reason; the executive summary says the same.}
 ## Cost Score: {score}/100 — {classification}
 
-{If any dimension is SKIPPED: **Computed over {N} of {M} dimensions.** Not assessed: {skipped dimensions and weights}.}
+{If any dimension is SKIPPED and at least one is assessed: **Computed over {N} of {M} dimensions ({assessed_max} of 100 points).** Not assessed: {skipped dimensions and weights}.}
 {If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks}.}
 
 {executive_summary: 2-3 sentences summarizing the cluster's cost posture, top waste
@@ -201,9 +198,9 @@ areas, and projected total savings if all recommendations are implemented.}
 | Storage Costs | 15 | -{storage_deduction} | {status_icon} | {top_finding_summary} |
 | Observability Costs | 10 | -{observability_deduction} | {status_icon} | {top_finding_summary} |
 | Idle Resources | 15 | -{idle_deduction} | {status_icon} | {top_finding_summary} |
-| **Total** | **{assessed_max}** | **-{total_deduction}** | {N} of {M} assessed | **Score: {score}** |
+| **Total** | **{assessed_max}** | **-{total_deduction}** | {N} of {M} dimensions ({assessed_max} of 100 points) | **Score: {score}** |
 
-Score = 100 × (1 - total_deduction / assessed_max), floored. With no dimension assessed the cell reads **Score: not computed**.
+With no dimension assessed the cell reads **Score: not computed**.
 
 ---
 
