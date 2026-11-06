@@ -101,7 +101,7 @@ for LG in "${LOG_GROUPS[@]}"; do
     --namespace "AWS/Logs" \
     --metric-name "IncomingBytes" \
     --dimensions "Name=LogGroupName,Value=$LG" \
-    --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+    --start-time "$(( $(date +%s) - 7*86400 ))" \
     --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
     --period 604800 \
     --statistics Sum \
@@ -116,7 +116,7 @@ SEVEN_DAY_BYTES=$(aws cloudwatch get-metric-statistics \
   --namespace "AWS/Logs" \
   --metric-name "IncomingBytes" \
   --dimensions "Name=LogGroupName,Value=/aws/eks/${CLUSTER_NAME}/cluster" \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --period 604800 \
   --statistics Sum \

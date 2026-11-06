@@ -55,6 +55,8 @@ finding:
 | `confidence` | enum | Confidence in the estimate: `high` (metrics-backed), `medium` (partial data), `low` (heuristic-based) |
 | `data_sources` | list | Data sources used, e.g. `["metrics-server", "Cost Explorer"]` or `["kubernetes-api", "ec2-describe-instances"]` |
 
+**Figure consistency:** compute each figure (a cost, waste or savings amount) once and show the same value and unit (USD per month) in every section that quotes it: the finding, the dimension table and the summary. Never recompute or re-round it per section.
+
 ---
 
 ## Severity Thresholds

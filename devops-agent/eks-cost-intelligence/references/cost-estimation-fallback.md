@@ -8,7 +8,7 @@
 ## When to Use This Fallback
 
 Use node-based estimation when:
-- Cluster resources are not tagged with `eks:cluster-name` or namespace tags
+- Cluster resources are not tagged with `aws:eks:cluster-name` or namespace tags
 - Split Cost Allocation Data is not enabled
 - Cost Explorer returns no data for the cluster
 - Running in a restricted environment without `ce:GetCostAndUsage` permission
@@ -541,8 +541,8 @@ Include this section in the report's Methodology & Confidence Notes:
 | Confidence level | Low — no Cost Explorer or utilization data available |
 
 **To improve accuracy:**
-1. Enable Cost Explorer and tag EKS resources with `eks:cluster-name`
-2. Enable Split Cost Allocation Data for namespace-level attribution
+1. Enable Cost Explorer and activate the `aws:eks:cluster-name` cost allocation tag
+2. Enable Split Cost Allocation Data for namespace-level attribution (payer or regular account; see the account tier check)
 3. Install metrics-server or enable Container Insights for utilization data
 ```
 
