@@ -101,15 +101,15 @@ helm install falco falcosecurity/falco \
 
 ### Network Policies
 
-**Use EKS-native VPC CNI network policies (v1.14+):**
+**Use EKS-native VPC CNI network policies (VPC CNI v1.21+ for standard and admin network policies; use v1.21.1+, see below):**
 
 ```yaml
 # Enable network policy support in VPC CNI
-# NOTE: the addon-version below is illustrative -- check the current version with
-# `aws eks describe-addon-versions --addon-name vpc-cni` rather than pinning this value.
+# NOTE: pick a current v1.21.1 or later build from
+# `aws eks describe-addon-versions --addon-name vpc-cni`; do not pin a build here.
 aws eks create-addon --cluster-name my-cluster \
   --addon-name vpc-cni \
-  --addon-version v1.14.0-eksbuild.3 \
+  --addon-version <v1.21.1-or-later-build> \
   --configuration-values '{"enableNetworkPolicy": "true"}'
 ```
 
@@ -227,6 +227,27 @@ spec:
 | **Overhead** | Low (eBPF-based) | Higher (ENI trunking) |
 
 **Best practice: Use both as layers.** Network policies for pod-to-pod isolation, SG for Pods for AWS service-level isolation.
+
+### AWS Network Firewall Container Rules
+
+AWS Network Firewall can match traffic by pod. A **container association** subscribes to the cluster's pod start and stop events and keeps the matching pod IPs as a dynamic IP set; a stateful rule group references that set as an IPSet variable, so egress rules target "these pods" without fixed IPs. It collects only IP information from those events and has no part in the cluster's data path: the firewall endpoints in your VPC do the inspection. For EKS, attribute filters select pods by namespace and Kubernetes labels; one association holds up to 5 monitoring configurations, each naming one cluster in the same account and Region as the association.
+
+| | `NetworkPolicy` | `ApplicationNetworkPolicy` | Network Firewall container rules |
+|---|---|---|---|
+| **Where it enforces** | VPC CNI eBPF on the node (EC2 Linux nodes) | VPC CNI eBPF on the node | Firewall endpoints in the VPC route path |
+| **Pod-to-pod inside the cluster** | Yes | Yes | No: same-node traffic never leaves the node, and other traffic reaches the firewall only if your route tables send it there |
+| **Egress filtering by domain name** | No | Yes, on EKS Auto Mode nodes only | Yes, with stateful rules on TLS SNI or HTTP Host |
+| **Managed through** | Kubernetes API | Kubernetes API | Network Firewall API (CLI, SDK or console) |
+
+**Use both.** `NetworkPolicy` and `ClusterNetworkPolicy` for traffic inside the cluster; Network Firewall container rules for inspected egress attributed to pods, including domain filtering on nodes where `ApplicationNetworkPolicy` FQDN rules do not apply.
+
+- **SNAT off:** the firewall must see the pod's own IP. With SNAT on, traffic arrives with the node IP and rules that reference the container association do not match, so on Linux nodes in private subnets set `AWS_VPC_K8S_CNI_EXTERNALSNAT=true` and let a NAT gateway do SNAT (disabling SNAT is not supported on Windows nodes).
+- **Routing:** only traffic your route tables send through a firewall endpoint is inspected, so route the pod subnets through the firewall endpoints.
+- **EKS Auto Mode:** the container associations page does not mention Auto Mode; confirm support with AWS before relying on it there.
+
+For the review checklist (IAM permissions, quotas, strict-order default actions, rule-group limits and delete protection), see the eks-security skill's `references/workload-security.md`.
+
+References: [Container associations](https://docs.aws.amazon.com/network-firewall/latest/developerguide/container-associations.html) · [How Network Firewall works](https://docs.aws.amazon.com/network-firewall/latest/developerguide/how-it-works.html) · [Outbound access for Pods (external SNAT)](https://docs.aws.amazon.com/eks/latest/userguide/external-snat.html)
 
 ### SG Enforcing Modes
 
