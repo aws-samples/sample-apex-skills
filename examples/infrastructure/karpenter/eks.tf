@@ -9,6 +9,10 @@ module "eks" {
   endpoint_public_access                   = true
 
   addons = {
+    coredns = {
+      configuration_values        = jsonencode({ computeType = "Fargate" })
+      resolve_conflicts_on_create = "OVERWRITE"
+    }
     eks-pod-identity-agent = {}
     kube-proxy             = {}
     vpc-cni                = {}
@@ -24,6 +28,14 @@ module "eks" {
     karpenter = {
       selectors = [
         { namespace = "karpenter" }
+      ]
+    }
+    coredns = {
+      selectors = [
+        {
+          namespace = "kube-system"
+          labels    = { k8s-app = "kube-dns" }
+        }
       ]
     }
   }
