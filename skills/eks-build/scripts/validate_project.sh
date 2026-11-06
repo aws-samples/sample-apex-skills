@@ -542,8 +542,8 @@ if [ -f "$CLUSTER_YAML" ] && [ ! -r "$CLUSTER_YAML" ]; then
     UNREADABLE=1
 elif [ -f "$CLUSTER_YAML" ]; then
     # Top-level key only; strip CR so a CRLF file reads the same
-    BOUNDARY=$(grep -E '^permissions_boundary\s*:' "$CLUSTER_YAML" | head -1 | tr -d '\r' \
-        | sed -E 's/^[^:]*:\s*//; s/\s+#.*$//; s/^["'\'']//; s/["'\'']\s*$//' || true)
+    BOUNDARY=$(grep -E '^permissions_boundary[[:space:]]*:' "$CLUSTER_YAML" | head -1 | tr -d '\r' \
+        | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]+#.*$//; s/^["'\'']//; s/["'\''][[:space:]]*$//' || true)
 fi
 if [ "$UNREADABLE" = 1 ]; then
     fail "configs/cluster.yaml is not readable: cannot check permissions_boundary"
