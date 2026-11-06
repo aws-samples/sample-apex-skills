@@ -1,13 +1,6 @@
 name: SkillSpector (advisory)
 
-# Advisory only: this scan fails only if the repository checkout itself fails,
-# and it does not replace review.
-# It runs NVIDIA SkillSpector (static, --no-llm) on the skills a pull request
-# changes and writes each finding to the job log as a workflow command. GitHub
-# shows at most 10 warning and 10 notice annotations per step, and this one
-# step covers every changed skill, so the annotations show only the first ones;
-# the full list is in the job log. A green check with no annotations can also
-# mean the scan did not run; read the job log.
+# Advisory only; see CONTRIBUTING.md, SkillSpector scan (advisory).
 # Do not mark this check required: the paths filter below would leave a
 # required status Pending on PRs outside those paths.
 on:
@@ -30,8 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The base commit is needed to list the changed skills.
-          fetch-depth: 0
+          # HEAD^1, the base tip, is needed to list the changed skills.
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Check out SkillSpector
@@ -64,7 +57,7 @@ jobs:
         continue-on-error: true
         run: uv sync --frozen --no-dev --project .skillspector-src
 
-      - name: Scan changed skills (advisory, never fails)
+      - name: Scan changed skills (advisory)
         if: steps.install.outcome == 'success'
         # A step timeout under continue-on-error ends the scan without failing the check.
         timeout-minutes: 60
