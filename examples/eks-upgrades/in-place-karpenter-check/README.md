@@ -60,7 +60,8 @@ The readiness report should show:
 ## Prerequisites
 
 - AWS account with EKS permissions
-- Terraform >= 1.5.7
+- Terraform >= 1.10
+- An existing checkout: run `terraform init -upgrade` once in `examples/infrastructure/karpenter/` before `./scripts/deploy.sh` or `./scripts/destroy.sh` (scripts/destroy.sh runs no `terraform init` of its own)
 - kubectl
 - AWS CLI v2
 - One of:
