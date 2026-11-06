@@ -81,7 +81,7 @@ EOF
 systemctl daemon-reload && systemctl restart containerd
 ```
 
-**NO_PROXY must include**: `169.254.169.254` (IMDS), `169.254.170.2` (credential provider), `10.0.0.0/8` (VPC CIDR -- adjust as needed), `.internal`, `.eks.amazonaws.com`, `.s3.amazonaws.com`, `.ecr.amazonaws.com`, `.dkr.ecr.amazonaws.com`.
+**NO_PROXY must include**: `169.254.169.254` (IMDS), `169.254.170.2` (the ECS task-role credentials address), `169.254.170.23` and `[fd00:ec2::23]` (the EKS Pod Identity Agent, IPv4 and IPv6; needed by pods that use a proxy), `10.0.0.0/8` (VPC CIDR -- adjust as needed), `.internal`, `.eks.amazonaws.com`, `.s3.amazonaws.com`, `.ecr.amazonaws.com`, `.dkr.ecr.amazonaws.com`.
 
 **Proxy-aware addon config** -- inject env vars via Helm `set` in `addons.yaml`:
 ```yaml
@@ -90,7 +90,7 @@ aws_load_balancer_controller:
     set:
       - { name: env.HTTP_PROXY,  value: "http://<PROXY_HOST>:<PROXY_PORT>" }
       - { name: env.HTTPS_PROXY, value: "http://<PROXY_HOST>:<PROXY_PORT>" }
-      - { name: env.NO_PROXY,    value: "169.254.169.254,169.254.170.2,10.0.0.0/8,.internal,.eks.amazonaws.com" }
+      - { name: env.NO_PROXY,    value: "169.254.169.254,169.254.170.2,169.254.170.23,[fd00:ec2::23],10.0.0.0/8,.internal,.eks.amazonaws.com" }
 ```
 Apply the same pattern to: `cluster_autoscaler`, `external_dns`, `external_secrets`, `cert_manager`, `velero`, and `ingress_nginx`.
 
