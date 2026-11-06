@@ -149,7 +149,7 @@ list_k8s_resources(cluster_name="<cluster-name>", kind="Node", api_version="v1")
 
 > **The EKS MCP server isn't responding.** Try these steps:
 > 1. Check that Python 3.10+ and uv are installed: `uv --version`
-> 2. Test the MCP server: `uvx awslabs.eks-mcp-server@latest`
+> 2. Test the MCP server: `uvx awslabs.eks-mcp-server@0.2.1`
 > 3. Re-run apex's `eks-mcp-server` skill to verify setup
 
 Wait for the user to resolve the issue.

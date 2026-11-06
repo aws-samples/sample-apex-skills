@@ -6,7 +6,7 @@
       "prompt": "Walk me through installing the self-hosted EKS MCP Server for Claude Code on my laptop. I'm on macOS, my AWS profile is `dev-admin`, and I only want read access for now — no write or sensitive-data tools. Where does the config file go and what exactly should it contain?",
       "expectations": [
         "The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or mentions a user-scope MCP configuration location (e.g., ~/.claude.json or via claude mcp add). TODO: human review",
-        "The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that invokes `uvx` with `awslabs.eks-mcp-server@latest` and sets `AWS_PROFILE` to `dev-admin`. TODO: human review",
+        "The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that invokes `uvx` with a pinned `awslabs.eks-mcp-server@<version>` (not `@latest`) and sets `AWS_PROFILE` to `dev-admin`. TODO: human review",
         "The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the args array (or equivalently tells the user to leave them out) to satisfy the read-only requirement. TODO: human review",
         "The output mentions prerequisites: Python 3.10+ and the `uv`/`uvx` package manager (installable via the astral.sh/uv script). TODO: human review",
         "The output tells the user to restart Claude Code after editing the config and verify by asking to list EKS clusters or available MCP tools. TODO: human review"
@@ -20,8 +20,8 @@
         },
         {
           "type": "must-contain",
-          "pattern": "awslabs\\.eks-mcp-server@latest",
-          "context": "Must specify the correct PyPI package name for uvx invocation",
+          "pattern": "awslabs\\.eks-mcp-server(@|==)[0-9]",
+          "context": "Must specify the correct PyPI package name, pinned to a version, for uvx invocation",
           "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#installation"
         },
         {

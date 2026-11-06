@@ -41,13 +41,15 @@ Add the EKS MCP server to your assistant's MCP configuration. Replace `{region}`
 
 The same JSON below works for every supported assistant — only the config file path (or UI entry point) differs.
 
+The examples pin `mcp-proxy-for-aws@1.8.0`. Pin a reviewed version and bump it on purpose after reading the release notes.
+
 ```json
 {
   "mcpServers": {
     "eks-mcp": {
       "command": "uvx",
       "args": [
-        "mcp-proxy-for-aws@latest",
+        "mcp-proxy-for-aws@1.8.0",
         "https://eks-mcp.{region}.api.aws/mcp",
         "--service", "eks-mcp",
         "--region", "{region}"
@@ -72,7 +74,7 @@ Add `--read-only` to args to disable write operations:
 
 ```json
 "args": [
-  "mcp-proxy-for-aws@latest",
+  "mcp-proxy-for-aws@1.8.0",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--region", "{region}",
@@ -86,7 +88,7 @@ Specify a profile with `--profile`:
 
 ```json
 "args": [
-  "mcp-proxy-for-aws@latest",
+  "mcp-proxy-for-aws@1.8.0",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--profile", "production",
@@ -100,7 +102,7 @@ Use this format for the args array:
 
 ```json
 "args": [
-  "--from", "mcp-proxy-for-aws@latest",
+  "--from", "mcp-proxy-for-aws@1.8.0",
   "mcp-proxy-for-aws.exe",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",

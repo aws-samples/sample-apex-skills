@@ -77,13 +77,15 @@ For write access (cluster creation, deployments), also attach:
 
 ### Basic Configuration (IAM Mode)
 
+The examples pin `awslabs.eks-mcp-server@0.2.1`. Pin a reviewed version and bump it on purpose after reading the release notes.
+
 ```json
 {
   "mcpServers": {
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
+        "awslabs.eks-mcp-server@0.2.1",
         "--allow-write",
         "--allow-sensitive-data-access"
       ],
@@ -105,7 +107,7 @@ For write access (cluster creation, deployments), also attach:
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
+        "awslabs.eks-mcp-server@0.2.1",
         "--allow-write",
         "--allow-sensitive-data-access"
       ],
@@ -130,7 +132,7 @@ For write access (cluster creation, deployments), also attach:
 Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 
 ```json
-"args": ["awslabs.eks-mcp-server@latest"]
+"args": ["awslabs.eks-mcp-server@0.2.1"]
 ```
 
 ## Config File Locations by Assistant
@@ -148,7 +150,7 @@ Use this format for the args array:
 
 ```json
 "args": [
-  "--from", "awslabs.eks-mcp-server@latest",
+  "--from", "awslabs.eks-mcp-server@0.2.1",
   "awslabs.eks-mcp-server.exe",
   "--allow-write",
   "--allow-sensitive-data-access"
