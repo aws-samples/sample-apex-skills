@@ -2,13 +2,13 @@
 
 A per-regime quick-start for preparing an EKS-hosted system for a FedRAMP assessment. Read the cross-regime scope table and language-precision rules in [compliance-regimes.md](compliance-regimes.md) first; this file is the FedRAMP-specific depth. This is a starting-point quick-start, **not a complete FedRAMP readiness checklist**: it maps the EKS-relevant NIST SP 800-53 Rev. 5 control families, not the full baseline an assessment covers.
 
-> **Compliance status changes over time: verify on the live [AWS Services in Scope by Compliance Program: FedRAMP](https://aws.amazon.com/compliance/services-in-scope/FedRAMP/) page before quoting coverage in any customer-facing document.**
+> **Compliance status changes over time: verify on the live [AWS Services in Scope by Compliance Program: FedRAMP](https://aws.amazon.com/compliance/services-in-scope/FedRAMP/) page before quoting coverage for EKS and every other AWS service in the boundary in any customer-facing document.**
 
 ## Scope & the language that gets graded
 
-- **Pick the class first.** AWS US East/West is FedRAMP Certified **Class C (formerly Moderate baseline)**; AWS GovCloud (US) is **Class D (formerly High baseline)**. EKS is listed under both. FedRAMP 20x names **Class B** for Low. Promising Class D (High) in commercial regions is a guaranteed audit failure.
-- **"Certified", not "Authorized".** Under the FedRAMP Consolidated Rules for 2026 (CR26), "FedRAMP Authorized" became "FedRAMP Certified". The agency still issues its own **Authority to Operate (ATO)**: AWS's FedRAMP Certification is the cloud provider's, and it **does not certify or authorize the customer's system**. Pull AWS's FedRAMP package from **AWS Artifact** for the controls the customer inherits.
-- **The control catalog is NIST SP 800-53 Rev. 5** (current release 5.2.0), with 20 control families. The table below covers the families where EKS settings carry the evidence; the rest (for example Planning, Personnel Security, Program Management) are process controls the customer documents.
+- **Scope from the system's FIPS 199 impact level; classes only loosely align with it.** AWS US East/West is FedRAMP Certified **Class C (formerly Moderate baseline)**; AWS GovCloud (US) is **Class D (formerly High baseline)**. EKS is listed under both. Promising Class D (High) in commercial regions is a guaranteed audit failure.
+- **"Certified", not "Authorized".** Under the FedRAMP Consolidated Rules for 2026 (CR26), "FedRAMP Authorized" is now called "FedRAMP Certified" (mandatory from January 1, 2027). The agency still issues its own **Authority to Operate (ATO)**: AWS's FedRAMP Certification is the cloud provider's, and it **does not certify or authorize the customer's system**. U.S. Government employees and contractors request AWS's FedRAMP Certification Package from the FedRAMP PMO (Package Access Request Form); commercial customers and partners get the FedRAMP Partner Package and Security Artifacts from **AWS Artifact**.
+- **The control catalog is NIST SP 800-53 Rev. 5**, with 20 control families. The table below covers the families where EKS settings carry the evidence; the rest (for example Planning, Personnel Security, Program Management) are process controls the customer documents.
 
 ## The FedRAMP-specific mapping (on top of the 7-layer baseline)
 
@@ -16,9 +16,9 @@ A per-regime quick-start for preparing an EKS-hosted system for a FedRAMP assess
 |---|---|
 | AC: Access Control | EKS Pod Identity + Access Entries (`API` mode); least-privilege RBAC; private cluster endpoint (Config rule `eks-endpoint-no-public-access`, mapped to AC-6(3) in the High Part 2 pack) |
 | IA: Identification and Authentication | Federated human access mapped to Access Entries; Pod Identity instead of long-lived keys in pods |
-| AU: Audit and Accountability | Control-plane `audit`+`authenticator` logs + CloudTrail, retained for the assessment's evidence window |
+| AU: Audit and Accountability | Control-plane `audit`+`authenticator` logs + CloudTrail, retained per AU-11 (agencies apply M-21-31: 12 months active plus 18 months cold storage for most required logs) |
 | CM: Configuration Management | PSA `restricted` + Kyverno admission; GitOps/CI for every change; ECR immutable tags; Bottlerocket or CIS-hardened AL2023 |
-| SC: System and Communications Protection | Default-deny NetworkPolicy + Security Groups for Pods; VPC private endpoints; KMS CMK envelope encryption of Secrets and data layers; TLS in-cluster; Bottlerocket FIPS AMIs where FIPS crypto is required |
+| SC: System and Communications Protection | Default-deny NetworkPolicy + Security Groups for Pods; VPC private endpoints; KMS CMK envelope encryption of Secrets and data layers; TLS in-cluster; FIPS-validated (or NSA-approved) cryptography for all crypto, TLS included (SC-13, every baseline): Bottlerocket FIPS AMIs |
 | SI: System and Information Integrity | ECR Enhanced Scanning; GuardDuty for EKS (audit-log and runtime monitoring); node patching through managed node groups or Auto Mode |
 | IR: Incident Response | GuardDuty + Security Hub findings into the incident process; see [security-event-response.md](security-event-response.md) |
 | CP: Contingency Planning | Multi-AZ node groups, PDBs, backup/restore of cluster state and data |
@@ -33,9 +33,9 @@ A per-regime quick-start for preparing an EKS-hosted system for a FedRAMP assess
 
 ## 30 / 60 / 90 quick-start
 
-- **Days 1-30, scope and evidence clock:** confirm the class (Class C commercial or Class D GovCloud) and the authorizing agency; enable control-plane `audit`+`authenticator` logging + CloudTrail + GuardDuty + Security Hub; deploy the matching FedRAMP conformance pack; pull AWS's FedRAMP package from Artifact.
-- **Days 31-60:** Pod Identity + Access Entries + private endpoint (AC, IA); PSA `restricted` + Kyverno (CM); default-deny NetworkPolicy + SGP + CMK envelope encryption (SC); document the access-review and change-management processes.
-- **Days 61-90:** Bottlerocket (FIPS AMIs where required) or CIS-hardened AL2023; image signing + admission verification (SR); ECR Enhanced Scanning + GuardDuty runtime monitoring (SI); collect evidence via Security Hub, the conformance pack and the in-cluster reports; plan continuous monitoring, which under CR26 follows the Collaborative Continuous Monitoring (CCM) framework.
+- **Days 1-30, scope and evidence clock:** confirm the impact level and the class (Class C commercial or Class D GovCloud) and the authorization path (an agency ATO, or the provider's own FedRAMP Certification); enable control-plane `audit`+`authenticator` logging + CloudTrail + GuardDuty + Security Hub; deploy the matching FedRAMP conformance pack; request AWS's FedRAMP Certification Package from the FedRAMP PMO, or get the Partner Package from Artifact.
+- **Days 31-60:** Pod Identity + Access Entries + private endpoint (AC, IA); PSA `restricted` + Kyverno (CM); default-deny NetworkPolicy + SGP + CMK envelope encryption + Bottlerocket FIPS AMIs (SC); document the access-review and change-management processes.
+- **Days 61-90:** Bottlerocket or CIS-hardened AL2023; image signing + admission verification (SR); ECR Enhanced Scanning + GuardDuty runtime monitoring (SI; in GovCloud, EKS Runtime Monitoring needs the `com.amazonaws.<region>.guardduty-data-fips` VPC endpoint, and 8 EKS audit-log AnomalousBehavior finding types are not available); collect evidence via Security Hub, the conformance pack and the in-cluster reports; plan continuous monitoring, which under CR26 follows the Collaborative Continuous Monitoring (CCM) framework.
 
 ## Escalate
 
@@ -45,7 +45,7 @@ Class D (High) or DoD Impact Level work in GovCloud; a first agency ATO for the 
 
 | AWS manages | Customer manages |
 |---|---|
-| Control plane + etcd; AWS's own FedRAMP Certification (Class C East/West, Class D GovCloud) and its continuous monitoring; the FedRAMP package in Artifact | The customer system's own ATO with its agency; choosing the class and Region; the in-cluster controls above and their evidence; the process controls (planning, personnel, program management) |
+| Control plane + etcd; AWS's own FedRAMP Certification (Class C East/West, Class D GovCloud) and its continuous monitoring; the FedRAMP Partner Package and Security Artifacts in Artifact (the Certification Package through the FedRAMP PMO) | The customer system's own authorization (an agency ATO, or its own FedRAMP Certification for a SaaS provider); choosing the class and Region; the in-cluster controls above and their evidence; the process controls (planning, personnel, program management) |
 
 ## Sources
 - [AWS FedRAMP](https://aws.amazon.com/compliance/fedramp/) · [AWS Services in Scope: FedRAMP](https://aws.amazon.com/compliance/services-in-scope/FedRAMP/) (**authoritative: verify here**) · [FedRAMP 20x](https://www.fedramp.gov/20x/)
