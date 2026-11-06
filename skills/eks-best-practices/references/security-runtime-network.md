@@ -101,7 +101,7 @@ helm install falco falcosecurity/falco \
 
 ### Network Policies
 
-**Use EKS-native VPC CNI network policies (VPC CNI v1.21+ for standard and admin network policies; use v1.21.1+, see below):**
+**Use EKS-native VPC CNI network policies (use VPC CNI v1.21.1+, see below):**
 
 ```yaml
 # Enable network policy support in VPC CNI
@@ -239,9 +239,9 @@ AWS Network Firewall can match traffic by pod. A **container association** subsc
 | **Egress filtering by domain name** | No | Yes, on EKS Auto Mode nodes only | Yes, with stateful rules on TLS SNI or HTTP Host |
 | **Managed through** | Kubernetes API | Kubernetes API | Network Firewall API (CLI, SDK or console) |
 
-**Use both.** `NetworkPolicy` and `ClusterNetworkPolicy` for traffic inside the cluster; Network Firewall container rules for inspected egress attributed to pods, including domain filtering on nodes where `ApplicationNetworkPolicy` FQDN rules do not apply.
+**Use them as layers.** `NetworkPolicy` and `ClusterNetworkPolicy` for traffic inside the cluster; Network Firewall container rules for inspected egress attributed to pods, including domain filtering on nodes where `ApplicationNetworkPolicy` FQDN rules do not apply.
 
-- **SNAT off:** the firewall must see the pod's own IP. With SNAT on, traffic arrives with the node IP and rules that reference the container association do not match, so on Linux nodes in private subnets set `AWS_VPC_K8S_CNI_EXTERNALSNAT=true` and let a NAT gateway do SNAT (disabling SNAT is not supported on Windows nodes).
+- **SNAT off:** the firewall must see the pod's own IP. With SNAT on, traffic arrives with the node IP and rules that reference the container association do not match, so on Linux nodes in private subnets set `AWS_VPC_K8S_CNI_EXTERNALSNAT=true` and let a NAT gateway do SNAT (disabling SNAT is not supported on Windows nodes; on IPv6 clusters egress to IPv4 is SNATed to the node IP whatever the external SNAT setting, and the Network Firewall page does not cover IPv6).
 - **Routing:** only traffic your route tables send through a firewall endpoint is inspected, so route the pod subnets through the firewall endpoints.
 - **EKS Auto Mode:** the container associations page does not mention Auto Mode; confirm support with AWS before relying on it there.
 
