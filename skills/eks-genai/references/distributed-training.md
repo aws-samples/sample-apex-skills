@@ -98,21 +98,23 @@ kind: FileSystem
 metadata:
   name: training-lustre
 spec:
-  fileSystemType: LUSTRE
+  type: LUSTRE
   storageCapacity: 4800          # GiB; minimum 1200 for Persistent-SSD
   lustreConfiguration:
     deploymentType: PERSISTENT_2
     perUnitStorageThroughput: 500  # MB/s per TiB
-    dataRepositoryAssociations:
-      - dataRepositoryPath: s3://my-bucket/checkpoints/
-        fileSystemPath: /checkpoints
-        s3:
-          autoExportPolicy:
-            events: ["NEW", "CHANGED", "DELETED"]
-          autoImportPolicy:
-            events: ["NEW", "CHANGED", "DELETED"]
-  subnetIds:
+  subnetIDs:
     - subnet-same-az-as-gpu       # CRITICAL: same AZ as compute nodes
+```
+
+For PERSISTENT_2, the S3 link is a separate resource: the FSx `CreateFileSystem` Lustre configuration has no data repository association member, and the ACK fsx-controller, as of v0.1.0 (2026-11-03), has no kind for one. Create the DRA with the FSx API once the file system exists (`.status.id` on the `FileSystem` resource holds its ID). This call is outside any reconcile loop, so re-run it if the file system is recreated; CloudFormation `AWS::FSx::DataRepositoryAssociation` and Terraform `aws_fsx_data_repository_association` own it declaratively. With the AWS CLI, using that ID in place of the example one:
+
+```bash
+aws fsx create-data-repository-association \
+  --file-system-id fs-0123456789abcdef0 \
+  --file-system-path /checkpoints \
+  --data-repository-path s3://my-bucket/checkpoints/ \
+  --s3 "AutoImportPolicy={Events=[NEW,CHANGED,DELETED]},AutoExportPolicy={Events=[NEW,CHANGED,DELETED]}"
 ```
 
 **Critical rule:** FSx in the same AZ as GPU/Neuron nodes — cross-AZ latency dwarfs FSx's native microsecond-class performance. Pre-warm FSx with training data via an administrative pod before launching Spot capacity.
