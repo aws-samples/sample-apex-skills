@@ -10,8 +10,7 @@ module "eks" {
 
   addons = {
     coredns = {
-      configuration_values        = jsonencode({ computeType = "Fargate" })
-      resolve_conflicts_on_create = "OVERWRITE"
+      configuration_values = jsonencode({ computeType = "Fargate" })
     }
     eks-pod-identity-agent = {}
     kube-proxy             = {}

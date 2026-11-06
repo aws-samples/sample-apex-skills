@@ -67,8 +67,7 @@ The readiness report should show:
 
 - AWS account with EKS permissions
 - Terraform >= 1.10
-- An existing checkout: run `terraform init -upgrade` once in `examples/infrastructure/karpenter/` before `./scripts/deploy.sh` or `./scripts/destroy.sh` (scripts/destroy.sh runs no `terraform init` of its own)
-- This version is not an in-place upgrade of the earlier v20 example: deploy it fresh.
+- A running stack from the earlier (terraform-aws-eks v20) version is not upgraded in place: destroy it with your old checkout first, then pull and deploy fresh. An existing checkout with no running stack: run `terraform init -upgrade` once in `examples/infrastructure/karpenter/` (stale local lock).
 - kubectl
 - AWS CLI v2
 - One of:
