@@ -1,0 +1,72 @@
+report:
+  generated_at: '2026-10-21T10:00:00Z'
+  unconfirmed_paths:
+  - security.authentication.access_entries
+cluster:
+  name: delta-fixture
+  region: us-west-2
+  arn: arn:aws:eks:us-west-2:111122223333:cluster/delta-fixture
+  version: '1.34'
+  platform_version: eks.1
+  status: ACTIVE
+  created_at: '2026-09-01T00:00:00Z'
+  tags:
+    team: platform
+compute:
+  mng:
+    detected: true
+    count: 2
+    groups: null
+networking:
+  subnets:
+    count: 2
+    list:
+    - id: subnet-b
+      az: us-west-2b
+      cidr: 10.0.1.0/24
+      free: null
+    - id: subnet-a
+      az: us-west-2a
+      cidr: 10.0.0.0/24
+      free: 199
+addons:
+  eks_managed:
+    count: 2
+    list:
+    - name: coredns
+      version: v1.11.4-eksbuild.1
+    - name: vpc-cni
+      version: v1.19.2-eksbuild.1
+  helm_releases:
+    unconfirmed: true
+    reason: release metadata denied
+security:
+  authentication:
+    mode: API
+    access_entries:
+      count: 2
+      principal_arns:
+      - arn:aws:iam::111122223333:role/new-viewer
+      - arn:aws:iam::111122223333:role/viewer
+  iam_for_pods:
+    pod_identity:
+      associations:
+        count: 1
+        list:
+        - namespace: app
+          service_account: reader
+          role_arn: arn:aws:iam::111122223333:role/reader-v2
+storage:
+  unavailable: true
+  reason: Kubernetes API denied
+
+cicd:
+  gitops:
+    tool: unconfirmed
+    status: unconfirmed
+    detected: null
+    tools_detected: []
+    evidence: []
+    argocd:
+      detected: null
+      applications: null

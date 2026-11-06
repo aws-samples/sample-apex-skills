@@ -1,0 +1,2 @@
+MOCK fixture for an offline eval. This is not an AWS publication.
+2026-11-03T00:00:00Z: Auto Mode node build includes aws-network-policy-agent 1.3.7.

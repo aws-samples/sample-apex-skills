@@ -173,56 +173,30 @@ Kubernetes Services of type `LoadBalancer` that have no healthy backend endpoint
 **Via kubectl:**
 
 ```bash
-# Find all LoadBalancer Services
-kubectl get services --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.spec.type == "LoadBalancer") |
-    {
-      namespace: .metadata.namespace,
-      name: .metadata.name,
-      lb_type: (if .metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-type"] == "nlb" 
-                or .metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-type"] == "external"
-                then "NLB" else "CLB/ALB" end),
-      external_ip: (.status.loadBalancer.ingress[0].hostname // "pending"),
-      selector: .spec.selector
-    }'
-```
-
-```bash
-# Check endpoints health for each LoadBalancer Service
-kubectl get endpoints --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.subsets == null or .subsets == [] or 
-           (.subsets[]?.addresses == null or .subsets[]?.addresses == [])) |
-    {
-      namespace: .metadata.namespace,
-      name: .metadata.name,
-      ready_addresses: 0,
-      not_ready: ([.subsets[]?.notReadyAddresses[]?] | length)
-    }'
-```
-
-```bash
-# Combined: LoadBalancer Services with zero healthy endpoints
-kubectl get services --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.spec.type == "LoadBalancer") |
-    .metadata.namespace as $ns |
-    .metadata.name as $name |
-    "\($ns)/\($name)"
-  ' | while read svc; do
-    ns=$(echo "$svc" | cut -d'/' -f1)
-    name=$(echo "$svc" | cut -d'/' -f2)
-    ready=$(kubectl get endpoints "$name" -n "$ns" -o json 2>/dev/null | \
-      jq '[.subsets[]?.addresses[]?] | length')
-    if [ "${ready:-0}" -eq 0 ]; then
-      echo "IDLE_LB: $svc (0 healthy endpoints)"
+# Read-coverage guard: idle load balancers
+(
+  set -o pipefail
+  services=$(kubectl get services -A -o json) || {
+    echo "UNKNOWN: Service inventory unavailable" >&2; exit 1;
+  }
+  candidates=$(jq -r '.items[] | select(.spec.type == "LoadBalancer") |
+    [.metadata.namespace, .metadata.name] | @tsv' <<< "$services") || exit 1
+  status=0
+  while IFS=$'\t' read -r ns name; do
+    [ -n "$ns" ] || continue
+    endpoints=$(kubectl get endpoints "$name" -n "$ns" -o json) || {
+      echo "UNKNOWN: Endpoints $ns/$name unavailable" >&2; status=1; continue;
+    }
+    ready=$(jq '[.subsets[]?.addresses[]?] | length' <<< "$endpoints")
+    if [ "$ready" -eq 0 ]; then
+      echo "IDLE_LB: $ns/$name (0 healthy endpoints)"
     fi
-  done
+  done <<< "$candidates"
+  exit "$status"
+)
 ```
+
+Selector-less LoadBalancer Services do not receive automatic Endpoints. A missing Endpoints object is UNKNOWN, not zero healthy backends; confirm operator-managed backends or the documented load-balancer target-health alternative. Otherwise Idle Resources remains SKIPPED for scoring.
 
 **Via AWS CLI (enriches with actual LB details):**
 
@@ -280,9 +254,12 @@ list_k8s_resources(
 ### Analysis logic
 
 ```
+Only iterate Services from a confirmed successful inventory; a successful empty list completes this check.
 For each Service with spec.type == "LoadBalancer":
   endpoints = get Endpoints object with same name/namespace
-  healthy_count = count(endpoints.subsets[].addresses[])
+  If that read fails and no confirmed same-scope alternative is available:
+    → Mark this Service check UNKNOWN; continue other Services without an idle-LB finding for this one
+  Otherwise healthy_count = count(all endpoints.subsets[].addresses[])
 
   If healthy_count == 0:
     # Determine LB type from annotations
@@ -350,49 +327,42 @@ Namespaces that have ResourceQuotas or LimitRanges defined but contain no runnin
 **Via kubectl:**
 
 ```bash
-# Find namespaces with ResourceQuotas
-kubectl get resourcequotas --all-namespaces -o json | \
-  jq -r '.items[] | "\(.metadata.namespace)"' | sort -u
-```
-
-```bash
-# Find namespaces with zero running pods
-kubectl get pods --all-namespaces --field-selector=status.phase=Running -o json | \
-  jq -r '[.items[].metadata.namespace] | unique[]' > /tmp/active_namespaces.txt
-
-kubectl get namespaces -o json | \
-  jq -r '.items[].metadata.name' | \
-  grep -v -F -f /tmp/active_namespaces.txt | \
-  grep -v -E "^(kube-|amazon-|aws-|default$)"
-```
-
-```bash
-# Combined: namespaces with quotas but no running workloads
-kubectl get namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.name | test("^kube-|^amazon-|^aws-|^default$") | not) |
-    .metadata.name
-  ' | while read ns; do
-    pod_count=$(kubectl get pods -n "$ns" --field-selector=status.phase=Running \
-      --no-headers 2>/dev/null | wc -l)
-    quota_count=$(kubectl get resourcequotas -n "$ns" --no-headers 2>/dev/null | wc -l)
-    limitrange_count=$(kubectl get limitranges -n "$ns" --no-headers 2>/dev/null | wc -l)
-    
-    if [ "$pod_count" -eq 0 ] && [ "$((quota_count + limitrange_count))" -gt 0 ]; then
-      echo "EMPTY_NS_WITH_QUOTA: $ns (quotas=$quota_count, limitranges=$limitrange_count, running_pods=0)"
+# Read-coverage guard: empty namespaces
+(
+  set -o pipefail
+  namespaces=$(kubectl get namespaces -o json) || {
+    echo "UNKNOWN: Namespace inventory unavailable" >&2; exit 1;
+  }
+  pods=$(kubectl get pods -A --field-selector=status.phase=Running -o json) || {
+    echo "UNKNOWN: running Pod inventory unavailable" >&2; exit 1;
+  }
+  candidates=$(jq -r '.items[].metadata.name |
+    select(test("^kube-|^amazon-|^aws-|^default$") | not)' <<< "$namespaces") || exit 1
+  status=0
+  while IFS= read -r ns; do
+    [ -n "$ns" ] || continue
+    running=$(jq --arg ns "$ns" '[.items[] | select(.metadata.namespace == $ns)] | length' <<< "$pods")
+    [ "$running" -eq 0 ] || continue
+    quota_count=UNKNOWN
+    if quotas=$(kubectl get resourcequotas -n "$ns" -o json); then
+      quota_count=$(jq '.items | length' <<< "$quotas")
     fi
-  done
-```
-
-```bash
-# Get quota details for empty namespaces (shows reserved capacity)
-kubectl get resourcequotas -n <namespace> -o json | \
-  jq '.items[] | {
-    name: .metadata.name,
-    hard: .spec.hard,
-    used: .status.used
-  }'
+    if [ "$quota_count" != UNKNOWN ] && [ "$quota_count" -gt 0 ]; then
+      echo "EMPTY_NS_WITH_QUOTA: $ns (running_pods=0)"
+      jq -c '.items[] | {namespace: .metadata.namespace, quota: .metadata.name, hard: .spec.hard}' <<< "$quotas"
+      continue
+    fi
+    if limits=$(kubectl get limitranges -n "$ns" -o json); then
+      if [ "$(jq '.items | length' <<< "$limits")" -gt 0 ]; then
+        echo "EMPTY_NS_WITH_QUOTA: $ns (LimitRange confirmed, running_pods=0)"
+        continue
+      fi
+      [ "$quota_count" != UNKNOWN ] && continue
+    fi
+    echo "UNKNOWN: quota/limit presence for $ns" >&2; status=1
+  done <<< "$candidates"
+  exit "$status"
+)
 ```
 
 **Via EKS MCP Server:**
@@ -423,15 +393,18 @@ list_k8s_resources(
 ### Analysis logic
 
 ```
-For each non-system namespace:
-  running_pods = count pods with status.phase == "Running"
-  has_quota = (ResourceQuotas exist in namespace)
-  has_limitrange = (LimitRanges exist in namespace)
+For each non-system namespace from confirmed inventory:
+  If Pod inventory is unavailable, mark the check UNKNOWN; do not count it as zero.
+  running_pods = count confirmed pods with status.phase == "Running"
+  If running_pods > 0, no quota/limit read is required for this check.
+  has_quota = confirmed ResourceQuota presence (otherwise UNKNOWN)
+  has_limitrange = confirmed LimitRange presence (otherwise UNKNOWN)
+  If neither presence is true and either is UNKNOWN, mark the check UNKNOWN.
 
   If running_pods == 0 AND (has_quota OR has_limitrange):
     # Calculate reserved capacity from quota spec
-    reserved_cpu = quota.spec.hard["requests.cpu"]
-    reserved_mem = quota.spec.hard["requests.memory"]
+    Read reserved_cpu/reserved_mem only from the confirmed `hard` values emitted from ResourceQuota spec.hard above.
+    If only a LimitRange is known, report quota amounts as unknown, not zero.
     
     → Generate finding
     # Note: quotas don't directly consume resources, but indicate 
@@ -474,86 +447,49 @@ ConfigMaps and Secrets that exist in non-system namespaces but are not reference
 **Via kubectl:**
 
 ```bash
-# Step 1: Get all ConfigMaps/Secrets referenced by running pods
-kubectl get pods --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.status.phase == "Running") |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    .metadata.namespace as $ns |
-    (
-      # Volume mounts (configMap and secret)
-      ([.spec.volumes[]? | 
-        select(.configMap) | "\($ns)/configmap/\(.configMap.name)"] +
-       [.spec.volumes[]? | 
-        select(.secret) | "\($ns)/secret/\(.secret.secretName)"] +
-       [.spec.volumes[]? | 
-        select(.projected) | .projected.sources[]? |
-        (if .configMap then "\($ns)/configmap/\(.configMap.name)"
-         elif .secret then "\($ns)/secret/\(.secret.name)"
-         else empty end)] +
-      # EnvFrom references
-       [.spec.containers[]?.envFrom[]? |
-        (if .configMapRef then "\($ns)/configmap/\(.configMapRef.name)"
-         elif .secretRef then "\($ns)/secret/\(.secretRef.name)"
-         else empty end)] +
-      # Individual env valueFrom references
-       [.spec.containers[]?.env[]?.valueFrom? |
-        (if .configMapKeyRef then "\($ns)/configmap/\(.configMapKeyRef.name)"
-         elif .secretKeyRef then "\($ns)/secret/\(.secretKeyRef.name)"
-         else empty end)]
-    )[]
-  ' | sort -u > /tmp/referenced_configs.txt
+# Read-coverage guard: unreferenced configuration
+(
+  set -o pipefail
+  pods=$(kubectl get pods -A -o json) || {
+    echo "UNKNOWN: Pod references unavailable" >&2; exit 1;
+  }
+  status=0
+  for resource in configmap secret; do
+    objects=$(kubectl get "$resource" -A -o json |
+      jq '{items: [.items[] | {metadata: {name: .metadata.name, namespace: .metadata.namespace}, type}]}') || {
+      echo "UNKNOWN: $resource inventory unavailable" >&2; status=1; continue;
+    }
+    printf '%s\n' "$pods" "$objects" | jq -r -s --arg resource "$resource" '
+      .[0].items as $pods | .[1].items as $objects |
+      [$pods[] | select(.status.phase == "Running") |
+        select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
+        .metadata.namespace as $ns |
+        ([.spec.volumes[]? | select(.configMap) | "\($ns)/configmap/\(.configMap.name)"] +
+         [.spec.volumes[]? | select(.secret) | "\($ns)/secret/\(.secret.secretName)"] +
+         [.spec.volumes[]? | select(.projected) | .projected.sources[]? |
+           if .configMap then "\($ns)/configmap/\(.configMap.name)"
+           elif .secret then "\($ns)/secret/\(.secret.name)" else empty end] +
+         [.spec.containers[]?.envFrom[]? |
+           if .configMapRef then "\($ns)/configmap/\(.configMapRef.name)"
+           elif .secretRef then "\($ns)/secret/\(.secretRef.name)" else empty end] +
+         [.spec.containers[]?.env[]?.valueFrom? |
+           if .configMapKeyRef then "\($ns)/configmap/\(.configMapKeyRef.name)"
+           elif .secretKeyRef then "\($ns)/secret/\(.secretKeyRef.name)" else empty end])[]
+      ] | unique as $referenced |
+      $objects[] |
+      select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
+      select(if $resource == "configmap" then .metadata.name != "kube-root-ca.crt"
+        else .type != "kubernetes.io/service-account-token" and .type != "helm.sh/release.v1" and
+          (.metadata.name | test("^default-token-") | not) end) |
+      "\(.metadata.namespace)/\($resource)/\(.metadata.name)" as $id |
+      select(($referenced | index($id)) == null) | $id
+    ' || status=1
+  done
+  exit "$status"
+)
 ```
 
-```bash
-# Step 2: Get all ConfigMaps in non-system namespaces (excluding system ones)
-kubectl get configmaps --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    select(.metadata.name | test("^kube-root-ca") | not) |
-    "\(.metadata.namespace)/configmap/\(.metadata.name)"
-  ' | sort > /tmp/all_configmaps.txt
-
-# Step 3: Get all Secrets in non-system namespaces (excluding service account tokens)
-kubectl get secrets --all-namespaces -o json | \
-  jq -r '
-    .items[] |
-    select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-    select(.type != "kubernetes.io/service-account-token") |
-    select(.metadata.name | test("^default-token-") | not) |
-    "\(.metadata.namespace)/secret/\(.metadata.name)"
-  ' | sort > /tmp/all_secrets.txt
-```
-
-```bash
-# Step 4: Find orphaned ConfigMaps (not referenced by any running pod)
-comm -23 /tmp/all_configmaps.txt /tmp/referenced_configs.txt
-
-# Step 5: Find orphaned Secrets (not referenced by any running pod)
-comm -23 /tmp/all_secrets.txt /tmp/referenced_configs.txt
-```
-
-```bash
-# Simplified single-command approach (summary by namespace)
-kubectl get pods --all-namespaces -o json | \
-  jq -r '
-    [.items[] |
-     select(.status.phase == "Running") |
-     select(.metadata.namespace | test("^kube-|^amazon-|^aws-") | not) |
-     .metadata.namespace as $ns |
-     (
-       [.spec.volumes[]?.configMap?.name // empty] +
-       [.spec.volumes[]?.secret?.secretName // empty] +
-       [.spec.containers[]?.envFrom[]?.configMapRef?.name // empty] +
-       [.spec.containers[]?.envFrom[]?.secretRef?.name // empty] +
-       [.spec.containers[]?.env[]?.valueFrom?.configMapKeyRef?.name // empty] +
-       [.spec.containers[]?.env[]?.valueFrom?.secretKeyRef?.name // empty]
-     )[] | {ns: $ns, ref: .}
-    ] | group_by(.ns) | map({namespace: .[0].ns, referenced: [.[].ref] | unique})
-  '
-```
+Candidate IDs cover volumes, projected volumes and regular-container environment references. Confirm other reference channels (including init containers and imagePullSecrets) and ownership before reporting an orphan or proposing cleanup.
 
 **Via EKS MCP Server:**
 
@@ -599,14 +535,18 @@ Always exclude from orphan detection:
 
 ```
 For each non-system namespace:
+  A confirmed empty ConfigMap or Secret list, or one containing only unconditionally excluded objects, needs no reference comparison.
+  For listed objects, require confirmed Pod references; otherwise mark the comparison UNKNOWN.
+  Classify ConfigMaps and Secrets independently, only when their own inventory succeeded.
+  A failed ConfigMap or Secret list does not discard findings supported by the other successful list.
   referenced_cms = set of ConfigMap names used by running pods (volumes, envFrom, valueFrom)
   referenced_secrets = set of Secret names used by running pods (volumes, envFrom, valueFrom)
   
   all_cms = set of all ConfigMaps in namespace (excluding system CMs)
   all_secrets = set of all Secrets in namespace (excluding SA tokens, Helm releases)
   
-  orphaned_cms = all_cms - referenced_cms
-  orphaned_secrets = all_secrets - referenced_secrets
+  orphaned_cms = all_cms - referenced_cms only if both inputs are confirmed
+  orphaned_secrets = all_secrets - referenced_secrets only if both inputs are confirmed
   
   If len(orphaned_cms) + len(orphaned_secrets) > 0:
     → Generate finding
@@ -640,16 +580,7 @@ kubectl get secret <name> -n <namespace> -o yaml | head -20  # Check type and an
 kubectl delete secret <name> -n <namespace>
 ```
 
-```bash
-# Bulk cleanup: delete all orphaned ConfigMaps in a namespace (use with caution)
-# First generate the list, review it, then delete
-comm -23 /tmp/all_configmaps.txt /tmp/referenced_configs.txt | \
-  grep "^<namespace>/" | \
-  sed 's|.*/configmap/||' | \
-  xargs -I{} kubectl delete configmap {} -n <namespace> --dry-run=client
 
-# Remove --dry-run=client after confirming the list is correct
-```
 
 ---
 
@@ -676,10 +607,11 @@ actual_deduction = min(deduction, 15)  # Cap at maximum
 | Condition | Status |
 |-----------|--------|
 | All checks completed | ASSESSED |
-| Some checks partially completed | ASSESSED (with note) |
+| An applicable check lacks a required inventory after core inventory succeeds and no confirmed same-scope alternative is available | SKIPPED (not assessed); retain independently verified findings |
+| Only optional enrichment unavailable; required reads succeeded | ASSESSED (with note) |
 | No Kubernetes API access | Cannot assess — skill halts at pre-flight |
 
-This dimension is never SKIPPED because all checks require only the Kubernetes API (no metrics sources needed).
+Kubernetes API connectivity alone does not prove permission for every resource. Apply the read-coverage rule in `report-generation.md`: a denied Service read does not mean "no LoadBalancer Services", and a denied Endpoints read does not mean "zero healthy endpoints". The same rule applies to ConfigMaps, Secrets and other required inputs.
 
 ---
 

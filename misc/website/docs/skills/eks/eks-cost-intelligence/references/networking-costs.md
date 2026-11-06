@@ -38,7 +38,7 @@ Cross-AZ traffic is often the largest hidden cost in multi-AZ EKS clusters. A si
 
 These checks require:
 - **kubectl access** to the cluster (for service specs, pod distribution, annotations)
-- **AWS CLI access** for `ec2:DescribeVpcEndpoints`, `ec2:DescribeSubnets`, `ec2:DescribeNatGateways`
+- **AWS CLI access** for `ec2:DescribeVpcEndpoints`, `ec2:DescribeSubnets`, `ec2:DescribeNatGateways`, `route53:ListHostedZonesByVPC`
 - **Optional:** CloudWatch metrics for actual data transfer volumes (improves estimate accuracy)
 
 No metrics-server is required — checks use configuration inspection and traffic estimation.
@@ -414,11 +414,18 @@ EXISTING_ENDPOINTS=$(aws ec2 describe-vpc-endpoints \
   --query 'VpcEndpoints[].ServiceName' \
   --output text)
 
+# Endpoints centralized in a hub or shared-services VPC (reached over Transit Gateway) are not listed
+# above; they serve this VPC through private hosted zones associated with it, possibly owned by another account
+aws route53 list-hosted-zones-by-vpc --vpc-id "$CLUSTER_VPC" --vpc-region "$REGION" \
+  --query 'HostedZoneSummaries[].Name' --output text
+# The zone for com.amazonaws.<r>.<svc> is named <svc>.<r>.amazonaws.com (ecr.api is api.ecr.<r>.amazonaws.com, ecr.dkr is dkr.ecr.<r>.amazonaws.com);
+# treat a service as served when its zone is listed (zones shared through a Route 53 Profile are not listed)
+
 for svc in "${REQUIRED_SERVICES[@]}"; do
   if echo "$EXISTING_ENDPOINTS" | grep -q "$svc"; then
     echo "✅ $svc — endpoint exists"
   else
-    echo "❌ $svc — MISSING (traffic routes through NAT Gateway)"
+    echo "❌ $svc: no endpoint in the cluster VPC; if no hosted zone above serves it, traffic routes through NAT Gateway"
   fi
 done
 ```
@@ -438,7 +445,7 @@ aws cloudwatch get-metric-statistics \
   --namespace "AWS/NATGateway" \
   --metric-name "BytesOutToDestination" \
   --dimensions "Name=NatGatewayId,Value=$NAT_GW_ID" \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --period 604800 \
   --statistics Sum \
@@ -467,6 +474,7 @@ required_endpoints = [
 ]
 
 existing_endpoints = list VPC endpoints in cluster VPC
+                   + services a centralized endpoint serves (a private hosted zone for the service associated with the cluster VPC, Route 53 ListHostedZonesByVPC; zones shared through a Route 53 Profile are not listed)
 
 missing = required_endpoints - existing_endpoints
 
@@ -669,7 +677,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --region <region>
 ```
@@ -819,7 +827,7 @@ for NAT_ID in $NAT_GW_IDS; do
     --namespace "AWS/NATGateway" \
     --metric-name "BytesOutToDestination" \
     --dimensions "Name=NatGatewayId,Value=$NAT_ID" \
-    --start-time "$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S)" \
+    --start-time "$(( $(date +%s) - 30*86400 ))" \
     --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
     --period 2592000 \
     --statistics Sum \
@@ -830,7 +838,7 @@ for NAT_ID in $NAT_GW_IDS; do
     --namespace "AWS/NATGateway" \
     --metric-name "BytesInFromDestination" \
     --dimensions "Name=NatGatewayId,Value=$NAT_ID" \
-    --start-time "$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S)" \
+    --start-time "$(( $(date +%s) - 30*86400 ))" \
     --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
     --period 2592000 \
     --statistics Sum \
@@ -841,7 +849,7 @@ for NAT_ID in $NAT_GW_IDS; do
     --namespace "AWS/NATGateway" \
     --metric-name "ConnectionAttemptCount" \
     --dimensions "Name=NatGatewayId,Value=$NAT_ID" \
-    --start-time "$(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S)" \
+    --start-time "$(( $(date +%s) - 30*86400 ))" \
     --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
     --period 2592000 \
     --statistics Sum \
@@ -992,7 +1000,7 @@ aws cloudwatch get-metric-statistics \
   --namespace "AWS/NATGateway" \
   --metric-name "ActiveConnectionCount" \
   --dimensions "Name=NatGatewayId,Value=<nat-gw-id>" \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --period 3600 \
   --statistics Maximum \
@@ -1111,7 +1119,7 @@ START
   │
   ├─ Run Check 3: VPC Endpoints
   │   ├─ ec2:DescribeVpcEndpoints available?
-  │   │   ├─ YES → Check for ECR, S3, STS endpoints
+  │   │   ├─ YES → Check for ECR, S3, STS endpoints, or served by an associated hosted zone
   │   │   └─ NO  → Skip Check 3, note permission gap
   │   └─ Missing endpoints found?
   │       ├─ YES → Generate MEDIUM finding (per Req 7.5)

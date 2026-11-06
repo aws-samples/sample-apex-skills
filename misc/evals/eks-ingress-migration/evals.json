@@ -95,6 +95,17 @@
         "Treats the controller upgrade as an operator action the assessment documents but does not run"
       ],
       "files": []
+    },
+    {
+      "id": 9,
+      "name": "mismatched-context",
+      "prompt": "Use eks-ingress-migration for a preflight check on prod. DescribeCluster returns https://prod.example.invalid, but my only context is named prod and points to https://stage.example.invalid. Can I start?",
+      "expectations": [
+        "Identifies the endpoint mismatch despite the matching context name.",
+        "Stops before Kubernetes reads and asks for a kubeconfig entry for the target cluster.",
+        "Preserves the current context and scopes later reads to a verified context for each cluster."
+      ],
+      "files": []
     }
   ]
 }

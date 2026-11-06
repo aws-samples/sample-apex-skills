@@ -35,12 +35,106 @@ my-template/
 - **`template.yaml`** declares the form parameters the developer fills, then the ordered **steps/actions**: fetch skeleton → publish to Git → register in ArgoCD/catalog → trigger provisioning.
 - **`skeleton/`** is the payload: the manifests and `catalog-info.yaml` that get committed to a new Git repo, rendered with the developer's parameter values.
 
+## Worked example: environment template (illustrative)
+
+Illustrative, not a drop-in: hosts, names and the `EKSCluster` spec fields are placeholders, and the fields must match the platform team's own kro `ResourceGraphDefinition` schema. It assumes the GitLab scaffolder module (`@backstage/plugin-scaffolder-backend-module-gitlab`) is installed and `integrations.gitlab` in `app-config.yaml` lists `gitlab.example.com` with its `apiBaseUrl` (`https://gitlab.example.com/api/v4`) and a token.
+
+```yaml
+# template.yaml
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: eks-environment
+  title: EKS environment
+  description: EKS Auto Mode cluster + add-ons, synced by the hub ArgoCD
+spec:
+  owner: group:platform-team
+  type: environment
+  parameters:
+    - title: Environment
+      required: [name, owner, environment, region]
+      properties:
+        name:
+          title: Cluster name
+          type: string
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+        environment:
+          title: Environment
+          type: string
+          enum: [dev, prod]
+        region:
+          title: AWS Region
+          type: string
+          default: us-west-2
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Repository location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts: [gitlab.example.com]
+  steps:
+    - id: fetch
+      name: Render skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          owner: ${{ parameters.owner }}
+          environment: ${{ parameters.environment }}
+          region: ${{ parameters.region }}
+    - id: publish
+      name: Publish to GitLab
+      action: publish:gitlab
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}
+```
+
+The kro instance the skeleton carries beside its `catalog-info.yaml` (`skeleton/manifests/ekscluster.yaml`; a kro instance's `apiVersion` is `kro.run/` plus the RGD schema's `apiVersion`):
+
+```yaml
+apiVersion: kro.run/v1alpha1
+kind: EKSCluster
+metadata:
+  name: ${{ values.name }}
+  namespace: platform-environments
+spec:
+  name: ${{ values.name }}
+  environment: ${{ values.environment }}
+  region: ${{ values.region }}
+```
+
+The hub ArgoCD syncs the new repo (for example through an ApplicationSet SCM Provider generator over the platform's GitLab group); kro then creates what the platform's `EKSCluster` RGD declares (for example the cluster, add-on IAM and a GitOps Bridge cluster secret), and the hub `ApplicationSet` in `idp-architecture.md` installs the add-ons from that secret, so the secret must carry the `enable_` and `environment` labels and the `addons_repo_*` annotations that `ApplicationSet` reads.
+
 ## The self-service flow (every template follows this shape)
 
 ```
 Developer fills Backstage form
    → template creates a new GitLab repo with rendered skeleton (manifests)
-   → registers the repo/app with ArgoCD (and the catalog)
+   → registers the repo/app in the catalog; ArgoCD picks it up (a template step or a hub generator)
    → ArgoCD syncs the manifests to the target cluster
    → controllers reconcile (KubeVela renders the app; ACK provisions AWS resources)
 ```
