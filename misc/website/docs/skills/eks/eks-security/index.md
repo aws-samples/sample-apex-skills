@@ -252,7 +252,7 @@ Escalate (your AWS account team) for: first-time certification of a mission-crit
 | [os-ami-hardening.md](references/os-ami-hardening) | Layer 1: Bottlerocket vs AL2023 vs Ubuntu/RHEL, CIS benchmarks, Image Builder, FIPS |
 | [auto-mode-security.md](references/auto-mode-security) | Auto Mode: AWS-handled vs customer-owned controls, when to avoid it |
 | [identity-and-access.md](references/identity-and-access) | Layer 2: Pod Identity vs IRSA, Access Entries vs aws-auth, access policies, condition keys |
-| [workload-security.md](references/workload-security) | Layer 3: PSA, Kyverno/OPA, NetworkPolicy, Security Groups for Pods, mesh mTLS |
+| [workload-security.md](references/workload-security) | Layer 3: PSA, Kyverno/OPA, NetworkPolicy, Network Firewall container rules, Security Groups for Pods, mesh mTLS |
 | [image-supply-chain.md](references/image-supply-chain) | Layer 4: ECR Enhanced Scanning, signing, admission control |
 | [runtime-security.md](references/runtime-security) | Layer 5: GuardDuty for EKS, Falco, Security Hub |
 | [audit-logging.md](references/audit-logging) | Layer 6: control-plane log types, CloudTrail, VPC Flow Logs, SIEM, retention |
