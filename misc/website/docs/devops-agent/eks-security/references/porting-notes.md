@@ -13,7 +13,7 @@ This page is generated from [devops-agent/eks-security/references/porting-notes.
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution.
 
-> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-11-06 (port rebuilt for the three review capabilities; the knowledge references re-copied from upstream at that date).
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-11-06 (compliance-fedramp.md added; port rebuilt for the three review capabilities on 2026-11-05; the knowledge references re-copied from upstream at that date).
 
 ## Differences from Claude Code Version
 
