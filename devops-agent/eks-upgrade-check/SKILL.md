@@ -51,7 +51,7 @@ The skill calculates a weighted readiness score:
 | AL2 Nodes / Behavioral | 10 pts | Informational |
 
 **Hard Blocker Override:** If any hard blocker is detected (e.g., incompatible Karpenter,
-critical add-on DEGRADED, cluster subnets collectively cannot place control-plane ENIs,
+critical add-on DEGRADED, the conservative subnet-capacity review guard,
 cluster not ACTIVE), the score is capped at ≤ 59% (NOT READY) regardless of other findings.
 See `references/report-generation.md` for the full list.
 
@@ -75,8 +75,8 @@ See `references/report-generation.md` for the full list.
 > a **HARD STOP**: it does NOT guess, auto-select, or partially assess an ambiguous
 > cluster/target — it emits a structured stop message and ends. Never assess a cluster
 > or target the user did not unambiguously specify or that cannot be uniquely determined.
-> (This gate is about an ambiguous cluster/target; denied reads *during* a valid
-> assessment are handled via `## Unassessed`, not a hard stop — see Action 3 below.)
+> (Identity and cluster/target gates must pass first. Denied reads on the verified
+> cluster are handled via `## Unassessed`, not a hard stop — see Action 3 below.)
 
 **HARD STOP output format** — whenever a criterion below triggers a hard stop, output
 exactly this and end the run (produce no readiness score):
@@ -119,6 +119,25 @@ If status is NOT `ACTIVE` → **HARD STOP**:
 
 Cluster status gates the whole assessment; node group status gates node readiness. If a node group's lifecycle `status == UPDATING` (mid-rotation), the assessment can still run but node readings may be a transient old/new mix — flag it as potentially unstable and recommend re-running after rotation (see `references/node-readiness.md` §5.1).
 
+**Action 2c — Bind Kubernetes reads to the selected cluster**
+
+Before any Kubernetes call (including permission probes), verify the Agent Space
+connection's cluster identity against the selected DescribeCluster ARN/account/region
+or endpoint. Record the verified binding and explicitly scope EVERY Kubernetes read to
+it. A display name alone, or a local kubectl context, does not prove the tool's target.
+Keep AWS reads bound to the same account, region, and cluster. Recheck identity if the
+connection changes.
+
+If the connection points elsewhere or its target cannot be verified → **HARD STOP**,
+produce no readiness score, and name the required connection setup. Do not auto-select
+an ambiguous connection or combine unverified Kubernetes data with AWS data. This is
+an identity gate, distinct from a denied read on a verified cluster.
+
+The assessing IAM principal needs an EKS access entry (or the cluster's existing
+`aws-auth` mapping) and Kubernetes read permissions; see `README.md` for access-entry
+and RBAC setup. An access entry alone does not prove connection identity. Record the
+verified connection in report metadata, applying the account-ID masking guidance.
+
 **Action 3 — Validate permissions (AWS + Kubernetes)**
 
 **3a — AWS API preflight.** Verify access to: ListNodegroups, ListAddons, DescribeAddonVersions
@@ -132,9 +151,8 @@ Validating/MutatingWebhookConfigurations (breaking-changes), HorizontalPodAutosc
 and `nodepools.karpenter.sh` (node-readiness + add-on compatibility) via a `can-i`-style list check.
 If `kubectl auth can-i` itself errors (not a clean yes/no), treat the read as denied.
 
-If any required AWS permission or Kubernetes read is denied → this is NOT a hard stop (the
-hard stops in this Step 0 are for an ambiguous cluster/target only — see the execution-model
-note above). Instead, proceed as a **partial assessment**:
+If any required AWS permission or Kubernetes read is denied on the verified cluster →
+this is NOT an identity-gate failure. Instead, proceed as a **partial assessment**:
 1. Record exactly which IAM action or RBAC verb/resource is denied.
 2. Continue the assessment. Every category whose backing read was denied is reported
    UNKNOWN / not-scored (NOT a clean 0-deduction pass) and listed in `## Unassessed`,

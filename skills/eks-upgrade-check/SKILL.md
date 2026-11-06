@@ -49,7 +49,7 @@ The skill calculates a weighted readiness score:
 | AL2 Nodes / Behavioral | 10 pts | Informational |
 
 **Hard Blocker Override:** If any hard blocker is detected (e.g., incompatible Karpenter, critical
-add-on DEGRADED, cluster subnets collectively cannot place control-plane ENIs, cluster not ACTIVE), the score is capped at ≤ 59% (NOT READY)
+add-on DEGRADED, the conservative subnet-capacity review guard, cluster not ACTIVE), the score is capped at ≤ 59% (NOT READY)
 regardless of other findings. See `references/report-generation.md` for the full list.
 
 **Score Interpretation:**
@@ -62,7 +62,10 @@ regardless of other findings. See `references/report-generation.md` for the full
 ## Prerequisites
 
 1. **AWS credentials configured** — `aws configure` or `~/.aws/credentials` with EKS access
-2. **kubectl access** to the target cluster (for Kubernetes API queries)
+2. **kubectl access** to the target cluster (for Kubernetes API queries), with the
+   assessing IAM principal authorized through an EKS access entry or the cluster's
+   existing `aws-auth` mapping, plus the required Kubernetes read permissions.
+   An access entry alone does not establish that the selected kubeconfig context is correct.
 3. **Required AWS Permissions:**
    - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`
    - `eks:ListAddons`, `eks:DescribeAddon`, `eks:DescribeAddonVersions`, `eks:ListInsights`, `eks:DescribeInsight`
@@ -135,6 +138,41 @@ Check the `status` field from the cluster description. If status is NOT `ACTIVE`
 Do NOT proceed with the assessment if cluster status is not ACTIVE. This is a hard blocker (see report-generation.md).
 
 Cluster status gates the whole assessment; node group status gates node readiness. If a node group's lifecycle `status == UPDATING` (mid-rotation), the assessment can still run but node readings may be a transient old/new mix — flag it as potentially unstable and recommend re-running after rotation (see node-readiness.md §5.1).
+
+**Action 2c — Bind Kubernetes reads to the selected cluster**
+
+Before any Kubernetes call (including `auth can-i`), verify the connection's identity.
+Record the selected cluster ARN, region, and `cluster.endpoint` from DescribeCluster.
+For CLI access, inspect the current context and its server using local, read-only commands:
+
+```bash
+kubectl config current-context
+kubectl --context <candidate-context> config view --minify \
+  -o jsonpath='{.clusters[0].cluster.server}'
+```
+
+Compare that server with the selected EKS endpoint (ignore a trailing `/` only).
+A context name containing the cluster name is NOT evidence of a match. If the current
+context differs, inspect existing contexts using `kubectl config get-contexts -o name`;
+use an explicitly requested matching context, or a unique matching context, and state
+the selection. If multiple matching contexts use different credentials and none was
+requested, ask the user to select one.
+
+If no matching connection can be verified, STOP before Kubernetes reads and produce no
+readiness score. Explain the mismatch and the required connection setup. Do not run
+`update-kubeconfig`, `config use-context`, or any other configuration write. This is
+an identity gate, distinct from denied reads on a verified cluster.
+
+Once verified, include `--context <verified-context>` on EVERY subsequent kubectl
+invocation, including permission probes and commands adapted from steering examples.
+Keep the kubeconfig source consistent; recheck identity if the connection changes.
+Keep AWS reads bound to the selected account, region, and cluster as well.
+
+For MCP access, verify the tool's cluster binding against the selected ARN/account/region
+or endpoint before Kubernetes reads, and explicitly scope each call to that binding.
+The local kubectl context does not prove an MCP connection's identity. If the tool cannot
+establish its target, stop rather than combine unverified Kubernetes data with AWS data.
+Record the verified connection identity in the report metadata (mask account IDs when needed).
 
 **Action 3 — Validate permissions (AWS + Kubernetes)**
 
