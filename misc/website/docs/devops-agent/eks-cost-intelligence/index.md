@@ -20,7 +20,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 
 ## Start Here — Verify the Assessment Connection
 
-Before delegating any audit work, the agent receiving the request must verify the connection and list nodes, namespaces, pods and deployments itself. For native reads, use the Agent Space’s read-only Kubernetes capability on its AWS association, even when no MCP association is listed. If the user selects MCP, keep all Kubernetes calls on that connection. Verify the executing role and bind each call to the account, region and cluster confirmed by DescribeCluster. **If any of the four results is missing or denied, return Assessment Error without a numeric score, including a provisional, AWS-only or delegated score.** Other denied reads affect only their own checks (UNKNOWN/SKIPPED).
+Before delegating any audit work, the agent receiving the request must verify the connection and list nodes, namespaces, pods and deployments itself. For native reads, use the Agent Space’s read-only Kubernetes capability on its AWS association, even when no MCP association is listed. If the user selects MCP, keep all Kubernetes calls on that connection. Verify the executing role and bind each call to the account, region and cluster confirmed by DescribeCluster. **If any of the four reads fails, is denied or cannot be confirmed, return Assessment Error without a numeric score, including a provisional, AWS-only or delegated score. An empty list is a valid successful result.** Other denied reads make their dependent checks UNKNOWN; apply the dimension coverage rule in `references/report-generation.md`.
 
 ## Prerequisites
 
@@ -66,7 +66,7 @@ The following permissions are included:
 
 **Kubernetes API access (required):**
 - The Agent Space role requires an authentication mode that includes the EKS API and an access entry associated with `AmazonAIOpsAssistantPolicy`.
-- `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the verified connection.
+- `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the verified connection. A caller without Secret list permission leaves Idle Resources SKIPPED for scoring.
 - RBAC used across the assessment: `get`, `list` on pods, nodes, deployments, services, persistentvolumeclaims, configmaps, secrets, namespaces, events, endpointslices
 
 ---
@@ -347,7 +347,7 @@ The following are intentionally excluded from the initial release and may be add
 ## Operational Rules
 
 1. **Do NOT hardcode or guess cluster names.** Always discover clusters by listing them first.
-2. **Do NOT retry a failed API call more than once.** If it fails twice, stop if it is a Step 0 core read. Otherwise log the failure, skip that check, and continue.
+2. **Do NOT retry a failed API call more than once.** If it fails twice, stop if it is a core read (Start Here). Otherwise log the failure, skip that check, and continue.
 3. **Always read the relevant reference file before executing checks for that dimension.**
 4. **Do NOT duplicate general advisory content.** Keep recommendations specific to cost findings with actionable remediation steps.
 5. **Emit findings as structured output** following the schema in `references/findings-format.md`.

@@ -67,7 +67,7 @@ The crux: is a CIS-hardened **custom** AMI a **hard regulatory requirement** or 
 
 ## Escalate (compliance-specific)
 
-First-time certification on a mission-critical regulated workload; XXL+ segment; FedRAMP High/GovCloud; Top Secret/Secret (out of scope); EKS Anywhere/Hybrid Nodes inside a FedRAMP boundary; multi-tenant SaaS with cross-tenant PHI/cardholder/federal isolation; customer-vs-auditor disagreement on AWS-managed-control acceptability; written legal commitments beyond Artifact; or any claim you cannot ground in an AWS-published source.
+First-time certification on a mission-critical regulated workload; FedRAMP High/GovCloud; Top Secret/Secret (out of scope); EKS Anywhere/Hybrid Nodes inside a FedRAMP boundary; multi-tenant SaaS with cross-tenant PHI/cardholder/federal isolation; customer-vs-auditor disagreement on AWS-managed-control acceptability; written legal commitments beyond Artifact; or any claim you cannot ground in an AWS-published source.
 
 ## Sources
 - [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) (**authoritative — verify here**) · [Compliance Programs](https://aws.amazon.com/compliance/programs/)
