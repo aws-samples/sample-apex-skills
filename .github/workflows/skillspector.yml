@@ -58,6 +58,8 @@ jobs:
 
       - name: Scan changed skills (advisory, never fails)
         if: steps.install.outcome == 'success'
+        # A step timeout under continue-on-error ends the scan without failing the check.
+        timeout-minutes: 60
         continue-on-error: true
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -99,7 +101,8 @@ jobs:
               sev = str(i.get('severity', '')).upper()
               level = 'warning' if sev in ('HIGH', 'CRITICAL') else 'notice'
               rule = i.get('rule_id') or i.get('id') or i.get('category') or 'finding'
-              msg = i.get('message') or i.get('explanation') or rule
+              parts = [i.get('pattern'), i.get('explanation') or i.get('message'), i.get('finding')]
+              msg = ': '.join(str(x) for x in parts if x) or rule
               print(f"::{level} file={esc(skill_dir + '/' + rel, True)},line={int(line)},"
                     f"title={esc('SkillSpector ' + sev + ' ' + rule, True)}::{esc(msg)}")
           PY
