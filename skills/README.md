@@ -293,6 +293,7 @@ Read-only scripted security reviews of a live Amazon EKS cluster (exposed / not 
 | [audit-logging.md](./eks-security/references/audit-logging.md) | Audit logging |
 | [auto-mode-security.md](./eks-security/references/auto-mode-security.md) | Auto mode security |
 | [compliance-accelerators.md](./eks-security/references/compliance-accelerators.md) | Compliance accelerators |
+| [compliance-fedramp.md](./eks-security/references/compliance-fedramp.md) | Compliance fedramp |
 | [compliance-hipaa.md](./eks-security/references/compliance-hipaa.md) | Compliance hipaa |
 | [compliance-pci.md](./eks-security/references/compliance-pci.md) | Compliance pci |
 | [compliance-regimes.md](./eks-security/references/compliance-regimes.md) | Compliance regimes |

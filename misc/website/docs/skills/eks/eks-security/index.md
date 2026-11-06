@@ -150,7 +150,7 @@ Cross-cutting: encryption and secrets ([encryption-and-secrets.md](references/en
 
 ### Compliance-regime scope
 
-EKS is **in scope** for PCI-DSS, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Moderate (commercial) and High (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud). AWS gives **framework support**, not attestation, for GDPR, NIST 800-53/800-171 and CJIS. Scope table and worked scenarios: [compliance-regimes.md](references/compliance-regimes); quick-starts: [HIPAA](references/compliance-hipaa), [PCI DSS](references/compliance-pci), [SOC 2](references/compliance-soc2).
+EKS is **in scope** for PCI-DSS, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Moderate (commercial) and High (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud). AWS gives **framework support**, not attestation, for GDPR, NIST 800-53/800-171 and CJIS. Scope table and worked scenarios: [compliance-regimes.md](references/compliance-regimes); quick-starts: [HIPAA](references/compliance-hipaa), [PCI DSS](references/compliance-pci), [SOC 2](references/compliance-soc2), [FedRAMP](references/compliance-fedramp).
 
 > **Disclaimer for customer-facing output:** "Compliance status changes over time; verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting program coverage." EKS is HIPAA-*eligible* with a signed BAA, not "HIPAA-compliant"; FedRAMP High is GovCloud only.
 
@@ -263,6 +263,7 @@ Escalate (your AWS account team) for: first-time certification of a mission-crit
 | [compliance-hipaa.md](references/compliance-hipaa) | HIPAA quick-start |
 | [compliance-pci.md](references/compliance-pci) | PCI DSS quick-start |
 | [compliance-soc2.md](references/compliance-soc2) | SOC 2 quick-start |
+| [compliance-fedramp.md](references/compliance-fedramp) | FedRAMP quick-start |
 
 ## Sources
 
