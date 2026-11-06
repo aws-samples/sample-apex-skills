@@ -67,7 +67,7 @@ Two corrections to a common mis-statement: **neuron-monitor has no EFA metric gr
 ## Cost Attribution
 
 GPU/Neuron capacity is the dominant cost. Attribute it with:
-- **AWS Split Cost Allocation Data (SCAD)** for per-task ECS cost allocation in CUR and CUR 2.0, not Cost Explorer; on ECS it splits by task CPU and memory only (the GPU and accelerator split is EKS-only), so it does not attribute GPU cost ([split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/split-cost-allocation-data.html)).
+- **AWS Split Cost Allocation Data (SCAD)** for per-task ECS cost allocation in CUR and CUR 2.0, not Cost Explorer; on ECS it splits by task CPU and memory only (the GPU and accelerator split is EKS-only), so the instance cost, GPU included, is split by task CPU and memory, not by GPUs per task ([split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/split-cost-allocation-data.html)).
 - **Cost allocation tags** on services/task definitions (team, model, environment).
 - **Custom per-request accounting** from the serving engine (tokens/requests per tenant) when you need per-tenant chargeback.
 
