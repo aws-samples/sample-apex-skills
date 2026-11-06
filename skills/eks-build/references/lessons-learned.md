@@ -447,7 +447,7 @@ provider "helm" {
 
 The provider login also writes this token to Helm's registry config, so other Helm pulls from public.ecr.aws on that machine can hit the same 403 after 12 hours; recover with the logout below.
 
-- Prefer the ephemeral resource. Below hashicorp/aws 6.31.0 use the `data "aws_ecrpublic_authorization_token"` form in the same `registries` list; its token is stored in state (and in a saved plan, so applying a saved plan can reuse it past its 12 hours). Do not use resource-level `repository_username` / `repository_password`: `repository_password` is stored in state and cannot take an ephemeral value.
+- Prefer the ephemeral resource. Below hashicorp/aws 6.31.0 use the `data "aws_ecrpublic_authorization_token"` form in the same `registries` list (on aws 5.x, which has no `region` argument, through a `us-east-1` provider alias); its token is stored in state (and in a saved plan, so applying a saved plan can reuse it past its 12 hours). Do not use resource-level `repository_username` / `repository_password`: `repository_password` is stored in state and cannot take an ephemeral value.
 - The identity running Terraform needs `ecr-public:GetAuthorizationToken` and `sts:GetServiceBearerToken`.
 - Partitions without ECR Public, and air-gapped builds, mirror the chart instead: see [customization-guide.md Section 1](customization-guide.md#1-air-gapped--vpc-endpoint-only-networks) (pull-through cache rule for `public.ecr.aws`, Helm chart mirroring). There, drop this block; a private-ECR chart mirror needs its own registry login (`ephemeral "aws_ecr_authorization_token"`).
 - One-off recovery outside Terraform: `helm registry logout public.ecr.aws` (and `docker logout public.ecr.aws`).
