@@ -75,6 +75,7 @@ Only attach these policies -- never application permissions:
 **Key components:**
 1. `module "karpenter"` -- controller IAM role (Pod Identity) + node IAM role
 2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`), with `depends_on = [module.eks_addons_webhooks]` in Pattern 1
+   - Pattern 1: configure the `helm` provider to log in to `oci://public.ecr.aws` with a fresh ECR Public token on every run (an `ephemeral "aws_ecrpublic_authorization_token"` in `us-east-1` feeding the provider's `registries` list), not resource-level `repository_username` / `repository_password`. See [lessons-learned.md Section 17](lessons-learned.md#17-karpenter-dedicated-submodule), "Stale public.ecr.aws login (403)".
 3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs
 4. `aws_ec2_tag` -- discovery tags on private subnets and cluster primary security group
 

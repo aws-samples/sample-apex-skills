@@ -413,6 +413,43 @@ Karpenter needs `AWSServiceRoleForEC2Spot`. Create before deploying:
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 ```
 
+### Stale public.ecr.aws login (403)
+
+**Pattern:** 1 (Terraform `helm_release`; Pattern 2 pulls the chart through ArgoCD)
+
+The Karpenter chart is public, so an anonymous pull works, but only while the machine running Terraform has no `public.ecr.aws` entry in its Helm registry config or Docker config. An earlier `helm registry login` or `docker login public.ecr.aws` leaves a token that lasts 12 hours; once it expires, Helm sends it instead of pulling anonymously and `terraform plan` (the helm provider locates the chart while planning an existing release) or `apply` fails:
+
+```
+Unable to locate chart oci://public.ecr.aws/karpenter/karpenter: ... response status code 403: denied: Your authorization token has expired. Reauthenticate and try again.
+```
+
+Fix: log the helm provider in with a fresh token on every run (helm provider 3.x list syntax; 2.x used a `registry { }` block):
+
+```hcl
+ephemeral "aws_ecrpublic_authorization_token" "public_ecr" {
+  region = "us-east-1"  # ECR Public issues tokens in us-east-1 only, whatever the cluster region
+}
+
+provider "helm" {
+  registries = [
+    {
+      url      = "oci://public.ecr.aws"
+      username = ephemeral.aws_ecrpublic_authorization_token.public_ecr.user_name
+      password = ephemeral.aws_ecrpublic_authorization_token.public_ecr.password
+    }
+  ]
+
+  kubernetes = {
+    # as generated
+  }
+}
+```
+
+- Do not use the `data "aws_ecrpublic_authorization_token"` form or resource-level `repository_username` / `repository_password`: the data source's token is stored in state and in a saved plan, so applying a saved plan can reuse a token past its 12 hours.
+- The identity running Terraform needs `ecr-public:GetAuthorizationToken` and `sts:GetServiceBearerToken`.
+- Partitions without ECR Public, and air-gapped builds, mirror the chart instead: see [customization-guide.md Section 1](customization-guide.md#1-air-gapped--vpc-endpoint-only-networks) (pull-through cache rule for `public.ecr.aws`, Helm chart mirroring).
+- One-off recovery outside Terraform: `helm registry logout public.ecr.aws` (and `docker logout public.ecr.aws`).
+
 ---
 
 ## 18. Pod Identity IAM Policy Name Collision
