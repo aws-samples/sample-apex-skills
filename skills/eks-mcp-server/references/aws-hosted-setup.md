@@ -14,7 +14,7 @@ The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade ca
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
 
-`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs with `kubectl auth can-i`. Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
+`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the MCP server (Step 3). Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
 
 ## Step 1: Configure IAM Permissions
 
