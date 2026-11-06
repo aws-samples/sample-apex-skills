@@ -194,10 +194,10 @@ Recommendations in the report are sorted by:
 ## Cost Score: {score}/100 — {classification}
 
 {If any dimension is SKIPPED and at least one is assessed: **Computed over {N} of {M} dimensions ({assessed_max} of 100 points).** Not assessed: {skipped dimensions and weights}.}
-{If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks}; the executive summary names it too.}
+{If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks}.}
 
 {executive_summary: 2-3 sentences summarizing the cluster's cost posture, top waste
-areas, and projected total savings if all recommendations are implemented.}
+areas, and projected total savings if all recommendations are implemented; name any partly assessed dimension.}
 
 ### Score Breakdown
 
