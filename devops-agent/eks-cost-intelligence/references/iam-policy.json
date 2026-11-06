@@ -22,7 +22,8 @@
         "ec2:DescribeInstances",
         "ec2:DescribeVolumes",
         "ec2:DescribeSubnets",
-        "ec2:DescribeVpcEndpoints"
+        "ec2:DescribeVpcEndpoints",
+        "route53:ListHostedZonesByVPC"
       ],
       "Resource": "*"
     },
@@ -41,7 +42,8 @@
       "Effect": "Allow",
       "Action": [
         "ce:GetCostAndUsage",
-        "ce:GetCostForecast"
+        "ce:GetCostForecast",
+        "organizations:DescribeOrganization"
       ],
       "Resource": "*"
     },

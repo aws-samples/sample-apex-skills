@@ -18,7 +18,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/repor
 
 ## Scoring Algorithm
 
-Confirm successful lists of nodes, namespaces, pods and deployments on the verified connection before publishing any Cost Score, including a delegate's score. If any of those four lists failed or cannot be confirmed, return Assessment Error and leave the score unset. Otherwise start at 100 and apply severity-weighted deductions per dimension.
+Confirm successful lists of nodes, namespaces, pods and deployments on the verified connection before publishing any Cost Score, including a delegate's score. If any of those four lists failed or cannot be confirmed, return Assessment Error and leave the score unset. Otherwise start at 100 and apply severity-weighted deductions per dimension. An empty list is a valid successful result. The algorithm is deterministic: the same findings with the same dimension statuses always produce the same score.
 
 ### Dimension Weights (Max Deductions)
 
@@ -61,6 +61,12 @@ Each dimension's actual deduction is **capped** at its max_deduction. Multiple f
 ```
 actual_deduction = min(sum_of_finding_deductions, dimension.max_deduction)
 ```
+
+### Read Coverage
+
+A denied, failed or unverified read is **UNKNOWN**, never an empty inventory or evidence that a resource is absent. A successful empty list is valid evidence only for the resource and scope actually read. Reuse a confirmed inventory from this assessment at the same verified target and scope, or a documented alternative when available; do not replace a failed response with an empty result. Required inputs are those needed for an applicable check: a confirmed empty Service list needs no Endpoints read.
+
+After core inventory succeeds, **Idle Resources is SKIPPED (not assessed) for scoring** if an applicable check still lacks a required inventory. Retain independently verified findings, but exclude that dimension's deductions. Retained findings in a SKIPPED dimension carry no deduction, so the score is an upper bound: state the skipped dimensions and their weight beside the score and band. Other dimensions keep their documented partial-assessment and fallback rules; without such a rule or adequate evidence, mark the dimension SKIPPED rather than fully ASSESSED. Deduct only supported findings in a permitted partial assessment, and continue unrelated dimensions. Report the failed operation, scope and observed error; name a missing permission only when established, leaving transport or other causes unverified.
 
 ### SKIPPED Dimension Handling
 
@@ -184,6 +190,8 @@ Recommendations in the report are sorted by:
 
 ## Cost Score: {score}/100 — {classification}
 
+{If any dimension is SKIPPED: **Upper-bound score.** Not assessed: {skipped dimensions and weights}.}
+
 {executive_summary: 2-3 sentences summarizing the cluster's cost posture, top waste
 areas, and projected total savings if all recommendations are implemented.}
 
@@ -236,6 +244,7 @@ areas, and projected total savings if all recommendations are implemented.}
 
 **Reason:** {specific error message, e.g., "metrics-server not available"}
 **Impact:** {what findings are missing, e.g., "CPU/memory utilization analysis unavailable"}
+**Retained verified findings (no deduction):** {table, or none}
 **Remediation:** {how to enable the missing data source}
 
 ---

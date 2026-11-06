@@ -43,7 +43,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 ## Prerequisites
 
 1. **AWS credentials configured** — `aws configure` or `~/.aws/credentials` with EKS access
-2. **Kubernetes access** for the assessment caller. An access entry with a suitable policy or RBAC binding, or an existing `aws-auth` mapping in mixed mode, can grant the required reads. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs with `kubectl auth can-i`.
+2. **Kubernetes access** for the assessment caller. An access entry with a suitable policy or RBAC binding, or an existing `aws-auth` mapping in `CONFIG_MAP` or `API_AND_CONFIG_MAP` mode, can grant the required reads. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs through the connection the assessment will use. A caller without Secret list permission leaves Idle Resources SKIPPED for scoring.
 3. **Required AWS Permissions (minimum):**
    - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`, `eks:ListFargateProfiles`, `eks:DescribeFargateProfile`
    - `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
@@ -51,6 +51,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 4. **Optional permissions (enable richer analysis):**
    - `ce:GetCostAndUsage` — enables dollar-accurate spend data from Cost Explorer
    - `cloudwatch:GetMetricData` — enables utilization-based analysis from Container Insights
+   - `route53:ListHostedZonesByVPC`, `organizations:DescribeOrganization` (centralized VPC endpoint zones; the account tier check)
    - `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration` — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension
 
 ### Data Sources
@@ -86,6 +87,8 @@ The skill will discover your clusters, confirm which one to assess, then run the
 
 ### Step 0: Pre-flight — Cluster Discovery
 
+Run the account tier check in `references/cost-data-collection.md` (section 1.2) before the dimension checks.
+
 **Action 1 — List clusters (test connectivity & discover clusters)**
 
 Run `aws eks list-clusters` to discover available clusters.
@@ -114,7 +117,7 @@ Do NOT proceed if cluster status is not ACTIVE.
 
 **Action 4 — Gather cluster context**
 
-For each kubectl target, compare the candidate context's server (`kubectl --context <ctx> config view --minify -o jsonpath='{.clusters[0].cluster.server}'`) with the endpoint from `aws eks describe-cluster --name <cluster> --region <region>`. Complete this comparison before issuing Kubernetes requests. Accept a matching alias. If no context matches, stop and ask the user to add the target's kubeconfig entry. Leave current-context unchanged. Every kubectl command in this skill runs with `--context <verified-context>` added, even where the example omits it. For MCP instead, match the active connection to the intended cluster ARN or endpoint before reading. Stop if the binding cannot be verified. Read nodes, namespaces, pods and deployments through the verified connection before scoring, including delegated assessments. If a core read fails, stop without a score. Other denied reads affect only their checks (UNKNOWN/SKIPPED). On denial, report the failed read. Use the cluster's authentication mode and any available access-entry information to diagnose it. A denied entry listing leaves the entries unverified.
+For each kubectl target, compare the candidate context's server (`kubectl --context <ctx> config view --minify -o jsonpath='{.clusters[0].cluster.server}'`) with the endpoint from `aws eks describe-cluster --name <cluster> --region <region>`. Complete this comparison before issuing Kubernetes requests. Accept a matching alias. If no context matches, stop and ask the user to add the target's kubeconfig entry. Leave current-context unchanged. Every kubectl command in this skill runs with `--context <verified-context>` added, even where the example omits it. For MCP instead, match the active connection to the intended cluster ARN or endpoint before reading. Stop if the binding cannot be verified. Read nodes, namespaces, pods and deployments through the verified connection before scoring, including delegated assessments. If a core read fails, stop without a score. Other denied reads make their dependent checks UNKNOWN; apply the dimension coverage rule in `references/report-generation.md`. On denial, report the failed read. Use the cluster's authentication mode and any available access-entry information to diagnose it. A denied entry listing leaves the entries unverified.
 
 Collect:
 - Kubernetes version and platform version
@@ -279,7 +282,7 @@ Before executing checks for any dimension, read the corresponding reference file
 
 | User Request | Reference File(s) to Load |
 |---|---|
-| Full cost assessment / audit / review | ALL dimension files in order (Steps 1–6), then `report-generation.md` |
+| Full cost assessment / audit / review | ALL dimension files in order (Steps 1–6), then `report-generation.md` and `findings-format.md` |
 | Compute efficiency / over-provisioning / CPU waste | `references/compute-efficiency.md` |
 | Spot / Graviton / instance types / arm64 | `references/spot-graviton-adoption.md` |
 | Networking costs / cross-AZ / NAT / VPC endpoints | `references/networking-costs.md` |

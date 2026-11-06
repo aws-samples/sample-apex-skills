@@ -92,7 +92,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --region <region>
 ```
@@ -183,7 +183,7 @@ kubectl get deployments -n <namespace> -o json | \
 # CloudWatch Logs Insights query for per-pod P95 over 7 days
 aws logs start-query \
   --log-group-name "/aws/containerinsights/<cluster>/performance" \
-  --start-time "$(date -u -d '7 days ago' +%s)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%s)" \
   --query-string '
     fields @timestamp, kubernetes.namespace_name, kubernetes.pod_name,
@@ -337,7 +337,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --region <region>
 ```

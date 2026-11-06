@@ -1,0 +1,72 @@
+{
+  "note": "Mock read-only scope facts already collected for this eval (kubectl get, aws eks/iam list and describe). Nothing was changed.",
+  "cluster": "demo-prod",
+  "region": "us-west-2",
+  "collected_at": "2026-11-05T16:40:00Z",
+  "auto_mode": false,
+  "pods_running_digest": [
+    {
+      "namespace": "shop",
+      "pod": "orders-api-7d9f8b6c5-abcde",
+      "node": "ip-10-0-1-21.us-west-2.compute.internal",
+      "owner": "deployment/orders-api",
+      "labels": {
+        "app": "orders-api"
+      },
+      "serviceAccount": "orders-api"
+    },
+    {
+      "namespace": "shop",
+      "pod": "orders-api-7d9f8b6c5-fghij",
+      "node": "ip-10-0-2-22.us-west-2.compute.internal",
+      "owner": "deployment/orders-api",
+      "labels": {
+        "app": "orders-api"
+      },
+      "serviceAccount": "orders-api"
+    }
+  ],
+  "other_pods_in_namespace": [
+    {
+      "pod": "cart-6c8d7f-xk2lp",
+      "labels": {
+        "app": "cart"
+      }
+    },
+    {
+      "pod": "checkout-5b7c9d-p8q7r",
+      "labels": {
+        "app": "checkout"
+      }
+    },
+    {
+      "pod": "catalog-84f6d-z1y2x",
+      "labels": {
+        "app": "catalog"
+      }
+    }
+  ],
+  "identity": {
+    "pod_identity_association": {
+      "associationId": "a-0123456789abcdef0",
+      "namespace": "shop",
+      "serviceAccount": "orders-api",
+      "roleArn": "arn:aws:iam::111122223333:role/orders-api-pod"
+    },
+    "role_attached_policies": [
+      "orders-api-s3-orders-bucket-rw",
+      "orders-api-sqs-orders-queue"
+    ],
+    "role_also_used_by": []
+  },
+  "cluster_controls": {
+    "network_policy_enforcement": true,
+    "policy_engine": "kyverno",
+    "guardduty_eks_protection": true,
+    "control_plane_logs": [
+      "api",
+      "audit",
+      "authenticator"
+    ]
+  }
+}

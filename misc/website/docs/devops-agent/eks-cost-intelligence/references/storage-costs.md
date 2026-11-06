@@ -144,6 +144,8 @@ PersistentVolumeClaims that are in `Bound` state (an EBS volume exists and is be
 
 Use the Kubernetes API to list all PersistentVolumeClaims and all running Pods. Cross-reference spec.volumes[].persistentVolumeClaim.claimName across all running pods to build a set of mounted PVCs. Identify PVCs in Bound state that are not in the mounted set.
 
+If a required read fails, treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not interpret unavailable inventory as an empty result or use it for findings.
+
 ### Analysis logic
 
 ```

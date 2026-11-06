@@ -1,0 +1,137 @@
+{
+  "schema": "eks-security/components@1",
+  "checked": "2026-11-05",
+  "notes": [
+    "This is a catalog of component names and read paths, not a version table. It changes when a component is added, not when a version ships.",
+    "Add-on names checked 2026-11-05 against https://docs.aws.amazon.com/eks/latest/userguide/workloads-add-ons-available-eks.html, https://docs.aws.amazon.com/eks/latest/userguide/eks-add-ons.html and https://docs.aws.amazon.com/eks/latest/userguide/community-addons.html.",
+    "auto_mode_managed checked 2026-11-05 against https://docs.aws.amazon.com/eks/latest/userguide/automode.html, https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html and the Considerations for Amazon EKS Auto Mode section of eks-add-ons.html.",
+    "auto_mode_managed:true means the capability is built into EKS Auto Mode and AWS patches it on Auto Mode nodes. It applies only to the built-in capability. An add-on or workload the customer installed, and one running on non Auto Mode nodes (managed node groups, self-managed nodes, Fargate) in a mixed cluster, stays customer-managed (eks-add-ons.html: 'if your cluster combines Auto mode with other compute options ... these add-ons remain necessary').",
+    "Aliases are matched case-insensitively against advisory package names and product names. A package with no alias match is kept in a record's unmapped list for review, never guessed.",
+    "read.fallback is the self-managed read path for a component that may run without its EKS add-on. read.image_repos lists image repository name suffixes for self-managed images whose namespace and workload name vary by install method."
+  ],
+  "feeds": [
+    {"id": "aws-bulletins-rss", "url": "https://aws.amazon.com/security/security-bulletins/rss/feed/", "format": "rss"},
+    {"id": "k8s-cve", "url": "https://kubernetes.io/docs/reference/issues-security/official-cve-feed/index.json", "format": "jsonfeed"},
+    {"id": "alas-al2023", "url": "https://alas.aws.amazon.com/AL2023/alas.rss", "format": "rss"},
+    {"id": "alas-al2", "url": "https://alas.aws.amazon.com/AL2/alas.rss", "format": "rss"},
+    {"id": "bottlerocket", "url": "https://advisories.bottlerocket.aws/updateinfo.xml.gz", "format": "updateinfo"},
+    {"id": "github-repo-advisory", "url": "https://api.github.com/repos/{owner}/{repo}/security-advisories/{ghsa}", "format": "ghsa"}
+  ],
+  "allowed_hosts": ["aws.amazon.com", "kubernetes.io", "alas.aws.amazon.com", "advisories.bottlerocket.aws", "api.github.com"],
+  "components": [
+    {
+      "id": "addon:vpc-cni",
+      "aliases": ["vpc-cni", "amazon-vpc-cni-k8s", "github.com/aws/amazon-vpc-cni-k8s", "Amazon VPC CNI", "Amazon VPC CNI plugin for Kubernetes", "VPC CNI Managed Add-on", "Amazon VPC CNI Managed Add-on"],
+      "read": {"kind": "eks-addon", "name": "vpc-cni", "fallback": {"kind": "container-image", "namespace": "kube-system", "workload": "daemonset/aws-node", "container": "aws-node"}},
+      "auto_mode_managed": true
+    },
+    {
+      "id": "image:aws-node/aws-network-policy-agent",
+      "aliases": ["aws-network-policy-agent", "github.com/aws/aws-network-policy-agent", "Amazon EKS Network Policy Agent"],
+      "read": {"kind": "container-image", "namespace": "kube-system", "workload": "daemonset/aws-node", "container": "aws-eks-nodeagent", "addon": "vpc-cni"},
+      "auto_mode_managed": true
+    },
+    {
+      "id": "addon:coredns",
+      "aliases": ["CoreDNS", "github.com/coredns/coredns"],
+      "read": {"kind": "eks-addon", "name": "coredns", "fallback": {"kind": "container-image", "namespace": "kube-system", "workload": "deployment/coredns", "container": "coredns"}},
+      "auto_mode_managed": true
+    },
+    {
+      "id": "addon:kube-proxy",
+      "aliases": ["kube-proxy"],
+      "read": {"kind": "eks-addon", "name": "kube-proxy", "fallback": {"kind": "container-image", "namespace": "kube-system", "workload": "daemonset/kube-proxy", "container": "kube-proxy"}},
+      "auto_mode_managed": true
+    },
+    {
+      "id": "addon:aws-ebs-csi-driver",
+      "aliases": ["aws-ebs-csi-driver", "github.com/kubernetes-sigs/aws-ebs-csi-driver", "Amazon EBS CSI driver"],
+      "read": {"kind": "eks-addon", "name": "aws-ebs-csi-driver"},
+      "auto_mode_managed": true
+    },
+    {
+      "id": "addon:aws-efs-csi-driver",
+      "aliases": ["aws-efs-csi-driver", "github.com/kubernetes-sigs/aws-efs-csi-driver", "Amazon EFS CSI driver"],
+      "read": {"kind": "eks-addon", "name": "aws-efs-csi-driver"},
+      "auto_mode_managed": false
+    },
+    {
+      "id": "addon:eks-pod-identity-agent",
+      "aliases": ["eks-pod-identity-agent", "github.com/aws/eks-pod-identity-agent", "EKS Pod Identity Agent", "Amazon EKS Pod Identity Agent"],
+      "read": {"kind": "eks-addon", "name": "eks-pod-identity-agent"},
+      "auto_mode_managed": true
+    },
+    {
+      "id": "image:aws-load-balancer-controller",
+      "aliases": ["aws-load-balancer-controller", "github.com/kubernetes-sigs/aws-load-balancer-controller", "sigs.k8s.io/aws-load-balancer-controller", "AWS Load Balancer Controller"],
+      "read": {"kind": "container-image", "namespace": null, "workload": null, "container": null, "image_repos": ["aws-load-balancer-controller"]},
+      "auto_mode_managed": false,
+      "note": "Self-managed image. Auto Mode's built-in load balancing runs on AWS owned infrastructure and is not this image; a controller the customer installed stays customer-managed."
+    },
+    {
+      "id": "image:karpenter",
+      "aliases": ["karpenter", "github.com/aws/karpenter-provider-aws", "github.com/aws/karpenter", "sigs.k8s.io/karpenter", "github.com/kubernetes-sigs/karpenter"],
+      "read": {"kind": "container-image", "namespace": null, "workload": null, "container": null, "image_repos": ["karpenter/controller"]},
+      "auto_mode_managed": false,
+      "note": "Self-managed image. Auto Mode's built-in autoscaling relies on Karpenter but runs on AWS owned infrastructure; a Karpenter the customer installed stays customer-managed."
+    },
+    {
+      "id": "image:cluster-autoscaler",
+      "aliases": ["cluster-autoscaler", "k8s.io/autoscaler/cluster-autoscaler", "github.com/kubernetes/autoscaler/cluster-autoscaler", "Cluster Autoscaler"],
+      "read": {"kind": "container-image", "namespace": null, "workload": null, "container": null, "image_repos": ["autoscaling/cluster-autoscaler"]},
+      "auto_mode_managed": false
+    },
+    {
+      "id": "addon:metrics-server",
+      "aliases": ["metrics-server", "sigs.k8s.io/metrics-server", "github.com/kubernetes-sigs/metrics-server", "Kubernetes Metrics Server"],
+      "read": {"kind": "eks-addon", "name": "metrics-server", "fallback": {"kind": "container-image", "namespace": null, "workload": null, "container": null, "image_repos": ["metrics-server/metrics-server"]}},
+      "auto_mode_managed": false
+    },
+    {
+      "id": "addon:aws-guardduty-agent",
+      "aliases": ["aws-guardduty-agent", "Amazon GuardDuty agent", "GuardDuty security agent"],
+      "read": {"kind": "eks-addon", "name": "aws-guardduty-agent"},
+      "auto_mode_managed": false
+    },
+    {
+      "id": "addon:amazon-cloudwatch-observability",
+      "aliases": ["amazon-cloudwatch-observability", "Amazon CloudWatch Observability agent", "github.com/aws/amazon-cloudwatch-agent", "github.com/aws/amazon-cloudwatch-agent-operator"],
+      "read": {"kind": "eks-addon", "name": "amazon-cloudwatch-observability"},
+      "auto_mode_managed": false
+    },
+    {
+      "id": "k8s:control-plane",
+      "aliases": ["kube-apiserver", "Kubernetes API server", "Kubernetes control plane", "Amazon EKS control plane"],
+      "read": {"kind": "control-plane", "field": "version", "note_field": "platform_version"},
+      "auto_mode_managed": false,
+      "managed_by": "aws",
+      "note": "AWS patches the EKS control plane in every mode. Compare the Kubernetes minor version; the platform version is reported as a note only."
+    },
+    {
+      "id": "node:kubelet",
+      "aliases": ["kubelet"],
+      "read": {"kind": "node-info", "field": "kubeletVersion"},
+      "auto_mode_managed": true,
+      "note": "Part of the node image. On Auto Mode nodes AWS ships it in the node AMI; on other nodes it follows the customer's AMI."
+    },
+    {
+      "id": "node-os:al2",
+      "aliases": ["Amazon Linux 2", "AL2", "amazon-linux-2"],
+      "read": {"kind": "node-os", "field": "osImage", "os_image_prefix": "Amazon Linux 2", "os_image_exclude_prefix": "Amazon Linux 2023"},
+      "auto_mode_managed": false
+    },
+    {
+      "id": "node-os:al2023",
+      "aliases": ["Amazon Linux 2023", "AL2023", "amazon-linux-2023"],
+      "read": {"kind": "node-os", "field": "osImage", "os_image_prefix": "Amazon Linux 2023"},
+      "auto_mode_managed": false
+    },
+    {
+      "id": "node-os:bottlerocket",
+      "aliases": ["Bottlerocket", "Bottlerocket OS"],
+      "read": {"kind": "node-os", "field": "osImage", "os_image_prefix": "Bottlerocket"},
+      "auto_mode_managed": true,
+      "note": "Auto Mode nodes use variants of Bottlerocket AMIs (automode.html). Bottlerocket nodes in node groups the customer runs stay customer-managed."
+    }
+  ]
+}

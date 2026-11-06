@@ -90,7 +90,7 @@ for LG in "${LOG_GROUPS[@]}"; do
     --namespace "AWS/Logs" \
     --metric-name "IncomingBytes" \
     --dimensions "Name=LogGroupName,Value=$LG" \
-    --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+    --start-time "$(( $(date +%s) - 7*86400 ))" \
     --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
     --period 604800 \
     --statistics Sum \
@@ -105,7 +105,7 @@ SEVEN_DAY_BYTES=$(aws cloudwatch get-metric-statistics \
   --namespace "AWS/Logs" \
   --metric-name "IncomingBytes" \
   --dimensions "Name=LogGroupName,Value=/aws/eks/${CLUSTER_NAME}/cluster" \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --period 604800 \
   --statistics Sum \
@@ -801,14 +801,16 @@ kubectl get daemonsets --all-namespaces -o json | \
 # Check if any log pipeline exists at all
 echo "--- Logging pipeline detection ---"
 echo "FluentBit:"
-kubectl get ds -A -l app.kubernetes.io/name=fluent-bit --no-headers 2>/dev/null | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=fluent-bit --no-headers | wc -l
 echo "Fluentd:"
-kubectl get ds -A -l app=fluentd --no-headers 2>/dev/null | wc -l
+kubectl get ds -A -l app=fluentd --no-headers | wc -l
 echo "CloudWatch agent:"
-kubectl get ds -A -l app.kubernetes.io/name=cloudwatch-agent --no-headers 2>/dev/null | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=cloudwatch-agent --no-headers | wc -l
 echo "ADOT:"
-kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers 2>/dev/null | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers | wc -l
 ```
+
+If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via EKS MCP Server:**
 
@@ -833,6 +835,7 @@ list_k8s_resources(
 
 ```
 # Step 1: Identify logging pipeline
+If required logging inventory is unavailable, mark the dimension SKIPPED; do not infer pipeline == None.
 pipeline = detect_logging_pipeline()  # FluentBit, Fluentd, CW Agent, ADOT, or None
 
 If pipeline == None:
@@ -1011,7 +1014,8 @@ actual_deduction = min(deduction, 10)  # Cap at maximum
 | Condition | Status |
 |-----------|--------|
 | All checks completed | ASSESSED |
-| Some checks skipped (no logging pipeline) | ASSESSED (with note) |
+| Successful reads confirm no logging pipeline | ASSESSED (with note) |
+| Required logging inventory read failed and no confirmed alternative is available | SKIPPED |
 | Cannot access cluster logging config at all | SKIPPED |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.
