@@ -21,7 +21,7 @@ The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade ca
 
 - AWS account with EKS clusters
 - AWS CLI installed and configured (`aws configure list`)
-- Python 3.11+ (`python3 --version`)
+- Python 3.11 to 3.14 (`python3 --version`)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
 
