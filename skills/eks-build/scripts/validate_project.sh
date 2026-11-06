@@ -530,9 +530,9 @@ else
     warn "terraform not found — skipping validate"
 fi
 
-# --- 12. Permissions boundary (optional) ---
+# --- 13. Permissions boundary (optional) ---
 echo ""
-echo "12. Permissions boundary"
+echo "13. Permissions boundary"
 echo "-------------------------------------------"
 
 CLUSTER_YAML="$PROJECT_DIR/configs/cluster.yaml"
