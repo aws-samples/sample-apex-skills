@@ -201,7 +201,7 @@ Do not use Karpenter interruption handling alongside AWS Node Termination Handle
 - Pod disruption budgets
 - `karpenter.sh/do-not-disrupt: "true"` annotation on pods or nodes
 
-These two protections gate **consolidation and drift** only. They do **not** block node **expiration** -- see [do-not-disrupt Does Not Block Expiration](#do-not-disrupt-does-not-block-expiration).
+These two protections gate **consolidation**, and **drift** unless the node's NodeClaim has a `terminationGracePeriod`. They do **not** block the forceful methods (**expiration**, **interruption**, manual deletion such as `kubectl delete node`), and `do-not-disrupt` does not block Node Auto Repair -- see [do-not-disrupt Does Not Block Expiration](#do-not-disrupt-does-not-block-expiration).
 
 ### Set requests=limits for Non-CPU Resources
 
@@ -243,7 +243,7 @@ spec:
 
 ### do-not-disrupt Does Not Block Expiration
 
-`karpenter.sh/do-not-disrupt: "true"` and blocking PDBs gate the **graceful/voluntary** disruption methods -- consolidation and drift. **Expiration (`expireAfter`) is a forceful disruption method and is NOT blocked by these protections.** When a node reaches `expireAfter`, Karpenter proceeds with replacement regardless of the annotation; pod eviction is deferred at most until the node's configured `terminationGracePeriod` (see below), after which pods are force-drained. Do not rely on `do-not-disrupt` to keep an expired node alive indefinitely -- use it to protect against consolidation/drift churn, and tune `expireAfter` for node lifetime.
+`karpenter.sh/do-not-disrupt: "true"` and blocking PDBs gate the **graceful/voluntary** disruption methods -- consolidation, and drift unless the NodeClaim has a `terminationGracePeriod`. **The forceful methods (expiration via `expireAfter`, interruption, and manual deletion such as `kubectl delete node`) are NOT blocked by these protections, and `do-not-disrupt` does not block Node Auto Repair either (alpha, `NodeRepair` feature gate, off by default; annotate the node `karpenter.sh/do-not-repair: "true"` to exclude it).** When a node reaches `expireAfter`, Karpenter proceeds with replacement regardless of the annotation; pod eviction waits at most for the node's `terminationGracePeriod` when one is set, after which pods are force-drained; with none set (the default, see below), a `do-not-disrupt` pod can block the drain indefinitely. Do not rely on `do-not-disrupt` to keep an expired node alive indefinitely -- use it to protect against consolidation/drift churn, and tune `expireAfter` for node lifetime.
 
 ### NodePool terminationGracePeriod (v1)
 
@@ -269,7 +269,7 @@ spec:
 - **Raise `consolidateAfter`.** The examples in this doc use short values like `1m` to illustrate the field; short windows make Karpenter act on brief lulls. Values in the **15--60m** range let load settle before consolidation triggers, cutting churn.
 - **Add `disruption.budgets`** to cap how many nodes move at once (start from the default 10%, and consider reasons-based budgets to throttle only `Underutilized`).
 - **Use `WhenEmpty` on the single most interruption-sensitive NodePool** -- not generically across every NodePool. Reserve conservative consolidation for the workloads that most dislike being moved, and keep `WhenEmptyOrUnderutilized` (or `Balanced`) elsewhere so you still capture savings.
-- **Apply `do-not-disrupt` to the critical pods themselves** so consolidation and drift leave them in place (remember this does not stop expiration).
+- **Apply `do-not-disrupt` to the critical pods themselves** so consolidation and drift leave them in place (remember this does not stop expiration, interruption, manual deletion or Node Auto Repair, nor drift once the NodeClaim has a `terminationGracePeriod`).
 
 ---
 
@@ -388,9 +388,9 @@ If routing Karpenter container logs to CloudWatch Logs, create a metrics filter 
 
 ### Use do-not-disrupt for Long-Running Workloads
 
-For batch jobs, ML training, or stateful workloads that are expensive to restart, annotate pods with `karpenter.sh/do-not-disrupt: "true"`. This prevents Karpenter from disrupting the node via **consolidation or drift** while the pod runs; the annotation is respected until the pod terminates or the annotation is removed.
+For batch jobs, ML training, or stateful workloads that are expensive to restart, annotate pods with `karpenter.sh/do-not-disrupt: "true"`. This prevents Karpenter from disrupting the node via **consolidation**, and via **drift** unless the NodeClaim has a `terminationGracePeriod`, while the pod runs; the annotation is respected until the pod terminates or the annotation is removed.
 
-**It does not, however, block expiration.** `expireAfter` is a forceful disruption method: when a node hits its expiry, Karpenter replaces it regardless of `do-not-disrupt` (pod eviction is deferred at most until the node's `terminationGracePeriod`). See [do-not-disrupt Does Not Block Expiration](#do-not-disrupt-does-not-block-expiration). For workloads that must not be interrupted mid-run, size `expireAfter` (and, if set, `terminationGracePeriod`) to outlast the work rather than relying on the annotation alone.
+**It does not, however, block the forceful methods (expiration, interruption, manual deletion) or Node Auto Repair.** `expireAfter` is a forceful disruption method: when a node hits its expiry, Karpenter replaces it regardless of `do-not-disrupt` (pod eviction waits for the node's `terminationGracePeriod` if one is set; with none set, the drain can block indefinitely). See [do-not-disrupt Does Not Block Expiration](#do-not-disrupt-does-not-block-expiration). For workloads that must not be interrupted mid-run, size `expireAfter` (and, if set, `terminationGracePeriod`) to outlast the work rather than relying on the annotation alone.
 
 Note: if the only non-daemonset pods left on a node are from completed Jobs (status succeeded or failed), Karpenter can still terminate that node.
 

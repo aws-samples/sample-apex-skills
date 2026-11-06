@@ -200,7 +200,7 @@ Envelope encryption is on by default (≥1.28) and covers all Kubernetes API dat
 | Probe | Purpose | Key Rule |
 |-------|---------|----------|
 | **Startup** | Wait for slow init | Use for apps >10s startup |
-| **Readiness** | Traffic routing | ✅ Check dependencies here |
+| **Readiness** | Traffic routing | Pod-local checks only; avoid external dependencies such as a database |
 | **Liveness** | Detect deadlocks | ❌ Never check dependencies |
 
 **Critical rule:** Liveness probes must NOT check external dependencies. If the database goes down and liveness checks the DB, ALL pods restart — causing cascading failure.

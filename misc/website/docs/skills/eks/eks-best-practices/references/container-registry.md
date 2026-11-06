@@ -301,7 +301,8 @@ ECR pull-through cache rules automatically cache images from upstream public reg
 
 1. Pod requests image via ECR pull-through cache URI (e.g., `<acct>.dkr.ecr.<region>.amazonaws.com/docker-hub/library/nginx:1.25`)
 2. ECR checks if image exists in cache
-3. If missing or stale (>24 hours since last check), ECR pulls from upstream -- this requires internet access via NAT gateway or VPC endpoint
+3. If the image is not in the cache (its first pull), ECR pulls it from upstream. That pull needs a route to the internet, for example a NAT gateway: an interface VPC endpoint (AWS PrivateLink) to ECR alone is not enough. Later pulls through the rule do not need it.
+   - Once a cached image is more than 24 hours past its last upstream check, ECR checks upstream for a newer version and updates the cache if one exists.
 4. ECR stores the image (including multi-arch manifests) and serves it locally
 5. Subsequent pulls come from cache with no upstream dependency
 
