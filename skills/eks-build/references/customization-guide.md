@@ -70,7 +70,7 @@ EOF
 systemctl daemon-reload && systemctl restart containerd
 ```
 
-**NO_PROXY must include**: `169.254.169.254` (IMDS), `169.254.170.2` (the ECS task-role credentials address), `169.254.170.23` and `[fd00:ec2::23]` (the EKS Pod Identity Agent, IPv4 and IPv6; needed by pods that use a proxy), `10.0.0.0/8` (VPC CIDR -- adjust as needed), `.internal`, `.eks.amazonaws.com`, `.s3.amazonaws.com`, `.ecr.amazonaws.com`, `.dkr.ecr.amazonaws.com`.
+**NO_PROXY must include (all layers)**: `169.254.169.254` (IMDS), `10.0.0.0/8` (VPC CIDR -- adjust as needed), `.internal`, `.eks.amazonaws.com`, `.s3.amazonaws.com`, `.ecr.amazonaws.com`, `.dkr.ecr.amazonaws.com`. Pods that use a proxy also need the Pod Identity Agent addresses, `169.254.170.23` and `fd00:ec2::23` (IPv4 and IPv6; write it without brackets: Go and curl do not match the bracketed form the AWS page shows). `169.254.170.2` is the ECS task-role address, unused on EKS; it is harmless to keep.
 
 **Proxy-aware addon config** -- inject env vars via Helm `set` in `addons.yaml`:
 ```yaml
@@ -79,7 +79,8 @@ aws_load_balancer_controller:
     set:
       - { name: env.HTTP_PROXY,  value: "http://<PROXY_HOST>:<PROXY_PORT>" }
       - { name: env.HTTPS_PROXY, value: "http://<PROXY_HOST>:<PROXY_PORT>" }
-      - { name: env.NO_PROXY,    value: "169.254.169.254,169.254.170.2,169.254.170.23,[fd00:ec2::23],10.0.0.0/8,.internal,.eks.amazonaws.com" }
+      # Helm set splits values on commas, so escape each one as \, (single quotes keep the backslash).
+      - { name: env.NO_PROXY,    value: '169.254.169.254\,169.254.170.2\,169.254.170.23\,fd00:ec2::23\,10.0.0.0/8\,.internal\,.eks.amazonaws.com' }
 ```
 Apply the same pattern to: `cluster_autoscaler`, `external_dns`, `external_secrets`, `cert_manager`, `velero`, and `ingress_nginx`.
 
