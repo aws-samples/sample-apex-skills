@@ -85,7 +85,7 @@ Only attach these policies -- never application permissions:
 
 **Key components:**
 1. `module "karpenter"` -- controller IAM role (Pod Identity) + node IAM role
-2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`)
+2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`), with `depends_on = [module.eks_addons_webhooks]` in Pattern 1
 3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs
 4. `aws_ec2_tag` -- discovery tags on private subnets and cluster primary security group
 
@@ -126,6 +126,8 @@ spec:
     memory: 2000Gi
   weight: 50
 ```
+
+Multi-arch nodes need multi-arch images: with `arm64` in the NodePool, each workload image must be a manifest list (OCI image index) that covers `linux/amd64` and `linux/arm64` (two native builds joined, or one `buildx` build for both platforms), so a pod scheduled onto a Graviton node pulls the arm64 binary, or the workload must be pinned with a `kubernetes.io/arch` nodeSelector. See [graviton-migration multi-arch pipelines](../../../general/graviton-migration/references/multi-arch-pipelines).
 
 EC2NodeClass defaults:
 

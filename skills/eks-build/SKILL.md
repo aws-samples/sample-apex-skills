@@ -119,7 +119,7 @@ Generate the `gitops/` tree with ArgoCD ApplicationSets. Use cluster ARN as dest
 
 ### Step 9-10: README and Validate
 
-Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration.
+Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration. A section 11 (Karpenter discovery tags) FAIL is a literal tag mismatch: fix it. A section 11 WARN means the match could not be proved from the files (an expression, a wildcard value, a map passed by reference, a tag target or input the script does not read), or is risky (a tag only on public subnets, a stray term beside a matching one); resolve each one by hand before deploying. For the usual Pattern 2 shape, a literal cluster name in GitOps YAML against Terraform's `local.cluster_config.name`, the script reads `name` from configs/cluster.yaml and gives PASS on a match and FAIL on a mismatch; WARN only when that name cannot be read.
 
 ## Critical Build Rules
 
@@ -130,8 +130,9 @@ Non-negotiable lessons from production deployments. Violating any causes deploym
 Split `eks-blueprints-addons` into TWO module calls:
 - **Phase 1**: LBC + Gatekeeper only, `wait: true`
 - **Phase 2**: All other addons, `depends_on = [module.eks_addons_webhooks]`
+- **Standalone Karpenter `helm_release`** (outside both module calls): also `depends_on = [module.eks_addons_webhooks]`
 
-LBC and Gatekeeper register webhooks (`failurePolicy: Fail`) before pods are ready. Without two-phase, these webhooks block all other addon deployments.
+LBC and Gatekeeper register webhooks (`failurePolicy: Fail`) before pods are ready. Without two-phase, these webhooks block all other addon deployments. Karpenter (chart v1.1 and later) registers no webhooks, but its Service passes through the Phase 1 LBC webhook, so it is gated too.
 
 ### 2. before_compute: true
 
