@@ -69,7 +69,7 @@ export function jobLabel(job: {title: string; stage?: string}): string {
 export const PLATFORM_LABEL: Record<Platform, string> = {
   eks: 'EKS',
   ecs: 'ECS',
-  general: 'Any',
+  general: 'General',
 };
 
 type Lines = {job: JobId; use: string; notFor?: string; output?: string};
@@ -83,7 +83,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-best-practices': {
     job: 'knowledge',
-    use: 'Answer EKS architecture and configuration questions.',
+    use: 'Answer EKS and Kubernetes architecture and configuration questions.',
     notFor: 'generating documents or code (eks-design, eks-build)',
     output: 'Advice grounded in EKS best practices',
   },
@@ -95,13 +95,13 @@ const LINES: Record<string, Lines> = {
   },
   'eks-genai': {
     job: 'knowledge',
-    use: 'Plan GPU, Neuron, model serving or training on EKS.',
+    use: 'Plan GPU, Neuron, LLM serving or training on EKS.',
     notFor: 'Bedrock-only or SageMaker-only workloads',
     output: 'A GenAI stack plan with compute, serving and storage choices',
   },
   'ecs-architect': {
     job: 'knowledge',
-    use: 'Pick the ECS deployment model for a new workload.',
+    use: 'Pick Fargate, EC2 or Managed Instances for a new ECS workload.',
     notFor: 'replatforming an existing app (ecs-modernize)',
     output: 'A launch type, capacity strategy and service design',
   },
@@ -138,7 +138,7 @@ const LINES: Record<string, Lines> = {
   'dotnet-aws-ecs': {
     job: 'build',
     use: 'Deploy a .NET app to ECS Fargate on Linux.',
-    notFor: 'Windows containers or EKS',
+    notFor: 'Windows containers, the EC2 launch type or EKS',
     output: 'CloudFormation or CDK plus a deployment guide',
   },
   'terraform-skill': {
@@ -172,7 +172,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-well-architected-review': {
     job: 'assess',
-    use: 'Run a Well-Architected review of an EKS cluster.',
+    use: 'Run an unofficial Well-Architected-style review of an EKS cluster (not the AWS Well-Architected Tool).',
     notFor: 'any other audit or score',
     output: 'An HTML report scored on five pillars',
   },
@@ -184,7 +184,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-upgrade-check': {
     job: 'migrate',
-    use: 'Check if an EKS cluster is ready for its next version.',
+    use: 'Check if an EKS cluster is ready for its next Kubernetes version.',
     notFor: 'a general operations audit (eks-operation-review)',
     output: 'A 0 to 100 readiness score and a remediation report',
   },
@@ -198,7 +198,7 @@ const LINES: Record<string, Lines> = {
     job: 'migrate',
     use: 'Move workloads from x86 to Graviton (arm64).',
     notFor: 'estimating Graviton savings (eks-cost-intelligence)',
-    output: 'An arm64 readiness scan, node cutover and multi-arch builds',
+    output: 'An arm64 readiness scan, node cutover (EKS with Karpenter) and multi-arch builds',
   },
   'ecs-modernize': {
     job: 'migrate',
@@ -208,9 +208,9 @@ const LINES: Record<string, Lines> = {
   },
   'eks-security': {
     job: 'secure',
-    use: 'Check an EKS cluster against CVEs, events and posture.',
+    use: 'Check an EKS cluster for exposure, respond to a security event and harden it.',
     notFor: 'a Well-Architected review (eks-well-architected-review)',
-    output: 'Exposed or not-exposed verdicts and a hardening plan',
+    output: 'Exposed, not-exposed or unknown verdicts and a hardening plan',
   },
   'ecs-security': {
     job: 'knowledge',
@@ -226,7 +226,7 @@ const LINES: Record<string, Lines> = {
   },
   'skill-creator': {
     job: 'extend',
-    use: 'Create a new skill or improve an existing one.',
+    use: 'Write a new skill or improve an existing one.',
     output: 'A skill with evals and a tuned description',
   },
   'update-docs': {
@@ -237,7 +237,7 @@ const LINES: Record<string, Lines> = {
   apex: {
     job: 'extend',
     use: 'Not sure which skill? Describe the task and apex picks one.',
-    output: 'The right skill loaded, and its runbook',
+    output: 'The right skill loaded, with its runbook when one exists',
   },
 };
 
