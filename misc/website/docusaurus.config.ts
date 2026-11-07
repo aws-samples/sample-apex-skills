@@ -162,14 +162,14 @@ const config: Config = {
       },
       items: [
         {
-          to: '/skills',
-          position: 'left',
-          label: 'Skills',
-        },
-        {
           to: '/docs/getting-started',
           position: 'left',
           label: 'Get started',
+        },
+        {
+          to: '/skills',
+          position: 'left',
+          label: 'Skills',
         },
         {
           to: '/docs/examples',
@@ -180,6 +180,11 @@ const config: Config = {
           to: '/blog',
           position: 'left',
           label: 'Blog',
+        },
+        {
+          to: '/docs/workshop',
+          position: 'left',
+          label: 'Workshop',
         },
         {
           href: 'https://github.com/aws-samples/sample-apex-skills',
