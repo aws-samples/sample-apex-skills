@@ -21,13 +21,13 @@ Choose the right Amazon ECS compute/launch model for a workload, architect the c
 
 ## Don't Use
 
-- **Existing application** you want to replatform or refactor onto ECS (assess app → replatform vs refactor → target design) — use the `ecs-modernize` skill once available. This skill is greenfield model selection; `ecs-modernize` starts from an app and adds the assessment + replatform/refactor decision on top, then leans on this skill for the target design.
-- **Auditing / scoring a live estate** GREEN/AMBER/RED across best-practices domains — use the `ecs-operation-review` skill once available (Day-2 evaluative). This skill is Day-0 generative.
+- **Existing application** you want to replatform or refactor onto ECS (assess app → replatform vs refactor → target design) — use the `ecs-modernize` skill. This skill is greenfield model selection; `ecs-modernize` starts from an app and adds the assessment + replatform/refactor decision on top, then leans on this skill for the target design.
+- **Auditing / scoring a live estate** GREEN/AMBER/RED across best-practices domains — use the `ecs-operation-review` skill (Day-2 evaluative). This skill is Day-0 generative.
 - **Dollar-denominated cost / TCO** analysis (Fargate vs EC2 vs Spot economics, Savings Plans, right-sizing with $ findings) — use the `ecs-cost-intelligence` skill once available. This skill covers cost *posture* as a selection criterion, not quantified TCO.
-- **Discovering what is already running** (inventory launch types, capacity providers, task defs) — use the `ecs-recon` skill once available (until then, inventory with `aws ecs list-*` / `describe-*`).
+- **Discovering what is already running** (inventory launch types, capacity providers, task defs) — use the `ecs-recon` skill.
 - **Security / compliance hardening** (task-role trust, secrets injection, GuardDuty, PCI/HIPAA/FedRAMP scope) — use `ecs-security`.
-- **Deployment strategy + CI/CD** (rolling/blue-green/canary mechanics, circuit breaker, pipelines) — use the `ecs-devops` skill once available. This skill names *which* deployment controller a model supports; `ecs-devops` designs the release process.
-- **Observability stack** (FireLens vs awslogs, Container Insights vs Prometheus/ADOT vs 3rd-party) — use the `ecs-observability` skill once available.
+- **Deployment strategy + CI/CD** (rolling/blue-green/canary mechanics, circuit breaker, pipelines) — use the `ecs-devops` skill. This skill names *which* deployment controller a model supports; `ecs-devops` designs the release process.
+- **Observability stack** (FireLens vs awslogs, Container Insights vs Prometheus/ADOT vs 3rd-party) — use the `ecs-observability` skill.
 - **GPU / ML / inference workload** design — use `ecs-genai`. This skill states only the Fargate-has-no-GPU boundary; **the GPU launch-type choice itself (EC2 vs Managed Instances, instance families, Capacity Blocks) and the workload design are `ecs-genai`'s** — defer "which ECS launch type for GPU" there.
 - **App Runner** ("should I use App Runner instead?", App Runner→ECS migration) — App Runner is moving to maintenance (no new customers as of April 30, 2026); route the migration design here (target is usually Express Mode; `ecs-build` renders it).
 - **Kubernetes / EKS** — use `eks-design` / `eks-best-practices`. ECS is AWS-proprietary orchestration; if the customer needs the Kubernetes API or cross-cloud portability, ECS is the wrong service.
@@ -40,7 +40,7 @@ This skill is **advisory and generative**. It produces recommendations, decision
 
 ## Discovery-Driven Decision Framework
 
-Do not recommend a model before you have the answers to these. If the workload is an existing estate rather than greenfield, run a discovery/inventory pass first (the `ecs-recon` skill once available, or `aws ecs describe-*`), then return here.
+Do not recommend a model before you have the answers to these. If the workload is an existing estate rather than greenfield, run a discovery/inventory pass first (the `ecs-recon` skill), then return here.
 
 | Dimension | Question | Why it steers the decision |
 |-----------|----------|----------------------------|

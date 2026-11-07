@@ -4,7 +4,7 @@
 > **Purpose:** Generate the Replatform_Environment_Terraform for an approved **Linux** Replatform path — an ECS on EC2 cluster with an Auto Scaling group, a `bridge`-mode task definition with dynamic host port mapping, a fixed-`desiredCount` service with no scaling policy, and an ALB whose target group carries `stickiness` exactly when the in-process session Blocker was detected — conforming to the repository terraform-skill's conventions, verified by `terraform validate` as the sole applicability check, with an unresolved image URI handled as a Terraform input variable
 > **Prerequisites:** **Execution_Gate passage** + **Containerization execution** ([containerization-execution.md](containerization-execution.md)) — the image URI for the task definition; when the URI is unresolved, define it as a Terraform input variable per the [unresolved image URI rule](#unresolved-image-uri--input-variable-rule)
 
-This module builds the target environment for an approved **Linux Replatform path** — ECS on EC2, containerize-as-is. It exists because **`ecs-build`'s generation scope does not cover the Replatform shape**: `ecs-build` generates `network_mode = "awsvpc"` task definitions exclusively and services that always use a `capacity_provider_strategy`, and it carries no knowledge of ALB target-group `stickiness`, `bridge` networking, or dynamic host port mapping. Those four elements are precisely what the Replatform path requires ([replatform-path.md](replatform-path.md)), so handing this path to `ecs-build` would produce an environment that contradicts the approved strategy.
+This module builds the target environment for an approved **Linux Replatform path** — ECS on EC2, containerize-as-is ([replatform-path.md](replatform-path.md)). It is generated in this skill; see [Delegation Boundaries](../SKILL.md#delegation-boundaries).
 
 State that rationale explicitly whenever this module runs: the user should know *why* the Rearchitect compute models hand off to `ecs-build` (see [deploy-verify-handoff.md](deploy-verify-handoff.md)) while the Replatform path does not. Never route a Replatform environment IaC request to `ecs-build`; the delegation boundary and the future-support note — if `ecs-build` gains `bridge`/stickiness/launch-type generation, this module's generation is replaced by a delegation — are canonical in [SKILL.md](../SKILL.md).
 
@@ -91,7 +91,7 @@ A verified skeleton ships with this skill at **[`assets/replatform-terraform/`](
 
 ### What "verified" means here, and what the skeleton is not
 
-The skeleton is verified in a specific, limited sense: it formats, validates, plans and has been applied and destroyed against a real account. That is **not** the same as production-hardened, and it must not be presented as a hardened baseline. As shipped it carries, deliberately:
+The skeleton is verified in a specific, limited sense: it formats, validates, plans and has been applied and destroyed against a real account. That is **not** the same as production-hardened, and it must not be presented as a hardened baseline. As shipped it carries, deliberately, at least the following (the table is not exhaustive: for example, the skeleton enables no ALB access logs):
 
 | As shipped | Why, and what to do before production |
 |---|---|
@@ -99,6 +99,7 @@ The skeleton is verified in a specific, limited sense: it formats, validates, pl
 | **Egress `0.0.0.0/0`** | The unmodified application's outbound dependencies are not known from source analysis. Narrow it once they are enumerated |
 | **ECS Exec off by default** | Turning it on with no `execute_command_configuration` means an unaudited interactive shell. Enable it deliberately, and pair it with cluster-level Exec logging |
 | **No Container Insights** | Left off so the exercise's CloudWatch cost is near zero. Enable it for anything you intend to operate |
+| **Stickiness cookie over HTTP:80** (when enabled) | The `lb_cookie` stickiness cookie, like any session cookie the application sets, travels unencrypted on the HTTP listener, where anyone on the path can read and replay it. The HTTPS listener above closes this |
 | **IMDSv2 required, hop limit 1** | Already set — the hop limit is what keeps bridge-networked containers off the instance credentials |
 
 State this boundary when handing the environment over, and name **`ecs-security`** for the hardening pass. A migration cutover environment and a production environment are not the same artifact, and the difference is the user's to close.
@@ -136,7 +137,7 @@ The Replatform path's target compute model is **ECS on EC2** ([replatform-path.m
 
 ### Task definition — bridge mode and dynamic host ports
 
-This is the element `ecs-build` cannot generate, and the reason this module exists:
+This element is generated in this skill (see [Delegation Boundaries](../SKILL.md#delegation-boundaries)):
 
 - **`network_mode = "bridge"`** — the unmodified application is not being adapted to per-task ENIs, and `bridge` allows several tasks per instance without ENI density limits. State the grounds: this is a containerize-as-is path, and `awsvpc` would change the network model the application and its operators know.
 - **Dynamic host port mapping** — `hostPort = 0` against the application's `containerPort`, so ECS assigns an ephemeral host port and multiple tasks of the same service coexist on one instance ([dynamic port mapping](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-load-balancing.html)). The ALB target group discovers the assigned port through the service registration; the container-instance security group must therefore admit the **ephemeral port range** from the ALB security group, not a single fixed port.
@@ -328,7 +329,7 @@ Instance type, instance count, CPU, memory, or `desired_count` not in evidence: 
 
 ### The user asks `ecs-build` to generate the Replatform environment
 
-State the gap rather than routing the request: `ecs-build` generates `awsvpc` task definitions and capacity-provider services exclusively, and carries no `stickiness`, `bridge`, or dynamic-host-port knowledge — so it cannot produce this path's shape. This module generates it instead. If `ecs-build` later gains that coverage, the delegation replaces this module per the note in [SKILL.md](../SKILL.md).
+Do not route the request: this path's environment is generated in this skill (see [Delegation Boundaries](../SKILL.md#delegation-boundaries)), so this module generates it.
 
 ---
 
