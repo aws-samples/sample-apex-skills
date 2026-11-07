@@ -388,7 +388,7 @@ For detailed network policy guidance including default-deny patterns, DNS allow 
 
 | Option | Standard | EKS Support | Features |
 |--------|----------|-------------|----------|
-| **VPC CNI Network Policy** | K8s NetworkPolicy | Native (v1.14+) | L3/L4 policies, eBPF-based |
+| **VPC CNI Network Policy** | K8s NetworkPolicy | Native (use v1.21.1+) | L3/L4 policies, eBPF-based |
 | **Calico** | K8s + Calico extended | Add-on | L3/L4 + DNS-based policies |
 | **Cilium** | K8s + Cilium extended | Self-managed | L3/L4/L7 + DNS + identity |
 
