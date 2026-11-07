@@ -1178,3 +1178,11 @@ code {
 .apex-mentions .apex-hits {
   margin-top: 0.5rem;
 }
+
+/* Links inside running text are underlined, not told apart by colour alone */
+.markdown a,
+.apex-install__more a,
+.apex-skillhead__facts a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

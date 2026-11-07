@@ -221,7 +221,7 @@ const config: Config = {
       copyright: `Built by AWS Solutions Architects, TAMs and ProServe. MIT-0 License. Copyright © ${new Date().getFullYear()} Amazon.com, Inc. or its affiliates.`,
     },
     prism: {
-      theme: prismThemes.github,
+      theme: prismThemes.vsLight,
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['bash', 'hcl', 'yaml', 'json'],
     },
