@@ -54,13 +54,15 @@ The same JSON below works for every supported assistant — only the config file
 
 `<version>` is the SKILL.md Step 1b result: `latest`, or the exact version the user pinned.
 
+The package is `mcp-proxy-for-aws-cli`, which the proxy's maintainers recommend for `uvx`: each release pins the proxy's whole dependency tree to tested versions. The AWS EKS user guide still shows the unsuffixed `mcp-proxy-for-aws`, the library distribution with loose dependency ranges.
+
 ```json
 {
   "mcpServers": {
     "eks-mcp": {
       "command": "uvx",
       "args": [
-        "mcp-proxy-for-aws@<version>",
+        "mcp-proxy-for-aws-cli@<version>",
         "https://eks-mcp.{region}.api.aws/mcp",
         "--service", "eks-mcp",
         "--region", "{region}"
@@ -85,7 +87,7 @@ Add `--read-only` to args to disable write operations:
 
 ```json
 "args": [
-  "mcp-proxy-for-aws@<version>",
+  "mcp-proxy-for-aws-cli@<version>",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--region", "{region}",
@@ -99,7 +101,7 @@ Specify a profile with `--profile`:
 
 ```json
 "args": [
-  "mcp-proxy-for-aws@<version>",
+  "mcp-proxy-for-aws-cli@<version>",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--profile", "production",
@@ -113,8 +115,8 @@ Use this format for the args array:
 
 ```json
 "args": [
-  "--from", "mcp-proxy-for-aws@<version>",
-  "mcp-proxy-for-aws.exe",
+  "--from", "mcp-proxy-for-aws-cli@<version>",
+  "mcp-proxy-for-aws-cli.exe",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--region", "{region}"
