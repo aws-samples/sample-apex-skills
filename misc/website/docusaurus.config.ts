@@ -11,6 +11,7 @@ const config: Config = {
 
   url: 'https://aws-samples.github.io',
   baseUrl: '/sample-apex-skills/',
+  trailingSlash: true,
 
   organizationName: 'aws-samples',
   projectName: 'sample-apex-skills',
