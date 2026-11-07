@@ -39,6 +39,7 @@ The following permissions are included:
 
 **EC2 (required):**
 - `ec2:DescribeInstances`
+- `ec2:DescribeInstanceTypes`
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`
