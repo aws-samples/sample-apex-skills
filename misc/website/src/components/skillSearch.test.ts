@@ -69,6 +69,14 @@ const FIRST: [string, string, number?][] = [
   ['upgrade check.', 'eks-upgrade-check', 2],
   ['1.32', 'eks-upgrade-check'],
   ['terraform skill', 'terraform-skill'],
+  // D1: task sentences drop their filler words; a few aliases.
+  ['how do i upgrade my cluster', 'eks-upgrade-check'],
+  ['audit my cluster', 'eks-operation-review'],
+  ['what is running in my cluster', 'eks-recon'],
+  ['help me write a skill', 'skill-creator'],
+  ['save money', 'eks-cost-intelligence'],
+  ['k8s', 'eks-best-practices'],
+  ['k8s upgrade', 'eks-upgrade-check'],
 ];
 
 for (const [query, want, most] of FIRST) {

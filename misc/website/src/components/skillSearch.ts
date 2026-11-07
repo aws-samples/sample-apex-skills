@@ -5,7 +5,8 @@ import type {CatalogSkill} from './skillCatalog';
 //    widening;
 // 2. words are whole words, compared after a trailing "ing", "s" or "es"
 //    (then "e") is cut, so "upgrades" finds "upgrade"; words under 2
-//    characters, and "skill" and "skills", are dropped;
+//    characters, and the STOP words of a task sentence ("how do i ... my"),
+//    are dropped, and an ALIAS word is read as its target;
 // 3. per word, a whole-word hit in the skill name scores 10, a part-word hit
 //    in the name 6, the short summary 3, the description 1; the whole query
 //    found as whole words in the name adds 20, which makes that skill the top
@@ -17,8 +18,21 @@ import type {CatalogSkill} from './skillCatalog';
 
 const ROUTE_AWAY = /\b(do not use|not for|skip for|route elsewhere|use instead)\b/i;
 const SKILL_TOKEN = /\b(eks|ecs)-[a-z]+(-[a-z]+)*\b/i;
-// "skills" stems to "skill".
-const STOP = new Set(['skill']);
+// Query words only. "skills" stems to "skill"; the rest are the filler of a
+// task sentence such as "how do i upgrade my cluster".
+const STOP = new Set(
+  ['skill', 'how', 'do', 'does', 'can', 'should', 'me', 'my', 'our', 'we', 'you', 'your', 'the', 'an', 'to', 'for',
+    'of', 'in', 'with', 'what', 'which', 'is', 'are', 'it', 'this', 'help', 'want', 'need', 'please'].map(stem),
+);
+// A word visitors type for one the skills use. Each target is the word in the
+// skill's own text: "Native K8s" next to Kubernetes (eks-best-practices
+// SKILL.md:35); "wasting money, and how much can I save" and "spending
+// assessment" (eks-cost-intelligence SKILL.md:12, :18), whose name says cost.
+const ALIAS = new Map(
+  [['k8s', 'kubernetes'], ['save', 'cost'], ['saving', 'cost'], ['money', 'cost'], ['spend', 'cost'], ['spending', 'cost']].map(
+    ([from, to]) => [stem(from), stem(to)],
+  ),
+);
 const PLATFORM_ORDER = {eks: 0, ecs: 1, general: 2} as const;
 
 type Indexed = {skill: CatalogSkill; name: string; summary: Set<string>; description: Set<string>};
@@ -58,7 +72,10 @@ function words(text: string): string[] {
 }
 
 export function queryWords(query: string): string[] {
-  return words(query).filter((w) => !STOP.has(w));
+  const kept = words(query)
+    .filter((w) => !STOP.has(w))
+    .map((w) => ALIAS.get(w) ?? w);
+  return [...new Set(kept)];
 }
 
 export function buildIndex(skills: CatalogSkill[]): Indexed[] {
