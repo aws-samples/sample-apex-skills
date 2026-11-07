@@ -37,6 +37,7 @@ Position AWS-native (ECR Enhanced Scanning + Inspector + Security Hub) as the de
 - Prefer **distroless / minimal base images** to shrink the CVE surface.
 - Generate an **SBOM** and enforce build provenance where the regime requires it.
 - DLC and ML images carry large dependency trees (PyTorch, CUDA), the CVE surface is far larger than typical microservices; scan on push **and** on a schedule for base-image drift.
+- Keep **language runtimes** in images (Node.js, PHP and similar) on a release their project still patches. Inspector reports a runtime installed as an OS package; a runtime built from a release tarball, as the official `node` and `php` images do, may not show up, so check the runtime's own release and security pages (for example [Node.js releases](https://nodejs.org/en/about/previous-releases), [PHP supported versions](https://www.php.net/supported-versions.php)). Inspector's ECR coverage: [supported operating systems and programming languages](https://docs.aws.amazon.com/inspector/latest/user/supported.html).
 
 ## Shared responsibility (Layer 4)
 
