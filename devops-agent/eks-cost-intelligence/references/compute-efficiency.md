@@ -465,6 +465,8 @@ Whether the required metrics sources (metrics-server, Container Insights, or Pro
 ```
 Use the Kubernetes Metrics API (nodes endpoint). If the API returns an error
 or "Metrics API not available", metrics-server is unavailable.
+A Forbidden or other error from an installed metrics-server is a read not completed
+(UNKNOWN), not a missing source.
 ```
 
 **Step 2: Check Container Insights availability**

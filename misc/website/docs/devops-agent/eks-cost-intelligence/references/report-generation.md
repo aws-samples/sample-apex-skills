@@ -196,7 +196,7 @@ Recommendations in the report are sorted by:
 ## Cost Score: {score}/100 — {classification}
 
 {If any dimension is SKIPPED and at least one is assessed: **Computed over {N} of {M} dimensions ({assessed_max} of 100 points).** Not assessed: {skipped dimensions, weights and cause: read not completed (UNKNOWN) or no data source}.}
-{If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks and cause: read not completed (UNKNOWN) or no data source}.}
+{If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks and cause: read not completed (UNKNOWN) or no data source; for each UNKNOWN read: operation, scope and observed error}.}
 
 {executive_summary: 2-3 sentences summarizing the cluster's cost posture, top waste
 areas, and projected total savings if all recommendations are implemented; name any partly assessed dimension.}
@@ -254,7 +254,7 @@ With no dimension assessed the cell reads **Score: not computed**.
 **UNKNOWN reads:** {each read not completed: operation, scope and observed error; or none}
 **Impact:** {what findings are missing, e.g., "CPU/memory utilization analysis unavailable"}
 **Retained verified findings (no deduction):** {table, or none}
-**Remediation:** {how to enable the missing data source}
+**Remediation:** {for no data source, how to enable it; for a read not completed (UNKNOWN), the failed operation to retry or grant access for, naming a permission only when established}
 
 ---
 

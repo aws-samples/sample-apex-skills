@@ -714,6 +714,7 @@ Whether the required metrics sources (metrics-server, Container Insights, or Pro
 # Test if metrics-server is responding
 kubectl top nodes --no-headers 2>&1 | head -1
 # If output contains "error" or "Metrics API not available" → unavailable
+# A Forbidden or other error from an installed metrics-server is a read not completed (UNKNOWN), not a missing source
 ```
 
 **Step 2: Check Container Insights availability**
