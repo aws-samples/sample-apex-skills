@@ -213,7 +213,7 @@ AWS Transform is presented in the assessment as an **optional accelerator recomm
 
 Present the three policy items of [replatform-path.md's Containerization Policy](replatform-path#containerization-policy) (base image, application-server bundling, configuration intake) for the stack the app runs on after its modernization items, with two qualifiers:
 
-- **Item 1:** version parity means the **target** runtime after porting or AWS Transform, not the currently detected one.
+- **Item 1:** version parity means the **target** runtime after porting or AWS Transform, not the currently detected one; state the grounds for the target stack, since the Replatform grounds wording does not carry over.
 - **Item 3:** the intake method follows the `config_env_vars` and `secret_externalization` items; only configuration no item covers takes the replatform intake table as written.
 
 Item 2 and the undetermined-stack rule apply as written. Record the result as `containerization_policy`: it is the assessed policy that [containerization-execution.md](containerization-execution) builds against.
@@ -256,7 +256,7 @@ rearchitect_path:
   framework_migration_note: string | null
                                    # the no-established-path report when applicable; null otherwise
   containerization_policy: {...}   # same shape as `replatform_path.containerization_policy`
-                                   # (replatform-path.md): the three policy items, each with grounds (Containerization Policy)
+                                   # (replatform-path.md): the three policy items, each with its grounds or rationale (Containerization Policy)
   delegation_note: string          # REQUIRED: the ecs-architect delegation statement
                                    # (capacity provider strategy / task sizing / network design)
 ```
@@ -268,6 +268,7 @@ rearchitect_path:
 - `blocker_coverage.unmapped` is empty in every shipped output.
 - `no_items: true` and a non-empty `modernization_items` list are mutually exclusive; `no_items: true` obliges the explicit statement in the report.
 - `delegation_note` is always present — the Rearchitect section of the report never appears without it.
+- All three `containerization_policy` items are present whenever the Rearchitect path is presented.
 - No evidence entry or item description contains any part of a credential value.
 
 ---
