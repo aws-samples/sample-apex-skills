@@ -4,6 +4,26 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+// remark-directive reads ":latest" in a heading as a text directive, and the
+// heading id is made before Docusaurus turns it back into text, so the id loses
+// "latest" where GitHub keeps it. Turn a simple text directive in a heading back
+// into text first, so heading ids match GitHub's.
+function headingDirectivesAsText() {
+  const walk = (node, inHeading) => {
+    for (const child of node.children ?? []) {
+      if (inHeading && child.type === 'textDirective' && !child.children?.length && !Object.keys(child.attributes ?? {}).length) {
+        Object.assign(child, {type: 'text', value: `:${child.name}`});
+        delete child.name;
+        delete child.attributes;
+        delete child.children;
+      } else {
+        walk(child, inHeading || child.type === 'heading');
+      }
+    }
+  };
+  return (tree) => walk(tree, false);
+}
+
 const config: Config = {
   title: 'APEX Skills',
   tagline: 'Agent skills for Amazon EKS and Amazon ECS: design, build, assess, upgrade and secure from your coding agent',
@@ -86,6 +106,7 @@ const config: Config = {
       'classic',
       {
         docs: {
+          beforeDefaultRemarkPlugins: [headingDirectivesAsText],
           // Every docs page shows this one sidebar; pages (home, /skills,
           // evals) have no docs sidebar, and the blog has its own posts list.
           sidebarPath: './sidebars.ts',
