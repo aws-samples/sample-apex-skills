@@ -19,9 +19,9 @@
 #
 # Excluded (deliberately NOT copied):
 #   - .git/, .github/, .claude/, .mcp.json
-#   - evals/, eks-upgrade-workspace/, docs/
+#   - evals/, docs/
 #   - Generated *.html and *.md report artifacts at upstream root
-#   - README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
+#   - README.md (read only for the IAM policy block, Step 10), CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
 #
 # Apex-flavored deviations (deterministic edits applied at sync time):
 #
@@ -116,6 +116,9 @@ cp "$UPSTREAM_DIR/data/"*.json "$LOCAL_DIR/data/"
 
 # Tools (Python helpers)
 cp "$UPSTREAM_DIR/tools/"*.py "$LOCAL_DIR/tools/"
+
+# Upstream commit synced (the wipe above removed the old record)
+git -C "$UPSTREAM_ROOT" rev-parse HEAD > "$LOCAL_DIR/.vendor-sha"
 
 echo ""
 

@@ -13,11 +13,12 @@
 #   - references/*.md    (11 progressive-disclosure docs — RENAMED from upstream's `steering/` for apex compatibility, see Apex-flavored deviations below)
 #   - tools/*.py         (markdown-to-HTML report converter)
 #
-# Not touched: apex's workflow for this skill, kept outside this folder at
-#   skills/apex/runbooks/eks-operation-review/eks-operation-review.md
+# Also copied: upstream's .claude/commands/eks-operation-review.md (the
+# workflow) to skills/apex/runbooks/eks-operation-review/eks-operation-review.md,
+# with the same steering/ -> references/ rewrite (Step 8).
 #
 # Excluded (deliberately NOT copied):
-#   - .git/, .github/, .claude/, .mcp.json
+#   - .git/, .github/, the rest of .claude/, .mcp.json
 #   - evals/, docs/, reports/
 #   - README.md, CHANGELOG.md, CLAUDE.md, CODE_OF_CONDUCT.md, CONTRIBUTING.md, SECURITY.md
 #   - .gitignore
@@ -34,8 +35,7 @@
 #
 # 2. SKILL.md body path fix — Upstream's body says "Read and follow
 #    `.claude/commands/eks-operation-review.md`" — that path doesn't exist
-#    in apex (the slash-command content is apex's own workflow, kept
-#    outside the vendored folder at
+#    in apex (Step 8 copies that file outside the vendored folder, to
 #    skills/apex/runbooks/eks-operation-review/eks-operation-review.md).
 #    We rewrite the line to that path, relative to this skill's folder.
 #
@@ -127,6 +127,9 @@ cp "$UPSTREAM_ROOT/steering/"*.md "$LOCAL_DIR/references/"
 
 # Tools (Python helpers)
 cp "$UPSTREAM_ROOT/tools/"*.py "$LOCAL_DIR/tools/"
+
+# Upstream commit synced (the wipe above removed the old record)
+git -C "$UPSTREAM_ROOT" rev-parse HEAD > "$LOCAL_DIR/.vendor-sha"
 
 echo ""
 
@@ -238,7 +241,17 @@ rm -f "$SKILL_MD.bak"
 
 echo ""
 
-# --- Step 8: Write UPSTREAM.md provenance file ---
+# --- Step 8: Copy upstream's workflow to the apex runbook ---
+RUNBOOK="$REPO_ROOT/skills/apex/runbooks/eks-operation-review/eks-operation-review.md"
+echo "Copying upstream .claude/commands/eks-operation-review.md to the apex runbook..."
+mkdir -p "$(dirname "$RUNBOOK")"
+cp "$UPSTREAM_ROOT/.claude/commands/eks-operation-review.md" "$RUNBOOK"
+sed -i.bak 's|steering/|references/|g' "$RUNBOOK"
+rm -f "$RUNBOOK.bak"
+
+echo ""
+
+# --- Step 8b: Write UPSTREAM.md provenance file ---
 echo "Writing UPSTREAM.md provenance..."
 cat > "$LOCAL_DIR/UPSTREAM.md" <<EOF
 # Upstream Provenance
@@ -260,7 +273,7 @@ The sync script applies four deterministic edits to upstream content:
 
 2. **\`SKILL.md\` description block-scalar flattening.** Upstream uses YAML folded-scalar form (\`description: >\` followed by indented lines). Apex's catalog generator reads the same line as the key, so the catalog row would render just \`>\`. The sync flattens the block scalar to a single \`description: <one line>\` entry. Wording is preserved byte-for-byte; only the YAML representation changes.
 
-3. **\`SKILL.md\` body path fix.** Upstream's body says "Read and follow \`.claude/commands/eks-operation-review.md\`": that path doesn't exist in apex. The slash-command content is apex's own workflow, kept outside this folder at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\`. The sync rewrites the reference to that file, relative to this skill's folder (\`../apex/runbooks/eks-operation-review/eks-operation-review.md\`).
+3. **\`SKILL.md\` body path fix.** Upstream's body says "Read and follow \`.claude/commands/eks-operation-review.md\`": that path doesn't exist in apex. The sync copies that file, with the same \`steering/\` -> \`references/\` rewrite, outside this folder to \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\`. The sync rewrites the reference to that file, relative to this skill's folder (\`../apex/runbooks/eks-operation-review/eks-operation-review.md\`).
 
 4. **\`SKILL.md\` Prerequisites MCP line.** Upstream lists "MCP servers configured in \`.mcp.json\`" as a prerequisite. Apex doesn't ship \`.mcp.json\`; MCP setup is handled by the \`eks-mcp-server\` skill. The sync rewrites the line to point users at that skill instead.
 
@@ -376,7 +389,7 @@ fi
 # `git ls-files`, so newly-synced port files must be staged or the generators
 # miss them on the next run (mirrors sync-eks-upgrade-skill.sh:321).
 echo "Staging synced files for generator visibility (git ls-files)..."
-git -C "$REPO_ROOT" add "$LOCAL_DIR" "$DEVOPS_DIR" 2>/dev/null || true
+git -C "$REPO_ROOT" add "$LOCAL_DIR" "$DEVOPS_DIR" "$RUNBOOK" 2>/dev/null || true
 
 echo ""
 
