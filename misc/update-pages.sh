@@ -724,24 +724,18 @@ print(f"""# APEX Skills (Agentic Platform Engineering eXperience)
 
 > Curated agentic AI skills for AWS platform engineering, delivered through any coding agent
 
-## About
-
 - Repository: https://github.com/aws-samples/sample-apex-skills
 - Documentation: {SITE}/
 - License: MIT-0
 - Spec: https://agentskills.io
 
-## Installation
-
-### NPX installer (Claude Code and Kiro CLI)
+Install with the NPX installer (Claude Code and Kiro CLI):
 ```
 npx apex-skills@1.3.0
 ```
 For v2 and its `/apex` router, use the manual install from `main`.
 
 See {SITE}/docs/getting-started/ for full installation instructions.
-
-## Skills Catalog
 
 Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept in its SKILL_META table. The same list is on the Skills page ({SITE}/docs/skills/). As JSON: {SITE}/manifests/skills.json""")
 for group, heading, landing in (
