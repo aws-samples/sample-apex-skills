@@ -12,7 +12,7 @@ function Entry({skill, detail}: {skill: CatalogSkill; detail: 'compact' | 'full'
     <li className="apex-job__skill">
       <Link to={skillHref(skill)} className="apex-job__link">
         <code>{skill.name}</code>
-        <span className={`apex-tag apex-tag--${skill.group}`}>{PLATFORM_LABEL[skill.group]}</span>
+        <span className={`apex-tag apex-tag--${skill.platform}`}>{PLATFORM_LABEL[skill.platform]}</span>
       </Link>
       <p className="apex-job__use">{skill.use}</p>
       {detail === 'full' && (skill.output || skill.notFor) && (
@@ -51,7 +51,7 @@ function heading(level: number): HeadingTag {
 }
 
 function sortSkills(list: CatalogSkill[]): CatalogSkill[] {
-  return [...list].sort((a, b) => ORDER.indexOf(a.group) - ORDER.indexOf(b.group) || a.name.localeCompare(b.name));
+  return [...list].sort((a, b) => ORDER.indexOf(a.platform) - ORDER.indexOf(b.platform) || a.name.localeCompare(b.name));
 }
 
 function nodeSkills(node: JobNode, skills: CatalogSkill[]): CatalogSkill[] {

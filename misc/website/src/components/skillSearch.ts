@@ -117,7 +117,7 @@ export function search(index: Indexed[], query: string): Hit[] {
     .sort(
       (a, b) =>
         b.score - a.score ||
-        PLATFORM_ORDER[a.skill.group] - PLATFORM_ORDER[b.skill.group] ||
+        PLATFORM_ORDER[a.skill.platform ?? a.skill.group] - PLATFORM_ORDER[b.skill.platform ?? b.skill.group] ||
         a.skill.name.localeCompare(b.skill.name),
     );
 }

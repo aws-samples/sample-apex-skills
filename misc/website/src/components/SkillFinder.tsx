@@ -26,7 +26,7 @@ function TopHit({hit}: {hit: Hit}): ReactNode {
       <span className="apex-tophit__label">Best match</span>
       <span className="apex-tophit__name">
         <code>{skill.name}</code>
-        <PlatformTag platform={skill.group} />
+        <PlatformTag platform={skill.platform} />
       </span>
       <span className="apex-tophit__use">{skill.use}</span>
       {skill.output && <span className="apex-tophit__output">You get: {skill.output}</span>}
@@ -40,7 +40,7 @@ function HitRow({hit}: {hit: Hit}): ReactNode {
     <li>
       <Link className="apex-hit" to={skillHref(skill)}>
         <code className="apex-hit__name">{skill.name}</code>
-        <PlatformTag platform={skill.group} />
+        <PlatformTag platform={skill.platform} />
         <span className="apex-hit__use">{skill.use}</span>
       </Link>
     </li>
@@ -75,12 +75,12 @@ export default function SkillFinder({variant}: Props): ReactNode {
   }, [isPage]);
 
   const inPlatform = useMemo(
-    () => (platform === 'all' ? SKILLS : SKILLS.filter((s) => s.group === platform)),
+    () => (platform === 'all' ? SKILLS : SKILLS.filter((s) => s.platform === platform)),
     [platform],
   );
   const hits = useMemo(() => {
     const all = search(INDEX, query);
-    return platform === 'all' ? all : all.filter((h) => h.skill.group === platform);
+    return platform === 'all' ? all : all.filter((h) => h.skill.platform === platform);
   }, [query, platform]);
   const counts = useMemo(() => platformCounts(SKILLS), []);
 

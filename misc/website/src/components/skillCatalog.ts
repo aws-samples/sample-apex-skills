@@ -19,6 +19,8 @@ export type Skill = {
 };
 
 export type CatalogSkill = Skill & {
+  // The platform a visitor filters by; group stays the manifest's folder.
+  platform: Platform;
   job: JobId;
   use: string;
   notFor?: string;
@@ -72,7 +74,7 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
   general: 'General',
 };
 
-type Lines = {job: JobId; use: string; notFor?: string; output?: string};
+type Lines = {job: JobId; use: string; notFor?: string; output?: string; platform?: Platform};
 
 const LINES: Record<string, Lines> = {
   'eks-design': {
@@ -140,6 +142,8 @@ const LINES: Record<string, Lines> = {
     use: 'Deploy a .NET app to ECS Fargate on Linux.',
     notFor: 'Windows containers, the EC2 launch type or EKS',
     output: 'CloudFormation or CDK plus a deployment guide',
+    // Filed under general in the manifest, but it deploys to ECS Fargate only.
+    platform: 'ecs',
   },
   'terraform-skill': {
     job: 'build',
@@ -250,6 +254,7 @@ export const SKILLS: CatalogSkill[] = (manifest as Skill[]).map((skill) => {
   const lines = LINES[skill.name];
   return {
     ...skill,
+    platform: lines?.platform ?? skill.group,
     job: lines?.job ?? 'extend',
     use: lines?.use ?? skill.summary ?? firstSentence(skill.description),
     notFor: lines?.notFor,
@@ -266,6 +271,6 @@ export const skillCount = SKILLS.length;
 
 export function platformCounts(list: CatalogSkill[]): Record<Platform, number> {
   const counts: Record<Platform, number> = {eks: 0, ecs: 0, general: 0};
-  for (const s of list) counts[s.group] += 1;
+  for (const s of list) counts[s.platform] += 1;
   return counts;
 }

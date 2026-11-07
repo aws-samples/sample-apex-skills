@@ -115,3 +115,7 @@ test('S1: ties put EKS before ECS', () => {
   assert.deepEqual(shown('recon').rows, ['eks-recon', 'ecs-recon']);
   assert.deepEqual(shown('operation review').rows, ['eks-operation-review', 'ecs-operation-review']);
 });
+
+test('D3: dotnet-aws-ecs files under the ECS filter', () => {
+  assert.match(catalog, /'dotnet-aws-ecs': \{[^}]*platform: 'ecs'/);
+});
