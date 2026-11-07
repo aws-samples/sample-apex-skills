@@ -20,7 +20,7 @@ This workflow uses the `eks-build` skill for code generation and the `eks-best-p
 | **"Resume build"** / **"Continue where we left off"** | Ask for the project name, load `projects/<name>/contexts/eks-build/requirements.yaml` if it exists, confirm the summary, and resume from the next unanswered phase |
 | **"Modify existing build"** / **"Change compute to Karpenter"** | Load the existing requirements, apply the requested change, re-confirm summary, regenerate affected modules |
 | **"Which pattern should I use?"** / **"Help me pick Terraform vs ArgoCD"** | Use the `eks-best-practices` skill to compare the three patterns (Full Terraform, ArgoCD+Terraform, ArgoCD+ACK) based on the user's context |
-| **"I have a requirements YAML"** / provides structured input | Parse the input, skip to [Phase 7: Confirm and Generate](#phase-7-confirm-and-generate), present summary for confirmation |
+| **"I have a requirements YAML"** / provides structured input | Parse the input, ask question 30 unless the YAML answers it in full, skip to [Phase 7: Confirm and Generate](#phase-7-confirm-and-generate), present summary for confirmation |
 
 ---
 
@@ -328,7 +328,7 @@ Before presenting the generated project, verify:
 - Be concise. Group related questions — don't ask one at a time.
 - Phase 2: ask all four yes/no at once.
 - Phase 4: present the full list, ask for changes.
-- If given a requirements YAML, skip to summary confirmation.
-- If "use defaults" or "standard setup", only ask Phase 1 then confirm.
+- If given a requirements YAML, ask question 30 unless the YAML answers it in full, then skip to summary confirmation.
+- If "use defaults" or "standard setup", only ask Phase 1 and question 30, then confirm.
 - If given existing requirements or context, read it, identify what's already answered, and only ask the remaining questions.
 - When generating, explain key architectural choices — don't just emit code silently.
