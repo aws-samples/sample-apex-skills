@@ -854,6 +854,7 @@ def run_full_correlation(cluster_name, region):
     findings = []
     data_sources_used = []
     skipped_dimensions = []
+    partly_assessed = []
 
     # --- Step 1: Collect Cost Explorer data ---
     try:
@@ -882,7 +883,7 @@ def run_full_correlation(cluster_name, region):
             print(f"Logs Insights also unavailable: {e2}")
             namespace_metrics = {}
             node_metrics = {}
-            skipped_dimensions.append("compute_efficiency")
+            partly_assessed.append("compute_efficiency")  # utilization checks only; checks 4 and 5 still scored
 
     # --- Step 3: Collect Kubernetes resource data ---
     try:
@@ -899,7 +900,7 @@ def run_full_correlation(cluster_name, region):
     # --- Step 4: Correlate and generate findings ---
 
     # Compute waste (requires metrics + requests + costs)
-    if "compute_efficiency" not in skipped_dimensions:
+    if "compute_efficiency" not in partly_assessed:
         namespace_requests = aggregate_requests_by_namespace(deployments)
         compute_findings = correlate_namespace_waste(
             namespace_costs, namespace_metrics, namespace_requests
@@ -932,6 +933,7 @@ def run_full_correlation(cluster_name, region):
         "findings": findings,
         "data_sources": data_sources_used,
         "skipped_dimensions": skipped_dimensions,
+        "partly_assessed": partly_assessed,
         "namespace_costs": namespace_costs,
     }
 ```

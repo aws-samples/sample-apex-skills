@@ -360,7 +360,7 @@ resource "helm_release" "karpenter" {
   namespace  = "kube-system"
   name       = "karpenter"
   repository = "oci://public.ecr.aws/karpenter"
-  # Anonymous pull: a stale public.ecr.aws token in Helm's registry config makes it fail with 403. Log the helm provider in with an ephemeral aws_ecrpublic_authorization_token (eks-build lessons-learned, "Stale public.ecr.aws login (403)").
+  # This block pulls anonymously: a stale public.ecr.aws login in Helm's registry config makes that pull fail with 403. eks-build's generated Pattern 1 projects log the helm provider in with an ephemeral token instead (eks-build lessons-learned, "Stale public.ecr.aws login (403)").
   chart      = "karpenter"
   version    = "1.6.0"
 
