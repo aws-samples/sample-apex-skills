@@ -102,7 +102,7 @@ const LINES: Record<string, Lines> = {
     output: 'A GenAI stack plan with compute, serving and storage choices',
   },
   'ecs-architect': {
-    job: 'knowledge',
+    job: 'design',
     use: 'Pick Fargate, EC2 or Managed Instances for a new ECS workload.',
     notFor: 'replatforming an existing app (ecs-modernize)',
     output: 'A launch type, capacity strategy and service design',
@@ -114,7 +114,7 @@ const LINES: Record<string, Lines> = {
     output: 'GPU instance, launch type and serving choices for ECS',
   },
   'ecs-observability': {
-    job: 'knowledge',
+    job: 'design',
     use: 'Choose how to log, measure and trace ECS services.',
     notFor: 'deployment mechanics (ecs-devops)',
     output: 'A logs, metrics and traces stack for your launch types',
@@ -132,7 +132,7 @@ const LINES: Record<string, Lines> = {
     output: 'Terraform for Fargate, EC2 or Managed Instances capacity',
   },
   'ecs-devops': {
-    job: 'knowledge',
+    job: 'build',
     use: 'Set up safe deployments and CI/CD for ECS.',
     notFor: 'greenfield design with no release angle (ecs-architect)',
     output: 'A deployment strategy, rollback alarms and a pipeline',
@@ -217,7 +217,7 @@ const LINES: Record<string, Lines> = {
     output: 'Exposed, not-exposed or unknown verdicts and a hardening plan',
   },
   'ecs-security': {
-    job: 'knowledge',
+    job: 'secure',
     use: 'Harden ECS tasks, roles, secrets and images.',
     notFor: 'Kubernetes (eks-security)',
     output: 'Fixes and a 30, 60, 90 day hardening roadmap',
