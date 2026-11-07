@@ -130,8 +130,8 @@
       "name": "version-latest",
       "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. For the version, use latest.",
       "expectations": [
-        "Looks the package up live on PyPI (https://pypi.org/pypi/awslabs.eks-mcp-server/json) and tells the user the current version.",
-        "Summarizes the choices, including the version read from PyPI, and asks to confirm before writing config.",
+        "Looks the package up live on PyPI (https://pypi.org/pypi/awslabs.eks-mcp-server/json) and tells the user the current version, or says it will look it up once the user confirms.",
+        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config.",
         "Does not write a fixed version number."
       ],
       "files": []
@@ -141,9 +141,9 @@
       "name": "version-pin-current",
       "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to whatever the latest version is today.",
       "expectations": [
-        "Looks the package up live on PyPI and reads `info.version`.",
-        "Summarizes the choices, including the version read from PyPI, and asks to confirm before writing config.",
-        "States the Python range from that release's `requires_python`."
+        "Looks the package up live on PyPI and reads `info.version`, or says it will look it up once the user confirms.",
+        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config.",
+        "States the Python range from that release's `requires_python`, or says it will once the version is looked up."
       ],
       "files": []
     },
@@ -152,9 +152,9 @@
       "name": "version-pin-named",
       "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to version 0.2.0.",
       "expectations": [
-        "Checks on PyPI that 0.2.0 is a published release of awslabs.eks-mcp-server.",
+        "Checks on PyPI that 0.2.0 is a published release of awslabs.eks-mcp-server, or says it will check once the user confirms.",
         "If PyPI shows a newer current release, names both versions and asks the user to confirm the older pin before writing the config.",
-        "Summarizes the choices, including the version read from PyPI, and asks to confirm before writing config."
+        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config."
       ],
       "files": []
     },
