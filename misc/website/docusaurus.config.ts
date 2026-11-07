@@ -87,7 +87,7 @@ const config: Config = {
       {
         docs: {
           // Every docs page shows this one sidebar; pages (home, /skills,
-          // evals) and the blog have none, so no sidebar link leads off it.
+          // evals) have no docs sidebar, and the blog has its own posts list.
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/aws-samples/sample-apex-skills/edit/main/misc/website/',
           showLastUpdateTime: true,
@@ -219,7 +219,6 @@ const config: Config = {
             {label: 'GitHub', href: 'https://github.com/aws-samples/sample-apex-skills'},
             {label: 'Contributing', to: '/docs/contributing'},
             {label: 'Blog', to: '/blog'},
-            {label: 'Evals', to: '/evals'},
           ],
         },
       ],
