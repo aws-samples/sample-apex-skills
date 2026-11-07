@@ -65,6 +65,12 @@
 #    missing; the runbook then has only its `steering/` paths rewritten
 #    and UPSTREAM.md is not written until the script is fixed and re-run.
 #
+# 6. Report tool path (Step 7a): references/report-generation.md runs
+#    `python3 tools/report_to_html.py`, upstream's repo-root layout. In apex
+#    the tool sits in this skill's folder, so the command becomes
+#    `python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py`, as eks-upgrade-check
+#    calls its tool. The sync exits non-zero if the anchor is missing.
+#
 # NOTE: Unlike sync-eks-upgrade-skill.sh, this script does NOT need a
 # pushy-description rewrite — skill-creator's restrained-style description
 # in upstream is already apex-compatible (explicit-trigger phrasing, no
@@ -252,6 +258,12 @@ rm -f "$SKILL_MD.bak"
 
 echo ""
 
+# --- Step 7a: Point the report tool at this skill's folder (apex-flavored #6) ---
+REPORT_GEN="$LOCAL_DIR/references/report-generation.md"
+grep -q 'python3 tools/report_to_html\.py' "$REPORT_GEN" || { echo "ERROR: report tool anchor not found in $REPORT_GEN (upstream changed?)"; exit 1; }
+sed -i.bak 's|python3 tools/report_to_html\.py|python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py|g' "$REPORT_GEN"
+rm -f "$REPORT_GEN.bak"
+
 # --- Step 8: Copy upstream's workflow to the apex runbook ---
 RUNBOOK="$REPO_ROOT/skills/apex/runbooks/eks-operation-review/eks-operation-review.md"
 echo "Copying upstream .claude/commands/eks-operation-review.md to the apex runbook..."
@@ -320,7 +332,7 @@ This skill is **vendored** from an upstream repo. Do not edit files here directl
 
 ## Local modifications applied at sync time
 
-The sync script applies five deterministic edits to upstream content:
+The sync script applies six deterministic edits to upstream content:
 
 1. **\`steering/\` -> \`references/\` rename.** Upstream's progressive-disclosure docs live under \`steering/\`. Apex renames them to \`references/\`, the Anthropic skill spec's canonical name for additional documentation. The sync script renames the directory on copy and rewrites all internal cross-refs from \`steering/\` to \`references/\` inside \`SKILL.md\` and the 11 progressive-disclosure files.
 
@@ -331,6 +343,8 @@ The sync script applies five deterministic edits to upstream content:
 4. **\`SKILL.md\` Prerequisites MCP line.** Upstream lists "MCP servers configured in \`.mcp.json\`" as a prerequisite. Apex doesn't ship \`.mcp.json\`; MCP setup is handled by the \`eks-mcp-server\` skill. The sync rewrites the line to point users at that skill instead.
 
 5. **Runbook fit.** The copied workflow at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\` gets its \`steering/\` paths pointed at this skill's folder (\`../../../eks-operation-review/references/\` from the runbook), apex's \`name\`/\`description\` frontmatter, and its \`.mcp.json\` instructions and fixed \`uvx awslabs.eks-mcp-server@<version>\` test pointed at the \`eks-mcp-server\` skill. The sync exits non-zero if an anchor is missing; the runbook then has only its \`steering/\` paths rewritten and UPSTREAM.md is not written until the script is fixed and re-run.
+
+6. **Report tool path.** \`references/report-generation.md\` runs \`python3 tools/report_to_html.py\` (upstream's repo-root layout); the sync points it at this skill's folder, \`python3 \${CLAUDE_SKILL_DIR}/tools/report_to_html.py\`. The sync exits non-zero if the anchor is missing.
 
 The upstream description **wording** is NOT rewritten — skill-creator's restrained-style content is already apex-compatible. Only the YAML representation is flattened (Edit #2).
 
