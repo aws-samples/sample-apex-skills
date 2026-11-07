@@ -24,7 +24,7 @@ This workflow uses the `eks-build` skill for code generation and the `eks-best-p
 | User Request | What to Do |
 |-------------|-----------|
 | **"Build an EKS cluster"** / **"Generate Terraform"** / **"Create infrastructure"** | Follow the [Build Questionnaire](#build-questionnaire) below to gather requirements, then generate the project |
-| **"Resume build"** / **"Continue where we left off"** | Ask for the project name, load `projects/<name>/contexts/eks-build/requirements.yaml` if it exists, confirm the summary, and resume from the next unanswered phase |
+| **"Resume build"** / **"Continue where we left off"** | Ask for the project name, load `projects/<name>/contexts/eks-build/requirements.yaml` if it exists, confirm the summary, and resume from the next unanswered phase; ask question 30 if requirements.yaml has no answer to it |
 | **"Modify existing build"** / **"Change compute to Karpenter"** | Load the existing requirements, apply the requested change, re-confirm summary, regenerate affected modules; ask question 30 if requirements.yaml has no answer to it |
 | **"Which pattern should I use?"** / **"Help me pick Terraform vs ArgoCD"** | Use the `eks-best-practices` skill to compare the three patterns (Full Terraform, ArgoCD+Terraform, ArgoCD+ACK) based on the user's context |
 | **"I have a requirements YAML"** / provides structured input | Parse the input, ask question 30; a YAML `permissions_boundary` answers only b1, so still ask b2; skip to [Phase 7: Confirm and Generate](#phase-7-confirm-and-generate), present summary for confirmation |
