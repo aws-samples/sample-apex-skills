@@ -13,15 +13,20 @@ These controls apply to **every** GenAI workload on EKS — training, inference,
 **Rule:** Pods MUST use [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) (preferred, K8s 1.24+) or IRSA for AWS API access. **NEVER** static `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in env vars, ConfigMaps, or baked into images.
 
 ```yaml
-# EKS Pod Identity association (preferred)
-apiVersion: eks.amazonaws.com/v1
+# EKS Pod Identity association (preferred), via the ACK EKS controller
+# (CRD: https://github.com/aws-controllers-k8s/eks-controller/blob/main/config/crd/bases/eks.services.k8s.aws_podidentityassociations.yaml)
+apiVersion: eks.services.k8s.aws/v1alpha1
 kind: PodIdentityAssociation
 metadata:
   name: vllm-s3-access
 spec:
-  serviceAccountName: vllm-inference
-  roleArn: arn:aws:iam::ACCOUNT:role/vllm-model-reader
+  clusterName: CLUSTER
+  namespace: NAMESPACE
+  serviceAccount: vllm-inference
+  roleARN: arn:aws:iam::ACCOUNT:role/vllm-model-reader
 ```
+
+This manifest requires the ACK EKS controller in the cluster. Without it, create the association through the EKS API: the AWS Management Console, the AWS CLI (`aws eks create-pod-identity-association`), the AWS SDKs, AWS CloudFormation and other tools such as eksctl and Terraform ([Pod Identity association](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-association.html)).
 
 Why for GenAI: model-serving pods need S3 (weights), Bedrock (gateway routing), and Secrets Manager (API keys). Static creds leak in logs, crash dumps, and large cached images.
 
@@ -178,7 +183,12 @@ For regulated workloads: **CIS-hardened AMIs** (AL2023 CIS Level 1 or Bottlerock
 ### FedRAMP (Moderate / High)
 
 - Deploy in **GovCloud** or FedRAMP-authorized commercial regions.
-- FIPS 140-2 validated modules — FIPS-enabled AMIs; TLS libraries in DLCs support FIPS mode.
+- FIPS-validated modules:
+  - Bottlerocket FIPS AMIs use FIPS 140-3 validated cryptographic modules ([Bottlerocket FIPS AMIs](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-fips-amis.html)).
+  - AL2023 is certified under FIPS 140-3 (enable FIPS mode yourself). AL2's FIPS 140-2 certificates are on the CMVP Historical List (existing systems only); its EKS-optimized AMIs stopped publishing on November 26, 2025 ([EKS AL2 deprecation FAQ](https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html)).
+  - Exception: EKS Auto Mode Node Class `advancedSecurity.fips: true` provisions AMIs with FIPS 140-2 validated modules, available in AWS US East/West, AWS GovCloud (US) and AWS Canada (Central/West) Regions ([Auto Mode advanced security](https://docs.aws.amazon.com/eks/latest/userguide/auto-advanced-security.html)) (140-2: existing systems only, see the next bullet).
+  - Since September 22, 2026, NIST CMVP lists all FIPS 140-2 certificates as Historical, for existing systems only; use the 140-3 options for new systems ([CMVP](https://csrc.nist.gov/projects/cryptographic-module-validation-program), [FIPS 140-3 transition](https://csrc.nist.gov/projects/fips-140-3-transition-effort)).
+  - For AWS API calls from DLC containers, use FIPS endpoints ([DLC data protection](https://github.com/aws/deep-learning-containers/blob/main/docs/security/data-protection.md)); validate each image's crypto libraries yourself.
 - Continuous monitoring: EKS audit logs + CloudTrail → organization SIEM.
 - Supply chain: all base images from approved registry (ECR in same boundary); no Docker Hub/HF pulls in production.
 
