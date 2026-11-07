@@ -2,7 +2,7 @@
 sidebar_position: 3
 title: "Agent skills for Amazon EKS, Amazon ECS and platform engineering"
 sidebar_label: Skills
-description: "Browse every APEX skill for agentic platform engineering on AWS, including Amazon EKS and Amazon ECS: design, Terraform, live reviews, upgrades and security."
+description: "Browse every APEX skill: AWS skills for AI agents doing platform engineering on Amazon EKS and Amazon ECS, from design and Terraform to reviews and security."
 ---
 
 # Skills
@@ -11,13 +11,13 @@ description: "Browse every APEX skill for agentic platform engineering on AWS, i
 
 ## [EKS skills](./eks/index.md)
 
-- [**eks-best-practices**](./eks/eks-best-practices/index.md): EKS architecture advice: compute, networking, security, cost, scaling, upgrade planning, hybrid (Hybrid Nodes, EKS Anywhere, Outposts) and surge readiness
+- [**eks-best-practices**](./eks/eks-best-practices/index.md): EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness
 - [**eks-build**](./eks/eks-build/index.md): Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations
 - [**eks-cost-intelligence**](./eks/eks-cost-intelligence/index.md): Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings
 - [**eks-design**](./eks/eks-design/index.md): Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices
 - [**eks-genai**](./eks/eks-genai/index.md): GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
 - [**eks-ingress-migration**](./eks/eks-ingress-migration/index.md): Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
-- [**eks-mcp-server**](./eks/eks-mcp-server/index.md): Install, configure and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro)
+- [**eks-mcp-server**](./eks/eks-mcp-server/index.md): Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check
 - [**eks-operation-review**](./eks/eks-operation-review/index.md): Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version
 - [**eks-platform-engineering**](./eks/eks-platform-engineering/index.md): Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 - [**eks-recon**](./eks/eks-recon/index.md): EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring

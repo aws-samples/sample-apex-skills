@@ -226,13 +226,13 @@ ecs-observability	ECS Observability: logs, metrics and traces for ECS	ECS observ
 ecs-operation-review	ECS Operation Review: rated audit of a live ECS estate	Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings
 ecs-recon	ECS Recon: discover what your Amazon ECS estate runs	ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD
 ecs-security	ECS Security: hardening and compliance for Amazon ECS	ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2
-eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	EKS architecture advice: compute, networking, security, cost, scaling, upgrade planning, hybrid (Hybrid Nodes, EKS Anywhere, Outposts) and surge readiness
+eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness
 eks-build	EKS Build: production-ready Terraform for Amazon EKS	Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations
 eks-cost-intelligence	EKS Cost Intelligence: cost score for Amazon EKS	Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings
 eks-design	EKS Design: architecture documents for Amazon EKS	Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices
 eks-genai	EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS	GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
 eks-ingress-migration	EKS Ingress Migration: plan the move off NGINX Ingress	Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
-eks-mcp-server	EKS MCP Server: connect your AI assistant to Amazon EKS	Install, configure and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro)
+eks-mcp-server	EKS MCP Server: connect your AI assistant to Amazon EKS	Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check
 eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version
 eks-platform-engineering	EKS Platform Engineering: build an IDP on Amazon EKS	Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 eks-recon	EKS Recon: discover what your Amazon EKS cluster runs	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring
@@ -582,7 +582,7 @@ build_skills_index() {
 sidebar_position: 3
 title: "Agent skills for Amazon EKS, Amazon ECS and platform engineering"
 sidebar_label: Skills
-description: "Browse every APEX skill for agentic platform engineering on AWS, including Amazon EKS and Amazon ECS: design, Terraform, live reviews, upgrades and security."
+description: "Browse every APEX skill: AWS skills for AI agents doing platform engineering on Amazon EKS and Amazon ECS, from design and Terraform to reviews and security."
 ---
 
 # Skills
@@ -722,7 +722,7 @@ LANDING = {
 skills = json.load(sys.stdin)
 print(f"""# APEX Skills (Agentic Platform Engineering eXperience)
 
-> Curated agentic AI skills for AWS platform engineering, delivered through any coding agent
+> Curated AWS skills for AI agents doing platform engineering on AWS, delivered through any coding agent
 
 - Repository: https://github.com/aws-samples/sample-apex-skills
 - Documentation: {SITE}/
@@ -739,8 +739,8 @@ See {SITE}/docs/getting-started/ for full installation instructions.
 
 Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept in its SKILL_META table. The same list is on the Skills page ({SITE}/docs/skills/). As JSON: {SITE}/manifests/skills.json""")
 for group, heading, landing in (
-    ("eks", "EKS skills", ("/docs/skills/eks/", "EKS")),
-    ("ecs", "ECS skills", ("/docs/skills/ecs/", "ECS")),
+    ("eks", "EKS skills", "/docs/skills/eks/"),
+    ("ecs", "ECS skills", "/docs/skills/ecs/"),
     ("general", "General skills", None),
 ):
     rows = [s for s in skills if s["group"] == group]
@@ -748,7 +748,7 @@ for group, heading, landing in (
     print(f"## {heading}")
     print()
     if landing:
-        print(f"- [{landing[1]} skills overview]({SITE}{landing[0]}): {LANDING[group]}")
+        print(f"- [{heading} overview]({SITE}{landing}): {LANDING[group]}")
     for s in rows:
         print(f"- [{s['name']}]({SITE}{s['path']}/): {s['summary']}")
 PY

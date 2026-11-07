@@ -1,6 +1,6 @@
 # APEX Skills (Agentic Platform Engineering eXperience)
 
-> Curated agentic AI skills for AWS platform engineering, delivered through any coding agent
+> Curated AWS skills for AI agents doing platform engineering on AWS, delivered through any coding agent
 
 - Repository: https://github.com/aws-samples/sample-apex-skills
 - Documentation: https://aws-samples.github.io/sample-apex-skills/
@@ -20,13 +20,13 @@ Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept 
 ## EKS skills
 
 - [EKS skills overview](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/): APEX agent skills for Amazon EKS: design, Terraform builds, cluster discovery, operational, cost, security and upgrade reviews, ingress migration and GenAI.
-- [eks-best-practices](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/): EKS architecture advice: compute, networking, security, cost, scaling, upgrade planning, hybrid (Hybrid Nodes, EKS Anywhere, Outposts) and surge readiness
+- [eks-best-practices](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/): EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness
 - [eks-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-build/): Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations
 - [eks-cost-intelligence](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/): Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings
 - [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/): Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices
 - [eks-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/): GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
 - [eks-ingress-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/): Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
-- [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/): Install, configure and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro)
+- [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/): Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check
 - [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/): Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version
 - [eks-platform-engineering](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-platform-engineering/): Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 - [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/): EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring
