@@ -153,7 +153,7 @@ Without checkpoint: Spot interruption → restart from epoch 0 → COST BURN
 With checkpoint:    Spot interruption → resume from last checkpoint → max 15-30 min lost
 ```
 
-See [distributed-training.md](distributed-training) for the FSx + S3 DRA checkpoint architecture.
+See [distributed-training.md](distributed-training.md) for the FSx + S3 DRA checkpoint architecture.
 
 ### Lever 4 — MIG / Time-Slicing
 

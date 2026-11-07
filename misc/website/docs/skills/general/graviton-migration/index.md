@@ -1,6 +1,7 @@
 ---
-title: "graviton-migration"
-description: "Execute a workload migration from x86 (amd64) to AWS Graviton (arm64) — set up the Arm migration MCP server for code, dependency, and container arm64-readiness scanning, then run the migration — pre-migration scanning, Karpenter arm64 node cutover, and multi-arch CI pipelines. Use when someone says \"migrate to Graviton\", \"move my workloads to arm64\", \"is my app arm64-ready\", \"graviton migration\", \"port this service to Graviton\", \"scan my code for arm64 blockers\", \"set up multi-arch container builds\", or \"cut my nodes over to arm64\". This skill owns migration EXECUTION (readiness scanning, NodePool cutover, multi-arch builds). Do NOT use for scoring Graviton cost savings, quantifying Spot/Graviton adoption, or \"how much would Graviton save me?\" (use eks-cost-intelligence); for advisory \"should I use Graviton?\" architecture guidance (use eks-best-practices); or for general, non-Graviton MCP server setup like the EKS MCP server (use eks-mcp-server)."
+title: "Graviton Migration: move workloads from x86 to arm64"
+sidebar_label: "graviton-migration"
+description: "Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the migration"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/SKILL.md
 format: md
 ---

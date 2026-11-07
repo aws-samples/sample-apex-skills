@@ -11,10 +11,10 @@ This page is generated from [skills/ecs-devops/references/cicd-pipelines.md](htt
 
 # ECS DevOps — CI/CD Pipelines
 
-> **Part of:** [ecs-devops](../)
+> **Part of:** [ecs-devops](../index.md)
 > **Purpose:** Building deployment pipelines to ECS — CodePipeline actions, GitHub Actions with the official aws-actions, driving ECS-native strategies from any pipeline, and ECR image scanning gates
 
-**For the strategies these pipelines trigger, see:** [deployment-strategies.md](deployment-strategies)
+**For the strategies these pipelines trigger, see:** [deployment-strategies.md](deployment-strategies.md)
 
 > Facts in this file verified 2026-07-09 against the AWS documentation and GitHub URLs cited inline.
 
@@ -37,7 +37,7 @@ This page is generated from [skills/ecs-devops/references/cicd-pipelines.md](htt
 | Situation | Recommended shape |
 |---|---|
 | AWS-native pipeline, rolling deployments | CodePipeline standard "Amazon ECS" action |
-| AWS-native pipeline, existing CodeDeploy blue/green | Keep CodePipeline "ECS (Blue/Green)" action — a fully supported steady state (no announced EOL); migrate to native only when you want its benefits (see [controllers-and-migration.md](controllers-and-migration)) |
+| AWS-native pipeline, existing CodeDeploy blue/green | Keep CodePipeline "ECS (Blue/Green)" action — a fully supported steady state (no announced EOL); migrate to native only when you want its benefits (see [controllers-and-migration.md](controllers-and-migration.md)) |
 | AWS-native pipeline, ECS-native blue/green / linear / canary | CodePipeline + a stage that calls `aws ecs update-service` (CodeBuild/Lambda) — **no dedicated action exists as of 2026-07-10** |
 | GitHub-hosted repo | Official `aws-actions/*` GitHub Actions with OIDC |
 | Any strategy, any CI system | Render task definition → `RegisterTaskDefinition` → `UpdateService`; the service's configured strategy does the rest |
@@ -54,7 +54,7 @@ Sources: https://docs.aws.amazon.com/codepipeline/latest/userguide/integrations-
 ```
 
 - Tutorial (ECR source → CodeBuild → ECS): https://docs.aws.amazon.com/codepipeline/latest/userguide/ecs-cd-pipeline.html
-- Pair the service with circuit breaker + alarm rollback (EC2/Fargate/Managed Instances; see the ECS Anywhere caveat in [failure-detection-and-rollback.md](failure-detection-and-rollback)) so a bad image fails the pipeline stage rather than silently degrading; note the alarm bake time keeps the deployment `IN_PROGRESS` longer — set stage timeouts accordingly.
+- Pair the service with circuit breaker + alarm rollback (EC2/Fargate/Managed Instances; see the ECS Anywhere caveat in [failure-detection-and-rollback.md](failure-detection-and-rollback.md)) so a bad image fails the pipeline stage rather than silently degrading; note the alarm bake time keeps the deployment `IN_PROGRESS` longer — set stage timeouts accordingly.
 
 ## CodePipeline — ECS Blue/Green Action (CodeDeployToECS)
 
@@ -63,7 +63,7 @@ Sources: https://docs.aws.amazon.com/codepipeline/latest/userguide/action-refere
 - Deploy provider **"Amazon ECS (Blue/Green)"** (`CodeDeployToECS`): drives the **CodeDeploy controller**, not ECS-native blue/green.
 - **Input contract:** `imageDetail.json` (emitted automatically by ECR source actions) **plus** an AppSpec file and a task-definition template.
 - Tutorial (ECR source + blue/green): https://docs.aws.amazon.com/codepipeline/latest/userguide/tutorials-ecs-ecr-codedeploy.html
-- Constraints inherited from the CodeDeploy controller: ALB or NLB required (no Service Connect); NLB restricts you to `CodeDeployDefault.ECSAllAtOnce`; canary/linear shifting only via CodeDeploy deployment configurations (see [controllers-and-migration.md](controllers-and-migration)).
+- Constraints inherited from the CodeDeploy controller: ALB or NLB required (no Service Connect); NLB restricts you to `CodeDeployDefault.ECSAllAtOnce`; canary/linear shifting only via CodeDeploy deployment configurations (see [controllers-and-migration.md](controllers-and-migration.md)).
 - Keep using this action for existing integrations; for new services AWS recommends the native strategies ([deployment-type-bluegreen](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html)).
 
 ## Driving ECS-Native Strategies from Any Pipeline
@@ -85,7 +85,7 @@ aws ecs wait services-stable --cluster prod --services web
 # or poll: aws ecs describe-service-deployments / list-service-deployments
 ```
 
-In CodePipeline, run this from a CodeBuild action or a Lambda invoke action. Gate promotion with a pause lifecycle hook + `continue-service-deployment` for human approval, or Lambda hooks for automated verification (see [deployment-strategies.md](deployment-strategies)).
+In CodePipeline, run this from a CodeBuild action or a Lambda invoke action. Gate promotion with a pause lifecycle hook + `continue-service-deployment` for human approval, or Lambda hooks for automated verification (see [deployment-strategies.md](deployment-strategies.md)).
 
 ## GitHub Actions with Official aws-actions
 
@@ -140,7 +140,7 @@ jobs:
 ```
 
 Notes:
-- Use the commit SHA (immutable) as the image tag — avoids the mutable-tag `--force-new-deployment` pattern entirely (see [failure-detection-and-rollback.md](failure-detection-and-rollback)).
+- Use the commit SHA (immutable) as the image tag — avoids the mutable-tag `--force-new-deployment` pattern entirely (see [failure-detection-and-rollback.md](failure-detection-and-rollback.md)).
 - `wait-for-service-stability: true` makes the job fail when a circuit breaker or alarm rolls the deployment back — the pipeline reflects deployment reality.
 - Pin action versions in regulated environments (major-version tags like `@v7` are mutable; pin a full tag or commit SHA there). The major tags above were current at verification (2026-07-10): `actions/checkout` v7.0.0, `aws-actions/configure-aws-credentials` v6.2.2, `amazon-ecr-login` v2.1.6, `amazon-ecs-render-task-definition` v1.9.0, `amazon-ecs-deploy-task-definition` v2.6.3 — re-check each repo's Releases page before copying.
 

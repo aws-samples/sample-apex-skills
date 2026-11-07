@@ -1,6 +1,7 @@
 ---
-title: "apex"
-description: "APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison) and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, and no account or cluster change without confirmation."
+title: "APEX Router: pick the right EKS or ECS skill"
+sidebar_label: "apex"
+description: "Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/SKILL.md
 format: md
 ---

@@ -79,7 +79,7 @@ Kubernetes-API facts (nodes, CRDs, workloads, RBAC, StorageClasses, etc.) are re
 
 **Optional prior report:** the caller may supply an earlier recon YAML artifact as
 accessible report content or an attachment. Load
-[report-comparison.md](references/report-comparison) when supplied. Use the
+[report-comparison.md](references/report-comparison.md) when supplied. Use the
 artifact's attachment filename, asset name, or `inline content` as its source label;
 read it before generating outputs and do not assume local file or
 shell access. For multi-cluster discovery, compare only the cluster matching the
@@ -119,7 +119,7 @@ Each reference describes detection **declaratively** as capability blocks (AWS A
 
 ### Step 2: Generate the Report
 
-Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a secondary facts snapshot. When a prior report was supplied, append the comparison defined in [report-comparison.md](references/report-comparison).
+Produce both artifacts (see Report Output below). The markdown fact report is the primary deliverable; the YAML is a secondary facts snapshot. When a prior report was supplied, append the comparison defined in [report-comparison.md](references/report-comparison.md).
 
 ---
 
@@ -129,17 +129,17 @@ Produce both artifacts (see Report Output below). The markdown fact report is th
 
 | Intent / when to use | Reference file |
 |----------------------|----------------|
-| Always first — name, region, version, platform version, endpoint, support type, zonal shift, encryption config, health | [cluster-basics.md](references/cluster-basics) |
-| Karpenter, nodes, scaling, Auto Mode, node groups, Fargate, self-managed | [compute.md](references/compute) |
-| VPC, ingress, CNI, service mesh, load balancer, connectivity | [networking.md](references/networking) |
-| IAM, IRSA, Pod Identity, RBAC, policies, encryption, secrets, webhooks | [security.md](references/security) |
-| EKS-managed add-ons, Helm releases, plugins, "what's installed?" | [addons.md](references/addons) |
-| Logging, metrics, monitoring, Container Insights, Prometheus | [observability.md](references/observability) |
-| Deployments, pods, services, ingresses, "what's running?" | [workloads.md](references/workloads) |
-| PVCs, EBS, EFS, StorageClasses, CSI drivers, volumes, snapshots, backup tooling | [storage.md](references/storage) |
-| Terraform, CloudFormation, CDK, eksctl, Pulumi, Crossplane, "how is it managed?" | [iac.md](references/iac) |
-| GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd) |
-| EKS-reported upgrade-readiness & configuration insights (raw findings) | [cluster-insights.md](references/cluster-insights) |
+| Always first — name, region, version, platform version, endpoint, support type, zonal shift, encryption config, health | [cluster-basics.md](references/cluster-basics.md) |
+| Karpenter, nodes, scaling, Auto Mode, node groups, Fargate, self-managed | [compute.md](references/compute.md) |
+| VPC, ingress, CNI, service mesh, load balancer, connectivity | [networking.md](references/networking.md) |
+| IAM, IRSA, Pod Identity, RBAC, policies, encryption, secrets, webhooks | [security.md](references/security.md) |
+| EKS-managed add-ons, Helm releases, plugins, "what's installed?" | [addons.md](references/addons.md) |
+| Logging, metrics, monitoring, Container Insights, Prometheus | [observability.md](references/observability.md) |
+| Deployments, pods, services, ingresses, "what's running?" | [workloads.md](references/workloads.md) |
+| PVCs, EBS, EFS, StorageClasses, CSI drivers, volumes, snapshots, backup tooling | [storage.md](references/storage.md) |
+| Terraform, CloudFormation, CDK, eksctl, Pulumi, Crossplane, "how is it managed?" | [iac.md](references/iac.md) |
+| GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd.md) |
+| EKS-reported upgrade-readiness & configuration insights (raw findings) | [cluster-insights.md](references/cluster-insights.md) |
 
 For **full recon**, load all rows. For a **targeted query** (e.g. "am I using Karpenter?"), load only `cluster-basics.md` + the matching row (`compute.md`).
 

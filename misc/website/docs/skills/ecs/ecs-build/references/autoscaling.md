@@ -11,9 +11,9 @@ This page is generated from [skills/ecs-build/references/autoscaling.md](https:/
 
 # Service Auto Scaling
 
-> **Part of:** [ecs-build](../)
+> **Part of:** [ecs-build](../index.md)
 
-Application Auto Scaling for ECS services. Cluster-level capacity scaling (managed scaling on ASG providers, MI decision logic) lives in [capacity-provider-guide.md](capacity-provider-guide) -- this file is task-count scaling.
+Application Auto Scaling for ECS services. Cluster-level capacity scaling (managed scaling on ASG providers, MI decision logic) lives in [capacity-provider-guide.md](capacity-provider-guide.md) -- this file is task-count scaling.
 
 > Facts verified 2026-07-10 against https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/appautoscaling_policy and https://docs.aws.amazon.com/AmazonECS/latest/developerguide/target-tracking-create-policy.html
 

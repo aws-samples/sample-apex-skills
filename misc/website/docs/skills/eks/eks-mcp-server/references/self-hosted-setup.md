@@ -11,7 +11,7 @@ This page is generated from [skills/eks-mcp-server/references/self-hosted-setup.
 
 # Self-Hosted EKS MCP Server Setup
 
-> **Part of:** [eks-mcp-server](../)
+> **Part of:** [eks-mcp-server](../index.md)
 
 The open-source EKS MCP server from [awslabs/mcp](https://github.com/awslabs/mcp) runs locally on your machine, providing full control over authentication and configuration.
 

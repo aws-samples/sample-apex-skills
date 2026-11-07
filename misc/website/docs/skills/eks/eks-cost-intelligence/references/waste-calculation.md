@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/waste-calcu
 
 # Waste Calculation Formulas
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Dollar waste formulas for computing waste from utilization gaps, idle nodes, storage inefficiency, network costs, and missed Spot/Graviton opportunities
 
 ---

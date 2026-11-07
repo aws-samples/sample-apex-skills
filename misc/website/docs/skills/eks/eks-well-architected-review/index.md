@@ -1,6 +1,7 @@
 ---
-title: "eks-well-architected-review"
-description: "Deterministic AWS Well-Architected Framework review of an Amazon EKS cluster (Linux nodes only). Unofficial — not the AWS Well-Architected Tool, no official EKS lens exists, and it maps to no compliance framework (CIS, PCI or otherwise). Collects live data via kubectl and aws, scores it across five of the six pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization; not Sustainability, not cluster-observable) using fixed jq detections so scores are stable, separates measured from governance findings, withholds a pillar score when under half its measured questions apply, and the overall when fewer than four pillars score or no Linux node is Ready, and renders a self-contained HTML report. Use ONLY when the user explicitly asks to run a Well-Architected review (WAFR) of an EKS cluster. Any other request — a cluster audit, score, cost, security, inventory, upgrade, best-practice or design question, even one naming a pillar — belongs to another skill."
+title: "EKS Well-Architected Review: unofficial pillar scores"
+sidebar_label: "eks-well-architected-review"
+description: "Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars in an HTML report"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/SKILL.md
 format: md
 ---
@@ -45,7 +46,7 @@ profiles, and any mix of them. A cluster combining Auto Mode with EC2 node group
 throughout this skill, and several questions have a dedicated mixed-mode arm so they describe both
 populations rather than crediting one and ignoring the other.
 
-**Before Step 1, read [references/workflow.md](references/workflow) §*What counts as "an EKS cluster" here***: what else is judged (EKS Hybrid
+**Before Step 1, read [references/workflow.md](references/workflow.md) §*What counts as "an EKS cluster" here***: what else is judged (EKS Hybrid
 Nodes, with the node population partitioned) and what is not (Windows nodes, EKS Anywhere, EKS Connector
 clusters), and why. `render-report.py` prints its `SCOPE-PLATFORMS` block verbatim in the report.
 
@@ -58,7 +59,7 @@ groups is **mixed-mode**, never "hybrid", precisely so the two cannot be confuse
 The list below is exhaustive for whole areas, not a wishlist. **Those are genuine gaps, not implied
 passes** — and because the list is specific, read it as the boundary of what was checked.
 
-This list is report content, printed verbatim by `assets/render-report.py`; see [references/workflow.md](references/workflow) §*Report content read from SKILL.md and from this file*.
+This list is report content, printed verbatim by `assets/render-report.py`; see [references/workflow.md](references/workflow.md) §*Report content read from SKILL.md and from this file*.
 
 <!-- NOT-ASSESSED-AREAS:BEGIN — read verbatim by assets/render-report.py. One `- ` bullet per area;
      continuation lines indented two spaces; `**bold**` and `` `code` `` only, no other markup. -->
@@ -102,7 +103,7 @@ Narrower gaps: **IPv6** clusters and **multi-tenancy isolation depth** are not a
 > something. If a review appears to need a write to proceed, it does not: report what you could not
 > observe instead.
 >
-> **Before Step 1, read [references/workflow.md](references/workflow) §*Read-only, grants and the work directory*.** It carries the rest of this rule: what a run
+> **Before Step 1, read [references/workflow.md](references/workflow.md) §*Read-only, grants and the work directory*.** It carries the rest of this rule: what a run
 > writes and where, why `allowed-tools` grants what it does and must not be widened, the work-directory
 > refusals, and why the Step 5 scorer blocks run through `score.sh`.
 >
@@ -128,7 +129,7 @@ token — `all`, `most`, `some`, `none`, or `na`. You run the command; you do **
 arithmetic. Given the same cluster data, the score is identical on every run.
 
 **The guarantee is scoped to one path: collected JSON → scorers → `reduce.sh` → `render-report.py`.**
-Which surface is machine-generated and which is yours: [references/workflow.md](references/workflow) §*Which surfaces are machine-generated*.
+Which surface is machine-generated and which is yours: [references/workflow.md](references/workflow.md) §*Which surfaces are machine-generated*.
 
 Your free-form work is the narrative — never the numbers. If you find yourself retyping a score into a
 table by hand, render the HTML instead: a transcribed number is not a deterministic one.
@@ -166,20 +167,20 @@ writes it into the `exec` block as `AWS_PROFILE`, so `kubectl` needs nothing fur
 Exported credentials (`AWS_ACCESS_KEY_ID` and the rest) outrank `AWS_PROFILE`, in that block too;
 `collect.sh --profile` unsets them for its run. `update-kubeconfig` takes `--role-arn` for assume-role.
 There is **no** grant for `export AWS_PROFILE=…`: it has the trailing-assignment weakness described in
-[references/workflow.md](references/workflow) §*Why parameters are arguments*.
+[references/workflow.md](references/workflow.md) §*Why parameters are arguments*.
 
 ### Permissions — checked automatically, before anything is collected
 
 **Do not assume you hold cluster-admin or an unrestricted AWS role.** `collect.sh` runs a preflight
 before it collects anything, and refuses with the exact list of what is missing.
 
-Before Step 2, read [references/workflow.md](references/workflow) §*Permission preflight and the read-only IAM policy*: how each half is probed, the five cases it refuses
+Before Step 2, read [references/workflow.md](references/workflow.md) §*Permission preflight and the read-only IAM policy*: how each half is probed, the five cases it refuses
 on, the Kubernetes RBAC the built-in `view` role does not cover, and the 23-action read-only policy.
 
 ## Workflow
 
 Every command below passes its parameters as arguments, and that is a security property, not a style
-choice: before Step 1, read [references/workflow.md](references/workflow) §*Why parameters are arguments*.
+choice: before Step 1, read [references/workflow.md](references/workflow.md) §*Why parameters are arguments*.
 
 > `collect.sh` also accepts the four variables from its environment when the flags are omitted, so a
 > caller that sets them keeps working — but the documented path is flags, and there is no grant for an `export`.
@@ -187,7 +188,7 @@ choice: before Step 1, read [references/workflow.md](references/workflow) §*Why
 
 ### Step 1 — Identify the cluster
 
-Before running Step 1, read [references/workflow.md](references/workflow) §*Step 1 detail: binding the review to one cluster*.
+Before running Step 1, read [references/workflow.md](references/workflow.md) §*Step 1 detail: binding the review to one cluster*.
 
 ```bash
 aws eks list-clusters --region <REGION> --output json
@@ -211,7 +212,7 @@ whichever context was last selected, which is the exact failure this binding pre
 
 ### Step 2 — Collect cluster data into a work directory
 
-Before running Step 2, read [references/workflow.md](references/workflow) §*Step 2 detail: the kubeconfig, the parameters, the work directory and the exit status*.
+Before running Step 2, read [references/workflow.md](references/workflow.md) §*Step 2 detail: the kubeconfig, the parameters, the work directory and the exit status*.
 
 Collect **once** into fixed filenames. All later steps read those files, so this is the only step that
 touches the cluster.
@@ -227,9 +228,9 @@ credentials in use cannot make a call the review needs.
 The script does the whole collection and ends with a validation gate. **If it exits non-zero, stop** —
 scoring incomplete or mis-bound data would produce a confident wrong answer. Do not work around it, and do
 not re-run the individual commands by hand to "get past" it. **The exit status says whether retrying can
-ever help:** the exit table is in [references/workflow.md](references/workflow) §*Step 2 detail: the kubeconfig, the parameters, the work directory and the exit status*.
+ever help:** the exit table is in [references/workflow.md](references/workflow.md) §*Step 2 detail: the kubeconfig, the parameters, the work directory and the exit status*.
 
-[references/workflow.md](references/workflow) documents what it collects and why it refuses.
+[references/workflow.md](references/workflow.md) documents what it collects and why it refuses.
 
 Missing/empty collections are expected on some clusters — the detections treat an empty list as "none of
 that resource exists," which is a valid state, not an error. That is different from a call *failing*,
@@ -249,7 +250,7 @@ jq 'def ishy: ((.spec.providerID? // "")|tostring) as $p | if ($p|test("^eks-hyb
 
 Name the mode exactly as `render-report.py` does, because it prints its own label in the report header and
 a narrative that disagrees with the header is worse than no narrative. Its seven possible strings, in the
-order it tests them, and why these numbers set no flags, are in [references/workflow.md](references/workflow) §*Step 3 detail: the seven mode labels, and why the numbers set no flags*.
+order it tests them, and why these numbers set no flags, are in [references/workflow.md](references/workflow.md) §*Step 3 detail: the seven mode labels, and why the numbers set no flags*.
 
 ### Step 4 — Viability and liveness are enforced by the reducer, not by you
 
@@ -257,7 +258,7 @@ order it tests them, and why these numbers set no flags, are in [references/work
 `pods.json` and writes the outcome into `scores.json`, so every surface — the chat headline, the
 markdown table and the HTML report — reads the same verdict. Report what it emits; do not re-derive it.
 
-Before reporting the outcome, read [references/workflow.md](references/workflow) §*Step 4 detail: why the gates are shaped this way*.
+Before reporting the outcome, read [references/workflow.md](references/workflow.md) §*Step 4 detail: why the gates are shaped this way*.
 
 | `scores.json` | Condition | What to report |
 |---|---|---|
@@ -281,7 +282,7 @@ Run all five pillar scorers. Each appends one JSONL line per question to `$WORK/
 ```
 
 66 of the 132 records carry a sixth key, `resources`, so a consumer must not assume exactly five. Before
-parsing `results.jsonl` yourself, read [references/workflow.md](references/workflow) §*Step 5 detail: the `resources` key*.
+parsing `results.jsonl` yourself, read [references/workflow.md](references/workflow.md) §*Step 5 detail: the `resources` key*.
 
 ```bash
 ${CLAUDE_SKILL_DIR}/assets/score.sh operational-excellence "$PWD/eks-war-<CLUSTER>"
@@ -295,16 +296,16 @@ ${CLAUDE_SKILL_DIR}/assets/score.sh cost-optimization "$PWD/eks-war-<CLUSTER>"
 `score.sh` also refuses a pillar that has already been scored, rather than appending every id a second
 time and leaving `reduce.sh` to discover the duplicates two steps later.
 
-**Do not paste the blocks into a shell instead.** Why, and what `score.sh` extracts from which file: [references/workflow.md](references/workflow) §*Step 5 detail: how `score.sh` runs the scorer blocks, and why there is no drift detection*.
+**Do not paste the blocks into a shell instead.** Why, and what `score.sh` extracts from which file: [references/workflow.md](references/workflow.md) §*Step 5 detail: how `score.sh` runs the scorer blocks, and why there is no drift detection*.
 
 The measured (`m`-family: `m` … `m7`) thresholds are the determinism guarantee and are not yours to edit.
 
-Also run [references/cost-analysis.md](references/cost-analysis) (savings opportunities) to
+Also run [references/cost-analysis.md](references/cost-analysis.md) (savings opportunities) to
 inform the narrative, substituting the work-directory path for `$WORK` in each of its blocks — as with
 every command here, nothing exports `WORK`.
 
 **This review has no drift detection.** A single review therefore cannot say whether a finding is new, and
-must not imply it: report the state observed, not a trend. Why: [references/workflow.md](references/workflow) §*Step 5 detail: how `score.sh` runs the scorer blocks, and why there is no drift detection*.
+must not imply it: report the state observed, not a trend. Why: [references/workflow.md](references/workflow.md) §*Step 5 detail: how `score.sh` runs the scorer blocks, and why there is no drift detection*.
 
 ### Step 6 — Governance questions
 
@@ -313,7 +314,7 @@ governance id, and the report lists them as Not Assessed.
 
 ### Step 7 — Reduce to scores (deterministic)
 
-Before running this step, read [references/workflow.md](references/workflow) §*Step 7 detail: `-o`, four more refusals, and where severity lives*.
+Before running this step, read [references/workflow.md](references/workflow.md) §*Step 7 detail: `-o`, four more refusals, and where severity lives*.
 Run the reducer and **write its output to `$WORK/scores.json`**. It computes per-pillar measured
 scores with the coverage gate, the technical overall, and the separate governance summary:
 
@@ -339,7 +340,7 @@ applies to `collect.sh`, and do not work around it either. It refuses on a missi
 `results.jsonl`, a missing / non-JSON / `.items`-less `nodes.json` or `pods.json`, a `results.jsonl` line
 that is not one JSON object, a record with any of `pillar`/`id`/`track`/`state` absent or empty, a
 duplicate question id, and an illegal `state`. Four more are easy to hit; they are listed in
-[references/workflow.md](references/workflow) §*Step 7 detail: `-o`, four more refusals, and where severity lives*.
+[references/workflow.md](references/workflow.md) §*Step 7 detail: `-o`, four more refusals, and where severity lives*.
 
 Every one of these exits 1 with a `reduce.sh:` diagnostic *before* a byte of output. With `-o` that means
 **no `scores.json` is written at all**, so the failure cannot resurface two steps later as a renderer
@@ -363,7 +364,7 @@ stays missing. See **Scoring model** before presenting either as a verdict.
 
 ### Step 8 — Render the HTML report (deterministic)
 
-Before running this step, read [references/workflow.md](references/workflow) §*Step 8 detail: themes, the internal report, resource lists and what the renderer reads*.
+Before running this step, read [references/workflow.md](references/workflow.md) §*Step 8 detail: themes, the internal report, resource lists and what the renderer reads*.
 
 Run the renderer. **Do not hand-write the HTML** — it is generated from the same files the scorers
 wrote, so the report inherits the determinism the rest of the skill guarantees:
@@ -377,7 +378,7 @@ python3 -B ${CLAUDE_SKILL_DIR}/assets/render-report.py "$PWD/eks-war-<CLUSTER>" 
 volume IDs, security group and subnet IDs, and IAM role/OIDC ARNs — which carry the AWS account ID — and
 those identifiers should be masked before it leaves the cluster owner's circle.
 **Say *the work directory* is internal, not just `report.html`**: `results.jsonl` and the collected JSON
-name the same identifiers, and the collected workload JSON holds every container's literal env values and arguments: treat the work directory as credential material, keep it out of version control and delete it after the review. Detail: [references/workflow.md](references/workflow) §*Step 8 detail: themes, the internal report, resource lists and what the renderer reads*.
+name the same identifiers, and the collected workload JSON holds every container's literal env values and arguments: treat the work directory as credential material, keep it out of version control and delete it after the review. Detail: [references/workflow.md](references/workflow.md) §*Step 8 detail: themes, the internal report, resource lists and what the renderer reads*.
 
 Tell the user where the file is and summarise the headline result in chat: the technical score and
 rating (or the withheld/not-viable reason), the per-pillar table, and the top 3 priorities — and, where
@@ -385,14 +386,14 @@ any row's detail says Windows nodes or Windows pods were not assessed, that they
 review because the skill supports Linux nodes only.
 
 **If the renderer exits non-zero, say so in that summary.** Where the failure sits relative to the
-`wrote …` line tells you which kind it is; before you write that summary, read [references/workflow.md](references/workflow) §*Step 8 detail: if the renderer exits non-zero*.
+`wrote …` line tells you which kind it is; before you write that summary, read [references/workflow.md](references/workflow.md) §*Step 8 detail: if the renderer exits non-zero*.
 
 #### The narrative half — you still write this
 
 The renderer covers the scored, tabular half. Append the parts that need judgement as markdown
 alongside the HTML (`$WORK/analysis.md`), or paste them into chat:
 
-- **Cost Opportunities** — from [references/cost-analysis.md](references/cost-analysis), in
+- **Cost Opportunities** — from [references/cost-analysis.md](references/cost-analysis.md), in
   particular Graviton (Opportunity 1) and the per-workload Spot gap (Opportunity 2). Carry the Spot
   disclaimer verbatim in substance: **staying On-Demand is a legitimate choice.** Label the Cost
   pillar score as **cost hygiene** and state that Spot, Graviton and Extended Support are narrative
@@ -405,12 +406,12 @@ alongside the HTML (`$WORK/analysis.md`), or paste them into chat:
 #### If a markdown-only report is explicitly requested
 
 Some contexts (a ticket, a code review, a chat-only session) need plain markdown. Then produce the
-sections in [references/workflow.md](references/workflow) §*Markdown-only report* instead of the HTML. Otherwise prefer the renderer — it is faster,
+sections in [references/workflow.md](references/workflow.md) §*Markdown-only report* instead of the HTML. Otherwise prefer the renderer — it is faster,
 cannot miscount, and cannot drift from the design.
 
 ## Scoring model
 
-- **Before presenting a score, a band or the overall, read [references/workflow.md](references/workflow) §*Scoring model detail: buckets, states, bands and pillar weights***:
+- **Before presenting a score, a band or the overall, read [references/workflow.md](references/workflow.md) §*Scoring model detail: buckets, states, bands and pillar weights***:
   the bucket rule, what each state scores, why `na` is the only not-applicable token, how a band can be
   bought with Low-severity items, and why pillars are averaged equally although they are not comparable
   in size.
@@ -419,7 +420,7 @@ cannot miscount, and cannot drift from the design.
   assigned here; no Well-Architected Tool risk level, CIS severity or EKS Best Practices tiering maps
   onto them, so cite them as this review's judgement rather than as a published AWS classification.
   They are still the right thing to prioritise by — the tier, and the reasoning for it, are in
-  [references/severity.md](references/severity), which is the single source: the reducer parses that
+  [references/severity.md](references/severity.md), which is the single source: the reducer parses that
   file and the report reads back the weights the reducer used.
   A missing High-risk control (public API, no encryption) costs far more than a missing Low-risk extra
   (service mesh, ndots tuning). This lets a cluster that clears all High/Medium risks score high without
@@ -434,7 +435,7 @@ cannot miscount, and cannot drift from the design.
 
 ### What the report must disclose about the score
 
-`assets/render-report.py` prints the paragraph below verbatim, directly under the headline score; see [references/workflow.md](references/workflow) §*Report content read from SKILL.md and from this file*.
+`assets/render-report.py` prints the paragraph below verbatim, directly under the headline score; see [references/workflow.md](references/workflow.md) §*Report content read from SKILL.md and from this file*.
 
 <!-- SCORE-DISCLOSURE:BEGIN — read verbatim by assets/render-report.py and printed under the headline
      score. One paragraph; `**bold**` and `` `code` `` only, no other markup. -->
@@ -450,7 +451,7 @@ cluster with itself over time.
 <!-- SCORE-DISCLOSURE:END -->
 
 **Platform-credited answers must be counted too, per pillar and in total.** The rule `render-report.py`
-applies, and why the count is load-bearing: [references/workflow.md](references/workflow) §*Platform-credited answers*.
+applies, and why the count is load-bearing: [references/workflow.md](references/workflow.md) §*Platform-credited answers*.
 
 <!-- PLATFORM-CREDIT-NOTE:BEGIN — read by assets/render-report.py and printed with the pillar table when
      the count is above zero. Substitutions: {n} = credited total; {answered} = summed `applicable`;

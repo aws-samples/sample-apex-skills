@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/spot-
 
 # Spot and Graviton Adoption
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for Graviton (arm64) adoption percentage, node groups/NodePools without arm64 in allowed architectures, workloads with explicit amd64 affinity, Spot vs On-Demand percentage, stateless multi-replica workloads on On-Demand, instance type diversity for Spot, and Node Termination Handler/Karpenter interruption handling
 
 ---

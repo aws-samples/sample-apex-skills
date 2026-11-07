@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/cost-estima
 
 # Cost Estimation Fallback
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Node-based cost estimation when Cost Explorer tags are missing, Split Cost Allocation is not enabled, or Cost Explorer API is unavailable
 
 ---

@@ -1,6 +1,7 @@
 ---
-title: "ecs-operation-review"
-description: "Run a structured Amazon ECS operational-excellence assessment against a live estate (Fargate/EC2/Managed Instances/ECS Anywhere) and score it GREEN/AMBER/RED. Skip for EKS/Kubernetes (use eks-operation-review). Covers 8 domains — clusters & capacity, networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (grace period, draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for \"audit my ECS estate\", \"ECS health check\", \"score my ECS posture\", \"review my ECS services\", \"GREEN/AMBER/RED my ECS clusters\", including single-domain reviews. For Day-0 design use ecs-architect; for security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for CI/CD engineering use ecs-devops; for replatform/refactor use ecs-modernize; for read-only inventory use ecs-recon (siblings once available)."
+title: "ECS Operation Review: rated audit of a live ECS estate"
+sidebar_label: "ecs-operation-review"
+description: "Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/SKILL.md
 format: md
 ---

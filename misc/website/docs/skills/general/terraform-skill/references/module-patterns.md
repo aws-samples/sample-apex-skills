@@ -16,10 +16,10 @@ This skill is maintained by **Anton Babenko ([terraform-best-practices.com](http
 
 # Module Development Patterns
 
-> **Part of:** [terraform-skill](../)
+> **Part of:** [terraform-skill](../index.md)
 > **Purpose:** Best practices for Terraform/OpenTofu module development
 
-This document provides detailed guidance on creating reusable, maintainable Terraform modules. For high-level principles, see the [main skill file](../#core-principles).
+This document provides detailed guidance on creating reusable, maintainable Terraform modules. For high-level principles, see the [main skill file](../index.md#core-principles).
 
 ---
 
@@ -579,7 +579,7 @@ output "connection_info" {
 
 Use `for_each` with stable keys whenever a collection has meaningful identity — removing or reordering an element leaves unrelated addresses untouched. Reserve `count` for optional singletons (`0` or `1`) and cases where keys cannot be known at plan time.
 
-For the decision matrix, migration playbook, and known-at-plan failure patterns, see [Code Patterns: count vs for_each](code-patterns#count-vs-for_each-deep-dive).
+For the decision matrix, migration playbook, and known-at-plan failure patterns, see [Code Patterns: count vs for_each](code-patterns.md#count-vs-for_each-deep-dive).
 
 ### ✅ DO: Separate Root Module from Reusable Modules
 
@@ -755,7 +755,7 @@ Before publishing or handing off a reusable module:
 - [ ] Runtime and provider choice explicit (Terraform vs OpenTofu, version floor in `required_version`)
 - [ ] Public vs private scope decided (affects naming + license)
 - [ ] `examples/` directory with at least `minimal` and `complete`
-- [ ] Tests written (native `terraform test` on 1.6+, or Terratest) — see [testing-frameworks.md](testing-frameworks)
+- [ ] Tests written (native `terraform test` on 1.6+, or Terratest) — see [testing-frameworks.md](testing-frameworks.md)
 - [ ] README documents all inputs/outputs (Description → Usage → Inputs → Outputs → Requirements)
 - [ ] Module source pinned with `version` in consumer code
 - [ ] `pre-commit-terraform` hooks configured (`terraform_fmt`, `terraform_validate`, `terraform_tflint`, `terraform_docs`), pinned to a specific `rev`
@@ -766,7 +766,7 @@ Before publishing or handing off a reusable module:
 
 ## Module Testing — Pointer
 
-Module testing (what to test, tiered layers, mocking, idempotency, cost control, strategy by module type) is canonical in [Testing Frameworks](testing-frameworks). Module-specific rules that belong with the module contract:
+Module testing (what to test, tiered layers, mocking, idempotency, cost control, strategy by module type) is canonical in [Testing Frameworks](testing-frameworks.md). Module-specific rules that belong with the module contract:
 
 - Every reusable module must exercise its `validation` blocks in tests — reject cases are as important as happy paths.
 - Tier tests by module role: **resource modules** → input validation + attribute assertions; **infrastructure modules** → composition + cross-module wiring; **compositions** → smoke-plan + production-like values + remote-state connectivity.
@@ -792,4 +792,4 @@ Common model mistakes to correct when generating or reviewing modules:
 
 ---
 
-**Back to:** [Main Skill File](../)
+**Back to:** [Main Skill File](../index.md)

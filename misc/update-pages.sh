@@ -23,6 +23,7 @@
 #   misc/website/docs/devops-agent/<name>/<f>.md     wrapper for sub-files
 #   misc/website/docs/devops-agent/index.md          listing page (overwritten)
 #   misc/website/static/manifests/skills.json
+#   misc/website/static/llms.txt                   agent-facing index (llmstxt.org)
 #   misc/website/static/manifests/examples.json
 #
 # Usage:
@@ -61,6 +62,7 @@ python3 -c 'import yaml' 2>/dev/null || {
 SKILLS_OUT="$REPO_ROOT/misc/website/docs/skills"
 EXAMPLES_OUT="$REPO_ROOT/misc/website/docs/examples"
 MANIFEST="$REPO_ROOT/misc/website/static/manifests/skills.json"
+LLMS_TXT="$REPO_ROOT/misc/website/static/llms.txt"
 EXAMPLES_MANIFEST="$REPO_ROOT/misc/website/static/manifests/examples.json"
 SKILLS_DIR="$REPO_ROOT/skills"
 EXAMPLES_DIR="$REPO_ROOT/examples"
@@ -76,6 +78,7 @@ TOUCHED_PATHS=(
   "misc/website/docs/examples"
   "misc/website/docs/devops-agent"
   "misc/website/static/manifests"
+  "misc/website/static/llms.txt"
   "misc/website/static/examples"
 )
 
@@ -178,9 +181,93 @@ yaml_scalar() {
   python3 -c 'import json, sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "$1"
 }
 
+# First-sentence extraction that skips mid-sentence abbreviations ("e.g. ",
+# "i.e. ", "vs. ") so the ". " inside them is not treated as a sentence
+# boundary. Abbreviation patterns are anchored to a word boundary (start of
+# string, space, or open paren) so words merely ending in the same letters
+# (e.g. "devs.") still count as sentence ends. Prints the first real sentence
+# (with trailing period); prints the input unchanged if no real sentence
+# boundary exists.
+first_sentence() {
+  local text="$1" head="" rest="$1"
+  while [[ "$rest" == *". "* ]]; do
+    head="${head}${rest%%". "*}."
+    rest="${rest#*". "}"
+    case "$head" in
+      [eE].g.|*[\ \(][eE].g.|[iI].e.|*[\ \(][iI].e.|[vV]s.|*[\ \(][vV]s.) head="$head " ;;
+      *) printf '%s' "$head"; return ;;
+    esac
+  done
+  printf '%s' "$text"
+}
+
+# --- Skill page titles and summaries --------------------------------------
+# One line per skill: <folder><TAB><page title><TAB><summary>. The title is the
+# skill page's <title> (Docusaurus appends " | APEX Skills"). The summary is the
+# page's meta description, the manifest `summary` field, the landing-page line
+# and the llms.txt line: keep it under 160 characters, in words taken from the
+# skill's own SKILL.md. SKILL.md descriptions are routing text for agents and
+# run to 1,000 characters, which is why the pages do not use them directly.
+# A skill missing here falls back to its name and its description's first
+# sentence, and the generator warns.
+SKILL_META="$(cat <<'META'
+apex	APEX Router: pick the right EKS or ECS skill	Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills
+dotnet-aws-ecs	.NET on Amazon ECS Fargate with CloudFormation or CDK	Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide
+ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing
+ecs-build	ECS Build: apply-ready Terraform for Amazon ECS	Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances
+ecs-devops	ECS DevOps: deployments and CI/CD for Amazon ECS	Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks
+ecs-genai	ECS GenAI: GPU, ML and LLM workloads on Amazon ECS	GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference
+ecs-modernize	ECS Modernize: migrate VMware or EC2 apps to ECS	Assess an existing VMware or EC2 app from its source code, decide replatform or rearchitect, and migrate it onto ECS
+ecs-observability	ECS Observability: logs, metrics and traces for ECS	ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens
+ecs-operation-review	ECS Operation Review: rated audit of a live ECS estate	Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings
+ecs-recon	ECS Recon: discover what your Amazon ECS estate runs	ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD
+ecs-security	ECS Security: hardening and compliance for Amazon ECS	ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2
+eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	Advisory guidance for Amazon EKS architecture and configuration: compute, networking, security, reliability, cost, autoscaling and multi-tenancy
+eks-build	EKS Build: production-ready Terraform for Amazon EKS	Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations
+eks-cost-intelligence	EKS Cost Intelligence: cost score for Amazon EKS	Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings
+eks-design	EKS Design: architecture documents for Amazon EKS	Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices
+eks-genai	EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS	GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
+eks-ingress-migration	EKS Ingress Migration: plan the move off NGINX Ingress	Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
+eks-mcp-server	EKS MCP Server: connect your AI assistant to Amazon EKS	Install, configure and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro)
+eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	Structured EKS operational excellence assessment across 10 areas with GREEN/AMBER/RED ratings and prioritized recommendations
+eks-platform-engineering	EKS Platform Engineering: build an IDP on Amazon EKS	Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
+eks-recon	EKS Recon: discover what your Amazon EKS cluster runs	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring
+eks-security	EKS Security: CVE review, posture and compliance for EKS	Read-only security reviews of a live EKS cluster (CVE exposure, security events, posture) plus hardening and compliance guidance: CIS, HIPAA, PCI-DSS, FedRAMP
+eks-upgrade-check	EKS Upgrade Check: upgrade readiness score for Amazon EKS	Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks
+eks-well-architected-review	EKS Well-Architected Review: unofficial pillar scores	Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars in an HTML report
+graviton-migration	Graviton Migration: move workloads from x86 to arm64	Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the migration
+skill-creator	Skill Creator: create, test and tune agent skills	Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy
+terraform-skill	Terraform Skill: modules, tests and CI for Terraform	Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning
+update-docs	Update Docs: sync the APEX docs after a skill change	Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references
+META
+)"
+
+skill_title() {
+  local t
+  t="$(awk -F'\t' -v n="$1" '$1 == n { print $2; exit }' <<<"$SKILL_META")"
+  if [[ -z "$t" ]]; then
+    echo "WARNING: skills/$1 has no SKILL_META line in misc/update-pages.sh" >&2
+    t="$(derive_title "$SKILLS_DIR/$1/SKILL.md")"
+  fi
+  printf '%s\n' "$t"
+}
+
+skill_summary() {
+  local s
+  s="$(awk -F'\t' -v n="$1" '$1 == n { print $3; exit }' <<<"$SKILL_META")"
+  if [[ -z "$s" ]]; then
+    s="$(first_sentence "$(parse_frontmatter "$SKILLS_DIR/$1/SKILL.md" "description")")"
+    if [[ ${#s} -gt 160 ]]; then
+      s="${s:0:157}"
+      s="${s% *}..."
+    fi
+  fi
+  printf '%s\n' "$s"
+}
+
 # --- Link rewriting filter (stdin → stdout) -------------------------------
 # Rewrites:
-#   - SKILL.md → index.md in relative .md links
+#   - SKILL.md → index.md in relative .md links, kept as .md file paths
 #   - non-.md relative targets → GitHub blob URL
 #   - external URLs and anchors → pass through
 rewrite_links() {
@@ -266,20 +353,11 @@ def rewrite(m):
         new_target = os.path.relpath(resolved, effective_src_dir)
     else:
         new_target = os.path.relpath(resolved, src_dir)
-    # Strip .md extension for Docusaurus routing
-    if new_target.endswith(".md"):
-        new_target = new_target[:-3]
-    # index → directory path
-    if new_target.endswith("/index"):
-        new_target = new_target[:-5]
-    elif new_target == "index":
-        new_target = "."
-    else:
-        # A doc named like its folder (<dir>/<dir>.md) is the index page
-        # of that folder in Docusaurus, so link to the folder.
-        parent, leaf = os.path.split(new_target)
-        if parent and leaf == os.path.basename(parent):
-            new_target = parent + "/"
+    # Keep the .md file path: Docusaurus resolves a file link to the URL of
+    # the target page at build time, so it holds whatever the URL form
+    # (trailing slash or not, index pages, <dir>/<dir>.md pages). A
+    # URL-relative link such as "../eks-recon" resolves against the browser
+    # URL and breaks when that form changes.
     return f"[{text}]({new_target}{query}{anchor})"
 
 for line in sys.stdin:
@@ -351,6 +429,13 @@ vendored_skill_admonition() {
   license_id="$(parse_frontmatter "$skill_dir/SKILL.md" "license")"
   [[ -z "$license_id" ]] && license_id="$license_from_notices"
   [[ -z "$license_id" ]] && license_id="Apache-2.0"
+  # Next source: the "Source repo" row of the skill's UPSTREAM.md (the sync
+  # scripts' provenance file), so a vendored skill with no notices entry
+  # names its upstream repo rather than its own folder.
+  if [[ -z "$source_url" && -f "$skill_dir/UPSTREAM.md" ]]; then
+    source_url="$(awk -F'|' '$2 ~ /^ *Source repo *$/ { gsub(/ /, "", $3); print $3; exit }' "$skill_dir/UPSTREAM.md")"
+    source_url="${source_url%.git}"
+  fi
   [[ -z "$source_url" ]] && source_url="$GH_BASE/skills/$skill_name"
   [[ -z "$author" ]] && author="third party"
   # Strip a leading "Copyright (c) <year> " prefix so the admonition shows a bare
@@ -394,14 +479,16 @@ build_wrapper() {
   local src="$1"
   local title="$2"
   local description="$3"
-  local title_yaml desc_yaml
+  local sidebar_label="${4:-}"
+  local title_yaml desc_yaml label_line=""
   title_yaml="$(yaml_scalar "$title")"
   desc_yaml="$(yaml_scalar "$description")"
+  [[ -n "$sidebar_label" ]] && label_line="sidebar_label: $(yaml_scalar "$sidebar_label")"$'\n'
 
   cat <<EOF
 ---
 title: $title_yaml
-description: $desc_yaml
+${label_line}description: $desc_yaml
 custom_edit_url: $GH_BASE/$src
 format: md
 ---
@@ -458,113 +545,105 @@ derive_title() {
   title_from_filename "$(basename "$file")"
 }
 
-# --- Build skills/index.md card grid to stdout ----------------------------
+# --- Skill folders of one group, sorted, one per line ----------------------
+skills_in_group() {
+  local d folder
+  for d in "$SKILLS_DIR"/*/; do
+    [[ -f "$d/SKILL.md" ]] || continue
+    folder="$(basename "$d")"
+    [[ -n "$(parse_frontmatter "$d/SKILL.md" "name")" ]] || continue
+    [[ "$(classify_skill "$folder")" == "$1" ]] && printf '%s\n' "$folder"
+  done | LC_ALL=C sort
+}
+
+# --- One "- [name](link): summary" line per skill of a group ---------------
+# Links are .md file paths, relative to the page in $2's directory, so
+# Docusaurus resolves them to page URLs.
+emit_skill_list() {
+  local group="$1" prefix="$2" skill
+  while IFS= read -r skill; do
+    printf -- '- [**%s**](%s%s/index.md): %s\n' "$skill" "$prefix" "$skill" "$(skill_summary "$skill")"
+  done < <(skills_in_group "$group")
+}
+
+# --- Build skills/index.md to stdout ---------------------------------------
 build_skills_index() {
   cat <<'EOF'
 ---
 sidebar_position: 3
-title: Skills
-description: "Browse all APEX skills for AWS platform engineering — EKS architecture, Terraform modules, upgrade readiness, cluster operations, and more."
+title: EKS and ECS Skills for AI Coding Agents
+sidebar_label: Skills
+description: "Browse every APEX agent skill for Amazon EKS and Amazon ECS: architecture, Terraform builds, live cluster reviews, upgrade readiness, security and more."
 ---
 
-# Skills
+# EKS and ECS skills
 
 > _This page is auto-generated by [`misc/update-pages.sh`](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/update-pages.sh). Do not edit manually._
 
+## [EKS skills](./eks/index.md)
+
 EOF
-
-  # Collect skills into groups
-  local eks_skills="" ecs_skills="" general_skills=""
-  for skill_dir in "$SKILLS_DIR"/*/; do
-    local skill_md="$skill_dir/SKILL.md"
-    [[ -f "$skill_md" ]] || continue
-    local folder name
-    folder="$(basename "$skill_dir")"
-    name="$(parse_frontmatter "$skill_md" "name")"
-    [[ -n "$name" ]] || continue
-    local group
-    group="$(classify_skill "$folder")"
-    case "$group" in
-      eks) eks_skills="${eks_skills}${eks_skills:+ }$folder" ;;
-      ecs) ecs_skills="${ecs_skills}${ecs_skills:+ }$folder" ;;
-      *)   general_skills="${general_skills}${general_skills:+ }$folder" ;;
-    esac
-  done
-
-  # Sort
-  eks_skills="$(echo "$eks_skills" | tr ' ' '\n' | sort | tr '\n' ' ')"
-  ecs_skills="$(echo "$ecs_skills" | tr ' ' '\n' | sort | tr '\n' ' ')"
-  general_skills="$(echo "$general_skills" | tr ' ' '\n' | sort | tr '\n' ' ')"
-
-  # EKS
-  echo "## EKS Skills"
+  emit_skill_list eks "./eks/"
   echo ""
-  _emit_skills_index_grid "$eks_skills" "eks"
+  echo "## [ECS skills](./ecs/index.md)"
   echo ""
-
-  # ECS
-  echo "## ECS Skills"
+  emit_skill_list ecs "./ecs/"
   echo ""
-  local ecs_count
-  ecs_count="$(echo "$ecs_skills" | wc -w | tr -d ' ')"
-  if [ "$ecs_count" -eq 0 ]; then
-    echo "_(coming soon)_"
-  else
-    _emit_skills_index_grid "$ecs_skills" "ecs"
-  fi
-  echo ""
-
-  # General
   echo "## General"
   echo ""
-  _emit_skills_index_grid "$general_skills" "general"
+  emit_skill_list general "./general/"
 }
 
-# --- Emit a compact grid for the skills index page ---
-_emit_skills_index_grid() {
-  local skills_str="$1"
-  local group="$2"
-  local count cols
+# --- Build the EKS or ECS landing page (skills/<group>/index.md) -----------
+build_group_index() {
+  case "$1" in
+    eks) cat <<'EOF'
+---
+sidebar_position: 1
+title: "EKS Skills: AI agent skills for Amazon EKS"
+sidebar_label: EKS skills
+description: "APEX agent skills for Amazon EKS: design, Terraform builds, cluster discovery, operational, cost, security and upgrade reviews, ingress migration and GenAI."
+---
 
-  count="$(echo "$skills_str" | wc -w | tr -d ' ')"
-  if [ "$count" -le 4 ]; then
-    cols="$count"
-  elif [ "$count" -le 9 ]; then
-    cols=3
-  else
-    cols=4
-  fi
+# EKS skills
 
-  echo '<table>'
-  local col=0
-  for skill in $skills_str; do
-    if [ "$col" -eq 0 ]; then
-      echo -n '<tr>'
-    fi
-    echo -n "<td><a href=\"./$group/$skill/\"><b>${skill}</b></a></td>"
-    col=$((col + 1))
-    if [ "$col" -eq "$cols" ]; then
-      echo '</tr>'
-      col=0
-    fi
-  done
-  if [ "$col" -gt 0 ]; then
-    while [ "$col" -lt "$cols" ]; do
-      echo -n '<td></td>'
-      col=$((col + 1))
-    done
-    echo '</tr>'
-  fi
-  echo '</table>'
+APEX skills for Amazon Elastic Kubernetes Service (EKS). They cover designing a cluster and generating its Terraform, finding out what a live cluster runs, reviewing its operations, cost, security and upgrade readiness, migrating off NGINX Ingress, and running GenAI workloads. See [Getting started](../../getting-started.md) to install them.
+
+EOF
+      ;;
+    ecs) cat <<'EOF'
+---
+sidebar_position: 1
+title: "ECS Skills: AI agent skills for Amazon ECS"
+sidebar_label: ECS skills
+description: "APEX agent skills for Amazon ECS: architecture and launch type choice, Terraform builds, deployments and CI/CD, security, operational reviews and GPU workloads."
+---
+
+# ECS skills
+
+APEX skills for Amazon Elastic Container Service (ECS). They cover Day 0 architecture and compute-model selection (Fargate, EC2, Managed Instances, Express Mode, ECS Anywhere), Terraform builds, deployment strategies and CI/CD pipelines, security hardening and compliance, operational-excellence reviews, observability design, modernizing existing apps, and GPU, ML and GenAI workloads. See [Getting started](../../getting-started.md) to install them.
+
+EOF
+      ;;
+  esac
+  emit_skill_list "$1" "./"
 }
 
 # --- Build skills.json manifest to stdout ---------------------------------
 build_manifest() {
-  python3 - "$SKILLS_DIR" <<'PY'
+  local summaries="" d
+  for d in "$SKILLS_DIR"/*/; do
+    [[ -f "$d/SKILL.md" ]] || continue
+    summaries+="$(basename "$d")"$'\t'"$(skill_summary "$(basename "$d")")"$'\n'
+  done
+  SKILL_SUMMARIES="$summaries" python3 - "$SKILLS_DIR" <<'PY'
 import json, os, sys
 import yaml
 
 skills_dir = sys.argv[1]
+summaries = dict(
+    line.split("\t", 1) for line in os.environ["SKILL_SUMMARIES"].splitlines() if line
+)
 
 
 def parse_fm(path):
@@ -611,6 +690,7 @@ for entry in sorted(os.listdir(skills_dir)):
     out.append({
         "name": name,
         "description": fm.get("description", ""),
+        "summary": summaries.get(entry, ""),
         "path": f"/docs/skills/{group}/{entry}",
         "group": group,
     })
@@ -619,53 +699,78 @@ print(json.dumps(out, indent=2, ensure_ascii=False))
 PY
 }
 
-# --- Write _category_.json files for Docusaurus sidebar grouping -----------
-write_category_files() {
-  # EKS category
-  mkdir -p "$SKILLS_OUT/eks"
-  cat > "$SKILLS_OUT/eks/_category_.json" <<'CATEOF'
-{
-  "label": "EKS",
-  "position": 1,
-  "collapsible": true,
-  "collapsed": false
-}
-CATEOF
+# --- Build llms.txt (llmstxt.org) from the skills.json manifest on stdin ---
+build_llms_txt() {
+  python3 -c "$(cat <<'PY'
+import json, sys
 
-  # ECS category
-  mkdir -p "$SKILLS_OUT/ecs"
-  cat > "$SKILLS_OUT/ecs/_category_.json" <<'CATEOF'
+SITE = "https://aws-samples.github.io/sample-apex-skills"
+skills = json.load(sys.stdin)
+print(f"""# APEX Skills (Agentic Platform Engineering eXperience)
+
+> Curated agentic AI skills for AWS platform engineering on Amazon EKS and Amazon ECS, delivered through any coding agent
+
+## About
+
+- Repository: https://github.com/aws-samples/sample-apex-skills
+- Documentation: {SITE}/
+- License: MIT-0
+- Spec: https://agentskills.io
+
+## Installation
+
+### NPX installer (Claude Code and Kiro CLI)
+```
+npx apex-skills@1.3.0
+```
+For v2 and its `/apex` router, use the manual install from `main`.
+
+See {SITE}/docs/getting-started/ for full installation instructions.
+
+## Skills Catalog
+
+Skills on `main`, generated from each skill folder by misc/update-pages.sh. The same list is the Skills page ({SITE}/docs/skills/) and {SITE}/manifests/skills.json.""")
+for group, heading, landing in (
+    ("eks", "EKS skills", "/docs/skills/eks/"),
+    ("ecs", "ECS skills", "/docs/skills/ecs/"),
+    ("general", "General skills", None),
+):
+    rows = [s for s in skills if s["group"] == group]
+    print()
+    print(f"### {heading} ({len(rows)})")
+    print()
+    if landing:
+        print(f"Overview: {SITE}{landing}")
+        print()
+    for s in rows:
+        print(f"- [{s['name']}]({SITE}{s['path']}/): {s['summary']}")
+PY
+)"
+}
+
+# --- Write _category_.json files and group landing pages -----------------
+# Every category starts collapsed; Docusaurus opens the one holding the page
+# you are on. EKS and ECS get a landing page (the category's index doc).
+write_category_files() {
+  local group label position
+  for group in eks ecs general; do
+    case "$group" in
+      eks) label="EKS"; position=1 ;;
+      ecs) label="ECS"; position=2 ;;
+      general) label="General"; position=3 ;;
+    esac
+    mkdir -p "$SKILLS_OUT/$group"
+    cat > "$SKILLS_OUT/$group/_category_.json" <<CATEOF
 {
-  "label": "ECS",
-  "position": 2,
+  "label": "$label",
+  "position": $position,
   "collapsible": true,
   "collapsed": true
 }
 CATEOF
-
-  # ECS group index (Docusaurus needs at least one page per category)
-  cat > "$SKILLS_OUT/ecs/index.md" <<'CATEOF'
----
-sidebar_position: 1
-title: ECS Skills
-description: "APEX skills for Amazon ECS platform engineering — architecture and launch-type selection, deployments and CI/CD, security and compliance, operational reviews, observability, and GPU/GenAI workloads."
----
-
-# ECS Skills
-
-APEX skills for Amazon ECS platform engineering. This group covers Day-0 architecture and compute-model selection (Fargate, EC2, Managed Instances, Express Mode, ECS Anywhere), deployment strategies and CI/CD pipelines, security hardening and compliance, structured operational-excellence reviews, observability stack design, and GPU/ML/GenAI workloads on ECS. Browse the individual skills in the sidebar.
-CATEOF
-
-  # General category
-  mkdir -p "$SKILLS_OUT/general"
-  cat > "$SKILLS_OUT/general/_category_.json" <<'CATEOF'
-{
-  "label": "General",
-  "position": 3,
-  "collapsible": true,
-  "collapsed": false
-}
-CATEOF
+  done
+  build_group_index eks > "$SKILLS_OUT/eks/index.md"
+  build_group_index ecs > "$SKILLS_OUT/ecs/index.md"
 }
 
 # --- Recursive cleanup: remove wrappers not in the expected set -----------
@@ -801,7 +906,7 @@ fi
 # Collect all tracked .md under skills/, examples/ and devops-agent/
 mapfile -t ALL_MD < <(git ls-files -- 'skills/**/*.md' 'examples/**/*.md' 'devops-agent/**/*.md')
 
-declare -a EXPECTED_SKILL_FILES=("index.md" "ecs/index.md")
+declare -a EXPECTED_SKILL_FILES=("index.md" "eks/index.md" "ecs/index.md")
 declare -a EXPECTED_EXAMPLES_FILES=("index.md")
 declare -a EXPECTED_DEVOPS_FILES=("index.md")
 
@@ -823,17 +928,28 @@ for src in "${ALL_MD[@]}"; do
     EXPECTED_DEVOPS_FILES+=("${out_file#"$DEVOPS_OUT"/}")
   fi
 
-  title="$(derive_title "$REPO_ROOT/$src")"
-  description="$(parse_frontmatter "$REPO_ROOT/$src" "description")"
+  sidebar_label=""
+  if [[ "$src" == skills/*/SKILL.md ]]; then
+    # Skill pages: a readable title and a short summary for search results;
+    # the sidebar keeps the skill name, which is what users type.
+    skill="${src#skills/}"
+    skill="${skill%/SKILL.md}"
+    title="$(skill_title "$skill")"
+    description="$(skill_summary "$skill")"
+    sidebar_label="$(derive_title "$REPO_ROOT/$src")"
+  else
+    title="$(derive_title "$REPO_ROOT/$src")"
+    description="$(parse_frontmatter "$REPO_ROOT/$src" "description")"
+  fi
 
   if [[ "$MODE" == "dry-run" ]]; then
     echo "--- $out_file ---"
-    build_wrapper "$src" "$title" "${description:-}" | head -10 || true
+    build_wrapper "$src" "$title" "${description:-}" "$sidebar_label" | head -10 || true
     echo "  [... body truncated ...]"
     echo ""
   else
     mkdir -p "$(dirname "$out_file")"
-    build_wrapper "$src" "$title" "${description:-}" > "$out_file.tmp"
+    build_wrapper "$src" "$title" "${description:-}" "$sidebar_label" > "$out_file.tmp"
     mv "$out_file.tmp" "$out_file"
   fi
 done
@@ -866,6 +982,17 @@ else
   mv "$MANIFEST.tmp" "$MANIFEST"
 fi
 
+# --- llms.txt (from the manifest) ---
+if [[ "$MODE" == "dry-run" ]]; then
+  echo "--- $LLMS_TXT ---"
+  build_manifest | build_llms_txt | head -20 || true
+  echo "  [... truncated ...]"
+  echo ""
+else
+  build_manifest | build_llms_txt > "$LLMS_TXT.tmp"
+  mv "$LLMS_TXT.tmp" "$LLMS_TXT"
+fi
+
 # --- Examples index (card grid) ---
 if [[ "$MODE" == "dry-run" ]]; then
   echo "--- $EXAMPLES_OUT/index.md ---"
@@ -885,26 +1012,6 @@ fi
 # Uses sed (not ${var//}) — bash 5.2 patsub_replacement expands & in replacements.
 html_escape() {
   printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
-}
-
-# First-sentence extraction that skips mid-sentence abbreviations ("e.g. ",
-# "i.e. ", "vs. ") so the ". " inside them is not treated as a sentence
-# boundary. Abbreviation patterns are anchored to a word boundary (start of
-# string, space, or open paren) so words merely ending in the same letters
-# (e.g. "devs.") still count as sentence ends. Prints the first real sentence
-# (with trailing period); prints the input unchanged if no real sentence
-# boundary exists.
-first_sentence() {
-  local text="$1" head="" rest="$1"
-  while [[ "$rest" == *". "* ]]; do
-    head="${head}${rest%%". "*}."
-    rest="${rest#*". "}"
-    case "$head" in
-      [eE].g.|*[\ \(][eE].g.|[iI].e.|*[\ \(][iI].e.|[vV]s.|*[\ \(][vV]s.) head="$head " ;;
-      *) printf '%s' "$head"; return ;;
-    esac
-  done
-  printf '%s' "$text"
 }
 
 build_devops_index() {
@@ -1038,3 +1145,4 @@ echo "   Examples:    $examples_count files in misc/website/docs/examples/"
 echo "   DevOps Agent: $devops_count files in misc/website/docs/devops-agent/"
 echo "   Static:      $examples_static_count files in misc/website/static/examples/"
 echo "   Manifests:   misc/website/static/manifests/{skills,examples}.json"
+echo "   llms.txt:    misc/website/static/llms.txt"

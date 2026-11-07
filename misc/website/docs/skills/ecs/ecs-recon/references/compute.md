@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/compute.md](https://git
 
 # Module: Compute and Capacity
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Detect compute model (launch type vs capacity provider strategy) and capacity configuration for ECS clusters and services
 
 ## Table of Contents

@@ -101,7 +101,7 @@ projects/<project-name>/design/
   - Technical feasibility assessment
   - Documentation completeness review
   - Overall validation score and recommendation
-- **Format**: See [architecture-validation.md](architecture-validation)
+- **Format**: See [architecture-validation.md](architecture-validation.md)
 
 ### appendices/iterations/score-sheet-iteration-X.md
 

@@ -1,6 +1,7 @@
 ---
-title: "ecs-devops"
-description: "Use when someone is deploying, releasing, or shipping software to Amazon ECS — phrased as \"blue/green deployment on ECS\", \"canary deployment for my ECS service\", \"set up CI/CD for ECS\", \"GitHub Actions deploy to Fargate\", \"my ECS deployment is stuck\", \"ECS deployment circuit breaker\", \"ECS task sets\", or \"migrate off CodeDeploy blue/green\". Covers strategy selection (rolling/blue-green/linear/canary), lifecycle hooks, circuit-breaker and alarm rollback, and pipelines (CodePipeline, GitHub Actions, ECR scanning) — scoped per launch type (EC2, Fargate, Managed Instances, ECS Anywhere). Trigger even if \"deployment strategy\" is never said — any release-safety, traffic-shifting, rollback, or pipeline decision for an ECS service qualifies. Skip for EKS/Kubernetes (use eks-* skills) and greenfield ECS architecture with no release angle (use ecs-architect for design and ecs-build for Terraform generation incl. deployment config blocks). For ECS monitoring stacks use ecs-observability; for GPU/ML on ECS use ecs-genai."
+title: "ECS DevOps: deployments and CI/CD for Amazon ECS"
+sidebar_label: "ecs-devops"
+description: "Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/SKILL.md
 format: md
 ---
@@ -60,7 +61,7 @@ If a routed sibling skill is not installed yet, don't dead-end the user: answer 
 - `deploymentController.type` has three values — `ECS`, `CODE_DEPLOY`, `EXTERNAL`.
 - Under the **`ECS` controller**, `deploymentConfiguration.strategy` selects one of four built-in strategies — `ROLLING` (default), `BLUE_GREEN` (GA Jul 17, 2025), `LINEAR` and `CANARY` (GA Oct 30, 2025).
 - The **`CODE_DEPLOY` controller** is the older blue/green path. For **new** adoptions, AWS's stated recommendation is the native ECS blue/green deployment ([deployment-type-bluegreen](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-bluegreen.html)). It remains fully supported with **no announced end-of-life** — staying on CodeDeploy indefinitely is a valid steady state for existing estates; migrate when you want something native adds (Service Connect, richer hooks, simpler pipelines), not by default.
-- The **`EXTERNAL` controller** hands the whole deployment process to your own tooling via task-set APIs — see [references/controllers-and-migration.md](references/controllers-and-migration).
+- The **`EXTERNAL` controller** hands the whole deployment process to your own tooling via task-set APIs — see [references/controllers-and-migration.md](references/controllers-and-migration.md).
 - Since **July 15, 2025** the deployment controller is **updatable in place** on an existing service — you can migrate a service between controller types without recreating it ([doc history](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/document_history.html)).
 
 ### Strategy Selector
@@ -122,7 +123,7 @@ aws ecs update-service --cluster prod --service web \
   'minimumHealthyPercent=100,maximumPercent=200,deploymentCircuitBreaker={enable=true,rollback=true,resetOnHealthyTask=true,thresholdConfiguration={type=BOUNDED_PERCENT,value=50}},alarms={alarmNames=[web-5xx-alarm],enable=true,rollback=true}'
 ```
 
-**For circuit breaker thresholds, alarm gotchas, and the full rollback ladder, see:** [Failure Detection & Rollback](references/failure-detection-and-rollback)
+**For circuit breaker thresholds, alarm gotchas, and the full rollback ladder, see:** [Failure Detection & Rollback](references/failure-detection-and-rollback.md)
 
 ---
 
@@ -165,7 +166,7 @@ Valid ranges: `stepPercent` 3.0–100.0; `stepBakeTimeInMinutes` 0–1440 ([line
 - **Pause/continue** (GA May 19, 2026): `PAUSE`-type lifecycle hooks on rolling *and* blue/green-family deployments (the rolling scope comes from the [What's New](https://aws.amazon.com/about-aws/whats-new/2026/05/amazon-ecs-pause-continue-deployments/); the doc page illustrates only blue/green-family stages; ECS Anywhere support is not documented as of 2026-07-10); resume or abort with `aws ecs continue-service-deployment --hook-id <id> --action CONTINUE|ROLLBACK` ([pause hooks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/pause-lifecycle-hooks.html)).
 - **Timeouts:** each lifecycle stage max 24 h (timeout → fail + roll back); CloudFormation adds a 36 h whole-deployment cap; overall deployment limit 30 days.
 
-**For full lifecycle-hook config, test-traffic routing, pause/continue details, and deployment-speed tuning, see:** [Deployment Strategies Deep Dive](references/deployment-strategies)
+**For full lifecycle-hook config, test-traffic routing, pause/continue details, and deployment-speed tuning, see:** [Deployment Strategies Deep Dive](references/deployment-strategies.md)
 
 ---
 
@@ -197,7 +198,7 @@ Alarm-detection gotchas: ECS polls alarms via `DescribeAlarms` (CloudWatch API t
 
 > ❌ **`--force-new-deployment` is NOT a rollback.** It starts a new deployment with **no service-definition changes** — a restart/re-pull (e.g., pick up a newer image behind the same mutable tag, refresh image digests, move to a newer Fargate platform version). It redeploys the *same* task definition; it does not return you to the previous revision. This is a common misconception — reach for `stop-service-deployment --stop-type ROLLBACK` or a previous task-def revision instead ([UpdateService](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_UpdateService.html#ECS-UpdateService-request-forceNewDeployment)).
 
-**For rollback targets, EventBridge deployment events, and stoppable deployment states, see:** [Failure Detection & Rollback](references/failure-detection-and-rollback)
+**For rollback targets, EventBridge deployment events, and stoppable deployment states, see:** [Failure Detection & Rollback](references/failure-detection-and-rollback.md)
 
 ---
 
@@ -217,7 +218,7 @@ Alarm-detection gotchas: ECS polls alarms via `DescribeAlarms` (CloudWatch API t
 - **ECR scanning in the pipeline:** basic scanning (OS-package CVEs, on-push filters) or enhanced scanning via Amazon Inspector (OS + language packages, continuous rescans, ECS image-usage context, Inspector pricing applies). Gate deploys on scan findings via EventBridge ([basic](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-basic-enabling.html) · [enhanced](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-enhanced.html)).
 - **Launch-type caveat:** pipeline mechanics (register task def → update service) are identical for EC2, Fargate, and Managed Instances — **except ECS Anywhere, which is rolling-only: never attach CodeDeploy blue/green actions or native blue/green-family expectations to an Anywhere service** ([ECS Anywhere](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html)).
 
-**For full pipeline walkthroughs, a GitHub Actions workflow skeleton, and scan-gating patterns, see:** [CI/CD Pipelines](references/cicd-pipelines)
+**For full pipeline walkthroughs, a GitHub Actions workflow skeleton, and scan-gating patterns, see:** [CI/CD Pipelines](references/cicd-pipelines.md)
 
 ---
 
@@ -241,10 +242,10 @@ This skill uses **progressive disclosure** — essentials live in this file; loa
 
 | Reference | Load when the task is about… |
 |---|---|
-| [deployment-strategies.md](references/deployment-strategies) | Configuring rolling min/max, blue/green/linear/canary end-to-end (target groups, listener rules, infrastructure role), lifecycle hooks, test traffic, pause/continue, deployment-speed tuning (health checks, deregistration delay, grace period) |
-| [failure-detection-and-rollback.md](references/failure-detection-and-rollback) | Circuit breaker thresholds and worked examples, CloudWatch alarm detection and gotchas, the rollback ladder in detail, stop-service-deployment, EventBridge deployment events |
-| [cicd-pipelines.md](references/cicd-pipelines) | CodePipeline ECS actions (standard + blue/green), GitHub Actions workflows for ECS, OIDC credentials, ECR image scanning in pipelines, launch-type notes for pipelines (incl. ECS Anywhere) |
-| [controllers-and-migration.md](references/controllers-and-migration) | CodeDeploy controller specifics, migrating CodeDeploy → native blue/green (three approaches, CloudFormation path), the external deployment controller and task sets |
+| [deployment-strategies.md](references/deployment-strategies.md) | Configuring rolling min/max, blue/green/linear/canary end-to-end (target groups, listener rules, infrastructure role), lifecycle hooks, test traffic, pause/continue, deployment-speed tuning (health checks, deregistration delay, grace period) |
+| [failure-detection-and-rollback.md](references/failure-detection-and-rollback.md) | Circuit breaker thresholds and worked examples, CloudWatch alarm detection and gotchas, the rollback ladder in detail, stop-service-deployment, EventBridge deployment events |
+| [cicd-pipelines.md](references/cicd-pipelines.md) | CodePipeline ECS actions (standard + blue/green), GitHub Actions workflows for ECS, OIDC credentials, ECR image scanning in pipelines, launch-type notes for pipelines (incl. ECS Anywhere) |
+| [controllers-and-migration.md](references/controllers-and-migration.md) | CodeDeploy controller specifics, migrating CodeDeploy → native blue/green (three approaches, CloudFormation path), the external deployment controller and task sets |
 
 ---
 
