@@ -9,12 +9,14 @@ on:
       - 'skills/**'
       - 'devops-agent/**'
       - '.github/workflows/skillspector.yml'
+      - 'misc/skillspector/**'
 
 permissions:
   contents: read
 
 env:
-  # SkillSpector v2.13.4, the release tag's commit.
+  # SkillSpector v2.13.4, the release tag's commit. misc/skillspector/baseline.md was made with
+  # this version and suppresses only for it: change both together.
   SKILLSPECTOR_SHA: 54824463814a0be01360792523ec7245a69190fc
 
 jobs:
@@ -85,57 +87,7 @@ jobs:
                 "$dir" "$rc" >> "$GITHUB_STEP_SUMMARY"
               continue
             fi
-            python3 - "$dir" "$out" <<'PY'
-          import json, os, sys
-
-          def esc(s, prop=False):
-              s = str(s).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-              return s.replace(':', '%3A').replace(',', '%2C') if prop else s
-
-          skill_dir, path = sys.argv[1], sys.argv[2]
-          report = json.load(open(path, encoding='utf-8'))
-          risk = report.get('risk_assessment', {})
-          issues = report.get('issues') or []
-          print(f"{skill_dir}: risk {risk.get('score')} {risk.get('severity')}, {len(issues)} finding(s)")
-          for i in issues:
-              loc = i.get('location') or {}
-              rel = loc.get('file') or 'SKILL.md'
-              line = loc.get('start_line') or 1
-              sev = str(i.get('severity', '')).upper()
-              level = 'warning' if sev in ('HIGH', 'CRITICAL') else 'notice'
-              rule = i.get('id') or 'finding'
-              parts = [i.get('pattern'), i.get('explanation'), i.get('finding')]
-              msg = ': '.join(str(x) for x in parts if x) or rule
-              print(f"::{level} file={esc(skill_dir + '/' + rel, True)},line={int(line)},"
-                    f"title={esc('SkillSpector ' + sev + ' ' + rule, True)}::{esc(msg)}")
-
-          # Coverage: name every file the scan inspected only in part or not at all.
-          comp = report.get('analysis_completeness') or {}
-          partial = int(comp.get('partially_inspected_files') or 0)
-          skipped = int(comp.get('entirely_uninspected_files') or 0)
-          files = {}
-          for e in comp.get('ledger_exceptions') or []:
-              # reference_missing: the skill names a file it does not bundle; not an inspection gap.
-              if e.get('path') and e.get('reason_code') != 'reference_missing':
-                  files.setdefault(e['path'], set()).add(str(e.get('reason_code') or e.get('outcome')))
-          degraded = [s.get('analyzer_id') for s in comp.get('analyzer_statuses') or []
-                      if s.get('status') == 'degraded']
-          out = [f"### {skill_dir}", "",
-                 f"{len(issues)} finding(s). Coverage {comp.get('status', 'unknown')}: "
-                 f"{comp.get('fully_inspected_files', '?')} of {comp.get('total_components', '?')} files "
-                 f"fully inspected, {partial} partly, {skipped} not inspected."]
-          if files or partial or skipped:
-              out.append("Findings are a lower bound for these files; no finding in them does not mean clean:")
-              out += [f"- `{skill_dir}/{p}` ({', '.join(sorted(r))})" for p, r in sorted(files.items())]
-              if partial + skipped > len(files):
-                  out.append(f"- {partial + skipped - len(files)} more file(s) counted as partial or not inspected; the report does not name them")
-          if degraded:
-              out.append(f"Analyzers that ran degraded across this skill: {', '.join(degraded)}.")
-          text = '\n'.join(out) + '\n\n'
-          print(text)
-          with open(os.environ.get('GITHUB_STEP_SUMMARY', os.devnull), 'a', encoding='utf-8') as fh:
-              fh.write(text)
-          PY
+            python3 misc/skillspector/annotate.py "$dir" "$out" misc/skillspector/baseline.md
           done
           exit 0
 
