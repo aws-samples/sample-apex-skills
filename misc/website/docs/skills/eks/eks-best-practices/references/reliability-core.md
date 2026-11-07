@@ -340,7 +340,7 @@ annotations:
 - Use the **same endpoint** for ALB health check and readiness probe
 - Set ALB health check interval ≥ readiness probe period
 - Account for NLB health check during graceful shutdown (use `deregistration_delay`)
-- Use pod readiness gates (AWS Load Balancer Controller) so a rolling update does not terminate old pods until the new pods' targets are Healthy on the load balancer ([EKS Best Practices: load balancing](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html))
+- Use pod readiness gates (AWS Load Balancer Controller; needs `target-type: ip` and the namespace label `elbv2.k8s.aws/pod-readiness-gate-inject: enabled`) so a rolling update does not terminate old pods until the new pods' targets are Healthy on the load balancer ([EKS Best Practices: load balancing](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html))
 
 ❌ DON'T:
 - Use different health endpoints for LB and K8s probes (leads to split-brain)
@@ -365,8 +365,8 @@ spec:
       - name: app
         lifecycle:
           preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 15"]
+            sleep:
+              seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
         # Application must handle SIGTERM gracefully
 ```
 
@@ -379,6 +379,8 @@ spec:
 6. After `terminationGracePeriodSeconds`, SIGKILL sent
 
 ### Why `sleep` in preStop?
+
+On Kubernetes 1.30 and later, use the native `sleep` action (`lifecycle.preStop.sleep.seconds`; beta in 1.30, stable in 1.34), which needs no shell in the image; use the `exec` `sleep` form only on older clusters.
 
 The `sleep 15` in preStop gives time for:
 - kube-proxy to update iptables rules (remove pod from Service)
@@ -445,6 +447,8 @@ spec:
         labelSelector:
           matchLabels:
             app: my-app
+        matchLabelKeys:
+        - pod-template-hash
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname
         whenUnsatisfiable: ScheduleAnyway
@@ -511,13 +515,12 @@ resources:
 | **Requests** | ✅ Always set (scheduling) | ✅ Always set (scheduling) |
 | **Limits** | ❌ Usually omit (avoid throttling) | ✅ Always set (OOM protection) |
 
-- Set memory limits = memory requests ("For non-CPU resources, configuring requests=limits provides the most predictable behavior.", [EKS Best Practices: data plane](https://docs.aws.amazon.com/eks/latest/best-practices/data-plane.html))
+- Set memory limits equal to memory requests for predictable behavior; if a workload must burst, do not set the limit much larger than the request ([EKS Best Practices: data plane](https://docs.aws.amazon.com/eks/latest/best-practices/data-plane.html))
 - Use VPA recommendations for right-sizing (also: Goldilocks, Parca)
 - Set CPU requests based on actual usage (not peak)
 - Don't set CPU limits on latency-sensitive workloads (causes throttling)
-- For critical apps needing Guaranteed QoS (eviction protection), set requests = limits
+- For Guaranteed QoS, set CPU and memory requests = limits on every container (memory alone gives Burstable)
 - Correctly sized requests are critical for Karpenter/Cluster Autoscaler node provisioning
-- Don't set limits much larger than requests (overcommit risk, higher eviction chance)
 
 ### Namespace Resource Controls
 
@@ -622,8 +625,8 @@ spec:
           timeoutSeconds: 3
         lifecycle:
           preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 15"]
+            sleep:
+              seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
