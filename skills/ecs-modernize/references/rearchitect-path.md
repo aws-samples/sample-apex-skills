@@ -205,7 +205,7 @@ Present the three policy items of [replatform-path.md's Containerization Policy]
 - **Item 1:** version parity means the **target** runtime after porting or AWS Transform, not the currently detected one; state the grounds for the target stack, since the Replatform grounds wording does not carry over.
 - **Item 3:** the intake method follows the `config_env_vars` and `secret_externalization` items; only configuration no item covers takes the replatform intake table as written.
 
-Item 2 and the undetermined-stack rule apply as written. Record the result as `containerization_policy`: it is the assessed policy that [containerization-execution.md](containerization-execution.md) builds against.
+Item 2 and the undetermined-stack rule apply as written, except that Item 2's grounds are stated for the target stack. Record the result as `containerization_policy`: it is the assessed policy that [containerization-execution.md](containerization-execution.md) builds against.
 
 ### Delegation to ecs-architect
 
