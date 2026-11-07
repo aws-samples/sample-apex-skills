@@ -222,7 +222,13 @@ const config: Config = {
     },
     prism: {
       theme: prismThemes.vsLight,
-      darkTheme: prismThemes.dracula,
+      // Dracula's comment colour (#6272a4) is 3.0:1 on its background; #9aa5ce is 5.9:1.
+      darkTheme: {
+        ...prismThemes.dracula,
+        styles: prismThemes.dracula.styles.map((s) =>
+          s.types.includes('comment') ? {...s, style: {...s.style, color: '#9aa5ce'}} : s,
+        ),
+      },
       additionalLanguages: ['bash', 'hcl', 'yaml', 'json'],
     },
   } satisfies Preset.ThemeConfig,
