@@ -1,6 +1,6 @@
 import {useEffect, useId, useMemo, useRef, useState, type ReactNode} from 'react';
 import Link from '@docusaurus/Link';
-import {useHistory, useLocation} from '@docusaurus/router';
+import {useHistory} from '@docusaurus/router';
 import {useBaseUrlUtils} from '@docusaurus/useBaseUrl';
 import {
   SKILLS,
@@ -9,7 +9,7 @@ import {
   skillHref,
   type Platform,
 } from './skillCatalog';
-import {buildIndex, search, type Hit} from './skillSearch';
+import {buildIndex, queryWords, search, type Hit} from './skillSearch';
 import SkillGrid from './SkillGrid';
 
 const INDEX = buildIndex(SKILLS);
@@ -56,36 +56,23 @@ type Props = {
 export default function SkillFinder({variant}: Props): ReactNode {
   const isPage = variant === 'page';
   const inputId = useId();
-  const location = useLocation();
   const history = useHistory();
   const {withBaseUrl} = useBaseUrlUtils();
+  const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [platform, setPlatform] = useState<Platform | 'all'>('all');
-  const [urlRead, setUrlRead] = useState(false);
+  const [reserve, setReserve] = useState<number | undefined>(undefined);
 
-  // /skills?q=<query>&platform=<eks|ecs|general> can be linked and shared.
+  // A shared /skills?q=<query> link is read once on arrival. The page keeps
+  // the catalogue's height until the visitor acts, so the footer does not jump.
   useEffect(() => {
     if (!isPage) return;
-    const params = new URLSearchParams(location.search);
-    setQuery(params.get('q') ?? '');
-    const p = params.get('platform');
-    setPlatform(p === 'eks' || p === 'ecs' || p === 'general' ? p : 'all');
-    setUrlRead(true);
-    // Read the URL once on arrival; later changes come from this component.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!isPage || !urlRead) return;
-    const params = new URLSearchParams();
-    if (query.trim()) params.set('q', query.trim());
-    if (platform !== 'all') params.set('platform', platform);
-    const next = params.toString();
-    if (next !== location.search.replace(/^\?/, '')) {
-      history.replace({pathname: location.pathname, search: next ? `?${next}` : ''});
-    }
-  }, [isPage, urlRead, query, platform, history, location.pathname, location.search]);
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (!q) return;
+    setReserve(rootRef.current?.offsetHeight);
+    setQuery(q);
+  }, [isPage]);
 
   const inPlatform = useMemo(
     () => (platform === 'all' ? SKILLS : SKILLS.filter((s) => s.group === platform)),
@@ -97,7 +84,7 @@ export default function SkillFinder({variant}: Props): ReactNode {
   }, [query, platform]);
   const counts = useMemo(() => platformCounts(SKILLS), []);
 
-  const searching = query.trim().length > 0;
+  const searching = queryWords(query).length > 0;
   // A clear winner: the query is in the skill's name and it outscores the next hit.
   const top = hits[0] && hits[0].score >= 20 && (!hits[1] || hits[0].score > hits[1].score) ? hits[0] : null;
   // Strong hits match every word in the name or summary; the others only
@@ -107,12 +94,19 @@ export default function SkillFinder({variant}: Props): ReactNode {
   const main = (strong.length > 0 ? strong : hits).filter((h) => h !== top);
   const shown = isPage ? main : main.slice(0, top ? 4 : 5);
 
+  // Enter opens the first result shown.
   const openTop = () => {
-    if (hits[0]) history.push(withBaseUrl(skillHref(hits[0].skill)));
+    const first = top ?? main[0] ?? hits[0];
+    if (first) history.push(withBaseUrl(skillHref(first.skill)));
   };
 
   return (
-    <div className={`apex-finder apex-finder--${variant}`} role="search">
+    <div
+      ref={rootRef}
+      className={`apex-finder apex-finder--${variant}`}
+      role="search"
+      style={reserve ? {minHeight: reserve} : undefined}
+    >
       <label className="apex-finder__label" htmlFor={inputId}>
         What are you working on?
       </label>
@@ -128,9 +122,12 @@ export default function SkillFinder({variant}: Props): ReactNode {
           type="search"
           autoComplete="off"
           spellCheck={false}
-          placeholder="upgrade check, ingress, cost, terraform"
+          placeholder="What are you working on?"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setReserve(undefined);
+            setQuery(e.target.value);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -148,7 +145,10 @@ export default function SkillFinder({variant}: Props): ReactNode {
               type="button"
               className="apex-facet"
               aria-pressed={platform === p}
-              onClick={() => setPlatform(p)}
+              onClick={() => {
+                setReserve(undefined);
+                setPlatform(p);
+              }}
             >
               {p === 'all' ? 'All' : p === 'general' ? 'General' : PLATFORM_LABEL[p]}
               <span className="apex-facet__count">{p === 'all' ? SKILLS.length : counts[p]}</span>
@@ -160,7 +160,16 @@ export default function SkillFinder({variant}: Props): ReactNode {
       <p className="apex-finder__status" aria-live="polite">
         {searching
           ? hits.length === 0
-            ? `No skill matches "${query.trim()}". Try fewer words, or ask /apex.`
+            ? (
+                <>
+                  No skill matches every word of &ldquo;{query.trim()}&rdquo;. Try one key word, such as upgrade,
+                  ingress or cost,{' '}
+                  <Link to="/skills" onClick={() => setQuery('')}>
+                    browse every skill
+                  </Link>
+                  , or describe the task to the <Link to="/docs/skills/general/apex/">apex router</Link>.
+                </>
+              )
             : `${hits.length - mentions.length} ${
                 hits.length - mentions.length === 1 ? 'skill matches' : 'skills match'
               }${mentions.length ? `, ${mentions.length} more mention it` : ''}. Enter opens the first one.`
