@@ -14,7 +14,9 @@ import type {CatalogSkill} from './skillCatalog';
 // 4. description sentences are cut at a phrase that routes away from the
 //    skill ("not for", "skip for", "do not use", ...), and a ";" clause that
 //    names a skill (eks-... or ecs-...) is not indexed;
-// 5. ties break by platform (EKS, ECS, general), then by name.
+// 5. ties break by the manifest group (EKS, ECS, general), then by name; the
+//    group, not the catalogue's platform, so dotnet-aws-ecs (manifest general,
+//    ECS filter) still follows ecs-architect for "fargate".
 
 const ROUTE_AWAY = /\b(do not use|not for|skip for|route elsewhere|use instead)\b/i;
 const SKILL_TOKEN = /\b(eks|ecs)-[a-z]+(-[a-z]+)*\b/i;
@@ -117,7 +119,7 @@ export function search(index: Indexed[], query: string): Hit[] {
     .sort(
       (a, b) =>
         b.score - a.score ||
-        PLATFORM_ORDER[a.skill.platform ?? a.skill.group] - PLATFORM_ORDER[b.skill.platform ?? b.skill.group] ||
+        PLATFORM_ORDER[a.skill.group] - PLATFORM_ORDER[b.skill.group] ||
         a.skill.name.localeCompare(b.skill.name),
     );
 }

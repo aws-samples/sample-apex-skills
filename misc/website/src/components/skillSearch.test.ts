@@ -119,3 +119,10 @@ test('S1: ties put EKS before ECS', () => {
 test('D3: dotnet-aws-ecs files under the ECS filter', () => {
   assert.match(catalog, /'dotnet-aws-ecs': \{[^}]*platform: 'ecs'/);
 });
+
+test('D3: the platform override does not reorder ties', () => {
+  const withPlatform = buildIndex(
+    manifest.map((s: {name: string; group: string}) => ({...s, use: uses[s.name], platform: s.name === 'dotnet-aws-ecs' ? 'ecs' : s.group})),
+  );
+  assert.equal((search(withPlatform, 'fargate') as Hit[])[0].skill.name, 'ecs-architect');
+});
