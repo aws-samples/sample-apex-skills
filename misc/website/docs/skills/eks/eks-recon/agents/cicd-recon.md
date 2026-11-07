@@ -30,11 +30,13 @@ Detect the CI/CD pipelines and GitOps tooling for the specified EKS cluster and 
 2. **Detection approach**:
    - Check workspace for CI/CD config files (.github/workflows, .gitlab-ci.yml)
    - Check cluster for GitOps controllers (ArgoCD, Flux)
-   - Check for GitOps CRDs (Applications, Kustomizations)
+   - Read target-cluster GitOps resources independently of controller discovery; count complete successful reads, retaining null and Coverage reasons for failed/incomplete/unattempted reads
+   - Always inspect readable workload metadata using the spoke-side rules in `references/cicd.md`; missing local CRDs do not mean no GitOps
+   - Apply the reference outcomes: positive evidence is detected; ambiguity/incomplete selected reads are unconfirmed with `detected: null`; complete selected reads with no matched signal are not_observed with `detected: false`. Record checked signals and excluded kinds in Coverage
 
 3. **Handle MCP 401 errors - IMPORTANT**:
    - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl
-   - Run: `kubectl get deploy -n argocd`, `kubectl get kustomizations.kustomize.toolkit.fluxcd.io -A`
+   - Retry the selected resource kinds separately with the CLI reads in the reference; do not infer remote-hub counts from spoke metadata
    - Only report "unavailable" if kubectl also fails
 
 ## Output Format

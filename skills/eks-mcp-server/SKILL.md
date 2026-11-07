@@ -21,9 +21,9 @@ This skill guides you through configuring the EKS MCP Server to enable live EKS 
 Before proceeding with setup, check if EKS MCP tools are already available:
 
 1. Look for MCP tools in your current environment starting with `eks` or `mcp__eks`
-2. Try a simple command: Ask to list EKS clusters — if it works, you're already set up
+2. Try a simple command: ask to list EKS clusters. If it works, discovery is configured.
 
-If MCP tools are available and working, **stop here** — skip this skill and proceed with your EKS task directly.
+If the request was only about discovery and the tools work, stop here. A working cluster list proves discovery only; for live Kubernetes reads, verify the target and the MCP caller's access per the loaded setup reference (Step 6).
 
 ---
 
@@ -97,7 +97,7 @@ Guide the user through verification:
 
 1. **Restart** — Tell the user to restart their AI assistant (IDE, CLI, or extension) to load the new MCP config
 2. **Test** — Ask the user to try: "List my EKS clusters" or "What EKS MCP tools are available?"
-3. **Confirm** — Ask if the tools appeared and the command worked
+3. **Confirm** — Go to Step 3 of the [self-hosted](references/self-hosted-setup.md) or [AWS-hosted](references/aws-hosted-setup.md) reference and confirm a required read through that server.
 
 **If verification fails**, diagnose in this order:
 

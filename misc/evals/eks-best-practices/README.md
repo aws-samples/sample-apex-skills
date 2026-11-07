@@ -2,11 +2,11 @@
 
 ## What these evals target
 
-These inputs exercise the `eks-best-practices` skill's declared scope: EKS architecture, design, and configuration judgement calls — compute strategy (Karpenter / MNG / Fargate / Auto Mode), multi-tenant isolation, VPC/IP planning, ingress, IAM (Pod Identity / IRSA), reliability primitives (PDBs, probes, topology spread), upgrade strategy *choice* (in-place vs blue-green), cost levers, and "is this reasonable?" sanity reviews. `triggering.json` checks that the skill fires on realistic architecture prompts and stays quiet for neighbour-skill and non-EKS prompts; `evals.json` checks the quality of three representative advisory answers (a multi-tenant compute decision, a production-readiness review, and a surge-readiness plan for a known traffic peak).
+These inputs exercise the `eks-best-practices` skill's declared scope: EKS architecture, design, and configuration judgement calls — compute strategy (Karpenter / MNG / Fargate / Auto Mode), multi-tenant isolation, VPC/IP planning, ingress, IAM (Pod Identity / IRSA), reliability primitives (PDBs, probes, topology spread), upgrade strategy *choice* (in-place vs blue-green), cost levers, and "is this reasonable?" sanity reviews. `triggering.json` checks that the skill fires on realistic architecture prompts and stays quiet for neighbour-skill and non-EKS prompts; `evals.json` checks the quality of four representative advisory answers (a multi-tenant compute decision, a production-readiness review, a surge-readiness plan for a known traffic peak, and a security-operations setup).
 
 ## Neighbour-skill disambiguation
 
-The 25 negative prompts in `triggering.json` (entries 13–37, 0-indexed 12–36) are deliberate near-misses targeting sibling skills:
+The 29 negative prompts in `triggering.json` (entries 13-39 and 42-43) are deliberate near-misses targeting sibling skills:
 
 <!-- SIBLING_MAP_START -->
 - **`eks-recon`** (discovery / "what's currently running" / pre-upgrade inventory) — negatives 13, 14, 15 (what version am I running; inventory what's in my EKS cluster; snapshot of everything running).
@@ -20,7 +20,7 @@ The 25 negative prompts in `triggering.json` (entries 13–37, 0-indexed 12–36
 - **`eks-build`** (EKS Terraform code generation — full project scaffold, add-ons, ArgoCD GitOps) — negatives 27, 28 (generate a production-ready Terraform project; add external-secrets and cert-manager addons to our Terraform project).
 - **`eks-ingress-migration`** (assesses/plans migrating off the NGINX ingress controller to Gateway API / ALB / ATX) — negative 29 (audit ingress controllers, score migration off nginx to ALB). Best-practices gives ingress design guidance; ingress-migration assesses an existing nginx estate and produces a migration plan.
 - **`eks-genai`** (self-hosting LLM/GenAI workloads — GPU vs Neuron, vLLM/Ray serving, distributed training) — negatives 30, 36 (self-hosting Llama 3 on EKS — g6e vs Inferentia2, vLLM vs Ray Serve; large-scale distributed training across GPU nodes — inter-node networking and gang scheduling). Entry 36 guards the eks-genai boundary: "distributed training" is listed by name in the exclusion clause (briefly dropped in a merge trim — which regressed this negative — then restored), so a bare distributed-training prompt must route to eks-genai, not best-practices.
-- **`eks-security`** (EKS security & compliance hardening — CIS, HIPAA/PCI/FedRAMP/GDPR, Pod Identity/Access Entries, PSA, GuardDuty, image signing, audit logging) — negatives 31, 32, 37 (PHI on EKS needing a HIPAA-ready baseline; PCI-DSS hardening priority order; running the CIS benchmarks against the cluster and remediating failures). Entry 37 guards the eks-security boundary: "CIS benchmarks" is listed by name in the exclusion clause (briefly dropped in a merge trim — which regressed this negative — then restored), so a bare CIS-benchmark prompt must route to eks-security, not best-practices.
+- **`eks-security`** (EKS security & compliance hardening — CIS, HIPAA/PCI/FedRAMP/GDPR, Pod Identity/Access Entries, PSA, GuardDuty, image signing, audit logging) — negatives 31, 32, 37, 42, 43 (PHI on EKS needing a HIPAA-ready baseline; PCI-DSS hardening priority order; running the CIS benchmarks against the cluster and remediating failures; checking a running cluster against a security bulletin; working a live compromised-pod event on the cluster). Entries 42 and 43 guard the security-operations boundary: best-practices teaches how to stay informed, set a patch cadence and shape an event response (positives 40, 41), while any live exposure check or live event response on a cluster is eks-security. Entry 37 guards the eks-security boundary: "CIS benchmarks" is listed by name in the exclusion clause (briefly dropped in a merge trim — which regressed this negative — then restored), so a bare CIS-benchmark prompt must route to eks-security, not best-practices.
 - **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster — five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) — negatives 38, 39 ("review my live EKS cluster against Well…").
 <!-- SIBLING_MAP_END -->
 
@@ -28,7 +28,7 @@ The key discriminators for `eks-best-practices`: the prompt asks for a *decision
 
 ## Live-MCP caveat
 
-`evals.json` prompts are intentionally advisory and scenario-described — all three evals give the model enough context in the prompt text that it can produce a quality answer without reaching into a live EKS cluster via MCP tools. Running these evals does **not** require a live cluster or the EKS MCP server to be configured. Triggering evals (`triggering.json`) are matched against the skill's `description` frontmatter only and are never affected by MCP availability.
+`evals.json` prompts are intentionally advisory and scenario-described — every eval gives the model enough context in the prompt text that it can produce a quality answer without reaching into a live EKS cluster via MCP tools. Running these evals does **not** require a live cluster or the EKS MCP server to be configured. Triggering evals (`triggering.json`) are matched against the skill's `description` frontmatter only and are never affected by MCP availability.
 
 ## How to run
 
