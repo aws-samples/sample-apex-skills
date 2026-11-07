@@ -1,6 +1,7 @@
 ---
-title: "eks-recon"
-description: "EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, subnets, load balancers, DNS), security facts (auth mode, IRSA/Pod Identity, RBAC, encryption), add-ons/Helm, observability, workloads (Deployments, StatefulSets, PDBs, HPAs), storage (CSI, StorageClasses, PVs, backup tooling), IaC (Terraform, CDK, eksctl), CI/CD (Actions, ArgoCD, Flux), and cluster insights. Triggers on \"what am I running\", \"tell me about my setup\", \"what version am I on\", cluster inventory, or documenting current state before an upgrade/migration/design. Reports facts only; it does not score, rate, plan, or recommend, and overlapping facts with other skills is fine. Route elsewhere for a judgment or artifact — readiness scoring/deprecated-API checks (eks-upgrade-check), GREEN/AMBER/RED audits (eks-operation-review), design docs/diagrams (eks-design)."
+title: "EKS Recon (eks-recon) for AWS DevOps Agent"
+sidebar_label: "eks-recon"
+description: "AWS DevOps Agent port. EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/SKILL.md
 format: md
 ---

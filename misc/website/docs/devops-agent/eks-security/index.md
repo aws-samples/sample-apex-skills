@@ -1,6 +1,7 @@
 ---
-title: "eks-security"
-description: "EKS security reviews of a live cluster, plus hardening and compliance guidance. Three read-only capabilities with verdict exposed / not exposed / unknown. (1) CVE and advisory review - \"am I exposed to CVE-...\", \"check this AWS security bulletin or GHSA against my cluster\", \"CVE review for EKS\", \"check what is current since a date\" - for add-ons and images; kubelet and node-OS items are review-only. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, record, contain, snapshot, fix, verify. (3) Posture check - \"would my cluster contain a compromised pod\", IMDS, NetworkPolicy, PSA, workload identity, logging, GuardDuty, endpoint, supply chain. Also the 7-layer hardening stack, CIS/HIPAA/PCI-DSS/FedRAMP/SOC 2/GDPR audit prep, 30/60/90 roadmap; OS/AMI, Pod Identity vs IRSA, Access Entries, PSA, image signing, GuardDuty. Advisory only; changes are printed. Not for non-EKS platforms (ECS/ROSA), account-level security with no EKS angle, or GenAI model security."
+title: "EKS Security (eks-security) for AWS DevOps Agent"
+sidebar_label: "eks-security"
+description: "AWS DevOps Agent port. Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/SKILL.md
 format: md
 ---

@@ -944,6 +944,16 @@ for src in "${ALL_MD[@]}"; do
     title="$(skill_title "$skill")"
     description="$(skill_summary "$skill")"
     sidebar_label="$(derive_title "$REPO_ROOT/$src")"
+  elif [[ "$src" == devops-agent/*/SKILL.md ]]; then
+    # DevOps Agent ports: the skill's own title and summary, named as the port,
+    # so the port page and the skill page do not share a title or description.
+    skill="${src#devops-agent/}"
+    skill="${skill%/SKILL.md}"
+    title="$(skill_title "$skill")"
+    [[ "$title" == *"): "* ]] && title="${title%%): *})"
+    title="$title for AWS DevOps Agent"
+    description="AWS DevOps Agent port. $(skill_summary "$skill")"
+    sidebar_label="$(derive_title "$REPO_ROOT/$src")"
   else
     title="$(derive_title "$REPO_ROOT/$src")"
     description="$(parse_frontmatter "$REPO_ROOT/$src" "description")"
