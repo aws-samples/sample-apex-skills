@@ -10,7 +10,7 @@ import type {CatalogSkill} from './skillCatalog';
 //    its target. A version number matches only as a skill's text writes it:
 //    "1.32" finds eks-upgrade-check, "1.34" and "v1.32" find nothing;
 // 3. per word, a whole-word hit in the skill name scores 10, a part-word hit
-//    in the name 6 (as does "agent" for an AGENT_SKILLS skill), the short
+//    in the name 6 (as does "agent" or "devops" for an AGENT_SKILLS skill), the short
 //    summary 3, the description 1; the whole query found as whole words in
 //    the name adds 20, which makes that skill the top hit;
 // 4. description sentences are cut at a phrase that routes away from the
@@ -39,7 +39,8 @@ const ALIAS = new Map(
 );
 // "agent" finds the skills that also run in AWS DevOps Agent (the folders
 // under devops-agent/) and apex, the router, ahead of eks-mcp-server, whose
-// use line only says "connect your agent".
+// use line only says "connect your agent"; "devops" does too, so "devops
+// agent" finds them.
 const AGENT_SKILLS = new Set(['eks-cost-intelligence', 'eks-ingress-migration', 'eks-operation-review', 'eks-recon',
   'eks-security', 'eks-upgrade-check', 'apex']);
 const PLATFORM_ORDER = {eks: 0, ecs: 1, general: 2} as const;
@@ -99,7 +100,7 @@ export function buildIndex(skills: CatalogSkill[]): Indexed[] {
   }));
 }
 
-const AGENT = stem('agent');
+const AGENT = new Set([stem('agent'), stem('devops')]);
 
 // passing: some word was found only in the long description.
 function score(entry: Indexed, query: string[]): {score: number; passing: boolean} {
@@ -108,7 +109,7 @@ function score(entry: Indexed, query: string[]): {score: number; passing: boolea
   let passing = false;
   for (const word of query) {
     if (name.includes(` ${word} `)) total += 10;
-    else if (entry.name.includes(word) || (entry.agent && word === AGENT)) total += 6;
+    else if (entry.name.includes(word) || (entry.agent && AGENT.has(word))) total += 6;
     else if (entry.summary.has(word)) total += 3;
     else if (entry.description.has(word)) {
       total += 1;

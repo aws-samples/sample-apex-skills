@@ -131,6 +131,14 @@ test('AG-1: "aws agents" puts the DevOps Agent ports and apex ahead of eks-mcp-s
   assert.ok((search(index, 'aws agents') as Hit[])[0].score < 20, 'no Best match');
 });
 
+test('AG-2: "devops agent" finds the DevOps Agent ports and apex; "devops" still opens ecs-devops', () => {
+  const ports = readdirSync(new URL('../../../../devops-agent/', here), {withFileTypes: true})
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name);
+  assert.deepEqual(shown('devops agent').rows, [...ports.sort(), 'apex']);
+  assert.equal(shown('devops').first, 'ecs-devops');
+});
+
 test('S1: ties put EKS before ECS', () => {
   assert.deepEqual(shown('recon').rows, ['eks-recon', 'ecs-recon']);
   assert.deepEqual(shown('operation review').rows, ['eks-operation-review', 'ecs-operation-review']);
