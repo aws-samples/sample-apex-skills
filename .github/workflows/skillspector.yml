@@ -1,0 +1,103 @@
+name: SkillSpector (advisory)
+
+# Advisory only; see CONTRIBUTING.md, SkillSpector scan (advisory).
+# Do not mark this check required: the paths filter below would leave a
+# required status Pending on PRs outside those paths.
+on:
+  pull_request:
+    paths:
+      - 'skills/**'
+      - 'devops-agent/**'
+      - '.github/workflows/skillspector.yml'
+      - 'misc/skillspector/**'
+
+permissions:
+  contents: read
+
+env:
+  # SkillSpector v2.13.4, the release tag's commit. misc/skillspector/baseline.md was made with
+  # this version and suppresses only for it: change both together.
+  SKILLSPECTOR_SHA: 54824463814a0be01360792523ec7245a69190fc
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # HEAD^1, the base tip, is needed to list the changed skills.
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Check out SkillSpector
+        id: tool
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: NVIDIA/SkillSpector
+          ref: ${{ env.SKILLSPECTOR_SHA }}
+          path: .skillspector-src
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        continue-on-error: true
+        with:
+          python-version: '3.12'
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        continue-on-error: true
+        with:
+          version: '0.13.7'
+          enable-cache: false
+
+      # Installs from SkillSpector's own uv.lock, which pins every runtime dependency
+      # by hash; SkillSpector itself is pinned by commit, and its build backend
+      # (hatchling) is resolved unpinned at build time.
+      - name: Install SkillSpector
+        id: install
+        if: steps.tool.outcome == 'success'
+        continue-on-error: true
+        run: uv sync --frozen --no-dev --project .skillspector-src
+
+      - name: Scan changed skills (advisory)
+        id: scan
+        if: steps.install.outcome == 'success'
+        # A step timeout under continue-on-error ends the scan without failing the check.
+        timeout-minutes: 60
+        continue-on-error: true
+        run: |
+          set +e
+          # HEAD is the PR merge commit; HEAD^1 is the base tip it was built on.
+          dirs=$(git diff --name-only HEAD^1 HEAD -- skills devops-agent \
+            | sed -nE 's#^((skills|devops-agent)/[^/]+)/.*#\1#p' | sort -u)
+          if [ -z "$dirs" ]; then
+            echo "No changed skill; nothing to scan."
+            exit 0
+          fi
+          for dir in $dirs; do
+            [ -d "$dir" ] || continue
+            out="$RUNNER_TEMP/skillspector-$(echo "$dir" | tr '/' '-').json"
+            uv run --project .skillspector-src --frozen --no-dev \
+              skillspector scan "$dir" --no-llm --format json --output "$out"
+            rc=$?
+            echo "skillspector exit $rc for $dir"
+            if [ "$rc" -eq 2 ] || [ ! -s "$out" ]; then
+              echo "::warning title=SkillSpector::scan error on $dir (exit $rc); see the job log"
+              printf '### %s\n\nScan error (exit %s): the scan did not finish and its findings are not shown here, so no finding here does not mean clean.\n\n' \
+                "$dir" "$rc" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            python3 misc/skillspector/annotate.py "$dir" "$out" misc/skillspector/baseline.md
+          done
+          exit 0
+
+      - name: Say what was not scanned
+        if: always() && steps.scan.outcome != 'success'
+        continue-on-error: true
+        run: |
+          {
+            echo "### SkillSpector did not finish"
+            echo
+            echo "Checkout ${{ steps.tool.outcome }}, install ${{ steps.install.outcome }}, scan ${{ steps.scan.outcome }}."
+            echo "Skills with no section above were not scanned, so no finding for them does not mean clean."
+          } >> "$GITHUB_STEP_SUMMARY"

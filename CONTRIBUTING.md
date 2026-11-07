@@ -342,6 +342,8 @@ These rules make the repo's frontmatter a compliant subset of the [Agent Skills 
 
 For `skills/` each description must also match the generated `skills.json` manifest (`devops-agent/` is exempt from the manifest check; a missing manifest entry is only a warning). If validation fails, fix the frontmatter YAML and rerun the regeneration commands above.
 
+**SkillSpector scan (advisory).** `.github/workflows/skillspector.yml` runs [NVIDIA SkillSpector](https://github.com/NVIDIA/SkillSpector) (static, `--no-llm`, pinned to a release commit) on each skill a PR changes under `skills/` or `devops-agent/`, and writes each finding to the job log as a workflow command. GitHub shows at most 10 warning and 10 notice annotations per step, and one step covers every changed skill, so the annotations show only the first ones; the full list is in the job log. Rule AE1 coverage-gap warnings come first and can fill all 10 (eks-well-architected-review, terraform-skill), so read the job log for the other findings. A green check with no annotations can also mean the scan did not run; read the job log. No step after the repository checkout can fail the check, and it does not replace review: a clean scan is not an approval, and a finding is for the reviewer to weigh. The workflow leaves out the findings that the reviewed baseline, `misc/skillspector/baseline.md`, suppresses; its header says how a finding matches a row. The match does not read the line's content, so review every edited line in a baselined file by hand. The job summary gives the suppressed count per skill and names the files the scan did not fully inspect.
+
 ## Creating a New Example
 
 1. Create `examples/<scenario>/<variant>/`
