@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 title: Contributing
+description: "How to author and contribute APEX skills: the skill-creator skill, the contribution flow and running update-docs after a change."
 ---
 
 # Contributing

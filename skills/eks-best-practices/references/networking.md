@@ -350,7 +350,7 @@ Because the switch is irreversible, enumerate reachability before enabling:
 | **CNI mode** | Secondary IP or prefix delegation | **Prefix mode only** (auto-enabled) |
 | **WARM_IP/ENI tuning** | Required for optimization | **Not needed** — prefix assigned at bootstrap |
 | **AWS service support** | Full | Most services (verify specific ones) |
-| **Network policy** | Full support | Full support (VPC CNI 1.14+) |
+| **Network policy** | Full support | Full support (use VPC CNI 1.21.1+) |
 | **Load balancers** | ALB/NLB full support | ALB/NLB dual-stack (requires LBC, in-tree controller doesn't support IPv6) |
 | **Recommendation** | Default choice | Use when IPv4 exhaustion is a real concern |
 

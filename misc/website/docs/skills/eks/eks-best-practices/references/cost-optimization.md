@@ -141,7 +141,7 @@ spec:
 
 Karpenter selects the most cost-effective instance from your allowed types. It replaces underutilized nodes with smaller ones and removes empty nodes automatically.
 
-For workloads that shouldn't be interrupted (long batch jobs without checkpointing), use the `karpenter.sh/do-not-disrupt: "true"` annotation.
+For workloads that shouldn't be interrupted (long batch jobs without checkpointing), use the `karpenter.sh/do-not-disrupt: "true"` annotation. On a pod it blocks consolidation (and drift unless the NodeClaim has a `terminationGracePeriod`); on a node it blocks consolidation and drift. It does not block expiration, interruption, manual deletion or Node Auto Repair: see [Karpenter Reference](karpenter#do-not-disrupt-does-not-block-forceful-disruption).
 
 **See also:** [Karpenter Reference](karpenter) for detailed NodePool configuration, consolidation tuning, and Spot handling.
 

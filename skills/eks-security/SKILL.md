@@ -143,7 +143,7 @@ Cross-cutting: encryption and secrets ([encryption-and-secrets.md](references/en
 
 ### Compliance-regime scope
 
-EKS is **in scope** for PCI-DSS, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Moderate (commercial) and High (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud). AWS gives **framework support**, not attestation, for GDPR, NIST 800-53/800-171 and CJIS. Scope table and worked scenarios: [compliance-regimes.md](references/compliance-regimes.md); quick-starts: [HIPAA](references/compliance-hipaa.md), [PCI DSS](references/compliance-pci.md), [SOC 2](references/compliance-soc2.md).
+EKS is **in scope** for PCI-DSS, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Moderate (commercial) and High (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud). AWS gives **framework support**, not attestation, for GDPR, NIST 800-53/800-171 and CJIS. Scope table and worked scenarios: [compliance-regimes.md](references/compliance-regimes.md); quick-starts: [HIPAA](references/compliance-hipaa.md), [PCI DSS](references/compliance-pci.md), [SOC 2](references/compliance-soc2.md), [FedRAMP](references/compliance-fedramp.md).
 
 > **Disclaimer for customer-facing output:** "Compliance status changes over time; verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting program coverage." EKS is HIPAA-*eligible* with a signed BAA, not "HIPAA-compliant"; FedRAMP High is GovCloud only.
 
@@ -245,7 +245,7 @@ Escalate (your AWS account team) for: first-time certification of a mission-crit
 | [os-ami-hardening.md](references/os-ami-hardening.md) | Layer 1: Bottlerocket vs AL2023 vs Ubuntu/RHEL, CIS benchmarks, Image Builder, FIPS |
 | [auto-mode-security.md](references/auto-mode-security.md) | Auto Mode: AWS-handled vs customer-owned controls, when to avoid it |
 | [identity-and-access.md](references/identity-and-access.md) | Layer 2: Pod Identity vs IRSA, Access Entries vs aws-auth, access policies, condition keys |
-| [workload-security.md](references/workload-security.md) | Layer 3: PSA, Kyverno/OPA, NetworkPolicy, Security Groups for Pods, mesh mTLS |
+| [workload-security.md](references/workload-security.md) | Layer 3: PSA, Kyverno/OPA, NetworkPolicy, Network Firewall container rules, Security Groups for Pods, mesh mTLS |
 | [image-supply-chain.md](references/image-supply-chain.md) | Layer 4: ECR Enhanced Scanning, signing, admission control |
 | [runtime-security.md](references/runtime-security.md) | Layer 5: GuardDuty for EKS, Falco, Security Hub |
 | [audit-logging.md](references/audit-logging.md) | Layer 6: control-plane log types, CloudTrail, VPC Flow Logs, SIEM, retention |
@@ -256,6 +256,7 @@ Escalate (your AWS account team) for: first-time certification of a mission-crit
 | [compliance-hipaa.md](references/compliance-hipaa.md) | HIPAA quick-start |
 | [compliance-pci.md](references/compliance-pci.md) | PCI DSS quick-start |
 | [compliance-soc2.md](references/compliance-soc2.md) | SOC 2 quick-start |
+| [compliance-fedramp.md](references/compliance-fedramp.md) | FedRAMP quick-start |
 
 ## Sources
 

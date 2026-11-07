@@ -233,7 +233,7 @@ Hardening is half the job; the other half is running security over time. Four pr
 | Probe | Purpose | Key Rule |
 |-------|---------|----------|
 | **Startup** | Wait for slow init | Use for apps >10s startup |
-| **Readiness** | Traffic routing | ✅ Check dependencies here |
+| **Readiness** | Traffic routing | Prefer pod-local; avoid external dependencies such as a database |
 | **Liveness** | Detect deadlocks | ❌ Never check dependencies |
 
 **Critical rule:** Liveness probes must NOT check external dependencies. If the database goes down and liveness checks the DB, ALL pods restart — causing cascading failure.
@@ -259,6 +259,10 @@ topologySpreadConstraints:
 - maxSkew: 1
   topologyKey: topology.kubernetes.io/zone
   whenUnsatisfiable: DoNotSchedule
+  minDomains: 3   # 3 assumes 3 zones; set to the zones your nodes can launch in; too high leaves pods Pending
+  labelSelector:
+    matchLabels:
+      app: my-app   # must match the pod's own labels
 ```
 
 **For detailed reliability guidance, see:** [Reliability & Resiliency — Core](references/reliability-core) (see also [reliability-advanced.md](references/reliability-advanced) for DR, deployment strategies, and large-cluster guidance)

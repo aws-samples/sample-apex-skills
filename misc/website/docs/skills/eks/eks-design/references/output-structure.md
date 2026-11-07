@@ -146,9 +146,6 @@ When document export is requested, the following are generated alongside the cor
 
 ```
 projects/<project-name>/design/
-├── scripts/                                     # Optional: document generators
-│   ├── generate-docx.sh                         # Word export script
-│   └── generate-pptx.sh                         # PowerPoint export script
 └── exports/                                     # Optional: generated documents
     ├── architecture-document.docx
     └── architecture-presentation.pptx
