@@ -37,13 +37,13 @@ Ask your agent in plain words and the matching skill loads:
 
 > Is my EKS cluster ready to upgrade to 1.32?
 
-In Claude Code the v1 install also adds `/apex:*` commands, such as `/apex:eks-upgrade-check`; Kiro CLI gets the same workflows as manual steering files in `~/.kiro/steering/`.
+In Claude Code the v1 install also adds `/apex:*` commands, such as `/apex:eks-upgrade-check`; Kiro CLI gets the workflows, without the `eks` hub, as manual steering files in `~/.kiro/steering/`.
 
 Flags, updates and uninstall: [installer README](misc/installer/README.md).
 
 ### The `/apex` router (v2, from `main`)
 
-The router is new in v2, which is not released yet. To use it in Claude Code or Kiro CLI, install from `main` (this also moves an existing v1 install to `main`, which has no `/apex:*` commands):
+The router is new in v2, which is not released yet. To use it in Claude Code or Kiro CLI, install from `main` (this also moves an existing v1 install to `main`, which has no `/apex:*` commands or Kiro steering files):
 
 ```bash
 npx apex-skills@1.3.0 --branch main
@@ -53,7 +53,7 @@ Then type your request after the router:
 
 > /apex is my cluster ready to upgrade to 1.32?
 
-For Codex, on a machine without the npx install, copy the skills by hand:
+For Codex, which the installer does not set up, copy the skills by hand:
 
 ```bash
 git clone https://github.com/aws-samples/sample-apex-skills.git
@@ -75,7 +75,7 @@ The [EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check
 ```mermaid
 flowchart LR
   U[You] --> H[Agent harness<br/>Claude Code, Kiro CLI, Codex]
-  H --> R["/apex router"]
+  H --> R["/apex router (v2, from main)"]
   R --> S[Skill + runbook]
   S --> T["AWS CLI, kubectl or MCP servers,<br/>when the skill needs them"]
   T --> O[Report or code]
