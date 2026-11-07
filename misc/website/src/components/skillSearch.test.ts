@@ -112,7 +112,16 @@ test('M4: no part-word hits outside the name, no Best match from a part word', (
 
 test('M5: "skill" and "skills" are stop words', () => {
   assert.deepEqual(shown('eks skills').all, shown('eks').all);
-  assert.equal(shown('skills').total, 0);
+});
+
+test('FB-1: a stop-word-only query shows the whole catalogue in order, no Best match', () => {
+  for (const query of ['aws skills', 'skills']) {
+    const hits = search(index, query) as Hit[];
+    assert.deepEqual(hits.map((h) => h.skill.name), manifest.map((s: {name: string}) => s.name), query);
+    assert.ok(hits.every((h) => h.score === 0 && !h.passing), query);
+  }
+  // "agents" is not a stop word, so "aws agents" is a normal search.
+  assert.deepEqual(shown('aws agents').rows, ['eks-mcp-server']);
 });
 
 test('S1: ties put EKS before ECS', () => {

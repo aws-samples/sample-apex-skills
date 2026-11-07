@@ -115,7 +115,8 @@ export type Hit = {skill: CatalogSkill; score: number; passing: boolean};
 
 export function search(index: Indexed[], query: string): Hit[] {
   const q = queryWords(query);
-  if (q.length === 0) return [];
+  // Only stop words, such as "aws skills": the whole catalogue in its own order.
+  if (q.length === 0) return words(query).length > 0 ? index.map((entry) => ({skill: entry.skill, score: 0, passing: false})) : [];
   return index
     .map((entry) => ({skill: entry.skill, ...score(entry, q)}))
     .filter((hit) => hit.score > 0)

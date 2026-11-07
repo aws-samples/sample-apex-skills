@@ -13,8 +13,8 @@ export default function Home(): ReactNode {
   useBrokenLinks().collectAnchor('install');
   return (
     <Layout
-      title="EKS and ECS platform engineering skills"
-      description={`Platform engineering with agents: ${skillCount} open-source agent skills for Amazon EKS and Amazon ECS. Design, build, assess, upgrade and secure from Claude Code, Kiro CLI or any Agent Skills harness.`}
+      title="Curated AWS skills for EKS and ECS platform engineering"
+      description={`Platform engineering with agents: ${skillCount} curated AWS skills for Amazon EKS and Amazon ECS. Design, build, assess, upgrade and secure from Claude Code, Kiro CLI or any Agent Skills harness.`}
     >
       <main className="apex-home">
         <header className="apex-home__hero">

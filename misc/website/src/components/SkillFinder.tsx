@@ -85,7 +85,7 @@ export default function SkillFinder({variant}: Props): ReactNode {
   }, [query, platform]);
   const counts = useMemo(() => platformCounts(SKILLS), []);
 
-  const searching = queryWords(query).length > 0;
+  const searching = queryWords(query).length > 0 || hits.length > 0;
   // A clear winner: the query is in the skill's name and it outscores the next hit.
   const top = hits[0] && hits[0].score >= 20 && (!hits[1] || hits[0].score > hits[1].score) ? hits[0] : null;
   // Strong hits match every word in the name or summary; the others only
