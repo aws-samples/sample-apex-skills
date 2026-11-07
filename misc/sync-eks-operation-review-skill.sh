@@ -15,7 +15,7 @@
 #
 # Also copied: upstream's .claude/commands/eks-operation-review.md (the
 # workflow) to skills/apex/runbooks/eks-operation-review/eks-operation-review.md,
-# with the same steering/ -> references/ rewrite (Step 8).
+# with steering/ rewritten to ../../../eks-operation-review/references/ (Step 8).
 #
 # Excluded (deliberately NOT copied):
 #   - .git/, .github/, the rest of .claude/, .mcp.json
@@ -24,6 +24,8 @@
 #   - .gitignore
 #
 # Apex-flavored deviations (deterministic edits applied at sync time):
+# Edits before Step 8a are not anchor-checked: if upstream rewords an
+# anchor, that sed edit silently does nothing.
 #
 # 1. steering/ -> references/ rename — Upstream's progressive-disclosure
 #    docs live under steering/. Apex renames them to references/, the
@@ -54,12 +56,14 @@
 #    YAML representation changes (newlines folded into spaces, leading
 #    indentation stripped).
 #
-# 5. Runbook fit (Step 8a): the copied workflow is adapted to the apex
-#    layout: name/description frontmatter added, `references/` paths
-#    pointed at the eks-operation-review skill's folder, the `.mcp.json`
-#    instructions and the fixed `uvx awslabs.eks-mcp-server@<version>`
-#    test pointed at apex's eks-mcp-server skill. The sync stops if an
-#    anchor is missing, so an upstream rewrite is never half-adapted.
+# 5. Runbook fit (Steps 8 and 8a): the copied workflow is adapted to the
+#    apex layout: `steering/` paths pointed at the eks-operation-review
+#    skill's references/ folder, name/description frontmatter added, the
+#    `.mcp.json` instructions and the fixed
+#    `uvx awslabs.eks-mcp-server@<version>` test pointed at apex's
+#    eks-mcp-server skill. The sync exits non-zero if an anchor is
+#    missing; the runbook is then left as upstream's unadapted copy until
+#    the script is fixed and re-run.
 #
 # NOTE: Unlike sync-eks-upgrade-skill.sh, this script does NOT need a
 # pushy-description rewrite — skill-creator's restrained-style description
@@ -253,29 +257,22 @@ RUNBOOK="$REPO_ROOT/skills/apex/runbooks/eks-operation-review/eks-operation-revi
 echo "Copying upstream .claude/commands/eks-operation-review.md to the apex runbook..."
 mkdir -p "$(dirname "$RUNBOOK")"
 cp "$UPSTREAM_ROOT/.claude/commands/eks-operation-review.md" "$RUNBOOK"
-sed -i.bak 's|steering/|references/|g' "$RUNBOOK"
+sed -i.bak 's|steering/|../../../eks-operation-review/references/|g' "$RUNBOOK"
 rm -f "$RUNBOOK.bak"
 
 # --- Step 8a: Fit the runbook to the apex layout (apex-flavored #5) ---
-echo "Adapting the runbook to the apex layout (frontmatter, references path, MCP setup)..."
+echo "Adapting the runbook to the apex layout (frontmatter, MCP setup)..."
 python3 - "$RUNBOOK" <<'PYEOF'
 import sys
 path = sys.argv[1]
 with open(path) as f:
     text = f.read()
 
-refs = "../../../eks-operation-review/references/"
 edits = [
-    # references/ lives in the eks-operation-review skill, not beside this runbook
-    ("`references/` directory",
-     "`references/` directory of the eks-operation-review skill (`" + refs + "`, relative to this runbook)"),
-    ("Read `references/report-generation.md`", "Read `" + refs + "report-generation.md`"),
     # apex ships no project-root .mcp.json; MCP setup is the eks-mcp-server skill
-    ("If you need to use a specific profile or region, update the EKS MCP server config in `.mcp.json`:\n\n"
-     "```json\n\"env\": {\n  \"AWS_PROFILE\": \"your-profile-name\",\n  \"AWS_REGION\": \"your-region\",\n"
-     "  \"FASTMCP_LOG_LEVEL\": \"ERROR\"\n}\n```\n",
-     "If you need to use a specific profile or region, set them in the EKS MCP server config through apex's "
-     "`eks-mcp-server` skill (apex does not ship a project-root `.mcp.json`).\n"),
+    ("update the EKS MCP server config in `.mcp.json`:",
+     "set them in the EKS MCP server's `env` config through apex's `eks-mcp-server` skill "
+     "(apex does not ship a project-root `.mcp.json`):"),
     ("Verify AWS_PROFILE and AWS_REGION in `.mcp.json`",
      "Verify AWS_PROFILE and AWS_REGION in the EKS MCP server config (run apex's `eks-mcp-server` skill)"),
 ]
@@ -329,11 +326,11 @@ The sync script applies five deterministic edits to upstream content:
 
 2. **\`SKILL.md\` description block-scalar flattening.** Upstream uses YAML folded-scalar form (\`description: >\` followed by indented lines). Apex's catalog generator reads the same line as the key, so the catalog row would render just \`>\`. The sync flattens the block scalar to a single \`description: <one line>\` entry. Wording is preserved byte-for-byte; only the YAML representation changes.
 
-3. **\`SKILL.md\` body path fix.** Upstream's body says "Read and follow \`.claude/commands/eks-operation-review.md\`": that path doesn't exist in apex. The sync copies that file, with the same \`steering/\` -> \`references/\` rewrite, outside this folder to \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\`. The sync rewrites the reference to that file, relative to this skill's folder (\`../apex/runbooks/eks-operation-review/eks-operation-review.md\`).
+3. **\`SKILL.md\` body path fix.** Upstream's body says "Read and follow \`.claude/commands/eks-operation-review.md\`": that path doesn't exist in apex. The sync copies that file, with its \`steering/\` paths rewritten to \`../../../eks-operation-review/references/\`, outside this folder to \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\`. The sync rewrites the reference to that file, relative to this skill's folder (\`../apex/runbooks/eks-operation-review/eks-operation-review.md\`).
 
 4. **\`SKILL.md\` Prerequisites MCP line.** Upstream lists "MCP servers configured in \`.mcp.json\`" as a prerequisite. Apex doesn't ship \`.mcp.json\`; MCP setup is handled by the \`eks-mcp-server\` skill. The sync rewrites the line to point users at that skill instead.
 
-5. **Runbook fit.** The copied workflow at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\` gets apex's \`name\`/\`description\` frontmatter, its \`references/\` paths pointed at this skill's folder (\`../../../eks-operation-review/references/\` from the runbook), and its \`.mcp.json\` instructions and fixed \`uvx awslabs.eks-mcp-server@<version>\` test pointed at the \`eks-mcp-server\` skill. The sync stops if upstream's text no longer matches.
+5. **Runbook fit.** The copied workflow at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\` gets its \`steering/\` paths pointed at this skill's folder (\`../../../eks-operation-review/references/\` from the runbook), apex's \`name\`/\`description\` frontmatter, and its \`.mcp.json\` instructions and fixed \`uvx awslabs.eks-mcp-server@<version>\` test pointed at the \`eks-mcp-server\` skill. The sync exits non-zero if an anchor is missing; the runbook is then left as upstream's unadapted copy until the script is fixed and re-run.
 
 The upstream description **wording** is NOT rewritten — skill-creator's restrained-style content is already apex-compatible. Only the YAML representation is flattened (Edit #2).
 

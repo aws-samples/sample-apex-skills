@@ -302,7 +302,7 @@ Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter desc
 
 1. Create `skills/apex/runbooks/<skill>/<name>.md`, in the folder of the skill it runs with (every runbook is named after its folder except `eks-design/design.md`)
 2. Add a header naming the lifecycle and the skill: `> **Lifecycle:** Day <n>` and `> **Skill:** <skill>`
-3. Do not add a routing table: the apex skill's tables route (five of the moved runbooks, eks-build, eks-design, eks-genai, eks-platform-engineering and eks-security, still carry one; a later change removes them; the eks-upgrade-check runbook keeps a `## Routing` section on scope; the eks-operation-review runbook is upstream's workflow file, copied by `misc/sync-eks-operation-review-skill.sh` with only its `steering/` paths rewritten, so it has neither the header of step 2 nor a routing section)
+3. Do not add a routing table: the apex skill's tables route (five of the moved runbooks, eks-build, eks-design, eks-genai, eks-platform-engineering and eks-security, still carry one; a later change removes them; the eks-upgrade-check runbook keeps a `## Routing` section on scope; the eks-operation-review runbook is upstream's workflow file, copied by `misc/sync-eks-operation-review-skill.sh` and fitted to the apex layout (edit 5 in `skills/eks-operation-review/UPSTREAM.md`), so it has neither the header of step 2 nor a routing section)
 4. Structure as phases with numbered checklists and STOP gates
 5. Check that a routing row in `skills/apex/SKILL.md` sends the request to that skill
 6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.

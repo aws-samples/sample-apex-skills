@@ -18,12 +18,14 @@
 #   skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 #
 # Excluded (deliberately NOT copied):
-#   - .git/, .github/, .claude/, .mcp.json
+#   - .git/, .github/, the rest of .claude/ (only .claude/skills/eks-upgrade is copied), .mcp.json
 #   - evals/, docs/
 #   - Generated *.html and *.md report artifacts at upstream root
 #   - README.md (read only for the IAM policy block, Step 10), CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
 #
 # Apex-flavored deviations (deterministic edits applied at sync time):
+# These edits are not anchor-checked: if upstream rewords an anchor, that
+# sed or awk edit silently does nothing.
 #
 # 1. MCP Server Setup section — Upstream's section assumes a project-root
 #    .mcp.json (which apex deliberately does not ship). After copy, this

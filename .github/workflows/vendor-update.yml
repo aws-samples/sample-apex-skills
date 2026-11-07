@@ -207,11 +207,7 @@ jobs:
             3. Run the fixed script locally and push the result to this branch
             4. Or close this PR and re-trigger: `gh workflow run vendor-update.yml -f skill=${{ matrix.skill.name }}`
 
-            ### This PR only updates `.vendor-sha`
-
-            The SHA file is updated so the workflow won't re-fire on the same upstream
-            commit every week. Once the sync script is fixed and re-run, the actual
-            skill content will be updated.
+            This PR carries `.vendor-sha` and whatever the failed sync left in the tree; fix the script and re-run before merging.
           commit-message: "chore(vendor): flag ${{ matrix.skill.name }} upstream update (sync script failed)"
           labels: |
             vendor-update

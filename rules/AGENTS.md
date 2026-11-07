@@ -24,7 +24,7 @@
   whether they are willing and interested to install the EKS MCP Server:
   if yes, load the `eks-mcp-server` skill to set it up; if no, use
   kubectl and the AWS CLI directly, except for `eks-operation-review`,
-  which needs the EKS MCP server and stops at its pre-flight (its runbook, Pre-flight Action 3).
+  which needs the EKS MCP server and stops at its pre-flight (its runbook, Pre-flight "Verify MCP connectivity").
 - When uncertain about specific AWS details (API parameters, permissions,
   limits, error codes), verify against documentation rather than guessing.
   State uncertainty explicitly if you cannot confirm.

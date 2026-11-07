@@ -16,24 +16,24 @@ description: Day 2 operational-review workflow. Runs the eks-operation-review sk
 
 ## Steering File Loading
 
-Before executing checks for any section, read the corresponding steering file from the `references/` directory of the eks-operation-review skill (`../../../eks-operation-review/references/`, relative to this runbook) using the Read tool.
+Before executing checks for any section, read the corresponding steering file from the `../../../eks-operation-review/references/` directory using the Read tool.
 
 ### Scenario to Steering File Map
 
 | User Request | Steering File(s) to Load |
 |---|---|
 | Full review / assess / audit / health check | ALL files in order: cluster-lifecycle -> addon-management, then report-generation |
-| Version currency / lifecycle / deprecated APIs (current state) | `references/cluster-lifecycle.md` |
-| IRSA / RBAC / access / pod identity / endpoint | `references/access-identity.md` |
-| Logging / metrics / alerting / observability | `references/observability.md` |
-| Resource requests / probes / PDB / image tags / storage | `references/workload-configuration.md` |
-| IP / subnet / DNS / CoreDNS / network policy | `references/networking.md` |
-| Autoscaling / Karpenter / HPA / topology spread | `references/autoscaling.md` |
-| Deployment / rollout / CI/CD / graceful shutdown | `references/deployment-practices.md` |
-| Runbook / on-call / post-incident / backup / DR / Velero | `references/operational-processes.md` |
-| Add-on / node monitoring / cluster insights | `references/addon-management.md` |
-| Generate / write report | `references/report-generation.md` |
-| IaC / GitOps / ArgoCD / Flux / drift | `references/infrastructure-as-code.md` |
+| Version currency / lifecycle / deprecated APIs (current state) | `../../../eks-operation-review/references/cluster-lifecycle.md` |
+| IRSA / RBAC / access / pod identity / endpoint | `../../../eks-operation-review/references/access-identity.md` |
+| Logging / metrics / alerting / observability | `../../../eks-operation-review/references/observability.md` |
+| Resource requests / probes / PDB / image tags / storage | `../../../eks-operation-review/references/workload-configuration.md` |
+| IP / subnet / DNS / CoreDNS / network policy | `../../../eks-operation-review/references/networking.md` |
+| Autoscaling / Karpenter / HPA / topology spread | `../../../eks-operation-review/references/autoscaling.md` |
+| Deployment / rollout / CI/CD / graceful shutdown | `../../../eks-operation-review/references/deployment-practices.md` |
+| Runbook / on-call / post-incident / backup / DR / Velero | `../../../eks-operation-review/references/operational-processes.md` |
+| Add-on / node monitoring / cluster insights | `../../../eks-operation-review/references/addon-management.md` |
+| Generate / write report | `../../../eks-operation-review/references/report-generation.md` |
+| IaC / GitOps / ArgoCD / Flux / drift | `../../../eks-operation-review/references/infrastructure-as-code.md` |
 
 ---
 
@@ -76,7 +76,15 @@ Of the 36 ratable checks (of 38 numbered), 33 are auto-ratable (~92%, 33/36); th
 
 The MCP servers use your existing AWS credentials from the environment (`~/.aws/credentials`, `AWS_PROFILE`, `AWS_REGION`). No additional configuration is needed if your AWS CLI already works.
 
-If you need to use a specific profile or region, set them in the EKS MCP server config through apex's `eks-mcp-server` skill (apex does not ship a project-root `.mcp.json`).
+If you need to use a specific profile or region, set them in the EKS MCP server's `env` config through apex's `eks-mcp-server` skill (apex does not ship a project-root `.mcp.json`):
+
+```json
+"env": {
+  "AWS_PROFILE": "your-profile-name",
+  "AWS_REGION": "your-region",
+  "FASTMCP_LOG_LEVEL": "ERROR"
+}
+```
 
 ## Getting Started
 
@@ -184,7 +192,7 @@ Proceed only after the user confirms.
 ### Steps 1-10: Run Assessment
 
 Read each steering file in section order using the Read tool. For each section:
-1. Read the steering file from `references/` directory of the eks-operation-review skill (`../../../eks-operation-review/references/`, relative to this runbook)
+1. Read the steering file from `../../../eks-operation-review/references/` directory
 2. Execute the checks described in it
 3. Rate each item using the rubric below
 
@@ -245,7 +253,7 @@ Date: [YYYY-MM-DD HH:MM]
 
 ## Maturity Score
 **Maturity Score: X% (computed over N of M applicable checks; K UNKNOWN excluded)**
-<!-- MANDATORY: never present the score without this coverage annotation. M = applicable checks (GREEN+AMBER+RED+UNKNOWN); N = M − K = rated checks; K = UNKNOWN count; X% = GREEN ÷ N × 100. See references/report-generation.md for the computation. -->
+<!-- MANDATORY: never present the score without this coverage annotation. M = applicable checks (GREEN+AMBER+RED+UNKNOWN); N = M − K = rated checks; K = UNKNOWN count; X% = GREEN ÷ N × 100. See ../../../eks-operation-review/references/report-generation.md for the computation. -->
 
 | Rating | Count | Percentage |
 |--------|-------|------------|
@@ -297,6 +305,6 @@ Date: [YYYY-MM-DD HH:MM]
 
 ### AWS References
 
-Use the pre-verified reference map in `references/report-generation.md` Step 7. Do NOT call the AWS Documentation MCP server during report generation — it adds latency and token cost. All URLs are pre-verified and mapped by section.
+Use the pre-verified reference map in `../../../eks-operation-review/references/report-generation.md` Step 7. Do NOT call the AWS Documentation MCP server during report generation — it adds latency and token cost. All URLs are pre-verified and mapped by section.
 
 Do NOT fabricate URLs beyond the reference map. If a finding doesn't match a specific URL, use the fallback section-level page.
