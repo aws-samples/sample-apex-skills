@@ -170,7 +170,7 @@ cluster_enabled_log_types: [api, audit, authenticator, controllerManager, schedu
 permissions_boundary: "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"  # Optional, null by default
 ```
 
-**Permissions boundary**: when the organisation requires a boundary on every role automation creates, set `permissions_boundary` in `cluster.yaml`. Every role the customer named then carries it; the input name per module is in [baseline-defaults.md](baseline-defaults#permissions-boundary-optional).
+**Permissions boundary**: Only when the customer answered yes to question 30 with an ARN, set `permissions_boundary` in `cluster.yaml`. Every role the customer named then carries it; the input name per module is in [baseline-defaults.md](baseline-defaults#permissions-boundary-optional).
 
 CloudWatch log retention at 365 days:
 ```hcl

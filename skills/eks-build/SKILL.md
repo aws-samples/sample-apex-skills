@@ -76,7 +76,7 @@ Pattern 2b does NOT prescribe which controller. The choice is: ACK, Crossplane, 
 
 ### Step 1: Gather Requirements
 
-Accept requirements via interactive questionnaire or a requirements YAML file. If YAML is supplied, validate coverage (cluster, compute, networking, addons, auth, compliance, permissions boundary, multi-tenancy) and prompt for gaps. Always ask whether a permissions boundary is required. A yes (typed, or a YAML `permissions_boundary`, which gives only the ARN) still needs the ARN, which roles carry it and whether the boundary allows their actions: never build on a yes without those answers; stop, name what is missing and ask again, and never suggest or guess an ARN.
+Accept requirements via interactive questionnaire or a requirements YAML file. If YAML is supplied, validate coverage (cluster, compute, networking, addons, auth, compliance, permissions boundary, multi-tenancy) and prompt for gaps. Always ask whether a permissions boundary is required. A yes (typed, or a YAML `permissions_boundary`, which gives only the ARN) still needs the ARN and which roles carry it: never build on a yes without those answers; stop, name what is missing and ask again, and never suggest or guess an ARN.
 
 ### Step 2: Select Pattern
 

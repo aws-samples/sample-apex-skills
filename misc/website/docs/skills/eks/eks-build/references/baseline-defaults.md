@@ -334,7 +334,7 @@ Some organisations require a permissions boundary on every IAM role that automat
 permissions_boundary: null   # e.g. "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"
 ```
 
-When it is set, pass `try(local.cluster_config.permissions_boundary, null)` to every role the customer named in question 30 (service-linked roles take no boundary). A null value leaves the role without a boundary. In a child module (`eks-cluster/`, `custom-addons/`), declare `variable "permissions_boundary" { default = null }` and pass it from the root. The input name differs by module (names checked at terraform-aws-eks v21.29.0, eks-pod-identity v2.10.0, eks-blueprints-addons v1.24.3, eks-blueprints-addon v1.3.0; re-check them at the version you pin):
+When it is set, pass `try(local.cluster_config.permissions_boundary, null)` only to the roles the customer named in question 30; leave the line out of a snippet whose role the customer did not name (service-linked roles take no boundary). A null value leaves the role without a boundary. In a child module (`eks-cluster/`, `custom-addons/`), declare `variable "permissions_boundary" { default = null }` and pass it from the root. The input name differs by module (names checked at terraform-aws-eks v21.29.0, eks-pod-identity v2.10.0, eks-blueprints-addons v1.24.3, eks-blueprints-addon v1.3.0; re-check them at the version you pin):
 
 | Role | Module or resource | Input |
 |------|--------------------|-------|

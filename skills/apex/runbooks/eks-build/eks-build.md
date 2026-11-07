@@ -20,7 +20,7 @@ This workflow uses the `eks-build` skill for code generation and the `eks-best-p
 | **"Resume build"** / **"Continue where we left off"** | Ask for the project name, load `projects/<name>/contexts/eks-build/requirements.yaml` if it exists, confirm the summary, and resume from the next unanswered phase |
 | **"Modify existing build"** / **"Change compute to Karpenter"** | Load the existing requirements, apply the requested change, re-confirm summary, regenerate affected modules |
 | **"Which pattern should I use?"** / **"Help me pick Terraform vs ArgoCD"** | Use the `eks-best-practices` skill to compare the three patterns (Full Terraform, ArgoCD+Terraform, ArgoCD+ACK) based on the user's context |
-| **"I have a requirements YAML"** / provides structured input | Parse the input, ask question 30 unless the YAML answers it in full, skip to [Phase 7: Confirm and Generate](#phase-7-confirm-and-generate), present summary for confirmation |
+| **"I have a requirements YAML"** / provides structured input | Parse the input, ask question 30; a YAML `permissions_boundary` answers only b1, so still ask b2; skip to [Phase 7: Confirm and Generate](#phase-7-confirm-and-generate), present summary for confirmation |
 
 ---
 
@@ -180,13 +180,10 @@ Skip questions 27 to 29 if single-team cluster; always ask question 30.
           earlier answers turn on, e.g. cluster role, node group roles,
           Karpenter controller and node roles, one role per add-on>. Answer
           "all of them" or name them.
-       3. Does the boundary allow what these roles need? For example, the
+       3. Note: the boundary must allow what each role does (for example the
           Karpenter controller needs iam:PassRole and the instance profile
-          actions, and each add-on needs the AWS calls it makes. Any action the
-          boundary does not allow fails with AccessDenied. If you do not know, I
-          will list each role's actions for your security team to check before
-          you apply.
-    c. If the answer to (a) is yes but any answer in (b) is missing, vague or a
+          actions); anything it does not allow fails with AccessDenied.
+    c. If the answer to (a) is yes but the answer to b1 or b2 is missing, vague or a
        guess ("the usual one", "whatever you think"), I stop. I tell you which
        answer is missing, ask again, and do not generate the project. I never
        write, suggest or guess a boundary policy or an ARN, and I never copy
@@ -239,6 +236,7 @@ Present the full summary table:
 │ Multi-tenancy    │ <yes/no>                             │
 │ Multi-account    │ <yes/no>                             │
 │ Auth model       │ <IRSA/Pod Identity>                  │
+│ Permissions boundary │ <ARN> on <roles>, or none        │
 │ Custom addons    │ <list or none>                       │
 │ CI/CD            │ <tool or none>                       │
 │ Additional reqs  │ <summary or none>                    │
@@ -328,7 +326,7 @@ Before presenting the generated project, verify:
 - Be concise. Group related questions — don't ask one at a time.
 - Phase 2: ask all four yes/no at once.
 - Phase 4: present the full list, ask for changes.
-- If given a requirements YAML, ask question 30 unless the YAML answers it in full, then skip to summary confirmation.
+- If given a requirements YAML, ask question 30; a YAML `permissions_boundary` answers only b1, so still ask b2; then skip to summary confirmation.
 - If "use defaults" or "standard setup", only ask Phase 1 and question 30, then confirm.
 - If given existing requirements or context, read it, identify what's already answered, and only ask the remaining questions.
 - When generating, explain key architectural choices — don't just emit code silently.

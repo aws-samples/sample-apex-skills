@@ -386,7 +386,7 @@
         {
           "type": "must-contain",
           "pattern": "permissions_boundary\\s*:",
-          "context": "The boundary must be an input in cluster.yaml and threaded into every generated IAM role",
+          "context": "The boundary must be an input in cluster.yaml and threaded into every IAM role the customer named",
           "source": "https://github.com/aws-samples/sample-apex-skills/issues/249"
         },
         {
@@ -433,7 +433,7 @@
         },
         {
           "type": "must-not-contain",
-          "pattern": "arn:aws[a-z-]*:iam::\\d{12}:policy/",
+          "pattern": "arn:aws[a-z-]*:iam::(\\d{12}|aws):policy/[^<\\s]",
           "context": "The skill never writes, suggests or guesses a boundary ARN",
           "source": "https://github.com/aws-samples/sample-apex-skills/issues/249"
         }
