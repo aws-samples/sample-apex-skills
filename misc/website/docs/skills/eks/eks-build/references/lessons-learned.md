@@ -411,6 +411,8 @@ module "karpenter" {
   node_iam_role_additional_policies = {
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
+  iam_role_permissions_boundary_arn  = try(local.cluster_config.permissions_boundary, null)
+  node_iam_role_permissions_boundary = try(local.cluster_config.permissions_boundary, null)
   tags = local.tags
 }
 ```
@@ -485,6 +487,7 @@ module "ebs_csi_pod_identity" {
   use_name_prefix = false
   attach_aws_ebs_csi_policy  = true
   aws_ebs_csi_policy_name    = "${local.cluster_config.name}-EBS_CSI"
+  permissions_boundary_arn   = try(local.cluster_config.permissions_boundary, null)
   tags = local.tags
 }
 ```

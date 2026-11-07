@@ -157,7 +157,10 @@ endpoint_public_access: false                # Private endpoint only
 endpoint_private_access: true
 kms_key_arn: "arn:aws:kms:<REGION>:<ACCOUNT_ID>:key/<KEY_ID>"
 cluster_enabled_log_types: [api, audit, authenticator, controllerManager, scheduler]
+permissions_boundary: "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"  # Optional, null by default
 ```
+
+**Permissions boundary**: when the organisation requires a boundary on every role automation creates, set `permissions_boundary` in `cluster.yaml`. Every generated IAM role (Terraform resources and modules, and ACK `Role` manifests) then carries it; the input name per module is in [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional).
 
 CloudWatch log retention at 365 days:
 ```hcl

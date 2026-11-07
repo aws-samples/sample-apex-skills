@@ -160,6 +160,8 @@ Skip if single-team cluster.
 
 29. IAM auth model: Pod Identity (default) or IRSA? (Helm add-ons installed via eks-blueprints-addons use IRSA)
     → Per-addon overrides? (e.g., Velero → Pod Identity, per question 20; other Helm add-ons via eks-blueprints-addons → IRSA)
+
+30. Permissions boundary required on every IAM role the project creates? If yes: the policy ARN; sets `permissions_boundary` in cluster.yaml
 ```
 
 **STOP.** Wait for user confirmation before proceeding. Present a mid-point summary of compute, addons, security, and tenancy decisions. Confirm before moving to operations and generation.
@@ -171,10 +173,10 @@ Skip if single-team cluster.
 Source: knowledge
 
 ```
-30. Existing CI/CD? (GitLab CI, GitHub Actions, Jenkins, CodePipeline, etc.)
+31. Existing CI/CD? (GitLab CI, GitHub Actions, Jenkins, CodePipeline, etc.)
     → Need generated pipeline code? (infra pipeline, app pipeline, or both)
 
-31. Anything else? (tagging, naming conventions, DR, network policies, service mesh, etc.)
+32. Anything else? (tagging, naming conventions, DR, network policies, service mesh, etc.)
 ```
 
 ---
@@ -262,6 +264,7 @@ Before presenting the generated project, verify:
 - [ ] Every requirement from the questionnaire has corresponding Terraform code
 - [ ] No secrets, credentials, or account IDs hardcoded
 - [ ] Constraints (air-gapped, compliance, proxy) reflected in generated code
+- [ ] If a permissions boundary was required, `permissions_boundary` is set in `cluster.yaml` and every generated IAM role carries it
 - [ ] State backend, provider, and backend config are correct
 
 ---

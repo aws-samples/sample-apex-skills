@@ -121,7 +121,7 @@ The ACK EKS Capability provisions AWS resources via Kubernetes CRDs. For example
 
 ### Pod Identity for Velero
 
-Pattern 2b uses Pod Identity for Velero (not IRSA). Terraform creates the IAM role with `pods.eks.amazonaws.com` as trusted principal and a `aws_eks_pod_identity_association`.
+Pattern 2b uses Pod Identity for Velero (not IRSA). Terraform creates the IAM role with `pods.eks.amazonaws.com` as trusted principal and a `aws_eks_pod_identity_association`. When `permissions_boundary` is set in `cluster.yaml`, that role carries it (see [baseline-defaults.md](baseline-defaults#permissions-boundary-optional)).
 
 ### KRO Capability
 
