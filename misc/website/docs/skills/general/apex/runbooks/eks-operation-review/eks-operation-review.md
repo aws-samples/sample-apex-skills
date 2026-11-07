@@ -155,8 +155,8 @@ list_k8s_resources(cluster_name="<cluster-name>", kind="Node", api_version="v1")
 - Failure → STOP. Show:
 
 > **The EKS MCP server isn't responding.** Try these steps:
-> 1. Check that Python 3.10+ (3.11 to 3.14 for the AWS-hosted proxy) and uv are installed: `uv --version`
-> 2. Test the MCP server with the launch command from your MCP config (for example `uvx awslabs.eks-mcp-server@0.2.1`)
+> 1. Check that Python 3.10+ and uv are installed: `uv --version`
+> 2. Test the MCP server: `uvx awslabs.eks-mcp-server@latest`
 > 3. Re-run apex's `eks-mcp-server` skill to verify setup
 
 Wait for the user to resolve the issue.
