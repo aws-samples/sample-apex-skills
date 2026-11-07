@@ -189,7 +189,7 @@ _generated {YYYY-MM-DD} · source: {source_path} · fit score: {N}/100 · recomm
 (The three compute-model candidates with applicability judgments;
  modernization items with evidence and effort tier; AWS Transform
  applicability notes; framework migration options; the three
- containerization policy items (`containerization_policy`, with grounds);
+ containerization policy items (`containerization_policy`, with grounds, and the generic-policy limitations when applicable);
  the ecs-architect delegation statement)
 
 ## 7. Strategy Comparison Table
@@ -225,7 +225,7 @@ When the analysis is fully complete, omit §1.5 entirely.
 
 **§5 Replatform path details** — render the `replatform_path` block: the ECS on EC2 target statement, the static configuration (task count policy, capacity plan, kept/changed operational procedures), the three containerization policy items (base image, app-server bundling, config intake — with the generic-policy limitations when applicable), the local-write mappings or the explicit not-needed statement, the session handling (sticky sessions with their constraint), and the must-fix handling (addressed items with their minimal remediations; unresolved items named as user-resolution work). The Windows_Container_Path subsection follows the [placement rules](#windows_container_path-placement) below.
 
-**§6 Rearchitect path details** — render the `rearchitect_path` block: all three compute-model candidates with their applicability judgments and grounds; the modernization items with evidence, effort tier, and AWS Transform applicability notes (recommendation only — execution belongs behind the Execution_Gate); the framework migration options (or the no-established-path note); the three containerization policy items (`containerization_policy`, with grounds); the zero-item statement when `no_items` is true; and the **ecs-architect delegation statement** (`delegation_note`) — the section never appears without it, and no concrete design values (capacity strategy, sizing numbers, network design) appear.
+**§6 Rearchitect path details** — render the `rearchitect_path` block: all three compute-model candidates with their applicability judgments and grounds; the modernization items with evidence, effort tier, and AWS Transform applicability notes (recommendation only — execution belongs behind the Execution_Gate); the framework migration options (or the no-established-path note); the three containerization policy items (`containerization_policy`, with grounds, and the generic-policy limitations when applicable); the zero-item statement when `no_items` is true; and the **ecs-architect delegation statement** (`delegation_note`) — the section never appears without it, and no concrete design values (capacity strategy, sizing numbers, network design) appear.
 
 **§7 Strategy comparison table** — both strategies always appear, regardless of the recommendation outcome, each with at least one advantage, at least one drawback, an effort classification on the three-tier scale defined in [rearchitect-path.md](rearchitect-path.md), the assumed target configuration (ECS on EC2 static for Replatform; the applicable candidates for Rearchitect), and — when the recommendation was the parallel presentation — the decision-factor mapping.
 
