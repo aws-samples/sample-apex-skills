@@ -571,9 +571,9 @@ build_skills_index() {
   cat <<'EOF'
 ---
 sidebar_position: 3
-title: "Skills: agentic AI skills for platform engineering"
+title: "Agent skills for Amazon EKS, Amazon ECS and platform engineering"
 sidebar_label: Skills
-description: "Browse every APEX skill for agentic platform engineering on AWS: architecture, Terraform builds, live reviews, upgrade readiness, security and more."
+description: "Browse every APEX skill for agentic platform engineering on AWS, including Amazon EKS and Amazon ECS: design, Terraform, live reviews, upgrades and security."
 ---
 
 # Skills
