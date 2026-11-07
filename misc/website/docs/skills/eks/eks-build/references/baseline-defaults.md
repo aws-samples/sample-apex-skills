@@ -313,7 +313,7 @@ For addons behind ALB:
 
 - **Requests**: Always set for CPU and memory (scheduling guarantee)
 - **Limits**: Always set memory (OOM protection). Usually omit CPU limits (avoid throttling)
-- **Memory limit** = 1.5-2x memory requests
+- **Memory limit** = memory requests (requests = limits for non-CPU resources: [EKS Best Practices: data plane](https://docs.aws.amazon.com/eks/latest/best-practices/data-plane.html))
 
 ## IAM
 

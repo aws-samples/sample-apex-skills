@@ -374,7 +374,7 @@ DON'T:
 
 ## Managed Signing
 
-ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers like Kyverno or OPA Gatekeeper.
+ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers configured with an AWS Signer plugin, such as Kyverno or OPA Gatekeeper with Ratify.
 
 ### How It Works
 
@@ -398,7 +398,7 @@ Managed signing pairs with Kubernetes admission controllers for deploy-time veri
 
 | Tool | How It Verifies |
 |---|---|
-| **Kyverno** | `verifyImages` policy checks Notation signatures against trusted signing profiles |
+| **Kyverno** | Needs the AWS Signer plugin ([kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws)); built-in `verifyImages` cannot verify AWS Signer signatures ("Kyverno – A Kubernetes policy engine configured with an AWS Signer plugin for validating signatures.", [EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)) |
 | **OPA Gatekeeper** | Custom constraint template validates signature presence and signer identity |
 | **Ratify** | External data provider for Gatekeeper, native Notation support |
 

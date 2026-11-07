@@ -305,6 +305,8 @@ readinessProbe:
 
 **Key insight:** Use startup probes to handle slow initialization. This avoids setting large `initialDelaySeconds` on liveness probes, which delays deadlock detection.
 
+**Exec probes:** the command must exit before `timeoutSeconds`, or the node collects `<defunct>` processes, leading to node failure ([EKS Best Practices: applications](https://docs.aws.amazon.com/eks/latest/best-practices/application.html)).
+
 ---
 
 ## Load Balancer Health Checks
@@ -327,6 +329,7 @@ annotations:
 - Use the **same endpoint** for ALB health check and readiness probe
 - Set ALB health check interval ≥ readiness probe period
 - Account for NLB health check during graceful shutdown (use `deregistration_delay`)
+- Use pod readiness gates (AWS Load Balancer Controller) so a rolling update does not terminate old pods until the new pods' targets are Healthy on the load balancer ([EKS Best Practices: load balancing](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html))
 
 ❌ DON'T:
 - Use different health endpoints for LB and K8s probes (leads to split-brain)
@@ -454,6 +457,8 @@ spec:
 
 **Zonal outages:** with `DoNotSchedule` and the default `nodeTaintsPolicy: Ignore`, nodes in a failed zone still count toward the skew while they exist, so replacement pods can stay Pending for the length of the outage. `nodeTaintsPolicy: Honor` (GA in Kubernetes 1.33) leaves out of the count nodes with a taint the pod does not tolerate, including the `node.kubernetes.io/unreachable` and `not-ready` NoSchedule taints that failed nodes get, and cordoned nodes. That helps only while the zones left are at least `minDomains`. With `minDomains` set to all zones, as above, a zone loss makes the global minimum 0, so each surviving zone holds at most `maxSkew` matching pods: to run on N-1 zones, `maxSkew` must be at least the replicas each surviving zone must hold.
 
+**Rolling updates:** add `matchLabelKeys: [pod-template-hash]` so the skew is counted within each Deployment revision, not across old and new pods together (beta and on by default since Kubernetes 1.27; [Kubernetes docs](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)).
+
 ### Pod Anti-Affinity Alternative
 
 ```yaml
@@ -484,7 +489,7 @@ resources:
     cpu: 250m        # Scheduling guarantee
     memory: 512Mi    # Scheduling guarantee
   limits:
-    memory: 1Gi      # OOM protection
+    memory: 512Mi    # = memory request
     # cpu: omitted   # No CPU throttling
 ```
 
@@ -495,7 +500,7 @@ resources:
 | **Requests** | ✅ Always set (scheduling) | ✅ Always set (scheduling) |
 | **Limits** | ❌ Usually omit (avoid throttling) | ✅ Always set (OOM protection) |
 
-- Set memory limits = 1.5-2x memory requests
+- Set memory limits = memory requests ("For non-CPU resources, configuring requests=limits provides the most predictable behavior.", [EKS Best Practices: data plane](https://docs.aws.amazon.com/eks/latest/best-practices/data-plane.html))
 - Use VPA recommendations for right-sizing (also: Goldilocks, Parca)
 - Set CPU requests based on actual usage (not peak)
 - Don't set CPU limits on latency-sensitive workloads (causes throttling)
@@ -583,7 +588,7 @@ spec:
             cpu: "250m"
             memory: "256Mi"
           limits:
-            memory: "512Mi"       # No CPU limit — allow bursting
+            memory: "256Mi"       # = memory request; no CPU limit, allow bursting
         startupProbe:
           httpGet:
             path: /healthz
