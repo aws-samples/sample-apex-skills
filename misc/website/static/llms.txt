@@ -1,6 +1,6 @@
 # APEX Skills (Agentic Platform Engineering eXperience)
 
-> Curated agentic AI skills for AWS platform engineering on Amazon EKS and Amazon ECS, delivered through any coding agent
+> Curated agentic AI skills for AWS platform engineering, delivered through any coding agent
 
 ## About
 
