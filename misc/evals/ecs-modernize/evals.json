@@ -67,7 +67,7 @@
     },
     {
       "id": 6,
-      "prompt": "Score ./fixtures/loose-sources for cloud/container fit. Inventory: a flat directory of 30 .java files with no pom.xml, no build.gradle, no configuration files, and no deployment descriptors — just source files using plain JDBC and servlets.",
+      "prompt": "Score ./fixtures/loose-sources for cloud/container fit. Inventory: a flat directory of 30 .java files with no pom.xml, no build.gradle, no configuration files, and no deployment descriptors — just source files using plain JDBC and servlets; connection settings come from JNDI lookups; no hardcoded connection strings.",
       "expectations": [
         "Reports each undeterminable item (e.g. runtime version, configuration externalization) as undetermined, stating the evidence that was considered and the information that is missing",
         "Excludes undetermined Scoring_Dimensions from the Fit_Score, renormalizes the remaining weights to a 100% total while preserving their original ratios, and states that the score was computed via renormalization with the excluded dimension list; that list includes config_externalization (no configuration files to check) and omits build_reproducibility, which is scored in its 0-29 band because the readable tree has no build definition",

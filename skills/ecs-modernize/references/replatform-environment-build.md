@@ -6,7 +6,7 @@
 
 This module builds the target environment for an approved **Linux Replatform path** — ECS on EC2, containerize-as-is ([replatform-path.md](replatform-path.md)). It is generated in this skill; see [Delegation Boundaries](../SKILL.md#delegation-boundaries).
 
-State that rationale explicitly whenever this module runs: the user should know *why* the Rearchitect compute models hand off to `ecs-build` (see [deploy-verify-handoff.md](deploy-verify-handoff.md)) while the Replatform path does not. Never route a Replatform environment IaC request to `ecs-build`; the delegation boundary and the future-support note — if `ecs-build` gains `bridge`/stickiness/launch-type generation, this module's generation is replaced by a delegation — are canonical in [SKILL.md](../SKILL.md).
+State the Delegation Boundaries rationale explicitly whenever this module runs: the user should know *why* the Rearchitect compute models hand off to `ecs-build` (see [deploy-verify-handoff.md](deploy-verify-handoff.md)) while the Replatform path does not. Never route a Replatform environment IaC request to `ecs-build`; the delegation boundary and the future-support note — if `ecs-build` gains `bridge`/stickiness/launch-type generation, this module's generation is replaced by a delegation — are canonical in [SKILL.md](../SKILL.md).
 
 This module is the sibling of [windows-environment-build.md](windows-environment-build.md): same generation discipline, same `terraform validate` applicability check, same unresolved-URI rule, different target shape. When the approved path is the **Windows_Container_Path**, that module owns the generation and this one does not run — the Windows path's own compute options and base-image matrix govern there.
 

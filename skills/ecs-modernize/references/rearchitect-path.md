@@ -118,7 +118,7 @@ Fully managed EC2 capacity for ECS (GA Sept 30, 2025 ([launch](https://aws.amazo
 - The workload benefits from EC2 instance-type flexibility (GPU, specific families, resource footprints beyond Fargate limits) or Spot/Reserved capacity economics, without the team wanting to operate a fleet.
 - Linux containers on **Bottlerocket only** (X86_64 / ARM64) — no custom AMI/kernel, no Windows; OS-specific dependencies must be resolved by porting items, as with Fargate.
 - `awsvpc` or `host` network mode (no `bridge`).
-- Tasks tolerate being cycled by the 14–21 day drain-and-replace patching lifecycle (draining starts at day 14 from launch, or earlier to honor an event window; any instance not drained by day 21 is deregistered with its remaining tasks) — which makes the graceful-shutdown modernization item a first-class prerequisite ([Managed Instances patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)).
+- Tasks tolerate being cycled by the 14–21 day drain-and-replace patching lifecycle (draining starts at day 14 from launch, or earlier for a detected software vulnerability, hardware health degradation or a configured event window; any instance not drained by day 21 is deregistered with its remaining tasks) — which makes the graceful-shutdown modernization item a first-class prerequisite ([Managed Instances patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)).
 - Available in all commercial AWS Regions and, since **November 21, 2025**, in **AWS GovCloud (US-East and US-West)** ([What's New — GovCloud](https://aws.amazon.com/about-aws/whats-new/2025/11/ecs-managed-instances-govcloud-us-regions/)); the **China Regions remain excluded** — so only a China-Region target rules this compute model out. (The [ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/) page can lag Region-availability updates — prefer the dated What's New posts.)
 
 **Typical grounding:** *applicable* when findings evidence resource or hardware needs Fargate cannot serve (cite the `tech_stack` or dependency evidence); *applicable_after_remediation* when graceful-shutdown or state findings must be resolved first (instance cycling makes unhandled shutdown a live risk, not a theoretical one); *not_applicable* when the deployment must land in a China Region or genuinely requires a custom AMI/kernel — the latter is also a signal to revisit the Replatform path (ECS on EC2), which the report's both-strategies comparison already presents.
@@ -190,7 +190,7 @@ AWS Transform is presented in the assessment as an **optional accelerator recomm
 | Modernization item | AWS Transform applicability | Automation scope to present |
 |---|---|---|
 | EOL Java / Node.js / Python runtime version upgrade | Out-of-the-box transformation definitions for language version upgrades | Dependency and API updates for the version jump; residual work (documented gaps) remains with the agent or the user ([AWS Transform user guide](https://docs.aws.amazon.com/transform/latest/userguide/)) |
-| .NET Framework → .NET 8 (LTS) / .NET 10 porting (including the ASP.NET MVC → ASP.NET Core and Web Forms UI → Blazor Server framework items) | AWS Transform for .NET — sources .NET Framework 3.5+, .NET Core 3.1, .NET 5.x+; targets .NET 8 / .NET 10, C# (WinForms, WPF, Xamarin and VB.NET in preview) | Entity Framework / ADO.NET migration, MVC Razor Views → ASP.NET Core Razor Views, NuGet version resolution ([AWS Transform for .NET](https://docs.aws.amazon.com/transform/latest/userguide/dotnet.html)), Web Forms UI → Blazor Server ([UI porting](https://docs.aws.amazon.com/transform/latest/userguide/dotnet-porting-ui.html)) |
+| .NET Framework → .NET 8 (LTS) / .NET 10 porting (including the ASP.NET MVC → ASP.NET Core and Web Forms UI → Blazor Server framework items) | AWS Transform for .NET — sources .NET Framework 3.5+, .NET Core 3.1, .NET 5.x+; targets .NET 8 / .NET 10 / .NET Standard (class libraries); languages C#, VB.NET; project types include Desktop (WinForms, WPF) and Mobile (Xamarin) | Entity Framework / ADO.NET migration, MVC Razor Views → ASP.NET Core Razor Views, NuGet version resolution ([AWS Transform for .NET](https://docs.aws.amazon.com/transform/latest/userguide/dotnet.html)), Web Forms UI → Blazor Server ([UI porting](https://docs.aws.amazon.com/transform/latest/userguide/dotnet-porting-ui.html)) |
 
 **Annotation rules:**
 
@@ -244,8 +244,8 @@ rearchitect_path:
   no_items: bool                   # true -> the explicit zero-item statement is mandatory
   framework_migration_note: string | null
                                    # the no-established-path report when applicable; null otherwise
-  containerization_policy: {base_image: string, app_server_bundling: string, config_intake: [{artifact: string, method: string}]}
-                                   # the three policy items, each with grounds (Containerization Policy)
+  containerization_policy: {...}   # same shape as `replatform_path.containerization_policy`
+                                   # (replatform-path.md): the three policy items, each with grounds (Containerization Policy)
   delegation_note: string          # REQUIRED: the ecs-architect delegation statement
                                    # (capacity provider strategy / task sizing / network design)
 ```

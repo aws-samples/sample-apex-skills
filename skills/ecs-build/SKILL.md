@@ -66,7 +66,7 @@ All three models are consumed through **capacity providers** in generated code. 
 | **SSH / custom AMI** | N/A | Yes | No SSH, no custom AMI -- ECS Exec only |
 | **Terraform surface** | `default_capacity_provider_strategy` only | ASG + launch template + `aws_ecs_capacity_provider` (managed scaling/draining) | `aws_ecs_capacity_provider` with `managed_instances_provider` + infrastructure role + instance profile |
 
-¹ Windows containers are supported by Fargate and EC2 but are **out of this skill's generation scope -- Linux containers only**. Windows builds need per-feature verification (Service Connect, SOCI, etc. are Linux-only as of 2026-07-10); research live before generating.
+¹ Windows containers are supported by Fargate and EC2 but are **out of this skill's generation scope -- Linux containers only**. Windows builds need per-feature verification (Service Connect, SOCI, etc. are Linux-only as of 2026-07-10); research live before generating. No sibling generates greenfield Windows or bridge builds; for an existing app, `ecs-modernize` does.
 
 For full wiring, constraints, and migration paths see [references/capacity-provider-guide.md](references/capacity-provider-guide.md).
 

@@ -143,7 +143,7 @@ Generate exactly the capacity model of the **approved** compute option — never
 
 ```hcl
 runtime_platform {
-  operating_system_family = "WINDOWS_SERVER_2022_CORE" # or _FULL / 2019_CORE / 2019_FULL / 2025_CORE / 2025_FULL — match the pushed base image
+  operating_system_family = "WINDOWS_SERVER_2022_CORE" # or _FULL / 2019_CORE / 2019_FULL / 2025_CORE / 2025_FULL (2025: EC2 only) — match the pushed base image
   cpu_architecture        = "X86_64"                   # Windows containers are x86_64 only
 }
 ```
