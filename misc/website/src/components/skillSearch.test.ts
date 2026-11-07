@@ -4,7 +4,7 @@
 // npm script runs this test.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync, readdirSync} from 'node:fs';
 
 const here = new URL('.', import.meta.url);
 const {buildIndex, search} = await import(new URL('skillSearch.ts', here).href);
@@ -120,8 +120,15 @@ test('FB-1: a stop-word-only query shows the whole catalogue in order, no Best m
     assert.deepEqual(hits.map((h) => h.skill.name), manifest.map((s: {name: string}) => s.name), query);
     assert.ok(hits.every((h) => h.score === 0 && !h.passing), query);
   }
-  // "agents" is not a stop word, so "aws agents" is a normal search.
-  assert.deepEqual(shown('aws agents').rows, ['eks-mcp-server']);
+});
+
+test('AG-1: "aws agents" puts the DevOps Agent ports and apex ahead of eks-mcp-server', () => {
+  const ports = readdirSync(new URL('../../../../devops-agent/', here), {withFileTypes: true})
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name);
+  const r = shown('aws agents');
+  assert.deepEqual(r.rows, [...ports.sort(), 'apex', 'eks-mcp-server']);
+  assert.ok((search(index, 'aws agents') as Hit[])[0].score < 20, 'no Best match');
 });
 
 test('S1: ties put EKS before ECS', () => {
