@@ -33,6 +33,8 @@ skip_check() {
 }
 
 PROJECT_DIR="${1:?Usage: $0 <project-directory>}"
+# A relative path that starts with "-" would be read as an option by find, grep and terraform.
+case "$PROJECT_DIR" in -*) PROJECT_DIR="./$PROJECT_DIR" ;; esac
 
 if [ ! -d "$PROJECT_DIR" ]; then
     echo "Error: $PROJECT_DIR is not a directory"
