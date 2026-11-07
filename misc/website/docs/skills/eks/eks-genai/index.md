@@ -1,5 +1,5 @@
 ---
-title: "EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS"
+title: "EKS GenAI (eks-genai): GPU, Neuron and LLM serving on Amazon EKS"
 sidebar_label: "eks-genai"
 description: "GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/SKILL.md

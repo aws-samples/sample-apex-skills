@@ -1,5 +1,5 @@
 ---
-title: "EKS Cost Intelligence: cost score for Amazon EKS"
+title: "EKS Cost Intelligence (eks-cost-intelligence): cost score for Amazon EKS"
 sidebar_label: "eks-cost-intelligence"
 description: "Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/SKILL.md

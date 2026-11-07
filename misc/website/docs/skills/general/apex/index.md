@@ -1,5 +1,5 @@
 ---
-title: "APEX Router: pick the right EKS or ECS skill"
+title: "APEX Router (apex): pick the right EKS or ECS skill"
 sidebar_label: "apex"
 description: "Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/SKILL.md

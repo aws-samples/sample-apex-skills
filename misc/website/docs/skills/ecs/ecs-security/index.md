@@ -1,5 +1,5 @@
 ---
-title: "ECS Security: hardening and compliance for Amazon ECS"
+title: "ECS Security (ecs-security): hardening and compliance for Amazon ECS"
 sidebar_label: "ecs-security"
 description: "ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/SKILL.md

@@ -21,30 +21,28 @@ See https://aws-samples.github.io/sample-apex-skills/docs/getting-started/ for f
 
 ## Skills Catalog
 
-Skills on `main`, generated from each skill folder by misc/update-pages.sh. The same list is the Skills page (https://aws-samples.github.io/sample-apex-skills/docs/skills/) and https://aws-samples.github.io/sample-apex-skills/manifests/skills.json.
+Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept in its SKILL_META table. The same list is on the Skills page (https://aws-samples.github.io/sample-apex-skills/docs/skills/). As JSON: https://aws-samples.github.io/sample-apex-skills/manifests/skills.json
 
-### EKS skills (13)
+## EKS skills
 
-Overview: https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/
-
-- [eks-best-practices](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/): Advisory guidance for Amazon EKS architecture and configuration: compute, networking, security, reliability, cost, autoscaling and multi-tenancy
+- [EKS skills overview](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/): APEX agent skills for Amazon EKS: design, Terraform builds, cluster discovery, operational, cost, security and upgrade reviews, ingress migration and GenAI.
+- [eks-best-practices](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/): EKS architecture advice: compute, networking, security, cost, scaling, upgrade planning, hybrid (Hybrid Nodes, EKS Anywhere, Outposts) and surge readiness
 - [eks-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-build/): Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations
 - [eks-cost-intelligence](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/): Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings
 - [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/): Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices
 - [eks-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/): GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
 - [eks-ingress-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/): Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
 - [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/): Install, configure and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro)
-- [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/): Structured EKS operational excellence assessment across 10 areas with GREEN/AMBER/RED ratings and prioritized recommendations
+- [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/): Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version
 - [eks-platform-engineering](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-platform-engineering/): Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 - [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/): EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring
-- [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/): Read-only security reviews of a live EKS cluster (CVE exposure, security events, posture) plus hardening and compliance guidance: CIS, HIPAA, PCI-DSS, FedRAMP
+- [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/): Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP
 - [eks-upgrade-check](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-upgrade-check/): Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks
-- [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/): Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars in an HTML report
+- [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/): Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request
 
-### ECS skills (9)
+## ECS skills
 
-Overview: https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/
-
+- [ECS skills overview](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/): APEX agent skills for Amazon ECS: architecture and launch type choice, Terraform builds, deployments and CI/CD, security, operational reviews and GPU workloads.
 - [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/): Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing
 - [ecs-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-build/): Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances
 - [ecs-devops](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-devops/): Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks
@@ -55,11 +53,11 @@ Overview: https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/
 - [ecs-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-recon/): ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD
 - [ecs-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/): ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2
 
-### General skills (6)
+## General skills
 
 - [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/): Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills
 - [dotnet-aws-ecs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/): Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide
-- [graviton-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/): Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the migration
+- [graviton-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/): Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS
 - [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/): Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy
 - [terraform-skill](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/): Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning
 - [update-docs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/): Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references

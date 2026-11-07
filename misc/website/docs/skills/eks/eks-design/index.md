@@ -1,5 +1,5 @@
 ---
-title: "EKS Design: architecture documents for Amazon EKS"
+title: "EKS Design (eks-design): architecture documents for Amazon EKS"
 sidebar_label: "eks-design"
 description: "Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-design/SKILL.md

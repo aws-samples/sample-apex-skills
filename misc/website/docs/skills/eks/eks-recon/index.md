@@ -1,5 +1,5 @@
 ---
-title: "EKS Recon: discover what your Amazon EKS cluster runs"
+title: "EKS Recon (eks-recon): discover what your Amazon EKS cluster runs"
 sidebar_label: "eks-recon"
 description: "EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/SKILL.md

@@ -2,8 +2,8 @@
 # update-pages.sh
 #
 # Generates Docusaurus wrappers for every tracked *.md under skills/,
-# examples/, and devops-agent/ into misc/website/docs/, plus
-# manifests consumed by the homepage SkillGrid and examples grid.
+# examples/, and devops-agent/ into misc/website/docs/, plus the
+# skills.json and examples.json manifests and llms.txt.
 #
 # Inputs (sources of truth):
 #   skills/**/*.md        (except skills/README.md — marker-generated)
@@ -11,11 +11,14 @@
 #   examples/**/*.html    (copied to static/)
 #   examples/**/*.png     (copied to static/)
 #   devops-agent/**/*.md  (except devops-agent/README.md — marker-generated)
+#   SKILL_META (below)    skill page titles and summaries
 #
 # Outputs (regenerated; tracked in git):
 #   misc/website/docs/skills/<group>/<name>/index.md       wrapper for SKILL.md
 #   misc/website/docs/skills/<group>/<name>/<sub>/<f>.md   wrapper for sub-files
-#   misc/website/docs/skills/index.md              card grid (overwritten)
+#   misc/website/docs/skills/index.md              grouped skill list (overwritten)
+#   misc/website/docs/skills/{eks,ecs}/index.md    EKS and ECS landing pages (overwritten)
+#   misc/website/docs/skills/<group>/_category_.json  sidebar category (overwritten)
 #   misc/website/docs/examples/<path>/index.md     wrapper for README.md
 #   misc/website/docs/examples/index.md            card grid (overwritten)
 #   misc/website/static/examples/                  .html + .png assets
@@ -203,7 +206,8 @@ first_sentence() {
 
 # --- Skill page titles and summaries --------------------------------------
 # One line per skill: <folder><TAB><page title><TAB><summary>. The title is the
-# skill page's <title> (Docusaurus appends " | APEX Skills"). The summary is the
+# skill page's <title>, with the folder name added after its first part
+# (Docusaurus appends " | APEX Skills"). The summary is the
 # page's meta description, the manifest `summary` field, the landing-page line
 # and the llms.txt line: keep it under 160 characters, in words taken from the
 # skill's own SKILL.md. SKILL.md descriptions are routing text for agents and
@@ -222,20 +226,20 @@ ecs-observability	ECS Observability: logs, metrics and traces for ECS	ECS observ
 ecs-operation-review	ECS Operation Review: rated audit of a live ECS estate	Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings
 ecs-recon	ECS Recon: discover what your Amazon ECS estate runs	ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD
 ecs-security	ECS Security: hardening and compliance for Amazon ECS	ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2
-eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	Advisory guidance for Amazon EKS architecture and configuration: compute, networking, security, reliability, cost, autoscaling and multi-tenancy
+eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	EKS architecture advice: compute, networking, security, cost, scaling, upgrade planning, hybrid (Hybrid Nodes, EKS Anywhere, Outposts) and surge readiness
 eks-build	EKS Build: production-ready Terraform for Amazon EKS	Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations
 eks-cost-intelligence	EKS Cost Intelligence: cost score for Amazon EKS	Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings
 eks-design	EKS Design: architecture documents for Amazon EKS	Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices
 eks-genai	EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS	GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
 eks-ingress-migration	EKS Ingress Migration: plan the move off NGINX Ingress	Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
 eks-mcp-server	EKS MCP Server: connect your AI assistant to Amazon EKS	Install, configure and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro)
-eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	Structured EKS operational excellence assessment across 10 areas with GREEN/AMBER/RED ratings and prioritized recommendations
+eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version
 eks-platform-engineering	EKS Platform Engineering: build an IDP on Amazon EKS	Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 eks-recon	EKS Recon: discover what your Amazon EKS cluster runs	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring
-eks-security	EKS Security: CVE review, posture and compliance for EKS	Read-only security reviews of a live EKS cluster (CVE exposure, security events, posture) plus hardening and compliance guidance: CIS, HIPAA, PCI-DSS, FedRAMP
+eks-security	EKS Security: CVE review, posture and compliance for EKS	Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP
 eks-upgrade-check	EKS Upgrade Check: upgrade readiness score for Amazon EKS	Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks
-eks-well-architected-review	EKS Well-Architected Review: unofficial pillar scores	Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars in an HTML report
-graviton-migration	Graviton Migration: move workloads from x86 to arm64	Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the migration
+eks-well-architected-review	EKS Well-Architected Review: unofficial pillar scores	Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request
+graviton-migration	Graviton Migration: move workloads from x86 to arm64	Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS
 skill-creator	Skill Creator: create, test and tune agent skills	Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy
 terraform-skill	Terraform Skill: modules, tests and CI for Terraform	Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning
 update-docs	Update Docs: sync the APEX docs after a skill change	Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references
@@ -248,6 +252,11 @@ skill_title() {
   if [[ -z "$t" ]]; then
     echo "WARNING: skills/$1 has no SKILL_META line in misc/update-pages.sh" >&2
     t="$(derive_title "$SKILLS_DIR/$1/SKILL.md")"
+  fi
+  # The skill id goes in the title too, so a search for it matches.
+  if [[ "$t" == "$1" ]]; then :
+  elif [[ "$t" == *": "* ]]; then t="${t%%: *} ($1): ${t#*: }"
+  else t="$t ($1)"
   fi
   printf '%s\n' "$t"
 }
@@ -621,7 +630,7 @@ description: "APEX agent skills for Amazon ECS: architecture and launch type cho
 
 # ECS skills
 
-APEX skills for Amazon Elastic Container Service (ECS). They cover Day 0 architecture and compute-model selection (Fargate, EC2, Managed Instances, Express Mode, ECS Anywhere), Terraform builds, deployment strategies and CI/CD pipelines, security hardening and compliance, operational-excellence reviews, observability design, modernizing existing apps, and GPU, ML and GenAI workloads. See [Getting started](../../getting-started.md) to install them.
+APEX skills for Amazon Elastic Container Service (ECS). They cover Day 0 architecture and compute-model selection (Fargate, EC2, Managed Instances, Express Mode, ECS Anywhere), Terraform builds, deployment strategies and CI/CD pipelines, security hardening and compliance, operational-excellence reviews, observability design, modernizing existing apps, and GPU, ML and GenAI workloads. The .NET on Fargate skill, dotnet-aws-ecs, is listed under General. See [Getting started](../../getting-started.md) to install them.
 
 EOF
       ;;
@@ -705,6 +714,11 @@ build_llms_txt() {
 import json, sys
 
 SITE = "https://aws-samples.github.io/sample-apex-skills"
+# The landing pages' descriptions (build_group_index): keep them the same.
+LANDING = {
+    "eks": "APEX agent skills for Amazon EKS: design, Terraform builds, cluster discovery, operational, cost, security and upgrade reviews, ingress migration and GenAI.",
+    "ecs": "APEX agent skills for Amazon ECS: architecture and launch type choice, Terraform builds, deployments and CI/CD, security, operational reviews and GPU workloads.",
+}
 skills = json.load(sys.stdin)
 print(f"""# APEX Skills (Agentic Platform Engineering eXperience)
 
@@ -729,19 +743,18 @@ See {SITE}/docs/getting-started/ for full installation instructions.
 
 ## Skills Catalog
 
-Skills on `main`, generated from each skill folder by misc/update-pages.sh. The same list is the Skills page ({SITE}/docs/skills/) and {SITE}/manifests/skills.json.""")
+Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept in its SKILL_META table. The same list is on the Skills page ({SITE}/docs/skills/). As JSON: {SITE}/manifests/skills.json""")
 for group, heading, landing in (
-    ("eks", "EKS skills", "/docs/skills/eks/"),
-    ("ecs", "ECS skills", "/docs/skills/ecs/"),
+    ("eks", "EKS skills", ("/docs/skills/eks/", "EKS")),
+    ("ecs", "ECS skills", ("/docs/skills/ecs/", "ECS")),
     ("general", "General skills", None),
 ):
     rows = [s for s in skills if s["group"] == group]
     print()
-    print(f"### {heading} ({len(rows)})")
+    print(f"## {heading}")
     print()
     if landing:
-        print(f"Overview: {SITE}{landing}")
-        print()
+        print(f"- [{landing[1]} skills overview]({SITE}{landing[0]}): {LANDING[group]}")
     for s in rows:
         print(f"- [{s['name']}]({SITE}{s['path']}/): {s['summary']}")
 PY
@@ -954,7 +967,7 @@ for src in "${ALL_MD[@]}"; do
   fi
 done
 
-# --- Skills index (card grid) ---
+# --- Skills index (grouped list) ---
 if [[ "$MODE" == "dry-run" ]]; then
   echo "--- $SKILLS_OUT/index.md ---"
   build_skills_index | head -20 || true

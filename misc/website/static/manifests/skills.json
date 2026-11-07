@@ -79,7 +79,7 @@
   {
     "name": "eks-best-practices",
     "description": "Advisory guidance for Amazon EKS architecture and configuration — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, on-prem/hybrid (EKS Hybrid Nodes, EKS Anywhere, Outposts), and surge readiness for planned traffic peaks. Also answers terraform-aws-modules/terraform-aws-eks questions. Use for any EKS planning or architectural judgment call, even phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check, eks-well-architected-review), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), developer platforms/IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (graviton-migration).",
-    "summary": "Advisory guidance for Amazon EKS architecture and configuration: compute, networking, security, reliability, cost, autoscaling and multi-tenancy",
+    "summary": "EKS architecture advice: compute, networking, security, cost, scaling, upgrade planning, hybrid (Hybrid Nodes, EKS Anywhere, Outposts) and surge readiness",
     "path": "/docs/skills/eks/eks-best-practices",
     "group": "eks"
   },
@@ -128,7 +128,7 @@
   {
     "name": "eks-operation-review",
     "description": "Run a structured EKS operational excellence assessment against a live cluster. Covers 10 areas — networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, operational processes — and produces a GREEN/AMBER/RED rated report with prioritized recommendations. Activate for any request to audit, review, health-check, or score an EKS cluster's operational posture, including section-scoped reviews of individual areas and version currency / current-state add-on / deprecated-API review with no target version. Not for upgrade readiness assessment against a target version, cluster discovery, or architectural design advice.",
-    "summary": "Structured EKS operational excellence assessment across 10 areas with GREEN/AMBER/RED ratings and prioritized recommendations",
+    "summary": "Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version",
     "path": "/docs/skills/eks/eks-operation-review",
     "group": "eks"
   },
@@ -149,7 +149,7 @@
   {
     "name": "eks-security",
     "description": "Read-only scripted security reviews of a live Amazon EKS cluster (exposed / not exposed / unknown), plus hardening and compliance guidance. (1) CVE and advisory review - \"am I exposed to CVE-...\", \"check this AWS bulletin or GHSA against my cluster\", \"CVE review for EKS\" - verdicts for add-ons and images; kubelet and node-OS items are review-only. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, record, contain, snapshot, fix, verify. (3) Posture check - \"would my cluster contain a compromised pod\", IMDS, NetworkPolicy, PSA, identity, logging, GuardDuty, endpoint, supply chain. Also hardening and audit prep - 7-layer stack, CIS, HIPAA/PCI-DSS/FedRAMP/SOC 2, Pod Identity vs IRSA, Access Entries, image signing. Skip for EKS knowledge (eks-best-practices), Well-Architected review (eks-well-architected-review), upgrade readiness (eks-upgrade-check), an operational review (eks-operation-review), inventory (eks-recon), GenAI model security (eks-genai), non-EKS.",
-    "summary": "Read-only security reviews of a live EKS cluster (CVE exposure, security events, posture) plus hardening and compliance guidance: CIS, HIPAA, PCI-DSS, FedRAMP",
+    "summary": "Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP",
     "path": "/docs/skills/eks/eks-security",
     "group": "eks"
   },
@@ -163,14 +163,14 @@
   {
     "name": "eks-well-architected-review",
     "description": "Deterministic AWS Well-Architected Framework review of an Amazon EKS cluster (Linux nodes only). Unofficial — not the AWS Well-Architected Tool, no official EKS lens exists, and it maps to no compliance framework (CIS, PCI or otherwise). Collects live data via kubectl and aws, scores it across five of the six pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization; not Sustainability, not cluster-observable) using fixed jq detections so scores are stable, separates measured from governance findings, withholds a pillar score when under half its measured questions apply, and the overall when fewer than four pillars score or no Linux node is Ready, and renders a self-contained HTML report. Use ONLY when the user explicitly asks to run a Well-Architected review (WAFR) of an EKS cluster. Any other request — a cluster audit, score, cost, security, inventory, upgrade, best-practice or design question, even one naming a pillar — belongs to another skill.",
-    "summary": "Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars in an HTML report",
+    "summary": "Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request",
     "path": "/docs/skills/eks/eks-well-architected-review",
     "group": "eks"
   },
   {
     "name": "graviton-migration",
     "description": "Execute a workload migration from x86 (amd64) to AWS Graviton (arm64) — set up the Arm migration MCP server for code, dependency, and container arm64-readiness scanning, then run the migration — pre-migration scanning, Karpenter arm64 node cutover, and multi-arch CI pipelines. Use when someone says \"migrate to Graviton\", \"move my workloads to arm64\", \"is my app arm64-ready\", \"graviton migration\", \"port this service to Graviton\", \"scan my code for arm64 blockers\", \"set up multi-arch container builds\", or \"cut my nodes over to arm64\". This skill owns migration EXECUTION (readiness scanning, NodePool cutover, multi-arch builds). Do NOT use for scoring Graviton cost savings, quantifying Spot/Graviton adoption, or \"how much would Graviton save me?\" (use eks-cost-intelligence); for advisory \"should I use Graviton?\" architecture guidance (use eks-best-practices); or for general, non-Graviton MCP server setup like the EKS MCP server (use eks-mcp-server).",
-    "summary": "Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the migration",
+    "summary": "Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS",
     "path": "/docs/skills/general/graviton-migration",
     "group": "general"
   },

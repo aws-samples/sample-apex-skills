@@ -1,5 +1,5 @@
 ---
-title: "ECS Architect: choose your Amazon ECS deployment model"
+title: "ECS Architect (ecs-architect): choose your Amazon ECS deployment model"
 sidebar_label: "ecs-architect"
 description: "Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/SKILL.md

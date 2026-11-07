@@ -1,5 +1,5 @@
 ---
-title: "ECS Build: apply-ready Terraform for Amazon ECS"
+title: "ECS Build (ecs-build): apply-ready Terraform for Amazon ECS"
 sidebar_label: "ecs-build"
 description: "Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/SKILL.md

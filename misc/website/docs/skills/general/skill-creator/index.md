@@ -1,5 +1,5 @@
 ---
-title: "Skill Creator: create, test and tune agent skills"
+title: "Skill Creator (skill-creator): create, test and tune agent skills"
 sidebar_label: "skill-creator"
 description: "Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/skill-creator/SKILL.md

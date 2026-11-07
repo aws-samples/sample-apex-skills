@@ -1,5 +1,5 @@
 ---
-title: "EKS MCP Server: connect your AI assistant to Amazon EKS"
+title: "EKS MCP Server (eks-mcp-server): connect your AI assistant to Amazon EKS"
 sidebar_label: "eks-mcp-server"
 description: "Install, configure and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro)"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/SKILL.md

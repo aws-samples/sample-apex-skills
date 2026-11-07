@@ -1,5 +1,5 @@
 ---
-title: ".NET on Amazon ECS Fargate with CloudFormation or CDK"
+title: ".NET on Amazon ECS Fargate with CloudFormation or CDK (dotnet-aws-ecs)"
 sidebar_label: "dotnet-aws-ecs"
 description: "Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/dotnet-aws-ecs/SKILL.md

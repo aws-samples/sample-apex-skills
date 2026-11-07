@@ -1,5 +1,5 @@
 ---
-title: "Terraform Skill: modules, tests and CI for Terraform"
+title: "Terraform Skill (terraform-skill): modules, tests and CI for Terraform"
 sidebar_label: "terraform-skill"
 description: "Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/SKILL.md

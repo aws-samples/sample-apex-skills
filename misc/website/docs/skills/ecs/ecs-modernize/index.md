@@ -1,5 +1,5 @@
 ---
-title: "ECS Modernize: migrate VMware or EC2 apps to ECS"
+title: "ECS Modernize (ecs-modernize): migrate VMware or EC2 apps to ECS"
 sidebar_label: "ecs-modernize"
 description: "Assess an existing VMware or EC2 app from its source code, decide replatform or rearchitect, and migrate it onto ECS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/SKILL.md

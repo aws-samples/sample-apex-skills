@@ -1,5 +1,5 @@
 ---
-title: "EKS Ingress Migration: plan the move off NGINX Ingress"
+title: "EKS Ingress Migration (eks-ingress-migration): plan the move off NGINX Ingress"
 sidebar_label: "eks-ingress-migration"
 description: "Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/SKILL.md
