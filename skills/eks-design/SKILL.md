@@ -110,7 +110,7 @@ Refer to `eks-best-practices` skill for detailed reference material on autoscali
 
 **Scoring thresholds**:
 - **>= 85/100**: PASSED — proceed to Stage 4
-- **70-84**: CONDITIONAL — fix identified gaps, re-score as next iteration
+- **70-84**: CONDITIONAL — fix identified gaps, re-score in the same file
 - **< 70**: FAILED — significant rework needed
 
 **How to score**: For each dimension, evaluate every criteria in the scoring matrix (see reference), assign points with specific justification, document gaps, and calculate the total. Be honest — inflated scores lead to weak designs that fail during build.
@@ -169,7 +169,7 @@ Generate handoff artifacts for `eks-build`:
 1. **AGENTS.md** — machine-readable instructions listing which design files the build agent must read
 2. **README.md** — human-readable navigation guide
 3. Verify output structure matches specification
-4. **Render Mermaid diagrams to PNG** — extract every Mermaid code block from the architecture markdown files, save each as a `.mmd` file, then convert to PNG in `diagrams/`. Install and convert: `npm install -g @mermaid-js/mermaid-cli && mmdc -i diagram.mmd -o diagrams/<name>.png -b white -s 4`. `mmdc` renders through a headless Chrome driven by puppeteer (a peer dependency of `@mermaid-js/mermaid-cli`); where puppeteer's browser download is blocked or the host lacks Chrome's shared libraries, point it at an installed Chrome or Chromium with `PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`. If `mmdc` still doesn't work, **search the internet for how to use mermaid-cli to convert .mmd to .png**. Requirements: 4x scale, white background, auto-sized canvas (no fixed width/height). Use descriptive kebab-case names (e.g., `defense-in-depth-layers.png`, `pod-identity-flow.png`).
+4. **Render Mermaid diagrams to PNG** — extract every Mermaid code block from the architecture markdown files, save each as a `.mmd` file, then convert to PNG in `diagrams/`. Install and convert: `npm install -g @mermaid-js/mermaid-cli && mmdc -i diagram.mmd -o diagrams/<name>.png -b white -s 4`. `mmdc` renders through a headless Chrome driven by puppeteer; if `mmdc` fails with "Could not find Chrome" or "Could not find chrome-headless-shell" (puppeteer's browser download was blocked, or the version it wants is not installed), point it at an installed Chrome or Chromium with `PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`. If `mmdc` still doesn't work, **search the internet for how to use mermaid-cli to convert .mmd to .png**. Requirements: 4x scale, white background, auto-sized canvas (no fixed width/height). Use descriptive kebab-case names (e.g., `defense-in-depth-layers.png`, `pod-identity-flow.png`).
 5. **Ask the user** if they want Word (.docx) and PowerPoint (.pptx) versions. Only generate if confirmed. Generation uses the `docx` and `pptx` skills from [anthropics/skills](https://github.com/anthropics/skills), which this repo does not ship. They are under Anthropic's own licence (all rights reserved; not Apache 2.0, unlike `skill-creator`) and are for Claude where they are available: check they are installed first, and do not install them or write a document generator yourself. Where they are not available, tell the user and skip the documents. When generating, embed the rendered PNGs from `diagrams/` into the documents.
 
 **Output**: `AGENTS.md`, `README.md`, `diagrams/*.png`, optionally `.docx` and `.pptx`

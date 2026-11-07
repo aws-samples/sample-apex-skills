@@ -74,6 +74,49 @@ Practically:
 2. ArgoCD ApplicationSets template add-ons/apps using values from that secret.
 3. New clusters become deployment targets the moment their registration secret exists.
 
+### Worked example: hub add-on ApplicationSet (illustrative)
+
+Illustrative, not a drop-in: the add-on, chart version and values path are placeholders. GitOps Bridge puts each `enable_<addon>` flag and the `environment` on the cluster secret's labels, and the repo coordinates (`addons_repo_url`, `addons_repo_revision`, `addons_repo_basepath`) and AWS metadata on its annotations; the Cluster generator exposes both as `metadata.labels.<key>` and `metadata.annotations.<key>`.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: addon-metrics-server
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            enable_metrics_server: "true"   # set by the bridge on each cluster that should get it
+  template:
+    metadata:
+      name: 'metrics-server-{{.name}}'
+    spec:
+      project: default
+      sources:
+        - repoURL: '{{.metadata.annotations.addons_repo_url}}'
+          targetRevision: '{{.metadata.annotations.addons_repo_revision}}'
+          ref: values
+        - repoURL: https://kubernetes-sigs.github.io/metrics-server/
+          chart: metrics-server
+          targetRevision: 3.14.0
+          helm:
+            ignoreMissingValueFiles: true
+            valueFiles:
+              - '$values/{{.metadata.annotations.addons_repo_basepath}}environments/{{.metadata.labels.environment}}/addons/metrics-server/values.yaml'
+      destination:
+        name: '{{.name}}'
+        namespace: kube-system
+      syncPolicy:
+        automated: {}
+```
+
+GitOps Bridge's control-plane template keeps one `ApplicationSet` per add-on; a spoke gets the add-on as soon as its secret carries the `enable_` label.
+
 ## Component map (what each tool owns)
 
 | Concern | Tool |

@@ -462,10 +462,13 @@ Use the Kubernetes API to read the CloudWatch agent ConfigMap in the amazon-clou
 
 Check for Fluentd ConfigMaps and DaemonSets via the Kubernetes API. Detect the overall logging pipeline by listing DaemonSets with known labels (fluent-bit, fluentd, cloudwatch-agent, adot-collector) to determine which log collection system is active.
 
+If a required read fails, treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not interpret unavailable inventory as an empty result or use it for findings.
+
 ### Analysis logic
 
 ```
 # Step 1: Identify logging pipeline
+If required logging inventory is unavailable, mark the dimension SKIPPED; do not infer pipeline == None.
 pipeline = detect_logging_pipeline()  # FluentBit, Fluentd, CW Agent, ADOT, or None
 
 If pipeline == None:
@@ -644,7 +647,8 @@ actual_deduction = min(deduction, 10)  # Cap at maximum
 | Condition | Status |
 |-----------|--------|
 | All checks completed | ASSESSED |
-| Some checks skipped (no logging pipeline) | ASSESSED (with note) |
+| Successful reads confirm no logging pipeline | ASSESSED (with note) |
+| Required logging inventory read failed and no confirmed alternative is available | SKIPPED |
 | Cannot access cluster logging config at all | SKIPPED |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.

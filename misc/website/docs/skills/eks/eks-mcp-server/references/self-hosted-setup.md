@@ -17,13 +17,13 @@ The open-source EKS MCP server from [awslabs/mcp](https://github.com/awslabs/mcp
 
 ## Prerequisites
 
-- Python 3.10+ (`python3 --version`)
+- Python in the range the chosen release declares (`python3 --version`; SKILL.md Step 1b reads it from PyPI)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **For IAM mode**: AWS CLI configured (`aws configure list`)
 - **For kubeconfig mode**: Valid kubeconfig with cluster access
 - **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
 
-`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs with `kubectl auth can-i`. Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
+`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the MCP server (Step 3). Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
 
 ## Authentication Modes
 
@@ -77,13 +77,15 @@ For write access (cluster creation, deployments), also attach:
 
 ### Basic Configuration (IAM Mode)
 
+`<version>` is the SKILL.md Step 1b result: `latest`, or the exact version the user pinned.
+
 ```json
 {
   "mcpServers": {
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
+        "awslabs.eks-mcp-server@<version>",
         "--allow-write",
         "--allow-sensitive-data-access"
       ],
@@ -105,7 +107,7 @@ For write access (cluster creation, deployments), also attach:
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
+        "awslabs.eks-mcp-server@<version>",
         "--allow-write",
         "--allow-sensitive-data-access"
       ],
@@ -130,7 +132,7 @@ For write access (cluster creation, deployments), also attach:
 Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 
 ```json
-"args": ["awslabs.eks-mcp-server@latest"]
+"args": ["awslabs.eks-mcp-server@<version>"]
 ```
 
 ## Config File Locations by Assistant
@@ -148,7 +150,7 @@ Use this format for the args array:
 
 ```json
 "args": [
-  "--from", "awslabs.eks-mcp-server@latest",
+  "--from", "awslabs.eks-mcp-server@<version>",
   "awslabs.eks-mcp-server.exe",
   "--allow-write",
   "--allow-sensitive-data-access"

@@ -209,6 +209,79 @@
         {"type": "no-tool-called", "tool": "Write"}
       ],
       "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "We run several EKS clusters (managed node groups and one EKS Auto Mode cluster) and we keep hearing about security fixes late. How should our platform team set up security operations: which sources to watch, how often to patch add-ons, node images and container images, how to handle an urgent security fix, and what our build pipeline should do so one bad dependency cannot spread far?",
+      "expectations": [
+        "The output names concrete sources to watch across layers (for example AWS security bulletins, the Kubernetes CVE feed, node OS advisories, add-on releases, image scan findings) and recommends routing them into alerting rather than periodic review. TODO: human review",
+        "The output separates a normal patch cadence from an emergency path for security fixes, and the emergency path still tests in non-production before production. TODO: human review",
+        "The output explains that on EKS Auto Mode AWS patches the node image but existing nodes keep the old build until they are replaced (drift to the new AMI, node expiry, or planned rotation). TODO: human review",
+        "The output recommends digest-pinned base images moved through review, installing dependencies from a committed lockfile in an isolated build step, and rebuilding on a cadence because package scanners (such as ECR enhanced scanning) match only packages tracked in CVE advisories. TODO: human review",
+        "The output routes live checks (whether a cluster is exposed to a specific advisory, live event response) to eks-security rather than claiming to inspect the clusters itself. TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "security bulletin",
+            "Security Bulletin"
+          ],
+          "context": "Must name AWS security bulletins as a source to watch",
+          "source": "https://aws.amazon.com/security/security-bulletins/"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "emergency",
+            "out-of-band",
+            "out of band",
+            "fast path"
+          ],
+          "context": "Must describe a separate path for urgent security fixes",
+          "source": "https://github.com/aws-samples/sample-apex-skills/issues/349"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "digest",
+            "sha256"
+          ],
+          "context": "Must recommend pinning images by digest",
+          "source": "https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "lockfile",
+            "lock file"
+          ],
+          "context": "Must recommend building from a committed lockfile",
+          "source": "https://github.com/aws-samples/sample-apex-skills/issues/349"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "eks-security",
+          "context": "Must route live exposure checks to eks-security",
+          "source": "https://github.com/aws-samples/sample-apex-skills/issues/349"
+        }
+      ],
+      "process_assertions": [
+        {
+          "type": "step-count",
+          "min": 1,
+          "max": 15
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 3
+        },
+        {
+          "type": "no-tool-called",
+          "tool": "Write"
+        }
+      ],
+      "files": []
     }
   ]
 }
