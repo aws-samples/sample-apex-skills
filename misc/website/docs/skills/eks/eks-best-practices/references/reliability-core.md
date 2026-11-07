@@ -340,7 +340,7 @@ annotations:
 - Use the **same endpoint** for ALB health check and readiness probe
 - Set ALB health check interval ≥ readiness probe period
 - Account for NLB health check during graceful shutdown (use `deregistration_delay`)
-- Use pod readiness gates (AWS Load Balancer Controller; needs `target-type: ip` and the namespace label `elbv2.k8s.aws/pod-readiness-gate-inject: enabled`) so a rolling update does not terminate old pods until the new pods' targets are Healthy on the load balancer ([EKS Best Practices: load balancing](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html))
+- Use pod readiness gates (AWS Load Balancer Controller; needs `target-type: ip` and the namespace label `elbv2.k8s.aws/pod-readiness-gate-inject: enabled`) so a rolling update does not terminate old pods until the new pods' targets are Healthy on the load balancer ([EKS Best Practices: load balancing](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html)); label the namespace and create the Service or Ingress before the pods (the gate is injected at pod creation only)
 
 ❌ DON'T:
 - Use different health endpoints for LB and K8s probes (leads to split-brain)
@@ -519,7 +519,7 @@ resources:
 - Use VPA recommendations for right-sizing (also: Goldilocks, Parca)
 - Set CPU requests based on actual usage (not peak)
 - Don't set CPU limits on latency-sensitive workloads (causes throttling)
-- For Guaranteed QoS, set CPU and memory requests = limits on every container (memory alone gives Burstable)
+- For Guaranteed QoS, set CPU and memory requests = limits on every container, init containers included (memory alone gives Burstable)
 - Correctly sized requests are critical for Karpenter/Cluster Autoscaler node provisioning
 
 ### Namespace Resource Controls
