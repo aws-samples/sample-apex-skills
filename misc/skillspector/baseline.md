@@ -7,7 +7,7 @@
 - The workflow does not read this file; compare each annotation against it by hand.
 - Coverage: 20 of 34 reports are partial and some static analyzers ran degraded; these 7 partially inspected files are named nowhere else in this file: devops-agent/eks-ingress-migration/references/porting-notes.md, skills/ecs-modernize/assets/replatform-terraform/main.tf, skills/eks-operation-review/references/report-generation.md, skills/eks-well-architected-review/references/cost-optimization.md, skills/eks-well-architected-review/references/performance-efficiency.md, skills/eks-well-architected-review/references/reliability.md, skills/skill-creator/eval-viewer/viewer.html. Findings are a lower bound: a skill or file with no row has not been shown clean.
 - Each finding below was checked by hand at the cited file:line and given one verdict:
-  - `true positive`: a real security problem in the skill, to fix.
+  - `true positive`: a real security problem in the skill, to fix. Never a suppression: each row says it is open and names its issue, or names the merge that fixed it.
   - `accepted`: the behaviour is real but intended and documented for this skill, or a scanner coverage gap (rule AE1) that is not a defect.
   - `false positive`: the matched text is benign (a control being documented, a read-only command, a word inside a name or prose).
 - To refresh: rerun the same command for each skill directory (`skillspector scan <skill dir> --no-llm --format json --output <file>`, for example `skills/eks-security`), compare against this file by file, rule and line, and review every new row the same way. Line numbers move when a file changes, so a moved row needs a fresh look, not a copied verdict.
@@ -34,7 +34,7 @@ Total findings: 497.
 | skills/apex/SKILL.md:151 | PE3 | HIGH | false positive | same shared rule: describes the local kubeconfig write by update-kubeconfig and requires restoring the prior context |
 | skills/apex/SKILL.md:154 | PE3 | HIGH | false positive | rule forbids outputting secrets, credentials or kubeconfig contents: a control |
 | skills/apex/runbooks/eks-operation-review/eks-operation-review.md:72 | EA1 | MEDIUM | false positive | forbids tool calls on activation until the user asks: a restriction, not unrestricted access |
-| skills/apex/runbooks/eks-operation-review/eks-operation-review.md:152 | RP1 | MEDIUM | true positive | same unpinned run as the eks-mcp-server row; pin to the same version |
+| skills/apex/runbooks/eks-operation-review/eks-operation-review.md:152 | RP1 | MEDIUM | true positive | open, not suppressed: ISSUE-TBD-1. The troubleshooting step still runs `uvx awslabs.eks-mcp-server@latest` on main at 4e68e6d, after the eks-mcp-server setup fix (PR 366); it should run the version the user chose in that setup |
 
 ## skills/dotnet-aws-ecs
 
@@ -234,7 +234,7 @@ No findings.
 
 | File:line | Rule | Severity | Verdict | Reason |
 |---|---|---|---|---|
-| skills/eks-mcp-server/SKILL.md:3 | RP1 | MEDIUM | true positive | the setup examples run the server unpinned with no pinning advice, for a server that holds cluster access: `awslabs.eks-mcp-server@latest` at references/self-hosted-setup.md:75, :97, :122, :140 and `mcp-proxy-for-aws@latest` at references/aws-hosted-setup.md:50, :75, :89, :103, plus the same run in skills/apex/runbooks/eks-operation-review/eks-operation-review.md:152; the fix is open as https://github.com/aws-samples/sample-apex-skills/pull/366 (2026-11-06) |
+| skills/eks-mcp-server/SKILL.md:3 | RP1 | MEDIUM | true positive | fixed on main by https://github.com/aws-samples/sample-apex-skills/pull/366 (merged as 6fdc1cf): the setup examples ran the server unpinned (`awslabs.eks-mcp-server@latest` in references/self-hosted-setup.md, `mcp-proxy-for-aws@latest` in references/aws-hosted-setup.md); both now read `@<version>`, the version the user chooses in SKILL.md Step 1b. The runbook's own run is the row above |
 | skills/eks-mcp-server/SKILL.md:32 | PE3 | HIGH | false positive | explains the self-hosted mode supports kubeconfig/OIDC auth; setup prose, no credential read |
 | skills/eks-mcp-server/SKILL.md:32 | PE3 | HIGH | false positive | explains the self-hosted mode supports kubeconfig/OIDC auth; setup prose, no credential read |
 | skills/eks-mcp-server/SKILL.md:115 | EA1 | MEDIUM | false positive | forbids tool calls on activation; starts with Step 0 then asks: a restriction |
@@ -243,7 +243,7 @@ No findings.
 | skills/eks-mcp-server/references/self-hosted-setup.md:12 | PE3 | HIGH | false positive | prerequisite: a valid kubeconfig for kubeconfig mode; setup prose |
 | skills/eks-mcp-server/references/self-hosted-setup.md:12 | PE3 | HIGH | false positive | prerequisite: a valid kubeconfig for kubeconfig mode; setup prose |
 | skills/eks-mcp-server/references/self-hosted-setup.md:22 | PE3 | HIGH | false positive | auth-mode table row naming kubeconfig mode; setup prose |
-| skills/eks-mcp-server/references/self-hosted-setup.md:58 | RA2 | MEDIUM | true positive | rule name is wrong (no persistence), but the text tells users to attach IAMFullAccess, AmazonVPCFullAccess, AWSCloudFormationFullAccess and eks:* for write mode with no scoping; IAMFullAccess is a privilege-escalation path; an open PR adds a least-privilege note under this list (https://github.com/aws-samples/sample-apex-skills/pull/317); the IAMFullAccess line stays |
+| skills/eks-mcp-server/references/self-hosted-setup.md:58 | RA2 | MEDIUM | true positive | open, not suppressed: ISSUE-TBD-2. Rule name is wrong (no persistence), but the text tells users to attach IAMFullAccess, AmazonVPCFullAccess, AWSCloudFormationFullAccess and eks:* for write mode with no scoping (line 60 on main at 4e68e6d), and the basic configuration examples turn on `--allow-write` and `--allow-sensitive-data-access`; IAMFullAccess is a privilege-escalation path. https://github.com/aws-samples/sample-apex-skills/pull/317 (open) adds a least-privilege note and keeps the IAMFullAccess line |
 | skills/eks-mcp-server/references/self-hosted-setup.md:89 | PE3 | HIGH | false positive | section heading for kubeconfig mode |
 | skills/eks-mcp-server/references/self-hosted-setup.md:102 | PE3 | HIGH | false positive | MCP config example sets EKS_AUTH_MODE=kubeconfig; the server reads the user's own kubeconfig as designed |
 | skills/eks-mcp-server/references/self-hosted-setup.md:103 | PE3 | HIGH | false positive | MCP config example sets KUBECONFIG to the default path for the server it launches; no extra read |
