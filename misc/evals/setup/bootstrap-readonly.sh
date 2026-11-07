@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Bootstrap the read-only artefacts the task-axis runner needs for
-# live-cluster prompts (currently just eks-recon's `live_only: true` evals).
+# Bootstrap the read-only artefacts for misc/evals/ task-axis runs and the
+# "Read-only operating profile" recipe (misc/website/docs/read-only-operating-profile.md).
 #
 # What this creates:
 #   1. In the cluster pointed at by your current KUBECONFIG:
 #        - ServiceAccount kube-system/evals-readonly
-#        - ClusterRole / ClusterRoleBinding evals-readonly (get/list/watch)
+#        - ClusterRole / ClusterRoleBinding evals-readonly (get/list/watch, no Secrets)
 #        - Secret kube-system/evals-readonly-token (SA-bound token)
 #   2. In misc/evals/.secrets/ (gitignored):
 #        - kubeconfig.readonly   — auths as the SA; read-only
@@ -16,8 +16,10 @@
 # Both outputs are generated from the checked-in declarative sources under
 # misc/evals/setup/ — no secret material is ever committed.
 #
-# Idempotent: re-apply at any time to rotate the token or pick up a new
-# cluster endpoint. Exit non-zero on any step so CI wrappers can gate on it.
+# Idempotent: re-running leaves the SA, bindings and token unchanged and picks
+# up a new cluster endpoint. To rotate the token:
+# `kubectl -n kube-system delete secret evals-readonly-token`, then re-run this
+# script. Exit non-zero on any step so CI wrappers can gate on it.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -111,13 +113,18 @@ if KUBECONFIG="${KUBECONFIG_OUT}" kubectl auth can-i create pods --all-namespace
   die "readonly kubeconfig is allowed to CREATE pods — RBAC binding is wrong"
 fi
 
+log "verifying Secret denial..."
+if KUBECONFIG="${KUBECONFIG_OUT}" kubectl auth can-i list secrets --all-namespaces 2>&1 | grep -qx yes; then
+  die "readonly kubeconfig is allowed to LIST secrets; another binding grants this ServiceAccount or its groups secrets"
+fi
+
 log "verifying AWS federation-token minting..."
 if ! aws sts get-federation-token \
        --name "evals-readonly-bootstrap-check" \
        --policy "file://${POLICY_OUT}" \
        --duration-seconds 900 \
        --output text --query Credentials.AccessKeyId >/dev/null 2>&1; then
-  die "aws sts get-federation-token failed; check your IAM user/role has sts:GetFederationToken"
+  die "aws sts get-federation-token failed; it needs IAM-user long-term credentials with sts:GetFederationToken (a role or Identity Center session cannot call it); the kubeconfig above is written and usable"
 fi
 
 log "done. both artefacts are in ${SECRETS_DIR}/ (gitignored)."

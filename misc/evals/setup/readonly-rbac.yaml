@@ -1,12 +1,28 @@
-# Read-only cluster access for misc/evals/ task-axis runs.
+# Read-only cluster access for misc/evals/ task-axis runs and the
+# "Read-only operating profile" recipe (misc/website/docs/read-only-operating-profile.md).
 #
-# Applied by setup/bootstrap-readonly.sh. Idempotent — re-applying refreshes
-# the token Secret without churning the SA or bindings.
+# Applied by setup/bootstrap-readonly.sh. Idempotent: re-applying leaves the
+# SA, bindings and token unchanged. To rotate the token:
+# `kubectl -n kube-system delete secret evals-readonly-token`, then re-run
+# bootstrap-readonly.sh.
 #
-# Scope: every verb is get/list/watch across every apiGroup/resource. No
-# create/update/patch/delete. Enforcement is at the API-server, not at the
-# script level — a misbehaving subject subprocess physically cannot mutate
-# cluster state under this SA.
+# Scope: get/list/watch only. No create/update/patch/delete. Enforcement is
+# at the API server, not at the script level: a misbehaving subject
+# subprocess cannot mutate cluster state under this SA.
+#
+# Secrets are NOT readable. RBAC has no deny rules, so the core ("") group
+# lists every resource it keeps instead of "*". Left out on purpose:
+#   secrets                  credential material
+#   pods/exec, pods/attach,  `get` on these opens a websocket, which is not
+#   pods/portforward,        read-only
+#   nodes/proxy, services/proxy
+# Side effect: Helm release data lives in Secrets, so `helm list` and the
+# eks-recon Secret-based checks return nothing under this SA.
+#
+# Non-core groups are listed by name with "*" resources: the built-in groups,
+# then the CRD groups the APEX skills read. Add your own CRD groups to the
+# third rule. A group not listed reads as Forbidden, and a skill that hides
+# errors then reports 0 objects for it, not "unreadable".
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -19,7 +35,73 @@ kind: ClusterRole
 metadata:
   name: evals-readonly
 rules:
-  - apiGroups: ["*"]
+  - apiGroups: [""]
+    resources:
+      - componentstatuses
+      - configmaps
+      - endpoints
+      - events
+      - limitranges
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+      - persistentvolumes
+      - pods
+      - pods/log
+      - podtemplates
+      - replicationcontrollers
+      - resourcequotas
+      - serviceaccounts
+      - services
+    verbs: ["get", "list", "watch"]
+  - apiGroups:
+      - admissionregistration.k8s.io
+      - apiextensions.k8s.io
+      - apiregistration.k8s.io
+      - apps
+      - autoscaling
+      - batch
+      - certificates.k8s.io
+      - coordination.k8s.io
+      - discovery.k8s.io
+      - events.k8s.io
+      - flowcontrol.apiserver.k8s.io
+      - metrics.k8s.io
+      - networking.k8s.io
+      - node.k8s.io
+      - policy
+      - rbac.authorization.k8s.io
+      - scheduling.k8s.io
+      - storage.k8s.io
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups:
+      - apiextensions.crossplane.io
+      - appmesh.k8s.aws
+      - argoproj.io
+      - autoscaling.k8s.io
+      - cilium.io
+      - constraints.gatekeeper.sh
+      - crd.k8s.amazonaws.com
+      - crd.projectcalico.org
+      - eks.amazonaws.com
+      - elbv2.k8s.aws
+      - external-secrets.io
+      - gateway.networking.k8s.io
+      - karpenter.k8s.aws
+      - karpenter.sh
+      - keda.sh
+      - kustomize.toolkit.fluxcd.io
+      - kyverno.io
+      - monitoring.coreos.com
+      - networking.k8s.aws
+      - opentelemetry.io
+      - secrets-store.csi.x-k8s.io
+      - snapshot.storage.k8s.io
+      - source.toolkit.fluxcd.io
+      - tekton.dev
+      - templates.gatekeeper.sh
+      - velero.io
     resources: ["*"]
     verbs: ["get", "list", "watch"]
   - nonResourceURLs: ["*"]
@@ -38,10 +120,11 @@ subjects:
     name: evals-readonly
     namespace: kube-system
 ---
-# Long-lived SA token. TokenRequest-issued tokens cap at ~24h; a Secret-bound
-# token lives alongside the SA, which is what we want for a task runner that
-# may take 2h per run. The Secret is k8s-internal — it never leaves the
-# cluster's etcd until bootstrap-readonly.sh reads it into a kubeconfig.
+# Long-lived SA token, so the kubeconfig needs no refresh between runs; it
+# never expires until the Secret is deleted. `kubectl create token --duration`
+# is the shorter-lived alternative. The Secret is k8s-internal: it never
+# leaves the cluster's etcd until bootstrap-readonly.sh reads it into a
+# kubeconfig.
 apiVersion: v1
 kind: Secret
 metadata:
