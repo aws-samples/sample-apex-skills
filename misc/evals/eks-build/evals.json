@@ -433,7 +433,7 @@
         },
         {
           "type": "must-not-contain",
-          "pattern": "arn:aws[a-z-]*:iam::(\\d{12}|aws):policy/[^<\\s]",
+          "pattern": "arn:aws[a-z-]*:iam::(\\d{12}:policy/|aws:policy/[^<\\s])",
           "context": "The skill never writes, suggests or guesses a boundary ARN",
           "source": "https://github.com/aws-samples/sample-apex-skills/issues/249"
         }

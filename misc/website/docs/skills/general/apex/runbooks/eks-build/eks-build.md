@@ -25,7 +25,7 @@ This workflow uses the `eks-build` skill for code generation and the `eks-best-p
 |-------------|-----------|
 | **"Build an EKS cluster"** / **"Generate Terraform"** / **"Create infrastructure"** | Follow the [Build Questionnaire](#build-questionnaire) below to gather requirements, then generate the project |
 | **"Resume build"** / **"Continue where we left off"** | Ask for the project name, load `projects/<name>/contexts/eks-build/requirements.yaml` if it exists, confirm the summary, and resume from the next unanswered phase |
-| **"Modify existing build"** / **"Change compute to Karpenter"** | Load the existing requirements, apply the requested change, re-confirm summary, regenerate affected modules |
+| **"Modify existing build"** / **"Change compute to Karpenter"** | Load the existing requirements, apply the requested change, re-confirm summary, regenerate affected modules; ask question 30 if requirements.yaml has no answer to it |
 | **"Which pattern should I use?"** / **"Help me pick Terraform vs ArgoCD"** | Use the `eks-best-practices` skill to compare the three patterns (Full Terraform, ArgoCD+Terraform, ArgoCD+ACK) based on the user's context |
 | **"I have a requirements YAML"** / provides structured input | Parse the input, ask question 30; a YAML `permissions_boundary` answers only b1, so still ask b2; skip to [Phase 7: Confirm and Generate](#phase-7-confirm-and-generate), present summary for confirmation |
 
@@ -175,7 +175,7 @@ Skip questions 27 to 29 if single-team cluster; always ask question 30.
        → Not sure: a boundary is an IAM policy your security team owns that caps
          what a role can do. Ask them, then answer yes or no. I stop here until
          you answer yes or no: nothing is added and nothing is generated.
-    b. If yes, answer each of these. I will not fill any of them in for you:
+    b. If yes, answer 1 and 2. I will not fill either in for you:
        1. The ARN of the boundary policy. It must already exist in the account
           you deploy to. This project does not create, write or change it, and
           puts this one boundary ARN on every role you name in 2.
@@ -243,7 +243,7 @@ Present the full summary table:
 │ Multi-tenancy    │ <yes/no>                             │
 │ Multi-account    │ <yes/no>                             │
 │ Auth model       │ <IRSA/Pod Identity>                  │
-│ Permissions boundary │ <ARN> on <roles>, or none        │
+│ Boundary         │ <ARN> on <roles>, or none            │
 │ Custom addons    │ <list or none>                       │
 │ CI/CD            │ <tool or none>                       │
 │ Additional reqs  │ <summary or none>                    │
