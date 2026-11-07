@@ -14,7 +14,7 @@ This page is generated from [skills/ecs-architect/references/launch-type-migrati
 > **Part of:** [ecs-architect](../)
 > **Purpose:** Plan the transition from an older ECS topology to a modern one — EC2 launch type → capacity providers / Managed Instances, and Service Discovery → Service Connect. Covers exactly which transitions the API supports, the `launchType`-immutability trap, and cutover steps. Facts verified against AWS docs on **2026-07-09**.
 >
-> **Scope note:** This is *topology* migration for an ECS estate you already understand. For assessing an existing *application* and choosing replatform vs refactor, use `ecs-modernize`. To inventory the estate first, use the `ecs-recon` skill once available (or `aws ecs list-*`/`describe-*`).
+> **Scope note:** This is *topology* migration for an ECS estate you already understand. For assessing an existing *application* and choosing replatform vs refactor, use `ecs-modernize`. To inventory the estate first, use the `ecs-recon` skill.
 
 ---
 
@@ -87,7 +87,7 @@ Because config changes take effect only during deployments, gate the rollout wit
 
 ## Migration Playbook
 
-1. **Inventory first** (use the `ecs-recon` skill once available, or `aws ecs describe-*`): current launch types, ASG/capacity-provider config, network mode, service discovery mechanism.
+1. **Inventory first** (use the `ecs-recon` skill): current launch types, ASG/capacity-provider config, network mode, service discovery mechanism.
 2. **Decide the target model** ([model-selection-framework.md](model-selection-framework)): capacity providers on your ASG, or Managed Instances to shed fleet ops.
 3. **Choose the mechanism**: API/CLI (supported-transition list, no recreation) vs IaC (accept replacement or use the escape hatch). Never let an unplanned IaC apply silently delete-and-recreate a production service — and if you migrate a CFN/CDK-managed service via the API, reconcile the template immediately afterward, or the next apply reverts the change (see the drift warning above).
 4. **Design capacity** ([capacity-and-scaling.md](capacity-and-scaling)): base/weight, one resource profile per ASG, managed scaling + draining.

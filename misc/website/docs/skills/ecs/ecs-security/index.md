@@ -36,7 +36,7 @@ The AWS-published foundation for every recommendation is the [ECS Best Practices
 - **GenAI / GPU / ML-workload** security specifically (model-artifact provenance, GPU-node compliance) → `ecs-genai` (or `eks-genai` on EKS)
 - **AWS App Runner / Lambda / Batch** — different services with different security models
 - **AWS account-level / org-wide** security with no ECS-specific angle (SCPs, SSO, org GuardDuty) → Security guidance, not this skill
-- Choosing a launch/deployment model with no security driver (→ `ecs-architect`), auditing live operational posture (→ `ecs-operation-review`), or discovery/inventory of an estate (→ `ecs-recon`, once available)
+- Choosing a launch/deployment model with no security driver (→ `ecs-architect`), auditing live operational posture (→ `ecs-operation-review`), or discovery/inventory of an estate (→ `ecs-recon`)
 
 ## Discovery First — the Required Questions
 

@@ -321,8 +321,9 @@ resource "aws_autoscaling_group" "instances" {
 # -----------------------------------------------------------------------------
 # Task definition — bridge networking with dynamic host ports
 #
-# This is the element `ecs-build` cannot generate, and the reason this module
-# exists. The unmodified application is not being adapted to per-task ENIs.
+# Why this skill, not ecs-build, generates it: the Delegation Boundaries table
+# in ../../SKILL.md. The unmodified application is not being adapted to
+# per-task ENIs.
 # -----------------------------------------------------------------------------
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/ecs/${local.name}"
