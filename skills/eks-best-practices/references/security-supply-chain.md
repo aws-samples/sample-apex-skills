@@ -85,7 +85,7 @@ Attestations are cryptographically signed statements that verify artifact integr
 
 **Validate at admission with:**
 - **Kyverno** — [verify image signatures and attestations](https://kyverno.io/docs/writing-policies/verify-images/sigstore/)
-- **OPA Gatekeeper** or **Ratify** — alternative admission controllers
+- **OPA Gatekeeper with Ratify**: Gatekeeper is the admission controller; Ratify is the verifier it calls to check signatures and attestations ([Ratify on AWS](https://ratify.dev/docs/quickstarts/ratify-on-aws))
 
 ### Admission Control for Images
 
