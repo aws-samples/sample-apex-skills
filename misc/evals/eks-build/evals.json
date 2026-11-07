@@ -17,7 +17,12 @@
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
-          "patterns": ["two.?phase", "eks_addons_webhooks", "Phase.?1.*Phase.?2", "depends_on.*module\\.eks_addons"],
+          "patterns": [
+            "two.?phase",
+            "eks_addons_webhooks",
+            "Phase.?1.*Phase.?2",
+            "depends_on.*module\\.eks_addons"
+          ],
           "context": "Must implement two-phase module architecture splitting webhook addons (LBC) from remaining addons",
           "source": "https://registry.terraform.io/modules/aws-ia/eks-blueprints-addons/aws/latest"
         },
@@ -29,61 +34,93 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["terraform-aws-modules/eks", "terraform-aws-modules\\.eks"],
+          "patterns": [
+            "terraform-aws-modules/eks",
+            "terraform-aws-modules\\.eks"
+          ],
           "context": "Must use the terraform-aws-modules/eks community module as the EKS cluster foundation",
           "source": "https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["ENABLE_PREFIX_DELEGATION", "prefix.?delegation"],
+          "patterns": [
+            "ENABLE_PREFIX_DELEGATION",
+            "prefix.?delegation"
+          ],
           "context": "VPC-CNI prefix delegation must be explicitly enabled for increased pod density",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["modules/karpenter", "terraform-aws-modules/eks/aws//modules/karpenter"],
+          "patterns": [
+            "modules/karpenter",
+            "terraform-aws-modules/eks/aws//modules/karpenter"
+          ],
           "context": "Karpenter must use the dedicated submodule from terraform-aws-modules/eks, not eks-blueprints-addons",
           "source": "https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest/submodules/karpenter"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["karpenter\\.sh/discovery", "karpenter.sh/discovery"],
+          "patterns": [
+            "karpenter\\.sh/discovery",
+            "karpenter.sh/discovery"
+          ],
           "context": "Karpenter requires discovery tags on subnets and security groups",
           "source": "https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["EC2NodeClass", "ec2nodeclass"],
+          "patterns": [
+            "EC2NodeClass",
+            "ec2nodeclass"
+          ],
           "context": "Karpenter configuration requires an EC2NodeClass CRD for node provisioning settings",
           "source": "https://karpenter.sh/docs/concepts/nodeclasses/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["NodePool", "nodepool"],
+          "patterns": [
+            "NodePool",
+            "nodepool"
+          ],
           "context": "Karpenter configuration requires at least one NodePool CRD defining instance requirements",
           "source": "https://karpenter.sh/docs/concepts/nodepools/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["endpoint_private_access\\s*=\\s*true", "endpoint_private_access.*true"],
+          "patterns": [
+            "endpoint_private_access\\s*=\\s*true",
+            "endpoint_private_access.*true"
+          ],
           "context": "Production cluster must use private endpoint access",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["endpoint_public_access\\s*=\\s*false", "endpoint_public_access.*false"],
+          "patterns": [
+            "endpoint_public_access\\s*=\\s*false",
+            "endpoint_public_access.*false"
+          ],
           "context": "Production cluster must disable public endpoint",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["ecr\\.api", "ecr\\.dkr", "com\\.amazonaws.*ecr"],
+          "patterns": [
+            "ecr\\.api",
+            "ecr\\.dkr",
+            "com\\.amazonaws.*ecr"
+          ],
           "context": "Private clusters require VPC endpoints for ECR API and ECR DKR",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["vpcId", "vpc.?id", "vpc_id"],
+          "patterns": [
+            "vpcId",
+            "vpc.?id",
+            "vpc_id"
+          ],
           "context": "LBC requires explicit vpcId in Helm values because IMDS fallback fails with hop-limit restrictions",
           "source": "https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/"
         },
@@ -95,13 +132,20 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["http_tokens\\s*=\\s*\"required\"", "http_tokens.*required", "IMDSv2"],
+          "patterns": [
+            "http_tokens\\s*=\\s*\"required\"",
+            "http_tokens.*required",
+            "IMDSv2"
+          ],
           "context": "Node launch templates must enforce IMDSv2 (http_tokens = required) for security",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["gp3", "volume_type.*gp3"],
+          "patterns": [
+            "gp3",
+            "volume_type.*gp3"
+          ],
           "context": "EBS volumes must use gp3 (never gp2) for cost and performance",
           "source": "https://docs.aws.amazon.com/ebs/latest/userguide/general-purpose.html"
         },
@@ -126,29 +170,102 @@
       ],
       "files": [],
       "process_assertions": [
-        {"type": "tool-called", "tool": "Write", "min": 4},
-        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
-        {"type": "step-count", "min": 5, "max": 50},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 6}
+        {
+          "type": "tool-called",
+          "tool": "Write",
+          "min": 4
+        },
+        {
+          "type": "tool-sequence",
+          "sequence": [
+            "Skill",
+            "Write"
+          ]
+        },
+        {
+          "type": "step-count",
+          "min": 5,
+          "max": 50
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 6
+        }
       ],
       "artifact_assertions": {
         "root_glob": "**/code",
         "validators": [
-          {"type": "terraform-fmt", "paths": ["**/*.tf"], "severity": "warning"},
-          {"type": "script", "path": "skills/eks-build/scripts/validate_project.sh", "args": ["{root}"]}
+          {
+            "type": "terraform-fmt",
+            "paths": [
+              "**/*.tf"
+            ],
+            "severity": "warning"
+          },
+          {
+            "type": "script",
+            "path": "skills/eks-build/scripts/validate_project.sh",
+            "args": [
+              "{root}"
+            ]
+          }
         ],
         "structural": [
-          {"type": "file-exists", "path": "main.tf"},
-          {"type": "file-exists", "path": "variables.tf"},
-          {"type": "file-exists", "path": "versions.tf"},
-          {"type": "file-exists", "path": "outputs.tf"},
-          {"type": "file-exists", "path": "providers.tf"},
-          {"type": "contains", "file": "versions.tf", "pattern": "required_providers"},
-          {"type": "contains", "file": "**/*.tf", "pattern": "aws_eks_cluster|terraform-aws-modules/eks"},
-          {"type": "contains", "file": "**/*.tf", "pattern": "[Kk]arpenter"},
-          {"type": "yaml-valid", "paths": ["configs/*.yaml"], "exclude": ["**/templates/**"]},
-          {"type": "not-contains", "file": "**/*.tf", "pattern": "kube2iam"},
-          {"type": "file-count", "glob": "**/*.tf", "min": 3, "max": 30}
+          {
+            "type": "file-exists",
+            "path": "main.tf"
+          },
+          {
+            "type": "file-exists",
+            "path": "variables.tf"
+          },
+          {
+            "type": "file-exists",
+            "path": "versions.tf"
+          },
+          {
+            "type": "file-exists",
+            "path": "outputs.tf"
+          },
+          {
+            "type": "file-exists",
+            "path": "providers.tf"
+          },
+          {
+            "type": "contains",
+            "file": "versions.tf",
+            "pattern": "required_providers"
+          },
+          {
+            "type": "contains",
+            "file": "**/*.tf",
+            "pattern": "aws_eks_cluster|terraform-aws-modules/eks"
+          },
+          {
+            "type": "contains",
+            "file": "**/*.tf",
+            "pattern": "[Kk]arpenter"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [
+              "configs/*.yaml"
+            ],
+            "exclude": [
+              "**/templates/**"
+            ]
+          },
+          {
+            "type": "not-contains",
+            "file": "**/*.tf",
+            "pattern": "kube2iam"
+          },
+          {
+            "type": "file-count",
+            "glob": "**/*.tf",
+            "min": 3,
+            "max": 30
+          }
         ]
       }
     },
@@ -164,13 +281,19 @@
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
-          "patterns": ["sync-wave", "argocd.argoproj.io/sync-wave"],
+          "patterns": [
+            "sync-wave",
+            "argocd.argoproj.io/sync-wave"
+          ],
           "context": "Kyverno CRDs must deploy before policies using ArgoCD sync-wave annotations",
           "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Replace=true", "Replace.*true"],
+          "patterns": [
+            "Replace=true",
+            "Replace.*true"
+          ],
           "context": "Kyverno ArgoCD syncOptions must use Replace=true, NOT ServerSideApply=true which conflicts with selfHeal",
           "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/"
         },
@@ -182,37 +305,60 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["secretsmanager:GetSecretValue", "secretsmanager:\\*", "SecretsManager"],
+          "patterns": [
+            "secretsmanager:GetSecretValue",
+            "secretsmanager:\\*",
+            "SecretsManager"
+          ],
           "context": "External-secrets IRSA policy must grant access to AWS Secrets Manager",
           "source": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/auth-and-access_iam-policies.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["eks.amazonaws.com/role-arn", "role.?arn", "iam_role_arn"],
+          "patterns": [
+            "eks.amazonaws.com/role-arn",
+            "role.?arn",
+            "iam_role_arn"
+          ],
           "context": "IRSA requires the service account annotation eks.amazonaws.com/role-arn or passing role ARN via Helm values",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["CreateNamespace=true", "create-namespace", "CreateNamespace.*true"],
+          "patterns": [
+            "CreateNamespace=true",
+            "create-namespace",
+            "CreateNamespace.*true"
+          ],
           "context": "ArgoCD Applications should use CreateNamespace sync option for addon namespaces",
           "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#create-namespace"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["argoproj.io/v1alpha1", "argoproj"],
+          "patterns": [
+            "argoproj.io/v1alpha1",
+            "argoproj"
+          ],
           "context": "ArgoCD Application manifests must use the argoproj.io API group",
           "source": "https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["oidc", "OIDC", "sts:AssumeRoleWithWebIdentity"],
+          "patterns": [
+            "oidc",
+            "OIDC",
+            "sts:AssumeRoleWithWebIdentity"
+          ],
           "context": "IRSA trust policies require the OIDC provider and sts:AssumeRoleWithWebIdentity",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["selfHeal", "self.?heal", "self_heal"],
+          "patterns": [
+            "selfHeal",
+            "self.?heal",
+            "self_heal"
+          ],
           "context": "ArgoCD syncPolicy should enable selfHeal for drift detection and remediation",
           "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/auto-sync/"
         },
@@ -224,27 +370,71 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["kyverno.*crd", "CRD.*kyverno", "kyverno-crd", "crds"],
+          "patterns": [
+            "kyverno.*crd",
+            "CRD.*kyverno",
+            "kyverno-crd",
+            "crds"
+          ],
           "context": "Kyverno requires separate CRD installation before policy deployment",
           "source": "https://kyverno.io/docs/installation/methods/"
         }
       ],
       "files": [],
       "process_assertions": [
-        {"type": "tool-called", "tool": "Write", "min": 2},
-        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
-        {"type": "step-count", "min": 5, "max": 40},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 6}
+        {
+          "type": "tool-called",
+          "tool": "Write",
+          "min": 2
+        },
+        {
+          "type": "tool-sequence",
+          "sequence": [
+            "Skill",
+            "Write"
+          ]
+        },
+        {
+          "type": "step-count",
+          "min": 5,
+          "max": 40
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 6
+        }
       ],
       "artifact_assertions": {
         "root_glob": "**",
         "validators": [],
         "structural": [
-          {"type": "file-exists", "path": "**/*kyverno*"},
-          {"type": "file-exists", "path": "**/*external-secrets*"},
-          {"type": "yaml-valid", "paths": ["**/*.yaml"], "exclude": ["**/templates/**"]},
-          {"type": "contains", "file": "**/*.yaml", "pattern": "argoproj"},
-          {"type": "contains", "file": "**/*.yaml", "pattern": "sync-wave|syncPolicy"}
+          {
+            "type": "file-exists",
+            "path": "**/*kyverno*"
+          },
+          {
+            "type": "file-exists",
+            "path": "**/*external-secrets*"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [
+              "**/*.yaml"
+            ],
+            "exclude": [
+              "**/templates/**"
+            ]
+          },
+          {
+            "type": "contains",
+            "file": "**/*.yaml",
+            "pattern": "argoproj"
+          },
+          {
+            "type": "contains",
+            "file": "**/*.yaml",
+            "pattern": "sync-wave|syncPolicy"
+          }
         ]
       }
     },
@@ -260,25 +450,51 @@
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
-          "patterns": ["Pattern.?2a", "Pattern.?1", "ArgoCD.*Terraform", "argocd.*terraform", "full.?[Tt]erraform"],
+          "patterns": [
+            "Pattern.?2a",
+            "Pattern.?1",
+            "ArgoCD.*Terraform",
+            "argocd.*terraform",
+            "full.?[Tt]erraform"
+          ],
           "context": "Must explicitly recommend a pattern (1, 2a, or 2b) with justification based on team size, GitOps maturity, and compliance needs",
           "source": "https://registry.terraform.io/modules/aws-ia/eks-blueprints-addons/aws/latest"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["ApplicationSet", "applicationset", "for_each", "workspace", "environments/"],
+          "patterns": [
+            "ApplicationSet",
+            "applicationset",
+            "for_each",
+            "workspace",
+            "environments/"
+          ],
           "context": "If Pattern 2a: uses ArgoCD ApplicationSets for multi-cluster management. If Pattern 1: uses Terraform for_each, workspaces, or per-environment directories",
           "source": "https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["self.?[Hh]eal", "selfHeal", "auto.?sync", "drift", "plan.*-detailed-exitcode", "terraform.?plan"],
+          "patterns": [
+            "self.?[Hh]eal",
+            "selfHeal",
+            "auto.?sync",
+            "drift",
+            "plan.*-detailed-exitcode",
+            "terraform.?plan"
+          ],
           "context": "If Pattern 2a: drift detection via ArgoCD selfHeal/auto-sync. If Pattern 1: drift detection via scheduled terraform plan with -detailed-exitcode",
           "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/auto-sync/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["gitops.?bridge", "GitOps.?Bridge", "argocd.argoproj.io/secret-type", "tfvars", "backend", "remote.?state"],
+          "patterns": [
+            "gitops.?bridge",
+            "GitOps.?Bridge",
+            "argocd.argoproj.io/secret-type",
+            "tfvars",
+            "backend",
+            "remote.?state"
+          ],
           "context": "If Pattern 2a: uses GitOps Bridge to pass Terraform metadata to ArgoCD. If Pattern 1: uses remote state or tfvars for environment separation",
           "source": "https://github.com/gitops-bridge-dev/gitops-bridge"
         },
@@ -290,31 +506,56 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["terraform-aws-modules/eks", "terraform-aws-modules\\.eks"],
+          "patterns": [
+            "terraform-aws-modules/eks",
+            "terraform-aws-modules\\.eks"
+          ],
           "context": "All patterns use terraform-aws-modules/eks for the EKS cluster infrastructure",
           "source": "https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["eks-blueprints-addons", "aws-ia/eks-blueprints-addons", "eks_addons", "cluster_addons"],
+          "patterns": [
+            "eks-blueprints-addons",
+            "aws-ia/eks-blueprints-addons",
+            "eks_addons",
+            "cluster_addons"
+          ],
           "context": "Must use eks-blueprints-addons module (Pattern 2a for IRSA roles, Pattern 1 for full addon management) or native EKS cluster_addons",
           "source": "https://registry.terraform.io/modules/aws-ia/eks-blueprints-addons/aws/latest"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["drift.?detect", "sync.?status", "OutOfSync", "self.?heal", "detailed.?exitcode", "terraform.?plan", "compliance"],
-          "context": "SOC2 compliance requires drift detection — ArgoCD sync status (Pattern 2a) or scheduled terraform plan with -detailed-exitcode (Pattern 1)",
+          "patterns": [
+            "drift.?detect",
+            "sync.?status",
+            "OutOfSync",
+            "self.?heal",
+            "detailed.?exitcode",
+            "terraform.?plan",
+            "compliance"
+          ],
+          "context": "SOC2 compliance requires drift detection \u2014 ArgoCD sync status (Pattern 2a) or scheduled terraform plan with -detailed-exitcode (Pattern 1)",
           "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/auto-sync/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["tfvars", "\\.tfvars", "environments/"],
+          "patterns": [
+            "tfvars",
+            "\\.tfvars",
+            "environments/"
+          ],
           "context": "Multi-environment projects should use per-environment tfvars files for configuration separation",
           "source": "https://developer.hashicorp.com/terraform/language/values/variables#variable-definitions-tfvars-files"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["cluster.?arn", "cluster_arn", "cluster_endpoint", "cluster_name"],
+          "patterns": [
+            "cluster.?arn",
+            "cluster_arn",
+            "cluster_endpoint",
+            "cluster_name"
+          ],
           "context": "Must reference the EKS cluster identity (ARN, endpoint, or name) for multi-cluster targeting",
           "source": "https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#clusters"
         },
@@ -339,37 +580,109 @@
       ],
       "files": [],
       "process_assertions": [
-        {"type": "tool-called", "tool": "Write", "min": 3},
-        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
-        {"type": "step-count", "min": 5, "max": 60},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 8}
+        {
+          "type": "tool-called",
+          "tool": "Write",
+          "min": 3
+        },
+        {
+          "type": "tool-sequence",
+          "sequence": [
+            "Skill",
+            "Write"
+          ]
+        },
+        {
+          "type": "step-count",
+          "min": 5,
+          "max": 60
+        },
+        {
+          "type": "tool-effectiveness",
+          "max_consecutive_no_progress": 8
+        }
       ],
       "elicitation": {
         "strategy": "canned-multiturn",
         "turns": [
-          {"question_match": "region", "answer": "us-west-2"},
-          {"question_match": "environ", "answer": "3 (dev, staging, prod)"},
-          {"question_match": "cluster.?name|naming", "answer": "myapp"},
-          {"question_match": "team|org", "answer": "Platform team, 2 engineers"},
-          {"question_match": "exist|current|already", "answer": "No existing infrastructure, greenfield"},
-          {"question_match": "network|vpc|cidr", "answer": "Use 10.0.0.0/16 for the VPC"},
-          {"question_match": "instance|node|compute", "answer": "Mixed x86 instances, m5.xlarge and m5.2xlarge"},
-          {"question_match": "budget|cost", "answer": "Standard, no specific budget constraints"}
+          {
+            "question_match": "region",
+            "answer": "us-west-2"
+          },
+          {
+            "question_match": "environ",
+            "answer": "3 (dev, staging, prod)"
+          },
+          {
+            "question_match": "cluster.?name|naming",
+            "answer": "myapp"
+          },
+          {
+            "question_match": "team|org",
+            "answer": "Platform team, 2 engineers"
+          },
+          {
+            "question_match": "exist|current|already",
+            "answer": "No existing infrastructure, greenfield"
+          },
+          {
+            "question_match": "network|vpc|cidr",
+            "answer": "Use 10.0.0.0/16 for the VPC"
+          },
+          {
+            "question_match": "instance|node|compute",
+            "answer": "Mixed x86 instances, m5.xlarge and m5.2xlarge"
+          },
+          {
+            "question_match": "budget|cost",
+            "answer": "Standard, no specific budget constraints"
+          }
         ],
         "max_turns": 8
       },
       "artifact_assertions": {
         "root_glob": "**",
         "validators": [
-          {"type": "terraform-fmt", "paths": ["**/*.tf"], "severity": "warning"}
+          {
+            "type": "terraform-fmt",
+            "paths": [
+              "**/*.tf"
+            ],
+            "severity": "warning"
+          }
         ],
         "structural": [
-          {"type": "file-exists", "path": "**/main.tf"},
-          {"type": "file-exists", "path": "**/variables.tf"},
-          {"type": "file-exists", "path": "**/versions.tf"},
-          {"type": "yaml-valid", "paths": ["**/*.yaml"], "exclude": ["**/templates/**"]},
-          {"type": "file-count", "glob": "**/*.tf", "min": 3},
-          {"type": "file-count", "glob": "**/*.tfvars", "min": 2}
+          {
+            "type": "file-exists",
+            "path": "**/main.tf"
+          },
+          {
+            "type": "file-exists",
+            "path": "**/variables.tf"
+          },
+          {
+            "type": "file-exists",
+            "path": "**/versions.tf"
+          },
+          {
+            "type": "yaml-valid",
+            "paths": [
+              "**/*.yaml"
+            ],
+            "exclude": [
+              "**/templates/**"
+            ]
+          },
+          {
+            "type": "file-count",
+            "glob": "**/*.tf",
+            "min": 3
+          },
+          {
+            "type": "file-count",
+            "glob": "**/*.tfvars",
+            "min": 2
+          }
         ]
       }
     },
@@ -406,6 +719,46 @@
           "pattern": "(?<![a-z_])permissions_boundary_arn",
           "context": "The eks-pod-identity module takes the boundary as permissions_boundary_arn",
           "source": "https://github.com/terraform-aws-modules/terraform-aws-eks-pod-identity/blob/v2.10.0/variables.tf"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Generate a Pattern 1 EKS Terraform project with an EKS managed node group, Karpenter and the EBS CSI driver with Pod Identity. Our security team says we need a permissions boundary, so yes, add one.",
+      "expectations": [
+        "Does not generate the project: stops before writing any file TODO: human review",
+        "Names what is missing: the boundary policy ARN and which roles should carry it TODO: human review",
+        "Asks for those answers again instead of choosing them TODO: human review",
+        "Does not write, suggest or guess a boundary policy or an ARN TODO: human review"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "(?i)\\bARN\\b",
+          "context": "A yes with no detail must stop and ask for the boundary policy ARN",
+          "source": "https://github.com/aws-samples/sample-apex-skills/issues/249"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "(?i)which roles",
+            "(?i)roles? (should|to) carry",
+            "(?i)name the roles"
+          ],
+          "context": "A yes with no detail must stop and ask which roles carry the boundary",
+          "source": "https://github.com/aws-samples/sample-apex-skills/issues/249"
+        },
+        {
+          "type": "must-not-contain",
+          "pattern": "arn:aws[a-z-]*:iam::\\d{12}:policy/",
+          "context": "The skill never writes, suggests or guesses a boundary ARN",
+          "source": "https://github.com/aws-samples/sample-apex-skills/issues/249"
+        }
+      ],
+      "process_assertions": [
+        {
+          "type": "no-tool-called",
+          "tool": "Write"
         }
       ]
     }

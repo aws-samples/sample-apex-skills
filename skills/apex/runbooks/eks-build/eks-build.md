@@ -148,7 +148,7 @@ Present the full list, ask for changes. See the `eks-build` skill for addon deta
 
 Source: knowledge
 
-Skip if single-team cluster.
+Skip questions 27 to 29 if single-team cluster; always ask question 30.
 
 ```
 27. Multi-tenancy? → If yes: tenant names and namespace requirements
@@ -161,7 +161,36 @@ Skip if single-team cluster.
 29. IAM auth model: Pod Identity (default) or IRSA? (Helm add-ons installed via eks-blueprints-addons use IRSA)
     → Per-addon overrides? (e.g., Velero → Pod Identity, per question 20; other Helm add-ons via eks-blueprints-addons → IRSA)
 
-30. Permissions boundary required on every IAM role the project creates? If yes: the policy ARN; sets `permissions_boundary` in cluster.yaml
+30. Permissions boundary (always ask, even for a single-team cluster)
+    a. Does your organisation require a permissions boundary on the IAM roles
+       this project creates? (default: no)
+       → No: no boundary is added (permissions_boundary stays null).
+       → Not sure: a boundary is an IAM policy your security team owns that caps
+         what a role can do. Ask them, then answer yes or no. I stop here until
+         you answer yes or no: nothing is added and nothing is generated.
+    b. If yes, answer each of these. I will not fill any of them in for you:
+       1. The ARN of the boundary policy. It must already exist in the account
+          you deploy to. This project does not create, write or change it, and
+          puts this one boundary ARN on every role you name in 2.
+          (Form: arn:aws:iam::<account id>:policy/<name>, or
+          arn:aws:iam::aws:policy/<name> for an AWS managed policy.)
+       2. Which roles should carry it? This build will create these roles:
+          <list only the roles from the role table in the eks-build skill's
+          references/baseline-defaults.md (Permissions boundary) that the
+          earlier answers turn on, e.g. cluster role, node group roles,
+          Karpenter controller and node roles, one role per add-on>. Answer
+          "all of them" or name them.
+       3. Does the boundary allow what these roles need? For example, the
+          Karpenter controller needs iam:PassRole and the instance profile
+          actions, and each add-on needs the AWS calls it makes. Any action the
+          boundary does not allow fails with AccessDenied. If you do not know, I
+          will list each role's actions for your security team to check before
+          you apply.
+    c. If the answer to (a) is yes but any answer in (b) is missing, vague or a
+       guess ("the usual one", "whatever you think"), I stop. I tell you which
+       answer is missing, ask again, and do not generate the project. I never
+       write, suggest or guess a boundary policy or an ARN, and I never copy
+       one from an example.
 ```
 
 **STOP.** Wait for user confirmation before proceeding. Present a mid-point summary of compute, addons, security, and tenancy decisions. Confirm before moving to operations and generation.
@@ -264,7 +293,7 @@ Before presenting the generated project, verify:
 - [ ] Every requirement from the questionnaire has corresponding Terraform code
 - [ ] No secrets, credentials, or account IDs hardcoded
 - [ ] Constraints (air-gapped, compliance, proxy) reflected in generated code
-- [ ] If a permissions boundary was required, `permissions_boundary` is set in `cluster.yaml` and every generated IAM role carries it
+- [ ] If a permissions boundary was required, `permissions_boundary` is set in `cluster.yaml` and every role the customer named in question 30 carries it
 - [ ] State backend, provider, and backend config are correct
 
 ---

@@ -323,7 +323,7 @@ Some organisations require a permissions boundary on every IAM role that automat
 permissions_boundary: null   # e.g. "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"
 ```
 
-When it is set, pass `try(local.cluster_config.permissions_boundary, null)` to every IAM role the project emits (service-linked roles take no boundary). A null value leaves the role without a boundary. In a child module (`eks-cluster/`, `custom-addons/`), declare `variable "permissions_boundary" { default = null }` and pass it from the root. The input name differs by module (names checked at terraform-aws-eks v21.29.0, eks-pod-identity v2.10.0, eks-blueprints-addons v1.24.3, eks-blueprints-addon v1.3.0; re-check them at the version you pin):
+When it is set, pass `try(local.cluster_config.permissions_boundary, null)` to every role the customer named in question 30 (service-linked roles take no boundary). A null value leaves the role without a boundary. In a child module (`eks-cluster/`, `custom-addons/`), declare `variable "permissions_boundary" { default = null }` and pass it from the root. The input name differs by module (names checked at terraform-aws-eks v21.29.0, eks-pod-identity v2.10.0, eks-blueprints-addons v1.24.3, eks-blueprints-addon v1.3.0; re-check them at the version you pin):
 
 | Role | Module or resource | Input |
 |------|--------------------|-------|
@@ -339,7 +339,7 @@ When it is set, pass `try(local.cluster_config.permissions_boundary, null)` to e
 | Pattern 2b Velero role | `aws_iam_role` | `permissions_boundary` |
 | ACK IAM Role manifest (Pattern 2b) | `iam.services.k8s.aws/v1alpha1` `Role` | `spec.permissionsBoundary` |
 
-A boundary caps a role: its effective permissions are what both its policies and the boundary allow. The boundary must allow every action the add-on calls, or that call fails with `AccessDenied`; the Karpenter controller role needs `iam:PassRole` and the instance-profile actions in the submodule's controller policy, which boundaries often deny. The Permissions boundary check in `scripts/validate_project.sh` confirms the ARN shape and that each `aws_iam_role` resource and each matching module block (eks-blueprints-addon(s) blocks included whether or not they create a role) names a boundary input. It is a text scan: a block passes once any boundary input or comment mentioning one appears in it, so it does not prove which of a module's roles carry it (node groups, Auto Mode, both Karpenter roles, each add-on map), an unbalanced brace in a comment or string can hide later blocks, and it reads only `.tf` files, so ACK `Role` manifests are not checked; check those by hand.
+A boundary caps a role: its effective permissions are what both its policies and the boundary allow. The boundary must allow every action the add-on calls, or that call fails with `AccessDenied`; the Karpenter controller role needs `iam:PassRole` and the instance-profile actions in the submodule's controller policy, which boundaries often deny. The Permissions boundary check in `scripts/validate_project.sh` confirms only the ARN shape; check by hand that each role the customer named carries the boundary.
 
 ## Observability
 

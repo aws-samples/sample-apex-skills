@@ -83,7 +83,7 @@ Pattern 2b does NOT prescribe which controller. The choice is: ACK, Crossplane, 
 
 ### Step 1: Gather Requirements
 
-Accept requirements via interactive questionnaire or a requirements YAML file. If YAML is supplied, validate coverage (cluster, compute, networking, addons, auth, compliance, permissions boundary, multi-tenancy) and prompt for gaps.
+Accept requirements via interactive questionnaire or a requirements YAML file. If YAML is supplied, validate coverage (cluster, compute, networking, addons, auth, compliance, permissions boundary, multi-tenancy) and prompt for gaps. Always ask whether a permissions boundary is required. A yes (typed, or a YAML `permissions_boundary`, which gives only the ARN) still needs the ARN, which roles carry it and whether the boundary allows their actions: never build on a yes without those answers; stop, name what is missing and ask again, and never suggest or guess an ARN.
 
 ### Step 2: Select Pattern
 
@@ -313,7 +313,7 @@ Every item must be done before handoff:
 - [ ] Two-phase module architecture present (Pattern 1)
 - [ ] All versions explicitly pinned
 - [ ] Multus NOT enabled
-- [ ] If `permissions_boundary` is set, every generated IAM role (Terraform resources and modules, and ACK `Role` manifests) carries it
+- [ ] If `permissions_boundary` is set, every role the customer named (Terraform resources and modules, and ACK `Role` manifests) carries it
 - [ ] `validation-checklist.md` generated
 
 ## References
