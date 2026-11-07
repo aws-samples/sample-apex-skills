@@ -155,7 +155,7 @@ configuration_values = jsonencode({
     ENABLE_PREFIX_DELEGATION = "true"    # 4-16x more pods/node
     WARM_PREFIX_TARGET       = "1"
   }
-  enableNetworkPolicy = "true"           # Native network policy (v1.14+)
+  enableNetworkPolicy = "true"           # Native network policy (use VPC CNI v1.22.3+, bulletin 2026-170)
 })
 ```
 

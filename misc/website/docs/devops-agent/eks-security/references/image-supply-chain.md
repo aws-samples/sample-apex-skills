@@ -29,7 +29,7 @@ ECR stores image signatures as OCI artifacts via:
 
 ## Image admission control: Kyverno `verifyImages`
 
-Kyverno's `verifyImages` rule blocks unsigned or high-severity images **at admission time**. Combined with ECR Enhanced Scanning + signing, this closes the loop: an image that isn't scanned-clean and signed never schedules. (See Layer 3, this is policy-engine sub-rule 3c.)
+Kyverno's `verifyImages` rule blocks unsigned or high-severity images **at admission time**. Combined with ECR Enhanced Scanning + image signing (Cosign or Notation, above), this closes the loop: an image that isn't scanned-clean and signed never schedules. (See Layer 3, this is policy-engine sub-rule 3c.)
 
 ## Third-party scanners (alternatives or complements to ECR Enhanced Scanning)
 
