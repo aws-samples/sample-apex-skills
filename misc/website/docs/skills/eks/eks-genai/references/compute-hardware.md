@@ -72,13 +72,13 @@ Note: Inf2 instances do **not** support EFA — their `inf2.48xlarge` chip-to-ch
 | Fastest time-to-production, any model | **NVIDIA GPU (g6e/p5)** | Broadest ecosystem; zero compilation ramp |
 | Novel architecture / custom CUDA kernels | **NVIDIA GPU** | Neuron compilation may not support custom ops |
 | Multi-modal (vision+language, audio) | **NVIDIA GPU** | Neuron support is model-specific; verify first |
-| Shared dev cluster, multiple small models | **NVIDIA GPU (g6/g5, or g7/g7e for MIG)** | Time-slicing enables multi-tenant sharing on g6/g5 (L4 and A10G do not support MIG); g7/g7e support MIG for hardware isolation |
+| Shared dev cluster, multiple small models | **NVIDIA GPU (g6/g5, or g7/g7e for MIG)** | Time-slicing enables multi-tenant sharing on g6/g5 (L4 and A10G do not support MIG); g7/g7e support MIG for hardware isolation. Neither MIG nor time-slicing runs on EKS Auto Mode nodes ([MIG guide](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia-mig.html), [time-slicing guide](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia-time-slicing.html)) |
 
 ## GPU Optimization Techniques
 
-### Multi-Instance GPU (MIG): A100, A30, H100, H20, H200, H100 on GH200, B200, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell
+### Multi-Instance GPU (MIG): A100, A30, H100, H20, H200, H100 on GH200, B200, B300, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell
 
-MIG runs only on the GPUs in the [NVIDIA MIG supported-GPU list](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-gpus.html) (it starts at the Ampere generation but names specific products). On EC2, the [EKS MIG guide](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia-mig.html) lists p4d/p4de (A100), p5 (H100), p5e/p5en (H200), p6-b200 (B200), p6-b300 (B300), p6e-gb200 (GB200), g7 (RTX PRO 4500 Blackwell) and g7e (RTX PRO 6000 Blackwell Server Edition) as MIG-capable, and says MIG is not available on g5, g6 or g6e, so use time-slicing there. NVIDIA's supported-GPU list does not name the B300 as of 2026-10-30.
+MIG runs only on the GPUs in the [NVIDIA MIG supported-GPU list](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-gpus.html) (it starts at the Ampere generation but names specific products). On EC2, the [EKS MIG guide](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia-mig.html) lists p4d/p4de (A100), p5 (H100), p5e/p5en (H200), p6-b200 (B200), p6-b300 (B300), g7 (RTX PRO 4500 Blackwell) and g7e (RTX PRO 6000 Blackwell Server Edition) as MIG-capable, and says MIG is not available on g5, g6 or g6e, so use time-slicing there. Neither runs on EKS Auto Mode: the MIG guide says "You cannot enable MIG on EKS Auto Mode nodes." and the [time-slicing guide](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia-time-slicing.html) says "Time-slicing is not currently available in EKS Auto Mode." The GB200 GPU is MIG-capable, but on p6e-gb200 UltraServers the recommended EKS AMI (v20251103 or later, NVIDIA driver 580) enables CDMM, which does not support MIG ([Use P6e-GB200 UltraServers with Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/ml-eks-nvidia-ultraserver.html)).
 
 Partitions a single physical GPU into up to 7 isolated instances (4 on A30, 2 to 4 on RTX PRO Blackwell; counts are for the list's data-center and workstation entries), each with dedicated memory, cache, and compute. Use for:
 
@@ -102,6 +102,7 @@ Multiplexes multiple pods onto a single GPU via temporal sharing (no memory isol
 - **Dev/test** environments where isolation is not critical
 - **Low-utilization workloads** that don't saturate GPU compute
 - Simpler than MIG; no MIG-capable GPU required, so it works on any GPU the NVIDIA device plugin exposes as `nvidia.com/gpu`
+- Not on EKS Auto Mode: "Time-slicing is not currently available in EKS Auto Mode." ([time-slicing guide](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia-time-slicing.html))
 - Configure via `nvidia.com/gpu.replicas` in the device plugin ConfigMap
 
 ```yaml
@@ -125,10 +126,10 @@ data:
 Fine-grained GPU partitioning managed by the Kubernetes scheduler. Use for:
 
 - Clusters that need **scheduler-aware** GPU sharing (vs static MIG)
-- **Karpenter static capacity only (no dynamic provisioning); not on Auto Mode.** The NVIDIA DRA driver is supported on Karpenter static-capacity NodePools, EKS managed node groups, and self-managed nodes, but does not support dynamic Karpenter provisioning and is not supported on EKS Auto Mode ([Manage NVIDIA GPU devices with DRA](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia.html)). On EKS the DRA drivers require Kubernetes 1.34+, where DRA is GA at `resource.k8s.io/v1` (used in the example below; the beta `resource.k8s.io/v1beta1` API dates to 1.32).
+- **Karpenter (static capacity, or dynamic provisioning from 1.15 behind a feature gate); not on Auto Mode.** The NVIDIA DRA driver is supported with Karpenter, EKS managed node groups, and self-managed nodes, and is not supported on EKS Auto Mode. Karpenter supports DRA with both dynamic and static capacity provisioning as of version 1.15; dynamic provisioning is Alpha, off by default, and requires the `DRANVIDIAGPU` feature gate. Multi-Node NVLink workloads that use ComputeDomains (p6e-gb200 UltraServers) still need static capacity, managed node groups, or self-managed nodes ([Manage NVIDIA GPU devices with DRA](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia.html), [Using DRA with Karpenter](https://docs.aws.amazon.com/eks/latest/userguide/device-management.html)). On EKS the DRA drivers require Kubernetes 1.34+, where DRA is GA at `resource.k8s.io/v1` (used in the example below; the beta `resource.k8s.io/v1beta1` API dates to 1.32).
 
 ```yaml
-# DRA ResourceClaim example (Karpenter static capacity / managed NG / self-managed; not Auto Mode)
+# DRA ResourceClaim example (Karpenter / managed NG / self-managed; not Auto Mode)
 apiVersion: resource.k8s.io/v1
 kind: ResourceClaim
 metadata:
@@ -145,9 +146,9 @@ spec:
 
 | Technique | Isolation | Memory isolation | Karpenter compatible | Best for |
 |---|---|---|---|---|
-| **MIG** | Hardware-level | ✅ Yes | ✅ Yes | Production multi-tenant on MIG-capable GPUs (A100, A30, H100, H20, H200, H100 on GH200, B200, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell) |
-| **Time-slicing** | None (temporal only) | ❌ No | ✅ Yes | Dev/test density, low-utilization workloads |
-| **DRA** | Scheduler-managed | ✅ Yes | Static capacity only (no dynamic provisioning); not on Auto Mode | Fine-grained sharing on Karpenter static NodePools, managed node groups, or self-managed nodes |
+| **MIG** | Hardware-level | ✅ Yes | ✅ Yes | Production multi-tenant on MIG-capable GPUs (A100, A30, H100, H20, H200, H100 on GH200, B200, B300, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell); not on Auto Mode |
+| **Time-slicing** | None (temporal only) | ❌ No | ✅ Yes | Dev/test density, low-utilization workloads; not on Auto Mode |
+| **DRA** | Scheduler-managed | ✅ Yes | ✅ Yes (static capacity; dynamic provisioning from 1.15 behind the `DRANVIDIAGPU` gate, not for ComputeDomains); not on Auto Mode | Fine-grained sharing on Karpenter, managed node groups, or self-managed nodes |
 
 ## Neuron Compilation — The Ramp Cost
 
