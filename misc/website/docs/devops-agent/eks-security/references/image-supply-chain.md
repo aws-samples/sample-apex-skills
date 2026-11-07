@@ -29,7 +29,7 @@ ECR stores image signatures as OCI artifacts via:
 
 ## Image admission control: Kyverno `verifyImages`
 
-Kyverno's `verifyImages` rule blocks unsigned or high-severity images **at admission time**. Combined with ECR Enhanced Scanning + image signing (Cosign or Notation, above), this closes the loop: an image that isn't scanned-clean and signed never schedules. (See Layer 3, this is policy-engine sub-rule 3c.)
+Kyverno's `verifyImages` rule blocks unsigned or high-severity images **at admission time**. Combined with ECR Enhanced Scanning + image signing (Cosign or Notation, above), this closes the loop: an image that isn't scanned-clean and signed never schedules. (See Layer 3, this is policy-engine sub-rule 3c.) On Kyverno v1.19+, write the image rule as an `ImageValidatingPolicy` (`policies.kyverno.io/v1`): `verifyImages` is a `ClusterPolicy` (`kyverno.io/v1`) rule, and `ClusterPolicy` is deprecated in v1.19 and removed in v1.20 ([Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)).
 
 As of Kyverno v1.19.2, Kyverno's built-in `verifyImages` cannot verify AWS Signer signatures. For images signed with AWS Signer, use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, or OPA Gatekeeper with Ratify and the AWS Signer plugin ([EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)).
 
