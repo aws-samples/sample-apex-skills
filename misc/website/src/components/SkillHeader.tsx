@@ -24,7 +24,7 @@ export default function SkillHeader({permalink, baseUrl}: {permalink: string; ba
   return (
     <aside className="apex-skillhead" aria-label="Skill at a glance">
       <p className="apex-skillhead__where">
-        <span className={`apex-tag apex-tag--${skill.group}`}>{PLATFORM_LABEL[skill.group]}</span>
+        <span className={`apex-tag apex-tag--${skill.platform}`}>{PLATFORM_LABEL[skill.platform]}</span>
         {job && (
           <Link to={`/skills#job-${job.id}`} className="apex-skillhead__job">
             {jobLabel(job)}
