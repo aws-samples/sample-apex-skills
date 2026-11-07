@@ -83,7 +83,7 @@ jobs:
             echo "skillspector exit $rc for $dir"
             if [ "$rc" -eq 2 ] || [ ! -s "$out" ]; then
               echo "::warning title=SkillSpector::scan error on $dir (exit $rc); see the job log"
-              printf '### %s\n\nScan error (exit %s): this skill was not scanned, so no finding here does not mean clean.\n\n' \
+              printf '### %s\n\nScan error (exit %s): the scan did not finish and its findings are not shown here, so no finding here does not mean clean.\n\n' \
                 "$dir" "$rc" >> "$GITHUB_STEP_SUMMARY"
               continue
             fi
@@ -93,6 +93,7 @@ jobs:
 
       - name: Say what was not scanned
         if: always() && steps.scan.outcome != 'success'
+        continue-on-error: true
         run: |
           {
             echo "### SkillSpector did not finish"

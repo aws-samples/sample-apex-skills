@@ -1,47 +1,20 @@
 # SkillSpector baseline
 
 - Scanner: SkillSpector v2.13.4 (commit 54824463814a0be01360792523ec7245a69190fc, the commit `.github/workflows/skillspector.yml` pins), static analysis only (`--no-llm`). Each report records the version as `metadata.skillspector_version`; a `skillspector` installed some other way can be another version, so check `skillspector --version` before a refresh.
-- Scanned: every skill under `skills/` and `devops-agent/` on aws-samples/sample-apex-skills, one report per skill, first at b5b2575. Refreshed on 2026-11-07 against main at e8ca2d0: the eight skill folders changed since (skills/eks-mcp-server, eks-best-practices, eks-build, eks-design, eks-cost-intelligence, eks-genai, eks-platform-engineering and devops-agent/eks-cost-intelligence) were rescanned, moved rows were moved to their new line, and new findings were reviewed; the other 26 reports match main line for line.
-- Scan date: 2026-11-06.
+- Scanned: every skill under `skills/` and `devops-agent/` on aws-samples/sample-apex-skills, one report per skill. Lines are on main at e8ca2d0 (first scan 2026-11-06, rescanned 2026-11-07); 27 moved rows kept their verdict on an identical match text.
 - The scan is advisory. It does not replace review, and a finding here is a pattern match, not a verdict.
-- The workflow reads this file (`misc/skillspector/annotate.py`). It suppresses a finding only when a row with verdict `accepted` or `false positive` matches it on file, line and rule, and the scan ran the version above. A finding at another line, or a run with another scanner version, is shown again (re-opened). `true positive` and `coverage gap` rows are never suppressed. The job summary gives, per skill, how many findings were suppressed, re-opened, kept and new.
-- Coverage: 20 of 34 reports are partial and some static analyzers ran degraded; these 7 partially inspected files are named nowhere else in this file: devops-agent/eks-ingress-migration/references/porting-notes.md, skills/ecs-modernize/assets/replatform-terraform/main.tf, skills/eks-operation-review/references/report-generation.md, skills/eks-well-architected-review/references/cost-optimization.md, skills/eks-well-architected-review/references/performance-efficiency.md, skills/eks-well-architected-review/references/reliability.md, skills/skill-creator/eval-viewer/viewer.html. Findings are a lower bound: a skill or file with no row has not been shown clean.
-- Each finding below was checked by hand at the cited file:line and given one verdict:
+- The workflow reads this file (`misc/skillspector/annotate.py`). It suppresses a finding only when a row with verdict `accepted` or `false positive` matches it on file, line and rule, and the scan ran the version above. A finding at another line, or a run with another scanner version, is shown again. The match does not read the line's content, so review every edited line in a baselined file by hand. `true positive` and `coverage gap` rows are never suppressed. The job summary gives, per skill, how many findings were suppressed.
+- Coverage: 21 of 34 reports are partial; findings are a lower bound, and the scan names the partly inspected files on each run.
+- Each finding below was reviewed at the cited file:line and given one verdict:
   - `true positive`: a real security problem in the skill, to fix. Never a suppression: each row says it is open and names its issue, or names the merge that fixed it.
   - `accepted`: the behaviour is real but intended and documented for this skill.
-  - `coverage gap`: rule AE1, a file the scanner did not fully inspect. Reviewed and not a defect, but never suppressed, so every run shows what went unscanned.
+  - `coverage gap`: rule AE1, a file the scanner did not fully inspect. The pointer is not a defect, but the unscanned part has not been shown clean, so it is never suppressed.
   - `false positive`: the matched text is benign (a control being documented, a read-only command, a word inside a name or prose).
 - To refresh: rerun the same command for each skill directory (`skillspector scan <skill dir> --no-llm --format json --output <file>`, for example `skills/eks-security`), compare against this file by file, rule and line, and review every new row the same way. Line numbers move when a file changes, so a moved row needs a fresh look, not a copied verdict. A new scanner version needs a full refresh: change the pinned commit in the workflow and the version above together.
 
-## Counts
+501 findings: 5 true positive, 67 accepted, 117 coverage gap, 312 false positive.
 
-Total findings: 501.
-
-| Verdict | HIGH | MEDIUM | LOW | Total |
-|---|---|---|---|---|
-| true positive | 1 | 4 | 0 | 5 |
-| accepted | 38 | 27 | 3 | 68 |
-| coverage gap | 117 | 0 | 0 | 117 |
-| false positive | 220 | 73 | 18 | 311 |
-| Total | 376 | 104 | 21 | 501 |
-
-## Highlights the scanner does not catch
-
-Not findings and not suppressions: patterns a review found that no rule raises. Lines are on main at e8ca2d0.
-
-Helm installs with no `--version`, so the chart a user gets changes under them (18):
-- devops-agent/eks-cost-intelligence/references/spot-graviton-adoption.md:628
-- skills/eks-best-practices/references/cost-optimization.md:499
-- skills/eks-best-practices/references/networking-ingress-dns.md:322
-- skills/eks-best-practices/references/observability.md:145, :270, :311, :429
-- skills/eks-best-practices/references/security-runtime-network.md:86
-- skills/eks-cost-intelligence/references/spot-graviton-adoption.md:1057
-- skills/eks-genai/references/distributed-training.md:218
-- skills/eks-well-architected-review/references/cost-optimization.md:583
-- skills/eks-well-architected-review/references/operational-excellence.md:736
-- skills/eks-well-architected-review/references/reliability.md:1085, :1274
-- skills/eks-well-architected-review/references/security/data-protection.md:59, :79
-- skills/eks-well-architected-review/references/security/workload-security.md:645, :672
+Helm installs in the skills' references that pin no chart version, a pattern no rule raises: https://github.com/aws-samples/sample-apex-skills/issues/ISSUE-TBD-5.
 
 ## skills/apex
 
@@ -54,7 +27,7 @@ Helm installs with no `--version`, so the chart a user gets changes under them (
 | skills/apex/SKILL.md:151 | PE3 | HIGH | accepted | same shared rule 1: a real, disclosed kubeconfig write with record-and-restore; matches the prior independent move of this line to accepted |
 | skills/apex/SKILL.md:154 | PE3 | HIGH | false positive | rule forbids outputting secrets, credentials or kubeconfig contents: a control |
 | skills/apex/runbooks/eks-operation-review/eks-operation-review.md:72 | EA1 | MEDIUM | false positive | forbids tool calls on activation until the user asks: a restriction, not unrestricted access |
-| skills/apex/runbooks/eks-operation-review/eks-operation-review.md:152 | RP1 | MEDIUM | true positive | open, not suppressed: https://github.com/aws-samples/sample-apex-skills/pull/375 (open draft) changes the vendored runbook and its sync script to drop this line. The troubleshooting step still runs `uvx awslabs.eks-mcp-server@latest` on main at 4e68e6d, after the eks-mcp-server setup fix (PR 366); it should run the version the user chose in that setup |
+| skills/apex/runbooks/eks-operation-review/eks-operation-review.md:152 | RP1 | MEDIUM | true positive | open, not suppressed: tracked in https://github.com/aws-samples/sample-apex-skills/issues/189; https://github.com/aws-samples/sample-apex-skills/pull/375 (open draft) changes the vendored runbook and its sync script to drop this line. The troubleshooting step still runs `uvx awslabs.eks-mcp-server@latest` on main at 4e68e6d, after the eks-mcp-server setup fix (PR 366); it should run the version the user chose in that setup |
 
 ## skills/dotnet-aws-ecs
 
@@ -256,12 +229,12 @@ No findings.
 
 | File:line | Rule | Severity | Verdict | Reason |
 |---|---|---|---|---|
-| skills/eks-mcp-server/SKILL.md:3 | RP1 | MEDIUM | true positive | fixed on main by https://github.com/aws-samples/sample-apex-skills/pull/366 (merged as 6fdc1cf): the setup examples ran the server unpinned (`awslabs.eks-mcp-server@latest` in references/self-hosted-setup.md, `mcp-proxy-for-aws@latest` in references/aws-hosted-setup.md); both now read `@<version>`, the version the user chooses in SKILL.md Step 1b. The runbook's own run is the row above |
+| skills/eks-mcp-server/SKILL.md:3 | RP1 | MEDIUM | false positive | the description names uvx installation; the setup examples run `@<version>` since 6fdc1cf (https://github.com/aws-samples/sample-apex-skills/pull/366); the user-chosen `@latest` is the :42 and :55 rows |
 | skills/eks-mcp-server/SKILL.md:32 | PE3 | HIGH | false positive | explains the self-hosted mode supports kubeconfig/OIDC auth; setup prose, no credential read |
 | skills/eks-mcp-server/SKILL.md:32 | PE3 | HIGH | false positive | explains the self-hosted mode supports kubeconfig/OIDC auth; setup prose, no credential read |
 | skills/eks-mcp-server/SKILL.md:42 | RP1 | MEDIUM | accepted | Step 1b offers `@latest` as one of three version choices and states its risk (unreviewed releases run with cluster and AWS access); used only when the user picks it |
 | skills/eks-mcp-server/SKILL.md:55 | RP1 | MEDIUM | accepted | the lookup-failure rule keeps `@latest` only for a user who chose Latest, and asks a user who chose a pin; never a silent fallback |
-| skills/eks-mcp-server/SKILL.md:123 | AE1 | HIGH | coverage gap | references/self-hosted-setup.md was only partly inspected |
+| skills/eks-mcp-server/SKILL.md:123 | AE1 | HIGH | coverage gap | points to references/self-hosted-setup.md (8 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
 | skills/eks-mcp-server/SKILL.md:138 | EA1 | MEDIUM | false positive | interaction rule 1 forbids tool calls on activation and starts with Step 0, then asks: a restriction |
 | skills/eks-mcp-server/references/aws-hosted-setup.md:14 | SC2 | LOW | accepted | official uv installer via curl / sh, shown as a user-run prerequisite; the vendor's documented install |
 | skills/eks-mcp-server/references/self-hosted-setup.md:10 | SC2 | LOW | accepted | official uv installer via curl / sh, shown as a user-run prerequisite; the vendor's documented install |
@@ -291,8 +264,8 @@ No findings.
 |---|---|---|---|---|
 | skills/eks-operation-review/LICENSE:12 | EA3 | LOW | false positive | license warranty disclaimer text ('NOT LIMITED TO') |
 | skills/eks-operation-review/SKILL.md:1 | LP3 | MEDIUM | accepted | frontmatter declares no allowed-tools; the read-only tool use is stated in the body: a metadata gap, not a defect |
-| skills/eks-operation-review/SKILL.md:24 | PE3 | HIGH | accepted | prerequisite states pre-flight configures kubeconfig via aws eks update-kubeconfig, a real local kubeconfig write that is intended and disclosed; matches the prior independent move of this line to accepted |
-| skills/eks-operation-review/SKILL.md:24 | PE3 | HIGH | accepted | same line: disclosed pre-flight kubeconfig write; accepted for consistency with the prior check |
+| skills/eks-operation-review/SKILL.md:24 | PE3 | HIGH | accepted | the prerequisite says pre-flight runs `aws eks update-kubeconfig`; no pre-flight step does; disclosed, not performed |
+| skills/eks-operation-review/SKILL.md:24 | PE3 | HIGH | accepted | same line: the prerequisite says pre-flight runs `aws eks update-kubeconfig`; no pre-flight step does; disclosed, not performed |
 | skills/eks-operation-review/references/autoscaling.md:85 | EA2 | MEDIUM | false positive | says placement cannot be verified without live reads and routes it to Investigate Manually |
 
 ## skills/eks-platform-engineering
@@ -309,7 +282,7 @@ No findings.
 | skills/eks-recon/SKILL.md:217 | PE3 | HIGH | false positive | use the region in a cluster ARN shown in kubeconfig; no credential read |
 | skills/eks-recon/SKILL.md:220 | PE3 | HIGH | false positive | names where AWS credentials can come from and says to test with `aws sts get-caller-identity`; it never reads the files |
 | skills/eks-recon/SKILL.md:220 | PE3 | HIGH | false positive | names where AWS credentials can come from and says to test with `aws sts get-caller-identity`; it never reads the files |
-| skills/eks-recon/SKILL.md:222 | PE3 | HIGH | accepted | the control offers aws eks update-kubeconfig, which writes the user's kubeconfig and switches current-context; intended and covered by apex shared rule 1 (record and restore context), though eks-recon's own text does not disclose the write |
+| skills/eks-recon/SKILL.md:222 | PE3 | HIGH | true positive | open, not suppressed: https://github.com/aws-samples/sample-apex-skills/issues/ISSUE-TBD-4. The context check offers `aws eks update-kubeconfig`, which rewrites ~/.kube/config and switches current-context, and eks-recon's own text does not say so or restore the prior context |
 | skills/eks-recon/agents/addons-recon.md:42 | AR2 | HIGH | false positive | recon reports add-on status as facts and leaves judgement to other skills; not suppressing warnings |
 | skills/eks-recon/references/cicd.md:431 | PE3 | HIGH | false positive | `kubeconfig` is a Flux documentation URL anchor |
 | skills/eks-recon/references/cluster-basics.md:173 | PE3 | HIGH | false positive | runs `kubectl config current-context` to parse the region; read-only |
@@ -578,13 +551,13 @@ No findings.
 | File:line | Rule | Severity | Verdict | Reason |
 |---|---|---|---|---|
 | skills/graviton-migration/SKILL.md:20 | AE1 | HIGH | coverage gap | points to references/scanner-workflow.md (17 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
-| skills/graviton-migration/SKILL.md:41 | RP1 | MEDIUM | accepted | arm-mcp:latest is shown, but SKILL.md:49 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
+| skills/graviton-migration/SKILL.md:41 | RP1 | MEDIUM | accepted | arm-mcp:latest is shown, but SKILL.md:48 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
 | skills/graviton-migration/SKILL.md:41 | TM1 | LOW | false positive | `--rm` (remove container on exit) matched as rm; no file deletion |
-| skills/graviton-migration/SKILL.md:45 | RP1 | MEDIUM | accepted | arm-mcp:latest is shown, but SKILL.md:49 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
-| skills/graviton-migration/SKILL.md:50 | RP1 | MEDIUM | accepted | arm-mcp:latest is shown, but SKILL.md:49 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
-| skills/graviton-migration/SKILL.md:131 | RP1 | MEDIUM | accepted | arm-mcp:latest is shown, but SKILL.md:49 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
+| skills/graviton-migration/SKILL.md:45 | RP1 | MEDIUM | accepted | arm-mcp is untagged here, which pulls :latest, but SKILL.md:48 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
+| skills/graviton-migration/SKILL.md:50 | RP1 | MEDIUM | accepted | arm-mcp is untagged here, which pulls :latest, but SKILL.md:48 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
+| skills/graviton-migration/SKILL.md:131 | RP1 | MEDIUM | accepted | arm-mcp:latest is shown, but SKILL.md:48 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
 | skills/graviton-migration/SKILL.md:136 | AS2 | HIGH | false positive | asks the harness to list its MCP tools to confirm the server loaded; no reading of other agents' config |
-| skills/graviton-migration/SKILL.md:144 | RP1 | MEDIUM | accepted | arm-mcp:latest is shown, but SKILL.md:49 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
+| skills/graviton-migration/SKILL.md:144 | RP1 | MEDIUM | accepted | arm-mcp:latest is shown, but SKILL.md:48 tells the user to pin a tag or sha256 digest and confirm the image before first pull |
 | skills/graviton-migration/SKILL.md:146 | AS2 | HIGH | false positive | troubleshooting: a local JSON syntax check of the user's own .mcp.json |
 | skills/graviton-migration/references/agent-scope-boundaries.md:39 | PE3 | HIGH | false positive | guardrail telling the user to remove secrets such as .git-credentials before mounting: a control |
 | skills/graviton-migration/references/multi-arch-pipelines.md:77 | PE5 | HIGH | accepted | `docker run --privileged` of tonistiigi/binfmt to register QEMU emulators in a CI build job; required by binfmt, tag pinned by placeholder, skipped on native runners |
@@ -601,7 +574,7 @@ No findings.
 | skills/skill-creator/SKILL.md:1 | LP3 | MEDIUM | accepted | frontmatter declares no allowed-tools; scripts are invoked as the body documents: a metadata gap, not a defect |
 | skills/skill-creator/SKILL.md:238 | RA2 | MEDIUM | accepted | nohup runs the local eval review viewer in the background for the session; user-facing and documented, no persistence across sessions |
 | skills/skill-creator/SKILL.md:364 | AE1 | HIGH | coverage gap | points to assets/eval_review.html (7 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
-| skills/skill-creator/eval-viewer/generate_review.py:291 | AST4 | MEDIUM | accepted | fixed-argv `lsof -ti :port` with no shell, to free the viewer port |
+| skills/skill-creator/eval-viewer/generate_review.py:291 | AST4 | MEDIUM | accepted | fixed-argv `lsof -ti :port` with no shell, to free the viewer port; sends SIGTERM to any process on the port |
 | skills/skill-creator/scripts/improve_description.py:33 | E2 | HIGH | accepted | copies the parent environment (minus CLAUDECODE) to the child `claude -p` it launches for evals so auth works; nothing is sent elsewhere |
 | skills/skill-creator/scripts/improve_description.py:35 | AST4 | MEDIUM | accepted | fixed-argv `claude -p` call with no shell, the tool's documented purpose |
 | skills/skill-creator/scripts/run_eval.py:23 | AS1 | HIGH | accepted | walks up to the project .claude/ dir to place the eval command file where `claude -p` finds it; documented in the docstring |

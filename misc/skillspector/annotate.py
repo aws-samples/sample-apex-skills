@@ -5,13 +5,12 @@ Usage: annotate.py <skill dir> <report.json> <baseline.md>
 A finding is suppressed only when a baseline row with verdict `accepted` or
 `false positive` matches it on file, line and rule (the file path names the skill), and the
 report's scanner version equals the version the baseline was made with. A moved line or another
-scanner version re-opens the finding. `true positive` and `coverage gap` rows, and rule AE1, are
-never suppressed. Advisory: always exits 0.
+scanner version shows the finding again. `true positive` and `coverage gap` rows are never
+suppressed. Advisory: always exits 0.
 """
 import collections, json, os, re, sys
 
-SUPPRESSIBLE = {'accepted', 'false positive'}
-ROW = re.compile(r'^\| (\S+):(\d+) \| (\w+) \| (\w+) \| ([a-z ]+) \| ')
+ROW = re.compile(r'^\| (\S+):(\d+) \| (\w+) \| (\w+) \| (accepted|false positive|true positive|coverage gap) \| ')
 SCANNER = re.compile(r'^- Scanner: SkillSpector v(\S+) ')
 
 
@@ -45,7 +44,7 @@ def main(skill_dir, report_path, baseline_path):
     same_version = base_version is not None and base_version == scanner
     # Each baseline row matches at most one finding.
     left = {k: collections.Counter(v) for k, v in rows.items()}
-    counts = collections.Counter()
+    suppressed = 0
     print(f"{skill_dir}: risk {risk.get('score')} {risk.get('severity')}, {len(issues)} finding(s)")
     for i in issues:
         loc = i.get('location') or {}
@@ -59,23 +58,11 @@ def main(skill_dir, report_path, baseline_path):
         if 'true positive' in verdicts or 'coverage gap' in verdicts:
             v = 'true positive' if 'true positive' in verdicts else 'coverage gap'
             here[(line, v)] -= 1
-            counts['kept'] += 1
             note = f' (baseline: {v}, never suppressed)'
-        elif verdicts and rule != 'AE1' and same_version:
+        elif verdicts and same_version:
             here[(line, verdicts[0])] -= 1
-            counts['suppressed'] += 1
+            suppressed += 1
             continue
-        elif verdicts or any(v in SUPPRESSIBLE for (n, v), c in here.items() if c > 0):
-            counts['reopened'] += 1
-            if verdicts and not same_version:
-                note = f' (re-opened: baseline made with scanner {base_version}, this run {scanner})'
-            elif verdicts:
-                note = ' (re-opened: rule AE1 is never suppressed)'
-            else:
-                at = sorted(n for (n, v), c in here.items() if c > 0 and v in SUPPRESSIBLE)
-                note = f" (re-opened: baselined for this file and rule at line {', '.join(map(str, at))}, not {line})"
-        else:
-            counts['new'] += 1
         sev = str(i.get('severity', '')).upper()
         level = 'warning' if sev in ('HIGH', 'CRITICAL') else 'notice'
         parts = [i.get('pattern'), i.get('explanation'), i.get('finding')]
@@ -87,14 +74,11 @@ def main(skill_dir, report_path, baseline_path):
         base_line = f"Baseline {baseline_path} not read: nothing suppressed."
     elif not same_version:
         base_line = (f"Baseline made with SkillSpector {base_version}, this run {scanner}: "
-                     "nothing suppressed, every baselined finding re-opened.")
+                     "nothing suppressed, every baselined finding shown.")
     else:
         base_line = f"Baseline read (SkillSpector {scanner})."
     out = [f"### {skill_dir}", "",
-           f"{len(issues)} finding(s): {counts['suppressed']} suppressed by the baseline, "
-           f"{counts['reopened']} re-opened (line moved, other scanner version, or rule AE1), "
-           f"{counts['kept']} baselined true positive or coverage gap (always shown), "
-           f"{counts['new']} not in the baseline. {base_line}"]
+           f"{len(issues)} finding(s), {suppressed} suppressed by the baseline. {base_line}"]
 
     # Coverage: name every file the scan inspected only in part or not at all.
     comp = report.get('analysis_completeness') or {}
@@ -103,7 +87,10 @@ def main(skill_dir, report_path, baseline_path):
     files = {}
     for e in comp.get('ledger_exceptions') or []:
         # reference_missing: the skill names a file it does not bundle; not an inspection gap.
-        if e.get('path') and e.get('reason_code') != 'reference_missing':
+        # referenced_uninspected with a line: the path is the file that refers, not the gap.
+        code = e.get('reason_code')
+        if (e.get('path') and code != 'reference_missing'
+                and not (code == 'referenced_uninspected' and e.get('start_line'))):
             files.setdefault(e['path'], set()).add(str(e.get('reason_code') or e.get('outcome')))
     degraded = [s.get('analyzer_id') for s in comp.get('analyzer_statuses') or []
                 if s.get('status') == 'degraded']
