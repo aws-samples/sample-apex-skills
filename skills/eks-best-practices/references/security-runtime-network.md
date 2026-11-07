@@ -236,7 +236,7 @@ AWS Network Firewall can match traffic by pod. A **container association** subsc
 |---|---|---|---|
 | **Where it enforces** | VPC CNI eBPF on the node (EC2 Linux nodes) | VPC CNI eBPF on the node | Firewall endpoints in the VPC route path |
 | **Pod-to-pod inside the cluster** | Yes | Yes | No: same-node traffic never leaves the node, and other traffic reaches the firewall only if your route tables send it there |
-| **Egress filtering by domain name** | No | Yes, on EKS Auto Mode nodes only | Yes, with stateful rules on TLS SNI or HTTP Host |
+| **Egress filtering by domain name** | No | Yes, on EKS Auto Mode nodes only | Yes, with stateful domain list rules on TLS SNI or HTTP Host; a pod can fake those, so also add the `AWS_ROUTE_53_RESOLVED_DOMAIN` target type (needs resolved IP validation on the firewall policy), which checks that the VPC's Route 53 Resolver returned the destination IP for that domain |
 | **Managed through** | Kubernetes API | Kubernetes API | Network Firewall API (CLI, SDK or console) |
 
 **Use them as layers.** `NetworkPolicy` and `ClusterNetworkPolicy` for traffic inside the cluster; Network Firewall container rules for inspected egress attributed to pods, including domain filtering on nodes where `ApplicationNetworkPolicy` FQDN rules do not apply.
