@@ -48,7 +48,7 @@ export default function SkillHeader({permalink, baseUrl}: {permalink: string; ba
         <dt>Run it</dt>
         <dd>
           Once <Link to="/#install">installed</Link> from main: <code>/{skill.name}</code> in Claude Code; in Kiro CLI,
-          ask for it by name or use <code>/apex</code>.
+          type <code>/apex</code> with your request, or ask for apex by name.
         </dd>
       </dl>
     </aside>

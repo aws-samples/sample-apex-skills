@@ -52,7 +52,7 @@ function CopyButton({text, label}: {text: string; label: string}): ReactNode {
         }
       }}
     >
-      {copied ? 'Copied' : 'Copy'}
+      <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
     </button>
   );
 }

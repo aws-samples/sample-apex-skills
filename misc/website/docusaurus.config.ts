@@ -224,7 +224,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Built by AWS Solutions Architects, TAMs and ProServe. MIT-0 License. Copyright © ${new Date().getFullYear()} Amazon.com, Inc. or its affiliates.`,
+      copyright: `Built by AWS Solutions Architects, TAMs and ProServe. Open source under MIT-0; vendored skills keep their own licence. Copyright © ${new Date().getFullYear()} Amazon.com, Inc. or its affiliates.`,
     },
     prism: {
       theme: prismThemes.vsLight,

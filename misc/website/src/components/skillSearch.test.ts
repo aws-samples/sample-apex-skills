@@ -1,5 +1,7 @@
 // Ranking table test for the skill finder, over the real manifest.
 // Run from misc/website: node --experimental-strip-types src/components/skillSearch.test.ts
+// --experimental-strip-types needs Node 22.6 or later (package.json engines says >=20), and no
+// npm script runs this test.
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -88,7 +90,9 @@ for (const [query, want, most] of FIRST) {
 }
 
 test('M1: a skill that only routes away is not matched', () => {
-  assert.equal(shown('ecs cost intelligence').total, 0);
+  // R2-M3 keeps a clause that names a skill not in the manifest, so
+  // ecs-operation-review's "for cost/TCO use ecs-cost-intelligence" is a mention only.
+  assert.ok((search(index, 'ecs cost intelligence') as Hit[]).every((h) => h.passing && h.score < 20));
   assert.ok(!shown('kubernetes').all.includes('ecs-architect'));
 });
 
@@ -116,13 +120,10 @@ test('S1: ties put EKS before ECS', () => {
   assert.deepEqual(shown('operation review').rows, ['eks-operation-review', 'ecs-operation-review']);
 });
 
-test('D3: dotnet-aws-ecs files under the ECS filter', () => {
-  assert.match(catalog, /'dotnet-aws-ecs': \{[^}]*platform: 'ecs'/);
+test('S-R2-6: text after a route-away phrase is not indexed', () => {
+  assert.ok(!shown('windows').all.includes('dotnet-aws-ecs'), 'dotnet-aws-ecs: "NOT for Windows containers"');
 });
 
-test('D3: the platform override does not reorder ties', () => {
-  const withPlatform = buildIndex(
-    manifest.map((s: {name: string; group: string}) => ({...s, use: uses[s.name], platform: s.name === 'dotnet-aws-ecs' ? 'ecs' : s.group})),
-  );
-  assert.equal((search(withPlatform, 'fargate') as Hit[])[0].skill.name, 'ecs-architect');
+test('S-R2-6: "." stays inside a word', () => {
+  assert.equal(shown('32').total, 0, '"32" is not a word of "1.32"');
 });

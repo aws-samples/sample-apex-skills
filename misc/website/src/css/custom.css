@@ -74,6 +74,10 @@ code {
   outline-offset: 2px;
 }
 
+.footer :focus-visible {
+  outline-color: var(--apex-orange);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

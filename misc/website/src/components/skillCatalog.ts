@@ -97,13 +97,13 @@ const LINES: Record<string, Lines> = {
   },
   'eks-genai': {
     job: 'knowledge',
-    use: 'Plan GPU, Neuron, LLM serving or training on EKS.',
+    use: 'Plan GPU, Neuron, ML and LLM serving or training on EKS.',
     notFor: 'Bedrock-only or SageMaker-only workloads',
     output: 'A GenAI stack plan with compute, serving and storage choices',
   },
   'ecs-architect': {
     job: 'design',
-    use: 'Pick Fargate, EC2 or Managed Instances for a new ECS workload.',
+    use: 'Pick Fargate, EC2 or Managed Instances and design the architecture for a new ECS workload.',
     notFor: 'replatforming an existing app (ecs-modernize)',
     output: 'A launch type, capacity strategy and service design',
   },
@@ -133,7 +133,7 @@ const LINES: Record<string, Lines> = {
   },
   'ecs-devops': {
     job: 'build',
-    use: 'Set up safe deployments and CI/CD for ECS.',
+    use: 'Deploy to ECS safely: set up deployments and CI/CD.',
     notFor: 'greenfield design with no release angle (ecs-architect)',
     output: 'A deployment strategy, rollback alarms and a pipeline',
   },
@@ -194,7 +194,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-ingress-migration': {
     job: 'migrate',
-    use: 'Plan the move off NGINX Ingress on EKS.',
+    use: 'Plan the move off NGINX Kubernetes Ingress on EKS.',
     notFor: 'general ingress advice (eks-best-practices)',
     output: 'A difficulty score, a plan and ready-to-apply manifests',
   },
@@ -212,7 +212,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-security': {
     job: 'secure',
-    use: 'Check an EKS cluster for exposure, respond to a security event and harden it.',
+    use: 'Check an EKS cluster for CVE exposure and Kubernetes security posture, respond to a security event, and get hardening guidance.',
     notFor: 'a Well-Architected review (eks-well-architected-review)',
     output: 'Exposed, not-exposed or unknown verdicts and a hardening plan',
   },
@@ -224,7 +224,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-mcp-server': {
     job: 'extend',
-    use: 'Connect your agent to the EKS MCP Server.',
+    use: 'Set up the EKS MCP Server and connect your agent to it.',
     notFor: 'cluster work once MCP runs (eks-recon)',
     output: 'A working MCP connection in Claude Code, Cursor or Kiro',
   },

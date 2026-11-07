@@ -65,12 +65,13 @@ export default function SkillFinder({variant}: Props): ReactNode {
   const [reserve, setReserve] = useState<number | undefined>(undefined);
 
   // A shared /skills?q=<query> link is read once on arrival. The page keeps
-  // the catalogue's height until the visitor acts, so the footer does not jump.
+  // the catalogue's height, at most one screen, until the visitor acts, so
+  // the footer does not jump into view.
   useEffect(() => {
     if (!isPage) return;
     const q = new URLSearchParams(window.location.search).get('q');
     if (!q) return;
-    setReserve(rootRef.current?.offsetHeight);
+    setReserve(Math.min(rootRef.current?.offsetHeight ?? 0, window.innerHeight));
     setQuery(q);
   }, [isPage]);
 
@@ -150,7 +151,7 @@ export default function SkillFinder({variant}: Props): ReactNode {
                 setPlatform(p);
               }}
             >
-              {p === 'all' ? 'All' : p === 'general' ? 'General' : PLATFORM_LABEL[p]}
+              {p === 'all' ? 'All' : PLATFORM_LABEL[p]}
               <span className="apex-facet__count">{p === 'all' ? SKILLS.length : counts[p]}</span>
             </button>
           ))}
