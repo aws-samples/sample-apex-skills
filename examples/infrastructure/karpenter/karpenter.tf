@@ -16,8 +16,8 @@ module "karpenter" {
   cluster_name = module.eks.cluster_name
   namespace    = local.namespace
 
-  # The controller policy is over the 6,144-character managed policy limit;
-  # an inline role policy allows 10,240.
+  # The controller policy can exceed the 6,144-character managed policy limit;
+  # inline policies on a role allow 10,240 in total.
   enable_inline_policy = true
 
   node_iam_role_use_name_prefix = false
@@ -76,4 +76,8 @@ resource "helm_release" "karpenter" {
       enabled: false
     EOT
   ]
+
+  # Pods created before their Fargate profile stay Pending, so wait for module.eks
+  # (which holds the karpenter Fargate profile).
+  depends_on = [module.eks]
 }
