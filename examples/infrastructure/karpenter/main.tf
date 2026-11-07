@@ -1,14 +1,14 @@
 terraform {
-  required_version = ">= 1.3"
+  required_version = ">= 1.10"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.34, < 6.0"
+      version = ">= 6.59, < 7.0"
     }
     helm = {
       source  = "hashicorp/helm"
-      version = ">= 2.9, < 3.0"
+      version = ">= 3.0.1, < 4.0"
     }
     local = {
       source  = "hashicorp/local"
@@ -21,26 +21,29 @@ provider "aws" {
   region = local.region
 }
 
-provider "aws" {
-  alias  = "ecr"
-  region = "us-east-1"
-}
-
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     host                   = module.eks.cluster_endpoint
     cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
 
-    exec {
+    exec = {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
       args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
     }
   }
+
+  registries = [
+    {
+      url      = "oci://public.ecr.aws"
+      username = ephemeral.aws_ecrpublic_authorization_token.token.user_name
+      password = ephemeral.aws_ecrpublic_authorization_token.token.password
+    }
+  ]
 }
 
-data "aws_ecrpublic_authorization_token" "token" {
-  provider = aws.ecr
+ephemeral "aws_ecrpublic_authorization_token" "token" {
+  region = "us-east-1" # ECR Public issues tokens in us-east-1 only, whatever the cluster region
 }
 
 data "aws_availability_zones" "available" {

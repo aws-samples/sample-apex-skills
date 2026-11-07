@@ -60,7 +60,8 @@ The readiness report should show:
 ## Prerequisites
 
 - AWS account with EKS permissions
-- Terraform >= 1.5.7
+- Terraform >= 1.10
+- A running stack from the earlier (terraform-aws-eks v20) version is not upgraded in place: destroy it with your old checkout first, then pull and deploy fresh. An existing checkout with no running stack: run `terraform init -upgrade` once in `examples/infrastructure/karpenter/` (stale local lock).
 - kubectl
 - AWS CLI v2
 - One of:
