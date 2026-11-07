@@ -13,21 +13,21 @@ export default function Home(): ReactNode {
   useBrokenLinks().collectAnchor('install');
   return (
     <Layout
-      title="EKS and ECS skills"
-      description={`${skillCount} open-source agent skills for Amazon EKS and Amazon ECS: design, build, assess, upgrade and secure clusters from Claude Code, Kiro CLI or any Agent Skills harness.`}
+      title="EKS and ECS platform engineering skills"
+      description={`Platform engineering with agents: ${skillCount} open-source agent skills for Amazon EKS and Amazon ECS. Design, build, assess, upgrade and secure from Claude Code, Kiro CLI or any Agent Skills harness.`}
     >
       <main className="apex-home">
         <header className="apex-home__hero">
           <div className="apex-wrap">
-            <h1 className="apex-home__title">EKS and ECS skills</h1>
+            <h1 className="apex-home__title">Platform engineering with agents</h1>
             <p className="apex-home__pitch">
-              Skills that let your coding agent design, build, review and upgrade Amazon EKS and Amazon ECS. Tell it
-              the job; it brings the checks, the scripts and the AWS guidance.
+              Agentic engineering for platform engineering: curated AWS skills delivered through your AI coding agent.
+              Tell it the job; it brings the checks, the scripts and the AWS guidance.
             </p>
             <SkillFinder variant="hero" />
             <p className="apex-home__facts">
-              {counts.eks} EKS, {counts.ecs} ECS and {counts.general} general skills. Open source under MIT-0, built by
-              AWS Solutions Architects, TAMs and ProServe.
+              {skillCount} skills today: {counts.eks} for Amazon EKS, {counts.ecs} for Amazon ECS and {counts.general}{' '}
+              general. Open source under MIT-0, built by AWS Solutions Architects, TAMs and ProServe.
             </p>
           </div>
         </header>
