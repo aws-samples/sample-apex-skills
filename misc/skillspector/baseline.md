@@ -1,7 +1,7 @@
 # SkillSpector baseline
 
 - Scanner: SkillSpector v2.13.4 (commit 54824463814a0be01360792523ec7245a69190fc, the commit `.github/workflows/skillspector.yml` pins), static analysis only (`--no-llm`). Each report records the version as `metadata.skillspector_version`; a `skillspector` installed some other way can be another version, so check `skillspector --version` before a refresh.
-- Scanned: every skill under `skills/` and `devops-agent/` on aws-samples/sample-apex-skills: the `skills/` and `devops-agent/` trees at b5b2575, unchanged at main tip 68f94d3, one report per skill.
+- Scanned: every skill under `skills/` and `devops-agent/` on aws-samples/sample-apex-skills, one report per skill, first at b5b2575. Refreshed on 2026-11-07 against main at e8ca2d0: the eight skill folders changed since (skills/eks-mcp-server, eks-best-practices, eks-build, eks-design, eks-cost-intelligence, eks-genai, eks-platform-engineering and devops-agent/eks-cost-intelligence) were rescanned, moved rows were moved to their new line, and new findings were reviewed; the other 26 reports match main line for line.
 - Scan date: 2026-11-06.
 - The scan is advisory. It does not replace review, and a finding here is a pattern match, not a verdict.
 - The workflow reads this file (`misc/skillspector/annotate.py`). It suppresses a finding only when a row with verdict `accepted` or `false positive` matches it on file, line and rule, and the scan ran the version above. A finding at another line, or a run with another scanner version, is shown again (re-opened). `true positive` and `coverage gap` rows are never suppressed. The job summary gives, per skill, how many findings were suppressed, re-opened, kept and new.
@@ -15,27 +15,27 @@
 
 ## Counts
 
-Total findings: 497.
+Total findings: 501.
 
 | Verdict | HIGH | MEDIUM | LOW | Total |
 |---|---|---|---|---|
 | true positive | 1 | 4 | 0 | 5 |
-| accepted | 38 | 24 | 3 | 65 |
-| coverage gap | 116 | 0 | 0 | 116 |
+| accepted | 38 | 27 | 3 | 68 |
+| coverage gap | 117 | 0 | 0 | 117 |
 | false positive | 220 | 73 | 18 | 311 |
-| Total | 375 | 101 | 21 | 497 |
+| Total | 376 | 104 | 21 | 501 |
 
 ## Highlights the scanner does not catch
 
-Not findings and not suppressions: patterns a review found that no rule raises. Lines are on main at 4e68e6d.
+Not findings and not suppressions: patterns a review found that no rule raises. Lines are on main at e8ca2d0.
 
 Helm installs with no `--version`, so the chart a user gets changes under them (18):
-- devops-agent/eks-cost-intelligence/references/spot-graviton-adoption.md:607
+- devops-agent/eks-cost-intelligence/references/spot-graviton-adoption.md:628
 - skills/eks-best-practices/references/cost-optimization.md:499
 - skills/eks-best-practices/references/networking-ingress-dns.md:322
 - skills/eks-best-practices/references/observability.md:145, :270, :311, :429
 - skills/eks-best-practices/references/security-runtime-network.md:86
-- skills/eks-cost-intelligence/references/spot-graviton-adoption.md:1024
+- skills/eks-cost-intelligence/references/spot-graviton-adoption.md:1057
 - skills/eks-genai/references/distributed-training.md:218
 - skills/eks-well-architected-review/references/cost-optimization.md:583
 - skills/eks-well-architected-review/references/operational-excellence.md:736
@@ -170,13 +170,13 @@ No findings.
 | skills/eks-best-practices/SKILL.md:54 | AE1 | HIGH | coverage gap | points to references/hybrid-deployments.md (46 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
 | skills/eks-best-practices/SKILL.md:115 | AE1 | HIGH | coverage gap | points to references/hybrid-deployments.md (46 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
 | skills/eks-best-practices/SKILL.md:144 | AE1 | HIGH | coverage gap | points to references/networking.md (28 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
-| skills/eks-best-practices/SKILL.md:393 | AE1 | HIGH | coverage gap | points to references/observability.md (31 KB, bundled in the skill); the scanner inspected it only in part (obfuscated_instruction_text): a coverage gap, not a defect; flagged obfuscated_instruction_text (a remove/replace directive with a quoted marker the static parser could not resolve); the directive at the target is ordinary editing prose, and no AE6 was raised |
-| skills/eks-best-practices/SKILL.md:407 | AE1 | HIGH | coverage gap | points to references/argocd-patterns.md (18 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
-| skills/eks-best-practices/SKILL.md:421 | AE1 | HIGH | coverage gap | points to references/networking.md (28 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
-| skills/eks-best-practices/SKILL.md:431 | AE1 | HIGH | coverage gap | points to references/observability.md (31 KB, bundled in the skill); the scanner inspected it only in part (obfuscated_instruction_text): a coverage gap, not a defect; flagged obfuscated_instruction_text (a remove/replace directive with a quoted marker the static parser could not resolve); the directive at the target is ordinary editing prose, and no AE6 was raised |
-| skills/eks-best-practices/SKILL.md:433 | AE1 | HIGH | coverage gap | points to references/argocd-patterns.md (18 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
-| skills/eks-best-practices/SKILL.md:436 | AE1 | HIGH | coverage gap | points to references/hybrid-deployments.md (46 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
-| skills/eks-best-practices/references/cluster-upgrades.md:465 | PE4 | HIGH | false positive | names the Docker socket to detect dependencies before the dockershim removal; no socket mount |
+| skills/eks-best-practices/SKILL.md:397 | AE1 | HIGH | coverage gap | points to references/observability.md (31 KB, bundled in the skill); the scanner inspected it only in part (obfuscated_instruction_text): a coverage gap, not a defect; flagged obfuscated_instruction_text (a remove/replace directive with a quoted marker the static parser could not resolve); the directive at the target is ordinary editing prose, and no AE6 was raised |
+| skills/eks-best-practices/SKILL.md:411 | AE1 | HIGH | coverage gap | points to references/argocd-patterns.md (18 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
+| skills/eks-best-practices/SKILL.md:425 | AE1 | HIGH | coverage gap | points to references/networking.md (28 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
+| skills/eks-best-practices/SKILL.md:435 | AE1 | HIGH | coverage gap | points to references/observability.md (31 KB, bundled in the skill); the scanner inspected it only in part (obfuscated_instruction_text): a coverage gap, not a defect; flagged obfuscated_instruction_text (a remove/replace directive with a quoted marker the static parser could not resolve); the directive at the target is ordinary editing prose, and no AE6 was raised |
+| skills/eks-best-practices/SKILL.md:437 | AE1 | HIGH | coverage gap | points to references/argocd-patterns.md (18 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
+| skills/eks-best-practices/SKILL.md:440 | AE1 | HIGH | coverage gap | points to references/hybrid-deployments.md (46 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
+| skills/eks-best-practices/references/cluster-upgrades.md:466 | PE4 | HIGH | false positive | names the Docker socket to detect dependencies before the dockershim removal; no socket mount |
 | skills/eks-best-practices/references/observability.md:426 | EA2 | MEDIUM | false positive | describes the CloudWatch add-on deploying DCGM Exporter; no agent action |
 | skills/eks-best-practices/references/reliability-advanced.md:110 | AR3 | HIGH | false positive | table describes Gatekeeper behaviour; not an instruction to the agent |
 | skills/eks-best-practices/references/scalability.md:153 | PE3 | HIGH | false positive | sample kubeconfig YAML showing a client setting (compression); no credentials |
@@ -195,10 +195,10 @@ No findings.
 | skills/eks-build/references/customization-guide.md:56 | SSRF1 | HIGH | false positive | 169.254.169.254 sits in the NO_PROXY exclusion list so IMDS is not sent through the proxy; no request to it |
 | skills/eks-build/references/customization-guide.md:68 | SSRF1 | HIGH | false positive | 169.254.169.254 sits in the NO_PROXY exclusion list so IMDS is not sent through the proxy; no request to it |
 | skills/eks-build/references/customization-guide.md:73 | SSRF1 | HIGH | false positive | 169.254.169.254 sits in the NO_PROXY exclusion list so IMDS is not sent through the proxy; no request to it |
-| skills/eks-build/references/customization-guide.md:82 | SSRF1 | HIGH | false positive | 169.254.169.254 sits in the NO_PROXY exclusion list so IMDS is not sent through the proxy; no request to it |
+| skills/eks-build/references/customization-guide.md:83 | SSRF1 | HIGH | false positive | 169.254.169.254 and the Pod Identity addresses sit in the NO_PROXY exclusion list so that traffic is not sent through the proxy; no request to them |
 | skills/eks-build/references/lessons-learned.md:107 | TM1 | HIGH | accepted | documented outage recovery (remove the Multus CNI config on nodes) for a feature the skill ships disabled; run by the operator |
-| skills/eks-build/references/lessons-learned.md:482 | TM2 | HIGH | true positive | open, not suppressed: ISSUE-TBD-3. The capability-hang workaround (main :521) removes from state every address an unanchored `grep capability` matches, then runs `terraform destroy -auto-approve` (main :522) with no plan shown and no confirm. It is the only `-auto-approve` in eks-build, and SKILL.md:318 sends the agent to this file when troubleshooting a failed deployment |
-| skills/eks-build/references/lessons-learned.md:483 | EA2 | MEDIUM | true positive | open, not suppressed: ISSUE-TBD-3. Same block as the row above: `terraform destroy -auto-approve` (main :522) with no plan shown and no confirm |
+| skills/eks-build/references/lessons-learned.md:521 | TM2 | HIGH | true positive | open, not suppressed: https://github.com/aws-samples/sample-apex-skills/issues/381. The capability-hang workaround (main :521) removes from state every address an unanchored `grep capability` matches, then runs `terraform destroy -auto-approve` (main :522) with no plan shown and no confirm. It is the only `-auto-approve` in eks-build, and SKILL.md:318 sends the agent to this file when troubleshooting a failed deployment |
+| skills/eks-build/references/lessons-learned.md:522 | EA2 | MEDIUM | true positive | open, not suppressed: https://github.com/aws-samples/sample-apex-skills/issues/381. Same block as the row above: `terraform destroy -auto-approve` (main :522) with no plan shown and no confirm |
 
 ## skills/eks-cost-intelligence
 
@@ -221,7 +221,9 @@ No findings.
 
 ## skills/eks-design
 
-No findings.
+| File:line | Rule | Severity | Verdict | Reason |
+|---|---|---|---|---|
+| skills/eks-design/SKILL.md:173 | AS3 | MEDIUM | accepted | copies the `docx` and `pptx` skills from anthropics/skills into the user's skills folder, only on the user's yes and naming the source; the copy is not pinned to a commit |
 
 ## skills/eks-genai
 
@@ -257,28 +259,31 @@ No findings.
 | skills/eks-mcp-server/SKILL.md:3 | RP1 | MEDIUM | true positive | fixed on main by https://github.com/aws-samples/sample-apex-skills/pull/366 (merged as 6fdc1cf): the setup examples ran the server unpinned (`awslabs.eks-mcp-server@latest` in references/self-hosted-setup.md, `mcp-proxy-for-aws@latest` in references/aws-hosted-setup.md); both now read `@<version>`, the version the user chooses in SKILL.md Step 1b. The runbook's own run is the row above |
 | skills/eks-mcp-server/SKILL.md:32 | PE3 | HIGH | false positive | explains the self-hosted mode supports kubeconfig/OIDC auth; setup prose, no credential read |
 | skills/eks-mcp-server/SKILL.md:32 | PE3 | HIGH | false positive | explains the self-hosted mode supports kubeconfig/OIDC auth; setup prose, no credential read |
-| skills/eks-mcp-server/SKILL.md:115 | EA1 | MEDIUM | false positive | forbids tool calls on activation; starts with Step 0 then asks: a restriction |
+| skills/eks-mcp-server/SKILL.md:42 | RP1 | MEDIUM | accepted | Step 1b offers `@latest` as one of three version choices and states its risk (unreviewed releases run with cluster and AWS access); used only when the user picks it |
+| skills/eks-mcp-server/SKILL.md:55 | RP1 | MEDIUM | accepted | the lookup-failure rule keeps `@latest` only for a user who chose Latest, and asks a user who chose a pin; never a silent fallback |
+| skills/eks-mcp-server/SKILL.md:123 | AE1 | HIGH | coverage gap | references/self-hosted-setup.md was only partly inspected |
+| skills/eks-mcp-server/SKILL.md:138 | EA1 | MEDIUM | false positive | interaction rule 1 forbids tool calls on activation and starts with Step 0, then asks: a restriction |
 | skills/eks-mcp-server/references/aws-hosted-setup.md:14 | SC2 | LOW | accepted | official uv installer via curl / sh, shown as a user-run prerequisite; the vendor's documented install |
 | skills/eks-mcp-server/references/self-hosted-setup.md:10 | SC2 | LOW | accepted | official uv installer via curl / sh, shown as a user-run prerequisite; the vendor's documented install |
 | skills/eks-mcp-server/references/self-hosted-setup.md:12 | PE3 | HIGH | false positive | prerequisite: a valid kubeconfig for kubeconfig mode; setup prose |
 | skills/eks-mcp-server/references/self-hosted-setup.md:12 | PE3 | HIGH | false positive | prerequisite: a valid kubeconfig for kubeconfig mode; setup prose |
 | skills/eks-mcp-server/references/self-hosted-setup.md:22 | PE3 | HIGH | false positive | auth-mode table row naming kubeconfig mode; setup prose |
 | skills/eks-mcp-server/references/self-hosted-setup.md:58 | RA2 | MEDIUM | true positive | open, not suppressed: https://github.com/aws-samples/sample-apex-skills/issues/236 (open) tracks this. Rule name is wrong (no persistence), but the text tells users to attach IAMFullAccess, AmazonVPCFullAccess, AWSCloudFormationFullAccess and eks:* for write mode with no scoping (line 60 on main at 4e68e6d), and the basic configuration examples turn on `--allow-write` and `--allow-sensitive-data-access`; IAMFullAccess is a privilege-escalation path. https://github.com/aws-samples/sample-apex-skills/pull/317 (open) adds a least-privilege note and keeps the IAMFullAccess line |
-| skills/eks-mcp-server/references/self-hosted-setup.md:89 | PE3 | HIGH | false positive | section heading for kubeconfig mode |
-| skills/eks-mcp-server/references/self-hosted-setup.md:102 | PE3 | HIGH | false positive | MCP config example sets EKS_AUTH_MODE=kubeconfig; the server reads the user's own kubeconfig as designed |
-| skills/eks-mcp-server/references/self-hosted-setup.md:103 | PE3 | HIGH | false positive | MCP config example sets KUBECONFIG to the default path for the server it launches; no extra read |
-| skills/eks-mcp-server/references/self-hosted-setup.md:103 | PE3 | HIGH | false positive | MCP config example sets KUBECONFIG to the default path for the server it launches; no extra read |
-| skills/eks-mcp-server/references/self-hosted-setup.md:111 | PE3 | HIGH | false positive | note that AWS tools are disabled in kubeconfig mode; setup prose |
-| skills/eks-mcp-server/references/self-hosted-setup.md:154 | PE3 | HIGH | false positive | explains how to switch auth mode by env var; setup prose |
-| skills/eks-mcp-server/references/self-hosted-setup.md:162 | PE3 | HIGH | false positive | env var table row for EKS_AUTH_MODE; setup prose |
-| skills/eks-mcp-server/references/self-hosted-setup.md:163 | PE3 | HIGH | false positive | env var table row: KUBECONFIG defaults to ~/.kube/config; documents the server's own config input |
-| skills/eks-mcp-server/references/self-hosted-setup.md:163 | PE3 | HIGH | false positive | env var table row: KUBECONFIG defaults to ~/.kube/config; documents the server's own config input |
-| skills/eks-mcp-server/references/self-hosted-setup.md:163 | PE3 | HIGH | false positive | env var table row: KUBECONFIG defaults to ~/.kube/config; documents the server's own config input |
-| skills/eks-mcp-server/references/self-hosted-setup.md:173 | PE3 | HIGH | false positive | tells the operator to match the MCP endpoint to describe-cluster before any request: a control |
-| skills/eks-mcp-server/references/self-hosted-setup.md:173 | PE3 | HIGH | false positive | tells the operator to match the MCP endpoint to describe-cluster before any request: a control |
-| skills/eks-mcp-server/references/self-hosted-setup.md:195 | PE3 | HIGH | false positive | troubleshooting row for kubeconfig RBAC or path; setup prose |
-| skills/eks-mcp-server/references/self-hosted-setup.md:198 | PE3 | HIGH | false positive | troubleshooting row for kubeconfig RBAC or path; setup prose |
-| skills/eks-mcp-server/references/self-hosted-setup.md:198 | PE3 | HIGH | false positive | troubleshooting row for kubeconfig RBAC or path; setup prose |
+| skills/eks-mcp-server/references/self-hosted-setup.md:91 | PE3 | HIGH | false positive | section heading for kubeconfig mode |
+| skills/eks-mcp-server/references/self-hosted-setup.md:104 | PE3 | HIGH | false positive | MCP config example sets EKS_AUTH_MODE=kubeconfig; the server reads the user's own kubeconfig as designed |
+| skills/eks-mcp-server/references/self-hosted-setup.md:105 | PE3 | HIGH | false positive | MCP config example sets KUBECONFIG to the default path for the server it launches; no extra read |
+| skills/eks-mcp-server/references/self-hosted-setup.md:105 | PE3 | HIGH | false positive | MCP config example sets KUBECONFIG to the default path for the server it launches; no extra read |
+| skills/eks-mcp-server/references/self-hosted-setup.md:113 | PE3 | HIGH | false positive | note that AWS tools are disabled in kubeconfig mode; setup prose |
+| skills/eks-mcp-server/references/self-hosted-setup.md:156 | PE3 | HIGH | false positive | explains how to switch auth mode by env var; setup prose |
+| skills/eks-mcp-server/references/self-hosted-setup.md:164 | PE3 | HIGH | false positive | env var table row for EKS_AUTH_MODE; setup prose |
+| skills/eks-mcp-server/references/self-hosted-setup.md:165 | PE3 | HIGH | false positive | env var table row: KUBECONFIG defaults to ~/.kube/config; documents the server's own config input |
+| skills/eks-mcp-server/references/self-hosted-setup.md:165 | PE3 | HIGH | false positive | env var table row: KUBECONFIG defaults to ~/.kube/config; documents the server's own config input |
+| skills/eks-mcp-server/references/self-hosted-setup.md:165 | PE3 | HIGH | false positive | env var table row: KUBECONFIG defaults to ~/.kube/config; documents the server's own config input |
+| skills/eks-mcp-server/references/self-hosted-setup.md:175 | PE3 | HIGH | false positive | tells the operator to match the MCP endpoint to describe-cluster before any request: a control |
+| skills/eks-mcp-server/references/self-hosted-setup.md:175 | PE3 | HIGH | false positive | tells the operator to match the MCP endpoint to describe-cluster before any request: a control |
+| skills/eks-mcp-server/references/self-hosted-setup.md:197 | PE3 | HIGH | false positive | troubleshooting row for kubeconfig RBAC or path; setup prose |
+| skills/eks-mcp-server/references/self-hosted-setup.md:200 | PE3 | HIGH | false positive | troubleshooting row for kubeconfig RBAC or path; setup prose |
+| skills/eks-mcp-server/references/self-hosted-setup.md:200 | PE3 | HIGH | false positive | troubleshooting row for kubeconfig RBAC or path; setup prose |
 
 ## skills/eks-operation-review
 
@@ -646,9 +651,9 @@ No findings.
 
 | File:line | Rule | Severity | Verdict | Reason |
 |---|---|---|---|---|
-| devops-agent/eks-cost-intelligence/SKILL.md:157 | EA2 | MEDIUM | false positive | 'No confirmation required' only starts the read-only assessment after the cluster summary; no change is made |
-| devops-agent/eks-cost-intelligence/SKILL.md:180 | AE1 | HIGH | coverage gap | points to references/spot-graviton-adoption.md (26 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
-| devops-agent/eks-cost-intelligence/SKILL.md:367 | AE1 | HIGH | coverage gap | points to references/spot-graviton-adoption.md (26 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
+| devops-agent/eks-cost-intelligence/SKILL.md:158 | EA2 | MEDIUM | false positive | 'No confirmation required' only starts the read-only assessment after the cluster summary; no change is made |
+| devops-agent/eks-cost-intelligence/SKILL.md:181 | AE1 | HIGH | coverage gap | points to references/spot-graviton-adoption.md (26 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
+| devops-agent/eks-cost-intelligence/SKILL.md:368 | AE1 | HIGH | coverage gap | points to references/spot-graviton-adoption.md (26 KB, bundled in the skill); the scanner inspected it only in part (static_parse_limit): a coverage gap, not a defect |
 | devops-agent/eks-cost-intelligence/references/cost-estimation-fallback.md:25 | P4 | MEDIUM | false positive | prefers live pricing API over static tables; a data-source preference, not behaviour manipulation |
 | devops-agent/eks-cost-intelligence/references/observability-costs.md:355 | PE3 | HIGH | false positive | `.env` is the pod spec field containers[].env, read only for log-level variable names; no credential file |
 
