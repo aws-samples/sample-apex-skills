@@ -90,7 +90,7 @@ For private clusters or security-sensitive environments, configure VPC endpoints
 | Multi-account with Control Tower | Centralized ECR in shared services account + cross-account pull |
 | Regulatory requirement for team isolation | Tenant-managed ECR |
 | Multi-cloud or hybrid | Enterprise registry (Artifactory/Harbor) |
-| Air-gapped environment | ECR with pull-through cache or Harbor |
+| Air-gapped environment | ECR with pull-through cache (first pull may need an internet route) or Harbor |
 
 ---
 
