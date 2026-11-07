@@ -18,10 +18,10 @@
 ## What APEX is
 
 - **Skills**: what your agent knows. 28 skills, written to the [Agent Skills standard](https://agentskills.io/), that design, build, review, upgrade and secure Amazon EKS and Amazon ECS estates.
-- **The `/apex` router**: one entry point. Type `/apex` with your request and it picks the right skill and, when there is one, that skill's runbook.
+- **The `/apex` router** (v2, from `main`): one entry point. Type `/apex` with your request and it picks the right skill and, when there is one, that skill's runbook.
 - **DevOps Agent ports**: 6 Day 2 skills repackaged for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/).
 
-Built by AWS Solutions Architects, TAMs and ProServe. 5 skills are vendored from upstream projects; see [Provenance](#provenance).
+Domain knowledge by AWS Solutions Architects, TAMs and ProServe. 5 skills are vendored from upstream projects; see [Provenance](#provenance).
 
 ## Quick start
 
@@ -31,26 +31,34 @@ You need [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/), on 
 npx apex-skills@1.3.0
 ```
 
-The installer detects Claude Code and Kiro CLI, clones the repo to `~/.apex-skills/` and links the skills into place. It installs the latest v1 release of the skills, so ask your agent in plain words and the matching skill loads:
+The installer detects Claude Code and Kiro CLI, clones the repo to `~/.apex-skills/` and links the skills into place. It installs the latest v1 release of the skills.
+
+Ask your agent in plain words and the matching skill loads:
 
 > Is my EKS cluster ready to upgrade to 1.32?
 
-In Claude Code the v1 install also adds `/apex:*` commands, such as `/apex:eks-upgrade-check`.
+In Claude Code the v1 install also adds `/apex:*` commands, such as `/apex:eks-upgrade-check`; Kiro CLI gets the same workflows as manual steering files in `~/.kiro/steering/`.
 
 Flags, updates and uninstall: [installer README](misc/installer/README.md).
 
 ### The `/apex` router (v2, from `main`)
 
-The router is new in v2, which is not released yet. To use it, install from `main`:
+The router is new in v2, which is not released yet. To use it in Claude Code or Kiro CLI, install from `main` (this also moves an existing v1 install to `main`, which has no `/apex:*` commands):
+
+```bash
+npx apex-skills@1.3.0 --branch main
+```
+
+Then type your request after the router:
+
+> /apex is my cluster ready to upgrade to 1.32?
+
+For Codex, on a machine without the npx install, copy the skills by hand:
 
 ```bash
 git clone https://github.com/aws-samples/sample-apex-skills.git
-mkdir -p ~/.claude/skills && cp -r sample-apex-skills/skills/*/ ~/.claude/skills/
+mkdir -p ~/.agents/skills && cp -r sample-apex-skills/skills/* ~/.agents/skills/
 ```
-
-For Kiro CLI copy to `~/.kiro/skills/` instead, and for Codex to `~/.agents/skills/`. Then type your request after the router:
-
-> /apex is my cluster ready to upgrade to 1.32?
 
 In Codex the router is `$apex`. `/apex` in Kiro CLI was tested on 2.35.1; 1.27.0 rejected it. Other harnesses, and the optional agent guardrails in [rules/AGENTS.md](rules/AGENTS.md): [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/).
 
@@ -75,84 +83,86 @@ flowchart LR
 
 ## Pick a skill by what you are doing
 
-EKS and ECS skills sit side by side in each group. Not sure? Use [`/apex`](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) and it picks for you.
+Not sure? Use [`/apex`](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) (v2, from `main`) and it picks for you.
+
+The tables describe `main`; v1.3.0 also ships steering-workflow-creator.
 
 ### Knowledge Skills
 
 Guidance your agent draws on when you ask and decide.
 
-| Skill | Platform | Use it to |
-|---|---|---|
-| [eks-best-practices](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/) | EKS | Answer EKS and Kubernetes architecture and configuration questions |
-| [eks-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/) | EKS | Plan GPU, Neuron, LLM serving or training on EKS |
-| [eks-platform-engineering](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-platform-engineering/) | EKS | Plan an internal developer platform on EKS |
-| [ecs-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-genai/) | ECS | Run GPU, ML or LLM workloads on ECS |
+| Skill | Use it to |
+|---|---|
+| [eks-best-practices](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-best-practices/) | Answer EKS and Kubernetes architecture and configuration questions |
+| [eks-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/) | Plan GPU, Neuron, LLM serving or training on EKS |
+| [eks-platform-engineering](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-platform-engineering/) | Plan an internal developer platform on EKS |
+| [ecs-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-genai/) | Run GPU, ML or LLM workloads on ECS |
 
 ### Day 0 Design
 
 Choose an architecture before you build.
 
-| Skill | Platform | Use it to |
-|---|---|---|
-| [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/) | EKS | Turn requirements into an EKS architecture you can review |
-| [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/) | ECS | Pick Fargate, EC2 or Managed Instances for a new ECS workload |
-| [ecs-observability](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/) | ECS | Choose how to log, measure and trace ECS services |
+| Skill | Use it to |
+|---|---|
+| [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/) | Turn requirements into an EKS architecture you can review |
+| [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/) | Pick an ECS deployment model (Fargate, EC2, Managed Instances, Express Mode, Anywhere) |
+| [ecs-observability](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/) | Choose how to log, measure and trace ECS services |
 
 ### Day 1 Build
 
 Generate the infrastructure code and the release path.
 
-| Skill | Platform | Use it to |
-|---|---|---|
-| [eks-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-build/) | EKS | Generate a production-ready EKS cluster in Terraform |
-| [ecs-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-build/) | ECS | Generate apply-ready Terraform for ECS clusters and services |
-| [ecs-devops](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-devops/) | ECS | Set up safe deployments and CI/CD for ECS |
-| [dotnet-aws-ecs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/) | ECS | Deploy a .NET app to ECS Fargate on Linux |
-| [terraform-skill](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/) | General | Write, review or debug Terraform and OpenTofu |
+| Skill | Use it to |
+|---|---|
+| [eks-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-build/) | Generate a production-ready EKS cluster in Terraform |
+| [ecs-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-build/) | Generate apply-ready Terraform for ECS clusters and services |
+| [ecs-devops](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-devops/) | Set up safe deployments and CI/CD for ECS |
+| [dotnet-aws-ecs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/) | Deploy a .NET app to ECS Fargate on Linux |
+| [terraform-skill](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/terraform-skill/) | Write, review or debug Terraform and OpenTofu |
 
 ### Day 2 Operate: assess what is running
 
 Discover, score and review a live cluster or estate.
 
-| Skill | Platform | Use it to |
-|---|---|---|
-| [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/) | EKS | Find out what an EKS cluster is running |
-| [ecs-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-recon/) | ECS | Find out what an ECS environment is running |
-| [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/) | EKS | Audit the operational health of a live EKS cluster |
-| [ecs-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-operation-review/) | ECS | Audit the operational health of a live ECS estate |
-| [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/) | EKS | Run an unofficial Well-Architected-style review of an EKS cluster (not the AWS Well-Architected Tool) |
-| [eks-cost-intelligence](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/) | EKS | Find where an EKS cluster wastes money |
+| Skill | Use it to |
+|---|---|
+| [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/) | Find out what an EKS cluster is running |
+| [ecs-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-recon/) | Find out what an ECS environment is running |
+| [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/) | Audit the operational health of a live EKS cluster |
+| [ecs-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-operation-review/) | Audit the operational health of a live ECS estate |
+| [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/) | Run an unofficial Well-Architected-style review of an EKS cluster (not the AWS Well-Architected Tool) (Linux nodes only) |
+| [eks-cost-intelligence](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/) | Find where an EKS cluster wastes money |
 
 ### Day 2 Operate: upgrade and migrate
 
 Move a version, a controller, a CPU architecture or an app.
 
-| Skill | Platform | Use it to |
-|---|---|---|
-| [eks-upgrade-check](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-upgrade-check/) | EKS | Check if an EKS cluster is ready for its next Kubernetes version |
-| [eks-ingress-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/) | EKS | Plan the move off NGINX Ingress on EKS |
-| [graviton-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/) | General | Move workloads from x86 to Graviton (arm64) |
-| [ecs-modernize](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-modernize/) | ECS | Move an existing VMware or EC2 app onto ECS |
+| Skill | Use it to |
+|---|---|
+| [eks-upgrade-check](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-upgrade-check/) | Check if an EKS cluster is ready for its next Kubernetes version |
+| [eks-ingress-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/) | Plan the move off NGINX Ingress on EKS |
+| [graviton-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/) | Move workloads from x86 to Graviton (arm64) |
+| [ecs-modernize](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-modernize/) | Move an existing VMware or EC2 app onto ECS |
 
 ### Day 2 Operate: secure
 
 Check exposure, harden and prepare for audits.
 
-| Skill | Platform | Use it to |
-|---|---|---|
-| [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/) | EKS | Check an EKS cluster for exposure, respond to a security event and harden it |
-| [ecs-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/) | ECS | Harden ECS tasks, roles, secrets and images |
+| Skill | Use it to |
+|---|---|
+| [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/) | Check an EKS cluster for exposure, respond to a security event and harden it (the exposure check and event response are v2, from `main`) |
+| [ecs-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/) | Harden ECS tasks, roles, secrets and images |
 
 ### Set up and extend
 
 Connect tools, write your own skills, keep docs in sync.
 
-| Skill | Platform | Use it to |
-|---|---|---|
-| [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) | General | Describe the task and apex picks the skill (v2, from `main`) |
-| [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/) | EKS | Connect your agent to the EKS MCP Server |
-| [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/) | General | Write a new skill or improve an existing one |
-| [update-docs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/) | General | Bring every APEX docs surface in line after a skill change |
+| Skill | Use it to |
+|---|---|
+| [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) | Describe the task and apex picks the skill (v2, from `main`) |
+| [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/) | Connect your agent to the EKS MCP Server |
+| [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/) | Write a new skill or improve an existing one |
+| [update-docs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/) | Bring every APEX docs surface in line after a skill change |
 
 <!-- SKILLS_REFERENCE_START -->
 ## Skills Reference
@@ -201,7 +211,7 @@ Connect tools, write your own skills, keep docs in sync.
 
 ## Provenance
 
-5 skills are vendored from upstream projects and synced, not edited here.
+5 skills are vendored from upstream and synced by `misc/sync-*.sh`; do not edit them here. Three carry small sync-time edits, listed in each skill's UPSTREAM.md.
 
 | Skill | Upstream | License |
 |---|---|---|
@@ -211,7 +221,7 @@ Connect tools, write your own skills, keep docs in sync.
 | eks-operation-review | [aws-samples/sample-eks-operation-review-skill](https://github.com/aws-samples/sample-eks-operation-review-skill) | MIT-0 |
 | eks-upgrade-check | [aws-samples/sample-eks-upgrade-skill](https://github.com/aws-samples/sample-eks-upgrade-skill) | MIT-0 |
 
-Details: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Details: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the UPSTREAM.md of [dotnet-aws-ecs](skills/dotnet-aws-ecs/UPSTREAM.md), [eks-operation-review](skills/eks-operation-review/UPSTREAM.md) and [eks-upgrade-check](skills/eks-upgrade-check/UPSTREAM.md).
 
 ## Contributing
 
@@ -219,7 +229,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for adding skills, runbooks and examples.
 
 ## Disclaimer
 
-Sample code for **educational and demonstration purposes only**. It is not intended for direct production use without proper review, testing, and validation. Test generated infrastructure (Terraform, Helm charts, kubectl commands) in non-production environments first. Use at your own risk.
+Sample code for **educational and demonstration purposes only**. It is not intended for direct production use without proper review, testing, and validation. Test generated infrastructure (Terraform, Helm charts, kubectl commands) in non-production environments first. Use at your own risk: the authors are not responsible for any issues, damages, or losses that may result from using this code in production.
 
 ## License
 
