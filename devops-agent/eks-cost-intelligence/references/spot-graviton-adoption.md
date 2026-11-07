@@ -550,13 +550,13 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 
 ### Data collection
 
-**Step 1:** Use the Kubernetes API to list Nodes and count those with `karpenter.sh/capacity-type=spot` or `eks.amazonaws.com/capacityType=SPOT` labels.
+**Step 1:** Use the Kubernetes API to list Nodes and count those with `karpenter.sh/capacity-type=spot` or `eks.amazonaws.com/capacityType=SPOT` labels, leaving out EKS Auto Mode nodes (`eks.amazonaws.com/compute-type=auto`), since Auto Mode handles Spot interruptions itself.
 
 **Step 2:** Use the Kubernetes API to check for aws-node-termination-handler as a Deployment or DaemonSet in kube-system namespace, or search by label `app.kubernetes.io/name=aws-node-termination-handler`.
 
-**Step 3:** Use the Kubernetes API to check for the Karpenter Deployment in kube-system and its version label. For Karpenter v0.30+, interruption handling is built-in. Check ConfigMaps and environment variables for interruption queue configuration.
+**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. Interruption handling is enabled only when an interruption queue is set (INTERRUPTION_QUEUE from v0.32; aws.interruptionQueueName in karpenter-global-settings on v0.30-v0.31). Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0). This check reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH.
 
-**Step 4:** Use the SQS ListQueues API filtered by naming convention (queue name prefix "karpenter") to verify the interruption queue exists. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
+**Step 4:** Check that the queue INTERRUPTION_QUEUE names exists (`aws sqs get-queue-url --queue-name "$QUEUE"`); the default name is the cluster name. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
 
 ### Analysis logic
 
@@ -569,13 +569,13 @@ If spot_node_count > 0:
   nth_installed = (aws-node-termination-handler deployment/daemonset exists)
   
   If karpenter_installed:
-    # Karpenter v0.30+ has native interruption handling
     karpenter_version = parse version from deployment labels
     If karpenter_version >= "0.30":
-      → Interruption handling is built-in (OK)
-      # Verify SQS queue exists for optimal handling
-      If no SQS queue configured:
-        → LOW finding: SQS queue recommended for faster interruption response
+      # Step 3 reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH
+      If INTERRUPTION_QUEUE is unset (Step 3) AND NOT nth_installed:
+        → HIGH finding: Karpenter with no interruption queue and no NTH
+      Else:
+        → OK (interruption handling present)
     Else:
       If NOT nth_installed:
         → HIGH finding: older Karpenter without NTH
@@ -594,7 +594,7 @@ If spot_node_count > 0:
 |-----------|----------|
 | Spot nodes present + no interruption handler (no Karpenter, no NTH) | HIGH |
 | Older Karpenter (< v0.30) without NTH | HIGH |
-| Karpenter v0.30+ without SQS queue | LOW |
+| Karpenter with INTERRUPTION_QUEUE unset (Step 3) and no NTH | HIGH |
 | NTH or Karpenter v0.30+ with SQS present | No finding |
 
 ### Remediation
@@ -715,7 +715,7 @@ START
 - Check 2: No finding (NodePools allow arm64)
 - Check 4: No finding (>30% Spot)
 - Check 6: No finding (broad instance categories)
-- Check 7: No finding (Karpenter v1 handles interruptions)
+- Check 7: No finding (Karpenter v1 with its interruption queue set)
 - **Expected deduction:** 0 points
 
 ### Scenario C: Spot Without Proper Handling

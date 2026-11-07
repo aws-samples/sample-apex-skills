@@ -21,7 +21,7 @@ Unlike static cost best-practices guidance (`eks-best-practices`), this skill pe
 - **CloudWatch Container Insights** — real CPU/memory utilization (P50/P95)
 - **Kubernetes API** — resource requests, limits, replica counts, PVCs, Services
 
-The output is a **Cost Score (0–100)** with classification (OPTIMIZED/GOOD/FAIR/NEEDS_WORK/CRITICAL) and a prioritized findings table with dollar impact and ready-to-apply remediation snippets.
+The output is a **Cost Score (0–100)** with classification (OPTIMIZED/GOOD/FAIR/NEEDS_WORK/CRITICAL), computed over the dimensions that could be assessed, and a prioritized findings table with dollar impact and ready-to-apply remediation snippets.
 
 ## Assessment Dimensions
 
@@ -62,7 +62,7 @@ skills/eks-cost-intelligence/
 - AWS credentials with EKS read access
 - `kubectl` configured for the target cluster
 - **Required permissions:** `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `elasticloadbalancing:DescribeLoadBalancers`
-- **Optional (for richer analysis):** `ce:GetCostAndUsage`, `cloudwatch:GetMetricData`, `pricing:GetProducts`, `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration`
+- **Optional (for richer analysis):** `ce:GetCostAndUsage`, `cloudwatch:GetMetricData`, `pricing:GetProducts`, `route53:ListHostedZonesByVPC`, `organizations:DescribeOrganization`, `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration`
 
 ## Relationship to other skills
 

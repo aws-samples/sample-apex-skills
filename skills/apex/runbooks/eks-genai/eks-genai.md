@@ -104,7 +104,7 @@ Self-grade before presenting. Each item is binary — passes or fails.
 - [ ] Cost guidance is directional with caveats — no point estimates.
 - [ ] The build path names a concrete `awslabs/ai-on-eks` blueprint and a sequenced 30/60/90 plan, and flags any escalation trigger.
 
-Pass threshold: 5/6. Below 4/6 means rework — most often the hardware choice skipped Neuron or the security baseline was dropped.
+Pass threshold: 5/6 or more. At 4/6, fix the failed items and re-check. Under 4/6 means rework: most often the hardware choice skipped Neuron or the security baseline was dropped.
 
 ## Conversation Style
 

@@ -310,9 +310,9 @@ After generating architecture recommendations, evaluate against the six AWS Well
 
 | Score | Status | Action |
 |---|---|---|
-| **80-100%** | Pass | Present to user |
-| **60-79%** | Gaps found | Fix identified gaps, re-check |
-| **Below 60%** | Major gaps | Significant rework needed |
+| **80% or more** | Pass | Present to user |
+| **60% to under 80%** | Gaps found | Fix identified gaps, re-check |
+| **Under 60%** | Major gaps | Significant rework needed |
 
 ### How to Score
 
