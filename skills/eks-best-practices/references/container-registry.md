@@ -387,7 +387,7 @@ Managed signing pairs with Kubernetes admission controllers for deploy-time veri
 
 | Tool | How It Verifies |
 |---|---|
-| **Kyverno** | As of Kyverno v1.19.2, built-in Notation verification (`verifyImages` and `ImageValidatingPolicy`) cannot verify AWS Signer signatures; it needs the AWS Signer plugin ([kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws)) ("Kyverno – A Kubernetes policy engine configured with an AWS Signer plugin for validating signatures.", [EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)). `verifyImages` is a `ClusterPolicy` rule, and `ClusterPolicy` is deprecated since Kyverno v1.19; `ImageValidatingPolicy` replaces it ([Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)) |
+| **Kyverno** | As of Kyverno v1.19.2, built-in Notation verification (`verifyImages` and `ImageValidatingPolicy`) cannot verify AWS Signer signatures. Use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, which runs the AWS Signer plugin ("Kyverno – A Kubernetes policy engine configured with an AWS Signer plugin for validating signatures.", [EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)); its sample is a `ClusterPolicy` (deprecated since v1.19, removal planned for v1.20 per [Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)), so recheck when v1.20 ships |
 | **OPA Gatekeeper + Ratify** | Gatekeeper is the admission controller; Ratify (external data provider, configured with the AWS Signer plugin and a Notation trust policy) verifies the signature, and the constraint template blocks on Ratify's result |
 
 DO:
