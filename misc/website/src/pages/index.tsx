@@ -27,7 +27,8 @@ export default function Home(): ReactNode {
             <SkillFinder variant="hero" />
             <p className="apex-home__facts">
               {skillCount} skills today: {counts.eks} for Amazon EKS, {counts.ecs} for Amazon ECS and {counts.general}{' '}
-              general. Open source under MIT-0, built by AWS Solutions Architects, TAMs and ProServe.
+              general. Open source under MIT-0; vendored skills keep their own licence. Built by AWS Solutions
+              Architects, TAMs and ProServe.
             </p>
           </div>
         </header>
@@ -48,7 +49,7 @@ export default function Home(): ReactNode {
               <h2 id="install-title">Install</h2>
               <p>
                 Skills are folders of instructions and scripts that your agent loads when a task needs them.
-                Assessments are read-only, and no skill changes your account or cluster without your confirmation.
+                Runs started from /apex keep assessments read-only and ask before changing your account or cluster.
               </p>
             </div>
             <InstallBlock />
