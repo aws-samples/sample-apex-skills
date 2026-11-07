@@ -440,6 +440,7 @@ spec:
       - maxSkew: 1
         topologyKey: topology.kubernetes.io/zone
         whenUnsatisfiable: DoNotSchedule
+        minDomains: 3          # set to the zones your nodes can launch in; too high leaves pods Pending
         labelSelector:
           matchLabels:
             app: my-app
@@ -455,10 +456,16 @@ spec:
 
 | `whenUnsatisfiable` | Behavior | Use When |
 |--------------------|----------|----------|
-| **DoNotSchedule** | Strict — pod stays pending | Critical services, hard HA requirement |
+| **DoNotSchedule** | Strict: pod stays Pending, including when a zone has no capacity | Critical services, hard HA requirement |
 | **ScheduleAnyway** | Best-effort — may be uneven | Non-critical, prefer availability over balance |
 
-**Recommended pattern:** Use `DoNotSchedule` for zone spread + `ScheduleAnyway` for host spread. This ensures AZ distribution while allowing scheduling flexibility across nodes.
+**Recommended pattern:** Use `DoNotSchedule` for zone spread + `ScheduleAnyway` for host spread. This spreads replicas across the zones that have nodes while allowing scheduling flexibility across nodes; add `minDomains` (below) so a cold start cannot place every replica in one zone.
+
+**Why `DoNotSchedule` for the zone key:** kube-scheduler only knows the zones of nodes that already exist ("The scheduler doesn't have prior knowledge of all the zones or other topology domains that a cluster has. They are determined from the existing nodes in the cluster.", [Kubernetes docs](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)). With `ScheduleAnyway` on the zone key, Karpenter (or any autoscaler scaling up from few nodes) can launch nodes in several zones, yet the pending pods bind to whichever node is Ready first and the empty nodes are then consolidated away: a cold-start rollout can put every replica in one zone. A Karpenter maintainer's advice for this is `DoNotSchedule` plus `minDomains` ([kubernetes-sigs/karpenter#517](https://github.com/kubernetes-sigs/karpenter/issues/517)). The [AWS EKS Best Practices Guide](https://docs.aws.amazon.com/eks/latest/best-practices/application.html) example uses `ScheduleAnyway` on the zone key; do not copy it for zone spread on an autoscaled cluster (its `labelSelector`, `app: express-test`, also does not match its own Pod label `app: web-server`, so as written it spreads nothing).
+
+**Set `minDomains`** to the number of zones the NodePool can launch in. While fewer eligible zones than `minDomains` have nodes, the scheduler treats the global minimum as 0, so each zone takes at most `maxSkew` matching pods and the rest stay Pending until nodes exist in more zones. A value higher than the zones the pods can schedule into (every node group or NodePool their node selector allows) leaves the surplus replicas Pending until nodes exist in that many zones. `minDomains` is valid only with `whenUnsatisfiable: DoNotSchedule` and is GA in Kubernetes 1.30 (on by default since 1.27). If Karpenter knows more zones than this NodePool allows (another NodePool, or EC2NodeClass subnets in other zones), it counts those empty zones in the spread and replicas can stay Pending at any `minDomains` value ([kubernetes-sigs/karpenter#2227](https://github.com/kubernetes-sigs/karpenter/issues/2227), open as of 2026-10-30; [aws/karpenter-provider-aws#7585](https://github.com/aws/karpenter-provider-aws/issues/7585)). Restrict the pod's zones too, with a nodeSelector or required nodeAffinity on `topology.kubernetes.io/zone`, or limit the EC2NodeClass subnets to the NodePool's zones.
+
+**Zonal outages:** with `DoNotSchedule` and the default `nodeTaintsPolicy: Ignore`, nodes in a failed zone still count toward the skew while they exist, so replacement pods can stay Pending for the length of the outage. `nodeTaintsPolicy: Honor` (GA in Kubernetes 1.33) leaves out of the count nodes with a taint the pod does not tolerate, including the `node.kubernetes.io/unreachable` and `not-ready` NoSchedule taints that failed nodes get, and cordoned nodes. That helps only while the zones left are at least `minDomains`. With `minDomains` set to all zones, as above, a zone loss makes the global minimum 0, so each surviving zone holds at most `maxSkew` matching pods: to run on N-1 zones, `maxSkew` must be at least the replicas each surviving zone must hold.
 
 ### Pod Anti-Affinity Alternative
 
@@ -569,6 +576,7 @@ spec:
       - maxSkew: 1
         topologyKey: topology.kubernetes.io/zone
         whenUnsatisfiable: DoNotSchedule
+        minDomains: 3          # set to the zones your nodes can launch in; too high leaves pods Pending
         labelSelector:
           matchLabels:
             app: my-app
