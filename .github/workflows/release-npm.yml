@@ -18,12 +18,12 @@ jobs:
         working-directory: misc/installer
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.release.tag_name }}
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
@@ -33,6 +33,10 @@ jobs:
 
       - name: Verify version matches tag
         run: |
+          case "$GITHUB_REF_NAME" in
+            v[0-9]*) ;;
+            *) echo "::error::Release tag ($GITHUB_REF_NAME) must match v[0-9]* (for example v1.3.0)"; exit 1 ;;
+          esac
           TAG="${GITHUB_REF_NAME#v}"
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$TAG" != "$PKG_VERSION" ]; then
@@ -47,7 +51,8 @@ jobs:
         id: check
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          if npm view "apex-skills@${VERSION}" version 2>/dev/null; then
+          PUBLISHED=$(npm view "apex-skills@${VERSION}" version 2>/dev/null || true)
+          if [ "$PUBLISHED" = "$VERSION" ]; then
             echo "already_published=true" >> "$GITHUB_OUTPUT"
           else
             echo "already_published=false" >> "$GITHUB_OUTPUT"

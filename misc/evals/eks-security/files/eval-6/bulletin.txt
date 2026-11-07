@@ -1,0 +1,7 @@
+Recorded excerpt of the public AWS security bulletin, saved for an offline eval fixture.
+Source: https://aws.amazon.com/security/security-bulletins/2026-170-aws/
+Read: 2026-11-05T15:04:00Z
+
+Content Type: Important (requires attention)
+Impacted versions: aws-network-policy-agent < 1.3.7 Amazon VPC CNI Managed Add-on < 1.22.3
+Workarounds: There are no workarounds available.

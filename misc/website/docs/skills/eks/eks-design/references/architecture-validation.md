@@ -149,7 +149,7 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 - [ ] Every ADR has at least 2 alternatives with pros/cons
 - [ ] Every ADR has specific rationale (not generic "best practice")
 - [ ] Every ADR has consequences (positive and negative)
-- [ ] Every ADR has research sources
+- [ ] Every ADR has research sources and a checked-on date
 
 ## Scoring Matrix
 

@@ -16,6 +16,10 @@ This skill performs a live cost efficiency assessment of an EKS cluster. It conn
 
 This skill is focused on **live cost assessment** — answering the question: "Where is this cluster wasting money, and how much can I save?"
 
+## Start Here — Verify the Assessment Connection
+
+Before delegating any audit work, the agent receiving the request must verify the connection and list nodes, namespaces, pods and deployments itself. For native reads, use the Agent Space’s read-only Kubernetes capability on its AWS association, even when no MCP association is listed. If the user selects MCP, keep all Kubernetes calls on that connection. Verify the executing role and bind each call to the account, region and cluster confirmed by DescribeCluster. **If any of the four reads fails, is denied or cannot be confirmed, return Assessment Error without a numeric score, including a provisional, AWS-only or delegated score. An empty list is a valid successful result.** Other denied reads make their dependent checks UNKNOWN; apply the dimension coverage rule in `references/report-generation.md`.
+
 ## Prerequisites
 
 ### Required IAM Permissions (Agent Space Role)
@@ -38,6 +42,7 @@ The following permissions are included:
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`
+- `route53:ListHostedZonesByVPC` (optional: centralized VPC endpoint zones)
 
 **Elastic Load Balancing (required):**
 - `elasticloadbalancing:DescribeLoadBalancers`
@@ -47,6 +52,7 @@ The following permissions are included:
 **Cost Explorer (optional — enables dollar-accurate spend):**
 - `ce:GetCostAndUsage`
 - `ce:GetCostForecast`
+- `organizations:DescribeOrganization`
 
 **CloudWatch (optional — enables utilization-based analysis):**
 - `cloudwatch:GetMetricData`
@@ -59,8 +65,9 @@ The following permissions are included:
 - `elasticfilesystem:DescribeLifecycleConfiguration`
 
 **Kubernetes API access (required):**
-- The Agent Space must have Kubernetes API access to the target cluster (via EKS Access Entry or aws-auth ConfigMap)
-- Required RBAC: `get`, `list` on pods, nodes, deployments, services, persistentvolumeclaims, configmaps, secrets, namespaces, events, endpointslices
+- The Agent Space role requires an authentication mode that includes the EKS API and an access entry associated with `AmazonAIOpsAssistantPolicy`.
+- `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the verified connection. A caller without Secret list permission leaves Idle Resources SKIPPED for scoring.
+- RBAC used across the assessment: `get`, `list` on pods, nodes, deployments, services, persistentvolumeclaims, configmaps, secrets, namespaces, events, endpointslices
 
 ---
 
@@ -102,6 +109,8 @@ The following permissions are included:
 
 ### Step 0: Pre-flight — Cluster Discovery and Validation
 
+Run the account tier check in `references/cost-data-collection.md` (section 1.2) before the dimension checks.
+
 **Action 1 — Discover clusters**
 
 Use the EKS ListClusters API to discover available clusters in the current region.
@@ -118,7 +127,7 @@ Use the EKS ListClusters API to discover available clusters in the current regio
 
 **Action 2 — Describe the selected cluster**
 
-Use the EKS DescribeCluster API for the target cluster. Extract: cluster name, Kubernetes version, platform version, region, status, account ID.
+Use the EKS DescribeCluster API for the target cluster. Extract: cluster name, Kubernetes version, platform version, region, status, account ID, cluster ARN, endpoint and `accessConfig.authenticationMode`.
 
 **Action 3 — Validate cluster status**
 
@@ -129,6 +138,11 @@ Use the EKS DescribeCluster API for the target cluster. Extract: cluster name, K
 | `FAILED` | **Skip cluster** — log "Cluster `<name>` is in FAILED state; recovery required before cost assessment." If this is the only cluster, terminate with error report. |
 
 **Action 4 — Gather cluster context**
+
+| Observed failure | Action |
+|---|---|
+| Kubernetes forbids listing nodes | Stop without a score. Request read-only RBAC granting `get`/`list` on nodes. `AmazonEKSViewPolicy` omits nodes. |
+| Generic MCP HTTP 403 during connection verification or a core list | Stop on the selected connection. Report the failed operation and available request ID. Leave the cause unverified, including IAM and Kubernetes policy attribution. |
 
 Collect the following using AWS and Kubernetes APIs:
 - Kubernetes version and platform version (from DescribeCluster response)
@@ -159,7 +173,7 @@ Data collection uses:
 - CloudWatch Container Insights metrics (pod CPU/memory utilization) via CloudWatch GetMetricData API
 - Kubernetes API to list nodes with allocatable resources and current allocations
 
-If metrics-server or Container Insights is unavailable, mark utilization checks as SKIPPED and proceed with request-only analysis.
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (4 and 5), and the report names it partly assessed.
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
@@ -249,10 +263,10 @@ Data collection uses:
 
 Read `references/report-generation.md` for the scoring algorithm.
 
-Apply the scoring model:
+Apply the scoring model only after confirming the core reads in **Start Here**, including when a delegate supplies findings:
 - Start at 100 points
 - Apply severity-weighted deductions per dimension (capped at dimension maximum)
-- Skipped dimensions contribute zero deduction
+- Skipped dimensions contribute zero deduction and leave the denominator: the score is renormalised over the assessed dimensions
 - Classify final score: OPTIMIZED (90-100), GOOD (75-89), FAIR (60-74), NEEDS_WORK (40-59), CRITICAL (0-39)
 
 ### Step 8: Report Generation
@@ -297,7 +311,7 @@ The skill calculates a weighted cost efficiency score:
 **Key differences from eks-upgrade-check scoring:**
 - No hard-blocker override (cost issues don't prevent cluster operation)
 - Severity-weighted deductions within each dimension
-- Skipped dimensions excluded entirely (not penalized)
+- Skipped dimensions renormalised out: scored at the assessed dimensions' average rate
 
 ---
 
@@ -335,7 +349,7 @@ The following are intentionally excluded from the initial release and may be add
 ## Operational Rules
 
 1. **Do NOT hardcode or guess cluster names.** Always discover clusters by listing them first.
-2. **Do NOT retry a failed API call more than once.** If it fails twice, log the failure, skip that check, and continue.
+2. **Do NOT retry a failed API call more than once.** If it fails twice, stop if it is a core read (Start Here). Otherwise log the failure, skip that check, and continue.
 3. **Always read the relevant reference file before executing checks for that dimension.**
 4. **Do NOT duplicate general advisory content.** Keep recommendations specific to cost findings with actionable remediation steps.
 5. **Emit findings as structured output** following the schema in `references/findings-format.md`.

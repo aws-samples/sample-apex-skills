@@ -1,6 +1,6 @@
 ---
 title: Workshop
-sidebar_position: 5
+sidebar_position: 5.5
 ---
 
 # Agentic Platform Engineering Experience

@@ -14,6 +14,7 @@ Comprehensive guidance for designing, deploying, and operating Amazon EKS cluste
 - Choosing between EKS compute options (Fargate, MNG, Karpenter, Auto Mode)
 - Configuring EKS networking (VPC CNI, ingress, service mesh)
 - Implementing EKS security (IAM, pod security, secrets)
+- Setting up security operations (staying informed, patch cadence, emergency fixes, build hygiene, event response shape)
 - Planning cluster upgrades or migrations
 - Reviewing EKS architecture decisions
 - Working with terraform-aws-modules/terraform-aws-eks examples
@@ -158,16 +159,24 @@ Three models run EKS outside a standard in-Region cluster. Pick by who owns the 
 - ❌ Don't use wildcard conditions in IRSA trust policies
 - ❌ Don't attach application permissions to node IAM roles
 
-### Pod Security Baseline
+### Pod Security Admission
 
-Apply Pod Security Admission (PSA) labels to all namespaces:
+Apply Pod Security Admission (PSA) labels to every namespace. The stance, which the references follow: **enforce `restricted` for application workloads**; **`baseline` is the floor**, only for a namespace that cannot meet restricted yet, with `warn` and `audit` at restricted to track the gap; `privileged` only for system namespaces that need it (kube-system, CNI, CSI and agent daemonsets).
 
 ```yaml
-# Minimum: enforce baseline, warn on restricted
+# Application namespace
+metadata:
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+# Floor: a namespace still being brought up to restricted
 metadata:
   labels:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
 ```
 
 ### Secrets Management
@@ -181,6 +190,23 @@ metadata:
 Envelope encryption is on by default (≥1.28) and covers all Kubernetes API data; layer your own KMS CMK when you need key control and CloudTrail visibility. Source: https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html
 
 **For detailed security guidance, see:** [Security Reference](references/security.md) | [Runtime & Network](references/security-runtime-network.md) | [Supply Chain & Compliance](references/security-supply-chain.md)
+
+### Security Operations
+
+Hardening is half the job; the other half is running security over time. Four practices, detailed in [Security Operations](references/security-operations.md):
+
+| Practice | Key rule |
+|----------|----------|
+| **Staying informed** | Watch AWS security bulletins, the Kubernetes CVE feed, node OS advisories, add-on releases and image findings; route them into on-call alerting, not a review meeting |
+| **Patch cadence** | A fixed cadence for add-ons, node images and base images, plus a separate emergency path for a security fix that does not wait for the upgrade window (non-production first, then roll out) |
+| **Build hygiene** | Pin base images by digest and move the pin through review; install from a committed lockfile in an isolated build step; rebuild on a cadence, since package scanners (such as ECR enhanced scanning) match only packages tracked in CVE advisories |
+| **Event response** | One shape: prepare, scope, record, contain (pod-scoped), investigate, remediate, verify, report |
+
+**Live checks: eks-security.** This skill does not read a cluster. Route these asks to eks-security:
+- "Am I exposed to this CVE, bulletin or advisory?": eks-security C1 CVE and advisory review
+- "We have a security event on the cluster; what do we do?": eks-security C2 security event response
+- "Would our setup contain a compromised pod?": eks-security C3 posture check
+- "How far behind latest are we?" with no CVE in play: eks-upgrade-check
 
 ## Reliability Essentials
 
@@ -395,6 +421,7 @@ This skill uses **progressive disclosure** — essential guidance is in this mai
 - **[Security](references/security.md)** — IAM, Cluster Access Manager, Pod Identity, IRSA, pod security standards, multi-tenancy, secrets management, data encryption
 - **[Security — Runtime & Network](references/security-runtime-network.md)** — Runtime threat detection (GuardDuty, seccomp, AppArmor, Falco), network policies, SG for pods, encryption in transit, detective controls
 - **[Security — Supply Chain & Compliance](references/security-supply-chain.md)** — Image security (SBOMs, attestations, ECR hardening), infrastructure hardening (Bottlerocket, CIS benchmarks), regulatory compliance, incident response
+- **[Security Operations](references/security-operations.md)**: staying informed (bulletins, CVE feeds, alerting), patch cadence and the emergency fix path, build hygiene (digest pinning, lockfiles, scanner limits), security event response shape, routing to eks-security for live checks
 - **[Networking](references/networking.md)** — VPC CNI modes (secondary IP, prefix delegation, custom networking), subnet/CIDR planning, IPv4 vs IPv6, Security Groups for Pods, IP address management
 - **[Networking — Ingress & DNS](references/networking-ingress-dns.md)** — Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity
 - **[Reliability & Resiliency — Core](references/reliability-core.md)** — HA patterns, PDBs, health probes, load balancer health checks, lifecycle hooks, topology spread, resource management

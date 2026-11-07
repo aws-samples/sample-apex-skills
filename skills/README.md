@@ -45,6 +45,7 @@ Advisory guidance for Amazon EKS architecture and configuration — compute stra
 | [reliability-advanced.md](./eks-best-practices/references/reliability-advanced.md) | Reliability advanced |
 | [reliability-core.md](./eks-best-practices/references/reliability-core.md) | Reliability core |
 | [scalability.md](./eks-best-practices/references/scalability.md) | Scalability |
+| [security-operations.md](./eks-best-practices/references/security-operations.md) | Security operations |
 | [security-runtime-network.md](./eks-best-practices/references/security-runtime-network.md) | Security runtime network |
 | [security-supply-chain.md](./eks-best-practices/references/security-supply-chain.md) | Security supply chain |
 | [security.md](./eks-best-practices/references/security.md) | Security |
@@ -252,9 +253,16 @@ EKS cluster reconnaissance and environment discovery — reports the raw FACTS o
 | [iac.md](./eks-recon/references/iac.md) | Iac |
 | [networking.md](./eks-recon/references/networking.md) | Networking |
 | [observability.md](./eks-recon/references/observability.md) | Observability |
+| [report-comparison.md](./eks-recon/references/report-comparison.md) | Report comparison |
 | [security.md](./eks-recon/references/security.md) | Security |
 | [storage.md](./eks-recon/references/storage.md) | Storage |
 | [workloads.md](./eks-recon/references/workloads.md) | Workloads |
+
+**Scripts:**
+
+| Script | Description |
+|--------|-------------|
+| [gitops_signals.py](./eks-recon/scripts/gitops_signals.py) | Gitops signals |
 
 **Agents:**
 
@@ -275,28 +283,48 @@ EKS cluster reconnaissance and environment discovery — reports the raw FACTS o
 
 ### [eks-security](./eks-security/)
 
-Use whenever someone needs security or compliance guidance for Amazon EKS — phrased as "CIS Benchmark for EKS", "HIPAA / PCI-DSS / FedRAMP / SOC 2 / GDPR on EKS", "harden my EKS cluster", "Bottlerocket vs AL2023 vs RHEL/Ubuntu AMI", "EKS Pod Identity vs IRSA", "Access Entries vs aws-auth", "GuardDuty for EKS", "Pod Security Admission / Kyverno / OPA", "NetworkPolicy / Security Groups for Pods", "ECR scanning / image signing (Cosign / Notation)", "EKS audit logging", "etcd / secrets encryption", or regulated-workload / audit-prep guidance. Walks the discovery-driven 7-layer security stack (OS/AMI → identity → workload → image → runtime → audit → compliance accelerators), the compliance-regime scope view, the AWS-canonical baseline, and a 30/60/90 hardening roadmap. Trigger even if "compliance" is never said — any EKS hardening, audit-prep, or regulated-workload decision qualifies. Skip for non-EKS (ECS/ROSA), account-level security with no EKS angle, or GenAI-workload security (use eks-genai).
+Read-only scripted security reviews of a live Amazon EKS cluster (exposed / not exposed / unknown), plus hardening and compliance guidance. (1) CVE and advisory review - "am I exposed to CVE-...", "check this AWS bulletin or GHSA against my cluster", "CVE review for EKS" - verdicts for add-ons and images; kubelet and node-OS items are review-only. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, record, contain, snapshot, fix, verify. (3) Posture check - "would my cluster contain a compromised pod", IMDS, NetworkPolicy, PSA, identity, logging, GuardDuty, endpoint, supply chain. Also hardening and audit prep - 7-layer stack, CIS, HIPAA/PCI-DSS/FedRAMP/SOC 2, Pod Identity vs IRSA, Access Entries, image signing. Skip for EKS knowledge (eks-best-practices), Well-Architected review (eks-well-architected-review), upgrade readiness (eks-upgrade-check), an operational review (eks-operation-review), inventory (eks-recon), GenAI model security (eks-genai), non-EKS.
 
 **References** (loaded on demand):
 
 | Reference | Description |
 |-----------|-------------|
+| [advisory-sources.md](./eks-security/references/advisory-sources.md) | Advisory sources |
 | [audit-logging.md](./eks-security/references/audit-logging.md) | Audit logging |
 | [auto-mode-security.md](./eks-security/references/auto-mode-security.md) | Auto mode security |
 | [compliance-accelerators.md](./eks-security/references/compliance-accelerators.md) | Compliance accelerators |
+| [compliance-fedramp.md](./eks-security/references/compliance-fedramp.md) | Compliance fedramp |
 | [compliance-hipaa.md](./eks-security/references/compliance-hipaa.md) | Compliance hipaa |
 | [compliance-pci.md](./eks-security/references/compliance-pci.md) | Compliance pci |
 | [compliance-regimes.md](./eks-security/references/compliance-regimes.md) | Compliance regimes |
 | [compliance-soc2.md](./eks-security/references/compliance-soc2.md) | Compliance soc2 |
+| [cve-advisory-review.md](./eks-security/references/cve-advisory-review.md) | Cve advisory review |
 | [encryption-and-secrets.md](./eks-security/references/encryption-and-secrets.md) | Encryption and secrets |
 | [engagement-and-response.md](./eks-security/references/engagement-and-response.md) | Engagement and response |
 | [identity-and-access.md](./eks-security/references/identity-and-access.md) | Identity and access |
 | [image-supply-chain.md](./eks-security/references/image-supply-chain.md) | Image supply chain |
-| [incident-response-and-forensics.md](./eks-security/references/incident-response-and-forensics.md) | Incident response and forensics |
 | [multi-tenancy.md](./eks-security/references/multi-tenancy.md) | Multi tenancy |
 | [os-ami-hardening.md](./eks-security/references/os-ami-hardening.md) | Os ami hardening |
+| [posture-check.md](./eks-security/references/posture-check.md) | Posture check |
+| [read-only-access.md](./eks-security/references/read-only-access.md) | Read only access |
 | [runtime-security.md](./eks-security/references/runtime-security.md) | Runtime security |
+| [security-event-response.md](./eks-security/references/security-event-response.md) | Security event response |
 | [workload-security.md](./eks-security/references/workload-security.md) | Workload security |
+
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [advisory_check.py](./eks-security/assets/advisory_check.py) | Advisory check |
+| [advisory_fetch.py](./eks-security/assets/advisory_fetch.py) | Advisory fetch |
+| [collect.sh](./eks-security/assets/collect.sh) | Collect |
+| [components.json](./eks-security/assets/components.json) | Components |
+| [match.py](./eks-security/assets/match.py) | Match |
+| [posture_collect.sh](./eks-security/assets/posture_collect.sh) | Posture collect |
+| [posture_extra.sh](./eks-security/assets/posture_extra.sh) | Posture extra |
+| [posture_reduce.sh](./eks-security/assets/posture_reduce.sh) | Posture reduce |
+| [posture_score.sh](./eks-security/assets/posture_score.sh) | Posture score |
+| [render_report.py](./eks-security/assets/render_report.py) | Render report |
 
 ---
 

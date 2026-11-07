@@ -32,7 +32,7 @@ Detect the Infrastructure-as-Code tooling used to manage the specified EKS clust
 
 2. **Detection order**:
    - First check workspace files (*.tf, cdk.json, etc.)
-   - Then check cluster tags for IaC fingerprints
+   - Always reconcile target-cluster tags with workspace results; an empty workspace cannot negate tag evidence
    - Then check CloudFormation stacks
 
 3. **Handle errors gracefully**:
@@ -51,4 +51,5 @@ in `references/cluster-basics.md`. Include every field; use `null` where a fact 
 - Do NOT include recommendations or analysis - just facts
 - Be concise - the main agent will aggregate your findings
 - Confidence labels (High/Medium/Low) are evidence-strength metadata, not a verdict:
-  workspace files found = high; tags indicate IaC = medium; inferring from patterns = low
+  use the confidence table in `references/iac.md`: matching workspace evidence is high;
+  files without a cluster match are medium; tag-only evidence is low.

@@ -74,7 +74,7 @@ Only attach these policies -- never application permissions:
 
 **Key components:**
 1. `module "karpenter"` -- controller IAM role (Pod Identity) + node IAM role
-2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`)
+2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`), with `depends_on = [module.eks_addons_webhooks]` in Pattern 1
 3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs
 4. `aws_ec2_tag` -- discovery tags on private subnets and cluster primary security group
 
@@ -115,6 +115,8 @@ spec:
     memory: 2000Gi
   weight: 50
 ```
+
+Multi-arch nodes need multi-arch images: with `arm64` in the NodePool, each workload image must be a manifest list (OCI image index) that covers `linux/amd64` and `linux/arm64` (two native builds joined, or one `buildx` build for both platforms), so a pod scheduled onto a Graviton node pulls the arm64 binary, or the workload must be pinned with a `kubernetes.io/arch` nodeSelector. See [graviton-migration multi-arch pipelines](../../graviton-migration/references/multi-arch-pipelines.md).
 
 EC2NodeClass defaults:
 
@@ -169,6 +171,7 @@ configuration_values = jsonencode({
 - **Intra subnets**: EKS control plane ENIs (when available)
 - **All subnets**: Tagged `kubernetes.io/cluster/<cluster-name> = shared`
 - **NAT Gateway**: One per AZ for production (eliminates inter-AZ NAT traversal)
+- **EIP quota pre-flight**: By default (unless `reuse_nat_ips` with `external_nat_ip_ids`), the `terraform-aws-modules/vpc` module creates one Elastic IP per NAT gateway, so one NAT gateway per AZ takes one EIP per AZ against a default quota of 5 EIPs per Region ([VPC quotas](https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html#vpc-limits-eips)). Check the account's free EIPs in the target Region before apply and request an increase if short, or use a single NAT gateway (`single_nat_gateway = true`) for non-prod. A single NAT gateway serves every AZ, so if its AZ is down, resources in the other AZs lose internet access ([NAT gateway basics](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-basics.html)). To cut cross-AZ data transfer charges, keep high-traffic resources in the NAT gateway's AZ, or create a NAT gateway in each AZ with resources ([NAT gateway pricing](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-pricing.html)).
 
 ### kube-proxy
 
@@ -358,9 +361,13 @@ Strict sequence:
 
 | Version | Removed |
 |---------|---------|
-| 1.25 | PodSecurityPolicy, batch/v1beta1 CronJob |
-| 1.26 | flowcontrol.apiserver.k8s.io/v1beta1 |
+| 1.25 | batch/v1beta1 CronJob, discovery.k8s.io/v1beta1 EndpointSlice, events.k8s.io/v1beta1 Event, autoscaling/v2beta1 HorizontalPodAutoscaler, policy/v1beta1 PodDisruptionBudget, policy/v1beta1 PodSecurityPolicy (no successor; use Pod Security Admission), node.k8s.io/v1beta1 RuntimeClass |
+| 1.26 | flowcontrol.apiserver.k8s.io/v1beta1 FlowSchema, PriorityLevelConfiguration; autoscaling/v2beta2 HorizontalPodAutoscaler |
 | 1.27 | storage.k8s.io/v1beta1 CSIStorageCapacity |
+| 1.29 | flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema, PriorityLevelConfiguration |
+| 1.32 | flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema, PriorityLevelConfiguration |
+
+Every row is from the Kubernetes [Deprecated API Migration Guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/) (checked 2026-10-30; no removals listed after 1.32). Re-check it for the target version before each upgrade.
 
 ### Version Support
 
