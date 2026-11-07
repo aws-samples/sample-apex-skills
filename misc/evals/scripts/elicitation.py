@@ -56,11 +56,13 @@ class ElicitationConfig:
 
 
 def detect_pending_question(events: list[dict]) -> str | None:
-    """Scan events for an AskUserQuestion tool call that ended the session.
+    """Scan events for the question that ended the session.
 
     Returns the concatenated question text if found, None otherwise.
     The question is the last AskUserQuestion tool_use in the final assistant
-    message — this is what triggered the session end in -p mode.
+    message — this is what triggered the session end in -p mode. With no
+    AskUserQuestion, a skill that asks in plain text ends on its question:
+    the final text's last paragraph, when it holds a "?".
     """
     for evt in reversed(events):
         if evt.get("type") != "assistant":
@@ -75,6 +77,10 @@ def detect_pending_question(events: list[dict]) -> str | None:
                     if isinstance(q, dict):
                         parts.append(q.get("question", ""))
                 return " ".join(parts).strip() or None
+        for content in reversed(msg.get("content") or []):
+            if content.get("type") == "text" and content.get("text", "").strip():
+                last = content["text"].strip().split("\n\n")[-1].strip()
+                return last if "?" in last else None
         break
     return None
 
