@@ -167,9 +167,11 @@ const config: Config = {
           label: 'Get started',
         },
         {
+          // "Skills" alone is the docs sidebar's table at /docs/skills/;
+          // this is the finder, named as in the footer.
           to: '/skills',
           position: 'left',
-          label: 'Skills',
+          label: 'Find a skill',
         },
         {
           to: '/docs/examples',
