@@ -1,6 +1,6 @@
 import type {ReactNode} from 'react';
 import Link from '@docusaurus/Link';
-import {JOBS, PLATFORM_LABEL, SKILLS} from './skillCatalog';
+import {JOBS, PLATFORM_LABEL, SKILLS, jobLabel} from './skillCatalog';
 
 // The short block at the top of a skill page: what the skill is for, what it
 // is not for, what you get and how to run it. The SKILL.md body the agent
@@ -27,7 +27,7 @@ export default function SkillHeader({permalink, baseUrl}: {permalink: string; ba
         <span className={`apex-tag apex-tag--${skill.group}`}>{PLATFORM_LABEL[skill.group]}</span>
         {job && (
           <Link to={`/skills#job-${job.id}`} className="apex-skillhead__job">
-            {job.title}
+            {jobLabel(job)}
           </Link>
         )}
       </p>

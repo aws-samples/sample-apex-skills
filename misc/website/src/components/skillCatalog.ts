@@ -8,7 +8,7 @@ import manifest from '@site/static/manifests/skills.json';
 
 export type Platform = 'eks' | 'ecs' | 'general';
 
-export type JobId = 'design' | 'build' | 'assess' | 'migrate' | 'secure' | 'extend';
+export type JobId = 'knowledge' | 'design' | 'build' | 'assess' | 'migrate' | 'secure' | 'extend';
 
 export type Skill = {
   name: string;
@@ -25,14 +25,46 @@ export type CatalogSkill = Skill & {
   output?: string;
 };
 
-export const JOBS: {id: JobId; title: string; line: string}[] = [
-  {id: 'design', title: 'Design', line: 'Choose an architecture before you build.'},
-  {id: 'build', title: 'Build and ship', line: 'Generate the infrastructure code and the release path.'},
-  {id: 'assess', title: 'Assess what is running', line: 'Discover, score and review a live cluster or estate.'},
-  {id: 'migrate', title: 'Upgrade and migrate', line: 'Move a version, a controller, a CPU architecture or an app.'},
-  {id: 'secure', title: 'Secure', line: 'Check exposure, harden and prepare for audits.'},
+// The site's interim grouping (Knowledge Skills, then Solution Skills by day,
+// then tooling), until the v2 skill classes land. stage names the parent a
+// Day 2 group sits under, for labels such as the one on a skill page.
+export const JOBS: {id: JobId; title: string; line: string; stage?: string}[] = [
+  {id: 'knowledge', title: 'Knowledge Skills', line: 'Guidance your agent draws on when you ask and decide.'},
+  {id: 'design', title: 'Day 0 Design', line: 'Choose an architecture before you build.'},
+  {id: 'build', title: 'Day 1 Build', line: 'Generate the infrastructure code and the release path.'},
+  {id: 'assess', title: 'Assess what is running', line: 'Discover, score and review a live cluster or estate.', stage: 'Day 2 Operate'},
+  {id: 'migrate', title: 'Upgrade and migrate', line: 'Move a version, a controller, a CPU architecture or an app.', stage: 'Day 2 Operate'},
+  {id: 'secure', title: 'Secure', line: 'Check exposure, harden and prepare for audits.', stage: 'Day 2 Operate'},
   {id: 'extend', title: 'Set up and extend', line: 'Connect tools, write your own skills, keep docs in sync.'},
 ];
+
+// How the groups nest: a node is either one job's skill list or a heading
+// over other nodes.
+export type JobNode = {job: JobId} | {id: string; title: string; line: string; children: JobNode[]};
+
+export const JOB_TREE: JobNode[] = [
+  {job: 'knowledge'},
+  {
+    id: 'solution',
+    title: 'Solution Skills',
+    line: 'Skills that do the work, from the first design to running in production.',
+    children: [
+      {job: 'design'},
+      {job: 'build'},
+      {
+        id: 'operate',
+        title: 'Day 2 Operate',
+        line: 'Run, review and change what is in production.',
+        children: [{job: 'assess'}, {job: 'migrate'}, {job: 'secure'}],
+      },
+    ],
+  },
+  {job: 'extend'},
+];
+
+export function jobLabel(job: {title: string; stage?: string}): string {
+  return job.stage ? `${job.stage}: ${job.title}` : job.title;
+}
 
 export const PLATFORM_LABEL: Record<Platform, string> = {
   eks: 'EKS',
@@ -50,37 +82,37 @@ const LINES: Record<string, Lines> = {
     output: 'A design document with Mermaid diagrams, ADRs and a validation report',
   },
   'eks-best-practices': {
-    job: 'design',
+    job: 'knowledge',
     use: 'Answer EKS architecture and configuration questions.',
     notFor: 'generating documents or code (eks-design, eks-build)',
     output: 'Advice grounded in EKS best practices',
   },
   'eks-platform-engineering': {
-    job: 'design',
+    job: 'knowledge',
     use: 'Plan an internal developer platform on EKS.',
     notFor: 'single-cluster tuning with no platform angle',
     output: 'A platform stack: Backstage, ArgoCD, Kargo, ACK and kro choices',
   },
   'eks-genai': {
-    job: 'design',
+    job: 'knowledge',
     use: 'Plan GPU, Neuron, model serving or training on EKS.',
     notFor: 'Bedrock-only or SageMaker-only workloads',
     output: 'A GenAI stack plan with compute, serving and storage choices',
   },
   'ecs-architect': {
-    job: 'design',
+    job: 'knowledge',
     use: 'Pick the ECS deployment model for a new workload.',
     notFor: 'replatforming an existing app (ecs-modernize)',
     output: 'A launch type, capacity strategy and service design',
   },
   'ecs-genai': {
-    job: 'design',
+    job: 'knowledge',
     use: 'Run GPU, ML or LLM workloads on ECS.',
     notFor: 'Kubernetes (eks-genai)',
     output: 'GPU instance, launch type and serving choices for ECS',
   },
   'ecs-observability': {
-    job: 'design',
+    job: 'knowledge',
     use: 'Choose how to log, measure and trace ECS services.',
     notFor: 'deployment mechanics (ecs-devops)',
     output: 'A logs, metrics and traces stack for your launch types',
@@ -98,7 +130,7 @@ const LINES: Record<string, Lines> = {
     output: 'Terraform for Fargate, EC2 or Managed Instances capacity',
   },
   'ecs-devops': {
-    job: 'build',
+    job: 'knowledge',
     use: 'Set up safe deployments and CI/CD for ECS.',
     notFor: 'greenfield design with no release angle (ecs-architect)',
     output: 'A deployment strategy, rollback alarms and a pipeline',
@@ -181,7 +213,7 @@ const LINES: Record<string, Lines> = {
     output: 'Exposed or not-exposed verdicts and a hardening plan',
   },
   'ecs-security': {
-    job: 'secure',
+    job: 'knowledge',
     use: 'Harden ECS tasks, roles, secrets and images.',
     notFor: 'Kubernetes (eks-security)',
     output: 'Fixes and a 30, 60, 90 day hardening roadmap',

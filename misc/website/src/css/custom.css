@@ -469,6 +469,26 @@ code {
   font-size: 1.2rem;
 }
 
+/* A heading over job groups: Solution Skills, and Day 2 Operate inside it */
+.apex-stage__head {
+  padding: 1.75rem 0 0.25rem;
+}
+
+.apex-stage__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.45rem;
+}
+
+.apex-stage .apex-stage {
+  margin-left: 1.25rem;
+  padding-left: 1.25rem;
+  border-left: 3px solid var(--apex-orange);
+}
+
+.apex-stage .apex-stage .apex-stage__title {
+  font-size: 1.2rem;
+}
+
 .apex-job__line {
   margin: 0;
   font-size: 0.925rem;
@@ -869,6 +889,11 @@ code {
   .apex-job__list,
   .apex-jobs--full .apex-job__list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .apex-stage .apex-stage {
+    margin-left: 0;
+    padding-left: 0.875rem;
   }
 
   .apex-finder__input {
