@@ -17,7 +17,7 @@ The open-source EKS MCP server from [awslabs/mcp](https://github.com/awslabs/mcp
 
 ## Prerequisites
 
-- Python 3.10+ (`python3 --version`)
+- Python in the range the chosen release declares (`python3 --version`; SKILL.md Step 1b reads it from PyPI)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **For IAM mode**: AWS CLI configured (`aws configure list`)
 - **For kubeconfig mode**: Valid kubeconfig with cluster access
@@ -77,7 +77,7 @@ For write access (cluster creation, deployments), also attach:
 
 ### Basic Configuration (IAM Mode)
 
-Pin a reviewed version and bump it on purpose after reading the release notes.
+`<version>` is the SKILL.md Step 1b result: `latest`, or the exact version the user pinned.
 
 ```json
 {
@@ -85,7 +85,7 @@ Pin a reviewed version and bump it on purpose after reading the release notes.
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@0.2.1",
+        "awslabs.eks-mcp-server@<version>",
         "--allow-write",
         "--allow-sensitive-data-access"
       ],
@@ -107,7 +107,7 @@ Pin a reviewed version and bump it on purpose after reading the release notes.
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@0.2.1",
+        "awslabs.eks-mcp-server@<version>",
         "--allow-write",
         "--allow-sensitive-data-access"
       ],
@@ -132,7 +132,7 @@ Pin a reviewed version and bump it on purpose after reading the release notes.
 Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 
 ```json
-"args": ["awslabs.eks-mcp-server@0.2.1"]
+"args": ["awslabs.eks-mcp-server@<version>"]
 ```
 
 ## Config File Locations by Assistant
@@ -150,7 +150,7 @@ Use this format for the args array:
 
 ```json
 "args": [
-  "--from", "awslabs.eks-mcp-server@0.2.1",
+  "--from", "awslabs.eks-mcp-server@<version>",
   "awslabs.eks-mcp-server.exe",
   "--allow-write",
   "--allow-sensitive-data-access"

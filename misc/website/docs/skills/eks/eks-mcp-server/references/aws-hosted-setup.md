@@ -21,7 +21,7 @@ The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade ca
 
 - AWS account with EKS clusters
 - AWS CLI installed and configured (`aws configure list`)
-- Python 3.11 to 3.14 (`python3 --version`)
+- Python in the range the chosen release declares (`python3 --version`; SKILL.md Step 1b reads it from PyPI)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
 
@@ -52,7 +52,7 @@ Add the EKS MCP server to your assistant's MCP configuration. Replace `{region}`
 
 The same JSON below works for every supported assistant — only the config file path (or UI entry point) differs.
 
-Pin a reviewed version and bump it on purpose after reading the release notes.
+`<version>` is the SKILL.md Step 1b result: `latest`, or the exact version the user pinned.
 
 ```json
 {
@@ -60,7 +60,7 @@ Pin a reviewed version and bump it on purpose after reading the release notes.
     "eks-mcp": {
       "command": "uvx",
       "args": [
-        "mcp-proxy-for-aws@1.8.0",
+        "mcp-proxy-for-aws@<version>",
         "https://eks-mcp.{region}.api.aws/mcp",
         "--service", "eks-mcp",
         "--region", "{region}"
@@ -85,7 +85,7 @@ Add `--read-only` to args to disable write operations:
 
 ```json
 "args": [
-  "mcp-proxy-for-aws@1.8.0",
+  "mcp-proxy-for-aws@<version>",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--region", "{region}",
@@ -99,7 +99,7 @@ Specify a profile with `--profile`:
 
 ```json
 "args": [
-  "mcp-proxy-for-aws@1.8.0",
+  "mcp-proxy-for-aws@<version>",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--profile", "production",
@@ -113,7 +113,7 @@ Use this format for the args array:
 
 ```json
 "args": [
-  "--from", "mcp-proxy-for-aws@1.8.0",
+  "--from", "mcp-proxy-for-aws@<version>",
   "mcp-proxy-for-aws.exe",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
