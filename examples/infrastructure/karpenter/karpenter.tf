@@ -16,6 +16,10 @@ module "karpenter" {
   cluster_name = module.eks.cluster_name
   namespace    = local.namespace
 
+  # The controller policy is over the 6,144-character managed policy limit;
+  # an inline role policy allows 10,240.
+  enable_inline_policy = true
+
   node_iam_role_use_name_prefix = false
   node_iam_role_name            = local.name
 
