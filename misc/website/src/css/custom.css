@@ -70,7 +70,7 @@ code {
 }
 
 :focus-visible {
-  outline: 2px solid var(--apex-orange);
+  outline: 2px solid var(--apex-orange-text);
   outline-offset: 2px;
 }
 
@@ -272,7 +272,7 @@ code {
   box-shadow: 4px 4px 0 var(--apex-orange), 0 0 0 3px var(--apex-orange-wash);
 }
 
-[data-theme='dark'] .apex-finder__input {
+[data-theme='dark'] .apex-finder__input:not(:focus) {
   border-color: #c8d1db;
 }
 
@@ -455,6 +455,12 @@ code {
   margin-top: 1.5rem;
 }
 
+/* The job and group headings carry the #job- and #group- anchors. */
+.apex-job__title,
+.apex-stage__title {
+  scroll-margin-top: calc(var(--ifm-navbar-height) + 1rem);
+}
+
 .apex-job {
   display: grid;
   grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
@@ -581,7 +587,7 @@ code {
   cursor: pointer;
 }
 
-.apex-install__tab[aria-selected='true'] {
+.apex-install__tab[aria-pressed='true'] {
   color: var(--apex-ink);
   border-bottom-color: var(--apex-orange);
 }

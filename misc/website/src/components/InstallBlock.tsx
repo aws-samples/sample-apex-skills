@@ -28,7 +28,8 @@ const AGENTS: Agent[] = [
     run: (
       <>
         With the install from main, type <code>/apex</code> with your request in Kiro, or ask for it by name:
-        &ldquo;use apex to plan my EKS upgrade&rdquo;.
+        &ldquo;use apex to plan my EKS upgrade&rdquo;. Tested on Kiro CLI 2.35.1; Kiro CLI 1.27.0 rejected{' '}
+        <code>/apex</code>.
       </>
     ),
   },
@@ -76,14 +77,12 @@ export default function InstallBlock(): ReactNode {
 
   return (
     <div className="apex-install">
-      <div className="apex-install__tabs" role="tablist" aria-label="Agent">
+      <div className="apex-install__tabs" role="group" aria-label="Agent">
         {AGENTS.map((a) => (
           <button
             key={a.id}
             type="button"
-            role="tab"
-            id={`install-tab-${a.id}`}
-            aria-selected={a.id === active}
+            aria-pressed={a.id === active}
             aria-controls="install-panel"
             className="apex-install__tab"
             onClick={() => setActive(a.id)}
@@ -92,7 +91,7 @@ export default function InstallBlock(): ReactNode {
           </button>
         ))}
       </div>
-      <div className="apex-install__panel" role="tabpanel" id="install-panel" aria-labelledby={`install-tab-${active}`}>
+      <div className="apex-install__panel" id="install-panel">
         <div className="apex-install__route">
           <h3>Latest skills, with the /apex router</h3>
           <p>Copy every skill from main.</p>
@@ -100,7 +99,10 @@ export default function InstallBlock(): ReactNode {
         </div>
         <div className="apex-install__route">
           <h3>Release 1.3.0 installer</h3>
-          <p>Detects Claude Code and Kiro CLI and links the v1 release skills. It has no /apex router.</p>
+          <p>
+            Detects Claude Code and Kiro CLI and links the v1.3.0 release skills (2026-10-21): no /apex router, and
+            older versions of some skills than the pages here, which describe main.
+          </p>
           <Command text={INSTALLER} label="installer command" />
         </div>
         <p className="apex-install__run">{agent.run}</p>
