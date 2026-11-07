@@ -18,7 +18,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/repor
 
 ## Scoring Algorithm
 
-The Cost Score starts at 100 and applies severity-weighted deductions per dimension. The algorithm is deterministic: the same set of findings always produces the same score.
+Confirm successful lists of nodes, namespaces, pods and deployments on the verified connection before publishing any Cost Score, including a delegate's score. If any of those four lists failed or cannot be confirmed, return Assessment Error and leave the score unset. Otherwise start at 100 and apply severity-weighted deductions per dimension, scaled to the total weight of the assessed dimensions. An empty list is a valid successful result. The algorithm is deterministic: the same findings with the same dimension statuses always produce the same score.
 
 ### Dimension Weights (Max Deductions)
 
@@ -62,19 +62,27 @@ Each dimension's actual deduction is **capped** at its max_deduction. Multiple f
 actual_deduction = min(sum_of_finding_deductions, dimension.max_deduction)
 ```
 
+### Read Coverage
+
+A denied, failed or unverified read is **UNKNOWN**, never an empty inventory or evidence that a resource is absent. A successful empty list is valid evidence only for the resource and scope actually read. Reuse a confirmed inventory from this assessment at the same verified target and scope, or a documented alternative when available; do not replace a failed response with an empty result. Required inputs are those needed for an applicable check: a confirmed empty Service list needs no Endpoints read.
+
+After core inventory succeeds, **Idle Resources is SKIPPED (not assessed) for scoring** if an applicable check still lacks a required inventory. Retain independently verified findings, but exclude that dimension's deductions. Retained findings in a SKIPPED dimension carry no deduction; the score is renormalised over the assessed dimensions, so state the skipped dimensions and their weight beside the score and band. Other dimensions keep their documented partial-assessment and fallback rules; without such a rule or adequate evidence, mark the dimension SKIPPED rather than fully ASSESSED. Deduct only supported findings in a permitted partial assessment, and continue unrelated dimensions. Report the failed operation, scope and observed error; name a missing permission only when established, leaving transport or other causes unverified.
+
 ### SKIPPED Dimension Handling
 
-When a dimension cannot be assessed (missing data source, insufficient permissions):
+After core inventory succeeds, when an individual dimension cannot be assessed (missing data source, insufficient permissions):
 
 - The dimension's status is set to `SKIPPED`
-- The dimension contributes **zero deduction** to the total score
-- The dimension is **excluded from scoring** entirely (not penalized)
+- The dimension contributes **zero deduction**, and its max deduction leaves the denominator: the score is computed over the assessed dimensions only (see pseudocode)
+- The report states coverage as {N} of {M} dimensions
+- A SKIPPED check is one skipped for missing data or a denied read; a check that does not apply (no Spot nodes, no EFS) is not SKIPPED for scoring
 - The report notes the exclusion with the reason and remediation steps
 
 ### Complete Pseudocode
 
 ```
-score = 100
+if any required core list is denied or unverified:
+    return Assessment Error with no score
 
 for each dimension in [compute, spot_graviton, networking, storage, observability, idle]:
     if dimension.status == SKIPPED:
@@ -91,7 +99,9 @@ for each dimension in [compute, spot_graviton, networking, storage, observabilit
     dimension.actual_deduction = min(deduction, dimension.max_deduction)
 
 total_deductions = sum(d.actual_deduction for d in dimensions)
-score = max(0, 100 - total_deductions)
+assessed_max = sum(d.max_deduction for d in dimensions if d.status != SKIPPED)
+if assessed_max == 0: score = null  # no dimension assessed: no Cost Score
+else: score = floor(max(0, 100 - 100 * total_deductions / assessed_max))  # scores are floored to an integer
 ```
 
 ---
@@ -109,7 +119,8 @@ score = max(0, 100 - total_deductions)
 ### Classification Logic
 
 ```
-if score >= 90: classification = "OPTIMIZED"
+if score is null: classification = null  # no dimension assessed: no band
+elif score >= 90: classification = "OPTIMIZED"
 elif score >= 75: classification = "GOOD"
 elif score >= 60: classification = "FAIR"
 elif score >= 40: classification = "NEEDS_WORK"
@@ -179,10 +190,14 @@ Recommendations in the report are sorted by:
 
 ---
 
+{If no dimension is assessed: the heading reads ## Cost Score: not computed, with no band or status icon, and the next line says no dimension could be assessed, with each dimension's reason; the executive summary says the same.}
 ## Cost Score: {score}/100 — {classification}
 
+{If any dimension is SKIPPED and at least one is assessed: **Computed over {N} of {M} dimensions ({assessed_max} of 100 points).** Not assessed: {skipped dimensions and weights}.}
+{If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks}.}
+
 {executive_summary: 2-3 sentences summarizing the cluster's cost posture, top waste
-areas, and projected total savings if all recommendations are implemented.}
+areas, and projected total savings if all recommendations are implemented; name any partly assessed dimension.}
 
 ### Score Breakdown
 
@@ -194,7 +209,9 @@ areas, and projected total savings if all recommendations are implemented.}
 | Storage Costs | 15 | -{storage_deduction} | {status_icon} | {top_finding_summary} |
 | Observability Costs | 10 | -{observability_deduction} | {status_icon} | {top_finding_summary} |
 | Idle Resources | 15 | -{idle_deduction} | {status_icon} | {top_finding_summary} |
-| **Total** | **100** | **-{total_deduction}** | | **Score: {score}** |
+| **Total** | **{assessed_max}** | **-{total_deduction}** | {N} of {M} dimensions | **Score: {score}** |
+
+With no dimension assessed the cell reads **Score: not computed**.
 
 ---
 
@@ -233,6 +250,7 @@ areas, and projected total savings if all recommendations are implemented.}
 
 **Reason:** {specific error message, e.g., "metrics-server not available"}
 **Impact:** {what findings are missing, e.g., "CPU/memory utilization analysis unavailable"}
+**Retained verified findings (no deduction):** {table, or none}
 **Remediation:** {how to enable the missing data source}
 
 ---
@@ -325,14 +343,14 @@ Storage:
   actual_deduction = min(2.25, 15) = 2.25
 
 Observability:
-  status = SKIPPED → actual_deduction = 0
+  status = SKIPPED → actual_deduction = 0; its max of 10 leaves the denominator
 
 Idle:
   deduction = 15 × 0.3 = 4.5 (one HIGH finding)
   actual_deduction = min(4.5, 15) = 4.5
 
-Total deductions = 7.5 + 9.0 + 2.25 + 2.25 + 0 + 4.5 = 25.5
-Score = max(0, 100 - 25.5) = 74.5 → rounds to 74
+Total deductions = 25.5 over assessed max 90 (Observability excluded)
+Score = floor(max(0, 100 - 100 × 25.5 / 90)) = floor(71.67) = 71
 Classification: FAIR (60–74)
 ```
 

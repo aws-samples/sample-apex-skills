@@ -2,7 +2,7 @@
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution.
 
-> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-cost-intelligence/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-07-17.
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-cost-intelligence/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-11-05 against the corresponding native skill.
 
 ## Differences from Claude Code Version
 
@@ -14,4 +14,5 @@ This file documents the differences between the Claude Code version and the DevO
 | MCP configuration | Local `.mcp.json` with `eks-mcp-server` skill for setup | Configured at Agent Space level (no setup instructions needed) |
 | Reference file paths | `skills/eks-cost-intelligence/references/` | `references/` (relative to skill root) |
 | Script dependencies | Python script for HTML conversion | None — no scripts permitted |
-| Cluster selection | Shows list, asks user to choose | Auto-selects single cluster; HARD STOP on ambiguity |
+| Cluster selection | Shows list, asks user to choose | Auto-selects a single cluster; assesses all discovered clusters when none is specified |
+| Core-read scoring guard | Step 0 requires successful lists of nodes, namespaces, pods and deployments before scoring | Start Here requires the receiving agent to confirm the same four lists before delegation or scoring; successful empty lists are valid |

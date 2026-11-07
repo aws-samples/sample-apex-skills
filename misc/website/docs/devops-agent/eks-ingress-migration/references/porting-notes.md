@@ -13,7 +13,7 @@ This page is generated from [devops-agent/eks-ingress-migration/references/porti
 
 This file documents the differences between the Claude Code version (`skills/eks-ingress-migration/`) and this DevOps Agent port. It is for maintainers, not for the agent to read during execution. **Exclude it from the uploaded skill zip** (`zip -r ../eks-ingress-migration-skill.zip . -x './references/porting-notes.md'`) — it ships in the repository for maintainers only.
 
-> **Staleness check:** the tables below describe the upstream skill at a point in time and can drift as `skills/eks-ingress-migration/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-08-30, against upstream `main` (post-#129/#153/#154).
+> **Staleness check:** the tables below describe the upstream skill at a point in time and can drift as `skills/eks-ingress-migration/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-11-03 against the corresponding native skill.
 
 ## Differences from the Claude Code version
 

@@ -17,10 +17,13 @@ The open-source EKS MCP server from [awslabs/mcp](https://github.com/awslabs/mcp
 
 ## Prerequisites
 
-- Python 3.10+ (`python3 --version`)
+- Python in the range the chosen release declares (`python3 --version`; SKILL.md Step 1b reads it from PyPI)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **For IAM mode**: AWS CLI configured (`aws configure list`)
 - **For kubeconfig mode**: Valid kubeconfig with cluster access
+- **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
+
+`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the MCP server (Step 3). Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
 
 ## Authentication Modes
 
@@ -74,13 +77,15 @@ For write access (cluster creation, deployments), also attach:
 
 ### Basic Configuration (IAM Mode)
 
+`<version>` is the SKILL.md Step 1b result: `latest`, or the exact version the user pinned.
+
 ```json
 {
   "mcpServers": {
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
+        "awslabs.eks-mcp-server@<version>",
         "--allow-write",
         "--allow-sensitive-data-access"
       ],
@@ -102,7 +107,7 @@ For write access (cluster creation, deployments), also attach:
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
+        "awslabs.eks-mcp-server@<version>",
         "--allow-write",
         "--allow-sensitive-data-access"
       ],
@@ -127,7 +132,7 @@ For write access (cluster creation, deployments), also attach:
 Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 
 ```json
-"args": ["awslabs.eks-mcp-server@latest"]
+"args": ["awslabs.eks-mcp-server@<version>"]
 ```
 
 ## Config File Locations by Assistant
@@ -145,7 +150,7 @@ Use this format for the args array:
 
 ```json
 "args": [
-  "--from", "awslabs.eks-mcp-server@latest",
+  "--from", "awslabs.eks-mcp-server@<version>",
   "awslabs.eks-mcp-server.exe",
   "--allow-write",
   "--allow-sensitive-data-access"
@@ -178,6 +183,7 @@ To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see 
 
 1. Restart your AI assistant
 2. Ask: "List my EKS clusters" or "What tools are available?"
+3. For EKS, compare the MCP connection's target endpoint (including the server's selected kubeconfig context) with `aws eks describe-cluster --name <cluster> --region <region>` before any Kubernetes request. For kubeconfig setups without AWS discovery, compare the selected endpoint with the operator-confirmed target. Stop if the match cannot be verified. Through the verified connection, test a required read such as listing nodes for cost or ingressclasses for ingress. If it fails, report the missing read. Where entries are enabled, `aws eks list-access-entries --cluster-name <cluster> --region <region>` can help diagnose the failure. An empty or denied listing alone does not establish whether the read is authorized.
 
 ## Available Tools
 
@@ -201,7 +207,7 @@ To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see 
 |-------|----------|
 | Permission errors | Verify IAM policy or kubeconfig RBAC |
 | Tools not appearing | Restart IDE/CLI; check `FASTMCP_LOG_LEVEL=DEBUG` |
-| K8s API errors | Ensure EKS access entry exists for your principal |
+| K8s API errors | Verify the MCP caller and failed read as described in Step 3 |
 | kubeconfig not found | Set `KUBECONFIG` env var to correct path |
 
 ## References

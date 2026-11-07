@@ -106,7 +106,7 @@ resource "aws_eks_pod_identity_association" "ebs_csi" {
   cluster_name    = module.eks_cluster.cluster_name
   namespace       = "kube-system"
   service_account = "ebs-csi-controller-sa"
-  role_arn        = module.ebs_csi_pod_identity[0].iam_role_arn
+  role_arn        = module.ebs_csi_pod_identity.iam_role_arn
 }
 ```
 

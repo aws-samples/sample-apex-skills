@@ -39,9 +39,9 @@ This reference documents the exact API calls needed to collect cost and utilizat
 
 ### Prerequisites
 
-- Cost Allocation Tags activated in Billing console (`eks:cluster-name`, `kubernetes-namespace`)
-- Split Cost Allocation Data enabled for namespace-level attribution
-- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`
+- Cost Allocation Tags activated in Billing console (`aws:eks:cluster-name`, `kubernetes-namespace`); `eks:cluster-name` (set only by managed node groups) misses Karpenter and self-managed nodes
+- Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can view the data in CUR once its payer opts in)
+- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
 
 ### Time Window
@@ -56,7 +56,7 @@ Call the Cost Explorer GetCostAndUsage API with:
 - TimePeriod: last 30 days
 - Granularity: MONTHLY
 - Metrics: BlendedCost, UnblendedCost, UsageQuantity
-- Filter: Tag eks:cluster-name = <cluster-name>
+- Filter: Tag aws:eks:cluster-name = <cluster-name>
 - GroupBy: SERVICE dimension
 
 Note: Cost Explorer API is only available in us-east-1 regardless of cluster region.
@@ -79,7 +79,7 @@ response = ce.get_cost_and_usage(
     Metrics=["BlendedCost", "UnblendedCost", "UsageQuantity"],
     Filter={
         "Tags": {
-            "Key": "eks:cluster-name",
+            "Key": "aws:eks:cluster-name",
             "Values": ["<cluster-name>"]
         }
     },
@@ -96,18 +96,17 @@ for group in response["ResultsByTime"][0]["Groups"]:
 ```
 
 **Expected services in results:**
-- Amazon Elastic Kubernetes Service (control plane)
 - Amazon Elastic Compute Cloud (EC2 nodes)
-- Amazon Elastic Block Store (EBS volumes)
-- Amazon Elastic Load Balancing (ALB/NLB)
-- Amazon CloudWatch (monitoring)
-- Amazon VPC (NAT Gateway, data transfer)
+
+`aws:eks:cluster-name` covers EC2 instances only; the control plane, EBS, ELB and NAT need their own queries.
 
 ---
 
-### 1.2 Namespace-Level Cost Attribution (Split Cost Allocation)
+### 1.2 Namespace-Level Cost Attribution (cost allocation tags)
 
-Split Cost Allocation Data distributes shared EC2 and EKS costs to individual pods/namespaces based on resource requests. Must be enabled in Cost Management console.
+Split cost allocation data is CUR only, not in Cost Explorer; this query groups by the user tags kubernetes-namespace and kubernetes-deployment.
+
+Split cost allocation data is in CUR (legacy CUR and CUR 2.0 with Data Exports) only, not Cost Explorer, and only a regular or payer account can opt in to it, in Cost Management preferences (see the account tier check below), so this Cost Explorer query uses the user tags instead ([Enabling split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/enabling-split-cost-allocation-data.html), read 2026-11-05).
 
 **Via Cost Explorer GetCostAndUsage API:**
 
@@ -115,7 +114,7 @@ Call the Cost Explorer GetCostAndUsage API with:
 - TimePeriod: last 30 days
 - Granularity: MONTHLY
 - Metrics: BlendedCost
-- Filter: AND condition — SERVICE = Amazon Elastic Kubernetes Service AND Tag eks:cluster-name = <cluster-name>
+- Filter: AND condition — SERVICE = Amazon Elastic Kubernetes Service AND Tag aws:eks:cluster-name = <cluster-name>
 - GroupBy: TAG kubernetes-namespace, TAG kubernetes-deployment
 
 **API pattern (reference pseudocode):**
@@ -130,7 +129,7 @@ response = ce.get_cost_and_usage(
     Filter={
         "And": [
             {"Dimensions": {"Key": "SERVICE", "Values": ["Amazon Elastic Kubernetes Service"]}},
-            {"Tags": {"Key": "eks:cluster-name", "Values": ["<cluster-name>"]}}
+            {"Tags": {"Key": "aws:eks:cluster-name", "Values": ["<cluster-name>"]}}
         ]
     },
     GroupBy=[
@@ -147,8 +146,10 @@ for group in response["ResultsByTime"][0]["Groups"]:
     namespace_costs[ns] = namespace_costs.get(ns, 0) + cost
 ```
 
+**Account tier check (pre-flight):** compare the STS GetCallerIdentity `Account` with the Organizations DescribeOrganization `MasterAccountId` (callable from any account in the organization). If they differ, this is a member account and the split cost allocation opt-in needs that payer account. If they are equal, this is the management account and the opt-in is in this account's Cost Management preferences. An error (not in an organization, or no permission) means a regular account, or unknown.
+
 **When Split Cost Allocation is not enabled:**
-Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback).
+Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
 
 ---
 
@@ -864,6 +865,7 @@ def run_full_correlation(cluster_name, region):
     findings = []
     data_sources_used = []
     skipped_dimensions = []
+    partly_assessed = []
 
     # --- Step 1: Collect Cost Explorer data ---
     try:
@@ -892,7 +894,7 @@ def run_full_correlation(cluster_name, region):
             print(f"Logs Insights also unavailable: {e2}")
             namespace_metrics = {}
             node_metrics = {}
-            skipped_dimensions.append("compute_efficiency")
+            partly_assessed.append("compute_efficiency")  # utilization checks only; checks 4 and 5 still scored
 
     # --- Step 3: Collect Kubernetes resource data ---
     try:
@@ -909,7 +911,7 @@ def run_full_correlation(cluster_name, region):
     # --- Step 4: Correlate and generate findings ---
 
     # Compute waste (requires metrics + requests + costs)
-    if "compute_efficiency" not in skipped_dimensions:
+    if "compute_efficiency" not in partly_assessed:
         namespace_requests = aggregate_requests_by_namespace(deployments)
         compute_findings = correlate_namespace_waste(
             namespace_costs, namespace_metrics, namespace_requests
@@ -942,6 +944,7 @@ def run_full_correlation(cluster_name, region):
         "findings": findings,
         "data_sources": data_sources_used,
         "skipped_dimensions": skipped_dimensions,
+        "partly_assessed": partly_assessed,
         "namespace_costs": namespace_costs,
     }
 ```

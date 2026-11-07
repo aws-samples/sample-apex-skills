@@ -908,11 +908,13 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 **Step 1: Check if Spot nodes exist**
 
 ```bash
-# Quick check for any Spot nodes
+# Quick check for any Spot nodes; EKS Auto Mode nodes (eks.amazonaws.com/compute-type=auto)
+# are left out, since Auto Mode handles Spot interruptions itself
 SPOT_COUNT=$(kubectl get nodes -o json | \
   jq '[.items[] | select(
-    .metadata.labels["karpenter.sh/capacity-type"] == "spot" or
-    .metadata.labels["eks.amazonaws.com/capacityType"] == "SPOT"
+    (.metadata.labels["karpenter.sh/capacity-type"] == "spot" or
+     .metadata.labels["eks.amazonaws.com/capacityType"] == "SPOT") and
+    .metadata.labels["eks.amazonaws.com/compute-type"] != "auto"
   )] | length')
 
 echo "Spot nodes: $SPOT_COUNT"
@@ -933,30 +935,31 @@ kubectl get configmap -n kube-system -l app.kubernetes.io/name=aws-node-terminat
 **Step 3: Check Karpenter interruption handling**
 
 ```bash
-# Karpenter natively handles Spot interruptions (v0.30+)
 # Verify Karpenter is running and has the interruption controller
-kubectl get deployment -n kube-system karpenter -o json 2>/dev/null | \
+# Find its namespace once (kube-system is the recommended install namespace; older installs use karpenter)
+KARPENTER_NS=$(for ns in kube-system karpenter; do kubectl get deployment -n "$ns" karpenter >/dev/null 2>&1 && echo "$ns" && break; done)
+[ -n "$KARPENTER_NS" ] || echo "Karpenter not found in kube-system or karpenter"
+kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
   jq '{
     name: .metadata.name,
     replicas: .status.readyReplicas,
     version: .metadata.labels["app.kubernetes.io/version"]
   }'
 
-# Check Karpenter settings for interruption handling
-kubectl get configmap -n kube-system karpenter-global-settings -o json 2>/dev/null | \
-  jq '.data'
-
-# For Karpenter v1+, interruption is always enabled (built-in)
-# For older versions, check if aws.interruptionQueue is configured
-kubectl get deployment -n kube-system karpenter -o json 2>/dev/null | \
+# Interruption handling runs only when an interruption queue is set (INTERRUPTION_QUEUE from v0.32; aws.interruptionQueueName in karpenter-global-settings on v0.30-v0.31); with no queue it is disabled
+# Settings live in the container env (the karpenter-global-settings ConfigMap was dropped in v0.33.0);
+# this check reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH
+kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
   jq '.spec.template.spec.containers[0].env[] | select(.name | test("INTERRUPTION"))'
 ```
 
 **Step 4: Check for SQS queue (Karpenter interruption queue)**
 
 ```bash
-# Karpenter uses an SQS queue for Spot interruption events
-aws sqs list-queues --queue-name-prefix "karpenter" --output json 2>/dev/null
+# Check that the queue INTERRUPTION_QUEUE names exists; the default name is the cluster name
+QUEUE=$(kubectl get deployment -n "$KARPENTER_NS" karpenter -o json 2>/dev/null | \
+  jq -r '.spec.template.spec.containers[0].env[] | select(.name == "INTERRUPTION_QUEUE") | .value')
+aws sqs get-queue-url --queue-name "$QUEUE" --output json 2>/dev/null
 
 # Or check via Karpenter EC2NodeClass
 kubectl get ec2nodeclasses -o json 2>/dev/null | \
@@ -994,13 +997,13 @@ If spot_node_count > 0:
   nth_installed = (aws-node-termination-handler deployment/daemonset exists)
   
   If karpenter_installed:
-    # Karpenter v0.30+ has native interruption handling
     karpenter_version = parse version from deployment labels
     If karpenter_version >= "0.30":
-      → Interruption handling is built-in (OK)
-      # Verify SQS queue exists for optimal handling
-      If no SQS queue configured:
-        → LOW finding: SQS queue recommended for faster interruption response
+      # Step 3 reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH
+      If INTERRUPTION_QUEUE is unset (Step 3) AND NOT nth_installed:
+        → HIGH finding: Karpenter with no interruption queue and no NTH
+      Else:
+        → OK (interruption handling present)
     Else:
       If NOT nth_installed:
         → HIGH finding: older Karpenter without NTH
@@ -1019,7 +1022,7 @@ If spot_node_count > 0:
 |-----------|----------|
 | Spot nodes present + no interruption handler (no Karpenter, no NTH) | HIGH |
 | Older Karpenter (< v0.30) without NTH | HIGH |
-| Karpenter v0.30+ without SQS queue | LOW |
+| Karpenter with INTERRUPTION_QUEUE unset (Step 3) and no NTH | HIGH |
 | NTH or Karpenter v0.30+ with SQS present | No finding |
 
 ### Remediation
@@ -1140,7 +1143,7 @@ START
 - Check 2: No finding (NodePools allow arm64)
 - Check 4: No finding (>30% Spot)
 - Check 6: No finding (broad instance categories)
-- Check 7: No finding (Karpenter v1 handles interruptions)
+- Check 7: No finding (Karpenter v1 with its interruption queue set)
 - **Expected deduction:** 0 points
 
 ### Scenario C: Spot Without Proper Handling
