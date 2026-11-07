@@ -1,5 +1,6 @@
 ---
 title: Workshop
+description: "A hands-on workshop: design, build and operate Amazon EKS clusters with Claude Code, APEX skills and an adaptive AI tutor."
 sidebar_position: 5.5
 ---
 

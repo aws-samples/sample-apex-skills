@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: What is APEX
+description: "What APEX is: curated AWS platform engineering skills for AI coding agents, written by AWS experts, and what this repo holds."
 ---
 
 # What is APEX
