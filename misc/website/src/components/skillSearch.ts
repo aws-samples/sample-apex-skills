@@ -84,8 +84,8 @@ export function buildIndex(skills: CatalogSkill[]): Indexed[] {
   return skills.map((skill) => ({
     skill,
     name: words(skill.name.replace(/-/g, ' ')).join(' '),
-    // Until the manifest carries a summary, the catalogue's "use" line stands in.
-    summary: new Set(words(positive(skill.summary ?? skill.use ?? ''))),
+    // The hand-written "use" line first, as on the page (skillCatalog.ts SKILLS).
+    summary: new Set(words(positive(skill.use ?? skill.summary ?? ''))),
     description: new Set(words(positive(skill.description))),
   }));
 }
