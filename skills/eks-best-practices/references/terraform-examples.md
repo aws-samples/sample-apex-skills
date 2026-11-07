@@ -338,7 +338,7 @@ module "karpenter" {
   source = "terraform-aws-modules/eks/aws//modules/karpenter"
 
   cluster_name          = module.eks.cluster_name
-  enable_inline_policy  = true # controller policy can exceed the 6,144-character managed policy limit; inline allows 10,240
+  enable_inline_policy  = true # (v21.8.0+) controller policy can exceed the 6,144-character managed policy limit; inline allows 10,240
 
   node_iam_role_additional_policies = {
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
