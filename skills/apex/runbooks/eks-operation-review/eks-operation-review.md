@@ -1,3 +1,8 @@
+---
+name: eks-operation-review
+description: Day 2 operational-review workflow. Runs the eks-operation-review skill end-to-end, a 10-section structured assessment of a live cluster's operational excellence, with GREEN/AMBER/RED ratings and a markdown/HTML report including prioritized actions and AWS reference links.
+---
+
 # EKS Operation Review
 
 ## Tool Usage Rules
@@ -11,7 +16,7 @@
 
 ## Steering File Loading
 
-Before executing checks for any section, read the corresponding steering file from the `references/` directory using the Read tool.
+Before executing checks for any section, read the corresponding steering file from the `references/` directory of the eks-operation-review skill (`../../../eks-operation-review/references/`, relative to this runbook) using the Read tool.
 
 ### Scenario to Steering File Map
 
@@ -71,15 +76,7 @@ Of the 36 ratable checks (of 38 numbered), 33 are auto-ratable (~92%, 33/36); th
 
 The MCP servers use your existing AWS credentials from the environment (`~/.aws/credentials`, `AWS_PROFILE`, `AWS_REGION`). No additional configuration is needed if your AWS CLI already works.
 
-If you need to use a specific profile or region, update the EKS MCP server config in `.mcp.json`:
-
-```json
-"env": {
-  "AWS_PROFILE": "your-profile-name",
-  "AWS_REGION": "your-region",
-  "FASTMCP_LOG_LEVEL": "ERROR"
-}
-```
+If you need to use a specific profile or region, set them in the EKS MCP server config through apex's `eks-mcp-server` skill (apex does not ship a project-root `.mcp.json`).
 
 ## Getting Started
 
@@ -109,7 +106,7 @@ aws eks list-clusters --output json
 > **Cannot list EKS clusters.** Try these steps:
 > 1. Check that AWS credentials work: `aws sts get-caller-identity`
 > 2. Check the region: `aws configure get region`
-> 3. Verify AWS_PROFILE and AWS_REGION in `.mcp.json`
+> 3. Verify AWS_PROFILE and AWS_REGION in the EKS MCP server config (run apex's `eks-mcp-server` skill)
 
 Wait for the user to resolve the issue.
 
@@ -173,8 +170,8 @@ list_k8s_resources(cluster_name="<cluster-name>", kind="Node", api_version="v1")
 
 > **The EKS MCP server isn't responding.** Try these steps:
 > 1. Check that Python 3.10+ and uv are installed: `uv --version`
-> 2. Test the MCP server: `uvx awslabs.eks-mcp-server@0.1.28`
-> 3. Verify AWS_PROFILE and AWS_REGION in `.mcp.json`
+> 2. Re-run apex's `eks-mcp-server` skill to check the server is installed and starts
+> 3. Verify AWS_PROFILE and AWS_REGION in the EKS MCP server config (run apex's `eks-mcp-server` skill)
 
 Wait for the user to resolve the issue.
 
@@ -187,7 +184,7 @@ Proceed only after the user confirms.
 ### Steps 1-10: Run Assessment
 
 Read each steering file in section order using the Read tool. For each section:
-1. Read the steering file from `references/` directory
+1. Read the steering file from `references/` directory of the eks-operation-review skill (`../../../eks-operation-review/references/`, relative to this runbook)
 2. Execute the checks described in it
 3. Rate each item using the rubric below
 
@@ -195,7 +192,7 @@ Read each steering file in section order using the Read tool. For each section:
 
 ### Step 11: Generate Report
 
-Read `references/report-generation.md` and produce the report.
+Read `../../../eks-operation-review/references/report-generation.md` and produce the report.
 
 ---
 
