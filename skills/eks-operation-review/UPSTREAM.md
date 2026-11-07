@@ -21,7 +21,7 @@ The sync script applies five deterministic edits to upstream content:
 
 4. **`SKILL.md` Prerequisites MCP line.** Upstream lists "MCP servers configured in `.mcp.json`" as a prerequisite. Apex doesn't ship `.mcp.json`; MCP setup is handled by the `eks-mcp-server` skill. The sync rewrites the line to point users at that skill instead.
 
-5. **Runbook fit.** The copied workflow at `skills/apex/runbooks/eks-operation-review/eks-operation-review.md` gets its `steering/` paths pointed at this skill's folder (`../../../eks-operation-review/references/` from the runbook), apex's `name`/`description` frontmatter, and its `.mcp.json` instructions and fixed `uvx awslabs.eks-mcp-server@<version>` test pointed at the `eks-mcp-server` skill. The sync exits non-zero if an anchor is missing; the runbook is then left as upstream's unadapted copy until the script is fixed and re-run.
+5. **Runbook fit.** The copied workflow at `skills/apex/runbooks/eks-operation-review/eks-operation-review.md` gets its `steering/` paths pointed at this skill's folder (`../../../eks-operation-review/references/` from the runbook), apex's `name`/`description` frontmatter, and its `.mcp.json` instructions and fixed `uvx awslabs.eks-mcp-server@<version>` test pointed at the `eks-mcp-server` skill. The sync exits non-zero if an anchor is missing; the runbook then has only its `steering/` paths rewritten and UPSTREAM.md is not written until the script is fixed and re-run.
 
 The upstream description **wording** is NOT rewritten — skill-creator's restrained-style content is already apex-compatible. Only the YAML representation is flattened (Edit #2).
 
