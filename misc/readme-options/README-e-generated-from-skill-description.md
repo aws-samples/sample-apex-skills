@@ -18,7 +18,7 @@
 ## What APEX is
 
 - **Skills**: what your agent knows. 28 skills, written to the [Agent Skills standard](https://agentskills.io/), that design, build, review, upgrade and secure Amazon EKS and Amazon ECS estates.
-- **The `/apex` router** (v2, from `main`): one entry point. Type `/apex` with your request and it picks the right skill and, when there is one, that skill's runbook.
+- **The `/apex` router** (installed from `main`, below): one entry point. Type `/apex` with your request and it picks the right skill and, when there is one, that skill's runbook.
 - **DevOps Agent ports**: 6 Day 2 skills repackaged for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/).
 
 Domain knowledge by AWS Solutions Architects, TAMs and ProServe. 5 skills are vendored from upstream projects; see [Provenance](#provenance).
@@ -31,19 +31,19 @@ You need [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/), on 
 npx apex-skills@1.3.0
 ```
 
-The installer detects Claude Code and Kiro CLI, clones the repo to `~/.apex-skills/` and links the skills into place. It installs the latest v1 release of the skills.
+The installer detects Claude Code and Kiro CLI, clones the repo to `~/.apex-skills/` and links the skills into place. It installs the latest published release of the skills.
 
 Ask your agent in plain words and the matching skill loads:
 
 > Is my EKS cluster ready to upgrade to 1.32?
 
-In Claude Code the v1 install also adds `/apex:*` commands, such as `/apex:eks-upgrade-check`; Kiro CLI gets the workflows, without the `eks` hub, as manual steering files in `~/.kiro/steering/`.
+In Claude Code this install also adds `/apex:*` commands, such as `/apex:eks-upgrade-check`; Kiro CLI gets the workflows, without the `eks` hub, as manual steering files in `~/.kiro/steering/`.
 
 Flags, updates and uninstall: [installer README](../../misc/installer/README.md).
 
-### The `/apex` router (v2, from `main`)
+### The `/apex` router
 
-The router is new in v2, which is not released yet. To use it in Claude Code or Kiro CLI, install from `main` (this also moves an existing v1 install to `main`, which has no `/apex:*` commands or Kiro steering files):
+To use the router in Claude Code or Kiro CLI, install from `main` (this also moves an existing install to `main`, which has no `/apex:*` commands or Kiro steering files):
 
 ```bash
 npx apex-skills@1.3.0 --branch main
@@ -75,7 +75,7 @@ The [EKS Upgrade Readiness Check](../../examples/eks-upgrades/in-place-karpenter
 ```mermaid
 flowchart LR
   U[You] --> H[Agent harness<br/>Claude Code, Kiro CLI, Codex]
-  H --> R["/apex router (v2, from main)"]
+  H --> R["/apex router"]
   R --> S[Skill + runbook]
   S --> T["AWS CLI, kubectl or MCP servers,<br/>when the skill needs them"]
   T --> O[Report or code]
@@ -85,9 +85,7 @@ flowchart LR
 
 > (e) preview: group is the only new per-skill field; the text comes from each SKILL.md description, so there is nothing extra to maintain.
 
-Not sure? Use [`/apex`](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) (v2, from `main`) and it picks for you.
-
-The tables describe `main`; v1.3.0 also ships steering-workflow-creator.
+Not sure? Use [`/apex`](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) and it picks for you.
 
 ### Knowledge Skills
 
