@@ -363,7 +363,7 @@ DON'T:
 
 ## Managed Signing
 
-ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers like Kyverno or OPA Gatekeeper.
+ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers configured with an AWS Signer plugin, such as Kyverno or OPA Gatekeeper with Ratify.
 
 ### How It Works
 
@@ -387,9 +387,8 @@ Managed signing pairs with Kubernetes admission controllers for deploy-time veri
 
 | Tool | How It Verifies |
 |---|---|
-| **Kyverno** | `verifyImages` policy checks Notation signatures against trusted signing profiles |
-| **OPA Gatekeeper** | Custom constraint template validates signature presence and signer identity |
-| **Ratify** | External data provider for Gatekeeper, native Notation support |
+| **Kyverno** | As of Kyverno v1.19.2, built-in Notation verification (`verifyImages` and `ImageValidatingPolicy`) cannot verify AWS Signer signatures. Use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, which runs the AWS Signer plugin ("Kyverno – A Kubernetes policy engine configured with an AWS Signer plugin for validating signatures.", [EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)); its sample is a `ClusterPolicy` (deprecated since v1.19, removal planned for v1.20 per [Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)), so recheck when v1.20 ships |
+| **OPA Gatekeeper + Ratify** | Gatekeeper is the admission controller; Ratify (external data provider, configured with the AWS Signer plugin and a Notation trust policy) verifies the signature, and the constraint template blocks on Ratify's result (Ratify v1.4; enable dynamic plugins) |
 
 DO:
 - Enable managed signing for production repositories to establish image provenance

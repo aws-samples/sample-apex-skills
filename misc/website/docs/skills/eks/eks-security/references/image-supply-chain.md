@@ -19,7 +19,7 @@ The end-state is a complete chain: **scan → sign → verify-at-admission.** Ea
 - CVSS severity scoring; **continuous re-scan** on new CVE disclosure.
 - Findings flow to **AWS Security Hub** for unified posture.
 - References: [Amazon ECR features](https://aws.amazon.com/ecr/features/) · [Amazon Inspector](https://aws.amazon.com/inspector/).
-- To check running images and components against a specific CVE or advisory, use [cve-advisory-review.md](cve-advisory-review); for a compromised image or package, [security-event-response.md](security-event-response).
+- To check running images and components against a specific CVE or advisory, use [cve-advisory-review.md](cve-advisory-review.md); for a compromised image or package, [security-event-response.md](security-event-response.md).
 
 ## ECR image signing
 

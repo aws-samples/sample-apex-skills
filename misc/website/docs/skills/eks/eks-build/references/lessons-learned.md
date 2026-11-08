@@ -95,7 +95,7 @@ The module graph is instantiated twice, but with HashiCorp Terraform v1.14.5, pl
 
 ### Module defaults are stale
 
-The `eks-blueprints-addons` module ships chart defaults that lag significantly behind current releases. Always look up the latest versions from authoritative sources (see [version-matrix.md](version-matrix)).
+The `eks-blueprints-addons` module ships chart defaults that lag significantly behind current releases. Always look up the latest versions from authoritative sources (see [version-matrix.md](version-matrix.md)).
 
 ### Rules
 
@@ -460,7 +460,7 @@ The provider login also writes this token to Helm's registry config, so other He
 
 - Prefer the ephemeral resource. Below hashicorp/aws 6.31.0 use the `data "aws_ecrpublic_authorization_token"` form in the same `registries` list (on aws 5.x, which has no `region` argument, through a `us-east-1` provider alias); its token is stored in state (and in a saved plan, so applying a saved plan can reuse it past its 12 hours). Do not use resource-level `repository_username` / `repository_password`: `repository_password` is stored in state and cannot take an ephemeral value.
 - The identity running Terraform needs `ecr-public:GetAuthorizationToken` and `sts:GetServiceBearerToken`.
-- Partitions without ECR Public, and air-gapped builds, mirror the chart instead: see [customization-guide.md Section 1](customization-guide#1-air-gapped--vpc-endpoint-only-networks) (pull-through cache rule for `public.ecr.aws`, Helm chart mirroring). There, drop this block; a private-ECR chart mirror needs its own registry login (`ephemeral "aws_ecr_authorization_token"`).
+- Partitions without ECR Public, and air-gapped builds, mirror the chart instead: see [customization-guide.md Section 1](customization-guide.md#1-air-gapped--vpc-endpoint-only-networks) (pull-through cache rule for `public.ecr.aws`, Helm chart mirroring). There, drop this block; a private-ECR chart mirror needs its own registry login (`ephemeral "aws_ecr_authorization_token"`).
 - One-off recovery outside Terraform: `helm registry logout public.ecr.aws` (and `docker logout public.ecr.aws`).
 
 ---

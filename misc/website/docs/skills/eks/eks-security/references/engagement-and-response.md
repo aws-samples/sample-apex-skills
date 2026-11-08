@@ -43,7 +43,7 @@ Identify the customer's #1 concern early, it shapes every subsequent step:
 
 ## Response framework (8 steps)
 
-Skip a step only if the question is narrow enough that it doesn't apply. For a live security event (a new CVE, a compromised image or package, a leaked credential, a runtime finding) use [security-event-response.md](security-event-response) instead; for "am I exposed to this advisory" use [cve-advisory-review.md](cve-advisory-review).
+Skip a step only if the question is narrow enough that it doesn't apply. For a live security event (a new CVE, a compromised image or package, a leaked credential, a runtime finding) use [security-event-response.md](security-event-response.md) instead; for "am I exposed to this advisory" use [cve-advisory-review.md](cve-advisory-review.md).
 1. **Acknowledgment + context summary**: restate regime(s), sensitivity, OS strategy, timeline, topology, skill, ops tolerance, baseline; name the #1 adoption challenge.
 2. **Compliance-regime position**: which programs apply; native-in-scope vs alignment/framework; call out workload-level ownership for framework regimes. **Always add the live-page disclaimer.**
 3. **Top-level stack recommendation**: one paragraph naming the choice at each of the 7 layers, each one-sentence-justified against the discovery answers; surface alternatives (vendor-OS path, third-party CNAPP) with the conditions that justify deviating.

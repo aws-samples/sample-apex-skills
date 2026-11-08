@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-build/references/baseline-defaults.md](h
 
 # Baseline Defaults
 
-> **Part of:** [ecs-build](../)
+> **Part of:** [ecs-build](../index.md)
 
 Opinionated defaults applied to every generated ECS project. Deviate only when the user explicitly asks, and note the deviation in `validation-checklist.md`.
 
@@ -35,17 +35,17 @@ Opinionated defaults applied to every generated ECS project. Deviate only when t
 
 ## Services
 
-- **Circuit breaker / failure detection:** rolling gets the circuit breaker, blue/green-family gets bake time + `alarms` -- rules and HCL in [service-and-deployment.md](service-and-deployment).
+- **Circuit breaker / failure detection:** rolling gets the circuit breaker, blue/green-family gets bake time + `alarms` -- rules and HCL in [service-and-deployment.md](service-and-deployment.md).
 - **`health_check_grace_period_seconds`:** 60-120s for slow-starting runtimes (JVM); 30s default otherwise.
 - **ALB target groups:** `deregistration_delay = 30`-60 (down from the 300s default) to speed deployments.
 - **`availability_zone_rebalancing`:** leave `ENABLED` -- ECS defaults it to `ENABLED` for create-service requests (https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateService.html, verified 2026-07-10; update requests keep the existing value).
 - **Service Connect** for service-to-service traffic (Critical Rule 7); one Cloud Map namespace per environment.
-- **Module service submodule defaults** -- min 1 / max 10 autoscaling with CPU+memory target tracking at 75% (`autoscaling_min_capacity = 1`, `autoscaling_max_capacity = 10`, `autoscaling_policies` cpu+memory with `target_value` defaulting to 75 in modules/service/variables.tf, verified 2026-07-10) -- acceptable starting points; tune per [autoscaling.md](autoscaling).
+- **Module service submodule defaults** -- min 1 / max 10 autoscaling with CPU+memory target tracking at 75% (`autoscaling_min_capacity = 1`, `autoscaling_max_capacity = 10`, `autoscaling_policies` cpu+memory with `target_value` defaulting to 75 in modules/service/variables.tf, verified 2026-07-10) -- acceptable starting points; tune per [autoscaling.md](autoscaling.md).
 
 ## Networking
 
 - `awsvpc` network mode for all task definitions this skill generates (mandatory on Fargate; the consistent choice on EC2/MI).
-- Tasks in **private subnets**, `assign_public_ip = false`; image pulls via VPC endpoints or NAT (see [networking-security.md](networking-security)).
+- Tasks in **private subnets**, `assign_public_ip = false`; image pulls via VPC endpoints or NAT (see [networking-security.md](networking-security.md)).
 - One security group per service; ingress only from the LB security group or Service Connect peers.
 
 ## Tagging
@@ -56,7 +56,7 @@ Opinionated defaults applied to every generated ECS project. Deviate only when t
 ## State and versions
 
 - Remote state via `configs/backend.hcl` (S3 backend with lockfile or DynamoDB locking per org standard).
-- Terraform >= 1.5.7 and AWS provider >= 6.34 are the module floor as of 2026-07-10 -- always re-check per [version-matrix.md](version-matrix).
+- Terraform >= 1.5.7 and AWS provider >= 6.34 are the module floor as of 2026-07-10 -- always re-check per [version-matrix.md](version-matrix.md).
 
 ## Sources
 

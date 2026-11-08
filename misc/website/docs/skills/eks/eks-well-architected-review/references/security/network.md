@@ -19,7 +19,7 @@ This page is generated from [skills/eks-well-architected-review/references/secur
 
 **8 questions** — Network policies, pod network separation, SSH access, cluster security group egress, subnet IP capacity, prefix delegation.
 
-> **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access).**
+> **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access.md).**
 > The per-question `Detection:` tags below are explanatory only; the scorer decides measured vs governance.
 
 Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`.

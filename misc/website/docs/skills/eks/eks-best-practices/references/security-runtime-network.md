@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/security-runti
 
 # EKS Runtime & Network Security
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Runtime threat detection, network policy enforcement, security groups for pods, and encryption in transit
 
-**For core IAM, pod security, and secrets, see:** [Security](security)
-**For supply chain, infrastructure, and compliance, see:** [Supply Chain & Compliance](security-supply-chain)
+**For core IAM, pod security, and secrets, see:** [Security](security.md)
+**For supply chain, infrastructure, and compliance, see:** [Supply Chain & Compliance](security-supply-chain.md)
 
 ---
 

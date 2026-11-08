@@ -74,11 +74,11 @@ EKS managed addons `vpc-cni` and `eks-pod-identity-agent` set `before_compute: t
 
 ### Karpenter (When Selected)
 
-Uses dedicated `terraform-aws-modules/eks/aws//modules/karpenter` submodule. See [baseline-defaults.md](baseline-defaults) for NodePool/EC2NodeClass defaults and [lessons-learned.md](lessons-learned) Section 17.
+Uses dedicated `terraform-aws-modules/eks/aws//modules/karpenter` submodule. See [baseline-defaults.md](baseline-defaults.md) for NodePool/EC2NodeClass defaults and [lessons-learned.md](lessons-learned.md) Section 17.
 
 ### AWS Resource Management
 
-Terraform directly creates AWS resources (Velero S3 bucket, etc.). The `eks-blueprints-addons` module handles IRSA role creation. EKS managed addons use **Pod Identity** with separate `aws_eks_pod_identity_association` resources -- see [lessons-learned.md](lessons-learned) Section 15.
+Terraform directly creates AWS resources (Velero S3 bucket, etc.). The `eks-blueprints-addons` module handles IRSA role creation. EKS managed addons use **Pod Identity** with separate `aws_eks_pod_identity_association` resources -- see [lessons-learned.md](lessons-learned.md) Section 15.
 
 ## Pattern 2a: ArgoCD + Terraform AWS
 

@@ -1,6 +1,7 @@
 ---
-title: "eks-recon"
-description: "EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, subnets, load balancers, DNS), security facts (auth mode, IRSA/Pod Identity, RBAC, encryption), add-ons/Helm, observability, workloads (Deployments, StatefulSets, PDBs, HPAs), storage (CSI, StorageClasses, PVs, backup tooling), IaC (Terraform, CDK, eksctl), CI/CD (Actions, ArgoCD, Flux), and cluster insights. Use to discover or document the current state of an EKS cluster — 'what am I running', 'tell me about my setup', 'what version am I on', inventory before an upgrade/migration/design. Reports facts only; it does not score, rate, plan, or recommend, and overlapping facts with other skills is fine. Route elsewhere for a JUDGMENT or ARTIFACT: readiness scoring/deprecated-API checks (eks-upgrade-check), GREEN/AMBER/RED audits (eks-operation-review), design docs/diagrams (eks-design)."
+title: "EKS Recon (eks-recon): discover what your Amazon EKS cluster runs"
+sidebar_label: "eks-recon"
+description: "EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/SKILL.md
 format: md
 ---
@@ -137,17 +138,17 @@ Load only the references needed for the user's request — this keeps context fo
 
 | Module | Intent / when to use | Reference file | Agent file |
 |--------|----------------------|----------------|------------|
-| Cluster Basics | Always loaded first by every module (name, region, version, platform version, endpoint) | [cluster-basics.md](references/cluster-basics) | — |
-| Compute | Karpenter, nodes, scaling, Auto Mode, node groups, Fargate, self-managed | [compute.md](references/compute) | [compute-recon.md](agents/compute-recon) |
-| Networking | VPC, ingress, CNI, service mesh, load balancer, connectivity | [networking.md](references/networking) | [networking-recon.md](agents/networking-recon) |
-| Security | IAM, IRSA, Pod Identity, RBAC, policies, encryption, secrets, webhooks | [security.md](references/security) | [security-recon.md](agents/security-recon) |
-| Add-ons | EKS-managed add-ons, Helm releases, plugins, "what's installed?" | [addons.md](references/addons) | [addons-recon.md](agents/addons-recon) |
-| Observability | Logging, metrics, monitoring, Container Insights, Prometheus | [observability.md](references/observability) | [observability-recon.md](agents/observability-recon) |
-| Workloads | Deployments, pods, services, ingresses, "what's running?" | [workloads.md](references/workloads) | [workloads-recon.md](agents/workloads-recon) |
-| Storage | PVCs, EBS, EFS, StorageClasses, CSI drivers, volumes, snapshots | [storage.md](references/storage) | [storage-recon.md](agents/storage-recon) |
-| IaC | Terraform, CloudFormation, CDK, eksctl, Pulumi, "how is it managed?" | [iac.md](references/iac) | [iac-recon.md](agents/iac-recon) |
-| CI/CD | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd) | [cicd-recon.md](agents/cicd-recon) |
-| Cluster Insights | EKS-reported upgrade-readiness & configuration insights (raw findings) | [cluster-insights.md](references/cluster-insights) | [cluster-insights-recon.md](agents/cluster-insights-recon) |
+| Cluster Basics | Always loaded first by every module (name, region, version, platform version, endpoint) | [cluster-basics.md](references/cluster-basics.md) | — |
+| Compute | Karpenter, nodes, scaling, Auto Mode, node groups, Fargate, self-managed | [compute.md](references/compute.md) | [compute-recon.md](agents/compute-recon.md) |
+| Networking | VPC, ingress, CNI, service mesh, load balancer, connectivity | [networking.md](references/networking.md) | [networking-recon.md](agents/networking-recon.md) |
+| Security | IAM, IRSA, Pod Identity, RBAC, policies, encryption, secrets, webhooks | [security.md](references/security.md) | [security-recon.md](agents/security-recon.md) |
+| Add-ons | EKS-managed add-ons, Helm releases, plugins, "what's installed?" | [addons.md](references/addons.md) | [addons-recon.md](agents/addons-recon.md) |
+| Observability | Logging, metrics, monitoring, Container Insights, Prometheus | [observability.md](references/observability.md) | [observability-recon.md](agents/observability-recon.md) |
+| Workloads | Deployments, pods, services, ingresses, "what's running?" | [workloads.md](references/workloads.md) | [workloads-recon.md](agents/workloads-recon.md) |
+| Storage | PVCs, EBS, EFS, StorageClasses, CSI drivers, volumes, snapshots | [storage.md](references/storage.md) | [storage-recon.md](agents/storage-recon.md) |
+| IaC | Terraform, CloudFormation, CDK, eksctl, Pulumi, "how is it managed?" | [iac.md](references/iac.md) | [iac-recon.md](agents/iac-recon.md) |
+| CI/CD | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd.md) | [cicd-recon.md](agents/cicd-recon.md) |
+| Cluster Insights | EKS-reported upgrade-readiness & configuration insights (raw findings) | [cluster-insights.md](references/cluster-insights.md) | [cluster-insights-recon.md](agents/cluster-insights-recon.md) |
 
 ---
 
@@ -206,7 +207,7 @@ Optional:
 - Output path prefix, without an extension (default: `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` → writes `<output-prefix>.md` + `<output-prefix>.yaml`)
 ```
 
-When a prior report is supplied, load [report-comparison.md](references/report-comparison)
+When a prior report is supplied, load [report-comparison.md](references/report-comparison.md)
 and read the prior artifact before generating outputs. After collecting the current
 facts, append the comparison to the Markdown report using that contract. Without a
 prior report, omit the Changes since section.

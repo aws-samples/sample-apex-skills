@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/networking.md]
 
 # EKS Networking — VPC CNI & IP Management
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** VPC CNI configuration, subnet/CIDR planning, IPv4 vs IPv6, custom networking, Security Groups for Pods, and IP address management
 
-**For ingress, load balancing, DNS, and private clusters, see:** [Networking — Ingress & DNS](networking-ingress-dns)
-**For network policies and east/west traffic control, see:** [Security — Runtime & Network](security-runtime-network)
+**For ingress, load balancing, DNS, and private clusters, see:** [Networking — Ingress & DNS](networking-ingress-dns.md)
+**For network policies and east/west traffic control, see:** [Security — Runtime & Network](security-runtime-network.md)
 
 ---
 
@@ -414,7 +414,7 @@ annotations:
 
 Security Groups for Pods assigns AWS security groups directly to individual pods via branch ENIs, rather than sharing the node's security group. This enables AWS-level network isolation per pod — useful for controlling pod access to AWS services like RDS, ElastiCache, and other VPC resources.
 
-**For network policy vs SG for Pods comparison, and policy enforcement details, see:** [Security — Runtime & Network](security-runtime-network#security-groups-for-pods)
+**For network policy vs SG for Pods comparison, and policy enforcement details, see:** [Security — Runtime & Network](security-runtime-network.md#security-groups-for-pods)
 
 ### When to Use
 
