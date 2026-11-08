@@ -118,23 +118,15 @@ if KUBECONFIG="${KUBECONFIG_OUT}" kubectl auth can-i list secrets --all-namespac
   die "readonly kubeconfig is allowed to LIST secrets; another binding grants this ServiceAccount or its groups secrets"
 fi
 
-# Session tags label the minted session in CloudTrail (apex-tool, apex-run).
-# They need sts:TagSession in your IAM user's policy;
-# APEX_READONLY_SESSION_TAGS=0 mints without them.
-TAG_ARGS=()
-TAG_HINT=""
-if [[ "${APEX_READONLY_SESSION_TAGS:-1}" != "0" ]]; then
-  TAG_ARGS=(--tags "Key=apex-tool,Value=bootstrap-readonly" "Key=apex-run,Value=$(date -u +%Y%m%dT%H%M%SZ)-$$")
-  TAG_HINT="; with session tags it also needs sts:TagSession (set APEX_READONLY_SESSION_TAGS=0 to mint without tags)"
-fi
+# The apex-run session tag labels the minted session in CloudTrail.
 log "verifying AWS federation-token minting..."
 if ! aws sts get-federation-token \
        --name "evals-readonly-bootstrap-check" \
        --policy "file://${POLICY_OUT}" \
        --duration-seconds 900 \
-       ${TAG_ARGS[@]+"${TAG_ARGS[@]}"} \
+       --tags "Key=apex-run,Value=$(date -u +%Y%m%dT%H%M%SZ)-$$" \
        --output text --query Credentials.AccessKeyId >/dev/null 2>&1; then
-  die "aws sts get-federation-token failed; it needs IAM-user long-term credentials with sts:GetFederationToken (a role or Identity Center session cannot call it)${TAG_HINT}; the kubeconfig above is written and usable"
+  die "aws sts get-federation-token failed; it needs IAM-user long-term credentials with sts:GetFederationToken (a role or Identity Center session cannot call it) and sts:TagSession; the kubeconfig above is written and usable"
 fi
 
 log "done. both artefacts are in ${SECRETS_DIR}/ (gitignored)."

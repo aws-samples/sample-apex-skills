@@ -732,10 +732,7 @@ def mint_federation_token(
         cmd += ["--tags", *(f"Key={k},Value={v}" for k, v in tags.items())]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
-        hint = (
-            "; session tags need sts:TagSession (set APEX_READONLY_SESSION_TAGS=0 to mint without tags)"
-            if tags else ""
-        )
+        hint = "; if the error names sts:TagSession, add it to the IAM user's policy" if tags else ""
         raise RuntimeError(f"get-federation-token failed: {r.stderr.strip()}{hint}")
     return json.loads(r.stdout)["Credentials"]
 
@@ -1039,20 +1036,17 @@ def main() -> int:
         if not policy.exists():
             print(f"aws session policy not found: {policy}", file=sys.stderr)
             return 2
-        tags = None
-        if os.environ.get("APEX_READONLY_SESSION_TAGS", "1") != "0":
-            run_id = f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{os.getpid()}"
-            tags = {"apex-tool": "run_task_evals", "apex-run": run_id}
-            print(f"[task] session tags: apex-tool=run_task_evals apex-run={run_id}", file=sys.stderr)
+        run_id = f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{os.getpid()}"
         creds = mint_federation_token(
-            policy, name=f"evals-readonly-{os.getpid()}", duration=args.aws_duration, tags=tags
+            policy, name=f"evals-readonly-{os.getpid()}", duration=args.aws_duration,
+            tags={"apex-run": run_id},
         )
         extra_env["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
         extra_env["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
         extra_env["AWS_SESSION_TOKEN"] = creds["SessionToken"]
         extra_env["AWS_DEFAULT_REGION"] = args.aws_region
         print(
-            f"[task] minted read-only AWS session (exp {creds['Expiration']})",
+            f"[task] minted read-only AWS session (exp {creds['Expiration']}, apex-run={run_id})",
             file=sys.stderr,
         )
 

@@ -73,23 +73,13 @@ aws sts get-federation-token \
 
 Calls made with these credentials show up in CloudTrail with `userIdentity.type` `FederatedUser`, and their ARN carries the name you passed: `arn:aws:sts::<account-id>:federated-user/apex-readonly-<user>`. Pick a `--name` that says who ran the agent and why.
 
-The kit tags the sessions it mints: the eval runner (`misc/evals/scripts/run_task_evals.py`) and the bootstrap check pass `apex-tool` (`run_task_evals` or `bootstrap-readonly`) and `apex-run` (UTC time and process id; the runner prints it). Tag your own session the same way:
+The kit tags the sessions it mints: the eval runner (`misc/evals/scripts/run_task_evals.py`, which prints it) and the bootstrap check pass `apex-run` (UTC time and process id). The section 2 command takes the same flag:
 
 ```bash
-aws sts get-federation-token \
-  --name "apex-readonly-${USER}" \
-  --policy file://misc/evals/.secrets/readonly-session-policy.json \
-  --duration-seconds 3600 \
-  --tags "Key=apex-tool,Value=manual" "Key=apex-run,Value=$(date -u +%Y%m%dT%H%M%SZ)"
+  --tags Key=apex-run,Value="$(date -u +%Y%m%dT%H%M%SZ)"
 ```
 
-Tags need `sts:TagSession` in your IAM user's policy, besides `sts:GetFederationToken` (GetFederationToken has no role, so no trust policy is involved):
-
-```json
-{ "Effect": "Allow", "Action": ["sts:GetFederationToken", "sts:TagSession"], "Resource": "*" }
-```
-
-Without it the call is denied; set `APEX_READONLY_SESSION_TAGS=0` to mint untagged. CloudTrail logs carry the session's principal tags, which include these tags and any tags on your IAM user, and every later call shows the federated-user ARN with the `--name`. The tags only label the session: the session policy has no tag conditions, so they grant and limit nothing here. kubectl calls are not in CloudTrail: they are in the EKS audit log (if enabled), all as the one ServiceAccount.
+Tags need `sts:TagSession` in your IAM user's policy, besides `sts:GetFederationToken`; without it the call is denied. CloudTrail's GetFederationToken event records the tags you passed; later calls carry no tags, only the federated-user ARN with the `--name`. The tags only label the session: they grant nothing through the kit's session policy. kubectl calls are not in CloudTrail: they are in the EKS audit log (if enabled), all as the one ServiceAccount.
 
 ## 4. Add the deny hook (optional)
 
