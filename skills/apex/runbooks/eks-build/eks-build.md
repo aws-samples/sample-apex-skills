@@ -17,10 +17,10 @@ This workflow uses the `eks-build` skill for code generation and the `eks-best-p
 | User Request | What to Do |
 |-------------|-----------|
 | **"Build an EKS cluster"** / **"Generate Terraform"** / **"Create infrastructure"** | Follow the [Build Questionnaire](#build-questionnaire) below to gather requirements, then generate the project |
-| **"Resume build"** / **"Continue where we left off"** | Ask for the project name, load `projects/<name>/contexts/eks-build/requirements.yaml` if it exists, confirm the summary, and resume from the next unanswered phase |
-| **"Modify existing build"** / **"Change compute to Karpenter"** | Load the existing requirements, apply the requested change, re-confirm summary, regenerate affected modules |
+| **"Resume build"** / **"Continue where we left off"** | Ask for the project name, load `projects/<name>/contexts/eks-build/requirements.yaml` if it exists, confirm the summary, and resume from the next unanswered phase; ask question 30 if requirements.yaml has no answer to it, and ask b2 again unless summary.md's Boundary row names the roles or when the change adds roles |
+| **"Modify existing build"** / **"Change compute to Karpenter"** | Load the existing requirements, apply the requested change, re-confirm summary, regenerate affected modules; ask question 30 if requirements.yaml has no answer to it, and ask b2 again unless summary.md's Boundary row names the roles or when the change adds roles |
 | **"Which pattern should I use?"** / **"Help me pick Terraform vs ArgoCD"** | Use the `eks-best-practices` skill to compare the three patterns (Full Terraform, ArgoCD+Terraform, ArgoCD+ACK) based on the user's context |
-| **"I have a requirements YAML"** / provides structured input | Parse the input, skip to [Phase 7: Confirm and Generate](#phase-7-confirm-and-generate), present summary for confirmation |
+| **"I have a requirements YAML"** / provides structured input | Parse the input, ask question 30; a YAML `permissions_boundary` answers only b1, so still ask b2; skip to [Phase 7: Confirm and Generate](#phase-7-confirm-and-generate), present summary for confirmation |
 
 ---
 
@@ -148,7 +148,7 @@ Present the full list, ask for changes. See the `eks-build` skill for addon deta
 
 Source: knowledge
 
-Skip if single-team cluster.
+Skip questions 27 to 29 if single-team cluster; always ask question 30.
 
 ```
 27. Multi-tenancy? → If yes: tenant names and namespace requirements
@@ -160,6 +160,41 @@ Skip if single-team cluster.
 
 29. IAM auth model: Pod Identity (default) or IRSA? (Helm add-ons installed via eks-blueprints-addons use IRSA)
     → Per-addon overrides? (e.g., Velero → Pod Identity, per question 20; other Helm add-ons via eks-blueprints-addons → IRSA)
+
+30. Permissions boundary (always ask, even for a single-team cluster)
+    a. Does your organisation require a permissions boundary on the IAM roles
+       this project creates? (default: no)
+       → No: no boundary is added (permissions_boundary stays null).
+       → Not sure: a boundary is an IAM policy your security team owns that caps
+         what a role can do. Ask them, then answer yes or no. I stop here until
+         you answer yes or no: nothing is added and nothing is generated.
+    b. If yes, first: one boundary for all the roles you name, or different
+       boundaries on different roles? Then answer 1 and 2. I will not fill
+       either in for you:
+       1. The ARN of the boundary policy. It must already exist in the account
+          you deploy to. This project does not create, write or change it, and
+          puts this one boundary ARN on every role you name in 2.
+          (Form: arn:aws:iam::<account id>:policy/<name>, or
+          arn:aws:iam::aws:policy/<name> for an AWS managed policy.)
+       2. Which roles should carry it? This build will create these roles:
+          <list only the roles from the role table in the eks-build skill's
+          references/baseline-defaults.md (Permissions boundary) that the
+          earlier answers turn on, e.g. cluster role, node group roles,
+          Karpenter controller and node roles, one role per add-on>. Answer
+          "all of them" or name them.
+       3. Note: the boundary must allow what each role does (for example the
+          Karpenter controller needs iam:PassRole and the instance profile
+          actions); anything it does not allow fails with AccessDenied.
+    c. If the answer to (a) is yes but the answer to b1 or b2 is missing, vague or a
+       guess ("the usual one", "whatever you think"), I stop. I tell you which
+       answer is missing, ask again, and do not generate the project. I never
+       write, suggest or guess a boundary policy or an ARN, and I never copy
+       one from an example.
+    d. If you want different boundaries on different roles, I stop and say
+       plainly that this build puts one boundary ARN on the roles you name.
+       You can choose one boundary for now, or add the others by hand after
+       generation. I do not generate the project on a per-role answer until
+       you choose one ARN.
 ```
 
 **STOP.** Wait for user confirmation before proceeding. Present a mid-point summary of compute, addons, security, and tenancy decisions. Confirm before moving to operations and generation.
@@ -171,10 +206,10 @@ Skip if single-team cluster.
 Source: knowledge
 
 ```
-30. Existing CI/CD? (GitLab CI, GitHub Actions, Jenkins, CodePipeline, etc.)
+31. Existing CI/CD? (GitLab CI, GitHub Actions, Jenkins, CodePipeline, etc.)
     → Need generated pipeline code? (infra pipeline, app pipeline, or both)
 
-31. Anything else? (tagging, naming conventions, DR, network policies, service mesh, etc.)
+32. Anything else? (tagging, naming conventions, DR, network policies, service mesh, etc.)
 ```
 
 ---
@@ -208,6 +243,7 @@ Present the full summary table:
 │ Multi-tenancy    │ <yes/no>                             │
 │ Multi-account    │ <yes/no>                             │
 │ Auth model       │ <IRSA/Pod Identity>                  │
+│ Boundary         │ <ARN> on <roles>, or none            │
 │ Custom addons    │ <list or none>                       │
 │ CI/CD            │ <tool or none>                       │
 │ Additional reqs  │ <summary or none>                    │
@@ -262,6 +298,7 @@ Before presenting the generated project, verify:
 - [ ] Every requirement from the questionnaire has corresponding Terraform code
 - [ ] No secrets, credentials, or account IDs hardcoded
 - [ ] Constraints (air-gapped, compliance, proxy) reflected in generated code
+- [ ] If a permissions boundary was required, `permissions_boundary` is set in `cluster.yaml` and every role the customer named in question 30 carries it
 - [ ] State backend, provider, and backend config are correct
 
 ---
@@ -296,7 +333,7 @@ Before presenting the generated project, verify:
 - Be concise. Group related questions — don't ask one at a time.
 - Phase 2: ask all four yes/no at once.
 - Phase 4: present the full list, ask for changes.
-- If given a requirements YAML, skip to summary confirmation.
-- If "use defaults" or "standard setup", only ask Phase 1 then confirm.
+- If given a requirements YAML, ask question 30; a YAML `permissions_boundary` answers only b1, so still ask b2; then skip to summary confirmation.
+- If "use defaults" or "standard setup", only ask Phase 1 and question 30, then confirm.
 - If given existing requirements or context, read it, identify what's already answered, and only ask the remaining questions.
 - When generating, explain key architectural choices — don't just emit code silently.
