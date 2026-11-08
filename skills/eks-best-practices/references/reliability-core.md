@@ -281,19 +281,17 @@ livenessProbe:
     path: /healthz?check=database
 ```
 
-✅ **DO check dependencies in readiness — but with caution:**
+✅ **DO prefer pod-local readiness checks (warm-up done, local caches loaded); avoid external dependencies such as a database:**
 ```yaml
-# ✅ GOOD — Database check in readiness probe
-# If DB goes down, pods are removed from Service but stay running
+# ✅ GOOD: readiness checks only this pod's own state
 readinessProbe:
   httpGet:
-    path: /ready  # Checks database connectivity
+    path: /ready  # Warm-up and local caches only; no database or downstream calls
 ```
 
-**Important nuance:** Even readiness probes with external dependency checks carry risk. If a shared dependency (database, cache) becomes unavailable, ALL pods fail readiness simultaneously, removing all endpoints from the Service — effectively making the entire application unreachable. Consider:
-- Using readiness for dependencies only the specific pod needs (not shared infrastructure)
-- Implementing circuit breakers in the application instead of failing readiness on transient dependency issues
-- For shared dependencies, prefer degraded responses over failing the readiness check entirely
+**Why:** AWS's EKS guide says to avoid readiness probes that depend on a resource external to the pod, such as a database. If a shared dependency (database, cache) becomes unavailable, ALL pods fail readiness simultaneously, removing all endpoints from the Service and making the entire application unreachable. Instead:
+- Handle transient dependency failures in the application, for example with a circuit breaker
+- Serve a degraded response while a shared dependency is down, where the app can serve without it, and keep the pod ready
 
 ### Probe Timing Rules
 
@@ -306,6 +304,8 @@ readinessProbe:
 | `successThreshold` | 1 | 1-2 | 1 (always) |
 
 **Key insight:** Use startup probes to handle slow initialization. This avoids setting large `initialDelaySeconds` on liveness probes, which delays deadlock detection.
+
+**Exec probes:** the command must exit before `timeoutSeconds`, or the node collects `<defunct>` processes, leading to node failure ([EKS Best Practices: applications](https://docs.aws.amazon.com/eks/latest/best-practices/application.html)).
 
 ---
 
@@ -329,6 +329,7 @@ annotations:
 - Use the **same endpoint** for ALB health check and readiness probe
 - Set ALB health check interval ≥ readiness probe period
 - Account for NLB health check during graceful shutdown (use `deregistration_delay`)
+- Use pod readiness gates (AWS Load Balancer Controller; needs `target-type: ip` and the namespace label `elbv2.k8s.aws/pod-readiness-gate-inject: enabled`) so a rolling update does not terminate old pods until the new pods' targets are Healthy on the load balancer ([EKS Best Practices: load balancing](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html)); label the namespace and create the Service or Ingress before the pods (the gate is injected at pod creation only)
 
 ❌ DON'T:
 - Use different health endpoints for LB and K8s probes (leads to split-brain)
@@ -353,8 +354,8 @@ spec:
       - name: app
         lifecycle:
           preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 15"]
+            sleep:
+              seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
         # Application must handle SIGTERM gracefully
 ```
 
@@ -367,6 +368,8 @@ spec:
 6. After `terminationGracePeriodSeconds`, SIGKILL sent
 
 ### Why `sleep` in preStop?
+
+On Kubernetes 1.30 and later, use the native `sleep` action (`lifecycle.preStop.sleep.seconds`; beta in 1.30, stable in 1.34), which needs no shell in the image; use the `exec` `sleep` form only on older clusters.
 
 The `sleep 15` in preStop gives time for:
 - kube-proxy to update iptables rules (remove pod from Service)
@@ -433,6 +436,8 @@ spec:
         labelSelector:
           matchLabels:
             app: my-app
+        matchLabelKeys:
+        - pod-template-hash
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname
         whenUnsatisfiable: ScheduleAnyway
@@ -455,6 +460,8 @@ spec:
 **Set `minDomains`** to the number of zones the NodePool can launch in. While fewer eligible zones than `minDomains` have nodes, the scheduler treats the global minimum as 0, so each zone takes at most `maxSkew` matching pods and the rest stay Pending until nodes exist in more zones. A value higher than the zones the pods can schedule into (every node group or NodePool their node selector allows) leaves the surplus replicas Pending until nodes exist in that many zones. `minDomains` is valid only with `whenUnsatisfiable: DoNotSchedule` and is GA in Kubernetes 1.30 (on by default since 1.27). If Karpenter knows more zones than this NodePool allows (another NodePool, or EC2NodeClass subnets in other zones), it counts those empty zones in the spread and replicas can stay Pending at any `minDomains` value ([kubernetes-sigs/karpenter#2227](https://github.com/kubernetes-sigs/karpenter/issues/2227), open as of 2026-10-30; [aws/karpenter-provider-aws#7585](https://github.com/aws/karpenter-provider-aws/issues/7585)). Restrict the pod's zones too, with a nodeSelector or required nodeAffinity on `topology.kubernetes.io/zone`, or limit the EC2NodeClass subnets to the NodePool's zones.
 
 **Zonal outages:** with `DoNotSchedule` and the default `nodeTaintsPolicy: Ignore`, nodes in a failed zone still count toward the skew while they exist, so replacement pods can stay Pending for the length of the outage. `nodeTaintsPolicy: Honor` (GA in Kubernetes 1.33) leaves out of the count nodes with a taint the pod does not tolerate, including the `node.kubernetes.io/unreachable` and `not-ready` NoSchedule taints that failed nodes get, and cordoned nodes. That helps only while the zones left are at least `minDomains`. With `minDomains` set to all zones, as above, a zone loss makes the global minimum 0, so each surviving zone holds at most `maxSkew` matching pods: to run on N-1 zones, `maxSkew` must be at least the replicas each surviving zone must hold.
+
+**Rolling updates:** add `matchLabelKeys: [pod-template-hash]` so the skew is counted within each Deployment revision, not across old and new pods together (beta and on by default since Kubernetes 1.27; [Kubernetes docs](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)).
 
 ### Pod Anti-Affinity Alternative
 
@@ -486,7 +493,7 @@ resources:
     cpu: 250m        # Scheduling guarantee
     memory: 512Mi    # Scheduling guarantee
   limits:
-    memory: 1Gi      # OOM protection
+    memory: 512Mi    # = memory request
     # cpu: omitted   # No CPU throttling
 ```
 
@@ -497,13 +504,12 @@ resources:
 | **Requests** | ✅ Always set (scheduling) | ✅ Always set (scheduling) |
 | **Limits** | ❌ Usually omit (avoid throttling) | ✅ Always set (OOM protection) |
 
-- Set memory limits = 1.5-2x memory requests
+- Set memory limits equal to memory requests for predictable behavior; if a workload must burst, do not set the limit much larger than the request ([EKS Best Practices: data plane](https://docs.aws.amazon.com/eks/latest/best-practices/data-plane.html))
 - Use VPA recommendations for right-sizing (also: Goldilocks, Parca)
 - Set CPU requests based on actual usage (not peak)
 - Don't set CPU limits on latency-sensitive workloads (causes throttling)
-- For critical apps needing Guaranteed QoS (eviction protection), set requests = limits
+- For Guaranteed QoS, set CPU and memory requests = limits on every container, init containers included (memory alone gives Burstable)
 - Correctly sized requests are critical for Karpenter/Cluster Autoscaler node provisioning
-- Don't set limits much larger than requests (overcommit risk, higher eviction chance)
 
 ### Namespace Resource Controls
 
@@ -585,7 +591,7 @@ spec:
             cpu: "250m"
             memory: "256Mi"
           limits:
-            memory: "512Mi"       # No CPU limit — allow bursting
+            memory: "256Mi"       # = memory request; no CPU limit, allow bursting
         startupProbe:
           httpGet:
             path: /healthz
@@ -608,8 +614,8 @@ spec:
           timeoutSeconds: 3
         lifecycle:
           preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 15"]
+            sleep:
+              seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -702,10 +708,10 @@ Use startup probes for applications with slow initialization (>10 seconds). The 
 
 | Rule | Readiness Probe | Liveness Probe |
 |---|---|---|
-| **Check dependencies?** | YES — check DB, cache, downstream services | NEVER — only check the process itself |
+| **Check dependencies?** | Prefer pod-local (warm-up, local caches); avoid external dependencies such as a database, which can fail every replica at once | NEVER — only check the process itself |
 | **What happens on failure?** | Pod removed from Service endpoints (no traffic) | Pod restarted (container killed) |
 | **Use for** | "Can this pod serve traffic right now?" | "Is this process deadlocked or hung?" |
-| **Endpoint** | `/ready` or `/healthz` with dependency checks | `/livez` or simple TCP check |
+| **Endpoint** | `/ready`: prefer pod-local; avoid external dependencies such as a database | `/livez` or simple TCP check |
 
 **Critical rule:** Liveness probes must NOT check external dependencies. If the database goes down and liveness checks the DB, ALL pods restart simultaneously — causing cascading failure instead of graceful degradation.
 

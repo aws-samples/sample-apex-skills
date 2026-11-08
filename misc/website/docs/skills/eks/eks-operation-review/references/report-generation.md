@@ -11,7 +11,7 @@ This page is generated from [skills/eks-operation-review/references/report-gener
 
 
 :::info[Vendored skill]
-This skill is sourced from [eks-operation-review](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review), also maintained by the APEX team.
+This skill is sourced from [sample-eks-operation-review-skill](https://github.com/aws-samples/sample-eks-operation-review-skill), also maintained by the APEX team.
 :::
 
 # Report Generation
@@ -183,9 +183,9 @@ Ask: "Would you like me to convert the report to HTML?"
 If yes, run the conversion script — do NOT generate HTML manually. Execute this command:
 
 ```bash
-python3 tools/report_to_html.py <report-filename>.md
+python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py <report-filename>.md
 ```
 
-From the workspace root, run `python3 tools/report_to_html.py <report>.md`.
+From the workspace root, run `python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py <report>.md`.
 
 Do NOT create HTML by hand. Always use the script.

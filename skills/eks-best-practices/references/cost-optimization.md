@@ -107,7 +107,7 @@ kubectl get vpa app-vpa -o jsonpath='{.status.recommendation.containerRecommenda
 | CPU request >> actual usage (consistently) | Reduce CPU request to P95 usage |
 | Memory request >> actual usage | Reduce memory request to P99 usage + 20% buffer |
 | CPU throttling observed | Increase CPU request (or remove CPU limit) |
-| OOMKilled events | Increase memory limit |
+| OOMKilled events | Raise memory request and limit |
 | Pod pending due to resources | Scale nodes or reduce requests |
 
 ### Reducing Unused Capacity
@@ -130,7 +130,7 @@ spec:
 
 Karpenter selects the most cost-effective instance from your allowed types. It replaces underutilized nodes with smaller ones and removes empty nodes automatically.
 
-For workloads that shouldn't be interrupted (long batch jobs without checkpointing), use the `karpenter.sh/do-not-disrupt: "true"` annotation.
+For workloads that shouldn't be interrupted (long batch jobs without checkpointing), use the `karpenter.sh/do-not-disrupt: "true"` annotation. On a pod it blocks consolidation (and drift unless the NodeClaim has a `terminationGracePeriod`); on a node it blocks consolidation and drift. It does not block expiration, interruption, manual deletion or Node Auto Repair: see [Karpenter Reference](karpenter.md#do-not-disrupt-does-not-block-forceful-disruption).
 
 **See also:** [Karpenter Reference](karpenter.md) for detailed NodePool configuration, consolidation tuning, and Spot handling.
 

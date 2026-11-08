@@ -717,20 +717,22 @@ def append_history(skill: str, entry: dict) -> None:
 # ---------- AWS read-only session --------------------------------------------
 
 
-def mint_federation_token(policy_file: Path, name: str, duration: int) -> dict:
-    """Run `aws sts get-federation-token` with a session policy."""
-    r = subprocess.run(
-        [
-            "aws", "sts", "get-federation-token",
-            "--name", name,
-            "--policy", f"file://{policy_file}",
-            "--duration-seconds", str(duration),
-            "--output", "json",
-        ],
-        capture_output=True, text=True,
-    )
+def mint_federation_token(
+    policy_file: Path, name: str, duration: int, tags: dict[str, str]
+) -> dict:
+    """Run `aws sts get-federation-token` with a session policy and session tags."""
+    cmd = [
+        "aws", "sts", "get-federation-token",
+        "--name", name,
+        "--policy", f"file://{policy_file}",
+        "--duration-seconds", str(duration),
+        "--output", "json",
+        "--tags", *(f"Key={k},Value={v}" for k, v in tags.items()),
+    ]
+    r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
-        raise RuntimeError(f"get-federation-token failed: {r.stderr.strip()}")
+        hint = "; if the error names sts:TagSession, add it to the IAM user's policy"
+        raise RuntimeError(f"get-federation-token failed: {r.stderr.strip()}{hint}")
     return json.loads(r.stdout)["Credentials"]
 
 
@@ -1033,15 +1035,17 @@ def main() -> int:
         if not policy.exists():
             print(f"aws session policy not found: {policy}", file=sys.stderr)
             return 2
+        run_id = f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{os.getpid()}"
         creds = mint_federation_token(
-            policy, name=f"evals-readonly-{os.getpid()}", duration=args.aws_duration
+            policy, name=f"evals-readonly-{os.getpid()}", duration=args.aws_duration,
+            tags={"apex-run": run_id},
         )
         extra_env["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
         extra_env["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
         extra_env["AWS_SESSION_TOKEN"] = creds["SessionToken"]
         extra_env["AWS_DEFAULT_REGION"] = args.aws_region
         print(
-            f"[task] minted read-only AWS session (exp {creds['Expiration']})",
+            f"[task] minted read-only AWS session (exp {creds['Expiration']}, apex-run={run_id})",
             file=sys.stderr,
         )
 

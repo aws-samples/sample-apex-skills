@@ -1,6 +1,7 @@
 ---
-title: "eks-cost-intelligence"
-description: "EKS cost efficiency assessment — 6-dimension analysis, weighted 0-100 Cost Score, and dollar-quantified remediation report. Analyzes compute efficiency, Spot/Graviton adoption, networking, storage, observability, and idle resources. Triggers on cost audit, cost review, cost driver analysis, FinOps assessment, spending efficiency, waste identification, over-provisioned workloads, or cost attribution by namespace. Combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis."
+title: "EKS Cost Intelligence (eks-cost-intelligence) for AWS DevOps Agent"
+sidebar_label: "eks-cost-intelligence"
+description: "AWS DevOps Agent port. Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/SKILL.md
 format: md
 ---
@@ -41,6 +42,7 @@ The following permissions are included:
 
 **EC2 (required):**
 - `ec2:DescribeInstances`
+- `ec2:DescribeInstanceTypes`
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`

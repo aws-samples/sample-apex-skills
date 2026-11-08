@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/compu
 
 # Compute Efficiency
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for CPU/memory request-to-utilization ratios, over-provisioned workload detection, low-utilization node detection, Karpenter consolidation effectiveness, and missing resource requests/limits
 
 ---

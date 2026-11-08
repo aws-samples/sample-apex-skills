@@ -1,6 +1,7 @@
 ---
-title: "eks-upgrade-check"
-description: "Assess EKS cluster upgrade readiness by running automated checks across 8 areas (version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, upgrade plan), calculate a readiness score (0-100%), and generate a detailed report with remediation steps and pre-filled AWS CLI commands. Assessment-only - all checks are strictly read-only and never modify the cluster. Use this skill when investigating EKS upgrade safety, or, in the context of a version upgrade, Kubernetes version skew, deprecated API usage, addon compatibility, or Karpenter version; also node upgrade readiness or control plane upgrade planning."
+title: "EKS Upgrade Check (eks-upgrade-check) for AWS DevOps Agent"
+sidebar_label: "eks-upgrade-check"
+description: "AWS DevOps Agent port. Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/SKILL.md
 format: md
 ---

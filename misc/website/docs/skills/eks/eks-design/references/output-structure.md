@@ -101,7 +101,7 @@ projects/<project-name>/design/
   - Technical feasibility assessment
   - Documentation completeness review
   - Overall validation score and recommendation
-- **Format**: See [architecture-validation.md](architecture-validation)
+- **Format**: See [architecture-validation.md](architecture-validation.md)
 
 ### appendices/iterations/score-sheet-iteration-X.md
 
@@ -146,9 +146,6 @@ When document export is requested, the following are generated alongside the cor
 
 ```
 projects/<project-name>/design/
-├── scripts/                                     # Optional: document generators
-│   ├── generate-docx.sh                         # Word export script
-│   └── generate-pptx.sh                         # PowerPoint export script
 └── exports/                                     # Optional: generated documents
     ├── architecture-document.docx
     └── architecture-presentation.pptx

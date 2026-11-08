@@ -377,13 +377,13 @@ For detailed network policy guidance including default-deny patterns, DNS allow 
 
 | Option | Standard | EKS Support | Features |
 |--------|----------|-------------|----------|
-| **VPC CNI Network Policy** | K8s NetworkPolicy | Native (use v1.21.1+) | L3/L4 policies, eBPF-based |
+| **VPC CNI Network Policy** | K8s NetworkPolicy | Native (use v1.22.3+, the fixed release in [AWS security bulletin 2026-170](https://aws.amazon.com/security/security-bulletins/2026-170-aws/)) | L3/L4 policies, eBPF-based |
 | **Calico** | K8s + Calico extended | Add-on | L3/L4 + DNS-based policies |
 | **Cilium** | K8s + Cilium extended | Self-managed | L3/L4/L7 + DNS + identity |
 
 **Recommendation:** Use VPC CNI native network policies for most workloads. Use Cilium or Calico only if you need L7 policies or advanced features like DNS hostname rules.
 
-> Beyond the namespaced `NetworkPolicy` above, EKS adds two AWS-native CRDs (`networking.k8s.aws/v1alpha1`, VPC CNI v1.21.1+): cluster-scoped **`ClusterNetworkPolicy`** with a `tier: Admin | Baseline` field (the Admin tier is evaluated first and can't be overridden by namespace policies; Baseline is an overridable default), and namespaced **`ApplicationNetworkPolicy`**, an EKS Auto Mode CRD adding an FQDN-based egress filter that applies only on Auto Mode nodes. (Kubernetes 1.29+ is the Auto Mode / new-cluster rollout floor, not a ClusterNetworkPolicy gate.) See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
+> Beyond the namespaced `NetworkPolicy` above, EKS adds two AWS-native CRDs (`networking.k8s.aws/v1alpha1`, VPC CNI v1.22.3+): cluster-scoped **`ClusterNetworkPolicy`** with a `tier: Admin | Baseline` field (the Admin tier is evaluated first and can't be overridden by namespace policies; Baseline is an overridable default), and namespaced **`ApplicationNetworkPolicy`**, an EKS Auto Mode CRD adding an FQDN-based egress filter that applies only on Auto Mode nodes. (Kubernetes 1.29+ is the Auto Mode / new-cluster rollout floor, not a ClusterNetworkPolicy gate.) See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
 
 ---
 

@@ -16,7 +16,7 @@ This skill is maintained by **Anton Babenko ([terraform-best-practices.com](http
 
 # State Management
 
-> **Part of:** [terraform-skill](../)
+> **Part of:** [terraform-skill](../index.md)
 > **Purpose:** Comprehensive state management patterns and best practices for Terraform/OpenTofu
 
 This document provides detailed guidance on state management, from remote backend configuration to recovery strategies and multi-team isolation patterns.
@@ -1832,7 +1832,7 @@ Common model mistakes to correct before returning state-related recommendations:
 - recommends workspace-only isolation as a substitute for backend-level IAM separation
 - writes DynamoDB-lock configuration on Terraform 1.10+ instead of using `use_lockfile = true` on the S3 backend
 - runs `terraform destroy -auto-approve` or skips `plan -destroy` before a targeted destroy - missing implicit dependents pulled in via shared locals
-- reads via `terraform_remote_state` within a single team's stack instead of using module outputs (see [module-patterns.md](module-patterns#3-use-terraform_remote_state-sparingly--only-at-true-ownership-boundaries))
+- reads via `terraform_remote_state` within a single team's stack instead of using module outputs (see [module-patterns.md](module-patterns.md#3-use-terraform_remote_state-sparingly--only-at-true-ownership-boundaries))
 - omits the rollback/recovery note for destructive state operations
 
 ### State Management Checklist
@@ -1847,4 +1847,4 @@ Common model mistakes to correct before returning state-related recommendations:
 
 ---
 
-**Back to:** [Main Skill File](../)
+**Back to:** [Main Skill File](../index.md)

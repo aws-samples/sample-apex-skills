@@ -13,7 +13,7 @@ This page is generated from [skills/apex/runbooks/eks-upgrade-check/eks-upgrade-
 # Upgrade-Readiness Assessment Workflow
 
 > **Lifecycle:** Day 2 — Operate (pre-upgrade)
-> **Skill:** `eks-upgrade-check` — [SKILL.md](../../../../eks/eks-upgrade-check/)
+> **Skill:** `eks-upgrade-check` — [SKILL.md](../../../../eks/eks-upgrade-check/index.md)
 
 ---
 
@@ -52,7 +52,7 @@ When the report is complete:
 - **Score 60–79 (FAIR / RISKY):** Present the prioritized remediation list. Recommend resolving the top blockers and re-running the assessment.
 - **Score < 60 (NOT READY):** A hard blocker capped the score at 59 or below, or deductions alone brought it there. Walk the user through the blocker section and the top deductions. Recommend not proceeding with an upgrade until they are resolved.
 
-For full scoring rules and the hard-blocker list, see [eks-upgrade-check SKILL.md](../../../../eks/eks-upgrade-check/#readiness-score).
+For full scoring rules and the hard-blocker list, see [eks-upgrade-check SKILL.md](../../../../eks/eks-upgrade-check/index.md#readiness-score).
 
 ---
 

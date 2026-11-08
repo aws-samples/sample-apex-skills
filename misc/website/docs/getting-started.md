@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Getting Started
+description: "How to install APEX skills in Claude Code, Kiro CLI, Codex, AWS DevOps Agent or another Agent Skills harness, verify them and add the agent rules."
 ---
 
 # Getting Started
@@ -129,5 +130,5 @@ See [`rules/AGENTS.md`](https://github.com/aws-samples/sample-apex-skills/blob/m
 
 ## Next steps
 
-- Browse the [Skills](./skills) catalog.
-- With a manual install from `main`, start with the [APEX router](./skills/general/apex) skill for a phased engagement: it routes to the right skill and its runbook.
+- Browse the [Skills](./skills/index.md) catalog.
+- With a manual install from `main`, start with the [APEX router](./skills/general/apex/index.md) skill for a phased engagement: it routes to the right skill and its runbook.

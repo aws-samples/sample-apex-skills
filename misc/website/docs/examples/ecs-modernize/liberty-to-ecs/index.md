@@ -12,7 +12,7 @@ This page is generated from [examples/ecs-modernize/liberty-to-ecs/README.md](ht
 
 # Modernize a WebSphere Liberty App onto Amazon ECS
 
-A hands-on exercise for the [`ecs-modernize`](../../../skills/ecs/ecs-modernize/) skill. You start with a Java 8 / Java EE 7 Liberty application deliberately built with modernization blockers in every scoring dimension, run the assessment to get a Fit_Score, then **execute both paths** and re-assess to watch the score move.
+A hands-on exercise for the [`ecs-modernize`](../../../skills/ecs/ecs-modernize/index.md) skill. You start with a Java 8 / Java EE 7 Liberty application deliberately built with modernization blockers in every scoring dimension, run the assessment to get a Fit_Score, then **execute both paths** and re-assess to watch the score move.
 
 The point is the loop, not any single number: *assess → decide → execute → re-assess*.
 
@@ -439,7 +439,7 @@ Generate the ECS environment Terraform for the rearchitected Orders app,
 targeting ECS Express Mode.
 ```
 
-The agent should hand off to [`ecs-build`](../../../skills/ecs/ecs-build/) with the structured input list — image URI, container port, health check path (`/api/health`), sizing, and the task-role need — rather than writing the IaC inside `ecs-modernize`. Ask for `targeting Fargate` instead and you get the shape Part 3b pre-wrote; doing that once and diffing the generated code against [`terraform/`](https://github.com/aws-samples/sample-apex-skills/blob/main/examples/ecs-modernize/liberty-to-ecs/terraform) is a cheap way to see how much of that file was forced by findings.
+The agent should hand off to [`ecs-build`](../../../skills/ecs/ecs-build/index.md) with the structured input list — image URI, container port, health check path (`/api/health`), sizing, and the task-role need — rather than writing the IaC inside `ecs-modernize`. Ask for `targeting Fargate` instead and you get the shape Part 3b pre-wrote; doing that once and diffing the generated code against [`terraform/`](https://github.com/aws-samples/sample-apex-skills/blob/main/examples/ecs-modernize/liberty-to-ecs/terraform) is a cheap way to see how much of that file was forced by findings.
 
 **The whole service is one resource, and this app needs nothing more.** It is tempting to assume the rearchitected app has outgrown the simple path — it needs a task role for the S3 archive and the bucket name as an environment variable, which sounds like a job for a task definition you write yourself. It is not. `aws_ecs_express_gateway_service` carries `task_role_arn` at the top level and `environment` / `secret` blocks inside `primary_container`, so the entire environment is one resource plus the three IAM roles:
 
@@ -606,16 +606,16 @@ Both should return an empty list. Local build output (`target/`, `app-before/lib
 
 ## Further Reading
 
-- [ECS Modernize Skill](../../../skills/ecs/ecs-modernize/)
-  - [Tech Stack Detection](../../../skills/ecs/ecs-modernize/references/tech-stack-detection) — the Liberty vs Tomcat `server.xml` rule
-  - [Blocker Detection](../../../skills/ecs/ecs-modernize/references/blocker-detection) — the six categories and remediation classes
-  - [Scoring and Recommendation](../../../skills/ecs/ecs-modernize/references/scoring-and-recommendation) — dimensions, weights, thresholds
-  - [Replatform Path](../../../skills/ecs/ecs-modernize/references/replatform-path) — static configuration, sticky sessions
-  - [Replatform Environment Build](../../../skills/ecs/ecs-modernize/references/replatform-environment-build) — why this path is not delegated, and the skeleton Part 2 generates from
-  - [Rearchitect Path](../../../skills/ecs/ecs-modernize/references/rearchitect-path) — compute candidates, modernization items
-  - [Code Transformation (agent-led)](../../../skills/ecs/ecs-modernize/references/code-transformation-agent-led) — the tWAS/Liberty porting map
-- [ECS Build Skill](../../../skills/ecs/ecs-build/) — the Rearchitect hand-off target
-  - [Service and Deployment](../../../skills/ecs/ecs-build/references/service-and-deployment) — the Express service generation path and its constraints
+- [ECS Modernize Skill](../../../skills/ecs/ecs-modernize/index.md)
+  - [Tech Stack Detection](../../../skills/ecs/ecs-modernize/references/tech-stack-detection.md) — the Liberty vs Tomcat `server.xml` rule
+  - [Blocker Detection](../../../skills/ecs/ecs-modernize/references/blocker-detection.md) — the six categories and remediation classes
+  - [Scoring and Recommendation](../../../skills/ecs/ecs-modernize/references/scoring-and-recommendation.md) — dimensions, weights, thresholds
+  - [Replatform Path](../../../skills/ecs/ecs-modernize/references/replatform-path.md) — static configuration, sticky sessions
+  - [Replatform Environment Build](../../../skills/ecs/ecs-modernize/references/replatform-environment-build.md) — why this path is not delegated, and the skeleton Part 2 generates from
+  - [Rearchitect Path](../../../skills/ecs/ecs-modernize/references/rearchitect-path.md) — compute candidates, modernization items
+  - [Code Transformation (agent-led)](../../../skills/ecs/ecs-modernize/references/code-transformation-agent-led.md) — the tWAS/Liberty porting map
+- [ECS Build Skill](../../../skills/ecs/ecs-build/index.md) — the Rearchitect hand-off target
+  - [Service and Deployment](../../../skills/ecs/ecs-build/references/service-and-deployment.md) — the Express service generation path and its constraints
 - Amazon ECS Express Mode (Part 3c): [overview](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html) · [resources it creates and the task-definition defaults](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html) · [deleting a service](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-delete-task.html) · [`modules/express-service`](https://github.com/terraform-aws-modules/terraform-aws-ecs/tree/master/modules/express-service)
 - [Open Liberty container images](https://openliberty.io/docs/latest/container-images.html)
 - [Migrating applications to Liberty](https://www.ibm.com/docs/en/was-liberty/base?topic=migrating-applications-liberty)

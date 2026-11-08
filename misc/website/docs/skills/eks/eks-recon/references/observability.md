@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/observability.md](https
 
 # Module: Observability
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect observability stack - metrics, logging, tracing configuration
 
 ## Table of Contents
@@ -29,7 +29,7 @@ This page is generated from [skills/eks-recon/references/observability.md](https
 ---
 
 > **Shared cluster block:** every module agent also emits the shared `cluster:` block defined
-> under "## Shared Cluster Block" in [`cluster-basics.md`](cluster-basics). It is not redefined here.
+> under "## Shared Cluster Block" in [`cluster-basics.md`](cluster-basics.md). It is not redefined here.
 >
 > **Module ownership:** this module OWNS control-plane logging. `cluster-basics` defers to the
 > `logging.control_plane` block below for which control-plane log types are enabled/disabled.

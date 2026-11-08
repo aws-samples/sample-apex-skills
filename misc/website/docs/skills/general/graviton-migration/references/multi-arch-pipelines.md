@@ -11,7 +11,7 @@ This page is generated from [skills/graviton-migration/references/multi-arch-pip
 
 # Multi-Arch Container Build Pipelines
 
-> **Part of:** [graviton-migration](../)
+> **Part of:** [graviton-migration](../index.md)
 
 A Graviton migration only stays migrated if the CI pipeline keeps producing images that run on arm64. This reference shows how to make each major CI system publish a **multi-arch image** — one tag, two architectures — on every build, so a workload can move to arm64 (and back, or straddle both) without anyone re-tagging anything. Read the section for the user's CI system and generate the config from it; do not produce a pipeline block from memory. The action and image versions pinned below (e.g. `actions/checkout`, `docker/*-action`, the `docker:` image tag, and the `tonistiigi/binfmt` tag) will drift over time, so verify the current stable version of each referenced action and image live before emitting it into a user's pipeline.
 
@@ -30,7 +30,7 @@ A Graviton migration only stays migrated if the CI pipeline keeps producing imag
 
 A **manifest list** (an OCI image index) is a single image tag that points at multiple per-architecture images. When a node pulls `myrepo/app:1.4.0`, the container runtime reads the manifest list and fetches the entry matching the node's architecture — the arm64 image on a Graviton node, the amd64 image on an x86 node. Same tag, right binary, automatically.
 
-This is why the [cutover runbook](karpenter-migration) tells you never to bake an `-arm64` suffix into a Kubernetes manifest: the manifest list already does arch selection. Your CI job's deliverable is therefore "push a manifest list covering `linux/amd64,linux/arm64`", not "build an arm64 image."
+This is why the [cutover runbook](karpenter-migration.md) tells you never to bake an `-arm64` suffix into a Kubernetes manifest: the manifest list already does arch selection. Your CI job's deliverable is therefore "push a manifest list covering `linux/amd64,linux/arm64`", not "build an arm64 image."
 
 ## Native runners vs. QEMU emulation
 
@@ -140,4 +140,4 @@ pipeline {
 }
 ```
 
-Whichever CI system you use, the acceptance test is the same: after the pipeline runs, inspect the pushed tag (`docker buildx imagetools inspect repo/app:tag`) and confirm it lists both `linux/amd64` and `linux/arm64`. That manifest list is what lets the [Karpenter cutover](karpenter-migration) reference a single tag and get the right binary on every node.
+Whichever CI system you use, the acceptance test is the same: after the pipeline runs, inspect the pushed tag (`docker buildx imagetools inspect repo/app:tag`) and confirm it lists both `linux/amd64` and `linux/arm64`. That manifest list is what lets the [Karpenter cutover](karpenter-migration.md) reference a single tag and get the right binary on every node.

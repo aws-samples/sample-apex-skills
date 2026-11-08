@@ -11,10 +11,10 @@ This page is generated from [skills/ecs-observability/references/native-visibili
 
 # ECS Observability — Native Visibility and ECS Exec
 
-> **Part of:** [ecs-observability](../)
+> **Part of:** [ecs-observability](../index.md)
 > **Purpose:** The zero-extra-cost visibility layer every ECS observability design should exploit before buying anything — service events, EventBridge, container health checks — plus ECS Exec for live debugging and its precise VPC endpoint requirements
 
-**For the per-capability launch-type matrix, see:** [launch-type-matrix.md](launch-type-matrix)
+**For the per-capability launch-type matrix, see:** [launch-type-matrix.md](launch-type-matrix.md)
 
 ---
 
