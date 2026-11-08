@@ -20,7 +20,7 @@ APEX skills are plain folders of markdown + scripts. Any agent harness that supp
 npx apex-skills@1.3.0
 ```
 
-The commands here pin the installer to exactly version 1.3.0, which also skips later 1.3.x installer releases. A fresh install with no earlier install record takes the newest 1.x release (v1.3.0 today), not the tip of `main`; `--version` picks a release, `--branch` follows a branch, and `--update` stays on the clone's major line or the branch it follows.
+The commands here pin the installer to exactly version 1.3.0, which also skips later 1.3.x installer releases. A fresh install with no earlier install record takes the latest published release, not the tip of `main`; `--version` picks a release, `--branch` follows a branch, and `--update` stays on the clone's major line or the branch it follows.
 
 The installer's own messages show `npx apex-skills`; add `@1.3.0` when you run them.
 
