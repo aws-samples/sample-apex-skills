@@ -72,7 +72,7 @@ skills/{skill-name}/
 
 ### Current Skills
 
-See the auto-generated [Skills Reference](README.md#skills-reference) in `README.md` — regenerated from each `skills/<name>/SKILL.md` frontmatter by `misc/update-skills-references.sh` (and enforced by CI via `misc/update-all-references.sh`), so it can't fall out of sync with the repo.
+See the auto-generated skill list under [Pick a skill by what you are doing](README.md#pick-a-skill-by-what-you-are-doing) in `README.md`: `misc/update-skills-references.sh` regenerates it from each skill's summary and group in the `SKILL_META` table in `misc/update-pages.sh` (and CI enforces it via `misc/update-all-references.sh`), so it can't fall out of sync with the repo.
 
 ---
 
@@ -314,7 +314,7 @@ Two catalogues in the repo are **auto-generated** from each entry's frontmatter 
 
 | Block | Rendered in | Source of truth | Regenerator |
 |---|---|---|---|
-| Skills Reference | `README.md`, `skills/README.md` | `skills/<name>/SKILL.md` frontmatter | `misc/update-skills-references.sh` |
+| Skills Reference | `README.md`, `skills/README.md` | `README.md`: the `SKILL_META` table (summary and group) in `misc/update-pages.sh`; `skills/README.md`: `skills/<name>/SKILL.md` frontmatter | `misc/update-skills-references.sh` |
 | Examples Reference | `README.md` | `examples/**/README.md` frontmatter | `misc/update-examples-references.sh` |
 
 Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` / `<!-- SKILLS_REFERENCE_END -->`. The regenerator owns everything between the markers; anything outside them is free.
