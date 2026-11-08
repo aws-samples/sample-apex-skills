@@ -9,7 +9,7 @@ APEX skills such as `eks-recon`, `eks-upgrade-check` and `eks-operation-review` 
 
 **Read-only is the default; write is opt-in.** Run assessments under this profile. When a task really needs to change something (`eks-build` applying Terraform, an upgrade), switch to your normal credentials for that task only, on purpose.
 
-The profile has three layers. The first two are the guardrail; the third is a convenience.
+The profile has three layers. The first two are the guardrail only when the agent runs where these are its only credentials (another OS user or a container); the third is a convenience.
 
 | Layer | File | What it does |
 |---|---|---|
@@ -27,7 +27,7 @@ Point `kubectl` at the target cluster with credentials that can create RBAC obje
 ./misc/evals/setup/bootstrap-readonly.sh
 ```
 
-It applies `readonly-rbac.yaml` (ServiceAccount `kube-system/evals-readonly`, its ClusterRole and binding, and a token Secret), then writes `misc/evals/.secrets/kubeconfig.readonly` (gitignored, mode 600). Before it finishes, it checks that the new kubeconfig can list nodes, cannot create pods and cannot list Secrets, and that your AWS identity can mint a federation token (IAM-user credentials only).
+It applies `readonly-rbac.yaml` (ServiceAccount `kube-system/evals-readonly`, its ClusterRole and binding, and a token Secret), then writes `misc/evals/.secrets/kubeconfig.readonly` (gitignored, mode 600). Before it finishes, it checks that the new kubeconfig can list nodes, spot-checks with `kubectl auth can-i` that it cannot create pods or list Secrets (it stops only on a `yes` answer, so a can-i error passes), and checks that your AWS identity can mint a federation token (IAM-user credentials only).
 
 Hand the agent that kubeconfig:
 
@@ -35,7 +35,7 @@ Hand the agent that kubeconfig:
 export KUBECONFIG="$PWD/misc/evals/.secrets/kubeconfig.readonly"
 ```
 
-The EKS MCP server defaults to `EKS_AUTH_MODE=iam` and does not read `KUBECONFIG`: set `EKS_AUTH_MODE=kubeconfig` with this kubeconfig, or expect the agent to fall back to `kubectl`.
+The self-hosted EKS MCP server defaults to `EKS_AUTH_MODE=iam` and does not read `KUBECONFIG`: set `EKS_AUTH_MODE=kubeconfig` with this kubeconfig (its AWS tools are then not registered), or expect the agent to fall back to `kubectl`.
 
 ### What the ClusterRole can read
 
@@ -44,18 +44,18 @@ Kubernetes RBAC is purely additive and has no deny rules, so the role cannot say
 - **Core group:** componentstatuses, configmaps, endpoints, events, limitranges, namespaces, nodes, persistentvolumeclaims, persistentvolumes, pods, `pods/log`, podtemplates, replicationcontrollers, resourcequotas, serviceaccounts, services.
 - **Built-in groups**, every resource: admissionregistration, apiextensions, apiregistration, apps, autoscaling, batch, certificates, coordination, discovery, events, flowcontrol, metrics, networking, node, policy, rbac, scheduling, storage.
 - **CRD groups the skills read**, every resource: for example `karpenter.sh`, `eks.amazonaws.com`, `elbv2.k8s.aws`, `argoproj.io`, `monitoring.coreos.com`, the Gatekeeper, Cilium and Velero groups `eks-recon` reads and `keda.sh` for `eks-operation-review`. The full list is in the YAML; add your own CRD groups to its third rule. A group not listed reads as Forbidden, and a skill that hides errors then reports 0 objects for it, not "unreadable".
-- Non-resource URLs such as `/version` and `/healthz`, with `get` only.
+- All non-resource URLs (`*`), `get` only, `/metrics` included.
 
 Left out on purpose:
 
 - `secrets`.
 - `pods/exec`, `pods/attach`, `pods/portforward`, `nodes/proxy` and `services/proxy`. A `get` on these opens a websocket connection, which is not read-only.
 
-**The trade-off:** Helm stores its release records in Secrets, so `helm list` returns nothing under this profile, and the `eks-recon` checks that read Secrets (the Helm release fallback, the Prometheus config secret) come back Forbidden, and a skill that hides errors then reports none, not unreadable (for example `eks-recon`'s Helm inventory: run `helm list -A` with normal credentials before you trust it). Also denied: `eks-recon`'s IRSA OIDC-provider and GuardDuty checks, and `eks-operation-review`'s Secret key-name scan and IAM role checks (reported UNKNOWN). AWS calls outside `readonly-session-policy.json` are denied; add the actions you need. Secret objects are not readable; credentials placed in ConfigMaps, env values, logs, EC2 user data or launch templates still are. EKS managed add-ons (`aws eks list-addons`) and Deployments are readable under the role as written; the RBAC has not been tested on a live cluster.
+**The trade-off:** Helm stores its release records in Secrets, so `helm list` fails with a `secrets is forbidden` error under this profile, and the `eks-recon` checks that read Secrets (the Helm release fallback, the Prometheus config secret) come back Forbidden, and a skill that hides errors then reports none, not unreadable (for example `eks-recon`'s Helm inventory: run `helm list -A` with normal credentials before you trust it). Also denied: `eks-recon`'s IRSA OIDC-provider and GuardDuty checks, and `eks-operation-review`'s Secret key-name scan and IAM role checks (reported UNKNOWN), `eks-cost-intelligence`'s node stats (`nodes/proxy`) and orphaned-Secret check, and `eks-well-architected-review`'s PolicyReports (`wgpolicyk8s.io`, not in the role's third rule). AWS calls outside `readonly-session-policy.json` are denied; add the actions you need. Secret objects are not readable; credentials placed in ConfigMaps, env values, logs, EC2 user data or launch templates still are, and so are EC2 Windows password data (encrypted), EC2 console output, VPN customer gateway configuration (which can include tunnel pre-shared keys), CloudFormation templates and CRD specs such as an OpenTelemetryCollector's `spec.config`. EKS managed add-ons (`aws eks list-addons`) and Deployments are readable under the role as written; the RBAC has not been tested on a live cluster.
 
 ## 2. Mint a read-only AWS session
 
-This recipe passes the session policy to `GetFederationToken`, which needs an IAM user's long-term credentials; from a role, `aws sts assume-role --policy file://...` takes the same file. Call `GetFederationToken`, then export the result for the agent:
+This recipe passes the session policy to `GetFederationToken`, which needs an IAM user's long-term credentials; from a role, `aws sts assume-role --role-arn <arn> --role-session-name <name> --policy file://...` takes the same file, but sections 2 and 3 describe GetFederationToken only: under AssumeRole IAM reads work, CloudTrail shows `AssumedRole`, and tags need `sts:TagSession` in the role's trust policy. Call `GetFederationToken`, then export the result for the agent:
 
 ```bash
 aws sts get-federation-token \
@@ -100,7 +100,7 @@ chmod +x .claude/hooks/deny-write-hook.sh
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/deny-write-hook.sh" }
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/deny-write-hook.sh" }
         ]
       }
     ]
@@ -108,11 +108,11 @@ chmod +x .claude/hooks/deny-write-hook.sh
 }
 ```
 
-The hook reads the tool call as JSON on stdin and, for common mutating verbs of `kubectl`, `helm`, `eksctl`, `terraform` and `aws` typed as a bare command, prints `permissionDecision: "deny"` with a reason. It misses others (for example `aws s3 cp`, `kubectl debug`, `terraform state rm`) and any command behind a path, quotes, `bash -c` or `$(...)`. It lets `kubectl auth can-i` and `aws eks update-kubeconfig` through. It needs `jq`. Without jq, or if the hook errors, Claude Code runs the command anyway. Edit its pattern list to fit your tools.
+The hook reads the tool call as JSON on stdin and, for common mutating verbs of `kubectl`, `helm`, `eksctl`, `terraform` and `aws` typed as a bare command, prints `permissionDecision: "deny"` with a reason. It misses others (for example `aws s3 cp`, `kubectl debug`, `terraform state rm`) and any command behind a path, quotes, a subshell, a variable, `eval`, `bash -c`, `$(...)` or different letter case. It also denies `kubectl auth can-i create ...` and `aws eks update-kubeconfig`; run those with your normal credentials. A read whose arguments contain a listed verb as a word (a namespace `create`, `clusterrole edit`) is denied too, and so is `aws bedrock-runtime invoke-model`, which the session policy allows. On Windows with the PowerShell tool enabled, Claude runs shell commands through PowerShell, which this `Bash` hook does not check. It needs `jq`. Without jq, or if the hook errors, Claude Code runs the command anyway. Edit its pattern list to fit your tools.
 
 ## Switching to write
 
-Write is a deliberate step, never the default: unset `KUBECONFIG` and the session variables (or open a new shell with your normal credentials), and remove or disable the hook for that task. Switch back when the task is done. To remove the profile: `kubectl delete -f misc/evals/setup/readonly-rbac.yaml` and delete `misc/evals/.secrets/`.
+Write is a deliberate step, never the default: unset `KUBECONFIG` and the session variables (or open a new shell with your normal credentials), and remove or disable the hook for that task. Switch back when the task is done. To remove the profile: `kubectl delete -f misc/evals/setup/readonly-rbac.yaml` and delete `misc/evals/.secrets/`. Also remove the copied hook and its `.claude/settings.json` entry and unset the exported variables in any open shell; a minted federation token stays valid until it expires.
 
 ## References
 

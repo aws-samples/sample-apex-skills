@@ -16,8 +16,9 @@
 #   pods/exec, pods/attach,  `get` on these opens a websocket, which is not
 #   pods/portforward,        read-only
 #   nodes/proxy, services/proxy
-# Side effect: Helm release data lives in Secrets, so `helm list` and the
-# eks-recon Secret-based checks return nothing under this SA.
+# Side effect: Helm release data lives in Secrets, so `helm list` fails
+# with `secrets is forbidden` and the eks-recon Secret-based checks return
+# nothing under this SA.
 #
 # Non-core groups are listed by name with "*" resources: the built-in groups,
 # then the CRD groups the APEX skills read. Add your own CRD groups to the
