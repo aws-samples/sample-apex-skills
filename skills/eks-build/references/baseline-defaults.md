@@ -324,7 +324,7 @@ Some organisations require a permissions boundary on every IAM role that automat
 permissions_boundary: null   # e.g. "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"
 ```
 
-When it is set, pass `try(local.cluster_config.permissions_boundary, null)` only to the roles the customer named in question 30; leave the line out of a snippet whose role the customer did not name (service-linked roles take no boundary). A null value leaves the role without a boundary. In a child module (`eks-cluster/`, `custom-addons/`), declare `variable "permissions_boundary" { default = null }` and pass it from the root. The input name differs by module (names checked at terraform-aws-eks v21.29.0, eks-pod-identity v2.10.0, eks-blueprints-addons v1.24.3, eks-blueprints-addon v1.3.0; re-check them at the version you pin):
+When it is set, pass `try(local.cluster_config.permissions_boundary, null)` only to the roles the customer named in the boundary question (apex runbook question 30); leave the line out of a snippet whose role the customer did not name (service-linked roles take no boundary). A null value leaves the role without a boundary. In a child module (`eks-cluster/`, `custom-addons/`), declare `variable "permissions_boundary" { default = null }` and pass it from the root. The input name differs by module (names checked at terraform-aws-eks v21.29.0, eks-pod-identity v2.10.0, eks-blueprints-addons v1.24.3, eks-blueprints-addon v1.3.0; re-check them at the version you pin):
 
 | Role | Module or resource | Input |
 |------|--------------------|-------|
@@ -336,7 +336,7 @@ When it is set, pass `try(local.cluster_config.permissions_boundary, null)` only
 | Pod Identity add-on roles | `terraform-aws-modules/eks-pod-identity/aws` | `permissions_boundary_arn` |
 | IRSA add-on roles (Pattern 1, 2a) | `aws-ia/eks-blueprints-addons/aws`, inside each add-on map (e.g. `aws_load_balancer_controller = { role_permissions_boundary_arn = ... }`) | `role_permissions_boundary_arn` |
 | Custom add-on roles | `aws-ia/eks-blueprints-addon/aws` | `role_permissions_boundary_arn` |
-| ACK and ArgoCD capability roles | `terraform-aws-modules/eks/aws//modules/capability` | `iam_role_permissions_boundary_arn` |
+| ACK, KRO and ArgoCD capability roles | `terraform-aws-modules/eks/aws//modules/capability` | `iam_role_permissions_boundary_arn` |
 | Pattern 2b Velero role | `aws_iam_role` | `permissions_boundary` |
 | ACK IAM Role manifest (Pattern 2b) | `iam.services.k8s.aws/v1alpha1` `Role` | `spec.permissionsBoundary` |
 

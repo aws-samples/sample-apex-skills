@@ -100,7 +100,7 @@ module "ebs_csi_pod_identity" {
   use_name_prefix = false
   attach_aws_ebs_csi_policy  = true
   aws_ebs_csi_policy_name    = "${local.cluster_config.name}-EBS_CSI"  # Avoid cross-project collision
-  permissions_boundary_arn   = try(local.cluster_config.permissions_boundary, null)
+  permissions_boundary_arn   = try(local.cluster_config.permissions_boundary, null)  # only if the customer named this role in question 30
   tags = local.tags
 }
 
@@ -250,7 +250,7 @@ module "my_addon" {
   set    = try(var.custom_addons_config.my_addon.set, [])
   tags   = var.tags
 
-  role_permissions_boundary_arn = var.permissions_boundary  # used when create_role = true
+  role_permissions_boundary_arn = var.permissions_boundary  # used when create_role = true; only if the customer named this role in question 30
 }
 ```
 
