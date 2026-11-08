@@ -175,7 +175,9 @@ Skip questions 27 to 29 if single-team cluster; always ask question 30.
        → Not sure: a boundary is an IAM policy your security team owns that caps
          what a role can do. Ask them, then answer yes or no. I stop here until
          you answer yes or no: nothing is added and nothing is generated.
-    b. If yes, answer 1 and 2. I will not fill either in for you:
+    b. If yes, first: one boundary for all the roles you name, or different
+       boundaries on different roles? Then answer 1 and 2. I will not fill
+       either in for you:
        1. The ARN of the boundary policy. It must already exist in the account
           you deploy to. This project does not create, write or change it, and
           puts this one boundary ARN on every role you name in 2.
@@ -195,6 +197,11 @@ Skip questions 27 to 29 if single-team cluster; always ask question 30.
        answer is missing, ask again, and do not generate the project. I never
        write, suggest or guess a boundary policy or an ARN, and I never copy
        one from an example.
+    d. If you want different boundaries on different roles, I stop and say
+       plainly that this build puts one boundary ARN on the roles you name.
+       You can choose one boundary for now, or add the others by hand after
+       generation. I do not generate the project on a per-role answer until
+       you choose one ARN.
 ```
 
 **STOP.** Wait for user confirmation before proceeding. Present a mid-point summary of compute, addons, security, and tenancy decisions. Confirm before moving to operations and generation.
