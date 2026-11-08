@@ -13,7 +13,7 @@ This page is generated from [devops-agent/eks-security/references/porting-notes.
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution.
 
-> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-11-06 (compliance-fedramp.md added; port rebuilt for the three review capabilities on 2026-11-05; the knowledge references re-copied from upstream at that date).
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-11-08 (compliance-fedramp.md added; port rebuilt for the three review capabilities on 2026-11-05; the knowledge references re-copied from upstream at that date).
 
 ## Differences from Claude Code Version
 
@@ -30,7 +30,7 @@ This file documents the differences between the Claude Code version and the DevO
 | **Script execution** | Runs its own read-only scripts; prints changes for the team | Advisory only: recommends commands for the user to execute |
 | **MCP dependencies** | May use the EKS MCP server for the same reads | No MCP dependencies; uses Agent Space APIs directly |
 | **Kubernetes access** | kubeconfig plus the `eks-security-reader` ClusterRole bound through an access entry with a Kubernetes group | The Agent Space access entry (associated with `AmazonAIOpsAssistantPolicy` by `devops-agent/setup.sh`) plus the same ClusterRole, bound by adding a Kubernetes group to that entry (`read-only-access.md`) |
-| **Knowledge references** (16 hardening and compliance files) | Upstream copies | Copies of upstream as of 2026-11-06. Two keep port wording: `engagement-and-response.md` (autonomous "checks" instead of "questions", Professional Services escalation, no sibling routing) and `image-supply-chain.md` (one sentence). Edit both copies together |
+| **Knowledge references** (16 hardening and compliance files) | Upstream copies | Copies of upstream as of 2026-11-08. Two keep port wording: `engagement-and-response.md` (autonomous "checks" instead of "questions", Professional Services escalation, no sibling routing) and `image-supply-chain.md` (one sentence). Edit both copies together |
 | **Auto Mode security reference** | `references/auto-mode-security.md` | In sync; security facts are launch-agnostic. Edit both copies together |
 | **Compliance references** | 4 per-regime deep files plus `compliance-regimes.md` | At full parity, byte-identical. Keep the compliance facts in sync across both copies |
 
