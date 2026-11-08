@@ -205,4 +205,4 @@ Sample code for **educational and demonstration purposes only**. It is not inten
 
 ## License
 
-MIT-0. See [LICENSE](LICENSE).
+This project is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
