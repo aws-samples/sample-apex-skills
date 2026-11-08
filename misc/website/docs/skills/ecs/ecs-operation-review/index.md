@@ -51,7 +51,7 @@ Activate for any request to **audit, review, health-check, or score** an ECS est
 | Building deployment pipelines / choosing rollout strategy / CI-CD engineering | **`ecs-devops`** |
 | Replatform vs refactor of an existing application | **`ecs-modernize`** |
 
-The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-security`, `ecs-cost-intelligence`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family and may be **rolled out over time**; route to them by name where relevant, and if one is not yet available, note that and fall back to the AWS CLI / this skill's audit-depth guidance. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
+The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-security`, `ecs-cost-intelligence`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family; route to them by name where relevant. `ecs-cost-intelligence` has not shipped yet: for cost asks, note that and fall back to the AWS CLI / this skill's audit-depth guidance. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
 
 ## Defers to deep skills
 

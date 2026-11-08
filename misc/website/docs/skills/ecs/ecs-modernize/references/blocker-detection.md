@@ -307,5 +307,5 @@ If specific files matching a category's evidence patterns are unreadable (e.g. a
 - Java Native Interface (JNI) specification: https://docs.oracle.com/en/java/javase/21/docs/specs/jni/
 - WebSphere Application Server container images (ILAN license for entitled customers): https://www.ibm.com/docs/en/was/9.0.5?topic=cloud-running-websphere-application-server-in-container
 - WebSphere traditional distributed sessions — database persistence is server-side configuration: https://www.ibm.com/docs/en/was/9.0.5?topic=sessions-distributed
-- WebSphere memory-to-memory (DRS) session replication settings — a Network Deployment clustering feature, also server-side configuration (ND ships in both product lines, so the 8.5.5 and 9.0 lines both document it): https://www.ibm.com/docs/en/was-nd/9.0.5?topic=replication-memory-memory-settings
+- WebSphere memory-to-memory (DRS) session replication settings — a Network Deployment clustering feature, also server-side configuration (Network Deployment exists for both the 8.5.5 and 9.0 lines, and both document it): https://www.ibm.com/docs/en/was-nd/9.0.5?topic=replication-memory-memory-settings
 - Windows container limitations (no interactive desktop sessions; infrastructure requirements): https://learn.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/system-requirements
