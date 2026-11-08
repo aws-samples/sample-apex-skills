@@ -178,8 +178,7 @@ export default function SkillFinder({variant}: Props): ReactNode {
           ? hits.length === 0
             ? (
                 <>
-                  No skill matches every word of &ldquo;{query.trim()}&rdquo;. Try one key word, such as upgrade,
-                  ingress or security,{' '}
+                  No skill matches every word of &ldquo;{query.trim()}&rdquo;. Try one key word,{' '}
                   <Link to="/skills" onClick={() => setQuery('')}>
                     browse every skill
                   </Link>

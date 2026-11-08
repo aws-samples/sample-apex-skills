@@ -258,10 +258,7 @@ skill_title() {
     t="$(derive_title "$SKILLS_DIR/$1/SKILL.md")"
   fi
   # Titles are 'Name (id)'; the summary column is the page description.
-  if [[ "$t" == "$1" ]]; then :
-  elif [[ "$t" == *": "* ]]; then t="${t%%: *} ($1)"
-  else t="$t ($1)"
-  fi
+  [[ "$t" == "$1" ]] || t="${t%%: *} ($1)"
   printf '%s\n' "$t"
 }
 
