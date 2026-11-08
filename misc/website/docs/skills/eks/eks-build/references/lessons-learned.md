@@ -531,11 +531,11 @@ resource "kubernetes_namespace_v1" "argocd" {
 
 **Fix:** Add a `null_resource` with destroy-time provisioner that deletes capabilities via the EKS API before Terraform attempts deletion. Include `sleep 180` for ArgoCD capability deletion time.
 
-**Workaround:** Delete each capability through the EKS API and wait until none is listed, remove only the `aws_eks_capability` resources from state, then show the destroy plan and apply it only after the user approves it:
+**Workaround:** Stop the hung `terraform destroy` first (Ctrl-C, and let it release the state lock). List the capabilities, show them to the user with the intent to destroy, and delete only the ones the user names that this state manages (`terraform state list`). Deleting a capability "removes the capability infrastructure but retains all resources that were managed by the capability", so delete, or deliberately keep, the Kubernetes resources each capability manages before you delete it. Wait until the deleted capabilities are no longer listed, remove only the `aws_eks_capability` resources from state, then show the destroy plan and apply it only after the user approves it:
 ```bash
-aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].capabilityName' --output text
-aws eks delete-capability --cluster-name <cluster> --capability-name <name>  # once per capability listed
-aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].capabilityName' --output text  # repeat until empty
+aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].[capabilityName,status]' --output text  # show the user, get their yes
+aws eks delete-capability --cluster-name <cluster> --capability-name <name>  # only the names the user approved
+aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].[capabilityName,status]' --output text  # repeat until they are gone; on DELETE_FAILED stop and report it to the user
 terraform state list | grep -E '(^|\.)aws_eks_capability\.' | xargs -I{} terraform state rm {}
 terraform plan -destroy -out=destroy.tfplan
 terraform apply destroy.tfplan  # only after the user approves the plan above
