@@ -217,10 +217,13 @@ jobs:
             sync-failed
             automated
 
-      # A pull request opened or updated with GITHUB_TOKEN starts no
-      # pull_request workflow, so the required checks would never report on it.
-      # A workflow_dispatch event from GITHUB_TOKEN does start a run, on the
-      # branch's last commit: dispatch each workflow that owns a required check.
+      # A pull request opened or updated with GITHUB_TOKEN gets pull_request
+      # runs that wait for a maintainer's approval, so the required checks stay
+      # Expected. A workflow_dispatch event from GITHUB_TOKEN starts a run on the
+      # branch's last commit with no approval: dispatch each workflow that owns a
+      # required check. If a dispatched check fails or is cancelled, re-run it
+      # from the Actions tab: the next weekly run dispatches again only when the
+      # bot branch changes.
       - name: Run the required checks on the bot branch
         if: >-
           contains(fromJSON('["created", "updated"]'), steps.cpr.outputs.pull-request-operation) ||
