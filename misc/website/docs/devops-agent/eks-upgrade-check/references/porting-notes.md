@@ -37,7 +37,7 @@ DevOpsAgent/
 
 Assesses a live EKS cluster's readiness for a Kubernetes version upgrade across 8 areas, calculates a readiness score (0–100%), and generates a report with prioritized remediation and pre-filled AWS CLI commands. All operations are **read-only**.
 
-See [`SKILL.md`](../) for the full assessment workflow.
+See [`SKILL.md`](../index.md) for the full assessment workflow.
 
 ## How to install into an Agent Space
 

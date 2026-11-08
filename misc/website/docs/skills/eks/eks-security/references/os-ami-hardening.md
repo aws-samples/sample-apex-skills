@@ -74,7 +74,7 @@ EKS Auto Mode is the lowest-operational-burden option but **does not support cus
 
 > **AL2 currency note (checked 2026-11-05 against the [AL2 AMI deprecation FAQ](https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html)):** EKS **stopped publishing EKS-optimized AL2 AMIs on Nov 26, 2025**; the **AL2 operating system reached end-of-life on June 30, 2026.** Migrate AL2 nodes to AL2023 or Bottlerocket. Don't conflate the two dates.
 
-To check whether running node AMIs are affected by a published OS advisory (ALAS, Bottlerocket), use [cve-advisory-review.md](cve-advisory-review).
+To check whether running node AMIs are affected by a published OS advisory (ALAS, Bottlerocket), use [cve-advisory-review.md](cve-advisory-review.md).
 
 ## Shared responsibility (Layer 1)
 

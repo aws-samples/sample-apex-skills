@@ -811,11 +811,11 @@ a reader sees. It refuses a block that does not define `emit()`, so a per-questi
 
 | Pillar | Block extracted from |
 |---|---|
-| Operational Excellence | [references/operational-excellence.md](operational-excellence) |
-| Security — all 57 questions in one block | [references/security/identity-access.md](security/identity-access) |
-| Reliability | [references/reliability.md](reliability) |
-| Performance Efficiency | [references/performance-efficiency.md](performance-efficiency) |
-| Cost Optimization | [references/cost-optimization.md](cost-optimization) |
+| Operational Excellence | [references/operational-excellence.md](operational-excellence.md) |
+| Security — all 57 questions in one block | [references/security/identity-access.md](security/identity-access.md) |
+| Reliability | [references/reliability.md](reliability.md) |
+| Performance Efficiency | [references/performance-efficiency.md](performance-efficiency.md) |
+| Cost Optimization | [references/cost-optimization.md](cost-optimization.md) |
 
 The other four security files (data-protection, network, workload-security, governance-compliance) hold
 per-question rationale and remediation you load when writing findings; they carry no scorer block.
@@ -888,7 +888,7 @@ still prints to stdout, so a redirect-based caller still works.
   governance record has no such relationship — `g` emits `unknown` and `b()` never runs — so there is
   no second projection to cross-check.
 - **The severity source.** The weights are not in the reducer; it parses
-  [references/severity.md](severity) on every run, on the same principle as `b()` above,
+  [references/severity.md](severity.md) on every run, on the same principle as `b()` above,
   and publishes what it parsed in `scores.json` under `severity` for the renderer to label findings
   with. A row's weight is the tier of the **nearest preceding** `### High`/`### Medium`/`### Low`
   heading, so any edit changing which heading that is changes the score. The reducer therefore requires
@@ -940,7 +940,7 @@ still prints to stdout, so a redirect-based caller still works.
   editing the reducer.
 
 **Which tier each question is in lives in exactly one place:
-[references/severity.md](severity).** `assets/reduce.sh` parses its `### High` /
+[references/severity.md](severity.md).** `assets/reduce.sh` parses its `### High` /
 `### Medium` / `### Low` tables on every run and weights the score with what it finds, then publishes the
 parsed map in `scores.json` under `severity`; `assets/render-report.py` reads it back from there for the
 risk-weight chips and the improvement-plan ordering. Neither script assigns a question to a tier, so **to
@@ -1126,7 +1126,7 @@ run is evidence the references were intact for that cluster, not that they are i
    opportunities and are **not** in that score, together with the cluster's actual posture on all
    three. A bare Cost number reads as "no cost levers taken", which it does not measure — a 100%
    Spot + Graviton cluster scores identically to one on neither. See the disclosure block at the top
-   of [references/cost-optimization.md](cost-optimization).
+   of [references/cost-optimization.md](cost-optimization.md).
 6. **Governance** — the list of Not Assessed questions.
 7. **Action Plan** — immediate / short-term / strategic.
 

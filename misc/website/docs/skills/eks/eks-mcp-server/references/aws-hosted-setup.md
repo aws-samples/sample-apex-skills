@@ -11,7 +11,7 @@ This page is generated from [skills/eks-mcp-server/references/aws-hosted-setup.m
 
 # AWS-Hosted EKS MCP Server Setup
 
-> **Part of:** [eks-mcp-server](../)
+> **Part of:** [eks-mcp-server](../index.md)
 
 > **Note:** The AWS-Hosted EKS MCP Server is currently in preview.
 

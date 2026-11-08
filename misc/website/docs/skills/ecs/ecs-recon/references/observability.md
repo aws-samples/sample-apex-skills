@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/observability.md](https
 
 # Module: Observability
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Discover monitoring, logging, and telemetry configuration for ECS clusters and services
 
 ## Table of Contents
