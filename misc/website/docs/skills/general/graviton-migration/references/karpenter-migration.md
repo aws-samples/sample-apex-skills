@@ -1,6 +1,6 @@
 ---
 title: "Karpenter arm64 Node Cutover Runbook"
-description: "⚠️ Precondition — do NOT begin cutover unless every target workload has a reconciled CLEAN 3-layer scan verdict from a re-scan of the built tree (a..."
+description: "This is a seven-step runbook for moving Kubernetes workloads onto AWS Graviton (arm64) nodes provisioned by Karpenter, safely."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/references/karpenter-migration.md
 format: md
 ---

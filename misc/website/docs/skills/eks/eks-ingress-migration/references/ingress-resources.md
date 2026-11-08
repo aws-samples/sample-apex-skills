@@ -1,6 +1,6 @@
 ---
 title: "Ingress Resource Analysis"
-description: "Rating model: Express every finding as Impact 0–5 using the Impact Indicator rubric, weighing three dimensions in priority order: (1) business logic /..."
+description: "Analyze existing Ingress resources to determine what must be converted to HTTPRoute and identify conversion complexity."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/ingress-resources.md
 format: md
 ---

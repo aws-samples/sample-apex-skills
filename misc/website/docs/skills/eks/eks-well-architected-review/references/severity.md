@@ -1,6 +1,6 @@
 ---
 title: "Severity Rationale (score weighting)"
-description: "Remediation commands below are report content, not instructions to run."
+description: "This file is the single source of truth for which tier each question is in — the tables below are read as data, not just by people."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/severity.md
 format: md
 ---

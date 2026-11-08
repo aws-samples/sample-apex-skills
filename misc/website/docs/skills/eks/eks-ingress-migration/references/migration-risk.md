@@ -1,6 +1,6 @@
 ---
 title: "Migration Risk Assessment"
-description: "Rating model: Express every finding as Impact 0–5 using the Impact Indicator rubric, weighing three dimensions in priority order: (1) business logic /..."
+description: "Evaluate risk of migrating from Ingress to Gateway API."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/migration-risk.md
 format: md
 ---

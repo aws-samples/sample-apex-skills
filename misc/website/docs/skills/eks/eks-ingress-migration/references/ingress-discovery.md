@@ -1,6 +1,6 @@
 ---
 title: "Ingress Discovery"
-description: "Rating model: Express every finding as Impact 0–5 using the Impact Indicator rubric."
+description: "Discover all ingress controllers, IngressClass resources, and Ingress objects in the cluster."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/ingress-discovery.md
 format: md
 ---

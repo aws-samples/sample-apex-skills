@@ -69,6 +69,8 @@ const FIRST: [string, string, number?][] = [
   ['karpenter', 'eks-best-practices'],
   // 392-1 (X-1): the manifest summary is indexed with the use line ("canary" is in ecs-devops's summary).
   ['canary', 'ecs-devops'],
+  // Router :76, "stuck deployment": ecs-devops.
+  ['deployment', 'ecs-devops'],
   // M5 and S2: plurals, -ing, the word "skill", a trailing period, "1.32".
   ['secure', 'eks-security'],
   ['upgrades', 'eks-upgrade-check'],
@@ -119,6 +121,8 @@ test('M4: no part-word hits outside the name, no Best match from a part word', (
 
 test('M5: "skill" and "skills" are stop words', () => {
   assert.deepEqual(shown('eks skills').all, shown('eks').all);
+  assert.deepEqual(shown('amazon ecs').all, shown('ecs').all);
+  assert.deepEqual(shown('amazon eks').all, shown('eks').all);
 });
 
 test('FB-1 and U2: a stop-word-only query shows the whole catalogue, EKS first, no Best match', () => {

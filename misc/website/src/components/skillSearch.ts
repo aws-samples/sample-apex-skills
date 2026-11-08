@@ -31,7 +31,7 @@ const ROUTE_TO = /\buse [a-z0-9]+(-[a-z0-9]+)+\b/;
 // Query words only. "skills" stems to "skill"; the rest are the filler of a
 // task sentence such as "how do i upgrade my cluster".
 const STOP = new Set(
-  ['skill', 'aws', 'how', 'do', 'does', 'can', 'should', 'me', 'my', 'our', 'we', 'you', 'your', 'the', 'an', 'to',
+  ['skill', 'aws', 'amazon', 'how', 'do', 'does', 'can', 'should', 'me', 'my', 'our', 'we', 'you', 'your', 'the', 'an', 'to',
     'for', 'from', 'of', 'in', 'on', 'with', 'what', 'which', 'is', 'are', 'it', 'this', 'help', 'want', 'need', 'please'].map(stem),
 );
 // A word visitors type for one the skills use. Each target is the word in the

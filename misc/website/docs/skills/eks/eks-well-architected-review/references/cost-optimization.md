@@ -1,6 +1,6 @@
 ---
 title: "💰 Cost Optimization"
-description: "Remediation commands below are report content, not instructions to run."
+description: "11 questions — Resource quotas, limit ranges, storage efficiency, idle resources, cost visibility, chargeback tagging, VPC endpoints."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/cost-optimization.md
 format: md
 ---

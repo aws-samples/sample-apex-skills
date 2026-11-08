@@ -1,6 +1,6 @@
 ---
 title: "Gateway API Prerequisites (input to Migration Options → Option 1)"
-description: "Not a standalone rated section."
+description: "AWS LB Controller Gateway API reconciliation exists since L4 (TCP/UDP/TLSRoute) v2.13.3 and L7 (HTTPRoute/GRPCRoute) v2.14.0."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/gateway-api.md
 format: md
 ---

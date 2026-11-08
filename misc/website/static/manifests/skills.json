@@ -16,7 +16,7 @@
   {
     "name": "ecs-architect",
     "description": "Use when choosing and architecting an Amazon ECS deployment model for a NEW workload — Fargate vs ECS on EC2 vs Managed Instances vs Express Mode vs ECS Anywhere/External — plus capacity-provider strategy, task sizing, awsvpc/ENI density, networking, service parameters, and launch-type or topology migration (EC2 launch type to capacity providers/Managed Instances; Service Discovery to Service Connect). Also the shared ECS best-practices corpus. Triggers include \"which ECS launch type\", \"Fargate or EC2\", \"should I use Managed Instances\", \"migrate off EC2 launch type\", \"App Mesh to Service Connect\", \"migrate off App Runner\". Skip for existing-app replatform (ecs-modernize); auditing a live estate (ecs-operation-review); cost/TCO (ecs-cost-intelligence); inventory (ecs-recon); security (ecs-security); deployment/CICD (ecs-devops); observability (ecs-observability); GPU/ML design AND GPU launch-type choice (ecs-genai); Kubernetes/EKS (eks-design); Terraform generation of a settled design (use ecs-build).",
-    "summary": "Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing",
+    "summary": "Choose the ECS launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing",
     "path": "/docs/skills/ecs/ecs-architect/",
     "group": "ecs"
   },
@@ -65,7 +65,7 @@
   {
     "name": "ecs-recon",
     "description": "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, inspect a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment strategy design and CI/CD engineering (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost/TCO (ecs-cost-intelligence, once available), observability design (ecs-observability), and replatform/migration (ecs-modernize, once available).",
-    "summary": "ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD",
+    "summary": "ECS environment discovery: compute and capacity providers, task definitions, scaling, networking, security, observability and IaC/CI-CD",
     "path": "/docs/skills/ecs/ecs-recon/",
     "group": "ecs"
   },
@@ -142,14 +142,14 @@
   {
     "name": "eks-recon",
     "description": "EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, subnets, load balancers, DNS), security facts (auth mode, IRSA/Pod Identity, RBAC, encryption), add-ons/Helm, observability, workloads (Deployments, StatefulSets, PDBs, HPAs), storage (CSI, StorageClasses, PVs, backup tooling), IaC (Terraform, CDK, eksctl), CI/CD (Actions, ArgoCD, Flux), and cluster insights. Use to discover or document the current state of an EKS cluster — 'what am I running', 'tell me about my setup', 'what version am I on', inventory before an upgrade/migration/design. Reports facts only; it does not score, rate, plan, or recommend, and overlapping facts with other skills is fine. Route elsewhere for a JUDGMENT or ARTIFACT: readiness scoring/deprecated-API checks (eks-upgrade-check), GREEN/AMBER/RED audits (eks-operation-review), design docs/diagrams (eks-design).",
-    "summary": "EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring",
+    "summary": "EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts",
     "path": "/docs/skills/eks/eks-recon/",
     "group": "eks"
   },
   {
     "name": "eks-security",
     "description": "Read-only scripted security reviews of a live Amazon EKS cluster (exposed / not exposed / unknown), plus hardening and compliance guidance. (1) CVE and advisory review - \"am I exposed to CVE-...\", \"check this AWS bulletin or GHSA against my cluster\", \"CVE review for EKS\" - verdicts for add-ons and images; kubelet and node-OS items are review-only. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, record, contain, snapshot, fix, verify. (3) Posture check - \"would my cluster contain a compromised pod\", IMDS, NetworkPolicy, PSA, identity, logging, GuardDuty, endpoint, supply chain. Also hardening and audit prep - 7-layer stack, CIS, HIPAA/PCI-DSS/FedRAMP/SOC 2, Pod Identity vs IRSA, Access Entries, image signing. Skip for EKS knowledge (eks-best-practices), Well-Architected review (eks-well-architected-review), upgrade readiness (eks-upgrade-check), an operational review (eks-operation-review), inventory (eks-recon), GenAI model security (eks-genai), non-EKS.",
-    "summary": "Read-only EKS security reviews (CVEs, security events, posture) and hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing",
+    "summary": "Read-only scripted reviews of a live EKS cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing",
     "path": "/docs/skills/eks/eks-security/",
     "group": "eks"
   },

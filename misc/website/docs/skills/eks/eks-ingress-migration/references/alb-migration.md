@@ -1,6 +1,6 @@
 ---
 title: "ALB Controller Migration Path"
-description: "Rating model: Express every finding as Impact 0–5 using the Impact Indicator rubric, weighing three dimensions in priority order: (1) business logic /..."
+description: "Guide migration from NGINX Ingress Controller to AWS Load Balancer Controller (ALB Ingress), converting all NGINX-specific annotations to their ALB equivalents."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/alb-migration.md
 format: md
 ---

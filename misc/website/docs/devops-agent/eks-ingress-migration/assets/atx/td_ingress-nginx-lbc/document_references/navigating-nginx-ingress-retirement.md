@@ -1,6 +1,6 @@
 ---
 title: "Navigating the NGINX Ingress Retirement: A Practical Guide to Migration on AWS"
-description: "Source: AWS Networking & Content Delivery Blog"
+description: "The Kubernetes SIG Network and Security Response Committee has announced that Ingress NGINX will be retired in March 2026."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/assets/atx/td_ingress-nginx-lbc/document_references/navigating-nginx-ingress-retirement.md
 format: md
 ---

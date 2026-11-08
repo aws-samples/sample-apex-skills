@@ -164,7 +164,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-operation-review': {
     job: 'assess',
-    use: 'Audit the operational health of a live EKS cluster.',
+    use: 'Audit and score the operational health of a live EKS cluster.',
     notFor: 'readiness for a target version (eks-upgrade-check)',
     output: 'A GREEN, AMBER, RED report across 10 areas',
   },

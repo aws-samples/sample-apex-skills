@@ -1,6 +1,6 @@
 ---
 title: "Traffic & Routing Complexity"
-description: "Rating model: Express every finding as Impact 0–5 using the Impact Indicator rubric, weighing three dimensions in priority order: (1) business logic /..."
+description: "Assess routing complexity and map current patterns to Gateway API HTTPRoute equivalents."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/traffic-routing.md
 format: md
 ---
