@@ -1,6 +1,6 @@
 ---
 title: "Version Validation & Upgrade Path"
-description: ""
+description: "Validate the upgrade path, determine support status, and enforce EKS upgrade rules."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/version-validation.md
 format: md
 ---

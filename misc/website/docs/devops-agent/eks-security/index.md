@@ -1,7 +1,7 @@
 ---
 title: "EKS Security (eks-security) for AWS DevOps Agent"
 sidebar_label: "eks-security"
-description: "AWS DevOps Agent port. Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP"
+description: "AWS DevOps Agent port. Autonomous, read-only EKS security reviews with no scripts: CVE and advisory review, security event response, posture check, hardening"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/SKILL.md
 format: md
 ---

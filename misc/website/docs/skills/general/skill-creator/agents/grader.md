@@ -1,6 +1,6 @@
 ---
 title: "Grader Agent"
-description: ""
+description: "Evaluate expectations against an execution transcript and outputs."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/skill-creator/agents/grader.md
 format: md
 ---

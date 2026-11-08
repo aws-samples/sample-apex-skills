@@ -1,6 +1,6 @@
 ---
 title: "Capacity Provider Guide"
-description: ""
+description: "How to wire each capacity model in Terraform, and the constraints that break strategies."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/capacity-provider-guide.md
 format: md
 ---

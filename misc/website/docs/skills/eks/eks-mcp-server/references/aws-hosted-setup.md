@@ -1,6 +1,6 @@
 ---
 title: "AWS-Hosted EKS MCP Server Setup"
-description: ""
+description: "The fully managed EKS MCP Server is hosted by AWS, providing enterprise-grade capabilities with zero local maintenance."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/references/aws-hosted-setup.md
 format: md
 ---

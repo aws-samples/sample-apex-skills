@@ -1,6 +1,6 @@
 ---
 title: "ECS Observability — Native Visibility and ECS Exec"
-description: ""
+description: "The zero-extra-cost visibility layer every ECS observability design should exploit before buying anything — service events, EventBridge, container health..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-observability/references/native-visibility-and-exec.md
 format: md
 ---

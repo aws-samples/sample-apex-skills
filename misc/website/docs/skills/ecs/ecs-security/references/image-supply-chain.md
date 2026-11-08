@@ -1,6 +1,6 @@
 ---
 title: "Layer 4 — Image Supply Chain Security"
-description: ""
+description: "The end-state is a chain: scan → sign → run only signed, scanned images, all from a repository you control (ECR) rather than an unvetted public registry."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/image-supply-chain.md
 format: md
 ---

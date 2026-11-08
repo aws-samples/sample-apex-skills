@@ -1,6 +1,6 @@
 ---
 title: "Module: CI/CD Detection"
-description: ""
+description: "Detect CI/CD tooling associated with ECS deployments"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/cicd.md
 format: md
 ---

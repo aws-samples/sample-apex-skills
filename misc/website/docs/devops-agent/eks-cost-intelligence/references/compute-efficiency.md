@@ -1,6 +1,6 @@
 ---
 title: "Compute Efficiency"
-description: ""
+description: "Checks for CPU/memory request-to-utilization ratios, over-provisioned workload detection, low-utilization node detection, Karpenter consolidation..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/compute-efficiency.md
 format: md
 ---

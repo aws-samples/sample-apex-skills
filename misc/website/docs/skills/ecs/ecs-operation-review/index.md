@@ -1,5 +1,5 @@
 ---
-title: "ECS Operation Review (ecs-operation-review): rated audit of a live ECS estate"
+title: "ECS Operation Review (ecs-operation-review)"
 sidebar_label: "ecs-operation-review"
 description: "Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/SKILL.md

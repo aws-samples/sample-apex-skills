@@ -11,7 +11,8 @@
 #   examples/**/*.html    (copied to static/)
 #   examples/**/*.png     (copied to static/)
 #   devops-agent/**/*.md  (except devops-agent/README.md — marker-generated)
-#   SKILL_META (below)    skill page titles and summaries, and README groups
+#   SKILL_META (below)    skill page titles and summaries, and README groups (read by update-skills-references.sh)
+#   PORT_META (below)     DevOps Agent port page summaries
 #
 # Outputs (regenerated; tracked in git):
 #   misc/website/docs/skills/<group>/<name>/index.md       wrapper for SKILL.md
@@ -218,16 +219,16 @@ first_sentence() {
 # is generated from this table by misc/update-skills-references.sh, which fails
 # on a skill with no line or no group here.
 SKILL_META="$(cat <<'META'
-apex	APEX Router: pick the right EKS or ECS skill	Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills	Set up and extend
-dotnet-aws-ecs	.NET on Amazon ECS Fargate with CloudFormation or CDK	Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide	Day 1 Build
-ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing	Day 0 Design
+apex	APEX Router: pick the right EKS or ECS skill	Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills	Set up and extend
+dotnet-aws-ecs	.NET on Amazon ECS: Fargate with CloudFormation or CDK	Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide	Day 1 Build
+ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS compute model and launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing	Day 0 Design
 ecs-build	ECS Build: apply-ready Terraform for Amazon ECS	Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances	Day 1 Build
 ecs-devops	ECS DevOps: deployments and CI/CD for Amazon ECS	Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks	Day 1 Build
 ecs-genai	ECS GenAI: GPU, ML and LLM workloads on Amazon ECS	GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference	Knowledge Skills
 ecs-modernize	ECS Modernize: migrate VMware or EC2 apps to ECS	Assess an existing VMware or EC2 app from its source code, decide replatform or rearchitect, and migrate it onto ECS	Day 2 Operate: upgrade and migrate
 ecs-observability	ECS Observability: logs, metrics and traces for ECS	ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens	Day 0 Design
 ecs-operation-review	ECS Operation Review: rated audit of a live ECS estate	Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings	Day 2 Operate: assess what is running
-ecs-recon	ECS Recon: discover what your Amazon ECS estate runs	ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD	Day 2 Operate: assess what is running
+ecs-recon	ECS Recon: discover what your Amazon ECS estate runs	ECS environment discovery: compute and capacity providers, task definitions, scaling, networking, security, observability and IaC/CI-CD	Day 2 Operate: assess what is running
 ecs-security	ECS Security: hardening and compliance for Amazon ECS	ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2	Day 2 Operate: secure
 eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness	Knowledge Skills
 eks-build	EKS Build: production-ready Terraform for Amazon EKS	Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations	Day 1 Build
@@ -236,12 +237,12 @@ eks-design	EKS Design: architecture documents for Amazon EKS	Generate EKS archit
 eks-genai	EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS	GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways	Knowledge Skills
 eks-ingress-migration	EKS Ingress Migration: plan the move off NGINX Ingress	Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform	Day 2 Operate: upgrade and migrate
 eks-mcp-server	EKS MCP Server: connect your AI assistant to Amazon EKS	Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check	Set up and extend
-eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version	Day 2 Operate: assess what is running
+eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, with prioritized recommendations and deprecated-API review with no target version	Day 2 Operate: assess what is running
 eks-platform-engineering	EKS Platform Engineering: build an IDP on Amazon EKS	Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics	Knowledge Skills
-eks-recon	EKS Recon: discover what your Amazon EKS cluster runs	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring	Day 2 Operate: assess what is running
-eks-security	EKS Security: CVE review, posture and compliance for EKS	Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP	Day 2 Operate: secure
+eks-recon	EKS Recon: discover what your Amazon EKS cluster runs	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts	Day 2 Operate: assess what is running
+eks-security	EKS Security: CVE review, posture and compliance for EKS	Read-only scripted reviews of a live EKS cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing	Day 2 Operate: secure
 eks-upgrade-check	EKS Upgrade Check: upgrade readiness score for Amazon EKS	Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks	Day 2 Operate: upgrade and migrate
-eks-well-architected-review	EKS Well-Architected Review: unofficial pillar scores	Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request	Day 2 Operate: assess what is running
+eks-well-architected-review	EKS Well-Architected Review: unofficial pillar scores	Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only) across five pillars; run only on an explicit WAFR request	Day 2 Operate: assess what is running
 graviton-migration	Graviton Migration: move workloads from x86 to arm64	Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS	Day 2 Operate: upgrade and migrate
 skill-creator	Skill Creator: create, test and tune agent skills	Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy	Set up and extend
 terraform-skill	Terraform Skill: modules, tests and CI for Terraform	Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning	Day 1 Build
@@ -256,11 +257,8 @@ skill_title() {
     echo "WARNING: skills/$1 has no SKILL_META line in misc/update-pages.sh" >&2
     t="$(derive_title "$SKILLS_DIR/$1/SKILL.md")"
   fi
-  # The skill id goes in the title too, so a search for it matches.
-  if [[ "$t" == "$1" ]]; then :
-  elif [[ "$t" == *": "* ]]; then t="${t%%: *} ($1): ${t#*: }"
-  else t="$t ($1)"
-  fi
+  # Titles are 'Name (id)'; the summary column is the page description.
+  [[ "$t" == "$1" ]] || t="${t%%: *} ($1)"
   printf '%s\n' "$t"
 }
 
@@ -275,6 +273,75 @@ skill_summary() {
     fi
   fi
   printf '%s\n' "$s"
+}
+
+# One line per DevOps Agent port: <folder><TAB><summary>, in words from the
+# port's own devops-agent/<folder>/SKILL.md, which can differ from the skill's
+# (the eks-security port runs no scripts). The port page description is
+# "AWS DevOps Agent port. " (23 characters) plus this, so keep it under 137.
+# A port missing here falls back to its description's first sentence.
+PORT_META="$(cat <<'META'
+eks-cost-intelligence	EKS cost efficiency assessment across 6 dimensions with a weighted 0-100 Cost Score and a dollar-quantified remediation report
+eks-ingress-migration	Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
+eks-operation-review	Structured EKS operational excellence assessment of a live cluster across 10 areas: GREEN/AMBER/RED rated, prioritized recommendations
+eks-recon	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as raw facts only
+eks-security	Autonomous, read-only EKS security reviews with no scripts: CVE and advisory review, security event response, posture check, hardening
+eks-upgrade-check	EKS cluster upgrade readiness: read-only checks across 8 areas, a 0-100% readiness score and a report with remediation steps
+META
+)"
+
+port_summary() {
+  local s
+  s="$(awk -F'\t' -v n="$1" '$1 == n { print $2; exit }' <<<"$PORT_META")"
+  if [[ -z "$s" ]]; then
+    echo "WARNING: devops-agent/$1 has no PORT_META line in misc/update-pages.sh" >&2
+    s="$(first_sentence "$(parse_frontmatter "$REPO_ROOT/devops-agent/$1/SKILL.md" "description")")"
+    if [[ ${#s} -gt 137 ]]; then
+      s="${s:0:134}"
+      s="${s% *}..."
+    fi
+  fi
+  printf '%s\n' "$s"
+}
+
+# A page whose source has no description gets the first sentence of its first
+# plain paragraph (not a heading, code, table, admonition, HTML, or a
+# blockquote other than a Purpose: line), cut under 160 characters. An empty
+# description makes Docusaurus emit no meta description at all.
+body_summary() {
+  local s
+  s="$(strip_frontmatter "$1" | python3 -c '
+import re, sys
+fence, para = False, []
+for line in sys.stdin.read().splitlines():
+    t = line.strip()
+    if t.startswith(("```", "~~~")):
+        fence = not fence
+        continue
+    if not t:
+        if para:
+            break
+        continue
+    # Headings, code, tables, admonitions, HTML, rules, images, link-only
+    # list items (a table of contents), list items that open with a quote
+    # and blockquotes other than "> Purpose:" are not prose.
+    if fence or t.startswith(("#", "|", ":::", "<", "---", "***", "![")) or re.fullmatch(r"([-*+]|\d+\.)\s+\[[^\]]*\]\([^)]*\)", t) or re.match(r"([-*+]|\d+\.)\s+[\x22“]", t) or (t.startswith(">") and not re.match(r"(>\s*)+\**Purpose:", t)):
+        if para:
+            break
+        continue
+    t = re.sub(r"[*`]", "", re.sub(r"^(>\s*)+", "", t)).strip()
+    t = re.sub(r"^([-*+]|\d+\.)\s+", "", t)
+    # Reference files open with "Part of: <skill>" and "Purpose: <text>";
+    # copied blog posts with "Source: <blog>".
+    if t.startswith(("Part of:", "Source:")):
+        continue
+    para.append(re.sub(r"^Purpose:\s*", "", t))
+s = " ".join(para)
+s = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", s)
+print(s.strip())
+')"
+  s="$(first_sentence "$s")"
+  python3 -c 'import sys; s = sys.argv[1]; print(s if len(s) <= 160 else s[:157].rsplit(" ", 1)[0] + "...")' "$s"
 }
 
 # --- Link rewriting filter (stdin → stdout) -------------------------------
@@ -409,12 +476,12 @@ vendored_skill_admonition() {
     source_url="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /^## / { exit }
-      found && /Source:/ { sub(/.*Source:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
+      found && /Source:/ { sub(/.*Source:[* ]*/, ""); sub(/[* \r]*$/, ""); print; exit }
     ' "$notices")"
     author="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /^## / { exit }
-      found && /Copyright:/ { sub(/.*Copyright:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
+      found && /Copyright:/ { sub(/.*Copyright:[* ]*/, ""); sub(/[* \r]*$/, ""); print; exit }
     ' "$notices")"
     # License mirrors the Copyright block: take the THIRD_PARTY_NOTICES License
     # field (dropping the "(see ...)" file pointer) so a vendored skill without a
@@ -422,9 +489,9 @@ vendored_skill_admonition() {
     license_from_notices="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /^## / { exit }
-      found && /License:/ { sub(/.*License:[* ]*/, ""); sub(/ *\(see.*$/, ""); sub(/[* ]*$/, ""); print; exit }
+      found && /License:/ { sub(/.*License:[* ]*/, ""); sub(/ *\(see.*$/, ""); sub(/[* \r]*$/, ""); print; exit }
     ' "$notices")"
-    # Normalize the long-form license name to its SPDX short id so the
+    # Normalize the long-form license name to its short name so the
     # admonition reads "under the MIT license", not "under the MIT License license".
     case "$license_from_notices" in
       "MIT License") license_from_notices="MIT" ;;
@@ -437,10 +504,15 @@ vendored_skill_admonition() {
     author="$(parse_frontmatter "$skill_md" "author")"
   fi
   # Precedence: frontmatter `license:` (e.g. terraform-skill) > THIRD_PARTY_NOTICES
-  # License field > Apache-2.0 default.
+  # License field > a pointer to the skill's own LICENSE file (never a guessed id).
   license_id="$(parse_frontmatter "$skill_dir/SKILL.md" "license")"
   [[ -z "$license_id" ]] && license_id="$license_from_notices"
-  [[ -z "$license_id" ]] && license_id="Apache-2.0"
+  local license_text="the $license_id license"
+  case "$license_id" in
+    [Tt]"he "*License*) license_text="$license_id" ;;
+    *License*) license_text="the $license_id" ;;
+  esac
+  [[ -z "$license_id" ]] && license_text="the license in its ${license_file##*/} file"
   # Next source: the "Source repo" row of the skill's UPSTREAM.md (the sync
   # scripts' provenance file), so a vendored skill with no notices entry
   # names its upstream repo rather than its own folder.
@@ -479,7 +551,7 @@ EOF
     cat <<EOF
 
 :::caution[Third-party skill]
-This skill is maintained by **$author** under the $license_id license. Upstream: [$source_url]($source_url)
+This skill is maintained by **$author** under $license_text. Upstream: [$source_url]($source_url)
 :::
 
 EOF
@@ -633,7 +705,7 @@ description: "APEX agent skills for Amazon ECS: architecture and launch type cho
 
 # ECS skills
 
-APEX skills for Amazon Elastic Container Service (ECS). They cover Day 0 architecture and compute-model selection (Fargate, EC2, Managed Instances, Express Mode, ECS Anywhere), Terraform builds, deployment strategies and CI/CD pipelines, security hardening and compliance, operational-excellence reviews, observability design, modernizing existing apps, and GPU, ML and GenAI workloads. The .NET on Fargate skill, dotnet-aws-ecs, is listed under General. See [Getting started](../../getting-started.md) to install them.
+APEX skills for Amazon Elastic Container Service (ECS). They cover Day 0 architecture and compute-model selection (Fargate, EC2, Managed Instances, Express Mode, ECS Anywhere), Terraform builds, deployment strategies and CI/CD pipelines, security hardening and compliance, operational-excellence reviews, observability design, modernizing existing apps, and GPU, ML and GenAI workloads. The .NET on Fargate skill, [dotnet-aws-ecs](../general/dotnet-aws-ecs/index.md), is listed under General. See [Getting started](../../getting-started.md) to install them.
 
 EOF
       ;;
@@ -703,7 +775,7 @@ for entry in sorted(os.listdir(skills_dir)):
         "name": name,
         "description": fm.get("description", ""),
         "summary": summaries.get(entry, ""),
-        "path": f"/docs/skills/{group}/{entry}",
+        "path": f"/docs/skills/{group}/{entry}/",
         "group": group,
     })
 
@@ -736,11 +808,13 @@ Install with the NPX installer (Claude Code and Kiro CLI):
 ```
 npx apex-skills@1.3.0
 ```
-For v2 and its `/apex` router, use the manual install from `main`.
+For the latest skills, including the `/apex` router, use the manual install from `main`.
 
 See {SITE}/docs/getting-started/ for full installation instructions.
 
-Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept in its SKILL_META table. The same list is on the Skills page ({SITE}/docs/skills/). As JSON: {SITE}/manifests/skills.json""")
+Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept in its SKILL_META table. The same list is on the Skills page ({SITE}/docs/skills/). As JSON: {SITE}/manifests/skills.json
+
+For AWS agents, the EKS skills ported to AWS DevOps Agent run autonomously as read-only assessments; give the Agent Space a read-only role: {SITE}/docs/devops-agent/""")
 for group, heading, landing in (
     ("eks", "EKS skills", "/docs/skills/eks/"),
     ("ecs", "ECS skills", "/docs/skills/ecs/"),
@@ -753,7 +827,7 @@ for group, heading, landing in (
     if landing:
         print(f"- [{heading} overview]({SITE}{landing}): {LANDING[group]}")
     for s in rows:
-        print(f"- [{s['name']}]({SITE}{s['path']}/): {s['summary']}")
+        print(f"- [{s['name']}]({SITE}{s['path']}): {s['summary']}")
 PY
 )"
 }
@@ -947,19 +1021,21 @@ for src in "${ALL_MD[@]}"; do
     title="$(skill_title "$skill")"
     description="$(skill_summary "$skill")"
     sidebar_label="$(derive_title "$REPO_ROOT/$src")"
-  elif [[ "$src" == devops-agent/*/SKILL.md ]]; then
-    # DevOps Agent ports: the skill's own title and summary, named as the port,
-    # so the port page and the skill page do not share a title or description.
+  elif [[ "$src" == devops-agent/*/SKILL.md && -f "$SKILLS_DIR/$(basename "$(dirname "$src")")/SKILL.md" ]]; then
+    # DevOps Agent ports with a skills/ twin: the skill's title named as the
+    # port, and the port's own summary (PORT_META), so the port page and the
+    # skill page do not share a title or description. A port with no twin
+    # takes the plain branch below.
     skill="${src#devops-agent/}"
     skill="${skill%/SKILL.md}"
     title="$(skill_title "$skill")"
-    [[ "$title" == *"): "* ]] && title="${title%%): *})"
     title="$title for AWS DevOps Agent"
-    description="AWS DevOps Agent port. $(skill_summary "$skill")"
+    description="AWS DevOps Agent port. $(port_summary "$skill")"
     sidebar_label="$(derive_title "$REPO_ROOT/$src")"
   else
     title="$(derive_title "$REPO_ROOT/$src")"
     description="$(parse_frontmatter "$REPO_ROOT/$src" "description")"
+    [[ -n "$description" ]] || description="$(body_summary "$REPO_ROOT/$src")"
   fi
 
   if [[ "$MODE" == "dry-run" ]]; then

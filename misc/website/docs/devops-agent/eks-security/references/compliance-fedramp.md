@@ -1,6 +1,6 @@
 ---
 title: "FedRAMP on EKS: Quick-Start"
-description: ""
+description: "A per-regime quick-start for preparing an EKS-hosted system for a FedRAMP assessment."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/compliance-fedramp.md
 format: md
 ---

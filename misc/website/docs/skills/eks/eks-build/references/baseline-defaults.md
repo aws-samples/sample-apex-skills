@@ -1,6 +1,6 @@
 ---
 title: "Baseline Defaults"
-description: ""
+description: "Apply these to ALL generated projects regardless of environment (production, staging, development) unless explicitly overridden."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/baseline-defaults.md
 format: md
 ---

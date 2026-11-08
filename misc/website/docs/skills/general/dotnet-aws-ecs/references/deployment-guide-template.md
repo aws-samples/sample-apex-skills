@@ -1,6 +1,6 @@
 ---
 title: "Deployment Guide Template"
-description: ""
+description: "This defines the structure the agent should follow when generating the DEPLOYMENT.md file."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/dotnet-aws-ecs/references/deployment-guide-template.md
 format: md
 ---

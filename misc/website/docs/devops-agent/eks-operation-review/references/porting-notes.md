@@ -1,6 +1,6 @@
 ---
 title: "EKS Operation Review — AWS DevOps Agent Skill"
-description: ""
+description: "This folder contains the AWS DevOps Agent port of the EKS Operation Review skill."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/references/porting-notes.md
 format: md
 ---

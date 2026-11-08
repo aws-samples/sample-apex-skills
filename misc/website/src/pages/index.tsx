@@ -37,7 +37,7 @@ export default function Home(): ReactNode {
           <div className="apex-wrap">
             <div className="apex-home__sectionhead">
               <h2 id="browse">Browse by job</h2>
-              <Link to="/skills">Compare all {skillCount} skills</Link>
+              <Link to="/skills/">Compare all {skillCount} skills</Link>
             </div>
             <SkillGrid skills={SKILLS.filter((s) => s.name !== 'apex')} headingLevel={3} />
           </div>
@@ -49,7 +49,8 @@ export default function Home(): ReactNode {
               <h2 id="install-title">Install</h2>
               <p>
                 Skills are folders of instructions and scripts that your agent loads when a task needs them.
-                Runs started from /apex keep assessments read-only and ask before changing your account or cluster.
+                /apex tells your agent to keep assessments read-only and to ask before changing your account or cluster.
+                That is an instruction to the model, not a permission boundary, so run assessments with read-only credentials.
               </p>
             </div>
             <InstallBlock />

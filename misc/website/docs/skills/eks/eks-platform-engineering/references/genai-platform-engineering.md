@@ -1,6 +1,6 @@
 ---
 title: "GenAI-Assisted Platform Engineering"
-description: ""
+description: "GenAI accelerates both sides of the platform: developers generating application code, and platform engineers generating the platform's own artifacts..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/genai-platform-engineering.md
 format: md
 ---

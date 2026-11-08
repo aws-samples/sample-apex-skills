@@ -1,6 +1,6 @@
 ---
 title: "Report Generation"
-description: ""
+description: "After all section checks are complete, generate the EKS Operation Review report."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/report-generation.md
 format: md
 ---

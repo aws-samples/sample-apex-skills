@@ -1,7 +1,7 @@
 ---
-title: "ECS Recon (ecs-recon): discover what your Amazon ECS estate runs"
+title: "ECS Recon (ecs-recon)"
 sidebar_label: "ecs-recon"
-description: "ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD"
+description: "ECS environment discovery: compute and capacity providers, task definitions, scaling, networking, security, observability and IaC/CI-CD"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/SKILL.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "PCI DSS on EKS — Quick-Start"
-description: ""
+description: "A per-regime quick-start for running cardholder-data (CHD) workloads on Amazon EKS under PCI DSS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/compliance-pci.md
 format: md
 ---

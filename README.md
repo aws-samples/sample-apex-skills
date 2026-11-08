@@ -105,7 +105,7 @@ Choose an architecture before you build.
 
 | Skill | What it does |
 |---|---|
-| [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/) | Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing |
+| [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/) | Choose the ECS compute model and launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing |
 | [ecs-observability](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/) | ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens |
 | [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/) | Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices |
 
@@ -128,11 +128,11 @@ Discover, score and review a live cluster or estate.
 | Skill | What it does |
 |---|---|
 | [ecs-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-operation-review/) | Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings |
-| [ecs-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-recon/) | ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD |
+| [ecs-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-recon/) | ECS environment discovery: compute and capacity providers, task definitions, scaling, networking, security, observability and IaC/CI-CD |
 | [eks-cost-intelligence](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-cost-intelligence/) | Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings |
-| [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/) | Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version |
-| [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/) | EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring |
-| [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/) | Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request |
+| [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/) | EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, with prioritized recommendations and deprecated-API review with no target version |
+| [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/) | EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts |
+| [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/) | Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only) across five pillars; run only on an explicit WAFR request |
 
 ### Day 2 Operate: upgrade and migrate
 
@@ -152,7 +152,7 @@ Check exposure, harden and prepare for audits.
 | Skill | What it does |
 |---|---|
 | [ecs-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/) | ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2 |
-| [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/) | Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP |
+| [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/) | Read-only scripted reviews of a live EKS cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing |
 
 ### Set up and extend
 
@@ -160,7 +160,7 @@ Connect tools, write your own skills, keep docs in sync.
 
 | Skill | What it does |
 |---|---|
-| [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) | Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills |
+| [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) | Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills |
 | [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/) | Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check |
 | [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/) | Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy |
 | [update-docs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/update-docs/) | Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references |

@@ -1,6 +1,6 @@
 ---
 title: "CDK Template Guide (C#)"
-description: ""
+description: "This reference defines the CDK project structure for provisioning ECS Fargate infrastructure."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/dotnet-aws-ecs/references/cdk-template-guide.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Layer 5: Runtime Security"
-description: ""
+description: "Detect threats while workloads run, container breakouts, reverse shells, privilege escalation, crypto-mining, connections to malicious IPs, and anomalous..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/runtime-security.md
 format: md
 ---

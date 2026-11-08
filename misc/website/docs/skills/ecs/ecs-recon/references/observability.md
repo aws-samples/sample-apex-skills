@@ -1,6 +1,6 @@
 ---
 title: "Module: Observability"
-description: ""
+description: "Discover monitoring, logging, and telemetry configuration for ECS clusters and services"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/observability.md
 format: md
 ---

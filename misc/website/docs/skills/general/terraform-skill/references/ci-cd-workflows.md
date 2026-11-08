@@ -1,6 +1,6 @@
 ---
 title: "CI/CD Workflows for Terraform"
-description: ""
+description: "CI/CD integration patterns for Terraform/OpenTofu"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/ci-cd-workflows.md
 format: md
 ---

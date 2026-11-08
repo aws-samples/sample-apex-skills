@@ -1,6 +1,6 @@
 ---
 title: "IDP Architecture"
-description: ""
+description: "The reference architecture for an Internal Developer Platform on EKS, and the framework for reasoning about IDP value and adoption."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/idp-architecture.md
 format: md
 ---

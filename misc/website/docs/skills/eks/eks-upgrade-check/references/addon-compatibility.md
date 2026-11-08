@@ -1,6 +1,6 @@
 ---
 title: "Add-on Compatibility"
-description: ""
+description: "Assess all EKS managed add-ons, discovered OSS add-ons, and Karpenter against both current and target Kubernetes versions, and verify safe update sequencing."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/addon-compatibility.md
 format: md
 ---

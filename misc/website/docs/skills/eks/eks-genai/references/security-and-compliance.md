@@ -1,6 +1,6 @@
 ---
 title: "Security & Compliance for GenAI on EKS"
-description: ""
+description: "Non-negotiable security baseline for every GenAI-on-EKS deployment, plus compliance-regime notes and escalation triggers."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/security-and-compliance.md
 format: md
 ---

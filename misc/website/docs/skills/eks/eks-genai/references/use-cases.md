@@ -1,6 +1,6 @@
 ---
 title: "Worked Use Cases — GenAI on EKS"
-description: ""
+description: "Five condensed scenarios from the playbook."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/use-cases.md
 format: md
 ---

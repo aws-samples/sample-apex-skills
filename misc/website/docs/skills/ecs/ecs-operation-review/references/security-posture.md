@@ -1,6 +1,6 @@
 ---
 title: "Section 07 — Security Posture"
-description: ""
+description: "Assess ECS security posture at audit depth — enough to rate it and flag top gaps."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/security-posture.md
 format: md
 ---

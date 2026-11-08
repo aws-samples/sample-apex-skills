@@ -1,6 +1,6 @@
 ---
 title: "Report Generation"
-description: ""
+description: "After all assessment checks are complete, calculate the readiness score and generate the upgrade assessment report."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/references/report-generation.md
 format: md
 ---

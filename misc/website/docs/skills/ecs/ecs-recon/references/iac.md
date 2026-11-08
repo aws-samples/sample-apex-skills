@@ -1,6 +1,6 @@
 ---
 title: "Module: IaC Detection"
-description: ""
+description: "Detect Infrastructure-as-Code tooling managing ECS resources"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/iac.md
 format: md
 ---

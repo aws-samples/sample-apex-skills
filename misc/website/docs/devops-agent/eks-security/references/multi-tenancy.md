@@ -1,6 +1,6 @@
 ---
 title: "Multi-tenancy & Multi-Account Isolation"
-description: ""
+description: "A first-class security area in the AWS EKS Best Practices guide."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/multi-tenancy.md
 format: md
 ---

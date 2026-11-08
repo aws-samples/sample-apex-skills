@@ -1,6 +1,6 @@
 ---
 title: "EKS Scalability"
-description: ""
+description: "Scaling theory, control plane and data plane scaling, cluster services, workload patterns, node efficiency, and large-cluster guidance for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/scalability.md
 format: md
 ---

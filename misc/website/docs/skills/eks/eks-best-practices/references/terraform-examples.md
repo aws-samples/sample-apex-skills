@@ -1,6 +1,6 @@
 ---
 title: "EKS Terraform Examples and Patterns"
-description: ""
+description: "Reference architecture examples from terraform-aws-modules/terraform-aws-eks with decision guidance"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/terraform-examples.md
 format: md
 ---

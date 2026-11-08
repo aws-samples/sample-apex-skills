@@ -1,6 +1,6 @@
 ---
 title: "EKS Networking — Ingress, Load Balancing & DNS"
-description: ""
+description: "Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/networking-ingress-dns.md
 format: md
 ---

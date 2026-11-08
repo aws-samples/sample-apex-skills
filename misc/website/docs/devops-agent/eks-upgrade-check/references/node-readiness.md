@@ -1,6 +1,6 @@
 ---
 title: "Node Readiness"
-description: ""
+description: "Assess node groups, AMI types, version alignment, and migration requirements for the target version."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/references/node-readiness.md
 format: md
 ---

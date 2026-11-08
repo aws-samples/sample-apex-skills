@@ -1,5 +1,5 @@
 ---
-title: "EKS Upgrade Check (eks-upgrade-check): upgrade readiness score for Amazon EKS"
+title: "EKS Upgrade Check (eks-upgrade-check)"
 sidebar_label: "eks-upgrade-check"
 description: "Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/SKILL.md

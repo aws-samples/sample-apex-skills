@@ -1,7 +1,7 @@
 ---
-title: "EKS Well-Architected Review (eks-well-architected-review): unofficial pillar scores"
+title: "EKS Well-Architected Review (eks-well-architected-review)"
 sidebar_label: "eks-well-architected-review"
-description: "Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request"
+description: "Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only) across five pillars; run only on an explicit WAFR request"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/SKILL.md
 format: md
 ---
