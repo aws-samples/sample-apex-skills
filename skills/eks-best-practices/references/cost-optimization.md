@@ -495,13 +495,14 @@ AWS resource tags don't directly correlate with Kubernetes labels. Use Kubernete
 
 Kubecost provides real-time cost monitoring, namespace/label allocation, and right-sizing recommendations:
 
-**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
 ```bash
-helm install kubecost kubecost/cost-analyzer --version <chart-version> \
+helm repo add kubecost https://kubecost.github.io/kubecost/
+helm install kubecost kubecost/kubecost --version <chart-version> \
   --namespace kubecost --create-namespace \
-  --set kubecostProductConfigs.clusterName=my-cluster \
-  --set kubecostProductConfigs.cloudIntegrationSecret=cloud-integration
+  --set global.clusterId=<cluster-name> \
+  --set cloudCost.cloudIntegrationSecret=cloud-integration
 ```
 
 | Feature | Free | Enterprise |

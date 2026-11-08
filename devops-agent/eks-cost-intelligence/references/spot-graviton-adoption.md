@@ -620,19 +620,19 @@ If spot_node_count > 0:
 
 ### Remediation
 
-**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+**Chart version:** `<chart-version>` is for the reader to fill in. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
 
 ```bash
-# Install AWS Node Termination Handler via Helm
-helm repo add eks https://aws.github.io/eks-charts
-helm repo update
-
-helm install aws-node-termination-handler eks/aws-node-termination-handler --version <chart-version> \
+# Install AWS Node Termination Handler via Helm (chart on Amazon ECR Public)
+helm install aws-node-termination-handler \
+  oci://public.ecr.aws/aws-ec2/helm/aws-node-termination-handler --version <chart-version> \
   --namespace kube-system \
   --set enableSpotInterruptionDraining=true \
-  --set enableRebalanceRecommendation=true \
+  --set enableRebalanceMonitoring=true \
   --set enableScheduledEventDraining=true
 ```
+
+`enableRebalanceMonitoring` cordons a node when a rebalance recommendation arrives; set `enableRebalanceDraining=true` to drain it as well.
 
 ```yaml
 # For Karpenter — ensure SQS queue is configured (Terraform)

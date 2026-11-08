@@ -660,7 +660,7 @@ admitted, and a running Deployment fails its next rollout. The controller valida
 **opt in** (it looks for the `policy.sigstore.dev/include: "true"` label), so nothing has to be excluded:
 label one namespace at a time, start it in warn mode, and move it to enforce once its images all verify.
 
-**Chart version:** `<chart-version>` is a placeholder, here and at every other `<chart-version>` in this file. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+**Chart version:** `<chart-version>` is for the reader to fill in, here and at every other `<chart-version>` in this file. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
 
 ---
 

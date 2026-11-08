@@ -797,7 +797,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.com
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Deploy Karpenter or Cluster Autoscaler: `helm install karpenter oci://public.ecr.aws/karpenter/karpenter --version <VERSION> --namespace kube-system --set settings.clusterName=<CLUSTER>`, after creating the IAM roles its guide lists (https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/). Configure NodePools for automatic scaling.
+**Remediation:** Deploy Karpenter or Cluster Autoscaler: `helm install karpenter oci://public.ecr.aws/karpenter/karpenter --version <chart-version> --namespace kube-system --set settings.clusterName=<CLUSTER>`, after creating the IAM roles its guide lists (https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/). Configure NodePools for automatic scaling.
 If one is deployed but not ready, this check does not credit it: find out why with `kubectl describe deployment <name> -n <namespace>`, `kubectl describe pod <pod> -n <namespace>` and `kubectl logs <pod> -n <namespace> --previous`, and fix that rather than installing a second one.
 
 **Not applicable to an EKS Hybrid Node** — neither Cluster Autoscaler nor Karpenter can create or remove one. Hybrid capacity is provisioned by you and joined with `nodeadm`.
@@ -1095,7 +1095,7 @@ kubectl get deployments -A -o json
 
 **Remediation:** Deploy Prometheus + Grafana for monitoring: `helm install prometheus oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version <chart-version>`. Configure alerting rules for critical metrics.
 
-**Chart version:** `<chart-version>` is a placeholder, here and at every other `<chart-version>` in this file. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+**Chart version:** `<chart-version>` is for the reader to fill in, here and at every other `<chart-version>` in this file. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
 
 ---
 
