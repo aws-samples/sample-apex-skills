@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/workloads.md](https://g
 
 # Module: Workloads
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect running workloads - deployments, services, ingresses, jobs
 
 **Note:** This is an optional module for migration assessments or workload inventory. Skip for basic infrastructure recon.

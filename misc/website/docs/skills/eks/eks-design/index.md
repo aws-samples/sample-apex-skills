@@ -1,6 +1,7 @@
 ---
-title: "eks-design"
-description: "Use when designing EKS architecture. Generates design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices. Covers cluster architecture, compute, networking, security, addons, observability, cost, and upgrade strategy. Also use when reviewing or validating existing EKS architectures, planning networking or security, evaluating deployment models, or generating architecture diagrams. Skip for short advisory recommendations without a formal document (eks-best-practices), Internal Developer Platforms or progressive delivery (eks-platform-engineering), and GenAI/LLM workload design — GPU vs Neuron, vLLM/Ray serving, distributed training (eks-genai)."
+title: "EKS Design (eks-design): architecture documents for Amazon EKS"
+sidebar_label: "eks-design"
+description: "Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-design/SKILL.md
 format: md
 ---
@@ -103,7 +104,7 @@ Refer to `eks-best-practices` skill for detailed reference material on autoscali
 
 **You MUST run this stage after generating any design documents.** Score the design against five validation dimensions. If the score is below 85/100, you MUST fix the identified gaps before proceeding. This is the quality gate between "draft" and "validated design."
 
-**Validation dimensions** (each scored per [references/architecture-validation.md](references/architecture-validation)):
+**Validation dimensions** (each scored per [references/architecture-validation.md](references/architecture-validation.md)):
 
 | Dimension | Points | What to Evaluate |
 |-----------|--------|-----------------|
@@ -210,7 +211,7 @@ projects/<project-name>/design/
         └── score-sheet-iteration-X.md
 ```
 
-**Detailed file descriptions**: See [references/output-structure.md](references/output-structure).
+**Detailed file descriptions**: See [references/output-structure.md](references/output-structure.md).
 
 ## EKS Architecture Decision Framework
 
@@ -361,7 +362,7 @@ Generate `AGENTS.md` as a machine-readable handoff to `eks-build`:
 
 This skill uses **progressive disclosure** — essential guidance is above, detailed reference material is loaded on demand:
 
-- **[Output Structure](references/output-structure)** — Read when you need detailed file descriptions, naming conventions, and organization principles for the design output folder
-- **[Architecture Validation](references/architecture-validation)** — Read when running Stage 3 or Stage 4 validation; contains the full scoring matrix, criteria details, and report format
+- **[Output Structure](references/output-structure.md)** — Read when you need detailed file descriptions, naming conventions, and organization principles for the design output folder
+- **[Architecture Validation](references/architecture-validation.md)** — Read when running Stage 3 or Stage 4 validation; contains the full scoring matrix, criteria details, and report format
 
 For detailed topic-specific reference material (autoscaling, networking, security, observability, cost, reliability, upgrades, container registry, Terraform examples), refer to the `eks-best-practices` skill which maintains canonical copies of all decision matrices and deep-dive guidance.

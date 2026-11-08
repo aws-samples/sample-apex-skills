@@ -101,21 +101,21 @@ helm install falco falcosecurity/falco \
 
 ### Network Policies
 
-**Use EKS-native VPC CNI network policies (use VPC CNI v1.21.1+, see below):**
+**Use EKS-native VPC CNI network policies (use VPC CNI v1.22.3+, see below):**
 
 ```yaml
 # Enable network policy support in VPC CNI
-# NOTE: pick a current v1.21.1 or later build from
+# NOTE: pick a current v1.22.3 or later build from
 # `aws eks describe-addon-versions --addon-name vpc-cni`; do not pin a build here.
 aws eks create-addon --cluster-name my-cluster \
   --addon-name vpc-cni \
-  --addon-version <v1.21.1-or-later-build> \
+  --addon-version <v1.22.3-or-later-build> \
   --configuration-values '{"enableNetworkPolicy": "true"}'
 ```
 
 Network policy support is NOT enabled by default — you must enable the `ENABLE_NETWORK_POLICY` flag on the VPC CNI add-on.
 
-Beyond the standard namespaced `NetworkPolicy` API, EKS adds two AWS-native CRDs in the `networking.k8s.aws/v1alpha1` API group (alpha, AWS's own group, not upstream `policy.networking.k8s.io`). Both use VPC CNI **v1.21.1+** (skip v1.21.0: it ships Network Policy Agent v1.3.0, which has a defect affecting existing network policies; v1.21.1 ships the fixed agent v1.3.1. See the [v1.21.0 release note](https://github.com/aws/amazon-vpc-cni-k8s/releases/tag/v1.21.0)). Kubernetes **1.29+** is the EKS Auto Mode / new-cluster rollout floor; `ClusterNetworkPolicy` on standard EC2 clusters has no separate 1.29 requirement.
+Beyond the standard namespaced `NetworkPolicy` API, EKS adds two AWS-native CRDs in the `networking.k8s.aws/v1alpha1` API group (alpha, AWS's own group, not upstream `policy.networking.k8s.io`). Both use VPC CNI **v1.22.3+**: earlier releases ship a Network Policy Agent below 1.3.7, which [AWS security bulletin 2026-170](https://aws.amazon.com/security/security-bulletins/2026-170-aws/) lists as affected ("This issue has been addressed in aws-network-policy-agent versions 1.3.7 and amazon-vpc-cni-k8s version 1.22.3"). Kubernetes **1.29+** is the EKS Auto Mode / new-cluster rollout floor; `ClusterNetworkPolicy` on standard EC2 clusters has no separate 1.29 requirement.
 
 - **`ClusterNetworkPolicy`**: cluster-scoped, with a `tier: Admin | Baseline` field. The **Admin** tier is evaluated first and **cannot** be overridden by namespace-scoped policies; it supports explicit **Deny / Allow / Pass** actions (a Deny or Allow is terminal; Pass delegates the decision to lower tiers). The **Baseline** tier is an overridable default posture evaluated after `NetworkPolicy`, so a namespace owner's policy can override it. Available in all EKS cluster launch modes.
 - **`ApplicationNetworkPolicy`**: namespaced, documented by AWS as an **EKS Auto Mode** CRD. It supports all fields of the standard Kubernetes `NetworkPolicy` and adds an **FQDN-based egress** filter (allowlist egress by domain name). Per AWS, the DNS/FQDN egress rules are **only applicable to workloads on EKS Auto Mode-launched EC2 instances**; whether an FQDN rule authored on a non-Auto-Mode node is accepted-but-ignored or rejected is not documented, so verify by testing real egress rather than assuming enforcement.

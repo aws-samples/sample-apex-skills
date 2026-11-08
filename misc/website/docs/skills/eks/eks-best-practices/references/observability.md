@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/observability.
 
 # EKS Observability Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Monitoring, logging, tracing, alerting, network performance monitoring, GPU observability, and detective controls for Amazon EKS clusters
 
 ---
@@ -252,7 +252,7 @@ fields @timestamp, @message
 | sort AverageDeltaTime desc
 ```
 
-**See also:** [Scalability -- Control Plane Scaling](scalability) for APF tuning and burst limit guidance
+**See also:** [Scalability -- Control Plane Scaling](scalability.md) for APF tuning and burst limit guidance
 
 ---
 
@@ -293,7 +293,7 @@ DNS queries are throttled at the ENI level (1024 PPS limit). Throttled queries d
 Remediation:
 - Increase CoreDNS replicas (anti-affinity spreads them across ENIs)
 - Deploy NodeLocal DNSCache
-- Lower `ndots` to reduce query volume (see [Scalability -- CoreDNS](scalability))
+- Lower `ndots` to reduce query volume (see [Scalability -- CoreDNS](scalability.md))
 
 ---
 

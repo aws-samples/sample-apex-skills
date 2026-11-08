@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/networking.md](https://
 
 # Module: Networking
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect network configuration - VPC identifiers, VPC CNI, subnets, ingress controllers, load balancers, service mesh, DNS, network policies, endpoint access
 
 ## Table of Contents

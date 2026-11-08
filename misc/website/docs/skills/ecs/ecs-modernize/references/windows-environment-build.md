@@ -11,15 +11,15 @@ This page is generated from [skills/ecs-modernize/references/windows-environment
 
 # Module: Windows Environment Build
 
-> **Part of:** [ecs-modernize](../)
+> **Part of:** [ecs-modernize](../index.md)
 > **Purpose:** Generate the Windows_Environment_Terraform for an approved Windows_Container_Path — cluster and capacity conditioned on the approved compute option (ECS on EC2 Windows instances or Fargate Windows), a task definition with the Windows `runtime_platform`, the service, and the load balancer (with session affinity when the in-process session Blocker was detected) — conforming to the repository terraform-skill's conventions, verified by `terraform validate` as the sole applicability check, with an unresolved image URI handled as a Terraform input variable
-> **Prerequisites:** **Execution_Gate passage** (Requirement 14) + **Containerization execution** ([containerization-execution.md](containerization-execution)) — the image URI for the task definition; when the URI is unresolved, define it as a Terraform input variable per the [unresolved image URI rule](#unresolved-image-uri--input-variable-rule)
+> **Prerequisites:** **Execution_Gate passage** (Requirement 14) + **Containerization execution** ([containerization-execution.md](containerization-execution.md)) — the image URI for the task definition; when the URI is unresolved, define it as a Terraform input variable per the [unresolved image URI rule](#unresolved-image-uri--input-variable-rule)
 
-This module builds the target environment for the **Windows_Container_Path** (Requirement 17.2). It exists because **`ecs-build`'s generation scope is limited to Linux containers** — there is no sibling skill that generates Windows container environments, so this skill generates the Windows_Environment_Terraform itself. State that rationale explicitly whenever this module runs: the user should know *why* the Linux paths hand off to `ecs-build` (see [deploy-verify-handoff.md](deploy-verify-handoff)) while the Windows path does not. Never route a Windows container path environment IaC request to `ecs-build` (Requirement 12.5); the delegation boundary and the future-support note — if `ecs-build` gains Windows container generation, this module's generation is replaced by a delegation — are canonical in [SKILL.md](../).
+This module builds the target environment for the **Windows_Container_Path** (Requirement 17.2). It exists because **`ecs-build`'s generation scope is limited to Linux containers** — there is no sibling skill that generates Windows container environments, so this skill generates the Windows_Environment_Terraform itself. State that rationale explicitly whenever this module runs: the user should know *why* the Linux paths hand off to `ecs-build` (see [deploy-verify-handoff.md](deploy-verify-handoff.md)) while the Windows path does not. Never route a Windows container path environment IaC request to `ecs-build` (Requirement 12.5); the delegation boundary and the future-support note — if `ecs-build` gains Windows container generation, this module's generation is replaced by a delegation — are canonical in [SKILL.md](../index.md).
 
 This module is ECS-specific: it depends on the ECS resource model (cluster, capacity provider, task definition `runtime_platform`, service) and does not port to other orchestrators.
 
-**Scope boundary:** this module ends at a validated Terraform configuration. It never runs `terraform plan` or `terraform apply` — the pre-apply destroy check, the apply confirmation, and steady-state verification belong to [deploy-verify-handoff.md](deploy-verify-handoff). Detailed design values (capacity-provider strategy tuning, task sizing numbers, network design) remain delegated to `ecs-architect` per [SKILL.md](../); this module wires the environment from the values the migration produced, it does not design new ones.
+**Scope boundary:** this module ends at a validated Terraform configuration. It never runs `terraform plan` or `terraform apply` — the pre-apply destroy check, the apply confirmation, and steady-state verification belong to [deploy-verify-handoff.md](deploy-verify-handoff.md). Detailed design values (capacity-provider strategy tuning, task sizing numbers, network design) remain delegated to `ecs-architect` per [SKILL.md](../index.md); this module wires the environment from the values the migration produced, it does not design new ones.
 
 ## Table of Contents
 
@@ -46,10 +46,10 @@ This module is ECS-specific: it depends on the ECS resource model (cluster, capa
 ## Inputs
 
 - **Execution_Gate passage** (required) — the gate's two conditions hold AND the approved target path is the Windows_Container_Path. This module never runs before the gate.
-- **The approved compute option** (required) — exactly one of **ECS on EC2 Windows instances** or **Fargate Windows support**, as approved with the target path at the gate. If the approval did not uniquely identify the compute option, do not pick one: re-present both options (with the three-item comparison from [replatform-path.md — Compute Options for Windows Containers](replatform-path#compute-options-for-windows-containers)) and obtain an unambiguous choice first (the Requirement 14 discipline).
-- **Containerization execution results** ([containerization-execution.md](containerization-execution)) — the **image URI** from the push result (or its unresolved status), and the **task-definition input values** (container name, port mappings, CPU/memory sizing inputs, `environment` / `secrets` entries, mount points, health check, log configuration). These are the source of truth for the task definition this module generates.
+- **The approved compute option** (required) — exactly one of **ECS on EC2 Windows instances** or **Fargate Windows support**, as approved with the target path at the gate. If the approval did not uniquely identify the compute option, do not pick one: re-present both options (with the three-item comparison from [replatform-path.md — Compute Options for Windows Containers](replatform-path.md#compute-options-for-windows-containers)) and obtain an unambiguous choice first (the Requirement 14 discipline).
+- **Containerization execution results** ([containerization-execution.md](containerization-execution.md)) — the **image URI** from the push result (or its unresolved status), and the **task-definition input values** (container name, port mappings, CPU/memory sizing inputs, `environment` / `secrets` entries, mount points, health check, log configuration). These are the source of truth for the task definition this module generates.
 - **Source_Analysis findings** (when the assessment ran) — the **in-process session state Blocker** finding (present/absent, with its Blocker id) drives the [session affinity decision](#load-balancer--session-affinity-conditioned-on-the-blocker-finding); persistent-write-target findings surface the storage constraints of the chosen compute option (see [Edge Cases](#edge-cases)).
-- **The Requirement 14-confirmed output destination** — the Terraform output paths presented at the **file generation** action-class confirmation. The [output destination rules of containerization-execution.md](containerization-execution#output-destination-rules) apply identically to every file this module writes: user-approved destination, outside the target source directory unless an in-repository write was explicitly approved, re-confirmation on destination change.
+- **The Requirement 14-confirmed output destination** — the Terraform output paths presented at the **file generation** action-class confirmation. The [output destination rules of containerization-execution.md](containerization-execution.md#output-destination-rules) apply identically to every file this module writes: user-approved destination, outside the target source directory unless an in-repository write was explicitly approved, re-confirmation on destination change.
 - **The repository terraform-skill's conventions** — read BEFORE generating, per [terraform-skill Conventions Conformance](#terraform-skill-conventions-conformance).
 
 ---
@@ -91,9 +91,9 @@ Run the steps in this order. Every attempted action is recorded per the [Executi
 
 The repository ships a dedicated Terraform authoring skill. **Before generating any Terraform, read:**
 
-- [terraform-skill/SKILL.md](../../../general/terraform-skill/) — the convention summary (naming, block ordering, file layout, version management),
-- [terraform-skill/references/code-patterns.md](../../../general/terraform-skill/references/code-patterns) — the full block-ordering rules, variable/output structure, `count` vs `for_each` decision rules, and version-constraint syntax,
-- [terraform-skill/references/module-patterns.md](../../../general/terraform-skill/references/module-patterns) — variable/output contracts and naming conventions.
+- [terraform-skill/SKILL.md](../../../general/terraform-skill/index.md) — the convention summary (naming, block ordering, file layout, version management),
+- [terraform-skill/references/code-patterns.md](../../../general/terraform-skill/references/code-patterns.md) — the full block-ordering rules, variable/output structure, `count` vs `for_each` decision rules, and version-constraint syntax,
+- [terraform-skill/references/module-patterns.md](../../../general/terraform-skill/references/module-patterns.md) — variable/output contracts and naming conventions.
 
 The generated Windows_Environment_Terraform conforms to at least the following (summarized here for orientation; the terraform-skill files are the authoritative source — where this summary and the live files disagree, the live files win):
 
@@ -106,7 +106,7 @@ The generated Windows_Environment_Terraform conforms to at least the following (
 | **File layout** | Standard files: `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` in the approved output directory |
 | **Version constraints** | `versions.tf` pins the runtime to a minor (`required_version = "~> 1.x"`) and the AWS provider to a major (`version = "~> N.0"`), per the terraform-skill version-management table |
 | **`count` vs `for_each`** | Boolean toggles use `count = condition ? 1 : 0`; keyed collections use `for_each`; never a list index as long-lived identity |
-| **Secrets** | No secret values in variables, defaults, or state-bound arguments — task `secrets` entries reference SSM Parameter Store / Secrets Manager ARNs, mirroring the Containerization_Artifact's config intake method. Credential values never appear in the generated files (the all-phases non-disclosure invariant of [SKILL.md](../)) |
+| **Secrets** | No secret values in variables, defaults, or state-bound arguments — task `secrets` entries reference SSM Parameter Store / Secrets Manager ARNs, mirroring the Containerization_Artifact's config intake method. Credential values never appear in the generated files (the all-phases non-disclosure invariant of [SKILL.md](../index.md)) |
 
 **If the terraform-skill files cannot be read** (missing or unreadable): do not silently generate. Report the load failure, and ask the user whether to proceed in a degraded mode using only the summary table above — stating explicitly that conformance to the live conventions could not be verified — or to stop until the skill is available.
 
@@ -126,8 +126,8 @@ Generate exactly the capacity model of the **approved** compute option — never
 |---|---|
 | Cluster | `aws_ecs_cluster` (Windows and Linux tasks do not share container instances — a dedicated cluster keeps the boundary clean) |
 | Windows container instances | Launch template on an **Amazon ECS-optimized Windows AMI** (resolve the AMI via the SSM public parameter for the chosen Windows Server release, e.g. `/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-ECS_Optimized/image_id`), instance profile with the ECS container-instance role, and Windows user data (`<powershell>Initialize-ECSAgent -Cluster ...</powershell>`) joining the cluster |
-| Capacity | `aws_autoscaling_group` sized per the Replatform static configuration template (fixed capacity from the assessed peak-load calculation — [replatform-path.md](replatform-path)), an `aws_ecs_capacity_provider` bound to the ASG, and `aws_ecs_cluster_capacity_providers` attaching it |
-| Version coupling | The Windows Server release is **one decision across three places**: the AMI, the base-image tag of the pushed image (ltsc2019 / ltsc2022 / ltsc2025 — process isolation requires host/image version match), and the task definition's `runtime_platform` family. Generate them from a single variable/local so they cannot drift. Confirm the chosen base image actually publishes a tag for the selected release — e.g. .NET Framework 4.x has no `4.8` ltsc2025 tag, so a Windows Server 2025 host uses `4.8.1-windowsservercore-ltsc2025` ([replatform-path.md](replatform-path#windows-base-image-selection-matrix)) |
+| Capacity | `aws_autoscaling_group` sized per the Replatform static configuration template (fixed capacity from the assessed peak-load calculation — [replatform-path.md](replatform-path.md)), an `aws_ecs_capacity_provider` bound to the ASG, and `aws_ecs_cluster_capacity_providers` attaching it |
+| Version coupling | The Windows Server release is **one decision across three places**: the AMI, the base-image tag of the pushed image (ltsc2019 / ltsc2022 / ltsc2025 — process isolation requires host/image version match), and the task definition's `runtime_platform` family. Generate them from a single variable/local so they cannot drift. Confirm the chosen base image actually publishes a tag for the selected release — e.g. .NET Framework 4.x has no `4.8` ltsc2025 tag, so a Windows Server 2025 host uses `4.8.1-windowsservercore-ltsc2025` ([replatform-path.md](replatform-path.md#windows-base-image-selection-matrix)) |
 
 **Approved option: Fargate Windows support**
 
@@ -135,7 +135,7 @@ Generate exactly the capacity model of the **approved** compute option — never
 |---|---|
 | Cluster | `aws_ecs_cluster` with `aws_ecs_cluster_capacity_providers` attaching `FARGATE` (Fargate **Spot** is not available for Windows — do not attach it) |
 | Capacity | No instances to manage — capacity is expressed by the service's Fargate launch configuration and the task definition's `requires_compatibilities = ["FARGATE"]` |
-| Constraints honored | The generated configuration must not use features unavailable on Fargate Windows — no EFS / EBS / FSx volumes, no FireLens, and the other constraints listed in [replatform-path.md — Compute Options](replatform-path#compute-options-for-windows-containers). Re-verify the constraint list against the live Windows-considerations documentation before generating; these facts change |
+| Constraints honored | The generated configuration must not use features unavailable on Fargate Windows — no EFS / EBS / FSx volumes, no FireLens, and the other constraints listed in [replatform-path.md — Compute Options](replatform-path.md#compute-options-for-windows-containers). Re-verify the constraint list against the live Windows-considerations documentation before generating; these facts change |
 
 ### Task definition — Windows runtime_platform
 
@@ -148,9 +148,9 @@ runtime_platform {
 }
 ```
 
-- **`operating_system_family`** matches the Windows Server release and Full/Core edition of the **pushed container image's base** (from the Windows base-image matrix selection in [replatform-path.md](replatform-path) as realized by the Containerization_Artifact). On Fargate, the family must be one the platform supports (2019/2022 families at the time of writing — re-verify); on EC2, it must match the container-instance OS.
-- **Container definition** values come from the Containerization_Artifact's task-definition input values ([containerization-execution.md](containerization-execution)): container name, the image reference (the settled URI or the [input variable](#unresolved-image-uri--input-variable-rule)), port mappings, CPU/memory, `environment` / `secrets` entries per the confirmed config intake method, health check, and `awslogs` log configuration (with the log group generated alongside).
-- **Set the `awslogs` `mode` explicitly.** Since 2025-06-25 an unset mode defaults to `non-blocking`, and a non-blocking driver buffers up to its `max-buffer-size` — **10 MiB by default** (the ECS `max-buffer-size` default is `10m`, per the [ECS `LogConfiguration` API reference](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_LogConfiguration.html)) — before it starts discarding lines, which lands precisely on the steady-state verification that follows, where the logs are the diagnosis. Generate `mode` plus, in non-blocking mode, a `max-buffer-size` widened beyond the 10 MiB default when a chatty legacy application warrants it; choose `blocking` only when complete logs matter more than task availability, and say so. This applies identically to the Replatform skeleton ([replatform-environment-build.md](replatform-environment-build)).
+- **`operating_system_family`** matches the Windows Server release and Full/Core edition of the **pushed container image's base** (from the Windows base-image matrix selection in [replatform-path.md](replatform-path.md) as realized by the Containerization_Artifact). On Fargate, the family must be one the platform supports (2019/2022 families at the time of writing — re-verify); on EC2, it must match the container-instance OS.
+- **Container definition** values come from the Containerization_Artifact's task-definition input values ([containerization-execution.md](containerization-execution.md)): container name, the image reference (the settled URI or the [input variable](#unresolved-image-uri--input-variable-rule)), port mappings, CPU/memory, `environment` / `secrets` entries per the confirmed config intake method, health check, and `awslogs` log configuration (with the log group generated alongside).
+- **Set the `awslogs` `mode` explicitly.** Since 2025-06-25 an unset mode defaults to `non-blocking`, and a non-blocking driver buffers up to its `max-buffer-size` — **10 MiB by default** (the ECS `max-buffer-size` default is `10m`, per the [ECS `LogConfiguration` API reference](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_LogConfiguration.html)) — before it starts discarding lines, which lands precisely on the steady-state verification that follows, where the logs are the diagnosis. Generate `mode` plus, in non-blocking mode, a `max-buffer-size` widened beyond the 10 MiB default when a chatty legacy application warrants it; choose `blocking` only when complete logs matter more than task availability, and say so. This applies identically to the Replatform skeleton ([replatform-environment-build.md](replatform-environment-build.md)).
 - `network_mode = "awsvpc"` on Fargate (required); on EC2 Windows, use the mode the task-definition input values specify (`default`/NAT is the Windows-native mode on EC2; `awsvpc` where the inputs call for it).
 - Honor the Windows task-definition parameter differences (several Linux parameters are unsupported or behave differently on Windows — see Sources) — do not carry Linux-only parameters into the Windows task definition.
 
@@ -158,7 +158,7 @@ runtime_platform {
 
 `aws_ecs_service` wiring the task definition to the capacity:
 
-- **Desired count is a fixed value** per the Replatform static configuration template (no autoscaling resources are generated — the Windows_Container_Path is a Replatform variant and inherits the static-configuration discipline of [replatform-path.md](replatform-path)).
+- **Desired count is a fixed value** per the Replatform static configuration template (no autoscaling resources are generated — the Windows_Container_Path is a Replatform variant and inherits the static-configuration discipline of [replatform-path.md](replatform-path.md)).
 - **Launch configuration matches the approved option**: capacity-provider strategy referencing the generated EC2 capacity provider, or `launch_type = "FARGATE"` (with `platform_version` left to the current Windows-supporting default).
 - Load-balancer attachment referencing the target group below; deployment settings stay at conservative defaults (this module does not design deployment strategy — that is `ecs-devops` / `ecs-architect` territory).
 
@@ -168,13 +168,13 @@ Application Load Balancer, target group, and listener fronting the service:
 
 - `aws_lb` (application), `aws_lb_target_group` (target type per the network mode: `instance` for EC2/NAT mode with dynamic port mapping, `ip` for `awsvpc`), `aws_lb_listener`, and the security groups they need.
 - **Session affinity (Requirement 17.3):**
-  - **The in-process session state Blocker was detected** (Source_Analysis, category `in_process_session`) → generate the target group **stickiness** configuration (`stickiness { type = "lb_cookie" ... enabled = true }`), cite the Blocker id as the grounds, and repeat the assessed constraint in the report: sessions on a task are lost when that task stops or is replaced ([replatform-path.md — In-Process Sessions](replatform-path#in-process-sessions-alb-sticky-sessions)).
+  - **The in-process session state Blocker was detected** (Source_Analysis, category `in_process_session`) → generate the target group **stickiness** configuration (`stickiness { type = "lb_cookie" ... enabled = true }`), cite the Blocker id as the grounds, and repeat the assessed constraint in the report: sessions on a task are lost when that task stops or is replaced ([replatform-path.md — In-Process Sessions](replatform-path.md#in-process-sessions-alb-sticky-sessions)).
   - **The Blocker was not detected** (the assessment ran and found none) → no stickiness configuration; cite the absence as the grounds.
   - **No Blocker information exists** (the assessment was skipped) → do not guess in either direction: ask the user whether the application keeps in-process session state, and generate per the answer, recording the answer as the grounds.
 
 ### Supporting inputs and resources
 
-- **Existing network identifiers enter as input variables** — VPC ID, subnet IDs (ALB and service), and any pre-existing security group references are typed, described variables. This module does not create VPCs or subnets: AWS resource creation stays limited to the resources enumerated in the approved migration plan ([SKILL.md](../) safety rails); networking that is not in the plan is an input, not a resource.
+- **Existing network identifiers enter as input variables** — VPC ID, subnet IDs (ALB and service), and any pre-existing security group references are typed, described variables. This module does not create VPCs or subnets: AWS resource creation stays limited to the resources enumerated in the approved migration plan ([SKILL.md](../index.md) safety rails); networking that is not in the plan is an input, not a resource.
 - IAM roles generated are limited to what the environment needs: the task execution role (ECR pull, logs, and `secrets` access per the config intake method), the task role when the app needs AWS API access, and (EC2 option) the container-instance role. No delete-granting or plan-external permissions.
 - Every generated file is reported with its role, e.g.:
 
@@ -187,14 +187,14 @@ Application Load Balancer, target group, and listener fronting the service:
 
 ### As-shipped security posture (disclose at hand-off)
 
-The generated Windows environment is a migration **cutover** baseline, not a production-hardened one — the same distinction the Linux Replatform skeleton draws. As shipped it deliberately carries an **HTTP:80 listener with no TLS** (inventing an ACM domain would be a fabricated value), **egress `0.0.0.0/0`** (the unmodified application's outbound dependencies are not known from source analysis), **ECS Exec off by default**, and **no Container Insights**; on the EC2 option, **IMDSv2 is required with a low hop limit**. Disclose this boundary when handing the environment over, name **`ecs-security`** for the hardening pass, and never present the generated Terraform as a hardened baseline. The full as-shipped table and rationale are carried in the Linux sibling ([replatform-environment-build.md](replatform-environment-build#what-verified-means-here-and-what-the-skeleton-is-not)); the same posture applies here.
+The generated Windows environment is a migration **cutover** baseline, not a production-hardened one — the same distinction the Linux Replatform skeleton draws. As shipped it deliberately carries an **HTTP:80 listener with no TLS** (inventing an ACM domain would be a fabricated value), **egress `0.0.0.0/0`** (the unmodified application's outbound dependencies are not known from source analysis), **ECS Exec off by default**, and **no Container Insights**; on the EC2 option, **IMDSv2 is required with a low hop limit**. Disclose this boundary when handing the environment over, name **`ecs-security`** for the hardening pass, and never present the generated Terraform as a hardened baseline. The full as-shipped table and rationale are carried in the Linux sibling ([replatform-environment-build.md](replatform-environment-build.md#what-verified-means-here-and-what-the-skeleton-is-not)); the same posture applies here.
 
 ### Windows-specific execution prerequisites (user-supplied — not generated)
 
 Three Windows realities are **not generated** by this module; surface them to the user as prerequisites when the findings call for them:
 
 - **Active Directory / gMSA.** When the assessment flagged Windows Integrated Authentication (`os_specific_api`: `<authentication mode="Windows">`, `Integrated Security=SSPI`, `windowsAuthentication`), the app needs a group Managed Service Account. gMSA is **ECS-on-EC2-Windows only — not available on Fargate Windows** ([gMSA for Windows containers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/windows-gmsa.html)), so it rules Fargate out. Provisioning the gMSA and its CredentialSpec (domain-joined or domainless), storing the CredSpec, and referencing it from the task definition (`credentialSpecs`) is a **manual operator prerequisite** this module does not create. Report it as an unresolved item with the setup pointer.
-- **Persistent write targets on FSx for Windows File Server.** [replatform-path.md](replatform-path#compute-options-for-windows-containers) maps Windows persistent storage to FSx for Windows File Server (SMB, EC2 launch type only). This module does **not** provision the file system — it is a **user-supplied prerequisite**: the user supplies the FSx file system (and its AD join), and the task definition attaches it via an `fsxWindowsFileServerVolumeConfiguration` volume plus a container `mountPoints` entry. Generate that volume/mountPoints wiring only when the file-system id and credentials are supplied as inputs; otherwise report FSx as an unresolved prerequisite rather than inventing a file system. The policy grants no `fsx:*` — provisioning is out of this module's scope.
+- **Persistent write targets on FSx for Windows File Server.** [replatform-path.md](replatform-path.md#compute-options-for-windows-containers) maps Windows persistent storage to FSx for Windows File Server (SMB, EC2 launch type only). This module does **not** provision the file system — it is a **user-supplied prerequisite**: the user supplies the FSx file system (and its AD join), and the task definition attaches it via an `fsxWindowsFileServerVolumeConfiguration` volume plus a container `mountPoints` entry. Generate that volume/mountPoints wiring only when the file-system id and credentials are supplied as inputs; otherwise report FSx as an unresolved prerequisite rather than inventing a file system. The policy grants no `fsx:*` — provisioning is out of this module's scope.
 - **Existing network (no-VPC / VMware-lift case).** This module attaches to an existing VPC and subnets supplied as inputs; it does **not** create CREATE-mode networking. When the source has no AWS network yet (e.g. a VMware lift), the VPC/subnets/routing are a prerequisite — created out of band (or by the Linux Replatform skeleton's CREATE-mode networking, or a separate networking module) and supplied here as inputs.
 
 ---
@@ -217,9 +217,9 @@ Three Windows realities are **not generated** by this module; surface them to th
 2. **Report that the value is unresolved** — never imply the environment is ready to apply end-to-end while the URI is missing.
 
 3. **Report the remaining work to settle it**, concretely, including the Requirement 16 remote-build path where it applies:
-   - **Windows image × non-Windows host**: complete the CodeBuild remote build ([containerization-execution.md — remote build](containerization-execution#windows-image-on-a-non-windows-host--remote-build)) — the build definition exists (or is generated on request); starting the build requires its own explicit confirmation; the push then yields the URI.
-   - **Build/push failed or declined**: the manual build-and-push procedure from [containerization-execution.md](containerization-execution), after which the user reports the pushed URI.
-   - Then: supply the URI as the `image_uri` variable value before `terraform plan` / `apply` in [deploy-verify-handoff.md](deploy-verify-handoff).
+   - **Windows image × non-Windows host**: complete the CodeBuild remote build ([containerization-execution.md — remote build](containerization-execution.md#windows-image-on-a-non-windows-host--remote-build)) — the build definition exists (or is generated on request); starting the build requires its own explicit confirmation; the push then yields the URI.
+   - **Build/push failed or declined**: the manual build-and-push procedure from [containerization-execution.md](containerization-execution.md), after which the user reports the pushed URI.
+   - Then: supply the URI as the `image_uri` variable value before `terraform plan` / `apply` in [deploy-verify-handoff.md](deploy-verify-handoff.md).
 
 When the URI **is** settled, reference the complete pushed URI (traceable to the Requirement 16 push result). Either way the schema records which form was used (`image_uri_variable`).
 
@@ -240,7 +240,7 @@ When the URI **is** settled, reference the complete pushed URI (traceable to the
 
 | Outcome | Report |
 |---|---|
-| `validate` completes **without errors** | Report the validation result AND that the configuration is **applicable** — `terraform apply` executable — with the error-free validation as the confirmation (Requirement 17.7). The apply itself still belongs to [deploy-verify-handoff.md](deploy-verify-handoff) with its destroy check and apply confirmation |
+| `validate` completes **without errors** | Report the validation result AND that the configuration is **applicable** — `terraform apply` executable — with the error-free validation as the confirmation (Requirement 17.7). The apply itself still belongs to [deploy-verify-handoff.md](deploy-verify-handoff.md) with its destroy check and apply confirmation |
 | `validate` exits **with errors** | Report the error content (the actual validator output, not a paraphrase). Do **NOT** claim the configuration is applicable. Fix and re-validate, or hand the errors to the user — but the applicability claim exists only after an error-free run |
 | `validate` (or the init it needs) **cannot be executed** — no Terraform binary on the host, provider installation impossible (e.g. no network), or the command fails to run | Report the reason it could not be executed. Do **NOT** claim the configuration is applicable, and do not substitute a weaker check (a visual review is not `terraform validate`). Present the user the commands to run the validation themselves (the two commands above, with the output directory) |
 
@@ -250,7 +250,7 @@ Both `terraform_init` and `terraform_validate` attempts are recorded in the Exec
 
 ## Value Traceability
 
-Every concrete value placed in the generated Terraform — the image URI, ports, health check, CPU/memory sizing inputs, mount/volume decisions, the session-affinity decision — is reported **mapped to its origin**: the Requirement 16 output (Containerization_Artifact task-definition input values, push result) and/or the Source_Analysis finding that grounds it. This is the same traceability discipline as the `ecs-build` handoff in [deploy-verify-handoff.md — Rearchitect Compute-Model Handoff](deploy-verify-handoff#rearchitect-compute-model-handoff); a value with no traceable origin is not silently invented — it becomes an input variable or an explicit user-confirmed value, and the report says which.
+Every concrete value placed in the generated Terraform — the image URI, ports, health check, CPU/memory sizing inputs, mount/volume decisions, the session-affinity decision — is reported **mapped to its origin**: the Requirement 16 output (Containerization_Artifact task-definition input values, push result) and/or the Source_Analysis finding that grounds it. This is the same traceability discipline as the `ecs-build` handoff in [deploy-verify-handoff.md — Rearchitect Compute-Model Handoff](deploy-verify-handoff.md#rearchitect-compute-model-handoff); a value with no traceable origin is not silently invented — it becomes an input variable or an explicit user-confirmed value, and the report says which.
 
 ---
 
@@ -271,7 +271,7 @@ Every concrete value placed in the generated Terraform — the image URI, ports,
 
 ## Execution_Log
 
-Every action this module attempts — the Terraform file generation, `terraform init`, `terraform validate` — is recorded in the **Execution_Log**, success or failure alike, before the next action starts. The recording rules, required fields, storage forms, and save-failure fallback are canonical in [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff#execution_log-rules); this module records against them rather than restating them. Typical action types from this module: `file_generation`, `terraform_init`, `terraform_validate`.
+Every action this module attempts — the Terraform file generation, `terraform init`, `terraform validate` — is recorded in the **Execution_Log**, success or failure alike, before the next action starts. The recording rules, required fields, storage forms, and save-failure fallback are canonical in [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff.md#execution_log-rules); this module records against them rather than restating them. Typical action types from this module: `file_generation`, `terraform_init`, `terraform_validate`.
 
 ---
 
@@ -317,7 +317,7 @@ environment_construction:
 
 ### The approved compute option cannot be uniquely identified
 
-The gate approval named the Windows_Container_Path but not which compute option (or the response was ambiguous). Do not default to either: re-present ECS on EC2 Windows vs. Fargate Windows with the three-item comparison from [replatform-path.md](replatform-path) and obtain an unambiguous choice. Generation stays blocked until then.
+The gate approval named the Windows_Container_Path but not which compute option (or the response was ambiguous). Do not default to either: re-present ECS on EC2 Windows vs. Fargate Windows with the three-item comparison from [replatform-path.md](replatform-path.md) and obtain an unambiguous choice. Generation stays blocked until then.
 
 ### Fargate Windows was approved but persistent write targets exist
 
@@ -345,7 +345,7 @@ Report the validator's error output. Fix the configuration and re-validate (each
 
 ### The user refuses the file-generation action class
 
-Follow the refusal handling in [SKILL.md](../): write no files, present the full Terraform content as code blocks in the conversation so the user can create the files manually, and note that validation and the downstream apply ([deploy-verify-handoff.md](deploy-verify-handoff)) block until the files exist.
+Follow the refusal handling in [SKILL.md](../index.md): write no files, present the full Terraform content as code blocks in the conversation so the user can create the files manually, and note that validation and the downstream apply ([deploy-verify-handoff.md](deploy-verify-handoff.md)) block until the files exist.
 
 ### The output destination changes after confirmation
 
@@ -353,7 +353,7 @@ Re-obtain the file-generation confirmation with the changed paths before writing
 
 ### The user asks `ecs-build` to generate the Windows environment
 
-Do not route it there: state that `ecs-build`'s generation scope is limited to Linux containers, generate here per this module, and note the [SKILL.md](../) future-support replacement — if `ecs-build` gains Windows container generation, this generation becomes a delegation.
+Do not route it there: state that `ecs-build`'s generation scope is limited to Linux containers, generate here per this module, and note the [SKILL.md](../index.md) future-support replacement — if `ecs-build` gains Windows container generation, this generation becomes a delegation.
 
 ### Sizing inputs are missing
 

@@ -11,9 +11,9 @@ This page is generated from [skills/graviton-migration/references/karpenter-migr
 
 # Karpenter arm64 Node Cutover Runbook
 
-> **Part of:** [graviton-migration](../)
+> **Part of:** [graviton-migration](../index.md)
 
-> ⚠️ **Precondition — do NOT begin cutover** unless every target workload has a reconciled **CLEAN 3-layer scan verdict from a re-scan of the *built* tree** (a first-pass CLEAN on an un-built or under-scanned tree does **not** count — only a CLEAN after re-scanning the built artifacts) AND a confirmed **manifest-list (multi-arch) image containing `linux/arm64`**. If you arrived here directly from a "cut over my nodes to arm64" request, **STOP** and run the scanning workflow ([scanner-workflow.md](scanner-workflow), Part 2 steps 1–2) first — a cutover on an unscanned/unbuilt workload is how x86-only native code reaches production on arm64.
+> ⚠️ **Precondition — do NOT begin cutover** unless every target workload has a reconciled **CLEAN 3-layer scan verdict from a re-scan of the *built* tree** (a first-pass CLEAN on an un-built or under-scanned tree does **not** count — only a CLEAN after re-scanning the built artifacts) AND a confirmed **manifest-list (multi-arch) image containing `linux/arm64`**. If you arrived here directly from a "cut over my nodes to arm64" request, **STOP** and run the scanning workflow ([scanner-workflow.md](scanner-workflow.md), Part 2 steps 1–2) first — a cutover on an unscanned/unbuilt workload is how x86-only native code reaches production on arm64.
 
 This is a seven-step runbook for moving Kubernetes workloads onto AWS Graviton (arm64) nodes provisioned by Karpenter, safely. The governing principle is **taint-first**: arm64 capacity enters the cluster carrying a taint so that nothing schedules onto it until you have explicitly proven that workload is arm64-safe. You opt workloads in one at a time via tolerations, rather than opening the floodgates and hoping every pod's image is multi-arch.
 
@@ -84,11 +84,11 @@ Why the taint matters: without it, the moment this NodePool exists Karpenter can
 
   Fix: give the arm64 NodePool an EC2NodeClass whose `amiSelectorTerms` resolves arm64 — either switch to an arch-aware `alias`, or add an explicit arm64 AMI term. Confirm before cutover with `kubectl get ec2nodeclass default -o yaml` (inspect `amiSelectorTerms`) and, after the NodePool exists, that a NodeClaim actually reaches `Launched`/`Registered` rather than sitting unfulfilled.
 
-**The taint does not stop DaemonSets.** Cluster-wide DaemonSets (the CNI, `kube-proxy`, and log/metric/security agents) are commonly deployed with `tolerations: - operator: Exists`, which tolerates *every* taint — so they will schedule onto the first arm64 node the instant it joins, taint or not. If any of those DaemonSet images are amd64-only, they hit the same `exec format error` on the new node, and because DaemonSets run everywhere this can surface before your canary even deploys. Before adding the arm64 NodePool, confirm every DaemonSet in the cluster ships a multi-arch (or arm64) image — check each DaemonSet's image manifest the same way you check workload images in the [scanner workflow](scanner-workflow). Modern AWS/EKS system DaemonSets (VPC CNI, kube-proxy, CloudWatch/ADOT agents) are multi-arch, but third-party agents (older logging/security/service-mesh sidecars) are the usual offenders.
+**The taint does not stop DaemonSets.** Cluster-wide DaemonSets (the CNI, `kube-proxy`, and log/metric/security agents) are commonly deployed with `tolerations: - operator: Exists`, which tolerates *every* taint — so they will schedule onto the first arm64 node the instant it joins, taint or not. If any of those DaemonSet images are amd64-only, they hit the same `exec format error` on the new node, and because DaemonSets run everywhere this can surface before your canary even deploys. Before adding the arm64 NodePool, confirm every DaemonSet in the cluster ships a multi-arch (or arm64) image — check each DaemonSet's image manifest the same way you check workload images in the [scanner workflow](scanner-workflow.md). Modern AWS/EKS system DaemonSets (VPC CNI, kube-proxy, CloudWatch/ADOT agents) are multi-arch, but third-party agents (older logging/security/service-mesh sidecars) are the usual offenders.
 
 ## Step 2: Opt a canary workload in with tolerations + affinity
 
-Pick one CLEAN workload from the [scanner verdict table](scanner-workflow). Give a **separate canary copy** (a distinct Deployment — not a subset of the original's replicas; one Deployment has a single podTemplate and so a single arch) both a **toleration** for the taint and a **nodeSelector/affinity** for arm64, so it not only *may* land on arm64 nodes but *must*:
+Pick one CLEAN workload from the [scanner verdict table](scanner-workflow.md). Give a **separate canary copy** (a distinct Deployment — not a subset of the original's replicas; one Deployment has a single podTemplate and so a single arch) both a **toleration** for the taint and a **nodeSelector/affinity** for arm64, so it not only *may* land on arm64 nodes but *must*:
 
 ```yaml
 spec:
@@ -132,7 +132,7 @@ This **hard** arm64 pin is correct *for the canary* — a one-shot deterministic
 
 ## Step 3: Deploy a multi-arch image
 
-The canary's image must be a manifest list containing a `linux/arm64` entry — the image produced by the [multi-arch CI pipeline](multi-arch-pipelines). Reference the image by its normal tag; the container runtime on the arm64 node automatically pulls the arm64 variant from the manifest list. Do not hardcode an `-arm64` tag suffix into the manifest — the whole point of a manifest list is one tag, right arch per node. Confirm the tag is multi-arch (the "Check every container base image for an arm64 variant" section of the [scanner workflow](scanner-workflow)) before you roll it out.
+The canary's image must be a manifest list containing a `linux/arm64` entry — the image produced by the [multi-arch CI pipeline](multi-arch-pipelines.md). Reference the image by its normal tag; the container runtime on the arm64 node automatically pulls the arm64 variant from the manifest list. Do not hardcode an `-arm64` tag suffix into the manifest — the whole point of a manifest list is one tag, right arch per node. Confirm the tag is multi-arch (the "Check every container base image for an arm64 variant" section of the [scanner workflow](scanner-workflow.md)) before you roll it out.
 
 ## Step 4: Validate the pod scheduled and runs on arm64
 
@@ -142,7 +142,7 @@ Prove it, do not assume it:
 - **Running, not crashing:** `kubectl get pod <pod>` shows `Running` and ready, not `CrashLoopBackOff`; `kubectl logs` shows no `exec format error` (the signature of an amd64 binary on arm64).
 - **Correct under load:** exercise the real user-facing path — send representative traffic and check latency, error rate, and functional correctness, not just liveness. A pod that starts is not the same as a workload that works; validate the actual endpoint under realistic load before trusting the result.
 
-If any check fails, roll the canary back, return to the [scanner workflow](scanner-workflow) to find the missed blocker, and re-scan.
+If any check fails, roll the canary back, return to the [scanner workflow](scanner-workflow.md) to find the missed blocker, and re-scan.
 
 ## Step 5: Shift the workload to arm64
 

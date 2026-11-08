@@ -11,11 +11,11 @@ This page is generated from [skills/ecs-observability/references/tracing-and-sig
 
 # ECS Observability — Tracing and Application Signals
 
-> **Part of:** [ecs-observability](../)
+> **Part of:** [ecs-observability](../index.md)
 > **Purpose:** Deep guidance on distributed tracing stack selection for Amazon ECS — X-Ray legacy status, ADOT/OpenTelemetry as the recommended path, and CloudWatch Application Signals deployment strategies
 
-**For metrics stack selection, see:** [metrics-stacks.md](metrics-stacks)
-**For the per-capability launch-type matrix, see:** [launch-type-matrix.md](launch-type-matrix)
+**For metrics stack selection, see:** [metrics-stacks.md](metrics-stacks.md)
+**For the per-capability launch-type matrix, see:** [launch-type-matrix.md](launch-type-matrix.md)
 
 ---
 
@@ -45,7 +45,7 @@ This page is generated from [skills/ecs-observability/references/tracing-and-sig
 - ECS integrates with ADOT via a **sidecar collector container**: "Amazon ECS uses an AWS Distro for OpenTelemetry sidecar container to collect and route trace data to AWS X-Ray." The same sidecar can route metrics to CloudWatch or AMP. The ECS console can inject it via the task-definition "Use metric collection" option.
 - Official image: `public.ecr.aws/aws-observability/aws-otel-collector`; built-in configs selected via `command` (e.g., `--config=/etc/ecs/ecs-amp.yaml`); custom config via SSM Parameter Store. Default pipelines cover X-Ray traces, StatsD, ECS container metrics, EMF, and Prometheus→AMP.
 - Task IAM role for the X-Ray path: `xray:PutTraceSegments`, `xray:PutTelemetryRecords`, `xray:GetSampling*`, `ssm:GetParameters`, plus CloudWatch Logs permissions for collector logs.
-- **Launch-type scope:** documented for Fargate + EC2 only; EXTERNAL explicitly unsupported; MI not documented as of 2026-07-10 — see the **ADOT sidecar row of [launch-type-matrix.md](launch-type-matrix)** for the source quote and URL; verify the live doc before advising MI.
+- **Launch-type scope:** documented for Fargate + EC2 only; EXTERNAL explicitly unsupported; MI not documented as of 2026-07-10 — see the **ADOT sidecar row of [launch-type-matrix.md](launch-type-matrix.md)** for the source quote and URL; verify the live doc before advising MI.
 - Project health: the ADOT collector is actively maintained (no maintenance-mode notice as of 2026-07-09; note planned removal of the `datadog`/`logzio`/`sapm`/`signalfx` exporters from the distro — per https://github.com/aws-observability/aws-otel-collector).
 
 ## CloudWatch Application Signals on ECS

@@ -53,18 +53,18 @@ There is no Karpenter for native ECS. The closest "AWS picks the instance" exper
 
 ## ECS Managed Instances — the AWS-managed alternative
 
-Instead of hand-rolling one ASG per GPU type, **ECS Managed Instances** lets AWS provision, configure, patch (drain initiated every 14 days; termination no later than day 21), scale, and place tasks on optimal EC2 instances, while you declare requirements ([Amazon ECS Managed Instances](https://aws.amazon.com/ecs/managed-instances/)). You still select GPU/accelerator families through the capacity provider's **`instanceRequirements`** launch template (see [compute-hardware.md](compute-hardware) and [neuron-on-ecs.md](neuron-on-ecs)). Trade-offs:
+Instead of hand-rolling one ASG per GPU type, **ECS Managed Instances** lets AWS provision, configure, patch (drain initiated every 14 days; termination no later than day 21), scale, and place tasks on optimal EC2 instances, while you declare requirements ([Amazon ECS Managed Instances](https://aws.amazon.com/ecs/managed-instances/)). You still select GPU/accelerator families through the capacity provider's **`instanceRequirements`** launch template (see [compute-hardware.md](compute-hardware.md) and [neuron-on-ecs.md](neuron-on-ecs.md)). Trade-offs:
 
 - **Pro:** No ASG plumbing, no AMI/driver management, faster to stand up, per-type homogeneity handled by AWS.
 - **Con:** A **management charge** on top of the EC2 instance price, billed per-second with a one-minute minimum ([ECS Managed Instances pricing](https://aws.amazon.com/ecs/managed-instances/pricing/)); less control than self-managed EC2 (no custom kernel/AMI). For custom AMI/kernel or the most demanding multi-node EFA training, self-managed ECS-on-EC2 remains the choice.
-- **Instance lifetime caveat for training:** Managed Instances patches by drain-and-replace on a **14-21 day instance lifecycle** — draining initiated at day 14 from launch, termination no later than day 21; you can use EC2 event windows to schedule it into weekly maintenance windows ([ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/), [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)). That is fine for inference, but a **multi-week training run can be interrupted mid-flight** — so multi-week runs need robust checkpoint/resume (see [distributed-training.md](distributed-training)), or should run on a self-managed ASG / Capacity Block instead.
+- **Instance lifetime caveat for training:** Managed Instances patches by drain-and-replace on a **14-21 day instance lifecycle** — draining initiated at day 14 from launch, termination no later than day 21; you can use EC2 event windows to schedule it into weekly maintenance windows ([ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/), [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)). That is fine for inference, but a **multi-week training run can be interrupted mid-flight** — so multi-week runs need robust checkpoint/resume (see [distributed-training.md](distributed-training.md)), or should run on a self-managed ASG / Capacity Block instead.
 - GA Sept 2025; available in all commercial Regions since Oct 2025.
 
 ## EC2 Capacity Blocks for ML — securing scarce GPU capacity
 
 GPU capacity is scarce. **EC2 Capacity Blocks for ML** let you reserve accelerated instances for a future window, colocated in EC2 UltraClusters with EFA ([EC2 Capacity Blocks for ML](https://aws.amazon.com/ec2/capacityblocks/)). Current facts (**verified against live AWS docs 2026-07-10 — the supported-type list moves fast; always re-check the cited pages**):
 
-- **Single Availability Zone.** A Capacity Block is delivered as a **`targeted` Capacity Reservation in one AZ** ([Use Capacity Blocks for ML workloads (EC2 Auto Scaling)](https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-template-capacity-blocks.html)). This is not stated as a passing detail: it means you must **pin the ASG to that AZ's subnet** and **co-locate FSx for Lustre in the same AZ** ([storage.md](storage)) — a cross-AZ block/FSx layout silently underperforms or won't place.
+- **Single Availability Zone.** A Capacity Block is delivered as a **`targeted` Capacity Reservation in one AZ** ([Use Capacity Blocks for ML workloads (EC2 Auto Scaling)](https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-template-capacity-blocks.html)). This is not stated as a passing detail: it means you must **pin the ASG to that AZ's subnet** and **co-locate FSx for Lustre in the same AZ** ([storage.md](storage.md)) — a cross-AZ block/FSx layout silently underperforms or won't place.
 - **Supported instance types** (per the Capacity Blocks page, verified 2026-07-10). *Instance* Capacity Blocks: **P6-B300, P6-B200, P5en, P5e, P5, P4d, P4de** (NVIDIA Blackwell / H200 / H100 / A100), plus **Trn2 and Trn1** (AWS Trainium). *UltraServer* Capacity Blocks (a separate table with extra rules — non-shareable across accounts, and P6e-GB200 instances must be terminated ≥60 minutes before the block end time): **Trn2 and P6e-GB200** — P6e-GB200 is UltraServer-only, not an Instance Capacity Block type ([Capacity Blocks for ML — supported instance types](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-blocks.html)). Capacity Blocks cover **P- and Trn-family only** — there is no g6e Capacity Block, so for assured g6e/inference capacity use **ODCRs** or Managed Instances Capacity Reservations instead (below).
 - **Reservation duration** is 1–14 days, or a multiple of 7 days up to **182 days**; reservable with a start time **up to 8 weeks in advance**. Each Capacity Block can have **up to 64 instances**, and **up to 256 instances across Capacity Blocks** ([How Capacity Blocks work](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-how.html)). Instance Capacity Blocks are shareable across accounts (UltraServer Capacity Blocks are not).
 - **Cancellations aren't allowed, but a block CAN be extended.** An `active` or `scheduled` block can be extended (subject to available capacity) in 1-day increments up to 14 days and 7-day increments up to 182 days total, from 1 hour to 57 days before it expires, with no limit on the number of extensions — the reservation ID stays the same ([Extend Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-extend.html)). Plan the initial window, but know you can extend a run rather than re-reserving.
@@ -78,13 +78,13 @@ Use with ECS by launching the reserved instances into a **self-managed GPU ASG c
 For inference families that Capacity Blocks don't cover (e.g. g6e), get capacity assurance with:
 - **On-Demand Capacity Reservations (ODCRs)** in a specific AZ, consumed by a self-managed ASG launch template — the general-purpose assured-capacity lever for g-family inference.
 - **Managed Instances Capacity Reservations:** set `capacityOptionType: Reserved` on the capacity provider and supply a **Capacity Reservation group** ([ECS Managed Instances instance types — billing and purchase options](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-instance-types.html)); you can also set a reservation preference (`reservations-only`, `reservations-first`, `reservations-excluded`).
-> **Reservation-vs-support mismatch to flag:** Capacity Blocks / ODCRs can reserve instance types (P6, P5en, …) that the **ECS-on-EC2 GPU support table stops short of** (it currently ends at p5/g6e). Managed Instances' accelerated list is broader (see [compute-hardware.md](compute-hardware)). Before reserving, confirm the target instance type is actually consumable by the ECS launch model you intend to use, or you may reserve a block ECS-on-EC2 can't schedule onto.
+> **Reservation-vs-support mismatch to flag:** Capacity Blocks / ODCRs can reserve instance types (P6, P5en, …) that the **ECS-on-EC2 GPU support table stops short of** (it currently ends at p5/g6e). Managed Instances' accelerated list is broader (see [compute-hardware.md](compute-hardware.md)). Before reserving, confirm the target instance type is actually consumable by the ECS launch model you intend to use, or you may reserve a block ECS-on-EC2 can't schedule onto.
 
 ## Spot vs On-Demand for GPU on ECS
 
 | Workload | Capacity type | Condition |
 |---|---|---|
-| **Training** | Spot | ✅ Only with checkpoint/resume wired (see [distributed-training.md](distributed-training)) — but see the P-family caveat below |
+| **Training** | Spot | ✅ Only with checkpoint/resume wired (see [distributed-training.md](distributed-training.md)) — but see the P-family caveat below |
 | **Training** | On-Demand / Capacity Blocks | When the job can't tolerate interruption |
 | **Inference (production, SLA-bound)** | On-Demand | Always — Spot interruptions break per-request SLAs |
 | **Dev / experimentation** | Spot | ✅ Tolerable interruption profile |
@@ -99,18 +99,18 @@ ECS cluster auto scaling is a **CloudWatch-driven, latent** process ([Optimize E
 
 - Scale-out/in reacts to the `CapacityProviderReservation` metric breaching alarms; there is inherent lag from metric publish + alarm evaluation + EC2 warm-up.
 - **Scale-in requires ~15 minutes of data points** before reducing capacity, then steps down gradually ([Faster Scaling-in for ECS Cluster Auto Scaling](https://aws.amazon.com/blogs/containers/faster-scaling-in-for-amazon-ecs-cluster-auto-scaling/)). This matters for expensive GPU nodes — idle GPU minutes are costly.
-- Speed levers: use **warm pools** of pre-initialized GPU instances (supported by ECS ASG capacity providers) to cut GPU-instance warm-up time; keep GPU AMIs lean; pre-cache large model images (see [storage.md](storage)).
+- Speed levers: use **warm pools** of pre-initialized GPU instances (supported by ECS ASG capacity providers) to cut GPU-instance warm-up time; keep GPU AMIs lean; pre-cache large model images (see [storage.md](storage.md)).
 
 ## Cost Levers (priority order)
 
 | Priority | Lever | Directional value | Caveat |
 |---|---|---|---|
 | 1 | **Capacity Blocks for ML** | Capacity *assurance* (not a fixed discount) | Reservation + OS fee; no autoscale; advance reservation |
-| 2 | **Neuron over GPU** | Cost-optimized for supported Transformer models | Compilation ramp; verify model support ([neuron-on-ecs.md](neuron-on-ecs)) |
+| 2 | **Neuron over GPU** | Cost-optimized for supported Transformer models | Compilation ramp; verify model support ([neuron-on-ecs.md](neuron-on-ecs.md)) |
 | 3 | **Spot + checkpoint/resume** | Large savings for fault-tolerant training | Requires checkpoint logic; not for SLA inference |
 | 4 | **Right-size GPU instance family** | Avoids paying for idle GPU memory/compute | Match model size to instance; measure first |
 | 5 | **Cluster auto scaling / Managed Instances consolidation** | Reclaims idle GPU nodes off-peak | Scale-in latency (~15 min); warm pools mitigate cold-start |
-| 6 | **GPU sharing (dev only)** | Density for dev/test | No isolation — dev/test only ([compute-hardware.md](compute-hardware)) |
+| 6 | **GPU sharing (dev only)** | Density for dev/test | No isolation — dev/test only ([compute-hardware.md](compute-hardware.md)) |
 
 Always give **directional ranges with caveats** — never point estimates. Actual savings depend on model size, traffic pattern, batch size, sequence length, and configuration.
 

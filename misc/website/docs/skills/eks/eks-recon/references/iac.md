@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/iac.md](https://github.
 
 # Module: IaC (Infrastructure as Code)
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect IaC tooling - Terraform, CloudFormation, CDK, eksctl, Pulumi
 
 ## Table of Contents

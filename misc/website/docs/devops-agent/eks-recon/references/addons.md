@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/addons.md](https:
 
 # Module: Add-ons
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect add-on inventory — EKS-managed add-ons, Helm releases, manifest-installed components
 
 ## Table of Contents

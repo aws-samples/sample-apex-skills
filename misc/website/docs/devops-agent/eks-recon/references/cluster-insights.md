@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/cluster-insights.
 
 # Module: Cluster Insights
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect EKS Cluster Insights - AWS-generated upgrade-readiness and configuration findings for the cluster
 
 ## Table of Contents
