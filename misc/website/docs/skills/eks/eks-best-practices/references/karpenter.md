@@ -430,7 +430,7 @@ spec:
     type: Container
 ```
 
-A container that requests more than 256Mi of memory and sets no limit is rejected at admission, since its request would exceed the default limit: set its limit too ([Kubernetes: Limit Ranges](https://kubernetes.io/docs/concepts/policy/limit-range/)).
+A container that requests more than 256Mi of memory or 500m CPU and sets no limit for it is rejected at admission (for a Deployment, the ReplicaSet fails to create pods), since its request would exceed the default limit: set its limit too ([Kubernetes: Limit Ranges](https://kubernetes.io/docs/concepts/policy/limit-range/)).
 
 ### Apply Accurate Resource Requests
 
