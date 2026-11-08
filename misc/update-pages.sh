@@ -421,12 +421,11 @@ vendored_skill_admonition() {
       found && /^## / { exit }
       found && /License:/ { sub(/.*License:[* ]*/, ""); sub(/ *\(see.*$/, ""); sub(/[* \r]*$/, ""); print; exit }
     ' "$notices")"
-    # Normalize the long-form license name to its SPDX short id so the
+    # Normalize the long-form license name to its short name so the
     # admonition reads "under the MIT license", not "under the MIT License license".
     case "$license_from_notices" in
       "MIT License") license_from_notices="MIT" ;;
       "Apache License 2.0"|"Apache 2.0") license_from_notices="Apache-2.0" ;;
-      *" License") license_from_notices="${license_from_notices% License}" ;;
     esac
   fi
   # Fallback: frontmatter metadata
@@ -439,6 +438,10 @@ vendored_skill_admonition() {
   license_id="$(parse_frontmatter "$skill_dir/SKILL.md" "license")"
   [[ -z "$license_id" ]] && license_id="$license_from_notices"
   local license_text="the $license_id license"
+  case "$license_id" in
+    [Tt]"he "*License*) license_text="$license_id" ;;
+    *License*) license_text="the $license_id" ;;
+  esac
   [[ -z "$license_id" ]] && license_text="the license in its ${license_file##*/} file"
   # Next source: the "Source repo" row of the skill's UPSTREAM.md (the sync
   # scripts' provenance file), so a vendored skill with no notices entry
