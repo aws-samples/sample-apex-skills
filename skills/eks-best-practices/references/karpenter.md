@@ -419,6 +419,8 @@ spec:
     type: Container
 ```
 
+A container that requests more than 256Mi of memory and sets no limit is rejected at admission, since its request would exceed the default limit: set its limit too ([Kubernetes: Limit Ranges](https://kubernetes.io/docs/concepts/policy/limit-range/)).
+
 ### Apply Accurate Resource Requests
 
 Karpenter provisions right-sized nodes based on pod resource requests. Inaccurate requests lead to:
