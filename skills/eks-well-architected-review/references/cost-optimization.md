@@ -580,7 +580,9 @@ kubectl get deployments -A -o json
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Deploy Kubecost or OpenCost for cost visibility: `helm repo add kubecost https://kubecost.github.io/kubecost/ && helm repo update && helm install kubecost kubecost/kubecost --version 3.3.1 --namespace kubecost --create-namespace --set global.clusterId=<cluster-name>` or deploy OpenCost via Helm.
+**Remediation:** Deploy Kubecost or OpenCost for cost visibility: `helm repo add kubecost https://kubecost.github.io/kubecost/ && helm repo update && helm install kubecost kubecost/kubecost --version <chart-version> --namespace kubecost --create-namespace --set global.clusterId=<cluster-name>` or deploy OpenCost via Helm.
+
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
 ---
 

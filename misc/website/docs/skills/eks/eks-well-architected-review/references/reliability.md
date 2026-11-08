@@ -1093,7 +1093,9 @@ kubectl get deployments -A -o json
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Deploy Prometheus + Grafana for monitoring: `helm install prometheus oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version 93.1.0`. Configure alerting rules for critical metrics.
+**Remediation:** Deploy Prometheus + Grafana for monitoring: `helm install prometheus oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version <chart-version>`. Configure alerting rules for critical metrics.
+
+**Chart version:** `<chart-version>` is a placeholder, here and at every other `<chart-version>` in this file. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
 ---
 
@@ -1282,7 +1284,7 @@ node groups, Fargate profiles or PersistentVolumes beneath it — those have the
 > or a CloudWatch agent DaemonSet whose Application Signals X-Ray port (`cwa-appsig-xray`) is configured. An
 > OpenTelemetry/ADOT operator on its own does not: it collects nothing until a collector resource exists.
 
-**Remediation:** Deploy distributed tracing: `helm repo add jaegertracing https://jaegertracing.github.io/helm-charts && helm repo update && helm install jaeger jaegertracing/jaeger --version 4.16.1`. Or enable AWS X-Ray with the ADOT collector for request flow visibility.
+**Remediation:** Deploy distributed tracing: `helm repo add jaegertracing https://jaegertracing.github.io/helm-charts && helm repo update && helm install jaeger jaegertracing/jaeger --version <chart-version>`. Or enable AWS X-Ray with the ADOT collector for request flow visibility.
 
 ---
 

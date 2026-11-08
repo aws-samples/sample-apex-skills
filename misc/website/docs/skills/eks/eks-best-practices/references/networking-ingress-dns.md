@@ -328,9 +328,11 @@ spec:
 
 ### External DNS
 
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+
 ```bash
 # Auto-manage Route 53 records for Services/Ingresses
-helm install external-dns external-dns/external-dns --version 1.23.0 \
+helm install external-dns external-dns/external-dns --version <chart-version> \
   --set provider=aws \
   --set policy=sync \
   --set registry=txt \
