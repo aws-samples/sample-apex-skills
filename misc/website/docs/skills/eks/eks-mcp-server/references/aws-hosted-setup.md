@@ -86,7 +86,7 @@ The package is `mcp-proxy-for-aws-cli`, which the proxy's maintainers recommend 
 
 ## Opt-in: Write Access
 
-The examples here are read-only (`--read-only` disables write operations), the recommended start. To enable writes, remove `--read-only` from args and attach a write policy (Step 1).
+The examples here are read-only (`--read-only` hides tools that may write; the Step 1 IAM policy is the server-side control), the recommended start. To enable writes, remove `--read-only` from args and attach a write policy (Step 1).
 
 ## Optional: Multiple AWS Profiles
 
