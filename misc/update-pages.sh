@@ -11,7 +11,7 @@
 #   examples/**/*.html    (copied to static/)
 #   examples/**/*.png     (copied to static/)
 #   devops-agent/**/*.md  (except devops-agent/README.md — marker-generated)
-#   SKILL_META (below)    skill page titles and summaries
+#   SKILL_META (below)    skill page titles and summaries, and README groups
 #
 # Outputs (regenerated; tracked in git):
 #   misc/website/docs/skills/<group>/<name>/index.md       wrapper for SKILL.md
