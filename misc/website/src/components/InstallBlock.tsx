@@ -100,7 +100,7 @@ export default function InstallBlock(): ReactNode {
         <div className="apex-install__route">
           <h3>Release 1.3.0 installer</h3>
           <p>
-            Detects Claude Code and Kiro CLI and links the v1.3.0 release skills (2026-10-21): no /apex router, and
+            Detects Claude Code and Kiro CLI and links the skills from the newest tagged release: no /apex router, and
             older versions of some skills than the pages here, which describe main.
           </p>
           <Command text={INSTALLER} label="installer command" />

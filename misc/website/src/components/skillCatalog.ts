@@ -27,9 +27,9 @@ export type CatalogSkill = Skill & {
   output?: string;
 };
 
-// The site's interim grouping (Knowledge Skills, then Solution Skills by day,
-// then tooling), until the v2 skill classes land. stage names the parent a
-// Day 2 group sits under, for labels such as the one on a skill page.
+// The site's grouping (Knowledge Skills, then Solution Skills by day, then
+// tooling). stage names the parent a Day 2 group sits under, for labels such
+// as the one on a skill page.
 export const JOBS: {id: JobId; title: string; line: string; stage?: string}[] = [
   {id: 'knowledge', title: 'Knowledge Skills', line: 'Guidance your agent draws on when you ask and decide.'},
   {id: 'design', title: 'Day 0 Design', line: 'Choose an architecture before you build.'},

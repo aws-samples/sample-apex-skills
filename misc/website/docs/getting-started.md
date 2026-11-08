@@ -20,11 +20,11 @@ APEX skills are plain folders of markdown + scripts. Any agent harness that supp
 npx apex-skills@1.3.0
 ```
 
-APEX v2 is in progress, so the commands here pin the installer to exactly version 1.3.0 until v2 ships, which also skips later 1.3.x installer releases. A fresh install with no earlier install record takes the newest v1.x.y release of the skills; `--version` picks a release, `--branch` follows a branch, and `--update` stays on the clone's major line or the branch it follows.
+The commands here pin the installer to exactly version 1.3.0, which also skips later 1.3.x installer releases. A fresh install with no earlier install record takes the newest tagged release of the skills, not the tip of `main`; `--version` picks a release, `--branch` follows a branch, and `--update` stays on the clone's major line or the branch it follows.
 
 The installer's own messages show `npx apex-skills`; add `@1.3.0` when you run them.
 
-For v2 and its `/apex` router, use the Manual Install below (from `main`).
+For the latest skills, including the `/apex` router, use the Manual Install below (from `main`).
 
 Detects Claude Code and/or Kiro CLI, clones the repo to `~/.apex-skills/`, and links the skills into place. Flags, exit codes, [installed paths](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#installed-paths) and [uninstall](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md#uninstall): see the [installer README](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/installer/README.md).
 

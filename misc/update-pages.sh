@@ -738,7 +738,7 @@ Install with the NPX installer (Claude Code and Kiro CLI):
 ```
 npx apex-skills@1.3.0
 ```
-For v2 and its `/apex` router, use the manual install from `main`.
+For the latest skills, including the `/apex` router, use the manual install from `main`.
 
 See {SITE}/docs/getting-started/ for full installation instructions.
 
