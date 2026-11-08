@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/obser
 
 # Observability Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for EKS control plane logging configuration (all log types enabled unnecessarily), high-cardinality metric sources (Prometheus scrape configs, CloudWatch agent), DEBUG/TRACE log levels in production, and log filtering/sampling configurations (FluentBit, CloudWatch agent)
 
 ---

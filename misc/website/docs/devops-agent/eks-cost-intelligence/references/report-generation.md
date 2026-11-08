@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/repor
 
 # Report Generation
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Deterministic scoring algorithm, dimension weights, classification bands, SKIPPED dimension handling, and the complete markdown report template
 
 ---

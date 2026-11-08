@@ -24,7 +24,7 @@ AWS uses two product-level features; note the current naming (older docs say "Au
 
 > **Naming precision:** the current product-level features are **"EKS Protection"** and **"Runtime Monitoring"** (EKS Runtime Monitoring is managed *as part of* Runtime Monitoring). The older label "EKS Audit Log Monitoring" survives in some API surfaces (the `EKS_AUDIT_LOGS` feature flag) but the console/product name is **EKS Protection**. Reference: [GuardDuty EKS integration](https://docs.aws.amazon.com/eks/latest/userguide/integration-guardduty.html) · [EKS Protection in GuardDuty](https://docs.aws.amazon.com/guardduty/latest/ug/kubernetes-protection.html).
 
-When a finding fires, respond with [security-event-response.md](security-event-response).
+When a finding fires, respond with [security-event-response.md](security-event-response.md).
 
 **AWS strongly recommends GuardDuty for EKS runtime monitoring.** Reference: [EKS Best Practices: Runtime Security](https://docs.aws.amazon.com/eks/latest/best-practices/runtime-security.html).
 

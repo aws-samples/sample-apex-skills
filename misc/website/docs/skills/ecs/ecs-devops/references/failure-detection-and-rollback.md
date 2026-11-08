@@ -11,10 +11,10 @@ This page is generated from [skills/ecs-devops/references/failure-detection-and-
 
 # ECS DevOps — Failure Detection & Rollback
 
-> **Part of:** [ecs-devops](../)
+> **Part of:** [ecs-devops](../index.md)
 > **Purpose:** Deployment circuit breaker (including the Jul 2026 configurable thresholds), CloudWatch alarm-based failure detection, and every rollback path for ECS deployments
 
-**For strategy configuration, see:** [deployment-strategies.md](deployment-strategies)
+**For strategy configuration, see:** [deployment-strategies.md](deployment-strategies.md)
 
 > Facts in this file verified 2026-07-09 against the AWS documentation URLs cited inline.
 
@@ -105,7 +105,7 @@ Ordered fastest-first. Sources cited per rung (verified 2026-07-09).
    ```
    Rolls back to the previous service revision **even if rollback was never configured** on the service. Stoppable states: `PENDING`, `IN_PROGRESS` (→ `ROLLBACK_REQUESTED`), `STOP_REQUESTED`, `ROLLBACK_REQUESTED`, `ROLLBACK_IN_PROGRESS`. ([stop-service-deployment](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stop-service-deployment.html), verified 2026-07-10). Note: the [API_StopServiceDeployment](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_StopServiceDeployment.html) `stopType` enum lists `ABORT | ROLLBACK`, while its prose says the valid value is `ROLLBACK` — use `ROLLBACK`.
 3. **Automatic rollback** — circuit-breaker trip (rolling only), alarm trip (any `ECS`-controller strategy), lifecycle-hook FAILED/ROLLBACK, pause-hook timeout with ROLLBACK action, or a 24 h stage timeout (blue/green-family). Target: most recent `COMPLETED` deployment. ([circuit breaker](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html), [pause hooks](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/pause-lifecycle-hooks.html))
-4. **Manual re-deploy of the previous task-definition revision** via `UpdateService` — the universal fallback under the `ECS` and CodeDeploy controllers. It does **not** work under the `EXTERNAL` controller: there `UpdateService` changes only desired count and health-check grace period, so roll back by shifting traffic/scale back to your previous task set ([deployment-type-external](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-external.html); see [controllers-and-migration.md](controllers-and-migration)). CodeDeploy-controller rollback reroutes traffic back to the original task set. ([CodeDeploy ECS steps](https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-steps-ecs.html))
+4. **Manual re-deploy of the previous task-definition revision** via `UpdateService` — the universal fallback under the `ECS` and CodeDeploy controllers. It does **not** work under the `EXTERNAL` controller: there `UpdateService` changes only desired count and health-check grace period, so roll back by shifting traffic/scale back to your previous task set ([deployment-type-external](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-type-external.html); see [controllers-and-migration.md](controllers-and-migration.md)). CodeDeploy-controller rollback reroutes traffic back to the original task set. ([CodeDeploy ECS steps](https://docs.aws.amazon.com/codedeploy/latest/userguide/deployment-steps-ecs.html))
 
 ## What --force-new-deployment Actually Does
 

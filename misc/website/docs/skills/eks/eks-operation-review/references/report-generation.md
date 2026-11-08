@@ -11,7 +11,7 @@ This page is generated from [skills/eks-operation-review/references/report-gener
 
 
 :::info[Vendored skill]
-This skill is sourced from [eks-operation-review](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review), also maintained by the APEX team.
+This skill is sourced from [sample-eks-operation-review-skill](https://github.com/aws-samples/sample-eks-operation-review-skill), also maintained by the APEX team.
 :::
 
 # Report Generation

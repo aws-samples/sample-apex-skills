@@ -11,7 +11,7 @@ This page is generated from [skills/graviton-migration/references/agent-scope-bo
 
 # Agent Scope Boundaries
 
-> **Part of:** [graviton-migration](../)
+> **Part of:** [graviton-migration](../index.md)
 
 Load this when a scope question comes up ("should the scanner touch this repo?", "is X part of this skill?"). It draws the line around what graviton-migration does and does not own, and carries the hard security guardrail on the scanner container.
 
