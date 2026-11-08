@@ -11,7 +11,7 @@ This page is generated from [skills/eks-upgrade-check/references/upgrade-insight
 
 
 :::info[Vendored skill]
-This skill is sourced from [eks-upgrade-check](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check), also maintained by the APEX team.
+This skill is sourced from [sample-eks-upgrade-skill](https://github.com/aws-samples/sample-eks-upgrade-skill), also maintained by the APEX team.
 :::
 
 # AWS Upgrade Insights

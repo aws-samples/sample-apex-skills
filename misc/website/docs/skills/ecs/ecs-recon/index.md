@@ -1,6 +1,7 @@
 ---
-title: "ecs-recon"
-description: "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, inspect a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment strategy design and CI/CD engineering (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost/TCO (ecs-cost-intelligence, once available), observability design (ecs-observability), and replatform/migration (ecs-modernize, once available)."
+title: "ECS Recon (ecs-recon): discover what your Amazon ECS estate runs"
+sidebar_label: "ecs-recon"
+description: "ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/SKILL.md
 format: md
 ---
@@ -97,16 +98,16 @@ Load only the references needed for the user's request — this keeps context fo
 
 | Module | Intent / When to Use | Reference File |
 |--------|---------------------|----------------|
-| Overview | Always loaded first — account-wide inventory of clusters, services, and their tasks (standalone/scheduled tasks not discovered) | [overview.md](references/overview) |
-| Compute | Capacity providers, launch types, task counts, Fargate vs EC2 | [compute.md](references/compute) |
-| Task Definitions | Container images, CPU/memory, family and revision | [task-definitions.md](references/task-definitions) |
-| Deployment | Rolling update, CodeDeploy, circuit breaker, min/max percent | [deployment.md](references/deployment) |
-| Auto Scaling | Scalable targets, target tracking, step scaling policies | [autoscaling.md](references/autoscaling) |
-| Networking | Network mode, VPC config, load balancers, service connectivity | [networking.md](references/networking) |
-| Security | Task roles, execution roles, ECS Exec, secrets references | [security.md](references/security) |
-| Observability | Log drivers, Container Insights, CloudWatch log groups | [observability.md](references/observability) |
-| IaC | Terraform, CloudFormation, CDK, Copilot detection | [iac.md](references/iac) |
-| CI/CD | CodePipeline, CodeDeploy, GitHub Actions, GitLab CI detection | [cicd.md](references/cicd) |
+| Overview | Always loaded first — account-wide inventory of clusters, services, and their tasks (standalone/scheduled tasks not discovered) | [overview.md](references/overview.md) |
+| Compute | Capacity providers, launch types, task counts, Fargate vs EC2 | [compute.md](references/compute.md) |
+| Task Definitions | Container images, CPU/memory, family and revision | [task-definitions.md](references/task-definitions.md) |
+| Deployment | Rolling update, CodeDeploy, circuit breaker, min/max percent | [deployment.md](references/deployment.md) |
+| Auto Scaling | Scalable targets, target tracking, step scaling policies | [autoscaling.md](references/autoscaling.md) |
+| Networking | Network mode, VPC config, load balancers, service connectivity | [networking.md](references/networking.md) |
+| Security | Task roles, execution roles, ECS Exec, secrets references | [security.md](references/security.md) |
+| Observability | Log drivers, Container Insights, CloudWatch log groups | [observability.md](references/observability.md) |
+| IaC | Terraform, CloudFormation, CDK, Copilot detection | [iac.md](references/iac.md) |
+| CI/CD | CodePipeline, CodeDeploy, GitHub Actions, GitLab CI detection | [cicd.md](references/cicd.md) |
 
 ---
 

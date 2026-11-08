@@ -282,7 +282,7 @@ Steps:
 3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists — see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
 4. Scaffold `misc/evals/<name>/` with `cd misc/evals && make init-evals SKILL=<name> [SIBLINGS="a,b"]` (see misc/evals/README.md), then expand `triggering.json` to ≥16 prompts (≥8 positives, ≥8 near-miss negatives).
 5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py`, one call per neighbour. A neighbour shares vocabulary or domain; zero neighbours is valid; skill-creator and terraform-skill are upstream-synced and excluded, and `apex` (the router, which has no eval folder) is excluded too.
-6. Fan out: add the routing row in [`skills/apex/SKILL.md`](skills/apex/SKILL.md) and any hand-written catalogue, then run `./misc/update-all-references.sh` (it regenerates `skills/README.md` and the README tables; never edit those blocks by hand) and `./misc/update-pages.sh`. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
+6. Fan out: add the routing row in [`skills/apex/SKILL.md`](skills/apex/SKILL.md) and any hand-written catalogue, then run `./misc/update-all-references.sh` (it regenerates `skills/README.md` and the README tables; never edit those blocks by hand) and `./misc/update-pages.sh`, after adding the skill's `SKILL_META` line in `misc/update-pages.sh` (title, summary under 160 characters). `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
 7. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`.
 
 ### Pre-PR checklist for new skills
@@ -296,7 +296,7 @@ Verify each item before opening the PR.
 
 ### Keeping skill docs in sync after changes
 
-Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter description — should be followed by running the `update-docs` skill so wrappers, marker blocks, and prose references stay in sync. The skill walks both script-managed surfaces (`update-all-references.sh`, `update-pages.sh`) and hand-written prose, proposing diffs for anything stale.
+Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter description — should be followed by running the `update-docs` skill so wrappers, marker blocks, and prose references stay in sync; add or update the skill's `SKILL_META` line in `misc/update-pages.sh` (title, summary under 160 characters) when you add a skill or change its description. The skill walks both script-managed surfaces (`update-all-references.sh`, `update-pages.sh`) and hand-written prose, proposing diffs for anything stale.
 
 ## Creating a New Runbook
 

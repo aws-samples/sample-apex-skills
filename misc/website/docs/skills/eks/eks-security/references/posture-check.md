@@ -36,7 +36,7 @@ Notes on the flags, from the scripts:
 - `--admin-allow` (step 3 only) is a regular expression, matched with jq `test`, for principal ARNs that are expected to hold cluster admin through an access entry: the role that created the cluster, or a break-glass role. The EKS API does not name the cluster creator, so without this flag the creator's entry fails SEC-POSTURE-64.
 - Steps 2 and 3 refuse a work dir that is already scored, so re-running cannot emit duplicate tokens.
 
-The access needed is in [read-only-access.md](read-only-access), C3 section. The preflight probes each AWS action with a small real read (EC2 with `--dry-run`) and each Kubernetes read with `kubectl auth can-i`. A denied probe does not abort the run: the matching file is not collected, the denial is recorded in `meta.json`, and every check that needs the file reports `unknown`. Only a failed `eks:DescribeCluster`, an unreachable Kubernetes API or expired credentials stop the run.
+The access needed is in [read-only-access.md](read-only-access.md), C3 section. The preflight probes each AWS action with a small real read (EC2 with `--dry-run`) and each Kubernetes read with `kubectl auth can-i`. A denied probe does not abort the run: the matching file is not collected, the denial is recorded in `meta.json`, and every check that needs the file reports `unknown`. Only a failed `eks:DescribeCluster`, an unreachable Kubernetes API or expired credentials stop the run.
 
 The collected pod and workload JSON carries container environment values and arguments: treat the work dir as sensitive, keep it out of version control and delete it after the review. No Secret object is read; two named ConfigMaps are (`kube-system/aws-auth`, `kube-system/amazon-vpc-cni`).
 
@@ -98,7 +98,7 @@ Each check's title, source files and recommendation are in the catalog at the to
 
 ## Currency rule
 
-The posture scripts do not read C1 output: no posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: route it to eks-upgrade-check against a target version, or to eks-operation-review (version currency) with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are collected in inventory.json for a manual read.
+The posture scripts do not read C1 output: no posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: route it to eks-upgrade-check against a target version, or to eks-operation-review (version currency) with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are collected in inventory.json for a manual read.
 
 ## Repository checks (manual, not scripted)
 

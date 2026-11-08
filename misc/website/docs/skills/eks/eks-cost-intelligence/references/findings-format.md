@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/findings-fo
 
 # Findings Format
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Output schema, severity thresholds, finding types enumeration, and remediation snippet templates for cost intelligence findings
 
 ---

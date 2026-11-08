@@ -11,15 +11,15 @@ This page is generated from [skills/ecs-modernize/references/replatform-environm
 
 # Module: Replatform Environment Build
 
-> **Part of:** [ecs-modernize](../)
+> **Part of:** [ecs-modernize](../index.md)
 > **Purpose:** Generate the Replatform_Environment_Terraform for an approved **Linux** Replatform path — an ECS on EC2 cluster with an Auto Scaling group, a `bridge`-mode task definition with dynamic host port mapping, a fixed-`desiredCount` service with no scaling policy, and an ALB whose target group carries `stickiness` exactly when the in-process session Blocker was detected — conforming to the repository terraform-skill's conventions, verified by `terraform validate` as the sole applicability check, with an unresolved image URI handled as a Terraform input variable
-> **Prerequisites:** **Execution_Gate passage** + **Containerization execution** ([containerization-execution.md](containerization-execution)) — the image URI for the task definition; when the URI is unresolved, define it as a Terraform input variable per the [unresolved image URI rule](#unresolved-image-uri--input-variable-rule)
+> **Prerequisites:** **Execution_Gate passage** + **Containerization execution** ([containerization-execution.md](containerization-execution.md)) — the image URI for the task definition; when the URI is unresolved, define it as a Terraform input variable per the [unresolved image URI rule](#unresolved-image-uri--input-variable-rule)
 
-This module builds the target environment for an approved **Linux Replatform path** — ECS on EC2, containerize-as-is. It exists because **`ecs-build`'s generation scope does not cover the Replatform shape**: `ecs-build` generates `network_mode = "awsvpc"` task definitions exclusively and services that always use a `capacity_provider_strategy`, and it carries no knowledge of ALB target-group `stickiness`, `bridge` networking, or dynamic host port mapping. Those four elements are precisely what the Replatform path requires ([replatform-path.md](replatform-path)), so handing this path to `ecs-build` would produce an environment that contradicts the approved strategy.
+This module builds the target environment for an approved **Linux Replatform path** — ECS on EC2, containerize-as-is. It exists because **`ecs-build`'s generation scope does not cover the Replatform shape**: `ecs-build` generates `network_mode = "awsvpc"` task definitions exclusively and services that always use a `capacity_provider_strategy`, and it carries no knowledge of ALB target-group `stickiness`, `bridge` networking, or dynamic host port mapping. Those four elements are precisely what the Replatform path requires ([replatform-path.md](replatform-path.md)), so handing this path to `ecs-build` would produce an environment that contradicts the approved strategy.
 
-State that rationale explicitly whenever this module runs: the user should know *why* the Rearchitect compute models hand off to `ecs-build` (see [deploy-verify-handoff.md](deploy-verify-handoff)) while the Replatform path does not. Never route a Replatform environment IaC request to `ecs-build`; the delegation boundary and the future-support note — if `ecs-build` gains `bridge`/stickiness/launch-type generation, this module's generation is replaced by a delegation — are canonical in [SKILL.md](../).
+State that rationale explicitly whenever this module runs: the user should know *why* the Rearchitect compute models hand off to `ecs-build` (see [deploy-verify-handoff.md](deploy-verify-handoff.md)) while the Replatform path does not. Never route a Replatform environment IaC request to `ecs-build`; the delegation boundary and the future-support note — if `ecs-build` gains `bridge`/stickiness/launch-type generation, this module's generation is replaced by a delegation — are canonical in [SKILL.md](../index.md).
 
-This module is the sibling of [windows-environment-build.md](windows-environment-build): same generation discipline, same `terraform validate` applicability check, same unresolved-URI rule, different target shape. When the approved path is the **Windows_Container_Path**, that module owns the generation and this one does not run — the Windows path's own compute options and base-image matrix govern there.
+This module is the sibling of [windows-environment-build.md](windows-environment-build.md): same generation discipline, same `terraform validate` applicability check, same unresolved-URI rule, different target shape. When the approved path is the **Windows_Container_Path**, that module owns the generation and this one does not run — the Windows path's own compute options and base-image matrix govern there.
 
 This module is ECS-specific: it depends on the ECS resource model (cluster, ASG capacity, task definition network modes, service, ALB target groups) and does not port to other orchestrators.
 
@@ -47,9 +47,9 @@ This module is ECS-specific: it depends on the ECS resource model (cluster, ASG 
 
 ## Inputs
 
-- **The approved Migration_Strategy and target path** (required) — a **Linux** Replatform path. If the approved path is the Windows_Container_Path, this module does not run ([windows-environment-build.md](windows-environment-build) does). If the approved path is a Rearchitect compute model, this module does not run (`ecs-build` generates it).
+- **The approved Migration_Strategy and target path** (required) — a **Linux** Replatform path. If the approved path is the Windows_Container_Path, this module does not run ([windows-environment-build.md](windows-environment-build.md) does). If the approved path is a Rearchitect compute model, this module does not run (`ecs-build` generates it).
 - **The image URI** (required, or explicitly unresolved) — from the containerization execution push result (`containerization_execution.push.image_uri`). An unresolved URI does not block generation; it becomes an input variable per the [rule below](#unresolved-image-uri--input-variable-rule).
-- **The `replatform_path` block** (required) — from [replatform-path.md](replatform-path): the static configuration decisions (fixed task count and its derivation state, capacity derivation policy), the containerization policy, the persistent-vs-temporary write mapping, and the session-affinity decision. This module renders those decisions; it does not re-make them.
+- **The `replatform_path` block** (required) — from [replatform-path.md](replatform-path.md): the static configuration decisions (fixed task count and its derivation state, capacity derivation policy), the containerization policy, the persistent-vs-temporary write mapping, and the session-affinity decision. This module renders those decisions; it does not re-make them.
 - **The `blockers` block** (required) — the `in_process_session` finding drives stickiness, and the `local_state` findings drive the persistent-volume decision. Both are conditioned on the finding's presence, never generated by default.
 - **The `tech_stack` block** (required) — the container port comes from the containerization artifact, and the health check path from the app-provided endpoint when Source_Analysis identified one.
 - **Sizing inputs** — CPU/memory from the containerization artifact's task-definition input values; the instance type from the capacity derivation. When either is missing, the [missing-sizing edge case](#sizing-inputs-are-missing) governs — never invent a number.
@@ -127,7 +127,7 @@ The generated code conforms to the repository `terraform-skill`'s conventions �
 - **Read the conventions before generating.** If the terraform-skill files cannot be read, apply the [edge case](#the-terraform-skill-files-cannot-be-read) — report the gap and generate with conservative, documented defaults rather than silently improvising a style.
 - **Pinned versions** — `required_version` and provider `version` constraints are explicit, never floating.
 - **Variables carry `description` and `type`**; defaults only where a default is genuinely safe.
-- **Outputs expose what the next step needs** — at minimum the ALB DNS name, the cluster name, and the service name, because [deploy-verify-handoff.md](deploy-verify-handoff) needs them for steady-state verification.
+- **Outputs expose what the next step needs** — at minimum the ALB DNS name, the cluster name, and the service name, because [deploy-verify-handoff.md](deploy-verify-handoff.md) needs them for steady-state verification.
 - **No secrets in the code** — secret values arrive via task-definition `secrets` referencing SSM/Secrets Manager, never as literals or variable defaults.
 
 ---
@@ -138,7 +138,7 @@ Every element below is generated with its grounding stated. The elements marked 
 
 ### Cluster and capacity — EC2 Auto Scaling group
 
-The Replatform path's target compute model is **ECS on EC2** ([replatform-path.md](replatform-path)), so capacity is an Auto Scaling group of container instances:
+The Replatform path's target compute model is **ECS on EC2** ([replatform-path.md](replatform-path.md)), so capacity is an Auto Scaling group of container instances:
 
 - **Cluster** — one ECS cluster.
 - **Launch template** — the **ECS-optimized AMI**, resolved from the SSM public parameter rather than a hardcoded AMI id, so the code stays valid as AMIs are refreshed: `/aws/service/ecs/optimized-ami/amazon-linux-2023/recommended/image_id` ([ECS-optimized AMI parameters](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/retrieve-ecs-optimized_AMI.html)). The instance profile carries `AmazonEC2ContainerServiceforEC2Role`, and the user data writes `ECS_CLUSTER` into `/etc/ecs/ecs.config` — without that the instances never join the cluster.
@@ -197,7 +197,7 @@ When the image URI is not resolved at generation time (the push has not run, or 
 - **Define it as a Terraform input variable** (`image_uri`) with no default, and a `description` naming the condition that settles it (typically "the ECR push of the containerization execution").
 - **Generate the rest of the environment normally** — an unresolved URI never blocks generation.
 - **Record the item as unresolved** in the Execution_Log and in the module output, with its settling condition. Never invent a placeholder URI that would apply successfully against the wrong image, and never silently substitute `:latest`.
-- The deploy procedure ([deploy-verify-handoff.md](deploy-verify-handoff)) will not apply until the variable has a value; state that dependency at hand-off.
+- The deploy procedure ([deploy-verify-handoff.md](deploy-verify-handoff.md)) will not apply until the variable has a value; state that dependency at hand-off.
 
 ---
 
@@ -234,7 +234,7 @@ A value with no traceable origin is not generated as a settled value: it becomes
 
 ## Execution_Log
 
-Record, per the canonical [Execution_Log Rules](deploy-verify-handoff#execution_log-rules):
+Record, per the canonical [Execution_Log Rules](deploy-verify-handoff.md#execution_log-rules):
 
 - the file-generation action-class confirmation and the output directory presented at confirmation time;
 - every file written, by path;
@@ -299,15 +299,15 @@ replatform_environment_build:
 
 ### The approved path is a Rearchitect compute model
 
-This module does not run. Express Mode, Fargate, and Managed Instances environments are `ecs-build`'s scope — hand off per [deploy-verify-handoff.md](deploy-verify-handoff). Generating an ECS on EC2 environment for an approved Fargate path contradicts the approval.
+This module does not run. Express Mode, Fargate, and Managed Instances environments are `ecs-build`'s scope — hand off per [deploy-verify-handoff.md](deploy-verify-handoff.md). Generating an ECS on EC2 environment for an approved Fargate path contradicts the approval.
 
 ### The approved path is the Windows_Container_Path
 
-This module does not run; [windows-environment-build.md](windows-environment-build) owns it. The Windows path has its own compute options (ECS on EC2 Windows instances / Fargate Windows) and licensing considerations that this module does not carry.
+This module does not run; [windows-environment-build.md](windows-environment-build.md) owns it. The Windows path has its own compute options (ECS on EC2 Windows instances / Fargate Windows) and licensing considerations that this module does not carry.
 
 ### The assessment was skipped and session state is unknown
 
-Generate `stickiness` **enabled** as the fail-safe, and state explicitly that it is provisional: the `in_process_session` finding that would justify it was never established, so the user must confirm whether the application holds server-side session state. The same applies to the tWAS caveat where session persistence is cell configuration outside the source tree ([blocker-detection.md](blocker-detection)).
+Generate `stickiness` **enabled** as the fail-safe, and state explicitly that it is provisional: the `in_process_session` finding that would justify it was never established, so the user must confirm whether the application holds server-side session state. The same applies to the tWAS caveat where session persistence is cell configuration outside the source tree ([blocker-detection.md](blocker-detection.md)).
 
 ### The image URI is unresolved
 
@@ -339,7 +339,7 @@ Instance type, instance count, CPU, memory, or `desired_count` not in evidence: 
 
 ### The user asks `ecs-build` to generate the Replatform environment
 
-State the gap rather than routing the request: `ecs-build` generates `awsvpc` task definitions and capacity-provider services exclusively, and carries no `stickiness`, `bridge`, or dynamic-host-port knowledge — so it cannot produce this path's shape. This module generates it instead. If `ecs-build` later gains that coverage, the delegation replaces this module per the note in [SKILL.md](../).
+State the gap rather than routing the request: `ecs-build` generates `awsvpc` task definitions and capacity-provider services exclusively, and carries no `stickiness`, `bridge`, or dynamic-host-port knowledge — so it cannot produce this path's shape. This module generates it instead. If `ecs-build` later gains that coverage, the delegation replaces this module per the note in [SKILL.md](../index.md).
 
 ---
 

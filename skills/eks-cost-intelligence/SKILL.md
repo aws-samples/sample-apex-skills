@@ -46,7 +46,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 2. **Kubernetes access** for the assessment caller. An access entry with a suitable policy or RBAC binding, or an existing `aws-auth` mapping in `CONFIG_MAP` or `API_AND_CONFIG_MAP` mode, can grant the required reads. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs through the connection the assessment will use. A caller without Secret list permission leaves Idle Resources SKIPPED for scoring.
 3. **Required AWS Permissions (minimum):**
    - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`, `eks:ListFargateProfiles`, `eks:DescribeFargateProfile`
-   - `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
+   - `ec2:DescribeInstances`, `ec2:DescribeInstanceTypes`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
    - `elasticloadbalancing:DescribeLoadBalancers`, `elasticloadbalancing:DescribeTargetHealth`
 4. **Optional permissions (enable richer analysis):**
    - `ce:GetCostAndUsage` — enables dollar-accurate spend data from Cost Explorer

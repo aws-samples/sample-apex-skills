@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/cost-data-c
 
 # Cost Data Collection
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Exact API calls and queries to pull cost and utilization data from Cost Explorer, CloudWatch Container Insights, and the Kubernetes API
 
 ---
@@ -176,7 +176,7 @@ else echo "management account: opt-in is in this account's Cost Management prefe
 ```
 
 **When Split Cost Allocation is not enabled:**
-Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
+Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
 
 ---
 

@@ -1,6 +1,7 @@
 ---
-title: "skill-creator"
-description: "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy."
+title: "Skill Creator (skill-creator): create, test and tune agent skills"
+sidebar_label: "skill-creator"
+description: "Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/skill-creator/SKILL.md
 format: md
 ---

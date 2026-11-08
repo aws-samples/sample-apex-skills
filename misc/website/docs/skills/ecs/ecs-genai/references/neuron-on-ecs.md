@@ -41,7 +41,7 @@ Verbatim device mapping from the ECS Neuron doc (subset — chips per instance, 
 | inf2.24xlarge | 96 | 384 | 6 | /dev/neuron0 … /dev/neuron5 |
 | inf2.48xlarge | 192 | 768 | 12 | /dev/neuron0 … /dev/neuron11 |
 
-Depending on the launch type, clusters can mix Trn1, Trn2, Inf1, Inf2, and other instances (subject to the per-type-ASG capacity rule in [capacity-and-scaling.md](capacity-and-scaling) and the launch-model scoping above). The workload must be a **Linux** container using a framework with Neuron support (PyTorch, TensorFlow) via the **AWS Neuron SDK** (compiler + runtime + profiling tools). Non-Neuron frameworks won't get accelerated performance on these instances.
+Depending on the launch type, clusters can mix Trn1, Trn2, Inf1, Inf2, and other instances (subject to the per-type-ASG capacity rule in [capacity-and-scaling.md](capacity-and-scaling.md) and the launch-model scoping above). The workload must be a **Linux** container using a framework with Neuron support (PyTorch, TensorFlow) via the **AWS Neuron SDK** (compiler + runtime + profiling tools). Non-Neuron frameworks won't get accelerated performance on these instances.
 
 ## The ECS Neuron-Optimized AMI
 

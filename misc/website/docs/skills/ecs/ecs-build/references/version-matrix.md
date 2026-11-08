@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-build/references/version-matrix.md](http
 
 # Version Management
 
-> **Part of:** [ecs-build](../)
+> **Part of:** [ecs-build](../index.md)
 
 **Do NOT use hardcoded versions.** Always look up current versions from the authoritative sources below before generating code, then pin what you verified.
 
