@@ -405,6 +405,7 @@ module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
   version = "<LOOK_UP>"  # Look up latest from Terraform Registry
   cluster_name                    = module.eks_cluster.cluster_name
+  enable_inline_policy            = true  # controller policy can exceed the 6,144-character managed policy limit (Section 23)
   create_pod_identity_association = true
   node_iam_role_use_name_prefix   = false
   node_iam_role_name              = "${local.cluster_config.name}-karpenter-node"
