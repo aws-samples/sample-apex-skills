@@ -507,7 +507,7 @@ AWS resource tags don't directly correlate with Kubernetes labels. Use Kubernete
 Kubecost provides real-time cost monitoring, namespace/label allocation, and right-sizing recommendations:
 
 ```bash
-helm install kubecost kubecost/cost-analyzer --version 2.9.7 \
+helm install kubecost kubecost/cost-analyzer --version 2.8.7 \
   --namespace kubecost --create-namespace \
   --set kubecostProductConfigs.clusterName=my-cluster \
   --set kubecostProductConfigs.cloudIntegrationSecret=cloud-integration
