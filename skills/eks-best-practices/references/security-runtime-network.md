@@ -83,7 +83,7 @@ Bottlerocket has SELinux enabled by default, providing an additional isolation l
 ```bash
 # Deploy Falco as a DaemonSet via Helm
 helm repo add falcosecurity https://falcosecurity.github.io/charts
-helm install falco falcosecurity/falco \
+helm install falco falcosecurity/falco --version 9.2.2 \
   --namespace falco --create-namespace \
   --set driver.kind=modern_ebpf \
   --set falcosidekick.enabled=true
