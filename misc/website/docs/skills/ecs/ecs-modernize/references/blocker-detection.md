@@ -11,9 +11,9 @@ This page is generated from [skills/ecs-modernize/references/blocker-detection.m
 
 # Module: Blocker Detection
 
-> **Part of:** [ecs-modernize](../)
+> **Part of:** [ecs-modernize](../index.md)
 > **Purpose:** Detect the concrete findings in the source code that obstruct containerization or cloud migration, classify each into a blocker category, and assign every blocker exactly one remediation class (tolerated under Replatform vs. must-fix even for Replatform)
-> **Prerequisites:** Tech Stack Detection ([tech-stack-detection.md](tech-stack-detection)) — the evidence patterns below are selected by detected language and framework
+> **Prerequisites:** Tech Stack Detection ([tech-stack-detection.md](tech-stack-detection.md)) — the evidence patterns below are selected by detected language and framework
 
 This module is deliberately orchestrator-neutral: it describes what prevents the application from running in a container or moving to the cloud, not where it should run. Strategy-level vocabulary (Replatform / Rearchitect) appears here only because the remediation classes are defined against those two strategies; target-platform vocabulary does not appear at all — it lives in the path modules. This file covers blocker detection only; tech stack detection, scoring, and strategy recommendation are each defined in their own reference file.
 

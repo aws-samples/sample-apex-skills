@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/cluster-basics.md](http
 
 # Module: Cluster Basics
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect core cluster information - name, version, region, endpoint, platform version
 
 ## Prerequisites

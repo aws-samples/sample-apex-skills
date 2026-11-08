@@ -38,11 +38,11 @@ Fargate makes this section moot (AWS owns the OS). On **ECS on EC2** you own the
   - **`bridge`-mode tasks:** an iptables `DROP` on the docker interface to the IMDS IP — `iptables --insert FORWARD 1 --in-interface docker+ --destination 169.254.169.254/32 --jump DROP` (persist it across reboots).
   - **`host`-network tasks:** set `ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=false`.
   - Enforce **IMDSv2** (token-required) with **hop limit 1** on the instance so a container one hop away can't reach IMDS. On Fargate this concern does not exist.
-- **`ECS_DISABLE_PRIVILEGED=true`** as an agent env var (in `/etc/ecs/ecs.config`) on hosts where privileged containers are never needed, to defense-in-depth against a privileged task. Reference: [Amazon ECS container agent configuration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-agent-config.html) (see [task-container-hardening.md](task-container-hardening)).
+- **`ECS_DISABLE_PRIVILEGED=true`** as an agent env var (in `/etc/ecs/ecs.config`) on hosts where privileged containers are never needed, to defense-in-depth against a privileged task. Reference: [Amazon ECS container agent configuration](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-agent-config.html) (see [task-container-hardening.md](task-container-hardening.md)).
 
 ## Managed Instances nuance
 
-**ECS Managed Instances** shifts the EC2 instance lifecycle and patching to AWS (a security *benefit* — no customer-owned OS patch cadence), but tasks still share the instance kernel (no per-task isolation like Fargate), and **GuardDuty Runtime Monitoring is not supported** on Managed Instances (verified — see [runtime-security.md](runtime-security)). Weigh that detection gap against the reduced-patching benefit for a regulated workload.
+**ECS Managed Instances** shifts the EC2 instance lifecycle and patching to AWS (a security *benefit* — no customer-owned OS patch cadence), but tasks still share the instance kernel (no per-task isolation like Fargate), and **GuardDuty Runtime Monitoring is not supported** on Managed Instances (verified — see [runtime-security.md](runtime-security.md)). Weigh that detection gap against the reduced-patching benefit for a regulated workload.
 
 ## Shared responsibility (Layer 1)
 

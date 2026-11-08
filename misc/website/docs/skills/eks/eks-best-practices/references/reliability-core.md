@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/reliability-co
 
 # Reliability & Resiliency — Core Patterns
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Everyday reliability patterns for production EKS workloads — high availability, pod disruption budgets, health probes, topology spread, resource limits, and container lifecycle.
 
 ---
@@ -316,6 +316,8 @@ readinessProbe:
 
 **Key insight:** Use startup probes to handle slow initialization. This avoids setting large `initialDelaySeconds` on liveness probes, which delays deadlock detection.
 
+**Exec probes:** the command must exit before `timeoutSeconds`, or the node collects `<defunct>` processes, leading to node failure ([EKS Best Practices: applications](https://docs.aws.amazon.com/eks/latest/best-practices/application.html)).
+
 ---
 
 ## Load Balancer Health Checks
@@ -338,6 +340,7 @@ annotations:
 - Use the **same endpoint** for ALB health check and readiness probe
 - Set ALB health check interval ≥ readiness probe period
 - Account for NLB health check during graceful shutdown (use `deregistration_delay`)
+- Use pod readiness gates (AWS Load Balancer Controller; needs `target-type: ip` and the namespace label `elbv2.k8s.aws/pod-readiness-gate-inject: enabled`) so a rolling update does not terminate old pods until the new pods' targets are Healthy on the load balancer ([EKS Best Practices: load balancing](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html)); label the namespace and create the Service or Ingress before the pods (the gate is injected at pod creation only)
 
 ❌ DON'T:
 - Use different health endpoints for LB and K8s probes (leads to split-brain)
@@ -362,8 +365,8 @@ spec:
       - name: app
         lifecycle:
           preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 15"]
+            sleep:
+              seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
         # Application must handle SIGTERM gracefully
 ```
 
@@ -376,6 +379,8 @@ spec:
 6. After `terminationGracePeriodSeconds`, SIGKILL sent
 
 ### Why `sleep` in preStop?
+
+On Kubernetes 1.30 and later, use the native `sleep` action (`lifecycle.preStop.sleep.seconds`; beta in 1.30, stable in 1.34), which needs no shell in the image; use the `exec` `sleep` form only on older clusters.
 
 The `sleep 15` in preStop gives time for:
 - kube-proxy to update iptables rules (remove pod from Service)
@@ -442,6 +447,8 @@ spec:
         labelSelector:
           matchLabels:
             app: my-app
+        matchLabelKeys:
+        - pod-template-hash
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname
         whenUnsatisfiable: ScheduleAnyway
@@ -464,6 +471,8 @@ spec:
 **Set `minDomains`** to the number of zones the NodePool can launch in. While fewer eligible zones than `minDomains` have nodes, the scheduler treats the global minimum as 0, so each zone takes at most `maxSkew` matching pods and the rest stay Pending until nodes exist in more zones. A value higher than the zones the pods can schedule into (every node group or NodePool their node selector allows) leaves the surplus replicas Pending until nodes exist in that many zones. `minDomains` is valid only with `whenUnsatisfiable: DoNotSchedule` and is GA in Kubernetes 1.30 (on by default since 1.27). If Karpenter knows more zones than this NodePool allows (another NodePool, or EC2NodeClass subnets in other zones), it counts those empty zones in the spread and replicas can stay Pending at any `minDomains` value ([kubernetes-sigs/karpenter#2227](https://github.com/kubernetes-sigs/karpenter/issues/2227), open as of 2026-10-30; [aws/karpenter-provider-aws#7585](https://github.com/aws/karpenter-provider-aws/issues/7585)). Restrict the pod's zones too, with a nodeSelector or required nodeAffinity on `topology.kubernetes.io/zone`, or limit the EC2NodeClass subnets to the NodePool's zones.
 
 **Zonal outages:** with `DoNotSchedule` and the default `nodeTaintsPolicy: Ignore`, nodes in a failed zone still count toward the skew while they exist, so replacement pods can stay Pending for the length of the outage. `nodeTaintsPolicy: Honor` (GA in Kubernetes 1.33) leaves out of the count nodes with a taint the pod does not tolerate, including the `node.kubernetes.io/unreachable` and `not-ready` NoSchedule taints that failed nodes get, and cordoned nodes. That helps only while the zones left are at least `minDomains`. With `minDomains` set to all zones, as above, a zone loss makes the global minimum 0, so each surviving zone holds at most `maxSkew` matching pods: to run on N-1 zones, `maxSkew` must be at least the replicas each surviving zone must hold.
+
+**Rolling updates:** add `matchLabelKeys: [pod-template-hash]` so the skew is counted within each Deployment revision, not across old and new pods together (beta and on by default since Kubernetes 1.27; [Kubernetes docs](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)).
 
 ### Pod Anti-Affinity Alternative
 
@@ -495,7 +504,7 @@ resources:
     cpu: 250m        # Scheduling guarantee
     memory: 512Mi    # Scheduling guarantee
   limits:
-    memory: 1Gi      # OOM protection
+    memory: 512Mi    # = memory request
     # cpu: omitted   # No CPU throttling
 ```
 
@@ -506,13 +515,12 @@ resources:
 | **Requests** | ✅ Always set (scheduling) | ✅ Always set (scheduling) |
 | **Limits** | ❌ Usually omit (avoid throttling) | ✅ Always set (OOM protection) |
 
-- Set memory limits = 1.5-2x memory requests
+- Set memory limits equal to memory requests for predictable behavior; if a workload must burst, do not set the limit much larger than the request ([EKS Best Practices: data plane](https://docs.aws.amazon.com/eks/latest/best-practices/data-plane.html))
 - Use VPA recommendations for right-sizing (also: Goldilocks, Parca)
 - Set CPU requests based on actual usage (not peak)
 - Don't set CPU limits on latency-sensitive workloads (causes throttling)
-- For critical apps needing Guaranteed QoS (eviction protection), set requests = limits
+- For Guaranteed QoS, set CPU and memory requests = limits on every container, init containers included (memory alone gives Burstable)
 - Correctly sized requests are critical for Karpenter/Cluster Autoscaler node provisioning
-- Don't set limits much larger than requests (overcommit risk, higher eviction chance)
 
 ### Namespace Resource Controls
 
@@ -524,7 +532,7 @@ If ResourceQuota is enabled for compute resources, every container in that names
 
 ### In-Cluster Stateful Cache: Sizing & Blast Radius
 
-**Prefer the managed off-ramp first.** For a cache like Redis/Valkey or Memcached, [Amazon ElastiCache](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html) moves memory sizing, failover, and scaling out of your cluster's failure domain and off your operational plate — it is the first-order answer, and it is the same managed-services-first posture this skill takes elsewhere (see [observability.md — Architecture Principles](observability#architecture-principles)). Run a cache *in-cluster* deliberately (latency, cost, or data-locality reasons), not by default — and when you do, treat it as a sized, stateful workload, not disposable scratch space.
+**Prefer the managed off-ramp first.** For a cache like Redis/Valkey or Memcached, [Amazon ElastiCache](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html) moves memory sizing, failover, and scaling out of your cluster's failure domain and off your operational plate — it is the first-order answer, and it is the same managed-services-first posture this skill takes elsewhere (see [observability.md — Architecture Principles](observability.md#architecture-principles)). Run a cache *in-cluster* deliberately (latency, cost, or data-locality reasons), not by default — and when you do, treat it as a sized, stateful workload, not disposable scratch space.
 
 The reliability concern here is **Kubernetes resource management of a stateful in-cluster workload** — not tuning the cache engine itself (eviction policy, persistence, sharding are the datastore's own domain). Two distinct memory ceilings must agree:
 
@@ -533,7 +541,7 @@ The reliability concern here is **Kubernetes resource management of a stateful i
 | **Pod memory limit** | Kubernetes (`resources.limits.memory`) | Hit it → the **kernel** OOM-kills the container |
 | **Application max-memory** (e.g. cache `maxmemory`) | The cache config | Set at/above the pod limit → the pod is killed before the cache can evict; set well below → wasted headroom |
 
-Size the application ceiling *below* the pod limit so the cache evicts (or refuses writes, per its policy) **before** the container hits the pod limit and is OOM-killed — an app-level backpressure is recoverable; an OOM-kill is a hard restart that drops the whole working set at once. Size both for **real peak demand**, including the memory shape of new access patterns (a feature that caches larger or more objects changes the working set — this is exactly what a request-rate-only load test misses; see [surge-readiness.md — Load-Test Realism](surge-readiness#load-test-realism)).
+Size the application ceiling *below* the pod limit so the cache evicts (or refuses writes, per its policy) **before** the container hits the pod limit and is OOM-killed — an app-level backpressure is recoverable; an OOM-kill is a hard restart that drops the whole working set at once. Size both for **real peak demand**, including the memory shape of new access patterns (a feature that caches larger or more objects changes the working set — this is exactly what a request-rate-only load test misses; see [surge-readiness.md — Load-Test Realism](surge-readiness.md#load-test-realism)).
 
 **Blast radius.** A shared in-cluster cache is a single failure domain: if it OOMs, every dependent service degrades at once, and that can cascade upstream to the ingress/API gateway as latency and errors. Contain it:
 
@@ -541,7 +549,7 @@ Size the application ceiling *below* the pod limit so the cache evicts (or refus
 - **PDB + anti-affinity** so a replicated cache does not lose quorum to a single drain or node loss (see the `redis-pdb` example under [PDB Configuration Rules](#pdb-configuration-rules)).
 - **Don't fail readiness cluster-wide on a shared cache** — see [Probe Anti-Patterns](#probe-anti-patterns) for why, and the circuit-breaker / degraded-response alternatives.
 
-> Backup scope is a separate question: a cache is still correctly excluded from your backup set (it is reconstructible) — see [reliability-advanced.md — Velero Backup Tiers](reliability-advanced#velero-backup-tiers). "Don't back it up" never meant "don't size it."
+> Backup scope is a separate question: a cache is still correctly excluded from your backup set (it is reconstructible) — see [reliability-advanced.md — Velero Backup Tiers](reliability-advanced.md#velero-backup-tiers). "Don't back it up" never meant "don't size it."
 
 ---
 
@@ -594,7 +602,7 @@ spec:
             cpu: "250m"
             memory: "256Mi"
           limits:
-            memory: "512Mi"       # No CPU limit — allow bursting
+            memory: "256Mi"       # = memory request; no CPU limit, allow bursting
         startupProbe:
           httpGet:
             path: /healthz
@@ -617,8 +625,8 @@ spec:
           timeoutSeconds: 3
         lifecycle:
           preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 15"]
+            sleep:
+              seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -780,7 +788,7 @@ For multi-region disaster recovery:
 
 ---
 
-For deployment strategies, zonal shift, large-cluster guidance, admission-controller topology enforcement, and chaos engineering, see [reliability-advanced.md](reliability-advanced).
+For deployment strategies, zonal shift, large-cluster guidance, admission-controller topology enforcement, and chaos engineering, see [reliability-advanced.md](reliability-advanced.md).
 
 ---
 

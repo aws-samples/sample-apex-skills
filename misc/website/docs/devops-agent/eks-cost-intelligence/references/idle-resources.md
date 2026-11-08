@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/idle-
 
 # Idle Resources
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for zero-replica Deployments idle for extended periods, LoadBalancer Services with no healthy endpoints, namespaces with no running workloads but allocated quotas, orphaned ConfigMaps/Secrets not referenced by running workloads, and per-hour cost of unused load balancers
 
 ---

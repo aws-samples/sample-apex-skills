@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/overview.md](https://gi
 
 # Module: Overview and Inventory
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Account/region-wide ECS inventory — discover all clusters, services, and task counts in a single pass
 
 ## Prerequisites

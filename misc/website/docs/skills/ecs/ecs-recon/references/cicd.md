@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/cicd.md](https://github
 
 # Module: CI/CD Detection
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Detect CI/CD tooling associated with ECS deployments
 
 ## Table of Contents
