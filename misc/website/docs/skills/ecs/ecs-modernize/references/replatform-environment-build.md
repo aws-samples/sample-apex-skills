@@ -1,6 +1,6 @@
 ---
 title: "Module: Replatform Environment Build"
-description: ""
+description: "Generate the Replatform_Environment_Terraform for an approved Linux Replatform path — an ECS on EC2 cluster with an Auto Scaling group, a bridge-mode task..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/replatform-environment-build.md
 format: md
 ---

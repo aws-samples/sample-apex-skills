@@ -1,6 +1,6 @@
 ---
 title: "Module: Storage"
-description: ""
+description: "Detect storage configuration — CSI drivers, StorageClasses, PVs, PVCs, snapshots, backup tooling"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/storage.md
 format: md
 ---

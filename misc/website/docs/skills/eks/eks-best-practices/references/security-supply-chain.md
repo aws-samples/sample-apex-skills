@@ -1,6 +1,6 @@
 ---
 title: "EKS Supply Chain, Infrastructure & Compliance Security"
-description: ""
+description: "Image security, software supply chain, infrastructure hardening, regulatory compliance, and incident response"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/security-supply-chain.md
 format: md
 ---
@@ -96,7 +96,7 @@ Attestations are cryptographically signed statements that verify artifact integr
 
 **Validate at admission with:**
 - **Kyverno** — [verify image signatures and attestations](https://kyverno.io/docs/writing-policies/verify-images/sigstore/)
-- **OPA Gatekeeper** or **Ratify** — alternative admission controllers
+- **OPA Gatekeeper with Ratify**: Ratify verifies the signature for Gatekeeper; AWS Signer signatures need Ratify's AWS Signer plugin (see container-registry.md) ([Ratify on AWS](https://ratify.dev/docs/quickstarts/ratify-on-aws), [Ratify with AWS Signer](https://ratify.dev/docs/quickstarts/ratify-with-aws-signer))
 
 ### Admission Control for Images
 

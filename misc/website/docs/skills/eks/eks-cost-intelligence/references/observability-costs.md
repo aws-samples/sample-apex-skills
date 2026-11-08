@@ -1,6 +1,6 @@
 ---
 title: "Observability Costs"
-description: ""
+description: "Checks for EKS control plane logging configuration (all log types enabled unnecessarily), high-cardinality metric sources (Prometheus scrape configs,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/references/observability-costs.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Cluster Lifecycle & Upgrades"
-description: ""
+description: "Assess EKS cluster version currency, data plane alignment, upgrade readiness, add-on compatibility, and upgrade process maturity."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/cluster-lifecycle.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Layer 7 — Compliance Accelerators"
-description: ""
+description: "Tools that continuously evaluate the hardened cluster's technical controls and flag drift — narrowing, not eliminating, the audit-prep gap."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/compliance-accelerators.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Module: Report Generation"
-description: ""
+description: "Assemble the outputs of every assessment module into exactly one Markdown Modernization_Report file — the deliverable of the Assessment_Phase and its only..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/report-generation.md
 format: md
 ---

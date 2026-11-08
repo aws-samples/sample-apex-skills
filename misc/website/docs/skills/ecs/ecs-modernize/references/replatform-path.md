@@ -1,6 +1,6 @@
 ---
 title: "Module: Replatform Path"
-description: ""
+description: "Turn a Replatform strategy outcome into a concrete containerize-as-is path targeting ECS on EC2 — a static configuration template (fixed desired task count,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/replatform-path.md
 format: md
 ---

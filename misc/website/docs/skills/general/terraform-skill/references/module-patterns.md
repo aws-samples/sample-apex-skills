@@ -1,6 +1,6 @@
 ---
 title: "Module Development Patterns"
-description: ""
+description: "Best practices for Terraform/OpenTofu module development"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/module-patterns.md
 format: md
 ---

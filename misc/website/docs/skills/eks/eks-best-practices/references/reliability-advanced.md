@@ -1,6 +1,6 @@
 ---
 title: "Reliability & Resiliency — Advanced / Operational"
-description: ""
+description: "Disaster recovery, deployment strategies, cluster-level enforcement, zonal shift, large-cluster guidance, and chaos engineering for Amazon EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/reliability-advanced.md
 format: md
 ---

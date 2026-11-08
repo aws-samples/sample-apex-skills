@@ -1,6 +1,6 @@
 ---
 title: "Container Registry Best Practices"
-description: ""
+description: "ECR architecture, operating models, image promotion, vulnerability scanning, base image curation, lifecycle policies, pull-through cache, managed signing,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/container-registry.md
 format: md
 ---

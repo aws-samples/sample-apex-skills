@@ -1,5 +1,5 @@
 ---
-title: "ECS Observability (ecs-observability): logs, metrics and traces for ECS"
+title: "ECS Observability (ecs-observability)"
 sidebar_label: "ecs-observability"
 description: "ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-observability/SKILL.md

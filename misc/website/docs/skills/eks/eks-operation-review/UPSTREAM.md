@@ -1,6 +1,6 @@
 ---
 title: "Upstream Provenance"
-description: ""
+description: "This skill is vendored from an upstream repo."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/UPSTREAM.md
 format: md
 ---
@@ -27,15 +27,19 @@ This skill is **vendored** from an upstream repo. Do not edit files here directl
 
 ## Local modifications applied at sync time
 
-The sync script applies four deterministic edits to upstream content:
+The sync script applies six deterministic edits to upstream content:
 
 1. **`steering/` -> `references/` rename.** Upstream's progressive-disclosure docs live under `steering/`. Apex renames them to `references/`, the Anthropic skill spec's canonical name for additional documentation. The sync script renames the directory on copy and rewrites all internal cross-refs from `steering/` to `references/` inside `SKILL.md` and the 11 progressive-disclosure files.
 
 2. **`SKILL.md` description block-scalar flattening.** Upstream uses YAML folded-scalar form (`description: >` followed by indented lines). Apex's catalog generator reads the same line as the key, so the catalog row would render just `>`. The sync flattens the block scalar to a single `description: <one line>` entry. Wording is preserved byte-for-byte; only the YAML representation changes.
 
-3. **`SKILL.md` body path fix.** Upstream's body says "Read and follow `.claude/commands/eks-operation-review.md`": that path doesn't exist in apex. The slash-command content is apex's own workflow, kept outside this folder at `skills/apex/runbooks/eks-operation-review/eks-operation-review.md`. The sync rewrites the reference to that file, relative to this skill's folder (`../apex/runbooks/eks-operation-review/eks-operation-review.md`).
+3. **`SKILL.md` body path fix.** Upstream's body says "Read and follow `.claude/commands/eks-operation-review.md`": that path doesn't exist in apex. The sync copies that file, with its `steering/` paths rewritten to `../../../eks-operation-review/references/`, outside this folder to `skills/apex/runbooks/eks-operation-review/eks-operation-review.md`. The sync rewrites the reference to that file, relative to this skill's folder (`../apex/runbooks/eks-operation-review/eks-operation-review.md`).
 
 4. **`SKILL.md` Prerequisites MCP line.** Upstream lists "MCP servers configured in `.mcp.json`" as a prerequisite. Apex doesn't ship `.mcp.json`; MCP setup is handled by the `eks-mcp-server` skill. The sync rewrites the line to point users at that skill instead.
+
+5. **Runbook fit.** The copied workflow at `skills/apex/runbooks/eks-operation-review/eks-operation-review.md` gets its `steering/` paths pointed at this skill's folder (`../../../eks-operation-review/references/` from the runbook), apex's `name`/`description` frontmatter, and its `.mcp.json` instructions and fixed `uvx awslabs.eks-mcp-server@<version>` test pointed at the `eks-mcp-server` skill. The sync exits non-zero if an anchor is missing; the runbook then has only its `steering/` paths rewritten and UPSTREAM.md is not written until the script is fixed and re-run.
+
+6. **Report tool path.** `references/report-generation.md` runs `python3 tools/report_to_html.py` (upstream's repo-root layout); the sync points it at this skill's folder, `python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py`. The sync exits non-zero if the anchor is missing.
 
 The upstream description **wording** is NOT rewritten — skill-creator's restrained-style content is already apex-compatible. Only the YAML representation is flattened (Edit #2).
 

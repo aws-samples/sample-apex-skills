@@ -1,6 +1,6 @@
 ---
 title: "Observability for GPU / ML Workloads on Amazon ECS"
-description: ""
+description: "GPU/ML observability on ECS adds three concerns over standard container monitoring: accelerator utilization/memory, per-request/inference latency, and cost..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/observability.md
 format: md
 ---

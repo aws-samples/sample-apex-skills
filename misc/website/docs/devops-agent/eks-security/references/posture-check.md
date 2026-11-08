@@ -1,6 +1,6 @@
 ---
 title: "C3: posture check (\"does my setup contain the next one?\")"
-description: ""
+description: "The question is not \"is every setting perfect\" but \"if one pod is compromised tomorrow, does this cluster keep it contained?\"."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/posture-check.md
 format: md
 ---

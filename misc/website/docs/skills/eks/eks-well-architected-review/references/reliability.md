@@ -1,6 +1,6 @@
 ---
 title: "🛡️ Reliability"
-description: ""
+description: "28 questions — Multi-AZ, autoscaling, resource limits, HPA, probes, PDBs, anti-affinity, topology spread, rolling updates, backups"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/reliability.md
 format: md
 ---

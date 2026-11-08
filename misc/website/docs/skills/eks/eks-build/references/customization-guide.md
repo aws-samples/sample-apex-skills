@@ -1,6 +1,6 @@
 ---
 title: "EKS Infrastructure Customization Guide"
-description: ""
+description: "Covers environment-specific constraints that require modifications to the baseline patterns."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/customization-guide.md
 format: md
 ---
@@ -170,7 +170,10 @@ endpoint_public_access: false                # Private endpoint only
 endpoint_private_access: true
 kms_key_arn: "arn:aws:kms:<REGION>:<ACCOUNT_ID>:key/<KEY_ID>"
 cluster_enabled_log_types: [api, audit, authenticator, controllerManager, scheduler]
+permissions_boundary: null   # e.g. "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"
 ```
+
+**Permissions boundary**: Only when the customer answered yes to question 30 with an ARN, set `permissions_boundary` in `cluster.yaml`. Every role the customer named then carries it; the input name per module is in [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional).
 
 CloudWatch log retention at 365 days:
 ```hcl

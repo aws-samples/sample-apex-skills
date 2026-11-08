@@ -1,6 +1,6 @@
 ---
 title: "Module: Code Transformation — Agent-Executed Items"
-description: ""
+description: "Execute the Agent_Executed_Items of the Transformation_Plan — hands-on .NET Framework → modern .NET porting and Java / other runtime EOL upgrades — under..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/code-transformation-agent-led.md
 format: md
 ---

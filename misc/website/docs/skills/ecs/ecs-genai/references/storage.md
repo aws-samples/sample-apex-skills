@@ -1,6 +1,6 @@
 ---
 title: "Storage for GPU / ML Workloads on Amazon ECS"
-description: ""
+description: "Where model weights, training data, and checkpoints live — and how to get them to GPU/Neuron tasks fast enough that expensive accelerators aren't idle..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/storage.md
 format: md
 ---

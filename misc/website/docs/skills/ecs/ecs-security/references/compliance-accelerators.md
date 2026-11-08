@@ -1,6 +1,6 @@
 ---
 title: "Layer 7b — Compliance Accelerators"
-description: ""
+description: "Tools that continuously evaluate the hardened ECS estate's technical controls and flag drift — narrowing, not eliminating, the audit-prep gap."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/compliance-accelerators.md
 format: md
 ---

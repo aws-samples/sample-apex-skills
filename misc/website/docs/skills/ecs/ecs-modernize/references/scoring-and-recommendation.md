@@ -1,6 +1,6 @@
 ---
 title: "Module: Scoring and Recommendation"
-description: ""
+description: "Compute the 0–100 Fit_Score from the Source_Analysis evidence using the scoring criteria defined in this file — the single source of truth for every..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/scoring-and-recommendation.md
 format: md
 ---

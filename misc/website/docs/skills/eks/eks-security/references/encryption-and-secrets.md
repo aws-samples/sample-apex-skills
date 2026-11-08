@@ -1,6 +1,6 @@
 ---
 title: "Data Encryption & Secrets Management"
-description: ""
+description: "A first-class security area in the AWS EKS Best Practices guide."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/encryption-and-secrets.md
 format: md
 ---

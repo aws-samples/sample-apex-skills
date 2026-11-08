@@ -1,6 +1,6 @@
 ---
 title: "Add-on & Component Management"
-description: ""
+description: "Assess add-on management maturity, node health monitoring, and cluster insights usage."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/references/addon-management.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Module: Deploy, Verify and Handoff"
-description: ""
+description: "Close out Migration_Execution: hand off the Rearchitect compute models to ecs-build with a traceable name/value input list, run terraform apply only behind..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/deploy-verify-handoff.md
 format: md
 ---

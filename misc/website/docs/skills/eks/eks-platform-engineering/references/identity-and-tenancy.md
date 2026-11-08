@@ -1,6 +1,6 @@
 ---
 title: "Identity and Multi-Tenancy"
-description: ""
+description: "How the platform gives one identity across all tools, credential-free AWS access to workloads, and isolation between teams sharing the platform."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/identity-and-tenancy.md
 format: md
 ---

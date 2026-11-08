@@ -1,6 +1,6 @@
 ---
 title: "Cost Estimation Fallback"
-description: ""
+description: "Node-based cost estimation when Cost Explorer tags are missing, Split Cost Allocation is not enabled, or Cost Explorer API is unavailable"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/cost-estimation-fallback.md
 format: md
 ---

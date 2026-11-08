@@ -1,6 +1,6 @@
 ---
 title: "ECS Launch-Type and Topology Migration"
-description: ""
+description: "Plan the transition from an older ECS topology to a modern one — EC2 launch type → capacity providers / Managed Instances, and Service Discovery → Service..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/launch-type-migration.md
 format: md
 ---

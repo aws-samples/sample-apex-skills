@@ -1,6 +1,6 @@
 ---
 title: "NGINX Ingress to AWS Load Balancer Controller Migration"
-description: ""
+description: "Migrate Kubernetes Ingress resource configurations from NGINX Ingress Controller to AWS Load Balancer Controller, converting all NGINX-specific annotations,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/assets/atx/td_ingress-nginx-lbc/transformation_definition.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Advisory sources"
-description: ""
+description: "The feeds C1 reads at run time."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/advisory-sources.md
 format: md
 ---

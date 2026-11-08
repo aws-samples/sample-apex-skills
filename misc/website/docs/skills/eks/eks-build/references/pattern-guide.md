@@ -1,6 +1,6 @@
 ---
 title: "EKS Infrastructure Pattern Comparison and Selection Guide"
-description: ""
+description: "Use Pattern 1 when the team is Terraform-native, needs deterministic plan/apply cycles, or operates in strict change-management environments."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/pattern-guide.md
 format: md
 ---
@@ -121,7 +121,7 @@ The ACK EKS Capability provisions AWS resources via Kubernetes CRDs. For example
 
 ### Pod Identity for Velero
 
-Pattern 2b uses Pod Identity for Velero (not IRSA). Terraform creates the IAM role with `pods.eks.amazonaws.com` as trusted principal and a `aws_eks_pod_identity_association`.
+Pattern 2b uses Pod Identity for Velero (not IRSA). Terraform creates the IAM role with `pods.eks.amazonaws.com` as trusted principal and a `aws_eks_pod_identity_association`. When `permissions_boundary` is set in `cluster.yaml`, that role carries it when the customer named it in question 30 (see [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional)).
 
 ### KRO Capability
 

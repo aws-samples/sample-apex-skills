@@ -1,6 +1,6 @@
 ---
 title: "Post-Cutover Performance Validation & C/C++ Arch Flags"
-description: ""
+description: "Getting a workload to run on arm64 is not the same as getting it to run well."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/references/perf-validation.md
 format: md
 ---

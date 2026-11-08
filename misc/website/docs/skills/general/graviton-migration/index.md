@@ -1,5 +1,5 @@
 ---
-title: "Graviton Migration (graviton-migration): move workloads from x86 to arm64"
+title: "Graviton Migration (graviton-migration)"
 sidebar_label: "graviton-migration"
 description: "Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/SKILL.md

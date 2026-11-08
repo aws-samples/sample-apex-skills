@@ -1,6 +1,6 @@
 ---
 title: "Module: Cluster Insights"
-description: ""
+description: "Detect EKS Cluster Insights - AWS-generated upgrade-readiness and configuration findings for the cluster"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/cluster-insights.md
 format: md
 ---

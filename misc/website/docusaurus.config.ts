@@ -158,6 +158,18 @@ const config: Config = {
         },
       },
     ],
+    // trailingSlash gives every page's canonical, og:url and hreflang URLs a
+    // "/", so the 404 page's read ".../404.html/", a URL that itself returns
+    // 404. A not-found page has no canonical URL: drop those tags from
+    // 404.html only.
+    () => ({
+      name: 'not-found-no-canonical',
+      async postBuild({outDir}) {
+        const file = path.join(outDir, '404.html');
+        const html = fs.readFileSync(file, 'utf8');
+        fs.writeFileSync(file, html.replace(/<(link|meta)[^>]*\/404\.html\/"[^>]*>/g, ''));
+      },
+    }),
   ],
 
   themeConfig: {

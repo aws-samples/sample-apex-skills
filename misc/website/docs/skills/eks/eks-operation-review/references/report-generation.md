@@ -1,6 +1,6 @@
 ---
 title: "Report Generation"
-description: ""
+description: "After all section checks are complete, generate the EKS Operation Review report."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/report-generation.md
 format: md
 ---
@@ -183,9 +183,9 @@ Ask: "Would you like me to convert the report to HTML?"
 If yes, run the conversion script — do NOT generate HTML manually. Execute this command:
 
 ```bash
-python3 tools/report_to_html.py <report-filename>.md
+python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py <report-filename>.md
 ```
 
-From the workspace root, run `python3 tools/report_to_html.py <report>.md`.
+From the workspace root, run `python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py <report>.md`.
 
 Do NOT create HTML by hand. Always use the script.

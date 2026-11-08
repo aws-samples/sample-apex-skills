@@ -1,6 +1,6 @@
 ---
 title: "Ingress Discovery"
-description: ""
+description: "Discover all ingress controllers, IngressClass resources, and Ingress objects in the cluster."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/ingress-discovery.md
 format: md
 ---

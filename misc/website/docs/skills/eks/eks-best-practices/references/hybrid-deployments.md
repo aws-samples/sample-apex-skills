@@ -1,6 +1,6 @@
 ---
 title: "Hybrid & On-Premises EKS Deployments — Hybrid Nodes, EKS Anywhere, and Outposts"
-description: ""
+description: "Choose among and operate the three on-premises/hybrid EKS deployment models — EKS Hybrid Nodes, EKS Anywhere, and EKS on Outposts."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/hybrid-deployments.md
 format: md
 ---

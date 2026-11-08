@@ -1,6 +1,6 @@
 ---
 title: "Version Management"
-description: ""
+description: "Do NOT use hardcoded versions."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/version-matrix.md
 format: md
 ---

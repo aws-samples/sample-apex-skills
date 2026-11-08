@@ -1,6 +1,6 @@
 ---
 title: "Layer 2 — Identity & Access on ECS"
-description: ""
+description: "This is the highest-value layer for ECS because the #1 recurring hard question in the field is a role-trust misconfiguration: \"ECS was unable to assume the..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/identity-and-access.md
 format: md
 ---

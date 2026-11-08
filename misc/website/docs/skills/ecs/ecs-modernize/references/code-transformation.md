@@ -1,6 +1,6 @@
 ---
 title: "Module: Code Transformation"
-description: ""
+description: "Construct exactly one Transformation_Plan for the code transformation in the approved migration plan, decide per work item whether AWS Transform..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/code-transformation.md
 format: md
 ---

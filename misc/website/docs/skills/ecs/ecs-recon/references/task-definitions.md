@@ -1,6 +1,6 @@
 ---
 title: "Module: Task Definitions"
-description: ""
+description: "Discover task definition details behind services — resource allocation, containers, and images in use"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/task-definitions.md
 format: md
 ---

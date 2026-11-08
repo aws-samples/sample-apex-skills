@@ -1,6 +1,6 @@
 ---
 title: "Module: Blocker Detection"
-description: ""
+description: "Detect the concrete findings in the source code that obstruct containerization or cloud migration, classify each into a blocker category, and assign every..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/blocker-detection.md
 format: md
 ---

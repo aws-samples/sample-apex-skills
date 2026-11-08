@@ -1,6 +1,6 @@
 ---
 title: "Model Inference & Serving on Amazon ECS"
-description: ""
+description: "Patterns for serving ML / LLM inference from containers on ECS-on-EC2 (or Managed Instances) GPU/Neuron capacity."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/inference-serving.md
 format: md
 ---

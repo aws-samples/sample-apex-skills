@@ -1,6 +1,6 @@
 ---
 title: "Module: Containerization Execution"
-description: ""
+description: "Turn the approved migration plan into working container images: generate the Containerization_Artifact as real files in a user-approved location, keep the..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/containerization-execution.md
 format: md
 ---

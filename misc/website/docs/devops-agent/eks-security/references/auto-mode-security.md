@@ -1,6 +1,6 @@
 ---
 title: "Securing an EKS Auto Mode Cluster"
-description: ""
+description: "EKS Auto Mode shifts a large slice of data-plane security responsibility to AWS, but it is not \"security handled.\" The 7-layer stack still applies; what..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/auto-mode-security.md
 format: md
 ---

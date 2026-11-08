@@ -1,6 +1,6 @@
 ---
 title: "Developer Portal — Backstage"
-description: ""
+description: "Backstage is the platform's front door: a self-service catalog plus software templates (the \"scaffolder\")."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/developer-portal-backstage.md
 format: md
 ---

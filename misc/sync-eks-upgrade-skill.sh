@@ -18,12 +18,14 @@
 #   skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 #
 # Excluded (deliberately NOT copied):
-#   - .git/, .github/, .claude/, .mcp.json
-#   - evals/, eks-upgrade-workspace/, docs/
+#   - .git/, .github/, the rest of .claude/ (only .claude/skills/eks-upgrade is copied), .mcp.json
+#   - evals/, docs/
 #   - Generated *.html and *.md report artifacts at upstream root
-#   - README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
+#   - README.md (read only for the IAM policy block, Step 10), CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
 #
 # Apex-flavored deviations (deterministic edits applied at sync time):
+# These edits are not anchor-checked: if upstream rewords an anchor, that
+# sed or awk edit silently does nothing.
 #
 # 1. MCP Server Setup section — Upstream's section assumes a project-root
 #    .mcp.json (which apex deliberately does not ship). After copy, this
@@ -117,6 +119,9 @@ cp "$UPSTREAM_DIR/data/"*.json "$LOCAL_DIR/data/"
 # Tools (Python helpers)
 cp "$UPSTREAM_DIR/tools/"*.py "$LOCAL_DIR/tools/"
 
+# Upstream commit synced (the wipe above removed the old record)
+git -C "$UPSTREAM_ROOT" rev-parse HEAD > "$LOCAL_DIR/.vendor-sha"
+
 echo ""
 
 # --- Step 4: Rewrite cross-refs `steering/` -> `references/` (apex-flavored) ---
@@ -186,7 +191,7 @@ echo "Rewriting SKILL.md description with natural-question phrasings..."
 # We replace the entire `description:` line in the YAML frontmatter. Awk
 # matches the first `^description:` line and substitutes; the rest of the
 # file passes through untouched.
-awk -v new_desc='description: Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Use this skill whenever someone asks "can I upgrade my cluster?", "is my cluster ready for 1.32?", "are we good to go to 1.33?", "what is blocking my upgrade?", or "should we move to the next version?" — even if they do not say "readiness" or "score". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable.' '
+awk -v new_desc='description: Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Assessment-only; all checks are strictly read-only and never modify the cluster. Use this skill whenever someone asks "can I upgrade my cluster?", "is my cluster ready for 1.32?", "are we good to go to 1.33?", "what is blocking my upgrade?", or "should we move to the next version?" — even if they do not say "readiness" or "score". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable.' '
   BEGIN { replaced = 0 }
   /^description:/ && !replaced {
     print new_desc
@@ -220,7 +225,7 @@ The sync script applies three deterministic edits to upstream content:
 
 1. **\`### MCP Server Setup\` section is replaced.** Apex does not ship a project-root \`.mcp.json\`; MCP setup is delegated to the \`eks-mcp-server\` skill in this repo. The upstream's fallback note ("falls back to AWS CLI and kubectl") is preserved.
 2. **\`steering/\` -> \`references/\` rename.** Upstream's progressive-disclosure docs live under \`steering/\`. Apex renames them to \`references/\`, the Anthropic skill spec's canonical name for additional documentation. The sync script renames the directory on copy and rewrites all internal cross-refs from \`steering/\` to \`references/\` inside \`SKILL.md\` and the 8 progressive-disclosure files.
-3. **\`description:\` frontmatter is replaced with a "pushy" wording.** Upstream's description is a keyword list. Apex review feedback (#36) calls for natural-question phrasings ("can I upgrade my cluster?", "is my cluster ready for 1.32?", etc.) that mirror sibling skills like \`eks-best-practices\` and \`eks-recon\`. The sync script replaces the whole \`description:\` line on every run.
+3. **\`description:\` frontmatter is replaced with a "pushy" wording.** Upstream's description is a keyword list. Apex review feedback (#36) calls for natural-question phrasings ("can I upgrade my cluster?", "is my cluster ready for 1.32?", etc.) that mirror sibling skills like \`eks-best-practices\` and \`eks-recon\`. The sync script replaces the whole \`description:\` line on every run, keeping upstream's "Assessment-only ... all checks are strictly read-only" sentence (its colon becomes a semicolon, since our line is unquoted YAML).
 
 Everything else is byte-for-byte from upstream.
 

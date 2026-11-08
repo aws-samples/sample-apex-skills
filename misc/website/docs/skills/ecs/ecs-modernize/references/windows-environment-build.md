@@ -1,6 +1,6 @@
 ---
 title: "Module: Windows Environment Build"
-description: ""
+description: "Generate the Windows_Environment_Terraform for an approved Windows_Container_Path — cluster and capacity conditioned on the approved compute option (ECS on..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/windows-environment-build.md
 format: md
 ---

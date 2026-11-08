@@ -1,6 +1,6 @@
 ---
 title: "Engagement & Response Framework"
-description: ""
+description: "How to run an ECS security/compliance conversation: the full discovery question set, the adoption-challenge archetypes, the response structure, and..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/engagement-and-response.md
 format: md
 ---

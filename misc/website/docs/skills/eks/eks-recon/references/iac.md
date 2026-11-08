@@ -1,6 +1,6 @@
 ---
 title: "Module: IaC (Infrastructure as Code)"
-description: ""
+description: "Detect IaC tooling - Terraform, CloudFormation, CDK, eksctl, Pulumi"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/references/iac.md
 format: md
 ---

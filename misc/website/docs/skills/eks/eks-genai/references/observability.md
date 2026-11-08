@@ -1,6 +1,6 @@
 ---
 title: "Observability for GenAI on EKS"
-description: ""
+description: "GenAI observability differs from standard Kubernetes monitoring in three fundamental ways: (1) accelerator utilization and memory pressure are first-class..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/observability.md
 format: md
 ---

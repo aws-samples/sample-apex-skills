@@ -1,6 +1,6 @@
 ---
 title: "Storage Costs"
-description: ""
+description: "Checks for gp2 PersistentVolumes (flag for gp3 migration with 20% cost reduction), unbound/unmounted PVCs, over-provisioned volumes (used vs provisioned..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/references/storage-costs.md
 format: md
 ---

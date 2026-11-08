@@ -1,5 +1,5 @@
 ---
-title: "EKS Platform Engineering (eks-platform-engineering): build an IDP on Amazon EKS"
+title: "EKS Platform Engineering (eks-platform-engineering)"
 sidebar_label: "eks-platform-engineering"
 description: "Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/SKILL.md
