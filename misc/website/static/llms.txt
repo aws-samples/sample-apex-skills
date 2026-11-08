@@ -39,7 +39,7 @@ For AWS agents, the EKS skills ported to AWS DevOps Agent run autonomously as re
 ## ECS skills
 
 - [ECS skills overview](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/): APEX agent skills for Amazon ECS: architecture and launch type choice, Terraform builds, deployments and CI/CD, security, operational reviews and GPU workloads.
-- [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/): Choose the ECS launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing
+- [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/): Choose the ECS compute model and launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing
 - [ecs-build](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-build/): Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances
 - [ecs-devops](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-devops/): Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks
 - [ecs-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-genai/): GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference

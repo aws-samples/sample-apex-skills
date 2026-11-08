@@ -170,7 +170,7 @@ const LINES: Record<string, Lines> = {
   },
   'ecs-operation-review': {
     job: 'assess',
-    use: 'Audit the operational health of a live ECS estate.',
+    use: 'Audit and score the operational health of a live ECS estate.',
     notFor: 'Kubernetes (eks-operation-review)',
     output: 'A GREEN, AMBER, RED report across 8 domains',
   },

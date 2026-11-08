@@ -27,7 +27,7 @@ description: "Browse every APEX skill: AWS skills for AI agents doing platform e
 
 ## [ECS skills](./ecs/index.md)
 
-- [**ecs-architect**](./ecs/ecs-architect/index.md): Choose the ECS launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing
+- [**ecs-architect**](./ecs/ecs-architect/index.md): Choose the ECS compute model and launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing
 - [**ecs-build**](./ecs/ecs-build/index.md): Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances
 - [**ecs-devops**](./ecs/ecs-devops/index.md): Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks
 - [**ecs-genai**](./ecs/ecs-genai/index.md): GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference
