@@ -1,7 +1,7 @@
 ---
 title: "EKS Upgrade Check (eks-upgrade-check) for AWS DevOps Agent"
 sidebar_label: "eks-upgrade-check"
-description: "AWS DevOps Agent port. Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks"
+description: "AWS DevOps Agent port. EKS cluster upgrade readiness: read-only checks across 8 areas, a 0-100% readiness score and a report with remediation steps"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/SKILL.md
 format: md
 ---

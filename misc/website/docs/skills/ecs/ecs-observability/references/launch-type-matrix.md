@@ -1,6 +1,6 @@
 ---
 title: "ECS Observability — Launch-Type Support Matrix"
-description: ""
+description: "The single per-capability support matrix across the four ECS launch types — EC2, Fargate, Managed Instances (MI), and ECS Anywhere (EXTERNAL)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-observability/references/launch-type-matrix.md
 format: md
 ---

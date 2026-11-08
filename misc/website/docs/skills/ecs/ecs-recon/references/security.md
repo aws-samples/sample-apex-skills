@@ -1,6 +1,6 @@
 ---
 title: "Module: Security"
-description: ""
+description: "Discover security-relevant configuration including IAM roles, secrets references, and ECS Exec enablement for ECS services"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/security.md
 format: md
 ---

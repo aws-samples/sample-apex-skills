@@ -1,7 +1,7 @@
 ---
 title: "EKS Recon (eks-recon) for AWS DevOps Agent"
 sidebar_label: "eks-recon"
-description: "AWS DevOps Agent port. EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring"
+description: "AWS DevOps Agent port. EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as raw facts only"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/SKILL.md
 format: md
 ---

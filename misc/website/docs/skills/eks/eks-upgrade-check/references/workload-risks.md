@@ -1,6 +1,6 @@
 ---
 title: "Workload Risks"
-description: ""
+description: "Assess workload resilience during the upgrade process."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/workload-risks.md
 format: md
 ---

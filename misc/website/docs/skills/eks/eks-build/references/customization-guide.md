@@ -1,6 +1,6 @@
 ---
 title: "EKS Infrastructure Customization Guide"
-description: ""
+description: "Covers environment-specific constraints that require modifications to the baseline patterns."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/customization-guide.md
 format: md
 ---

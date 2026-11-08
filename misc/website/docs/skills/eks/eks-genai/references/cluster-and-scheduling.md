@@ -1,6 +1,6 @@
 ---
 title: "Cluster & Scheduling — Karpenter, Device Plugins, EFA, Capacity"
-description: ""
+description: "Karpenter is the only recommended autoscaler for GPU/Neuron workloads on EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/cluster-and-scheduling.md
 format: md
 ---

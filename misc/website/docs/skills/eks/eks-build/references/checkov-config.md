@@ -1,6 +1,6 @@
 ---
 title: "Checkov Configuration"
-description: ""
+description: "Checkov is a static analysis tool for Terraform that detects security misconfigurations and compliance violations before deployment."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/checkov-config.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Breaking Changes Detection"
-description: ""
+description: "Identify version-specific breaking changes that affect ACTUAL resources in the cluster."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/breaking-changes.md
 format: md
 ---

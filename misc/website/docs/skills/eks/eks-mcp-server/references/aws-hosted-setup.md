@@ -1,6 +1,6 @@
 ---
 title: "AWS-Hosted EKS MCP Server Setup"
-description: ""
+description: "Note: The AWS-Hosted EKS MCP Server is currently in preview."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/references/aws-hosted-setup.md
 format: md
 ---

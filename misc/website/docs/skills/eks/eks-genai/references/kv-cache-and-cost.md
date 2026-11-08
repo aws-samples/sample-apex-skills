@@ -1,6 +1,6 @@
 ---
 title: "KV-Cache Tiering & Cost Optimization"
-description: ""
+description: "Opinionated guidance for KV-cache tiering with LMCache and the priority-ordered cost-optimization levers for GenAI workloads on EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/kv-cache-and-cost.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Golden Paths"
-description: ""
+description: "A golden path is a paved, opinionated route from intent to running software, with guardrails baked in."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/golden-paths.md
 format: md
 ---

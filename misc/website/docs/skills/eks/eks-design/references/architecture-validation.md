@@ -1,6 +1,6 @@
 ---
 title: "Architecture Validation Guide"
-description: ""
+description: "Comprehensive validation of EKS architecture completeness, integration feasibility, and technical readiness before handoff to build."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-design/references/architecture-validation.md
 format: md
 ---

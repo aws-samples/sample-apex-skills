@@ -1,6 +1,6 @@
 ---
 title: "ECS DevOps — Controllers & CodeDeploy Migration"
-description: ""
+description: "The CodeDeploy deployment controller (capabilities, constraints, when to keep it), the three migration paths to ECS-native blue/green, and the external..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/references/controllers-and-migration.md
 format: md
 ---

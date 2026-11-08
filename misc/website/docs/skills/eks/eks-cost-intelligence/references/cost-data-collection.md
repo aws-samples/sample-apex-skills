@@ -1,6 +1,6 @@
 ---
 title: "Cost Data Collection"
-description: ""
+description: "Exact API calls and queries to pull cost and utilization data from Cost Explorer, CloudWatch Container Insights, and the Kubernetes API"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/references/cost-data-collection.md
 format: md
 ---

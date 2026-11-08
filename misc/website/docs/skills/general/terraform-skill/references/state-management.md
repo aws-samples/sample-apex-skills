@@ -1,6 +1,6 @@
 ---
 title: "State Management"
-description: ""
+description: "Comprehensive state management patterns and best practices for Terraform/OpenTofu"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/state-management.md
 format: md
 ---

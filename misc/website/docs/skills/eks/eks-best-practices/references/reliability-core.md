@@ -1,6 +1,6 @@
 ---
 title: "Reliability & Resiliency — Core Patterns"
-description: ""
+description: "Everyday reliability patterns for production EKS workloads — high availability, pod disruption budgets, health probes, topology spread, resource limits, and..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/reliability-core.md
 format: md
 ---

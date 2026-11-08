@@ -1,6 +1,6 @@
 ---
 title: "Layer 1 — Compute & Shared Responsibility"
-description: ""
+description: "The ECS-specific first question is launch type, because it moves the line between what AWS secures and what you secure."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/shared-responsibility.md
 format: md
 ---

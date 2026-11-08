@@ -1,6 +1,6 @@
 ---
 title: "ECS DevOps — CI/CD Pipelines"
-description: ""
+description: "Building deployment pipelines to ECS — CodePipeline actions, GitHub Actions with the official aws-actions, driving ECS-native strategies from any pipeline,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/references/cicd-pipelines.md
 format: md
 ---

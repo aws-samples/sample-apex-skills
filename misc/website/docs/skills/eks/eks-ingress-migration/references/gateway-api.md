@@ -1,6 +1,6 @@
 ---
 title: "Gateway API Prerequisites (input to Migration Options → Option 1)"
-description: ""
+description: "Not a standalone rated section."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/gateway-api.md
 format: md
 ---

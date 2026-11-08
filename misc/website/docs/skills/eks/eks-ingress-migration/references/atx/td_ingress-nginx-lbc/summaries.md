@@ -1,6 +1,6 @@
 ---
 title: "Summaries"
-description: ""
+description: "\"navigating-nginx-ingress-retirement.md\": \"A practical guide for migrating from NGINX Ingress Controller to AWS Load Balancer Controller on Amazon EKS,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/atx/td_ingress-nginx-lbc/summaries.md
 format: md
 ---

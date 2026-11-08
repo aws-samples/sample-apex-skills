@@ -1,6 +1,6 @@
 ---
 title: "Progressive Delivery and Promotion"
-description: ""
+description: "How the platform rolls out new versions safely (Argo Rollouts) and promotes them across environments (Kargo)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/progressive-delivery.md
 format: md
 ---

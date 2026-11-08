@@ -1,6 +1,6 @@
 ---
 title: "EKS Supply Chain, Infrastructure & Compliance Security"
-description: ""
+description: "Image security, software supply chain, infrastructure hardening, regulatory compliance, and incident response"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/security-supply-chain.md
 format: md
 ---

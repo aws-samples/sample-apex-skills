@@ -1,6 +1,6 @@
 ---
 title: "Addon Catalog"
-description: ""
+description: "All addons supported by this framework, organized by category."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/addon-catalog.md
 format: md
 ---

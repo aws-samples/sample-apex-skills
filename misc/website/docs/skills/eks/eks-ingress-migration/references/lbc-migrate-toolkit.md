@@ -1,6 +1,6 @@
 ---
 title: "`lbc-migrate` — AWS Load Balancer Controller (LBC) Ingress → Gateway API Automation Toolkit"
-description: ""
+description: "Not a standalone rated section."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/lbc-migrate-toolkit.md
 format: md
 ---

@@ -1,5 +1,5 @@
 ---
-title: "Update Docs (update-docs): sync the APEX docs after a skill change"
+title: "Update Docs (update-docs)"
 sidebar_label: "update-docs"
 description: "Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/update-docs/SKILL.md

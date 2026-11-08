@@ -1,6 +1,6 @@
 ---
 title: "ECS Deployment-Model Selection Framework"
-description: ""
+description: "The full criteria matrix and per-model deep dives for choosing an Amazon ECS compute/launch model."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/model-selection-framework.md
 format: md
 ---

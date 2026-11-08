@@ -18,12 +18,12 @@ description: "Browse every APEX skill: AWS skills for AI agents doing platform e
 - [**eks-genai**](./eks/eks-genai/index.md): GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
 - [**eks-ingress-migration**](./eks/eks-ingress-migration/index.md): Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
 - [**eks-mcp-server**](./eks/eks-mcp-server/index.md): Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check
-- [**eks-operation-review**](./eks/eks-operation-review/index.md): Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version
+- [**eks-operation-review**](./eks/eks-operation-review/index.md): EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, with prioritized recommendations and deprecated-API review with no target version
 - [**eks-platform-engineering**](./eks/eks-platform-engineering/index.md): Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 - [**eks-recon**](./eks/eks-recon/index.md): EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring
-- [**eks-security**](./eks/eks-security/index.md): Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP
+- [**eks-security**](./eks/eks-security/index.md): Read-only EKS security reviews (CVEs, security events, posture) and hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing
 - [**eks-upgrade-check**](./eks/eks-upgrade-check/index.md): Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks
-- [**eks-well-architected-review**](./eks/eks-well-architected-review/index.md): Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request
+- [**eks-well-architected-review**](./eks/eks-well-architected-review/index.md): Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only) across five pillars; run only on an explicit WAFR request
 
 ## [ECS skills](./ecs/index.md)
 
@@ -39,7 +39,7 @@ description: "Browse every APEX skill: AWS skills for AI agents doing platform e
 
 ## General
 
-- [**apex**](./general/apex/index.md): Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills
+- [**apex**](./general/apex/index.md): Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills
 - [**dotnet-aws-ecs**](./general/dotnet-aws-ecs/index.md): Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide
 - [**graviton-migration**](./general/graviton-migration/index.md): Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS
 - [**skill-creator**](./general/skill-creator/index.md): Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy

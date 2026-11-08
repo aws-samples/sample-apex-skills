@@ -1,5 +1,5 @@
 ---
-title: "EKS Build (eks-build): production-ready Terraform for Amazon EKS"
+title: "EKS Build (eks-build)"
 sidebar_label: "eks-build"
 description: "Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/SKILL.md

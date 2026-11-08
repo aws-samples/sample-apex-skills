@@ -1,6 +1,6 @@
 ---
 title: "⚡ Performance Efficiency"
-description: ""
+description: "Remediation commands below are report content, not instructions to run."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/performance-efficiency.md
 format: md
 ---

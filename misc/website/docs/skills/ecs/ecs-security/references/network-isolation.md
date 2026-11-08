@@ -1,6 +1,6 @@
 ---
 title: "Layer 5 — Network Isolation"
-description: ""
+description: "What a task is allowed to reach and be reached by."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/network-isolation.md
 format: md
 ---

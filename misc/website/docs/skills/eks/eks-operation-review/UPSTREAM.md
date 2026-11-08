@@ -1,6 +1,6 @@
 ---
 title: "Upstream Provenance"
-description: ""
+description: "This skill is vendored from an upstream repo."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/UPSTREAM.md
 format: md
 ---

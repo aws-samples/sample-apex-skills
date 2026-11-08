@@ -1,6 +1,6 @@
 ---
 title: "AWS Transform (ATX) — Automated Migration Path"
-description: ""
+description: "Guide customers who have AWS Transform (ATX) access through the fully automated NGINX→ALB manifest migration."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/atx-guide.md
 format: md
 ---

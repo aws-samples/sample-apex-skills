@@ -1,6 +1,6 @@
 ---
 title: "Section 05 — Service Health & Autoscaling"
-description: ""
+description: "Assess runtime resilience of services: load-balancer health-check grace period, container/LB health checks, connection draining (deregistration delay +..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/service-health-scaling.md
 format: md
 ---

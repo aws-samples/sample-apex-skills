@@ -60,6 +60,14 @@ jobs:
         run: |
           ./misc/update-all-references.sh --check
           ./misc/update-pages.sh --check
+      # The skill finder's ranking test; --experimental-strip-types needs Node 22.6 or later.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.changes.outputs.relevant != 'false'
+        with:
+          node-version: 22
+      - name: Skill finder ranking test
+        if: steps.changes.outputs.relevant != 'false'
+        run: node --experimental-strip-types --test misc/website/src/components/skillSearch.test.ts
       - name: How to fix frontmatter validation (shown on failure)
         if: failure() && steps.validate.outcome == 'failure'
         run: |

@@ -1,6 +1,6 @@
 ---
 title: "Networking and Security"
-description: ""
+description: "awsvpc networking, the full VPC endpoint set for private/air-gapped projects, IAM trust scoping, and launch-type-scoped security capabilities."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/networking-security.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "AI Gateway for GenAI on EKS"
-description: ""
+description: "A multi-model GenAI deployment without a gateway is an operational liability — no unified API surface, no per-tenant cost attribution, no rate limiting, no..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/ai-gateway.md
 format: md
 ---

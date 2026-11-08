@@ -1,7 +1,7 @@
 ---
 title: "EKS Ingress Migration (eks-ingress-migration) for AWS DevOps Agent"
 sidebar_label: "eks-ingress-migration"
-description: "AWS DevOps Agent port. Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform"
+description: "AWS DevOps Agent port. Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/SKILL.md
 format: md
 ---

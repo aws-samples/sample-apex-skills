@@ -1,6 +1,6 @@
 ---
 title: "Report Generation"
-description: ""
+description: "Deterministic scoring algorithm, dimension weights, classification bands, SKIPPED dimension handling, and the complete markdown report template"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/report-generation.md
 format: md
 ---

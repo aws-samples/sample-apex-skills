@@ -17,6 +17,8 @@ See https://aws-samples.github.io/sample-apex-skills/docs/getting-started/ for f
 
 Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept in its SKILL_META table. The same list is on the Skills page (https://aws-samples.github.io/sample-apex-skills/docs/skills/). As JSON: https://aws-samples.github.io/sample-apex-skills/manifests/skills.json
 
+For AWS agents, the EKS skills ported to AWS DevOps Agent run autonomously and read-only: https://aws-samples.github.io/sample-apex-skills/docs/devops-agent/
+
 ## EKS skills
 
 - [EKS skills overview](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/): APEX agent skills for Amazon EKS: design, Terraform builds, cluster discovery, operational, cost, security and upgrade reviews, ingress migration and GenAI.
@@ -27,12 +29,12 @@ Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept 
 - [eks-genai](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-genai/): GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
 - [eks-ingress-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-ingress-migration/): Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
 - [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/): Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check
-- [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/): Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version
+- [eks-operation-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-operation-review/): EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, with prioritized recommendations and deprecated-API review with no target version
 - [eks-platform-engineering](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-platform-engineering/): Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 - [eks-recon](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-recon/): EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring
-- [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/): Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP
+- [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/): Read-only EKS security reviews (CVEs, security events, posture) and hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing
 - [eks-upgrade-check](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-upgrade-check/): Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks
-- [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/): Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request
+- [eks-well-architected-review](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-well-architected-review/): Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only) across five pillars; run only on an explicit WAFR request
 
 ## ECS skills
 
@@ -49,7 +51,7 @@ Skills on `main`, listed by misc/update-pages.sh; titles and summaries are kept 
 
 ## General skills
 
-- [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/): Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills
+- [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/): Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills
 - [dotnet-aws-ecs](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/dotnet-aws-ecs/): Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide
 - [graviton-migration](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/graviton-migration/): Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS
 - [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/): Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy

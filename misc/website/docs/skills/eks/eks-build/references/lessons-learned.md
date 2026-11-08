@@ -1,6 +1,6 @@
 ---
 title: "Lessons Learned: EKS Deployment Patterns"
-description: ""
+description: "Consolidated findings from two EKS deployment patterns: Pattern 1 (terraform-eks): Full Terraform with eks-blueprints-addons, two-phase module architecture..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/lessons-learned.md
 format: md
 ---

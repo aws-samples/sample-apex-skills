@@ -1,7 +1,7 @@
 ---
-title: "EKS Security (eks-security): CVE review, posture and compliance for EKS"
+title: "EKS Security (eks-security)"
 sidebar_label: "eks-security"
-description: "Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP"
+description: "Read-only EKS security reviews (CVEs, security events, posture) and hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/SKILL.md
 format: md
 ---

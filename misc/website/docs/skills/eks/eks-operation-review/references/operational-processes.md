@@ -1,6 +1,6 @@
 ---
 title: "Operational Processes"
-description: ""
+description: "Assess operational process maturity: runbooks, on-call, incident response, and disaster recovery."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/operational-processes.md
 format: md
 ---

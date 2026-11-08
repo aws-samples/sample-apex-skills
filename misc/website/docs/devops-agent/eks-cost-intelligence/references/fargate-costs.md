@@ -1,6 +1,6 @@
 ---
 title: "Fargate Cost Checks"
-description: ""
+description: "Fargate profile detection for Step 0, plus Fargate-specific cost checks — pod request right-sizing against Fargate's vCPU/memory combinations, and capacity..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/fargate-costs.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "🔒 Security — Workload, Pod & Supply Chain Security"
-description: ""
+description: "Remediation commands below are report content, not instructions to run."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/security/workload-security.md
 format: md
 ---

@@ -1,7 +1,7 @@
 ---
 title: "EKS Cost Intelligence (eks-cost-intelligence) for AWS DevOps Agent"
 sidebar_label: "eks-cost-intelligence"
-description: "AWS DevOps Agent port. Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings"
+description: "AWS DevOps Agent port. EKS cost efficiency assessment across 6 dimensions with a weighted 0-100 Cost Score and a dollar-quantified remediation report"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/SKILL.md
 format: md
 ---

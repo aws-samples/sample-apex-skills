@@ -1,6 +1,6 @@
 ---
 title: "Module: Compute"
-description: ""
+description: "Detect compute strategy — Karpenter, Managed Node Groups, Auto Mode, Fargate, self-managed"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/compute.md
 format: md
 ---

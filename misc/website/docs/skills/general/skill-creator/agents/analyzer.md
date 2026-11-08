@@ -1,6 +1,6 @@
 ---
 title: "Post-hoc Analyzer Agent"
-description: ""
+description: "Analyze blind comparison results to understand WHY the winner won and generate improvement suggestions."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/skill-creator/agents/analyzer.md
 format: md
 ---

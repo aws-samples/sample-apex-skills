@@ -1,6 +1,6 @@
 ---
 title: "Gateway API Migration Plan"
-description: ""
+description: "Note: there is no standalone \"Migration Planning\" report section."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/migration-plan.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Supplementary read-only ClusterRole (optional)"
-description: ""
+description: "Ask the cluster owner to apply this if you want the webhook-exposure and Gateway API checks to resolve definitively instead of degrading to..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/supplementary-rbac.md
 format: md
 ---

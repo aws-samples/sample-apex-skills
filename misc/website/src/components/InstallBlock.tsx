@@ -35,25 +35,35 @@ const AGENTS: Agent[] = [
   },
 ];
 
+// The live region sits beside the button, not in it: a button's name comes
+// from its aria-label and its children are presentational, so a region inside
+// may never be announced.
+const HIDDEN = {position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)'} as const;
+
 function CopyButton({text, label}: {text: string; label: string}): ReactNode {
   const [copied, setCopied] = useState(false);
   return (
-    <button
-      type="button"
-      className="apex-copy"
-      aria-label={`Copy ${label}`}
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        } catch {
-          setCopied(false);
-        }
-      }}
-    >
-      <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
-    </button>
+    <>
+      <button
+        type="button"
+        className="apex-copy"
+        aria-label={`Copy ${label}`}
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch {
+            setCopied(false);
+          }
+        }}
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+      <span aria-live="polite" style={HIDDEN}>
+        {copied ? `Copied ${label}` : ''}
+      </span>
+    </>
   );
 }
 

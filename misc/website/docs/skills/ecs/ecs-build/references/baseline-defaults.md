@@ -1,6 +1,6 @@
 ---
 title: "Baseline Defaults"
-description: ""
+description: "Opinionated defaults applied to every generated ECS project."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/baseline-defaults.md
 format: md
 ---

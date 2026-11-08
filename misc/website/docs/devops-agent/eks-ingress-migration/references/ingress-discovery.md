@@ -1,6 +1,6 @@
 ---
 title: "Ingress Discovery"
-description: ""
+description: "Rating model: Express every finding as Impact 0–5 using the Impact Indicator rubric."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/ingress-discovery.md
 format: md
 ---

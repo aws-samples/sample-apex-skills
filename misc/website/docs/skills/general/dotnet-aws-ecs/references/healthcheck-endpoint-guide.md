@@ -1,6 +1,6 @@
 ---
 title: "Health Check Endpoint Guide"
-description: ""
+description: "This reference defines patterns for verifying and configuring a health check endpoint in .NET applications targeting ECS Fargate with an Application Load..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/dotnet-aws-ecs/references/healthcheck-endpoint-guide.md
 format: md
 ---

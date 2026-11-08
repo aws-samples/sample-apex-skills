@@ -1,6 +1,6 @@
 ---
 title: "Module: Add-ons"
-description: ""
+description: "Detect add-on inventory — EKS-managed add-ons, Helm releases, manifest-installed components"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/addons.md
 format: md
 ---

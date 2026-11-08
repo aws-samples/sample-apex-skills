@@ -1,6 +1,6 @@
 ---
 title: "EKS Auto Mode"
-description: ""
+description: "Auto Mode architecture, managed NodePools/NodeClasses, migration from standard EKS, comparison with self-managed Karpenter, limitations and FAQ"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/eks-auto-mode.md
 format: md
 ---

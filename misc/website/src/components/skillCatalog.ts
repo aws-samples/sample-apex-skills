@@ -85,7 +85,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-best-practices': {
     job: 'knowledge',
-    use: 'Answer EKS and Kubernetes architecture and configuration questions.',
+    use: 'Answer EKS and Kubernetes architecture and configuration questions, such as Karpenter or Auto Mode compute.',
     notFor: 'generating documents or code (eks-design, eks-build)',
     output: 'Advice grounded in EKS best practices',
   },
@@ -103,7 +103,7 @@ const LINES: Record<string, Lines> = {
   },
   'ecs-architect': {
     job: 'design',
-    use: 'Pick Fargate, EC2 or Managed Instances and design the architecture for a new ECS workload.',
+    use: 'Pick Fargate, EC2 or Managed Instances to run containers on ECS, and design the architecture for a new workload.',
     notFor: 'replatforming an existing app (ecs-modernize)',
     output: 'A launch type, capacity strategy and service design',
   },
@@ -212,7 +212,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-security': {
     job: 'secure',
-    use: 'Check an EKS cluster for CVE exposure and Kubernetes security posture, respond to a security event, and get hardening guidance.',
+    use: 'Check an EKS cluster for CVE exposure and Kubernetes security posture, respond to a security event, and get hardening and compliance guidance, such as CIS benchmarks.',
     notFor: 'a Well-Architected review (eks-well-architected-review)',
     output: 'Exposed, not-exposed or unknown verdicts and a hardening plan',
   },
@@ -265,6 +265,11 @@ export const SKILLS: CatalogSkill[] = (manifest as Skill[]).map((skill) => {
 // The skill's page, with the trailing slash its generated index page uses.
 export function skillHref(skill: Skill): string {
   return `${skill.path.replace(/\/$/, '')}/`;
+}
+
+// The skill's AWS DevOps Agent page (docs/devops-agent/<skill>/), for a port.
+export function portHref(name: string): string {
+  return `/docs/devops-agent/${name}/`;
 }
 
 export const skillCount = SKILLS.length;
