@@ -6,13 +6,13 @@ The open-source EKS MCP server from [awslabs/mcp](https://github.com/awslabs/mcp
 
 ## Prerequisites
 
-- Python 3.10+ (`python3 --version`)
+- Python in the range the chosen release declares (`python3 --version`; SKILL.md Step 1b reads it from PyPI)
 - `uv` package manager (`uv --version`) — install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **For IAM mode**: AWS CLI configured (`aws configure list`)
 - **For kubeconfig mode**: Valid kubeconfig with cluster access
 - **Kubernetes access for the MCP caller.** For IAM-authenticated EKS reads, use an access entry with an appropriate policy or RBAC binding, or an existing `aws-auth` mapping where supported. The assessment skills do not change access. During setup a principal with effective `PowerUserAccess` can create its own entry.
 
-`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs with `kubectl auth can-i`. Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
+`AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the MCP server (Step 3). Policy ARN: `arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy`.
 
 ## Authentication Modes
 
@@ -55,6 +55,8 @@ For IAM authentication, attach these permissions to your IAM role/user:
 }
 ```
 
+`logs:StartQuery` and `logs:GetQueryResults` serve only `get_cloudwatch_logs`, which needs `--allow-sensitive-data-access`; drop them for a strict read-only profile.
+
 ### Write Operations
 For write access (cluster creation, deployments), also attach:
 - `IAMFullAccess`
@@ -62,9 +64,13 @@ For write access (cluster creation, deployments), also attach:
 - `AWSCloudFormationFullAccess`
 - EKS Full Access: `"Action": "eks:*"`
 
+These are broad grants. Attach them only with the opt-in write profile below, and where you can, replace them with policies scoped to the clusters, stacks and roles the server manages (least privilege).
+
 ## Step 2: Configure Your AI Assistant
 
-### Basic Configuration (IAM Mode)
+### Basic Configuration (IAM Mode, read-only)
+
+`<version>` is the SKILL.md Step 1b result: `latest`, or the exact version the user pinned.
 
 ```json
 {
@@ -72,9 +78,7 @@ For write access (cluster creation, deployments), also attach:
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
-        "--allow-write",
-        "--allow-sensitive-data-access"
+        "awslabs.eks-mcp-server@<version>"
       ],
       "env": {
         "AWS_PROFILE": "default",
@@ -86,7 +90,7 @@ For write access (cluster creation, deployments), also attach:
 }
 ```
 
-### Kubeconfig Mode (OIDC/Non-IAM)
+### Kubeconfig Mode (OIDC/Non-IAM, read-only)
 
 ```json
 {
@@ -94,9 +98,7 @@ For write access (cluster creation, deployments), also attach:
     "awslabs.eks-mcp-server": {
       "command": "uvx",
       "args": [
-        "awslabs.eks-mcp-server@latest",
-        "--allow-write",
-        "--allow-sensitive-data-access"
+        "awslabs.eks-mcp-server@<version>"
       ],
       "env": {
         "EKS_AUTH_MODE": "kubeconfig",
@@ -114,13 +116,19 @@ For write access (cluster creation, deployments), also attach:
 - `get_eks_vpc_config`, `get_eks_insights`
 - `get_policies_for_role`, `add_inline_policy`
 
-### Read-Only Mode
+### Opt-in: Write Access and Sensitive-Data Reads
 
-Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
+The examples above are read-only with the sensitive-data flag off, the recommended start. Add only the flag you need; the example shows both (see Command-Line Arguments below): `--allow-write` for mutations (IAM mode: Kubernetes writes need a write-level EKS access entry or RBAC for your principal, with no IAM change; `manage_eks_stacks` and `add_inline_policy` also need the write IAM permissions above; kubeconfig mode: grant write RBAC), `--allow-sensitive-data-access` for logs, events and Secret reads through `manage_k8s_resource`.
 
 ```json
-"args": ["awslabs.eks-mcp-server@latest"]
+"args": [
+  "awslabs.eks-mcp-server@<version>",
+  "--allow-write",
+  "--allow-sensitive-data-access"
+]
 ```
+
+`--allow-sensitive-data-access` puts pod logs, events, CloudWatch logs and Kubernetes Secrets (via `manage_k8s_resource`) into the model's context; `--allow-write` lets it change K8s resources, CloudFormation stacks and add new IAM inline policies to roles (it cannot modify existing ones; treat this as privilege escalation). Upstream: "Only enable these flags when necessary and in trusted environments" (EKS MCP Server README, Important Security Note).
 
 ## Config File Locations by Assistant
 
@@ -128,28 +136,28 @@ Remove `--allow-write` and `--allow-sensitive-data-access` for safer operation:
 |-----------|-------------|
 | Claude Code | `.mcp.json` (project) or `~/.claude.json` (user, via `claude mcp add -s user`) |
 | Cursor | Settings → Tools & MCP |
-| Kiro | `~/.kiro/settings/mcp.json` |
+| Kiro | `~/.kiro/settings/mcp.json` (user) or `.kiro/settings/mcp.json` (project) |
 | VS Code (Cline) | Cmd+Shift+P → MCP → User Config |
 
 ## Windows Users
 
-Use this format for the args array:
+Use this format for the args array (read-only):
 
 ```json
 "args": [
-  "--from", "awslabs.eks-mcp-server@latest",
-  "awslabs.eks-mcp-server.exe",
-  "--allow-write",
-  "--allow-sensitive-data-access"
+  "--from", "awslabs.eks-mcp-server@<version>",
+  "awslabs.eks-mcp-server.exe"
 ]
 ```
+
+For the opt-in profile, append only the flag(s) you need (`"--allow-write"`, `"--allow-sensitive-data-access"`) after the `.exe` entry.
 
 ## Command-Line Arguments
 
 | Argument | Description |
 |----------|-------------|
-| `--allow-write` | Enable create/update/delete operations |
-| `--allow-sensitive-data-access` | Enable logs, events, secrets access |
+| `--allow-write` | Opt-in: enable create, replace, patch and delete operations (and stack deploy/delete) (omit for read-only) |
+| `--allow-sensitive-data-access` | Opt-in: enable logs, events and Kubernetes Secrets reads (still read-only). Omitting it does not hide Secrets from `list_k8s_resources` at 0.2.1 (see Available Tools); keep `list` on secrets out of the principal's RBAC (IAM mode: an access entry with AmazonEKSViewPolicy, not AmazonEKSAdminViewPolicy; kubeconfig mode: the `view` ClusterRole) |
 
 To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see Environment Variables below) — the JSON examples above use this approach.
 
@@ -174,8 +182,10 @@ To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see 
 
 ## Available Tools
 
-### Always Available
-- `list_k8s_resources`, `manage_k8s_resource` (supports `create`, `read`, `update`, `delete` operations — `read` replaces the older standalone `read_k8s_resource` tool)
+With no flags (the read-only examples above), `manage_k8s_resource` allows only `read` and `manage_eks_stacks` only `describe`; `apply_yaml`, `generate_app_manifest`, `add_inline_policy` and the other operations need `--allow-write`; `get_pod_logs`, `get_k8s_events`, `get_cloudwatch_logs` and `manage_k8s_resource` reads of a Secret need `--allow-sensitive-data-access`. Without the flag, these calls return an error. ConfigMaps and Pod specs, env values included, are readable without the flag. At 0.2.1 (checked 2026-11-08) `list_k8s_resources` is not gated (open upstream PR awslabs/mcp#4727 would gate kind Secret): for kind Secret it returns names, labels and annotations, and a Secret created with client-side `kubectl apply` carries its applied manifest, data included, in the `kubectl.kubernetes.io/last-applied-configuration` annotation. The upstream README marks `get_eks_vpc_config` and `get_eks_insights` as needing `--allow-sensitive-data-access`; the server code at 79267c6 does not enforce it (the tool descriptions still state the requirement, so the model may ask for the flag).
+
+### Both auth modes
+- `list_k8s_resources`, `manage_k8s_resource` (supports `create`, `read`, `replace`, `patch`, `delete` operations)
 - `apply_yaml`, `generate_app_manifest`
 - `get_pod_logs`, `get_k8s_events`
 - `list_api_versions`

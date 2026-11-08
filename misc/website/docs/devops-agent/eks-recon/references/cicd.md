@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/cicd.md](https://
 
 # Module: CI/CD
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect CI/CD pipelines and GitOps tools - GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux
 
 ## Table of Contents
@@ -130,6 +130,9 @@ Record `gitops.argocd`: `detected`, `namespace`, `version`, `eks_managed`, and `
 
 Flux is the CNCF GitOps tool, often preferred for multi-cluster setups. Detecting it reveals
 GitRepository and Kustomization reconciliation.
+
+Before recording any repository URL, remove its userinfo (`user[:password]@`);
+never quote the userinfo, including in Coverage or error summaries.
 
 **Via Kubernetes API** — detect the Flux controllers and version:
 

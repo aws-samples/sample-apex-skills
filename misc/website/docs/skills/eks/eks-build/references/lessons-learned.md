@@ -35,6 +35,7 @@ This page is generated from [skills/eks-build/references/lessons-learned.md](htt
 - [20. EKS Capability Destroy Hangs Terraform](#20-eks-capability-destroy-hangs-terraform)
 - [21. CIS Policies Cannot Be Deployed as Helm Chart](#21-cis-policies-cannot-be-deployed-as-helm-chart)
 - [22. Pattern 2a Custom-Addons Require Real Git Repo](#22-pattern-2a-custom-addons-require-real-git-repo)
+- [23. Karpenter Controller IAM Policy Size Limit](#23-karpenter-controller-iam-policy-size-limit)
 
 Consolidated findings from two EKS deployment patterns:
 - **Pattern 1 (terraform-eks)**: Full Terraform with eks-blueprints-addons, two-phase module architecture
@@ -94,7 +95,7 @@ The module graph is instantiated twice, but with HashiCorp Terraform v1.14.5, pl
 
 ### Module defaults are stale
 
-The `eks-blueprints-addons` module ships chart defaults that lag significantly behind current releases. Always look up the latest versions from authoritative sources (see [version-matrix.md](version-matrix)).
+The `eks-blueprints-addons` module ships chart defaults that lag significantly behind current releases. Always look up the latest versions from authoritative sources (see [version-matrix.md](version-matrix.md)).
 
 ### Rules
 
@@ -357,7 +358,7 @@ resource "aws_eks_pod_identity_association" "ebs_csi" {
   cluster_name    = module.eks_cluster.cluster_name
   namespace       = "kube-system"
   service_account = "ebs-csi-controller-sa"
-  role_arn        = module.ebs_csi_pod_identity[0].iam_role_arn
+  role_arn        = module.ebs_csi_pod_identity.iam_role_arn
 }
 ```
 
@@ -414,7 +415,7 @@ module "karpenter" {
 }
 ```
 
-Then deploy the Helm chart via `helm_release` and NodePool/EC2NodeClass via `kubectl_manifest`. Tag private subnets and cluster primary SG with `karpenter.sh/discovery: <cluster-name>`.
+In Pattern 1, then deploy the Helm chart via `helm_release` with `depends_on = [module.eks_addons_webhooks]` (Section 2) and NodePool/EC2NodeClass via `kubectl_manifest`; in Pattern 2 via ArgoCD. Tag private subnets and cluster primary SG with `karpenter.sh/discovery: <cluster-name>`.
 
 ### EC2 Spot Service-Linked Role
 
@@ -422,6 +423,45 @@ Karpenter needs `AWSServiceRoleForEC2Spot`. Create before deploying:
 ```bash
 aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 ```
+
+### Stale public.ecr.aws login (403)
+
+**Pattern:** 1 (Terraform `helm_release`; plan-proven in issue 304, not applied. Pattern 2 pulls the chart through ArgoCD)
+
+The Karpenter chart is public, so an anonymous pull works, but only while the machine running Terraform has no `public.ecr.aws` entry in its Helm registry config or Docker config. An earlier `helm registry login` or `docker login public.ecr.aws` leaves a token that lasts 12 hours; once it expires, Helm sends it instead of pulling anonymously and `terraform plan` (the helm provider locates the chart while planning) or `apply` fails:
+
+```
+Unable to locate chart oci://public.ecr.aws/karpenter/karpenter: ... response status code 403: denied: Your authorization token has expired. Reauthenticate and try again.
+```
+
+Fix: log the helm provider in with a fresh token on every run (helm provider 3.x list syntax; 2.x used a `registry { }` block). The ephemeral resource needs Terraform 1.10+ and hashicorp/aws >= 6.31.0, so not terraform-aws-modules/eks v20, which caps aws < 6.0:
+
+```hcl
+ephemeral "aws_ecrpublic_authorization_token" "public_ecr" {
+  region = "us-east-1"  # ECR Public issues tokens in us-east-1 only, whatever the cluster region
+}
+
+provider "helm" {
+  registries = [
+    {
+      url      = "oci://public.ecr.aws"
+      username = ephemeral.aws_ecrpublic_authorization_token.public_ecr.user_name
+      password = ephemeral.aws_ecrpublic_authorization_token.public_ecr.password
+    }
+  ]
+
+  kubernetes = {
+    # as generated in providers.tf
+  }
+}
+```
+
+The provider login also writes this token to Helm's registry config, so other Helm pulls from public.ecr.aws on that machine can hit the same 403 after 12 hours; recover with the logout below.
+
+- Prefer the ephemeral resource. Below hashicorp/aws 6.31.0 use the `data "aws_ecrpublic_authorization_token"` form in the same `registries` list (on aws 5.x, which has no `region` argument, through a `us-east-1` provider alias); its token is stored in state (and in a saved plan, so applying a saved plan can reuse it past its 12 hours). Do not use resource-level `repository_username` / `repository_password`: `repository_password` is stored in state and cannot take an ephemeral value.
+- The identity running Terraform needs `ecr-public:GetAuthorizationToken` and `sts:GetServiceBearerToken`.
+- Partitions without ECR Public, and air-gapped builds, mirror the chart instead: see [customization-guide.md Section 1](customization-guide.md#1-air-gapped--vpc-endpoint-only-networks) (pull-through cache rule for `public.ecr.aws`, Helm chart mirroring). There, drop this block; a private-ECR chart mirror needs its own registry login (`ephemeral "aws_ecr_authorization_token"`).
+- One-off recovery outside Terraform: `helm registry logout public.ecr.aws` (and `docker logout public.ecr.aws`).
 
 ---
 
@@ -440,7 +480,7 @@ Always set a cluster-prefixed policy name:
 ```hcl
 module "ebs_csi_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
-  version = "~> 2.7"
+  version = "<LOOK_UP>"  # Look up latest from Terraform Registry
   name            = "${local.cluster_config.name}-ebs-csi"
   use_name_prefix = false
   attach_aws_ebs_csi_policy  = true
@@ -512,3 +552,13 @@ terraform destroy -auto-approve
 **Problem:** Custom-addons ApplicationSets use ArgoCD's git directory generator, which requires a real, accessible git repository URL.
 
 **Fix:** For resources needed at deploy time (Velero S3, CIS policies), create them in Terraform rather than relying on ArgoCD custom-addons.
+
+---
+
+## 23. Karpenter Controller IAM Policy Size Limit
+
+**Patterns:** Both
+
+**Problem:** The controller IAM policy that the `terraform-aws-modules/eks/aws//modules/karpenter` submodule generates (Section 17) can exceed the 6,144-character limit on a customer managed policy (IAM does not count white space). Apply then fails with `LimitExceeded: Cannot exceed quota for PolicySize: 6144`.
+
+**Fix:** Set `enable_inline_policy = true` on the submodule (available since v21.8.0). The controller policy is then created as an inline role policy, whose limit is 10,240 characters across all inline policies on the role. Upstream Karpenter has split its controller policy into several policies (aws/karpenter-provider-aws PR 8690), but the submodule does not follow that split yet (terraform-aws-modules/terraform-aws-eks issue 3637 is open, checked 2026-10-30), so the inline policy is the mitigation until it does.

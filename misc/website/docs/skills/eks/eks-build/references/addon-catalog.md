@@ -106,7 +106,7 @@ resource "aws_eks_pod_identity_association" "ebs_csi" {
   cluster_name    = module.eks_cluster.cluster_name
   namespace       = "kube-system"
   service_account = "ebs-csi-controller-sa"
-  role_arn        = module.ebs_csi_pod_identity[0].iam_role_arn
+  role_arn        = module.ebs_csi_pod_identity.iam_role_arn
 }
 ```
 
@@ -129,7 +129,7 @@ aws_load_balancer_controller:
 
 ### Critical: Two-Phase Module Architecture
 
-LBC and Gatekeeper must deploy in Phase 1 (with `wait: true`) before all other addons in Phase 2. See [lessons-learned.md](lessons-learned) for details.
+LBC and Gatekeeper must deploy in Phase 1 (with `wait: true`) before all other addons in Phase 2. See [lessons-learned.md](lessons-learned.md) for details.
 
 ## ArgoCD-Managed Addons (Pattern 2)
 

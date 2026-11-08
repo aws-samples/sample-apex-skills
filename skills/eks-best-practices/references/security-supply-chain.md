@@ -91,6 +91,8 @@ Attestations are cryptographically signed statements that verify artifact integr
 
 **Kyverno policy — require images from ECR only:**
 
+> `ClusterPolicy` (`kyverno.io/v1`) is deprecated since Kyverno v1.19; `ValidatingPolicy` and `ImageValidatingPolicy` (`policies.kyverno.io/v1`) replace it ([Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)).
+
 ```yaml
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -280,23 +282,21 @@ The benefit of shift-left is that developers get feedback before their applicati
 
 ## Incident Response
 
+The response shape (prepare, scope, record, contain, investigate, remediate, verify, report) and the patch paths it relies on are in [Security Operations: Responding to a Security Event](security-operations.md#responding-to-a-security-event). eks-security C2 runs scope, evidence capture and containment proposals on a live cluster; investigation (step 4) is the team's own step for now.
+
 ### EKS-Specific Forensics Steps
 
-1. **Isolate the pod** — apply deny-all network policy to the namespace
-2. **Capture pod state** — `kubectl get pod -o yaml`, `kubectl logs`, `kubectl exec -- ps aux`
-3. **Snapshot the node** — create EBS snapshot of the node's root volume
-4. **Cordon the node** — `kubectl cordon node-name` to prevent new scheduling
-5. **Preserve logs** — export CloudWatch Logs, audit logs, VPC Flow Logs
-6. **Review GuardDuty findings** — check for related security findings
-7. **Analyze with EKS audit logs** — trace the attack timeline via API server logs
+EKS-specific commands for the steps in [Security Operations](security-operations.md#responding-to-a-security-event), in the same order:
 
-**Do NOT delete pods or nodes before capturing evidence.**
+2. **Record:** `kubectl get pod <pod> -n <namespace> -o yaml`, `kubectl logs <pod> -n <namespace>` (and `--previous`), the image digest and the node name
+3. **Contain:** the pod-scoped quarantine in [Security Operations](security-operations.md#containment-that-stays-pod-scoped), then `kubectl cordon <node-name>`
+4. **Investigate:** capture volatile state (processes, connections, memory where tooling exists, see the [AWS IR guide](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html); on EKS Auto Mode, with no SSH or SSM: `kubectl debug node/<node> -it --profile=sysadmin` for processes and connections, and a NodeDiagnostic for the node log bundle) before the pod or node is replaced; snapshot the node's EBS volumes (root and data) where the platform allows it; export CloudWatch Logs, audit logs and VPC Flow Logs
+
+**Deleting, scaling down or draining destroys evidence; isolating does not, unless a liveness probe then fails and restarts the container.**
 
 ### Automated Response Patterns
 
-Use GuardDuty findings with EventBridge to automate initial response:
-- GuardDuty finding -> EventBridge rule -> Lambda function -> apply network policy isolation
-- Alert security team via SNS/Slack while automated containment runs
+- GuardDuty finding -> EventBridge rule -> Lambda function -> apply the quarantine label to the affected pod (pod-scoped isolation, with the caveats in [Security Operations](security-operations.md#containment-that-stays-pod-scoped))
 
 ### Key Investigation Tools
 
@@ -314,4 +314,4 @@ Use GuardDuty findings with EventBridge to automate initial response:
 - [AWS EKS Best Practices Guide — Image Security](https://docs.aws.amazon.com/eks/latest/best-practices/image-security.html)
 - [AWS EKS Best Practices Guide — Infrastructure Security](https://docs.aws.amazon.com/eks/latest/best-practices/protecting-the-infrastructure.html)
 - [AWS EKS Best Practices Guide — Compliance](https://docs.aws.amazon.com/eks/latest/best-practices/compliance.html)
-- [AWS EKS Best Practices Guide — Incident Response](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response.html)
+- [AWS EKS Best Practices Guide: Incident Response and Forensics](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html)

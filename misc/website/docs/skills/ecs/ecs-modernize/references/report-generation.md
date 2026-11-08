@@ -11,11 +11,11 @@ This page is generated from [skills/ecs-modernize/references/report-generation.m
 
 # Module: Report Generation
 
-> **Part of:** [ecs-modernize](../)
+> **Part of:** [ecs-modernize](../index.md)
 > **Purpose:** Assemble the outputs of every assessment module into exactly one Markdown Modernization_Report file — the deliverable of the Assessment_Phase and its only file-system write
 > **Prerequisites:** All assessment modules — tech stack detection, blocker detection, scoring and recommendation, Replatform path, Rearchitect path
 
-This is the final module of the Assessment_Phase. It performs no analysis of its own: it renders the blocks the prerequisite modules produced (`analysis`, `tech_stack`, `blockers`, `scoring`, `recommendation`, `replatform_path` with `windows_container_path`, `rearchitect_path`) into a single Markdown file. Writing that file is the **only** file-system write the Assessment_Phase ever performs — no drafts, no intermediate files, no companion files. All the read-only invariants from [SKILL.md](../) stay in force while this module runs.
+This is the final module of the Assessment_Phase. It performs no analysis of its own: it renders the blocks the prerequisite modules produced (`analysis`, `tech_stack`, `blockers`, `scoring`, `recommendation`, `replatform_path` with `windows_container_path`, `rearchitect_path`) into a single Markdown file. Writing that file is the **only** file-system write the Assessment_Phase ever performs — no drafts, no intermediate files, no companion files. All the read-only invariants from [SKILL.md](../index.md) stay in force while this module runs.
 
 ## Table of Contents
 
@@ -44,12 +44,12 @@ Every assessment module must have completed before this module runs — partial 
 | Block | Producing module | Feeds report section(s) |
 |---|---|---|
 | `analysis` envelope (`target.source_path`, `target.app_name`, `partial`, `excluded_paths`) | Tech stack detection (updated by blocker detection) | Header, §1, §1.5, file name |
-| `tech_stack` (languages, frameworks, runtimes, app servers, `undetermined_items`) | [tech-stack-detection.md](tech-stack-detection) | §1, §1.5 |
-| `blockers` | [blocker-detection.md](blocker-detection) | §2, §4, §5, §6 |
-| `scoring` (dimensions, exclusions, renormalization, `fit_score`) | [scoring-and-recommendation.md](scoring-and-recommendation) | §3, §1.5 |
-| `recommendation` (thresholds, default/constraint-adjusted recommendation, grounds, confidence) | [scoring-and-recommendation.md](scoring-and-recommendation) | §4, §7 |
-| `replatform_path` + `windows_container_path` | [replatform-path.md](replatform-path) | §5, §7 |
-| `rearchitect_path` | [rearchitect-path.md](rearchitect-path) | §6, §7 |
+| `tech_stack` (languages, frameworks, runtimes, app servers, `undetermined_items`) | [tech-stack-detection.md](tech-stack-detection.md) | §1, §1.5 |
+| `blockers` | [blocker-detection.md](blocker-detection.md) | §2, §4, §5, §6 |
+| `scoring` (dimensions, exclusions, renormalization, `fit_score`) | [scoring-and-recommendation.md](scoring-and-recommendation.md) | §3, §1.5 |
+| `recommendation` (thresholds, default/constraint-adjusted recommendation, grounds, confidence) | [scoring-and-recommendation.md](scoring-and-recommendation.md) | §4, §7 |
+| `replatform_path` + `windows_container_path` | [replatform-path.md](replatform-path.md) | §5, §7 |
+| `rearchitect_path` | [rearchitect-path.md](rearchitect-path.md) | §6, §7 |
 | User-specified output file name and/or directory (optional) | Conversation | File name and destination |
 
 **Write discipline** — reiterated from SKILL.md because this module is where it bites: exactly one file is written, it lands outside the target source code directory, and nothing else touches the file system. The report content is assembled entirely in conversation context and written in a single operation.
@@ -237,11 +237,11 @@ When the analysis is fully complete, omit §1.5 entirely.
 
 **§6 Rearchitect path details** — render the `rearchitect_path` block: all three compute-model candidates with their applicability judgments and grounds; the modernization items with evidence, effort tier, and AWS Transform applicability notes (recommendation only — execution belongs behind the Execution_Gate); the framework migration options (or the no-established-path note); the zero-item statement when `no_items` is true; and the **ecs-architect delegation statement** (`delegation_note`) — the section never appears without it, and no concrete design values (capacity strategy, sizing numbers, network design) appear.
 
-**§7 Strategy comparison table** — both strategies always appear, regardless of the recommendation outcome, each with at least one advantage, at least one drawback, an effort classification on the three-tier scale defined in [rearchitect-path.md](rearchitect-path), the assumed target configuration (ECS on EC2 static for Replatform; the applicable candidates for Rearchitect), and — when the recommendation was the parallel presentation — the decision-factor mapping.
+**§7 Strategy comparison table** — both strategies always appear, regardless of the recommendation outcome, each with at least one advantage, at least one drawback, an effort classification on the three-tier scale defined in [rearchitect-path.md](rearchitect-path.md), the assumed target configuration (ECS on EC2 static for Replatform; the applicable candidates for Rearchitect), and — when the recommendation was the parallel presentation — the decision-factor mapping.
 
 **§8 Next steps** — the recommended-order actions to proceed, and the named hand-off points: detailed target design to `ecs-architect`, Linux container path environment Terraform to `ecs-build` (with the structured input list), security hardening to `ecs-security`. When AWS Transform applies to any modernization or porting item, list adopting it as a next step — **as a recommendation only**; the Assessment_Phase never starts a transformation. When the migration source is VMware, AWS Transform for VMware (discovery, dependency mapping, wave planning) may be mentioned here, flagged as outside this skill's analysis scope. State that Migration_Execution requires the Execution_Gate: assessment completion plus the user's explicit approval of the strategy and target path.
 
-> After Migration_Execution, the Execution_Log is appended to this report or saved as a referenced sibling file — those rules belong to [deploy-verify-handoff.md](deploy-verify-handoff), not here.
+> After Migration_Execution, the Execution_Log is appended to this report or saved as a referenced sibling file — those rules belong to [deploy-verify-handoff.md](deploy-verify-handoff.md), not here.
 
 ### Windows_Container_Path Placement
 

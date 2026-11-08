@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/storage-cos
 
 # Storage Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for gp2 PersistentVolumes (flag for gp3 migration with 20% cost reduction), unbound/unmounted PVCs, over-provisioned volumes (used vs provisioned capacity), and EFS Intelligent-Tiering/lifecycle policies
 
 ---
@@ -274,6 +274,8 @@ kubectl get pvc --all-namespaces -o json | \
     [.[] | select(.key as $k | $mounted[0] | index($k) | not)]'
 ```
 
+If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+
 **Via kubectl (simplified — single pipeline):**
 
 ```bash
@@ -282,6 +284,8 @@ comm -23 \
   <(kubectl get pvc -A -o jsonpath='{range .items[?(@.status.phase=="Bound")]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' | sort) \
   <(kubectl get pods -A -o json | jq -r '.items[] | select(.status.phase=="Running") | .metadata.namespace as $ns | .spec.volumes[]? | select(.persistentVolumeClaim) | "\($ns)/\(.persistentVolumeClaim.claimName)"' | sort -u)
 ```
+
+If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via EKS MCP Server:**
 
@@ -429,7 +433,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --region <region>
 ```

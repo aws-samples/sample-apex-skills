@@ -283,7 +283,7 @@ Ask: **"Does this look correct? Should I generate the architecture recommendatio
 
 ### Doc-Generation Mode
 
-Hand off to the `eks-design` skill with the confirmed requirements. The skill handles the full workflow: document structure, ADR generation, validation scoring, Mermaid diagram rendering, and optional .docx/.pptx output via the `docx` and `aws-pptx` skills.
+Hand off to the `eks-design` skill with the confirmed requirements. The skill handles the full workflow: document structure, ADR generation, validation scoring, Mermaid diagram rendering, and optional .docx/.pptx output via the `docx` and `pptx` skills from anthropics/skills.
 
 ---
 

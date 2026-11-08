@@ -349,6 +349,7 @@ resource "helm_release" "karpenter" {
   namespace  = "kube-system"
   name       = "karpenter"
   repository = "oci://public.ecr.aws/karpenter"
+  # This block pulls anonymously: a stale public.ecr.aws login in Helm's registry config makes that pull fail with 403. eks-build's generated Pattern 1 projects log the helm provider in with an ephemeral token instead (eks-build lessons-learned, "Stale public.ecr.aws login (403)").
   chart      = "karpenter"
   version    = "1.6.0"
 
@@ -560,7 +561,7 @@ addons = {
 | `most_recent = true` | Non-production, staying current | May introduce breaking changes |
 | Pin to specific version | Production | Must manually update; check compatibility |
 
-**Recommendation:** Pin add-on versions in production and update deliberately during upgrade windows.
+**Recommendation:** Pin add-on versions in production and update deliberately during upgrade windows. A security fix does not wait for the window: follow [the emergency path](security-operations.md#the-emergency-path).
 
 ### Common Dependency Issues
 

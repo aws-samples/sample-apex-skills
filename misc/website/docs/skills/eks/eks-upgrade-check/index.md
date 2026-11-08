@@ -1,6 +1,7 @@
 ---
-title: "eks-upgrade-check"
-description: "Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Use this skill whenever someone asks \"can I upgrade my cluster?\", \"is my cluster ready for 1.32?\", \"are we good to go to 1.33?\", \"what is blocking my upgrade?\", or \"should we move to the next version?\" — even if they do not say \"readiness\" or \"score\". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable."
+title: "EKS Upgrade Check (eks-upgrade-check): upgrade readiness score for Amazon EKS"
+sidebar_label: "eks-upgrade-check"
+description: "Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/SKILL.md
 format: md
 ---
@@ -11,7 +12,7 @@ This page is generated from [skills/eks-upgrade-check/SKILL.md](https://github.c
 
 
 :::info[Vendored skill]
-This skill is sourced from [eks-upgrade-check](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check), also maintained by the APEX team.
+This skill is sourced from [sample-eks-upgrade-skill](https://github.com/aws-samples/sample-eks-upgrade-skill), also maintained by the APEX team.
 :::
 
 

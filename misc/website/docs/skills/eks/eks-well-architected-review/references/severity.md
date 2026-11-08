@@ -396,7 +396,7 @@ refused rather than defaulted.
 |----|-------|----------|
 | cost-6 | No idle/unused PersistentVolumes | Idle EBS bills every hour for zero value — direct, ongoing waste. |
 | cost-8 | No unattached (orphaned) EBS volumes | Same as above from the orphaned-resource angle; pure leak. |
-| cost-9 | Storage on gp3 (not gp2) | gp3 is ~20% cheaper on storage. Below ~1,000 GiB it is at or above gp2's baseline IOPS, though gp2 volumes of 334 GiB and larger sustain 250 MiB/s against gp3's default 125 MiB/s, so set `throughput: 250` for those volumes (from 170 to 334 GiB gp2 reaches 250 MiB/s only by burst, and the extra gp3 throughput, about $0.04 per MiB/s-month, can cost more than gp2 below about 250 GiB). At or above ~1,000 GiB a gp2 volume already exceeds gp3's default 3,000 IOPS, and migrating without provisioning `iops: min(size × 3, 16000)` is a **performance downgrade** — gp2's baseline stops climbing at 16,000 IOPS, reached at 5,334 GiB, and every larger gp2 volume gets the same 16,000, so an uncapped `size × 3` formula overshoots gp2 parity (and overpays for IOPS never delivered) above that size. See [cost-analysis.md](cost-analysis) for the crossover. Still weighted High because the overspend is unforced, not because the migration is free. |
+| cost-9 | Storage on gp3 (not gp2) | gp3 is ~20% cheaper on storage. Below ~1,000 GiB it is at or above gp2's baseline IOPS, though gp2 volumes of 334 GiB and larger sustain 250 MiB/s against gp3's default 125 MiB/s, so set `throughput: 250` for those volumes (from 170 to 334 GiB gp2 reaches 250 MiB/s only by burst, and the extra gp3 throughput, about $0.04 per MiB/s-month, can cost more than gp2 below about 250 GiB). At or above ~1,000 GiB a gp2 volume already exceeds gp3's default 3,000 IOPS, and migrating without provisioning `iops: min(size × 3, 16000)` is a **performance downgrade** — gp2's baseline stops climbing at 16,000 IOPS, reached at 5,334 GiB, and every larger gp2 volume gets the same 16,000, so an uncapped `size × 3` formula overshoots gp2 parity (and overpays for IOPS never delivered) above that size. See [cost-analysis.md](cost-analysis.md) for the crossover. Still weighted High because the overspend is unforced, not because the migration is free. |
 
 ### Medium
 | ID | Check | Why Medium |
@@ -421,5 +421,5 @@ here — they are supply-chain controls, and `cost-optimization.md` records the 
 in a low Cost score.*
 
 *Note: the compute-cost heavyweights — Graviton, Spot, and Extended Support — are handled in
-[cost-analysis.md](cost-analysis) as narrative savings opportunities, not scored pillar questions,
+[cost-analysis.md](cost-analysis.md) as narrative savings opportunities, not scored pillar questions,
 because they are recommendations rather than pass/fail controls.*

@@ -85,7 +85,8 @@ Only attach these policies -- never application permissions:
 
 **Key components:**
 1. `module "karpenter"` -- controller IAM role (Pod Identity) + node IAM role
-2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`)
+2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`), with `depends_on = [module.eks_addons_webhooks]` in Pattern 1
+   - Pattern 1 (not in air-gapped builds or partitions without ECR Public): configure the `helm` provider to log in to `oci://public.ecr.aws` with a fresh ECR Public token on every run (an `ephemeral "aws_ecrpublic_authorization_token"` in `us-east-1` feeding the provider's `registries` list), not resource-level `repository_username` / `repository_password`. See [lessons-learned.md Section 17](lessons-learned.md#17-karpenter-dedicated-submodule), "Stale public.ecr.aws login (403)".
 3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs
 4. `aws_ec2_tag` -- discovery tags on private subnets and cluster primary security group
 
@@ -127,6 +128,8 @@ spec:
   weight: 50
 ```
 
+Multi-arch nodes need multi-arch images: with `arm64` in the NodePool, each workload image must be a manifest list (OCI image index) that covers `linux/amd64` and `linux/arm64` (two native builds joined, or one `buildx` build for both platforms), so a pod scheduled onto a Graviton node pulls the arm64 binary, or the workload must be pinned with a `kubernetes.io/arch` nodeSelector. See [graviton-migration multi-arch pipelines](../../../general/graviton-migration/references/multi-arch-pipelines.md).
+
 EC2NodeClass defaults:
 
 ```yaml
@@ -163,7 +166,7 @@ configuration_values = jsonencode({
     ENABLE_PREFIX_DELEGATION = "true"    # 4-16x more pods/node
     WARM_PREFIX_TARGET       = "1"
   }
-  enableNetworkPolicy = "true"           # Native network policy (v1.14+)
+  enableNetworkPolicy = "true"           # Native network policy (use VPC CNI v1.22.3+, bulletin 2026-170)
 })
 ```
 
@@ -180,6 +183,7 @@ configuration_values = jsonencode({
 - **Intra subnets**: EKS control plane ENIs (when available)
 - **All subnets**: Tagged `kubernetes.io/cluster/<cluster-name> = shared`
 - **NAT Gateway**: One per AZ for production (eliminates inter-AZ NAT traversal)
+- **EIP quota pre-flight**: By default (unless `reuse_nat_ips` with `external_nat_ip_ids`), the `terraform-aws-modules/vpc` module creates one Elastic IP per NAT gateway, so one NAT gateway per AZ takes one EIP per AZ against a default quota of 5 EIPs per Region ([VPC quotas](https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html#vpc-limits-eips)). Check the account's free EIPs in the target Region before apply and request an increase if short, or use a single NAT gateway (`single_nat_gateway = true`) for non-prod. A single NAT gateway serves every AZ, so if its AZ is down, resources in the other AZs lose internet access ([NAT gateway basics](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-basics.html)). To cut cross-AZ data transfer charges, keep high-traffic resources in the NAT gateway's AZ, or create a NAT gateway in each AZ with resources ([NAT gateway pricing](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-pricing.html)).
 
 ### kube-proxy
 
@@ -285,7 +289,7 @@ topologySpreadConstraints:
 
 For addons behind ALB:
 - `terminationGracePeriodSeconds: 60`
-- `preStop: sleep 15` (allows kube-proxy and LB to deregister before SIGTERM)
+- preStop sleep of 15s (allows kube-proxy and LB to deregister before SIGTERM): `lifecycle.preStop.sleep.seconds: 15` on Kubernetes 1.30+, the `exec` `sleep 15` form only on older clusters
 
 ### HPA Defaults (When Applicable)
 
@@ -309,7 +313,7 @@ For addons behind ALB:
 
 - **Requests**: Always set for CPU and memory (scheduling guarantee)
 - **Limits**: Always set memory (OOM protection). Usually omit CPU limits (avoid throttling)
-- **Memory limit** = 1.5-2x memory requests
+- **Memory limit** = memory requests for predictable behavior; if a workload must burst, do not set the limit much larger than the request ([EKS Best Practices: data plane](https://docs.aws.amazon.com/eks/latest/best-practices/data-plane.html))
 
 ## IAM
 
@@ -369,9 +373,13 @@ Strict sequence:
 
 | Version | Removed |
 |---------|---------|
-| 1.25 | PodSecurityPolicy, batch/v1beta1 CronJob |
-| 1.26 | flowcontrol.apiserver.k8s.io/v1beta1 |
+| 1.25 | batch/v1beta1 CronJob, discovery.k8s.io/v1beta1 EndpointSlice, events.k8s.io/v1beta1 Event, autoscaling/v2beta1 HorizontalPodAutoscaler, policy/v1beta1 PodDisruptionBudget, policy/v1beta1 PodSecurityPolicy (no successor; use Pod Security Admission), node.k8s.io/v1beta1 RuntimeClass |
+| 1.26 | flowcontrol.apiserver.k8s.io/v1beta1 FlowSchema, PriorityLevelConfiguration; autoscaling/v2beta2 HorizontalPodAutoscaler |
 | 1.27 | storage.k8s.io/v1beta1 CSIStorageCapacity |
+| 1.29 | flowcontrol.apiserver.k8s.io/v1beta2 FlowSchema, PriorityLevelConfiguration |
+| 1.32 | flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema, PriorityLevelConfiguration |
+
+Every row is from the Kubernetes [Deprecated API Migration Guide](https://kubernetes.io/docs/reference/using-api/deprecation-guide/) (checked 2026-10-30; no removals listed after 1.32). Re-check it for the target version before each upgrade.
 
 ### Version Support
 

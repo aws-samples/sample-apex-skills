@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/stora
 
 # Storage Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for gp2 PersistentVolumes (flag for gp3 migration with 20% cost reduction), unbound/unmounted PVCs, over-provisioned volumes (used vs provisioned capacity), and EFS Intelligent-Tiering/lifecycle policies
 
 ---
@@ -143,6 +143,8 @@ PersistentVolumeClaims that are in `Bound` state (an EBS volume exists and is be
 ### Data collection
 
 Use the Kubernetes API to list all PersistentVolumeClaims and all running Pods. Cross-reference spec.volumes[].persistentVolumeClaim.claimName across all running pods to build a set of mounted PVCs. Identify PVCs in Bound state that are not in the mounted set.
+
+If a required read fails, treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not interpret unavailable inventory as an empty result or use it for findings.
 
 ### Analysis logic
 

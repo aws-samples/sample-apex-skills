@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/cost-optimizat
 
 # EKS Cost Optimization
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Cost optimization framework, compute/networking/storage cost strategies, observability cost management, tagging, and cost visibility tools for Amazon EKS
 
 ---
@@ -118,7 +118,7 @@ kubectl get vpa app-vpa -o jsonpath='{.status.recommendation.containerRecommenda
 | CPU request >> actual usage (consistently) | Reduce CPU request to P95 usage |
 | Memory request >> actual usage | Reduce memory request to P99 usage + 20% buffer |
 | CPU throttling observed | Increase CPU request (or remove CPU limit) |
-| OOMKilled events | Increase memory limit |
+| OOMKilled events | Raise memory request and limit |
 | Pod pending due to resources | Scale nodes or reduce requests |
 
 ### Reducing Unused Capacity
@@ -141,9 +141,9 @@ spec:
 
 Karpenter selects the most cost-effective instance from your allowed types. It replaces underutilized nodes with smaller ones and removes empty nodes automatically.
 
-For workloads that shouldn't be interrupted (long batch jobs without checkpointing), use the `karpenter.sh/do-not-disrupt: "true"` annotation.
+For workloads that shouldn't be interrupted (long batch jobs without checkpointing), use the `karpenter.sh/do-not-disrupt: "true"` annotation. On a pod it blocks consolidation (and drift unless the NodeClaim has a `terminationGracePeriod`); on a node it blocks consolidation and drift. It does not block expiration, interruption, manual deletion or Node Auto Repair: see [Karpenter Reference](karpenter.md#do-not-disrupt-does-not-block-forceful-disruption).
 
-**See also:** [Karpenter Reference](karpenter) for detailed NodePool configuration, consolidation tuning, and Spot handling.
+**See also:** [Karpenter Reference](karpenter.md) for detailed NodePool configuration, consolidation tuning, and Spot handling.
 
 ### Cluster Autoscaler Priority Expander
 
@@ -334,7 +334,7 @@ Use **IP mode** to eliminate data transfer charges from LB-to-Pod traffic. Ensur
 | NAT Gateway per AZ | Eliminates inter-AZ NAT traversal | Low |
 | In-region ECR pulls | Free (vs cross-region data transfer) | Low |
 
-**For detailed networking configuration, see:** [Networking Reference](networking) | [Networking -- Ingress & DNS](networking-ingress-dns)
+**For detailed networking configuration, see:** [Networking Reference](networking.md) | [Networking -- Ingress & DNS](networking-ingress-dns.md)
 
 ---
 

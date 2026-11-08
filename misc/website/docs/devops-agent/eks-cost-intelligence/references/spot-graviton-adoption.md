@@ -11,14 +11,14 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/spot-
 
 # Spot and Graviton Adoption
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for Graviton (arm64) adoption percentage, node groups/NodePools without arm64 in allowed architectures, workloads with explicit amd64 affinity, Spot vs On-Demand percentage, stateless multi-replica workloads on On-Demand, instance type diversity for Spot, and Node Termination Handler/Karpenter interruption handling
 
 ---
 
 ## Overview
 
-Spot and Graviton adoption is the second-highest weighted dimension (20 points max deduction). It evaluates whether the cluster takes advantage of Graviton processors (~20% cost savings at equivalent performance per [AWS Graviton](https://aws.amazon.com/ec2/graviton/)) and Spot instances (up to 90% discount) where workloads are eligible.
+Spot and Graviton adoption is the second-highest weighted dimension (20 points max deduction). It evaluates whether the cluster takes advantage of Graviton processors (AWS states Graviton-based instances "cost up to 20% less than comparable x86-based Amazon EC2 instances" per [AWS Graviton](https://aws.amazon.com/ec2/graviton/); in us-east-1 for the m family, against m6i, the On-Demand gap is about 20%, 15% and 6.5% for Graviton2, 3 and 4, see Check 1) and Spot instances (up to 90% discount) where workloads are eligible.
 
 ### Checks Summary
 
@@ -38,7 +38,7 @@ Spot and Graviton adoption is the second-highest weighted dimension (20 points m
 
 These checks require:
 - **kubectl access** to the cluster (for node labels, pod specs, affinity rules)
-- **AWS CLI access** for `eks:DescribeNodegroup`, `ec2:DescribeInstances`
+- **AWS CLI access** for `eks:DescribeNodegroup`, `ec2:DescribeInstances`, `ec2:DescribeInstanceTypes`
 
 No metrics sources are required — all checks use configuration and label inspection.
 
@@ -54,7 +54,7 @@ The ratio of nodes running on Graviton (arm64) architecture versus x86 (amd64), 
 
 Use the Kubernetes API to list Nodes and extract the `kubernetes.io/arch` label (or status.nodeInfo.architecture). Calculate the percentage of arm64 vs amd64 nodes. Group results by nodegroup/nodepool label.
 
-Use the EKS ListNodegroups and DescribeNodegroup APIs to get instance type families for each node group. Identify Graviton instance types (families containing 'g' suffix like m6g, c7g, r6g).
+Use the EKS ListNodegroups and DescribeNodegroup APIs to get instance type families for each node group. Identify Graviton instance types with the EC2 DescribeInstanceTypes API: Graviton types report `arm64` in ProcessorInfo.SupportedArchitectures. Do not match on the name: a 'g' suffix pattern misses a1, c6gn, im4gn and is4gen.
 
 ### Analysis logic
 
@@ -67,9 +67,26 @@ graviton_pct = arm64_nodes / total_nodes × 100
 
 If graviton_pct < 50%:
   → Generate HIGH severity finding
-  savings_estimate = amd64_nodes × avg_node_hourly_cost × 0.20 × 730
-  # Graviton typically provides ~20% cost savings at equivalent performance
+  savings_estimate = amd64_nodes × avg_node_hourly_cost × graviton_discount × 730
+  # graviton_discount depends on the Graviton generation (table below)
 ```
+
+**Graviton discount by generation.** When the current and target instance types are both known, price both (see [cost-estimation-fallback.md](cost-estimation-fallback.md)) instead of using this table; Check 1 reads each node group's instance types with DescribeNodegroup, and a Karpenter node's type is its `node.kubernetes.io/instance-type` label. Use the table only when one of them is unknown, with the figure for the Graviton generation the finding recommends. The managed node group remediation below pins `7g` (Graviton3, 0.15). The Karpenter NodePool admits generation 6 and later, Graviton5 included, so its target is unknown: from an m6i.xlarge the saving ranges from 19.8% (Graviton2) to a 1.9% cost increase (Graviton5). Report the range, or price the node's type once Karpenter has placed it. Basis: each row compares m6i.xlarge, the x86 type the eks-well-architected-review cost analysis also compares against, with a Graviton type, m family, xlarge (4 vCPU / 16 GiB), us-east-1, On-Demand Linux, shared tenancy, from the AWS Price List API, checked 2026-11-07. Other Regions can differ widely (ap-south-1 m6i vs m6g is 49.9%); outside us-east-1, price both types with a `regionCode` filter set to the cluster's Region (the `REGION_MAP` in cost-estimation-fallback.md covers 7 Regions and falls back to us-east-1):
+
+| Generation | Intel x86 vs Graviton | x86 $/hr | Graviton $/hr | `graviton_discount` |
+|------------|----------------------|----------|---------------|---------------------|
+| Graviton2 | m6i.xlarge vs m6g.xlarge | $0.192 | $0.154 | 0.20 (19.8%) |
+| Graviton3 | m6i.xlarge vs m7g.xlarge | $0.192 | $0.1632 | 0.15 (15.0%) |
+| Graviton4 | m6i.xlarge vs m8g.xlarge | $0.192 | $0.17952 | 0.065 (6.5%) |
+| Graviton5 | m6i.xlarge vs m9g.xlarge | $0.192 | $0.19568 | none (m9g costs 1.9% more) |
+
+Graviton5 (m9g, c9g, r9g) has no same-generation x86 pair; m9g.xlarge is 7.6% below m8i.xlarge ($0.21168/hr), so it saves only against an x86 type newer than m6i.
+
+For AMD (`*a`) nodes the gap differs (us-east-1: m6a vs m6g 10.9%, m7a vs m7g 29.6%, m8a vs m8g 26.3%); price the current type.
+
+The gap depends on which x86 instance is replaced: against the same-generation Intel type it is 19.0% for m7i.xlarge vs m7g.xlarge and 15.2% for m8i.xlarge vs m8g.xlarge. The eks-well-architected-review skill in the sample-apex-skills repository (skills/eks-well-architected-review/references/cost-analysis.md) also compares Graviton against the 6th-generation x86 type, and its figures (nearer 15% for Graviton3 and 6.5% for Graviton4, read in ap-southeast-5) agree with this table. When the current and target instance types are known, price both (see [cost-estimation-fallback.md](cost-estimation-fallback.md)) instead of using the table. The figure is price only, not performance.
+
+> **Caveats for the Graviton finding:** the estimate prices every amd64 node at On-Demand rates, Spot nodes included, so it overstates savings for Spot nodes; count only On-Demand amd64 nodes (the `karpenter.sh/capacity-type` or `eks.amazonaws.com/capacityType` node label), or price Spot nodes with the EC2 DescribeSpotPriceHistory API. Spot capacity is per instance type, so moving Spot nodes to Graviton also needs enough Graviton types in each Spot pool (Check 6). Nodes are replaced during the move, so workloads need multiple replicas and a PodDisruptionBudget (the Spot eligibility criteria in Check 5), and images must support linux/arm64 (the note at the end of Check 3).
 
 ### Severity classification
 
@@ -128,7 +145,7 @@ Node groups or Karpenter NodePools that are configured to only launch x86 (amd64
 
 Use the Kubernetes API to list NodePool resources (Karpenter) and check spec.template.spec.requirements for the `kubernetes.io/arch` key. Identify NodePools where the operator is "In" with only "amd64" in values, or "NotIn" with "arm64" in values.
 
-Use the EKS DescribeNodegroup API to check instance types for each node group. Identify non-Graviton-only groups by checking if any instance type matches the Graviton pattern (families with 'g' suffix before the dot).
+Use the EKS DescribeNodegroup API to check instance types for each node group. Identify non-Graviton-only groups by checking with the EC2 DescribeInstanceTypes API whether any instance type reports `arm64` in ProcessorInfo.SupportedArchitectures. If instanceTypes is null (a launch-template node group) or empty, or DescribeInstanceTypes fails, report the node group as UNASSESSED with the reason, never as having no finding.
 
 ### Analysis logic
 
@@ -144,7 +161,11 @@ For each NodePool:
 
 For each Managed Node Group:
   instance_types = nodegroup.instanceTypes
-  has_graviton = any(type matches graviton pattern for type in instance_types)
+  If instance_types is null or empty:
+    → UNASSESSED: node group (launch template); continue
+  has_graviton = any("arm64" in ProcessorInfo.SupportedArchitectures(type) for type in instance_types)
+  If DescribeInstanceTypes fails:
+    → UNASSESSED: node group (DescribeInstanceTypes failed); continue
   
   If NOT has_graviton:
     → Finding: Node group uses only x86 instance types
@@ -218,7 +239,7 @@ For each Deployment/StatefulSet in non-system namespaces:
     → Generate finding (potential Graviton candidate)
     
     replicas = workload.spec.replicas
-    estimated_savings = replicas × per_pod_cost × 0.20  # ~20% Graviton savings
+    estimated_savings = replicas × per_pod_cost × graviton_discount  # by generation, see Check 1
 ```
 
 ### Severity classification
@@ -561,13 +582,13 @@ Whether the cluster has proper Spot interruption handling configured. Without it
 
 ### Data collection
 
-**Step 1:** Use the Kubernetes API to list Nodes and count those with `karpenter.sh/capacity-type=spot` or `eks.amazonaws.com/capacityType=SPOT` labels.
+**Step 1:** Use the Kubernetes API to list Nodes and count those with `karpenter.sh/capacity-type=spot` or `eks.amazonaws.com/capacityType=SPOT` labels, leaving out EKS Auto Mode nodes (`eks.amazonaws.com/compute-type=auto`), since Auto Mode handles Spot interruptions itself.
 
 **Step 2:** Use the Kubernetes API to check for aws-node-termination-handler as a Deployment or DaemonSet in kube-system namespace, or search by label `app.kubernetes.io/name=aws-node-termination-handler`.
 
-**Step 3:** Use the Kubernetes API to check for the Karpenter Deployment in kube-system and its version label. For Karpenter v0.30+, interruption handling is built-in. Check ConfigMaps and environment variables for interruption queue configuration.
+**Step 3:** Use the Kubernetes API to find the Karpenter Deployment once (kube-system, then karpenter), reuse that namespace, and read its version label. Interruption handling is enabled only when an interruption queue is set (INTERRUPTION_QUEUE from v0.32; aws.interruptionQueueName in karpenter-global-settings on v0.30-v0.31). Check its container environment variables for interruption queue configuration (the karpenter-global-settings ConfigMap was dropped in v0.33.0). This check reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH.
 
-**Step 4:** Use the SQS ListQueues API filtered by naming convention (queue name prefix "karpenter") to verify the interruption queue exists. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
+**Step 4:** Check that the queue INTERRUPTION_QUEUE names exists (`aws sqs get-queue-url --queue-name "$QUEUE"`); the default name is the cluster name. Also check EC2NodeClass resources via the Kubernetes API for queue configuration.
 
 ### Analysis logic
 
@@ -580,13 +601,13 @@ If spot_node_count > 0:
   nth_installed = (aws-node-termination-handler deployment/daemonset exists)
   
   If karpenter_installed:
-    # Karpenter v0.30+ has native interruption handling
     karpenter_version = parse version from deployment labels
     If karpenter_version >= "0.30":
-      → Interruption handling is built-in (OK)
-      # Verify SQS queue exists for optimal handling
-      If no SQS queue configured:
-        → LOW finding: SQS queue recommended for faster interruption response
+      # Step 3 reads only the INTERRUPTION_QUEUE env var; on v0.30-v0.31 confirm aws.interruptionQueueName in karpenter-global-settings before reporting HIGH
+      If INTERRUPTION_QUEUE is unset (Step 3) AND NOT nth_installed:
+        → HIGH finding: Karpenter with no interruption queue and no NTH
+      Else:
+        → OK (interruption handling present)
     Else:
       If NOT nth_installed:
         → HIGH finding: older Karpenter without NTH
@@ -605,7 +626,7 @@ If spot_node_count > 0:
 |-----------|----------|
 | Spot nodes present + no interruption handler (no Karpenter, no NTH) | HIGH |
 | Older Karpenter (< v0.30) without NTH | HIGH |
-| Karpenter v0.30+ without SQS queue | LOW |
+| Karpenter with INTERRUPTION_QUEUE unset (Step 3) and no NTH | HIGH |
 | NTH or Karpenter v0.30+ with SQS present | No finding |
 
 ### Remediation
@@ -726,7 +747,7 @@ START
 - Check 2: No finding (NodePools allow arm64)
 - Check 4: No finding (>30% Spot)
 - Check 6: No finding (broad instance categories)
-- Check 7: No finding (Karpenter v1 handles interruptions)
+- Check 7: No finding (Karpenter v1 with its interruption queue set)
 - **Expected deduction:** 0 points
 
 ### Scenario C: Spot Without Proper Handling
