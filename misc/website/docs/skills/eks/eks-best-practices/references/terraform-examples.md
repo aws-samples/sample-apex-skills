@@ -572,7 +572,7 @@ addons = {
 | `most_recent = true` | Non-production, staying current | May introduce breaking changes |
 | Pin to specific version | Production | Must manually update; check compatibility |
 
-**Recommendation:** Pin add-on versions in production and update deliberately during upgrade windows.
+**Recommendation:** Pin add-on versions in production and update deliberately during upgrade windows. A security fix does not wait for the window: follow [the emergency path](security-operations.md#the-emergency-path).
 
 ### Common Dependency Issues
 

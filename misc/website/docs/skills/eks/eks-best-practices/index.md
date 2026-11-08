@@ -247,11 +247,11 @@ spec:
   containers:
   - lifecycle:
       preStop:
-        exec:
-          command: ["/bin/sh", "-c", "sleep 15"]
+        sleep:
+          seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
 ```
 
-**Why `sleep 15`:** Gives kube-proxy and load balancer time to remove the pod from traffic routing before SIGTERM.
+**Why `sleep 15`:** Gives kube-proxy and load balancer time to remove the pod from traffic routing before SIGTERM. The native `sleep` action is run by the kubelet, so the image needs no shell (distroless, scratch).
 
 ### Multi-AZ Distribution
 
