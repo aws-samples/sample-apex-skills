@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-build/references/networking-security.md]
 
 # Networking and Security
 
-> **Part of:** [ecs-build](../)
+> **Part of:** [ecs-build](../index.md)
 
 awsvpc networking, the full VPC endpoint set for private/air-gapped projects, IAM trust scoping, and launch-type-scoped security capabilities.
 
@@ -85,7 +85,7 @@ When `enable_execute_command = true`:
 State these with their scope -- they are the classic "halo" errors:
 
 - **GuardDuty Runtime Monitoring: NOT supported for workloads on ECS Managed Instances** as of 2026-07-10 (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html). It covers Fargate (ECS) via the managed sidecar agent and EC2 instances via the agent. Do not generate MI projects that assume GuardDuty runtime coverage; note the gap in the README. Customers requiring runtime monitoring should use EC2 or Fargate capacity, or compensate on MI with Bottlerocket's immutable-root + SELinux posture plus CloudTrail/Config monitoring.
-- **SOCI lazy loading: Fargate Linux platform version 1.4.0 only** -- not EC2, not MI ([task-definition-guide.md](task-definition-guide)).
+- **SOCI lazy loading: Fargate Linux platform version 1.4.0 only** -- not EC2, not MI ([task-definition-guide.md](task-definition-guide.md)).
 - **Fargate capabilities:** only `CAP_SYS_PTRACE` addable; `privileged` invalid. MI optionally allows CAP_NET_ADMIN/CAP_SYS_ADMIN/CAP_BPF/CAP_PERFMON; EC2 allows the full set you configure.
 - **MI security posture** (do not attribute to EC2): no SSH, immutable root filesystem, SELinux mandatory access controls, automatic patching via the 14-21-day drain-and-replace lifecycle.
 - Compliance program claims: cite ONLY https://aws.amazon.com/compliance/services-in-scope/ -- never assert scope from memory.

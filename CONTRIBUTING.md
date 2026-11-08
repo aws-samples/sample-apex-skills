@@ -72,7 +72,7 @@ skills/{skill-name}/
 
 ### Current Skills
 
-See the auto-generated [Skills Reference](README.md#skills-reference) in `README.md` — regenerated from each `skills/<name>/SKILL.md` frontmatter by `misc/update-skills-references.sh` (and enforced by CI via `misc/update-all-references.sh`), so it can't fall out of sync with the repo.
+See the auto-generated skill list under [Pick a skill by what you are doing](README.md#pick-a-skill-by-what-you-are-doing) in `README.md`: `misc/update-skills-references.sh` regenerates it from each skill's summary and group in the `SKILL_META` table in `misc/update-pages.sh` (and CI enforces it via `misc/update-all-references.sh`), so it can't fall out of sync with the repo.
 
 ---
 
@@ -282,7 +282,7 @@ Steps:
 3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists — see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
 4. Scaffold `misc/evals/<name>/` with `cd misc/evals && make init-evals SKILL=<name> [SIBLINGS="a,b"]` (see misc/evals/README.md), then expand `triggering.json` to ≥16 prompts (≥8 positives, ≥8 near-miss negatives).
 5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py`, one call per neighbour. A neighbour shares vocabulary or domain; zero neighbours is valid; skill-creator and terraform-skill are upstream-synced and excluded, and `apex` (the router, which has no eval folder) is excluded too.
-6. Fan out: add the routing row in [`skills/apex/SKILL.md`](skills/apex/SKILL.md) and any hand-written catalogue, then run `./misc/update-all-references.sh` (it regenerates `skills/README.md` and the README tables; never edit those blocks by hand) and `./misc/update-pages.sh`. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
+6. Fan out: add the routing row in [`skills/apex/SKILL.md`](skills/apex/SKILL.md) and any hand-written catalogue, then run `./misc/update-all-references.sh` (it regenerates `skills/README.md` and the README tables; never edit those blocks by hand) and `./misc/update-pages.sh`, after adding the skill's `SKILL_META` line in `misc/update-pages.sh` (title, summary under 160 characters, and group: one of the README headings in `README_GROUPS` in `misc/update-skills-references.sh`). `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
 7. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`.
 
 ### Pre-PR checklist for new skills
@@ -296,13 +296,13 @@ Verify each item before opening the PR.
 
 ### Keeping skill docs in sync after changes
 
-Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter description — should be followed by running the `update-docs` skill so wrappers, marker blocks, and prose references stay in sync. The skill walks both script-managed surfaces (`update-all-references.sh`, `update-pages.sh`) and hand-written prose, proposing diffs for anything stale.
+Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter description — should be followed by running the `update-docs` skill so wrappers, marker blocks, and prose references stay in sync; add or update the skill's `SKILL_META` line in `misc/update-pages.sh` (title, summary under 160 characters, and group: one of the README headings in `README_GROUPS` in `misc/update-skills-references.sh`) when you add a skill or change its description. The skill walks both script-managed surfaces (`update-all-references.sh`, `update-pages.sh`) and hand-written prose, proposing diffs for anything stale.
 
 ## Creating a New Runbook
 
 1. Create `skills/apex/runbooks/<skill>/<name>.md`, in the folder of the skill it runs with (every runbook is named after its folder except `eks-design/design.md`)
 2. Add a header naming the lifecycle and the skill: `> **Lifecycle:** Day <n>` and `> **Skill:** <skill>`
-3. Do not add a routing table: the apex skill's tables route (five of the moved runbooks, eks-build, eks-design, eks-genai, eks-platform-engineering and eks-security, still carry one; a later change removes them; the runbooks for the two vendored skills, eks-operation-review and eks-upgrade-check, keep a `## Routing` section on scope)
+3. Do not add a routing table: the apex skill's tables route (five of the moved runbooks, eks-build, eks-design, eks-genai, eks-platform-engineering and eks-security, still carry one; a later change removes them; the eks-upgrade-check runbook keeps a `## Routing` section on scope; the eks-operation-review runbook is upstream's workflow file, copied by `misc/sync-eks-operation-review-skill.sh` and fitted to the apex layout (edit 5 in `skills/eks-operation-review/UPSTREAM.md`), so it has neither the header of step 2 nor a routing section)
 4. Structure as phases with numbered checklists and STOP gates
 5. Check that a routing row in `skills/apex/SKILL.md` sends the request to that skill
 6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
@@ -310,16 +310,16 @@ Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter desc
 
 ## Keeping docs in sync (auto-generated catalogues)
 
-Two catalogues in the repo are **auto-generated** from each entry's frontmatter and must not be edited by hand:
+Two catalogues in the repo are **auto-generated** from each entry's frontmatter (the skill list in `README.md` from the `SKILL_META` table in `misc/update-pages.sh` instead) and must not be edited by hand:
 
 | Block | Rendered in | Source of truth | Regenerator |
 |---|---|---|---|
-| Skills Reference | `README.md`, `skills/README.md` | `skills/<name>/SKILL.md` frontmatter | `misc/update-skills-references.sh` |
+| Skills Reference | `README.md`, `skills/README.md` | `README.md`: the `SKILL_META` table (summary and group) in `misc/update-pages.sh`; `skills/README.md`: `skills/<name>/SKILL.md` frontmatter | `misc/update-skills-references.sh` |
 | Examples Reference | `README.md` | `examples/**/README.md` frontmatter | `misc/update-examples-references.sh` |
 
 Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` / `<!-- SKILLS_REFERENCE_END -->`. The regenerator owns everything between the markers; anything outside them is free.
 
-**One-shot refresh** (run this whenever you add a skill, runbook, or example, or change a frontmatter field):
+**One-shot refresh** (run this whenever you add a skill, runbook, or example, or change a frontmatter field or a `SKILL_META` line):
 
 ```bash
 ./misc/update-all-references.sh
@@ -327,7 +327,7 @@ Each block is delimited by HTML markers like `<!-- SKILLS_REFERENCE_START -->` /
 
 The generator scripts (including `./misc/update-pages.sh`) parse frontmatter with PyYAML, so running them locally requires it: `pip install pyyaml`.
 
-**CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` reports a status on every PR event once its workflows are allowed to run (none run while a PR has merge conflicts, and a PR from someone outside both this repository and its organization waits until someone with write access approves the run), but it does real work only when the PR changes a path the workflow watches; otherwise it is a no-op that passes. The `eval set hygiene` and `validate` checks (`.github/workflows/evals.yml`, `.github/workflows/devops-agent-validate.yml`) work the same way: green on a PR that touches none of their watched paths means not needed, not tested. The real work is `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check`. If the rendered blocks or Docusaurus wrappers diverge from frontmatter, the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
+**CI enforcement.** The `docs-sync` job in `.github/workflows/docs-sync.yml` reports a status on every PR event once its workflows are allowed to run (none run while a PR has merge conflicts, and a PR from someone outside both this repository and its organization waits until someone with write access approves the run), but it does real work only when the PR changes a path the workflow watches; otherwise it is a no-op that passes. The `eval set hygiene` and `validate` checks (`.github/workflows/evals.yml`, `.github/workflows/devops-agent-validate.yml`) work the same way: green on a PR that touches none of their watched paths means not needed, not tested. The real work is `./misc/update-all-references.sh --check` and `./misc/update-pages.sh --check`. If the rendered blocks or Docusaurus wrappers diverge from their source (frontmatter, or `SKILL_META` for the README skill list), the job fails and prints the exact diff. The fix is always the same: run both commands locally, commit the result.
 
 CI also strict-parses `SKILL.md` frontmatter via `misc/validate-frontmatter.py` before regenerating. The frontmatter must satisfy all of these rules:
 

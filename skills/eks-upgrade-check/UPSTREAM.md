@@ -15,7 +15,7 @@ The sync script applies three deterministic edits to upstream content:
 
 1. **`### MCP Server Setup` section is replaced.** Apex does not ship a project-root `.mcp.json`; MCP setup is delegated to the `eks-mcp-server` skill in this repo. The upstream's fallback note ("falls back to AWS CLI and kubectl") is preserved.
 2. **`steering/` -> `references/` rename.** Upstream's progressive-disclosure docs live under `steering/`. Apex renames them to `references/`, the Anthropic skill spec's canonical name for additional documentation. The sync script renames the directory on copy and rewrites all internal cross-refs from `steering/` to `references/` inside `SKILL.md` and the 8 progressive-disclosure files.
-3. **`description:` frontmatter is replaced with a "pushy" wording.** Upstream's description is a keyword list. Apex review feedback (#36) calls for natural-question phrasings ("can I upgrade my cluster?", "is my cluster ready for 1.32?", etc.) that mirror sibling skills like `eks-best-practices` and `eks-recon`. The sync script replaces the whole `description:` line on every run.
+3. **`description:` frontmatter is replaced with a "pushy" wording.** Upstream's description is a keyword list. Apex review feedback (#36) calls for natural-question phrasings ("can I upgrade my cluster?", "is my cluster ready for 1.32?", etc.) that mirror sibling skills like `eks-best-practices` and `eks-recon`. The sync script replaces the whole `description:` line on every run, keeping upstream's "Assessment-only ... all checks are strictly read-only" sentence (its colon becomes a semicolon, since our line is unquoted YAML).
 
 Everything else is byte-for-byte from upstream.
 

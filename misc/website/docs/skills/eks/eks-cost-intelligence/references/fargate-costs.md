@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/fargate-cos
 
 # Fargate Cost Checks
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Fargate profile detection for Step 0, plus Fargate-specific cost checks — pod request right-sizing against Fargate's vCPU/memory combinations, and capacity strategy for interruption-tolerant Fargate workloads
 >
 > Facts verified 2026-07-17 against https://docs.aws.amazon.com/eks/latest/userguide/fargate-pod-configuration.html, https://docs.aws.amazon.com/eks/latest/userguide/fargate.html, and https://docs.aws.amazon.com/savingsplans/latest/userguide/sp-services.html

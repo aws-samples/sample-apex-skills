@@ -6,8 +6,6 @@
       "Action": [
         "bedrock:InvokeModel",
         "bedrock:InvokeModelWithResponseStream",
-        "bedrock:Converse",
-        "bedrock:ConverseStream",
         "eks:Describe*",
         "eks:List*",
         "ec2:Describe*",

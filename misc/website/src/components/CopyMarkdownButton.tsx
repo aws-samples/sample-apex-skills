@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect, useId, useRef} from 'react';
 
 function toRawUrl(editUrl: string): string | null {
   // Match /blob/branch/path or /edit/branch/path
@@ -14,13 +14,18 @@ interface Props {
   editUrl: string;
 }
 
+// "Copy page" plus a menu: copy as markdown or view the .md source.
 export default function CopyMarkdownButton({editUrl}: Props): React.JSX.Element | null {
   const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const listId = useId();
   const rawUrl = toRawUrl(editUrl);
 
-  if (!rawUrl) return null;
-
   const handleCopy = useCallback(async () => {
+    if (!rawUrl) return;
+    setOpen(false);
     try {
       const res = await fetch(rawUrl);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -33,30 +38,76 @@ export default function CopyMarkdownButton({editUrl}: Props): React.JSX.Element 
     }
   }, [rawUrl]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent) {
+        if (e.key !== 'Escape') return;
+        setOpen(false);
+        if (menuRef.current?.contains(document.activeElement)) toggleRef.current?.focus();
+      } else if (!menuRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, [open]);
+
+  if (!rawUrl) return null;
+
   return (
-    <button
-      type="button"
-      className="copy-page-button"
-      onClick={handleCopy}
-      title="Copy source markdown to clipboard"
-      aria-label="Copy page"
+    <div
+      className="copy-page-menu"
+      ref={menuRef}
+      onBlur={(e) => {
+        if (!menuRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false);
+      }}
     >
-      {copied ? (
-        <>
-          <svg className="copy-page-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <button type="button" className="copy-page-button" onClick={handleCopy} title="Copy source markdown to clipboard">
+        {copied ? (
+          <svg className="copy-page-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="3.5 8.5 6.5 11.5 12.5 5.5" />
           </svg>
-          <span>Copied!</span>
-        </>
-      ) : (
-        <>
-          <svg className="copy-page-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        ) : (
+          <svg className="copy-page-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="5.5" y="5.5" width="7" height="8" rx="1" />
             <path d="M3.5 10.5v-7a1 1 0 0 1 1-1h7" />
           </svg>
-          <span>Copy page</span>
-        </>
+        )}
+        <span aria-live="polite">{copied ? 'Copied!' : 'Copy page'}</span>
+      </button>
+      <button
+        type="button"
+        ref={toggleRef}
+        className="copy-page-button copy-page-toggle"
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-controls={listId}
+        aria-label="More page actions"
+        onClick={() => setOpen(!open)}
+      >
+        <svg className="copy-page-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="4 6 8 10 12 6" />
+        </svg>
+      </button>
+      {open && (
+        <ul className="copy-page-list" id={listId}>
+          <li>
+            <button type="button" onClick={handleCopy}>
+              Copy as markdown
+            </button>
+          </li>
+          <li>
+            <a href={rawUrl} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+              View .md
+            </a>
+          </li>
+        </ul>
       )}
-    </button>
+    </div>
   );
 }

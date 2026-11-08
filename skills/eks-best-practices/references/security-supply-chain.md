@@ -91,6 +91,8 @@ Attestations are cryptographically signed statements that verify artifact integr
 
 **Kyverno policy — require images from ECR only:**
 
+> `ClusterPolicy` (`kyverno.io/v1`) is deprecated since Kyverno v1.19; `ValidatingPolicy` and `ImageValidatingPolicy` (`policies.kyverno.io/v1`) replace it ([Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)).
+
 ```yaml
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy

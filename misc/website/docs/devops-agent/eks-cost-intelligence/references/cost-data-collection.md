@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/cost-
 
 # Cost Data Collection
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Exact API calls and queries to pull cost and utilization data from Cost Explorer, CloudWatch Container Insights, and the Kubernetes API
 
 ---
@@ -149,7 +149,7 @@ for group in response["ResultsByTime"][0]["Groups"]:
 **Account tier check (pre-flight):** compare the STS GetCallerIdentity `Account` with the Organizations DescribeOrganization `MasterAccountId` (callable from any account in the organization). If they differ, this is a member account and the split cost allocation opt-in needs that payer account. If they are equal, this is the management account and the opt-in is in this account's Cost Management preferences. An error (not in an organization, or no permission) means a regular account, or unknown.
 
 **When Split Cost Allocation is not enabled:**
-Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
+Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
 
 ---
 

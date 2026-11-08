@@ -11,10 +11,10 @@ This page is generated from [skills/ecs-observability/references/launch-type-mat
 
 # ECS Observability — Launch-Type Support Matrix
 
-> **Part of:** [ecs-observability](../)
+> **Part of:** [ecs-observability](../index.md)
 > **Purpose:** The single per-capability support matrix across the four ECS launch types — EC2, Fargate, Managed Instances (MI), and ECS Anywhere (EXTERNAL). Scope-bleed between launch types is the #1 error class in ECS observability advice; check this table before making any capability claim.
 
-**For per-capability depth, see:** [log-delivery.md](log-delivery), [metrics-stacks.md](metrics-stacks), [tracing-and-signals.md](tracing-and-signals), [native-visibility-and-exec.md](native-visibility-and-exec)
+**For per-capability depth, see:** [log-delivery.md](log-delivery.md), [metrics-stacks.md](metrics-stacks.md), [tracing-and-signals.md](tracing-and-signals.md), [native-visibility-and-exec.md](native-visibility-and-exec.md)
 
 ---
 

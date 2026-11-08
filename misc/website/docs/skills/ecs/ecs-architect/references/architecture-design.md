@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-architect/references/architecture-design
 
 # ECS Architecture Design — Task Sizing and Service Parameters
 
-> **Part of:** [ecs-architect](../)
+> **Part of:** [ecs-architect](../index.md)
 > **Purpose:** Size ECS tasks and set the core service parameters once the compute model is chosen. Covers Fargate CPU/memory combinations, ephemeral storage (incl. EBS task volumes), deployment percentages, health-check grace period, deployment controller choice, and placement. Facts verified against AWS docs on **2026-07-09**.
 
 ---
@@ -57,7 +57,7 @@ Fargate requires CPU and memory at the **task** level. Only specific combination
 On EC2 you can set CPU/memory at the task level and/or the container level. Task-level limits cap the whole task; container-level `cpu` (shares) and `memory`/`memoryReservation` (hard/soft limits) control per-container allocation and bin-packing.
 
 - **Hard vs soft memory:** `memory` is a hard cap (container is killed if exceeded — a common OOM cause); `memoryReservation` is a soft floor used for placement. Set both thoughtfully; a hard limit too close to real usage causes OOM kills.
-- **Bin-packing:** size tasks so an integer number fit the chosen instance type with minimal waste. This interacts with the [mixed-ASG constraint](capacity-and-scaling#the-mixed-instance-type-asg-constraint) — keep one resource profile per ASG.
+- **Bin-packing:** size tasks so an integer number fit the chosen instance type with minimal waste. This interacts with the [mixed-ASG constraint](capacity-and-scaling.md#the-mixed-instance-type-asg-constraint) — keep one resource profile per ASG.
 - Managed Instances handles instance selection/placement for you; you still size the task.
 
 ---
@@ -89,7 +89,7 @@ Parameter semantics (min/max healthy percent, grace period) are defined in the s
 
 ## Service Auto Scaling (task-count scaling)
 
-Distinct from **cluster** capacity scaling ([capacity-and-scaling.md](capacity-and-scaling), which scales the *instances* under EC2/ASG capacity providers), **service auto scaling** scales the **number of tasks** in a service via **Application Auto Scaling**. Both layers matter: service scaling adds tasks, cluster scaling makes room for them. Design both for EC2-backed services; on Fargate only service scaling applies (capacity is implicit). ([Amazon ECS service auto scaling](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-auto-scaling.html))
+Distinct from **cluster** capacity scaling ([capacity-and-scaling.md](capacity-and-scaling.md), which scales the *instances* under EC2/ASG capacity providers), **service auto scaling** scales the **number of tasks** in a service via **Application Auto Scaling**. Both layers matter: service scaling adds tasks, cluster scaling makes room for them. Design both for EC2-backed services; on Fargate only service scaling applies (capacity is implicit). ([Amazon ECS service auto scaling](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-auto-scaling.html))
 
 **Policy types:**
 

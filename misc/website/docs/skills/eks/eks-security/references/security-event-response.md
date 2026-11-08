@@ -11,14 +11,14 @@ This page is generated from [skills/eks-security/references/security-event-respo
 
 # Security Event Response
 
-What to do when a security event touches an EKS cluster: a new CVE or advisory, a compromised image or package, a leaked credential, or a suspicious runtime finding. One generic workflow covers every event type, in seven steps: **scope, quick record, contain at once (proposed only), snapshot and investigate after isolation, remediate, verify, report.** Detection (Layer 5, [runtime-security.md](runtime-security)) and audit logging (Layer 6, [audit-logging.md](audit-logging)) produce the signals; this reference is how you respond.
+What to do when a security event touches an EKS cluster: a new CVE or advisory, a compromised image or package, a leaked credential, or a suspicious runtime finding. One generic workflow covers every event type, in seven steps: **scope, quick record, contain at once (proposed only), snapshot and investigate after isolation, remediate, verify, report.** Detection (Layer 5, [runtime-security.md](runtime-security.md)) and audit logging (Layer 6, [audit-logging.md](audit-logging.md)) produce the signals; this reference is how you respond.
 
 **Read and propose only.** Every command below that the skill runs is a read (`aws ... describe-*`, `list-*`, `get-*`; `kubectl get`, `kubectl logs`). Every change (NetworkPolicy, cordon, identity revocation, admission block, patch) is printed as a command or manifest for the team to review and run. The skill never applies, patches, scales, deletes, cordons, execs into a pod or reads a Secret's data.
 
 ## Before an event (prerequisites)
 
-- **Detective signal:** GuardDuty EKS Protection and Runtime Monitoring, findings to Security Hub ([runtime-security.md](runtime-security)).
-- **Forensic trail:** control-plane `audit` and `authenticator` logs, CloudTrail, VPC Flow Logs, with retention that meets the regime ([audit-logging.md](audit-logging)).
+- **Detective signal:** GuardDuty EKS Protection and Runtime Monitoring, findings to Security Hub ([runtime-security.md](runtime-security.md)).
+- **Forensic trail:** control-plane `audit` and `authenticator` logs, CloudTrail, VPC Flow Logs, with retention that meets the regime ([audit-logging.md](audit-logging.md)).
 - **A rehearsed runbook** that maps common detections (container breakout, reverse shell, crypto-mining, anomalous API call, leaked credential) to these steps and to owners. Practice it in game days; the [AWS Security Incident Response Guide](https://docs.aws.amazon.com/whitepapers/latest/aws-security-incident-response-guide/welcome.html) covers the account-level process.
 - **Design choices that make response possible:** immutable, minimal nodes (Bottlerocket, Auto Mode) make "replace the node" the clean default; least-privilege workload IAM (Pod Identity or IRSA) limits blast radius; default-deny NetworkPolicy per namespace makes an isolation policy a small delta; signed images with admission control make "redeploy from known-good" trustworthy.
 
@@ -26,7 +26,7 @@ What to do when a security event touches an EKS cluster: a new CVE or advisory, 
 
 | Event | Step 1 scopes by | Step 2 records | Typical containment proposal | Typical remediation |
 |---|---|---|---|---|
-| **New CVE or advisory** | Component and installed version (run [cve-advisory-review.md](cve-advisory-review) first) | Specs, digests and logs of the affected pods, if the team will contain them | Usually none beyond the advisory's workaround, if it has one | Patched add-on, AMI or image on the emergency path |
+| **New CVE or advisory** | Component and installed version (run [cve-advisory-review.md](cve-advisory-review.md) first) | Specs, digests and logs of the affected pods, if the team will contain them | Usually none beyond the advisory's workaround, if it has one | Patched add-on, AMI or image on the emergency path |
 | **Compromised image** (malware, known-bad, exploited CVE) | Image digest: every pod running it | Specs, logs and nodes of every pod running the digest | Pod-scoped isolation of those pods; block the digest at admission | Rebuild on a clean, patched base; redeploy by digest |
 | **Compromised package** (a dependency in an image) | Images whose lockfile or SBOM contains the package version; then their pods | Same as compromised image, plus the lockfile or SBOM that names the package | Pod-scoped isolation; block the affected digests | Rebuild from a lockfile pinned to a clean version, in an isolated build step |
 | **Leaked credential** (access key, role session, service account token) | The principal: which roles, Pod Identity associations, IRSA service accounts and pods use it | The principal's attached policies and the pods and service accounts that use it | Revoke or rotate the credential; revoke the role's active sessions | Rotate secrets the principal could read; narrow the role's policy |
@@ -34,7 +34,7 @@ What to do when a security event touches an EKS cluster: a new CVE or advisory, 
 
 ## Step 1: Scope
 
-Answer: which clusters, namespaces, workloads, images (by digest), packages and identities are involved. Start from the inventory the [cve-advisory-review.md](cve-advisory-review) collector writes when one exists; otherwise read live.
+Answer: which clusters, namespaces, workloads, images (by digest), packages and identities are involved. Start from the inventory the [cve-advisory-review.md](cve-advisory-review.md) collector writes when one exists; otherwise read live.
 
 | Question | Read-only command | Field that answers it |
 |---|---|---|
@@ -94,7 +94,7 @@ Every item is printed for the team to review and apply. Why each control works a
 
 - EC2 termination protection (`aws ec2 modify-instance-attribute --instance-id <id> --disable-api-termination`): not available on Spot, and it does not stop Auto Scaling scale-in, so on a node group also propose scale-in protection (`aws autoscaling set-instance-protection --instance-ids <id> --auto-scaling-group-name <asg> --protected-from-scale-in`).
 - Karpenter: `kubectl annotate node <node> karpenter.sh/do-not-disrupt=true`, which does not stop expiry, Spot interruption, manual deletion or Node Auto Repair.
-- Auto Mode: do not promise termination protection or a snapshot; neither is confirmed to work on Auto Mode instances, and every node has a 21-day maximum lifetime ([auto-mode-security.md](auto-mode-security)). Propose `kubectl annotate pod <pod> -n <ns> karpenter.sh/do-not-disrupt=true` on the pod, which Auto Mode honours ([Auto Mode disruption controls](https://docs.aws.amazon.com/eks/latest/userguide/auto-cost-control.html)).
+- Auto Mode: do not promise termination protection or a snapshot; neither is confirmed to work on Auto Mode instances, and every node has a 21-day maximum lifetime ([auto-mode-security.md](auto-mode-security.md)). Propose `kubectl annotate pod <pod> -n <ns> karpenter.sh/do-not-disrupt=true` on the pod, which Auto Mode honours ([Auto Mode disruption controls](https://docs.aws.amazon.com/eks/latest/userguide/auto-cost-control.html)).
 
 **Identity.** Each proposal names what it breaks; use the step 1 reads to list who shares the identity first.
 
@@ -113,7 +113,7 @@ Every item is printed for the team to review and apply. Why each control works a
 Once the pod is isolated:
 
 - Read `aws ec2 describe-instances --instance-ids <id>` (AMI, security groups, IAM instance profile, `MetadataOptions`, attached volumes).
-- **Propose, do not run:** snapshots of every EBS volume attached to the instance (root, data and EBS-backed PersistentVolumes; EFS and FSx are not snapshotted this way) (`aws ec2 create-snapshot --volume-id <vol> --description "<event-id> <node>"`), not on Auto Mode (step 3); volatile capture (memory, process and network state) by the team's forensic tooling before anything is terminated. On Auto Mode there is no SSH or SSM access to the node, so host-level capture is limited to what runs as a pod or through the APIs ([auto-mode-security.md](auto-mode-security)).
+- **Propose, do not run:** snapshots of every EBS volume attached to the instance (root, data and EBS-backed PersistentVolumes; EFS and FSx are not snapshotted this way) (`aws ec2 create-snapshot --volume-id <vol> --description "<event-id> <node>"`), not on Auto Mode (step 3); volatile capture (memory, process and network state) by the team's forensic tooling before anything is terminated. On Auto Mode there is no SSH or SSM access to the node, so host-level capture is limited to what runs as a pod or through the APIs ([auto-mode-security.md](auto-mode-security.md)).
 - Investigation itself (was the exposure used, what the attacker reached) is the team's step; this skill does not run it yet (issue 351 above).
 
 ## Step 5: Remediate
@@ -122,7 +122,7 @@ Patched add-on or node AMI, an image rebuilt on a patched base and redeployed by
 
 ## Step 6: Verify
 
-Re-run [cve-advisory-review.md](cve-advisory-review) for the advisory (verdict "not exposed" for every component in scope) and the [posture-check.md](posture-check) checks that touch the affected control (for example IMDS hop limit, NetworkPolicy default-deny, PSA level, workload identity).
+Re-run [cve-advisory-review.md](cve-advisory-review.md) for the advisory (verdict "not exposed" for every component in scope) and the [posture-check.md](posture-check.md) checks that touch the affected control (for example IMDS hop limit, NetworkPolicy default-deny, PSA level, workload identity).
 
 ## Step 7: Report
 

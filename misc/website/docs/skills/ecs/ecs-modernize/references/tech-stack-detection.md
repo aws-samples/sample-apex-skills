@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-modernize/references/tech-stack-detectio
 
 # Module: Tech Stack Detection
 
-> **Part of:** [ecs-modernize](../)
+> **Part of:** [ecs-modernize](../index.md)
 > **Purpose:** Identify the languages, frameworks, runtimes, declared versions, and application servers of the target application from source code — the evidence base every downstream analysis module builds on
 > **Prerequisites:** None (first module in the analysis pipeline)
 
