@@ -1,6 +1,6 @@
 ---
 title: "Layer 7a — Audit Logging & Monitoring"
-description: ""
+description: "Proving what happened is the backbone of every compliance audit."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/audit-logging.md
 format: md
 ---

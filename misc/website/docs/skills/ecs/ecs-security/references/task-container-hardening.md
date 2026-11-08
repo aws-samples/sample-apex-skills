@@ -1,6 +1,6 @@
 ---
 title: "Layer 3 — Task & Container Hardening"
-description: ""
+description: "What a container is allowed to do."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/task-container-hardening.md
 format: md
 ---

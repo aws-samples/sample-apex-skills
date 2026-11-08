@@ -1,6 +1,6 @@
 ---
 title: "Layer 4: Image Supply Chain Security"
-description: ""
+description: "The end-state is a complete chain: scan → sign → verify-at-admission."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/image-supply-chain.md
 format: md
 ---

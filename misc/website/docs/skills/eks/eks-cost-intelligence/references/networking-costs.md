@@ -1,6 +1,6 @@
 ---
 title: "Networking Costs"
-description: ""
+description: "Checks for topology-aware routing configuration, instance mode vs IP mode on load balancers, VPC endpoints for ECR/S3/STS, cross-AZ traffic potential based..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/references/networking-costs.md
 format: md
 ---

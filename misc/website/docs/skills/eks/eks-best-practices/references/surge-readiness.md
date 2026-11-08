@@ -1,6 +1,6 @@
 ---
 title: "Surge Readiness — Planned Traffic Peaks & Flash Events"
-description: ""
+description: "Prepare an Amazon EKS cluster for a known, high-slope traffic peak — a flash sale, marketing push, product launch, or seasonal peak event."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/surge-readiness.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Report Generation"
-description: ""
+description: "Generate dual-format assessment report matching the 6-section navigation structure: Overview → Assessment Summary → Routing Topology → Migration Approach →..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/report-generation.md
 format: md
 ---

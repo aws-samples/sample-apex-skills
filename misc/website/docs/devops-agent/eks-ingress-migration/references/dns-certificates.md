@@ -1,6 +1,6 @@
 ---
 title: "DNS & Certificate Management"
-description: ""
+description: "Assess DNS automation and TLS certificate management for Gateway API migration."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/dns-certificates.md
 format: md
 ---

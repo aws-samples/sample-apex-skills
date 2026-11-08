@@ -1,6 +1,6 @@
 ---
 title: "Layer 2: Identity & Access on EKS"
-description: ""
+description: "Two distinct concerns: pod-level IAM (how a pod gets AWS credentials) and cluster-level access (how an IAM principal maps to Kubernetes RBAC)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/identity-and-access.md
 format: md
 ---

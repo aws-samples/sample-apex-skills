@@ -1,6 +1,6 @@
 ---
 title: "Module: Compute and Capacity"
-description: ""
+description: "Detect compute model (launch type vs capacity provider strategy) and capacity configuration for ECS clusters and services"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/compute.md
 format: md
 ---

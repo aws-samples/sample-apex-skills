@@ -1,6 +1,6 @@
 ---
 title: "Layer 6 — Runtime Security"
-description: ""
+description: "Detect threats while tasks run — container breakouts, reverse shells, privilege escalation, crypto-mining, connections to malicious IPs."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/runtime-security.md
 format: md
 ---

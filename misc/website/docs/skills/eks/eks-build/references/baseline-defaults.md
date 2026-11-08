@@ -1,6 +1,6 @@
 ---
 title: "Baseline Defaults"
-description: ""
+description: "Apply these to ALL generated projects regardless of environment (production, staging, development) unless explicitly overridden."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/baseline-defaults.md
 format: md
 ---
@@ -84,7 +84,7 @@ Only attach these policies -- never application permissions:
 **Prerequisites:** The account must have the `AWSServiceRoleForEC2Spot` service-linked role for Spot instances. Create with `aws iam create-service-linked-role --aws-service-name spot.amazonaws.com` or via Terraform `aws_iam_service_linked_role`.
 
 **Key components:**
-1. `module "karpenter"` -- controller IAM role (Pod Identity) + node IAM role
+1. `module "karpenter"` with `enable_inline_policy = true` (the controller policy can exceed the 6,144-character managed policy limit; [lessons-learned.md Section 23](lessons-learned.md#23-karpenter-controller-iam-policy-size-limit)) -- controller IAM role (Pod Identity) + node IAM role
 2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`), with `depends_on = [module.eks_addons_webhooks]` in Pattern 1
    - Pattern 1 (not in air-gapped builds or partitions without ECR Public): configure the `helm` provider to log in to `oci://public.ecr.aws` with a fresh ECR Public token on every run (an `ephemeral "aws_ecrpublic_authorization_token"` in `us-east-1` feeding the provider's `registries` list), not resource-level `repository_username` / `repository_password`. See [lessons-learned.md Section 17](lessons-learned.md#17-karpenter-dedicated-submodule), "Stale public.ecr.aws login (403)".
 3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs

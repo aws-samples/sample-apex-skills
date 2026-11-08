@@ -1,6 +1,6 @@
 ---
 title: "Self-Hosted EKS MCP Server Setup"
-description: ""
+description: "The open-source EKS MCP server from awslabs/mcp runs locally on your machine, providing full control over authentication and configuration."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/references/self-hosted-setup.md
 format: md
 ---

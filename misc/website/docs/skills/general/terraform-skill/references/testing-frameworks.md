@@ -1,6 +1,6 @@
 ---
 title: "Testing Frameworks - Detailed Guide"
-description: ""
+description: "Detailed guides for Terraform/OpenTofu testing frameworks"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/testing-frameworks.md
 format: md
 ---

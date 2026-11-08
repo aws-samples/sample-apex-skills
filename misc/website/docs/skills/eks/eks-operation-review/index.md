@@ -1,7 +1,7 @@
 ---
-title: "EKS Operation Review (eks-operation-review): rated audit of a live EKS cluster"
+title: "EKS Operation Review (eks-operation-review)"
 sidebar_label: "eks-operation-review"
-description: "Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version"
+description: "EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, with prioritized recommendations and deprecated-API review with no target version"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/SKILL.md
 format: md
 ---

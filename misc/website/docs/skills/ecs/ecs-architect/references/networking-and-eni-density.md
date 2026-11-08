@@ -1,6 +1,6 @@
 ---
 title: "ECS Networking and ENI Density"
-description: ""
+description: "Design task networking for ECS — awsvpc task ENIs, ENI density and trunking on EC2, subnet/SG placement, load-balancer choice, and Service Connect vs..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/networking-and-eni-density.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Encryption & Secrets Management"
-description: ""
+description: "A first-class security area in the ECS Best Practices guide."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/encryption-and-secrets.md
 format: md
 ---

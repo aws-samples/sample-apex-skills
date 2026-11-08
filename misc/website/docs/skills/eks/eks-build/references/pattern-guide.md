@@ -1,6 +1,6 @@
 ---
 title: "EKS Infrastructure Pattern Comparison and Selection Guide"
-description: ""
+description: "Use Pattern 1 when the team is Terraform-native, needs deterministic plan/apply cycles, or operates in strict change-management environments."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/pattern-guide.md
 format: md
 ---

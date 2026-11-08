@@ -1,7 +1,7 @@
 ---
 title: "EKS Operation Review (eks-operation-review) for AWS DevOps Agent"
 sidebar_label: "eks-operation-review"
-description: "AWS DevOps Agent port. Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version"
+description: "AWS DevOps Agent port. Structured EKS operational excellence assessment of a live cluster across 10 areas: GREEN/AMBER/RED rated, prioritized recommendations"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/SKILL.md
 format: md
 ---

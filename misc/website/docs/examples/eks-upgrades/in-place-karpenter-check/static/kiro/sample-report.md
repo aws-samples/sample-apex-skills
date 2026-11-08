@@ -1,6 +1,6 @@
 ---
 title: "EKS Upgrade Readiness Assessment"
-description: ""
+description: "Your cluster cannot safely upgrade to 1.33."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/examples/eks-upgrades/in-place-karpenter-check/static/kiro/sample-report.md
 format: md
 ---

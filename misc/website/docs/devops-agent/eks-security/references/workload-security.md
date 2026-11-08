@@ -1,6 +1,6 @@
 ---
 title: "Layer 3: Workload Security (Pod Security + Network)"
-description: ""
+description: "Two compounding concerns: pod security posture (what a pod is allowed to do) and network policy (what a pod is allowed to talk to)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/workload-security.md
 format: md
 ---

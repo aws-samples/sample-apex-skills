@@ -1,6 +1,6 @@
 ---
 title: "Service and Deployment"
-description: ""
+description: "How to generate aws_ecs_service (or the module's service submodule) with the right deployment configuration."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/service-and-deployment.md
 format: md
 ---

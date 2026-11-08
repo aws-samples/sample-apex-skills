@@ -1,6 +1,6 @@
 ---
 title: "Capacity & Scaling — GPU at Scale on Amazon ECS"
-description: ""
+description: "The mechanics that make ECS-GPU capacity different from EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/capacity-and-scaling.md
 format: md
 ---

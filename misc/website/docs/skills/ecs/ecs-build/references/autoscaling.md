@@ -1,6 +1,6 @@
 ---
 title: "Service Auto Scaling"
-description: ""
+description: "Application Auto Scaling for ECS services."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/autoscaling.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Karpenter Best Practices"
-description: ""
+description: "Comprehensive Karpenter configuration and operational guidance for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/karpenter.md
 format: md
 ---

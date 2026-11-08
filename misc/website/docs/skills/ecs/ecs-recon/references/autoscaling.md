@@ -1,6 +1,6 @@
 ---
 title: "Module: Auto Scaling"
-description: ""
+description: "Discover Application Auto Scaling configuration for ECS services"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/autoscaling.md
 format: md
 ---

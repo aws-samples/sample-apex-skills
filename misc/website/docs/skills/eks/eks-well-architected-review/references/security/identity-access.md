@@ -1,6 +1,6 @@
 ---
 title: "🔒 Security — Identity & Access Management"
-description: ""
+description: "13 questions — API endpoint access, IAM role mapping, IRSA, OIDC, aws-auth, ClusterRole least privilege, RBAC bindings."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/security/identity-access.md
 format: md
 ---

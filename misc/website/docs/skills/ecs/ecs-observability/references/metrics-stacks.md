@@ -1,6 +1,6 @@
 ---
 title: "ECS Observability — Metrics Stack Selection"
-description: ""
+description: "Deep guidance on Container Insights (standard vs enhanced), free vended metrics, ADOT + Amazon Managed Service for Prometheus (AMP) + Amazon Managed Grafana..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-observability/references/metrics-stacks.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Section 04 — Services & Deployment Safety"
-description: ""
+description: "Assess deployment safety — the single richest vein of ECS production incidents."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/services-deployment.md
 format: md
 ---

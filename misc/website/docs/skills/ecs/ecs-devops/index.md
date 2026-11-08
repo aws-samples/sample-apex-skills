@@ -1,5 +1,5 @@
 ---
-title: "ECS DevOps (ecs-devops): deployments and CI/CD for Amazon ECS"
+title: "ECS DevOps (ecs-devops)"
 sidebar_label: "ecs-devops"
 description: "Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/SKILL.md

@@ -1,6 +1,6 @@
 ---
 title: "Data Collection Reference"
-description: ""
+description: "Collect all cluster data once into a work directory with fixed filenames."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/workflow.md
 format: md
 ---

@@ -1,5 +1,5 @@
 ---
-title: "EKS MCP Server (eks-mcp-server): connect your AI assistant to Amazon EKS"
+title: "EKS MCP Server (eks-mcp-server)"
 sidebar_label: "eks-mcp-server"
 description: "Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/SKILL.md

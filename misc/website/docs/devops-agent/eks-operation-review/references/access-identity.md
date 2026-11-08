@@ -1,6 +1,6 @@
 ---
 title: "Access & Identity"
-description: ""
+description: "Assess IAM and RBAC configuration for security and operational excellence — pod-level permissions, least privilege, and API server access controls."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/references/access-identity.md
 format: md
 ---

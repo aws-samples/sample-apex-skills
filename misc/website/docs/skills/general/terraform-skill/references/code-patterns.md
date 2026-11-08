@@ -1,6 +1,6 @@
 ---
 title: "Code Patterns & Structure"
-description: ""
+description: "Comprehensive patterns for Terraform/OpenTofu code structure and modern features"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/code-patterns.md
 format: md
 ---

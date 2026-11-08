@@ -1,6 +1,6 @@
 ---
 title: "Blind Comparator Agent"
-description: ""
+description: "Compare two outputs WITHOUT knowing which skill produced them."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/skill-creator/agents/comparator.md
 format: md
 ---

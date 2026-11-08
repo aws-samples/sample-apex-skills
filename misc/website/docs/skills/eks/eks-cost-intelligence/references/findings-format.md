@@ -1,6 +1,6 @@
 ---
 title: "Findings Format"
-description: ""
+description: "Output schema, severity thresholds, finding types enumeration, and remediation snippet templates for cost intelligence findings"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/references/findings-format.md
 format: md
 ---

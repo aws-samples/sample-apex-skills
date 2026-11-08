@@ -1,6 +1,6 @@
 ---
 title: "ECS Best-Practices Corpus (Shared Knowledge)"
-description: ""
+description: "The shared \"what good looks like\" knowledge that ecs-architect, ecs-operation-review, and ecs-cost-intelligence all draw on."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/best-practices-corpus.md
 format: md
 ---

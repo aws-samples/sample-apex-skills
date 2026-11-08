@@ -1,6 +1,6 @@
 ---
 title: "Agentic AI & RAG Patterns on EKS"
-description: ""
+description: "Patterns for retrieval-augmented generation and tool-using agents running on Amazon EKS — orchestration frameworks, vector store selection, tracing, and..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/agentic-and-rag.md
 format: md
 ---
