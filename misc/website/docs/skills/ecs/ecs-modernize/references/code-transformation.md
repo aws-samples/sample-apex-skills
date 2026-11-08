@@ -11,11 +11,11 @@ This page is generated from [skills/ecs-modernize/references/code-transformation
 
 # Module: Code Transformation
 
-> **Part of:** [ecs-modernize](../)
+> **Part of:** [ecs-modernize](../index.md)
 > **Purpose:** Construct exactly one Transformation_Plan for the code transformation in the approved migration plan, decide per work item whether AWS Transform augmentation (Transform_Augmentation) is applicable and worth proposing, and orchestrate the plan so that augmented items run as AWS Transform jobs while everything else runs as Agent_Executed_Items — all inside one uninterrupted transformation process
 > **Prerequisites:** **Execution_Gate passage** (Requirement 14). When Source_Analysis results exist, use them to derive the work items and to propose job scopes and transformation targets; when the assessment was skipped, derive the work items from the transformation targets the user specified at the gate
 
-This module owns code transformation during Migration_Execution: .NET Framework → modern .NET porting, and Java / Node.js / Python runtime version upgrades, among others. The module spans **two reference files**: this file defines the transformation process model (plan construction, augmentation determination, plan-change and availability-change handling), the evidence base for augmentation proposals, and the execution knowledge for Transform-augmented items. The hands-on porting and upgrade knowledge for **Agent_Executed_Items** lives in [code-transformation-agent-led.md](code-transformation-agent-led) — load it whenever the plan contains at least one agent-executed item.
+This module owns code transformation during Migration_Execution: .NET Framework → modern .NET porting, and Java / Node.js / Python runtime version upgrades, among others. The module spans **two reference files**: this file defines the transformation process model (plan construction, augmentation determination, plan-change and availability-change handling), the evidence base for augmentation proposals, and the execution knowledge for Transform-augmented items. The hands-on porting and upgrade knowledge for **Agent_Executed_Items** lives in [code-transformation-agent-led.md](code-transformation-agent-led.md) — load it whenever the plan contains at least one agent-executed item.
 
 This knowledge is application-level and orchestrator-neutral: it describes how the code is transformed, not where it will be deployed. Deployment-target knowledge lives in the path and environment modules.
 
@@ -130,7 +130,7 @@ Apply the [Determination Criteria](#determination-criteria) below. The outcome i
 
 ### Step 8 — Execute in plan order
 
-Execute work items in plan order. Transform-augmented items follow [Transform-Augmented Item Execution](#transform-augmented-item-execution); Agent_Executed_Items follow [code-transformation-agent-led.md](code-transformation-agent-led). Residual work that an AWS Transform job leaves unfinished is executed as Agent_Executed_Items inside the same plan.
+Execute work items in plan order. Transform-augmented items follow [Transform-Augmented Item Execution](#transform-augmented-item-execution); Agent_Executed_Items follow [code-transformation-agent-led.md](code-transformation-agent-led.md). Residual work that an AWS Transform job leaves unfinished is executed as Agent_Executed_Items inside the same plan.
 
 ### Step 9 — Record every action
 
@@ -192,7 +192,7 @@ Every work item to which Transform_Augmentation is not applied is positioned as 
 - **the transformation type is outside the documented coverage** (or coverage could not be confirmed — fail safe);
 - **the user did not adopt** the proposed augmentation.
 
-**Per-item reason reporting is mandatory**: report, for each Agent_Executed_Item, which of the above reasons applies (naming more than one when more than one holds). Agent_Executed_Items are executed with the knowledge in [code-transformation-agent-led.md](code-transformation-agent-led), in plan order, interleaved with augmented items as the order dictates.
+**Per-item reason reporting is mandatory**: report, for each Agent_Executed_Item, which of the above reasons applies (naming more than one when more than one holds). Agent_Executed_Items are executed with the knowledge in [code-transformation-agent-led.md](code-transformation-agent-led.md), in plan order, interleaved with augmented items as the order dictates.
 
 ### Plan Changes
 
@@ -216,7 +216,7 @@ If, during plan execution, a change in AWS Transform's availability is identifie
 ### Execution Ordering, Confirmations, and Logging
 
 - **Confirmation before execution.** No work item — Transform-augmented or agent-executed — starts executing until the **code transformation start** action-class confirmation of Requirement 14 is complete. The confirmation presents: the Transformation_Plan work-item list, the items receiving augmentation and the AWS Transform job scope, and the working branch / working directory for Agent_Executed_Items. If any of that presented content later changes (plan changes, scope changes, working-location changes), re-obtain the confirmation with the changed content before executing under it.
-- **Every action is logged, before the next action starts.** Record each attempted action of this module — AWS Transform job starts, Agent_Executed_Item executions, checkpoint commits, plan mutations — in the **Execution_Log**, success or failure alike, before beginning the next action. Each entry carries at least: the action type, the result (success or failure), the created/modified targets (repository, branch, file paths, and/or resource identifiers as applicable), a timestamp in a timezone-identifiable format, and whether a corresponding user confirmation existed. The log's storage forms and save-failure fallback follow the canonical [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff#execution_log-rules).
+- **Every action is logged, before the next action starts.** Record each attempted action of this module — AWS Transform job starts, Agent_Executed_Item executions, checkpoint commits, plan mutations — in the **Execution_Log**, success or failure alike, before beginning the next action. Each entry carries at least: the action type, the result (success or failure), the created/modified targets (repository, branch, file paths, and/or resource identifiers as applicable), a timestamp in a timezone-identifiable format, and whether a corresponding user confirmation existed. The log's storage forms and save-failure fallback follow the canonical [deploy-verify-handoff.md — Execution_Log Rules](deploy-verify-handoff.md#execution_log-rules).
 
 ---
 
@@ -335,7 +335,7 @@ Completion is established **by confirmation** — observed in the Transform expe
    - **Untransformed parts** — what the job did not convert: read the transformation reports, and check the documented gap classes of the [evidence table](#evidence-comparison-table) (`.svc` / `.ashx` handlers, WSDL service references, mixed aspx + cshtml, third-party UI libraries, Web Site projects). These are the candidate residual Agent_Executed_Items;
    - **Behavioral verification** — the need for functional testing beyond a successful build.
 3. **Never merge.** The skill does not merge the target branch into the source branch — under any circumstances. Report explicitly that the merge decision belongs to the user, after their code review.
-4. **Route residual work into the same plan.** Untransformed parts the user wants completed become Agent_Executed_Items in the same Transformation_Plan, executed per [code-transformation-agent-led.md](code-transformation-agent-led) — including the working-location choice that offers the Transform target branch, or a branch derived from it, as user-approved options.
+4. **Route residual work into the same plan.** Untransformed parts the user wants completed become Agent_Executed_Items in the same Transformation_Plan, executed per [code-transformation-agent-led.md](code-transformation-agent-led.md) — including the working-location choice that offers the Transform target branch, or a branch derived from it, as user-approved options.
 5. **Log the completion** in the Execution_Log before the next action starts.
 
 ### Job Failure or Incompletion — Honest Reporting and Fallback Options
@@ -346,7 +346,7 @@ When the job's failure — or its ending without completing the transformation �
 2. **Report how to check the failure reasons**: in the Web experience, the Dashboard's repository status table (In-progress / Failed / Success), the per-step status on the Tasks tab, the Worklog's action log, and the assessment / transformation reports; in the IDE experience, the Worklog window and the Visual Studio Output logs.
 3. **Present the options** — at minimum both of:
    - **Re-run with an adjusted scope** — narrow or split the job scope (for example, excluding the failing repository or project) and return to the [job-scope stage](#job-scope--proposal-and-confirmation) for re-confirmation before the re-run;
-   - **Execute as an Agent_Executed_Item within the SAME Transformation_Plan** — reposition the affected work item(s) to agent execution with the reason recorded ("Transform job failed / did not complete"), following the per-item reason-reporting discipline of the [Agent_Executed_Item rule](#non-applicable-and-non-adopted-items--agent_executed_item) and executed per [code-transformation-agent-led.md](code-transformation-agent-led).
+   - **Execute as an Agent_Executed_Item within the SAME Transformation_Plan** — reposition the affected work item(s) to agent execution with the reason recorded ("Transform job failed / did not complete"), following the per-item reason-reporting discipline of the [Agent_Executed_Item rule](#non-applicable-and-non-adopted-items--agent_executed_item) and executed per [code-transformation-agent-led.md](code-transformation-agent-led.md).
    Where the failure cause is identifiable and fixable (for example, missing dependencies flagged at plan approval), a third option — resolve the cause and re-run the same scope — may be presented alongside.
 4. **The choice is the user's** — the same operational-factors judgment as adoption (dimension (a)); the skill informs it and never decides it.
 5. **Log the failure** — action, result = failure, targets, timestamp, confirmation state — in the Execution_Log before the next action starts.

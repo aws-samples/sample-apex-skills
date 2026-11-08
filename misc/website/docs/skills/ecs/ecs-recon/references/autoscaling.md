@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/autoscaling.md](https:/
 
 # Module: Auto Scaling
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Discover Application Auto Scaling configuration for ECS services
 
 ## Table of Contents

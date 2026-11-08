@@ -27,7 +27,7 @@ For compliance regimes, **always enable `audit` and `authenticator` at minimum.*
 
 > **Gotcha:** EKS audit-log **filtering is not supported**: it's all-or-nothing per log type. Large clusters can generate substantial audit-log volume → meaningful CloudWatch Logs cost. Budget for it and set a retention policy that meets the regime (below) without over-retaining.
 
-During a security event, follow [security-event-response.md](security-event-response); it does not run log or CloudTrail queries yet (issue 351).
+During a security event, follow [security-event-response.md](security-event-response.md); it does not run log or CloudTrail queries yet (issue 351).
 
 ## CloudTrail: EKS API audit trail
 

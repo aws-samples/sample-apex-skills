@@ -48,7 +48,7 @@ References: [ECR interface VPC endpoints (PrivateLink)](https://docs.aws.amazon.
 
 > **Two easy-to-miss endpoint gotchas:**
 > - **ECR needs the S3 gateway endpoint**, not just the two ECR interface endpoints — image *layers* live in S3, so a private pull fails without it.
-> - **GuardDuty ECS Runtime Monitoring on Fargate** needs the security agent to reach GuardDuty; if you use restrictive SGs/private subnets you must allow the S3 managed prefix list (for the agent image) and the GuardDuty VPC endpoint GuardDuty creates. See [runtime-security.md](runtime-security) and [ECS-Fargate runtime coverage](https://docs.aws.amazon.com/guardduty/latest/ug/gdu-assess-coverage-ecs.html).
+> - **GuardDuty ECS Runtime Monitoring on Fargate** needs the security agent to reach GuardDuty; if you use restrictive SGs/private subnets you must allow the S3 managed prefix list (for the agent image) and the GuardDuty VPC endpoint GuardDuty creates. See [runtime-security.md](runtime-security.md) and [ECS-Fargate runtime coverage](https://docs.aws.amazon.com/guardduty/latest/ug/gdu-assess-coverage-ecs.html).
 
 ## Endpoint policies + egress control
 
@@ -64,7 +64,7 @@ Front any internet-facing ALB with **AWS WAF** (managed rule groups + rate-based
 
 ## Multi-tenancy isolation
 
-For multi-tenant workloads the network tier is only part of isolation. **On EC2/Managed Instances there is no per-task kernel isolation**, so co-located tenants can reach each other's task credentials and IMDS — for cross-tenant PII/PHI/cardholder separation use **Fargate** (per-task isolation), **account-per-tenant**, or at minimum separate clusters in **separate VPCs** with no shared SGs, plus per-tenant task roles and SG-per-service. Escalate multi-tenant regulated isolation on shared EC2 instances (see [engagement-and-response.md](engagement-and-response)).
+For multi-tenant workloads the network tier is only part of isolation. **On EC2/Managed Instances there is no per-task kernel isolation**, so co-located tenants can reach each other's task credentials and IMDS — for cross-tenant PII/PHI/cardholder separation use **Fargate** (per-task isolation), **account-per-tenant**, or at minimum separate clusters in **separate VPCs** with no shared SGs, plus per-tenant task roles and SG-per-service. Escalate multi-tenant regulated isolation on shared EC2 instances (see [engagement-and-response.md](engagement-and-response.md)).
 
 ## Cross-account / cross-VPC service-to-service
 

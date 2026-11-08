@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/networking-ing
 
 # EKS Networking — Ingress, Load Balancing & DNS
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity
 
-**For VPC CNI, subnet planning, IPv6, and IP management, see:** [Networking](networking)
-**For network policies and traffic control, see:** [Security — Runtime & Network](security-runtime-network)
+**For VPC CNI, subnet planning, IPv6, and IP management, see:** [Networking](networking.md)
+**For network policies and traffic control, see:** [Security — Runtime & Network](security-runtime-network.md)
 
 ---
 
@@ -382,7 +382,7 @@ resource "aws_eks_cluster" "private" {
 
 ## Network Policies
 
-For detailed network policy guidance including default-deny patterns, DNS allow rules, and policy engine comparison (VPC CNI native, Calico, Cilium), see **[Security — Runtime & Network](security-runtime-network#network-policies)**.
+For detailed network policy guidance including default-deny patterns, DNS allow rules, and policy engine comparison (VPC CNI native, Calico, Cilium), see **[Security — Runtime & Network](security-runtime-network.md#network-policies)**.
 
 **Quick summary:**
 

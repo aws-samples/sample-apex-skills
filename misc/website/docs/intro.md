@@ -24,7 +24,7 @@ Each skill is a self-contained folder of instructions, scripts, and references t
 
 ## Where to go next
 
-- [Getting Started](./getting-started) — install APEX in Claude Code or Kiro CLI.
-- [Skills](./skills) — browse the catalog.
-- [APEX router](./skills/general/apex): routes a request to the right skill and holds the runbooks, phased procedures that combine skills.
-- [Contributing](./contributing) — add or improve a skill.
+- [Getting Started](./getting-started.md) — install APEX in Claude Code or Kiro CLI.
+- [Skills](./skills/index.md) — browse the catalog.
+- [APEX router](./skills/general/apex/index.md): routes a request to the right skill and holds the runbooks, phased procedures that combine skills.
+- [Contributing](./contributing/index.md) — add or improve a skill.

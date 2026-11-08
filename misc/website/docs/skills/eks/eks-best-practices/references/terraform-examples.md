@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/terraform-exam
 
 # EKS Terraform Examples and Patterns
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Reference architecture examples from terraform-aws-modules/terraform-aws-eks with decision guidance
 
 ---
@@ -85,7 +85,7 @@ module "eks" {
 
 *Values shown for EKS v1.30+. Standard mode (default) auto-scales and is sufficient for most workloads.*
 
-> **Note:** The advanced control-plane configuration parameters (`kubeSchedulerConfig` / `kubeControllerManagerConfig` / `kubeApiServerConfig` — e.g. scheduler `MostAllocated`, HPA sync period, `eventTtl`) are **not yet exposed by the terraform-aws-eks module** (as of 2026-08-20) — set them via the Console, AWS CLI, SDKs, or CloudFormation. See [Scalability — Control Plane Configuration Parameters](scalability#control-plane-configuration-parameters).
+> **Note:** The advanced control-plane configuration parameters (`kubeSchedulerConfig` / `kubeControllerManagerConfig` / `kubeApiServerConfig` — e.g. scheduler `MostAllocated`, HPA sync period, `eventTtl`) are **not yet exposed by the terraform-aws-eks module** (as of 2026-08-20) — set them via the Console, AWS CLI, SDKs, or CloudFormation. See [Scalability — Control Plane Configuration Parameters](scalability.md#control-plane-configuration-parameters).
 
 ---
 

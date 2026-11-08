@@ -11,12 +11,12 @@ This page is generated from [skills/eks-best-practices/references/security-opera
 
 # EKS Security Operations
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** How a platform team runs EKS security over time: staying informed, patch cadence and the emergency path, build hygiene, and the shape of a security event response
 
-This file is knowledge only. Live checks (am I exposed, would my setup contain it) belong to eks-security: see "Live checks: eks-security" in [SKILL.md: Security Operations](../#security-operations).
+This file is knowledge only. Live checks (am I exposed, would my setup contain it) belong to eks-security: see "Live checks: eks-security" in [SKILL.md: Security Operations](../index.md#security-operations).
 
-**For hardening controls, see:** [Security](security) | [Runtime & Network](security-runtime-network) | [Supply Chain & Compliance](security-supply-chain) | [Container Registry](container-registry)
+**For hardening controls, see:** [Security](security.md) | [Runtime & Network](security-runtime-network.md) | [Supply Chain & Compliance](security-supply-chain.md) | [Container Registry](container-registry.md)
 
 ---
 
@@ -47,7 +47,7 @@ A team that learns about a fix at its next quarterly review has been exposed for
 | Your images and their packages | Amazon Inspector enhanced scanning on ECR, which rescans images when new CVEs are published, while they are within the configured re-scan duration (push date and last-in-use date; 7 days by default for new activations); set it to cover every image you still run (multi-architecture images: use the pull date, since last-in-use is not tracked) | Findings to EventBridge and Security Hub |
 | Your application dependencies | Your language ecosystem's advisory database through a dependency bot or software composition analysis in CI | Pull requests or CI findings |
 
-Read available add-on versions live (see [Cluster Upgrades](cluster-upgrades#add-on-compatibility-matrix-check)).
+Read available add-on versions live (see [Cluster Upgrades](cluster-upgrades.md#add-on-compatibility-matrix-check)).
 
 ### Get alerted, do not go looking
 
@@ -77,16 +77,16 @@ Two paths, written down before you need them: a **normal cadence** that keeps ev
 | EKS managed add-ons | `aws eks update-addon` to a newer patch version | A fixed interval (for example every 2 to 4 weeks), plus at every Kubernetes minor upgrade |
 | Self-managed controllers (Helm or GitOps) | Chart or image version bump through your pipeline | Same interval as managed add-ons |
 | Node images: managed node groups | `aws eks update-nodegroup-version` to the latest AMI release for the cluster version | A fixed interval |
-| Node images: Karpenter | Drift: a new AMI matching `amiSelectorTerms` (for example an `@latest` alias) replaces nodes; a pinned AMI needs a bump | Bounded by `expireAfter` (see [Karpenter](karpenter)) |
+| Node images: Karpenter | Drift: a new AMI matching `amiSelectorTerms` (for example an `@latest` alias) replaces nodes; a pinned AMI needs a bump | Bounded by `expireAfter` (see [Karpenter](karpenter.md)) |
 | Node images: EKS Auto Mode | AWS publishes a patched node AMI at most weekly; NodePools replace nodes through drift once it is available, within PDBs and NodePool disruption budgets. Built-in NodePools also expire nodes after 14 days; 21 days is the enforced maximum | Lower `expireAfter` on your own NodePools if you need faster rotation |
 | Node OS: Bottlerocket | In-place OS update through the Bottlerocket update operator, or node replacement | A fixed interval |
-| Base images | Rebuild and rescan (see [Container Registry](container-registry)) | Weekly is a common choice |
+| Base images | Rebuild and rescan (see [Container Registry](container-registry.md)) | Weekly is a common choice |
 | Application images | Rebuild on the refreshed base image, even with no code change | Each time the base image moves |
 
 Cadence rules:
 
 - Every change goes through non-production first, with the same tests each time, so a routine update stays routine.
-- PodDisruptionBudgets and topology spread let node rotation run during working hours without an outage (see [Reliability & Resiliency: Core](reliability-core)).
+- PodDisruptionBudgets and topology spread let node rotation run during working hours without an outage (see [Reliability & Resiliency: Core](reliability-core.md)).
 - Track the time from "fix released" to "fix running in production" per component. That number, not the cadence on paper, is your real exposure window.
 
 ### The emergency path
@@ -114,7 +114,7 @@ Build practices decide how far one bad dependency or base image can spread, and 
 
 ### Pin, then move the pin on purpose
 
-- Reference base images by digest (`FROM <registry>/<image>@sha256:<digest>`) and deploy application images by digest or immutable tag (see [Container Registry](container-registry)). A tag can be moved under you; a digest cannot.
+- Reference base images by digest (`FROM <registry>/<image>@sha256:<digest>`) and deploy application images by digest or immutable tag (see [Container Registry](container-registry.md)). A tag can be moved under you; a digest cannot.
 - Move a pinned digest through a reviewed change (a dependency bot pull request or a pipeline step), so every base image change is visible, tested and reversible.
 
 ### Install dependencies from a lockfile, in an isolated step
@@ -126,7 +126,7 @@ Build practices decide how far one bad dependency or base image can spread, and 
 
 - Image scanners match installed packages against CVE-indexed advisories. Content that is not tracked as a package, such as a certificate trust store bundled inside a language runtime, configuration files, or binaries and data copied into the image, may change in a security-relevant way without any CVE or scan finding.
 - So "no findings" is not "up to date". Rebuild application images on refreshed base images and runtime releases on a fixed cadence, whatever the scan says.
-- For SBOMs and image signing, see [Supply Chain & Compliance](security-supply-chain).
+- For SBOMs and image signing, see [Supply Chain & Compliance](security-supply-chain.md).
 
 ---
 
@@ -136,11 +136,11 @@ One shape for any event (prepare, scope, record, contain, investigate, remediate
 
 | Step | Question | Practice |
 |---|---|---|
-| 0. Prepare | Before any event | Turn on audit logging and GuardDuty EKS Protection and Runtime Monitoring beforehand (see [Runtime & Network](security-runtime-network)). For a compromised host and the order to redeploy in, follow the [AWS incident response guide](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html). |
+| 0. Prepare | Before any event | Turn on audit logging and GuardDuty EKS Protection and Runtime Monitoring beforehand (see [Runtime & Network](security-runtime-network.md)). For a compromised host and the order to redeploy in, follow the [AWS incident response guide](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html). |
 | 1. Scope | What is involved? | Clusters, namespaces, workloads, images by digest, packages, and the identities those workloads use (Pod Identity associations, IRSA roles, the node role). Start from the inventory, not from memory. |
 | 2. Record | What must we keep before acting? | Record the pod spec, node, image digest and logs (seconds, read through the API server), then contain at once. |
-| 3. Contain | How do we stop it spreading without taking down neighbours? | Isolate the affected pods, not the namespace (below). Limit egress, cordon the node, and cut off the identity the workload used. Protect the node where the platform allows it (EC2 termination protection, not on Spot, plus ASG scale-in protection; on Karpenter or Auto Mode, the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod (`kubectl annotate pod <pod> -n <namespace> karpenter.sh/do-not-disrupt=true`), which does not stop expiry, Spot interruption or node auto repair (on by default in Auto Mode); see [Karpenter](karpenter#do-not-disrupt-does-not-block-forceful-disruption)). |
-| 4. Investigate | Was it used? | After isolation: capture volatile state (see [Incident Response in Supply Chain & Compliance](security-supply-chain#incident-response)), snapshot the node's EBS volumes where the platform allows it, then check GuardDuty EKS findings, CloudTrail for the involved roles or keys, and the cluster audit log. Deleting, scaling down or draining destroys evidence; isolating does not, unless a liveness probe then fails and restarts the container. |
+| 3. Contain | How do we stop it spreading without taking down neighbours? | Isolate the affected pods, not the namespace (below). Limit egress, cordon the node, and cut off the identity the workload used. Protect the node where the platform allows it (EC2 termination protection, not on Spot, plus ASG scale-in protection; on Karpenter or Auto Mode, the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod (`kubectl annotate pod <pod> -n <namespace> karpenter.sh/do-not-disrupt=true`), which does not stop expiry, Spot interruption or node auto repair (on by default in Auto Mode); see [Karpenter](karpenter.md#do-not-disrupt-does-not-block-forceful-disruption)). |
+| 4. Investigate | Was it used? | After isolation: capture volatile state (see [Incident Response in Supply Chain & Compliance](security-supply-chain.md#incident-response)), snapshot the node's EBS volumes where the platform allows it, then check GuardDuty EKS findings, CloudTrail for the involved roles or keys, and the cluster audit log. Deleting, scaling down or draining destroys evidence; isolating does not, unless a liveness probe then fails and restarts the container. |
 | 5. Remediate | What removes the cause? | The patched add-on, node image, base image or package version, through the emergency path above. |
 | 6. Verify | Is it gone, and would it be contained next time? | Re-run the exposure check (eks-security C1) and the posture checks for the affected controls (eks-security C3). |
 | 7. Report | What happened and what changes? | What, when, exposure, evidence found (or "no evidence in sources X for window Y"), actions taken, open items, and the changes to cadence, alerting or controls. |
@@ -165,9 +165,9 @@ spec:
   - Egress
 ```
 
-Then label the affected pod: `kubectl label pod <pod> -n <namespace> quarantine=true`. To make it hold whatever other policies allow, use an Admin-tier ClusterNetworkPolicy Deny where the VPC CNI enforces policy (v1.21.1+, or Auto Mode; see [Runtime & Network](security-runtime-network)); under Calico or Cilium use that engine's cluster-wide deny. The pod still counts toward its ReplicaSet: pause Deployment rollouts (`kubectl rollout pause`) and hold HPA or manual scale-downs until evidence is taken; do not change its app labels. Notes:
+Then label the affected pod: `kubectl label pod <pod> -n <namespace> quarantine=true`. To make it hold whatever other policies allow, use an Admin-tier ClusterNetworkPolicy Deny where the VPC CNI enforces policy (v1.21.1+, or Auto Mode; see [Runtime & Network](security-runtime-network.md)); under Calico or Cilium use that engine's cluster-wide deny. The pod still counts toward its ReplicaSet: pause Deployment rollouts (`kubectl rollout pause`) and hold HPA or manual scale-downs until evidence is taken; do not change its app labels. Notes:
 
-- NetworkPolicy works only where a policy engine enforces it (VPC CNI with network policy enabled; EKS Auto Mode once the Network Policy Controller ConfigMap is applied; or, outside Auto Mode, another engine such as Calico or Cilium). VPC CNI policies do not apply to Fargate or Windows pods. Confirm enforcement before relying on it; Security Groups for Pods are the alternative where they are in use (see [Runtime & Network](security-runtime-network)).
+- NetworkPolicy works only where a policy engine enforces it (VPC CNI with network policy enabled; EKS Auto Mode once the Network Policy Controller ConfigMap is applied; or, outside Auto Mode, another engine such as Calico or Cilium). VPC CNI policies do not apply to Fargate or Windows pods. Confirm enforcement before relying on it; Security Groups for Pods are the alternative where they are in use (see [Runtime & Network](security-runtime-network.md)).
 - VPC CNI network policy enforcement might not work reliably for standalone pods (created without a controller, so no `metadata.ownerReferences`); do not rely on the quarantine policy alone for them ([Limit Pod traffic with Kubernetes network policies](https://docs.aws.amazon.com/eks/latest/userguide/cni-network-policy.html)).
 - Cutting off a workload identity has two parts: stop new credentials (remove the Pod Identity association or tighten the role's trust policy), and invalidate credentials already issued, which stay valid until they expire, by [revoking the role's active sessions](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_revoke-sessions.html). Revoking denies every session of the role, healthy pods included, until they fetch new credentials; check who shares the role first. For the node role this hits every node that uses it; follow the AWS guide (remove the role from the instance) instead.
 - Automate only the first containment step (for example a GuardDuty finding through EventBridge to a function that applies the quarantine label) and keep the rest a human decision; the label isolates only where the quarantine policy already exists in that pod's namespace: create it in every namespace beforehand (step 0) or use the Admin-tier ClusterNetworkPolicy.

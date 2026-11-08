@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/waste
 
 # Waste Calculation Formulas
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Dollar waste formulas for computing waste from utilization gaps, idle nodes, storage inefficiency, network costs, and missed Spot/Graviton opportunities
 
 ---
@@ -577,7 +577,7 @@ Cluster has 5 Spot-eligible workloads:
 | `workload_architecture` | Node label `kubernetes.io/arch` | amd64 |
 | `image_supports_arm64` | `docker manifest inspect` or ECR image index | true |
 | `workload_monthly_cost` | Allocated node cost | $192.00 |
-| `graviton_discount` | Graviton vs x86 price differential, by generation ([spot-graviton-adoption.md](spot-graviton-adoption) Check 1) | 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4 (against m6i) |
+| `graviton_discount` | Graviton vs x86 price differential, by generation ([spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1) | 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4 (against m6i) |
 
 #### Graviton Eligibility Criteria
 
@@ -798,7 +798,7 @@ def determine_confidence(data_sources: list[str]) -> str:
 
 - All prices are US East (N. Virginia) On-Demand rates. **Use the AWS Price List API for region-specific pricing** (see `cost-estimation-fallback.md` Step 2).
 - Spot discounts vary by instance type and region (40–90%). Use 65% as conservative default. **For production accuracy:** Use the EC2 DescribeSpotPriceHistory API to get current Spot pricing for the customer's instance types and region.
-- Graviton savings vary by generation, family and Region (us-east-1 On-Demand, 2026-11-07: 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4, none for Graviton5). Each figure compares m6i with Graviton, m family. Price both types when they are known (see [spot-graviton-adoption.md](spot-graviton-adoption) Check 1); otherwise use the target generation's figure, and when the target is unknown (a Karpenter NodePool admitting several generations) report the range.
+- Graviton savings vary by generation, family and Region (us-east-1 On-Demand, 2026-11-07: 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4, none for Graviton5). Each figure compares m6i with Graviton, m family. Price both types when they are known (see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1); otherwise use the target generation's figure, and when the target is unknown (a Karpenter NodePool admitting several generations) report the range.
 - Cross-AZ pricing is consistent across regions ($0.01/GiB each direction).
 - NAT Gateway pricing is consistent across regions ($0.045/GiB processed).
 - Storage pricing varies by region; us-east-1 rates used as reference.

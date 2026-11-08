@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/reliability-co
 
 # Reliability & Resiliency — Core Patterns
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Everyday reliability patterns for production EKS workloads — high availability, pod disruption budgets, health probes, topology spread, resource limits, and container lifecycle.
 
 ---
@@ -524,7 +524,7 @@ If ResourceQuota is enabled for compute resources, every container in that names
 
 ### In-Cluster Stateful Cache: Sizing & Blast Radius
 
-**Prefer the managed off-ramp first.** For a cache like Redis/Valkey or Memcached, [Amazon ElastiCache](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html) moves memory sizing, failover, and scaling out of your cluster's failure domain and off your operational plate — it is the first-order answer, and it is the same managed-services-first posture this skill takes elsewhere (see [observability.md — Architecture Principles](observability#architecture-principles)). Run a cache *in-cluster* deliberately (latency, cost, or data-locality reasons), not by default — and when you do, treat it as a sized, stateful workload, not disposable scratch space.
+**Prefer the managed off-ramp first.** For a cache like Redis/Valkey or Memcached, [Amazon ElastiCache](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html) moves memory sizing, failover, and scaling out of your cluster's failure domain and off your operational plate — it is the first-order answer, and it is the same managed-services-first posture this skill takes elsewhere (see [observability.md — Architecture Principles](observability.md#architecture-principles)). Run a cache *in-cluster* deliberately (latency, cost, or data-locality reasons), not by default — and when you do, treat it as a sized, stateful workload, not disposable scratch space.
 
 The reliability concern here is **Kubernetes resource management of a stateful in-cluster workload** — not tuning the cache engine itself (eviction policy, persistence, sharding are the datastore's own domain). Two distinct memory ceilings must agree:
 
@@ -533,7 +533,7 @@ The reliability concern here is **Kubernetes resource management of a stateful i
 | **Pod memory limit** | Kubernetes (`resources.limits.memory`) | Hit it → the **kernel** OOM-kills the container |
 | **Application max-memory** (e.g. cache `maxmemory`) | The cache config | Set at/above the pod limit → the pod is killed before the cache can evict; set well below → wasted headroom |
 
-Size the application ceiling *below* the pod limit so the cache evicts (or refuses writes, per its policy) **before** the container hits the pod limit and is OOM-killed — an app-level backpressure is recoverable; an OOM-kill is a hard restart that drops the whole working set at once. Size both for **real peak demand**, including the memory shape of new access patterns (a feature that caches larger or more objects changes the working set — this is exactly what a request-rate-only load test misses; see [surge-readiness.md — Load-Test Realism](surge-readiness#load-test-realism)).
+Size the application ceiling *below* the pod limit so the cache evicts (or refuses writes, per its policy) **before** the container hits the pod limit and is OOM-killed — an app-level backpressure is recoverable; an OOM-kill is a hard restart that drops the whole working set at once. Size both for **real peak demand**, including the memory shape of new access patterns (a feature that caches larger or more objects changes the working set — this is exactly what a request-rate-only load test misses; see [surge-readiness.md — Load-Test Realism](surge-readiness.md#load-test-realism)).
 
 **Blast radius.** A shared in-cluster cache is a single failure domain: if it OOMs, every dependent service degrades at once, and that can cascade upstream to the ingress/API gateway as latency and errors. Contain it:
 
@@ -541,7 +541,7 @@ Size the application ceiling *below* the pod limit so the cache evicts (or refus
 - **PDB + anti-affinity** so a replicated cache does not lose quorum to a single drain or node loss (see the `redis-pdb` example under [PDB Configuration Rules](#pdb-configuration-rules)).
 - **Don't fail readiness cluster-wide on a shared cache** — see [Probe Anti-Patterns](#probe-anti-patterns) for why, and the circuit-breaker / degraded-response alternatives.
 
-> Backup scope is a separate question: a cache is still correctly excluded from your backup set (it is reconstructible) — see [reliability-advanced.md — Velero Backup Tiers](reliability-advanced#velero-backup-tiers). "Don't back it up" never meant "don't size it."
+> Backup scope is a separate question: a cache is still correctly excluded from your backup set (it is reconstructible) — see [reliability-advanced.md — Velero Backup Tiers](reliability-advanced.md#velero-backup-tiers). "Don't back it up" never meant "don't size it."
 
 ---
 
@@ -780,7 +780,7 @@ For multi-region disaster recovery:
 
 ---
 
-For deployment strategies, zonal shift, large-cluster guidance, admission-controller topology enforcement, and chaos engineering, see [reliability-advanced.md](reliability-advanced).
+For deployment strategies, zonal shift, large-cluster guidance, admission-controller topology enforcement, and chaos engineering, see [reliability-advanced.md](reliability-advanced.md).
 
 ---
 
