@@ -90,7 +90,7 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Docs auto-gen blocks are stale
 
-          One of the marker-delimited catalogues in `README.md` or `skills/README.md` (Skills Reference, Examples Reference) diverged from the source of truth (`skills/*/SKILL.md` or `examples/**/README.md` frontmatter). The exact diff is in the job log above.
+          One of the marker-delimited catalogues in `README.md` or `skills/README.md` (Skills Reference, Examples Reference) diverged from the source of truth (the `SKILL_META` table in `misc/update-pages.sh` for the skill list in `README.md`, `skills/*/SKILL.md` frontmatter for `skills/README.md`, `examples/**/README.md` frontmatter for Examples Reference). The exact diff is in the job log above.
 
           **Fix:**
           ```bash

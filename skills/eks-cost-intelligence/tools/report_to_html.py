@@ -384,17 +384,23 @@ def md_to_html(md_content: str) -> str:
 
     def inline_format(text: str) -> str:
         """Apply inline formatting with cost-intelligence-specific patterns."""
-        text = html.escape(text)
+        text = html.escape(text).replace("\x00", "")
 
-        # Code spans first (protect content inside)
-        text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
-
-        # Links — only allow safe URL schemes
+        # Links: only allow safe URL schemes. Each href waits behind a
+        # placeholder until the passes below are done, so they cannot write
+        # markup into the attribute.
+        hrefs = []
         def render_link(match):
             label, url = match.group(1), match.group(2)
             safe = url.startswith(("http://", "https://", "mailto:", "#", "/"))
-            return f'<a href="{url}">{label}</a>' if safe else match.group(0)
+            if not safe:
+                return match.group(0)
+            hrefs.append(url)
+            return f'<a href="\x00{len(hrefs) - 1}\x00">{label}</a>'
         text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", render_link, text)
+
+        # Code spans
+        text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
 
         # Bold
         text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
@@ -499,7 +505,7 @@ def md_to_html(md_content: str) -> str:
             text,
         )
 
-        return text
+        return re.sub(r"\x00(\d+)\x00", lambda m: hrefs[int(m.group(1))], text)
 
     for line in lines:
         # Code blocks
