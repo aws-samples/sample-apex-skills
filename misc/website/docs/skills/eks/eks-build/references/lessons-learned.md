@@ -531,10 +531,14 @@ resource "kubernetes_namespace_v1" "argocd" {
 
 **Fix:** Add a `null_resource` with destroy-time provisioner that deletes capabilities via the EKS API before Terraform attempts deletion. Include `sleep 180` for ArgoCD capability deletion time.
 
-**Workaround:** Manually delete capabilities via API, remove from state, then destroy:
+**Workaround:** Delete each capability through the EKS API and wait until none is listed, remove only the `aws_eks_capability` resources from state, then show the destroy plan and apply it only after the user approves it:
 ```bash
-terraform state list | grep capability | xargs -I{} terraform state rm {}
-terraform destroy -auto-approve
+aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].capabilityName' --output text
+aws eks delete-capability --cluster-name <cluster> --capability-name <name>  # once per capability listed
+aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].capabilityName' --output text  # repeat until empty
+terraform state list | grep -E '(^|\.)aws_eks_capability\.' | xargs -I{} terraform state rm {}
+terraform plan -destroy -out=destroy.tfplan
+terraform apply destroy.tfplan  # only after the user approves the plan above
 ```
 
 ---
