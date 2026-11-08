@@ -18,7 +18,7 @@ Two compounding concerns: **pod security posture** (what a pod is allowed to do)
      Kyverno image rule   → block unsigned / high-severity images at admission
      (ImageValidatingPolicy; the legacy ClusterPolicy verifyImages is deprecated)
      (AWS Signer signatures: built-in verification cannot verify them; use the
-      kyverno-notation-aws extension on Kyverno 1.19.x or earlier, else Gatekeeper + Ratify,
+      kyverno-notation-aws extension on Kyverno v1.11 to 1.19.x, else Gatekeeper + Ratify,
       see image-supply-chain.md)
 ```
 

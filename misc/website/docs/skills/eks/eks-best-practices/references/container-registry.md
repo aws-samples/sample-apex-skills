@@ -374,7 +374,7 @@ DON'T:
 
 ## Managed Signing
 
-ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers configured with an AWS Signer plugin, such as Kyverno or OPA Gatekeeper with Ratify (Kyverno through the kyverno-notation-aws extension on 1.19.x or earlier; see the table below).
+ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers configured with an AWS Signer plugin, such as Kyverno or OPA Gatekeeper with Ratify (Kyverno through the kyverno-notation-aws extension on Kyverno v1.11 to 1.19.x; see the table below).
 
 ### How It Works
 
@@ -398,7 +398,7 @@ Managed signing pairs with Kubernetes admission controllers for deploy-time veri
 
 | Tool | How It Verifies |
 |---|---|
-| **Kyverno** | As of Kyverno v1.19.2, built-in Notation verification (`verifyImages` and `ImageValidatingPolicy`) cannot verify AWS Signer signatures. Use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, which runs the AWS Signer plugin ("Kyverno – A Kubernetes policy engine configured with an AWS Signer plugin for validating signatures.", [EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)); its sample is a `ClusterPolicy` (deprecated since v1.19 per [Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)), and the v1.20 release candidate stops enforcing legacy policies after the upgrade ([v1.20.0-rc.1 notes](https://github.com/kyverno/kyverno/releases/tag/v1.20.0-rc.1)), so this route needs Kyverno 1.19.x or earlier (recheck when v1.20 ships); on a newer Kyverno, use Gatekeeper with Ratify |
+| **Kyverno** | As of Kyverno v1.19.2, built-in Notation verification (`verifyImages` and `ImageValidatingPolicy`) cannot verify AWS Signer signatures. Use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, which runs the AWS Signer plugin ("Kyverno – A Kubernetes policy engine configured with an AWS Signer plugin for validating signatures.", [EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)); its sample is a `ClusterPolicy` (deprecated since v1.19 per [Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)), and Kyverno v1.20 (a release candidate as of 2026-11-08) no longer executes legacy policies ([Upgrading to Kyverno v1.20](https://kyverno.io/docs/installation/upgrading/)), so this route needs Kyverno v1.11 to 1.19.x (recheck when v1.20 ships); on a newer Kyverno, use Gatekeeper with Ratify. Pin the Kyverno version: a non-Helm upgrade to v1.20 leaves the policy NotReady and admits unsigned images |
 | **OPA Gatekeeper + Ratify** | Gatekeeper is the admission controller; Ratify (external data provider, configured with the AWS Signer plugin and a Notation trust policy) verifies the signature, and the constraint template blocks on Ratify's result (Ratify v1.4; enable dynamic plugins) |
 
 DO:
