@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-security/references/compliance-soc
 
 # SOC 2 on EKS — Quick-Start
 
-A per-regime quick-start for preparing an EKS-hosted service for a SOC 2 examination. Read the cross-regime scope table and language-precision rules in [compliance-regimes.md](compliance-regimes) first; this file is the SOC 2-specific depth. This is a starting-point quick-start, **not a complete SOC 2 readiness checklist** — it maps the EKS-relevant Trust Services Criteria, not the full control set an examination covers.
+A per-regime quick-start for preparing an EKS-hosted service for a SOC 2 examination. Read the cross-regime scope table and language-precision rules in [compliance-regimes.md](compliance-regimes.md) first; this file is the SOC 2-specific depth. This is a starting-point quick-start, **not a complete SOC 2 readiness checklist** — it maps the EKS-relevant Trust Services Criteria, not the full control set an examination covers.
 
 > **Compliance status changes over time — verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting coverage in any customer-facing document.**
 
@@ -36,11 +36,11 @@ A per-regime quick-start for preparing an EKS-hosted service for a SOC 2 examina
 
 - **Days 1-30 — start the evidence clock:** enable control-plane `audit`+`authenticator` logging + CloudTrail + GuardDuty + Security Hub (**CIS AWS Foundations + AWS FSBP**); enable ECR Enhanced Scanning; run `kube-bench`. Type II grades a *period* — the sooner these run, the sooner the observation window is clean.
 - **Days 31-60:** Pod Identity + Access Entries (CC6); PSA `restricted` + Kyverno (CC8); default-deny NetworkPolicy + SGP (CC6.6); document the change-management + access-review process (the *process* evidence auditors sample).
-- **Days 61-90:** Bottlerocket / CIS-hardened AL2023; image signing + admission verification; collect evidence via Security Hub + partner/GRC tooling — **there is no AWS-native Config conformance pack for SOC 2** (and AWS Audit Manager, which had a SOC 2 mapping, is in maintenance mode (existing setups only; see [compliance-accelerators.md](compliance-accelerators) for the dated status)); pull the **AWS SOC 2 report from Artifact** for the subservice carve-out; run the readiness assessment before the CPA examination.
+- **Days 61-90:** Bottlerocket / CIS-hardened AL2023; image signing + admission verification; collect evidence via Security Hub + partner/GRC tooling — **there is no AWS-native Config conformance pack for SOC 2** (and AWS Audit Manager, which had a SOC 2 mapping, is in maintenance mode (existing setups only; see [compliance-accelerators.md](compliance-accelerators.md) for the dated status)); pull the **AWS SOC 2 report from Artifact** for the subservice carve-out; run the readiness assessment before the CPA examination.
 
 ## Escalate
 
-First SOC 2 Type II on a mission-critical service; scoping which Trust Services Categories apply; multi-tenant SaaS confidentiality boundaries; or an auditor disputing the AWS subservice-organization carve-out. See [engagement-and-response.md](engagement-and-response).
+First SOC 2 Type II on a mission-critical service; scoping which Trust Services Categories apply; multi-tenant SaaS confidentiality boundaries; or an auditor disputing the AWS subservice-organization carve-out. See [engagement-and-response.md](engagement-and-response.md).
 
 ## Shared responsibility (SOC 2)
 

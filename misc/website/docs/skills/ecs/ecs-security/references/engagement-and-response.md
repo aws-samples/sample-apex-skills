@@ -35,10 +35,10 @@ Cross-account resource access (drives confused-deputy + `iam:PassRole` scoping) 
 ## The 5 adoption-challenge archetypes
 
 Identify the customer's #1 concern early — it shapes every subsequent step:
-1. **Role-trust firefight** — "ECS was unable to assume the role" blocking task launch → lead with the [identity-and-access](identity-and-access) trust-policy diagnosis, then least-privilege the role split.
+1. **Role-trust firefight** — "ECS was unable to assume the role" blocking task launch → lead with the [identity-and-access](identity-and-access.md) trust-policy diagnosis, then least-privilege the role split.
 2. **Compliance audit panic** — audit imminent, posture gap unclear → lead with the 30/60/90 non-disruptive baseline (CloudTrail + GuardDuty + ECR scanning + Security Hub ECS controls) and defer scope to the live Services-in-Scope page.
 3. **Secrets sprawl** — credentials in plaintext env vars → lead with Secrets Manager/SSM injection + execution-role permission + VPC endpoint.
-4. **Shared-responsibility confusion** — unclear what AWS vs customer secures across Fargate/EC2/MI → lead with the per-launch-type [shared-responsibility](shared-responsibility) split.
+4. **Shared-responsibility confusion** — unclear what AWS vs customer secures across Fargate/EC2/MI → lead with the per-launch-type [shared-responsibility](shared-responsibility.md) split.
 5. **Tooling sprawl** — many tools, no unified posture → lead with Security Hub aggregation + the ECS controls pack.
 
 ## Response framework (8 steps)

@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/argocd-pattern
 
 # ArgoCD Patterns for EKS
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** ArgoCD architecture patterns, deployment strategies, and multi-tenant RBAC for Amazon EKS
 
 ---

@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/compute.md](https://git
 
 # Module: Compute
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect compute strategy - Karpenter, Managed Node Groups, Auto Mode, Fargate, self-managed
 
 ## Table of Contents

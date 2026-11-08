@@ -30,9 +30,9 @@ Assessed).
 >
 > | Lever | Why not scored | Where it lives |
 > |---|---|---|
-> | **Spot vs On-Demand** | Spot under a stateful or latency-critical tier is *wrong*, not un-optimised. Keeping On-Demand can be the correct answer. | [cost-analysis.md](cost-analysis) Opportunity 2 |
-> | **Graviton vs x86** | Blocked by container image architecture, which is not observable from `aws`/`kubectl`. | [cost-analysis.md](cost-analysis) Opportunity 1 |
-> | **Extended Support surcharge** | Depends on today's date versus the EKS release calendar; scoring it would make the same cluster score differently on different days and break run-to-run determinism. | [cost-analysis.md](cost-analysis) Opportunity 7 |
+> | **Spot vs On-Demand** | Spot under a stateful or latency-critical tier is *wrong*, not un-optimised. Keeping On-Demand can be the correct answer. | [cost-analysis.md](cost-analysis.md) Opportunity 2 |
+> | **Graviton vs x86** | Blocked by container image architecture, which is not observable from `aws`/`kubectl`. | [cost-analysis.md](cost-analysis.md) Opportunity 1 |
+> | **Extended Support surcharge** | Depends on today's date versus the EKS release calendar; scoring it would make the same cluster score differently on different days and break run-to-run determinism. | [cost-analysis.md](cost-analysis.md) Opportunity 7 |
 >
 > **Consequence you must disclose:** a cluster that has already taken every major lever — 100% Spot,
 > 100% Graviton, on a current version — scores **exactly the same here** as one that has taken none.
@@ -435,7 +435,7 @@ kubectl get pv -o json
 - For boolean: present/true → `all`, absent/false → `none`
 
 **Remediation:** Snapshot anything you are not certain about first — `cost-8` and
-[cost-analysis.md](cost-analysis) both require this before a volume delete, and a PV delete usually
+[cost-analysis.md](cost-analysis.md) both require this before a volume delete, and a PV delete usually
 implies one. Then remove the PV and its backing volume:
 
 ```bash
@@ -560,7 +560,7 @@ create a gp3 class (`provisioner: ebs.csi.aws.com`, or `ebs.csi.eks.amazonaws.co
    their own charge, which erodes part of that 20% — so on large volumes this is a deliberate trade, not
    a free win.
 
-See the gp2/gp3 crossover detail in [cost-analysis.md](cost-analysis).
+See the gp2/gp3 crossover detail in [cost-analysis.md](cost-analysis.md).
 
 ---
 

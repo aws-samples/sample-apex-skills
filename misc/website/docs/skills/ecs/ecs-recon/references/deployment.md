@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/deployment.md](https://
 
 # Module: Deployment Configuration
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Discover deployment mechanisms and safety controls for ECS services
 
 ## Table of Contents

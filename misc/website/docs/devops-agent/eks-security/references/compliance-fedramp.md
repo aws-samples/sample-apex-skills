@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-security/references/compliance-fed
 
 # FedRAMP on EKS: Quick-Start
 
-A per-regime quick-start for preparing an EKS-hosted system for a FedRAMP assessment. Read the cross-regime scope table and language-precision rules in [compliance-regimes.md](compliance-regimes) first; this file is the FedRAMP-specific depth. This is a starting-point quick-start, **not a complete FedRAMP readiness checklist**: it maps the EKS-relevant NIST SP 800-53 Rev. 5 control families, not the full baseline an assessment covers.
+A per-regime quick-start for preparing an EKS-hosted system for a FedRAMP assessment. Read the cross-regime scope table and language-precision rules in [compliance-regimes.md](compliance-regimes.md) first; this file is the FedRAMP-specific depth. This is a starting-point quick-start, **not a complete FedRAMP readiness checklist**: it maps the EKS-relevant NIST SP 800-53 Rev. 5 control families, not the full baseline an assessment covers.
 
 > **Compliance status changes over time: verify on the live [AWS Services in Scope by Compliance Program: FedRAMP](https://aws.amazon.com/compliance/services-in-scope/FedRAMP/) page before quoting coverage for EKS and every other AWS service in the boundary in any customer-facing document.**
 
@@ -31,16 +31,16 @@ A per-regime quick-start for preparing an EKS-hosted system for a FedRAMP assess
 | CM: Configuration Management | PSA `restricted` + Kyverno admission; GitOps/CI for every change; ECR immutable tags; Bottlerocket or CIS-hardened AL2023 |
 | SC: System and Communications Protection | Default-deny NetworkPolicy + Security Groups for Pods; VPC private endpoints; KMS CMK envelope encryption of Secrets and data layers; TLS in-cluster; SC-13 follows the CR26 Cryptographic Module Use rules: document every module that protects federal customer data; validated (FIPS 140) modules are a MUST at Class D and a SHOULD at Class C. FIPS nodes: Bottlerocket FIPS AMIs, AL2023 with FIPS mode enabled, or an Auto Mode NodeClass with `advancedSecurity.fips: true` (US Regions). FIPS endpoints, for example: EKS service API `fips.eks.<region>.amazonaws.com` (US East/West; in GovCloud the FIPS endpoint is the standard `eks.<region>.amazonaws.com`), ECR `api.ecr-fips.<region>.amazonaws.com` and `dkr.ecr-fips.<region>.amazonaws.com`, and an ALB FIPS TLS policy such as `ELBSecurityPolicy-TLS13-1-2-FIPS-2023-04` (in GovCloud, confirm FIPS TLS termination with the account team); every other service the build calls: the [AWS FIPS](https://aws.amazon.com/compliance/fips/) page |
 | SI: System and Information Integrity | ECR Enhanced Scanning; GuardDuty for EKS (audit-log and runtime monitoring); node patching through managed node groups or Auto Mode |
-| IR: Incident Response | GuardDuty + Security Hub findings into the incident process; see [security-event-response.md](security-event-response) |
+| IR: Incident Response | GuardDuty + Security Hub findings into the incident process; see [security-event-response.md](security-event-response.md) |
 | CP: Contingency Planning | Multi-AZ node groups, PDBs, backup/restore of cluster state and data |
-| RA: Risk Assessment | Image and node vulnerability scanning; `kube-bench`; [posture-check.md](posture-check) |
+| RA: Risk Assessment | Image and node vulnerability scanning; `kube-bench`; [posture-check.md](posture-check.md) |
 | SR: Supply Chain Risk Management | Image signing (Cosign or Notation) verified at admission; trusted registries only |
 
 ## Config conformance packs (Layer 7)
 
 - One pack per Rev5 baseline, names unchanged by the class rename: **"Operational Best Practices for FedRAMP(Low)"** (Class B), **"Operational Best Practices for FedRAMP(Moderate)"** (Class C), and Class D split across **"Operational Best Practices for FedRAMP (High Part 1)"** and **"Operational Best Practices for FedRAMP (High Part 2)"**. There is no bare "FedRAMP" pack among the console sample templates (the awslabs/aws-config-rules repo still holds an older bare template). "Operational Best Practices for NIST 800-53 rev 5" is a separate pack.
 - **The packs are account-level evidence.** Across the four FedRAMP packs, the only EKS-specific rule is `eks-endpoint-no-public-access` (High Part 2). In-cluster controls (RBAC, PSA, NetworkPolicy, admission) need their own evidence: `kube-bench`, Kyverno policy reports, the posture check.
-- AWS Audit Manager is in maintenance mode (existing setups only; see [compliance-accelerators.md](compliance-accelerators) for the dated status).
+- AWS Audit Manager is in maintenance mode (existing setups only; see [compliance-accelerators.md](compliance-accelerators.md) for the dated status).
 
 ## 30 / 60 / 90 quick-start
 
@@ -50,7 +50,7 @@ A per-regime quick-start for preparing an EKS-hosted system for a FedRAMP assess
 
 ## Escalate
 
-Class D (High) or DoD Impact Level work in GovCloud; a first agency ATO for the customer's system; deciding which controls are inherited from AWS versus owned by the customer; or an assessor disputing AWS-inherited controls. See [engagement-and-response.md](engagement-and-response).
+Class D (High) or DoD Impact Level work in GovCloud; a first agency ATO for the customer's system; deciding which controls are inherited from AWS versus owned by the customer; or an assessor disputing AWS-inherited controls. See [engagement-and-response.md](engagement-and-response.md).
 
 ## Shared responsibility (FedRAMP)
 

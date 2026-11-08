@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/iac.md](https://github.
 
 # Module: IaC Detection
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Detect Infrastructure-as-Code tooling managing ECS resources
 
 ## Table of Contents

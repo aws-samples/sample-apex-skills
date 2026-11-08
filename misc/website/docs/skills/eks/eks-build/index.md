@@ -1,6 +1,7 @@
 ---
-title: "eks-build"
-description: "Use when building EKS clusters. Generates complete, production-ready Terraform projects with optional ArgoCD GitOps integration. Handles environment-specific constraints: air-gapped/VPC-endpoint-only networks, enterprise proxies, private container registries, compliance requirements. Supports 3 patterns: full Terraform, ArgoCD+Terraform, ArgoCD+ACK/KRO. Includes validated modules, two-phase webhook ordering, IRSA/Pod Identity, and 29+ addon configurations. Ask interactive questions or accept requirements YAML. Also use when (1) generating EKS Terraform code from scratch, (2) creating GitOps-managed EKS addons with ArgoCD, (3) scaffolding EKS projects with compliance constraints, (4) implementing two-phase webhook ordering for EKS addons, (5) configuring IRSA or Pod Identity for EKS workloads, (6) generating ArgoCD ApplicationSets for EKS addon management, or (7) comparing deployment patterns for implementation decisions. Skip for Amazon ECS (use ecs-build)."
+title: "EKS Build (eks-build): production-ready Terraform for Amazon EKS"
+sidebar_label: "eks-build"
+description: "Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/SKILL.md
 format: md
 ---
@@ -64,7 +65,7 @@ The references in this skill cover the most common scenarios. For anything beyon
 | **Air-gapped support** | Best (Terraform controls all images) | Good (ECR mirrors + ArgoCD) | Good (same as 2a) |
 | **Status** | **Validated** | **Validated** | **Validated** |
 
-For detailed architecture, trade-offs, and selection criteria see [references/pattern-guide.md](references/pattern-guide).
+For detailed architecture, trade-offs, and selection criteria see [references/pattern-guide.md](references/pattern-guide.md).
 
 ### Pattern 2a vs 2b -- The Defining Difference
 
@@ -104,20 +105,20 @@ Generate root Terraform files under `projects/<project-name>/code/` following `t
 - **Pattern 1** -- `main.tf` implements two-phase module architecture (Critical Rule 1). Phase 1: LBC + Gatekeeper with `wait = true`. Phase 2: all remaining addons with `depends_on = [module.eks_addons_webhooks]`.
 - **Pattern 2a/2b** -- `main.tf` provisions EKS cluster and GitOps Bridge. For 2a include IRSA roles. For 2b include only controller bootstrap IAM.
 
-Before generating, search the internet for latest stable versions of `terraform-aws-modules/eks`, `terraform-aws-modules/vpc`, `aws-ia/eks-blueprints-addons`, and all Helm charts. Pin exact versions. See [references/version-matrix.md](references/version-matrix).
+Before generating, search the internet for latest stable versions of `terraform-aws-modules/eks`, `terraform-aws-modules/vpc`, `aws-ia/eks-blueprints-addons`, and all Helm charts. Pin exact versions. See [references/version-matrix.md](references/version-matrix.md).
 
 ### Step 5: Generate Required Modules
 
 Under `projects/<project-name>/code/modules/`:
-- `eks-cluster/` -- always. Wraps `terraform-aws-modules/eks` with opinionated defaults from [references/baseline-defaults.md](references/baseline-defaults).
-- `custom-addons/` -- if custom addons enabled. See [references/addon-catalog.md](references/addon-catalog).
+- `eks-cluster/` -- always. Wraps `terraform-aws-modules/eks` with opinionated defaults from [references/baseline-defaults.md](references/baseline-defaults.md).
+- `custom-addons/` -- if custom addons enabled. See [references/addon-catalog.md](references/addon-catalog.md).
 - `kyverno-policies/` -- if Kyverno CIS benchmark enabled.
 - `eks-tenants/` -- if multi-tenancy enabled.
 - `eks-gitops-bridge/` -- Pattern 2 only.
 
 ### Step 6-7: Configure and Customize
 
-Edit `configs/*.yaml` based on requirements and apply customization patches per [references/customization-guide.md](references/customization-guide):
+Edit `configs/*.yaml` based on requirements and apply customization patches per [references/customization-guide.md](references/customization-guide.md):
 - Air-gapped, Enterprise proxy, Private registry, Compliance-strict
 
 ### Step 8: Generate GitOps Artifacts (Pattern 2 only)
@@ -130,7 +131,7 @@ Generate README and run `scripts/validate_project.sh` to verify structure, forma
 
 ## Critical Build Rules
 
-Non-negotiable lessons from production deployments. Violating any causes deployment failures. See [references/lessons-learned.md](references/lessons-learned) for full context.
+Non-negotiable lessons from production deployments. Violating any causes deployment failures. See [references/lessons-learned.md](references/lessons-learned.md) for full context.
 
 ### 1. Two-Phase Module Architecture (Pattern 1)
 
@@ -159,7 +160,7 @@ Thick-plugin pod-lookup race blocks ALL new pod creation. Never enable.
 
 ### 6. Version Pinning -- Always Search Internet
 
-Never rely on module defaults or hardcoded versions. Search for every addon and module version before generating. See [references/version-matrix.md](references/version-matrix).
+Never rely on module defaults or hardcoded versions. Search for every addon and module version before generating. See [references/version-matrix.md](references/version-matrix.md).
 
 ### 7. Kyverno syncOptions (Pattern 2)
 
@@ -189,7 +190,7 @@ S3 buckets persist after `terraform destroy` because the controller is deleted f
 
 OpenTofu v1.10.6 has severe `depends_on` performance regression (30+ min plan vs < 2 min with Terraform v1.14.5). Require HashiCorp Terraform v1.14.5+.
 
-Pin it in `versions.tf` with `required_version = ">= 1.14.5"` (see [versions.tf and backend.hcl](#versionstf-and-backendhcl)); this is a floor on purpose, not terraform-skill's minor pin, so any later release passes. Pre-flight before `terraform init`: the first line of `terraform version` must read `Terraform v1.14.5` or later; `OpenTofu v...` means the binary is OpenTofu (fix in [lessons-learned.md Section 12](references/lessons-learned#12-use-hashicorp-terraform-not-opentofu)).
+Pin it in `versions.tf` with `required_version = ">= 1.14.5"` (see [versions.tf and backend.hcl](#versionstf-and-backendhcl)); this is a floor on purpose, not terraform-skill's minor pin, so any later release passes. Pre-flight before `terraform init`: the first line of `terraform version` must read `Terraform v1.14.5` or later; `OpenTofu v...` means the binary is OpenTofu (fix in [lessons-learned.md Section 12](references/lessons-learned.md#12-use-hashicorp-terraform-not-opentofu)).
 
 ### 12. ArgoCD EKS Capability Requires IAM Identity Center
 
@@ -199,10 +200,10 @@ The AWS-managed ArgoCD EKS Capability requires an existing IAM Identity Center i
 
 | Constraint | Trigger | Guide |
 |-----------|---------|-------|
-| Air-gapped | `network.air_gapped = true` | [customization-guide.md S1](references/customization-guide) |
-| Enterprise proxy | `network.proxy.enabled = true` | [customization-guide.md S2](references/customization-guide) |
-| Private registry | `registry.type = "private"` | [customization-guide.md S3](references/customization-guide) |
-| Compliance-strict | Security posture requirement | [customization-guide.md S4](references/customization-guide) |
+| Air-gapped | `network.air_gapped = true` | [customization-guide.md S1](references/customization-guide.md) |
+| Enterprise proxy | `network.proxy.enabled = true` | [customization-guide.md S2](references/customization-guide.md) |
+| Private registry | `registry.type = "private"` | [customization-guide.md S3](references/customization-guide.md) |
+| Compliance-strict | Security posture requirement | [customization-guide.md S4](references/customization-guide.md) |
 
 ## Output Structure
 
@@ -318,10 +319,10 @@ Every item must be done before handoff:
 
 Read these as needed based on the task at hand:
 
-- [Baseline Defaults](references/baseline-defaults) -- Read when generating cluster, compute, networking, or security configuration. Covers all default values applied to every project.
-- [Pattern Guide](references/pattern-guide) -- Read when selecting between patterns or implementing pattern-specific architecture.
-- [Customization Guide](references/customization-guide) -- Read when applying air-gapped, proxy, private registry, or compliance constraints.
-- [Addon Catalog](references/addon-catalog) -- Read when configuring specific addons or adding custom addons. Covers all 29+ supported addons.
-- [Lessons Learned](references/lessons-learned) -- Read when troubleshooting deployment failures or understanding why a Critical Build Rule exists.
-- [Version Matrix](references/version-matrix) -- Read when looking up authoritative version sources for addons and Terraform modules.
-- [Checkov Config](references/checkov-config) -- Read when setting up security scanning for generated Terraform code.
+- [Baseline Defaults](references/baseline-defaults.md) -- Read when generating cluster, compute, networking, or security configuration. Covers all default values applied to every project.
+- [Pattern Guide](references/pattern-guide.md) -- Read when selecting between patterns or implementing pattern-specific architecture.
+- [Customization Guide](references/customization-guide.md) -- Read when applying air-gapped, proxy, private registry, or compliance constraints.
+- [Addon Catalog](references/addon-catalog.md) -- Read when configuring specific addons or adding custom addons. Covers all 29+ supported addons.
+- [Lessons Learned](references/lessons-learned.md) -- Read when troubleshooting deployment failures or understanding why a Critical Build Rule exists.
+- [Version Matrix](references/version-matrix.md) -- Read when looking up authoritative version sources for addons and Terraform modules.
+- [Checkov Config](references/checkov-config.md) -- Read when setting up security scanning for generated Terraform code.
