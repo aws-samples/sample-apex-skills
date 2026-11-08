@@ -717,20 +717,26 @@ def append_history(skill: str, entry: dict) -> None:
 # ---------- AWS read-only session --------------------------------------------
 
 
-def mint_federation_token(policy_file: Path, name: str, duration: int) -> dict:
-    """Run `aws sts get-federation-token` with a session policy."""
-    r = subprocess.run(
-        [
-            "aws", "sts", "get-federation-token",
-            "--name", name,
-            "--policy", f"file://{policy_file}",
-            "--duration-seconds", str(duration),
-            "--output", "json",
-        ],
-        capture_output=True, text=True,
-    )
+def mint_federation_token(
+    policy_file: Path, name: str, duration: int, tags: dict[str, str] | None = None
+) -> dict:
+    """Run `aws sts get-federation-token` with a session policy and optional session tags."""
+    cmd = [
+        "aws", "sts", "get-federation-token",
+        "--name", name,
+        "--policy", f"file://{policy_file}",
+        "--duration-seconds", str(duration),
+        "--output", "json",
+    ]
+    if tags:
+        cmd += ["--tags", *(f"Key={k},Value={v}" for k, v in tags.items())]
+    r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
-        raise RuntimeError(f"get-federation-token failed: {r.stderr.strip()}")
+        hint = (
+            "; session tags need sts:TagSession (set APEX_READONLY_SESSION_TAGS=0 to mint without tags)"
+            if tags else ""
+        )
+        raise RuntimeError(f"get-federation-token failed: {r.stderr.strip()}{hint}")
     return json.loads(r.stdout)["Credentials"]
 
 
@@ -1033,8 +1039,13 @@ def main() -> int:
         if not policy.exists():
             print(f"aws session policy not found: {policy}", file=sys.stderr)
             return 2
+        tags = None
+        if os.environ.get("APEX_READONLY_SESSION_TAGS", "1") != "0":
+            run_id = f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{os.getpid()}"
+            tags = {"apex-tool": "run_task_evals", "apex-run": run_id}
+            print(f"[task] session tags: apex-tool=run_task_evals apex-run={run_id}", file=sys.stderr)
         creds = mint_federation_token(
-            policy, name=f"evals-readonly-{os.getpid()}", duration=args.aws_duration
+            policy, name=f"evals-readonly-{os.getpid()}", duration=args.aws_duration, tags=tags
         )
         extra_env["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
         extra_env["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
