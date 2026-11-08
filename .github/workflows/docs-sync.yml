@@ -6,8 +6,9 @@ on:
   # runs on every pull request and skips its real work when no watched path
   # changed (see .github/scripts/ci-gate.sh).
   pull_request:
-  # Started by vendor-update.yml on its bot branches: pull requests opened
-  # with GITHUB_TOKEN get pull_request runs that wait for a maintainer's approval.
+  # Started by vendor-update.yml on its bot branches: pull requests opened or
+  # updated with GITHUB_TOKEN get pull_request runs that wait for approval by a
+  # user with write access.
   workflow_dispatch:
   push:
     branches:

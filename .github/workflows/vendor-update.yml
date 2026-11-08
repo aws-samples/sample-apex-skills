@@ -218,12 +218,12 @@ jobs:
             automated
 
       # A pull request opened or updated with GITHUB_TOKEN gets pull_request
-      # runs that wait for a maintainer's approval, so the required checks stay
+      # runs that wait for approval by a user with write access, so the required checks stay
       # Expected. A workflow_dispatch event from GITHUB_TOKEN starts a run on the
       # branch's last commit with no approval: dispatch each workflow that owns a
       # required check. If a dispatched check fails or is cancelled, re-run it
-      # from the Actions tab: the next weekly run dispatches again only when the
-      # bot branch changes.
+      # from the Actions tab: a later run of this workflow dispatches again only
+      # when it changes the bot branch.
       - name: Run the required checks on the bot branch
         if: >-
           contains(fromJSON('["created", "updated"]'), steps.cpr.outputs.pull-request-operation) ||
