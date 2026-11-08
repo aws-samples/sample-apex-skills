@@ -11,7 +11,7 @@
 [![License: MIT-0](https://img.shields.io/badge/license-MIT--0-green)](LICENSE)
 [![docs-sync](https://github.com/aws-samples/sample-apex-skills/actions/workflows/docs-sync.yml/badge.svg)](https://github.com/aws-samples/sample-apex-skills/actions/workflows/docs-sync.yml)
 
-[Docs](https://aws-samples.github.io/sample-apex-skills/) · [Find a skill](https://aws-samples.github.io/sample-apex-skills/docs/skills/) · [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/) · [Contributing](CONTRIBUTING.md)
+[Docs](https://aws-samples.github.io/sample-apex-skills/) · [Find a skill](https://aws-samples.github.io/sample-apex-skills/skills/) · [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
