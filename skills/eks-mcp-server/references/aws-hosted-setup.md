@@ -25,6 +25,8 @@ Attach the appropriate managed policy to your IAM role/user:
 | **Read-only** (recommended to start) | `AmazonEKSMCPReadOnlyAccess` |
 | **Full access** (includes write ops) | Create a write policy (AWS example `EKSMcpWriteManagementPolicy`, [Getting started, Step 2](https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html)) |
 
+AWS-hosted read-only still returns pod logs, events, CloudWatch logs and resource reads; there is no sensitive-data flag. Limit what the principal's access entry can read.
+
 For read-only, attach via IAM console or CLI:
 ```bash
 aws iam attach-user-policy --user-name YOUR_USER --policy-arn arn:aws:iam::aws:policy/AmazonEKSMCPReadOnlyAccess

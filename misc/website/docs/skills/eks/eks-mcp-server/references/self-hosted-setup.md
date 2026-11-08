@@ -129,7 +129,7 @@ These are broad grants. Attach them only with the opt-in write profile below, an
 
 ### Opt-in: Write Access and Sensitive-Data Reads
 
-The examples above are read-only with the sensitive-data flag off, the recommended start. Add only the flag you need; the example shows both (see Command-Line Arguments below): `--allow-write` for mutations (IAM mode: attach the write IAM permissions above; kubeconfig mode: grant write RBAC), `--allow-sensitive-data-access` for logs, events and Secret reads through `manage_k8s_resource`.
+The examples above are read-only with the sensitive-data flag off, the recommended start. Add only the flag you need; the example shows both (see Command-Line Arguments below): `--allow-write` for mutations (IAM mode: Kubernetes writes need a write-level EKS access entry or RBAC for your principal, with no IAM change; `manage_eks_stacks` and `add_inline_policy` also need the write IAM permissions above; kubeconfig mode: grant write RBAC), `--allow-sensitive-data-access` for logs, events and Secret reads through `manage_k8s_resource`.
 
 ```json
 "args": [
@@ -139,7 +139,7 @@ The examples above are read-only with the sensitive-data flag off, the recommend
 ]
 ```
 
-`--allow-sensitive-data-access` puts pod logs, events, CloudWatch logs and Kubernetes Secrets (via `manage_k8s_resource`) into the model's context; `--allow-write` lets it change K8s resources, CloudFormation stacks and IAM inline policies. Upstream: "Only enable these flags when necessary and in trusted environments" (EKS MCP Server README, Important Security Note).
+`--allow-sensitive-data-access` puts pod logs, events, CloudWatch logs and Kubernetes Secrets (via `manage_k8s_resource`) into the model's context; `--allow-write` lets it change K8s resources, CloudFormation stacks and add new IAM inline policies to roles (it cannot modify existing ones; treat this as privilege escalation). Upstream: "Only enable these flags when necessary and in trusted environments" (EKS MCP Server README, Important Security Note).
 
 ## Config File Locations by Assistant
 
@@ -167,8 +167,8 @@ For the opt-in profile, append only the flag(s) you need (`"--allow-write"`, `"-
 
 | Argument | Description |
 |----------|-------------|
-| `--allow-write` | Opt-in: enable create/update/delete operations (omit for read-only) |
-| `--allow-sensitive-data-access` | Opt-in: enable logs, events and Kubernetes Secrets reads (still read-only). Omitting it does not hide Secrets from `list_k8s_resources` (see Available Tools); keep `list` on secrets out of the principal's RBAC |
+| `--allow-write` | Opt-in: enable create, replace, patch and delete operations (and stack deploy/delete) (omit for read-only) |
+| `--allow-sensitive-data-access` | Opt-in: enable logs, events and Kubernetes Secrets reads (still read-only). Omitting it does not hide Secrets from `list_k8s_resources` at 0.2.1 (see Available Tools); keep `list` on secrets out of the principal's RBAC (IAM mode: an access entry with AmazonEKSViewPolicy, not AmazonEKSAdminViewPolicy; kubeconfig mode: the `view` ClusterRole) |
 
 To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see Environment Variables below) — the JSON examples above use this approach.
 
@@ -193,7 +193,7 @@ To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see 
 
 ## Available Tools
 
-With no flags (the read-only examples above), `manage_k8s_resource` allows only `read` and `manage_eks_stacks` only `describe`; `apply_yaml`, `generate_app_manifest`, `add_inline_policy` and the other operations need `--allow-write`; `get_pod_logs`, `get_k8s_events`, `get_cloudwatch_logs` and `manage_k8s_resource` reads of a Secret need `--allow-sensitive-data-access`. Without the flag, these calls return an error. `list_k8s_resources` is not gated: for kind Secret it returns names, labels and annotations, and a Secret created with client-side `kubectl apply` carries its applied manifest, data included, in the `kubectl.kubernetes.io/last-applied-configuration` annotation. The upstream README marks `get_eks_vpc_config` and `get_eks_insights` as needing `--allow-sensitive-data-access`; the server code at 79267c6 does not enforce it.
+With no flags (the read-only examples above), `manage_k8s_resource` allows only `read` and `manage_eks_stacks` only `describe`; `apply_yaml`, `generate_app_manifest`, `add_inline_policy` and the other operations need `--allow-write`; `get_pod_logs`, `get_k8s_events`, `get_cloudwatch_logs` and `manage_k8s_resource` reads of a Secret need `--allow-sensitive-data-access`. Without the flag, these calls return an error. ConfigMaps and Pod specs, env values included, are readable without the flag. At 0.2.1 (checked 2026-11-08) `list_k8s_resources` is not gated (open upstream PR awslabs/mcp#4727 would gate kind Secret): for kind Secret it returns names, labels and annotations, and a Secret created with client-side `kubectl apply` carries its applied manifest, data included, in the `kubectl.kubernetes.io/last-applied-configuration` annotation. The upstream README marks `get_eks_vpc_config` and `get_eks_insights` as needing `--allow-sensitive-data-access`; the server code at 79267c6 does not enforce it (the tool descriptions still state the requirement, so the model may ask for the flag).
 
 ### Both auth modes
 - `list_k8s_resources`, `manage_k8s_resource` (supports `create`, `read`, `replace`, `patch`, `delete` operations)
