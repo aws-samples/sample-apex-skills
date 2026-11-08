@@ -1,6 +1,6 @@
 ---
 title: "Gateway API Migration Plan"
-description: ""
+description: "Generate a concrete, phased migration plan from Ingress to Gateway API based on assessment findings."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/migration-plan.md
 format: md
 ---

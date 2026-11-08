@@ -1,6 +1,6 @@
 ---
 title: "Platform for AI/ML and Data Engineering"
-description: ""
+description: "The same golden-path model — Backstage template → Git → ArgoCD → controllers — extends to ML and data teams."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/aiml-data-platform.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "ECS Capacity Providers and Scaling"
-description: ""
+description: "Design a capacity-provider strategy and cluster auto scaling correctly."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/capacity-and-scaling.md
 format: md
 ---

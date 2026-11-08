@@ -6,6 +6,10 @@ on:
   # runs on every pull request and skips its real work when no watched path
   # changed (see .github/scripts/ci-gate.sh).
   pull_request:
+  # Started by vendor-update.yml on its bot branches: pull requests opened or
+  # updated with GITHUB_TOKEN get pull_request runs that wait for approval by a
+  # user with write access.
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -60,6 +64,14 @@ jobs:
         run: |
           ./misc/update-all-references.sh --check
           ./misc/update-pages.sh --check
+      # The skill finder's ranking test; --experimental-strip-types needs Node 22.6 or later.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.changes.outputs.relevant != 'false'
+        with:
+          node-version: 22
+      - name: Skill finder ranking test
+        if: steps.changes.outputs.relevant != 'false'
+        run: node --experimental-strip-types --test misc/website/src/components/skillSearch.test.ts
       - name: How to fix frontmatter validation (shown on failure)
         if: failure() && steps.validate.outcome == 'failure'
         run: |
@@ -90,7 +102,7 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Docs auto-gen blocks are stale
 
-          One of the marker-delimited catalogues in `README.md` or `skills/README.md` (Skills Reference, Examples Reference) diverged from the source of truth (`skills/*/SKILL.md` or `examples/**/README.md` frontmatter). The exact diff is in the job log above.
+          One of the marker-delimited catalogues in `README.md` or `skills/README.md` (Skills Reference, Examples Reference) diverged from the source of truth (the `SKILL_META` table in `misc/update-pages.sh` for the skill list in `README.md`, `skills/*/SKILL.md` frontmatter for `skills/README.md`, `examples/**/README.md` frontmatter for Examples Reference). The exact diff is in the job log above.
 
           **Fix:**
           ```bash

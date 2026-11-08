@@ -1,6 +1,6 @@
 ---
 title: "References"
-description: ""
+description: "Detailed guides for each phase of the dotnet-aws-ecs skill."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/dotnet-aws-ecs/references/README.md
 format: md
 ---

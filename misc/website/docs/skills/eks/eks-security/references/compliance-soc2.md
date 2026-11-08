@@ -1,6 +1,6 @@
 ---
 title: "SOC 2 on EKS — Quick-Start"
-description: ""
+description: "A per-regime quick-start for preparing an EKS-hosted service for a SOC 2 examination."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/compliance-soc2.md
 format: md
 ---

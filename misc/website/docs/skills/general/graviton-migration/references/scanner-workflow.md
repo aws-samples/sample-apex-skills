@@ -1,6 +1,6 @@
 ---
 title: "Pre-Migration Scanning Workflow"
-description: ""
+description: "This reference turns the Arm migration MCP into a repeatable pre-migration scan that produces a per-workload readiness verdict — clean,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/references/scanner-workflow.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "EKS Autoscaling Best Practices"
-description: ""
+description: "Autoscaler selection, Cluster Autoscaler, HPA, VPA, KEDA, and CoreDNS autoscaling for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/autoscaling.md
 format: md
 ---

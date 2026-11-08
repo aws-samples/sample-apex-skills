@@ -1,6 +1,6 @@
 ---
 title: "EKS Cost Optimization"
-description: ""
+description: "Cost optimization framework, compute/networking/storage cost strategies, observability cost management, tagging, and cost visibility tools for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/cost-optimization.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Security Event Response"
-description: ""
+description: "What to do when a security event touches an EKS cluster: a new CVE or advisory, a compromised image or package, a leaked credential, or a suspicious runtime..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/security-event-response.md
 format: md
 ---

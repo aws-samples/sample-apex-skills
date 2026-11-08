@@ -1,6 +1,6 @@
 ---
 title: "GitOps Delivery — ArgoCD + Argo Workflows"
-description: ""
+description: "The delivery backbone."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/gitops-delivery.md
 format: md
 ---

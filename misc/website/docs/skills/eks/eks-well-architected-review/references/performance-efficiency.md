@@ -1,6 +1,6 @@
 ---
 title: "⚡ Performance Efficiency"
-description: ""
+description: "12 questions — Resource requests, instance types, VPA, scheduling, DNS optimization, traffic routing"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/performance-efficiency.md
 format: md
 ---

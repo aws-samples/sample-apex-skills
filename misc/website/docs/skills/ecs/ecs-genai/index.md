@@ -1,5 +1,5 @@
 ---
-title: "ECS GenAI (ecs-genai): GPU, ML and LLM workloads on Amazon ECS"
+title: "ECS GenAI (ecs-genai)"
 sidebar_label: "ecs-genai"
 description: "GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/SKILL.md

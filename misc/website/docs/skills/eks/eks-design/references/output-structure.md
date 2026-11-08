@@ -1,6 +1,6 @@
 ---
 title: "Design Output Structure Specification"
-description: ""
+description: "Single source of truth for the design output folder structure."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-design/references/output-structure.md
 format: md
 ---

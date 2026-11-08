@@ -1,5 +1,5 @@
 ---
-title: "EKS MCP Server (eks-mcp-server): connect your AI assistant to Amazon EKS"
+title: "EKS MCP Server (eks-mcp-server)"
 sidebar_label: "eks-mcp-server"
 description: "Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/SKILL.md
@@ -68,7 +68,7 @@ Known versions when this skill was last updated (2026-11-07, read from PyPI): aw
 
 ### Step 2: Access Level
 
-Ask what access level: **Read-only** (list, describe, view — cannot modify anything) or **Full access** (read-only plus create/update/delete on K8s resources, CloudFormation, IAM). Recommend read-only to start — can upgrade later by changing one flag.
+Ask what access level: **Read-only** (list, describe, view: cannot modify anything) or **Full access** (read-only plus create/update/delete on K8s resources, CloudFormation, IAM). Recommend read-only to start; to upgrade later, add the write flag (self-hosted: `--allow-write`; AWS-hosted: remove `--read-only` if set) and attach the write IAM permissions. Self-hosted read-only also turns off pod logs, events, CloudWatch logs and Secret reads unless `--allow-sensitive-data-access` is added; ask whether the user needs them. AWS-hosted read-only includes logs and events.
 
 Wait for the user's answer before proceeding.
 

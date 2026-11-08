@@ -1,5 +1,5 @@
 ---
-title: "EKS Best Practices (eks-best-practices): architecture advice for Amazon EKS"
+title: "EKS Best Practices (eks-best-practices)"
 sidebar_label: "eks-best-practices"
 description: "EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/SKILL.md

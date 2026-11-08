@@ -1,6 +1,6 @@
 ---
 title: "Scoring Rubric & Rating Rules"
-description: ""
+description: "N/A deliberately uses a different emoji (⚪) from UNKNOWN (⬜) so the two states stay visually distinct in every table."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/scoring-rubric.md
 format: md
 ---

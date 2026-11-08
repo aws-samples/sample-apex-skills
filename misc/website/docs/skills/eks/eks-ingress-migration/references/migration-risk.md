@@ -1,6 +1,6 @@
 ---
 title: "Migration Risk Assessment"
-description: ""
+description: "Evaluate risk of migrating from Ingress to Gateway API."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/migration-risk.md
 format: md
 ---

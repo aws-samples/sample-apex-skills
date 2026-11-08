@@ -1,6 +1,6 @@
 ---
 title: "Quick Reference"
-description: ""
+description: "Command cheat sheets and decision flowcharts"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/quick-reference.md
 format: md
 ---

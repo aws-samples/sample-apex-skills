@@ -1,6 +1,6 @@
 ---
 title: "Dockerfile Guide"
-description: ""
+description: "This reference defines patterns for generating a Dockerfile for .NET applications targeting ECS Fargate Linux containers."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/dotnet-aws-ecs/references/dockerfile-guide.md
 format: md
 ---

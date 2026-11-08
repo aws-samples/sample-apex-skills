@@ -1,6 +1,6 @@
 ---
 title: "AWS Upgrade Insights"
-description: ""
+description: "Retrieve and interpret official AWS EKS Upgrade Insights — pre-upgrade checks that AWS runs against your cluster."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/references/upgrade-insights.md
 format: md
 ---

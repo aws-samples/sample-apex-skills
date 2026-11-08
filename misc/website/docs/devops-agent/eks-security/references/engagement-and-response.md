@@ -1,6 +1,6 @@
 ---
 title: "Engagement & Response Framework"
-description: ""
+description: "Autonomous context-discovery protocol for EKS security/compliance engagements: the required discovery checks, the adoption-challenge archetypes, the 8-step..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/engagement-and-response.md
 format: md
 ---

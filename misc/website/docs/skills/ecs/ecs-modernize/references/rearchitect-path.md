@@ -1,6 +1,6 @@
 ---
 title: "Module: Rearchitect Path"
-description: ""
+description: "Turn a Rearchitect strategy outcome into a concrete modernization path — the three ECS compute-model candidates with per-candidate applicability grounded in..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/rearchitect-path.md
 format: md
 ---

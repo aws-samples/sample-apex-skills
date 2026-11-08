@@ -1,6 +1,6 @@
 ---
 title: "Multi-Arch Container Build Pipelines"
-description: ""
+description: "A Graviton migration only stays migrated if the CI pipeline keeps producing images that run on arm64."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/references/multi-arch-pipelines.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Workload Configuration"
-description: ""
+description: "Assess workload resilience: resource requests/limits, health probes, disruption budgets, image hygiene, and storage configuration."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/workload-configuration.md
 format: md
 ---

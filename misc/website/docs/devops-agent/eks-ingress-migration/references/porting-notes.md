@@ -1,6 +1,6 @@
 ---
 title: "Porting Notes — eks-ingress-migration"
-description: ""
+description: "This file documents the differences between the Claude Code version (skills/eks-ingress-migration/) and this DevOps Agent port."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/porting-notes.md
 format: md
 ---

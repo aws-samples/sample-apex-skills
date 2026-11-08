@@ -1,6 +1,6 @@
 ---
 title: "Section 08 — Operational Processes"
-description: ""
+description: "Assess operational maturity: IaC provenance, tagging discipline, disaster-recovery/backup, Fargate task-retirement awareness, and process readiness..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/operational-processes.md
 format: md
 ---

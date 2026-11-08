@@ -1,6 +1,6 @@
 ---
 title: "EKS Upgrade Readiness Assessment"
-description: ""
+description: "Karpenter 1.0.2 is incompatible with Kubernetes 1.33 (requires >= 1.5)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/examples/eks-upgrades/in-place-karpenter-check/static/cc/sample-report.md
 format: md
 ---

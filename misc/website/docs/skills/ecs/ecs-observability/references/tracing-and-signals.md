@@ -1,6 +1,6 @@
 ---
 title: "ECS Observability — Tracing and Application Signals"
-description: ""
+description: "Deep guidance on distributed tracing stack selection for Amazon ECS — X-Ray legacy status, ADOT/OpenTelemetry as the recommended path, and CloudWatch..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-observability/references/tracing-and-signals.md
 format: md
 ---

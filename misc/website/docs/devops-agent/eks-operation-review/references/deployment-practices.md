@@ -1,6 +1,6 @@
 ---
 title: "Deployment Practices"
-description: ""
+description: "Assess deployment strategies, CI/CD integration, and graceful shutdown configuration."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/references/deployment-practices.md
 format: md
 ---

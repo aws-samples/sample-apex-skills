@@ -43,7 +43,7 @@ When the report is complete:
 
 - **Score ≥ 80 (READY / GOOD):** Summarize the cluster as ready to proceed. Forward the cluster name, current version, target version, and any noted findings as shared context for whatever upgrade-execution path the user chooses next.
 - **Score 60–79 (FAIR / RISKY):** Present the prioritized remediation list. Recommend resolving the top blockers and re-running the assessment.
-- **Score < 60 (NOT READY):** Hard blockers exist. Walk the user through the blocker section. Recommend not proceeding with an upgrade until the blockers are resolved.
+- **Score < 60 (NOT READY):** A hard blocker capped the score at 59 or below, or deductions alone brought it there. Walk the user through the blocker section and the top deductions. Recommend not proceeding with an upgrade until they are resolved.
 
 For full scoring rules and the hard-blocker list, see [eks-upgrade-check SKILL.md](../../../eks-upgrade-check/SKILL.md#readiness-score).
 

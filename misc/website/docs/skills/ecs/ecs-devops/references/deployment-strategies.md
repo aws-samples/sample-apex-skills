@@ -1,6 +1,6 @@
 ---
 title: "ECS DevOps — Deployment Strategies Deep Dive"
-description: ""
+description: "Full configuration detail for rolling, blue/green, linear, and canary deployments under the ECS deployment controller — lifecycle hooks, test traffic,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/references/deployment-strategies.md
 format: md
 ---

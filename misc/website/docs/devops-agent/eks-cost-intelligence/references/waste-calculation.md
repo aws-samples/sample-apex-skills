@@ -1,6 +1,6 @@
 ---
 title: "Waste Calculation Formulas"
-description: ""
+description: "Dollar waste formulas for computing waste from utilization gaps, idle nodes, storage inefficiency, network costs, and missed Spot/Graviton opportunities"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/waste-calculation.md
 format: md
 ---

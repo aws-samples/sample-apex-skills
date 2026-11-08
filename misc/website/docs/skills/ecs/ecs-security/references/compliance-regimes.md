@@ -1,6 +1,6 @@
 ---
 title: "Compliance Regimes — Scope, Discipline & Worked Scenarios"
-description: ""
+description: "The cross-cutting view over the 7-layer stack."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/compliance-regimes.md
 format: md
 ---

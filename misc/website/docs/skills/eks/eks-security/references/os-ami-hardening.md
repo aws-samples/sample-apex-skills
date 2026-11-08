@@ -1,6 +1,6 @@
 ---
 title: "Layer 1: Compute / OS / AMI Hardening"
-description: ""
+description: "The single biggest decision in EKS security."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/os-ami-hardening.md
 format: md
 ---

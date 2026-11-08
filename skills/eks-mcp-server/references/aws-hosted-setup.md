@@ -23,7 +23,9 @@ Attach the appropriate managed policy to your IAM role/user:
 | Access Level | Managed Policy |
 |--------------|----------------|
 | **Read-only** (recommended to start) | `AmazonEKSMCPReadOnlyAccess` |
-| **Full access** (includes write ops) | Create custom policy below |
+| **Full access** (includes write ops) | Create a write policy (AWS example `EKSMcpWriteManagementPolicy`, [Getting started, Step 2](https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html)) |
+
+AWS-hosted read-only still returns pod logs, events, CloudWatch logs and resource reads; there is no sensitive-data flag. Limit what the principal's access entry can read.
 
 For read-only, attach via IAM console or CLI:
 ```bash
@@ -122,7 +124,7 @@ Use this format for the args array:
 
 | Issue | Solution |
 |-------|----------|
-| "Access Denied" | Check IAM policy has `eks-mcp:*` actions |
+| "Access Denied" | Check the IAM policy grants `eks-mcp:InvokeMcp` and `eks-mcp:CallReadOnlyTool` (both in `AmazonEKSMCPReadOnlyAccess`); for write mode, also attach a write policy with `eks-mcp:CallPrivilegedTool` and the service write actions (AWS example `EKSMcpWriteManagementPolicy`, [Getting started, Step 2](https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html)) |
 | Tools not appearing | Restart IDE/CLI after config change |
 | Connection timeout | Verify region matches your EKS clusters |
 | Proxy issues | Set `HTTP_PROXY`/`HTTPS_PROXY` env vars |

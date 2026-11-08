@@ -1,5 +1,5 @@
 ---
-title: "EKS Build (eks-build): production-ready Terraform for Amazon EKS"
+title: "EKS Build (eks-build)"
 sidebar_label: "eks-build"
 description: "Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/SKILL.md
@@ -84,7 +84,7 @@ Pattern 2b does NOT prescribe which controller. The choice is: ACK, Crossplane, 
 
 ### Step 1: Gather Requirements
 
-Accept requirements via interactive questionnaire or a requirements YAML file. If YAML is supplied, validate coverage (cluster, compute, networking, addons, auth, compliance, multi-tenancy) and prompt for gaps.
+Accept requirements via interactive questionnaire or a requirements YAML file. If YAML is supplied, validate coverage (cluster, compute, networking, addons, auth, compliance, permissions boundary, multi-tenancy) and prompt for gaps. Always ask whether a permissions boundary is required. A yes (typed, or a YAML `permissions_boundary`, which gives only the ARN) still needs the ARN and which roles carry it: never build on a yes without those answers; stop, name what is missing and ask again, and never suggest or guess an ARN. A not-sure answer also stops: generate nothing until the customer answers yes or no. Ask whether one boundary covers all the named roles; on a per-role answer, stop, say this build puts one ARN on the named roles, and generate nothing until the customer chooses one ARN.
 
 ### Step 2: Select Pattern
 
@@ -204,6 +204,7 @@ The AWS-managed ArgoCD EKS Capability requires an existing IAM Identity Center i
 | Enterprise proxy | `network.proxy.enabled = true` | [customization-guide.md S2](references/customization-guide.md) |
 | Private registry | `registry.type = "private"` | [customization-guide.md S3](references/customization-guide.md) |
 | Compliance-strict | Security posture requirement | [customization-guide.md S4](references/customization-guide.md) |
+| Permissions boundary | `permissions_boundary` set in `cluster.yaml` (optional, null by default) | [baseline-defaults.md IAM](references/baseline-defaults.md#permissions-boundary-optional) |
 
 ## Output Structure
 
@@ -313,6 +314,7 @@ Every item must be done before handoff:
 - [ ] Two-phase module architecture present (Pattern 1)
 - [ ] All versions explicitly pinned
 - [ ] Multus NOT enabled
+- [ ] If `permissions_boundary` is set, every role the customer named (Terraform resources and modules, and ACK `Role` manifests) carries it
 - [ ] `validation-checklist.md` generated
 
 ## References

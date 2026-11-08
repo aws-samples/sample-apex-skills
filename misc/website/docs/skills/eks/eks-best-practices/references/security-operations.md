@@ -1,6 +1,6 @@
 ---
 title: "EKS Security Operations"
-description: ""
+description: "How a platform team runs EKS security over time: staying informed, patch cadence and the emergency path, build hygiene, and the shape of a security event..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/security-operations.md
 format: md
 ---

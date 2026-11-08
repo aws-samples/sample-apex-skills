@@ -1,6 +1,6 @@
 ---
 title: "Autoscaling"
-description: ""
+description: "Assess cluster-level autoscaling (nodes) and workload-level autoscaling (pods), plus AZ resilience."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/autoscaling.md
 format: md
 ---

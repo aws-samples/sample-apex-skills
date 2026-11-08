@@ -1,6 +1,6 @@
 ---
 title: "Networking"
-description: ""
+description: "Assess VPC CNI configuration, IP capacity, DNS health, and network segmentation."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/references/networking.md
 format: md
 ---

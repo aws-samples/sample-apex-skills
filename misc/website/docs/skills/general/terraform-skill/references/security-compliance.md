@@ -1,6 +1,6 @@
 ---
 title: "Security & Compliance"
-description: ""
+description: "Security best practices and compliance patterns for Terraform/OpenTofu"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/security-compliance.md
 format: md
 ---

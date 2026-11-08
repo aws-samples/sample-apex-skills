@@ -1,6 +1,6 @@
 ---
 title: "Observability"
-description: ""
+description: "Assess observability across three layers: control plane, data plane (nodes), and workloads — covering metrics, logs, and alerting."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/references/observability.md
 format: md
 ---

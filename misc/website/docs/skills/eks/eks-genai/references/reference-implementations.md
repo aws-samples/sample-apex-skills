@@ -1,6 +1,6 @@
 ---
 title: "Reference Implementations — Blueprints, Workshops & Validated Stacks"
-description: ""
+description: "Canonical awslabs/ai-on-eks blueprint catalog, current workshops, AWS Solutions Library guidance, and a concrete validated stack with pinned versions from..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/reference-implementations.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "EKS Terraform Examples and Patterns"
-description: ""
+description: "Reference architecture examples from terraform-aws-modules/terraform-aws-eks with decision guidance"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/terraform-examples.md
 format: md
 ---
@@ -349,6 +349,7 @@ module "karpenter" {
   source = "terraform-aws-modules/eks/aws//modules/karpenter"
 
   cluster_name          = module.eks.cluster_name
+  enable_inline_policy  = true # (v21.8.0+) controller policy can exceed the 6,144-character managed policy limit; inline role policies allow 10,240 in total
 
   node_iam_role_additional_policies = {
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"

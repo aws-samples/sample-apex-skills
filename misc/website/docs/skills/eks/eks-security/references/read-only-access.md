@@ -1,6 +1,6 @@
 ---
 title: "Read-only access per capability"
-description: ""
+description: "Every AWS action below is a Describe, List, Get or query read."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/read-only-access.md
 format: md
 ---

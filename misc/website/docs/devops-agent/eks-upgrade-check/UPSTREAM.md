@@ -1,6 +1,6 @@
 ---
 title: "Upstream Provenance"
-description: ""
+description: "This DevOps Agent port is vendored from an upstream repo."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/UPSTREAM.md
 format: md
 ---

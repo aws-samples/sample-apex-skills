@@ -1,6 +1,6 @@
 ---
 title: "AWS Neuron (Inferentia / Trainium) on Amazon ECS"
-description: ""
+description: "Running AWS purpose-built ML accelerators — AWS Inferentia (Inf1, Inf2) and AWS Trainium (Trn1, Trn2) — as ECS workloads."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/neuron-on-ecs.md
 format: md
 ---

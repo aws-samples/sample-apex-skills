@@ -9,4 +9,4 @@ This folder explains our thinking to the people who use APEX skills: how we desi
 
 These notes describe the target design for the next major version of APEX. Where the repo does not match them yet, each document says so. The notes fold into the release documentation when that version ships.
 
-A blog-style walkthrough of the same material lives on the docs site under [Blog](https://aws-samples.github.io/sample-apex-skills/blog).
+A blog-style walkthrough of the same material lives on the docs site under [Blog](https://aws-samples.github.io/sample-apex-skills/blog/).

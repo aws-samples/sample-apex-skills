@@ -394,12 +394,15 @@ module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
   version = "<LOOK_UP>"  # Look up latest from Terraform Registry
   cluster_name                    = module.eks_cluster.cluster_name
+  enable_inline_policy            = true  # controller policy can exceed the 6,144-character managed policy limit (Section 23)
   create_pod_identity_association = true
   node_iam_role_use_name_prefix   = false
   node_iam_role_name              = "${local.cluster_config.name}-karpenter-node"
   node_iam_role_additional_policies = {
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
+  iam_role_permissions_boundary_arn  = try(local.cluster_config.permissions_boundary, null)  # only if the customer named this role in question 30
+  node_iam_role_permissions_boundary = try(local.cluster_config.permissions_boundary, null)  # only if the customer named this role in question 30
   tags = local.tags
 }
 ```
@@ -474,6 +477,7 @@ module "ebs_csi_pod_identity" {
   use_name_prefix = false
   attach_aws_ebs_csi_policy  = true
   aws_ebs_csi_policy_name    = "${local.cluster_config.name}-EBS_CSI"
+  permissions_boundary_arn   = try(local.cluster_config.permissions_boundary, null)  # only if the customer named this role in question 30
   tags = local.tags
 }
 ```

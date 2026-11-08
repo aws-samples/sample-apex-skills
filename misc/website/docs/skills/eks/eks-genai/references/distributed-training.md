@@ -1,6 +1,6 @@
 ---
 title: "Distributed Training on EKS"
-description: ""
+description: "Opinionated guidance for running distributed training and fine-tuning workloads on Amazon EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/distributed-training.md
 format: md
 ---
