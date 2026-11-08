@@ -412,12 +412,14 @@ spec:
   limits:
   - default:
       cpu: 500m
-      memory: 512Mi
+      memory: 256Mi
     defaultRequest:
       cpu: 250m
       memory: 256Mi
     type: Container
 ```
+
+A container that requests more than 256Mi of memory or 500m CPU and sets no limit for it is rejected at admission (for a Deployment, the ReplicaSet fails to create pods), since its request would exceed the default limit: set its limit too ([Kubernetes: Limit Ranges](https://kubernetes.io/docs/concepts/policy/limit-range/)).
 
 ### Apply Accurate Resource Requests
 

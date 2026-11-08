@@ -96,18 +96,18 @@ for each distinct_kubelet_minor_version across all nodes (MNG union nodeInfo):
     if skew > 3:  node_skew_deduction += 20   # blocker — immediately caps (kubelet skew policy is N-3)
     if skew == 3: node_skew_deduction += 5    # warning — at max supported skew
 # Composition rule: the +2 per-low-subnet warning ALWAYS applies (per subnet, below); the
-# +5 collective hard blocker is ADDITIONAL and applies only when collective insufficiency holds.
+# +5 capacity-review policy guard is ADDITIONAL when the complete reported total is < 5.
 for each subnet in cluster_subnets:
     if subnet.available_ips < 5:     node_skew_deduction += 2   # single low subnet — warning (always applies)
     elif subnet.available_ips <= 15: node_skew_deduction += 2   # warning
-# Hard blocker ONLY when the cluster subnets COLLECTIVELY cannot place the control-plane
-# ENIs (placement insufficiency) — a single low subnet among healthy subnets is a
-# warning, not a blocker. Definition:
-#   candidate_subnets_collectively_cannot_place_enis
-#     = sum(AvailableIpAddressCount) across ALL cluster subnets < 5
-# (e.g. subnets of 3 + 12 IPs → sum 15 ≥ 5 → NO blocker; the 3-IP subnet is a +2 warning only.)
-if candidate_subnets_collectively_cannot_place_enis:
-    node_skew_deduction += 5   # hard blocker (collective/placement insufficiency), in addition to any +2 warnings
+# AWS documents up to five addresses, not a universal five-address minimum.
+# This threshold is the skill's conservative review policy, NOT a placement test:
+#   subnet_capacity_guard_triggered = sum(AvailableIpAddressCount) across ALL cluster subnets < 5
+# Only calculate from complete successful reads; missing/partial data is Unassessed.
+# A total >= 5 clears this guard but does not prove subnet connectivity or ENI capacity.
+# Example: 3 + 12 = 15 yields two warnings (+4), no numeric guard, no success guarantee.
+if subnet_capacity_guard_triggered:
+    node_skew_deduction += 5   # capacity-review policy blocker, in addition to any +2 warnings
 # Self-managed nodes (node-readiness.md 5.4 — no automated upgrade path). SCORING
 # HOME: Category 3. Binary: deduct once if any self-managed nodes are present.
 if any self_managed_nodes_present:
@@ -129,11 +129,15 @@ node_skew_deduction = min(node_skew_deduction, 20)
 #     PLUS any non-AWS CNI installed in place of vpc-cni (Cilium, Calico) — an
 #     INCOMPATIBLE cluster CNI must never score READY
 #   - "optional add-on" = all other managed add-ons and identified OSS add-ons
-#   - INCOMPATIBLE = installed version is NOT in the target's compatible set
-#     (DescribeAddonVersions for the target returns no entry for it)
+#   - INCOMPATIBLE = installed version absent from the COMPLETE applicable managed
+#     target-compatible set, or explicitly unsupported by the OSS upstream source.
+#     A failed/incomplete API read is Unassessed, never proof of absence.
 #   - Status DEGRADED or FAILED with correct version = treat as critical/optional
 #     incompatible (same deduction as version incompatibility)
-#   - Status ACTIVE but version behind = "update recommended"
+#   - Default is NOT necessarily newest. Assign UPDATE_RECOMMENDED only per
+#     addon-compatibility.md §4.1; newer-than-default compatible builds incur 0.
+#   - Current support is recorded separately; no duplicate/current-only deduction.
+#     Failed current reads are Unassessed; target evidence remains independently usable.
 #   - UNKNOWN_VERIFIABLE = identified but upstream compat source unreachable/ambiguous
 #   - UNKNOWN_UNIDENTIFIED = workload looks like an add-on but couldn't be identified
 #   - SKEW_WARNING = kube-proxy more than 3 minors behind the target (beyond the
@@ -159,7 +163,7 @@ for each addon:
     elif addon.verdict == "UNKNOWN_VERIFIABLE":
         addon_deduction += 2       # identified, compatibility unverified
     elif addon.verdict == "UPDATE_RECOMMENDED":
-        addon_deduction += 1       # version behind but compatible
+        addon_deduction += 1       # compatible; verified recommendation per §4.1/§4.3
 for each unidentified_workload:
     addon_deduction += 2           # UNKNOWN_UNIDENTIFIED
 addon_deduction = min(addon_deduction, 15)
@@ -193,6 +197,9 @@ if karpenter_installed:
 # HIGH-severity risks (3 pts each, sub-cap 8 pts):
 #   - Deployment with replicas == 1
 #   - Deployment with strategy.type == Recreate
+#     (application revision rollout risk, not proof of a node-drain outage)
+# Keep saved-template deductions for replicas=0; label them review-before-reactivation
+# when no live pods remain, not current eviction risks. These are scoring-policy choices.
 #
 # MEDIUM-severity risks (1 pt each unless noted, sub-cap 4 pts):
 #   - Deployment missing readinessProbe on ANY container (1 pt)
@@ -200,7 +207,12 @@ if karpenter_installed:
 #   - Multi-replica Deployment without a matching PodDisruptionBudget (1 pt)
 #   - Externally-facing workload missing lifecycle.preStop hook (1 pt)
 #     (workload-risks.md 6.6 — SCORING HOME: Category 6 MEDIUM)
-#   - Drain-blocking PDB (disruptionsAllowed == 0) (2 pts each)
+#   - Confirmed drain-risk PDB per workload-risks.md §6.2b (2 pts each):
+#     EITHER exhausted budget (fresh status, expectedPods > 0, zero budget, and
+#     an eviction-restricted pod in scope) OR overlapping PDB selectors on an actual
+#     in-scope Running non-terminating pod (independent of budget/AlwaysAllow).
+#     Exclude empty/out-of-scope/Pending/terminal/terminating cases.
+#     Count each participating PDB once, even when both reasons or multiple pods apply.
 #
 # IMPORTANT: If one workload has BOTH single-replica AND missing probes,
 # that is 1 HIGH (3 pts) + 1 MEDIUM (1 pt) = 4 pts for that workload.
@@ -221,8 +233,8 @@ for each workload in non_system_namespaces:
     if workload.missing_resource_requests:    workload_medium += 1
     if workload.externally_facing and workload.missing_prestop_hook: workload_medium += 1
     # externally_facing = backed by a LoadBalancer-type Service OR an Ingress
-for each pdb where disruptionsAllowed == 0:
-    workload_medium += 2                      # drain-blocking PDB
+for each distinct pdb in non_system_namespaces where confirmed_drain_risk:
+    workload_medium += 2                      # once per PDB; budget OR overlap gates in §6.2b
 workload_high = min(workload_high, 8)
 workload_medium = min(workload_medium, 4)
 workload_deduction = min(workload_high + workload_medium, 10)
@@ -288,10 +300,11 @@ total_deductions = (breaking_changes_deduction + deprecated_apis_deduction
                     + node_skew_deduction + addon_deduction + karpenter_deduction
                     + workload_deduction + insights_deduction + al2_deduction
                     + behavioral_deduction + unsupported_deduction)
-score = max(0, 100 - total_deductions)
+calculated_score = max(0, 100 - total_deductions)
+score = calculated_score   # final numeric score; retain calculated_score for the report
 
 # --- Hard Blocker Override (apply AFTER arithmetic) ---
-# If ANY hard blocker is present, the upgrade CANNOT proceed safely.
+# If ANY hard blocker is present, this assessment requires resolution/review before proceeding.
 # Cap score at 59 (NOT READY) regardless of the arithmetic result.
 #
 # Hard blockers (exhaustive list):
@@ -305,9 +318,9 @@ score = max(0, 100 - total_deductions)
 #   5. API removed in target version AND actively used in cluster (workloads fail)
 #   6. Cluster status != ACTIVE (EKS API rejects update-cluster-version)
 #   7. AL2-only node groups AND target >= 1.33 (no AL2 AMI available for target)
-#   8. Candidate control-plane subnets COLLECTIVELY cannot provide enough free IPs to
-#      place control-plane ENIs (EKS API rejects update-cluster-version). A single low
-#      subnet among otherwise-healthy subnets is a warning, not a blocker.
+#   8. Complete cluster-subnet total < 5 reported available IPs: conservative capacity-
+#      review policy guard, NOT a prediction that EKS rejects the update. A single low
+#      subnet with total >= 5 is a warning, not this policy blocker.
 #
 # NOTE: containerd 1.x on self-managed/custom-AMI nodes at target >= 1.36 is HIGH severity
 # (+5 under Category 3) but is NOT a hard blocker — it does not cap the score.
@@ -321,7 +334,7 @@ if any critical_addon.status in [DEGRADED, FAILED]:   has_hard_blocker = True
 if any api_removed_in_target_and_in_use:              has_hard_blocker = True
 if cluster_status != "ACTIVE":                        has_hard_blocker = True
 if al2_only_node_groups and target >= 1.33:           has_hard_blocker = True
-if candidate_subnets_collectively_cannot_place_enis:  has_hard_blocker = True   # single low subnet among healthy = warning, not blocker
+if subnet_capacity_guard_triggered:                  has_hard_blocker = True   # policy review guard, not proof of AWS rejection
 # containerd 1.x on self-managed nodes at target >= 1.36 is HIGH severity (+5 Cat 3) but is
 # NOT a hard blocker — it does not cap the score.
 
@@ -340,6 +353,32 @@ if has_hard_blocker:
 | 0-59 | NOT READY | Critical blockers, must resolve before upgrade |
 
 > **Partial-assessment cap:** these bands apply to a *complete* assessment. When `## Unassessed` is non-empty the verdict is capped below READY (the highest a partial assessment may print is GOOD, caveated) regardless of the arithmetic score — so a 98 remainder does NOT print READY. See the partial-assessment rules earlier in this section.
+
+### 1.2a — Show calculated and final scores (MANDATORY)
+
+Every completed full or partial assessment MUST show these together near the headline:
+
+- **Calculated score:** `max(0, 100 - total_deductions)`, after per-category caps but
+  BEFORE the hard-blocker override. For partial assessments, label it “assessed checks
+  only”; excluded checks are not clean passes. Show the arithmetic, including the zero
+  floor if deductions exceed 100. Do not call the sum before category caps this score.
+- **Final score:** the headline's numeric `score`, equal to the calculated score unless
+  a hard blocker applies; then `min(calculated_score, 59)`. Never raise a score below 59
+  to 59. Do not assign a readiness rating to the calculated score separately.
+- **Adjustment:** name the actual blocker(s) and explain the 59% ceiling, or explicitly
+  say “No hard-blocker cap.” If the calculated score is already at/below 59, state that
+  the ceiling applies but does not lower it further. A cap is not an extra finding or
+  deduction; never add balancing points to the Master Finding List.
+
+A partial assessment limits the **verdict**, not the numeric score: for example,
+calculated 98%, final 98%, verdict GOOD (partial), with no fabricated deduction to 89.
+Explain that incomplete coverage prevents READY and refer to Unassessed. If the numeric
+score already yields FAIR/RISKY/NOT READY, preserve that lower verdict. When both a hard
+blocker and unassessed checks exist, explain both independently; the blocker cap and
+NOT READY verdict still apply, together with the partial marker.
+
+Identity/version/status preflight stops still produce NO readiness score; this display
+contract does not authorize scoring a halted assessment.
 
 ### 1.3 — Worked Example
 
@@ -453,23 +492,20 @@ after Evidence, the report is invalid — reorder before returning.
 8. **WORKLOAD TABLE REQUIRED:** The master workload table from `workload-risks.md` Step A
    MUST be produced before any workload risk findings are written. All workload counts in the
    report must be traceable to rows in that table.
-9. **SCORE RECONCILIATION (hard gate):** Sum the Pts column of the Master Finding List
-   table. The arithmetic check is: the headline score in `## Readiness Score:` MUST equal
-   100 minus that sum (after per-category caps). **EXCEPTION — hard-blocker override:** when
-   any hard blocker is present, the score is intentionally capped at 59 (which will NOT equal
-   100 − sum whenever the arithmetic result exceeds 59). In that case the capped score of 59
-   is correct and MUST be accepted — do NOT flag the report INVALID for the arithmetic
-   mismatch. Apply the strict "score == 100 − sum" equality check ONLY on the non-capped path
-   (no hard blocker). Also confirm each row's Deduction in the Score Breakdown table equals
-   the corresponding category subtotal in the Master Finding List. If the header, the Score
-   Breakdown, and the Master Finding List do not all agree (accounting for the hard-blocker
-   cap), the report is INVALID — recompute and fix before returning it. Never publish a score
-   that differs from the table it is derived from (except the documented ≤59 blocker cap).
-   Categories reported UNKNOWN / not-scored (Step 1.0) contribute NO row to the Pts sum and
-   NO deduction — they are excluded from this equality check by construction and are
-   reconciled instead against the `## Unassessed` section (every UNKNOWN category MUST appear
-   there). The headline rating must still carry the scope caveat whenever any category is
-   UNKNOWN.
+9. **SCORE RECONCILIATION (hard gate):** Sum Master Finding List points by category,
+   apply category caps, and verify each Score Breakdown deduction matches its capped
+   category subtotal. Sum those deductions. Verify the displayed
+   calculated score equals `max(0, 100 - total_deductions)`. Verify the displayed final
+   score and headline both equal `min(calculated_score, 59)` if any hard blocker exists,
+   or `calculated_score` otherwise. A calculated score below 59 must not be raised to 59.
+   The Score Breakdown Total shows category deductions and the calculated score; do not
+   insert a cap deduction to make it equal the final score. Verify the adjustment text
+   names actual blockers and explains whether the cap changed the number.
+   UNKNOWN / not-scored checks contribute no deduction and must appear in Unassessed;
+   partial coverage preserves the numeric score but limits the verdict to at most GOOD
+   and adds the partial marker. Reconcile that verdict limit separately from the numeric
+   blocker cap. If any number, explanation, or verdict disagrees, fix the report before
+   returning it. Never present the calculated score as an independent READY verdict.
 10. **MANDATORY-FINDING PRESENCE:** Every "always flag" item from the steering files
    MUST appear as a row in the Master Finding List when its target condition is met.
    When the upgrade crosses INTO the restriction (current <= 1.31 AND target >= 1.32) this
@@ -531,6 +567,7 @@ action items; it doesn't precede them.
 | Cluster | [name] |
 | Region | [region] |
 | Account | [account-id] |
+| Kubernetes Connection | [verified context or API/MCP binding and matching cluster endpoint/identity] |
 | Current Version | [current] |
 | Target Version | [target] |
 | Assessment Date | [YYYY-MM-DD HH:MM] |
@@ -555,7 +592,13 @@ assessment may print is GOOD — a partial assessment can NEVER print an uncavea
 When every category was assessed, print the band with no suffix and no cap. -->
 ## Readiness Score: [XX]% — [READY/GOOD/FAIR/RISKY/NOT READY][ (partial — N category/categories unassessed — singular "category" when N=1) — only when `## Unassessed` is non-empty]
 
-[2-3 sentence summary. What's the bottom line? Can they upgrade safely?]
+[2-3 sentence summary explaining readiness and the actions required.]
+
+| Score summary | Result |
+|---------------|--------|
+| Calculated score | [CALCULATED]% = max(0, 100 − [TOTAL_DEDUCTIONS]); [“assessed checks only” if partial] |
+| Final score | [FINAL]% — [same verdict and partial marker as headline] |
+| Adjustment | [No hard-blocker cap, OR named blocker(s) and min([CALCULATED], 59) = [FINAL]. If already ≤59, explain no further reduction. If partial, ALSO explain that incomplete coverage limits the verdict to at most GOOD without changing the number.] |
 
 ### Score Breakdown
 
@@ -575,7 +618,7 @@ not applicable. UNKNOWN categories contribute NO deduction to the Total (Step 1.
 | AL2 / AMI | ✅/⚠️/❌/❔ | -X pts | [summary] |
 | Behavioral Changes | ✅/⚠️/❌/❔ | -X pts | [summary] |
 | Unsupported Version | ✅/❌/N/A | -X pts | [summary — omit row if version is supported] |
-| **Total** | | **-X pts** | **Score: XX%** |
+| **Total** | | **-X pts** | **Calculated score: [CALCULATED]%** |
 
 ---
 
@@ -651,9 +694,9 @@ no denied or partial reads."]
 
 ### Add-on Inventory
 
-| Add-on | Type | Version | Status | Verdict | Source |
-|--------|------|---------|--------|---------|--------|
-| [name] | Managed/Self-managed/OSS | [ver] | [health] | one of the addon-compatibility.md §4.3 verdict states | [URL or "managed"] |
+| Add-on | Type | Version | Status | Current compatibility | Target compatibility | Verdict | Source |
+|--------|------|---------|--------|-----------------------|----------------------|---------|--------|
+| [name] | Managed/Self-managed/OSS | [ver] | [health] | Supported/Unsupported/Unknown | Supported/Unsupported/Unknown | target verdict per addon-compatibility.md; denied reads are not-scored | [URL or API/version queried] |
 
 ### Unknown & Unidentified Add-ons
 
@@ -702,7 +745,7 @@ compatibility with the target version manually.
 
 ### Pre-Upgrade Checklist
 - [ ] All blockers resolved
-- [ ] Add-ons updated to compatible versions
+- [ ] Add-on compatibility checked for current and target; any pre-upgrade replacement verified on both
 - [ ] Node groups ready (AL2023/Bottlerocket)
 - [ ] PDBs in place for critical workloads
 - [ ] Backup/snapshot taken
@@ -715,7 +758,16 @@ forward-decidable choices can foreclose that path, so decide them before/while u
   rollback — limit adoption of target-only APIs until the upgrade is confirmed stable.
 - **Add-on cross-compatibility** — for a clean rollback, EKS-managed add-ons should be compatible
   with BOTH the current and target versions, not target-only.
-Boundaries: Fargate rollback is unsupported; add-ons, etcd, workloads, and PVs are NOT reverted;
+Boundaries: Fargate **worker nodes** cannot be rolled back in place; a cluster using
+Fargate can still have its **control plane** rolled back. Pods whose Fargate kubelet
+minor version matches the pre-rollback control plane trigger a version-skew ERROR
+for rollback. Plan owner-coordinated removal of those pods before rollback and
+redeployment after rollback so replacements use the rolled-back version; account for
+the resulting application interruption. This is advisory, not permission to delete pods
+or use `--force`. Recheck live AWS guidance and rollback insights before maintenance.
+Source (verified 2026-10-01): https://docs.aws.amazon.com/eks/latest/userguide/fargate.html
+
+Add-ons, etcd data, workloads, and PVs are NOT reverted;
 only Auto Mode nodes auto-roll-back (managed / self-managed / hybrid node groups are the
 operator's job); rolling back to a version in extended support requires setting the cluster upgrade
 policy to `EXTENDED` first. Advisory only — it does not change the readiness score.
@@ -727,13 +779,28 @@ policy to `EXTENDED` first. Advisory only — it does not change the readiness s
 > Karpenter is on a version supporting [TARGET] before you begin (per the karpenter.sh
 > compatibility matrix). See the conditional Step 0 below.
 
-### Step 0 (CONDITIONAL — Karpenter only): Prerequisite — bring Karpenter to a [TARGET]-compatible version first
+**Candidate-version gate:** Every proposed pre-upgrade add-on/controller version must
+support BOTH [CURRENT] and [TARGET], with its documented migration steps checked
+(addon-compatibility.md §4.1a). If no verified transition exists, report the unresolved
+prerequisite and omit executable-looking install commands for unverified candidates.
+This gate applies to the conditional Karpenter commands below. Retain the normal
+post-control-plane managed-add-on update order unless a documented prerequisite applies.
+
+### Step 0 (CONDITIONAL): Verified compatibility prerequisites
+
+[Include only prerequisites established by addon-compatibility.md §4.1a. For an OSS
+controller that must change before the control plane, state the verified version
+supporting both Kubernetes versions and its documented migration order. If unresolved,
+state the missing transition and do not print an unverified install command.]
+
+**Karpenter, if installed and target-incompatible:**
 ```bash
 # ONLY if Karpenter is installed AND its running version does not support [TARGET].
 # This is a COMPATIBILITY PREREQUISITE, not an ordering rule: Karpenter must be on a
 # version that supports [TARGET] before the upgrade so it can provision compatible nodes
 # during the roll. Confirm the required version in the karpenter.sh compatibility matrix
-# (https://karpenter.sh/docs/upgrading/compatibility/), then upgrade in two steps —
+# (https://karpenter.sh/docs/upgrading/compatibility/) for BOTH [CURRENT] and [TARGET],
+# verify migration instructions, then upgrade in two steps —
 # CRDs first, then the controller. If Karpenter is not installed, skip this step.
 #
 # Step 0a: update the Karpenter CRDs (required for cross-major upgrades — the controller
