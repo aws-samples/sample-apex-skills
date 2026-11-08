@@ -746,7 +746,7 @@ aws logs put-retention-policy --log-group-name /aws/eks/<CLUSTER>/cluster --rete
 
 **Remediation:** Deploy Prometheus Node Exporter as a DaemonSet: `helm install node-exporter oci://ghcr.io/prometheus-community/charts/prometheus-node-exporter --version <chart-version>`. Create Grafana dashboards for CPU, memory, disk. Or enable Container Insights with the `amazon-cloudwatch-observability` EKS add-on (the ope-5 remediation), which runs the `cloudwatch-agent` DaemonSet.
 
-**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+**Chart version:** `<chart-version>` is for the reader to fill in. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
 
 ---
 

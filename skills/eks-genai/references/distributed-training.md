@@ -214,12 +214,17 @@ Ray Train (training)
 
 MLflow runs as a Deployment on the CPU NodePool — tracks experiments, stores model artifacts (S3 backend), manages model versions. Deploy via Helm:
 
-**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
 ```bash
 helm install mlflow community-charts/mlflow --version <chart-version> \
   --set backendStore.postgres.enabled=true \
-  --set artifactRoot=s3://my-mlflow-artifacts/
+  --set backendStore.postgres.host=<postgres-host> \
+  --set backendStore.postgres.database=<database> \
+  --set backendStore.postgres.user=<user> \
+  --set backendStore.postgres.password=<password> \
+  --set artifactRoot.s3.enabled=true \
+  --set artifactRoot.s3.bucket=my-mlflow-artifacts
 ```
 
 ### Argo Workflows

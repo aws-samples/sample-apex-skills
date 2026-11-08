@@ -137,7 +137,7 @@ Application Signals is the simplest path to APM on EKS -- if you're already usin
 
 ### Amazon Managed Prometheus (AMP) Setup
 
-**Chart version:** `<chart-version>` is a placeholder, here and at every other `<chart-version>` in this file. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+**Chart version:** `<chart-version>` is a placeholder, here and at every other `<chart-version>` in this file. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
 ```bash
 # Create AMP workspace
@@ -147,9 +147,13 @@ aws amp create-workspace --alias my-cluster-metrics
 helm install adot-collector \
   open-telemetry/opentelemetry-collector --version <chart-version> \
   --namespace observability --create-namespace \
+  --set mode=deployment \
+  --set image.repository=otel/opentelemetry-collector-contrib \
   --set config.exporters.prometheusremotewrite.endpoint=<AMP_REMOTE_WRITE_URL> \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=<IRSA_ROLE_ARN>
 ```
+
+These flags install the collector only: to reach AMP, its config also needs a metrics pipeline that exports to `prometheusremotewrite`, with the `sigv4auth` extension signing the requests.
 
 ### Key Prometheus Metrics for EKS
 
