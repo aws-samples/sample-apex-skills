@@ -31,6 +31,18 @@
           "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#installation"
         },
         {
+          "type": "must-contain",
+          "pattern": "dev-admin",
+          "context": "Must reference the user's specified AWS_PROFILE name",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#environment-variables"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["--allow-write", "allow.write"],
+          "context": "Must mention the --allow-write flag (even if to say omit it for read-only)",
+          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#command-line-arguments"
+        },
+        {
           "type": "must-contain-one-of",
           "patterns": ["restart", "reload"],
           "context": "Must instruct user to restart/reload the AI assistant after config change",
@@ -163,8 +175,8 @@
       "name": "version-lookup-failed",
       "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to today's latest. Note: this machine cannot reach pypi.org.",
       "expectations": [
-        "If the lookup fails, says plainly that the current version could not be read from PyPI.",
-        "If the lookup fails, asks the user to choose between `@latest` and pinning to the last version the skill knew, naming that version from the skill's known-versions line.",
+        "States the outcome of the PyPI lookup: if it failed, says plainly that the current version could not be read from PyPI; if it succeeded, names the version it read (the eval runner can reach PyPI, so either branch can occur).",
+        "If the lookup failed, asks the user to choose between `@latest` and pinning to the last version the skill knew, naming that version from the skill's known-versions line; if it succeeded, pins the version it read, not `@latest`.",
         "Does not present a guessed or remembered version as today's latest."
       ],
       "files": []

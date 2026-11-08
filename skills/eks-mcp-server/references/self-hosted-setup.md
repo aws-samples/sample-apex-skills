@@ -112,9 +112,10 @@ These are broad grants. Attach them only with the opt-in write profile below, an
 
 **Note**: In kubeconfig mode, AWS-specific tools are disabled:
 - `manage_eks_stacks` (CloudFormation)
-- `get_cloudwatch_logs`, `get_cloudwatch_metrics`
+- `get_cloudwatch_logs`, `get_cloudwatch_metrics`, `get_eks_metrics_guidance`
 - `get_eks_vpc_config`, `get_eks_insights`
 - `get_policies_for_role`, `add_inline_policy`
+- `search_eks_troubleshoot_guide`
 
 ### Opt-in: Write Access and Sensitive-Data Reads
 
@@ -156,8 +157,9 @@ For the opt-in profile, append only the flag(s) you need (`"--allow-write"`, `"-
 
 | Argument | Description |
 |----------|-------------|
-| `--allow-write` | Opt-in: enable create, replace, patch and delete operations (and stack deploy/delete) (omit for read-only) |
+| `--allow-write` | Opt-in: enable create, replace, patch and delete operations (and stack generate/deploy/delete) (omit for read-only) |
 | `--allow-sensitive-data-access` | Opt-in: enable logs, events and Kubernetes Secrets reads (still read-only). Omitting it does not hide Secrets from `list_k8s_resources` at 0.2.1 (see Available Tools); keep `list` on secrets out of the principal's RBAC (IAM mode: an access entry with AmazonEKSViewPolicy, not AmazonEKSAdminViewPolicy; kubeconfig mode: the `view` ClusterRole) |
+| `--auth-mode` | `iam` (default) or `kubeconfig`; same as `EKS_AUTH_MODE`, and takes precedence over it |
 
 To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see Environment Variables below) — the JSON examples above use this approach.
 
@@ -177,7 +179,7 @@ To switch between IAM and kubeconfig auth, set the `EKS_AUTH_MODE` env var (see 
 ## Step 3: Verify Setup
 
 1. Restart your AI assistant
-2. Ask: "List my EKS clusters" or "What tools are available?"
+2. Ask: "What EKS MCP tools are available?" (this server has no list-clusters tool)
 3. For EKS, compare the MCP connection's target endpoint (including the server's selected kubeconfig context) with `aws eks describe-cluster --name <cluster> --region <region>` before any Kubernetes request. For kubeconfig setups without AWS discovery, compare the selected endpoint with the operator-confirmed target. Stop if the match cannot be verified. Through the verified connection, test a required read such as listing nodes for cost or ingressclasses for ingress. If it fails, report the missing read. Where entries are enabled, `aws eks list-access-entries --cluster-name <cluster> --region <region>` can help diagnose the failure. An empty or denied listing alone does not establish whether the read is authorized.
 
 ## Available Tools
@@ -192,7 +194,7 @@ With no flags (the read-only examples above), `manage_k8s_resource` allows only 
 
 ### IAM Mode Only
 - `manage_eks_stacks` — CloudFormation cluster management
-- `get_cloudwatch_logs`, `get_cloudwatch_metrics` — observability
+- `get_cloudwatch_logs`, `get_cloudwatch_metrics`, `get_eks_metrics_guidance` — observability
 - `get_eks_vpc_config` — VPC configuration
 - `get_eks_insights` — upgrade readiness
 - `get_policies_for_role`, `add_inline_policy` — IAM management

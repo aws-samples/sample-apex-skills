@@ -29,9 +29,9 @@ This skill guides you through configuring the EKS MCP Server to enable live EKS 
 Before proceeding with setup, check if EKS MCP tools are already available:
 
 1. Look for MCP tools in your current environment starting with `eks` or `mcp__eks`
-2. Try a simple command: ask to list EKS clusters. If it works, discovery is configured.
+2. Try a simple command: ask to list EKS clusters (AWS-hosted; the self-hosted server has no list-clusters tool, so ask what EKS MCP tools are available). If it works, the server is connected.
 
-If the request was only about discovery and the tools work, stop here. A working cluster list proves discovery only; for live Kubernetes reads, verify the target and the MCP caller's access per the loaded setup reference (Step 6).
+If the request was only about discovery and the tools work, stop here. A working answer proves the connection only; for live Kubernetes reads, verify the target and the MCP caller's access per the loaded setup reference (Step 6).
 
 ---
 
@@ -53,11 +53,11 @@ The package follows the hosting mode: Self-Hosted runs `awslabs.eks-mcp-server`,
 
 For AWS-Hosted this pins only the local proxy; AWS runs and updates the server.
 
-Wait for the user's answer, then look the version up live with your web-fetch tool (WebFetch in Claude Code), or curl if shell access is allowed. Fetch `https://pypi.org/pypi/<package>/json` and read `info.version` and `info.requires_python` (the current release). For a named version, fetch `https://pypi.org/pypi/<package>/<version>/json` instead: a 404 means that version is not published, otherwise read its `info.requires_python`.
+Wait for the user's answer, then look the version up live with WebFetch (Claude Code's web-fetch tool); use curl only when no web-fetch tool is available. Fetch `https://pypi.org/pypi/<package>/json` and read `info.version` and `info.requires_python` (the current release). For a named version, fetch `https://pypi.org/pypi/<package>/<version>/json` as well: a 404 means that version is not published, otherwise read its `info.requires_python`.
 
 - Latest: tell the user the current version, and use `latest`.
 - Pinned to today's latest: use `info.version`.
-- Named version: if it is not published, say so and ask again (`mcp-proxy-for-aws-cli` releases start at 1.6.5). If it is older than the current release, name both and ask the user to confirm. Use the named version.
+- Named version: if it is not published, say so and ask again (`mcp-proxy-for-aws-cli` releases start at 1.6.5). If it is older than the current release, name both and ask the user to confirm. If its `requires_dist` lists `mcp[cli]` with no upper bound (`awslabs.eks-mcp-server` before 0.1.35), warn that it fails to start with today's `mcp` 2.x and suggest the current release. Use the named version.
 - In every case, give the Python range from the chosen release's `requires_python` as the Python prerequisite.
 
 If the lookup fails (no network, blocked, or an error), say so plainly. Latest: use `@latest`. Named version: use it once the user confirms it could not be checked. Pinned to today's latest: ask whether to use `@latest` or the known version below. Never guess a newer version. If this machine cannot reach PyPI or a mirror at all, uvx cannot install either choice until an index mirror is set or the package is cached.
@@ -127,7 +127,7 @@ Do NOT proceed to Step 6 until the user confirms.
 Guide the user through verification:
 
 1. **Restart** — Tell the user to restart their AI assistant (IDE, CLI, or extension) to load the new MCP config
-2. **Test** — Ask the user to try: "List my EKS clusters" or "What EKS MCP tools are available?"
+2. **Test** — Ask the user to try: "List my EKS clusters" (AWS-hosted) or "What EKS MCP tools are available?" (either mode; self-hosted has no list-clusters tool)
 3. **Confirm** — Go to Step 3 of the [self-hosted](references/self-hosted-setup.md) or [AWS-hosted](references/aws-hosted-setup.md) reference and confirm a required read through that server.
 
 **If verification fails**, diagnose in this order:
