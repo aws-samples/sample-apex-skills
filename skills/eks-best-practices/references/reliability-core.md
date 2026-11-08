@@ -73,7 +73,7 @@ When the etcd database size limit is exceeded, etcd stops accepting writes and t
 Poorly configured admission webhooks can destabilize the control plane by blocking cluster-critical operations:
 
 - Avoid "catch-all" webhooks that match `apiGroups: ["*"]`, `resources: ["*"]`, `operations: ["*"]`
-- If a webhook must match broadly, set `failurePolicy: Ignore` (fail-open) with `timeoutSeconds` < 30 ([EKS control plane best practices](https://docs.aws.amazon.com/eks/latest/best-practices/control-plane.html))
+- If a webhook must stay catch-all, set `failurePolicy: Ignore` (fail-open) with `timeoutSeconds` < 30 ([EKS control plane best practices](https://docs.aws.amazon.com/eks/latest/best-practices/control-plane.html))
 - A policy or image-verification webhook set to `Ignore` admits unchecked requests while it is down; to fail closed, keep `Fail` and run the webhook highly available (eks-security `workload-security.md`)
 - Exempt system namespaces (`kube-system`, `kube-node-lease`) from webhook scope
 
