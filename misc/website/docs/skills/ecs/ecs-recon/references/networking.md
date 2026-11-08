@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/networking.md](https://
 
 # Module: Networking
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Discover networking configuration, load balancing, and service-to-service connectivity for ECS services
 
 ## Table of Contents

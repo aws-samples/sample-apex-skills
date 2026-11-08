@@ -1,6 +1,7 @@
 ---
-title: "eks-ingress-migration"
-description: "Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller (ALB Ingress), or AWS Transform (ATX). Discovers ingress controllers and routes, scores migration difficulty 0–100 with a separate re-architecture gate, and generates per-cluster reports plus ready-to-apply manifests. Use when someone asks \"how hard is it to move off nginx ingress?\", \"assess my ingress migration\", \"migrate nginx to ALB or Gateway API\", \"ingress migration audit\", or \"nginx ingress retirement plan\". Not for upgrade readiness (eks-upgrade-check), operational audits (eks-operation-review), general cluster discovery (eks-recon), or general ingress configuration advice (eks-best-practices)."
+title: "EKS Ingress Migration (eks-ingress-migration): plan the move off NGINX Ingress"
+sidebar_label: "eks-ingress-migration"
+description: "Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/SKILL.md
 format: md
 ---
@@ -118,7 +119,7 @@ The assessment logic (`references/*.md`), the HTML report tool (`tools/report_to
 
 ## Prerequisites
 
-1. **AWS credentials configured** with EKS read access
+1. **AWS credentials configured** with EKS read access and Kubernetes access for the assessment caller. An access entry with a suitable policy or RBAC binding, or an existing `aws-auth` mapping in `CONFIG_MAP` or `API_AND_CONFIG_MAP` mode, can grant the required reads. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs through the connection the assessment will use.
 2. **Python 3.10+** installed (report tool uses only stdlib — no pip packages needed)
 3. **EKS MCP server** for live-cluster reads (`list_k8s_resources`, etc.) — apex ships no project-root `.mcp.json`; see the `eks-mcp-server` skill for setup. Falls back to `aws` CLI + `kubectl` where possible.
 4. **AWS CLI** or AWS MCP tools available (for `eks`, `acm`, `route53`, `iam`, `elbv2` calls)
@@ -178,6 +179,8 @@ aws eks describe-cluster --name <cluster> --region <region> --output json
 ```
 
 **Action 4 — Validate permissions (per cluster)**
+
+For each kubectl target, compare the candidate context's server (`kubectl --context <ctx> config view --minify -o jsonpath='{.clusters[0].cluster.server}'`) with the endpoint from `aws eks describe-cluster --name <cluster> --region <region>`. Complete this comparison before issuing Kubernetes requests. Accept a matching alias. If no context matches, stop and ask the user to add the target's kubeconfig entry. Leave current-context unchanged. Every kubectl command in this skill runs with `--context <verified-context>` added, even where the example omits it. For MCP instead, match the active connection to the intended cluster ARN or endpoint before reading. Stop if the binding cannot be verified. Verify the required reads in the table below and the Node read in Action 5 using the same caller. Stop this cluster’s assessment if a required read fails. On denial, report the failed read. Use the cluster's authentication mode and any available access-entry information to diagnose it. A denied entry listing leaves the entries unverified.
 
 | Check Command | Required IAM Permission |
 |---------------|------------------------|

@@ -1,6 +1,7 @@
 ---
-title: "apex"
-description: "APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison) and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, and no account or cluster change without confirmation."
+title: "APEX Router (apex): pick the right EKS or ECS skill"
+sidebar_label: "apex"
+description: "Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/apex/SKILL.md
 format: md
 ---
@@ -65,7 +66,7 @@ Use the stage only as a hint: to break a tie between two equally specific rows (
 | Build a cluster, generate Terraform, pick a pattern (Terraform vs ArgoCD), resume or modify a build | `eks-build` |
 | Internal Developer Platform, golden paths, Backstage, GitOps and progressive delivery for a developer platform | `eks-platform-engineering` (ArgoCD inside a cluster build: `eks-build`) |
 | GenAI or LLM on EKS: GPU vs Neuron, vLLM, Ray, distributed training, RAG, AI gateway | `eks-genai` |
-| Harden, compliance (HIPAA, PCI, FedRAMP, GDPR), CIS, Pod Identity vs IRSA, GuardDuty, image signing, PSA | `eks-security` |
+| Harden, compliance (HIPAA, PCI, FedRAMP, GDPR), CIS, Pod Identity vs IRSA, GuardDuty, image signing, PSA; CVE or advisory review ("am I exposed to CVE-...", check a security bulletin against my cluster); security event response (compromised image or package, leaked credential); security posture check (would my cluster contain a compromised pod) | `eks-security` |
 | Ready to upgrade to a target version, what blocks my upgrade | `eks-upgrade-check` |
 | Operational review, audit, health check, score my posture, one section (networking, RBAC, observability), version currency with no target version | `eks-operation-review` |
 | Cost audit, waste, biggest cost driver, Spot or Graviton savings | `eks-cost-intelligence` |

@@ -29,7 +29,7 @@ These checks require at least one of:
 - **Container Insights** enabled (CloudWatch metrics available)
 - **Prometheus** with kube-state-metrics and node-exporter
 
-If none are available, the entire compute efficiency dimension is marked **SKIPPED**.
+If none are available, checks 1 to 3 are SKIPPED and the dimension stays assessed on checks 4 and 5, named partly assessed.
 
 ---
 
@@ -92,7 +92,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --region <region>
 ```
@@ -183,7 +183,7 @@ kubectl get deployments -n <namespace> -o json | \
 # CloudWatch Logs Insights query for per-pod P95 over 7 days
 aws logs start-query \
   --log-group-name "/aws/containerinsights/<cluster>/performance" \
-  --start-time "$(date -u -d '7 days ago' +%s)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%s)" \
   --query-string '
     fields @timestamp, kubernetes.namespace_name, kubernetes.pod_name,
@@ -337,7 +337,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --region <region>
 ```
@@ -770,14 +770,14 @@ If NONE available:
 When metrics are unavailable, include this in the report:
 
 ```markdown
-### Compute Efficiency — PARTIALLY SKIPPED
+### Compute Efficiency: partly assessed
 
-**Checks completed:** Karpenter consolidation, missing resource requests/limits
+**Checks completed:** {Check 4 if Karpenter: Karpenter consolidation,} missing resource requests/limits
 **Checks skipped:** CPU/memory utilization ratios, over-provisioned workloads, idle node detection
 
 **Reason:** No metrics source available (metrics-server, Container Insights, or Prometheus not detected)
 
-**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable.
+**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. Compute Efficiency is scored on checks 4 and 5 only; their findings, listed in this section, deduct as usual.
 
 **Remediation:**
 - Install metrics-server: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
@@ -811,7 +811,7 @@ actual_deduction = min(deduction, 25)  # Cap at maximum
 |-----------|--------|
 | All checks completed | ASSESSED |
 | Some checks skipped (partial metrics) | ASSESSED (with note) |
-| All utilization checks skipped (no metrics) | SKIPPED if checks 4+5 also produce no findings |
+| All utilization checks skipped (no metrics) | ASSESSED (partly assessed: utilization checks) |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.
 

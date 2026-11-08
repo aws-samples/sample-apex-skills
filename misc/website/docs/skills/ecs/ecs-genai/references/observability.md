@@ -38,7 +38,7 @@ On the **EC2 launch type there is no agentless DCGM collection**. To get GPU tel
 - **CloudWatch agent with `nvidia_smi`** — the CloudWatch-agent collects host-level NVIDIA GPU metrics (utilization, memory, temperature, power) per **instance**. Simplest, but **host-level only — no per-task attribution**.
 - **DCGM exporter (or the Neuron/DCGM exporter sidecar) → CloudWatch/AMP/Prometheus** — deploy the exporter as a container to get **per-task / per-GPU** granularity, at the cost of running and sizing the exporter yourself.
 
-So if an inference service on the **EC2 launch type** wants GPU utilization as an autoscaling signal (see [inference-serving.md](inference-serving)), it must publish it via one of these agents — the agentless MI metrics won't exist.
+So if an inference service on the **EC2 launch type** wants GPU utilization as an autoscaling signal (see [inference-serving.md](inference-serving.md)), it must publish it via one of these agents — the agentless MI metrics won't exist.
 
 ## What to Watch (and rough thresholds)
 
@@ -48,14 +48,14 @@ So if an inference service on the **EC2 launch type** wants GPU utilization as a
 | **GPU memory utilization** | KV-cache / model headroom | >~90% → OOM risk; upsize instance or reduce batch/context |
 | **GPU temperature** | Thermal throttling | Alert high temps; correlate with throughput drops |
 | **Inference latency (TTFT / p99)** | User-perceived quality | Publish from the serving engine as a custom CloudWatch metric |
-| **In-flight / queued requests** | Saturation signal for autoscaling | Drive ECS Service Auto Scaling ([inference-serving.md](inference-serving)) |
+| **In-flight / queued requests** | Saturation signal for autoscaling | Drive ECS Service Auto Scaling ([inference-serving.md](inference-serving.md)) |
 | **EFA traffic (multi-node training)** | Inter-node fabric health | Packet drops / throughput dips precede training stalls |
 
 ## Neuron (Inferentia / Trainium) Metrics
 
 For Neuron workloads, use the **AWS Neuron Monitor** tooling / `neuron-monitor` (part of the Neuron SDK on the ECS Neuron-optimized AMI) and publish to CloudWatch (via `neuron-monitor-cloudwatch.py`) or a Prometheus scrape. Its **documented metric groups** are: `neuroncore_counters` (per-NeuronCore utilization), `memory_used`, `neuron_runtime_vcpu_usage`, `execution_stats` (error count + latency), and the system groups `vcpu_usage`, `memory_info`, and `neuron_hw_counters` — where `neuron_hw_counters` is **ECC event counters only** (corrected/uncorrected DRAM and SRAM ECC), *not* general hardware telemetry ([neuron-monitor User Guide](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/tools/neuron-sys-tools/neuron-monitor-user-guide.html)).
 
-Two corrections to a common mis-statement: **neuron-monitor has no EFA metric group** — get EFA Tx/Rx and drops from `ethtool` / `/sys/class/infiniband/*/ports/*/counters` or the CloudWatch agent, not neuron-monitor. And **neuron-monitor exposes no compilation-cache hit/miss metric** — don't monitor for it; instead enforce pre-compilation at the pipeline level (ship the compiled artifact — see [neuron-on-ecs.md](neuron-on-ecs)).
+Two corrections to a common mis-statement: **neuron-monitor has no EFA metric group** — get EFA Tx/Rx and drops from `ethtool` / `/sys/class/infiniband/*/ports/*/counters` or the CloudWatch agent, not neuron-monitor. And **neuron-monitor exposes no compilation-cache hit/miss metric** — don't monitor for it; instead enforce pre-compilation at the pipeline level (ship the compiled artifact — see [neuron-on-ecs.md](neuron-on-ecs.md)).
 
 ## Standard ECS Telemetry (still applies)
 
@@ -67,7 +67,7 @@ Two corrections to a common mis-statement: **neuron-monitor has no EFA metric gr
 ## Cost Attribution
 
 GPU/Neuron capacity is the dominant cost. Attribute it with:
-- **AWS Split Cost Allocation Data (SCAD)** for per-task ECS cost allocation in Cost Explorer.
+- **AWS Split Cost Allocation Data (SCAD)** for per-task ECS cost allocation in CUR and CUR 2.0, not Cost Explorer; on ECS it splits by task CPU and memory only (the GPU and accelerator split is EKS-only), so the instance cost, GPU included, is split by task CPU and memory, not by GPUs per task ([split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/split-cost-allocation-data.html)).
 - **Cost allocation tags** on services/task definitions (team, model, environment).
 - **Custom per-request accounting** from the serving engine (tokens/requests per tenant) when you need per-tenant chargeback.
 

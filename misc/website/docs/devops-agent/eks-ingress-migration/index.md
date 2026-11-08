@@ -1,6 +1,7 @@
 ---
-title: "eks-ingress-migration"
-description: "Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller (ALB Ingress), or AWS Transform (ATX). Discovers ingress controllers and routes, scores migration difficulty 0–100 with a separate re-architecture gate, and generates per-cluster reports plus ready-to-apply manifests. Use when someone asks \"how hard is it to move off nginx ingress?\", \"assess my ingress migration\", \"migrate nginx to ALB or Gateway API\", \"ingress migration audit\", or \"nginx ingress retirement plan\". Not for upgrade readiness (eks-upgrade-check), operational audits (eks-operation-review), general cluster discovery (eks-recon), or general ingress configuration advice that is not a migration assessment."
+title: "EKS Ingress Migration (eks-ingress-migration) for AWS DevOps Agent"
+sidebar_label: "eks-ingress-migration"
+description: "AWS DevOps Agent port. Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/SKILL.md
 format: md
 ---
@@ -146,7 +147,7 @@ A ready-to-use policy document is at [`references/iam-policy.json`](https://gith
 
 ### Kubernetes API access
 
-Cluster reads come from an **EKS access entry** binding the Agent Space role to a cluster-access policy (`devops-agent/setup.sh` associates `AmazonAIOpsAssistantPolicy`); the cluster's `authenticationMode` must include `API`.
+Cluster reads come from an **EKS access entry** binding the Agent Space role to a cluster-access policy (`devops-agent/setup.sh` associates `AmazonAIOpsAssistantPolicy`); the cluster's `authenticationMode` must include `API`. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the verified connection.
 
 > **Do not assume the managed policy's coverage — verify it.** As of 2026-08-30, `AmazonAIOpsAssistantPolicy` is listed among the available cluster-access policies in the EKS reference but its rules are **not enumerated** there, unlike most access policies on that page (`AmazonARCRegionSwitchScalingPolicy` is likewise unenumerated) ([Review access policy permissions](https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html)). So the exact API groups it grants are unconfirmed from an authoritative source. This skill therefore treats **every** Kubernetes read as possibly denied and fails closed (below) rather than relying on assumed coverage. To make the outcome deterministic, bind the supplementary read-only ClusterRole in `references/supplementary-rbac.md`, which grants exactly the reads this skill needs, and confirm with `kubectl auth can-i`.
 
@@ -213,13 +214,17 @@ Then apply this decision table:
 
 **Action 3 — Describe the selected cluster**
 
-EKS `DescribeCluster`. Record name, version, platform version, region, status, endpoint access, account ID.
+EKS `DescribeCluster`. Record name, version, platform version, region, status, endpoint access, account ID, cluster ARN, endpoint and `accessConfig.authenticationMode`.
 
 > **Account ID hygiene:** the account ID is sensitive. If the report will be shared outside the account, mask or omit it.
 
 If cluster `status` is not `ACTIVE` → **HARD STOP**: a cluster mid-transition or FAILED cannot be assessed reliably.
 
 **Action 4 — Validate permissions**
+
+1. Match the selected Kubernetes connection's cluster ARN or endpoint to DescribeCluster for the intended account and region. Stop if the target cannot be verified.
+2. Bind each subsequent read to that target using the Agent Space role.
+3. Run the required reads below. On denial, report the failed read and apply its stop condition.
 
 | Read | Required permission | If denied |
 |---------------|------------------------|---|

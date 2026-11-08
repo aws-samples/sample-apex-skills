@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/networking.md](ht
 
 # Module: Networking
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect network configuration - VPC identifiers, VPC CNI, subnets, ingress controllers, load balancers, service mesh, DNS, network policies, endpoint access
 
 ## Table of Contents
@@ -305,7 +305,7 @@ aws eks describe-addon --cluster-name <cluster-name> --region <region> --addon-n
 ```python
 apps = client.AppsV1Api()
 ds = apps.read_namespaced_daemon_set("aws-node", "kube-system")
-env = {e.name: e.value for e in ds.spec.template.spec.containers[0].env
+env = {e.name: e.value for e in (ds.spec.template.spec.containers[0].env or [])
        if e.name.startswith(("AWS_", "ENABLE_", "WARM_", "MINIMUM_"))}
 prefix_delegation = env.get("ENABLE_PREFIX_DELEGATION")
 pod_eni           = env.get("ENABLE_POD_ENI")

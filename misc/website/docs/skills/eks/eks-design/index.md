@@ -1,6 +1,7 @@
 ---
-title: "eks-design"
-description: "Use when designing EKS architecture. Generates design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices. Covers cluster architecture, compute, networking, security, addons, observability, cost, and upgrade strategy. Also use when reviewing or validating existing EKS architectures, planning networking or security, evaluating deployment models, or generating architecture diagrams. Skip for short advisory recommendations without a formal document (eks-best-practices), Internal Developer Platforms or progressive delivery (eks-platform-engineering), and GenAI/LLM workload design — GPU vs Neuron, vLLM/Ray serving, distributed training (eks-genai)."
+title: "EKS Design (eks-design): architecture documents for Amazon EKS"
+sidebar_label: "eks-design"
+description: "Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-design/SKILL.md
 format: md
 ---
@@ -54,6 +55,8 @@ Generate architecture design documents for production-ready EKS deployments. All
 
 **Internet search (MANDATORY before generating):** Before writing any design content, you MUST search the internet to determine the latest EKS version, tool versions (Karpenter, ArgoCD, Kyverno, etc.), and AWS service updates. Do NOT use version numbers from reference files — they are illustrative only and may be outdated. Always verify the chosen EKS version is in standard support (not extended or EOL). Never rely solely on cached knowledge for version numbers.
 
+If the mandated search cannot reach the web, mark every version claim and recommendation that depends on it UNVERIFIED in the design and its ADRs; a search that was attempted and failed satisfies the Stage 5 search item when those marks are present.
+
 ## Design Workflow
 
 > **MANDATORY: The validation loop (Stages 3-4) is NOT optional.** Every design MUST be scored after generation. If the score is below threshold, you MUST fix the gaps and re-score. Do NOT skip to Stage 5 (Handoff) without a passing score. Do NOT present the design to the user as "complete" until it passes. The scoring loop is what separates a draft from a validated design.
@@ -95,13 +98,13 @@ Refer to `eks-best-practices` skill for detailed reference material on autoscali
 - **Focused design** (user asks for "security design", "CI/CD design", "networking design", etc.): Generate `architecture/<focus>-architecture.md` as the PRIMARY document, going deep on that specific domain. Do NOT force comprehensive coverage when the user asked for a focused design.
 - **Comprehensive + supplementary**: When generating a comprehensive design, optionally also generate a `<focus>-architecture.md` deep-dive if a domain is complex enough (e.g., HIPAA security, multi-tenant CI/CD).
 
-**ADRs**: `architecture/architecture-decision-records/ADR-*.md`. Every significant technology choice must have an ADR. Each ADR follows the format: Context → Decision → Alternatives Considered → Rationale → Consequences → Research Sources. Name files `ADR-001-compute-strategy.md`, `ADR-002-networking-model.md`, etc. For comprehensive designs, produce 7-9+ ADRs. For focused designs, produce ADRs relevant to the focus area.
+**ADRs**: `architecture/architecture-decision-records/ADR-*.md`. Every significant technology choice must have an ADR. Each ADR follows the format: Context → Decision → Alternatives Considered → Rationale → Consequences → Research Sources (checked on `<YYYY-MM-DD>`). Name files `ADR-001-compute-strategy.md`, `ADR-002-networking-model.md`, etc. For comprehensive designs, produce 7-9+ ADRs. For focused designs, produce ADRs relevant to the focus area.
 
 ### Stage 3: Architecture Validation (MANDATORY — DO NOT SKIP)
 
 **You MUST run this stage after generating any design documents.** Score the design against five validation dimensions. If the score is below 85/100, you MUST fix the identified gaps before proceeding. This is the quality gate between "draft" and "validated design."
 
-**Validation dimensions** (each scored per [references/architecture-validation.md](references/architecture-validation)):
+**Validation dimensions** (each scored per [references/architecture-validation.md](references/architecture-validation.md)):
 
 | Dimension | Points | What to Evaluate |
 |-----------|--------|-----------------|
@@ -109,13 +112,13 @@ Refer to `eks-best-practices` skill for detailed reference material on autoscali
 | Component Integration | /20 | All interfaces defined and compatible, data flows documented |
 | Service Limits | /15 | AWS service limits assessed with mitigation for high-risk items |
 | Technical Feasibility | /20 | Technology choices validated, EKS-specific checks pass |
-| Documentation Completeness | /20 | All required docs present, **narrative quality** (not just tables), ADR quality, diagrams rendered to PNG and embedded in docx/pptx |
+| Documentation Completeness | /20 | All required docs present, **narrative quality** (not just tables), ADR quality, diagrams rendered to PNG and, if generated, embedded in docx/pptx |
 
-**Output**: `appendices/iterations/score-sheet-iteration-1.md`
+**Output**: `appendices/architecture-integration-validation.md`
 
 **Scoring thresholds**:
 - **>= 85/100**: PASSED — proceed to Stage 4
-- **70-84**: CONDITIONAL — fix identified gaps, re-score as next iteration
+- **70-84**: CONDITIONAL — fix identified gaps, re-score in the same file
 - **< 70**: FAILED — significant rework needed
 
 **How to score**: For each dimension, evaluate every criteria in the scoring matrix (see reference), assign points with specific justification, document gaps, and calculate the total. Be honest — inflated scores lead to weak designs that fail during build.
@@ -174,8 +177,8 @@ Generate handoff artifacts for `eks-build`:
 1. **AGENTS.md** — machine-readable instructions listing which design files the build agent must read
 2. **README.md** — human-readable navigation guide
 3. Verify output structure matches specification
-4. **Render Mermaid diagrams to PNG** — extract every Mermaid code block from the architecture markdown files, save each as a `.mmd` file, then convert to PNG in `diagrams/`. Install and convert: `npm install -g @mermaid-js/mermaid-cli && mmdc -i diagram.mmd -o diagrams/<name>.png -b white -s 4`. If `mmdc` doesn't work, **search the internet for how to use mermaid-cli to convert .mmd to .png**. Requirements: 4x scale, white background, auto-sized canvas (no fixed width/height). Use descriptive kebab-case names (e.g., `defense-in-depth-layers.png`, `pod-identity-flow.png`).
-5. **Ask the user** if they want Word (.docx) and PowerPoint (.pptx) versions. Only generate if confirmed — the `docx` and `aws-pptx` skills handle generation. When generating, embed the rendered PNGs from `diagrams/` into the documents.
+4. **Render Mermaid diagrams to PNG** — extract every Mermaid code block from the architecture markdown files, save each as a `.mmd` file, then convert to PNG in `diagrams/`. Install and convert: `npm install -g @mermaid-js/mermaid-cli && mmdc -i diagram.mmd -o diagrams/<name>.png -b white -s 4`. `mmdc` renders through a headless Chrome driven by puppeteer; if `mmdc` fails with "Could not find Chrome" or "Could not find chrome-headless-shell" (puppeteer's browser download was blocked, or the version it wants is not installed), point it at an installed Chrome or Chromium with `PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`. If `mmdc` still doesn't work, **search the internet for how to use mermaid-cli to convert .mmd to .png**. Requirements: 4x scale, white background, auto-sized canvas (no fixed width/height). Use descriptive kebab-case names (e.g., `defense-in-depth-layers.png`, `pod-identity-flow.png`).
+5. **Ask the user** if they want Word (.docx) and PowerPoint (.pptx) versions. Only generate if confirmed. Generation uses the `docx` and `pptx` skills from [anthropics/skills](https://github.com/anthropics/skills), which this repo does not ship (Apache 2.0). Check they are installed first. If one is missing, ask the user whether to install it: copy `skills/docx` or `skills/pptx` from anthropics/skills into the folder this repo's skills are in (`~/.claude/skills/` for Claude Code, `~/.kiro/skills/` for Kiro CLI, `~/.agents/skills/` for Codex). Install only on a yes; on a no, tell the user and skip the documents. Do not write a document generator yourself. When generating, embed the rendered PNGs from `diagrams/` into the documents.
 
 **Output**: `AGENTS.md`, `README.md`, `diagrams/*.png`, optionally `.docx` and `.pptx`
 
@@ -197,10 +200,9 @@ projects/<project-name>/design/
 │   ├── cluster-topology.png
 │   ├── network-architecture.png
 │   └── addon-dependencies.png
-├── generate-docx.js                         # DOCX generator script (optional — user must confirm)
-├── generate-pptx.js                         # PPTX generator script (optional — user must confirm)
-├── system-architecture.docx                 # Word document (optional — with embedded diagrams)
-├── system-architecture.pptx                 # PowerPoint deck (optional — with embedded diagrams)
+├── exports/                                 # Optional: generated documents, with embedded diagrams
+│   ├── architecture-document.docx           # Word document
+│   └── architecture-presentation.pptx       # PowerPoint deck
 └── appendices/
     ├── input-assessment-analysis.md         # Stage 1 output
     ├── architecture-integration-validation.md # Stage 3 output
@@ -209,7 +211,7 @@ projects/<project-name>/design/
         └── score-sheet-iteration-X.md
 ```
 
-**Detailed file descriptions**: See [references/output-structure.md](references/output-structure).
+**Detailed file descriptions**: See [references/output-structure.md](references/output-structure.md).
 
 ## EKS Architecture Decision Framework
 
@@ -360,7 +362,7 @@ Generate `AGENTS.md` as a machine-readable handoff to `eks-build`:
 
 This skill uses **progressive disclosure** — essential guidance is above, detailed reference material is loaded on demand:
 
-- **[Output Structure](references/output-structure)** — Read when you need detailed file descriptions, naming conventions, and organization principles for the design output folder
-- **[Architecture Validation](references/architecture-validation)** — Read when running Stage 3 or Stage 4 validation; contains the full scoring matrix, criteria details, and report format
+- **[Output Structure](references/output-structure.md)** — Read when you need detailed file descriptions, naming conventions, and organization principles for the design output folder
+- **[Architecture Validation](references/architecture-validation.md)** — Read when running Stage 3 or Stage 4 validation; contains the full scoring matrix, criteria details, and report format
 
 For detailed topic-specific reference material (autoscaling, networking, security, observability, cost, reliability, upgrades, container registry, Terraform examples), refer to the `eks-best-practices` skill which maintains canonical copies of all decision matrices and deep-dive guidance.

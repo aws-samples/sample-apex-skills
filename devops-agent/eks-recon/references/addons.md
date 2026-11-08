@@ -85,7 +85,7 @@ aws eks describe-addon --cluster-name <cluster-name> --addon-name <addon-name> \
   }'
 ```
 
-- `serviceAccountRoleArn` = the Pod Identity / IRSA role bound to the add-on (null when none).
+- `serviceAccountRoleArn` = the IRSA role bound to the add-on service account (null when no IRSA role). Per-add-on Pod Identity associations are separate and are not collected here.
 - `health.issues` = AWS-reported add-on health issues, a list of `{code, message, resourceIds}`.
   Capture verbatim as a raw fact (empty list = no reported issues); draw no conclusion.
 
@@ -226,7 +226,7 @@ addons:
       - name: string
         version: string             # addonVersion (installed)
         status: string              # AWS-reported: ACTIVE, CREATING, UPDATING, DEGRADED, DELETING (fact)
-        service_account_role: string  # serviceAccountRoleArn — Pod Identity/IRSA role ARN, null if none
+        service_account_role: string  # serviceAccountRoleArn — IRSA role ARN; null = no IRSA role; per-add-on Pod Identity associations are not collected
         configuration: object       # configurationValues, null if none
         health_issues: list         # health.issues: [{code, message, resource_ids}], [] if none (fact)
         latest_version: string      # first entry from describe-addon-versions at CURRENT k8s version (fact)

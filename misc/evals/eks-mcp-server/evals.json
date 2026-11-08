@@ -6,9 +6,9 @@
       "prompt": "Walk me through installing the self-hosted EKS MCP Server for Claude Code on my laptop. I'm on macOS, my AWS profile is `dev-admin`, and I only want read access for now — no write or sensitive-data tools. Where does the config file go and what exactly should it contain?",
       "expectations": [
         "The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or mentions a user-scope MCP configuration location (e.g., ~/.claude.json or via claude mcp add). TODO: human review",
-        "The output provides a concrete JSON block under `mcpServers.awslabs.eks-mcp-server` that invokes `uvx` with `awslabs.eks-mcp-server@latest` and sets `AWS_PROFILE` to `dev-admin`. TODO: human review",
+        "Before writing any config, the output asks how to handle the server version (latest, pinned to the current latest, or pinned to a version the user names), and writes no fixed version number of its own. TODO: human review",
         "The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the args array (or equivalently tells the user to leave them out) to satisfy the read-only requirement. TODO: human review",
-        "The output mentions prerequisites: Python 3.10+ and the `uv`/`uvx` package manager (installable via the astral.sh/uv script). TODO: human review",
+        "The output mentions the `uv`/`uvx` package manager (installable via the astral.sh/uv script), and states the Python range from the chosen release once a version is chosen. TODO: human review",
         "The output tells the user to restart Claude Code after editing the config and verify by asking to list EKS clusters or available MCP tools. TODO: human review"
       ],
       "knowledge_assertions": [
@@ -20,8 +20,8 @@
         },
         {
           "type": "must-contain",
-          "pattern": "awslabs\\.eks-mcp-server@latest",
-          "context": "Must specify the correct PyPI package name for uvx invocation",
+          "pattern": "awslabs\\.eks-mcp-server",
+          "context": "Must name the correct PyPI package for the uvx invocation",
           "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#installation"
         },
         {
@@ -29,24 +29,6 @@
           "pattern": "uvx",
           "context": "Must use uvx as the command to run the self-hosted server",
           "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#installation"
-        },
-        {
-          "type": "must-contain",
-          "pattern": "dev-admin",
-          "context": "Must reference the user's specified AWS_PROFILE name",
-          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#environment-variables"
-        },
-        {
-          "type": "must-contain",
-          "pattern": "3\\.10",
-          "context": "Must state the minimum Python version prerequisite",
-          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#prerequisites"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["--allow-write", "allow.write"],
-          "context": "Must mention the --allow-write flag (even if to say omit it for read-only)",
-          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#command-line-arguments"
         },
         {
           "type": "must-contain-one-of",
@@ -129,6 +111,61 @@
         {"type": "tool-effectiveness", "max_consecutive_no_progress": 3},
         {"type": "no-tool-called", "tool": "Write"},
         {"type": "no-tool-called", "tool": "Bash"}
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "legacy-mapping",
+      "prompt": "My self-hosted MCP connection points to the verified EKS endpoint. The cluster uses API_AND_CONFIG_MAP. My role has no access entry, but it is mapped in aws-auth and can list the resources I need through MCP. Is the Kubernetes connection ready?",
+      "expectations": [
+        "Accepts successful required reads through the verified MCP connection.",
+        "Recognizes that the existing aws-auth mapping can grant mixed-mode access without an access entry.",
+        "Distinguishes AWS discovery from verification of the MCP caller's Kubernetes reads."
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "version-latest",
+      "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. For the version, use latest.",
+      "expectations": [
+        "Looks the package up live on PyPI (https://pypi.org/pypi/awslabs.eks-mcp-server/json) and tells the user the current version, or says it will look it up once the user confirms.",
+        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config.",
+        "Does not write a fixed version number."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "version-pin-current",
+      "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to whatever the latest version is today.",
+      "expectations": [
+        "Looks the package up live on PyPI and reads `info.version`, or says it will look it up once the user confirms.",
+        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config.",
+        "States the Python range from that release's `requires_python`, or says it will once the version is looked up."
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "version-pin-named",
+      "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to version 0.2.0.",
+      "expectations": [
+        "Checks on PyPI that 0.2.0 is a published release of awslabs.eks-mcp-server, or says it will check once the user confirms.",
+        "If PyPI shows a newer current release, names both versions and asks the user to confirm the older pin before writing the config.",
+        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config."
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "version-lookup-failed",
+      "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to today's latest. Note: this machine cannot reach pypi.org.",
+      "expectations": [
+        "If the lookup fails, says plainly that the current version could not be read from PyPI.",
+        "If the lookup fails, asks the user to choose between `@latest` and pinning to the last version the skill knew, naming that version from the skill's known-versions line.",
+        "Does not present a guessed or remembered version as today's latest."
       ],
       "files": []
     }

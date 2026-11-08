@@ -2,168 +2,196 @@
   {
     "name": "apex",
     "description": "APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison) and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, and no account or cluster change without confirmation.",
+    "summary": "Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills",
     "path": "/docs/skills/general/apex",
     "group": "general"
   },
   {
     "name": "dotnet-aws-ecs",
     "description": "Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET workload to Amazon ECS Fargate on Linux containers with an Application Load Balancer. Produces a VPC, ECS cluster, task definition, ALB, and auto-scaling. NOT for Windows containers, EC2 launch type, or Kubernetes/EKS deployments.",
+    "summary": "Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide",
     "path": "/docs/skills/general/dotnet-aws-ecs",
     "group": "general"
   },
   {
     "name": "ecs-architect",
     "description": "Use when choosing and architecting an Amazon ECS deployment model for a NEW workload — Fargate vs ECS on EC2 vs Managed Instances vs Express Mode vs ECS Anywhere/External — plus capacity-provider strategy, task sizing, awsvpc/ENI density, networking, service parameters, and launch-type or topology migration (EC2 launch type to capacity providers/Managed Instances; Service Discovery to Service Connect). Also the shared ECS best-practices corpus. Triggers include \"which ECS launch type\", \"Fargate or EC2\", \"should I use Managed Instances\", \"migrate off EC2 launch type\", \"App Mesh to Service Connect\", \"migrate off App Runner\". Skip for existing-app replatform (ecs-modernize); auditing a live estate (ecs-operation-review); cost/TCO (ecs-cost-intelligence); inventory (ecs-recon); security (ecs-security); deployment/CICD (ecs-devops); observability (ecs-observability); GPU/ML design AND GPU launch-type choice (ecs-genai); Kubernetes/EKS (eks-design); Terraform generation of a settled design (use ecs-build).",
+    "summary": "Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing",
     "path": "/docs/skills/ecs/ecs-architect",
     "group": "ecs"
   },
   {
     "name": "ecs-build",
     "description": "Use when building Amazon ECS infrastructure with Terraform, generating apply-ready code for ECS clusters, services, and task definitions across three capacity models — Fargate (FARGATE_SPOT as capacity provider), EC2 Auto Scaling group providers, and ECS Managed Instances. Covers rolling/blue-green/linear/canary deployment config, Express services, Service Connect, private/VPC-endpoint-only networking, secrets, and Graviton. Also use when (1) wiring a Managed Instances capacity provider and its IAM role, (2) mixing FARGATE and FARGATE_SPOT in a strategy, (3) rendering blue/green, linear, or canary deployment config, (4) generating VPC endpoints for private or air-gapped ECS, (5) configuring Application Auto Scaling, or (6) migrating a service from launch type to capacity providers. Skip for EKS/Kubernetes builds (use eks-build), design and launch-type selection (use ecs-architect), CI/CD pipelines and release strategy (use ecs-devops), and replatforming an existing app onto ECS (use ecs-modernize).",
+    "summary": "Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances",
     "path": "/docs/skills/ecs/ecs-build",
     "group": "ecs"
   },
   {
     "name": "ecs-devops",
     "description": "Use when someone is deploying, releasing, or shipping software to Amazon ECS — phrased as \"blue/green deployment on ECS\", \"canary deployment for my ECS service\", \"set up CI/CD for ECS\", \"GitHub Actions deploy to Fargate\", \"my ECS deployment is stuck\", \"ECS deployment circuit breaker\", \"ECS task sets\", or \"migrate off CodeDeploy blue/green\". Covers strategy selection (rolling/blue-green/linear/canary), lifecycle hooks, circuit-breaker and alarm rollback, and pipelines (CodePipeline, GitHub Actions, ECR scanning) — scoped per launch type (EC2, Fargate, Managed Instances, ECS Anywhere). Trigger even if \"deployment strategy\" is never said — any release-safety, traffic-shifting, rollback, or pipeline decision for an ECS service qualifies. Skip for EKS/Kubernetes (use eks-* skills) and greenfield ECS architecture with no release angle (use ecs-architect for design and ecs-build for Terraform generation incl. deployment config blocks). For ECS monitoring stacks use ecs-observability; for GPU/ML on ECS use ecs-genai.",
+    "summary": "Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks",
     "path": "/docs/skills/ecs/ecs-devops",
     "group": "ecs"
   },
   {
     "name": "ecs-genai",
     "description": "Use whenever someone runs a GPU / ML / GenAI / LLM workload on Amazon ECS: GPU on ECS, ECS GPU-optimized AMI, g4dn/g5/g6/p4/p5 on ECS, which ECS launch type for GPU, Inferentia/Trainium/Neuron on ECS, distributed training, model inference or vLLM/Triton/TGI/Ray on ECS, Capacity Blocks, GPU sharing, ASG per GPU type. Covers GPU on ECS-on-EC2 and ECS Managed Instances (GPU AMIs, NVIDIA runtime, instance families); mixed-instance ASGs supported but constrained (no weighting; managed scaling protects on the smallest type); Capacity Blocks; inference/serving; Neuron; distributed ML; GPU observability; a GPU/ML security slice (PCI/HIPAA). AWS Fargate has NO GPU: use ECS-on-EC2, Managed Instances, ECS Anywhere, or keep Fargate and call Bedrock. Trigger even if GenAI is unsaid. Use eks-genai for Kubernetes/EKS; SageMaker for fully-managed ML; Bedrock for managed foundation models; ecs-architect for non-accelerator ECS design; ecs-build to render the settled design as Terraform; ecs-security for deep compliance.",
+    "summary": "GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference",
     "path": "/docs/skills/ecs/ecs-genai",
     "group": "ecs"
   },
   {
     "name": "ecs-modernize",
     "description": "Assess an existing app (VMware/EC2) by source code analysis for the replatform vs rearchitect decision, and execute the approved migration onto Amazon ECS. Scope: assessment, strategy decision, migration execution. Covers: source code analysis; language/framework detection (Java, .NET, Spring, Struts, WebSphere tWAS/Liberty); cloud/container fit scoring; strategy recommendation; tWAS containerization and Liberty migration; migration planning; AWS Transform orchestration; containerization and ECR push; Replatform (ECS on EC2, bridge, sticky sessions) and Windows-container environment build; deploy and verification. Triggers: \"migrate this app from EC2 to ECS\", \"can we containerize this VMware-hosted app?\", \"replatform or rearchitect for ECS?\", \"modernize this WebSphere app\". Skip for greenfield design (ecs-architect), Rearchitect compute-model Terraform (ecs-build), live ECS inventory (ecs-recon), security hardening (ecs-security), cloud-ready .NET IaC (dotnet-aws-ecs), Kubernetes/EKS (eks-design).",
+    "summary": "Assess an existing VMware or EC2 app from its source code, decide replatform or rearchitect, and migrate it onto ECS",
     "path": "/docs/skills/ecs/ecs-modernize",
     "group": "ecs"
   },
   {
     "name": "ecs-observability",
     "description": "Advise on Amazon ECS observability architecture — select the logs/metrics/traces stack (CloudWatch, Container Insights, X-Ray, ADOT/OpenTelemetry, Managed Prometheus/Grafana, FireLens to third-party) by compliance needs, existing tooling, scale, budget, and launch types (EC2, Fargate, Managed Instances, ECS Anywhere). Use for \"how should we monitor our ECS services\", \"Container Insights or Prometheus for ECS\", \"are we losing ECS container logs\", \"set up tracing on Fargate\", \"ECS logging best practices\", \"Datadog vs CloudWatch for ECS\", \"GPU metrics for ECS tasks\", or \"plan live-debug access to an ECS task\". Any ECS logging, metrics, tracing, or alerting design question qualifies even if \"observability\" is never said. Skip for EKS/Kubernetes (eks-* skills), deployment mechanics/CI-CD/deploy-failure diagnosis (ecs-devops; deploy-failure alerting stays here), security posture beyond observability audit logging (ecs-security), live-estate audits (ecs-operation-review), and FinOps audits of observability spend.",
+    "summary": "ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens",
     "path": "/docs/skills/ecs/ecs-observability",
     "group": "ecs"
   },
   {
     "name": "ecs-operation-review",
     "description": "Run a structured Amazon ECS operational-excellence assessment against a live estate (Fargate/EC2/Managed Instances/ECS Anywhere) and score it GREEN/AMBER/RED. Skip for EKS/Kubernetes (use eks-operation-review). Covers 8 domains — clusters & capacity, networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (grace period, draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for \"audit my ECS estate\", \"ECS health check\", \"score my ECS posture\", \"review my ECS services\", \"GREEN/AMBER/RED my ECS clusters\", including single-domain reviews. For Day-0 design use ecs-architect; for security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence; for observability design use ecs-observability; for CI/CD engineering use ecs-devops; for replatform/refactor use ecs-modernize; for read-only inventory use ecs-recon (siblings once available).",
+    "summary": "Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings",
     "path": "/docs/skills/ecs/ecs-operation-review",
     "group": "ecs"
   },
   {
     "name": "ecs-recon",
     "description": "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, inspect a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment strategy design and CI/CD engineering (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost/TCO (ecs-cost-intelligence, once available), observability design (ecs-observability), and replatform/migration (ecs-modernize, once available).",
+    "summary": "ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD",
     "path": "/docs/skills/ecs/ecs-recon",
     "group": "ecs"
   },
   {
     "name": "ecs-security",
     "description": "Security and compliance guidance for Amazon ECS — \"ECS was unable to assume the role\", task role vs execution role, iam:PassRole, confused-deputy aws:SourceArn trust, Fargate vs EC2 shared responsibility, injecting Secrets Manager/SSM secrets (trailing-colon JSON-key gotcha), readonlyRootFilesystem / non-root / drop capabilities, ECS Exec governance, security-group-per-task, VPC endpoint policies, GuardDuty ECS Runtime Monitoring, ECR Inspector scanning, image signing, Fargate FIPS, or PCI/HIPAA/FedRAMP. Walks a discovery-driven 7-layer stack plus the AWS-canonical baseline and a 30/60/90 roadmap. Trigger even if \"compliance\" is never said — any ECS hardening, task-trust fix, or secrets-injection qualifies. Skip for EKS/Kubernetes (eks-security), GenAI/GPU security (ecs-genai), App Runner/Lambda, auditing a live estate's operational posture (ecs-operation-review — \"audit my ECS security posture\" matches both), or account-level security with no ECS angle.",
+    "summary": "ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2",
     "path": "/docs/skills/ecs/ecs-security",
     "group": "ecs"
   },
   {
     "name": "eks-best-practices",
     "description": "Advisory guidance for Amazon EKS architecture and configuration — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, on-prem/hybrid (EKS Hybrid Nodes, EKS Anywhere, Outposts), and surge readiness for planned traffic peaks. Also answers terraform-aws-modules/terraform-aws-eks questions. Use for any EKS planning or architectural judgment call, even phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check, eks-well-architected-review), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), developer platforms/IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (graviton-migration).",
+    "summary": "EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness",
     "path": "/docs/skills/eks/eks-best-practices",
     "group": "eks"
   },
   {
     "name": "eks-build",
     "description": "Use when building EKS clusters. Generates complete, production-ready Terraform projects with optional ArgoCD GitOps integration. Handles environment-specific constraints: air-gapped/VPC-endpoint-only networks, enterprise proxies, private container registries, compliance requirements. Supports 3 patterns: full Terraform, ArgoCD+Terraform, ArgoCD+ACK/KRO. Includes validated modules, two-phase webhook ordering, IRSA/Pod Identity, and 29+ addon configurations. Ask interactive questions or accept requirements YAML. Also use when (1) generating EKS Terraform code from scratch, (2) creating GitOps-managed EKS addons with ArgoCD, (3) scaffolding EKS projects with compliance constraints, (4) implementing two-phase webhook ordering for EKS addons, (5) configuring IRSA or Pod Identity for EKS workloads, (6) generating ArgoCD ApplicationSets for EKS addon management, or (7) comparing deployment patterns for implementation decisions. Skip for Amazon ECS (use ecs-build).",
+    "summary": "Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations",
     "path": "/docs/skills/eks/eks-build",
     "group": "eks"
   },
   {
     "name": "eks-cost-intelligence",
     "description": "Run a live EKS cluster cost efficiency assessment — analyze spending across 6 dimensions (compute efficiency, Spot/Graviton adoption, networking, storage, observability, idle resources), calculate a weighted 0-100 Cost Score, and generate a prioritized report with dollar-quantified findings and ready-to-apply remediation snippets. Use this skill when someone asks \"how much am I wasting on EKS?\", \"run a cost audit on my cluster\", \"what's my biggest cost driver?\", \"analyze my cluster's cost efficiency\", or needs dollar-denominated findings for a FinOps review — even if they don't say \"cost intelligence\" or \"score\". Combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis. Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable. Distinct from eks-best-practices (static advisory guidance), eks-operation-review (operational health), and eks-recon (cluster discovery). Distinct from graviton-migration, which EXECUTES the x86→arm64 move, not scoring savings.",
+    "summary": "Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings",
     "path": "/docs/skills/eks/eks-cost-intelligence",
     "group": "eks"
   },
   {
     "name": "eks-design",
     "description": "Use when designing EKS architecture. Generates design documents with Mermaid diagrams, ADRs, security architecture, and validation reports. Translates requirements into tailored EKS designs guided by Well-Architected best practices. Covers cluster architecture, compute, networking, security, addons, observability, cost, and upgrade strategy. Also use when reviewing or validating existing EKS architectures, planning networking or security, evaluating deployment models, or generating architecture diagrams. Skip for short advisory recommendations without a formal document (eks-best-practices), Internal Developer Platforms or progressive delivery (eks-platform-engineering), and GenAI/LLM workload design — GPU vs Neuron, vLLM/Ray serving, distributed training (eks-genai).",
+    "summary": "Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices",
     "path": "/docs/skills/eks/eks-design",
     "group": "eks"
   },
   {
     "name": "eks-genai",
     "description": "Use whenever someone is building, training, fine-tuning, or serving a generative AI / LLM workload on Amazon EKS — phrased as \"GPU vs Trainium/Inferentia\", \"vLLM on EKS\", \"Ray Serve / KubeRay\", \"distributed training on EKS\", \"FSx for Lustre for ML\", \"Karpenter for GPU\", \"EFA / NCCL multi-node\", \"DCGM / Neuron Monitor\", \"LiteLLM / AI gateway\", \"RAG on EKS\", \"agentic AI on EKS\", or \"self-host Llama / Mistral / Qwen\". Walks the opinionated 6-layer stack (compute → cluster/scheduler → frameworks → storage → observability → AI gateway), the GPU-vs-Neuron decision, the JARK + vLLM + LiteLLM canonical reference, KV-cache tiering, cost levers (Neuron, Spot, Capacity Blocks), and a non-negotiable security baseline. Trigger even if \"GenAI\" is never said — any GPU/Neuron, inference-serving, or distributed-training decision on EKS qualifies. Skip for SageMaker-only or Bedrock-only (no self-hosting) asks, and for generic cluster design/build with no AI/ML workload (use eks-design / eks-build).",
+    "summary": "GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways",
     "path": "/docs/skills/eks/eks-genai",
     "group": "eks"
   },
   {
     "name": "eks-ingress-migration",
     "description": "Assess a live EKS cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller (ALB Ingress), or AWS Transform (ATX). Discovers ingress controllers and routes, scores migration difficulty 0–100 with a separate re-architecture gate, and generates per-cluster reports plus ready-to-apply manifests. Use when someone asks \"how hard is it to move off nginx ingress?\", \"assess my ingress migration\", \"migrate nginx to ALB or Gateway API\", \"ingress migration audit\", or \"nginx ingress retirement plan\". Not for upgrade readiness (eks-upgrade-check), operational audits (eks-operation-review), general cluster discovery (eks-recon), or general ingress configuration advice (eks-best-practices).",
+    "summary": "Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform",
     "path": "/docs/skills/eks/eks-ingress-migration",
     "group": "eks"
   },
   {
     "name": "eks-mcp-server",
     "description": "Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions \"eks mcp\", \"mcp server\", \"mcp.json\", or \"mcp tools not showing\". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades). For setting up the Arm migration MCP server used for arm64 readiness scanning, use graviton-migration, not this skill.",
+    "summary": "Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check",
     "path": "/docs/skills/eks/eks-mcp-server",
     "group": "eks"
   },
   {
     "name": "eks-operation-review",
     "description": "Run a structured EKS operational excellence assessment against a live cluster. Covers 10 areas — networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, operational processes — and produces a GREEN/AMBER/RED rated report with prioritized recommendations. Activate for any request to audit, review, health-check, or score an EKS cluster's operational posture, including section-scoped reviews of individual areas and version currency / current-state add-on / deprecated-API review with no target version. Not for upgrade readiness assessment against a target version, cluster discovery, or architectural design advice.",
+    "summary": "Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version",
     "path": "/docs/skills/eks/eks-operation-review",
     "group": "eks"
   },
   {
     "name": "eks-platform-engineering",
     "description": "Use whenever someone is designing or building an Internal Developer Platform (IDP) or doing platform engineering on Amazon EKS — phrased as \"build a developer platform\", \"self-service for developers\", \"golden paths\", \"IDP\", or \"set up Backstage / ArgoCD / Kargo\". Covers the opinionated platform stack — developer portal (Backstage), GitOps delivery (ArgoCD, Argo Workflows), progressive delivery (Argo Rollouts) and multi-stage promotion (Kargo), infrastructure abstraction (ACK, kro), the developer-facing app abstraction (Backstage templates + kro, or KubeVela/OAM), self-service provisioning, hub-and-spoke topology with the GitOps Bridge, identity/SSO (Keycloak, Pod Identity), measuring success (DORA, Apache DevLake), GenAI-assisted platform engineering (Kiro), and golden paths for AI/ML and data. Trigger even if \"platform engineering\" is never said. Skip for single-cluster EKS architecture or cost/ops tuning with no platform angle (use eks-best-practices); for standalone Terraform use terraform-skill.",
+    "summary": "Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics",
     "path": "/docs/skills/eks/eks-platform-engineering",
     "group": "eks"
   },
   {
     "name": "eks-recon",
     "description": "EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, subnets, load balancers, DNS), security facts (auth mode, IRSA/Pod Identity, RBAC, encryption), add-ons/Helm, observability, workloads (Deployments, StatefulSets, PDBs, HPAs), storage (CSI, StorageClasses, PVs, backup tooling), IaC (Terraform, CDK, eksctl), CI/CD (Actions, ArgoCD, Flux), and cluster insights. Use to discover or document the current state of an EKS cluster — 'what am I running', 'tell me about my setup', 'what version am I on', inventory before an upgrade/migration/design. Reports facts only; it does not score, rate, plan, or recommend, and overlapping facts with other skills is fine. Route elsewhere for a JUDGMENT or ARTIFACT: readiness scoring/deprecated-API checks (eks-upgrade-check), GREEN/AMBER/RED audits (eks-operation-review), design docs/diagrams (eks-design).",
+    "summary": "EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring",
     "path": "/docs/skills/eks/eks-recon",
     "group": "eks"
   },
   {
     "name": "eks-security",
-    "description": "Use whenever someone needs security or compliance guidance for Amazon EKS — phrased as \"CIS Benchmark for EKS\", \"HIPAA / PCI-DSS / FedRAMP / SOC 2 / GDPR on EKS\", \"harden my EKS cluster\", \"Bottlerocket vs AL2023 vs RHEL/Ubuntu AMI\", \"EKS Pod Identity vs IRSA\", \"Access Entries vs aws-auth\", \"GuardDuty for EKS\", \"Pod Security Admission / Kyverno / OPA\", \"NetworkPolicy / Security Groups for Pods\", \"ECR scanning / image signing (Cosign / Notation)\", \"EKS audit logging\", \"etcd / secrets encryption\", or regulated-workload / audit-prep guidance. Walks the discovery-driven 7-layer security stack (OS/AMI → identity → workload → image → runtime → audit → compliance accelerators), the compliance-regime scope view, the AWS-canonical baseline, and a 30/60/90 hardening roadmap. Trigger even if \"compliance\" is never said — any EKS hardening, audit-prep, or regulated-workload decision qualifies. Skip for non-EKS (ECS/ROSA), account-level security with no EKS angle, or GenAI-workload security (use eks-genai).",
+    "description": "Read-only scripted security reviews of a live Amazon EKS cluster (exposed / not exposed / unknown), plus hardening and compliance guidance. (1) CVE and advisory review - \"am I exposed to CVE-...\", \"check this AWS bulletin or GHSA against my cluster\", \"CVE review for EKS\" - verdicts for add-ons and images; kubelet and node-OS items are review-only. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, record, contain, snapshot, fix, verify. (3) Posture check - \"would my cluster contain a compromised pod\", IMDS, NetworkPolicy, PSA, identity, logging, GuardDuty, endpoint, supply chain. Also hardening and audit prep - 7-layer stack, CIS, HIPAA/PCI-DSS/FedRAMP/SOC 2, Pod Identity vs IRSA, Access Entries, image signing. Skip for EKS knowledge (eks-best-practices), Well-Architected review (eks-well-architected-review), upgrade readiness (eks-upgrade-check), an operational review (eks-operation-review), inventory (eks-recon), GenAI model security (eks-genai), non-EKS.",
+    "summary": "Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP",
     "path": "/docs/skills/eks/eks-security",
     "group": "eks"
   },
   {
     "name": "eks-upgrade-check",
     "description": "Assess EKS cluster upgrade readiness — run automated checks across 8 areas (version, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Insights, upgrade plan), calculate a 0-100 readiness score with a hard-blocker override, and generate a markdown/HTML report with prioritized remediation. Use this skill whenever someone asks \"can I upgrade my cluster?\", \"is my cluster ready for 1.32?\", \"are we good to go to 1.33?\", \"what is blocking my upgrade?\", or \"should we move to the next version?\" — even if they do not say \"readiness\" or \"score\". Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable.",
+    "summary": "Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks",
     "path": "/docs/skills/eks/eks-upgrade-check",
     "group": "eks"
   },
   {
     "name": "eks-well-architected-review",
     "description": "Deterministic AWS Well-Architected Framework review of an Amazon EKS cluster (Linux nodes only). Unofficial — not the AWS Well-Architected Tool, no official EKS lens exists, and it maps to no compliance framework (CIS, PCI or otherwise). Collects live data via kubectl and aws, scores it across five of the six pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization; not Sustainability, not cluster-observable) using fixed jq detections so scores are stable, separates measured from governance findings, withholds a pillar score when under half its measured questions apply, and the overall when fewer than four pillars score or no Linux node is Ready, and renders a self-contained HTML report. Use ONLY when the user explicitly asks to run a Well-Architected review (WAFR) of an EKS cluster. Any other request — a cluster audit, score, cost, security, inventory, upgrade, best-practice or design question, even one naming a pillar — belongs to another skill.",
+    "summary": "Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request",
     "path": "/docs/skills/eks/eks-well-architected-review",
     "group": "eks"
   },
   {
     "name": "graviton-migration",
     "description": "Execute a workload migration from x86 (amd64) to AWS Graviton (arm64) — set up the Arm migration MCP server for code, dependency, and container arm64-readiness scanning, then run the migration — pre-migration scanning, Karpenter arm64 node cutover, and multi-arch CI pipelines. Use when someone says \"migrate to Graviton\", \"move my workloads to arm64\", \"is my app arm64-ready\", \"graviton migration\", \"port this service to Graviton\", \"scan my code for arm64 blockers\", \"set up multi-arch container builds\", or \"cut my nodes over to arm64\". This skill owns migration EXECUTION (readiness scanning, NodePool cutover, multi-arch builds). Do NOT use for scoring Graviton cost savings, quantifying Spot/Graviton adoption, or \"how much would Graviton save me?\" (use eks-cost-intelligence); for advisory \"should I use Graviton?\" architecture guidance (use eks-best-practices); or for general, non-Graviton MCP server setup like the EKS MCP server (use eks-mcp-server).",
+    "summary": "Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS",
     "path": "/docs/skills/general/graviton-migration",
     "group": "general"
   },
   {
     "name": "skill-creator",
     "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.",
+    "summary": "Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy",
     "path": "/docs/skills/general/skill-creator",
     "group": "general"
   },
   {
     "name": "terraform-skill",
     "description": "Use when writing, reviewing, or debugging Terraform/OpenTofu modules, tests, CI, scans, or state ops - diagnoses failure mode (identity churn, secrets, blast radius, CI drift, state corruption) with version-aware guards.",
+    "summary": "Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning",
     "path": "/docs/skills/general/terraform-skill",
     "group": "general"
   },
   {
     "name": "update-docs",
     "description": "Audit and update every documentation surface in the APEX repo against the current state of skills, steering workflows, README marker tables, and the Docusaurus site under misc/website/. After any change to a skill (rename, retire, add, edit description), walk the repo, re-run script-managed surfaces if their --check fails, and reason through every tracked prose *.md to catch references that need updating. Use after adding/removing/renaming a skill, after editing SKILL.md frontmatter, after editing README marker blocks, or before publishing a docs change. Also use when the user says \"update docs\", \"sync docs\", \"check docs\", \"run update-docs\", or mentions that documentation might be stale.",
+    "summary": "Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references",
     "path": "/docs/skills/general/update-docs",
     "group": "general"
   }

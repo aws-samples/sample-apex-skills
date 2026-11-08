@@ -1,0 +1,39 @@
+[
+  {
+    "schema": "eks-security/advisory@1",
+    "id": "CVE-2026-122266",
+    "title": "Improper isolation of shared resources in aws-network-policy-agent in Amazon EKS",
+    "severity": "important",
+    "severity_source": "bulletin",
+    "workaround": false,
+    "workaround_text": "There are no workarounds available.",
+    "source_url": "https://aws.amazon.com/security/security-bulletins/2026-170-aws/",
+    "read_at": "2026-11-05T15:04:00Z",
+    "origin": "file",
+    "affected": [
+      {
+        "component": "image:aws-node/aws-network-policy-agent",
+        "ranges": [
+          {
+            "introduced": null,
+            "fixed": "1.3.7",
+            "last_affected": null
+          }
+        ],
+        "quote": "aws-network-policy-agent < 1.3.7"
+      },
+      {
+        "component": "addon:vpc-cni",
+        "ranges": [
+          {
+            "introduced": null,
+            "fixed": "1.22.3",
+            "last_affected": null
+          }
+        ],
+        "quote": "Amazon VPC CNI Managed Add-on < 1.22.3"
+      }
+    ],
+    "notes": "Recorded eval fixture. The bulletin states the issue affects clusters with NetworkPolicy enforcement enabled."
+  }
+]

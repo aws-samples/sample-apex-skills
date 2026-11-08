@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/security.md](h
 
 # EKS Security Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Core security guidance for Amazon EKS clusters — IAM, cluster access, pod identity, pod security, multi-tenancy, secrets management, and data encryption
 
-**For runtime/network security, see:** [Runtime & Network Security](security-runtime-network)
-**For supply chain, infrastructure, and compliance, see:** [Supply Chain & Compliance](security-supply-chain)
+**For runtime/network security, see:** [Runtime & Network Security](security-runtime-network.md)
+**For supply chain, infrastructure, and compliance, see:** [Supply Chain & Compliance](security-supply-chain.md)
 
 ---
 
@@ -222,9 +222,9 @@ metadata:
 
 | Level | Description | Use When |
 |-------|-------------|----------|
-| **Privileged** | Unrestricted | System namespaces (kube-system), CNI daemonsets |
-| **Baseline** | Prevents known privilege escalations | Default for most workloads |
-| **Restricted** | Hardened, follows best practices | Security-sensitive workloads |
+| **Privileged** | Unrestricted | System namespaces only (kube-system, CNI, CSI and agent daemonsets) |
+| **Baseline** | Prevents known privilege escalations | The floor: a namespace that cannot meet restricted yet, with `warn` and `audit` at restricted |
+| **Restricted** | Hardened, follows best practices | Default for application workloads |
 
 **Apply via namespace labels:**
 
@@ -286,7 +286,7 @@ spec:
       type: RuntimeDefault
   containers:
   - name: app
-    image: app:latest
+    image: <account>.dkr.ecr.<region>.amazonaws.com/app@sha256:<digest>  # pinned by digest, never latest
     securityContext:
       allowPrivilegeEscalation: false
       readOnlyRootFilesystem: true
@@ -299,7 +299,7 @@ spec:
 ### Pod Security Rules
 
 - Set `runAsNonRoot: true` on all workloads
-- Drop ALL capabilities and add back only what's needed
+- Drop ALL capabilities; under restricted only NET_BIND_SERVICE may be added back
 - Use `readOnlyRootFilesystem: true` where possible
 - Set `seccompProfile: RuntimeDefault`
 - Never run Docker-in-Docker or mount the Docker socket — use buildah, CodeBuild, or BuildKit instead (Kaniko is archived — prefer buildah/CodeBuild/BuildKit) (as of 2026-08-04)
@@ -334,7 +334,7 @@ For each tenant namespace, apply:
 2. **Network policies** — Default deny + explicit allow rules
 3. **Resource quotas** — CPU, memory, pod count limits
 4. **Limit ranges** — Default/max container resource limits
-5. **Pod security** — PSA labels at baseline or restricted level
+5. **Pod security**: PSA labels, enforce restricted, baseline only as the floor (see the PSA table above)
 6. **Service account** — Disable automount of default SA token
 
 ```yaml
@@ -387,7 +387,9 @@ kind: Namespace
 metadata:
   name: team-alpha
   labels:
-    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
     tenant: team-alpha
 ```
 
@@ -463,7 +465,7 @@ aws eks associate-encryption-config \
 ### External Secrets Operator (Recommended for GitOps)
 
 ```yaml
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: app-secrets
@@ -644,7 +646,7 @@ Configure KMS to automatically rotate your CMKs. This rotates keys once a year w
 - Application to AWS services: HTTPS endpoints, VPC endpoints for private traffic
 - Nitro instances (C5n, M5n, R5n, etc.): Traffic between them is automatically encrypted
 
-**For runtime security, network policies, and encryption in transit details, see:** [Runtime & Network Security](security-runtime-network)
+**For runtime security, network policies, and encryption in transit details, see:** [Runtime & Network Security](security-runtime-network.md)
 
 ---
 

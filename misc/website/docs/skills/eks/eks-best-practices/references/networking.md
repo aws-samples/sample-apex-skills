@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/networking.md]
 
 # EKS Networking — VPC CNI & IP Management
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** VPC CNI configuration, subnet/CIDR planning, IPv4 vs IPv6, custom networking, Security Groups for Pods, and IP address management
 
-**For ingress, load balancing, DNS, and private clusters, see:** [Networking — Ingress & DNS](networking-ingress-dns)
-**For network policies and east/west traffic control, see:** [Security — Runtime & Network](security-runtime-network)
+**For ingress, load balancing, DNS, and private clusters, see:** [Networking — Ingress & DNS](networking-ingress-dns.md)
+**For network policies and east/west traffic control, see:** [Security — Runtime & Network](security-runtime-network.md)
 
 ---
 
@@ -361,11 +361,11 @@ Because the switch is irreversible, enumerate reachability before enabling:
 | **CNI mode** | Secondary IP or prefix delegation | **Prefix mode only** (auto-enabled) |
 | **WARM_IP/ENI tuning** | Required for optimization | **Not needed** — prefix assigned at bootstrap |
 | **AWS service support** | Full | Most services (verify specific ones) |
-| **Network policy** | Full support | Full support (VPC CNI 1.14+) |
+| **Network policy** | Full support | Full support (use VPC CNI 1.22.3+, the fixed release in [AWS security bulletin 2026-170](https://aws.amazon.com/security/security-bulletins/2026-170-aws/)) |
 | **Load balancers** | ALB/NLB full support | ALB/NLB dual-stack (requires LBC, in-tree controller doesn't support IPv6) |
 | **Recommendation** | Default choice | Use when IPv4 exhaustion is a real concern |
 
-> **Network policy caveat:** VPC CNI network policy support is per-address-family: a cluster is either IPv4 or IPv6, so policies apply to whichever family the cluster runs (there is no dual-family enforcement in a single cluster, as of 2026-08-04). The AWS-native `ClusterNetworkPolicy` CRD (`networking.k8s.aws/v1alpha1`, cluster-scoped, `tier: Admin | Baseline`; VPC CNI v1.21.1+) is separate from the baseline `NetworkPolicy` support noted above, as is the namespaced `ApplicationNetworkPolicy`, an EKS Auto Mode CRD that adds an FQDN-based egress filter (its DNS/FQDN egress applies only on Auto Mode nodes). Kubernetes 1.29+ is the Auto Mode / new-cluster rollout floor, not a gate for ClusterNetworkPolicy on standard clusters. See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
+> **Network policy caveat:** VPC CNI network policy support is per-address-family: a cluster is either IPv4 or IPv6, so policies apply to whichever family the cluster runs (there is no dual-family enforcement in a single cluster, as of 2026-08-04). The AWS-native `ClusterNetworkPolicy` CRD (`networking.k8s.aws/v1alpha1`, cluster-scoped, `tier: Admin | Baseline`; VPC CNI v1.22.3+) is separate from the baseline `NetworkPolicy` support noted above, as is the namespaced `ApplicationNetworkPolicy`, an EKS Auto Mode CRD that adds an FQDN-based egress filter (its DNS/FQDN egress applies only on Auto Mode nodes). Kubernetes 1.29+ is the Auto Mode / new-cluster rollout floor, not a gate for ClusterNetworkPolicy on standard clusters. See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
 
 ### IPv6 Technical Details
 
@@ -414,7 +414,7 @@ annotations:
 
 Security Groups for Pods assigns AWS security groups directly to individual pods via branch ENIs, rather than sharing the node's security group. This enables AWS-level network isolation per pod — useful for controlling pod access to AWS services like RDS, ElastiCache, and other VPC resources.
 
-**For network policy vs SG for Pods comparison, and policy enforcement details, see:** [Security — Runtime & Network](security-runtime-network#security-groups-for-pods)
+**For network policy vs SG for Pods comparison, and policy enforcement details, see:** [Security — Runtime & Network](security-runtime-network.md#security-groups-for-pods)
 
 ### When to Use
 

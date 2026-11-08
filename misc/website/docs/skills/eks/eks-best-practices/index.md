@@ -1,6 +1,7 @@
 ---
-title: "eks-best-practices"
-description: "Advisory guidance for Amazon EKS architecture and configuration — compute strategy, networking, security, reliability, cost, autoscaling, observability, multi-tenancy, upgrade planning, on-prem/hybrid (EKS Hybrid Nodes, EKS Anywhere, Outposts), and surge readiness for planned traffic peaks. Also answers terraform-aws-modules/terraform-aws-eks questions. Use for any EKS planning or architectural judgment call, even phrased casually. Do NOT use for generating documents or code (eks-design, eks-build), scoring or auditing a live cluster (eks-operation-review, eks-upgrade-check, eks-well-architected-review), discovering what is running (eks-recon), MCP tooling setup (eks-mcp-server), developer platforms/IDPs (eks-platform-engineering), GenAI/LLM workloads — GPU vs Trainium/Inferentia, vLLM/Ray serving, distributed training (eks-genai), or compliance hardening and audit prep — HIPAA/PCI/FedRAMP, CIS benchmarks, GuardDuty, image signing (eks-security) or an x86→arm64/Graviton migration (graviton-migration)."
+title: "EKS Best Practices (eks-best-practices): architecture advice for Amazon EKS"
+sidebar_label: "eks-best-practices"
+description: "EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/SKILL.md
 format: md
 ---
@@ -21,6 +22,7 @@ Comprehensive guidance for designing, deploying, and operating Amazon EKS cluste
 - Choosing between EKS compute options (Fargate, MNG, Karpenter, Auto Mode)
 - Configuring EKS networking (VPC CNI, ingress, service mesh)
 - Implementing EKS security (IAM, pod security, secrets)
+- Setting up security operations (staying informed, patch cadence, emergency fixes, build hygiene, event response shape)
 - Planning cluster upgrades or migrations
 - Reviewing EKS architecture decisions
 - Working with terraform-aws-modules/terraform-aws-eks examples
@@ -57,9 +59,9 @@ Comprehensive guidance for designing, deploying, and operating Amazon EKS cluste
 | **EKS on Outposts** | EKS on AWS-owned hardware in your data center | High | Data residency or low latency; local clusters are disconnect-tolerant (not air-gapped) |
 | **EKS Anywhere** | You run the control plane and nodes on your own infrastructure | Highest | Air-gapped, isolated, or disconnected sites |
 
-**For choosing among and operating the on-premises/hybrid models, see:** [Hybrid & On-Premises Deployments](references/hybrid-deployments).
+**For choosing among and operating the on-premises/hybrid models, see:** [Hybrid & On-Premises Deployments](references/hybrid-deployments.md).
 
-**Routing:** the advisory question *"which on-prem/hybrid model should I choose?"* stays in this skill; generating a design **document or diagram** → `eks-design`; generating a **full production cluster Terraform project** or an **air-gapped build** → `eks-build` (the hybrid cloud/cluster-side Terraform *example* itself lives in this skill's [`terraform-examples.md`](references/terraform-examples)).
+**Routing:** the advisory question *"which on-prem/hybrid model should I choose?"* stays in this skill; generating a design **document or diagram** → `eks-design`; generating a **full production cluster Terraform project** or an **air-gapped build** → `eks-build` (the hybrid cloud/cluster-side Terraform *example* itself lives in this skill's [`terraform-examples.md`](references/terraform-examples.md)).
 
 ### Shared Responsibility
 
@@ -118,7 +120,7 @@ Three models run EKS outside a standard in-Region cluster. Pick by who owns the 
 
 **Critical rule:** split by *why* the site is disconnected. Permanently air-gapped/isolated → EKS Anywhere (the only fully air-gapped model). A connected site that must keep operating *through* Region outages on AWS-owned hardware (data residency/sovereignty) → Outposts local clusters (Outposts racks only) — disconnect-*tolerant*, not air-gapped (IAM/IRSA/KMS/EBS-PV/Route 53 are unavailable offline). EKS Hybrid Nodes and Outposts extended clusters both depend on a reliable connection to an AWS Region.
 
-**For detailed hybrid-deployment guidance, see:** [Hybrid & On-Premises Deployments](references/hybrid-deployments)
+**For detailed hybrid-deployment guidance, see:** [Hybrid & On-Premises Deployments](references/hybrid-deployments.md)
 
 ## Networking Quick Reference
 
@@ -147,7 +149,7 @@ Three models run EKS outside a standard in-Region cluster. Pick by who owns the 
 | **AWS service support** | Full | Most (check specific services) |
 | **Complexity** | Standard | Requires dual-stack VPC |
 
-**For detailed networking guidance, see:** [Networking — VPC CNI & IP](references/networking) | [Networking — Ingress & DNS](references/networking-ingress-dns)
+**For detailed networking guidance, see:** [Networking — VPC CNI & IP](references/networking.md) | [Networking — Ingress & DNS](references/networking-ingress-dns.md)
 
 ## Security Essentials
 
@@ -165,16 +167,24 @@ Three models run EKS outside a standard in-Region cluster. Pick by who owns the 
 - ❌ Don't use wildcard conditions in IRSA trust policies
 - ❌ Don't attach application permissions to node IAM roles
 
-### Pod Security Baseline
+### Pod Security Admission
 
-Apply Pod Security Admission (PSA) labels to all namespaces:
+Apply Pod Security Admission (PSA) labels to every namespace. The stance, which the references follow: **enforce `restricted` for application workloads**; **`baseline` is the floor**, only for a namespace that cannot meet restricted yet, with `warn` and `audit` at restricted to track the gap; `privileged` only for system namespaces that need it (kube-system, CNI, CSI and agent daemonsets).
 
 ```yaml
-# Minimum: enforce baseline, warn on restricted
+# Application namespace
+metadata:
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+# Floor: a namespace still being brought up to restricted
 metadata:
   labels:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted
 ```
 
 ### Secrets Management
@@ -187,7 +197,24 @@ metadata:
 
 Envelope encryption is on by default (≥1.28) and covers all Kubernetes API data; layer your own KMS CMK when you need key control and CloudTrail visibility. Source: https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html
 
-**For detailed security guidance, see:** [Security Reference](references/security) | [Runtime & Network](references/security-runtime-network) | [Supply Chain & Compliance](references/security-supply-chain)
+**For detailed security guidance, see:** [Security Reference](references/security.md) | [Runtime & Network](references/security-runtime-network.md) | [Supply Chain & Compliance](references/security-supply-chain.md)
+
+### Security Operations
+
+Hardening is half the job; the other half is running security over time. Four practices, detailed in [Security Operations](references/security-operations.md):
+
+| Practice | Key rule |
+|----------|----------|
+| **Staying informed** | Watch AWS security bulletins, the Kubernetes CVE feed, node OS advisories, add-on releases and image findings; route them into on-call alerting, not a review meeting |
+| **Patch cadence** | A fixed cadence for add-ons, node images and base images, plus a separate emergency path for a security fix that does not wait for the upgrade window (non-production first, then roll out) |
+| **Build hygiene** | Pin base images by digest and move the pin through review; install from a committed lockfile in an isolated build step; rebuild on a cadence, since package scanners (such as ECR enhanced scanning) match only packages tracked in CVE advisories |
+| **Event response** | One shape: prepare, scope, record, contain (pod-scoped), investigate, remediate, verify, report |
+
+**Live checks: eks-security.** This skill does not read a cluster. Route these asks to eks-security:
+- "Am I exposed to this CVE, bulletin or advisory?": eks-security C1 CVE and advisory review
+- "We have a security event on the cluster; what do we do?": eks-security C2 security event response
+- "Would our setup contain a compromised pod?": eks-security C3 posture check
+- "How far behind latest are we?" with no CVE in play: eks-upgrade-check
 
 ## Reliability Essentials
 
@@ -207,7 +234,7 @@ Envelope encryption is on by default (≥1.28) and covers all Kubernetes API dat
 | Probe | Purpose | Key Rule |
 |-------|---------|----------|
 | **Startup** | Wait for slow init | Use for apps >10s startup |
-| **Readiness** | Traffic routing | ✅ Check dependencies here |
+| **Readiness** | Traffic routing | Prefer pod-local; avoid external dependencies such as a database |
 | **Liveness** | Detect deadlocks | ❌ Never check dependencies |
 
 **Critical rule:** Liveness probes must NOT check external dependencies. If the database goes down and liveness checks the DB, ALL pods restart — causing cascading failure.
@@ -220,11 +247,11 @@ spec:
   containers:
   - lifecycle:
       preStop:
-        exec:
-          command: ["/bin/sh", "-c", "sleep 15"]
+        sleep:
+          seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
 ```
 
-**Why `sleep 15`:** Gives kube-proxy and load balancer time to remove the pod from traffic routing before SIGTERM.
+**Why `sleep 15`:** Gives kube-proxy and load balancer time to remove the pod from traffic routing before SIGTERM. The native `sleep` action is run by the kubelet, so the image needs no shell (distroless, scratch).
 
 ### Multi-AZ Distribution
 
@@ -233,9 +260,13 @@ topologySpreadConstraints:
 - maxSkew: 1
   topologyKey: topology.kubernetes.io/zone
   whenUnsatisfiable: DoNotSchedule
+  minDomains: 3   # 3 assumes 3 zones; set to the zones your nodes can launch in; too high leaves pods Pending
+  labelSelector:
+    matchLabels:
+      app: my-app   # must match the pod's own labels
 ```
 
-**For detailed reliability guidance, see:** [Reliability & Resiliency — Core](references/reliability-core) (see also [reliability-advanced.md](references/reliability-advanced) for DR, deployment strategies, and large-cluster guidance)
+**For detailed reliability guidance, see:** [Reliability & Resiliency — Core](references/reliability-core.md) (see also [reliability-advanced.md](references/reliability-advanced.md) for DR, deployment strategies, and large-cluster guidance)
 
 ## Cluster Upgrade Strategy
 
@@ -275,7 +306,7 @@ disruption:
   - nodes: "10%"  # Max 10% of nodes replaced at a time
 ```
 
-**For detailed upgrade guidance, see:** [Cluster Upgrades Reference](references/cluster-upgrades)
+**For detailed upgrade guidance, see:** [Cluster Upgrades Reference](references/cluster-upgrades.md)
 
 ## Autoscaling Quick Reference
 
@@ -298,7 +329,7 @@ Cluster Autoscaler's ~60-90s scale-up assumes cold EC2 launches; MNG EC2 warm po
 | **VPA** | Historical usage | Right-sizing (recommendation mode) |
 | **KEDA** | External events (SQS, Kafka) | Event-driven workloads |
 
-**For detailed autoscaling guidance, see:** [Autoscaling Reference](references/autoscaling) | [Karpenter Reference](references/karpenter)
+**For detailed autoscaling guidance, see:** [Autoscaling Reference](references/autoscaling.md) | [Karpenter Reference](references/karpenter.md)
 
 ### Preparing for a Known Traffic Peak
 
@@ -306,7 +337,7 @@ For a planned peak — a flash sale, marketing push, product launch, or seasonal
 
 **Critical rule:** A load test that passes on request *rate* can still miss the failure that hits production — if it never reproduces the resource-consumption pattern (memory working-set, connection count) of the event's actual access patterns, especially for new features. Test consumption shapes, not just throughput, and act on findings before the event.
 
-**For detailed surge-readiness guidance, see:** [Surge Readiness Reference](references/surge-readiness)
+**For detailed surge-readiness guidance, see:** [Surge Readiness Reference](references/surge-readiness.md)
 
 ## Terraform Examples Quick Start
 
@@ -346,7 +377,7 @@ EKS Cluster (terraform-aws-modules/eks/aws)
 └── team-c namespace    (RBAC, NetworkPolicy, ResourceQuota)
 ```
 
-**For detailed examples and terraform patterns, see:** [Terraform Examples Reference](references/terraform-examples)
+**For detailed examples and terraform patterns, see:** [Terraform Examples Reference](references/terraform-examples.md)
 
 ## Cost Optimization Quick Wins
 
@@ -359,7 +390,7 @@ EKS Cluster (terraform-aws-modules/eks/aws)
 | **gp3 over gp2** | 20% on EBS | Low |
 | **VPC endpoints** | Eliminate NAT costs | Low |
 
-**For detailed cost guidance, see:** [Cost Optimization Reference](references/cost-optimization) | **For scalability guidance, see:** [Scalability Reference](references/scalability)
+**For detailed cost guidance, see:** [Cost Optimization Reference](references/cost-optimization.md) | **For scalability guidance, see:** [Scalability Reference](references/scalability.md)
 
 ## Observability Quick Reference
 
@@ -371,7 +402,7 @@ EKS Cluster (terraform-aws-modules/eks/aws)
 
 **Essential:** Enable EKS audit logging and GuardDuty EKS Runtime Monitoring for security visibility.
 
-**For detailed observability guidance, see:** [Observability Reference](references/observability)
+**For detailed observability guidance, see:** [Observability Reference](references/observability.md)
 
 ## EKS Capabilities
 
@@ -385,7 +416,7 @@ EKS Capabilities are AWS-managed features installed and updated as part of the E
 
 **Combined pattern:** ArgoCD deploys ACK resources + KRO compositions via GitOps, providing a single workflow for both infrastructure and applications.
 
-**For detailed ArgoCD patterns, see:** [ArgoCD Patterns Reference](references/argocd-patterns)
+**For detailed ArgoCD patterns, see:** [ArgoCD Patterns Reference](references/argocd-patterns.md)
 
 **Sources:**
 - [EKS Capabilities Documentation](https://docs.aws.amazon.com/eks/latest/userguide/capabilities.html)
@@ -395,25 +426,26 @@ EKS Capabilities are AWS-managed features installed and updated as part of the E
 
 This skill uses **progressive disclosure** — essential guidance is in this main file, detailed reference material is loaded on demand:
 
-- **[Security](references/security)** — IAM, Cluster Access Manager, Pod Identity, IRSA, pod security standards, multi-tenancy, secrets management, data encryption
-- **[Security — Runtime & Network](references/security-runtime-network)** — Runtime threat detection (GuardDuty, seccomp, AppArmor, Falco), network policies, SG for pods, encryption in transit, detective controls
-- **[Security — Supply Chain & Compliance](references/security-supply-chain)** — Image security (SBOMs, attestations, ECR hardening), infrastructure hardening (Bottlerocket, CIS benchmarks), regulatory compliance, incident response
-- **[Networking](references/networking)** — VPC CNI modes (secondary IP, prefix delegation, custom networking), subnet/CIDR planning, IPv4 vs IPv6, Security Groups for Pods, IP address management
-- **[Networking — Ingress & DNS](references/networking-ingress-dns)** — Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity
-- **[Reliability & Resiliency — Core](references/reliability-core)** — HA patterns, PDBs, health probes, load balancer health checks, lifecycle hooks, topology spread, resource management
-- **[Reliability & Resiliency — Advanced](references/reliability-advanced)** — disaster recovery, zonal shift, deployment strategies, large cluster guidance, chaos engineering, admission-controller topology enforcement
-- **[Surge Readiness](references/surge-readiness)** — preparing for a known traffic peak (flash sale, marketing push, product launch, seasonal event): spike shape vs magnitude, scheduled pre-scaling, capacity assurance (ODCR, quotas, LB warm-up), load-test realism, graceful degradation, and a descriptive pre-event readiness checklist
-- **[Autoscaling](references/autoscaling)** — Autoscaler selection, Cluster Autoscaler (IAM, Spot, overprovisioning, parameter tuning), HPA, VPA, KEDA, CoreDNS autoscaling
-- **[Karpenter](references/karpenter)** — Operational best practices, NodePools, EC2NodeClass, Spot/interruption handling, consolidation, multiple NodePool strategy, cost controls, resource management, private clusters, CoreDNS with Karpenter
-- **[Cluster Upgrades](references/cluster-upgrades)** — In-place and blue-green upgrades, pre-upgrade validation, add-on management, API deprecation detection, version skew policy, Bottlerocket updates, rollback procedures
-- **[Cost Optimization](references/cost-optimization)** — CFM framework, compute/networking/storage cost strategies, observability cost management, Spot, Graviton, tagging, Kubecost
-- **[Scalability](references/scalability)** — Scaling theory (churn rate, QPS), control plane (APF, config parameters, monitoring), data plane (node sizing, diversity), cluster services (CoreDNS, Metrics Server), workload patterns, IPVS, large-cluster guidance
-- **[Observability](references/observability)** — Observability strategy, CloudWatch Container Insights & Application Signals, Prometheus/Grafana, control plane monitoring, network performance monitoring, logging architecture, distributed tracing, GPU/AI-ML observability, detective controls, alerting patterns
-- **[Terraform Examples](references/terraform-examples)** — terraform-aws-modules/terraform-aws-eks examples, submodules, add-on management, Provisioned Control Plane, EFA, VPC patterns, deployment topologies
-- **[ArgoCD Patterns](references/argocd-patterns)** — ArgoCD architecture, App of Apps, ApplicationSets, GitOps Bridge, multi-cluster patterns (hub-and-spoke, decentralized, hybrid), EKS ArgoCD Capability (managed vs self-managed, migration), ACK/KRO integration, multi-tenant RBAC
-- **[Container Registry](references/container-registry)** — ECR architecture, operating models, image promotion, vulnerability scanning, base image curation, lifecycle policies, pull-through cache, repository creation templates, managed signing (AWS Signer), archival storage class, registry configuration
-- **[EKS Auto Mode](references/eks-auto-mode)** — Auto Mode architecture, managed NodePools/NodeClasses, migration from standard EKS, comparison with self-managed Karpenter, limitations and FAQ
-- **[Hybrid & On-Premises Deployments](references/hybrid-deployments)** — EKS Hybrid Nodes, EKS Anywhere, and EKS on Outposts: model-selection decision boundary, per-model networking/CIDR/CNI, disconnection behavior, compute & autoscaling support, identity, lifecycle, and a cross-model support matrix
+- **[Security](references/security.md)** — IAM, Cluster Access Manager, Pod Identity, IRSA, pod security standards, multi-tenancy, secrets management, data encryption
+- **[Security — Runtime & Network](references/security-runtime-network.md)** — Runtime threat detection (GuardDuty, seccomp, AppArmor, Falco), network policies, SG for pods, encryption in transit, detective controls
+- **[Security — Supply Chain & Compliance](references/security-supply-chain.md)** — Image security (SBOMs, attestations, ECR hardening), infrastructure hardening (Bottlerocket, CIS benchmarks), regulatory compliance, incident response
+- **[Security Operations](references/security-operations.md)**: staying informed (bulletins, CVE feeds, alerting), patch cadence and the emergency fix path, build hygiene (digest pinning, lockfiles, scanner limits), security event response shape, routing to eks-security for live checks
+- **[Networking](references/networking.md)** — VPC CNI modes (secondary IP, prefix delegation, custom networking), subnet/CIDR planning, IPv4 vs IPv6, Security Groups for Pods, IP address management
+- **[Networking — Ingress & DNS](references/networking-ingress-dns.md)** — Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity
+- **[Reliability & Resiliency — Core](references/reliability-core.md)** — HA patterns, PDBs, health probes, load balancer health checks, lifecycle hooks, topology spread, resource management
+- **[Reliability & Resiliency — Advanced](references/reliability-advanced.md)** — disaster recovery, zonal shift, deployment strategies, large cluster guidance, chaos engineering, admission-controller topology enforcement
+- **[Surge Readiness](references/surge-readiness.md)** — preparing for a known traffic peak (flash sale, marketing push, product launch, seasonal event): spike shape vs magnitude, scheduled pre-scaling, capacity assurance (ODCR, quotas, LB warm-up), load-test realism, graceful degradation, and a descriptive pre-event readiness checklist
+- **[Autoscaling](references/autoscaling.md)** — Autoscaler selection, Cluster Autoscaler (IAM, Spot, overprovisioning, parameter tuning), HPA, VPA, KEDA, CoreDNS autoscaling
+- **[Karpenter](references/karpenter.md)** — Operational best practices, NodePools, EC2NodeClass, Spot/interruption handling, consolidation, multiple NodePool strategy, cost controls, resource management, private clusters, CoreDNS with Karpenter
+- **[Cluster Upgrades](references/cluster-upgrades.md)** — In-place and blue-green upgrades, pre-upgrade validation, add-on management, API deprecation detection, version skew policy, Bottlerocket updates, rollback procedures
+- **[Cost Optimization](references/cost-optimization.md)** — CFM framework, compute/networking/storage cost strategies, observability cost management, Spot, Graviton, tagging, Kubecost
+- **[Scalability](references/scalability.md)** — Scaling theory (churn rate, QPS), control plane (APF, config parameters, monitoring), data plane (node sizing, diversity), cluster services (CoreDNS, Metrics Server), workload patterns, IPVS, large-cluster guidance
+- **[Observability](references/observability.md)** — Observability strategy, CloudWatch Container Insights & Application Signals, Prometheus/Grafana, control plane monitoring, network performance monitoring, logging architecture, distributed tracing, GPU/AI-ML observability, detective controls, alerting patterns
+- **[Terraform Examples](references/terraform-examples.md)** — terraform-aws-modules/terraform-aws-eks examples, submodules, add-on management, Provisioned Control Plane, EFA, VPC patterns, deployment topologies
+- **[ArgoCD Patterns](references/argocd-patterns.md)** — ArgoCD architecture, App of Apps, ApplicationSets, GitOps Bridge, multi-cluster patterns (hub-and-spoke, decentralized, hybrid), EKS ArgoCD Capability (managed vs self-managed, migration), ACK/KRO integration, multi-tenant RBAC
+- **[Container Registry](references/container-registry.md)** — ECR architecture, operating models, image promotion, vulnerability scanning, base image curation, lifecycle policies, pull-through cache, repository creation templates, managed signing (AWS Signer), archival storage class, registry configuration
+- **[EKS Auto Mode](references/eks-auto-mode.md)** — Auto Mode architecture, managed NodePools/NodeClasses, migration from standard EKS, comparison with self-managed Karpenter, limitations and FAQ
+- **[Hybrid & On-Premises Deployments](references/hybrid-deployments.md)** — EKS Hybrid Nodes, EKS Anywhere, and EKS on Outposts: model-selection decision boundary, per-model networking/CIDR/CNI, disconnection behavior, compute & autoscaling support, identity, lifecycle, and a cross-model support matrix
 
 **How to use:** When you need detailed information on a topic, reference the appropriate guide. Claude will load it on demand.
 

@@ -149,7 +149,7 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 - [ ] Every ADR has at least 2 alternatives with pros/cons
 - [ ] Every ADR has specific rationale (not generic "best practice")
 - [ ] Every ADR has consequences (positive and negative)
-- [ ] Every ADR has research sources
+- [ ] Every ADR has research sources and a checked-on date
 
 ## Scoring Matrix
 
@@ -192,7 +192,7 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 |----------|--------|-----------|
 | Required documents present | 10 | All = 10, most = 7, major gaps = 4 |
 | ADR quality | 5 | All pass checklist = 5, partial = 3, poor = 1 |
-| Diagram quality | 5 | Mermaid in markdown + rendered PNGs in `diagrams/` + embedded in docx/pptx = 5, Mermaid only (no PNGs) = 3, missing = 0 |
+| Diagram quality | 5 | Mermaid in markdown + rendered PNGs in `diagrams/` (embedding in docx/pptx counted only if documents were generated) = 5, Mermaid only (no PNGs) = 3, missing = 0 |
 
 ### Overall Score
 

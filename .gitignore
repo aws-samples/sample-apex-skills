@@ -75,3 +75,7 @@ devops-agent/**/*.zip
 # Workflow ready files (local agent state, never committed)
 READY.md
 .READY.md.*.tmp
+
+# Generated EKS recon reports may contain infrastructure identifiers
+EKS-Recon-*.md
+EKS-Recon-*.yaml

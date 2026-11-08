@@ -56,7 +56,7 @@ projects/<project-name>/design/
 - **Created**: Stage 2 (Architecture Generation)
 - **Content**: Individual ADR per significant technology decision
 - **Naming**: `ADR-001-compute-strategy.md`, `ADR-002-networking-model.md`, etc.
-- **Format**: Context -> Decision -> Alternatives -> Rationale -> Consequences -> Research Sources
+- **Format**: Context -> Decision -> Alternatives -> Rationale -> Consequences -> Research Sources (checked on `<YYYY-MM-DD>`)
 
 ### architecture/security-architecture.md
 
@@ -135,9 +135,6 @@ When document export is requested, the following are generated alongside the cor
 
 ```
 projects/<project-name>/design/
-├── scripts/                                     # Optional: document generators
-│   ├── generate-docx.sh                         # Word export script
-│   └── generate-pptx.sh                         # PowerPoint export script
 └── exports/                                     # Optional: generated documents
     ├── architecture-document.docx
     └── architecture-presentation.pptx

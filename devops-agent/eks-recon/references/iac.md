@@ -169,6 +169,15 @@ ack_detected = bool(ack_groups)
 
 ---
 
+**Contradiction guard:** always reconcile workspace findings with the target
+cluster tags from cluster-basics (read them if not yet collected). An empty or unavailable workspace
+cannot negate Terraform tags: retain `Terraform` in `tools_detected`,
+`tags.terraform_managed: true` and `evidence.type: cluster_tags` with the observed
+key/value. Do not invent workspace files or state backends. Preserve evidenced
+tools from both sources when they differ, recording both in `evidence.details`
+and using this runtime's confidence table. Tags are hints, not proof of current
+ownership. Failed tag reads stay unknown without erasing workspace evidence.
+
 ## Output Schema
 
 This is the **single canonical schema** for the IaC module — it carries every IaC fact
@@ -179,7 +188,7 @@ Coverage section rather than emitting a misleading `false`.
 
 ```yaml
 iac:
-  tools_detected: list    # ALL IaC tools with evidence, flat — no "primary". e.g. ["terraform","cdk"]
+  tools_detected: list    # ALL IaC tools with evidence, flat — no "primary". e.g. ["Terraform","CDK"]
                           # (Terraform | CloudFormation | CDK | eksctl | Pulumi | Crossplane | ACK | CLI | unknown)
   confidence: string      # high | medium | low — evidence-strength metadata (fact), not a verdict
   evidence:               # object form (canonical)
