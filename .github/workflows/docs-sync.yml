@@ -6,6 +6,9 @@ on:
   # runs on every pull request and skips its real work when no watched path
   # changed (see .github/scripts/ci-gate.sh).
   pull_request:
+  # Started by vendor-update.yml on its bot branches, whose pull requests
+  # (opened with GITHUB_TOKEN) start no pull_request run.
+  workflow_dispatch:
   push:
     branches:
       - main

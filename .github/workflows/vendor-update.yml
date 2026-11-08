@@ -24,6 +24,7 @@ on:
           - dotnet-aws-ecs
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -146,6 +147,7 @@ jobs:
           fi
 
       - name: Create pull request
+        id: cpr
         if: steps.diff.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
@@ -179,6 +181,7 @@ jobs:
           echo "${{ steps.check.outputs.upstream_sha }}" > "${{ matrix.skill.path }}/.vendor-sha"
 
       - name: Create PR on sync failure
+        id: cpr-failed
         if: steps.sync.outcome == 'failure'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
@@ -213,3 +216,19 @@ jobs:
             vendor-update
             sync-failed
             automated
+
+      # A pull request opened or updated with GITHUB_TOKEN starts no
+      # pull_request workflow, so the required checks would never report on it.
+      # A workflow_dispatch event from GITHUB_TOKEN does start a run, on the
+      # branch's last commit: dispatch each workflow that owns a required check.
+      - name: Run the required checks on the bot branch
+        if: >-
+          contains(fromJSON('["created", "updated"]'), steps.cpr.outputs.pull-request-operation) ||
+          contains(fromJSON('["created", "updated"]'), steps.cpr-failed.outputs.pull-request-operation)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: chore/vendor-update-${{ matrix.skill.name }}
+        run: |
+          for wf in devops-agent-validate.yml evals.yml docs-sync.yml; do
+            gh workflow run "$wf" --repo "${{ github.repository }}" --ref "$BRANCH"
+          done
