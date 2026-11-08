@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/container-regi
 
 # Container Registry Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** ECR architecture, operating models, image promotion, vulnerability scanning, base image curation, lifecycle policies, pull-through cache, managed signing, archival storage, and registry configuration for Amazon EKS
 
 ---
@@ -90,7 +90,7 @@ For private clusters or security-sensitive environments, configure VPC endpoints
 | Multi-account with Control Tower | Centralized ECR in shared services account + cross-account pull |
 | Regulatory requirement for team isolation | Tenant-managed ECR |
 | Multi-cloud or hybrid | Enterprise registry (Artifactory/Harbor) |
-| Air-gapped environment | ECR with pull-through cache or Harbor |
+| Air-gapped environment | ECR with pull-through cache (first pull may need an internet route) or Harbor |
 
 ---
 
@@ -301,9 +301,10 @@ ECR pull-through cache rules automatically cache images from upstream public reg
 
 1. Pod requests image via ECR pull-through cache URI (e.g., `<acct>.dkr.ecr.<region>.amazonaws.com/docker-hub/library/nginx:1.25`)
 2. ECR checks if image exists in cache
-3. If missing or stale (>24 hours since last check), ECR pulls from upstream -- this requires internet access via NAT gateway or VPC endpoint
+3. If the image is not in the cache (its first pull), ECR pulls it from upstream. That pull may require a route to the internet, for example a NAT gateway: an interface VPC endpoint (AWS PrivateLink) to ECR alone is not enough. Later pulls through the rule do not need it.
 4. ECR stores the image (including multi-arch manifests) and serves it locally
-5. Subsequent pulls come from cache with no upstream dependency
+5. Subsequent pulls come from cache with no hard upstream dependency
+   - Once a cached image is more than 24 hours past its last upstream check, ECR checks upstream for a newer version and updates the cache if one exists; if upstream cannot be reached, ECR still serves the last cached image.
 
 ### When to Use
 
@@ -373,7 +374,7 @@ DON'T:
 
 ## Managed Signing
 
-ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers like Kyverno or OPA Gatekeeper.
+ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers configured with an AWS Signer plugin, such as Kyverno or OPA Gatekeeper with Ratify.
 
 ### How It Works
 
@@ -397,9 +398,8 @@ Managed signing pairs with Kubernetes admission controllers for deploy-time veri
 
 | Tool | How It Verifies |
 |---|---|
-| **Kyverno** | `verifyImages` policy checks Notation signatures against trusted signing profiles |
-| **OPA Gatekeeper** | Custom constraint template validates signature presence and signer identity |
-| **Ratify** | External data provider for Gatekeeper, native Notation support |
+| **Kyverno** | As of Kyverno v1.19.2, built-in Notation verification (`verifyImages` and `ImageValidatingPolicy`) cannot verify AWS Signer signatures. Use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, which runs the AWS Signer plugin ("Kyverno – A Kubernetes policy engine configured with an AWS Signer plugin for validating signatures.", [EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)); its sample is a `ClusterPolicy` (deprecated since v1.19, removal planned for v1.20 per [Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)), so recheck when v1.20 ships |
+| **OPA Gatekeeper + Ratify** | Gatekeeper is the admission controller; Ratify (external data provider, configured with the AWS Signer plugin and a Notation trust policy) verifies the signature, and the constraint template blocks on Ratify's result (Ratify v1.4; enable dynamic plugins) |
 
 DO:
 - Enable managed signing for production repositories to establish image provenance
@@ -410,7 +410,7 @@ DON'T:
 - Treat signing as a substitute for vulnerability scanning -- signing proves provenance, not safety
 - Use the same signing profile for all environments -- separate dev and prod signing identities
 
-**See also:** [Security -- Supply Chain](security-supply-chain) for admission control patterns and image verification policies
+**See also:** [Security -- Supply Chain](security-supply-chain.md) for admission control patterns and image verification policies
 
 ---
 

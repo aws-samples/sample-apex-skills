@@ -39,9 +39,11 @@ The following permissions are included:
 
 **EC2 (required):**
 - `ec2:DescribeInstances`
+- `ec2:DescribeInstanceTypes`
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`
+- `route53:ListHostedZonesByVPC` (optional: centralized VPC endpoint zones)
 
 **Elastic Load Balancing (required):**
 - `elasticloadbalancing:DescribeLoadBalancers`
@@ -51,6 +53,7 @@ The following permissions are included:
 **Cost Explorer (optional — enables dollar-accurate spend):**
 - `ce:GetCostAndUsage`
 - `ce:GetCostForecast`
+- `organizations:DescribeOrganization`
 
 **CloudWatch (optional — enables utilization-based analysis):**
 - `cloudwatch:GetMetricData`
@@ -106,6 +109,8 @@ The following permissions are included:
 ```
 
 ### Step 0: Pre-flight — Cluster Discovery and Validation
+
+Run the account tier check in `references/cost-data-collection.md` (section 1.2) before the dimension checks.
 
 **Action 1 — Discover clusters**
 
@@ -169,7 +174,7 @@ Data collection uses:
 - CloudWatch Container Insights metrics (pod CPU/memory utilization) via CloudWatch GetMetricData API
 - Kubernetes API to list nodes with allocatable resources and current allocations
 
-If metrics-server or Container Insights is unavailable, mark utilization checks as SKIPPED and proceed with request-only analysis.
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (4 and 5), and the report names it partly assessed.
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
@@ -262,7 +267,7 @@ Read `references/report-generation.md` for the scoring algorithm.
 Apply the scoring model only after confirming the core reads in **Start Here**, including when a delegate supplies findings:
 - Start at 100 points
 - Apply severity-weighted deductions per dimension (capped at dimension maximum)
-- Skipped dimensions contribute zero deduction
+- Skipped dimensions contribute zero deduction and leave the denominator: the score is renormalised over the assessed dimensions
 - Classify final score: OPTIMIZED (90-100), GOOD (75-89), FAIR (60-74), NEEDS_WORK (40-59), CRITICAL (0-39)
 
 ### Step 8: Report Generation
@@ -307,7 +312,7 @@ The skill calculates a weighted cost efficiency score:
 **Key differences from eks-upgrade-check scoring:**
 - No hard-blocker override (cost issues don't prevent cluster operation)
 - Severity-weighted deductions within each dimension
-- Skipped dimensions excluded entirely (not penalized)
+- Skipped dimensions renormalised out: scored at the assessed dimensions' average rate
 
 ---
 

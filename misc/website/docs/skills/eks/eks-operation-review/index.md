@@ -1,6 +1,7 @@
 ---
-title: "eks-operation-review"
-description: "Run a structured EKS operational excellence assessment against a live cluster. Covers 10 areas — networking, autoscaling, observability, access & identity, add-ons, workload config, deployments, cluster lifecycle, IaC, operational processes — and produces a GREEN/AMBER/RED rated report with prioritized recommendations. Activate for any request to audit, review, health-check, or score an EKS cluster's operational posture, including section-scoped reviews of individual areas and version currency / current-state add-on / deprecated-API review with no target version. Not for upgrade readiness assessment against a target version, cluster discovery, or architectural design advice."
+title: "EKS Operation Review (eks-operation-review): rated audit of a live EKS cluster"
+sidebar_label: "eks-operation-review"
+description: "Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/SKILL.md
 format: md
 ---
@@ -11,7 +12,7 @@ This page is generated from [skills/eks-operation-review/SKILL.md](https://githu
 
 
 :::info[Vendored skill]
-This skill is sourced from [eks-operation-review](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review), also maintained by the APEX team.
+This skill is sourced from [sample-eks-operation-review-skill](https://github.com/aws-samples/sample-eks-operation-review-skill), also maintained by the APEX team.
 :::
 
 

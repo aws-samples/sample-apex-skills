@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/storage-cos
 
 # Storage Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for gp2 PersistentVolumes (flag for gp3 migration with 20% cost reduction), unbound/unmounted PVCs, over-provisioned volumes (used vs provisioned capacity), and EFS Intelligent-Tiering/lifecycle policies
 
 ---
@@ -433,7 +433,7 @@ aws cloudwatch get-metric-data \
       }
     }
   ]' \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --region <region>
 ```

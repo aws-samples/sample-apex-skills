@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/findings-fo
 
 # Findings Format
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Output schema, severity thresholds, finding types enumeration, and remediation snippet templates for cost intelligence findings
 
 ---
@@ -54,6 +54,8 @@ finding:
 | `remediation` | string | Ready-to-apply code snippet (kubectl command, YAML manifest, or Terraform block) |
 | `confidence` | enum | Confidence in the estimate: `high` (metrics-backed), `medium` (partial data), `low` (heuristic-based) |
 | `data_sources` | list | Data sources used, e.g. `["metrics-server", "Cost Explorer"]` or `["kubernetes-api", "ec2-describe-instances"]` |
+
+**Figure consistency:** compute each figure (a cost, waste or savings amount) once and show the same value and unit (USD per month) in every section that quotes it: the finding, the dimension table and the summary. Never recompute or re-round it per section.
 
 ---
 

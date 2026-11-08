@@ -153,11 +153,11 @@ Without checkpoint: Spot interruption → restart from epoch 0 → COST BURN
 With checkpoint:    Spot interruption → resume from last checkpoint → max 15-30 min lost
 ```
 
-See [distributed-training.md](distributed-training) for the FSx + S3 DRA checkpoint architecture.
+See [distributed-training.md](distributed-training.md) for the FSx + S3 DRA checkpoint architecture.
 
 ### Lever 4 — MIG / Time-Slicing
 
-**Multi-Instance GPU (MIG)** partitions H100/A100 into isolated GPU slices — each slice gets dedicated memory, compute, and L2 cache. Use for multi-tenant dev clusters where teams share expensive GPU nodes.
+**Multi-Instance GPU (MIG)** partitions MIG-capable GPUs (A100, A30, H100, H20, H200, H100 on GH200, B200, B300, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell; see [compute-hardware.md](compute-hardware.md)) into isolated GPU slices: each slice gets dedicated memory, compute, and L2 cache. Use for multi-tenant dev clusters where teams share expensive GPU nodes.
 
 **Time-slicing** shares a single GPU across pods via time-multiplexing — no memory isolation, no compute guarantee. Use only for dev/test where latency doesn't matter.
 

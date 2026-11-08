@@ -85,7 +85,7 @@ eks_addons:
 
 EKS managed addons (EBS CSI, EFS CSI, FSx CSI, Mountpoint S3 CSI, CloudWatch) use **Pod Identity** instead of IRSA. IAM roles are created by `terraform-aws-modules/eks-pod-identity/aws` modules. Associations are **separate `aws_eks_pod_identity_association` resources** -- not inline in addon config.
 
-When `permissions_boundary` is set in `cluster.yaml`, pass it only to the add-on roles the customer named in question 30; input names per module: [baseline-defaults.md](baseline-defaults#permissions-boundary-optional).
+When `permissions_boundary` is set in `cluster.yaml`, pass it only to the add-on roles the customer named in question 30; input names per module: [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional).
 
 **Why separate resources (not inline `pod_identity_association`):**
 1. Terraform v1.14's strict `for_each` rejects unknown module outputs in the upstream EKS module's filter expression
@@ -132,7 +132,7 @@ aws_load_balancer_controller:
 
 ### Critical: Two-Phase Module Architecture
 
-LBC and Gatekeeper must deploy in Phase 1 (with `wait: true`) before all other addons in Phase 2. See [lessons-learned.md](lessons-learned) for details.
+LBC and Gatekeeper must deploy in Phase 1 (with `wait: true`) before all other addons in Phase 2. See [lessons-learned.md](lessons-learned.md) for details.
 
 ## ArgoCD-Managed Addons (Pattern 2)
 

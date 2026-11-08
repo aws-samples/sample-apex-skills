@@ -16,7 +16,7 @@ This skill is maintained by **Anton Babenko ([terraform-best-practices.com](http
 
 # Security & Compliance
 
-> **Part of:** [terraform-skill](../)
+> **Part of:** [terraform-skill](../index.md)
 > **Purpose:** Security best practices and compliance patterns for Terraform/OpenTofu
 
 This document provides security hardening guidance and compliance automation strategies for infrastructure-as-code.
@@ -642,7 +642,7 @@ Common model mistakes to correct before returning security/compliance recommenda
 
 - assumes `sensitive = true` keeps the value out of state — it only masks display; use `write_only` / `*_wo` arguments on 1.11+ or an external secret lookup
 - proposes plaintext defaults in `variable` blocks or committed `.tfvars` "for demo convenience"
-- echoes secrets through `provisioner` commands or `local-exec` stdout into CI logs (see [Provisioners as Last Resort](code-patterns#provisioners-as-last-resort) for the broader pattern)
+- echoes secrets through `provisioner` commands or `local-exec` stdout into CI logs (see [Provisioners as Last Resort](code-patterns.md#provisioners-as-last-resort) for the broader pattern)
 - emits outputs that expose full connection strings or credentials (even when marked `sensitive`)
 - mentions a compliance framework (SOC 2, PCI, HIPAA, GDPR, FedRAMP) but provides no enforceable gate — no policy stage, no approval model, no evidence artifact
 - confuses security best practices with compliance evidence (an encrypted bucket is not the same as a retained audit artifact proving it)
@@ -661,4 +661,4 @@ Common model mistakes to correct before returning security/compliance recommenda
 
 ---
 
-**Back to:** [Main Skill File](../)
+**Back to:** [Main Skill File](../index.md)

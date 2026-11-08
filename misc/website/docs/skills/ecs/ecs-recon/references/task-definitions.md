@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/task-definitions.md](ht
 
 # Module: Task Definitions
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Discover task definition details behind services — resource allocation, containers, and images in use
 
 ## Table of Contents

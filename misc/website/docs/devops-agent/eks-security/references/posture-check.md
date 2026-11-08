@@ -17,7 +17,7 @@ The question is not "is every setting perfect" but "if one pod is compromised to
 
 This port runs no scripts. The agent makes the reads named in each row through the Agent Space's read-only AWS and Kubernetes API access, applies the row's rule and scores the result. The Claude Code skill runs the same checks as scripts (`posture_collect.sh`, `posture_score.sh`, `posture_extra.sh`, `posture_reduce.sh`); each row here carries that skill's check id (`SEC-POSTURE-<n>`) and, for checks it copied from the Well-Architected review's security pillar, the pillar question id, so the two copies report the same check under the same id. Of that skill's 64 checks this port walks the containment subset below; the rest of the copied pillar is not ported and the report lists it under "not checked". Two rows are port-only (marked): they are reported but kept out of the score and the layer verdicts, so the score rule is the scripted one. The score and layer verdicts are computed over these 20 checks, so they are not comparable with the scripted skill's 49-check score.
 
-The access needed is in [read-only-access.md](read-only-access), C3 section. Checks that read RBAC objects or policy engine objects need the supplementary ClusterRole named there; without it they are `unknown`, never pass.
+The access needed is in [read-only-access.md](read-only-access.md), C3 section. Checks that read RBAC objects or policy engine objects need the supplementary ClusterRole named there; without it they are `unknown`, never pass.
 
 ## Results, score and coverage
 
@@ -103,7 +103,7 @@ Why: continuous rescan surfaces a new CVE on an image already running; digest pi
 
 ## Currency rule
 
-No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: plain version lag goes to eks-upgrade-check against a target version, or to eks-operation-review with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are read in the C1 inventory (`eks:DescribeAddonVersions`) for a manual read.
+No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: plain version lag goes to eks-upgrade-check against a target version, or to eks-operation-review with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are read in the C1 inventory (`eks:DescribeAddonVersions`) for a manual read.
 
 ## Repository checks (not in this port)
 

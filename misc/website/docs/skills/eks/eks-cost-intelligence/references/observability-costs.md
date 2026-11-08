@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/observabili
 
 # Observability Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for EKS control plane logging configuration (all log types enabled unnecessarily), high-cardinality metric sources (Prometheus scrape configs, CloudWatch agent), DEBUG/TRACE log levels in production, and log filtering/sampling configurations (FluentBit, CloudWatch agent)
 
 ---
@@ -101,7 +101,7 @@ for LG in "${LOG_GROUPS[@]}"; do
     --namespace "AWS/Logs" \
     --metric-name "IncomingBytes" \
     --dimensions "Name=LogGroupName,Value=$LG" \
-    --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+    --start-time "$(( $(date +%s) - 7*86400 ))" \
     --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
     --period 604800 \
     --statistics Sum \
@@ -116,7 +116,7 @@ SEVEN_DAY_BYTES=$(aws cloudwatch get-metric-statistics \
   --namespace "AWS/Logs" \
   --metric-name "IncomingBytes" \
   --dimensions "Name=LogGroupName,Value=/aws/eks/${CLUSTER_NAME}/cluster" \
-  --start-time "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%S)" \
+  --start-time "$(( $(date +%s) - 7*86400 ))" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%S)" \
   --period 604800 \
   --statistics Sum \

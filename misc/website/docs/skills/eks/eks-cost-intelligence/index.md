@@ -1,6 +1,7 @@
 ---
-title: "eks-cost-intelligence"
-description: "Run a live EKS cluster cost efficiency assessment — analyze spending across 6 dimensions (compute efficiency, Spot/Graviton adoption, networking, storage, observability, idle resources), calculate a weighted 0-100 Cost Score, and generate a prioritized report with dollar-quantified findings and ready-to-apply remediation snippets. Use this skill when someone asks \"how much am I wasting on EKS?\", \"run a cost audit on my cluster\", \"what's my biggest cost driver?\", \"analyze my cluster's cost efficiency\", or needs dollar-denominated findings for a FinOps review — even if they don't say \"cost intelligence\" or \"score\". Combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis. Falls back to AWS CLI and kubectl when the EKS MCP server is unavailable. Distinct from eks-best-practices (static advisory guidance), eks-operation-review (operational health), and eks-recon (cluster discovery). Distinct from graviton-migration, which EXECUTES the x86→arm64 move, not scoring savings."
+title: "EKS Cost Intelligence (eks-cost-intelligence): cost score for Amazon EKS"
+sidebar_label: "eks-cost-intelligence"
+description: "Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/SKILL.md
 format: md
 ---
@@ -53,11 +54,12 @@ This skill is focused on **live cost assessment** — answering the question: "W
 2. **Kubernetes access** for the assessment caller. An access entry with a suitable policy or RBAC binding, or an existing `aws-auth` mapping in `CONFIG_MAP` or `API_AND_CONFIG_MAP` mode, can grant the required reads. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs through the connection the assessment will use. A caller without Secret list permission leaves Idle Resources SKIPPED for scoring.
 3. **Required AWS Permissions (minimum):**
    - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`, `eks:ListFargateProfiles`, `eks:DescribeFargateProfile`
-   - `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
+   - `ec2:DescribeInstances`, `ec2:DescribeInstanceTypes`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
    - `elasticloadbalancing:DescribeLoadBalancers`, `elasticloadbalancing:DescribeTargetHealth`
 4. **Optional permissions (enable richer analysis):**
    - `ce:GetCostAndUsage` — enables dollar-accurate spend data from Cost Explorer
    - `cloudwatch:GetMetricData` — enables utilization-based analysis from Container Insights
+   - `route53:ListHostedZonesByVPC`, `organizations:DescribeOrganization` (centralized VPC endpoint zones; the account tier check)
    - `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration` — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension
 
 ### Data Sources
@@ -92,6 +94,8 @@ The skill will discover your clusters, confirm which one to assess, then run the
 ## Assessment Workflow
 
 ### Step 0: Pre-flight — Cluster Discovery
+
+Run the account tier check in `references/cost-data-collection.md` (section 1.2) before the dimension checks.
 
 **Action 1 — List clusters (test connectivity & discover clusters)**
 
@@ -149,7 +153,7 @@ Checks:
 - Workloads without resource requests or limits
 - Fargate pod request right-sizing against Fargate's vCPU/memory combinations — only when Step 0 found Fargate profiles (read `references/fargate-costs.md`, Check F1)
 
-If metrics-server or Container Insights is unavailable, mark utilization checks as SKIPPED and proceed with request-only analysis.
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (4 and 5), and the report names it partly assessed.
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
@@ -213,7 +217,7 @@ Read `references/report-generation.md` for the scoring algorithm.
 Apply the scoring model:
 - Start at 100 points
 - Apply severity-weighted deductions per dimension (capped at dimension maximum)
-- Skipped dimensions contribute zero deduction
+- Skipped dimensions contribute zero deduction and leave the denominator: the score is renormalised over the assessed dimensions
 - Classify final score: OPTIMIZED (90–100), GOOD (75–89), FAIR (60–74), NEEDS_WORK (40–59), CRITICAL (0–39)
 
 ### Step 8: Report Generation
@@ -251,7 +255,7 @@ The skill calculates a weighted cost efficiency score:
 **Key differences from eks-upgrade-check scoring:**
 - No hard-blocker override (cost issues don't prevent cluster operation)
 - Severity-weighted deductions within each dimension
-- Skipped dimensions excluded entirely (not penalized)
+- Skipped dimensions renormalised out: scored at the assessed dimensions' average rate
 
 ---
 
@@ -286,7 +290,7 @@ Before executing checks for any dimension, read the corresponding reference file
 
 | User Request | Reference File(s) to Load |
 |---|---|
-| Full cost assessment / audit / review | ALL dimension files in order (Steps 1–6), then `report-generation.md` |
+| Full cost assessment / audit / review | ALL dimension files in order (Steps 1–6), then `report-generation.md` and `findings-format.md` |
 | Compute efficiency / over-provisioning / CPU waste | `references/compute-efficiency.md` |
 | Spot / Graviton / instance types / arm64 | `references/spot-graviton-adoption.md` |
 | Networking costs / cross-AZ / NAT / VPC endpoints | `references/networking-costs.md` |

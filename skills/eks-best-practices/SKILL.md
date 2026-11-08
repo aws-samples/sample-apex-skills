@@ -226,7 +226,7 @@ Hardening is half the job; the other half is running security over time. Four pr
 | Probe | Purpose | Key Rule |
 |-------|---------|----------|
 | **Startup** | Wait for slow init | Use for apps >10s startup |
-| **Readiness** | Traffic routing | ✅ Check dependencies here |
+| **Readiness** | Traffic routing | Prefer pod-local; avoid external dependencies such as a database |
 | **Liveness** | Detect deadlocks | ❌ Never check dependencies |
 
 **Critical rule:** Liveness probes must NOT check external dependencies. If the database goes down and liveness checks the DB, ALL pods restart — causing cascading failure.
@@ -239,11 +239,11 @@ spec:
   containers:
   - lifecycle:
       preStop:
-        exec:
-          command: ["/bin/sh", "-c", "sleep 15"]
+        sleep:
+          seconds: 15  # Kubernetes 1.30+; older clusters: exec: command: ["/bin/sh", "-c", "sleep 15"]
 ```
 
-**Why `sleep 15`:** Gives kube-proxy and load balancer time to remove the pod from traffic routing before SIGTERM.
+**Why `sleep 15`:** Gives kube-proxy and load balancer time to remove the pod from traffic routing before SIGTERM. The native `sleep` action is run by the kubelet, so the image needs no shell (distroless, scratch).
 
 ### Multi-AZ Distribution
 
@@ -252,6 +252,10 @@ topologySpreadConstraints:
 - maxSkew: 1
   topologyKey: topology.kubernetes.io/zone
   whenUnsatisfiable: DoNotSchedule
+  minDomains: 3   # 3 assumes 3 zones; set to the zones your nodes can launch in; too high leaves pods Pending
+  labelSelector:
+    matchLabels:
+      app: my-app   # must match the pod's own labels
 ```
 
 **For detailed reliability guidance, see:** [Reliability & Resiliency — Core](references/reliability-core.md) (see also [reliability-advanced.md](references/reliability-advanced.md) for DR, deployment strategies, and large-cluster guidance)
