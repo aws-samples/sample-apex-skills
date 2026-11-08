@@ -129,7 +129,7 @@ external_dns:
 
 **Kyverno registry restriction policy** -- deploy a `ClusterPolicy` with `validationFailureAction: Enforce` that matches all Pods and validates both `containers[*].image` and `initContainers[*].image` against an allow-list: `<REGISTRY_HOST>/*` and `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/*`. Reject anything else at admission.
 
-Note: Kyverno `ClusterPolicy` (`kyverno.io/v1`) is deprecated as of Kyverno v1.19, with removal planned for v1.20 ([Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)); on v1.19+ write this rule as a `ValidatingPolicy` (`policies.kyverno.io/v1`).
+Note: Kyverno `ClusterPolicy` (`kyverno.io/v1`) is deprecated as of Kyverno v1.19, with removal planned for v1.20 ([Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)); on v1.19+ write this rule as a `ValidatingPolicy` (`policies.kyverno.io/v1`).
 
 ---
 
