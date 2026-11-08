@@ -155,6 +155,7 @@ Application Signals is the simplest path to APM on EKS -- if you're already usin
 aws amp create-workspace --alias my-cluster-metrics
 
 # Deploy ADOT collector for metric collection
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm install adot-collector \
   open-telemetry/opentelemetry-collector --version <chart-version> \
   --namespace observability --create-namespace \
