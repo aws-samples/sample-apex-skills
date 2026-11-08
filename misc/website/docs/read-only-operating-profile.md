@@ -79,7 +79,7 @@ The kit tags the sessions it mints: the eval runner (`misc/evals/scripts/run_tas
   --tags Key=apex-run,Value="$(date -u +%Y%m%dT%H%M%SZ)"
 ```
 
-Tags need `sts:TagSession` in your IAM user's policy, besides `sts:GetFederationToken`; without it the call is denied. CloudTrail's GetFederationToken event records the tags you passed; later calls carry no tags, only the federated-user ARN with the `--name`. The tags only label the session: they grant nothing through the kit's session policy. kubectl calls are not in CloudTrail: they are in the EKS audit log (if enabled), all as the one ServiceAccount.
+Tags need `sts:TagSession` in your IAM user's policy, besides `sts:GetFederationToken`; without it the call is denied. CloudTrail's GetFederationToken event records the tags you passed; later CloudTrail events carry no tags, only the federated-user ARN with the `--name`. The tags only label the session: they grant nothing through the kit's session policy. kubectl calls are not in CloudTrail: they are in the EKS audit log (if enabled), all as the one ServiceAccount.
 
 ## 4. Add the deny hook (optional)
 

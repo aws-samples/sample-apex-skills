@@ -718,21 +718,20 @@ def append_history(skill: str, entry: dict) -> None:
 
 
 def mint_federation_token(
-    policy_file: Path, name: str, duration: int, tags: dict[str, str] | None = None
+    policy_file: Path, name: str, duration: int, tags: dict[str, str]
 ) -> dict:
-    """Run `aws sts get-federation-token` with a session policy and optional session tags."""
+    """Run `aws sts get-federation-token` with a session policy and session tags."""
     cmd = [
         "aws", "sts", "get-federation-token",
         "--name", name,
         "--policy", f"file://{policy_file}",
         "--duration-seconds", str(duration),
         "--output", "json",
+        "--tags", *(f"Key={k},Value={v}" for k, v in tags.items()),
     ]
-    if tags:
-        cmd += ["--tags", *(f"Key={k},Value={v}" for k, v in tags.items())]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
-        hint = "; if the error names sts:TagSession, add it to the IAM user's policy" if tags else ""
+        hint = "; if the error names sts:TagSession, add it to the IAM user's policy"
         raise RuntimeError(f"get-federation-token failed: {r.stderr.strip()}{hint}")
     return json.loads(r.stdout)["Credentials"]
 
