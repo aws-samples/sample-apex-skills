@@ -31,7 +31,7 @@ You need [Node.js 18+](https://nodejs.org/) and [git](https://git-scm.com/), on 
 npx apex-skills@1.3.0
 ```
 
-The installer detects Claude Code and Kiro CLI, clones the repo to `~/.apex-skills/` and links the skills into place. It installs the latest published release of the skills. The skill list below describes `main`. The latest published release does not have the `/apex` router yet and has older versions of some skills, so install from `main` (below) to get everything listed here.
+The installer detects Claude Code and Kiro CLI, clones the repo to `~/.apex-skills/` and links the skills into place. It installs the latest published release of the skills. The skill list below describes `main`. The latest published release does not have the `/apex` router yet, has older versions of some skills and still has steering-workflow-creator, which `main` drops, so install from `main` (below) to get everything listed here.
 
 Ask your agent in plain words and the matching skill loads:
 
