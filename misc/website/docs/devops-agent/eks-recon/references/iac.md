@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/iac.md](https://g
 
 # Module: IaC (Infrastructure as Code)
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect IaC tooling - Terraform, CloudFormation, CDK, eksctl, Crossplane, ACK
 
 ## Table of Contents

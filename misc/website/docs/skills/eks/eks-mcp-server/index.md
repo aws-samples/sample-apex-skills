@@ -1,6 +1,7 @@
 ---
-title: "eks-mcp-server"
-description: "Install, configure, and troubleshoot the EKS MCP Server connection in your AI assistant (Claude Code, Cursor, Kiro). Use ONLY for MCP server setup problems — config file location (.mcp.json), IAM permissions for eks-mcp actions, uvx installation, choosing AWS-hosted vs self-hosted mode, or debugging why MCP tools fail to appear after config. Also activate if user mentions \"eks mcp\", \"mcp server\", \"mcp.json\", or \"mcp tools not showing\". Do NOT use for actual cluster operations once MCP is working — those go to eks-recon (discovery), eks-operation-review (audits), or eks-upgrade-check (upgrades). For setting up the Arm migration MCP server used for arm64 readiness scanning, use graviton-migration, not this skill."
+title: "EKS MCP Server (eks-mcp-server): connect your AI assistant to Amazon EKS"
+sidebar_label: "eks-mcp-server"
+description: "Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-mcp-server/SKILL.md
 format: md
 ---
@@ -127,7 +128,7 @@ Guide the user through verification:
 
 1. **Restart** — Tell the user to restart their AI assistant (IDE, CLI, or extension) to load the new MCP config
 2. **Test** — Ask the user to try: "List my EKS clusters" or "What EKS MCP tools are available?"
-3. **Confirm** — Go to Step 3 of the [self-hosted](references/self-hosted-setup) or [AWS-hosted](references/aws-hosted-setup) reference and confirm a required read through that server.
+3. **Confirm** — Go to Step 3 of the [self-hosted](references/self-hosted-setup.md) or [AWS-hosted](references/aws-hosted-setup.md) reference and confirm a required read through that server.
 
 **If verification fails**, diagnose in this order:
 

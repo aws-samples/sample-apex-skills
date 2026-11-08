@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/eks-auto-mode.
 
 # EKS Auto Mode
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Auto Mode architecture, managed NodePools/NodeClasses, migration from standard EKS, comparison with self-managed Karpenter, limitations and FAQ
 
 ---

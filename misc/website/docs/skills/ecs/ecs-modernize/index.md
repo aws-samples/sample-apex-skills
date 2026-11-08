@@ -1,6 +1,7 @@
 ---
-title: "ecs-modernize"
-description: "Assess an existing app (VMware/EC2) by source code analysis for the replatform vs rearchitect decision, and execute the approved migration onto Amazon ECS. Covers: source code analysis; language/framework detection (Java, .NET, Spring, Struts, WebSphere tWAS/Liberty); cloud/container fit scoring; strategy recommendation; tWAS containerization and Liberty migration; migration planning; AWS Transform orchestration; containerization and ECR push; Replatform (ECS on EC2, bridge, sticky sessions) and Windows-container environment build; deploy and verification. Triggers: \"migrate this app from EC2 to ECS\", \"can we containerize this VMware-hosted app?\", \"replatform or rearchitect for ECS?\", \"modernize this WebSphere app\". Skip for greenfield design (ecs-architect), Rearchitect compute-model Terraform (ecs-build), live ECS inventory (ecs-recon), security hardening (ecs-security), cloud-ready .NET IaC (dotnet-aws-ecs), Kubernetes/EKS (eks-design), launch-type moves of an app already on ECS (ecs-architect)."
+title: "ECS Modernize (ecs-modernize): migrate VMware or EC2 apps to ECS"
+sidebar_label: "ecs-modernize"
+description: "Assess an existing VMware or EC2 app from its source code, decide replatform or rearchitect, and migrate it onto ECS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/SKILL.md
 format: md
 ---
@@ -85,11 +86,11 @@ Before any analysis, verify the target source code path exists and is readable.
 
 For a **full modernization assessment**, execute the assessment modules in prerequisite order:
 
-1. **Tech-stack detection** — languages, frameworks, runtimes, app servers ([references/tech-stack-detection.md](references/tech-stack-detection))
-2. **Blocker detection** — modernization blockers in six categories, each classified as replatform-tolerable or must-fix ([references/blocker-detection.md](references/blocker-detection))
-3. **Scoring and recommendation** — Fit_Score and threshold-based strategy recommendation ([references/scoring-and-recommendation.md](references/scoring-and-recommendation))
-4. **Path details** — Replatform path incl. the Windows_Container_Path decision ([references/replatform-path.md](references/replatform-path)) and Rearchitect path ([references/rearchitect-path.md](references/rearchitect-path))
-5. **Report generation** — the Modernization_Report ([references/report-generation.md](references/report-generation))
+1. **Tech-stack detection** — languages, frameworks, runtimes, app servers ([references/tech-stack-detection.md](references/tech-stack-detection.md))
+2. **Blocker detection** — modernization blockers in six categories, each classified as replatform-tolerable or must-fix ([references/blocker-detection.md](references/blocker-detection.md))
+3. **Scoring and recommendation** — Fit_Score and threshold-based strategy recommendation ([references/scoring-and-recommendation.md](references/scoring-and-recommendation.md))
+4. **Path details** — Replatform path incl. the Windows_Container_Path decision ([references/replatform-path.md](references/replatform-path.md)) and Rearchitect path ([references/rearchitect-path.md](references/rearchitect-path.md))
+5. **Report generation** — the Modernization_Report ([references/report-generation.md](references/report-generation.md))
 
 For a **single-module request** (e.g. "just identify the language and framework"), load and run only that module and its transitive prerequisites, per the routing table below. Execution modules never run as part of an assessment — they require the Execution_Gate.
 
@@ -107,17 +108,17 @@ Route each request to the module whose user intent it matches, load the listed r
 
 | # | User intent (what routes here) | Module | Reference file(s) | Prerequisite modules |
 |---|---|---|---|---|
-| 1 | "Identify the language and framework" — detect languages, frameworks, runtimes, app servers | Tech-stack detection | [references/tech-stack-detection.md](references/tech-stack-detection) | None |
-| 2 | "Find the problems blocking containerization" — detect modernization Blockers | Blocker detection | [references/blocker-detection.md](references/blocker-detection) | Tech-stack detection |
-| 3 | "Score the containerization fit" / "recommend a migration strategy" | Scoring and recommendation | [references/scoring-and-recommendation.md](references/scoring-and-recommendation) | Tech-stack detection, Blocker detection |
-| 4 | "Give me the steps to containerize as-is" — Replatform details, incl. the Windows_Container_Path decision | Replatform path | [references/replatform-path.md](references/replatform-path) | Scoring and recommendation |
-| 5 | "Give me the modernization plan for a modern target" — Rearchitect details | Rearchitect path | [references/rearchitect-path.md](references/rearchitect-path) | Scoring and recommendation |
-| 6 | "Put the assessment report together" (final stage of a full assessment) | Report generation | [references/report-generation.md](references/report-generation) | All assessment modules (1–5) |
-| 7 | "Port this .NET Framework app" / "upgrade the runtime" / "migrate this app off tWAS to Liberty" — code transformation | Code transformation | [references/code-transformation.md](references/code-transformation) (+ [references/code-transformation-agent-led.md](references/code-transformation-agent-led) when agent-executed items exist) | **Execution_Gate passage** (when Source_Analysis results exist, use them to propose the job scope and transformation targets) |
-| 8 | "Create the Dockerfile, build and push the image" | Containerization execution | [references/containerization-execution.md](references/containerization-execution) | **Execution_Gate passage**; code transformation completion when it is part of the approved plan; the assessed containerization policy — or, if the assessment was skipped, policy confirmation per the module's rules |
-| 9 | "Build the Windows container environment" | Windows environment build | [references/windows-environment-build.md](references/windows-environment-build) | **Execution_Gate passage** + Containerization execution (the image URI for the task definition; if unresolved, define it as a Terraform input variable) |
-| 9b | "Build the environment for the approved **Replatform** path" (ECS on EC2, Linux) | Replatform environment build | [references/replatform-environment-build.md](references/replatform-environment-build) | **Execution_Gate passage** + Containerization execution (same image-URI rule as module 9) + the `replatform_path` block's static-configuration and session-affinity decisions |
-| 10 | "Deploy it and verify it's running" | Deploy, verify and handoff | [references/deploy-verify-handoff.md](references/deploy-verify-handoff) | **Execution_Gate passage** + availability of the environment Terraform (`ecs-build` output for a Rearchitect compute model, Replatform_Environment_Terraform, or Windows_Environment_Terraform) |
+| 1 | "Identify the language and framework" — detect languages, frameworks, runtimes, app servers | Tech-stack detection | [references/tech-stack-detection.md](references/tech-stack-detection.md) | None |
+| 2 | "Find the problems blocking containerization" — detect modernization Blockers | Blocker detection | [references/blocker-detection.md](references/blocker-detection.md) | Tech-stack detection |
+| 3 | "Score the containerization fit" / "recommend a migration strategy" | Scoring and recommendation | [references/scoring-and-recommendation.md](references/scoring-and-recommendation.md) | Tech-stack detection, Blocker detection |
+| 4 | "Give me the steps to containerize as-is" — Replatform details, incl. the Windows_Container_Path decision | Replatform path | [references/replatform-path.md](references/replatform-path.md) | Scoring and recommendation |
+| 5 | "Give me the modernization plan for a modern target" — Rearchitect details | Rearchitect path | [references/rearchitect-path.md](references/rearchitect-path.md) | Scoring and recommendation |
+| 6 | "Put the assessment report together" (final stage of a full assessment) | Report generation | [references/report-generation.md](references/report-generation.md) | All assessment modules (1–5) |
+| 7 | "Port this .NET Framework app" / "upgrade the runtime" / "migrate this app off tWAS to Liberty" — code transformation | Code transformation | [references/code-transformation.md](references/code-transformation.md) (+ [references/code-transformation-agent-led.md](references/code-transformation-agent-led.md) when agent-executed items exist) | **Execution_Gate passage** (when Source_Analysis results exist, use them to propose the job scope and transformation targets) |
+| 8 | "Create the Dockerfile, build and push the image" | Containerization execution | [references/containerization-execution.md](references/containerization-execution.md) | **Execution_Gate passage**; code transformation completion when it is part of the approved plan; the assessed containerization policy — or, if the assessment was skipped, policy confirmation per the module's rules |
+| 9 | "Build the Windows container environment" | Windows environment build | [references/windows-environment-build.md](references/windows-environment-build.md) | **Execution_Gate passage** + Containerization execution (the image URI for the task definition; if unresolved, define it as a Terraform input variable) |
+| 9b | "Build the environment for the approved **Replatform** path" (ECS on EC2, Linux) | Replatform environment build | [references/replatform-environment-build.md](references/replatform-environment-build.md) | **Execution_Gate passage** + Containerization execution (same image-URI rule as module 9) + the `replatform_path` block's static-configuration and session-affinity decisions |
+| 10 | "Deploy it and verify it's running" | Deploy, verify and handoff | [references/deploy-verify-handoff.md](references/deploy-verify-handoff.md) | **Execution_Gate passage** + availability of the environment Terraform (`ecs-build` output for a Rearchitect compute model, Replatform_Environment_Terraform, or Windows_Environment_Terraform) |
 
 ### Full-assessment execution order
 
@@ -188,7 +189,7 @@ If the user refuses the confirmation for an action class:
 
 ## Scoring and Recommendation (Overview)
 
-Full criteria live in [references/scoring-and-recommendation.md](references/scoring-and-recommendation) — the **single source of truth** for the six Scoring_Dimensions, their weights, the legacy/modern framework classifications and score bands, and the recommendation rules. **Before scoring, you MUST read that file and compute every dimension score exclusively from the criteria and weights defined there** — never from memory or general knowledge.
+Full criteria live in [references/scoring-and-recommendation.md](references/scoring-and-recommendation.md) — the **single source of truth** for the six Scoring_Dimensions, their weights, the legacy/modern framework classifications and score bands, and the recommendation rules. **Before scoring, you MUST read that file and compute every dimension score exclusively from the criteria and weights defined there** — never from memory or general knowledge.
 
 Default thresholds and bands:
 
@@ -208,7 +209,7 @@ Fit_Score:  0 ────────── 40 ──────────�
 
 ## Report Output
 
-Full template and generation rules: [references/report-generation.md](references/report-generation). The orchestration-level rules:
+Full template and generation rules: [references/report-generation.md](references/report-generation.md). The orchestration-level rules:
 
 - **Default filename:** `ECS-Modernize-{application name}-{YYYY-MM-DD}.md` — replace whitespace and path separators in the application name with hyphens (`-`); use the local date at generation time. If the application name cannot be determined, use the source root directory name.
 - **Default output location:** the current working directory. The report must be written **outside** the target source code directory — if the CWD is inside the source tree, confirm an external location with the user before writing.
@@ -236,7 +237,7 @@ Cost estimates and rightsizing are out of scope, and no ECS cost sibling skill e
 
 - **Code transformation** — the integrated Transformation_Plan, including AWS Transform orchestration and agent-executed items.
 - **Containerization execution** — Containerization_Artifact generation, image build, and ECR push. AWS App2Container (A2C) is another containerization route, one that needs no source code; it is no longer open to new customers (sign-up closed November 7, 2025), and this skill does not drive it.
-- **Replatform environment build** — this skill generates Replatform_Environment_Terraform itself (why: the table below) ([references/replatform-environment-build.md](references/replatform-environment-build)), from the verified skeleton at [`assets/replatform-terraform/`](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/assets/replatform-terraform) — copied, then parameterized from the findings, so two runs of the same assessment differ only in values. Requests for Replatform environment IaC are NOT routed to `ecs-build`.
+- **Replatform environment build** — this skill generates Replatform_Environment_Terraform itself (why: the table below) ([references/replatform-environment-build.md](references/replatform-environment-build.md)), from the verified skeleton at [`assets/replatform-terraform/`](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/assets/replatform-terraform) — copied, then parameterized from the findings, so two runs of the same assessment differ only in values. Requests for Replatform environment IaC are NOT routed to `ecs-build`.
 - **Windows_Container_Path environment build** — this skill generates Windows_Environment_Terraform itself (why: the table below). Requests for Windows container path environment IaC are NOT routed to `ecs-build`.
 
 Two environment shapes are generated in this skill only because `ecs-build` does not cover them today:
@@ -258,7 +259,7 @@ A ready-to-use IAM policy document is available at [`references/iam-policy.json`
 
 **Several `Execution*` grants carry an account-wide write blast radius — disclose it.** A number of `Execution*` actions are granted on `Resource: *` and can modify **existing** resources anywhere in the account. `iam:PassRole` is enforced only at `ecs:RegisterTaskDefinition` and is **not** re-checked when `ecs:CreateService`/`ecs:UpdateService` references an already-registered task-definition revision, so `ecs:UpdateService` on `Resource: *` can repoint **any** service in the account, and `ecr:PutImage` on `Resource: *` can overwrite **any** repository's image tags (`RegisterTaskDefinition` cannot be resource-scoped). Beyond those, the unscoped write reach includes `elasticloadbalancing:ModifyListener` / `RegisterTargets` / `Modify*Attributes` (repoint or re-target **any** listener/target group), `ec2:AuthorizeSecurityGroupIngress` / `AuthorizeSecurityGroupEgress` / `ec2:RevokeSecurityGroupEgress` (add or strip rules on **any** security group), `autoscaling:UpdateAutoScalingGroup` (rescale **any** ASG), and `codebuild:StartBuild` (start **any** existing CodeBuild project — with an inline `buildspecOverride` of arbitrary build commands — which then runs under **that project's** service role) — json:62-71, 94-99, 139-145. (`ec2:RunInstances` is create-not-modify, so it is out of the "reach existing" framing.) This is a write-reach residual, separate from the no-delete-actions point above.
 
-**The remote Windows build is a hand-off.** The operator creates the CodeBuild project with its source and service role: this policy's `iam:PassRole` is restricted to `ecs-tasks.amazonaws.com` and `ec2.amazonaws.com` by design, so it cannot pass a role to `codebuild.amazonaws.com` and an agent-driven `CreateProject` cannot work under it. The skill starts a build only on that pre-existing project, reports status from `BatchGetBuilds`, and on failure points the user to the build's log in the CodeBuild console ([references/containerization-execution.md](references/containerization-execution)); `StartBuild`'s account-wide reach is disclosed above.
+**The remote Windows build is a hand-off.** The operator creates the CodeBuild project with its source and service role: this policy's `iam:PassRole` is restricted to `ecs-tasks.amazonaws.com` and `ec2.amazonaws.com` by design, so it cannot pass a role to `codebuild.amazonaws.com` and an agent-driven `CreateProject` cannot work under it. The skill starts a build only on that pre-existing project, reports status from `BatchGetBuilds`, and on failure points the user to the build's log in the CodeBuild console ([references/containerization-execution.md](references/containerization-execution.md)); `StartBuild`'s account-wide reach is disclosed above.
 
 **Service-linked roles on a fresh account.** ECS creates `AWSServiceRoleForECS` when a cluster or service is first created, and Elastic Load Balancing creates `AWSServiceRoleForElasticLoadBalancing` when a load balancer or target group is first created; the caller needs `iam:CreateServiceLinkedRole` for that, which this document does not grant. On an account where either role is missing, an operator creates it first (or grants that action).
 

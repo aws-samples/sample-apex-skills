@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-architect/references/networking-and-eni-
 
 # ECS Networking and ENI Density
 
-> **Part of:** [ecs-architect](../)
+> **Part of:** [ecs-architect](../index.md)
 > **Purpose:** Design task networking for ECS — `awsvpc` task ENIs, ENI density and trunking on EC2, subnet/SG placement, load-balancer choice, and Service Connect vs Service Discovery. Facts verified against AWS docs on **2026-07-09**.
 
 ---
@@ -107,7 +107,7 @@ Why Service Connect wins: with DNS-based discovery, changing a name to new IPs w
 
 **Coming off App Mesh?** AWS App Mesh is discontinued **September 30, 2026** (confirmed in the App Mesh doc-history end-of-support notice; no new-customer onboarding since September 24, 2024). Service Connect is the recommended ECS target (managed data plane, no self-managed Envoy sidecars, built-in retries/outlier detection and CloudWatch metrics). Migrate per service, running both in parallel during cutover. The commonly-cited **Service Connect gaps vs App Mesh — no fine-grained retry/circuit-breaker tuning, weighted A/B traffic splits, or cross-account sharing — are blog-sourced** (the AWS App-Mesh→Service-Connect migration blog), not an authoritative feature matrix; verify against current docs before relying on any specific gap. Where you need cross-account/traffic-split, VPC Lattice (below) is the doc-backed answer. ([App Mesh EOL — doc history](https://docs.aws.amazon.com/app-mesh/latest/userguide/doc-history.html) · [Migrating from AWS App Mesh to Amazon ECS Service Connect — blog](https://aws.amazon.com/blogs/containers/migrating-from-aws-app-mesh-to-amazon-ecs-service-connect/))
 
-Migration from Service Discovery → Service Connect is covered in [launch-type-migration.md](launch-type-migration).
+Migration from Service Discovery → Service Connect is covered in [launch-type-migration.md](launch-type-migration.md).
 
 ---
 

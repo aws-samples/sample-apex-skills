@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/security.md](https://gi
 
 # Module: Security
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Discover security-relevant configuration including IAM roles, secrets references, and ECS Exec enablement for ECS services
 
 ## Table of Contents

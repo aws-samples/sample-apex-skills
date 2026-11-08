@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/autoscaling.md
 
 # EKS Autoscaling Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Autoscaler selection, Cluster Autoscaler, HPA, VPA, KEDA, and CoreDNS autoscaling for Amazon EKS
 
 ---
@@ -43,7 +43,7 @@ This page is generated from [skills/eks-best-practices/references/autoscaling.md
 | **Maturity** | GA (v1.0+) | Very mature | GA and mature -- managed drivers, self-service troubleshooting, GPU support |
 | **Recommendation** | Default choice | When Karpenter is not an option | When minimal ops is top priority |
 
-**For detailed Karpenter guidance, see:** [Karpenter Reference](karpenter)
+**For detailed Karpenter guidance, see:** [Karpenter Reference](karpenter.md)
 
 ### Pod Autoscaler Decision Matrix
 
@@ -332,7 +332,7 @@ resource "aws_eks_cluster" "this" {
 }
 ```
 
-**For detailed Auto Mode guidance, see:** [EKS Auto Mode Reference](eks-auto-mode)
+**For detailed Auto Mode guidance, see:** [EKS Auto Mode Reference](eks-auto-mode.md)
 
 ---
 
@@ -389,7 +389,7 @@ DON'T:
 - Combine HPA and VPA on the same CPU/memory metric
 - Set `minReplicas: 1` for production services
 
-> **Cluster-wide responsiveness (PCP):** the `behavior` policies above tune one HPA. On EKS Provisioned Control Plane you can also shorten the HPA controller's *sync period* (default `15s`, down to `10s`) so **every** HPA in the cluster reacts sooner — a cluster-level knob with its own trade-offs (fewer HPA objects reconciled on schedule). See [Scalability — Control Plane Configuration Parameters](scalability#control-plane-configuration-parameters).
+> **Cluster-wide responsiveness (PCP):** the `behavior` policies above tune one HPA. On EKS Provisioned Control Plane you can also shorten the HPA controller's *sync period* (default `15s`, down to `10s`) so **every** HPA in the cluster reacts sooner — a cluster-level knob with its own trade-offs (fewer HPA objects reconciled on schedule). See [Scalability — Control Plane Configuration Parameters](scalability.md#control-plane-configuration-parameters).
 
 ### Custom Metrics with CloudWatch
 

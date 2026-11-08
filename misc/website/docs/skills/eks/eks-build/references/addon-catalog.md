@@ -129,7 +129,7 @@ aws_load_balancer_controller:
 
 ### Critical: Two-Phase Module Architecture
 
-LBC and Gatekeeper must deploy in Phase 1 (with `wait: true`) before all other addons in Phase 2. See [lessons-learned.md](lessons-learned) for details.
+LBC and Gatekeeper must deploy in Phase 1 (with `wait: true`) before all other addons in Phase 2. See [lessons-learned.md](lessons-learned.md) for details.
 
 ## ArgoCD-Managed Addons (Pattern 2)
 

@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/container-regi
 
 # Container Registry Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** ECR architecture, operating models, image promotion, vulnerability scanning, base image curation, lifecycle policies, pull-through cache, managed signing, archival storage, and registry configuration for Amazon EKS
 
 ---
@@ -411,7 +411,7 @@ DON'T:
 - Treat signing as a substitute for vulnerability scanning -- signing proves provenance, not safety
 - Use the same signing profile for all environments -- separate dev and prod signing identities
 
-**See also:** [Security -- Supply Chain](security-supply-chain) for admission control patterns and image verification policies
+**See also:** [Security -- Supply Chain](security-supply-chain.md) for admission control patterns and image verification policies
 
 ---
 

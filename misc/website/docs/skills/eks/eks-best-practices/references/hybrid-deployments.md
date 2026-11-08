@@ -11,8 +11,8 @@ This page is generated from [skills/eks-best-practices/references/hybrid-deploym
 
 # Hybrid & On-Premises EKS Deployments — Hybrid Nodes, EKS Anywhere, and Outposts
 
-> **Part of:** [eks-best-practices](../)
-> **Purpose:** Choose among and operate the three on-premises/hybrid EKS deployment models — EKS Hybrid Nodes, EKS Anywhere, and EKS on Outposts. This guide is decision-first: which model fits a site, then the per-model networking, disconnection behavior, compute/autoscaling, identity, and lifecycle you have to get right. It does **not** cover in-Region cluster design (that is the rest of [../SKILL.md](../)), region-extension edge such as Local Zones or Wavelength, or the Terraform to *enable a hybrid-nodes cluster* — control-plane config, remote networks, IAM/access entry, CNI (see [terraform-examples.md](terraform-examples)).
+> **Part of:** [eks-best-practices](../index.md)
+> **Purpose:** Choose among and operate the three on-premises/hybrid EKS deployment models — EKS Hybrid Nodes, EKS Anywhere, and EKS on Outposts. This guide is decision-first: which model fits a site, then the per-model networking, disconnection behavior, compute/autoscaling, identity, and lifecycle you have to get right. It does **not** cover in-Region cluster design (that is the rest of [../SKILL.md](../index.md)), region-extension edge such as Local Zones or Wavelength, or the Terraform to *enable a hybrid-nodes cluster* — control-plane config, remote networks, IAM/access entry, CNI (see [terraform-examples.md](terraform-examples.md)).
 
 ---
 
@@ -50,7 +50,7 @@ A second axis is **how much of the stack you want to own**. Hybrid Nodes gives y
 
 The models are also not mutually exclusive at the edge. A single Hybrid Nodes cluster can run VPC CNI cloud nodes alongside Cilium/Calico on-prem nodes (mixed mode) so cloud-hosted workloads and burst capacity live in the Region while latency- or residency-sensitive workloads run on your hardware. Match the model to the *connectivity* requirement first, then to the ownership/cost posture you can support day-2.
 
-See also the model summary in [../SKILL.md](../#eks-deployment-models).
+See also the model summary in [../SKILL.md](../index.md#eks-deployment-models).
 
 ---
 
@@ -119,7 +119,7 @@ There is **no AWS-native autoscaler for the hybrid data plane** — you provisio
 - **Cluster Autoscaler** likewise scales EC2 node groups, not on-prem hosts.
 - The `eks-hybrid-nodes` Terraform example provisions the **cloud/cluster side** — `remote_network_config`, the `HYBRID_LINUX` access entry, the hybrid-node IAM role, SSM activation, and a Packer node image. What has **no supported IaC** is the **on-prem physical hosts themselves** — no autoscaler and no supported provisioning path for the bare-metal/VM worker lifecycle (as of 2026-08-18); the field pattern is to bake `nodeadm` into a golden OVA/ISO for boot-time join.
 
-**GPU / accelerated inference.** For **GenAI/ML** GPU workloads on Hybrid Nodes or EKS Anywhere (NVIDIA device plugin / GPU Operator, DCGM metrics), see the [`eks-genai`](../../eks-genai/) skill — this guide does not cover accelerator serving. Plain non-ML GPU use (CUDA batch, media transcode) is general EKS and not covered by `eks-genai`.
+**GPU / accelerated inference.** For **GenAI/ML** GPU workloads on Hybrid Nodes or EKS Anywhere (NVIDIA device plugin / GPU Operator, DCGM metrics), see the [`eks-genai`](../../eks-genai/index.md) skill — this guide does not cover accelerator serving. Plain non-ML GPU use (CUDA batch, media transcode) is general EKS and not covered by `eks-genai`.
 
 ### Security & Identity
 

@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/security-suppl
 
 # EKS Supply Chain, Infrastructure & Compliance Security
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Image security, software supply chain, infrastructure hardening, regulatory compliance, and incident response
 
-**For core IAM, pod security, and secrets, see:** [Security](security)
-**For runtime and network security, see:** [Runtime & Network Security](security-runtime-network)
+**For core IAM, pod security, and secrets, see:** [Security](security.md)
+**For runtime and network security, see:** [Runtime & Network Security](security-runtime-network.md)
 
 ---
 
@@ -291,21 +291,21 @@ The benefit of shift-left is that developers get feedback before their applicati
 
 ## Incident Response
 
-The response shape (prepare, scope, record, contain, investigate, remediate, verify, report) and the patch paths it relies on are in [Security Operations: Responding to a Security Event](security-operations#responding-to-a-security-event). eks-security C2 runs scope, evidence capture and containment proposals on a live cluster; investigation (step 4) is the team's own step for now.
+The response shape (prepare, scope, record, contain, investigate, remediate, verify, report) and the patch paths it relies on are in [Security Operations: Responding to a Security Event](security-operations.md#responding-to-a-security-event). eks-security C2 runs scope, evidence capture and containment proposals on a live cluster; investigation (step 4) is the team's own step for now.
 
 ### EKS-Specific Forensics Steps
 
-EKS-specific commands for the steps in [Security Operations](security-operations#responding-to-a-security-event), in the same order:
+EKS-specific commands for the steps in [Security Operations](security-operations.md#responding-to-a-security-event), in the same order:
 
 2. **Record:** `kubectl get pod <pod> -n <namespace> -o yaml`, `kubectl logs <pod> -n <namespace>` (and `--previous`), the image digest and the node name
-3. **Contain:** the pod-scoped quarantine in [Security Operations](security-operations#containment-that-stays-pod-scoped), then `kubectl cordon <node-name>`
+3. **Contain:** the pod-scoped quarantine in [Security Operations](security-operations.md#containment-that-stays-pod-scoped), then `kubectl cordon <node-name>`
 4. **Investigate:** capture volatile state (processes, connections, memory where tooling exists, see the [AWS IR guide](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html); on EKS Auto Mode, with no SSH or SSM: `kubectl debug node/<node> -it --profile=sysadmin` for processes and connections, and a NodeDiagnostic for the node log bundle) before the pod or node is replaced; snapshot the node's EBS volumes (root and data) where the platform allows it; export CloudWatch Logs, audit logs and VPC Flow Logs
 
 **Deleting, scaling down or draining destroys evidence; isolating does not, unless a liveness probe then fails and restarts the container.**
 
 ### Automated Response Patterns
 
-- GuardDuty finding -> EventBridge rule -> Lambda function -> apply the quarantine label to the affected pod (pod-scoped isolation, with the caveats in [Security Operations](security-operations#containment-that-stays-pod-scoped))
+- GuardDuty finding -> EventBridge rule -> Lambda function -> apply the quarantine label to the affected pod (pod-scoped isolation, with the caveats in [Security Operations](security-operations.md#containment-that-stays-pod-scoped))
 
 ### Key Investigation Tools
 
