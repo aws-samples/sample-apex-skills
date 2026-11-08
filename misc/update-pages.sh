@@ -205,7 +205,7 @@ first_sentence() {
 }
 
 # --- Skill page titles and summaries --------------------------------------
-# One line per skill: <folder><TAB><page title><TAB><summary>. The title is the
+# One line per skill: <folder><TAB><page title><TAB><summary><TAB><group>. The title is the
 # skill page's <title>, with the folder name added after its first part
 # (Docusaurus appends " | APEX Skills"). The summary is the
 # page's meta description, the manifest `summary` field, the landing-page line
@@ -214,35 +214,38 @@ first_sentence() {
 # run to 1,000 characters, which is why the pages do not use them directly.
 # A skill missing here falls back to its name and its description's first
 # sentence, and the generator warns.
+# The group is the README heading the skill is listed under; the README list
+# is generated from this table by misc/update-skills-references.sh, which fails
+# on a skill with no line or no group here.
 SKILL_META="$(cat <<'META'
-apex	APEX Router: pick the right EKS or ECS skill	Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills
-dotnet-aws-ecs	.NET on Amazon ECS Fargate with CloudFormation or CDK	Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide
-ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing
-ecs-build	ECS Build: apply-ready Terraform for Amazon ECS	Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances
-ecs-devops	ECS DevOps: deployments and CI/CD for Amazon ECS	Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks
-ecs-genai	ECS GenAI: GPU, ML and LLM workloads on Amazon ECS	GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference
-ecs-modernize	ECS Modernize: migrate VMware or EC2 apps to ECS	Assess an existing VMware or EC2 app from its source code, decide replatform or rearchitect, and migrate it onto ECS
-ecs-observability	ECS Observability: logs, metrics and traces for ECS	ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens
-ecs-operation-review	ECS Operation Review: rated audit of a live ECS estate	Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings
-ecs-recon	ECS Recon: discover what your Amazon ECS estate runs	ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD
-ecs-security	ECS Security: hardening and compliance for Amazon ECS	ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2
-eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness
-eks-build	EKS Build: production-ready Terraform for Amazon EKS	Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations
-eks-cost-intelligence	EKS Cost Intelligence: cost score for Amazon EKS	Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings
-eks-design	EKS Design: architecture documents for Amazon EKS	Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices
-eks-genai	EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS	GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways
-eks-ingress-migration	EKS Ingress Migration: plan the move off NGINX Ingress	Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform
-eks-mcp-server	EKS MCP Server: connect your AI assistant to Amazon EKS	Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check
-eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version
-eks-platform-engineering	EKS Platform Engineering: build an IDP on Amazon EKS	Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
-eks-recon	EKS Recon: discover what your Amazon EKS cluster runs	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring
-eks-security	EKS Security: CVE review, posture and compliance for EKS	Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP
-eks-upgrade-check	EKS Upgrade Check: upgrade readiness score for Amazon EKS	Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks
-eks-well-architected-review	EKS Well-Architected Review: unofficial pillar scores	Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request
-graviton-migration	Graviton Migration: move workloads from x86 to arm64	Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS
-skill-creator	Skill Creator: create, test and tune agent skills	Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy
-terraform-skill	Terraform Skill: modules, tests and CI for Terraform	Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning
-update-docs	Update Docs: sync the APEX docs after a skill change	Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references
+apex	APEX Router: pick the right EKS or ECS skill	Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate) and suggests next skills	Set up and extend
+dotnet-aws-ecs	.NET on Amazon ECS Fargate with CloudFormation or CDK	Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide	Day 1 Build
+ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS deployment model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing	Day 0 Design
+ecs-build	ECS Build: apply-ready Terraform for Amazon ECS	Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances	Day 1 Build
+ecs-devops	ECS DevOps: deployments and CI/CD for Amazon ECS	Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks	Day 1 Build
+ecs-genai	ECS GenAI: GPU, ML and LLM workloads on Amazon ECS	GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference	Knowledge Skills
+ecs-modernize	ECS Modernize: migrate VMware or EC2 apps to ECS	Assess an existing VMware or EC2 app from its source code, decide replatform or rearchitect, and migrate it onto ECS	Day 2 Operate: upgrade and migrate
+ecs-observability	ECS Observability: logs, metrics and traces for ECS	ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens	Day 0 Design
+ecs-operation-review	ECS Operation Review: rated audit of a live ECS estate	Structured ECS operational excellence assessment of a live estate across 8 domains with GREEN/AMBER/RED ratings	Day 2 Operate: assess what is running
+ecs-recon	ECS Recon: discover what your Amazon ECS estate runs	ECS environment discovery: compute and capacity providers, task definitions, deployments, scaling, networking, security, observability and IaC/CI-CD	Day 2 Operate: assess what is running
+ecs-security	ECS Security: hardening and compliance for Amazon ECS	ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2	Day 2 Operate: secure
+eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	EKS architecture advice: compute, networking, security, reliability, cost, scaling, observability, multi-tenancy, upgrades, hybrid and surge readiness	Knowledge Skills
+eks-build	EKS Build: production-ready Terraform for Amazon EKS	Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations	Day 1 Build
+eks-cost-intelligence	EKS Cost Intelligence: cost score for Amazon EKS	Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings	Day 2 Operate: assess what is running
+eks-design	EKS Design: architecture documents for Amazon EKS	Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices	Day 0 Design
+eks-genai	EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS	GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways	Knowledge Skills
+eks-ingress-migration	EKS Ingress Migration: plan the move off NGINX Ingress	Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform	Day 2 Operate: upgrade and migrate
+eks-mcp-server	EKS MCP Server: connect your AI assistant to Amazon EKS	Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check	Set up and extend
+eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	Structured EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, including deprecated-API review with no target version	Day 2 Operate: assess what is running
+eks-platform-engineering	EKS Platform Engineering: build an IDP on Amazon EKS	Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics	Knowledge Skills
+eks-recon	EKS Recon: discover what your Amazon EKS cluster runs	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts with no scoring	Day 2 Operate: assess what is running
+eks-security	EKS Security: CVE review, posture and compliance for EKS	Read-only scripted security reviews of a live EKS cluster (CVE exposure, security event response, posture check) plus hardening: CIS, HIPAA, PCI-DSS, FedRAMP	Day 2 Operate: secure
+eks-upgrade-check	EKS Upgrade Check: upgrade readiness score for Amazon EKS	Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks	Day 2 Operate: upgrade and migrate
+eks-well-architected-review	EKS Well-Architected Review: unofficial pillar scores	Unofficial Well-Architected style review of a live EKS cluster (Linux nodes only), scored across five pillars; run only on an explicit WAFR request	Day 2 Operate: assess what is running
+graviton-migration	Graviton Migration: move workloads from x86 to arm64	Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS	Day 2 Operate: upgrade and migrate
+skill-creator	Skill Creator: create, test and tune agent skills	Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy	Set up and extend
+terraform-skill	Terraform Skill: modules, tests and CI for Terraform	Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning	Day 1 Build
+update-docs	Update Docs: sync the APEX docs after a skill change	Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references	Set up and extend
 META
 )"
 
