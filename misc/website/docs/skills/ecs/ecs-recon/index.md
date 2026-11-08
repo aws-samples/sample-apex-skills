@@ -34,7 +34,7 @@ Discover everything about an ECS environment. Run this skill to gather comprehen
 - **Cost scoring or efficiency analysis** — belongs to `ecs-cost-intelligence` (once available)
 - **Security auditing or compliance scoring** — belongs to `ecs-security`
 - **Best-practices evaluation or maturity ratings** — belongs to `ecs-operation-review`
-- **Migration planning (replatform/refactor onto ECS)** — belongs to `ecs-modernize` (once available)
+- **Migration planning (replatform/refactor onto ECS)** — belongs to `ecs-modernize`
 - **Amazon EKS requests** — belongs to `eks-recon`; this skill discovers ECS only
 - Creating or modifying ECS resources (this is read-only)
 - Producing architecture design documents or diagrams

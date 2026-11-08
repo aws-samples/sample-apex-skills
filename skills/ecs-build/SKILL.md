@@ -1,6 +1,6 @@
 ---
 name: ecs-build
-description: 'Use when building Amazon ECS infrastructure with Terraform, generating apply-ready code for ECS clusters, services, and task definitions across three capacity models — Fargate (FARGATE_SPOT as capacity provider), EC2 Auto Scaling group providers, and ECS Managed Instances. Covers rolling/blue-green/linear/canary deployment config, Express services, Service Connect, private/VPC-endpoint-only networking, secrets, and Graviton. Also use when (1) wiring a Managed Instances capacity provider and its IAM role, (2) mixing FARGATE and FARGATE_SPOT in a strategy, (3) rendering blue/green, linear, or canary deployment config, (4) generating VPC endpoints for private or air-gapped ECS, (5) configuring Application Auto Scaling, or (6) migrating a service from launch type to capacity providers. Skip for EKS/Kubernetes builds (use eks-build), design and launch-type selection (use ecs-architect), CI/CD pipelines and release strategy (use ecs-devops), and replatforming an existing app onto ECS (use ecs-modernize).'
+description: 'Use when building Amazon ECS infrastructure with Terraform: apply-ready code for clusters, services, and task definitions across three capacity models — Fargate, EC2 Auto Scaling group providers, and ECS Managed Instances. Covers rolling/blue-green/linear/canary deployment config, Express services, Service Connect, private/VPC-endpoint-only networking, secrets, and Graviton. Also use when (1) wiring a Managed Instances capacity provider and its IAM role, (2) mixing FARGATE and FARGATE_SPOT in a strategy, (3) rendering blue/green, linear, or canary deployment config, (4) generating VPC endpoints for private or air-gapped ECS, (5) configuring Application Auto Scaling, or (6) migrating a service from launch type to capacity providers. Skip for Windows-container or bridge-mode builds (Linux awsvpc only), EKS/Kubernetes builds (use eks-build), design and launch-type selection (use ecs-architect), CI/CD pipelines and release strategy (use ecs-devops), and replatforming an existing app onto ECS (use ecs-modernize).'
 ---
 
 # ECS Build
@@ -66,7 +66,7 @@ All three models are consumed through **capacity providers** in generated code. 
 | **SSH / custom AMI** | N/A | Yes | No SSH, no custom AMI -- ECS Exec only |
 | **Terraform surface** | `default_capacity_provider_strategy` only | ASG + launch template + `aws_ecs_capacity_provider` (managed scaling/draining) | `aws_ecs_capacity_provider` with `managed_instances_provider` + infrastructure role + instance profile |
 
-¹ Windows containers are supported by Fargate and EC2 but are **out of this skill's generation scope -- Linux containers only**. Windows builds need per-feature verification (Service Connect, SOCI, etc. are Linux-only as of 2026-07-10); research live before generating.
+¹ Windows containers are supported by Fargate and EC2 but are **out of this skill's generation scope -- Linux containers only**. Windows builds need per-feature verification (Service Connect, SOCI, etc. are Linux-only as of 2026-07-10); research live before generating. No sibling generates greenfield Windows or bridge builds; for an existing app, `ecs-modernize` does.
 
 For full wiring, constraints, and migration paths see [references/capacity-provider-guide.md](references/capacity-provider-guide.md).
 
