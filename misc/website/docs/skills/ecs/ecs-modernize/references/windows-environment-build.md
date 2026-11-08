@@ -15,7 +15,7 @@ This page is generated from [skills/ecs-modernize/references/windows-environment
 > **Purpose:** Generate the Windows_Environment_Terraform for an approved Windows_Container_Path — cluster and capacity conditioned on the approved compute option (ECS on EC2 Windows instances or Fargate Windows), a task definition with the Windows `runtime_platform`, the service, and the load balancer (with session affinity when the in-process session Blocker was detected) — conforming to the repository terraform-skill's conventions, verified by `terraform validate` as the sole applicability check, with an unresolved image URI handled as a Terraform input variable
 > **Prerequisites:** **Execution_Gate passage** (Requirement 14) + **Containerization execution** ([containerization-execution.md](containerization-execution.md)) — the image URI for the task definition; when the URI is unresolved, define it as a Terraform input variable per the [unresolved image URI rule](#unresolved-image-uri--input-variable-rule)
 
-This module builds the target environment for the **Windows_Container_Path** (Requirement 17.2). It exists because **`ecs-build`'s generation scope is limited to Linux containers** — there is no sibling skill that generates Windows container environments, so this skill generates the Windows_Environment_Terraform itself. State that rationale explicitly whenever this module runs: the user should know *why* the Linux paths hand off to `ecs-build` (see [deploy-verify-handoff.md](deploy-verify-handoff.md)) while the Windows path does not. Never route a Windows container path environment IaC request to `ecs-build` (Requirement 12.5); the delegation boundary and the future-support note — if `ecs-build` gains Windows container generation, this module's generation is replaced by a delegation — are canonical in [SKILL.md](../index.md).
+This module builds the target environment for the **Windows_Container_Path** (Requirement 17.2). The Windows_Environment_Terraform is generated in this skill; see [Delegation Boundaries](../index.md#delegation-boundaries). Never route a Windows container path environment IaC request to `ecs-build` (Requirement 12.5).
 
 This module is ECS-specific: it depends on the ECS resource model (cluster, capacity provider, task definition `runtime_platform`, service) and does not port to other orchestrators.
 
@@ -143,7 +143,7 @@ Generate exactly the capacity model of the **approved** compute option — never
 
 ```hcl
 runtime_platform {
-  operating_system_family = "WINDOWS_SERVER_2022_CORE" # or _FULL / 2019_CORE / 2019_FULL — match the pushed base image
+  operating_system_family = "WINDOWS_SERVER_2022_CORE" # or _FULL / 2019_CORE / 2019_FULL / 2025_CORE / 2025_FULL (2025: EC2 only) — match the pushed base image
   cpu_architecture        = "X86_64"                   # Windows containers are x86_64 only
 }
 ```
@@ -325,7 +325,7 @@ Source_Analysis classified one or more write targets as persistent, and the pare
 
 ### The assessment was skipped and session-state is unknown
 
-No Blocker data exists to condition the load balancer. Ask whether the application keeps in-process session state; generate stickiness (or not) per the answer and record the answer as the grounds. An ambiguous answer confirms nothing — re-ask.
+No Blocker data exists to condition the load balancer. Ask whether the application keeps in-process session state; generate stickiness (or not) per the answer and record the answer as the grounds. An ambiguous answer confirms nothing — re-ask. (The Linux path instead pre-fills stickiness **enabled** as a provisional fail-safe, because its shipped skeleton's `session_affinity_required` variable documents `true` as the fail-safe for this case ([replatform-environment-build.md](replatform-environment-build.md#the-assessment-was-skipped-and-session-state-is-unknown)); this path ships no skeleton, so it waits for the answer.)
 
 ### The image URI is unresolved
 
@@ -353,7 +353,7 @@ Re-obtain the file-generation confirmation with the changed paths before writing
 
 ### The user asks `ecs-build` to generate the Windows environment
 
-Do not route it there: state that `ecs-build`'s generation scope is limited to Linux containers, generate here per this module, and note the [SKILL.md](../index.md) future-support replacement — if `ecs-build` gains Windows container generation, this generation becomes a delegation.
+Do not route it there: the Windows environment is generated in this skill (see [Delegation Boundaries](../index.md#delegation-boundaries)), so generate it here per this module.
 
 ### Sizing inputs are missing
 

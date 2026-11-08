@@ -145,7 +145,7 @@ Each dimension below defines its evaluation items, the evidence it consumes, and
 
 | Band | Condition |
 |---|---|
-| 90–100 | No OS-specific API or process-model findings; no vendor-specific application-server coupling |
+| 90–100 | No OS-specific API or process-model findings; no vendor-specific application-server coupling; the artifact embeds its server (e.g. an executable JAR or a self-hosted Kestrel app), so an app that needs an external standard server (a WAR on Tomcat) sits in 60–89 |
 | 60–89 | Standard application-server hosting only (servlet container, standard web-server hosting) with no OS-specific API findings |
 | 30–59 | OS-specific API or process-model findings present, but all carry remediation class `replatform_ok` (they function inside a container of the matching OS); **or** vendor application-server coupling with no `must_fix` findings — position descriptor-level coupling near the top of the band and code-level proprietary-API coupling (e.g. `com.ibm.websphere.*` usage across the codebase) near the bottom, since the code-level dependence must be unwound before the app can leave the vendor server |
 | 0–29 | One or more `must_fix` findings in these categories (interactive desktop UI, hardware drivers, kernel-mode components, host-managed daemon arrangements) |
@@ -202,7 +202,7 @@ The legacy cap (40) is strictly below the modern floor (60); the interval 41–5
 
 Tiers 1–2 sit at or above the modern floor; tier 4 sits at or below the legacy cap; tier 3 occupies the interval between them. Within a tier, position the score by version currency and support status (a framework on its newest supported line scores near the top of its band; an aging line near the bottom).
 
-**EOL beats the tier — check support status before banding.** Tier 2 in particular lists lines that have since gone end of life: Spring Boot 2.x left OSS support in November 2023, and .NET 6 and 7 are both past their end of support. An EOL line belongs to the legacy classification (see the EOL entry above) and is therefore **capped at 40**, whichever tier its family appears in here. The runtime-constraint rule below catches this when the *runtime* is EOL; this note is what catches it when the **framework line** is EOL on a still-supported runtime — an EOL Spring Boot 2.x application on Java 17 is the case that would otherwise slip through at 60–79. Verify the support status of the detected line at analysis time rather than reading the tier off this table, and record the support fact in the dimension's evidence.
+**EOL beats the tier — check support status before banding.** Tier 2 in particular lists lines that have since gone end of life (as of 2026-11-07): Spring Boot 2.x left OSS support in November 2023, and .NET 6 and 7 are both past their end of support. An EOL line belongs to the legacy classification (see the EOL entry above) and is therefore **capped at 40**, whichever tier its family appears in here. The runtime-constraint rule below catches this when the *runtime* is EOL; this note is what catches it when the **framework line** is EOL on a still-supported runtime — an EOL Spring Boot 2.x application on Java 17 is the case that would otherwise slip through at 60–79. Verify the support status of the detected line at analysis time rather than reading the tier off this table, and record the support fact in the dimension's evidence.
 
 **Scoring rules:**
 
@@ -342,7 +342,7 @@ scoring:
 Absence of findings is not automatically a high score, and not automatically undetermined either. Distinguish:
 
 - **Checked and found none** — the prerequisite modules examined the relevant artifacts and reported no findings (e.g. the explicit zero-blocker statement): the dimension is determinable, scored per its anchors, with the examined artifacts as evidence.
-- **Could not check** — the relevant artifacts were unreadable or absent from the analysis (e.g. no configuration files readable for `config_externalization`): the dimension is **undetermined**, with the missing evidence named.
+- **Could not check** — the relevant artifacts were unreadable or absent from the analysis (e.g. no configuration files readable for `config_externalization`): the dimension is **undetermined**, with the missing evidence named. Hardcoded configuration values found in source are a finding, not "could not check", even when no configuration file exists.
 
 ### All dimensions undetermined
 
