@@ -532,6 +532,34 @@ else
     warn "terraform not found — skipping validate"
 fi
 
+# --- 13. Permissions boundary (optional) ---
+echo ""
+echo "13. Permissions boundary"
+echo "-------------------------------------------"
+
+CLUSTER_YAML="$PROJECT_DIR/configs/cluster.yaml"
+BOUNDARY=""
+UNREADABLE=0
+if [ -f "$CLUSTER_YAML" ] && [ ! -r "$CLUSTER_YAML" ]; then
+    UNREADABLE=1
+elif [ -f "$CLUSTER_YAML" ]; then
+    # Top-level key only; strip CR so a CRLF file reads the same
+    BOUNDARY=$(grep -E '^permissions_boundary[[:space:]]*:' "$CLUSTER_YAML" | head -1 | tr -d '\r' \
+        | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]+#.*$//; s/^["'\'']//; s/["'\''][[:space:]]*$//' || true)
+fi
+if [ "$UNREADABLE" = 1 ]; then
+    fail "configs/cluster.yaml is not readable: cannot check permissions_boundary"
+elif [ -z "$BOUNDARY" ] || [ "$BOUNDARY" = "null" ] || [ "$BOUNDARY" = "~" ]; then
+    pass "permissions_boundary not set: no boundary check needed"
+else
+    # A customer managed (account id) or AWS managed (`aws`) policy can be a boundary
+    if [[ "$BOUNDARY" =~ ^arn:aws[a-z-]*:iam::([0-9]{12}|aws):policy/.+$ ]]; then
+        pass "permissions_boundary is an IAM policy ARN"
+    else
+        fail "permissions_boundary is not an IAM policy ARN: $BOUNDARY"
+    fi
+fi
+
 # --- Summary ---
 echo ""
 echo "==========================================="
