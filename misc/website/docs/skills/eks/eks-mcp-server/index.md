@@ -28,10 +28,9 @@ This skill guides you through configuring the EKS MCP Server to enable live EKS 
 
 Before proceeding with setup, check if EKS MCP tools are already available:
 
-1. Look for MCP tools in your current environment starting with `eks` or `mcp__eks`
-2. Ask what EKS MCP tools are available. If they are listed, the server is connected.
+1. Look for MCP tools starting with `eks` or `mcp__eks`. If they are listed, the server is connected.
 
-If the request was only about discovery and the tools work, stop here. A working answer proves the connection only; for live Kubernetes reads, verify the target and the MCP caller's access per the loaded setup reference (Step 6).
+If the request was only about discovery and the tools are listed, stop here. A working answer proves the connection only; for live Kubernetes reads, verify the target and the MCP caller's access per the loaded setup reference (Step 6).
 
 ---
 

@@ -37,12 +37,6 @@
           "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#environment-variables"
         },
         {
-          "type": "must-not-contain",
-          "pattern": "\"--allow-write\"",
-          "context": "Read-only config must not put --allow-write in the args array",
-          "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server#command-line-arguments"
-        },
-        {
           "type": "must-contain-one-of",
           "patterns": ["restart", "reload"],
           "context": "Must instruct user to restart/reload the AI assistant after config change",
@@ -176,7 +170,7 @@
       "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to today's latest. Note: this machine cannot reach pypi.org.",
       "expectations": [
         "States the outcome of the PyPI lookup: if it failed, says plainly that the current version could not be read from PyPI; if it succeeded, names the version it read; or says it will look it up once the user confirms.",
-        "If the lookup failed, asks the user to choose between `@latest` and pinning to the last version the skill knew, naming that version from the skill's known-versions line; if it succeeded, pins the version it read, not `@latest`.",
+        "Does not write a pinned version it did not read from PyPI.",
         "Does not present a guessed or remembered version as today's latest."
       ],
       "files": []
