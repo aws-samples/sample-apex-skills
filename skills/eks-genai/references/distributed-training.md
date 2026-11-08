@@ -215,7 +215,7 @@ Ray Train (training)
 MLflow runs as a Deployment on the CPU NodePool — tracks experiments, stores model artifacts (S3 backend), manages model versions. Deploy via Helm:
 
 ```bash
-helm install mlflow community-charts/mlflow \
+helm install mlflow community-charts/mlflow --version 1.11.7 \
   --set backendStore.postgres.enabled=true \
   --set artifactRoot=s3://my-mlflow-artifacts/
 ```

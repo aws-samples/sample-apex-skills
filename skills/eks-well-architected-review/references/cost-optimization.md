@@ -580,7 +580,7 @@ kubectl get deployments -A -o json
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Deploy Kubecost or OpenCost for cost visibility: `helm repo add kubecost https://kubecost.github.io/kubecost/ && helm repo update && helm install kubecost kubecost/kubecost --namespace kubecost --create-namespace --set global.clusterId=<cluster-name>` or deploy OpenCost via Helm.
+**Remediation:** Deploy Kubecost or OpenCost for cost visibility: `helm repo add kubecost https://kubecost.github.io/kubecost/ && helm repo update && helm install kubecost kubecost/kubecost --version 3.3.1 --namespace kubecost --create-namespace --set global.clusterId=<cluster-name>` or deploy OpenCost via Helm.
 
 ---
 

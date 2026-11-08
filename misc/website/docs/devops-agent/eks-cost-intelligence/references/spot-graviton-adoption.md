@@ -636,7 +636,7 @@ If spot_node_count > 0:
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
 
-helm install aws-node-termination-handler eks/aws-node-termination-handler \
+helm install aws-node-termination-handler eks/aws-node-termination-handler --version 0.21.0 \
   --namespace kube-system \
   --set enableSpotInterruptionDraining=true \
   --set enableRebalanceRecommendation=true \

@@ -319,7 +319,7 @@ spec:
 
 ```bash
 # Auto-manage Route 53 records for Services/Ingresses
-helm install external-dns external-dns/external-dns \
+helm install external-dns external-dns/external-dns --version 1.23.0 \
   --set provider=aws \
   --set policy=sync \
   --set registry=txt \
