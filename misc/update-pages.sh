@@ -406,12 +406,12 @@ vendored_skill_admonition() {
     source_url="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /^## / { exit }
-      found && /Source:/ { sub(/.*Source:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
+      found && /Source:/ { sub(/.*Source:[* ]*/, ""); sub(/[* \r]*$/, ""); print; exit }
     ' "$notices")"
     author="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /^## / { exit }
-      found && /Copyright:/ { sub(/.*Copyright:[* ]*/, ""); sub(/[* ]*$/, ""); print; exit }
+      found && /Copyright:/ { sub(/.*Copyright:[* ]*/, ""); sub(/[* \r]*$/, ""); print; exit }
     ' "$notices")"
     # License mirrors the Copyright block: take the THIRD_PARTY_NOTICES License
     # field (dropping the "(see ...)" file pointer) so a vendored skill without a
@@ -419,13 +419,14 @@ vendored_skill_admonition() {
     license_from_notices="$(SKILL_NAME="$skill_name" awk '
       index($0, "## " ENVIRON["SKILL_NAME"]) == 1 { found=1; next }
       found && /^## / { exit }
-      found && /License:/ { sub(/.*License:[* ]*/, ""); sub(/ *\(see.*$/, ""); sub(/[* ]*$/, ""); print; exit }
+      found && /License:/ { sub(/.*License:[* ]*/, ""); sub(/ *\(see.*$/, ""); sub(/[* \r]*$/, ""); print; exit }
     ' "$notices")"
     # Normalize the long-form license name to its SPDX short id so the
     # admonition reads "under the MIT license", not "under the MIT License license".
     case "$license_from_notices" in
       "MIT License") license_from_notices="MIT" ;;
       "Apache License 2.0"|"Apache 2.0") license_from_notices="Apache-2.0" ;;
+      *" License") license_from_notices="${license_from_notices% License}" ;;
     esac
   fi
   # Fallback: frontmatter metadata
@@ -434,10 +435,11 @@ vendored_skill_admonition() {
     author="$(parse_frontmatter "$skill_md" "author")"
   fi
   # Precedence: frontmatter `license:` (e.g. terraform-skill) > THIRD_PARTY_NOTICES
-  # License field > Apache-2.0 default.
+  # License field > a pointer to the skill's own LICENSE file (never a guessed id).
   license_id="$(parse_frontmatter "$skill_dir/SKILL.md" "license")"
   [[ -z "$license_id" ]] && license_id="$license_from_notices"
-  [[ -z "$license_id" ]] && license_id="Apache-2.0"
+  local license_text="the $license_id license"
+  [[ -z "$license_id" ]] && license_text="the license in its ${license_file##*/} file"
   # Next source: the "Source repo" row of the skill's UPSTREAM.md (the sync
   # scripts' provenance file), so a vendored skill with no notices entry
   # names its upstream repo rather than its own folder.
@@ -476,7 +478,7 @@ EOF
     cat <<EOF
 
 :::caution[Third-party skill]
-This skill is maintained by **$author** under the $license_id license. Upstream: [$source_url]($source_url)
+This skill is maintained by **$author** under $license_text. Upstream: [$source_url]($source_url)
 :::
 
 EOF
