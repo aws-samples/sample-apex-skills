@@ -27,11 +27,11 @@ ECR stores image signatures as OCI artifacts via:
 - **Cosign** (Sigstore project, CNCF): keyless or keyed signatures.
 - **Notation** (CNCF, OCI standard): ECR is Notation-compatible.
 
-## Image admission control: Kyverno `verifyImages`
+## Image admission control: Kyverno image verification
 
-Kyverno's `verifyImages` rule blocks unsigned or high-severity images **at admission time**. Combined with ECR Enhanced Scanning + image signing (Cosign or Notation, above), this closes the loop: an image that isn't scanned-clean and signed never schedules. (See Layer 3, this is policy-engine sub-rule 3c.)
+Kyverno's image verification rule blocks unsigned or high-severity images **at admission time**. Combined with ECR Enhanced Scanning + image signing (Cosign or Notation, above), this closes the loop: an image that isn't scanned-clean and signed never schedules. (See Layer 3, this is policy-engine sub-rule 3c.) Write the rule as an `ImageValidatingPolicy` (`policies.kyverno.io/v1`, stable since Kyverno v1.18). The older `verifyImages` rule belongs to the legacy `ClusterPolicy` (`kyverno.io/v1`), which is deprecated in v1.19 with removal planned for v1.20 ([Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)).
 
-As of Kyverno v1.19.2, Kyverno's built-in `verifyImages` cannot verify AWS Signer signatures. For images signed with AWS Signer, use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, or OPA Gatekeeper with Ratify and the AWS Signer plugin ([EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)).
+As of Kyverno v1.19.2, Kyverno's built-in image verification (`verifyImages` and `ImageValidatingPolicy`) cannot verify AWS Signer signatures. For images signed with AWS Signer, use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, or OPA Gatekeeper with Ratify and the AWS Signer plugin ([EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)). The kyverno-notation-aws sample policy is a `ClusterPolicy` ([kyverno-policy.yaml](https://github.com/nirmata/kyverno-notation-aws/blob/58b210b446590eb079b1c84245cacd4a434e8a36/configs/samples/kyverno-policy.yaml)), and the Kyverno v1.20 release candidate stops enforcing legacy policies after the upgrade ([v1.20.0-rc.1 notes](https://github.com/kyverno/kyverno/releases/tag/v1.20.0-rc.1)), so that route needs Kyverno 1.19.x; on a newer Kyverno, use Gatekeeper with Ratify.
 
 ## Third-party scanners (alternatives or complements to ECR Enhanced Scanning)
 
@@ -60,5 +60,5 @@ Position AWS-native (ECR Enhanced Scanning + Inspector + Security Hub) as the de
 
 ## Sources
 - [Amazon ECR features](https://aws.amazon.com/ecr/features/) · [Amazon Inspector](https://aws.amazon.com/inspector/)
-- [Sigstore Cosign](https://docs.sigstore.dev/) · [Notation (CNCF Notary Project)](https://notaryproject.dev/) · [Kyverno verifyImages](https://kyverno.io/docs/policy-types/cluster-policy/verify-images/)
+- [Sigstore Cosign](https://docs.sigstore.dev/) · [Notation (CNCF Notary Project)](https://notaryproject.dev/) · [Kyverno ImageValidatingPolicy](https://release-1-19-0.kyverno.io/docs/policy-types/image-validating-policy/) · [Kyverno verifyImages (legacy)](https://release-1-19-0.kyverno.io/docs/policy-types/cluster-policy/verify-images/)
 - [AWS Marketplace for Containers](https://aws.amazon.com/marketplace/) (Snyk, Aqua, Wiz, Prisma Cloud, Sysdig, …)
