@@ -1,6 +1,6 @@
 ---
 title: "Porting Notes: eks-security"
-description: ""
+description: "This file documents the differences between the Claude Code version and the DevOps Agent port."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/porting-notes.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "EKS Security Best Practices"
-description: ""
+description: "Core security guidance for Amazon EKS clusters — IAM, cluster access, pod identity, pod security, multi-tenancy, secrets management, and data encryption"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/security.md
 format: md
 ---

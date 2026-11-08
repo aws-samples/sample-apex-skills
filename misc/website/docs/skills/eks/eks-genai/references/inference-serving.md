@@ -1,6 +1,6 @@
 ---
 title: "Inference Serving Frameworks on EKS"
-description: ""
+description: "Opinionated guidance for choosing and configuring the LLM inference engine on Amazon EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/inference-serving.md
 format: md
 ---

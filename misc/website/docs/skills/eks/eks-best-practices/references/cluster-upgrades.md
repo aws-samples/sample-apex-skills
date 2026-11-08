@@ -1,6 +1,6 @@
 ---
 title: "EKS Cluster Upgrade Best Practices"
-description: ""
+description: "Upgrade planning, in-place and blue-green strategies, add-on management, API deprecation detection, and version support for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/cluster-upgrades.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "EKS Runtime & Network Security"
-description: ""
+description: "Runtime threat detection, network policy enforcement, security groups for pods, and encryption in transit"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/security-runtime-network.md
 format: md
 ---

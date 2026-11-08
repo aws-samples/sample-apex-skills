@@ -1,6 +1,6 @@
 ---
 title: "Module: Tech Stack Detection"
-description: ""
+description: "Identify the languages, frameworks, runtimes, declared versions, and application servers of the target application from source code — the evidence base..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/tech-stack-detection.md
 format: md
 ---

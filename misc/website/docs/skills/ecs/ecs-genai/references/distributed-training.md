@@ -1,6 +1,6 @@
 ---
 title: "Distributed ML Training on Amazon ECS"
-description: ""
+description: "Running multi-GPU and multi-node training / fine-tuning on ECS-on-EC2."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/distributed-training.md
 format: md
 ---

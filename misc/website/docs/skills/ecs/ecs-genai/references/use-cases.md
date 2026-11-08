@@ -1,6 +1,6 @@
 ---
 title: "Worked Use Cases — GPU / ML on Amazon ECS"
-description: ""
+description: "Five condensed scenarios."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/use-cases.md
 format: md
 ---

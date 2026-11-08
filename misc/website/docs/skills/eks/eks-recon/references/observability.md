@@ -1,6 +1,6 @@
 ---
 title: "Module: Observability"
-description: ""
+description: "Detect observability stack - metrics, logging, tracing configuration"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/references/observability.md
 format: md
 ---

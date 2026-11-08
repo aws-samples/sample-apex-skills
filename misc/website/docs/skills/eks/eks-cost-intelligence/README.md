@@ -1,6 +1,6 @@
 ---
 title: "eks-cost-intelligence"
-description: ""
+description: "A Kiro agent skill that connects to a live EKS cluster, analyzes cost signals across 6 dimensions, and produces a scored cost intelligence report with..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/README.md
 format: md
 ---

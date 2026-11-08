@@ -1,6 +1,6 @@
 ---
 title: "Code Intelligence (terraform-ls)"
-description: ""
+description: "Semantic navigation for HCL via the terraform-ls language server."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/code-intelligence-lsp.md
 format: md
 ---

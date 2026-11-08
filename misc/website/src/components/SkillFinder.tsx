@@ -6,6 +6,7 @@ import {
   SKILLS,
   PLATFORM_LABEL,
   platformCounts,
+  portHref,
   skillHref,
   type Platform,
 } from './skillCatalog';
@@ -19,14 +20,24 @@ function PlatformTag({platform}: {platform: Platform}): ReactNode {
   return <span className={`apex-tag apex-tag--${platform}`}>{PLATFORM_LABEL[platform]}</span>;
 }
 
+// An agent query ("aws agents", "devops agent") opens a port's AWS DevOps Agent page.
+function hitHref(hit: Hit): string {
+  return hit.port ? portHref(hit.skill.name) : skillHref(hit.skill);
+}
+
+function PortTag({hit}: {hit: Hit}): ReactNode {
+  return hit.port ? <span className="apex-tag">DevOps Agent</span> : null;
+}
+
 function TopHit({hit}: {hit: Hit}): ReactNode {
   const {skill} = hit;
   return (
-    <Link className="apex-tophit" to={skillHref(skill)}>
+    <Link className="apex-tophit" to={hitHref(hit)}>
       <span className="apex-tophit__label">Best match</span>
       <span className="apex-tophit__name">
         <code>{skill.name}</code>
         <PlatformTag platform={skill.platform} />
+        <PortTag hit={hit} />
       </span>
       <span className="apex-tophit__use">{skill.use}</span>
       {skill.output && <span className="apex-tophit__output">You get: {skill.output}</span>}
@@ -38,9 +49,10 @@ function HitRow({hit}: {hit: Hit}): ReactNode {
   const {skill} = hit;
   return (
     <li>
-      <Link className="apex-hit" to={skillHref(skill)}>
+      <Link className="apex-hit" to={hitHref(hit)}>
         <code className="apex-hit__name">{skill.name}</code>
         <PlatformTag platform={skill.platform} />
+        <PortTag hit={hit} />
         <span className="apex-hit__use">{skill.use}</span>
       </Link>
     </li>
@@ -85,9 +97,10 @@ export default function SkillFinder({variant}: Props): ReactNode {
   }, [query, platform]);
   const counts = useMemo(() => platformCounts(SKILLS), []);
 
-  // A stop-word-only query ("aws skills") lists every skill in the hero; the
-  // page keeps its grid, the catalogue in its normal order.
-  const searching = queryWords(query).length > 0 || (!isPage && hits.length > 0);
+  // A stop-word-only query ("aws skills") lists every skill in the hero, EKS
+  // first; the page keeps its grid, the catalogue in its normal order.
+  const keyWords = queryWords(query).length > 0;
+  const searching = keyWords || (!isPage && hits.length > 0);
   // A clear winner: the query is in the skill's name and it outscores the next hit.
   const top = hits[0] && hits[0].score >= 20 && (!hits[1] || hits[0].score > hits[1].score) ? hits[0] : null;
   // Strong hits match every word in the name or summary; the others only
@@ -100,7 +113,7 @@ export default function SkillFinder({variant}: Props): ReactNode {
   // Enter opens the first result shown.
   const openTop = () => {
     const first = top ?? main[0] ?? hits[0];
-    if (first) history.push(withBaseUrl(skillHref(first.skill)));
+    if (first) history.push(withBaseUrl(hitHref(first)));
   };
 
   return (
@@ -165,17 +178,18 @@ export default function SkillFinder({variant}: Props): ReactNode {
           ? hits.length === 0
             ? (
                 <>
-                  No skill matches every word of &ldquo;{query.trim()}&rdquo;. Try one key word, such as upgrade,
-                  ingress or cost,{' '}
+                  No skill matches every word of &ldquo;{query.trim()}&rdquo;. Try one key word,{' '}
                   <Link to="/skills" onClick={() => setQuery('')}>
                     browse every skill
                   </Link>
                   , or describe the task to the <Link to="/docs/skills/general/apex/">apex router</Link>.
                 </>
               )
-            : `${hits.length - mentions.length} ${
-                hits.length - mentions.length === 1 ? 'skill matches' : 'skills match'
-              }${mentions.length ? `, ${mentions.length} more mention it` : ''}. Enter opens the first one.`
+            : keyWords
+              ? `${hits.length - mentions.length} ${
+                  hits.length - mentions.length === 1 ? 'skill matches' : 'skills match'
+                }${mentions.length ? `, ${mentions.length} more mention it` : ''}. Enter opens the first one.`
+              : `All ${hits.length} skills, EKS first. Enter opens the first one.`
           : isPage
             ? `${inPlatform.length} skills`
             : null}

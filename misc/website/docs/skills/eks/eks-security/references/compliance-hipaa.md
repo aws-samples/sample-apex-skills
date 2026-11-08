@@ -1,6 +1,6 @@
 ---
 title: "HIPAA on EKS — Quick-Start"
-description: ""
+description: "A per-regime quick-start for running Protected Health Information (PHI) workloads on Amazon EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/compliance-hipaa.md
 format: md
 ---

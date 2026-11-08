@@ -1,6 +1,6 @@
 ---
 title: "Service Boundaries — Fargate-GPU Exclusion & When to Leave ECS"
-description: ""
+description: "This skill's most important job is to keep GPU/ML workloads on the right AWS service."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/service-boundaries.md
 format: md
 ---

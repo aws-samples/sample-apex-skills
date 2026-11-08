@@ -1,6 +1,6 @@
 ---
 title: "EKS Networking — VPC CNI & IP Management"
-description: ""
+description: "VPC CNI configuration, subnet/CIDR planning, IPv4 vs IPv6, custom networking, Security Groups for Pods, and IP address management"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/networking.md
 format: md
 ---

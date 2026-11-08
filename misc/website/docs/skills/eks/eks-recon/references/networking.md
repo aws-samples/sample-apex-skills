@@ -1,6 +1,6 @@
 ---
 title: "Module: Networking"
-description: ""
+description: "Detect network configuration - VPC identifiers, VPC CNI, subnets, ingress controllers, load balancers, service mesh, DNS, network policies, endpoint access"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/references/networking.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Infrastructure Abstraction — ACK and kro"
-description: ""
+description: "How the platform turns Kubernetes into the universal control plane for AWS resources (ACK) and composes many resources into one self-service unit (kro)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/infrastructure-abstraction.md
 format: md
 ---

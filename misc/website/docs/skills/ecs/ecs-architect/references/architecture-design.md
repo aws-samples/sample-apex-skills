@@ -1,6 +1,6 @@
 ---
 title: "ECS Architecture Design — Task Sizing and Service Parameters"
-description: ""
+description: "Size ECS tasks and set the core service parameters once the compute model is chosen."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/architecture-design.md
 format: md
 ---

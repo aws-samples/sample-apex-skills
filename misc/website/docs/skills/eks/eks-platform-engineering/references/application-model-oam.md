@@ -1,6 +1,6 @@
 ---
 title: "Application Model — the developer-facing app abstraction"
-description: ""
+description: "The abstraction that lets developers describe an application — and its infrastructure dependencies — in one declarative file, without writing Deployments,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/application-model-oam.md
 format: md
 ---

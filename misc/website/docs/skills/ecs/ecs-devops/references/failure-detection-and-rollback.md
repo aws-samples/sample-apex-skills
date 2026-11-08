@@ -1,6 +1,6 @@
 ---
 title: "ECS DevOps — Failure Detection & Rollback"
-description: ""
+description: "Deployment circuit breaker (including the Jul 2026 configurable thresholds), CloudWatch alarm-based failure detection, and every rollback path for ECS..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/references/failure-detection-and-rollback.md
 format: md
 ---

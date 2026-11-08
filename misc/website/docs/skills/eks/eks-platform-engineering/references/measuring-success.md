@@ -1,6 +1,6 @@
 ---
 title: "Measuring Platform Success"
-description: ""
+description: "A platform you can't measure is a platform you can't improve or justify."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-platform-engineering/references/measuring-success.md
 format: md
 ---

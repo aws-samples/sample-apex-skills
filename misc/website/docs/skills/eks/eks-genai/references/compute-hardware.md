@@ -1,6 +1,6 @@
 ---
 title: "Compute & Hardware — NVIDIA GPU vs AWS Neuron"
-description: ""
+description: "The single most-impactful decision in any GenAI-on-EKS architecture."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/compute-hardware.md
 format: md
 ---

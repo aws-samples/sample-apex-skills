@@ -1,6 +1,6 @@
 ---
 title: "Security & Compliance for GPU / ML Workloads on Amazon ECS"
-description: ""
+description: "This file is the GPU/ML-specific security slice only."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/security-and-compliance.md
 format: md
 ---

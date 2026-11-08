@@ -1,6 +1,6 @@
 ---
 title: "Module: Security"
-description: ""
+description: "Detect security posture - IAM model, Pod Security, policy engines, secrets management"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/references/security.md
 format: md
 ---

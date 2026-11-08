@@ -1,6 +1,6 @@
 ---
 title: "ECS Observability — Log Delivery Architecture"
-description: ""
+description: "Deep guidance on awslogs delivery modes (blocking vs non-blocking), buffer sizing, FireLens/Fluent Bit routing, and high-throughput logging patterns for..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-observability/references/log-delivery.md
 format: md
 ---

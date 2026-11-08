@@ -1,6 +1,6 @@
 ---
 title: "ALB Controller Migration Path"
-description: ""
+description: "Guide migration from NGINX Ingress Controller to AWS Load Balancer Controller (ALB Ingress), converting all NGINX-specific annotations to their ALB equivalents."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/alb-migration.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Spot and Graviton Adoption"
-description: ""
+description: "Checks for Graviton (arm64) adoption percentage, node groups/NodePools without arm64 in allowed architectures, workloads with explicit amd64 affinity, Spot..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/spot-graviton-adoption.md
 format: md
 ---

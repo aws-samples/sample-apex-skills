@@ -1,6 +1,6 @@
 ---
 title: "EKS Observability Best Practices"
-description: ""
+description: "Monitoring, logging, tracing, alerting, network performance monitoring, GPU observability, and detective controls for Amazon EKS clusters"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/observability.md
 format: md
 ---

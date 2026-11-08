@@ -1,6 +1,6 @@
 ---
 title: "Storage for GenAI on EKS"
-description: ""
+description: "The storage layer is where training jobs stall and inference cold-starts hide."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/storage.md
 format: md
 ---

@@ -658,12 +658,14 @@ spec:
   limits:
   - default:
       cpu: "500m"
-      memory: "512Mi"
+      memory: "128Mi"
     defaultRequest:
       cpu: "100m"
       memory: "128Mi"
     type: Container
 ```
+
+A container that requests more than 128Mi of memory or 500m CPU and sets no limit for it is rejected when its Pod is created (for a Deployment, the ReplicaSet fails to create pods), and a container with no memory setting gets a 128Mi limit and is OOM-killed above it: set explicit requests and limits on the flagged containers before applying ([Kubernetes: Limit Ranges](https://kubernetes.io/docs/concepts/policy/limit-range/)).
 
 ```yaml
 # ResourceQuota to cap total namespace consumption

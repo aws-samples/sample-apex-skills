@@ -76,10 +76,11 @@ def _safe_href(url):
     return cleaned
 
 
-def _link_sub(match):
+def _link_sub(match, hrefs):
     text = match.group(1)
-    url = _safe_href(match.group(2))
-    return f'<a href="{url}">{text}</a>'
+    hrefs.append(_safe_href(match.group(2)))
+    # The href waits behind a placeholder until the passes below are done.
+    return f'<a href="\x00{len(hrefs) - 1}\x00">{text}</a>'
 
 
 def inline_format(text):
@@ -88,10 +89,14 @@ def inline_format(text):
     Input must already be HTML-escaped with quote=True by the caller.
     Link hrefs are validated against a scheme allowlist; because `"` and
     `&` in the URL are already escaped to `&quot;`/`&amp;`, cluster-derived
-    strings cannot break out of the href attribute.
+    strings cannot break out of the href attribute. The bold, code and badge
+    passes run after the links, so each href is held as a placeholder and put
+    back last; otherwise they would write markup into the attribute.
     """
+    text = text.replace('\x00', '')
+    hrefs = []
     # Links: [text](url) — scheme-allowlisted, href-escaped
-    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', _link_sub, text)
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', lambda m: _link_sub(m, hrefs), text)
     # Bold: **text**
     text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
     # Inline code: `text`
@@ -101,7 +106,7 @@ def inline_format(text):
     text = text.replace('🟡', '<span class="amber">AMBER</span>')
     text = text.replace('🟢', '<span class="green">GREEN</span>')
     text = text.replace('⬜', '<span class="unknown">UNKNOWN</span>')
-    return text
+    return re.sub(r'\x00(\d+)\x00', lambda m: hrefs[int(m.group(1))], text)
 
 
 def parse_table(lines):

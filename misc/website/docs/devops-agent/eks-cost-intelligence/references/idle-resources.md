@@ -1,6 +1,6 @@
 ---
 title: "Idle Resources"
-description: ""
+description: "Checks for zero-replica Deployments idle for extended periods, LoadBalancer Services with no healthy endpoints, namespaces with no running workloads but..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/idle-resources.md
 format: md
 ---

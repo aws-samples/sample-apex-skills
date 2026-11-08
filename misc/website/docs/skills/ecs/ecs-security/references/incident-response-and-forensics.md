@@ -1,6 +1,6 @@
 ---
 title: "Incident Response & Forensics"
-description: ""
+description: "Detection (Layer 6) and audit logging (Layer 7a) produce the signals; this is how you respond when something fires on ECS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/incident-response-and-forensics.md
 format: md
 ---

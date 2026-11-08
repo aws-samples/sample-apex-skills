@@ -1,6 +1,6 @@
 ---
 title: "Compute & Hardware — GPU on Amazon ECS"
-description: ""
+description: "The foundation of every GPU/ML-on-ECS architecture: which host, which accelerator, which AMI, how GPUs are exposed to containers, and how (little) they can..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/compute-hardware.md
 format: md
 ---

@@ -1,6 +1,6 @@
 ---
 title: "Section 06 — Observability Posture"
-description: ""
+description: "Assess whether the estate is observable enough to detect and diagnose issues fast: Container Insights with enhanced observability, log routing/retention..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/observability.md
 format: md
 ---

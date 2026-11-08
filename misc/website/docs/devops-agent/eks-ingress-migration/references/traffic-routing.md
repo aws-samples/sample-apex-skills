@@ -1,6 +1,6 @@
 ---
 title: "Traffic & Routing Complexity"
-description: ""
+description: "Assess routing complexity and map current patterns to Gateway API HTTPRoute equivalents."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/traffic-routing.md
 format: md
 ---

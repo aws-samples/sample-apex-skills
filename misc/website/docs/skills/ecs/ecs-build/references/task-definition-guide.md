@@ -1,6 +1,6 @@
 ---
 title: "Task Definition Guide"
-description: ""
+description: "Generating aws_ecs_task_definition (or the container-definition submodule) correctly."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/task-definition-guide.md
 format: md
 ---
