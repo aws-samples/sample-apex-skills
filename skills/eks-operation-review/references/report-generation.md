@@ -167,9 +167,9 @@ Ask: "Would you like me to convert the report to HTML?"
 If yes, run the conversion script — do NOT generate HTML manually. Execute this command:
 
 ```bash
-python3 tools/report_to_html.py <report-filename>.md
+python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py <report-filename>.md
 ```
 
-From the workspace root, run `python3 tools/report_to_html.py <report>.md`.
+From the workspace root, run `python3 ${CLAUDE_SKILL_DIR}/tools/report_to_html.py <report>.md`.
 
 Do NOT create HTML by hand. Always use the script.

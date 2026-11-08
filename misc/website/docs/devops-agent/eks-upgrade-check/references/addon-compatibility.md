@@ -12,7 +12,7 @@ This page is generated from [devops-agent/eks-upgrade-check/references/addon-com
 # Add-on Compatibility
 
 ## Purpose
-Assess all EKS managed add-ons, discovered OSS add-ons, and Karpenter for compatibility with the target Kubernetes version.
+Assess all EKS managed add-ons, discovered OSS add-ons, and Karpenter against both current and target Kubernetes versions, and verify safe update sequencing.
 
 ## Checks to Execute
 
@@ -33,53 +33,98 @@ The 4 core add-ons that MUST be checked:
 
 **MANDATORY version comparison (deterministic — do NOT eyeball or skip):**
 
-For EVERY managed add-on, you MUST call the EKS `DescribeAddonVersions` API and
-compare — never declare an add-on "compatible" or "up to date" from judgment alone:
+For EVERY managed add-on, call EKS `DescribeAddonVersions` twice in the selected account
+and region: `addonName: <addon>, kubernetesVersion: <current>`, then the same add-on
+with `kubernetesVersion: <target>`. Follow every `nextToken` until exhausted; do not
+truncate results or select only the default.
 
-- **API:** `DescribeAddonVersions`
-- **Parameters:** `addonName: <addon>`, `kubernetesVersion: <target>`
-- **Extract:** from `addons[0].addonVersions[]`, select the entry flagged as the
-  **defaultVersion** (the `compatibilities[].defaultVersion` marker). If none is
-  flagged, select the entry with the **highest semver**. Do NOT take the first
-  array element — `DescribeAddonVersions` does NOT guarantee index 0 is the
-  newest/default.
+**Build compatibility sets before selecting a recommendation.** Collect every response
+page. For each queried Kubernetes version, match the add-on name and the corresponding
+`compatibilities[].clusterVersion` entries; do not assume either array's index 0 is the
+right entry. Check applicable platform, architecture, and compute-type constraints. If a
+constraint cannot be verified, report that uncertainty rather than infer compatibility.
 
-This gives the latest available build for the target Kubernetes version. Then apply
-this bright-line rule for each add-on:
+Record separately for BOTH current and target Kubernetes versions:
+- The complete compatible set of add-on builds.
+- The default build(s), from the matching compatibility entries' `defaultVersion` flag.
+- The newest compatible build, ordered by numeric major/minor/patch and numeric
+  `eksbuild` revision (e.g., `eksbuild.10` is newer than `eksbuild.9`). Do not use lexical
+  ordering or assume a default is newest. If ordering is ambiguous, do not invent an
+  update recommendation. No default flag means “default not returned,” not “no versions.”
+
+**Target verdict (apply in precedence order; one scored verdict per add-on):**
 
 | Condition | Verdict | Score |
 |-----------|---------|-------|
-| Installed build == latest-for-target | COMPATIBLE | 0 pts |
-| Installed build < latest-for-target (behind) | UPDATE_RECOMMENDED | 1 pt |
-| Installed version NOT in target's compatible set (`DescribeAddonVersions` returns no entry for it) | INCOMPATIBLE | critical: 5 pts + hard blocker (caps ≤59) / optional: 3 pts, NO cap |
-| Add-on DEGRADED / FAILED | INCOMPATIBLE (same deduction) | critical: 5 pts + hard blocker (caps ≤59) / optional: 3 pts, NO cap |
-| kube-proxy skew beyond policy (>3 minors behind target) | SKEW_WARNING | 2 pts (Category 4 warning — distinct from UNKNOWN_VERIFIABLE's 2 pts) |
+| Add-on DEGRADED / FAILED | INCOMPATIBLE (health failure, record separately from version support) | critical: 5 pts + hard blocker (caps ≤59) / optional: 3 pts, NO cap |
+| Target lookup denied, errored, or incomplete | UNKNOWN / not-scored; list in Unassessed | No fabricated clean pass or incompatibility |
+| Installed build absent from the complete applicable target-compatible set | INCOMPATIBLE | critical: 5 pts + hard blocker (caps ≤59) / optional: 3 pts, NO cap |
+| Installed build compatible, but kube-proxy >3 minors behind target | SKEW_WARNING | 2 pts |
+| Installed build compatible AND older than a verified target default | UPDATE_RECOMMENDED | 1 pt |
+| Installed build compatible AND equal to or newer than the target default | COMPATIBLE | 0 pts |
+| Installed build compatible, but default missing or ordering uncertain | COMPATIBLE; note recommendation uncertainty | 0 pts |
 
-**Verdict precedence (most-specific-wins):** a kube-proxy build that is >3 minors behind
-the target but still in the compatible set satisfies BOTH the "behind → UPDATE_RECOMMENDED"
-row and the ">3 minors → SKEW_WARNING" row. Assign SKEW_WARNING (+2) — it supersedes
-UPDATE_RECOMMENDED (+1). INCOMPATIBLE supersedes both. Exactly one verdict per add-on.
+A newer available release alone is informational; a documented upstream recommendation
+may justify UPDATE_RECOMMENDED, with the reason and source recorded. NEVER recommend a
+downgrade or deduct points merely because the installed build differs from the default.
+An explicitly documented incompatibility takes precedence over an update recommendation;
+SKEW_WARNING takes precedence over UPDATE_RECOMMENDED. A known health failure remains a
+finding even if a compatibility read fails; list the unverified check in Unassessed too.
 
 The critical/optional split is decisive: only a CRITICAL add-on (vpc-cni, coredns,
 kube-proxy, aws-ebs-csi-driver, plus any non-AWS cluster CNI installed in place of
 vpc-cni — Cilium, Calico) INCOMPATIBLE triggers hard blocker #3; an OPTIONAL
 add-on INCOMPATIBLE deducts 3 pts and does NOT cap the score.
 
-**Scope of this API-based INCOMPATIBLE rule:** this `DescribeAddonVersions`
-compatible-set test defines INCOMPATIBLE for **EKS-managed add-ons only**.
-`DescribeAddonVersions` does not cover OSS add-ons — those keep the upstream-source
-definition of INCOMPATIBLE in §4.3 (verdict states).
+This API compatible-set test is for EKS-managed add-ons. Self-managed and OSS add-ons
+use authoritative project support information, as in §4.3, rather than absence from
+EKS's catalog as evidence of incompatibility.
 
-"Behind" includes any add-on whose version string is for an older Kubernetes minor
-(e.g., a `v1.31.x` kube-proxy build when the target is 1.32) OR a lower build number
-for the same minor. If you did not call `DescribeAddonVersions`, you cannot assign
-COMPATIBLE — the check is required, not optional.
+### 4.1a — Current compatibility and safe update sequencing
+
+For EVERY managed/OSS add-on and Karpenter, evaluate the installed version against
+current AND target Kubernetes versions separately. Reuse a single upstream support
+matrix when it covers both, but record both conclusions:
+
+| Current compatibility | Target compatibility | Interpretation |
+|-----------------------|----------------------|----------------|
+| Supported | Supported | No version-support issue for this hop |
+| Supported | Unsupported | Issue introduced by the upgrade |
+| Unsupported | Supported | Existing support issue; target support does not make today's state supported |
+| Unsupported | Unsupported | Existing issue that also affects the upgrade |
+| Unknown on either side | Any | State what is unverified; do not infer incompatibility from missing evidence |
+
+Use “unsupported” only when the complete applicable managed-add-on results or an
+explicit upstream statement establish it. A running controller is not proof of official
+support, and unsupported is not proof of a current outage. Missing/ambiguous upstream
+coverage is UNKNOWN. Record source and reason for each conclusion.
+
+The scored add-on verdict remains target-focused (plus health), per the table above and
+§4.3. Report a current-only unsupported combination as an existing support concern,
+without a second deduction or an invented hard blocker. A denied/incomplete current
+lookup belongs in Unassessed even when target support is known. Unreachable/ambiguous
+upstream documentation is recorded as current compatibility UNKNOWN, not as a successful
+current check; list that unverified current check in Unassessed. Keep any independently
+verified target finding. Do not double-count current and target findings for one add-on.
+
+Before recommending ANY pre-control-plane add-on/controller change, verify that the
+specific candidate supports BOTH current and target Kubernetes versions, plus the
+project's migration/CRD requirements and any required intermediate releases. This
+applies to Karpenter prerequisites as well as managed and OSS add-ons. A newer release
+supporting only the target must not be recommended for installation on the current
+cluster. Prefer a verified version supporting both when such a path exists.
+
+If no such version or documented transition can be verified, mark the sequence unresolved
+and require project-specific migration review; do not invent a version or print a
+pre-upgrade install command for an unverified candidate. Keep the normal control-plane,
+node, then managed-add-on ordering; add a pre-upgrade prerequisite only where compatibility
+or the documented migration requires it. Current support issues do not authorize repairs.
 
 **Key talking point:** EKS does NOT auto-update add-ons when you upgrade the control plane. This is the #1 thing customers forget. A cluster upgraded to 1.33 can still be running vpc-cni from 1.29.
 
 **Rating per add-on:**
 - Compatible + healthy → PASS
-- Behind but compatible → WARN (update recommended)
+- UPDATE_RECOMMENDED per the verdict rules → WARN; being behind newest alone is not a warning
 - Incompatible or unhealthy → FAIL
 - Self-managed (not EKS managed) → WARN (recommend converting to managed)
 
@@ -151,8 +196,8 @@ Always fetch compatibility information live from the upstream project.
 
 2. **Fetch the compatibility page**
    Fetch (web fetch) the registry's `compatibility_url`. Look for a supported-versions
-   table or statement that covers both the installed add-on version and the target
-   Kubernetes version.
+   table or statement covering the installed add-on version against BOTH current and
+   target Kubernetes versions. Apply §4.1a to any proposed replacement too.
 
 3. **Fetch release notes if no compatibility page exists**
    Fetch (web fetch) `releases_url` and inspect the relevant release for "Kubernetes
@@ -214,7 +259,7 @@ pinning). Always read and apply these notes.
 
 **Output per OSS add-on:**
 ```
-| Add-on | Version | Verdict | Source URL | Notes |
+| Add-on | Version | Current compatibility | Target compatibility | Verdict | Source URL | Notes |
 ```
 The `Verdict` column uses the exact states defined above (COMPATIBLE,
 UPDATE_RECOMMENDED, INCOMPATIBLE, SKEW_WARNING, UNKNOWN_VERIFIABLE, UNKNOWN_UNIDENTIFIED).
@@ -233,7 +278,7 @@ came from (or which URL failed to load) and lets them verify it.
 2. If installed, find the Karpenter deployment → extract version from:
    - Labels: `app.kubernetes.io/version` or `helm.sh/chart`
    - Container image tag (e.g., `public.ecr.aws/karpenter/controller:0.37.0`)
-3. Check compatibility against the official matrix from https://karpenter.sh/docs/upgrading/compatibility/:
+3. Check the installed version against BOTH current and target Kubernetes versions using the official matrix from https://karpenter.sh/docs/upgrading/compatibility/:
 
 **Official Karpenter Compatibility Matrix (source: karpenter.sh):**
 
@@ -245,18 +290,18 @@ came from (or which URL failed to load) and lets them verify it.
 matrix above. Note the jump from 0.37 (for 1.30) to 1.0.5 (for 1.31) — this is a major
 version boundary that requires API migration (v1beta1 → v1).
 
-**If the target Kubernetes version or installed Karpenter version is NOT in the matrix above:**
+**If either current or target Kubernetes version, or the installed Karpenter version, is NOT covered by the matrix above:**
 You MUST perform a web search to verify compatibility:
-1. Search: `"Karpenter compatibility matrix Kubernetes <target-version>"` using web search
+1. Search: `"Karpenter compatibility matrix Kubernetes <queried-current-or-target-version>"` using web search
 2. Fetch the official page: `https://karpenter.sh/docs/upgrading/compatibility/` via web fetch
 3. Do NOT guess or assume compatibility. Report as UNKNOWN if you can't verify.
 
 **Rating:**
-- Compatible version per matrix → PASS
+- Target-compatible version per matrix → PASS (record current support separately)
 - Installed but version unknown/unidentifiable → WARN (manual review). Do NOT invent a
   new Category 5 deduction for this — score it as the existing `UNKNOWN_VERIFIABLE`
   verdict (2 pts), NOT a separate/new deduction.
-- Incompatible version per matrix → FAIL (must upgrade Karpenter BEFORE control plane)
+- Target-incompatible version per matrix → FAIL (verify a candidate supporting BOTH versions before recommending a Karpenter prerequisite)
 
 **Key talking point:** Karpenter must be upgraded BEFORE the control plane, not after. The order matters.
 
@@ -277,6 +322,6 @@ The 0.37 → 1.0.5 jump in the matrix above crosses ONLY the `v1beta1 → v1` bo
 | kube-proxy SKEW_WARNING (>3 minors behind target, still in compatible set) | 2 pts each (Cat-4 warning — distinct from UNKNOWN_VERIFIABLE) |
 | Add-on UNKNOWN_VERIFIABLE (could not verify upstream) | 2 pts each |
 | Workload UNKNOWN_UNIDENTIFIED (couldn't identify the add-on) | 2 pts each |
-| UPDATE_RECOMMENDED (behind but compatible) | 1 pt each |
+| UPDATE_RECOMMENDED (verified recommendation, compatible) | 1 pt each |
 | Karpenter INCOMPATIBLE | 10 pts |
 | Max category deduction | 15 pts (add-ons) + 10 pts (Karpenter) |

@@ -28,9 +28,9 @@ The `triggering.json` positives mix two phrasing styles: assessment-language req
 
 ## Live-MCP caveat
 
-The two `evals.json` task prompts target `test-old-cluster` in `us-east-1` and **require live cluster access plus the EKS MCP server** (`awslabs.eks-mcp-server`). The skill's pre-flight Action 3 explicitly verifies MCP connectivity before proceeding, and most of the 10-section checks call `list_k8s_resources` or related MCP tools. Running these evals end-to-end is therefore live and MCP-dependent — not fixture-replayable. The optional `awslabs.aws-documentation-mcp-server` is not required; the skill's `references/report-generation.md` already ships a pre-verified URL reference map and explicitly deprioritizes live doc-MCP lookups.
+The two `evals.json` task prompts target `test-old-cluster` in `us-east-1` and **require live cluster access plus the EKS MCP server** (`awslabs.eks-mcp-server`). The skill's Pre-flight "Verify MCP connectivity" step explicitly checks the MCP server before proceeding, and most of the 10-section checks call `list_k8s_resources` or related MCP tools. Running these evals end-to-end is therefore live and MCP-dependent — not fixture-replayable. The optional `awslabs.aws-documentation-mcp-server` is not required; the skill's `references/report-generation.md` already ships a pre-verified URL reference map and explicitly deprioritizes live doc-MCP lookups.
 
-If MCP is unavailable, the skill stops cleanly at pre-flight Action 3 with troubleshooting guidance. Triggering evals are pure classification and are never affected by MCP availability.
+If MCP is unavailable, the skill stops cleanly at Pre-flight "Verify MCP connectivity" with troubleshooting guidance. Triggering evals are pure classification and are never affected by MCP availability.
 
 ## How to run
 
