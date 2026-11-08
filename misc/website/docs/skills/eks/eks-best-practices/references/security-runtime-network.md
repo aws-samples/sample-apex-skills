@@ -91,10 +91,12 @@ Bottlerocket has SELinux enabled by default, providing an additional isolation l
 
 ### Falco for Runtime Threat Detection
 
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+
 ```bash
 # Deploy Falco as a DaemonSet via Helm
 helm repo add falcosecurity https://falcosecurity.github.io/charts
-helm install falco falcosecurity/falco --version 9.2.2 \
+helm install falco falcosecurity/falco --version <chart-version> \
   --namespace falco --create-namespace \
   --set driver.kind=modern_ebpf \
   --set falcosidekick.enabled=true

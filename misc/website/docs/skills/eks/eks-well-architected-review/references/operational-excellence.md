@@ -744,7 +744,9 @@ aws logs put-retention-policy --log-group-name /aws/eks/<CLUSTER>/cluster --rete
 > **Windows nodes:** not assessed — this skill supports Linux nodes only.
 > **What is credited:** a Linux-schedulable DaemonSet whose name contains `node-exporter` or `cloudwatch-agent`, with at least one ready pod. The `cloudwatch-agent` DaemonSet is what the Amazon CloudWatch Observability add-on runs for Container Insights, which publishes node CPU, memory and filesystem utilization.
 
-**Remediation:** Deploy Prometheus Node Exporter as a DaemonSet: `helm install node-exporter oci://ghcr.io/prometheus-community/charts/prometheus-node-exporter --version 5.0.0`. Create Grafana dashboards for CPU, memory, disk. Or enable Container Insights with the `amazon-cloudwatch-observability` EKS add-on (the ope-5 remediation), which runs the `cloudwatch-agent` DaemonSet.
+**Remediation:** Deploy Prometheus Node Exporter as a DaemonSet: `helm install node-exporter oci://ghcr.io/prometheus-community/charts/prometheus-node-exporter --version <chart-version>`. Create Grafana dashboards for CPU, memory, disk. Or enable Container Insights with the `amazon-cloudwatch-observability` EKS add-on (the ope-5 remediation), which runs the `cloudwatch-agent` DaemonSet.
+
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
 ---
 

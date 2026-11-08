@@ -642,12 +642,14 @@ prefer IRSA or EKS Pod Identity, which removes the reason for a pod to want node
 > Image signing ensures only trusted images are deployed.
 
 **Remediation:** Deploy the Sigstore policy controller for image verification:
-`helm repo add sigstore https://sigstore.github.io/helm-charts && helm repo update && helm install policy-controller sigstore/policy-controller --version 0.10.8 -n cosign-system --create-namespace`.
+`helm repo add sigstore https://sigstore.github.io/helm-charts && helm repo update && helm install policy-controller sigstore/policy-controller --version <chart-version> -n cosign-system --create-namespace`.
 Configure policies to reject unsigned images. That policy is admission control: every image you do not
 sign — AWS add-on images, vendor charts, anything from a public registry — becomes a pod that cannot be
 admitted, and a running Deployment fails its next rollout. The controller validates only namespaces that
 **opt in** (it looks for the `policy.sigstore.dev/include: "true"` label), so nothing has to be excluded:
 label one namespace at a time, start it in warn mode, and move it to enforce once its images all verify.
+
+**Chart version:** `<chart-version>` is a placeholder, here and at every other `<chart-version>` in this file. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
 ---
 
@@ -669,7 +671,7 @@ label one namespace at a time, start it in warn mode, and move it to enforce onc
 > fleet-wide.
 > **Windows nodes:** not assessed — this skill supports Linux nodes only.
 
-**Remediation:** Enable GuardDuty Runtime Monitoring (GuardDuty console → Protection plans → Runtime Monitoring) with automated agent configuration for Amazon EKS, which deploys the `aws-guardduty-agent` add-on; you can instead manage the agent yourself: enable Runtime Monitoring, create the GuardDuty VPC endpoint that manual management requires, then install the `aws-guardduty-agent` add-on. EKS Protection alone is audit-log monitoring and deploys no agent. Alternatively, deploy Falco: `helm repo add falcosecurity https://falcosecurity.github.io/charts && helm repo update && helm install falco falcosecurity/falco --version 9.2.2 --namespace falco --create-namespace`.
+**Remediation:** Enable GuardDuty Runtime Monitoring (GuardDuty console → Protection plans → Runtime Monitoring) with automated agent configuration for Amazon EKS, which deploys the `aws-guardduty-agent` add-on; you can instead manage the agent yourself: enable Runtime Monitoring, create the GuardDuty VPC endpoint that manual management requires, then install the `aws-guardduty-agent` add-on. EKS Protection alone is audit-log monitoring and deploys no agent. Alternatively, deploy Falco: `helm repo add falcosecurity https://falcosecurity.github.io/charts && helm repo update && helm install falco falcosecurity/falco --version <chart-version> --namespace falco --create-namespace`.
 
 ---
 

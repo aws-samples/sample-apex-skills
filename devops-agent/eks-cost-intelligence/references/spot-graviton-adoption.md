@@ -620,12 +620,14 @@ If spot_node_count > 0:
 
 ### Remediation
 
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (for example `helm search repo <chart> --versions`, the chart's Artifact Hub page, or its releases page) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+
 ```bash
 # Install AWS Node Termination Handler via Helm
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
 
-helm install aws-node-termination-handler eks/aws-node-termination-handler --version 0.21.0 \
+helm install aws-node-termination-handler eks/aws-node-termination-handler --version <chart-version> \
   --namespace kube-system \
   --set enableSpotInterruptionDraining=true \
   --set enableRebalanceRecommendation=true \
