@@ -171,6 +171,15 @@ class ParseEventsTokenTests(unittest.TestCase):
         self.assertEqual(t.output_tokens, 10)
         self.assertEqual(t.cache_read_input_tokens, 100)
 
+    def test_last_of_two_result_events_wins(self):
+        # parse_events walks forward and overwrites on each result event,
+        # so the last result's counts are the ones kept.
+        events = _events(FULL_USAGE) + _events(LEGACY_USAGE)[-1:]
+        t = parse_events(events)
+        self.assertEqual(t.total_tokens, 150)
+        self.assertEqual(t.input_tokens, 120)
+        self.assertEqual(t.cache_read_input_tokens, 0)
+
 
 class ExtractResultSummaryTests(unittest.TestCase):
     def test_full_usage(self):
@@ -222,6 +231,15 @@ class ExtractResultSummaryTests(unittest.TestCase):
         self.assertEqual(s["input_tokens"], 0)
         self.assertEqual(s["output_tokens"], 10)
         self.assertEqual(s["cache_read_input_tokens"], 100)
+
+    def test_last_of_two_result_events_wins(self):
+        # A multi-turn run can carry several result events; the summary
+        # reads the last one, so these counts must be the second event's.
+        events = _events(FULL_USAGE) + _events(LEGACY_USAGE)[-1:]
+        s = extract_result_summary(events)
+        self.assertEqual(s["total_tokens"], 150)
+        self.assertEqual(s["input_tokens"], 120)
+        self.assertEqual(s["cache_read_input_tokens"], 0)
 
 
 class AggregateTokenUsageTests(unittest.TestCase):
