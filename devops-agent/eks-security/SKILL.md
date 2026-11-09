@@ -117,7 +117,7 @@ End-to-end, opinionated security and compliance guidance for Amazon EKS, structu
 
 Do not recommend a hardening stack without the following context. The first four items determine most of the recommendation. If the request does not give them, infer from cluster context (tags, labels, namespace naming, existing policies, node AMIs, launch templates) or apply the stated default, and note every assumption in the report.
 
-1. **Compliance regime(s)**: if not determinable (for example tags like `compliance:hipaa`, namespace names, existing admission policies), assume **SOC 2** as the baseline. Options: None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (Moderate) / Class D (High) / GDPR / ISO 27001 / HITRUST / NIST 800-53/171 / CJIS / DISA IL5
+1. **Compliance regime(s)**: if not determinable (for example tags like `compliance:hipaa`, namespace names, existing admission policies), assume **SOC 2** as the baseline. Options: None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (formerly Moderate baseline) / Class D (formerly High baseline) / GDPR / ISO 27001 / HITRUST / NIST 800-53/171 / CJIS / DISA IL5
 2. **Workload sensitivity**: if not determinable (namespace labels, network policies, encryption settings), assume **internal**. Levels: Public / internal / PII / PHI (HIPAA) / cardholder data (PCI) / federal
 3. **OS / AMI preference**: if not determinable from node AMIs or launch templates, assume **open to AWS defaults**. Options: AWS defaults / Bottlerocket-first / AL2023+CIS / Ubuntu mandate / RHEL mandate / EKS Auto Mode
 4. **Audit timeline**: None / under 3 months / 3-6 / 6-12 / continuous.
@@ -228,7 +228,7 @@ Each row links its AWS source; re-read the linked page before quoting a row to a
 
 ### Escalation
 
-Recommend engaging AWS Professional Services or an AWS Solutions Architect for: first-time certification of a mission-critical regulated workload; FedRAMP Class D (High) or GovCloud; classified workloads (out of scope); EKS Anywhere or Hybrid Nodes inside a FedRAMP boundary; multi-tenant SaaS with cross-tenant PHI, cardholder or federal isolation; customer and auditor disagreeing on an AWS-managed control; an exposed finding the team cannot remediate within its patch window; or any claim you cannot ground. Criteria: [engagement-and-response.md](references/engagement-and-response.md).
+Recommend engaging AWS Professional Services or an AWS Solutions Architect for: first-time certification of a mission-critical regulated workload; FedRAMP Class D (formerly High baseline) or GovCloud; classified workloads (out of scope); EKS Anywhere or Hybrid Nodes inside a FedRAMP boundary; multi-tenant SaaS with cross-tenant PHI, cardholder or federal isolation; customer and auditor disagreeing on an AWS-managed control; an exposed finding the team cannot remediate within its patch window; or any claim you cannot ground. Criteria: [engagement-and-response.md](references/engagement-and-response.md).
 
 ## How to Use the References
 

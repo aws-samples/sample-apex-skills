@@ -53,8 +53,7 @@ UNKNOWN_ACTION = {
     "bad_range": "Correct the record's range, check it with advisory_check.py and run match again",
     "no_nodes_read": "No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and "
                      "that the NodePools have nodes, then re-run collect",
-    "eks_build": "A range bound carries an EKS build suffix (-eksbuild.N, -eks-N-N-N or -eks-<hash>), which is not "
-                 "compared; compare the add-on build with the advisory by hand",
+    "eks_build": "Compare the build with the advisory by hand",
     "minor_only": "The installed version names no patch release; find the patch release (for the control plane, "
                   "from its platform version) and compare by hand"}
 _TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+=-]{0,199}$")
