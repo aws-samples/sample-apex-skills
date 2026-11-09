@@ -190,7 +190,7 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 |----------|--------|-----------|
 | Required documents present | 10 | All = 10, most = 7, major gaps = 4 |
 | ADR quality | 5 | All pass checklist = 5, partial = 3, poor = 1 |
-| Diagram quality | 5 | Every Mermaid diagram Stage 2 calls for (SKILL.md), in markdown = 5, some = 3, none = 0 |
+| Diagram quality | 5 | Every Mermaid diagram the checklist above names, in markdown = 5, some = 3, none = 0 |
 
 ### Overall Score
 
