@@ -42,7 +42,7 @@ aws ecr create-pull-through-cache-rule --ecr-repository-prefix ghcr        --ups
 ```
 Sources: [Creating a pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-creating-rule.html), [Storing upstream credentials in a Secrets Manager secret](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-creating-secret.html).
 
-Reference each image by its pull-through URI, `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<prefix>/<upstream repository>:<tag>`. For example, `quay.io/jetstack/cert-manager-controller` becomes `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/quay/jetstack/cert-manager-controller:<tag>`. Docker Hub official images need the `/library` part, as in `docker-hub/library/<image>` ([Pulling an image with a pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-working-pulling.html)). This guide sets up no node-level mirror, so every image value a chart exposes (sub-images and hook Jobs included), and every other add-on, workload and init container, needs the same rewrite. Section 3 gives the add-on override values for these pull-through paths; its ImagePullSecret is for a separate private registry only. Kubelet's ECR credential provider authenticates these pulls with the node role. The principal behind an image's first pull also needs `ecr:BatchImportUpstreamImage`, plus `ecr:CreateRepository` while the cache repository does not exist yet ([IAM permissions for pull through cache](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-iam.html)). A managed node group role (`AmazonEC2ContainerRegistryReadOnly`) carries neither; Karpenter and Auto Mode node roles (`AmazonEC2ContainerRegistryPullOnly`) carry `ecr:BatchImportUpstreamImage` but not `ecr:CreateRepository`. Grant what is missing to the node role or in the registry permissions policy, or seed the cache first.
+Reference each image by its pull-through URI, `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<prefix>/<upstream repository>:<tag>`. For example, `quay.io/jetstack/cert-manager-controller` becomes `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/quay/jetstack/cert-manager-controller:<tag>`. Docker Hub official images need the `/library` part, as in `docker-hub/library/<image>` ([Pulling an image with a pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-working-pulling.html)). This guide sets up no node-level mirror, so every image value a chart exposes (sub-images and hook Jobs included), and every other add-on, workload and init container, needs the same rewrite. Section 3 gives the override values for 7 common add-ons; any other add-on you enable needs the same rewrite, built from its chart's values.yaml. Amazon EKS add-ons pull their images from an Amazon EKS ECR private repository in each Region, which nodes reach through the ECR interface VPC endpoints with the node role, so they need no rewrite ([Amazon container image registries for Amazon EKS add-ons](https://docs.aws.amazon.com/eks/latest/userguide/add-ons-images.html)). Kubelet's ECR credential provider authenticates these pulls with the node role. The principal behind an image's first pull also needs `ecr:BatchImportUpstreamImage`, plus `ecr:CreateRepository` while the cache repository does not exist yet ([IAM permissions for pull through cache](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-iam.html)). A managed node group role (`AmazonEC2ContainerRegistryReadOnly`) carries neither; Karpenter and Auto Mode node roles (`AmazonEC2ContainerRegistryPullOnly`) carry `ecr:BatchImportUpstreamImage` but not `ecr:CreateRepository`. Grant what is missing to the node role or in the registry permissions policy, and in a VPC with no egress seed the cache first (section 1, first pull).
 
 **Helm chart mirroring** -- push OCI artifacts to ECR or host tarballs in S3 (reachable via the S3 gateway endpoint):
 ```bash
@@ -99,7 +99,7 @@ Apply the same pattern to: `cluster_autoscaler`, `external_dns`, `external_secre
 
 All images must come from an approved private registry. Override every addon's image references and restrict what the cluster can pull.
 
-**ECR pull-through cache** (Section 1 rules and prefixes): each value is `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<prefix>/<full upstream path>`. Overrides in `addons.yaml` (upstream paths from each chart's values.yaml at its latest release, 2026-11-09; re-check at the chart version you pin):
+**ECR pull-through cache** (Section 1 rules and prefixes): each value is `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<prefix>/<full upstream path>`. Overrides in `addons.yaml` (upstream paths from each chart's values.yaml at aws-load-balancer-controller 3.6.2, cluster-autoscaler 9.60.0, cert-manager v1.21.3, external-secrets 2.14.0, velero 12.2.4, metrics-server 3.14.0 and external-dns 1.23.0; re-check at the chart version you pin):
 ```yaml
 aws_load_balancer_controller:
   config:
@@ -123,12 +123,14 @@ velero:
   config:
     set:
       - { name: image.repository,         value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/docker-hub/velero/velero" }
-      - { name: kubectl.image.repository, value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/k8s/kubectl" }
       # replaces the AWS plugin initContainer the blueprints-addons module sets (velero/velero-plugin-for-aws)
+      # <PLUGIN_TAG>: the plugin minor the velero-plugin-for-aws README compatibility matrix pairs with
+      # the chart's Velero version (chart 12.2.x ships Velero 1.18.x, so plugin v1.14.x); not the
+      # module's v1.7.1, which pairs with Velero 1.11
       - name: initContainers
         value: |
           - name: velero-plugin-for-aws
-            image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/docker-hub/velero/velero-plugin-for-aws:<LOOK_UP>
+            image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/docker-hub/velero/velero-plugin-for-aws:<PLUGIN_TAG>
             imagePullPolicy: IfNotPresent
             volumeMounts:
               - mountPath: /target
@@ -143,9 +145,9 @@ external_dns:
       - { name: image.repository, value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/k8s/external-dns/external-dns" }
 ```
 
-**Separate private registry** (not ECR): mirror each image under its full upstream path and set the same keys to `<REGISTRY_HOST>/eks/aws-load-balancer-controller`, `<REGISTRY_HOST>/autoscaling/cluster-autoscaler`, `imageRegistry: <REGISTRY_HOST>` (cert-manager), `<REGISTRY_HOST>/external-secrets/external-secrets`, `<REGISTRY_HOST>/velero/velero`, `<REGISTRY_HOST>/kubectl`, `<REGISTRY_HOST>/velero/velero-plugin-for-aws:<LOOK_UP>`, `<REGISTRY_HOST>/metrics-server/metrics-server` and `<REGISTRY_HOST>/external-dns/external-dns`.
+**Separate private registry** (not ECR): mirror each image under its full upstream path and set the same keys to `<REGISTRY_HOST>/<full upstream path>` (cert-manager: `imageRegistry: <REGISTRY_HOST>`).
 
-**ImagePullSecret** (separate private registry only; kubelet authenticates ECR pulls with the node role) -- create a `kubernetes.io/dockerconfigjson` Secret in each namespace, then inject it via Kyverno mutation policy or by patching the default ServiceAccount.
+**ImagePullSecret** (separate private registry only) -- create a `kubernetes.io/dockerconfigjson` Secret in each namespace, then inject it via Kyverno mutation policy or by patching the default ServiceAccount.
 
 **Kyverno registry restriction policy** -- deploy a `ValidatingPolicy` (legacy: a `ClusterPolicy` with `validationFailureAction: Enforce`) that matches all Pods and validates both `containers[*].image` and `initContainers[*].image` against an allow-list: `<REGISTRY_HOST>/*` and `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/*`. Reject anything else at admission.
 

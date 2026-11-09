@@ -103,8 +103,6 @@ The `eks-blueprints-addons` module ships chart defaults that lag behind. These a
 - Watch for major chart version bumps that change value schemas
 
 ### velero
-- Set `upgradeCRDs: false` -- before chart 12.0.0 the CRD-upgrade Job ran a bitnami kubectl image that may not exist for the latest K8s; from 12.0.0 it runs the velero image
-- Pin `kubectl.image.tag` to the latest available -- chart 12.0.0+ uses `registry.k8s.io/kubectl` (default tag: the cluster's Kubernetes version)
 - Set `credentials.useSecret: false` when using Pod Identity
 
 ### kyverno

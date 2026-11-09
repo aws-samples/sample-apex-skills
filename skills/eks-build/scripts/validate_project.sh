@@ -57,8 +57,8 @@ for f in configs/cluster.yaml configs/compute.yaml configs/addons.yaml configs/b
         fail "$f missing"
     fi
 done
-if [ -f "$PROJECT_DIR/configs/backend.hcl" ] && ! grep -Eq '^[[:space:]]*use_lockfile[[:space:]]*=[[:space:]]*true([[:space:]#]|$)' "$PROJECT_DIR/configs/backend.hcl"; then
-    warn "configs/backend.hcl does not set use_lockfile = true (S3 state locking; DynamoDB locking is deprecated)"
+if [ -f "$PROJECT_DIR/configs/backend.hcl" ] && ! grep -Eq '^[[:space:]]*use_lockfile[[:space:]]*=[[:space:]]*true([[:space:]#]|$)' "$PROJECT_DIR/configs/backend.hcl" 2>/dev/null; then
+    warn "configs/backend.hcl: could not confirm use_lockfile = true (S3 state locking; DynamoDB locking is deprecated)"
 fi
 
 # --- 3. terraform fmt check ---
@@ -212,22 +212,7 @@ if [ -f "$ADDONS_YAML" ]; then
     fi
 fi
 
-# --- 9. Velero configuration ---
-echo ""
-echo "9. Velero configuration"
-echo "-------------------------------------------"
-
-if [ -f "$ADDONS_YAML" ]; then
-    if grep -q "velero" "$ADDONS_YAML"; then
-        if grep -A10 "velero" "$ADDONS_YAML" | grep -q "upgradeCRDs.*false"; then
-            pass "Velero upgradeCRDs set to false"
-        else
-            warn "Velero upgradeCRDs not set to false (SKILL.md Velero Configuration sets it)"
-        fi
-    else
-        pass "Velero not configured"
-    fi
-fi
+# --- 9. (none: velero chart 12.x needs no upgradeCRDs override; later sections keep their numbers) ---
 
 # --- 10. Multus check ---
 echo ""

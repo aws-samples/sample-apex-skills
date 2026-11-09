@@ -119,7 +119,7 @@ Generate the `gitops/` tree with ArgoCD ApplicationSets. Use cluster ARN as dest
 
 ### Step 9-10: README and Validate
 
-Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration. A section 11 (Karpenter discovery tags) FAIL is a literal tag mismatch: fix it. A section 11 WARN means the match could not be proved from the files (an expression, a wildcard value, a map passed by reference, a tag target or input the script does not read), or is risky (a tag only on public subnets, a stray term beside a matching one); resolve each one by hand before deploying. For the usual Pattern 2 shape, a literal cluster name in GitOps YAML against Terraform's `local.cluster_config.name`, when locals.tf sets `cluster_config = yamldecode(file(".../configs/cluster.yaml"))` on its own, the script reads `name` from configs/cluster.yaml and gives PASS on a match and FAIL on a mismatch; WARN when locals.tf builds it any other way (such as a `merge(...)` override) or that name cannot be read.
+Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration. A section 11 (Karpenter discovery tags) FAIL is a literal tag mismatch: fix it. A section 11 WARN means the match could not be proved from the files (an expression, a wildcard value, a map passed by reference, a tag target or input the script does not read), or is risky (a tag only on public subnets, a stray term beside a matching one); resolve each one by hand before deploying. For the usual Pattern 2 shape, a literal cluster name in GitOps YAML against Terraform's `local.cluster_config.name`, when locals.tf sets `cluster_config = yamldecode(file(".../configs/cluster.yaml"))` on its own, the script reads `name` from configs/cluster.yaml and gives PASS on a match and FAIL on a mismatch; WARN when locals.tf builds it any other way (such as a `merge(...)` override), the line carries a comment or spans lines, or that name cannot be read.
 
 ## Critical Build Rules
 
@@ -160,7 +160,7 @@ Use `Replace=true`, NOT `ServerSideApply=true`. SSA conflicts with ArgoCD `selfH
 
 ### 8. Velero Configuration
 
-Three-part config: S3 bucket (encrypted) + Auth (Pod Identity or IRSA) + Helm values (`upgradeCRDs: false`, pin `kubectl.image.tag`).
+Three-part config: S3 bucket (encrypted) + Auth (Pod Identity or IRSA) + Helm values (`credentials.useSecret: false` with Pod Identity).
 
 ### 9. ACK/KRO Are Capabilities, Crossplane Is Not
 
