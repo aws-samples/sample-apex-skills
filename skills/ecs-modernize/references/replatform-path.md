@@ -162,6 +162,8 @@ For the detected language, framework, and application server, present **all thre
 | .NET Framework (4.x and earlier) | Windows base images — governed by the [Windows_Container_Path](#windows_container_path) base-image matrix (.NET Framework version × IIS dependency) | .NET Framework does not run on Linux; the Windows section owns this selection |
 | Other detected languages | Official runtime image of the detected language at the matching version | Same version-parity rationale |
 
+**No maintained image at the matching version.** When the image's maintainers no longer publish the matching version (for example Tomcat 8.5, past its end of life on 31 March 2024 and absent from the official `tomcat` tags), do not pick a substitute silently. Present two options for the user to choose: the nearest maintained image, named as a runtime version change the user must accept and test, or a base image the user builds and maintains at the current version. State which one applies, or that the user must choose, in `base_image.grounds`.
+
 **Item 2 — Application-server bundling judgment (with grounds).**
 
 Decide whether the application server is bundled into the container image, and state the grounds:
