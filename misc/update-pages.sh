@@ -990,6 +990,20 @@ fi
 # Collect all tracked .md under skills/, examples/ and devops-agent/
 mapfile -t ALL_MD < <(git ls-files -- 'skills/**/*.md' 'examples/**/*.md' 'devops-agent/**/*.md')
 
+# A skills/<x>/ folder with .md files but no SKILL.md would get orphan reference
+# pages (the manifest and landing pages skip it). An empty SKILL.md, one with no
+# name or a non-string description fails misc/validate-frontmatter.py, which
+# docs-sync.yml runs before this script.
+missing_skill_md="$(for src in "${ALL_MD[@]}"; do
+  [[ "$src" == skills/*/* ]] || continue
+  rest="${src#skills/}"; d="skills/${rest%%/*}"
+  [[ -f "$d/SKILL.md" ]] || echo "$d"
+done | sort -u)"
+if [[ -n "$missing_skill_md" ]]; then
+  printf 'ERROR: %s has .md files but no SKILL.md\n' $missing_skill_md >&2
+  exit 1
+fi
+
 declare -a EXPECTED_SKILL_FILES=("index.md" "eks/index.md" "ecs/index.md")
 declare -a EXPECTED_EXAMPLES_FILES=("index.md")
 declare -a EXPECTED_DEVOPS_FILES=("index.md")

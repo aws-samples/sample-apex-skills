@@ -111,7 +111,8 @@ const config: Config = {
           // evals) have no docs sidebar, and the blog has its own posts list.
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/aws-samples/sample-apex-skills/edit/main/misc/website/',
-          showLastUpdateTime: true,
+          // Needs git history; a build from a source export (no .git) would stop.
+          showLastUpdateTime: fs.existsSync(path.join(__dirname, '../../.git')),
         },
         blog: {
           path: 'blog',
