@@ -37,8 +37,9 @@ OVERALL = {"exposed": "Exposed: at least one component is inside an affected ran
            "unknown": "Unknown: nothing was found exposed, but at least one component or advisory could not be "
                       "decided. See Unknown"}
 PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node was created at or after the fix time %s; the Auto "
-           "Mode components' versions were not read. AMI rollouts can lag the fix date: confirm the nodes' AMI or "
-           "osImage against the release note.")
+           "Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves, so a "
+           "node created after the fix time can still run an older AMI: confirm the nodes' AMI or osImage against the "
+           "release note.")
 UNKNOWN_ACTION = {
     "denied": "Grant the read named in the preflight (see read-only-access.md) and re-run collect",
     "not_found": "Confirm whether the component is installed another way (Helm, manifest) and re-run with --namespaces",
@@ -52,8 +53,7 @@ UNKNOWN_ACTION = {
     "bad_range": "Correct the record's range, check it with advisory_check.py and run match again",
     "no_nodes_read": "No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and "
                      "that the NodePools have nodes, then re-run collect",
-    "eks_build": "A range bound carries an eksbuild number, which is not compared; compare the add-on build with "
-                 "the advisory by hand",
+    "eks_build": "Compare the build with the advisory by hand",
     "minor_only": "The installed version names no patch release; find the patch release (for the control plane, "
                   "from its platform version) and compare by hand"}
 _TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+=-]{0,199}$")

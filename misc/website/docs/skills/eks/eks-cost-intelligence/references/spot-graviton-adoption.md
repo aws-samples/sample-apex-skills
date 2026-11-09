@@ -1063,17 +1063,19 @@ If spot_node_count > 0:
 
 ### Remediation
 
-```bash
-# Install AWS Node Termination Handler via Helm
-helm repo add eks https://aws.github.io/eks-charts
-helm repo update
+**Chart version:** Before writing the report, look up the chart's newest version yourself (read only: `helm show chart oci://public.ecr.aws/aws-ec2/helm/aws-node-termination-handler` prints it as `version`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
 
-helm install aws-node-termination-handler eks/aws-node-termination-handler \
+```bash
+# Install AWS Node Termination Handler via Helm (chart on Amazon ECR Public)
+helm install aws-node-termination-handler \
+  oci://public.ecr.aws/aws-ec2/helm/aws-node-termination-handler --version <chart-version> \
   --namespace kube-system \
   --set enableSpotInterruptionDraining=true \
-  --set enableRebalanceRecommendation=true \
+  --set enableRebalanceMonitoring=true \
   --set enableScheduledEventDraining=true
 ```
+
+`enableRebalanceMonitoring` cordons a node when a rebalance recommendation arrives; set `enableRebalanceDraining=true` to drain it as well.
 
 ```yaml
 # For Karpenter — ensure SQS queue is configured (Terraform)

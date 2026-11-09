@@ -397,8 +397,9 @@ else
     # generators). Mirrors the upgrade port's convention.
     cp "$UPSTREAM_DEVOPS/README.md" "$DEVOPS_DIR/references/porting-notes.md"
 
-    # Fix relative links broken by relocation (SKILL.md is now one dir up)
-    sed -i.bak 's|(SKILL\.md)|(../SKILL.md)|g' "$DEVOPS_DIR/references/porting-notes.md"
+    # Fix relative links broken by relocation (SKILL.md is now one dir up;
+    # LICENSE is this repo's root one)
+    sed -i.bak -e 's|(SKILL\.md)|(../SKILL.md)|g' -e 's|(\.\./LICENSE)|(../../../LICENSE)|g' "$DEVOPS_DIR/references/porting-notes.md"
     rm -f "$DEVOPS_DIR/references/porting-notes.md.bak"
 
     # References (upstream knowledge files — verbatim, already `references/`)

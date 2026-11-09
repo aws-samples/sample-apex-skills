@@ -74,7 +74,7 @@ spec:
 
 | Model source | Verification method |
 |-------------|---------------------|
-| Baked into container image | **Image signing** via AWS Signer or Sigstore Cosign + admission controller to reject unsigned images; AWS Signer verification needs the Signer plugin (Kyverno with kyverno-notation-aws, or Gatekeeper with Ratify) |
+| Baked into container image | **Image signing** via AWS Signer or Sigstore Cosign + admission controller to reject unsigned images; AWS Signer verification needs the Signer plugin (Kyverno v1.11 to 1.19.x with kyverno-notation-aws, or Gatekeeper with Ratify) |
 | Downloaded from Hugging Face | Verify **SHA256 checksums** against model card; pin exact revision hashes, not branch names |
 | Downloaded from S3 | Enable **S3 Object Lock** (compliance mode) for production artifacts; verify ETag/checksum |
 

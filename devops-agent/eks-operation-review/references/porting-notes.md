@@ -373,4 +373,4 @@ Total skill size: ~250 KB (well under the 6 MB limit).
 
 ## License
 
-Same as the parent project — [MIT-0](../LICENSE).
+Same as the parent project — [MIT-0](../../../LICENSE).

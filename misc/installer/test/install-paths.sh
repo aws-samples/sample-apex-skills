@@ -2873,8 +2873,8 @@ finish_case
 # The user's own Claude Code, Kiro CLI and Codex setup, which no install or
 # upgrade may change (cases IS1 to IS3). Under ~/.claude and ~/.kiro these
 # paths are checked and the user's own skill dirs (skills/my-skill) are listed
-# whole; additions beside the listed files under commands/ and steering/ are
-# not checked, since the installer's own entries sit there. The installer has
+# whole; every other file or link under commands/ and steering/ must be one the
+# install manifest records (expect_no_stray). The installer has
 # no Codex target, so ~/.codex and ~/.agents (and their project copies) are
 # untouched bystanders, listed whole, and an added file shows too.
 USER_GLOBAL=".claude/settings.json .claude.json .claude/CLAUDE.md .claude/skills/my-skill/SKILL.md .claude/commands/mine.md .claude/agents/mine.md
@@ -2904,6 +2904,15 @@ expect_user_setup() { # <before file> <dir> <paths...>: the file-level diff name
   d="$(user_snap "$@" | diff "$before" - | /usr/bin/grep '^[<>]' | tr '\n' ' ')"
   [ -z "$d" ] || err "the user's setup in $1 changed (< before, > after): $d"
 }
+expect_no_stray() { # <dir>: each file or link under commands/ and steering/ is the user's mine.md or a manifest entry
+  local known p s=""
+  known="$(mfq "$(manifest_of)" 'Object.values(m.bases).flatMap((x) => Object.values(x.areas).flatMap((a) => Object.keys(a))).join("\n")')"
+  while IFS= read -r p; do
+    case "$p" in "$1/.claude/commands/mine.md"|"$1/.kiro/steering/mine.md") continue ;; esac
+    printf '%s\n' "$known" | /usr/bin/grep -qxF -- "$p" || s="$s $p"
+  done < <(find "$1/.claude/commands" "$1/.kiro/steering" -mindepth 1 ! -type d 2>/dev/null)
+  [ -z "$s" ] || err "entries in $1 that neither the user nor the install manifest owns:$s"
+}
 
 new_case IS1 "install over an existing Claude Code, Kiro and Codex setup changes none of the user's files"
 seed_user_setup "$H" $USER_GLOBAL
@@ -2913,6 +2922,7 @@ expect_rc 0
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "setup: no Claude Code install beside the user's files"
 [ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "setup: no Kiro install beside the user's files"
 expect_user_setup "$WORK/IS1/before" "$H" $USER_GLOBAL
+expect_no_stray "$H"
 finish_case
 
 new_case IS2 "--project install over an existing project and global setup changes none of the user's files"
@@ -2926,6 +2936,8 @@ expect_rc 0
 [ "$(count_resolving_links "$H/proj/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "setup: no Kiro project install beside the user's files"
 expect_user_setup "$WORK/IS2/before-global" "$H" $USER_GLOBAL
 expect_user_setup "$WORK/IS2/before-project" "$H/proj" $USER_PROJECT
+expect_no_stray "$H"
+expect_no_stray "$H/proj"
 finish_case
 
 # The v1.3.0 tag's cli.mjs and package.json, run against the local fixture (it reads APEX_SKILLS_REPO_URL).
@@ -2952,6 +2964,7 @@ if git -C "$REPO_ROOT" cat-file -e "refs/tags/$REL_REV:misc/installer/bin/cli.mj
   expect_rc 0
   expect_no_out "Install steering"; expect_no_out "by hand"
   expect_user_setup "$WORK/IS3/before" "$H" $USER_GLOBAL
+  expect_no_stray "$H"
   [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Claude Code skill links after the upgrade, got $(count_resolving_links "$H/.claude/skills")"
   [ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Kiro skill links after the upgrade, got $(count_resolving_links "$H/.kiro/skills")"
   d="$(dangling_links "$H/.claude/skills") $(dangling_links "$H/.kiro/skills") $(dangling_links "$H/.claude/commands")"

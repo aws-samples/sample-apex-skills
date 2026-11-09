@@ -55,6 +55,10 @@ if [[ ! "$DEPLOY_SUFFIX" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
   echo "ERROR: Name must be lowercase alphanumeric with optional hyphens"
   exit 1
 fi
+if [[ ${#DEPLOY_SUFFIX} -gt 16 ]]; then
+  echo "ERROR: Name must be 16 characters or fewer: the cluster IAM role name prefix ex-karpenter-<suffix>-cluster- is limited to 38 characters."
+  exit 1
+fi
 
 echo ""
 echo "Cluster name: ex-karpenter-${DEPLOY_SUFFIX}"

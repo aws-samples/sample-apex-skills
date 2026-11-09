@@ -67,7 +67,8 @@ The package is `mcp-proxy-for-aws-cli`, which the proxy's maintainers recommend 
         "mcp-proxy-for-aws-cli@<version>",
         "https://eks-mcp.{region}.api.aws/mcp",
         "--service", "eks-mcp",
-        "--region", "{region}"
+        "--region", "{region}",
+        "--read-only"
       ]
     }
   }
@@ -83,19 +84,9 @@ The package is `mcp-proxy-for-aws-cli`, which the proxy's maintainers recommend 
 | Kiro IDE | `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json` | — |
 | VS Code (Cline Extension) | Cmd/Ctrl+Shift+P → "MCP" → Add Server → Open User Configuration | — |
 
-## Optional: Read-Only Mode
+## Opt-in: Write Access
 
-Add `--read-only` to args to disable write operations:
-
-```json
-"args": [
-  "mcp-proxy-for-aws-cli@<version>",
-  "https://eks-mcp.{region}.api.aws/mcp",
-  "--service", "eks-mcp",
-  "--region", "{region}",
-  "--read-only"
-]
-```
+The examples here are read-only (`--read-only` removes write tools from the list and rejects calls to them), the recommended start. To enable writes, remove `--read-only` from args and attach a write policy (Step 1).
 
 ## Optional: Multiple AWS Profiles
 
@@ -107,7 +98,8 @@ Specify a profile with `--profile`:
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--profile", "production",
-  "--region", "{region}"
+  "--region", "{region}",
+  "--read-only"
 ]
 ```
 
@@ -121,7 +113,8 @@ Use this format for the args array:
   "mcp-proxy-for-aws-cli.exe",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
-  "--region", "{region}"
+  "--region", "{region}",
+  "--read-only"
 ]
 ```
 
