@@ -8,7 +8,7 @@
 #
 # Usage:
 #   ./misc/update-all-references.sh              # regenerate in place
-#   ./misc/update-all-references.sh --check      # fail if any block is stale
+#   ./misc/update-all-references.sh --check      # regenerate in place, then fail if anything changed
 #   ./misc/update-all-references.sh --dry-run    # preview; forwards to each script
 #
 # --check is what the `docs-sync` CI job runs: regenerate, then `git diff
