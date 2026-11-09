@@ -388,7 +388,7 @@ _emit_skills_group() {
 check_markers() {
   local file="$1" marker n
   for marker in "$2" "$3"; do
-    n=$(grep -cxF -- "$marker" "$file" || true)
+    n=$(grep -acxF -- "$marker" "$file" || true)
     if [[ "$n" -eq 0 ]]; then
       echo "ERROR: Could not find $marker in $file" >&2
       return 1
