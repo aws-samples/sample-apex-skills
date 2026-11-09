@@ -44,7 +44,7 @@ The AWS-published foundation for every recommendation is the [ECS Best Practices
 **Do NOT recommend a hardening stack before answering these.** The single most common mistake is prescribing controls without confirming the launch type — a Fargate answer and an ECS-on-EC2 answer differ at Layers 1, 3, 5, and 6. The first four answers determine ~80% of the recommendation.
 
 1. **Launch type(s)?** AWS Fargate / ECS on EC2 / ECS Managed Instances / ECS Anywhere (external) / mixed. *(This is the ECS-specific first question — it sets the shared-responsibility line.)*
-2. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001 / NIST 800-53/171 / IL4-IL5 — rank primary/secondary if multiple.
+2. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (Moderate) / Class D (High) / GDPR / ISO 27001 / NIST 800-53/171 / IL4-IL5 — rank primary/secondary if multiple.
 3. **Workload sensitivity?** Public / internal / PII / PHI (HIPAA) / cardholder data (PCI) / federal.
 4. **Audit timeline?** None / <3 mo (urgent) / 3-6 mo / 6-12 mo / continuous.
 5. **Network topology?** Public subnets + IGW / private subnets + NAT / fully private + VPC endpoints; single vs multi-account; multi-region; GovCloud.
