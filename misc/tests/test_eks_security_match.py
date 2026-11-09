@@ -969,6 +969,25 @@ class CollectReadOnly(TmpCase):
         self.assertIn("ami-0123456789abcdef0", amis)
 
     @NEEDS_JQ
+    def test_collect_hybrid_node_not_looked_up(self):
+        # LC-1: an SSM hybrid node (name mi-<hex>) is not an EC2 instance, so its providerID yields no instance id
+        cc = CASES["collect"]
+        aws = dict(cc["aws"], **{"ec2 describe-instances": {"json": {"Reservations": []},
+                                                            "if_arg": {"--instance-ids": cc["aws"]["ec2 describe-instances"]}}})
+        kubectl = copy.deepcopy(cc["kubectl"])
+        hyb = copy.deepcopy(kubectl["get nodes"]["json"]["items"][0])
+        hyb["metadata"] = {"name": "mi-0ccc123", "creationTimestamp": "2026-10-20T00:00:00Z", "labels": {}}
+        hyb["spec"]["providerID"] = "eks-hybrid:///us-west-2/demo/mi-0ccc123"
+        kubectl["get nodes"]["json"]["items"].append(hyb)
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                                 {"aws": aws, "kubectl": kubectl, "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        ec2 = [c["args"] for c in calls if c["args"][:2] == ["ec2", "describe-instances"]]
+        self.assertFalse([a for a in ec2 if any("i-0ccc123" in x for x in a)], ec2)
+        self.assertEqual(len([a for a in ec2 if "--instance-ids" in a]), 1, ec2)
+
+    @NEEDS_JQ
     def test_collect_preflight_partial_k8s_not_ok(self):
         cc = CASES["collect"]
         kubectl = dict(cc["kubectl"], **{"auth can-i": {"text": "yes", "if_arg": {"--all-namespaces": {"text": "no"}}}})
