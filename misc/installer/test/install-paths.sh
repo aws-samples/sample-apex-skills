@@ -2873,7 +2873,7 @@ finish_case
 # The user's own Claude Code, Kiro CLI and Codex setup, which no install or
 # upgrade may change (cases IS1 to IS3). Under ~/.claude and ~/.kiro these
 # paths are checked and the user's own skill dirs (skills/my-skill) are listed
-# whole; every other entry under commands/ and steering/ must be one the
+# whole; every other file or link under commands/ and steering/ must be one the
 # install manifest records (expect_no_stray). The installer has
 # no Codex target, so ~/.codex and ~/.agents (and their project copies) are
 # untouched bystanders, listed whole, and an added file shows too.
