@@ -138,6 +138,13 @@ check_markers() {
       return 1
     fi
   done
+  local start_line end_line
+  start_line=$(grep -nxF -- "$2" "$file" | cut -d: -f1)
+  end_line=$(grep -nxF -- "$3" "$file" | cut -d: -f1)
+  if (( start_line > end_line )); then
+    echo "ERROR: $2 must come before $3 in $file" >&2
+    return 1
+  fi
 }
 
 # --- Replace a section between markers in a file ---

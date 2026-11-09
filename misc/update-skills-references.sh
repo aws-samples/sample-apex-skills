@@ -397,6 +397,13 @@ check_markers() {
       return 1
     fi
   done
+  local start_line end_line
+  start_line=$(grep -nxF -- "$2" "$file" | cut -d: -f1)
+  end_line=$(grep -nxF -- "$3" "$file" | cut -d: -f1)
+  if (( start_line > end_line )); then
+    echo "ERROR: $2 must come before $3 in $file" >&2
+    return 1
+  fi
 }
 
 # --- Replace a section between markers in a file ---
@@ -480,7 +487,7 @@ if $DRY_RUN; then
   exit 0
 fi
 
-# Check every marker before writing either file, so a missing or repeated marker changes nothing.
+# Check every marker before writing either file, so a missing, repeated or out-of-order marker changes nothing.
 check_markers "$README" "$README_START" "$README_END"
 if [[ -n "$NEW_SKILLS_SECTION" ]]; then
   check_markers "$SKILLS_README" "$SKILLS_START" "$SKILLS_END"
