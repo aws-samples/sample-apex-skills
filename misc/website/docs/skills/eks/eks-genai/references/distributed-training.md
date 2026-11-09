@@ -233,11 +233,12 @@ helm install mlflow community-charts/mlflow --version <chart-version> \
   --set backendStore.postgres.enabled=true \
   --set backendStore.postgres.host=<postgres-host> \
   --set backendStore.postgres.database=<database> \
-  --set backendStore.postgres.user=<user> \
-  --set backendStore.postgres.password=<password> \
+  --set backendStore.existingDatabaseSecret.name=<secret-name> \
   --set artifactRoot.s3.enabled=true \
   --set artifactRoot.s3.bucket=my-mlflow-artifacts
 ```
+
+The `<secret-name>` Secret holds the database user and password under the keys `username` and `password` (the chart's `usernameKey` and `passwordKey` defaults).
 
 The S3 artifact root also needs AWS credentials: an IAM role on the MLflow service account (IRSA or EKS Pod Identity), or the chart's `artifactRoot.s3.awsAccessKeyId` and `awsSecretAccessKey` values.
 

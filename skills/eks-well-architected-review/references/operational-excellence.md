@@ -733,9 +733,7 @@ aws logs put-retention-policy --log-group-name /aws/eks/<CLUSTER>/cluster --rete
 > **Windows nodes:** not assessed — this skill supports Linux nodes only.
 > **What is credited:** a Linux-schedulable DaemonSet whose name contains `node-exporter` or `cloudwatch-agent`, with at least one ready pod. The `cloudwatch-agent` DaemonSet is what the Amazon CloudWatch Observability add-on runs for Container Insights, which publishes node CPU, memory and filesystem utilization.
 
-**Remediation:** Deploy Prometheus Node Exporter as a DaemonSet: `helm install node-exporter oci://ghcr.io/prometheus-community/charts/prometheus-node-exporter --version <chart-version>`. Create Grafana dashboards for CPU, memory, disk. Or enable Container Insights with the `amazon-cloudwatch-observability` EKS add-on (the ope-5 remediation), which runs the `cloudwatch-agent` DaemonSet.
-
-**Chart version:** Before writing the report, look up the chart's current version yourself (read only: its Artifact Hub page or releases page, or `helm search repo <chart> --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
+**Remediation:** Deploy Prometheus Node Exporter as a DaemonSet: `helm install node-exporter oci://ghcr.io/prometheus-community/charts/prometheus-node-exporter`. Create Grafana dashboards for CPU, memory, disk. Or enable Container Insights with the `amazon-cloudwatch-observability` EKS add-on (the ope-5 remediation), which runs the `cloudwatch-agent` DaemonSet.
 
 ---
 

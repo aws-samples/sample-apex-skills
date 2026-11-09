@@ -591,9 +591,7 @@ kubectl get deployments -A -o json
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Deploy Kubecost or OpenCost for cost visibility: `helm repo add kubecost https://kubecost.github.io/kubecost/ && helm repo update && helm install kubecost kubecost/kubecost --version <chart-version> --namespace kubecost --create-namespace --set global.clusterId=<cluster-name>` or deploy OpenCost via Helm.
-
-**Chart version:** Before writing the report, look up the chart's current version yourself (read only: its Artifact Hub page or releases page, or `helm search repo <chart> --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
+**Remediation:** Deploy Kubecost or OpenCost for cost visibility: `helm repo add kubecost https://kubecost.github.io/kubecost/ && helm repo update && helm install kubecost kubecost/kubecost --namespace kubecost --create-namespace --set global.clusterId=<cluster-name>` or deploy OpenCost via Helm.
 
 ---
 

@@ -1049,7 +1049,7 @@ If spot_node_count > 0:
 
 ### Remediation
 
-**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+**Chart version:** Before writing the report, look up the chart's newest version yourself (read only: `helm show chart oci://public.ecr.aws/aws-ec2/helm/aws-node-termination-handler` prints it as `version`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
 
 ```bash
 # Install AWS Node Termination Handler via Helm (chart on Amazon ECR Public)

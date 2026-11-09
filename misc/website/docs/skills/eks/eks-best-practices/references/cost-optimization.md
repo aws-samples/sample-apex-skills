@@ -508,6 +508,8 @@ Kubecost provides real-time cost monitoring, namespace/label allocation, and rig
 
 **Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
+First create the `kubecost` namespace and, in it, a Secret named `cloud-integration` whose key `cloud-integration.json` holds the cloud integration JSON; the chart expects that Secret in the release namespace.
+
 ```bash
 helm repo add kubecost https://kubecost.github.io/kubecost/
 helm install kubecost kubecost/kubecost --version <chart-version> \

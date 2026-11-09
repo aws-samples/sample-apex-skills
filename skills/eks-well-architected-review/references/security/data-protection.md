@@ -56,9 +56,7 @@ kubectl get deployments -A -o json
 # Look for external-secrets in deployment names
 ```
 
-**Remediation:** Deploy External Secrets Operator: `helm repo add external-secrets https://charts.external-secrets.io && helm repo update && helm install external-secrets external-secrets/external-secrets --version <chart-version>`. Migrate K8s Secrets to AWS Secrets Manager references.
-
-**Chart version:** this applies here and at every other `<chart-version>` in this file. Before writing the report, look up the chart's current version yourself (read only: its Artifact Hub page or releases page, or `helm search repo <chart> --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
+**Remediation:** Deploy External Secrets Operator: `helm repo add external-secrets https://charts.external-secrets.io && helm repo update && helm install external-secrets external-secrets/external-secrets`. Migrate K8s Secrets to AWS Secrets Manager references.
 
 ---
 
@@ -78,7 +76,7 @@ kubectl get deployments -A -o json
 
 > Secret rotation limits the blast radius of credential compromise.
 
-**Remediation:** Deploy cert-manager for TLS rotation: `helm repo add jetstack https://charts.jetstack.io && helm repo update && helm install cert-manager jetstack/cert-manager --version <chart-version> --set crds.enabled=true`. Configure External Secrets Operator with rotation policies.
+**Remediation:** Deploy cert-manager for TLS rotation: `helm repo add jetstack https://charts.jetstack.io && helm repo update && helm install cert-manager jetstack/cert-manager --set crds.enabled=true`. Configure External Secrets Operator with rotation policies.
 
 ---
 

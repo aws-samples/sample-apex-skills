@@ -22,7 +22,7 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
    | **v3.5.0 line** (v3.5.0 and later releases on CRDs v1.6.0, see gateway-api.md; recommend the newest) | **v1.6.0** | LBC v3.5.0 is built for Gateway API v1.6.0; TCPRoute/UDPRoute are in the standard channel from v1.6.0, so no experimental install is needed for L4 |
 
    ```
-   # v1.6.0 — pair with a v3.5.0 controller (see step 2)
+   # v1.6.0: pair with a controller of the v3.5.0 line (see gateway-api.md)
    kubectl apply --server-side=true -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.0/standard-install.yaml
    ```
 

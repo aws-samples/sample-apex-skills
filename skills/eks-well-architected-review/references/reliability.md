@@ -786,10 +786,8 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.com
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Deploy Karpenter or Cluster Autoscaler: `helm install karpenter oci://public.ecr.aws/karpenter/karpenter --version <chart-version> --namespace kube-system --set settings.clusterName=<CLUSTER>`, after creating the IAM roles its guide lists (https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/). Configure NodePools for automatic scaling.
+**Remediation:** Deploy Karpenter or Cluster Autoscaler: `helm install karpenter oci://public.ecr.aws/karpenter/karpenter --namespace kube-system --set settings.clusterName=<CLUSTER>`, after creating the IAM roles its guide lists (https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/). Configure NodePools for automatic scaling.
 If one is deployed but not ready, this check does not credit it: find out why with `kubectl describe deployment <name> -n <namespace>`, `kubectl describe pod <pod> -n <namespace>` and `kubectl logs <pod> -n <namespace> --previous`, and fix that rather than installing a second one.
-
-**Chart version:** this applies here and at every other `<chart-version>` in this file. Before writing the report, look up the chart's current version yourself (read only: its Artifact Hub page or releases page, or `helm search repo <chart> --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
 
 **Not applicable to an EKS Hybrid Node** — neither Cluster Autoscaler nor Karpenter can create or remove one. Hybrid capacity is provisioned by you and joined with `nodeadm`.
 
@@ -1084,7 +1082,7 @@ kubectl get deployments -A -o json
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Deploy Prometheus + Grafana for monitoring: `helm install prometheus oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version <chart-version>`. Configure alerting rules for critical metrics.
+**Remediation:** Deploy Prometheus + Grafana for monitoring: `helm install prometheus oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack`. Configure alerting rules for critical metrics.
 
 ---
 
@@ -1273,7 +1271,7 @@ node groups, Fargate profiles or PersistentVolumes beneath it — those have the
 > or a CloudWatch agent DaemonSet whose Application Signals X-Ray port (`cwa-appsig-xray`) is configured. An
 > OpenTelemetry/ADOT operator on its own does not: it collects nothing until a collector resource exists.
 
-**Remediation:** Deploy distributed tracing: `helm repo add jaegertracing https://jaegertracing.github.io/helm-charts && helm repo update && helm install jaeger jaegertracing/jaeger --version <chart-version>`. Or enable AWS X-Ray with the ADOT collector for request flow visibility.
+**Remediation:** Deploy distributed tracing: `helm repo add jaegertracing https://jaegertracing.github.io/helm-charts && helm repo update && helm install jaeger jaegertracing/jaeger`. Or enable AWS X-Ray with the ADOT collector for request flow visibility.
 
 ---
 

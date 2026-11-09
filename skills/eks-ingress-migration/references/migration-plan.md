@@ -22,7 +22,7 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
    | **v3.5.0 line** (v3.5.0 and later releases on CRDs v1.6.0, see gateway-api.md; recommend the newest) | **v1.6.0** | LBC v3.5.0 is built for Gateway API v1.6.0; TCPRoute/UDPRoute are in the standard channel from v1.6.0, so no experimental install is needed for L4 |
 
    ```bash
-   # v1.6.0 — pair with a v3.5.0 controller (see step 2)
+   # v1.6.0: pair with a controller of the v3.5.0 line (see gateway-api.md)
    kubectl apply --server-side=true -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.0/standard-install.yaml
    ```
 
@@ -33,7 +33,7 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
    helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller --version <chart-version> -n kube-system --set clusterName=<cluster-name> --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
    ```
 
-   **Chart version:** Before writing the report, look up the chart's current version yourself (read only: its Artifact Hub page or releases page, or `helm search repo <chart> --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version. For this upgrade, also report the installed chart version, read off the cluster (`helm list -n kube-system -f aws-load-balancer-controller`).
+   **Chart version:** Before writing the report, look up the newest chart version in the v3.5.0 line as gateway-api.md defines it (read only: its Artifact Hub page or releases page, or `helm search repo eks/aws-load-balancer-controller --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version. Report the installed controller version from the image tag the assessment already reads (gateway-api.md, Prerequisite checks step 2).
 
 3. Create GatewayClass:
    ```yaml
