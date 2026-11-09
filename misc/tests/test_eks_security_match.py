@@ -550,6 +550,51 @@ class RenderReport(TmpCase):
         self.assertIn("Auto Mode components: AWS-patched (inferred, not read): every Auto Mode node was created at or "
                       "after the fix time", md)
 
+    def patched_fixture(self):
+        fd, inv = self.fixture()
+        fd["findings"].append(dict(fd["findings"][0], component="addon:vpc-cni@auto-mode", verdict="aws_managed_patched",
+                                   fixed_at="2026-11-01", priority="P4"))
+        node = {"kind": "node-os", "kernel": "6.1.0", "kubelet": "v1.33.1", "runtime": "containerd://1.7.27",
+                "readable": True, "reason": None}
+        inv["components"] += [
+            dict(node, id="node-os:general-purpose", os_image="Bottlerocket OS 1.40.0 (aws-k8s-1.33)",
+                 ami="ami-0aaa1111bbbb2222c", nodes=["i-a", "i-b"], managed_by="aws-auto-mode", where=["general-purpose"],
+                 node_created={"i-a": "2026-11-02T01:00:00Z", "i-b": "2026-11-03T01:00:00Z"},
+                 oldest_node_created="2026-11-02T01:00:00Z"),
+            dict(node, id="node-os:system", os_image="Bottlerocket OS 1.40.0 (aws-k8s-1.33)", ami=None, nodes=["i-c"],
+                 managed_by="aws-auto-mode", where=["system"], node_created={"i-c": "2026-11-04T01:00:00Z"},
+                 oldest_node_created="2026-11-04T01:00:00Z"),
+            dict(node, id="node-os:workers", os_image="Amazon Linux 2023", ami="ami-0ccc3333dddd4444e", nodes=["i-d"],
+                 managed_by="customer", where=["workers"], node_created={"i-d": "2026-10-01T01:00:00Z"},
+                 oldest_node_created="2026-10-01T01:00:00Z")]
+        return fd, inv
+
+    def test_patched_lists_auto_mode_groups(self):
+        # A1: the AWS-patched line lists each Auto Mode NodePool's OS image and AMI, so the reader need not look them up
+        fd, inv = self.patched_fixture()
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("confirm each NodePool's AMI and OS image listed below against the release note", md)
+        self.assertIn("| NodePool | OS image | AMI | Nodes | Oldest node created |", md)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 | "
+                      "2026-11-02T01:00:00Z |", md)
+        self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 | 2026-11-04T01:00:00Z |", md)
+        self.assertNotIn("ami-0ccc3333dddd4444e", md)
+        for cell in ("<th>NodePool</th>", "<td>general-purpose</td>", "<td>ami-0aaa1111bbbb2222c</td>",
+                     "<td>not read</td>"):
+            self.assertIn(cell, ht)
+        self.assertNotIn("ami-0ccc3333dddd4444e", ht)
+
+    def test_patched_without_inventory_says_how_to_list(self):
+        # A1: with no --inventory there is no table, and the report says how to get one
+        fd, inv = self.patched_fixture()
+        rc, md, ht, log = self.render(fd)
+        self.assertEqual(rc, 0, log)
+        self.assertNotIn("| NodePool | OS image | AMI |", md)
+        self.assertIn("The Auto Mode NodePools' OS images and AMIs are not listed because no inventory was given: run "
+                      "render\\_report.py with --inventory to list them.", md)
+        self.assertIn("no inventory was given: run render_report.py with --inventory to list them.", ht)
+
     def test_unknown_actions_for_nodes_build_and_minor(self):
         # S2: no_nodes_read, eks_build and minor_only each get their own action, not the generic one
         fd, inv = self.fixture()
