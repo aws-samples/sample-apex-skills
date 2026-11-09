@@ -172,7 +172,7 @@ class ParseEventsTokenTests(unittest.TestCase):
         self.assertEqual(t.cache_read_input_tokens, 100)
 
     def test_last_of_two_result_events_wins(self):
-        # parse_events walks forward and overwrites on each result event,
+        # parse_events walks forward and overwrites on each result event that carries usage,
         # so the last result's counts are the ones kept.
         events = _events(FULL_USAGE) + _events(LEGACY_USAGE)[-1:]
         t = parse_events(events)
