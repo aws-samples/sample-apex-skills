@@ -137,17 +137,24 @@ Application Signals is the simplest path to APM on EKS -- if you're already usin
 
 ### Amazon Managed Prometheus (AMP) Setup
 
+**Chart version:** `<chart-version>` is a placeholder, here and at every other `<chart-version>` in this file. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+
 ```bash
 # Create AMP workspace
 aws amp create-workspace --alias my-cluster-metrics
 
-# Deploy ADOT collector for metric collection
+# Deploy an OpenTelemetry Collector (contrib image); see the note below for the AMP pipeline
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm install adot-collector \
-  open-telemetry/opentelemetry-collector \
+  open-telemetry/opentelemetry-collector --version <chart-version> \
   --namespace observability --create-namespace \
+  --set mode=deployment \
+  --set image.repository=otel/opentelemetry-collector-contrib \
   --set config.exporters.prometheusremotewrite.endpoint=<AMP_REMOTE_WRITE_URL> \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=<IRSA_ROLE_ARN>
 ```
+
+These flags install the collector only: to reach AMP, its config also needs a metrics pipeline that exports to `prometheusremotewrite`, with the `sigv4auth` extension signing the requests.
 
 ### Key Prometheus Metrics for EKS
 
@@ -267,7 +274,7 @@ The Elastic Network Adapter (ENA) driver exposes metrics that reveal network-lev
 Deploy Prometheus Node Exporter with the ethtool collector:
 
 ```bash
-helm upgrade -i prometheus-node-exporter prometheus-community/prometheus-node-exporter \
+helm upgrade -i prometheus-node-exporter prometheus-community/prometheus-node-exporter --version <chart-version> \
   --set extraArgs[0]="--collector.ethtool" \
   --set extraArgs[1]="--collector.ethtool.device-include=(eth|em|eno|ens|enp)[0-9s]+" \
   --set extraArgs[2]="--collector.ethtool.metrics-include=.*"
@@ -308,7 +315,7 @@ aws eks create-addon --cluster-name my-cluster --addon-name amazon-cloudwatch-ob
 
 # Alternative: deploy the community Fluent Bit DaemonSet directly (name: fluent-bit)
 # e.g. via the aws-for-fluent-bit Helm chart / manifests
-helm install fluent-bit eks/aws-for-fluent-bit --namespace amazon-cloudwatch --create-namespace
+helm install fluent-bit eks/aws-for-fluent-bit --version <chart-version> --namespace amazon-cloudwatch --create-namespace
 ```
 
 **Scaling Fluent Bit for large clusters:**
@@ -426,7 +433,7 @@ GPU Utilization alone is misleading -- 100% can mean one lightweight kernel or f
 The CloudWatch Observability add-on auto-deploys DCGM Exporter on GPU nodes. Alternatively, deploy DCGM Exporter manually with Prometheus:
 
 ```bash
-helm install dcgm-exporter gpu-helm-charts/dcgm-exporter \
+helm install dcgm-exporter gpu-helm-charts/dcgm-exporter --version <chart-version> \
   --namespace monitoring --create-namespace
 ```
 
