@@ -531,10 +531,14 @@ resource "kubernetes_namespace_v1" "argocd" {
 
 **Fix:** Add a `null_resource` with destroy-time provisioner that deletes capabilities via the EKS API before Terraform attempts deletion. Include `sleep 180` for ArgoCD capability deletion time.
 
-**Workaround:** Manually delete capabilities via API, remove from state, then destroy:
+**Workaround:** Stop the hung `terraform destroy` first: interrupt it once (Ctrl-C or SIGINT) and wait for it to exit. List the capabilities and show them to the user with the intent to destroy; if the user declines any capability, stop, since the destroy removes the cluster it runs on. Deleting a capability "removes the capability infrastructure but retains all resources that were managed by the capability", so ask the user whether to delete or keep the Kubernetes resources each capability manages (for ACK, deleting them deletes the AWS resources by default), and do that before you delete the capability. Wait until the deleted capabilities are no longer listed, remove only the `aws_eks_capability` resources from state, then show the destroy plan and apply it only after the user approves it:
 ```bash
-terraform state list | grep capability | xargs -I{} terraform state rm {}
-terraform destroy -auto-approve
+aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].[capabilityName,status]' --output text  # show the user, get their yes
+aws eks delete-capability --cluster-name <cluster> --capability-name <name>  # only the names the user approved
+aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].[capabilityName,status]' --output text  # repeat until they are gone; on DELETE_FAILED stop and report it to the user
+terraform state list | grep -E '(^|\.)aws_eks_capability\.' | xargs -I{} terraform state rm {}
+terraform plan -destroy -out=destroy.tfplan
+terraform apply destroy.tfplan  # only after the user approves the plan above
 ```
 
 ---
