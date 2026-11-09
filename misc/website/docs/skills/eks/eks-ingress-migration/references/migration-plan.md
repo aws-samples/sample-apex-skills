@@ -44,7 +44,7 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
    helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller --version <chart-version> -n kube-system --set clusterName=<cluster-name> --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
    ```
 
-   **Chart version:** Before writing the report, look up the newest chart version in the v3.5.0 line as gateway-api.md defines it (read only: its Artifact Hub page or releases page, or `helm search repo eks/aws-load-balancer-controller --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version. Report the installed controller version from the image tag the assessment already reads (gateway-api.md, Prerequisite checks step 2).
+   **Chart version:** Before writing the report, look up the newest chart version in the v3.5.0 line as gateway-api.md defines it (read only: its Artifact Hub page or releases page) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version. Report the installed controller version from the image tag the assessment already reads (gateway-api.md, Prerequisite checks step 2).
 
 3. Create GatewayClass:
    ```yaml
