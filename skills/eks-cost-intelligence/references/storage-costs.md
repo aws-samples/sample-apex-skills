@@ -263,7 +263,7 @@ kubectl get pvc --all-namespaces -o json | \
     [.[] | select(.key as $k | $mounted[0] | index($k) | not)]'
 ```
 
-If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+If any read here fails (an error on stderr; the pipe hides kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via kubectl (simplified — single pipeline):**
 
@@ -274,7 +274,7 @@ comm -23 \
   <(kubectl get pods -A -o json | jq -r '.items[] | select(.status.phase=="Running") | .metadata.namespace as $ns | .spec.volumes[]? | select(.persistentVolumeClaim) | "\($ns)/\(.persistentVolumeClaim.claimName)"' | sort -u)
 ```
 
-If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+If any read here fails (an error on stderr; the pipe hides kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via EKS MCP Server:**
 
@@ -728,7 +728,7 @@ actual_deduction = min(deduction, 15)  # Cap at maximum
 |-----------|--------|
 | All checks completed | ASSESSED |
 | Check 3 skipped (no volume stats) | ASSESSED (with note) |
-| Check 4 skipped (no EFS in cluster) | ASSESSED (EFS check not applicable) |
+| Check 4 not applicable (no EFS in cluster) | ASSESSED (EFS check not applicable) |
 | All checks skipped (no kubectl access) | SKIPPED |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.

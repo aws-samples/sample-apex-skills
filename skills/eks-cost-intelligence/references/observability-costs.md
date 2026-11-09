@@ -810,7 +810,7 @@ echo "ADOT:"
 kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers | wc -l
 ```
 
-If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+If any read here fails (an error on stderr; the pipe hides kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via EKS MCP Server:**
 

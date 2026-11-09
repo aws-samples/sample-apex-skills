@@ -93,9 +93,7 @@ for group in response["ResultsByTime"][0]["Groups"]:
 
 ### 1.2 Namespace-Level Cost Attribution (cost allocation tags)
 
-Split cost allocation data is CUR only, not in Cost Explorer; this query groups by the user tags kubernetes-namespace and kubernetes-deployment.
-
-Split cost allocation data is in CUR (legacy CUR and CUR 2.0 with Data Exports) only, not Cost Explorer, and only a regular or payer account can opt in to it, in Cost Management preferences (see the account tier check below), so this Cost Explorer query uses the user tags instead ([Enabling split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/enabling-split-cost-allocation-data.html), read 2026-11-05).
+Split cost allocation data is in CUR (legacy CUR and CUR 2.0 with Data Exports) only, not Cost Explorer, and only a regular or payer account can opt in to it, in Cost Management preferences (see the account tier check below), so this Cost Explorer query groups by the user tags kubernetes-namespace and kubernetes-deployment instead ([Enabling split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/enabling-split-cost-allocation-data.html), read 2026-11-05).
 
 **Via Cost Explorer GetCostAndUsage API:**
 

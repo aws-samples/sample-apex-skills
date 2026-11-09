@@ -29,7 +29,7 @@ Compute efficiency is the highest-weighted dimension (25 points max deduction). 
 | 3 | Low-utilization node detection | <10% CPU, <20% memory over 7d | By idle node cost |
 | 4 | Karpenter consolidation effectiveness | consolidation disabled or ineffective | MEDIUM–HIGH |
 | 5 | Workloads without resource requests/limits | any pod missing requests | MEDIUM |
-| 6 | Graceful degradation (metrics unavailable) | N/A | Mark SKIPPED |
+| 6 | Graceful degradation (metrics unavailable) | N/A | Mark checks 1 to 3 SKIPPED; the dimension is scored on checks 4 and 5 |
 
 ---
 

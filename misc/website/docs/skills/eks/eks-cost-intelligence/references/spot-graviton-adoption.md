@@ -129,7 +129,8 @@ graviton_pct = arm64_nodes / total_nodes × 100
 
 If graviton_pct < 50%:
   → Generate HIGH severity finding
-  savings_estimate = amd64_nodes × avg_node_hourly_cost × graviton_discount × 730
+  ondemand_amd64_nodes = count(amd64 nodes whose capacity_type is not Spot)
+  savings_estimate = ondemand_amd64_nodes × avg_node_hourly_cost × graviton_discount × 730
   # graviton_discount depends on the Graviton generation (table below)
 ```
 
@@ -148,7 +149,7 @@ For AMD (`*a`) nodes the gap differs (us-east-1: m6a vs m6g 10.9%, m7a vs m7g 29
 
 The gap depends on which x86 instance is replaced: against the same-generation Intel type it is 19.0% for m7i.xlarge vs m7g.xlarge and 15.2% for m8i.xlarge vs m8g.xlarge. The [eks-well-architected-review cost analysis](../../eks-well-architected-review/references/cost-analysis.md) also compares Graviton against the 6th-generation x86 type, and its figures (nearer 15% for Graviton3 and 6.5% for Graviton4, read in ap-southeast-5) agree with this table. When the current and target instance types are known, price both (see [cost-estimation-fallback.md](cost-estimation-fallback.md)) instead of using the table. The figure is price only, not performance.
 
-> **Caveats for the Graviton finding:** the estimate prices every amd64 node at On-Demand rates, Spot nodes included, so it overstates savings for Spot nodes; count only On-Demand amd64 nodes (capacity_type above), or price Spot nodes with describe-spot-price-history. Spot capacity is per instance type, so moving Spot nodes to Graviton also needs enough Graviton types in each Spot pool (Check 6). Nodes are replaced during the move, so workloads need multiple replicas and a PodDisruptionBudget (the Spot eligibility criteria in Check 5), and images must support linux/arm64 (the note at the end of Check 3).
+> **Caveats for the Graviton finding:** the estimate counts On-Demand amd64 nodes only (capacity_type above), at On-Demand rates; to include Spot amd64 nodes, price them with describe-spot-price-history. Spot capacity is per instance type, so moving Spot nodes to Graviton also needs enough Graviton types in each Spot pool (Check 6). Nodes are replaced during the move, so workloads need multiple replicas and a PodDisruptionBudget (the Spot eligibility criteria in Check 5), and images must support linux/arm64 (the note at the end of Check 3).
 
 ### Severity classification
 
@@ -300,6 +301,8 @@ For each Managed Node Group:
   If NOT has_graviton:
     → Finding: Node group uses only x86 instance types
 ```
+
+An UNASSESSED node group adds no Check 2 finding and is not counted in the severity table below; list it with its reason in the Spot/Graviton findings.
 
 ### Severity classification
 
@@ -1167,7 +1170,7 @@ START
 - Check 2: MEDIUM (all groups amd64-only)
 - Check 4: HIGH (0% Spot + eligible workloads)
 - Check 5: Multiple findings (eligible workloads on OD)
-- Check 7: Skipped (no Spot nodes)
+- Check 7: not applicable (no Spot nodes)
 - **Expected deduction:** 12–20 points (likely capped at 20)
 
 ### Scenario B: Karpenter with Spot + Graviton
