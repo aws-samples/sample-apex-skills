@@ -644,7 +644,7 @@ Include this section in the report's Methodology & Confidence Notes:
 **To improve accuracy:**
 1. Enable Cost Explorer and activate the `aws:eks:cluster-name` cost allocation tag
 2. Enable Split Cost Allocation Data for namespace-level attribution (payer or regular account; see the account tier check)
-3. If the metrics read was denied, grant `list` on `nodes.metrics.k8s.io` and `pods.metrics.k8s.io`; else install metrics-server or enable Container Insights for utilization data
+3. If the metrics read was denied, grant `list` on resources `nodes` and `pods` in API group `metrics.k8s.io` (a metrics provider is installed); if it failed, retry it or fix the source; only if every source is absent and metrics-server is not installed, install it or enable Container Insights for utilization data
 ```
 
 ---
