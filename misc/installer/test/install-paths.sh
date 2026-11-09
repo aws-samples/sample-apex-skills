@@ -2904,7 +2904,7 @@ expect_user_setup() { # <before file> <dir> <paths...>: the file-level diff name
   d="$(user_snap "$@" | diff "$before" - | /usr/bin/grep '^[<>]' | tr '\n' ' ')"
   [ -z "$d" ] || err "the user's setup in $1 changed (< before, > after): $d"
 }
-expect_no_stray() { # <dir>: each entry under commands/ and steering/ is the user's mine.md or a manifest entry
+expect_no_stray() { # <dir>: each file or link under commands/ and steering/ is the user's mine.md or a manifest entry
   local known p s=""
   known="$(mfq "$(manifest_of)" 'Object.values(m.bases).flatMap((x) => Object.values(x.areas).flatMap((a) => Object.keys(a))).join("\n")')"
   while IFS= read -r p; do
