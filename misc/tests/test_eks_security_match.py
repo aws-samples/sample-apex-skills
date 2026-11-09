@@ -574,8 +574,7 @@ class RenderReport(TmpCase):
         fd, inv = self.patched_fixture()
         rc, md, ht, log = self.render(fd, inv)
         self.assertEqual(rc, 0, log)
-        self.assertIn("confirm each NodePool's OS image against the fixed version the advisory names, when it names "
-                      "one.", md)
+        self.assertIn("so a node created after the fix time can still run an older AMI.\n", md)
         self.assertIn("| NodePool | OS image | AMI | Nodes | Oldest node created |", md)
         self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 | "
                       "2026-11-02T01:00:00Z |", md)
@@ -593,6 +592,16 @@ class RenderReport(TmpCase):
         fd["findings"][-1] = dict(base, component="node-os:general-purpose")
         fd["findings"].append(dict(base, component="node-os:system", verdict="aws_managed_rotation_pending",
                                    nodes_pending=["i-c"]))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)
+        self.assertNotIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read |", md)
+        # R2-1: an add-on patched on every Auto Mode node does not bring back a pool another advisory holds as pending
+        fd, inv = self.patched_fixture()
+        addon = fd["findings"][-1]
+        fd["findings"] += [dict(addon, advisory="CVE-TEST-0009", component="node-os:general-purpose"),
+                           dict(addon, advisory="CVE-TEST-0009", component="node-os:system",
+                                verdict="aws_managed_rotation_pending", nodes_pending=["i-c"])]
         rc, md, ht, log = self.render(fd, inv)
         self.assertEqual(rc, 0, log)
         self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)

@@ -38,8 +38,7 @@ OVERALL = {"exposed": "Exposed: at least one component is inside an affected ran
                       "decided. See Unknown"}
 PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node it was judged on was created at or after the fix "
            "time %s; the Auto Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves, so a "
-           "node created after the fix time can still run an older AMI: confirm each NodePool's OS image against the "
-           "fixed version the advisory names, when it names one.")
+           "node created after the fix time can still run an older AMI.")
 UNKNOWN_ACTION = {
     "denied": "Grant the read named in the preflight (see read-only-access.md) and re-run collect",
     "not_found": "Confirm whether the component is installed another way (Helm, manifest) and re-run with --namespaces",
@@ -227,11 +226,14 @@ def findings_blocks(fd, inv):
         if patched:
             blocks.append(("p", ("Auto Mode components: " if printed else "Overall verdict: ")
                            + PATCHED % "; ".join(patched)))
-            # the nodes the patched verdicts were judged on: a node-os finding its own group, any other every group
+            # the nodes the patched verdicts were judged on: a node-os finding its own group, any other every group;
+            # a group another advisory holds as pending rotation is never listed here
             auto = {c.get("id"): c for c in inv.get("components") or [] if isinstance(c, dict)
                     and c.get("kind") == "node-os" and c.get("managed_by") == "aws-auto-mode"}
             pc = {f.get("component") for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_patched"}
-            rows = sorted((c for i, c in auto.items() if i in pc or not pc <= set(auto)),
+            pend = {f.get("component") for f in fd.get("findings") or []
+                    if f.get("verdict") == "aws_managed_rotation_pending"}
+            rows = sorted((c for i, c in auto.items() if i not in pend and (i in pc or not pc <= set(auto))),
                           key=lambda c: (s(c.get("where")), s(c.get("os_image"))))
             if rows:
                 blocks.append(("table", ["NodePool", "OS image", "AMI", "Nodes", "Oldest node created"],
