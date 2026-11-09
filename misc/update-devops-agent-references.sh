@@ -112,10 +112,8 @@ build_table() {
       description="_(no description in frontmatter)_"
     fi
 
-    # Truncate long descriptions for table readability
-    if [[ ${#description} -gt 200 ]]; then
-      description="${description:0:197}..."
-    fi
+    # Truncate long descriptions for table readability (by characters in any locale)
+    description="$(python3 -c 'import sys; s = sys.argv[1]; print(s if len(s) <= 200 else s[:197] + "...")' "$description")"
 
     local status
     status="$(get_skill_status "$skill_dir")"
