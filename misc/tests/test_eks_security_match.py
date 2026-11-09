@@ -547,8 +547,8 @@ class RenderReport(TmpCase):
         self.assertEqual(rc, 0, log)
         self.assertEqual(len([ln for ln in md.splitlines() if ln.startswith("Overall verdict:")]), 1, md)
         self.assertIn("Overall verdict: Exposed", md)
-        self.assertIn("Auto Mode components: AWS-patched (inferred, not read): every Auto Mode node was created at or "
-                      "after the fix time", md)
+        self.assertIn("Auto Mode components: AWS-patched (inferred, not read): every Auto Mode node it was judged on "
+                      "was created at or after the fix time", md)
 
     def patched_fixture(self):
         fd, inv = self.fixture()

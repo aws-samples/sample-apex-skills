@@ -36,8 +36,8 @@ OVERALL = {"exposed": "Exposed: at least one component is inside an affected ran
            "not_exposed": "Not exposed: every targeted component was read and is outside the affected ranges.",
            "unknown": "Unknown: nothing was found exposed, but at least one component or advisory could not be "
                       "decided. See Unknown"}
-PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node was created at or after the fix time %s; the Auto "
-           "Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves, so a "
+PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node it was judged on was created at or after the fix "
+           "time %s; the Auto Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves, so a "
            "node created after the fix time can still run an older AMI: confirm each NodePool's OS image against the "
            "fixed version the advisory names, when it names one.")
 UNKNOWN_ACTION = {
