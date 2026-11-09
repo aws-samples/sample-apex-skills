@@ -65,7 +65,7 @@ The following permissions are included:
 - `cloudwatch:ListMetrics`
 - `logs:StartQuery`
 - `logs:GetQueryResults`
-- `logs:DescribeLogGroups`
+- `logs:DescribeLogGroups` (required for log group sizing in the observability dimension)
 
 **Amazon EFS (optional — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension):**
 - `elasticfilesystem:DescribeFileSystems`
