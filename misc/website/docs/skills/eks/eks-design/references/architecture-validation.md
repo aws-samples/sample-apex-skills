@@ -50,7 +50,7 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 | 8 | Cost & scalability | Cost strategies (Graviton, Spot, right-sizing), scaling guidance | Yes |
 | 9 | DR & backup | Backup tiers, recovery scenarios, availability design | Yes |
 | 10 | Multi-tenancy | Namespace isolation, RBAC, quotas, onboarding, cost attribution | If multi-tenant |
-| 11 | Air-gapped | VPC endpoints, ECR pull-through with images referenced by their pull-through URI (first pull needs an internet route; see eks-build's air-gapped section) | If air-gapped |
+| 11 | Air-gapped | VPC endpoints, ECR pull-through with images referenced by their pull-through URI (first pull needs an internet route; see eks-best-practices container-registry, Pull-Through Cache) | If air-gapped |
 | 12 | Proxy | HTTP_PROXY injection, NO_PROXY list | If proxy required |
 | 13 | Private registry | Image overrides, ImagePullSecrets | If private registry |
 | 14 | Compliance | Policy engine, benchmark mapping, audit logging | If compliance required |
@@ -190,7 +190,7 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 |----------|--------|-----------|
 | Required documents present | 10 | All = 10, most = 7, major gaps = 4 |
 | ADR quality | 5 | All pass checklist = 5, partial = 3, poor = 1 |
-| Diagram quality | 5 | Every Mermaid diagram the checklist above names, in markdown = 5, some = 3, none = 0 (PNGs are checked in Stage 5) |
+| Diagram quality | 5 | Every Mermaid diagram Stage 2 calls for (SKILL.md), in markdown = 5, some = 3, none = 0 |
 
 ### Overall Score
 
