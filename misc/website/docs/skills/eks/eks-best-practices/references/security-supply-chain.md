@@ -95,14 +95,14 @@ Attestations are cryptographically signed statements that verify artifact integr
 - **Sigstore cosign** — open-source signing and verification
 
 **Validate at admission with:**
-- **Kyverno** — [verify image signatures and attestations](https://kyverno.io/docs/writing-policies/verify-images/sigstore/)
+- **Kyverno** — [verify image signatures and attestations](https://release-1-19-0.kyverno.io/docs/policy-types/image-validating-policy/) (Cosign or Notation with your own keys; AWS Signer signatures need the kyverno-notation-aws extension on Kyverno v1.11 to 1.19.x, see container-registry.md)
 - **OPA Gatekeeper with Ratify**: Ratify verifies the signature for Gatekeeper; AWS Signer signatures need Ratify's AWS Signer plugin (see container-registry.md) ([Ratify on AWS](https://ratify.dev/docs/quickstarts/ratify-on-aws), [Ratify with AWS Signer](https://ratify.dev/docs/quickstarts/ratify-with-aws-signer))
 
 ### Admission Control for Images
 
 **Kyverno policy — require images from ECR only:**
 
-> `ClusterPolicy` (`kyverno.io/v1`) is deprecated since Kyverno v1.19; `ValidatingPolicy` and `ImageValidatingPolicy` (`policies.kyverno.io/v1`) replace it ([Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)).
+> `ClusterPolicy` (`kyverno.io/v1`) is deprecated since Kyverno v1.19; `ValidatingPolicy` and `ImageValidatingPolicy` (`policies.kyverno.io/v1`) replace it ([Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)). Kyverno v1.20 (a release candidate as of 2026-11-08) no longer executes ClusterPolicy; migrate before upgrading past 1.19. The example below is the legacy form; on v1.19+ write it as a `ValidatingPolicy`.
 
 ```yaml
 apiVersion: kyverno.io/v1

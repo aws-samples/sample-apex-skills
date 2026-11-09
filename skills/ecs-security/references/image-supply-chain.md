@@ -21,7 +21,7 @@ ECR supports container image signing so you can verify **provenance and integrit
 - **Manual signing (client-side)** — use the **Notation CLI + AWS Signer plugin** (Notary Project / CNCF, an OCI standard) to sign before push; signatures are stored as OCI artifacts alongside the image in ECR. Choose this for signing outside the push workflow or fine-grained control.
 - Verify locally, in CI, or at deploy time. Reference: [Sign images in Amazon ECR](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-signing.html) · [Manual signing](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-signing-manual.html) · [Sign container images in Signer](https://docs.aws.amazon.com/signer/latest/developerguide/container-workflow.html).
 
-> **ECS vs EKS signing-enforcement nuance (state this precisely).** On **EKS**, admission controllers (e.g. Kyverno `verifyImages`) can *block unsigned images at admission*. **ECS has no admission-controller equivalent** — enforce signature verification in the **CI/CD pipeline** (fail the deploy if verification fails) and/or a pre-deploy gate, since ECS itself won't refuse an unsigned image at task launch. Don't imply ECS has cluster-side admission enforcement.
+> **ECS vs EKS signing-enforcement nuance (state this precisely).** On **EKS**, admission controllers (e.g. Kyverno `ImageValidatingPolicy`) can *block unsigned images at admission*. **ECS has no admission-controller equivalent** — enforce signature verification in the **CI/CD pipeline** (fail the deploy if verification fails) and/or a pre-deploy gate, since ECS itself won't refuse an unsigned image at task launch. Don't imply ECS has cluster-side admission enforcement.
 
 ## Immutable tags + CMK-encrypted repositories
 
