@@ -200,7 +200,7 @@ GenAI clusters are expensive. "How much does Team X's inference cost?" is a boar
 | Tool | Granularity | Effort |
 |------|-------------|--------|
 | **Kubecost** | Per-namespace, per-deployment, per-label | Low — Helm install + configure |
-| **AWS Split Cost Allocation Data (SCAD)** | Per-pod EKS cost allocation in CUR and CUR 2.0, not Cost Explorer; accelerator pods (NVIDIA and AMD GPUs, Trainium, Inferentia) by resource requests only ([Understanding split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/split-cost-allocation-data.html), [Enabling split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/enabling-split-cost-allocation-data.html)) | Low — the payer or standalone account opts in under Cost Management preferences, then adds it to a CUR or Data Exports report |
+| **AWS Split Cost Allocation Data (SCAD)** | Per-pod EKS cost allocation in CUR and CUR 2.0, not Cost Explorer; pods on accelerated instances (NVIDIA and AMD GPUs, Trainium, Inferentia) by resource requests only ([Understanding split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/split-cost-allocation-data.html), [Enabling split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/enabling-split-cost-allocation-data.html)) | Low — the payer or standalone account opts in under Cost Management preferences, then adds it to a CUR or Data Exports report |
 | **LiteLLM token accounting** | Per-API-key, per-tenant token + cost | Medium — requires LiteLLM gateway |
 | **Custom (Prometheus + recording rules)** | Per-label GPU-hours × instance cost | High — manual but flexible |
 
