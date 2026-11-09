@@ -97,7 +97,7 @@ const LINES: Record<string, Lines> = {
   },
   'eks-genai': {
     job: 'build',
-    use: 'Set up GPU, Neuron, ML and LLM serving or training on EKS.',
+    use: 'Plan GPU, Neuron, ML and LLM serving or training on EKS.',
     notFor: 'Bedrock-only or SageMaker-only workloads',
     output: 'A GenAI stack plan with compute, serving and storage choices',
   },
