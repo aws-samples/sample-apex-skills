@@ -92,9 +92,9 @@ class Trajectory:
     # from the last result event that carries a non-empty `modelUsage` or a
     # `usage` object, so a multi-turn run records its last result's counts.
     # On Claude Code v2.1.277 or later the last result's `modelUsage`
-    # includes earlier turns' spend (when the earlier process exited
-    # normally); before that it covers only the last turn. The docs do not
-    # say whether a resumed call restores `usage`.
+    # includes earlier turns' spend (when every earlier process exited
+    # normally); before that it covers only the last turn. The docs name
+    # only `total_cost_usd` and `modelUsage` as carrying restored spend.
     # None when no result event carried either; a missing key inside one is 0,
     # and so is a count that is not an int.
     # total_tokens is set from the last result whose `usage` input + output
