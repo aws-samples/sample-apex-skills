@@ -301,7 +301,7 @@ readinessProbe:
     path: /ready  # Warm-up and local caches only; no database or downstream calls
 ```
 
-**Why:** AWS's EKS guide says to avoid readiness probes that depend on a resource external to the pod, such as a database. If a shared dependency (database, cache) becomes unavailable, ALL pods fail readiness simultaneously, removing all endpoints from the Service and making the entire application unreachable. Instead:
+**Why:** AWS's EKS guide says to avoid readiness probes that depend on a resource external to the pod, such as a database; the exception above, for an app that cannot serve without the dependency, is from [Kubernetes](https://kubernetes.io/docs/concepts/workloads/pods/probes/). If a shared dependency (database, cache) becomes unavailable, ALL pods fail readiness simultaneously, removing all endpoints from the Service and making the entire application unreachable. Instead:
 - Handle transient dependency failures in the application, for example with a circuit breaker
 - Serve a degraded response while a shared dependency is down, where the app can serve without it, and keep the pod ready
 
