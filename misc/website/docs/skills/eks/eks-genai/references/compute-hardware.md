@@ -126,7 +126,7 @@ data:
 Fine-grained GPU partitioning managed by the Kubernetes scheduler. Use for:
 
 - Clusters that need **scheduler-aware** GPU sharing (vs static MIG)
-- **Karpenter (static capacity, or dynamic provisioning from 1.15 behind a feature gate); not on Auto Mode.** The NVIDIA DRA driver is supported with Karpenter, EKS managed node groups, and self-managed nodes, and is not supported on EKS Auto Mode. Karpenter supports DRA with both dynamic and static capacity provisioning as of version 1.15; dynamic provisioning is Alpha, off by default, and requires the `DRANVIDIAGPU` feature gate. Multi-Node NVLink workloads that use ComputeDomains (p6e-gb200 UltraServers) still need static capacity, managed node groups, or self-managed nodes ([Manage NVIDIA GPU devices with DRA](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia.html), [Using DRA with Karpenter](https://docs.aws.amazon.com/eks/latest/userguide/device-management.html)). On EKS the DRA drivers require Kubernetes 1.34+, where DRA is GA at `resource.k8s.io/v1` (used in the example below; the beta `resource.k8s.io/v1beta1` API dates to 1.32).
+- **Karpenter (static capacity, or dynamic provisioning from 1.15 behind a feature gate); not on Auto Mode.** The NVIDIA DRA driver is supported with Karpenter, EKS managed node groups, and self-managed nodes, and is not supported on EKS Auto Mode. Karpenter supports DRA with both dynamic and static capacity provisioning as of version 1.15; dynamic provisioning is Alpha, off by default, and needs both the `DRANVIDIAGPU` feature gate and `--ignore-dra-requests=false`; with the Helm chart, `settings.awsFeatureGates.draNVIDIAGPU` sets both (`settings.enableDRA` also turns on the EFA gate, `DRAEFA`) ([Karpenter settings](https://karpenter.sh/docs/reference/settings/)). Multi-Node NVLink workloads that use ComputeDomains (p6e-gb200 UltraServers) still need static capacity, managed node groups, or self-managed nodes ([Manage NVIDIA GPU devices with DRA](https://docs.aws.amazon.com/eks/latest/userguide/device-management-nvidia.html), [Using DRA with Karpenter](https://docs.aws.amazon.com/eks/latest/userguide/device-management.html)). On EKS the DRA drivers require Kubernetes 1.34+, where DRA is GA at `resource.k8s.io/v1` (used in the example below; the beta `resource.k8s.io/v1beta1` API dates to 1.32).
 
 ```yaml
 # DRA ResourceClaim example (Karpenter / managed NG / self-managed; not Auto Mode)
@@ -148,7 +148,7 @@ spec:
 |---|---|---|---|---|
 | **MIG** | Hardware-level | ✅ Yes | ✅ Yes | Production multi-tenant on MIG-capable GPUs (A100, A30, H100, H20, H200, H100 on GH200, B200, B300, GB200, GB300 (DGX Station), RTX PRO 6000/5000/4500 Blackwell); not on Auto Mode |
 | **Time-slicing** | None (temporal only) | ❌ No | ✅ Yes | Dev/test density, low-utilization workloads; not on Auto Mode |
-| **DRA** | Scheduler-managed | ✅ Yes | ✅ Yes (static capacity; dynamic provisioning from 1.15 behind the `DRANVIDIAGPU` gate, not for ComputeDomains); not on Auto Mode | Fine-grained sharing on Karpenter, managed node groups, or self-managed nodes |
+| **DRA** | Scheduler-managed | ✅ Yes | ✅ Yes (static capacity; dynamic provisioning from 1.15 behind the `DRANVIDIAGPU` gate plus `--ignore-dra-requests=false`, not for ComputeDomains); not on Auto Mode | Fine-grained sharing on Karpenter, managed node groups, or self-managed nodes |
 
 ## Neuron Compilation — The Ramp Cost
 
