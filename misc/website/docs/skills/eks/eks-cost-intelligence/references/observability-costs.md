@@ -785,10 +785,6 @@ kubectl get configmap -n <logging-namespace> <fluent-bit-config> -o json | \
 kubectl get configmap -n amazon-cloudwatch \
   $(kubectl get configmap -n amazon-cloudwatch -o name | grep -i "cwagent\|cloudwatch-agent" | head -1 | cut -d'/' -f2) \
   -o json | jq -r '.data'
-
-# Check for log_filters or exclusion patterns
-kubectl get configmap -n amazon-cloudwatch cloudwatch-agent-config -o json --ignore-not-found | \
-  jq -r '.data[] | select(test("exclude|filter|blacklist"; "i"))' 
 ```
 
 ```bash

@@ -1186,7 +1186,7 @@ def run_full_correlation(cluster_name, region):
             print(f"Logs Insights also unavailable: {e2}")
             namespace_metrics = {}
             node_metrics = {}
-            partly_assessed.append("compute_efficiency")  # utilization checks only; checks 4 and 5 still scored
+            partly_assessed.append("compute_efficiency")  # utilization checks only; check 5 and, with Karpenter, check 4 still scored
 
     # --- Step 3: Collect Kubernetes resource data ---
     try:

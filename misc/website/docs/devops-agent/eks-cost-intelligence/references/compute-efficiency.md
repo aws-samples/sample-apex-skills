@@ -511,7 +511,7 @@ If metrics_server_available OR container_insights_available OR prometheus_availa
 
 If NONE available:
   → Mark checks 1, 2, 3 as SKIPPED
-  → Still run checks 4 and 5 (they don't require utilization metrics)
+  → Still run check 5 and, with Karpenter, check 4 (they don't require utilization metrics)
   → Report in findings:
       status: SKIPPED
       reason: "No metrics source available (metrics-server, Container Insights, or Prometheus)"
@@ -531,7 +531,7 @@ When metrics are unavailable, include this in the report:
 
 **Reason:** No metrics source available (metrics-server, Container Insights, or Prometheus not detected)
 
-**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. Compute Efficiency is scored on check 5 and, with Karpenter, check 4 only; their findings, listed in this section, deduct as usual.
+**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. Compute Efficiency is scored on check 5 and, with Karpenter, check 4; their findings, listed in this section, deduct as usual.
 
 **Remediation:**
 - Install metrics-server: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
