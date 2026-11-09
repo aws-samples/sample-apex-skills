@@ -266,12 +266,12 @@ replace_section() {
   local end_marker="$3"
   local new_content="$4"
 
-  if ! grep -q "$start_marker" "$file"; then
+  if ! grep -qxF -- "$start_marker" "$file"; then
     echo "ERROR: Could not find $start_marker in $file" >&2
     return 1
   fi
 
-  if ! grep -q "$end_marker" "$file"; then
+  if ! grep -qxF -- "$end_marker" "$file"; then
     echo "ERROR: Could not find $end_marker in $file" >&2
     return 1
   fi
