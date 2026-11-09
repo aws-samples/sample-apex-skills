@@ -2,8 +2,9 @@
 """Tests that the README reference scripts refuse a damaged block marker.
 
 Each script replaces the lines between a start and an end marker. A marker
-line with extra whitespace must make the script fail and leave the file
-alone, not drop the lines after the start marker or skip the update.
+line with extra whitespace, or a marker pair present twice, must make the
+script fail and leave the file alone, and a script that rewrites two files
+must not rewrite the first when the second's markers are bad.
 
 Run directly with:
 
@@ -42,6 +43,22 @@ CASES = [
         "<!-- DEVOPS_AGENT_REFERENCE_END -->",
     ),
 ]
+
+
+# Scripts that rewrite two files, the first before the second:
+# (script, paths, first file, its start marker, second file, its end marker).
+TWO_FILE_CASES = [
+    (
+        "update-skills-references.sh",
+        ["README.md", "skills", "misc/update-pages.sh"],
+        "README.md",
+        "<!-- SKILLS_REFERENCE_START -->",
+        "skills/README.md",
+        "<!-- SKILLS_DETAIL_END -->",
+    ),
+]
+# update-examples-references.sh also writes examples/README.md second, but only
+# when that file exists, and the repo has none, so it is not listed here.
 
 
 def _copy_tree(root, paths, script):
@@ -83,6 +100,16 @@ class DamagedMarkerTests(unittest.TestCase):
                 after = f.read()
         return proc, before, after
 
+    def _run_and_read(self, root, script, path):
+        with open(path, "rb") as f:
+            before = f.read()
+        proc = subprocess.run(
+            ["bash", os.path.join(root, "misc", script)], capture_output=True, text=True
+        )
+        with open(path, "rb") as f:
+            after = f.read()
+        return proc, before, after
+
     def _assert_refused(self, script, paths, target, marker, replacement):
         proc, before, after = self._run(script, paths, target, marker, replacement)
         self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
@@ -105,6 +132,32 @@ class DamagedMarkerTests(unittest.TestCase):
         for script, paths, target, start, end in CASES:
             with self.subTest(script=script):
                 self._assert_refused(script, paths, target, start, start + " ")
+
+    def test_duplicated_marker_pair_fails_and_keeps_file(self):
+        for script, paths, target, start, end in CASES:
+            with self.subTest(script=script):
+                with tempfile.TemporaryDirectory() as root:
+                    _copy_tree(root, paths, script)
+                    path = os.path.join(root, target)
+                    with open(path, "a", encoding="utf-8") as f:
+                        f.write("\n" + start + "\npasted copy\n" + end + "\n")
+                    proc, before, after = self._run_and_read(root, script, path)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertIn("exactly once", proc.stderr)
+                self.assertEqual(before, after)
+
+    def test_failed_second_file_leaves_first_file_alone(self):
+        for script, paths, first, first_start, second, second_end in TWO_FILE_CASES:
+            with self.subTest(script=script):
+                with tempfile.TemporaryDirectory() as root:
+                    _copy_tree(root, paths, script)
+                    first_path = os.path.join(root, first)
+                    # A stale first block, so a write would change the file.
+                    _damage(first_path, first_start, first_start + "\nstale line")
+                    _damage(os.path.join(root, second), second_end, " " + second_end)
+                    proc, before, after = self._run_and_read(root, script, first_path)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(before, after)
 
 
 if __name__ == "__main__":
