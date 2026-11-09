@@ -125,9 +125,9 @@ external_dns:
 
 **ImagePullSecret** -- create a `kubernetes.io/dockerconfigjson` Secret in each namespace, then inject it via Kyverno mutation policy or by patching the default ServiceAccount.
 
-**Kyverno registry restriction policy** -- deploy a `ClusterPolicy` with `validationFailureAction: Enforce` that matches all Pods and validates both `containers[*].image` and `initContainers[*].image` against an allow-list: `<REGISTRY_HOST>/*` and `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/*`. Reject anything else at admission.
+**Kyverno registry restriction policy** -- deploy a `ValidatingPolicy` (legacy: a `ClusterPolicy` with `validationFailureAction: Enforce`) that matches all Pods and validates both `containers[*].image` and `initContainers[*].image` against an allow-list: `<REGISTRY_HOST>/*` and `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/*`. Reject anything else at admission.
 
-Note: Kyverno `ClusterPolicy` (`kyverno.io/v1`) is deprecated as of Kyverno v1.19, with removal planned for v1.20 ([Kyverno policy types](https://kyverno.io/docs/policy-types/overview/)); on v1.19+ write this rule as a `ValidatingPolicy` (`policies.kyverno.io/v1`).
+Note: Kyverno `ClusterPolicy` (`kyverno.io/v1`) is deprecated as of Kyverno v1.19 ([Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)); on v1.19+ write this rule as a `ValidatingPolicy` (`policies.kyverno.io/v1`). Kyverno v1.20 (a release candidate as of 2026-11-08) no longer executes ClusterPolicy; migrate before upgrading past 1.19.
 
 ---
 
