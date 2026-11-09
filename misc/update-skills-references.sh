@@ -480,7 +480,7 @@ if $DRY_RUN; then
   exit 0
 fi
 
-# Check every marker before writing either file, so a bad marker changes nothing.
+# Check every marker before writing either file, so a missing or repeated marker changes nothing.
 check_markers "$README" "$README_START" "$README_END"
 if [[ -n "$NEW_SKILLS_SECTION" ]]; then
   check_markers "$SKILLS_README" "$SKILLS_START" "$SKILLS_END"

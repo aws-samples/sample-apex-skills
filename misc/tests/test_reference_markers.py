@@ -45,22 +45,6 @@ CASES = [
 ]
 
 
-# Scripts that rewrite two files, the first before the second:
-# (script, paths, first file, its start marker, second file, its end marker).
-TWO_FILE_CASES = [
-    (
-        "update-skills-references.sh",
-        ["README.md", "skills", "misc/update-pages.sh"],
-        "README.md",
-        "<!-- SKILLS_REFERENCE_START -->",
-        "skills/README.md",
-        "<!-- SKILLS_DETAIL_END -->",
-    ),
-]
-# update-examples-references.sh also writes examples/README.md second, but only
-# when that file exists, and the repo has none, so it is not listed here.
-
-
 def _copy_tree(root, paths, script):
     os.makedirs(os.path.join(root, "misc"))
     shutil.copy2(os.path.join(REPO_ROOT, "misc", script), os.path.join(root, "misc", script))
@@ -147,17 +131,18 @@ class DamagedMarkerTests(unittest.TestCase):
                 self.assertEqual(before, after)
 
     def test_failed_second_file_leaves_first_file_alone(self):
-        for script, paths, first, first_start, second, second_end in TWO_FILE_CASES:
-            with self.subTest(script=script):
-                with tempfile.TemporaryDirectory() as root:
-                    _copy_tree(root, paths, script)
-                    first_path = os.path.join(root, first)
-                    # A stale first block, so a write would change the file.
-                    _damage(first_path, first_start, first_start + "\nstale line")
-                    _damage(os.path.join(root, second), second_end, " " + second_end)
-                    proc, before, after = self._run_and_read(root, script, first_path)
-                self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-                self.assertEqual(before, after)
+        # Only the skills script can hit this today: the examples script writes
+        # examples/README.md second only when that file exists, and the repo has none.
+        script = "update-skills-references.sh"
+        with tempfile.TemporaryDirectory() as root:
+            _copy_tree(root, ["README.md", "skills", "misc/update-pages.sh"], script)
+            first_path = os.path.join(root, "README.md")
+            # A stale first block, so a write would change the file.
+            _damage(first_path, "<!-- SKILLS_REFERENCE_START -->", "<!-- SKILLS_REFERENCE_START -->\nstale line")
+            _damage(os.path.join(root, "skills/README.md"), "<!-- SKILLS_DETAIL_END -->", " <!-- SKILLS_DETAIL_END -->")
+            proc, before, after = self._run_and_read(root, script, first_path)
+        self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertEqual(before, after)
 
 
 if __name__ == "__main__":
