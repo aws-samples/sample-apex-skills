@@ -17,7 +17,7 @@ Covers environment-specific constraints that require modifications to the baseli
 
 ## 1. Air-Gapped / VPC-Endpoint-Only Networks
 
-Clusters with no internet egress must reach AWS services through VPC endpoints. Every image pull, Helm fetch, and API call must stay within the VPC.
+Clusters with no internet egress must reach AWS services through VPC endpoints. Every image pull, Helm fetch, and API call must stay within the VPC. One exception: when ECR is reached through interface VPC endpoints, the first pull of an image through an ECR pull-through cache rule needs a route to the internet from the VPC ([ECR pull-through cache considerations](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html)). For a VPC with no egress, seed the cache first: pull each image and tag once through its pull-through URI from a network with a route. Later pulls of that tag are served from the cache, so seed again for each new tag.
 
 **Required VPC endpoints** (all Interface type except S3 which is Gateway):
 `eks`, `eks-auth`, `ecr.api`, `ecr.dkr`, `s3` (Gateway), `sts`, `ec2`,
@@ -26,25 +26,23 @@ All interface endpoints must have private DNS enabled and share the worker node 
 
 **ECR pull-through cache** -- mirror every public registry into private ECR:
 ```bash
+# No upstream credentials needed
 aws ecr create-pull-through-cache-rule --ecr-repository-prefix ecr-public  --upstream-registry-url public.ecr.aws
-aws ecr create-pull-through-cache-rule --ecr-repository-prefix docker-hub  --upstream-registry-url registry-1.docker.io
+aws ecr create-pull-through-cache-rule --ecr-repository-prefix k8s         --upstream-registry-url registry.k8s.io
 aws ecr create-pull-through-cache-rule --ecr-repository-prefix quay        --upstream-registry-url quay.io
-aws ecr create-pull-through-cache-rule --ecr-repository-prefix ghcr        --upstream-registry-url ghcr.io
-```
 
-**containerd mirror config** via AL2023 nodeadm in `compute.yaml`:
-```yaml
-cloudinit_pre_nodeadm:
-  - content_type: application/node.eks.aws
-    content: |
-      [settings.container-registry.mirrors]
-        [settings.container-registry.mirrors."docker.io"]
-          endpoints = ["https://<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/docker-hub"]
-        [settings.container-registry.mirrors."quay.io"]
-          endpoints = ["https://<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/quay"]
-        [settings.container-registry.mirrors."ghcr.io"]
-          endpoints = ["https://<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/ghcr"]
+# Docker Hub and ghcr.io need a Secrets Manager secret (keys username, accessToken),
+# named with the ecr-pullthroughcache/ prefix, in the same account and Region as the rule
+aws secretsmanager create-secret --name ecr-pullthroughcache/docker-hub --secret-string file://docker-hub-creds.json
+aws secretsmanager create-secret --name ecr-pullthroughcache/ghcr       --secret-string file://ghcr-creds.json
+aws ecr create-pull-through-cache-rule --ecr-repository-prefix docker-hub  --upstream-registry-url registry-1.docker.io \
+  --credential-arn <DOCKER_HUB_SECRET_ARN>
+aws ecr create-pull-through-cache-rule --ecr-repository-prefix ghcr        --upstream-registry-url ghcr.io \
+  --credential-arn <GHCR_SECRET_ARN>
 ```
+Sources: [Creating a pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-creating-rule.html), [Storing upstream credentials in a Secrets Manager secret](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-creating-secret.html).
+
+Reference each image by its pull-through URI, `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<prefix>/<upstream repository>:<tag>`. For example, `quay.io/jetstack/cert-manager-controller` becomes `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/quay/jetstack/cert-manager-controller:<tag>`. Docker Hub official images need the `/library` part, as in `docker-hub/library/<image>` ([Pulling an image with a pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-working-pulling.html)). This guide sets up no node-level mirror, so every image value a chart exposes (sub-images and hook Jobs included), and every other add-on, workload and init container, needs the same rewrite. Section 3's override values and ImagePullSecret are for a separate private registry, not for these pull-through paths: build each value from the full upstream path as above. Kubelet's ECR credential provider authenticates these pulls with the node role. The principal behind an image's first pull also needs `ecr:BatchImportUpstreamImage`, plus `ecr:CreateRepository` while the cache repository does not exist yet ([IAM permissions for pull through cache](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-iam.html)). A managed node group role (`AmazonEC2ContainerRegistryReadOnly`) carries neither; Karpenter and Auto Mode node roles (`AmazonEC2ContainerRegistryPullOnly`) carry `ecr:BatchImportUpstreamImage` but not `ecr:CreateRepository`. Grant what is missing to the node role or in the registry permissions policy, or seed the cache first.
 
 **Helm chart mirroring** -- push OCI artifacts to ECR or host tarballs in S3 (reachable via the S3 gateway endpoint):
 ```bash
