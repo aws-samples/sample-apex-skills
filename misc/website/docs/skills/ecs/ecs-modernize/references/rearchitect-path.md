@@ -29,6 +29,7 @@ This is a **path module**: unlike the orchestrator-neutral analysis modules, ECS
   - [Effort Scale (Single Definition)](#effort-scale-single-definition)
   - [Framework Migration Options](#framework-migration-options)
   - [AWS Transform Applicability Guidance](#aws-transform-applicability-guidance)
+  - [Containerization Policy](#containerization-policy)
   - [Delegation to ecs-architect](#delegation-to-ecs-architect)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
@@ -67,14 +68,17 @@ Run the steps in this order:
                                                     with approximate effort
 8. Annotate AWS Transform applicability          -> recommendation only; execution belongs to
                                                     the code transformation module post-gate
-9. Assemble the output with the delegation note  -> detailed design goes to ecs-architect
+9. Present the containerization policy          -> three items for the target stack
+                                                    (Containerization Policy)
+10. Assemble the output with the delegation note -> detailed design goes to ecs-architect
 ```
 
 **Why this order:**
 
 - Candidates before items (steps 2–3 before 4): applicability judgments consume the raw findings; the modernization items then explain *what closes the gap* for candidates marked applicable-after-remediation, so the items must be derived with the candidate gaps already known.
 - Coverage verification (step 5) sits between derivation and effort classification: an unmapped blocker discovered late would invalidate the item list, so check completeness before investing in per-item classification.
-- Framework migration (step 7) and AWS Transform annotations (step 8) come last among content steps because both attach to already-derived items — they modify presentation (optionality, accelerator notes), never the underlying finding-to-item mapping.
+- Framework migration (step 7) and AWS Transform annotations (step 8) come last among the item steps because both attach to already-derived items — they modify presentation (optionality, accelerator notes), never the underlying finding-to-item mapping.
+- The containerization policy (step 9) follows them because its Item 1 is for the target runtime after porting or AWS Transform.
 
 ---
 

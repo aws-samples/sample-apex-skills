@@ -173,6 +173,8 @@ For the detected language, framework, and application server, present **all thre
 | .NET Framework (4.x and earlier) | Windows base images — governed by the [Windows_Container_Path](#windows_container_path) base-image matrix (.NET Framework version × IIS dependency) | .NET Framework does not run on Linux; the Windows section owns this selection |
 | Other detected languages | Official runtime image of the detected language at the matching version | Same version-parity rationale |
 
+**No maintained image at the matching version.** When the image's maintainers no longer publish the matching version (for example Tomcat 8.5, whose official tags stopped at 8.5.100 and get no security fixes), do not invent a tag and do not move to a newer version silently: version parity still holds. Present the base image as a user decision with two options: a base image the user builds and maintains at the current version, or an upgrade to a maintained version, which changes the runtime and so belongs to the [Rearchitect](rearchitect-path.md) path. Name the missing image and the decision in `base_image.grounds`.
+
 **Item 2 — Application-server bundling judgment (with grounds).**
 
 Decide whether the application server is bundled into the container image, and state the grounds:

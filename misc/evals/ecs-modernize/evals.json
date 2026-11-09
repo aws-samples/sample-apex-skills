@@ -71,8 +71,7 @@
       "expectations": [
         "Reports each undeterminable item (e.g. runtime version, configuration externalization) as undetermined, stating the evidence that was considered and the information that is missing",
         "Excludes undetermined Scoring_Dimensions from the Fit_Score, renormalizes the remaining weights to a 100% total while preserving their original ratios, and states that the score was computed via renormalization with the excluded dimension list; that list includes config_externalization (no configuration files to check) and omits build_reproducibility, which is scored in its 0-29 band because the readable tree has no build definition",
-        "Attaches a low-confidence note to the recommendation listing the excluded dimensions",
-        "The report includes an incomplete-analysis-items section immediately after the analysis summary describing the undetermined items, reasons, and impact on the Fit_Score"
+        "Attaches a low-confidence note to the recommendation listing the excluded dimensions"
       ],
       "files": []
     },
