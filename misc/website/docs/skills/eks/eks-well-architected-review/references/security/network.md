@@ -296,8 +296,9 @@ off with no warning. Find who is actually using the port before narrowing it:
 aws ec2 describe-network-interfaces --filters Name=group-id,Values=<SG_ID> --region <REGION> \
   --query 'NetworkInterfaces[].{Id:NetworkInterfaceId,Desc:Description,Attachment:Attachment.InstanceId}'
 # EKS Auto Mode node ENIs can be hidden from list calls like the one above, so an empty
-# result is not proof the group is unused. Check this cluster's nodes by id (nodes of
-# other clusters are not covered); any id printed uses the group:
+# result is not proof the group is unused. Check this cluster's nodes by id (pod branch
+# ENIs and other clusters' nodes are not covered); any id printed uses the group. Run in
+# bash; on InvalidInstanceID.NotFound a node was just removed, so run it again.
 IDS=$(kubectl get nodes -o jsonpath='{.items[*].spec.providerID}' | grep -oE '/i-[0-9a-f]+' | cut -c2-)
 aws ec2 describe-instances --region <REGION> --instance-ids ${IDS:?no EC2 node ids: check that kubectl points at this cluster} \
   --query "Reservations[].Instances[?contains(NetworkInterfaces[].Groups[].GroupId, '<SG_ID>')].InstanceId[]"
