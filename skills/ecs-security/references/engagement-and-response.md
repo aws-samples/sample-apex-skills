@@ -7,7 +7,7 @@ How to run an ECS security/compliance conversation: the full discovery question 
 Do NOT proceed to a recommendation without these. The first four determine ~80% of the answer, and **launch type is first** because it moves the shared-responsibility line.
 
 1. **Launch type(s)?** AWS Fargate / ECS on EC2 / ECS Managed Instances / ECS Anywhere (external) / mixed.
-2. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001 / NIST 800-53/171 / IL4-IL5 — rank primary/secondary if multiple.
+2. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (formerly Moderate baseline) / Class D (formerly High baseline) / GDPR / ISO 27001 / NIST 800-53/171 / IL4-IL5 — rank primary/secondary if multiple.
 3. **Workload sensitivity?** Public / internal-confidential / PII / PHI (HIPAA) / cardholder data (PCI) / federal / mixed.
 4. **Audit timeline?** None (greenfield posture) / <3 mo (urgent) / 3-6 mo / 6-12 mo / continuous (e.g., FedRAMP ConMon).
 5. **Network topology?** Public subnets + IGW / private subnets + NAT / fully private + VPC endpoints; single vs multi-account; multi-region; GovCloud.

@@ -6,7 +6,7 @@ How to run an EKS security/compliance conversation: the full discovery question 
 
 Do NOT proceed to a recommendation without these. The first four determine ~80% of the answer.
 
-1. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001/27017/27018 / HITRUST / NIST 800-53/171 / CJIS / DISA IL2-IL5 / industry-specific, rank primary/secondary if multiple.
+1. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (formerly Moderate baseline) / Class D (formerly High baseline) / GDPR / ISO 27001/27017/27018 / HITRUST / NIST 800-53/171 / CJIS / DISA IL2-IL5 / industry-specific, rank primary/secondary if multiple.
 2. **Workload sensitivity?** Public / internal-confidential / PII / PHI (HIPAA) / cardholder data (PCI) / federal-classified / mixed.
 3. **OS / AMI strategy?** Open to AWS defaults / Bottlerocket-first / AL2023+CIS custom AMI / Ubuntu mandate / RHEL mandate / custom hardened / EKS Auto Mode.
 4. **Audit timeline?** None (greenfield posture) / <3 mo (urgent) / 3-6 mo / 6-12 mo / continuous (e.g., FedRAMP ConMon).
