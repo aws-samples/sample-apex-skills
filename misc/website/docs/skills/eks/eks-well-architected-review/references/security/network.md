@@ -296,7 +296,7 @@ off with no warning. Find who is actually using the port before narrowing it:
 aws ec2 describe-network-interfaces --filters Name=group-id,Values=<SG_ID> --region <REGION> \
   --query 'NetworkInterfaces[].{Id:NetworkInterfaceId,Desc:Description,Attachment:Attachment.InstanceId}'
 # EKS Auto Mode node ENIs are hidden from list calls like the one above by default, so an empty result is not proof the group is unused. Check the nodes by id:
-aws ec2 describe-instances --region <REGION> --instance-ids $(kubectl get nodes -o jsonpath='{.items[*].spec.providerID}' | grep -o 'i-[0-9a-f]*') \
+aws ec2 describe-instances --region <REGION> --instance-ids $(kubectl get nodes -o jsonpath='{.items[*].spec.providerID}' | grep -oE '/i-[0-9a-f]+' | cut -c2-) \
   --query 'Reservations[].Instances[].{Id:InstanceId,Groups:NetworkInterfaces[].Groups[].GroupId}'
 # Cross-check against VPC Flow Logs for the source IPs actually hitting this port, and any
 # documented partner/office CIDR or load balancer health-check range before revoking.
