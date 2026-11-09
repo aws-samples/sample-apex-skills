@@ -560,8 +560,7 @@ class RenderReport(TmpCase):
         self.assertEqual(rc, 0, log)
         for text in ("No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and that "
                      "the NodePools have nodes, then re-run collect",
-                     "A range bound carries an eksbuild number, which is not compared; compare the add-on build with "
-                     "the advisory by hand",
+                     "To resolve: Compare the build with the advisory by hand.",
                      "The installed version names no patch release; find the patch release (for the control plane, "
                      "from its platform version) and compare by hand"):
             self.assertIn(text, md)

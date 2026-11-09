@@ -61,7 +61,7 @@ Exit codes: 0 ok; 2 usage or validation error (one JSON line with `code` on stdo
 
 ## C1: CVE and advisory review
 
-1. **Collect.** `collect.sh --cluster <c> --region <r>` (add `--preflight-only` first to check access). Reads control plane and platform version, every add-on and its available versions, `kube-system` and named-namespace images with digests, per-node OS image, kernel, kubelet and runtime, AMIs, ECR scanning configuration and Inspector findings for running images. `ok` is true only when every Kubernetes read is allowed; any `denied` or `error` entry becomes unknown in the report.
+1. **Collect.** `collect.sh --cluster <c> --region <r>` (add `--preflight-only` first to check access). Reads control plane and platform version, every add-on and its available versions, `kube-system` and named-namespace images with digests, per-node OS image, kernel, kubelet and runtime, AMIs, ECR scanning configuration and Inspector findings for running images. With `--preflight-only`, `ok` is true only when every Kubernetes read is allowed; a full run prints `ok: true` once the inventory is built, lists the preflight probes that were not `ok` (denied or error, Kubernetes and AWS) in `preflight_not_ok` and counts every failed read in `errors` (details in meta.json); a read that failed shows as unknown in the report.
 2. **Get the advisory as a record.**
    - Structured source (repository GHSA, Kubernetes CVE feed, ALAS, Bottlerocket): `advisory_fetch.py` writes records directly. Kubernetes feed, ALAS and Bottlerocket items carry no comparable range: they are listed for manual review (`unknown`), never compared.
    - AWS bulletin (free text): `advisory_fetch.py --url <url> --save <page>`; the model reads the saved page and writes one record whose every affected line is a verbatim quote; `advisory_check.py` refuses the whole record if any quote, component id or range fails.
@@ -118,7 +118,7 @@ The right hardening stack depends on *(compliance regime × OS mandate × team s
 
 Do not recommend a hardening stack before answering these; the first four decide most of it.
 
-1. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001 / HITRUST / NIST 800-53/171 / CJIS / DISA IL5.
+1. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (formerly Moderate baseline) / Class D (formerly High baseline) / GDPR / ISO 27001 / HITRUST / NIST 800-53/171 / CJIS / DISA IL5.
 2. **Workload sensitivity?** Public / internal / PII / PHI / cardholder data / federal.
 3. **OS / AMI strategy?** AWS defaults / Bottlerocket-first / AL2023+CIS custom AMI / Ubuntu or RHEL mandate / custom hardened / EKS Auto Mode.
 4. **Audit timeline?** None / under 3 months / 3-6 / 6-12 / continuous.
@@ -230,7 +230,7 @@ Each row links its AWS source; re-read the linked page before quoting a row to a
 
 ### Escalation
 
-Escalate (your AWS account team) for: first-time certification of a mission-critical regulated workload; FedRAMP High or GovCloud; classified workloads (out of scope); EKS Anywhere or Hybrid Nodes inside a FedRAMP boundary; multi-tenant SaaS with cross-tenant PHI, cardholder or federal isolation; customer and auditor disagreeing on an AWS-managed control; an exposed finding the team cannot remediate within its patch window; or any claim you cannot ground. Criteria: [engagement-and-response.md](references/engagement-and-response.md).
+Escalate (your AWS account team) for: first-time certification of a mission-critical regulated workload; FedRAMP Class D (formerly High baseline) or GovCloud; classified workloads (out of scope); EKS Anywhere or Hybrid Nodes inside a FedRAMP boundary; multi-tenant SaaS with cross-tenant PHI, cardholder or federal isolation; customer and auditor disagreeing on an AWS-managed control; an exposed finding the team cannot remediate within its patch window; or any claim you cannot ground. Criteria: [engagement-and-response.md](references/engagement-and-response.md).
 
 ## How to use the references
 

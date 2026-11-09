@@ -786,7 +786,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.com
 - 0% compliance → `none`
 - For boolean: present/true → `all`, absent/false → `none`
 
-**Remediation:** Deploy Karpenter or Cluster Autoscaler: `helm install karpenter oci://public.ecr.aws/karpenter/karpenter --version <VERSION> --namespace kube-system --set settings.clusterName=<CLUSTER>`, after creating the IAM roles its guide lists (https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/). Configure NodePools for automatic scaling.
+**Remediation:** Deploy Karpenter or Cluster Autoscaler: `helm install karpenter oci://public.ecr.aws/karpenter/karpenter --namespace kube-system --set settings.clusterName=<CLUSTER>`, after creating the IAM roles its guide lists (https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/). Configure NodePools for automatic scaling.
 If one is deployed but not ready, this check does not credit it: find out why with `kubectl describe deployment <name> -n <namespace>`, `kubectl describe pod <pod> -n <namespace>` and `kubectl logs <pod> -n <namespace> --previous`, and fix that rather than installing a second one.
 
 **Not applicable to an EKS Hybrid Node** — neither Cluster Autoscaler nor Karpenter can create or remove one. Hybrid capacity is provisioned by you and joined with `nodeadm`.

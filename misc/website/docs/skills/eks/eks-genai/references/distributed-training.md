@@ -225,11 +225,22 @@ Ray Train (training)
 
 MLflow runs as a Deployment on the CPU NodePool — tracks experiments, stores model artifacts (S3 backend), manages model versions. Deploy via Helm:
 
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+
 ```bash
-helm install mlflow community-charts/mlflow \
+helm repo add community-charts https://community-charts.github.io/helm-charts
+helm install mlflow community-charts/mlflow --version <chart-version> \
   --set backendStore.postgres.enabled=true \
-  --set artifactRoot=s3://my-mlflow-artifacts/
+  --set backendStore.postgres.host=<postgres-host> \
+  --set backendStore.postgres.database=<database> \
+  --set backendStore.existingDatabaseSecret.name=<secret-name> \
+  --set artifactRoot.s3.enabled=true \
+  --set artifactRoot.s3.bucket=my-mlflow-artifacts
 ```
+
+The `<secret-name>` Secret holds the database user and password under the keys `username` and `password` (the chart's `usernameKey` and `passwordKey` defaults).
+
+The S3 artifact root also needs AWS credentials: an IAM role on the MLflow service account (IRSA or EKS Pod Identity), or the chart's `artifactRoot.s3.awsAccessKeyId` and `awsSecretAccessKey` values.
 
 ### Argo Workflows
 
