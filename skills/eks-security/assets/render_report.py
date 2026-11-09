@@ -47,8 +47,8 @@ UNKNOWN_ACTION = {
     "digest_only": "The image is pinned by digest only; map the digest to its release in the registry",
     "unparsed": "The version string did not parse; read it by hand and record it",
     "no_fix_date": "Find the time AWS released the fix for Auto Mode, record it as fixed_at with its source line, "
-                   "and run match again (Auto Mode release notes: "
-                   "https://docs.aws.amazon.com/eks/latest/userguide/auto-change.html)",
+                   "and run match again (take the fix date from the advisory's source; the Auto Mode release notes "
+                   "list no security fixes)",
     "no_version_range": "Compare the installed version with the advisory by hand",
     "bad_range": "Correct the record's range, check it with advisory_check.py and run match again",
     "no_nodes_read": "No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and "

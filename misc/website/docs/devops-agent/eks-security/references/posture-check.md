@@ -36,7 +36,7 @@ These rules are the Claude Code skill's `posture_reduce.sh` rules.
 
 | Id | Check | Reads the agent makes | Rule | Severity |
 |---|---|---|---|---|
-| SEC-POSTURE-46 (lens-11) | IMDSv2 required on every node | `aws ec2 describe-instances` for the cluster's node instances: `MetadataOptions.HttpTokens` | Per running instance: pass when `required`; bucketed over instances | high |
+| SEC-POSTURE-46 (lens-11) | IMDSv2 required on every node | `aws ec2 describe-instances` for the cluster's node instances, by tag filter plus `--instance-ids` for every node the filter misses (ids from `kubectl get nodes` providerIDs; Auto Mode instances created after 2026-04-22 are hidden from filter calls): `MetadataOptions.HttpTokens` | Per running instance: pass when `required`; bucketed over instances | high |
 | SEC-POSTURE-55 | Pods cannot reach IMDS | same read: `HttpEndpoint`, `HttpTokens`, `HttpPutResponseHopLimit`; `kubectl get nodes -o json` to tell Auto Mode nodes (label `eks.amazonaws.com/compute-type: auto`) | Per running Linux instance: pass when the endpoint is `disabled`, or `HttpTokens` is `required` with hop limit 1; bucketed; list the failing instances by node type (managed node group, Karpenter node pool, Auto Mode, other); Windows not assessed; no Linux instance: na | high |
 | Port only: node role | Node role carries only node permissions | `aws eks describe-nodegroup` `nodeRole` (Auto Mode: NodeClass `spec.role`); `aws iam list-attached-role-policies` and `list-role-policies` for that role | pass: only the EKS worker node, CNI and ECR pull managed policies; fail: any other attached or inline policy, named. Reported, not scored | high |
 
