@@ -78,7 +78,7 @@ Run the steps in this order:
 - Candidates before items (steps 2–3 before 4): applicability judgments consume the raw findings; the modernization items then explain *what closes the gap* for candidates marked applicable-after-remediation, so the items must be derived with the candidate gaps already known.
 - Coverage verification (step 5) sits between derivation and effort classification: an unmapped blocker discovered late would invalidate the item list, so check completeness before investing in per-item classification.
 - Framework migration (step 7) and AWS Transform annotations (step 8) come last among the item steps because both attach to already-derived items — they modify presentation (optionality, accelerator notes), never the underlying finding-to-item mapping.
-- The containerization policy (step 9) follows them because its Item 1 uses the runtime after porting or AWS Transform, and its Item 3 follows the `config_env_vars` and `secret_externalization` items.
+- The containerization policy (step 9) follows them because its Item 1 is for the target runtime after porting or AWS Transform.
 
 ---
 
