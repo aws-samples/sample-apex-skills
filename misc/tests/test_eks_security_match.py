@@ -574,7 +574,8 @@ class RenderReport(TmpCase):
         fd, inv = self.patched_fixture()
         rc, md, ht, log = self.render(fd, inv)
         self.assertEqual(rc, 0, log)
-        self.assertIn("confirm each NodePool's AMI and OS image listed below against the release note", md)
+        self.assertIn("confirm each NodePool's OS image against the fixed version the advisory names, when it names "
+                      "one.", md)
         self.assertIn("| NodePool | OS image | AMI | Nodes | Oldest node created |", md)
         self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 | "
                       "2026-11-02T01:00:00Z |", md)
@@ -585,15 +586,17 @@ class RenderReport(TmpCase):
             self.assertIn(cell, ht)
         self.assertNotIn("ami-0ccc3333dddd4444e", ht)
 
-    def test_patched_without_inventory_says_how_to_list(self):
-        # A1: with no --inventory there is no table, and the report says how to get one
+    def test_patched_table_skips_pending_pool(self):
+        # M1: a node-os finding is judged on its own pool, so a pending pool is not listed under AWS-patched
         fd, inv = self.patched_fixture()
-        rc, md, ht, log = self.render(fd)
+        base = fd["findings"][-1]
+        fd["findings"][-1] = dict(base, component="node-os:general-purpose")
+        fd["findings"].append(dict(base, component="node-os:system", verdict="aws_managed_rotation_pending",
+                                   nodes_pending=["i-c"]))
+        rc, md, ht, log = self.render(fd, inv)
         self.assertEqual(rc, 0, log)
-        self.assertNotIn("| NodePool | OS image | AMI |", md)
-        self.assertIn("The Auto Mode NodePools' OS images and AMIs are not listed because no inventory was given: run "
-                      "render\\_report.py with --inventory to list them.", md)
-        self.assertIn("no inventory was given: run render_report.py with --inventory to list them.", ht)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)
+        self.assertNotIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read |", md)
 
     def test_unknown_actions_for_nodes_build_and_minor(self):
         # S2: no_nodes_read, eks_build and minor_only each get their own action, not the generic one
@@ -938,6 +941,23 @@ class CollectReadOnly(TmpCase):
         self.assertEqual(v["image:aws-node/aws-network-policy-agent"], ("exposed", "P1"))
         self.assertEqual(v["addon:vpc-cni"][0], "unknown")
         self.assertEqual(doc["overall"], "exposed")
+
+    @NEEDS_JQ
+    def test_collect_hidden_instance_found_by_id(self):
+        # M2: an Auto Mode instance hidden from the filter call is looked up by its instance id
+        cc = CASES["collect"]
+        aws = dict(cc["aws"], **{"ec2 describe-instances": {"json": {"Reservations": []},
+                                                            "if_arg": {"--instance-ids": cc["aws"]["ec2 describe-instances"]}}})
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                                 {"aws": aws, "kubectl": cc["kubectl"], "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        by_id = [c["args"] for c in calls if c["args"][:2] == ["ec2", "describe-instances"] and "--instance-ids" in c["args"]]
+        self.assertEqual(len(by_id), 1, by_id)
+        self.assertIn("i-0abc123", by_id[0])
+        with open(os.path.join(work, "inventory.json"), encoding="utf-8") as f:
+            amis = {c.get("ami") for c in json.load(f)["components"] if c.get("kind") == "node-os"}
+        self.assertIn("ami-0123456789abcdef0", amis)
 
     @NEEDS_JQ
     def test_collect_preflight_partial_k8s_not_ok(self):

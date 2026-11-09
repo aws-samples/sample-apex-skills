@@ -230,6 +230,15 @@ if [ "$ST_NODES" = ok ]; then
       jq -c '.Reservations[]?' "$OUT/.in.json" >>"$OUT/.inst.jsonl"
     fi
   done < <(jq -r '[.items[]?.spec.providerID // empty | capture("(?<id>i-[0-9a-f]+)$").id] | unique | _nwise(100) | join(",")' "$OUT/nodes.json")
+  # Auto Mode instances can be hidden from list and filter calls; a lookup by instance id still returns them
+  # (EKS User Guide automode-learn-instances.html, "Managed resource visibility"). One id per call.
+  seen="$(jq -r '.Instances[]?.InstanceId' "$OUT/.inst.jsonl")"
+  while read -r id; do
+    [ -n "$id" ] || continue
+    if call "$OUT/.in.json" "describe-instances:$id" aws ec2 describe-instances --region "$REGION" --instance-ids "$id"; then
+      jq -c '.Reservations[]?' "$OUT/.in.json" >>"$OUT/.inst.jsonl"
+    fi
+  done < <(jq -r --arg seen "$seen" '($seen | split("\n")) as $s | [.items[]?.spec.providerID // empty | capture("(?<id>i-[0-9a-f]+)$").id] | unique | .[] | select(IN($s[]) | not)' "$OUT/nodes.json")
   jq -s '{Reservations:.}' "$OUT/.inst.jsonl" >"$OUT/instances.json"
   amis="$(jq -r '[.Reservations[].Instances[].ImageId // empty] | unique | join(",")' "$OUT/instances.json")"
   if [ -n "$amis" ]; then
