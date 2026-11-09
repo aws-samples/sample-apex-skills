@@ -1723,7 +1723,7 @@ if [ -f "$WORK/nodes.json" ] && [ -f "$WORK/instances.json" ]; then
   # providerID and `eks.amazonaws.com/compute-type=hybrid`. NEITHER is backed by an EC2 instance, so a
   # Fargate-only or hybrid-only cluster legitimately has zero instances and must not trip this. Counting
   # hybrid nodes as EC2 would make this canary fire on every hybrid-only cluster and refuse the run with
-  # "EKS Auto Mode hides managed instances from list APIs" -- a cause that has nothing to do with the
+  # "EKS Auto Mode can hide managed instances from list APIs" -- a cause that has nothing to do with the
   # cluster in front of it -- while the SCOPE-PLATFORMS block in references/workflow.md says such a cluster is "not
   # refused".
   #
@@ -1819,7 +1819,7 @@ if [ -f "$WORK/nodes.json" ] && [ -f "$WORK/instances.json" ]; then
     INVALID="$INVALID was NOT checked -- do not read this as a pass; re-collect both files)"
   elif [ "$EC2_NODES" -gt 0 ] && [ "$INST_TOTAL" -eq 0 ]; then
     INVALID="$INVALID instances.json(NOT COLLECTED: ${EC2_NODES} EC2 node(s) in nodes.json but"
-    INVALID="$INVALID zero EC2 instances -- EKS Auto Mode hides managed instances from list APIs and the"
+    INVALID="$INVALID zero EC2 instances -- EKS Auto Mode can hide managed instances from list APIs and the"
     INVALID="$INVALID instance-id fallback also came back empty; lens-11/sec-21/cost-8 would score 0/0)"
   elif [ -n "$MISSING_IIDS" ]; then
     _nm=0; for _i in $MISSING_IIDS; do _nm=$((_nm+1)); done
@@ -1855,7 +1855,7 @@ if [ -f "$WORK/volumes.json" ] && [ -f "$WORK/instances.json" ] && [ -f "$WORK/p
     _nm=0; for _v in $MISSING_VOLS; do _nm=$((_nm+1)); done
     INVALID="$INVALID volumes.json(INCOMPLETE: ${_nm} of the ${EBS_EXPECTED} EBS volume id(s) referenced by the"
     INVALID="$INVALID collected instances or PersistentVolumes are not in it -- the describe-volumes"
-    INVALID="$INVALID --volume-ids lookup for them failed (see the WARN line(s) above; EKS Auto Mode hides"
+    INVALID="$INVALID --volume-ids lookup for them failed (see the WARN line(s) above; EKS Auto Mode can hide"
     INVALID="$INVALID its volumes from the list call); sec-21/cost-8 would grade a subset)"
   fi
 fi
