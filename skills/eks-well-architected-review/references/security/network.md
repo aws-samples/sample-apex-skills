@@ -284,9 +284,12 @@ off with no warning. Find who is actually using the port before narrowing it:
 ```bash
 aws ec2 describe-network-interfaces --filters Name=group-id,Values=<SG_ID> --region <REGION> \
   --query 'NetworkInterfaces[].{Id:NetworkInterfaceId,Desc:Description,Attachment:Attachment.InstanceId}'
-# EKS Auto Mode node ENIs are hidden from list calls like the one above by default, so an empty result is not proof the group is unused. Check the nodes by id:
-aws ec2 describe-instances --region <REGION> --instance-ids $(kubectl get nodes -o jsonpath='{.items[*].spec.providerID}' | grep -oE '/i-[0-9a-f]+' | cut -c2-) \
-  --query 'Reservations[].Instances[].{Id:InstanceId,Groups:NetworkInterfaces[].Groups[].GroupId}'
+# EKS Auto Mode node ENIs can be hidden from list calls like the one above, so an empty
+# result is not proof the group is unused. Check this cluster's nodes by id (nodes of
+# other clusters are not covered); any id printed uses the group:
+IDS=$(kubectl get nodes -o jsonpath='{.items[*].spec.providerID}' | grep -oE '/i-[0-9a-f]+' | cut -c2-)
+aws ec2 describe-instances --region <REGION> --instance-ids ${IDS:?no EC2 node ids: check that kubectl points at this cluster} \
+  --query "Reservations[].Instances[?contains(NetworkInterfaces[].Groups[].GroupId, '<SG_ID>')].InstanceId[]"
 # Cross-check against VPC Flow Logs for the source IPs actually hitting this port, and any
 # documented partner/office CIDR or load balancer health-check range before revoking.
 ```
