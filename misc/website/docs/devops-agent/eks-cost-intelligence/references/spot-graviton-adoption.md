@@ -631,12 +631,10 @@ If spot_node_count > 0:
 
 ### Remediation
 
-**Chart version:** `<chart-version>` is for the reader to fill in. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
-
 ```bash
 # Install AWS Node Termination Handler via Helm (chart on Amazon ECR Public)
 helm install aws-node-termination-handler \
-  oci://public.ecr.aws/aws-ec2/helm/aws-node-termination-handler --version <chart-version> \
+  oci://public.ecr.aws/aws-ec2/helm/aws-node-termination-handler \
   --namespace kube-system \
   --set enableSpotInterruptionDraining=true \
   --set enableRebalanceMonitoring=true \

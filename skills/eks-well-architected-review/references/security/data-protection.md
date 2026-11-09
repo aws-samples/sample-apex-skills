@@ -58,7 +58,7 @@ kubectl get deployments -A -o json
 
 **Remediation:** Deploy External Secrets Operator: `helm repo add external-secrets https://charts.external-secrets.io && helm repo update && helm install external-secrets external-secrets/external-secrets --version <chart-version>`. Migrate K8s Secrets to AWS Secrets Manager references.
 
-**Chart version:** `<chart-version>` is for the reader to fill in, here and at every other `<chart-version>` in this file. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
+**Chart version:** this applies here and at every other `<chart-version>` in this file. Before writing the report, look up the chart's current version yourself (read only: its Artifact Hub page or releases page, or `helm search repo <chart> --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
 
 ---
 

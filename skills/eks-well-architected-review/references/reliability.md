@@ -789,7 +789,7 @@ aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.com
 **Remediation:** Deploy Karpenter or Cluster Autoscaler: `helm install karpenter oci://public.ecr.aws/karpenter/karpenter --version <chart-version> --namespace kube-system --set settings.clusterName=<CLUSTER>`, after creating the IAM roles its guide lists (https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/). Configure NodePools for automatic scaling.
 If one is deployed but not ready, this check does not credit it: find out why with `kubectl describe deployment <name> -n <namespace>`, `kubectl describe pod <pod> -n <namespace>` and `kubectl logs <pod> -n <namespace> --previous`, and fix that rather than installing a second one.
 
-**Chart version:** `<chart-version>` is for the reader to fill in, here and at every other `<chart-version>` in this file. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
+**Chart version:** this applies here and at every other `<chart-version>` in this file. Before writing the report, look up the chart's current version yourself (read only: its Artifact Hub page or releases page, or `helm search repo <chart> --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
 
 **Not applicable to an EKS Hybrid Node** — neither Cluster Autoscaler nor Karpenter can create or remove one. Hybrid capacity is provisioned by you and joined with `nodeadm`.
 

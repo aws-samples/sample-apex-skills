@@ -41,10 +41,8 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
 
 2. Upgrade AWS LB Controller to **≥ v3.0.0** (the Gateway API production floor; the newest release of the **v3.5.0** line is the recommended target) — still required on EKS Auto Mode, whose built-in controller does not provide Gateway API. There is **no `aws-load-balancer-controller` EKS add-on** — it is not in the AWS add-on catalog nor the community add-on list, so install and upgrade go through Helm (or the release manifests):
    ```
-   helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller --version <chart-version> -n kube-system --set clusterName=<cluster-name> --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
+   helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=<cluster-name> --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
    ```
-
-   **Chart version:** `<chart-version>` is for the reader to fill in. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
 
 3. Create GatewayClass:
    ```yaml

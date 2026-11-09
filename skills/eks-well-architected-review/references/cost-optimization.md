@@ -582,7 +582,7 @@ kubectl get deployments -A -o json
 
 **Remediation:** Deploy Kubecost or OpenCost for cost visibility: `helm repo add kubecost https://kubecost.github.io/kubecost/ && helm repo update && helm install kubecost kubecost/kubecost --version <chart-version> --namespace kubecost --create-namespace --set global.clusterId=<cluster-name>` or deploy OpenCost via Helm.
 
-**Chart version:** `<chart-version>` is for the reader to fill in. Quote the command as written and tell the reader to look up the chart's current version (its Artifact Hub page or releases page) and pin it, or drop `--version` for the newest; never put a guessed version in the report.
+**Chart version:** Before writing the report, look up the chart's current version yourself (read only: its Artifact Hub page or releases page, or `helm search repo <chart> --versions`) and write that number in place of `<chart-version>`, with the lookup's date and source. If the lookup fails, say so in the report and never guess a version.
 
 ---
 
