@@ -259,7 +259,7 @@ build_examples_detail() {
   done <<< "$readmes"
 }
 
-# --- Check that each marker is exactly one whole line in a file ---
+# --- Check that each marker is exactly one whole line in a file, start above end ---
 check_markers() {
   local file="$1" marker n
   for marker in "$2" "$3"; do
@@ -273,8 +273,8 @@ check_markers() {
     fi
   done
   local start_line end_line
-  start_line=$(grep -nxF -- "$2" "$file" | cut -d: -f1)
-  end_line=$(grep -nxF -- "$3" "$file" | cut -d: -f1)
+  start_line=$(grep -anxF -- "$2" "$file" | cut -d: -f1)
+  end_line=$(grep -anxF -- "$3" "$file" | cut -d: -f1)
   if (( start_line > end_line )); then
     echo "ERROR: $2 must come before $3 in $file" >&2
     return 1
