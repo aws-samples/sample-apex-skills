@@ -704,8 +704,13 @@ Whether the required metrics sources (metrics-server, Container Insights, or Pro
 ```bash
 # Test if metrics-server is responding
 kubectl top nodes --no-headers 2>&1 | head -1
-# If output contains "error" or "Metrics API not available" → unavailable
+# Rows → available
+# "Metrics API not available" (metrics.k8s.io not served) → absent
+# "Forbidden" / "nodes.metrics.k8s.io is forbidden" → denied: the read is UNKNOWN, not absent
+# Any other error → UNKNOWN
 ```
+
+A denied read says nothing about whether metrics-server is installed: kubectl prints `Metrics API not available` only when API discovery does not list `metrics.k8s.io` ([kubectl top_node.go](https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/top/top_node.go)), and a caller without `list` on `nodes.metrics.k8s.io` gets the API server's `nodes.metrics.k8s.io is forbidden: User "<user>" cannot list resource "nodes" in API group "metrics.k8s.io" at the cluster scope` ([apiserver forbidden message](https://github.com/kubernetes/apiserver/blob/master/pkg/endpoints/handlers/responsewriters/errors.go)). On denied, name the permission (`list` on `nodes.metrics.k8s.io` and `pods.metrics.k8s.io`), ask the user whether metrics-server is installed, and give setup steps only if it is not.
 
 **Step 2: Check Container Insights availability**
 
@@ -713,23 +718,26 @@ kubectl top nodes --no-headers 2>&1 | head -1
 # Check if amazon-cloudwatch-observability add-on is installed
 aws eks describe-addon --cluster-name <cluster> \
   --addon-name amazon-cloudwatch-observability \
-  --query 'addon.status' 2>/dev/null
+  --query 'addon.status'
+# ResourceNotFoundException → absent; AccessDeniedException → denied (UNKNOWN)
 
 # Alternative: check for CloudWatch agent pods
 kubectl get pods -n amazon-cloudwatch -l app.kubernetes.io/name=cloudwatch-agent \
-  --no-headers 2>/dev/null | wc -l
+  --no-headers
+# No rows → absent; Forbidden → denied (UNKNOWN)
 ```
 
 **Step 3: Check Prometheus availability**
 
 ```bash
 # Check for Prometheus/AMP (common deployment patterns)
-kubectl get pods --all-namespaces -l app=prometheus --no-headers 2>/dev/null | wc -l
-kubectl get pods --all-namespaces -l app.kubernetes.io/name=prometheus --no-headers 2>/dev/null | wc -l
+kubectl get pods --all-namespaces -l app=prometheus --no-headers
+kubectl get pods --all-namespaces -l app.kubernetes.io/name=prometheus --no-headers
 
 # Check for Amazon Managed Prometheus (AMP) via ADOT collector
 kubectl get pods --all-namespaces -l app.kubernetes.io/name=adot-collector \
-  --no-headers 2>/dev/null | wc -l
+  --no-headers
+# No rows → absent; Forbidden → denied (UNKNOWN); never count a failed list as 0
 ```
 
 **Via EKS MCP Server:**
@@ -749,11 +757,11 @@ list_eks_addons(cluster_name="<cluster>")
 ### Degradation behavior
 
 ```
-metrics_server_available = (kubectl top nodes succeeds)
-container_insights_available = (CloudWatch add-on is ACTIVE)
-prometheus_available = (Prometheus pods running)
+metrics_server = available | absent | denied (kubectl top nodes, Step 1)
+container_insights = available (CloudWatch add-on is ACTIVE) | absent | denied
+prometheus = available (Prometheus pods running) | absent | denied
 
-If metrics_server_available OR container_insights_available OR prometheus_available:
+If any source is available:
   → Proceed with utilization-based checks (1, 2, 3)
   → Use best available source (prefer Container Insights for historical P95)
 
@@ -762,9 +770,13 @@ If NONE available:
   → Still run check 5 and, with Karpenter, check 4 (they don't require utilization metrics)
   → Report in findings:
       status: SKIPPED
-      reason: "No metrics source available (metrics-server, Container Insights, or Prometheus)"
+      If every source is absent:
+        reason: "No metrics source available (metrics-server, Container Insights, or Prometheus)"
+        remediation: "Install metrics-server (kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml) or enable Container Insights add-on"
+      If any source read is denied:
+        reason: "Read not completed (UNKNOWN): <source> read denied (<observed error>)"
+        remediation: name the missing permission (metrics-server: list on nodes.metrics.k8s.io and pods.metrics.k8s.io; Container Insights: eks:DescribeAddon; Prometheus: list on pods), then ask the user whether that source is installed; give the setup steps above only if it is not
       impact: "Cannot assess CPU/memory utilization ratios or detect idle nodes"
-      remediation: "Install metrics-server (kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml) or enable Container Insights add-on"
 ```
 
 ### SKIPPED output format
@@ -777,11 +789,12 @@ When metrics are unavailable, include this in the report:
 **Checks completed:** {Check 4 if Karpenter: Karpenter consolidation,} missing resource requests/limits
 **Checks skipped:** CPU/memory utilization ratios, over-provisioned workloads, idle node detection
 
-**Reason:** No metrics source available (metrics-server, Container Insights, or Prometheus not detected)
+**Reason:** {No metrics source available (metrics-server, Container Insights, or Prometheus not detected) | Read not completed (UNKNOWN): {source} read denied ({observed error})}
 
 **Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. Compute Efficiency is scored on check 5 and, with Karpenter, check 4; their findings, listed in this section, deduct as usual.
 
 **Remediation:**
+{If a read was denied: - Grant the missing permission: {permission, e.g. `list` on `nodes.metrics.k8s.io` and `pods.metrics.k8s.io`}. List the setup steps below only for a source the user says is not installed.}
 - Install metrics-server: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
 - Or enable Container Insights: `aws eks create-addon --cluster-name <cluster> --addon-name amazon-cloudwatch-observability`
 - Or deploy Prometheus with kube-state-metrics

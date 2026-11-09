@@ -120,7 +120,7 @@ Do NOT proceed if cluster status is not ACTIVE.
 
 For each kubectl target, compare the candidate context's server (`kubectl --context <ctx> config view --minify -o jsonpath='{.clusters[0].cluster.server}'`) with the endpoint from `aws eks describe-cluster --name <cluster> --region <region>`. Complete this comparison before issuing Kubernetes requests. Accept a matching alias. If no context matches, stop and ask the user to add the target's kubeconfig entry. Leave current-context unchanged. Every kubectl command in this skill runs with `--context <verified-context>` added, even where the example omits it. For MCP instead, match the active connection to the intended cluster ARN or endpoint before reading. Stop if the binding cannot be verified. Read nodes, namespaces, pods and deployments through the verified connection before scoring, including delegated assessments. If a core read fails, stop without a score. Other denied reads make their dependent checks UNKNOWN; apply the dimension coverage rule in `references/report-generation.md`. On denial, report the failed read. Use the cluster's authentication mode and any available access-entry information to diagnose it. A denied entry listing leaves the entries unverified.
 
-**Access pre-flight (advisory, kubectl only).** In Step 0, before Step 1, run `kubectl --context <verified-context> auth can-i <verb> <resource>` (adding `-n <ns>` or `--subresource=<sub>` as the read needs) for each read the six dimension files run (take the list from their kubectl commands), and tell the user each `no` before the run. A `no`, `yes` or error decides nothing; every read still runs and its result decides.
+**Access pre-flight (advisory, kubectl only).** In Step 0, before Step 1, run `kubectl --context <verified-context> auth can-i <verb> <resource>` (adding `-n <ns>` or `--subresource=<sub>` as the read needs) for each read the six dimension files run (take the list from their kubectl commands; `kubectl top` reads `nodes.metrics.k8s.io` and `pods.metrics.k8s.io`), and tell the user each `no` before the run. A `no`, `yes` or error decides nothing; every read still runs and its result decides.
 
 Collect:
 - Kubernetes version and platform version
@@ -148,7 +148,7 @@ Checks:
 - Workloads without resource requests or limits
 - Fargate pod request right-sizing against Fargate's vCPU/memory combinations — only when Step 0 found Fargate profiles (read `references/fargate-costs.md`, Check F1)
 
-If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed.
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed. A denied metrics read (`Forbidden`) is UNKNOWN, not "no source": name the missing permission, ask the user whether that source is installed, and give setup steps only if it is not (`references/compute-efficiency.md`, metrics availability).
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
