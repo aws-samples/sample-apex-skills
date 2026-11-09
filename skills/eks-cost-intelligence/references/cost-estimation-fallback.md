@@ -202,7 +202,7 @@ Use this table ONLY when:
 **Pricing adjustments:**
 - **Spot instances:** Apply ~70% discount → `spot_rate ≈ on_demand_rate × 0.30` (see Spot pricing note below)
 - **Graviton (arm64):** The table covers Graviton2 and Graviton3 (`6g` and `7g`) only; for a Graviton4 or later target use the Price List API (Option B). The gap depends on generation, see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1
-- **Other regions:** Rates differ from us-east-1; **use Price List API (Option B) for accuracy**
+- **Other regions:** Rates can differ from us-east-1; **use Price List API (Option B) for accuracy**
 - **Unknown instance type:** Use the Price List API. If unavailable, default to $0.192/hour (m5.xlarge equivalent) and flag as Low confidence
 
 > **Spot pricing note:** The 70% discount (30% of On-Demand) is a conservative average. Actual Spot discounts vary by instance type, region, and AZ (range: 40–90%). For accurate Spot pricing, query live Spot prices:
@@ -642,7 +642,7 @@ Include this section in the report's Methodology & Confidence Notes:
 
 1. **No Savings Plans / Reserved Instances reflected** — Node-based estimation uses On-Demand rates; actual cost may be lower if SP/RI coverage exists
 2. **Spot pricing is approximate when using default 65% discount** — Real Spot prices fluctuate; query `describe-spot-price-history` for accuracy. The 30% of On-Demand is a conservative average.
-3. **Region pricing differences** — Reference table uses us-east-1; other regions differ. **Always use the Price List API (Option B) for non-us-east-1 regions.**
+3. **Region pricing differences** — Reference table uses us-east-1; other regions may differ. **Always use the Price List API (Option B) for non-us-east-1 regions.**
 4. **No data transfer costs** — This method estimates compute only; networking costs require separate analysis
 5. **System overhead not subtracted** — DaemonSets and system pods consume resources but are not allocated to user namespaces in the simple model above
 6. **Extended support clusters** — Clusters on older K8s versions (in extended support) incur $0.60/hr control plane cost instead of $0.10/hr. The skill detects this automatically.

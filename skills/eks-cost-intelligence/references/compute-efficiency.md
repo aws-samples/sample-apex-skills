@@ -18,7 +18,7 @@ Compute efficiency is the highest-weighted dimension (25 points max deduction). 
 | 3 | Low-utilization node detection | <10% CPU, <20% memory over 7d | By idle node cost |
 | 4 | Karpenter consolidation effectiveness | consolidation disabled or ineffective | MEDIUM–HIGH |
 | 5 | Workloads without resource requests/limits | any pod missing requests | MEDIUM |
-| 6 | Graceful degradation (metrics unavailable) | N/A | Mark checks 1 to 3 SKIPPED; the dimension is scored on checks 4 and 5 |
+| 6 | Graceful degradation (metrics unavailable) | N/A | Mark checks 1 to 3 SKIPPED; the dimension is scored on check 5 and, with Karpenter, check 4 |
 
 ---
 
@@ -29,7 +29,7 @@ These checks require at least one of:
 - **Container Insights** enabled (CloudWatch metrics available)
 - **Prometheus** with kube-state-metrics and node-exporter
 
-If none are available, checks 1 to 3 are SKIPPED and the dimension stays assessed on checks 4 and 5, named partly assessed.
+If none are available, checks 1 to 3 are SKIPPED and the dimension stays assessed on check 5 and, with Karpenter, check 4, named partly assessed.
 
 ---
 
@@ -779,7 +779,7 @@ When metrics are unavailable, include this in the report:
 
 **Reason:** No metrics source available (metrics-server, Container Insights, or Prometheus not detected)
 
-**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. Compute Efficiency is scored on checks 4 and 5 only; their findings, listed in this section, deduct as usual.
+**Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. Compute Efficiency is scored on check 5 and, with Karpenter, check 4 only; their findings, listed in this section, deduct as usual.
 
 **Remediation:**
 - Install metrics-server: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`

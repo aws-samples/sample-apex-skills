@@ -285,7 +285,7 @@ comm -23 \
   <(kubectl get pods -A -o json | jq -r '.items[] | select(.status.phase=="Running") | .metadata.namespace as $ns | .spec.volumes[]? | select(.persistentVolumeClaim) | "\($ns)/\(.persistentVolumeClaim.claimName)"' | sort -u)
 ```
 
-If any read here fails (an error on stderr; the pipe hides kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+If any read here fails (an error on stderr; pipes and process substitution hide kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via EKS MCP Server:**
 

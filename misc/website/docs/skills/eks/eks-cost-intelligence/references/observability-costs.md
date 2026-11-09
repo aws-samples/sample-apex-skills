@@ -787,7 +787,7 @@ kubectl get configmap -n amazon-cloudwatch \
   -o json | jq -r '.data'
 
 # Check for log_filters or exclusion patterns
-kubectl get configmap -n amazon-cloudwatch cloudwatch-agent-config -o json 2>/dev/null | \
+kubectl get configmap -n amazon-cloudwatch cloudwatch-agent-config -o json --ignore-not-found | \
   jq -r '.data[] | select(test("exclude|filter|blacklist"; "i"))' 
 ```
 
@@ -812,13 +812,13 @@ kubectl get daemonsets --all-namespaces -o json | \
 # Check if any log pipeline exists at all
 echo "--- Logging pipeline detection ---"
 echo "FluentBit:"
-kubectl get ds -A -l app.kubernetes.io/name=fluent-bit --no-headers | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=fluent-bit --no-headers --ignore-not-found | wc -l
 echo "Fluentd:"
-kubectl get ds -A -l app=fluentd --no-headers | wc -l
+kubectl get ds -A -l app=fluentd --no-headers --ignore-not-found | wc -l
 echo "CloudWatch agent:"
-kubectl get ds -A -l app.kubernetes.io/name=cloudwatch-agent --no-headers | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=cloudwatch-agent --no-headers --ignore-not-found | wc -l
 echo "ADOT:"
-kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers --ignore-not-found | wc -l
 ```
 
 If any read here fails (an error on stderr; the pipe hides kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.

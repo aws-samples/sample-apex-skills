@@ -148,8 +148,6 @@ Use the EKS DescribeCluster API for the target cluster. Extract: cluster name, K
 | Kubernetes forbids listing nodes | Stop without a score. Request read-only RBAC granting `get`/`list` on nodes. `AmazonEKSViewPolicy` omits nodes. |
 | Generic MCP HTTP 403 during connection verification or a core list | Stop on the selected connection. Report the failed operation and available request ID. Leave the cause unverified, including IAM and Kubernetes policy attribution. |
 
-**Access pre-flight (advisory).** Before the reads, check access for each (a SelfSubjectAccessReview, as `kubectl auth can-i list <resource>` does): nodes, namespaces, pods and deployments, then each read the dimension reference files run. The answers are advice, not a gate: a denial names the likely gap before the run, an allow does not replace the read, and the read result alone decides (a failed core read stops without a score; any other failed read is UNKNOWN).
-
 Collect the following using AWS and Kubernetes APIs:
 - Kubernetes version and platform version (from DescribeCluster response)
 - Node groups: use EKS ListNodegroups and DescribeNodegroup APIs for instance types, scaling config, capacity type (ON_DEMAND/SPOT)
@@ -179,7 +177,7 @@ Data collection uses:
 - CloudWatch Container Insights metrics (pod CPU/memory utilization) via CloudWatch GetMetricData API
 - Kubernetes API to list nodes with allocatable resources and current allocations
 
-If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (4 and 5), and the report names it partly assessed.
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed.
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
