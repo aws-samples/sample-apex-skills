@@ -7,7 +7,7 @@
 #
 # Usage:
 #   ./misc/update-devops-agent-references.sh          # run from repo root
-#   ./misc/update-devops-agent-references.sh --check  # regenerate in place, then fail if the block changed
+#   ./misc/update-devops-agent-references.sh --check  # regenerate in place, then fail if devops-agent/README.md has unstaged changes
 #   ./misc/update-devops-agent-references.sh --dry-run # preview without writing
 
 set -euo pipefail
