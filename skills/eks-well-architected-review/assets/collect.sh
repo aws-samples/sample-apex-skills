@@ -1445,7 +1445,7 @@ awsjson "$WORK/vpcendpoints.json" -- aws ec2 describe-vpc-endpoints   --filters 
 #    EC2 launch templates, EBS volumes, and network interfaces (ENIs)) created by EKS Auto Mode are
 #    hidden from EC2 console views and `describe` API list operations by default. Managed resources that
 #    already existed in your account before that date remain visible."
-# That date is past, so a review run today hits this by default on any Auto Mode cluster whose nodes
+# That date is past, so a review run today can hit this on an Auto Mode cluster whose nodes
 # were launched after it. The same page, verbatim, gives the ways through:
 #   "Even when managed resources are hidden from EC2 console views and list APIs, you can still view EKS
 #    Auto Mode instances through:" ... "Kubernetes APIs (for example, `kubectl get nodes`)." ...

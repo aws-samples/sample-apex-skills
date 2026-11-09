@@ -143,7 +143,8 @@ interfaces (ENIs)) created by EKS Auto Mode are hidden from EC2 console views an
 operations by default. Managed resources that already existed in your account before that date remain
 visible." Hiding is an account-wide setting, not fixed behavior:
 `AWSEC2/latest/UserGuide/amazon-ec2-managed-instances.html`: "For accounts that already had managed
-resources, Amazon EC2 sets the visibility setting to **Visible** to preserve existing workflows."
+resources, Amazon EC2 sets the visibility setting to **Visible** to preserve existing workflows. The
+visibility setting applies to all managed resources in a Region, regardless of when they were created."
 
 That date is past. A single `describe-instances --filters …` can therefore return **nothing** on an Auto
 Mode cluster, and an empty-but-valid document would sail through collection — so `lens-11` (IMDSv2),
