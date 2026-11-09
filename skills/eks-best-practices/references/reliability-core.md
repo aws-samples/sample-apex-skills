@@ -282,7 +282,7 @@ livenessProbe:
     path: /healthz?check=database
 ```
 
-✅ **DO prefer pod-local readiness checks (warm-up done, local caches loaded); avoid external dependencies such as a database:**
+✅ **DO prefer pod-local readiness checks (warm-up done, local caches loaded); avoid external dependencies such as a database, unless the app cannot serve any request without that dependency:**
 ```yaml
 # ✅ GOOD: readiness checks only this pod's own state
 readinessProbe:
@@ -709,10 +709,10 @@ Use startup probes for applications with slow initialization (>10 seconds). The 
 
 | Rule | Readiness Probe | Liveness Probe |
 |---|---|---|
-| **Check dependencies?** | Prefer pod-local (warm-up, local caches); avoid external dependencies such as a database, which can fail every replica at once | NEVER — only check the process itself |
+| **Check dependencies?** | Prefer pod-local (warm-up, local caches); avoid external dependencies such as a database, which can fail every replica at once, unless the app cannot serve any request without that dependency | NEVER — only check the process itself |
 | **What happens on failure?** | Pod removed from Service endpoints (no traffic) | Pod restarted (container killed) |
 | **Use for** | "Can this pod serve traffic right now?" | "Is this process deadlocked or hung?" |
-| **Endpoint** | `/ready`: prefer pod-local; avoid external dependencies such as a database | `/livez` or simple TCP check |
+| **Endpoint** | `/ready`: prefer pod-local; avoid external dependencies such as a database, unless the app cannot serve any request without it | `/livez` or simple TCP check |
 
 **Critical rule:** Liveness probes must NOT check external dependencies. If the database goes down and liveness checks the DB, ALL pods restart simultaneously — causing cascading failure instead of graceful degradation.
 
