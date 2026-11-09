@@ -29,7 +29,7 @@ Assess DNS automation and TLS certificate management for Gateway API migration.
 **How to check:**
 1. List Deployments → filter for `external-dns`
 2. Check container args for `--source=` values
-3. Check the external-dns ServiceAccount for the IRSA annotation (`eks.amazonaws.com/role-arn`) and read that role with `iam:GetRole`; check Pod Identity with `eks:ListPodIdentityAssociations`. No IRSA annotation and Pod Identity not readable means UNKNOWN, not missing
+3. Check the external-dns ServiceAccount for the IRSA annotation (`eks.amazonaws.com/role-arn`) and read that role with `iam:GetRole`; check Pod Identity with `eks:ListPodIdentityAssociations` filtered by namespace and ServiceAccount (presence only; the role needs `eks:DescribePodIdentityAssociation`). No IRSA annotation and Pod Identity not readable means UNKNOWN, not missing
 
 > **Post-cutover cleanup (do not leave this to chance).** external-dns tracks each record it owns with a companion **TXT ownership record**. When the old Ingress/controller goes away, delete the stale **A/CNAME *and* its TXT** record — otherwise external-dns keeps trying to reconcile a load balancer that no longer exists, and a future record for the same hostname can be refused because ownership still resolves to the retired source. Also **sequence the sources**: while both `ingress` and `gateway-httproute` are enabled for the same hostname during a cutover, two sources claim one record and it can flap. Migrate the source list deliberately rather than enabling both indefinitely.
 

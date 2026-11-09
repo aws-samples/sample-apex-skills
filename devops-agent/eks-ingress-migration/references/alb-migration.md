@@ -220,7 +220,7 @@ alb.ingress.kubernetes.io/group.order: "10"
 
 **What to check:**
 - AWS LB Controller installed and on a **currently supported release** (no documented minimum for the plain Ingress path; **≥ v2.14.1** if `transforms` URI rewrites are used)
-- IAM role with the controller policy attached, judged by the attached managed policy names from `iam:ListAttachedRolePolicies`; the policy content is not checked, so the finding says so
+- IAM role with the controller policy attached, judged by the attached managed policy names from `iam:ListAttachedRolePolicies`, which does not list inline policies, so no matching name reads UNKNOWN, never absent; the policy content is not checked, so the finding says so
 - IngressClass `alb` exists
 
 **Impact (per Impact Indicator):**
