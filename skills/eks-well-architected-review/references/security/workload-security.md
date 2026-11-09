@@ -548,8 +548,8 @@ it done.
 ```bash
 aws ec2 describe-instances --filters "Name=tag:kubernetes.io/cluster/<CLUSTER>,Values=owned,shared" --region <REGION>
 # Check MetadataOptions.HttpTokens == required
-# EKS Auto Mode nodes can be hidden from filter calls like this one. They need no check:
-# Auto Mode enforces IMDSv2 with a hop limit of 1, and that cannot be changed.
+# EKS Auto Mode nodes can be hidden from filter calls like this one; the collector adds them by id (on Auto Mode the node name is the instance id).
+# Count them: Auto Mode enforces IMDSv2 with a hop limit of 1, and that cannot be changed, so they pass.
 ```
 
 <!-- MAINTAINER NOTE — not report content, placed here (before **Remediation:**, after the Commands
