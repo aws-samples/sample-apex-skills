@@ -199,7 +199,7 @@ Three-part config: S3 bucket + auth (IRSA or Pod Identity) + Helm chart.
 
 | Setting | Value | Reason |
 |---------|-------|--------|
-| `credentials.useSecret` | `false` | When using Pod Identity |
+| `credentials.useSecret` | `false` | When using Pod Identity or IRSA |
 | `s3_backup_location` | S3 bucket ARN | Required for IRSA policy |
 
 ### CRD name collision
@@ -457,7 +457,7 @@ provider "helm" {
 }
 ```
 
-The provider login also writes this token to Helm's default registry config, `$HELM_CONFIG_HOME/registry/config.json` (by default `~/.config/helm/registry/config.json` on Linux, `~/Library/Preferences/helm/registry/config.json` on macOS), even when `registry_config_path` is set, so other Helm pulls from public.ecr.aws on that machine can hit the same 403 after 12 hours; recover with the logout below.
+The provider login also writes this token to Helm's default registry config (the path `helm env HELM_REGISTRY_CONFIG` prints), even when `registry_config_path` is set, so other Helm pulls from public.ecr.aws on that machine can hit the same 403 after 12 hours; recover with the logout below.
 
 - Prefer the ephemeral resource. Below hashicorp/aws 6.31.0 use the `data "aws_ecrpublic_authorization_token"` form in the same `registries` list (on aws 5.x, which has no `region` argument, through a `us-east-1` provider alias); its token is stored in state (and in a saved plan, so applying a saved plan can reuse it past its 12 hours). Do not use resource-level `repository_username` / `repository_password`: `repository_password` is stored in state and cannot take an ephemeral value.
 - The identity running Terraform needs `ecr-public:GetAuthorizationToken` and `sts:GetServiceBearerToken`.

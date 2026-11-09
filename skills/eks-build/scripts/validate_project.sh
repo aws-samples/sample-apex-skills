@@ -212,8 +212,6 @@ if [ -f "$ADDONS_YAML" ]; then
     fi
 fi
 
-# --- 9. (none: velero chart 12.x needs no upgradeCRDs override; later sections keep their numbers) ---
-
 # --- 10. Multus check ---
 echo ""
 echo "10. Multus safety check"

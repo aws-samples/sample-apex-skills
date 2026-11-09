@@ -160,7 +160,7 @@ Use `Replace=true`, NOT `ServerSideApply=true`. SSA conflicts with ArgoCD `selfH
 
 ### 8. Velero Configuration
 
-Three-part config: S3 bucket (encrypted) + Auth (Pod Identity or IRSA) + Helm values (`credentials.useSecret: false` with Pod Identity).
+Three-part config: S3 bucket (encrypted) + Auth (Pod Identity or IRSA) + Helm values (`credentials.useSecret: false` with Pod Identity or IRSA).
 
 ### 9. ACK/KRO Are Capabilities, Crossplane Is Not
 
