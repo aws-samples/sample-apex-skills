@@ -717,11 +717,11 @@ Whether the required metrics sources (metrics-server, Container Insights, or Pro
 kubectl top nodes --no-headers 2>&1 | head -1
 # Rows → available
 # "Metrics API not available" → absent: discovery lists no usable metrics.k8s.io version (none registered, or a registered one is unavailable)
-# "Forbidden" / "nodes.metrics.k8s.io is forbidden" → denied: a metrics provider is installed; the read is UNKNOWN
+# "nodes.metrics.k8s.io is forbidden" → denied: a metrics provider is installed; the read is UNKNOWN
 # Any other error (for example "metrics not available yet", a 503 or a timeout) → failed: the read is UNKNOWN
 ```
 
-A Forbidden from `kubectl top` means a metrics API provider is registered: kubectl sends the metrics list, the only call that can return Forbidden, only after API discovery lists an available `metrics.k8s.io` version, and prints `Metrics API not available` otherwise ([kubectl top_node.go](https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/top/top_node.go); stale versions are skipped by [client-go aggregated discovery](https://github.com/kubernetes/client-go/blob/master/discovery/aggregated_discovery.go)). The caller then gets the API server's `nodes.metrics.k8s.io is forbidden: User "<user>" cannot list resource "nodes" in API group "metrics.k8s.io" at the cluster scope` ([apiserver forbidden message](https://github.com/kubernetes/apiserver/blob/master/pkg/endpoints/handlers/responsewriters/errors.go)). On denied, report that a metrics provider is installed but the caller cannot read it, name the permission (`list` on resources `nodes` and `pods` in API group `metrics.k8s.io`) and give no setup steps. Step 1 probes nodes only: if a later `kubectl top pods` read fails, checks 1 and 2 are UNKNOWN by the dependent-check rule (SKILL.md, Step 0).
+A `nodes.metrics.k8s.io is forbidden` from `kubectl top` means a metrics API provider is registered: kubectl sends the metrics list, the call that returns `nodes.metrics.k8s.io is forbidden`, only after API discovery lists an available `metrics.k8s.io` version, and prints `Metrics API not available` otherwise ([kubectl top_node.go](https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/top/top_node.go); stale versions are skipped by [client-go aggregated discovery](https://github.com/kubernetes/client-go/blob/master/discovery/aggregated_discovery.go)). The caller then gets the API server's `nodes.metrics.k8s.io is forbidden: User "<user>" cannot list resource "nodes" in API group "metrics.k8s.io" at the cluster scope` ([apiserver forbidden message](https://github.com/kubernetes/apiserver/blob/master/pkg/endpoints/handlers/responsewriters/errors.go)). On denied, report that a metrics provider is installed but the caller cannot read it, name the permission (`list` on resources `nodes` and `pods` in API group `metrics.k8s.io`) and give no setup steps. Step 1 probes nodes only: if a later `kubectl top pods` read fails, checks 1 and 2 are UNKNOWN by the dependent-check rule (SKILL.md, Step 0).
 
 **Step 2: Check Container Insights availability**
 
@@ -731,12 +731,14 @@ aws eks describe-addon --cluster-name <cluster> \
   --addon-name amazon-cloudwatch-observability \
   --query 'addon.status'
 # ACTIVE → available; ResourceNotFoundException → no add-on; AccessDeniedException → denied
-# Any other status (CREATING, UPDATING, DEGRADED, CREATE_FAILED, UPDATE_FAILED, DELETING, DELETE_FAILED) → installed, not ACTIVE: failed (UNKNOWN), report the status
+# Any other status → installed, not ACTIVE: failed (UNKNOWN), report the status
+# Any other error → failed
 
 # Also: check for CloudWatch agent pods (a Helm-installed agent has pods and no add-on)
 kubectl get pods -n amazon-cloudwatch -l app.kubernetes.io/name=cloudwatch-agent \
   --no-headers
 # Running pods → available; no rows → no agent pods; Forbidden → denied
+# Pods present, none Running, or any other error → failed
 ```
 
 Container Insights is absent only when both reads succeed and show none, and denied (UNKNOWN) when either read is denied and neither shows it installed.
@@ -752,6 +754,7 @@ kubectl get pods --all-namespaces -l app.kubernetes.io/name=prometheus --no-head
 kubectl get pods --all-namespaces -l app.kubernetes.io/name=adot-collector \
   --no-headers
 # No rows → absent; Forbidden → denied (UNKNOWN); never count a failed list as 0
+# Pods present, none Running, or any other error → failed
 ```
 
 **Via EKS MCP Server:**
@@ -784,15 +787,10 @@ If NONE available:
   → Still run check 5 and, with Karpenter, check 4 (they don't require utilization metrics)
   → Report in findings:
       status: SKIPPED
-      If every source is absent:
-        reason: "No metrics source available (metrics-server, Container Insights, or Prometheus)"
-        remediation: ask the user whether metrics-server is installed (an installed one that is unavailable also reads "Metrics API not available"); if it is not, "Install metrics-server (kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml) or enable Container Insights add-on"
-      If any source read is denied:
-        reason: "Read not completed (UNKNOWN): <source> read denied (<observed error>)"
-        remediation: name the missing permission (metrics-server: `list` on resources `nodes` and `pods` in API group `metrics.k8s.io`, and say a metrics provider is installed; Container Insights: `eks:DescribeAddon` or `list` on pods in namespace `amazon-cloudwatch` to detect it, plus `cloudwatch:GetMetricData` to read its data; Prometheus: `list` on pods at cluster scope); no setup steps
-      If any source read failed (not denied):
-        reason: "Read not completed (UNKNOWN): <source> <observed error>"
-        remediation: retry the read or fix that source; no install step
+      For each source that is not available, one reason and one remediation line by its state:
+        absent: reason "<source> not detected"; for metrics-server, ask the user during the run, before the report, whether it is installed (an installed one that is unavailable also reads "Metrics API not available"): "installed" → report it as failed ("Metrics API not available"), no install step; "not installed" → the setup steps ("Install metrics-server (kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml) or enable Container Insights add-on")
+        denied: reason "Read not completed (UNKNOWN): <source> read denied (<observed error>)"; remediation: the missing permission (metrics-server: `list` on resources `nodes` and `pods` in API group `metrics.k8s.io`, and say a metrics provider is installed; Container Insights: `eks:DescribeAddon` or `list` on pods in namespace `amazon-cloudwatch`; Prometheus: `list` on pods at cluster scope); no setup steps
+        failed: reason "Read not completed (UNKNOWN): <source> <observed error>"; remediation: retry the read or fix that source; no install step
       impact: "Cannot assess CPU/memory utilization ratios or detect idle nodes"
 ```
 
@@ -806,14 +804,14 @@ When metrics are unavailable, include this in the report:
 **Checks completed:** {Check 4 if Karpenter: Karpenter consolidation,} missing resource requests/limits
 **Checks skipped:** CPU/memory utilization ratios, over-provisioned workloads, idle node detection
 
-**Reason:** {No metrics source available (metrics-server, Container Insights, or Prometheus not detected) | Read not completed (UNKNOWN): {source} read denied ({observed error}) | Read not completed (UNKNOWN): {source} {observed error}}
+**Reason:** {No metrics source available (metrics-server, Container Insights, or Prometheus not detected), when every source is absent; else one entry per source not available: {source} not detected | Read not completed (UNKNOWN): {source} read denied ({observed error}) | Read not completed (UNKNOWN): {source} {observed error}}
 
 **Impact:** Cannot calculate utilization-based waste. Dollar waste estimates for compute over-provisioning are unavailable. Compute Efficiency is scored on check 5 and, with Karpenter, check 4; their findings, listed in this section, deduct as usual.
 
 **Remediation:**
 {If a read was denied: - Grant the missing permission: {permission, e.g. `list` on resources `nodes` and `pods` in API group `metrics.k8s.io`}. For metrics-server, say a metrics provider is installed; give no setup steps.}
 {If a read failed: - Retry the read or fix {source}: {observed error}. No install step.}
-{Only if every source is absent, and the user says metrics-server is not installed, the setup steps:}
+{Only if metrics-server is absent and the user said during the run that it is not installed, the setup steps:}
 - Install metrics-server: `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
 - Or enable Container Insights: `aws eks create-addon --cluster-name <cluster> --addon-name amazon-cloudwatch-observability`
 - Or deploy Prometheus with kube-state-metrics

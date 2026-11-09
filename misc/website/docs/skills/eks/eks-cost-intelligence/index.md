@@ -156,7 +156,7 @@ Checks:
 - Workloads without resource requests or limits
 - Fargate pod request right-sizing against Fargate's vCPU/memory combinations — only when Step 0 found Fargate profiles (read `references/fargate-costs.md`, Check F1)
 
-If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed. A denied metrics read (`Forbidden`) is UNKNOWN, not "no source": name the missing permission and give no setup steps (a denied `kubectl top` means a metrics provider is installed); a read that failed otherwise is UNKNOWN with its error and no install step; ask whether metrics-server is installed, and give setup steps, only when every source reads absent (`references/compute-efficiency.md`, metrics availability).
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed. A denied metrics read (`Forbidden`) is UNKNOWN, not "no source": name the missing permission and give no setup steps (a denied `kubectl top` means a metrics provider is installed); a read that failed otherwise is UNKNOWN with its error and no install step; only when the metrics-server read shows it absent, ask during the run, before the report, whether it is installed, and give setup steps if it is not (`references/compute-efficiency.md`, metrics availability).
 
 ### Step 2: Spot/Graviton Adoption Assessment
 

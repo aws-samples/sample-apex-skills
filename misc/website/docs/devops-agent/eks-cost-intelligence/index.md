@@ -177,7 +177,7 @@ Data collection uses:
 - CloudWatch Container Insights metrics (pod CPU/memory utilization) via CloudWatch GetMetricData API
 - Kubernetes API to list nodes with allocatable resources and current allocations
 
-If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed. A denied metrics read (`Forbidden`) is UNKNOWN, not "no source": the report names the missing permission and covers both cases (installed: grant it; not installed: the setup steps), since a direct API read that is denied does not tell whether a metrics provider is installed; a read that failed otherwise is UNKNOWN with its error and no install step (`references/compute-efficiency.md`, metrics availability).
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed. A denied metrics read (`Forbidden`) is UNKNOWN, not "no source": the report names the missing permission and covers both cases (installed: grant it; not installed: the setup steps); a read that failed otherwise is UNKNOWN with its error and no install step (`references/compute-efficiency.md`, metrics availability).
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
