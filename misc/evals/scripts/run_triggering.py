@@ -124,7 +124,8 @@ def build_subprocess_env(home: Path, extra: dict[str, str] | None = None) -> dic
     temp dir, and merges caller-supplied overrides (KUBECONFIG, AWS_* for the
     read-only session policy, etc.). When the overrides carry AWS credentials
     (the session-policy path), the host ~/.aws link and any AWS_PROFILE are
-    dropped, so the subject resolves only those scoped credentials."""
+    dropped (with AWS_CONFIG_FILE and AWS_SHARED_CREDENTIALS_FILE), so the
+    subject resolves only those scoped credentials."""
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     env["HOME"] = str(home)
     if extra:
@@ -132,6 +133,8 @@ def build_subprocess_env(home: Path, extra: dict[str, str] | None = None) -> dic
         if "AWS_ACCESS_KEY_ID" in extra:
             env.pop("AWS_PROFILE", None)
             env.pop("AWS_DEFAULT_PROFILE", None)
+            env.pop("AWS_CONFIG_FILE", None)
+            env.pop("AWS_SHARED_CREDENTIALS_FILE", None)
             if (home / ".aws").is_symlink():
                 (home / ".aws").unlink()
     return env
