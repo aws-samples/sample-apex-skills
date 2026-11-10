@@ -113,11 +113,10 @@ kubectl get deployments -A -o json
 
 **Commands:**
 ```bash
-# Count only this cluster's volumes, as the score does: a tag naming the cluster, an attachment to one of
-# its EC2 nodes, or a PersistentVolume that names it. The list call is Region-wide, so with no such filter
-# it also counts other clusters' volumes and, with the flag, other services' managed ones (ECS, WorkSpaces
-# Core, Bedrock AgentCore, EC2 Fast Launch). A volume with none of the three ties is not counted, and the
-# score also leaves out volumes attached to Windows nodes.
+# Count only this cluster's volumes: a tag naming the cluster, an attachment to one of its EC2 nodes,
+# or a PersistentVolume that names it (kubectl must point at <CLUSTER>). The list call is Region-wide.
+# A volume with none of the three ties is not counted. Unlike the score, this also counts volumes
+# attached to Windows nodes.
 IIDS=$(kubectl get nodes -o json | jq -c '[.items[].spec.providerID//""|select(startswith("aws://"))|split("/")|last]')
 PVIDS=$(kubectl get pv -o json | jq -c '[.items[]|(.spec.csi.volumeHandle?,.spec.awsElasticBlockStore.volumeID?)|select((type=="string") and .!="")|split("/")|last]')
 aws ec2 describe-volumes --include-managed-resources --region <REGION> --output json \
@@ -125,9 +124,7 @@ aws ec2 describe-volumes --include-managed-resources --region <REGION> --output 
 aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.encryptionConfig"
 # EKS Auto Mode can hide its instances and volumes from list calls, so a bare describe-volumes can
 # come back empty; --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) lists them. An
-# older CLI rejects the flag: drop it (or upgrade the CLI); the collector recovers them by id, and by
-# hand you pass the ids from the nodes and the PersistentVolumes:
-kubectl get pv -o json | jq -r '.items[].spec.csi.volumeHandle'
+# older CLI rejects the flag: drop it (or upgrade the CLI), and then the hidden ones are missing.
 ```
 
 **Remediation:** EBS volumes **cannot be encrypted in place** — `ModifyVolume` has no encryption
