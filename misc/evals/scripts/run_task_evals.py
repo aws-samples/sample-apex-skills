@@ -951,7 +951,11 @@ def run_skill(
     run_benchmark(skill, runs_dir)
     update_latest_symlink(skill, runs_dir)
 
-    benchmark = json.loads((runs_dir / "benchmark.json").read_text())
+    bench_path = runs_dir / "benchmark.json"
+    benchmark = json.loads(bench_path.read_text())
+    # The vendored aggregator hard-codes 3 here; record the real count.
+    benchmark.setdefault("metadata", {})["runs_per_configuration"] = runs
+    bench_path.write_text(json.dumps(benchmark, indent=2))
     rs = benchmark.get("run_summary") or {}
     with_pr = (rs.get("with_skill") or {}).get("pass_rate") or {}
     wo_pr = (rs.get("without_skill") or {}).get("pass_rate") or {}

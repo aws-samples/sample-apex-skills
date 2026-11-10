@@ -19,7 +19,7 @@
     "with_skill_stddev": 0.0,
     "without_skill_mean": 0.75,
     "pass_k_rate": null,
-    "runs_per_prompt": 3
+    "runs_per_prompt": 1
   },
   "process_assertions": {
     "pass_rate": 0.75,
