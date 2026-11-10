@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the per-category token counts parsed from eval trajectories.
+"""Tests for the per-category token counts and the tool results parsed from eval trajectories.
 
 Run directly with:
 
@@ -170,6 +170,45 @@ class ParseEventsTokenTests(unittest.TestCase):
         self.assertEqual(t.input_tokens, 0)
         self.assertEqual(t.output_tokens, 10)
         self.assertEqual(t.cache_read_input_tokens, 100)
+
+
+def _call(call_id, cmd):
+    return {
+        "type": "assistant",
+        "message": {"content": [{"type": "tool_use", "id": call_id, "name": "Bash", "input": {"command": cmd}}]},
+    }
+
+
+def _tool_result(call_id, text, is_error=False):
+    return {
+        "type": "user",
+        "message": {"content": [{"type": "tool_result", "tool_use_id": call_id, "content": text, "is_error": is_error}]},
+    }
+
+
+STREAM_EVENT = {"type": "stream_event", "event": {"type": "content_block_delta"}}
+
+
+class ParseEventsToolResultTests(unittest.TestCase):
+    def test_result_after_stream_events_is_attached(self):
+        # --include-partial-messages puts stream_event lines between a call and its result.
+        t = parse_events([_call("a", "ls"), STREAM_EVENT, STREAM_EVENT, _tool_result("a", "out")])
+        tc = t.steps[0].tool_calls[0]
+        self.assertEqual(tc.result, "out")
+        self.assertFalse(tc.is_error)
+
+    def test_parallel_calls_matched_by_id(self):
+        t = parse_events([
+            _call("a", "ls"), _call("b", "pwd"), STREAM_EVENT,
+            _tool_result("b", "/tmp"), _tool_result("a", "out", is_error=True),
+        ])
+        a, b = (s.tool_calls[0] for s in t.steps)
+        self.assertEqual((a.result, a.is_error), ("out", True))
+        self.assertEqual((b.result, b.is_error), ("/tmp", False))
+
+    def test_unmatched_result_is_ignored(self):
+        t = parse_events([_call("a", "ls"), _tool_result("zzz", "other")])
+        self.assertIsNone(t.steps[0].tool_calls[0].result)
 
 
 class ExtractResultSummaryTests(unittest.TestCase):
