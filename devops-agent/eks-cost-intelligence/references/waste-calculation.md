@@ -122,7 +122,7 @@ monthly_waste = node_waste_ratio * node_monthly_cost
 
 #### Reference: Instance Hourly Rates (us-east-1, On-Demand)
 
-> ⚠️ **Fallback only — last verified June 2026.** Prefer the AWS Price List API for production assessments. See `cost-estimation-fallback.md` Step 2.
+> ⚠️ **Fallback only — last verified June 2026.** Prefer the AWS Price List API for production assessments when `pricing:GetProducts` is granted; otherwise use this table. See `cost-estimation-fallback.md` Step 2.
 
 | Instance Type | vCPU | Memory | Hourly Rate |
 |---------------|------|--------|-------------|
@@ -145,9 +145,9 @@ monthly_waste = node_waste_ratio * node_monthly_cost
 | r7i.xlarge | 4 | 32 GiB | $0.264 |
 | r7g.xlarge | 4 | 32 GiB | $0.214 |
 
-For instance types not in this table, use the AWS Price List API:
+For instance types not in this table, use the AWS Price List API when `pricing:GetProducts` is granted:
 
-Use the AWS Price List GetProducts API to look up hourly instance rates for types not in the reference table.
+Use the AWS Price List GetProducts API to look up hourly instance rates for types not in the reference table; without it, default to $0.192/hour and flag the finding as Low confidence (see `cost-estimation-fallback.md` Step 2).
 
 #### Detection Criteria
 
@@ -785,11 +785,11 @@ def determine_confidence(data_sources: list[str]) -> str:
 
 ## Notes
 
-- All prices are US East (N. Virginia) On-Demand rates. **Use the AWS Price List API for region-specific pricing** (see `cost-estimation-fallback.md` Step 2).
+- All prices are US East (N. Virginia) On-Demand rates. **Use the AWS Price List API for region-specific pricing when `pricing:GetProducts` is granted** (see `cost-estimation-fallback.md` Step 2).
 - Spot discounts vary by instance type and region (40–90%). Use 65% as conservative default. **For production accuracy:** Use the EC2 DescribeSpotPriceHistory API to get current Spot pricing for the customer's instance types and region.
 - Graviton savings vary by generation, family and Region (us-east-1 On-Demand, 2026-11-07: 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4, none for Graviton5). Each figure compares m6i with Graviton, m family. Price both types when they are known (see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1); otherwise use the target generation's figure, and when the target is unknown (a Karpenter NodePool admitting several generations) report the range.
 - Cross-AZ pricing is consistent across regions ($0.01/GiB each direction).
 - NAT Gateway pricing is consistent across regions ($0.045/GiB processed).
 - Storage pricing varies by region; us-east-1 rates used as reference.
 - **EKS control plane cost:** $0.10/hr (standard support) or $0.60/hr (extended support for older K8s versions). Always check the cluster's K8s version — see `cost-estimation-fallback.md` for details.
-- **Static pricing data in this file is a fallback.** The skill should prefer live API lookups for dollar-accurate findings. Mark findings using static prices as "Medium" or "Low" confidence.
+- **Static pricing data in this file is a fallback.** The skill should prefer live API lookups for dollar-accurate findings when `pricing:GetProducts` is granted. Mark findings using static prices as "Medium" or "Low" confidence.
