@@ -31,7 +31,7 @@
 set -uo pipefail
 umask 077
 
-[ $# -eq 1 ] || { echo "posture_score.sh: usage: posture_score.sh <workdir>" >&2; exit 2; }
+[ $# -eq 1 ] && [ -n "$1" ] || { echo "posture_score.sh: usage: posture_score.sh <workdir>" >&2; exit 2; }
 WORK="$1"
 W="$WORK/posture"
 [ -d "$W" ] || { echo "posture_score.sh: $W does not exist; run posture_collect.sh first" >&2; exit 2; }
