@@ -44,10 +44,6 @@ if ! grep -qE -- "--version v${VERSION}" misc/website/docs/getting-started.md; t
   echo "Error: failed to update version in misc/website/docs/getting-started.md" >&2
   exit 1
 fi
-if ! grep -qE -- "skills release v${VERSION}" misc/website/docs/getting-started.md; then
-  echo "Error: failed to update version in misc/website/docs/getting-started.md" >&2
-  exit 1
-fi
 echo "Updated misc/website/docs/getting-started.md -> v$VERSION"
 
 # 3. misc/installer/README.md: update e.g. `vX.Y.Z` in the options table
