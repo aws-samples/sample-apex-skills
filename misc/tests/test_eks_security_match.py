@@ -547,8 +547,65 @@ class RenderReport(TmpCase):
         self.assertEqual(rc, 0, log)
         self.assertEqual(len([ln for ln in md.splitlines() if ln.startswith("Overall verdict:")]), 1, md)
         self.assertIn("Overall verdict: Exposed", md)
-        self.assertIn("Auto Mode components: AWS-patched (inferred, not read): every Auto Mode node was created at or "
-                      "after the fix time", md)
+        self.assertIn("Auto Mode components: AWS-patched (inferred, not read): every Auto Mode node it was judged on "
+                      "was created at or after the fix time", md)
+
+    def patched_fixture(self):
+        fd, inv = self.fixture()
+        fd["findings"].append(dict(fd["findings"][0], component="addon:vpc-cni@auto-mode", verdict="aws_managed_patched",
+                                   fixed_at="2026-11-01", priority="P4"))
+        node = {"kind": "node-os", "kernel": "6.1.0", "kubelet": "v1.33.1", "runtime": "containerd://1.7.27",
+                "readable": True, "reason": None}
+        inv["components"] += [
+            dict(node, id="node-os:general-purpose", os_image="Bottlerocket OS 1.40.0 (aws-k8s-1.33)",
+                 ami="ami-0aaa1111bbbb2222c", nodes=["i-a", "i-b"], managed_by="aws-auto-mode", where=["general-purpose"],
+                 node_created={"i-a": "2026-11-02T01:00:00Z", "i-b": "2026-11-03T01:00:00Z"},
+                 oldest_node_created="2026-11-02T01:00:00Z"),
+            dict(node, id="node-os:system", os_image="Bottlerocket OS 1.40.0 (aws-k8s-1.33)", ami=None, nodes=["i-c"],
+                 managed_by="aws-auto-mode", where=["system"], node_created={"i-c": "2026-11-04T01:00:00Z"},
+                 oldest_node_created="2026-11-04T01:00:00Z"),
+            dict(node, id="node-os:workers", os_image="Amazon Linux 2023", ami="ami-0ccc3333dddd4444e", nodes=["i-d"],
+                 managed_by="customer", where=["workers"], node_created={"i-d": "2026-10-01T01:00:00Z"},
+                 oldest_node_created="2026-10-01T01:00:00Z")]
+        return fd, inv
+
+    def test_patched_lists_auto_mode_groups(self):
+        # A1: the AWS-patched line lists each Auto Mode NodePool's OS image and AMI, so the reader need not look them up
+        fd, inv = self.patched_fixture()
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("so a node created after the fix time can still run an older AMI.\n", md)
+        self.assertIn("| NodePool | OS image | AMI | Nodes | Oldest node created |", md)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 | "
+                      "2026-11-02T01:00:00Z |", md)
+        self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 | 2026-11-04T01:00:00Z |", md)
+        self.assertNotIn("ami-0ccc3333dddd4444e", md)
+        for cell in ("<th>NodePool</th>", "<td>general-purpose</td>", "<td>ami-0aaa1111bbbb2222c</td>",
+                     "<td>not read</td>"):
+            self.assertIn(cell, ht)
+        self.assertNotIn("ami-0ccc3333dddd4444e", ht)
+
+    def test_patched_table_skips_pending_pool(self):
+        # M1: a node-os finding is judged on its own pool, so a pending pool is not listed under AWS-patched
+        fd, inv = self.patched_fixture()
+        base = fd["findings"][-1]
+        fd["findings"][-1] = dict(base, component="node-os:general-purpose")
+        fd["findings"].append(dict(base, component="node-os:system", verdict="aws_managed_rotation_pending",
+                                   nodes_pending=["i-c"]))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)
+        self.assertNotIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read |", md)
+        # R2-1: an add-on patched on every Auto Mode node does not bring back a pool another advisory holds as pending
+        fd, inv = self.patched_fixture()
+        addon = fd["findings"][-1]
+        fd["findings"] += [dict(addon, advisory="CVE-TEST-0009", component="node-os:general-purpose"),
+                           dict(addon, advisory="CVE-TEST-0009", component="node-os:system",
+                                verdict="aws_managed_rotation_pending", nodes_pending=["i-c"])]
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)
+        self.assertNotIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read |", md)
 
     def test_unknown_actions_for_nodes_build_and_minor(self):
         # S2: no_nodes_read, eks_build and minor_only each get their own action, not the generic one
@@ -893,6 +950,42 @@ class CollectReadOnly(TmpCase):
         self.assertEqual(v["image:aws-node/aws-network-policy-agent"], ("exposed", "P1"))
         self.assertEqual(v["addon:vpc-cni"][0], "unknown")
         self.assertEqual(doc["overall"], "exposed")
+
+    @NEEDS_JQ
+    def test_collect_hidden_instance_found_by_id(self):
+        # M2: an Auto Mode instance hidden from the filter call is looked up by its instance id
+        cc = CASES["collect"]
+        aws = dict(cc["aws"], **{"ec2 describe-instances": {"json": {"Reservations": []},
+                                                            "if_arg": {"--instance-ids": cc["aws"]["ec2 describe-instances"]}}})
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                                 {"aws": aws, "kubectl": cc["kubectl"], "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        by_id = [c["args"] for c in calls if c["args"][:2] == ["ec2", "describe-instances"] and "--instance-ids" in c["args"]]
+        self.assertEqual(len(by_id), 1, by_id)
+        self.assertIn("i-0abc123", by_id[0])
+        with open(os.path.join(work, "inventory.json"), encoding="utf-8") as f:
+            amis = {c.get("ami") for c in json.load(f)["components"] if c.get("kind") == "node-os"}
+        self.assertIn("ami-0123456789abcdef0", amis)
+
+    @NEEDS_JQ
+    def test_collect_hybrid_node_not_looked_up(self):
+        # LC-1: an SSM hybrid node (name mi-<hex>) is not an EC2 instance, so its providerID yields no instance id
+        cc = CASES["collect"]
+        aws = dict(cc["aws"], **{"ec2 describe-instances": {"json": {"Reservations": []},
+                                                            "if_arg": {"--instance-ids": cc["aws"]["ec2 describe-instances"]}}})
+        kubectl = copy.deepcopy(cc["kubectl"])
+        hyb = copy.deepcopy(kubectl["get nodes"]["json"]["items"][0])
+        hyb["metadata"] = {"name": "mi-0ccc123", "creationTimestamp": "2026-10-20T00:00:00Z", "labels": {}}
+        hyb["spec"]["providerID"] = "eks-hybrid:///us-west-2/demo/mi-0ccc123"
+        kubectl["get nodes"]["json"]["items"].append(hyb)
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                                 {"aws": aws, "kubectl": kubectl, "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        ec2 = [c["args"] for c in calls if c["args"][:2] == ["ec2", "describe-instances"]]
+        self.assertFalse([a for a in ec2 if any("i-0ccc123" in x for x in a)], ec2)
+        self.assertEqual(len([a for a in ec2 if "--instance-ids" in a]), 1, ec2)
 
     @NEEDS_JQ
     def test_collect_preflight_partial_k8s_not_ok(self):
