@@ -180,7 +180,7 @@ For regulated workloads: **CIS-hardened AMIs** (AL2023 CIS Level 1 or Bottlerock
 - Quarterly vulnerability scans of all DLC/vLLM images; retain scan reports.
 - RBAC + IAM identity mapping restricting kubectl to GenAI namespace.
 
-### FedRAMP (Moderate / High)
+### FedRAMP (Moderate-impact / High-impact systems)
 
 - Deploy in **GovCloud** or FedRAMP-authorized commercial regions.
 - FIPS-validated modules:

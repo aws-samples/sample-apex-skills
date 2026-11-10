@@ -151,9 +151,9 @@ Cross-cutting: encryption and secrets ([encryption-and-secrets.md](references/en
 
 ### Compliance-regime scope
 
-EKS is **in scope** for PCI-DSS, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Class C (formerly Moderate baseline, commercial) and Class D (formerly High baseline, GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud). AWS gives **framework support**, not attestation, for GDPR, NIST 800-53/800-171 and CJIS. Scope table and worked scenarios: [compliance-regimes.md](references/compliance-regimes.md); quick-starts: [HIPAA](references/compliance-hipaa.md), [PCI DSS](references/compliance-pci.md), [SOC 2](references/compliance-soc2.md), [FedRAMP](references/compliance-fedramp.md).
+EKS is **in scope** for PCI-DSS, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Class C (commercial) and Class D (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud). AWS gives **framework support**, not attestation, for GDPR, NIST 800-53/800-171 and CJIS. Scope table and worked scenarios: [compliance-regimes.md](references/compliance-regimes.md); quick-starts: [HIPAA](references/compliance-hipaa.md), [PCI DSS](references/compliance-pci.md), [SOC 2](references/compliance-soc2.md), [FedRAMP](references/compliance-fedramp.md).
 
-> **Disclaimer for customer-facing output:** "Compliance status changes over time; verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting program coverage." EKS is HIPAA-*eligible* with a signed BAA, not "HIPAA-compliant"; FedRAMP Class D (formerly High baseline) is GovCloud only.
+> **Disclaimer for customer-facing output:** "Compliance status changes over time; verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting program coverage." EKS is HIPAA-*eligible* with a signed BAA, not "HIPAA-compliant"; FedRAMP Class D is GovCloud only.
 
 ### Securing an EKS Auto Mode cluster
 
@@ -232,7 +232,7 @@ Each row links its AWS source; re-read the linked page before quoting a row to a
 - **Don't recommend AWS App Mesh for new work**: AWS set its end of support for September 30, 2026; check the [App Mesh page](https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html) for current status and use Istio, Linkerd, Cilium mesh or VPC Lattice.
 - **Don't recommend Auto Mode under a custom-AMI mandate**: Auto Mode supports only Amazon-provided Bottlerocket AMIs and no alternate CNI (checked 2026-11-05); use Bottlerocket on self-managed Karpenter NodePools. See [auto-mode-security.md](references/auto-mode-security.md).
 - **Don't promise "HIPAA-compliant"**: EKS is HIPAA-eligible with a signed BAA.
-- **Don't conflate** FedRAMP Class C (formerly Moderate baseline, commercial) with Class D (formerly High baseline, GovCloud); FIPS 140-3 with 140-2; CIS AL2 with CIS AL2023.
+- **Don't conflate** FedRAMP Class C (commercial) with Class D (GovCloud); FIPS 140-3 with 140-2; CIS AL2 with CIS AL2023.
 - **Don't treat a CMK as risk-free**: disabling the envelope-encryption key degrades the cluster and deleting it makes it unrecoverable. Guard it with least-privilege IAM and an alarm.
 - **Don't synthesize compliance claims**: cite an AWS-published source or escalate.
 

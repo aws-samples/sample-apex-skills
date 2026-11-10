@@ -22,7 +22,7 @@ The single biggest decision in EKS security. It depends on whether the customer 
 | Open to AWS defaults + lowest ops burden | **EKS Auto Mode AMI** (AWS-managed) | n/a | **Custom AMIs NOT supported**; AWS-managed patching; see Auto Mode trade-off below |
 | Vendor mandate: Ubuntu | n/a | **Canonical Ubuntu Pro for EC2** (Marketplace AMI; FIPS variant available); custom EKS AMI from Ubuntu base | Vendor-supported security patches |
 | Vendor mandate: RHEL | n/a | **RHEL custom AMI** on self-managed nodes; OR **ROSA** for fully Red Hat-managed OpenShift | Customer owns RHEL-specific hardening; ROSA is a separate product (defer to ROSA + Red Hat partner) |
-| Air-gapped / FedRAMP Class D (formerly High baseline) / classified | **EKS Anywhere** on bare metal (or Bottlerocket on Outposts) | EKS Anywhere with vendor OS | Customer owns ALL physical + OS security; AWS manages no control plane in air-gapped mode |
+| Air-gapped / FedRAMP High-impact / classified | **EKS Anywhere** on bare metal (or Bottlerocket on Outposts) | EKS Anywhere with vendor OS | Customer owns ALL physical + OS security; AWS manages no control plane in air-gapped mode |
 | FIPS 140-3 cryptography required | **Bottlerocket FIPS AMIs** (FIPS 140-3 validated modules, the [FIPS AMI page](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-fips-amis.html) names the AL2023 Kernel Crypto API + Go Cryptographic Module; the [compliance page](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-compliance-support.html) also lists the AWS-LC Cryptographic Module) | Ubuntu Pro FIPS; RHEL FIPS profile | Verify current module names + CMVP certificate numbers at NIST CMVP before quoting in customer-facing docs |
 
 ## The AWS opinionated default for new clusters
