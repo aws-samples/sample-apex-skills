@@ -57,6 +57,10 @@ def extract_entry(baseline_path: Path) -> dict:
 
 
 def main() -> None:
+    if len(sys.argv) > 1:
+        print(f"usage: {sys.argv[0]}", file=sys.stderr)
+        sys.exit(2)
+
     baselines = sorted(EVALS_ROOT.glob("*/baselines/baseline.json"))
 
     if not baselines:
