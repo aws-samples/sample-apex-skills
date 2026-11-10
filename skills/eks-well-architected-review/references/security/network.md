@@ -285,9 +285,9 @@ off with no warning. Find who is actually using the port before narrowing it:
 aws ec2 describe-network-interfaces --include-managed-resources --filters Name=group-id,Values=<SG_ID> --region <REGION> \
   --query 'NetworkInterfaces[].{Id:NetworkInterfaceId,Desc:Description,Attachment:Attachment.InstanceId}'
 # --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) also lists the ENIs
-# EKS Auto Mode hides from list calls, so it covers Auto Mode node ENIs and the pod branch
-# ENIs Auto Mode creates for Security Groups for Pods. An older CLI rejects the flag: drop
-# it, and then an empty result is not proof the group is unused, so also check this
+# EKS Auto Mode hides from list calls (node and pod branch ENIs). An older CLI rejects the
+# flag: drop it (or upgrade the CLI), and then an empty result is not proof the group is
+# unused, so also check this
 # cluster's nodes by id (pod branch ENIs and other clusters' nodes are not covered); any
 # id printed uses the group. Ids come from both providerID and the node name, which on
 # Auto Mode is the instance id. Run in bash; on InvalidInstanceID.NotFound a node was just
