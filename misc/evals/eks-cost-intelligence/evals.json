@@ -129,6 +129,43 @@
         ]
       },
       "files": []
+    },
+    {
+      "id": 9,
+      "name": "member-account-usage-type-split",
+      "prompt": "Use eks-cost-intelligence to assess the following captured observations as an offline fixture. Do not query a live cluster or AWS, and do not change resources. Read the relevant skill references and write a compact Markdown cost-method note to reports/cost-method.md for cluster `shop-prod` in us-east-1, covering the cluster compute cost and its namespace split. Observations: STS GetCallerIdentity Account is 111111111111; Organizations DescribeOrganization MasterAccountId is 222222222222. The section 1.2 namespace query returned no groups. The analysis window is the 7 days 2026-11-03 to 2026-11-10. Cost Explorer GetCostAndUsage with Metrics AmortizedCost, Filter Tag aws:eks:cluster-name = shop-prod and GroupBy USAGE_TYPE returned: {\"ResultsByTime\": [{\"TimePeriod\": {\"Start\": \"2026-11-03\", \"End\": \"2026-11-10\"}, \"Total\": {}, \"Groups\": [{\"Keys\": [\"USE1-BoxUsage:m5.xlarge\"], \"Metrics\": {\"AmortizedCost\": {\"Amount\": \"120.00\", \"Unit\": \"USD\"}}}, {\"Keys\": [\"USE1-SpotUsage:m6g.xlarge\"], \"Metrics\": {\"AmortizedCost\": {\"Amount\": \"24.00\", \"Unit\": \"USD\"}}}, {\"Keys\": [\"USE1-EBS:VolumeUsage.gp3\"], \"Metrics\": {\"AmortizedCost\": {\"Amount\": \"6.00\", \"Unit\": \"USD\"}}}], \"Estimated\": false}], \"GroupDefinitions\": [{\"Type\": \"DIMENSION\", \"Key\": \"USAGE_TYPE\"}]} Kubernetes version 1.33 (standard support). Namespace requests from kubectl: checkout 4 CPU cores and 12 GiB memory; batch 2 CPU cores and 4 GiB memory.",
+      "expectations": [
+        "Identifies a member account (Account differs from MasterAccountId) with no namespace data from Cost Explorer, and uses the cluster EC2 cost by usage type instead of only a node-based estimate.",
+        "Counts only the BoxUsage and SpotUsage groups (144.00 USD for the window) as instance cost, lists the EBS usage type apart and does not split it to namespaces.",
+        "Scales the instance total to a month (about 626 USD at 730 hours) before applying the request-share split to checkout and batch.",
+        "Labels the result with the Cost Explorer + cluster tag only confidence (Medium), records estimation_method ce_usage_type, and says the control plane is not in the tagged total.",
+        "Does not add the usage-type total to a separate per-service EC2 total, and does not claim namespace data from split cost allocation."
+      ],
+      "artifact_assertions": {
+        "structural": [
+          {
+            "path": "reports/cost-method.md",
+            "type": "file-exists"
+          },
+          {
+            "file": "reports/cost-method.md",
+            "pattern": "ce_usage_type",
+            "type": "contains"
+          }
+        ]
+      },
+      "process_assertions": [
+        {
+          "min": 1,
+          "tool": "Read",
+          "type": "tool-called"
+        },
+        {
+          "tool": "Bash",
+          "type": "no-tool-called"
+        }
+      ],
+      "files": []
     }
   ]
 }

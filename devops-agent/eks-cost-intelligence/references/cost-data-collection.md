@@ -191,6 +191,31 @@ for period in utilization_response["SavingsPlansUtilizationsByTime"]:
 
 ---
 
+### 1.4 Cluster EC2 Cost by Usage Type (when 1.2 returns no namespace data)
+
+Run this when section 1.2 returns no namespace groups, which includes every member account: split cost allocation data is not in Cost Explorer, and a member account cannot opt in to it. It needs two things only the payer can set: Cost Explorer access for member accounts ([Controlling access to Cost Explorer](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-access.html): "A management account can grant access to Cost Explorer for all or none of the member accounts"; a member account in a Billing Conductor billing group "sees all costs at the proforma rate") and the `aws:eks:cluster-name` tag activated ("When an AWS Organizations management account owner activates the tag, it's also activated for all organization member accounts", [Organize Amazon EKS resources with tags](https://docs.aws.amazon.com/eks/latest/userguide/eks-using-tags.html), read 2026-11-10).
+
+**Via Cost Explorer GetCostAndUsage API:**
+
+Call the Cost Explorer GetCostAndUsage API (us-east-1) with:
+- TimePeriod: the analysis window
+- Granularity: MONTHLY
+- Metrics: AmortizedCost
+- Filter: Tag aws:eks:cluster-name = <cluster-name>
+- GroupBy: USAGE_TYPE dimension
+
+**How to read it:**
+- Instance cost is the sum of the groups whose usage type contains `BoxUsage` (On-Demand, and `HostBoxUsage` on Dedicated Hosts) or `SpotUsage` (Spot), each ending in `:<instance-type>`, so the report can show the total per instance type and Spot apart from On-Demand ([EC2 billing codes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-billing-usage-reports.html)). List any other usage type in the result apart; it is not split to namespaces.
+- `AmortizedCost`, not section 1.1's `UnblendedCost`: usage covered by a Reserved Instance has a usage cost of zero ([reservation line items](https://docs.aws.amazon.com/cur/latest/userguide/regular-reserved-instances.html): "the cost associated with the usage line item is always zero"), while amortized cost spreads Reserved Instance and Savings Plans fees across the usage ([amortized costs](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-exploring-data.html)). How a member account's amortized view shows a payer-owned Reserved Instance or Savings Plan is not verified: say so in the report.
+- Use one cluster EC2 figure: when this total is used, it replaces section 1.1's EC2 line; never add the two.
+- Namespace split: scale the instance total to a month (`total × 730 / window hours`) and apply the request-share formula in [cost-estimation-fallback.md](cost-estimation-fallback.md) (Step 4), at the "Cost Explorer + cluster tag only" confidence.
+- Tag data starts when the tag was activated (or a payer backfill of up to twelve months, [Backfill cost allocation tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-allocation-backfill.html)), so a window that starts earlier returns a low total: say the window may start before the tag was active.
+- Not covered: the control plane (the tag "doesn't capture the control plane expenses"; keep the per-version rate), Fargate pods, the EKS Auto Mode fee, EBS, load balancers, NAT and data transfer.
+
+**Empty result:** say why it may be empty (the tag is not active, it has no data yet, or the cluster has no tagged EC2 instances, such as Fargate only; whether EKS Auto Mode instances carry the tag is not checked) and keep the node-based estimate.
+
+---
+
 
 ## 2. CloudWatch Container Insights
 
