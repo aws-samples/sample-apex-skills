@@ -129,7 +129,7 @@ The Price List API is served from three endpoints only — `us-east-1`, `ap-sout
 ([service endpoints](https://docs.aws.amazon.com/general/latest/gr/billing.html),
 [price change notifications](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/price-changes.html))
 — which is why a fixed `--region us-east-1` is used above while the *priced* region goes in `regionCode`.
-Any of the three works; the endpoint you call does not change the answer. If the call is unavailable,
+Any of the three works; the endpoint you call does not change the answer. If the call is unavailable or returns no price,
 say the percentage is unverified rather than quoting the example table below. The commonly quoted
 "~20%" is the **Graviton2** delta; Graviton3 (`m7g`/`c7g`) is nearer **15%**, and Graviton4
 (`m8g`/`c8g`, the newest generation offered in `ap-southeast-5`) is nearer **6.5%** against the same
@@ -188,7 +188,7 @@ number: it is the fastest way to lose the operator's trust in the whole report.
   warns about: `g5g` is series `g` (graphics), generation `5`, options `g` — a Graviton GPU instance —
   so the `g`-in-options test is what distinguishes it from the x86 `g5`. Options also carry `d` (local
   NVMe) and `n` (extra network); keep whichever the current type has if the workload depends on it.
-- **Estimated Savings:** (x86 rate − rate of the recommended Graviton type) × node count × 730, shown as $/month
+- **Estimated Savings:** (x86 rate − rate of the recommended Graviton type) × node count × 730, shown as $/month at On-Demand list prices, so nodes on Spot, Savings Plans or Reserved Instances may differ
 - **Effort:** Medium — confirm arm64 images, then roll a new node group (or set an
   architecture requirement on the Karpenter/Auto Mode NodePool) and drain the old one
 - **Prerequisite:** arm64 images for every workload that will land on those nodes
@@ -549,7 +549,7 @@ When billing applies, the surcharge is $0.60/hr vs $0.10/hr standard = ~$365/mon
 live** via the AWS Price List API, 2026-09-11: `AmazonEKS` standard cluster usage is $0.10/hr and the
 `extendedSupport` line item is $0.50/hr **on top of** the standard charge (both continue to be billed),
 for a combined $0.60/hr — consistent in both `us-east-1` and `ap-southeast-5`. This is an AWS list price
-that can be repriced; re-check it with `aws pricing get-products --service-code AmazonEKS --filters
+that can be repriced; re-check it with `aws pricing get-products --service-code AmazonEKS --region us-east-1 --filters
 Type=TERM_MATCH,Field=usagetype,Value=<REGION-PREFIX>-AmazonEKS-Hours:extendedSupport` before quoting a
 dollar figure to a customer, rather than carrying this number forward from memory.
 
