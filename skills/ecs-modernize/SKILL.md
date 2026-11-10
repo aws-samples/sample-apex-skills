@@ -228,7 +228,7 @@ Cost estimates and rightsizing are out of scope, and no ECS cost sibling skill e
 **Work this skill does NOT delegate** — no sibling skill covers these, so they remain in scope and are executed here (behind the Execution_Gate):
 
 - **Code transformation** — the integrated Transformation_Plan, including AWS Transform orchestration and agent-executed items.
-- **Containerization execution** — Containerization_Artifact generation, image build, and ECR push. AWS App2Container (A2C) is another containerization route, one that needs no source code; it is no longer open to new customers (sign-up closed November 7, 2025), and this skill does not drive it.
+- **Containerization execution** — Containerization_Artifact generation, image build, and ECR push. AWS App2Container (A2C) is another containerization route, one that needs no source code and is documented for applications running on-premises or on virtual machines (the VMware case); it is no longer open to new customers (sign-up closed November 7, 2025), and this skill does not drive it.
 - **Replatform environment build** — this skill generates Replatform_Environment_Terraform itself (why: the table below) ([references/replatform-environment-build.md](references/replatform-environment-build.md)), from the verified skeleton at [`assets/replatform-terraform/`](assets/replatform-terraform/) — copied, then parameterized from the findings, so two runs of the same assessment differ only in values. Requests for Replatform environment IaC are NOT routed to `ecs-build`.
 - **Windows_Container_Path environment build** — this skill generates Windows_Environment_Terraform itself (why: the table below). Requests for Windows container path environment IaC are NOT routed to `ecs-build`.
 
