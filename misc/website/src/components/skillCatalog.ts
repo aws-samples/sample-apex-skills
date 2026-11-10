@@ -90,13 +90,13 @@ const LINES: Record<string, Lines> = {
     output: 'Advice grounded in EKS best practices',
   },
   'eks-platform-engineering': {
-    job: 'knowledge',
+    job: 'build',
     use: 'Plan an internal developer platform on EKS.',
     notFor: 'single-cluster tuning with no platform angle',
     output: 'A platform stack: Backstage, ArgoCD, Kargo, ACK and kro choices',
   },
   'eks-genai': {
-    job: 'knowledge',
+    job: 'build',
     use: 'Plan GPU, Neuron, ML and LLM serving or training on EKS.',
     notFor: 'Bedrock-only or SageMaker-only workloads',
     output: 'A GenAI stack plan with compute, serving and storage choices',
@@ -274,8 +274,8 @@ export function portHref(name: string): string {
 
 export const skillCount = SKILLS.length;
 
-export function platformCounts(list: CatalogSkill[]): Record<Platform, number> {
+export function platformCounts(list: CatalogSkill[], by: 'platform' | 'group' = 'platform'): Record<Platform, number> {
   const counts: Record<Platform, number> = {eks: 0, ecs: 0, general: 0};
-  for (const s of list) counts[s.platform] += 1;
+  for (const s of list) counts[s[by]] += 1;
   return counts;
 }

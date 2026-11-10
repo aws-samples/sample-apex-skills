@@ -7,7 +7,8 @@ import SkillGrid from '@site/src/components/SkillGrid';
 import InstallBlock from '@site/src/components/InstallBlock';
 import {SKILLS, platformCounts, skillCount} from '@site/src/components/skillCatalog';
 
-const counts = platformCounts(SKILLS);
+// By manifest group, as the docs index and llms.txt count (dotnet-aws-ecs is general there).
+const counts = platformCounts(SKILLS, 'group');
 
 export default function Home(): ReactNode {
   useBrokenLinks().collectAnchor('install');

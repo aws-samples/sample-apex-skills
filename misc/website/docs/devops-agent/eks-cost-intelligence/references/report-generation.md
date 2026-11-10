@@ -197,6 +197,7 @@ Recommendations in the report are sorted by:
 
 {If any dimension is SKIPPED and at least one is assessed: **Computed over {N} of {M} dimensions ({assessed_max} of 100 points).** Not assessed: {skipped dimensions, weights and cause: read not completed (UNKNOWN) or no data source}.}
 {If an assessed dimension skipped checks: Partly assessed: {dimension}: {skipped checks and cause: read not completed (UNKNOWN) or no data source; for each UNKNOWN read: operation, scope and observed error}.}
+{If any read is UNKNOWN or any check or dimension is SKIPPED: UNKNOWN means a read was denied, failed or unverified, and so is any check that rests on it; SKIPPED means a check or dimension was left out of the score.}
 
 {executive_summary: 2-3 sentences summarizing the cluster's cost posture, top waste
 areas, and projected total savings if all recommendations are implemented; name any partly assessed dimension.}
@@ -205,12 +206,12 @@ areas, and projected total savings if all recommendations are implemented; name 
 
 | Dimension | Max | Deduction | Status | Top Finding |
 |-----------|-----|-----------|--------|-------------|
-| Compute Efficiency | 25 | -{compute_deduction} | {status_icon} | {top_finding_summary} |
-| Spot/Graviton Adoption | 20 | -{spot_graviton_deduction} | {status_icon} | {top_finding_summary} |
-| Networking Costs | 15 | -{networking_deduction} | {status_icon} | {top_finding_summary} |
-| Storage Costs | 15 | -{storage_deduction} | {status_icon} | {top_finding_summary} |
-| Observability Costs | 10 | -{observability_deduction} | {status_icon} | {top_finding_summary} |
-| Idle Resources | 15 | -{idle_deduction} | {status_icon} | {top_finding_summary} |
+| Compute Efficiency | 25 | -{compute_deduction} | {status_icon} | {top_finding_summary}{ (AWS-only inference) when tagged} |
+| Spot/Graviton Adoption | 20 | -{spot_graviton_deduction} | {status_icon} | {top_finding_summary}{ (AWS-only inference) when tagged} |
+| Networking Costs | 15 | -{networking_deduction} | {status_icon} | {top_finding_summary}{ (AWS-only inference) when tagged} |
+| Storage Costs | 15 | -{storage_deduction} | {status_icon} | {top_finding_summary}{ (AWS-only inference) when tagged} |
+| Observability Costs | 10 | -{observability_deduction} | {status_icon} | {top_finding_summary}{ (AWS-only inference) when tagged} |
+| Idle Resources | 15 | -{idle_deduction} | {status_icon} | {top_finding_summary}{ (AWS-only inference) when tagged} |
 | **Total** | **{assessed_max}** | **-{total_deduction}** | {N} of {M} dimensions | **Score: {score}** |
 
 With no dimension assessed the cell reads **Score: not computed**.
@@ -221,8 +222,8 @@ With no dimension assessed the cell reads **Score: not computed**.
 
 | # | Finding | Dimension | Resource | Monthly Savings | Effort | Severity |
 |---|---------|-----------|----------|-----------------|--------|----------|
-| 1 | {description} | {dimension} | {resource} | ${savings} | {effort} | {severity} |
-| 2 | {description} | {dimension} | {resource} | ${savings} | {effort} | {severity} |
+| 1 | {description}{ (AWS-only inference) when tagged} | {dimension} | {resource} | ${savings} | {effort} | {severity} |
+| 2 | {description}{ (AWS-only inference) when tagged} | {dimension} | {resource} | ${savings} | {effort} | {severity} |
 | ... | ... | ... | ... | ... | ... | ... |
 
 **Total projected savings: ${total_monthly_savings}/month (${total_annual_savings}/year)**
@@ -237,11 +238,11 @@ With no dimension assessed the cell reads **Score: not computed**.
 
 | Finding | Resource | Monthly Waste | Savings | Effort | Severity |
 |---------|----------|---------------|---------|--------|----------|
-| {finding_description} | {resource} | ${waste} | ${savings} | {effort} | {severity} |
+| {finding_description}{ (AWS-only inference) when tagged} | {resource} | ${waste} | ${savings} | {effort} | {severity} |
 
 #### Remediation
 
-**{finding_title}**
+**{finding_title}**{ (AWS-only inference) when tagged}
 {remediation_snippet}
 
 ---
@@ -253,7 +254,7 @@ With no dimension assessed the cell reads **Score: not computed**.
 **Reason:** {cause: "Read not completed (UNKNOWN)" when a read was denied, failed or unverified, or "No data source" when nothing failed}: {specific error message, e.g., "metrics-server not available"}
 **UNKNOWN reads:** {each read not completed: operation, scope and observed error; or none}
 **Impact:** {what findings are missing, e.g., "CPU/memory utilization analysis unavailable"}
-**Retained verified findings (no deduction):** {table, or none}
+**Retained verified findings (no deduction):** {table, each description with { (AWS-only inference) when tagged}, or none}
 **Remediation:** {for no data source, how to enable it; for a read not completed (UNKNOWN), the failed operation to retry or grant access for, naming a permission only when established}
 
 ---
@@ -304,6 +305,8 @@ With no dimension assessed the cell reads **Score: not computed**.
 | High | Cost Explorer + Container Insights available; dollar-accurate findings |
 | Medium | Partial data; some estimates based on node-level pricing |
 | Low | Node-based estimation only; findings are directional |
+
+A finding tagged AWS-only inference rests only on AWS reads (no Kubernetes read confirmed it); the tag is independent of its confidence level.
 
 ---
 
