@@ -509,7 +509,7 @@ INSTANCE_IDS=$(kubectl get nodes -o json | \
   jq -r '.items[].spec.providerID // empty | select(startswith("aws://")) | split("/")[-1] | select(startswith("i-"))')
 
 aws ec2 describe-instances \
-  --instance-ids $INSTANCE_IDS \
+  --instance-ids ${INSTANCE_IDS:?no EC2-backed nodes: nothing to cross-check} \
   --query 'Reservations[].Instances[].{
     Id: InstanceId,
     Type: InstanceType,
