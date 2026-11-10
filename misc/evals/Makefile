@@ -60,7 +60,7 @@ TASK_T       := $(addprefix task-,$(SKILLS))
 
 # Task-axis defaults (PLAN §2). RUNS_PER_PROMPT=1 is cheap dev; bump to 3
 # for stddev. INCLUDE_LIVE_ONLY=1 enables prompts that require a real
-# cluster (eks-recon, eks-operation-review, update-docs). KUBECONFIG and AWS_SESSION_POLICY feed
+# cluster (eks-recon, eks-operation-review). KUBECONFIG and AWS_SESSION_POLICY feed
 # the sandbox so those live prompts run against a read-only scope.
 RUNS_PER_PROMPT   ?= 1
 INCLUDE_LIVE_ONLY ?= 0
