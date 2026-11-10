@@ -98,8 +98,8 @@ kubectl get storageclass -o custom-columns=NAME:.metadata.name,PROVISIONER:.prov
 
 ```bash
 # --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) also lists the volumes
-# EKS Auto Mode hides from list calls. An older CLI rejects the flag: drop it (or upgrade the
-# CLI), and then the hidden ones are missing from both counts.
+# EKS Auto Mode can hide from list calls, where they carry the cluster tag. An older CLI rejects
+# the flag: drop it (or upgrade the CLI), and then the hidden ones are missing from both counts.
 # Get EBS volumes tagged with the cluster and check volume type
 aws ec2 describe-volumes --include-managed-resources \
   --filters "Name=tag:kubernetes.io/cluster/<cluster>,Values=owned" \
