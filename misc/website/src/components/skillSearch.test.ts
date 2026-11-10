@@ -93,9 +93,10 @@ const FIRST: [string, string, number?][] = [
   ['deploy eks cluster', 'eks-build'],
   // First only by tie order: eks-build and ecs-build both score 6, and EKS sorts first.
   ['deploy a cluster', 'eks-build'],
-  // First only by tie order with eks-ingress-migration, eks-security and eks-upgrade-check (6 each).
   ['set up a new kubernetes cluster', 'eks-build'],
   ['i want to build an eks cluster', 'eks-build'],
+  // The user's own example of a phrase people type.
+  ['spin up eks', 'eks-build'],
   // eks-cost-intelligence: "how much am I wasting on EKS?" (skills/eks-cost-intelligence/SKILL.md:3).
   ['make my cluster cheaper', 'eks-cost-intelligence'],
   ['my cluster is too expensive', 'eks-cost-intelligence'],
@@ -199,7 +200,7 @@ test('Site search: "deploy a cluster" also shows ecs-build, which builds ECS clu
   assert.ok(shown('deploy a cluster').rows.includes('ecs-build'));
 });
 
-test('Site search: filler words do not hide the task word', () => {
+test('Site search: a partial match still shows the skill of its task word', () => {
   // eks-ingress-migration: "Assess a live EKS cluster's NGINX/Ingress estate" (skills/eks-ingress-migration/SKILL.md:3).
   assert.ok(shown('how do i set up ingress').rows.includes('eks-ingress-migration'));
   // ecs-architect: "Fargate vs ECS on EC2 vs Managed Instances" (skills/ecs-architect/SKILL.md:3).

@@ -32,12 +32,10 @@ const SKILL_TOKEN = /\b[a-z0-9]+(-[a-z0-9]+)+\b/g;
 // skill that does not ship yet.
 const ROUTE_TO = /\buse [a-z0-9]+(-[a-z0-9]+)+\b/;
 // Query words only. "skills" stems to "skill"; the rest are the filler of a
-// task sentence such as "how do i upgrade my cluster" or "set up a new ..."
-// ("up" would otherwise be a part-word hit in "upgrade").
+// task sentence such as "how do i upgrade my cluster".
 const STOP = new Set(
   ['skill', 'aws', 'amazon', 'how', 'do', 'does', 'can', 'should', 'me', 'my', 'our', 'we', 'you', 'your', 'the', 'an', 'to',
-    'for', 'from', 'of', 'in', 'on', 'with', 'what', 'which', 'is', 'are', 'it', 'this', 'help', 'want', 'need', 'please',
-    'set', 'up', 'spin', 'make', 'new', 'too'].map(stem),
+    'for', 'from', 'of', 'in', 'on', 'with', 'what', 'which', 'is', 'are', 'it', 'this', 'help', 'want', 'need', 'please'].map(stem),
 );
 // A word visitors type for one the skills use. Each target is the word in the
 // skill's own text: "Native K8s" next to Kubernetes (eks-best-practices
