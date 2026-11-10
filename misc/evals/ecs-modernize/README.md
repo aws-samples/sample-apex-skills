@@ -20,7 +20,7 @@ The discriminator: if the user has an *existing app* (EC2/VMware) and wants it *
 
 ## Live-MCP caveat
 
-These evals need no live cluster or MCP server, and the skill makes no AWS calls; the model calls use Bedrock credentials by default (`misc/evals/Makefile`). The `triggering.json` prompts are description-fit only. The `evals.json` prompts carry their full context inline: assessment prompts include a synthetic source-tree inventory in the prompt text (the `./fixtures/...` paths are narrative, not real fixture files), and execution-phase prompts state prior approvals and supply **mocked AWS responses** inline where read-only API results are needed (e.g. id 20 embeds simulated DescribeServices/DescribeTasks output for deploy verification). A run is graded on whether the skill honours its read-only invariants, gates, and delegation rules against that stated context — by default nothing should touch a real AWS account.
+These evals need no live cluster or MCP server, and the skill makes no AWS calls; the model calls use Bedrock credentials by default. The `triggering.json` prompts are description-fit only. The `evals.json` prompts carry their full context inline: assessment prompts include a synthetic source-tree inventory in the prompt text (the `./fixtures/...` paths are narrative, not real fixture files), and execution-phase prompts state prior approvals and supply **mocked AWS responses** inline where read-only API results are needed (e.g. id 20 embeds simulated DescribeServices/DescribeTasks output for deploy verification). A run is graded on whether the skill honours its read-only invariants, gates, and delegation rules against that stated context — by default the skill should touch no real AWS account.
 
 ## How to run
 

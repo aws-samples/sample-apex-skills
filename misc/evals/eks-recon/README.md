@@ -2,7 +2,7 @@
 
 ## What these evals target
 
-These artifacts exercise the `eks-recon` skill, whose job is read-only discovery of an existing EKS cluster: current version, compute strategy (Karpenter / MNG / Auto Mode / Fargate), IaC tooling, CI/CD pipelines, add-on inventory, networking, security posture, and observability. `triggering.json` checks that the skill fires on realistic recon phrasings and does NOT fire on near-miss requests that belong to its sibling skills. `evals.json` contains two live recon tasks (upgrade-prep context and a team handoff) and four offline report-comparison tasks (cases 3–6).
+These artifacts exercise the `eks-recon` skill, whose job is read-only discovery of an existing EKS cluster: current version, compute strategy (Karpenter / MNG / Auto Mode / Fargate), IaC tooling, CI/CD pipelines, add-on inventory, networking, security posture, and observability. `triggering.json` checks that the skill fires on realistic recon phrasings and does NOT fire on near-miss requests that belong to its sibling skills. `evals.json` contains two live recon tasks (upgrade-prep context and a team handoff) and four fixture-based report-comparison tasks (cases 3–6).
 
 ## Neighbour-skill disambiguation
 
@@ -81,7 +81,7 @@ fixtures too: validate `reports/delta.*`, not any matching YAML in the output tr
 These are agent report-generation evaluations, not live-cluster tests. CI runs
 eval hygiene, not these model-backed tasks.
 
-The offline cases also cover an unconfirmed GitOps result with empty sibling fields
+The fixture cases also cover an unconfirmed GitOps result with empty sibling fields
 and differing capped evidence samples. Missing modules remain outside comparison
 coverage, even when all comparable facts are unchanged. Structural checks anchor
 selected before/after cells and forbid delta rows in mismatch/reorder-only cases;
