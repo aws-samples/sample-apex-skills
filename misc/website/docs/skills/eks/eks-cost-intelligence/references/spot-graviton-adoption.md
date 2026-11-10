@@ -506,7 +506,7 @@ kubectl get nodes -o json | \
 # Get capacity type from EC2 instances backing the cluster
 CLUSTER="<cluster>"
 INSTANCE_IDS=$(kubectl get nodes -o json | \
-  jq -r '.items[].spec.providerID' | sed 's|.*/||')
+  jq -r '.items[].spec.providerID // empty | select(startswith("aws://")) | split("/")[-1] | select(startswith("i-"))')
 
 aws ec2 describe-instances \
   --instance-ids $INSTANCE_IDS \

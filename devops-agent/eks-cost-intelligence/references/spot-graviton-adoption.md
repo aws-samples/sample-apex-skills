@@ -289,7 +289,7 @@ The ratio of nodes running on Spot instances versus On-Demand, identifying clust
 
 Use the Kubernetes API to list Nodes and check labels `karpenter.sh/capacity-type` or `eks.amazonaws.com/capacityType`. Classify nodes as Spot or On-Demand and calculate the percentage of each.
 
-Use the EC2 DescribeInstances API to cross-reference instance lifecycle. InstanceLifecycle value of "spot" indicates Spot instances; null/absent indicates On-Demand.
+Use the EC2 DescribeInstances API, by the nodes' EC2 instance ids (the `i-` id at the end of each `aws:///` providerID; skip hybrid `eks-hybrid:///` and Fargate `fargate-` nodes), to cross-reference instance lifecycle. InstanceLifecycle value of "spot" indicates Spot instances; null/absent indicates On-Demand.
 
 ### Analysis logic
 
