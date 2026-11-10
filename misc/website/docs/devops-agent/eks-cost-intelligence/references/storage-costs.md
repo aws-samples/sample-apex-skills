@@ -64,7 +64,7 @@ PersistentVolumes (PVs) and PersistentVolumeClaims (PVCs) using the `gp2` storag
 
 Use the Kubernetes API to list PersistentVolumeClaims across all namespaces. Filter for storageClassName == "gp2" or null (which defaults to the cluster's default StorageClass). Also list StorageClasses to identify the default and check if a gp3 class exists. Extract capacity from spec.resources.requests.storage.
 
-Use the EC2 DescribeVolumes API filtered by the cluster tag (`kubernetes.io/cluster/<cluster>=owned`) to verify volume types and get actual sizes. Count gp2 vs gp3 volumes for the cluster.
+Use the EC2 DescribeVolumes API filtered by the cluster tag (`kubernetes.io/cluster/<cluster>=owned`), with `IncludeManagedResources` set to true so the volumes EKS Auto Mode hides from list calls are included, to verify volume types and get actual sizes. Count gp2 vs gp3 volumes for the cluster.
 
 ### Analysis logic
 
