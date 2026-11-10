@@ -293,13 +293,17 @@ health-check range or a partner's fixed IP that nobody documented — so revokin
 off with no warning. Find who is actually using the port before narrowing it:
 
 ```bash
-aws ec2 describe-network-interfaces --filters Name=group-id,Values=<SG_ID> --region <REGION> \
+aws ec2 describe-network-interfaces --include-managed-resources --filters Name=group-id,Values=<SG_ID> --region <REGION> \
   --query 'NetworkInterfaces[].{Id:NetworkInterfaceId,Desc:Description,Attachment:Attachment.InstanceId}'
-# EKS Auto Mode node ENIs can be hidden from list calls like the one above, so an empty
-# result is not proof the group is unused. Check this cluster's nodes by id (pod branch
-# ENIs and other clusters' nodes are not covered); any id printed uses the group. Run in
-# bash; on InvalidInstanceID.NotFound a node was just removed, so run it again.
-IDS=$(kubectl get nodes -o jsonpath='{.items[*].spec.providerID}' | grep -oE '/i-[0-9a-f]+' | cut -c2-)
+# --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) also lists the ENIs
+# EKS Auto Mode hides from list calls, so it covers Auto Mode node ENIs and the pod branch
+# ENIs Auto Mode creates for Security Groups for Pods. An older CLI rejects the flag: drop
+# it, and then an empty result is not proof the group is unused, so also check this
+# cluster's nodes by id (pod branch ENIs and other clusters' nodes are not covered); any
+# id printed uses the group. Ids come from both providerID and the node name, which on
+# Auto Mode is the instance id. Run in bash; on InvalidInstanceID.NotFound a node was just
+# removed, so run it again.
+IDS=$(kubectl get nodes -o jsonpath='{.items[*].spec.providerID} {.items[*].metadata.name}' | tr ' ' '\n' | sed 's#.*/##' | grep -E '^i-[0-9a-f]{8,}$' | sort -u)
 aws ec2 describe-instances --region <REGION> --instance-ids ${IDS:?no EC2 node ids: check that kubectl points at this cluster} \
   --query "Reservations[].Instances[?contains(NetworkInterfaces[].Groups[].GroupId, '<SG_ID>')].InstanceId[]"
 # Cross-check against VPC Flow Logs for the source IPs actually hitting this port, and any
