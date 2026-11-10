@@ -18,7 +18,7 @@ eks-security runs three read-only security reviews of a live EKS cluster (C1 CVE
 
 ## Fixtures
 
-Cases 4 to 9 are offline: each prompt says not to run `aws`, `kubectl` or `collect.sh`, and the inputs are staged from `files/eval-<id>/` into the working directory.
+Cases 4 to 9 need no cluster or AWS access by the skill: each prompt says not to run `aws`, `kubectl` or `collect.sh`, and the inputs are staged from `files/eval-<id>/` into the working directory.
 
 | Path | Content |
 |---|---|

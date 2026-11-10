@@ -20,7 +20,7 @@ The discriminator: **execution of the arm64 move** (scan → NodePool cutover �
 
 ## Live-MCP caveat
 
-The three eval prompts in `evals.json` are about **producing** config and manifests — the Arm-MCP `.mcp.json`, a Karpenter NodePool + canary spec, and a GitHub Actions job. Answering them requires no live cluster, no running Arm MCP server, and no AWS calls; the model should respond from the skill's SKILL.md and reference docs. Triggering evals are pure classification and are never affected by MCP availability either.
+The three eval prompts in `evals.json` are about **producing** config and manifests — the Arm-MCP `.mcp.json`, a Karpenter NodePool + canary spec, and a GitHub Actions job. Answering them requires no live cluster or running Arm MCP server, and the skill makes no AWS calls; the model should respond from the skill's SKILL.md and reference docs. Triggering evals are pure classification and are never affected by MCP availability either.
 
 ## How to run
 
