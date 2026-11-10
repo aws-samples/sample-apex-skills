@@ -1,8 +1,10 @@
 import type {CatalogSkill} from './skillCatalog';
 
 // Ranked skill search. Rules (carry/site-redesign-20261107/design.md section 3):
-// 1. every query word must match (AND), so "upgrade check" narrows instead of
-//    widening;
+// 1. the skills that match the most query words are shown, so "upgrade check"
+//    narrows instead of widening while a word no skill knows ("i want to deploy
+//    an eks cluster") lowers the match instead of emptying it; when no word
+//    matches at all, every skill is listed, as for a stop-word-only query;
 // 2. words are whole words, compared after a trailing "s", then "ing", then
 //    "e" is cut, so "upgrades" finds "upgrade" and "settings" finds
 //    "setting" (a doubled last letter left by "ing" is undoubled, so "running"
@@ -43,6 +45,18 @@ const ALIAS = new Map(
     ([from, to]) => [stem(from), stem(to)],
   ),
 );
+// Phrases visitors type that a skill's own text lacks, indexed with its summary.
+// Each is true of its skill, by the SKILL.md description line quoted beside it.
+const PHRASES: Record<string, string[]> = {
+  // skills/eks-build/SKILL.md:3 "Use when building EKS clusters. Generates complete,
+  // production-ready Terraform projects"; "generating EKS Terraform code from scratch".
+  'eks-build': ['deploy an EKS cluster', 'set up a new Kubernetes cluster on EKS', 'spin up EKS'],
+  // skills/ecs-build/SKILL.md:3 "apply-ready code for clusters, services, and task definitions".
+  'ecs-build': ['deploy an ECS cluster'],
+  // skills/eks-cost-intelligence/SKILL.md:3 "how much am I wasting on EKS?",
+  // "dollar-quantified findings and ready-to-apply remediation snippets".
+  'eks-cost-intelligence': ['make my cluster cheaper', 'cut my EKS bill'],
+};
 // "agent" finds the skills that also run in AWS DevOps Agent (PORTS, the
 // folders under devops-agent/) and apex, the router, first, so the home
 // search keeps it in view, all ahead of eks-mcp-server, whose use line only
@@ -111,7 +125,10 @@ export function buildIndex(skills: CatalogSkill[]): Indexed[] {
     port: PORTS.has(skill.name),
     agent: PORTS.has(skill.name) ? 6 : skill.name === ROUTER ? 7 : 0,
     // The hand-written "use" line, as on the page (skillCatalog.ts SKILLS), and the manifest summary.
-    summary: new Set(words(positive([skill.use, skill.summary].filter(Boolean).join('. '), names))),
+    summary: new Set([
+      ...words(positive([skill.use, skill.summary].filter(Boolean).join('. '), names)),
+      ...words((PHRASES[skill.name] ?? []).join(' ')),
+    ]),
     description: new Set(words(positive(skill.description, names))),
   }));
 }
@@ -121,11 +138,13 @@ const AGENT_WORD = stem('agent');
 const DEVOPS_AGENT = `${stem('devops')} ${AGENT_WORD}`;
 const AGENT = new Set([AGENT_WORD, DEVOPS_AGENT]);
 
-// passing: some word was found only in the long description.
-function score(entry: Indexed, query: string[]): {score: number; passing: boolean} {
+// passing: some word was found only in the long description; matched: how many
+// query words the skill has.
+function score(entry: Indexed, query: string[]): {score: number; passing: boolean; matched: number} {
   const name = ` ${entry.name} `;
   let total = 0;
   let passing = false;
+  let matched = 0;
   for (const word of query) {
     if (name.includes(` ${word} `)) total += 10;
     else if (entry.agent && AGENT.has(word)) total += entry.agent;
@@ -134,27 +153,32 @@ function score(entry: Indexed, query: string[]): {score: number; passing: boolea
     else if (entry.description.has(word)) {
       total += 1;
       passing = true;
-    } else return {score: 0, passing};
+    } else continue;
+    matched += 1;
   }
   if (name.includes(` ${query.join(' ')} `)) total += 20;
-  return {score: total, passing};
+  return {score: total, passing, matched};
 }
 
-// port: an agent query found a skill that has an AWS DevOps Agent page.
-export type Hit = {skill: CatalogSkill; score: number; passing: boolean; port: boolean};
+// port: an agent query found a skill that has an AWS DevOps Agent page;
+// partial: the skill does not have every query word.
+export type Hit = {skill: CatalogSkill; score: number; passing: boolean; port: boolean; partial: boolean};
 
 export function search(index: Indexed[], query: string): Hit[] {
   const q = queryWords(query);
   // Only stop words, such as "aws skills": the whole catalogue, EKS first.
   if (q.length === 0 && words(query).length === 0) return [];
   const agentQuery = q.some((w) => AGENT.has(w));
-  return index
-    .map((entry) => ({
-      skill: entry.skill,
-      port: agentQuery && entry.port,
-      ...(q.length === 0 ? {score: 0, passing: false} : score(entry, q)),
-    }))
-    .filter((hit) => q.length === 0 || hit.score > 0)
+  const scored = index.map((entry) => ({
+    skill: entry.skill,
+    port: agentQuery && entry.port,
+    ...(q.length === 0 ? {score: 0, passing: false, matched: 0} : score(entry, q)),
+  }));
+  // Rule 1: keep the skills with the most query words; none matched keeps all.
+  const most = Math.max(...scored.map((hit) => hit.matched));
+  return scored
+    .filter((hit) => hit.matched === most)
+    .map(({matched, ...hit}) => ({...hit, partial: matched < q.length}))
     .sort(
       (a, b) =>
         b.score - a.score ||

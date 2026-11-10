@@ -87,6 +87,15 @@ const FIRST: [string, string, number?][] = [
   ['save money', 'eks-cost-intelligence'],
   ['k8s', 'eks-best-practices'],
   ['k8s upgrade', 'eks-upgrade-check'],
+  // Site search feedback: most words, not all, plus each skill's phrases.
+  // eks-build is "Use when building EKS clusters" (skills/eks-build/SKILL.md:3).
+  ['i want to deploy an eks cluster', 'eks-build'],
+  ['deploy eks cluster', 'eks-build'],
+  ['deploy a cluster', 'eks-build'],
+  ['set up a new kubernetes cluster', 'eks-build'],
+  ['i want to build an eks cluster', 'eks-build'],
+  // eks-cost-intelligence: "how much am I wasting on EKS?" (skills/eks-cost-intelligence/SKILL.md:3).
+  ['make my cluster cheaper', 'eks-cost-intelligence'],
 ];
 
 for (const [query, want, most] of FIRST) {
@@ -99,9 +108,9 @@ for (const [query, want, most] of FIRST) {
 
 test('M1: a skill that only routes away is not matched', () => {
   // ecs-cost-intelligence does not ship; the clauses that route to it ("for
-  // cost/TCO use ecs-cost-intelligence") are not indexed, so the finder shows
-  // no match rather than ecs-operation-review as "1 skill matches".
-  assert.equal(shown('ecs cost intelligence').total, 0);
+  // cost/TCO use ecs-cost-intelligence") are not indexed, so the finder never
+  // shows ecs-operation-review for it.
+  assert.ok(!shown('ecs cost intelligence').all.includes('ecs-operation-review'));
   assert.ok(!shown('kubernetes').all.includes('ecs-architect'));
 });
 
@@ -182,6 +191,13 @@ test('S-R2-6: text after a route-away phrase is not indexed', () => {
   assert.ok(!shown('windows').all.includes('dotnet-aws-ecs'), 'dotnet-aws-ecs: "NOT for Windows containers"');
 });
 
+test('Site search: "deploy a cluster" also shows ecs-build, which builds ECS clusters', () => {
+  // skills/ecs-build/SKILL.md:3 "apply-ready code for clusters, services, and task definitions".
+  assert.ok(shown('deploy a cluster').rows.includes('ecs-build'));
+});
+
 test('S-R2-6: "." stays inside a word', () => {
-  assert.equal(shown('32').total, 0, '"32" is not a word of "1.32"');
+  const hits: Hit[] = search(index, '32');
+  assert.ok(hits.every((h) => h.score === 0), '"32" is not a word of "1.32"');
+  assert.equal(hits.length, manifest.length, 'no word matched: the whole catalogue');
 });
