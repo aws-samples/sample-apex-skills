@@ -550,7 +550,7 @@ live** via the AWS Price List API, 2026-09-11: `AmazonEKS` standard cluster usag
 `extendedSupport` line item is $0.50/hr **on top of** the standard charge (both continue to be billed),
 for a combined $0.60/hr — consistent in both `us-east-1` and `ap-southeast-5`. This is an AWS list price
 that can be repriced; re-check it with `aws pricing get-products --service-code AmazonEKS --region us-east-1 --filters
-Type=TERM_MATCH,Field=usagetype,Value=<REGION-PREFIX>-AmazonEKS-Hours:extendedSupport` before quoting a
+Type=TERM_MATCH,Field=regionCode,Value=<REGION> Type=TERM_MATCH,Field=operation,Value=ExtendedSupport` before quoting a
 dollar figure to a customer, rather than carrying this number forward from memory.
 
 **Criteria for opportunity:**
