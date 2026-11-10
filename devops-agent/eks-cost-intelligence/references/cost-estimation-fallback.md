@@ -97,7 +97,7 @@ Use the Kubernetes API to list all Nodes. Extract metadata.labels for instance-t
 
 ## Step 2: Look Up Instance Pricing
 
-**Primary method: AWS Price List API** — provides real-time, region-accurate pricing.
+**Primary method, when `pricing:GetProducts` is granted: AWS Price List API** — provides real-time, region-accurate pricing.
 **Fallback: Reference table** — use only when the API is unavailable.
 
 ### Option B (when `pricing:GetProducts` is granted): AWS Price List API Lookup
