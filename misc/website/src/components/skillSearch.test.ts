@@ -200,11 +200,12 @@ test('Site search: "deploy a cluster" also shows ecs-build, which builds ECS clu
   assert.ok(shown('deploy a cluster').rows.includes('ecs-build'));
 });
 
-test('Site search: a partial match still shows the skill of its task word', () => {
+test('Site search: a partial match opens the skill of its task word, not of its verbs', () => {
   // eks-ingress-migration: "Assess a live EKS cluster's NGINX/Ingress estate" (skills/eks-ingress-migration/SKILL.md:3).
-  assert.ok(shown('how do i set up ingress').rows.includes('eks-ingress-migration'));
+  assert.equal(shown('how do i set up ingress').first, 'eks-ingress-migration');
   // ecs-architect: "Fargate vs ECS on EC2 vs Managed Instances" (skills/ecs-architect/SKILL.md:3).
-  assert.ok(shown('spin up fargate').rows.includes('ecs-architect'));
+  // First by tie order: the ECS skills that name Fargate all score 3.
+  assert.equal(shown('spin up fargate').first, 'ecs-architect');
 });
 
 test('S-R2-6: "." stays inside a word', () => {

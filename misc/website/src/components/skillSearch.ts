@@ -3,9 +3,9 @@ import type {CatalogSkill} from './skillCatalog';
 // Ranked skill search. Rules (carry/site-redesign-20261107/design.md section 3):
 // 1. when some skill has every query word, only those are shown, so "upgrade
 //    check" narrows instead of widening; else every skill with any query word
-//    is shown, most words first, so a word no skill knows lowers the match
-//    instead of emptying it; when no word matches at all, every skill is
-//    listed, as for a stop-word-only query;
+//    is shown, best score first (FILLER verbs not counted), so a word no skill
+//    knows lowers the match instead of emptying it; when no word matches at
+//    all, every skill is listed, as for a stop-word-only query;
 // 2. words are whole words, compared after a trailing "s", then "ing", then
 //    "e" is cut, so "upgrades" finds "upgrade" and "settings" finds
 //    "setting" (a doubled last letter left by "ing" is undoubled, so "running"
@@ -59,6 +59,10 @@ const PHRASES: Record<string, string[]> = {
   // "dollar-quantified findings and ready-to-apply remediation snippets".
   'eks-cost-intelligence': ['make my cluster cheaper', 'cut my EKS bill'],
 };
+// Verbs that start many tasks ("set up ingress", "spin up fargate"). They still
+// match, so "spin up eks" finds its phrase and "up" alone finds its skills, but
+// they do not rank a partial match: "up" is a part-word hit in "upgrade".
+const FILLER = new Set(['set', 'up', 'spin', 'make', 'new', 'cut'].map(stem));
 // "agent" finds the skills that also run in AWS DevOps Agent (PORTS, the
 // folders under devops-agent/) and apex, the router, first, so the home
 // search keeps it in view, all ahead of eks-mcp-server, whose use line only
@@ -171,23 +175,27 @@ export function search(index: Indexed[], query: string): Hit[] {
   // Only stop words, such as "aws skills": the whole catalogue, EKS first.
   if (q.length === 0 && words(query).length === 0) return [];
   const agentQuery = q.some((w) => AGENT.has(w));
+  const telling = q.filter((w) => !FILLER.has(w));
   const scored = index.map((entry) => ({
     skill: entry.skill,
     port: agentQuery && entry.port,
     ...(q.length === 0 ? {score: 0, passing: false, matched: 0} : score(entry, q)),
+    told: telling.length > 0 ? score(entry, telling).score : 0,
   }));
   // Rule 1: when some skill has every query word, keep only those; else keep
-  // every skill with at least one, most matched words first; none matched keeps all.
+  // every skill with at least one, best score first; none matched keeps all.
   const most = Math.max(...scored.map((hit) => hit.matched));
   const least = most === q.length ? most : Math.min(most, 1);
+  // A partial match ranks by its words other than FILLER, when it has any.
+  const rank = (hit: (typeof scored)[number]) => (most < q.length && telling.length > 0 ? hit.told : hit.score);
   return scored
     .filter((hit) => hit.matched >= least)
     .sort(
       (a, b) =>
-        b.matched - a.matched ||
+        rank(b) - rank(a) ||
         b.score - a.score ||
         PLATFORM_ORDER[a.skill.group] - PLATFORM_ORDER[b.skill.group] ||
         a.skill.name.localeCompare(b.skill.name),
     )
-    .map(({matched, ...hit}) => ({...hit, partial: matched < q.length}));
+    .map(({matched, told, ...hit}) => ({...hit, partial: matched < q.length}));
 }
