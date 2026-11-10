@@ -20,8 +20,8 @@ passed, so the Makefile remains the single source of truth for defaults.
 Exit codes:
   0  success, no regressions
   1  one or more `make triggering-<skill>` invocations errored, or (without
-     --dry-run) misc/evals/README.md has no SCORECARD markers; checked first
-  2  --fail-on-regression threshold breached (exit 1 is reserved for make failure)
+     --dry-run) misc/evals/README.md has no SCORECARD markers; checked before any run
+  2  --fail-on-regression threshold breached
 """
 
 from __future__ import annotations
@@ -918,7 +918,7 @@ def require_scorecard_markers(readme_path: Path) -> str:
 
 
 def splice_readme(readme_path: Path, rendered: str) -> None:
-    """Replace the SCORECARD_START…SCORECARD_END block in place."""
+    """Replace the SCORECARD_START…SCORECARD_END block in place. Raises if the markers are missing."""
     text = require_scorecard_markers(readme_path)
     # Use a lambda so regex-metacharacters in `rendered` (e.g. \d coming from
     # a grader-produced regex in a suggestion) don't get interpreted as
