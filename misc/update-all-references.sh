@@ -19,11 +19,12 @@
 set -euo pipefail
 
 MODE="run"
-if [[ "${1:-}" == "--check" ]]; then
-  MODE="check"
-elif [[ "${1:-}" == "--dry-run" ]]; then
-  MODE="dry-run"
-fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--check) MODE="check" ;;
+  1:--dry-run) MODE="dry-run" ;;
+  *) echo "usage: $0 [--check|--dry-run]" >&2; exit 2 ;;
+esac
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
