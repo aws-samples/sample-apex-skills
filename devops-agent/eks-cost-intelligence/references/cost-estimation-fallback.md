@@ -24,8 +24,8 @@ level in the output.
 
 **Prefer dynamic pricing over static tables** when `pricing:GetProducts` is granted (the shipped `references/iam-policy.json` does not include it); otherwise use the reference table below.
 
-1. **AWS Price List API** (when `pricing:GetProducts` is granted) — Call `aws pricing get-products` for real-time, region-accurate pricing. See Step 2, Option B below.
-2. **Reference pricing table** (fallback only) — Use the static table below ONLY when the Price List API is unavailable (e.g., no `pricing:GetProducts` permission, network-restricted environment). Mark findings as **Low confidence** when using the static table.
+1. **AWS Price List API** (when `pricing:GetProducts` is granted) — Call `aws pricing get-products` for real-time, region-accurate pricing (the Regions in REGION_MAP; others use the table at Low confidence). See Step 2, Option B below.
+2. **Reference pricing table** (fallback only) — Use the static table below ONLY when the Price List API is unavailable (e.g., no `pricing:GetProducts` permission, network-restricted environment). With the static table, confidence is Medium in us-east-1 when every type is in the table, else Low.
 
 > ⚠️ **The reference pricing table is a point-in-time snapshot (last verified: June 2026, us-east-1).** AWS adjusts EC2 pricing periodically. Prefer the Price List API for production assessments when `pricing:GetProducts` is granted.
 
@@ -97,7 +97,7 @@ Use the Kubernetes API to list all Nodes. Extract metadata.labels for instance-t
 
 ## Step 2: Look Up Instance Pricing
 
-**Primary method, when `pricing:GetProducts` is granted: AWS Price List API** — provides real-time, region-accurate pricing.
+**Primary method, when `pricing:GetProducts` is granted: AWS Price List API** — provides real-time, region-accurate pricing (the Regions in REGION_MAP; others use the table at Low confidence).
 **Fallback: Reference table** — use only when the API is unavailable.
 
 ### Option B (when `pricing:GetProducts` is granted): AWS Price List API Lookup
@@ -108,21 +108,22 @@ For accurate, region-specific pricing:
 import boto3
 import json
 
+# Map region code to location name
+REGION_MAP = {
+    "us-east-1": "US East (N. Virginia)",
+    "us-east-2": "US East (Ohio)",
+    "us-west-2": "US West (Oregon)",
+    "eu-west-1": "EU (Ireland)",
+    "eu-central-1": "EU (Frankfurt)",
+    "ap-southeast-1": "Asia Pacific (Singapore)",
+    "ap-northeast-1": "Asia Pacific (Tokyo)",
+}
+
 def get_instance_price(instance_type: str, region: str = "us-east-1") -> float:
     """Look up On-Demand hourly price for an EC2 instance type."""
     # The Price List API has three endpoints (us-east-1, eu-central-1, ap-south-1); this code calls us-east-1
     pricing = boto3.client("pricing", region_name="us-east-1")
 
-    # Map region code to location name
-    REGION_MAP = {
-        "us-east-1": "US East (N. Virginia)",
-        "us-east-2": "US East (Ohio)",
-        "us-west-2": "US West (Oregon)",
-        "eu-west-1": "EU (Ireland)",
-        "eu-central-1": "EU (Frankfurt)",
-        "ap-southeast-1": "Asia Pacific (Singapore)",
-        "ap-northeast-1": "Asia Pacific (Tokyo)",
-    }
     location = REGION_MAP.get(region)
     if location is None:
         return None  # Region not in REGION_MAP: use the reference table, never us-east-1 rates as this Region's
@@ -136,6 +137,7 @@ def get_instance_price(instance_type: str, region: str = "us-east-1") -> float:
             {"Type": "TERM_MATCH", "Field": "tenancy", "Value": "Shared"},
             {"Type": "TERM_MATCH", "Field": "preInstalledSw", "Value": "NA"},
             {"Type": "TERM_MATCH", "Field": "capacitystatus", "Value": "Used"},
+            {"Type": "TERM_MATCH", "Field": "marketoption", "Value": "OnDemand"},
         ],
         MaxResults=1,
     )
@@ -153,7 +155,7 @@ def get_instance_price(instance_type: str, region: str = "us-east-1") -> float:
     return None
 ```
 
-When `pricing:GetProducts` is granted, use the AWS Price List GetProducts API (us-east-1) to look up On-Demand hourly rates for each instance type, filtering by operatingSystem=Linux, tenancy=Shared, preInstalledSw=NA, capacitystatus=Used.
+Use the AWS Price List GetProducts API (us-east-1) to look up On-Demand hourly rates for each instance type, filtering by operatingSystem=Linux, tenancy=Shared, preInstalledSw=NA, capacitystatus=Used, marketoption=OnDemand.
 
 ### Option A: Reference Pricing Table (FALLBACK ONLY — us-east-1, On-Demand, Linux)
 
@@ -162,7 +164,7 @@ When `pricing:GetProducts` is granted, use the AWS Price List GetProducts API (u
 Use this table ONLY when:
 - `pricing:GetProducts` permission is not available (it is not in the skill's baseline IAM policy — using the Price List API requires adding `pricing:GetProducts` to `references/iam-policy.json`)
 - Network-restricted environment cannot reach the Price List API endpoint
-- Quick directional estimate needed (mark all findings as Low confidence)
+- Quick directional estimate needed (confidence: Medium in us-east-1 when every type is in the table, else Low)
 
 | Instance Type | vCPU | Memory (GiB) | Arch | $/hour | $/month (730h) |
 |---------------|------|--------------|------|--------|-----------------|
@@ -233,7 +235,7 @@ HOURS_PER_MONTH = 730  # 24 hours × 30.4 days
 # Check: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
 EXTENDED_SUPPORT_VERSIONS = ["1.23", "1.24", "1.25", "1.26", "1.27", "1.28"]
 
-# Reference pricing table (FALLBACK — prefer Price List API)
+# Reference pricing table (FALLBACK — prefer Price List API when pricing:GetProducts is granted)
 # Last verified: June 2026, us-east-1
 INSTANCE_HOURLY_RATES = {
     "t3.medium": 0.042, "t3.large": 0.083, "t3.xlarge": 0.166,
@@ -284,7 +286,7 @@ def estimate_cluster_cost(
     total_compute = 0.0
     breakdown = []
     unknown_types = []
-    any_fallback = False  # True once any node is priced from the reference table
+    table_nodes = 0  # nodes priced from the reference table
     lookup_errors = []
 
     for node in nodes:
@@ -297,13 +299,15 @@ def estimate_cluster_cost(
             try:
                 hourly_rate = get_instance_price(instance_type, region)
             except Exception as exc:
-                # Keep the message: an AccessDeniedException means no pricing:GetProducts
-                lookup_errors.append(f"{instance_type}: {exc}")
+                # Record each error code once: an AccessDeniedException usually means no pricing:GetProducts
+                code = getattr(exc, "response", {}).get("Error", {}).get("Code") or type(exc).__name__
+                if code not in lookup_errors:
+                    lookup_errors.append(code)
 
         # Fallback: reference pricing table
         if hourly_rate is None:
             hourly_rate = INSTANCE_HOURLY_RATES.get(instance_type)
-            any_fallback = True
+            table_nodes += 1
 
         if hourly_rate is None:
             # Last resort: default to m5.xlarge and flag
@@ -331,7 +335,7 @@ def estimate_cluster_cost(
     control_plane_cost = control_plane_hourly * HOURS_PER_MONTH
 
     # "price_list_api" only when no node fell back to the reference table
-    pricing_source = "reference_table" if any_fallback or not nodes else "price_list_api"
+    pricing_source = "reference_table" if table_nodes or not nodes else "price_list_api"
 
     # Determine confidence
     if pricing_source == "price_list_api" and not unknown_types:
@@ -353,11 +357,11 @@ def estimate_cluster_cost(
         "unknown_instance_types": unknown_types,
         "estimation_method": "node_based",
         "pricing_source": pricing_source,
-        "price_list_errors": lookup_errors,
         "confidence": confidence,
         "notes": (
             f"Pricing source: {pricing_source}. "
-            f"{'Price List API used for region-accurate rates. ' if pricing_source == 'price_list_api' else 'Reference table (us-east-1 rates, last verified June 2026). '}"
+            f"{'Price List API used for region-accurate rates. ' if pricing_source == 'price_list_api' else f'Reference table for {table_nodes} of {len(nodes)} nodes (us-east-1 rates, last verified June 2026). '}"
+            f"{'Region ' + region + ' not in REGION_MAP. ' if use_price_list_api and region not in REGION_MAP else ''}"
             f"{'Price List lookup errors: ' + '; '.join(lookup_errors) + '. ' if lookup_errors else ''}"
             f"Spot nodes estimated at 30% of On-Demand (query describe-spot-price-history for accuracy). "
             f"{'Unknown types defaulted to $0.192/hr. ' if unknown_types else ''}"

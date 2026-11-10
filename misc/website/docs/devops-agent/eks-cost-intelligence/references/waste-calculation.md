@@ -128,7 +128,7 @@ monthly_waste = node_waste_ratio * node_monthly_cost
 | `node_avg_cpu_7d` | CloudWatch `CPUUtilization` (7-day avg) | 6% |
 | `node_avg_mem_7d` | CloudWatch / kubelet metrics (7-day avg) | 12% |
 | `instance_type` | `kubectl get node` labels | m5.xlarge |
-| `instance_hourly_rate` | AWS Price List (see reference table) | $0.192 |
+| `instance_hourly_rate` | AWS Price List when `pricing:GetProducts` is granted (see reference table) | $0.192 |
 | `node_has_gpu` | Node labels `nvidia.com/gpu` | false |
 
 #### Reference: Instance Hourly Rates (us-east-1, On-Demand)
@@ -158,7 +158,7 @@ monthly_waste = node_waste_ratio * node_monthly_cost
 
 For instance types not in this table, use the AWS Price List API when `pricing:GetProducts` is granted:
 
-Use the AWS Price List GetProducts API to look up hourly instance rates for types not in the reference table; without it, default to $0.192/hour and flag the finding as Low confidence (see `cost-estimation-fallback.md` Step 2).
+Use the AWS Price List GetProducts API to look up hourly instance rates for types not in the reference table; without it, see `cost-estimation-fallback.md` Step 2.
 
 #### Detection Criteria
 
