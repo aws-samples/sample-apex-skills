@@ -48,7 +48,7 @@ const ALIAS = new Map(
   ),
 );
 // Phrases visitors type that a skill's own text lacks, indexed with its summary.
-// Each is true of its skill, by the SKILL.md description line quoted beside it.
+// Each is true of its skill, by the SKILL.md lines cited beside it.
 const PHRASES: Record<string, string[]> = {
   // skills/eks-build/SKILL.md:3 "Use when building EKS clusters. Generates complete,
   // production-ready Terraform projects"; "generating EKS Terraform code from scratch".
@@ -58,6 +58,58 @@ const PHRASES: Record<string, string[]> = {
   // skills/eks-cost-intelligence/SKILL.md:3 "how much am I wasting on EKS?",
   // "dollar-quantified findings and ready-to-apply remediation snippets".
   'eks-cost-intelligence': ['make my cluster cheaper', 'cut my EKS bill'],
+  // skills/apex/SKILL.md:3, :8.
+  'apex': ['where do I start', 'pick the right skill'],
+  // skills/dotnet-aws-ecs/SKILL.md:12, :13.
+  'dotnet-aws-ecs': ['deploy my ASP.NET Core app', 'deploy a Blazor app', 'deploy my web API to Fargate'],
+  // skills/ecs-architect/SKILL.md:17, :32, :62.
+  'ecs-architect': ['ECS task CPU memory sizing', 'replace App Runner', 'quick URL for my web app'],
+  // skills/ecs-devops/SKILL.md:18, :107.
+  'ecs-devops': ['roll back a bad deployment', 'zero downtime deploys on ECS', 'failed ECS deployment'],
+  // skills/ecs-genai/SKILL.md:20.
+  'ecs-genai': ['fine-tune a model on ECS', 'host a model on ECS'],
+  // skills/ecs-modernize/SKILL.md:20, :34.
+  'ecs-modernize': ['containerize a legacy app', 'move my VM app to containers'],
+  // skills/ecs-observability/SKILL.md:25, :59.
+  'ecs-observability': ['send ECS logs to Datadog', 'alert on ECS errors'],
+  // skills/ecs-operation-review/SKILL.md:10, :27.
+  'ecs-operation-review': ['is my ECS cluster healthy', 'grade my ECS services'],
+  // skills/ecs-recon/SKILL.md:13, :93, :114.
+  'ecs-recon': ['list my ECS services', 'inventory my ECS estate', 'describe my ECS setup'],
+  // skills/ecs-security/SKILL.md:8, :18, :24.
+  'ecs-security': ['secure my ECS tasks', 'least privilege task role', 'scan ECS images for vulnerabilities'],
+  // skills/eks-best-practices/SKILL.md:3, :51, :54.
+  'eks-best-practices': ['EKS on premises', 'handle a traffic spike on EKS', 'EKS in my data center'],
+  // skills/eks-design/SKILL.md:18, :19.
+  'eks-design': ['draw my EKS architecture', 'architecture decision records for EKS', 'plan my subnet layout'],
+  // skills/eks-genai/SKILL.md:16.
+  'eks-genai': ['fine-tune a model on EKS', 'serve a model on EKS', 'train a model on EKS'],
+  // skills/eks-ingress-migration/SKILL.md:19, :46, :47.
+  'eks-ingress-migration': ['swap NGINX for ALB', 'convert ingress annotations', 'NGINX ingress end of life'],
+  // skills/eks-mcp-server/SKILL.md:3.
+  'eks-mcp-server': ['MCP tools missing', 'EKS MCP server broken'],
+  // skills/eks-operation-review/SKILL.md:12.
+  'eks-operation-review': ['is my EKS cluster healthy', 'review RBAC on my cluster'],
+  // skills/eks-platform-engineering/SKILL.md:17, :37.
+  'eks-platform-engineering': ['paved path for app teams', 'platform team tooling'],
+  // skills/eks-recon/SKILL.md:62, :137.
+  'eks-recon': ['what is installed on my cluster', 'what Helm charts are installed'],
+  // skills/eks-security/SKILL.md:13, :26, :79.
+  'eks-security': ['secure my EKS cluster', 'EKS cluster hacked', 'incident response on EKS'],
+  // skills/eks-upgrade-check/SKILL.md:13, :26, :30, :218.
+  'eks-upgrade-check': [
+    'is it safe to upgrade my cluster', 'bump my cluster version', 'move nodes to AL2023', 'Kubernetes version skew',
+  ],
+  // skills/eks-well-architected-review/SKILL.md:3, :17.
+  'eks-well-architected-review': ['repeatable EKS score', 'EKS pillar scorecard'],
+  // skills/graviton-migration/SKILL.md:3, :8.
+  'graviton-migration': ['move off x86', 'rebuild containers for arm64'],
+  // skills/skill-creator/SKILL.md:13, :18.
+  'skill-creator': ['draft a skill', 'rewrite a skill'],
+  // skills/terraform-skill/SKILL.md:18, :34.
+  'terraform-skill': ['write HCL', 'tofu module tests', 'terraform import'],
+  // skills/update-docs/SKILL.md:15, :47.
+  'update-docs': ['stale README', 'check docs before a PR'],
 };
 // Verbs that start many tasks ("set up ingress", "spin up fargate"). They still
 // match, so "spin up eks" finds its phrase and "up" alone finds its skills, but
