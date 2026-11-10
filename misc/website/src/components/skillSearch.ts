@@ -47,25 +47,26 @@ const ALIAS = new Map(
     ([from, to]) => [stem(from), stem(to)],
   ),
 );
-// Phrases visitors type that a skill's own text lacks, indexed with its summary.
+// Phrases visitors type, indexed with the skill's summary.
 // Each is true of its skill, by the SKILL.md lines cited beside it.
-const PHRASES: Record<string, string[]> = {
+export const PHRASES: Record<string, string[]> = {
   // skills/eks-build/SKILL.md:3 "Use when building EKS clusters. Generates complete,
   // production-ready Terraform projects"; "generating EKS Terraform code from scratch".
-  'eks-build': ['deploy an EKS cluster', 'set up a new Kubernetes cluster on EKS', 'spin up EKS'],
-  // skills/ecs-build/SKILL.md:3 "apply-ready code for clusters, services, and task definitions".
-  'ecs-build': ['deploy an ECS cluster'],
+  'eks-build': ['deploy an EKS cluster', 'set up a new Kubernetes cluster on EKS', 'spin up EKS', 'make an EKS cluster'],
+  // skills/ecs-build/SKILL.md:3 "apply-ready code for clusters, services, and task definitions";
+  // :18 "Generating ECS Terraform code"; :19 "Scaffolding an ECS cluster".
+  'ecs-build': ['deploy an ECS cluster', 'ECS Terraform code', 'scaffold an ECS cluster'],
   // skills/eks-cost-intelligence/SKILL.md:3 "how much am I wasting on EKS?",
   // "dollar-quantified findings and ready-to-apply remediation snippets".
   'eks-cost-intelligence': ['make my cluster cheaper', 'cut my EKS bill'],
   // skills/apex/SKILL.md:3, :8.
   'apex': ['where do I start', 'pick the right skill'],
   // skills/dotnet-aws-ecs/SKILL.md:12, :13.
-  'dotnet-aws-ecs': ['deploy my ASP.NET Core app', 'deploy a Blazor app', 'deploy my web API to Fargate'],
+  'dotnet-aws-ecs': ['deploy my ASP.NET Core app', 'deploy a Blazor app'],
   // skills/ecs-architect/SKILL.md:17, :32, :62.
   'ecs-architect': ['ECS task CPU memory sizing', 'replace App Runner', 'quick URL for my web app'],
   // skills/ecs-devops/SKILL.md:18, :107.
-  'ecs-devops': ['roll back a bad deployment', 'zero downtime deploys on ECS', 'failed ECS deployment'],
+  'ecs-devops': ['roll back a bad ECS deployment', 'zero downtime deploys on ECS', 'failed ECS deployment'],
   // skills/ecs-genai/SKILL.md:20.
   'ecs-genai': ['fine-tune a model on ECS', 'host a model on ECS'],
   // skills/ecs-modernize/SKILL.md:20, :34.
@@ -96,25 +97,24 @@ const PHRASES: Record<string, string[]> = {
   'eks-recon': ['what is installed on my cluster', 'what Helm charts are installed'],
   // skills/eks-security/SKILL.md:13, :26, :79.
   'eks-security': ['secure my EKS cluster', 'EKS cluster hacked', 'incident response on EKS'],
-  // skills/eks-upgrade-check/SKILL.md:13, :26, :30, :218.
-  'eks-upgrade-check': [
-    'is it safe to upgrade my cluster', 'bump my cluster version', 'move nodes to AL2023', 'Kubernetes version skew',
-  ],
-  // skills/eks-well-architected-review/SKILL.md:3, :17.
-  'eks-well-architected-review': ['repeatable EKS score', 'EKS pillar scorecard'],
+  // skills/eks-upgrade-check/SKILL.md:13, :218.
+  'eks-upgrade-check': ['is it safe to upgrade my cluster', 'Kubernetes version skew'],
+  // skills/eks-well-architected-review/SKILL.md:3 "Well-Architected Framework review of an Amazon
+  // EKS cluster", :17.
+  'eks-well-architected-review': ['Well-Architected review of an EKS cluster', 'EKS pillar scorecard'],
   // skills/graviton-migration/SKILL.md:3, :8.
   'graviton-migration': ['move off x86', 'rebuild containers for arm64'],
   // skills/skill-creator/SKILL.md:13, :18.
   'skill-creator': ['draft a skill', 'rewrite a skill'],
   // skills/terraform-skill/SKILL.md:18, :34.
-  'terraform-skill': ['write HCL', 'tofu module tests', 'terraform import'],
+  'terraform-skill': ['tofu module tests', 'terraform import'],
   // skills/update-docs/SKILL.md:15, :47.
   'update-docs': ['stale README', 'check docs before a PR'],
 };
 // Verbs that start many tasks ("set up ingress", "spin up fargate"). They still
 // match, so "spin up eks" finds its phrase and "up" alone finds its skills, but
 // they do not rank a partial match: "up" is a part-word hit in "upgrade".
-const FILLER = new Set(['set', 'up', 'spin', 'make', 'new', 'cut'].map(stem));
+const FILLER = new Set(['up', 'spin'].map(stem));
 // "agent" finds the skills that also run in AWS DevOps Agent (PORTS, the
 // folders under devops-agent/) and apex, the router, first, so the home
 // search keeps it in view, all ahead of eks-mcp-server, whose use line only
@@ -245,7 +245,7 @@ export function search(index: Indexed[], query: string): Hit[] {
     .sort(
       (a, b) =>
         rank(b) - rank(a) ||
-        b.score - a.score ||
+        (most < q.length ? 0 : b.score - a.score) ||
         PLATFORM_ORDER[a.skill.group] - PLATFORM_ORDER[b.skill.group] ||
         a.skill.name.localeCompare(b.skill.name),
     )

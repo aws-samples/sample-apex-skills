@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {readFileSync, readdirSync} from 'node:fs';
 
 const here = new URL('.', import.meta.url);
-const {buildIndex, queryWords, search} = await import(new URL('skillSearch.ts', here).href);
+const {PHRASES, buildIndex, queryWords, search} = await import(new URL('skillSearch.ts', here).href);
 const manifest = JSON.parse(readFileSync(new URL('../../static/manifests/skills.json', here), 'utf8'));
 // The hand-written use lines stand in for the summary, as in skillCatalog.ts.
 const catalog = readFileSync(new URL('skillCatalog.ts', here), 'utf8');
@@ -206,6 +206,12 @@ test('Site search: a partial match opens the skill of its task word, not of its 
   // ecs-architect: "Fargate vs ECS on EC2 vs Managed Instances" (skills/ecs-architect/SKILL.md:3).
   // First by tie order: the ECS skills that name Fargate all score 3.
   assert.equal(shown('spin up fargate').first, 'ecs-architect');
+});
+
+test('Site search: every phrase opens its own skill', () => {
+  for (const [skill, phrases] of Object.entries(PHRASES as Record<string, string[]>)) {
+    for (const phrase of phrases) assert.equal(shown(phrase).first, skill, phrase);
+  }
 });
 
 test('S-R2-6: "." stays inside a word', () => {
