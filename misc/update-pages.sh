@@ -32,7 +32,7 @@
 #
 # Usage:
 #   ./misc/update-pages.sh              # regenerate in place
-#   ./misc/update-pages.sh --check      # regenerate in place, then fail if anything changed
+#   ./misc/update-pages.sh --check      # regenerate in place, then fail if the generated files have unstaged changes or new files
 #   ./misc/update-pages.sh --dry-run    # print what would be written; no edits
 #
 # --check is what the `docs-sync` CI job runs alongside
