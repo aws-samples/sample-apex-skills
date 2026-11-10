@@ -112,7 +112,7 @@ Regardless of regime, every ECS hardening recommendation MUST include:
 
 ## Escalation
 
-Create a SpecReq / escalate for: first-time certification on a mission-critical regulated workload; XXL+ segment; FedRAMP High / GovCloud; IL4/IL5; ECS Anywhere inside a compliance boundary (customer owns the on-prem host entirely); multi-tenant SaaS with cross-tenant PHI/cardholder/federal isolation on shared EC2 container instances; customer-vs-auditor disagreement on AWS-managed-control acceptability; or any claim you cannot ground. Full criteria: [references/engagement-and-response.md](references/engagement-and-response.md).
+Create a SpecReq / escalate for: first-time certification on a mission-critical regulated workload; XXL+ segment; FedRAMP Class D (formerly High baseline) / GovCloud; IL4/IL5; ECS Anywhere inside a compliance boundary (customer owns the on-prem host entirely); multi-tenant SaaS with cross-tenant PHI/cardholder/federal isolation on shared EC2 container instances; customer-vs-auditor disagreement on AWS-managed-control acceptability; or any claim you cannot ground. Full criteria: [references/engagement-and-response.md](references/engagement-and-response.md).
 
 ## How to Use the References
 

@@ -39,7 +39,7 @@ Especially valuable combined with **Security Groups for Pods** (Layer 3), giving
 
 ## SIEM forwarding pattern
 
-CloudWatch Logs subscription → Kinesis Data Streams → Firehose → SIEM destination (Splunk, Elastic, Datadog, Microsoft Sentinel). For federal workloads, Datadog has a [FedRAMP High-certified solution](https://aws.amazon.com/blogs/publicsector/transforming-federal-it-with-datadogs-fedramp-high-solution/).
+CloudWatch Logs subscription → Kinesis Data Streams → Firehose → SIEM destination (Splunk, Elastic, Datadog, Microsoft Sentinel). For federal workloads, Datadog has a [FedRAMP Class D (formerly High baseline) certified solution](https://aws.amazon.com/blogs/publicsector/transforming-federal-it-with-datadogs-fedramp-high-solution/).
 
 ## Retention requirements by regime (set this deliberately)
 
@@ -61,4 +61,4 @@ Apply the retention to the CloudWatch Logs groups holding `audit`/`authenticator
 
 ## Sources
 - [Send control plane logs to CloudWatch](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html) · [AWS CloudTrail](https://aws.amazon.com/cloudtrail/) · [VPC Flow Logs](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html)
-- [Datadog FedRAMP High solution](https://aws.amazon.com/blogs/publicsector/transforming-federal-it-with-datadogs-fedramp-high-solution/)
+- [Datadog FedRAMP Class D (formerly High baseline) solution](https://aws.amazon.com/blogs/publicsector/transforming-federal-it-with-datadogs-fedramp-high-solution/)
