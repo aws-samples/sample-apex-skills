@@ -91,11 +91,14 @@ const FIRST: [string, string, number?][] = [
   // eks-build is "Use when building EKS clusters" (skills/eks-build/SKILL.md:3).
   ['i want to deploy an eks cluster', 'eks-build'],
   ['deploy eks cluster', 'eks-build'],
+  // First only by tie order: eks-build and ecs-build both score 6, and EKS sorts first.
   ['deploy a cluster', 'eks-build'],
+  // First only by tie order with eks-ingress-migration, eks-security and eks-upgrade-check (6 each).
   ['set up a new kubernetes cluster', 'eks-build'],
   ['i want to build an eks cluster', 'eks-build'],
   // eks-cost-intelligence: "how much am I wasting on EKS?" (skills/eks-cost-intelligence/SKILL.md:3).
   ['make my cluster cheaper', 'eks-cost-intelligence'],
+  ['my cluster is too expensive', 'eks-cost-intelligence'],
 ];
 
 for (const [query, want, most] of FIRST) {
@@ -108,9 +111,9 @@ for (const [query, want, most] of FIRST) {
 
 test('M1: a skill that only routes away is not matched', () => {
   // ecs-cost-intelligence does not ship; the clauses that route to it ("for
-  // cost/TCO use ecs-cost-intelligence") are not indexed, so the finder never
-  // shows ecs-operation-review for it.
-  assert.ok(!shown('ecs cost intelligence').all.includes('ecs-operation-review'));
+  // cost/TCO use ecs-cost-intelligence") are not indexed, so "cost intelligence"
+  // never reaches ecs-operation-review; "ecs" alone still finds every ECS skill.
+  assert.ok(!shown('cost intelligence').all.includes('ecs-operation-review'));
   assert.ok(!shown('kubernetes').all.includes('ecs-architect'));
 });
 
@@ -194,6 +197,13 @@ test('S-R2-6: text after a route-away phrase is not indexed', () => {
 test('Site search: "deploy a cluster" also shows ecs-build, which builds ECS clusters', () => {
   // skills/ecs-build/SKILL.md:3 "apply-ready code for clusters, services, and task definitions".
   assert.ok(shown('deploy a cluster').rows.includes('ecs-build'));
+});
+
+test('Site search: filler words do not hide the task word', () => {
+  // eks-ingress-migration: "Assess a live EKS cluster's NGINX/Ingress estate" (skills/eks-ingress-migration/SKILL.md:3).
+  assert.ok(shown('how do i set up ingress').rows.includes('eks-ingress-migration'));
+  // ecs-architect: "Fargate vs ECS on EC2 vs Managed Instances" (skills/ecs-architect/SKILL.md:3).
+  assert.ok(shown('spin up fargate').rows.includes('ecs-architect'));
 });
 
 test('S-R2-6: "." stays inside a word', () => {

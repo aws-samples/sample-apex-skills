@@ -188,8 +188,9 @@ export default function SkillFinder({variant}: Props): ReactNode {
             : hits[0].partial
               ? (
                   <>
-                    No skill matches every word of &ldquo;{query.trim()}&rdquo;; the closest are below. Enter opens the
-                    first one, or describe the task to the <Link to="/docs/skills/general/apex/">apex router</Link>.
+                    No skill matches every word of &ldquo;{query.trim()}&rdquo;; the nearest are below, or every skill
+                    when none match. Enter opens the first one, or describe the task to the{' '}
+                    <Link to="/docs/skills/general/apex/">apex router</Link>.
                   </>
                 )
               : keyWords

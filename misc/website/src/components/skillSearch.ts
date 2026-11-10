@@ -1,10 +1,11 @@
 import type {CatalogSkill} from './skillCatalog';
 
 // Ranked skill search. Rules (carry/site-redesign-20261107/design.md section 3):
-// 1. the skills that match the most query words are shown, so "upgrade check"
-//    narrows instead of widening while a word no skill knows ("i want to deploy
-//    an eks cluster") lowers the match instead of emptying it; when no word
-//    matches at all, every skill is listed, as for a stop-word-only query;
+// 1. when some skill has every query word, only those are shown, so "upgrade
+//    check" narrows instead of widening; else every skill with any query word
+//    is shown, most words first, so a word no skill knows lowers the match
+//    instead of emptying it; when no word matches at all, every skill is
+//    listed, as for a stop-word-only query;
 // 2. words are whole words, compared after a trailing "s", then "ing", then
 //    "e" is cut, so "upgrades" finds "upgrade" and "settings" finds
 //    "setting" (a doubled last letter left by "ing" is undoubled, so "running"
@@ -31,17 +32,20 @@ const SKILL_TOKEN = /\b[a-z0-9]+(-[a-z0-9]+)+\b/g;
 // skill that does not ship yet.
 const ROUTE_TO = /\buse [a-z0-9]+(-[a-z0-9]+)+\b/;
 // Query words only. "skills" stems to "skill"; the rest are the filler of a
-// task sentence such as "how do i upgrade my cluster".
+// task sentence such as "how do i upgrade my cluster" or "set up a new ..."
+// ("up" would otherwise be a part-word hit in "upgrade").
 const STOP = new Set(
   ['skill', 'aws', 'amazon', 'how', 'do', 'does', 'can', 'should', 'me', 'my', 'our', 'we', 'you', 'your', 'the', 'an', 'to',
-    'for', 'from', 'of', 'in', 'on', 'with', 'what', 'which', 'is', 'are', 'it', 'this', 'help', 'want', 'need', 'please'].map(stem),
+    'for', 'from', 'of', 'in', 'on', 'with', 'what', 'which', 'is', 'are', 'it', 'this', 'help', 'want', 'need', 'please',
+    'set', 'up', 'spin', 'make', 'new', 'too'].map(stem),
 );
 // A word visitors type for one the skills use. Each target is the word in the
 // skill's own text: "Native K8s" next to Kubernetes (eks-best-practices
 // SKILL.md:35); "wasting money, and how much can I save" and "spending
-// assessment" (eks-cost-intelligence SKILL.md:12, :18), whose name says cost.
+// assessment" (eks-cost-intelligence SKILL.md:12, :18), whose name says cost;
+// "too expensive" is the same ask.
 const ALIAS = new Map(
-  [['k8s', 'kubernetes'], ['save', 'cost'], ['money', 'cost'], ['spend', 'cost']].map(
+  [['k8s', 'kubernetes'], ['save', 'cost'], ['money', 'cost'], ['spend', 'cost'], ['expensive', 'cost']].map(
     ([from, to]) => [stem(from), stem(to)],
   ),
 );
@@ -174,15 +178,18 @@ export function search(index: Indexed[], query: string): Hit[] {
     port: agentQuery && entry.port,
     ...(q.length === 0 ? {score: 0, passing: false, matched: 0} : score(entry, q)),
   }));
-  // Rule 1: keep the skills with the most query words; none matched keeps all.
+  // Rule 1: when some skill has every query word, keep only those; else keep
+  // every skill with at least one, most matched words first; none matched keeps all.
   const most = Math.max(...scored.map((hit) => hit.matched));
+  const least = most === q.length ? most : Math.min(most, 1);
   return scored
-    .filter((hit) => hit.matched === most)
-    .map(({matched, ...hit}) => ({...hit, partial: matched < q.length}))
+    .filter((hit) => hit.matched >= least)
     .sort(
       (a, b) =>
+        b.matched - a.matched ||
         b.score - a.score ||
         PLATFORM_ORDER[a.skill.group] - PLATFORM_ORDER[b.skill.group] ||
         a.skill.name.localeCompare(b.skill.name),
-    );
+    )
+    .map(({matched, ...hit}) => ({...hit, partial: matched < q.length}));
 }
