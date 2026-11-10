@@ -114,7 +114,7 @@ Pattern 2b uses Pod Identity for Velero (not IRSA). Terraform creates the IAM ro
 
 ### KRO Capability
 
-KRO provides Kubernetes Resource Orchestration for composing higher-level abstractions from ACK and native resources. KRO needs no IAM permissions; it operates through Kubernetes RBAC.
+KRO provides Kubernetes Resource Orchestration for composing higher-level abstractions from ACK and native resources. KRO's capability IAM role must exist but needs no attached policies: KRO operates through Kubernetes RBAC.
 
 ## Pattern 3: ArgoCD Cluster Creation (Placeholder)
 

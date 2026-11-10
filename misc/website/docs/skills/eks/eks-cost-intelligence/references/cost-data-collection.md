@@ -119,8 +119,6 @@ for group in response["ResultsByTime"][0]["Groups"]:
 
 ### 1.2 Namespace-Level Cost Attribution (cost allocation tags)
 
-Split cost allocation data is CUR only, not in Cost Explorer; this query groups by the user tags kubernetes-namespace and kubernetes-deployment.
-
 Split cost allocation data is in CUR (legacy CUR and CUR 2.0 with Data Exports) only, not Cost Explorer, and only a regular or payer account can opt in to it, in Cost Management preferences (see the account tier check below), so this Cost Explorer query uses the user tags instead ([Enabling split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/enabling-split-cost-allocation-data.html), read 2026-11-05).
 
 **Via AWS CLI:**
@@ -170,7 +168,8 @@ for group in response["ResultsByTime"][0]["Groups"]:
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 PAYER=$(aws organizations describe-organization --query Organization.MasterAccountId --output text 2>/dev/null)
 # PAYER is the management account (MasterAccountId); empty (AWSOrganizationsNotInUseException or no permission): a regular account, or unknown
-if [ -n "$PAYER" ] && [ "$PAYER" != "$ACCOUNT" ]; then echo "member account: split cost allocation opt-in needs payer $PAYER"
+if [ -z "$ACCOUNT" ]; then echo "account tier unknown: GetCallerIdentity failed"
+elif [ -n "$PAYER" ] && [ "$PAYER" != "$ACCOUNT" ]; then echo "member account: split cost allocation opt-in needs payer $PAYER"
 elif [ -z "$PAYER" ]; then echo "account tier unknown: standalone, or no organizations permission"
 else echo "management account: opt-in is in this account's Cost Management preferences"; fi
 ```
@@ -1198,7 +1197,7 @@ def run_full_correlation(cluster_name, region):
             print(f"Logs Insights also unavailable: {e2}")
             namespace_metrics = {}
             node_metrics = {}
-            partly_assessed.append("compute_efficiency")  # utilization checks only; checks 4 and 5 still scored
+            partly_assessed.append("compute_efficiency")  # utilization checks only; check 5 and, with Karpenter, check 4 still scored
 
     # --- Step 3: Collect Kubernetes resource data ---
     try:

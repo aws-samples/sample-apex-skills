@@ -260,9 +260,10 @@ def extract_result_summary(events: list[dict]) -> dict:
 
     Only the last result event is read, so a multi-turn run records its
     last result's counts. On Claude Code v2.1.277 or later the last
-    result's `modelUsage` includes earlier turns' spend; before that it
-    covers only the last turn. The docs do not say whether a resumed call
-    restores `usage`.
+    result's `modelUsage` includes earlier turns' spend (when every earlier
+    process exited normally); before that it covers only the last turn.
+    The docs name only `total_cost_usd` and `modelUsage` as carrying
+    restored spend.
 
     The per-category counts (USAGE_TOKEN_KEYS) are summed over the event's
     `modelUsage` entries, which include subagent requests; the event's

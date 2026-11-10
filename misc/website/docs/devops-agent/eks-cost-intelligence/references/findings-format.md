@@ -55,6 +55,8 @@ finding:
 | `confidence` | enum | Confidence in the estimate: `high` (metrics-backed), `medium` (partial data), `low` (heuristic-based) |
 | `data_sources` | list | Data sources used, e.g. `["metrics-server", "Cost Explorer"]` or `["kubernetes-api", "ec2-describe-instances"]` |
 
+**AWS-only inference:** a finding whose `data_sources` are all AWS API reads (Cost Explorer, CUR, EC2, ELB, EKS, CloudWatch or Container Insights), with no Kubernetes read (`kubernetes-api`, `metrics-server` or in-cluster Prometheus) behind it, carries the tag `AWS-only inference` after its description in every report row, whatever its `confidence`.
+
 **Figure consistency:** compute each figure (a cost, waste or savings amount) once and show the same value and unit (USD per month) in every section that quotes it: the finding, the dimension table and the summary. Never recompute or re-round it per section.
 
 ---
