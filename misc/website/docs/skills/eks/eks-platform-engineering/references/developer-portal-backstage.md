@@ -113,7 +113,7 @@ spec:
         entityRef: ${{ steps.register.output.entityRef }}
 ```
 
-The kro instance the skeleton carries beside its `catalog-info.yaml` (`skeleton/manifests/ekscluster.yaml`; a kro instance's `apiVersion` is `kro.run/` plus the RGD schema's `apiVersion`):
+The kro instance the skeleton carries beside its `catalog-info.yaml` (`skeleton/manifests/ekscluster.yaml`; a kro instance's `apiVersion` is `<group>/<apiVersion>` from the RGD schema, where `group` defaults to `kro.run`):
 
 ```yaml
 apiVersion: kro.run/v1alpha1

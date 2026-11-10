@@ -234,11 +234,11 @@ eks-best-practices	EKS Best Practices: architecture advice for Amazon EKS	EKS ar
 eks-build	EKS Build: production-ready Terraform for Amazon EKS	Generate production-ready EKS Terraform projects with optional ArgoCD GitOps, air-gapped support and 29+ addon configurations	Day 1 Build
 eks-cost-intelligence	EKS Cost Intelligence: cost score for Amazon EKS	Live EKS cost efficiency assessment across 6 dimensions with a 0-100 Cost Score and dollar-quantified findings	Day 2 Operate: assess what is running
 eks-design	EKS Design: architecture documents for Amazon EKS	Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices	Day 0 Design
-eks-genai	EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS	GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways	Knowledge Skills
+eks-genai	EKS GenAI: GPU, Neuron and LLM serving on Amazon EKS	GenAI and LLM workloads on EKS: GPU vs Trainium/Inferentia, vLLM and Ray serving, distributed training, ML storage and AI gateways	Day 1 Build
 eks-ingress-migration	EKS Ingress Migration: plan the move off NGINX Ingress	Assess a live cluster's NGINX/Ingress estate and plan migration to Gateway API, the AWS Load Balancer Controller or AWS Transform	Day 2 Operate: upgrade and migrate
 eks-mcp-server	EKS MCP Server: connect your AI assistant to Amazon EKS	Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check	Set up and extend
 eks-operation-review	EKS Operation Review: rated audit of a live EKS cluster	EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, with prioritized recommendations and deprecated-API review with no target version	Day 2 Operate: assess what is running
-eks-platform-engineering	EKS Platform Engineering: build an IDP on Amazon EKS	Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics	Knowledge Skills
+eks-platform-engineering	EKS Platform Engineering: build an IDP on Amazon EKS	Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics	Day 1 Build
 eks-recon	EKS Recon: discover what your Amazon EKS cluster runs	EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts	Day 2 Operate: assess what is running
 eks-security	EKS Security: CVE review, posture and compliance for EKS	Read-only scripted reviews of a live EKS cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing	Day 2 Operate: secure
 eks-upgrade-check	EKS Upgrade Check: upgrade readiness score for Amazon EKS	Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks	Day 2 Operate: upgrade and migrate
@@ -989,6 +989,21 @@ fi
 
 # Collect all tracked .md under skills/, examples/ and devops-agent/
 mapfile -t ALL_MD < <(git ls-files -- 'skills/**/*.md' 'examples/**/*.md' 'devops-agent/**/*.md')
+
+# A skills/<x>/ folder with .md files but no SKILL.md in the git index would get
+# orphan reference pages (the manifest and landing pages skip it). An empty
+# SKILL.md, one with no name or a non-string description fails
+# misc/validate-frontmatter.py, which docs-sync.yml runs before this script.
+index_md=$'\n'"$(printf '%s\n' "${ALL_MD[@]}")"$'\n'
+missing_skill_md="$(for src in "${ALL_MD[@]}"; do
+  [[ "$src" == skills/*/* ]] || continue
+  rest="${src#skills/}"; d="skills/${rest%%/*}"
+  [[ "$index_md" == *$'\n'"$d/SKILL.md"$'\n'* ]] || echo "$d"
+done | sort -u)"
+if [[ -n "$missing_skill_md" ]]; then
+  printf 'ERROR: %s has .md files but no SKILL.md\n' $missing_skill_md >&2
+  exit 1
+fi
 
 declare -a EXPECTED_SKILL_FILES=("index.md" "eks/index.md" "ecs/index.md")
 declare -a EXPECTED_EXAMPLES_FILES=("index.md")

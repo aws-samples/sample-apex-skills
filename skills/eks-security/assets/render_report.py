@@ -36,10 +36,9 @@ OVERALL = {"exposed": "Exposed: at least one component is inside an affected ran
            "not_exposed": "Not exposed: every targeted component was read and is outside the affected ranges.",
            "unknown": "Unknown: nothing was found exposed, but at least one component or advisory could not be "
                       "decided. See Unknown"}
-PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node was created at or after the fix time %s; the Auto "
-           "Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves, so a "
-           "node created after the fix time can still run an older AMI: confirm the nodes' AMI or osImage against the "
-           "release note.")
+PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node it was judged on was created at or after the fix "
+           "time %s; the Auto Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves, so a "
+           "node created after the fix time can still run an older AMI.")
 UNKNOWN_ACTION = {
     "denied": "Grant the read named in the preflight (see read-only-access.md) and re-run collect",
     "not_found": "Confirm whether the component is installed another way (Helm, manifest) and re-run with --namespaces",
@@ -227,6 +226,19 @@ def findings_blocks(fd, inv):
         if patched:
             blocks.append(("p", ("Auto Mode components: " if printed else "Overall verdict: ")
                            + PATCHED % "; ".join(patched)))
+            # the nodes the patched verdicts were judged on: a node-os finding its own group, any other every group;
+            # a group another advisory holds as pending rotation is never listed here
+            auto = {c.get("id"): c for c in inv.get("components") or [] if isinstance(c, dict)
+                    and c.get("kind") == "node-os" and c.get("managed_by") == "aws-auto-mode"}
+            pc = {f.get("component") for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_patched"}
+            pend = {f.get("component") for f in fd.get("findings") or []
+                    if f.get("verdict") == "aws_managed_rotation_pending"}
+            rows = sorted((c for i, c in auto.items() if i not in pend and (i in pc or not pc <= set(auto))),
+                          key=lambda c: (s(c.get("where")), s(c.get("os_image"))))
+            if rows:
+                blocks.append(("table", ["NodePool", "OS image", "AMI", "Nodes", "Oldest node created"],
+                               [[c.get("where"), c.get("os_image") or "not read", c.get("ami") or "not read",
+                                 len(c.get("nodes") or []), c.get("oldest_node_created")] for c in rows]))
     src = fd.get("sources") or []
     blocks += [("h2", "Sources"),
                ("table", ["Advisory", "Title", "Origin", "Read at", "Source URL"],
