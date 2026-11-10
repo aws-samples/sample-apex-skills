@@ -4,6 +4,10 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+// Last-update dates come from git history; a build from a source export (no
+// .git) would stop on them, so it builds without them.
+const hasGit = fs.existsSync(path.join(__dirname, '../../.git'));
+
 // remark-directive reads ":latest" in a heading as a text directive, and the
 // heading id is made before Docusaurus turns it back into text, so the id loses
 // "latest" where GitHub keeps it. Turn a simple text directive in a heading back
@@ -111,7 +115,7 @@ const config: Config = {
           // evals) have no docs sidebar, and the blog has its own posts list.
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/aws-samples/sample-apex-skills/edit/main/misc/website/',
-          showLastUpdateTime: true,
+          showLastUpdateTime: hasGit,
         },
         blog: {
           path: 'blog',
@@ -135,7 +139,7 @@ const config: Config = {
           customCss: './src/css/custom.css',
         },
         sitemap: {
-          lastmod: 'date',
+          lastmod: hasGit ? 'date' : null,
           changefreq: null,
           priority: null,
         },
