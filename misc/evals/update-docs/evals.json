@@ -11,8 +11,8 @@
         "Produces the final Surface | Status | Action taken | Confirm? markdown table — TODO: human review"
       ],
       "files": [
-        "shared/update-all-references.sh",
-        "shared/update-pages.sh",
+        "shared/misc/update-all-references.sh",
+        "shared/misc/update-pages.sh",
         "eval-1/README.md",
         "eval-1/skills/eks-recon/SKILL.md",
         "eval-1/skills/eks-discovery/SKILL.md"
@@ -86,8 +86,8 @@
         "Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits) — TODO: human review"
       ],
       "files": [
-        "shared/update-all-references.sh",
-        "shared/update-pages.sh",
+        "shared/misc/update-all-references.sh",
+        "shared/misc/update-pages.sh",
         "eval-2/README.md",
         "eval-2/skills/rds-best-practices/SKILL.md"
       ],
