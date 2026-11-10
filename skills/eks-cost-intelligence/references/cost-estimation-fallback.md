@@ -25,7 +25,7 @@ level in the output.
 **Always prefer dynamic pricing over static tables:**
 
 1. **AWS Price List API** (preferred) — Call `aws pricing get-products` for real-time, region-accurate pricing (the Regions in REGION_MAP; others use the table at Low confidence). See Step 2, Option B below.
-2. **Reference pricing table** (fallback only) — Use the static table below ONLY when the Price List API is unavailable (e.g., no `pricing:GetProducts` permission, network-restricted environment). With the static table, confidence is Medium in us-east-1 when every type is in the table, else Low.
+2. **Reference pricing table** (fallback only) — Use the static table below ONLY when the Price List API is unavailable (e.g., no `pricing:GetProducts` permission, network-restricted environment). With the static table, confidence is Medium in us-east-1 when no node falls to the $0.192 default, else Low.
 
 > ⚠️ **The reference pricing table is a point-in-time snapshot (last verified: June 2026, us-east-1).** AWS adjusts EC2 pricing periodically. Always prefer the Price List API for production assessments.
 
@@ -223,7 +223,7 @@ aws pricing get-products \
 Use this table ONLY when:
 - `pricing:GetProducts` permission is not available
 - Network-restricted environment cannot reach the Price List API endpoint
-- Quick directional estimate needed (confidence: Medium in us-east-1 when every type is in the table, else Low)
+- Quick directional estimate needed (confidence: Medium in us-east-1 when no node falls to the $0.192 default, else Low)
 
 | Instance Type | vCPU | Memory (GiB) | Arch | $/hour | $/month (730h) |
 |---------------|------|--------------|------|--------|-----------------|
@@ -274,7 +274,7 @@ Use this table ONLY when:
 **Pricing adjustments:**
 - **Spot instances:** Apply ~70% discount → `spot_rate ≈ on_demand_rate × 0.30` (see Spot pricing note below)
 - **Graviton (arm64):** The table covers Graviton2 and Graviton3 (`6g` and `7g`) only; for a Graviton4 or later target use the Price List API (Option B). The gap depends on generation, see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1
-- **Other regions:** Rates can differ from us-east-1; **use Price List API (Option B) for accuracy**
+- **Other regions:** Rates can differ from us-east-1; **use Price List API (Option B) for accuracy** (the Regions in REGION_MAP; others use the table at Low confidence)
 - **Unknown instance type:** Use the Price List API. If unavailable, default to $0.192/hour (m5.xlarge equivalent) and flag as Low confidence
 
 > **Spot pricing note:** The 70% discount (30% of On-Demand) is a conservative average. Actual Spot discounts vary by instance type, region, and AZ (range: 40–90%). For accurate Spot pricing, query live Spot prices:
@@ -426,8 +426,8 @@ def estimate_cluster_cost(
         "confidence": confidence,
         "notes": (
             f"Pricing source: {pricing_source}. "
-            f"{'Price List API used for region-accurate rates. ' if pricing_source == 'price_list_api' else f'Reference table for {table_nodes} of {len(nodes)} nodes (us-east-1 rates, last verified June 2026). '}"
-            f"{'Region ' + region + ' not in REGION_MAP. ' if use_price_list_api and region not in REGION_MAP else ''}"
+            f"{'Price List API used for region-accurate rates. ' if pricing_source == 'price_list_api' else f'Reference table or default for {table_nodes} of {len(nodes)} nodes (us-east-1 rates, last verified June 2026). '}"
+            f"{f'Region {region} not in REGION_MAP. ' if use_price_list_api and region not in REGION_MAP else ''}"
             f"{'Price List lookup errors: ' + '; '.join(lookup_errors) + '. ' if lookup_errors else ''}"
             f"Spot nodes estimated at 30% of On-Demand (query describe-spot-price-history for accuracy). "
             f"{'Unknown types defaulted to $0.192/hr. ' if unknown_types else ''}"
