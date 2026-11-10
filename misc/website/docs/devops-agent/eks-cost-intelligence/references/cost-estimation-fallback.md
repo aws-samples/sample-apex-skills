@@ -25,10 +25,10 @@ Use node-based estimation when:
 - Running in a restricted environment without `ce:GetCostAndUsage` permission
 - Account is newly created (Cost Explorer needs 24 hours of data)
 
-When section 1.4 of [cost-data-collection.md](cost-data-collection.md) returns a
-cluster EC2 instance total (any account where section 1.2 returns no namespace data,
-member accounts included), use that total, scaled to a month, as `total_compute_cost`
-in Step 4 in place of the Step 1 to 3 compute estimate; keep the control plane rate.
+When section 1.4 of [cost-data-collection.md](cost-data-collection.md) returns a total, use it, scaled to a month,
+as Step 4's `total_compute_cost` in place of Steps 1 to 3; keep the control plane rate. On this path the
+Cost Estimation Method table reads `Cost Explorer EC2 instance cost by usage type (amortized, section 1.4)`,
+Limitations 1 and To-improve item 1 do not apply.
 
 Node-based estimation is less precise than Cost Explorer data but still produces
 useful directional findings. Always note the estimation method and confidence
@@ -81,13 +81,13 @@ def get_control_plane_hourly_rate(k8s_version: str) -> float:
 | Scenario | Confidence | Accuracy | Notes |
 |----------|-----------|----------|-------|
 | Cost Explorer + namespace tags + Container Insights | **High** | ±5% | Most accurate — real billing data with per-namespace attribution |
-| Cost Explorer + cluster tag only | **Medium** | ±15% | EC2 instance total from Cost Explorer (amortized); control plane from the per-version rate; EBS, load balancers, NAT and data transfer not included; namespace allocation estimated by requests |
+| Cost Explorer + cluster tag only | **Medium** | EC2 total from billing data (section 1.4 caveats); namespace split by requests, no better than the node-based rows | EC2 instance total from Cost Explorer (amortized); control plane from the per-version rate; EBS, load balancers, NAT and data transfer not included; namespace allocation estimated by requests |
 | Node-based + Container Insights utilization | **Medium** | ±20% | Good for waste ratios, less accurate for absolute dollar cost |
 | Node-based + kubectl requests only | **Low** | ±30% | Directional only — flag as estimate in all findings |
 
 **Rules for confidence reporting:**
 - Always include the confidence level in every finding's `confidence` field
-- Always include `"estimation_method"` in the data sources: `"ce_usage_type"` when the compute total comes from section 1.4 of cost-data-collection.md, else `"node_based"`
+- Always state the estimation method in the report's Cost Estimation Method table and as `estimation_method` on the Step 3 result: `ce_usage_type` when the compute total comes from section 1.4 of cost-data-collection.md, else `node_based`
 - When confidence is Low, prefix savings estimates with "~" (approximate)
 - Never present Low-confidence estimates as exact dollar amounts
 
