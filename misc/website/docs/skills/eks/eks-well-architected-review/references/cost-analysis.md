@@ -120,6 +120,7 @@ aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
             Type=TERM_MATCH,Field=tenancy,Value=Shared \
             Type=TERM_MATCH,Field=preInstalledSw,Value=NA \
             Type=TERM_MATCH,Field=capacitystatus,Value=Used \
+            Type=TERM_MATCH,Field=marketoption,Value=OnDemand \
   --query 'PriceList[0]' --output text \
   | jq -r '.terms.OnDemand|to_entries[0].value.priceDimensions|to_entries[0].value.pricePerUnit.USD'
 ```
