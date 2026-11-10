@@ -124,7 +124,8 @@ aws ec2 describe-volumes --include-managed-resources --region <REGION> --output 
 aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.encryptionConfig"
 # EKS Auto Mode can hide its instances and volumes from list calls, so a bare describe-volumes can
 # come back empty; --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) lists them. An
-# older CLI rejects the flag: drop it (or upgrade the CLI), and then the hidden ones are missing.
+# older CLI rejects the flag: drop it (or upgrade the CLI), and then the hidden ones are missing
+# here, though the report still counts the ones it can find by id.
 ```
 
 **Remediation:** EBS volumes **cannot be encrypted in place** — `ModifyVolume` has no encryption
