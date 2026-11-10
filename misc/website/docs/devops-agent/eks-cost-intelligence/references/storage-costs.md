@@ -419,7 +419,7 @@ actual_deduction = min(deduction, 15)  # Cap at maximum
 |-----------|--------|
 | All checks completed | ASSESSED |
 | Check 3 skipped (no volume stats) | ASSESSED (with note) |
-| Check 4 skipped (no EFS in cluster) | ASSESSED (EFS check not applicable) |
+| Check 4 not applicable (no EFS in cluster) | ASSESSED (EFS check not applicable) |
 | All checks skipped (no kubectl access) | SKIPPED |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.

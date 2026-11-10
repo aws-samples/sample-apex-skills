@@ -649,7 +649,12 @@ def main():
         if not md_path.exists():
             print(f"File not found: {md_path}"); sys.exit(1)
 
-        md_text = md_path.read_text(encoding="utf-8")
+        try:
+            md_text = md_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print(f"Not UTF-8 text: {md_path}"); sys.exit(1)
+        except OSError as exc:
+            print(f"Could not read {md_path}: {exc}"); sys.exit(1)
         body, toc = convert_md(md_text, id_prefix=f"c{i}-")
 
         # Extract cluster name: prefer topology JSON "cluster" field, fallback to filename
