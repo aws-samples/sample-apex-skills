@@ -1461,17 +1461,19 @@ awsjson "$WORK/vpcendpoints.json" -- aws ec2 describe-vpc-endpoints   --filters 
 #   "IncludeManagedResources: Indicates whether to include managed resources in the output. If this
 #    parameter is set to `true`, the output includes resources that are managed by AWS services, even if
 #    managed resource visibility is set to hidden."
-# The CLI flag first ships in aws-cli 2.34.35 (tagged 2026-04-22): its bundled EC2 model,
-# `awscli/botocore/data/ec2/2016-11-15/service-2.json`, has `IncludeManagedResources` on
-# DescribeInstances, DescribeVolumes and five other Describe requests, and 2.34.34 has it on none
-# (https://github.com/aws/aws-cli, read 2026-11-10). Older CLIs reject it. Tested 2026-09-11 against
+# The CLI flag first ships in aws-cli 2.34.35 and, for v1, aws-cli 1.44.84 (both tagged 2026-04-22):
+# 2.34.35's bundled EC2 model, `awscli/botocore/data/ec2/2016-11-15/service-2.json`, has
+# `IncludeManagedResources` on DescribeInstances, DescribeVolumes and five other Describe requests,
+# and 2.34.34 has it on none; 1.44.84 pins botocore 1.42.94, the first botocore with it
+# (https://github.com/aws/aws-cli, https://github.com/boto/botocore, read 2026-11-10).
+# Older CLIs reject it. Tested 2026-09-11 against
 # `aws-cli/2.34.30 Python/3.14.7 Darwin/25.6.0 source/arm64`:
 #   $ aws ec2 describe-instances --include-managed-resources --max-items 1
 #   aws: [ERROR]: Unknown options: --include-managed-resources
 # A skill cannot dictate the operator's CLI version, so everything below is built on the instance-ID
 # path, which works on every version. The negative result is recorded here rather than left as folklore:
-# once CLIs older than 2.34.35 no longer need support, this block can collapse to two calls, and a
-# maintainer should be able to see why it is built the complicated way.
+# once CLIs older than those releases no longer need support, this block can collapse to two calls,
+# and a maintainer should be able to see why it is built the complicated way.
 #
 # HOW THE ID PATH WORKS.
 #  - Instance IDs come from `nodes.json`, already collected above. `.spec.providerID` on an EC2-backed
