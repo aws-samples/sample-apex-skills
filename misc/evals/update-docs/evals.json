@@ -10,7 +10,6 @@
         "Identifies prose references to the old name 'eks-recon' in tracked markdown files — TODO: human review",
         "Produces the final Surface | Status | Action taken | Confirm? markdown table — TODO: human review"
       ],
-      "live_only": true,
       "files": [
         "shared/update-all-references.sh",
         "shared/update-pages.sh",
@@ -86,7 +85,6 @@
         "Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns — TODO: human review",
         "Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits) — TODO: human review"
       ],
-      "live_only": true,
       "files": [
         "shared/update-all-references.sh",
         "shared/update-pages.sh",
