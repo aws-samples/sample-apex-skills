@@ -49,7 +49,7 @@ The EKS control plane cost depends on the cluster's Kubernetes version support s
 # Determine control plane hourly cost based on K8s version support status
 from datetime import date, datetime, timezone
 
-# End of standard support per minor version, from the EKS release calendar (UTC dates; read 2026-11-10):
+# End of standard support per minor version, from the EKS release calendar (UTC dates; read 2026-11-11):
 # https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
 # Extended support billing starts at the beginning of that day (UTC). Add each new version when EKS releases it.
 END_OF_STANDARD_SUPPORT = {
@@ -250,7 +250,7 @@ Sum all node costs plus the EKS control plane fee:
 ```python
 HOURS_PER_MONTH = 730  # 24 hours × 30.4 days
 
-# END_OF_STANDARD_SUPPORT and is_extended_support(): defined under EKS Control Plane Pricing above (one table to update)
+# Run the EKS Control Plane Pricing block above first: it defines END_OF_STANDARD_SUPPORT and is_extended_support() (one table to update)
 
 # Reference pricing table (FALLBACK — prefer Price List API)
 # Last verified: June 2026, us-east-1
