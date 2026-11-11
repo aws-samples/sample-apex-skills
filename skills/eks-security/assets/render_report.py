@@ -226,14 +226,15 @@ def findings_blocks(fd, inv):
             blocks.append(("p", ("Auto Mode components: " if printed else "Overall verdict: ")
                            + PATCHED % "; ".join(patched)))
             # the nodes the patched verdicts were judged on: a node-os finding its own group, any other every group;
-            # a group another advisory holds as pending rotation is never listed here
+            # a NodePool any advisory holds as pending rotation, on any of its node groups, is never listed here
             auto = {c.get("id"): c for c in inv.get("components") or [] if isinstance(c, dict)
                     and c.get("kind") == "node-os" and c.get("managed_by") == "aws-auto-mode"}
             pc = {f.get("component") for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_patched"}
             pf = [f for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_rotation_pending"]
             pend = {f.get("component") for f in pf}
             pend_nodes = {n for f in pf for n in f.get("nodes_pending") or []}
-            rows = sorted((c for i, c in auto.items() if i not in pend and not pend_nodes & set(c.get("nodes") or [])
+            pend_pools = {s(c.get("where")) for i, c in auto.items() if i in pend or pend_nodes & set(c.get("nodes") or [])}
+            rows = sorted((c for i, c in auto.items() if s(c.get("where")) not in pend_pools
                            and (i in pc or not pc <= set(auto))),
                           key=lambda c: (s(c.get("where")), s(c.get("os_image"))))
             if rows:
