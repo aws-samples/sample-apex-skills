@@ -346,7 +346,7 @@ merge_by() {  # merge_by <file> <new> <kind: instances|volumes>
   fi
 }
 by_ids() {  # by_ids <name> <ec2 op> <flag> <kind> <ids...>
-  local name="$1" op="$2" flag="$3" kind="$4" batch="" n=0; shift 4
+  local name="$1" op="$2" flag="$3" kind="$4" batch="" n=0 id one; shift 4
   [ -f "$P/$name.json" ] || return 0
   for id in "$@" ""; do
     [ -n "$id" ] && { batch="$batch $id"; n=$((n+1)); }
@@ -354,6 +354,12 @@ by_ids() {  # by_ids <name> <ec2 op> <flag> <kind> <ids...>
       # shellcheck disable=SC2086
       if timeout 120 aws ec2 "$op" "$flag" $batch --region "$REGION" > "$P/.ids.json" 2>"$P/.ids.err" && jq -e . "$P/.ids.json" >/dev/null 2>&1; then
         merge_by "$P/$name.json" "$P/.ids.json" "$kind" > "$P/.ids.m" && mv "$P/.ids.m" "$P/$name.json"
+      elif [ "$n" -gt 1 ] && grep -qE 'InvalidInstanceID\.(NotFound|Malformed)' "$P/.ids.err" 2>/dev/null; then
+        # One id that is gone (a node that scaled in between the kubectl and EC2 reads) or malformed fails the
+        # whole call and takes every good id with it. EC2 named an id, so retry one id at a time and keep the
+        # ones that resolve; the one-id call logs each id that still fails. A throttle or a denial applies to
+        # every id, so it is not re-asked per id.
+        for one in $batch; do by_ids "$name" "$op" "$flag" "$kind" "$one"; done
       else
         err "$name" error "ec2 $op by id failed for $n id(s): $(firstline "$P/.ids.err")"
       fi
