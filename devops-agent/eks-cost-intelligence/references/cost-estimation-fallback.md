@@ -77,7 +77,7 @@ def get_control_plane_hourly_rate(k8s_version: str) -> float:
     return 0.10  # Standard support: $0.10/hr
 ```
 
-> **Important:** Always check the cluster's Kubernetes version. A cluster on a version past its end of standard support (the dates above) costs **6× more** for the control plane than one in standard support. This is often overlooked and can be a significant finding itself. The 6× applies to clusters whose `upgradePolicy.supportType` is `EXTENDED` (the default); a cluster set to `STANDARD` is not charged for extended support and is auto-upgraded instead.
+> **Important:** Always check the cluster's Kubernetes version. A cluster on a version past its end of standard support (the dates above) costs **6× more** for the control plane than one in standard support. This is often overlooked and can be a significant finding itself. The 6× assumes `upgradePolicy.supportType` is `EXTENDED` (the default; it cannot be changed once the cluster is in extended support, so upgrading is the only way to stop the charge). A cluster set to `STANDARD` before its date is not charged and is auto-upgraded instead.
 
 ---
 
@@ -387,7 +387,7 @@ def estimate_cluster_cost(
 | m6g.xlarge | 5 | Spot | $0.154 × 0.30 = $0.046 | $33.73 | $168.63 |
 | c5.2xlarge | 2 | On-Demand | $0.340 | $248.20 | $496.40 |
 | **Compute subtotal** | | | | | **$1,085.51** |
-| EKS control plane | 1 | — | $0.10 | $73.00 | $73.00 |
+| EKS control plane (standard support, e.g. 1.34) | 1 | — | $0.10 | $73.00 | $73.00 |
 | **Total** | | | | | **$1,158.51/month** |
 
 ---
