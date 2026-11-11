@@ -319,7 +319,7 @@ _emit_skills_group() {
       local asset_files=()
       while IFS= read -r -d '' f; do
         asset_files+=("$f")
-      done < <(find "$assets_dir" -maxdepth 1 \( -type f -o -type d \) ! -path "$assets_dir" -print0 | sort -z)
+      done < <(find "$assets_dir" -maxdepth 1 \( -type f -o -type d \) ! -path "$assets_dir" ! -name __pycache__ ! -name '.*' -print0 | sort -z)
 
       if [[ ${#asset_files[@]} -gt 0 ]]; then
         echo ""
@@ -347,7 +347,7 @@ _emit_skills_group() {
       local d_name
       d_name="$(basename "$d")"
       case "$d_name" in
-        references|scripts|assets) continue ;;
+        references|scripts|assets|__pycache__|.*) continue ;;
       esac
       other_dirs+=("$d")
     done < <(find "$skill_dir" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
@@ -358,7 +358,7 @@ _emit_skills_group() {
       local other_files=()
       while IFS= read -r -d '' f; do
         other_files+=("$f")
-      done < <(find "$other_dir" -maxdepth 1 \( -type f -o -type d \) ! -path "$other_dir" -print0 | sort -z)
+      done < <(find "$other_dir" -maxdepth 1 \( -type f -o -type d \) ! -path "$other_dir" ! -name __pycache__ ! -name '.*' -print0 | sort -z)
 
       if [[ ${#other_files[@]} -gt 0 ]]; then
         local other_heading

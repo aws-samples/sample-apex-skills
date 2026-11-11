@@ -37,6 +37,7 @@ The following permissions are included:
 - `eks:ListNodegroups`
 - `eks:DescribeNodegroup`
 - `eks:ListAddons`
+- `eks:DescribeAddon`
 - `eks:ListFargateProfiles`
 - `eks:DescribeFargateProfile`
 
@@ -46,6 +47,8 @@ The following permissions are included:
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`
+- `ec2:DescribeNatGateways`
+- `ec2:DescribeSpotPriceHistory` (optional: live Spot prices)
 - `route53:ListHostedZonesByVPC` (optional: centralized VPC endpoint zones)
 
 **Elastic Load Balancing (required):**
@@ -56,6 +59,8 @@ The following permissions are included:
 **Cost Explorer (optional — enables dollar-accurate spend):**
 - `ce:GetCostAndUsage`
 - `ce:GetCostForecast`
+- `ce:GetSavingsPlansCoverage`
+- `ce:GetSavingsPlansUtilization`
 - `organizations:DescribeOrganization`
 
 **CloudWatch (optional — enables utilization-based analysis):**
@@ -63,10 +68,17 @@ The following permissions are included:
 - `cloudwatch:ListMetrics`
 - `logs:StartQuery`
 - `logs:GetQueryResults`
+- `logs:DescribeLogGroups` (required for log group sizing in the observability dimension)
 
 **Amazon EFS (optional — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension):**
 - `elasticfilesystem:DescribeFileSystems`
 - `elasticfilesystem:DescribeLifecycleConfiguration`
+
+**Amazon SQS (optional: confirms the Karpenter interruption queue exists in the Spot dimension):**
+- `sqs:GetQueueUrl`
+
+**Amazon ECR (optional: reads image manifests for the arm64 check in the Graviton estimate):**
+- `ecr:BatchGetImage`
 
 **Kubernetes API access (required):**
 - The Agent Space role requires an authentication mode that includes the EKS API and an access entry associated with `AmazonAIOpsAssistantPolicy`.
