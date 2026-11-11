@@ -180,9 +180,9 @@ For regulated workloads: **CIS-hardened AMIs** (AL2023 CIS Level 1 or Bottlerock
 - Quarterly vulnerability scans of all DLC/vLLM images; retain scan reports.
 - RBAC + IAM identity mapping restricting kubectl to GenAI namespace.
 
-### FedRAMP (Moderate / High)
+### FedRAMP (Moderate-impact / High-impact systems)
 
-- Deploy in **GovCloud** or FedRAMP-authorized commercial regions.
+- Deploy in **GovCloud** or the FedRAMP Class C Regions (AWS US East/West).
 - FIPS-validated modules:
   - Bottlerocket FIPS AMIs use FIPS 140-3 validated cryptographic modules ([Bottlerocket FIPS AMIs](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-fips-amis.html)).
   - AL2023 is certified under FIPS 140-3 (enable FIPS mode yourself). AL2's FIPS 140-2 certificates are on the CMVP Historical List (existing systems only); its EKS-optimized AMIs stopped publishing on November 26, 2025 ([EKS AL2 deprecation FAQ](https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html)).
