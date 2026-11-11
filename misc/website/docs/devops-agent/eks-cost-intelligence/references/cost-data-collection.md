@@ -104,8 +104,6 @@ for group in response["ResultsByTime"][0]["Groups"]:
 
 ### 1.2 Namespace-Level Cost Attribution (cost allocation tags)
 
-Split cost allocation data is CUR only, not in Cost Explorer; this query groups by the user tags kubernetes-namespace and kubernetes-deployment.
-
 Split cost allocation data is in CUR (legacy CUR and CUR 2.0 with Data Exports) only, not Cost Explorer, and only a regular or payer account can opt in to it, in Cost Management preferences (see the account tier check below), so this Cost Explorer query uses the user tags instead ([Enabling split cost allocation data](https://docs.aws.amazon.com/cur/latest/userguide/enabling-split-cost-allocation-data.html), read 2026-11-05).
 
 **Via Cost Explorer GetCostAndUsage API:**
@@ -146,7 +144,7 @@ for group in response["ResultsByTime"][0]["Groups"]:
     namespace_costs[ns] = namespace_costs.get(ns, 0) + cost
 ```
 
-**Account tier check (pre-flight):** compare the STS GetCallerIdentity `Account` with the Organizations DescribeOrganization `MasterAccountId` (callable from any account in the organization). If they differ, this is a member account and the split cost allocation opt-in needs that payer account. If they are equal, this is the management account and the opt-in is in this account's Cost Management preferences. An error (not in an organization, or no permission) means a regular account, or unknown.
+**Account tier check (pre-flight):** compare the STS GetCallerIdentity `Account` with the Organizations DescribeOrganization `MasterAccountId` (callable from any account in the organization). If the caller's account cannot be read, the tier is unknown. If they differ, this is a member account and the split cost allocation opt-in needs that payer account. If they are equal, this is the management account and the opt-in is in this account's Cost Management preferences. An error (not in an organization, or no permission) means a regular account, or unknown.
 
 **When Split Cost Allocation is not enabled:**
 Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
@@ -894,7 +892,7 @@ def run_full_correlation(cluster_name, region):
             print(f"Logs Insights also unavailable: {e2}")
             namespace_metrics = {}
             node_metrics = {}
-            partly_assessed.append("compute_efficiency")  # utilization checks only; checks 4 and 5 still scored
+            partly_assessed.append("compute_efficiency")  # utilization checks only; check 5 and, with Karpenter, check 4 still scored
 
     # --- Step 3: Collect Kubernetes resource data ---
     try:

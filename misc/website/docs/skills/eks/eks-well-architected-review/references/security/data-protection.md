@@ -115,7 +115,7 @@ kubectl get deployments -A -o json
 ```bash
 aws ec2 describe-volumes --region <REGION> --query "Volumes[].Encrypted"
 aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.encryptionConfig"
-# EKS Auto Mode hides its managed instances and their volumes from list calls, so a bare
+# EKS Auto Mode can hide its managed instances and their volumes from list calls, so a bare
 # describe-volumes can come back empty on a cluster that has plenty. The collector recovers them by
 # id; if you run this by hand, pass the ids from the nodes and the PersistentVolumes:
 kubectl get pv -o json | jq -r '.items[].spec.csi.volumeHandle'

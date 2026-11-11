@@ -654,8 +654,15 @@ def main():
         print(f"Error: File not found: {input_file}")
         sys.exit(1)
 
-    with open(input_file, "r", encoding="utf-8") as f:
-        md_content = f.read()
+    try:
+        with open(input_file, "r", encoding="utf-8") as f:
+            md_content = f.read()
+    except UnicodeDecodeError:
+        print(f"Error: Not UTF-8 text: {input_file}")
+        sys.exit(1)
+    except OSError as exc:
+        print(f"Error: Could not read {input_file}: {exc}")
+        sys.exit(1)
 
     title = extract_title(md_content)
     body_html = md_to_html(md_content)

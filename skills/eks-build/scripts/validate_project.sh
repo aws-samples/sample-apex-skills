@@ -57,6 +57,9 @@ for f in configs/cluster.yaml configs/compute.yaml configs/addons.yaml configs/b
         fail "$f missing"
     fi
 done
+if [ -f "$PROJECT_DIR/configs/backend.hcl" ] && ! grep -Eq '^[[:space:]]*use_lockfile[[:space:]]*=[[:space:]]*true([[:space:]#]|$)' "$PROJECT_DIR/configs/backend.hcl" 2>/dev/null; then
+    warn "configs/backend.hcl: could not confirm use_lockfile = true (S3 state locking; DynamoDB locking is deprecated)"
+fi
 
 # --- 3. terraform fmt check ---
 echo ""
@@ -209,23 +212,6 @@ if [ -f "$ADDONS_YAML" ]; then
     fi
 fi
 
-# --- 9. Velero configuration ---
-echo ""
-echo "9. Velero configuration"
-echo "-------------------------------------------"
-
-if [ -f "$ADDONS_YAML" ]; then
-    if grep -q "velero" "$ADDONS_YAML"; then
-        if grep -A10 "velero" "$ADDONS_YAML" | grep -q "upgradeCRDs.*false"; then
-            pass "Velero upgradeCRDs set to false"
-        else
-            warn "Velero may need upgradeCRDs: false (bitnami/kubectl image may not exist)"
-        fi
-    else
-        pass "Velero not configured"
-    fi
-fi
-
 # --- 10. Multus check ---
 echo ""
 echo "10. Multus safety check"
@@ -247,7 +233,7 @@ echo "-------------------------------------------"
 # Karpenter launches nodes only into subnets and security groups whose tags
 # match the EC2NodeClass selector terms (terms are ORed, the tags inside one
 # term are ANDed); a mismatch fails silently at runtime. Intended to run on
-# macOS too (POSIX awk, no grep -P), but not run there; section 6 uses grep -P.
+# macOS too (POSIX awk, no grep -P), but not run there.
 
 # Shared helpers. strip() drops # and // comments; tok() splits a line into
 # T[1..n]: { } [ ] ( ) , outside quotes and ${...}, and trimmed text between;
@@ -494,9 +480,10 @@ else
         KARP_APPLIED=$(awk "$KARP_TAG_AWK" "${KARP_TF_FILES[@]}" || true)
     fi
     # The Pattern 2 shape applies local.cluster_config.name, decoded from
-    # configs/cluster.yaml: judge it as that file's top-level name literal.
+    # configs/cluster.yaml: judge it as that file's top-level name literal, only
+    # when locals.tf decodes that file directly (any other shape stays an expression).
     KARP_CNAME=""
-    if [ -r "$PROJECT_DIR/configs/cluster.yaml" ]; then
+    if [ -r "$PROJECT_DIR/configs/cluster.yaml" ] && grep -Eq '^[[:space:]]*cluster_config[[:space:]]*=[[:space:]]*yamldecode\(file\("[^"]*configs/cluster\.yaml"\)\)[[:space:]]*$' "$PROJECT_DIR/locals.tf" 2>/dev/null; then
         KARP_CNAME=$(awk '/^name[[:space:]]*:/ { sub(/^name[[:space:]]*:[[:space:]]*/, ""); sub(/[[:space:]]+#.*$/, ""); gsub(/["'\''[:space:]]/, ""); if ($0 !~ /[${}]/) print; exit }' "$PROJECT_DIR/configs/cluster.yaml")
     fi
     if [ -n "$KARP_CNAME" ] && [ -n "$KARP_APPLIED" ]; then
