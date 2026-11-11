@@ -354,14 +354,15 @@ by_ids() {  # by_ids <name> <ec2 op> <flag> <kind> <ids...>
       # shellcheck disable=SC2086
       if timeout 120 aws ec2 "$op" "$flag" $batch --region "$REGION" > "$P/.ids.json" 2>"$P/.ids.err" && jq -e . "$P/.ids.json" >/dev/null 2>&1; then
         merge_by "$P/$name.json" "$P/.ids.json" "$kind" > "$P/.ids.m" && mv "$P/.ids.m" "$P/$name.json"
-      elif [ "$n" -gt 1 ] && grep -qE 'InvalidInstanceID\.(NotFound|Malformed)' "$P/.ids.err" 2>/dev/null; then
-        # One id that is gone (a node that scaled in between the kubectl and EC2 reads) or malformed fails the
-        # whole call and takes every good id with it. EC2 named an id, so retry one id at a time and keep the
-        # ones that resolve; the one-id call logs each id that still fails. A throttle or a denial applies to
-        # every id, so it is not re-asked per id.
+      elif [ "$n" -gt 1 ] && grep -qE 'InvalidInstanceID\.(NotFound|Malformed)|InvalidVolume\.NotFound' "$P/.ids.err" 2>/dev/null; then
+        # One instance or volume id EC2 does not return (a Node object that outlived its instance (EC2 drops a
+        # terminated instance from DescribeInstances after usually under an hour) or a just-launched id EC2 does
+        # not yet return) or a malformed one fails the whole call and takes every good id with it. EC2 named an
+        # id, so retry one id at a time and keep the ones that resolve; the one-id call logs each id that still
+        # fails. A throttle or a denial applies to every id, so it is not re-asked per id.
         for one in $batch; do by_ids "$name" "$op" "$flag" "$kind" "$one"; done
       else
-        err "$name" error "ec2 $op by id failed for $n id(s): $(firstline "$P/.ids.err")"
+        err "$name" error "ec2 $op by id failed for $n id(s)$([ "$n" -eq 1 ] && printf ' (%s)' "${batch# }"): $(firstline "$P/.ids.err")"
       fi
       batch=""; n=0
     fi
