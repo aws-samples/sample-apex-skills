@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
+trap 'rm -f "tmp.$$.json"' EXIT
 
 VERSION="${1:-}"
 
