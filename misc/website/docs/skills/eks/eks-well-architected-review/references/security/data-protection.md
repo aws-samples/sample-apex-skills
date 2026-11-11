@@ -113,11 +113,12 @@ kubectl get deployments -A -o json
 
 **Commands:**
 ```bash
-aws ec2 describe-volumes --region <REGION> --query "Volumes[].Encrypted"
+aws ec2 describe-volumes --include-managed-resources --region <REGION> --query "Volumes[].Encrypted"
 aws eks describe-cluster --name <CLUSTER> --region <REGION> --query "cluster.encryptionConfig"
-# EKS Auto Mode can hide its managed instances and their volumes from list calls, so a bare
-# describe-volumes can come back empty on a cluster that has plenty. The collector recovers them by
-# id; if you run this by hand, pass the ids from the nodes and the PersistentVolumes:
+# EKS Auto Mode can hide its instances and volumes from list calls, so a bare describe-volumes can
+# come back empty; --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) lists them. An
+# older CLI rejects the flag: drop it (or upgrade the CLI); the collector recovers them by id, and by
+# hand you pass the ids from the nodes and the PersistentVolumes:
 kubectl get pv -o json | jq -r '.items[].spec.csi.volumeHandle'
 ```
 
