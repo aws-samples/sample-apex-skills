@@ -2,7 +2,7 @@
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution. **This file is excluded from the uploaded skill zip** (see the `-x './references/porting-notes.md'` flag in the README's zip instructions) — it ships in the repository for maintainers only.
 
-> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-recon/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified against source: 2026-10-31. This is a source comparison, not a native Agent Space execution test.
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-recon/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified against source: 2026-11-11. This is a source comparison, not a native Agent Space execution test.
 
 ## Differences from Claude Code Version
 
