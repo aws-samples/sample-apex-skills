@@ -617,14 +617,19 @@ class RenderReport(TmpCase):
         self.assertNotIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) |", md)
         self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 |", md)
 
-    def test_patched_table_skips_split_pending_pool(self):
-        # M2: a NodePool split into two node groups mid-rotation is left out when any of its nodes is pending
+    def split_patched_fixture(self):
+        # general-purpose split into two node groups mid-rotation: i-b on the new AMI, i-a still on the old one
         fd, inv = self.patched_fixture()
         gp = next(c for c in inv["components"] if c["id"] == "node-os:general-purpose")
         gp.update(nodes=["i-b"], node_created={"i-b": "2026-11-03T01:00:00Z"}, oldest_node_created="2026-11-03T01:00:00Z")
         inv["components"].append(dict(gp, id="node-os:general-purpose/2", ami="ami-0eee5555ffff6666a", nodes=["i-a"],
                                       node_created={"i-a": "2026-11-02T01:00:00Z"},
                                       oldest_node_created="2026-11-02T01:00:00Z"))
+        return fd, inv
+
+    def test_patched_table_skips_split_pending_pool(self):
+        # M2: a NodePool split into two node groups mid-rotation is left out when any of its nodes is pending
+        fd, inv = self.split_patched_fixture()
         addon = fd["findings"][-1]
         fd["findings"].append(dict(addon, advisory="CVE-TEST-0009", verdict="aws_managed_rotation_pending",
                                    nodes_pending=["i-a"]))
@@ -633,6 +638,16 @@ class RenderReport(TmpCase):
         self.assertNotIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) |", md)
         self.assertNotIn("ami-0aaa1111bbbb2222c", md + ht)
         self.assertNotIn("ami-0eee5555ffff6666a", md + ht)
+        self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 |", md)
+
+    def test_patched_table_skips_split_pool_node_os_pending(self):
+        # a node-os finding pending on the split pool's second node group, with no nodes_pending, leaves out the pool
+        fd, inv = self.split_patched_fixture()
+        fd["findings"].append(dict(fd["findings"][-1], component="node-os:general-purpose/2",
+                                   verdict="aws_managed_rotation_pending"))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertNotIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) |", md)
         self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 |", md)
 
     def test_unknown_actions_for_nodes_build_and_minor(self):
