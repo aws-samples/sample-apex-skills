@@ -47,7 +47,7 @@ Skip a step only if the question is narrow enough that it doesn't apply.
 Escalate (SpecReq / Specialist / Security review) when any holds:
 - First-time certification on a **mission-critical regulated workload** (highest stakes).
 - **XXL+ segment** (all security/compliance recommendations require human review).
-- **FedRAMP High / GovCloud** → federal partner engagement (also the boundary for Fargate FIPS).
+- **FedRAMP Class D / GovCloud** → federal partner engagement (also the boundary for Fargate FIPS).
 - **IL4 / IL5** → GovCloud + DoD partner.
 - **ECS Anywhere inside a compliance boundary** → the customer owns the entire on-prem host, OS, and network; shared-responsibility boundary mapping required.
 - **Multi-tenant SaaS** with cross-tenant PHI / cardholder / federal isolation, especially on **shared EC2 container instances** (no task isolation) → recommend Fargate or account-per-tenant.
