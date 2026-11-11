@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {readFileSync, readdirSync} from 'node:fs';
 
 const here = new URL('.', import.meta.url);
-const {buildIndex, queryWords, search} = await import(new URL('skillSearch.ts', here).href);
+const {PHRASES, buildIndex, queryWords, search} = await import(new URL('skillSearch.ts', here).href);
 const manifest = JSON.parse(readFileSync(new URL('../../static/manifests/skills.json', here), 'utf8'));
 // The hand-written use lines stand in for the summary, as in skillCatalog.ts.
 const catalog = readFileSync(new URL('skillCatalog.ts', here), 'utf8');
@@ -87,6 +87,19 @@ const FIRST: [string, string, number?][] = [
   ['save money', 'eks-cost-intelligence'],
   ['k8s', 'eks-best-practices'],
   ['k8s upgrade', 'eks-upgrade-check'],
+  // Site search feedback: most words, not all, plus each skill's phrases.
+  // eks-build is "Use when building EKS clusters" (skills/eks-build/SKILL.md:3).
+  ['i want to deploy an eks cluster', 'eks-build'],
+  ['deploy eks cluster', 'eks-build'],
+  // First only by tie order: eks-build and ecs-build both score 6, and EKS sorts first.
+  ['deploy a cluster', 'eks-build'],
+  ['set up a new kubernetes cluster', 'eks-build'],
+  ['i want to build an eks cluster', 'eks-build'],
+  // The user's own example of a phrase people type.
+  ['spin up eks', 'eks-build'],
+  // eks-cost-intelligence: "how much am I wasting on EKS?" (skills/eks-cost-intelligence/SKILL.md:3).
+  ['make my cluster cheaper', 'eks-cost-intelligence'],
+  ['my cluster is too expensive', 'eks-cost-intelligence'],
 ];
 
 for (const [query, want, most] of FIRST) {
@@ -99,9 +112,9 @@ for (const [query, want, most] of FIRST) {
 
 test('M1: a skill that only routes away is not matched', () => {
   // ecs-cost-intelligence does not ship; the clauses that route to it ("for
-  // cost/TCO use ecs-cost-intelligence") are not indexed, so the finder shows
-  // no match rather than ecs-operation-review as "1 skill matches".
-  assert.equal(shown('ecs cost intelligence').total, 0);
+  // cost/TCO use ecs-cost-intelligence") are not indexed, so "cost intelligence"
+  // never reaches ecs-operation-review; "ecs" alone still finds every ECS skill.
+  assert.ok(!shown('cost intelligence').all.includes('ecs-operation-review'));
   assert.ok(!shown('kubernetes').all.includes('ecs-architect'));
 });
 
@@ -182,6 +195,27 @@ test('S-R2-6: text after a route-away phrase is not indexed', () => {
   assert.ok(!shown('windows').all.includes('dotnet-aws-ecs'), 'dotnet-aws-ecs: "NOT for Windows containers"');
 });
 
+test('Site search: "deploy a cluster" also shows ecs-build, which builds ECS clusters', () => {
+  // skills/ecs-build/SKILL.md:3 "apply-ready code for clusters, services, and task definitions".
+  assert.ok(shown('deploy a cluster').rows.includes('ecs-build'));
+});
+
+test('Site search: a partial match opens the skill of its task word, not of its verbs', () => {
+  // eks-ingress-migration: "Assess a live EKS cluster's NGINX/Ingress estate" (skills/eks-ingress-migration/SKILL.md:3).
+  assert.equal(shown('how do i set up ingress').first, 'eks-ingress-migration');
+  // ecs-architect: "Fargate vs ECS on EC2 vs Managed Instances" (skills/ecs-architect/SKILL.md:3).
+  // First by tie order: the ECS skills that name Fargate all score 3.
+  assert.equal(shown('spin up fargate').first, 'ecs-architect');
+});
+
+test('Site search: every phrase opens its own skill', () => {
+  for (const [skill, phrases] of Object.entries(PHRASES as Record<string, string[]>)) {
+    for (const phrase of phrases) assert.equal(shown(phrase).first, skill, phrase);
+  }
+});
+
 test('S-R2-6: "." stays inside a word', () => {
-  assert.equal(shown('32').total, 0, '"32" is not a word of "1.32"');
+  const hits: Hit[] = search(index, '32');
+  assert.ok(hits.every((h) => h.score === 0), '"32" is not a word of "1.32"');
+  assert.equal(hits.length, manifest.length, 'no word matched: the whole catalogue');
 });

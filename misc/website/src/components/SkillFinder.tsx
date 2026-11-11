@@ -103,7 +103,7 @@ export default function SkillFinder({variant}: Props): ReactNode {
   const searching = keyWords || (!isPage && hits.length > 0);
   // A clear winner: the query is in the skill's name and it outscores the next hit.
   const top = hits[0] && hits[0].score >= 20 && (!hits[1] || hits[0].score > hits[1].score) ? hits[0] : null;
-  // Strong hits match every word in the name or summary; the others only
+  // Strong hits find their words in the name or summary; the others only
   // mention a word somewhere in their long description, so they sit apart.
   const strong = hits.filter((h) => !h.passing);
   const mentions = strong.length > 0 ? hits.filter((h) => !strong.includes(h)) : [];
@@ -185,11 +185,19 @@ export default function SkillFinder({variant}: Props): ReactNode {
                   , or describe the task to the <Link to="/docs/skills/general/apex/">apex router</Link>.
                 </>
               )
-            : keyWords
-              ? `${hits.length - mentions.length} ${
-                  hits.length - mentions.length === 1 ? 'skill matches' : 'skills match'
-                }${mentions.length ? `, ${mentions.length} more mention it` : ''}. Enter opens the first one.`
-              : `All ${hits.length} skills, EKS first. Enter opens the first one.`
+            : hits[0].partial
+              ? (
+                  <>
+                    No skill matches every word of &ldquo;{query.trim()}&rdquo;; the nearest are below, or every skill
+                    when none match. Enter opens the first one, or describe the task to the{' '}
+                    <Link to="/docs/skills/general/apex/">apex router</Link>.
+                  </>
+                )
+              : keyWords
+                ? `${hits.length - mentions.length} ${
+                    hits.length - mentions.length === 1 ? 'skill matches' : 'skills match'
+                  }${mentions.length ? `, ${mentions.length} more mention it` : ''}. Enter opens the first one.`
+                : `All ${hits.length} skills, EKS first. Enter opens the first one.`
           : isPage
             ? `${inPlatform.length} skills`
             : null}
