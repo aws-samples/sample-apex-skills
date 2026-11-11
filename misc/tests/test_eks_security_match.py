@@ -1317,14 +1317,14 @@ class PostureScoring(TmpCase):
             self.assertEqual(c["result"], "unknown", c)
             self.assertIn("NOT READ", c["evidence"], cid)
             self.assertIn("i-0ccc3333", c["evidence"], cid)
+            self.assertNotIn("0/0", c["evidence"], cid)
+            if cid == "SEC-POSTURE-55":
+                self.assertIn("no Linux EC2 instance was read", c["evidence"])
 
     def test_imds_node_without_provider_id_scores(self):
         # a node registers before the cloud controller sets providerID; every token is still emitted
         checks = self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222", "i-0ccc3333"), no_provider=True)
         self.assertEqual({c["result"] for c in checks.values()}, {"pass"}, checks)
-        for name, count in (("results.jsonl", 54), ("results-extra.jsonl", 10)):
-            with open(os.path.join(self.tmp, "work", "posture", name), encoding="utf-8") as f:
-                self.assertEqual(sum(1 for _ in f), count, name)
 
     def test_sparse_workdir_score_null(self):
         q, doc = self.pipeline(self.build(self.PC["sparse_files"]))

@@ -94,6 +94,7 @@ x SEC-POSTURE-55 instances nodes '
   | ([$i[]|select(ok|not)|kind]|group_by(.)|map("\(.[0]) (\(length))")|join(", ")) as $bad
   | {state:(if ($nr|length)>0 and (b($ok;$t)|IN("all","na")) then "unknown" else b($ok;$t) end),
      detail:((if $t==0 and ($nr|length)==0 then "no running Linux EC2 instance was collected for this cluster, so there is no instance metadata service to assess (Fargate and hybrid nodes have none)"
+             elif $t==0 then "no Linux EC2 instance was read; \($nr|length) EC2 node(s) NOT READ: "+($nr|join(", "))+" (see posture/meta.json errors)"
              else "\($ok)/\($t) Linux EC2 node instances block pod access to IMDS (HttpTokens=required with hop limit 1, or the endpoint disabled)"+(if $bad!="" then "; failing by node type: "+$bad else "" end)
                +(if ($nr|length)>0 then "; \($nr|length) EC2 node(s) NOT READ: "+($nr|join(", "))+" (see posture/meta.json errors)" else "" end)+"; read off the running instances, so launch-template, Karpenter and Auto Mode settings are judged as in effect" end)
              +(if ($win|length)>0 then " (\($win|length) Windows instance(s) not assessed)" else "" end)),

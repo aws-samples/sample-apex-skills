@@ -13,7 +13,7 @@ This page is generated from [skills/eks-security/references/posture-check.md](ht
 
 The question is not "is every setting perfect" but "if one pod is compromised tomorrow, does this cluster keep it contained?". This file describes what the four posture scripts in `assets/` do. The scripts are the authority: where this file and a script differ, the script is right and this file is the bug.
 
-Each check reads only files the collector wrote, returns a result with the evidence it read, and carries a severity. A check whose input file was not collected (the read was denied or failed), or, for SEC-POSTURE-46 and -55, a node's instance was not read, is `unknown`, never pass.
+Each check reads only files the collector wrote, returns a result with the evidence it read, and carries a severity. A check whose input file was not collected (the read was denied or failed), or, for SEC-POSTURE-46 and -55, a node's instance was not read while the instances that were read would pass, is `unknown`, never pass.
 
 ## How it runs
 
