@@ -505,9 +505,12 @@ delete:
 # (failed hardware, not billed) and deleted -- available, creating and deleting. No --filters form selects
 # it: the predicate accepts any tag key containing "cluster" in any case. It also counts an untagged volume a
 # PV names (`kubectl get pv`, .spec.csi.volumeHandle). Only an available volume can be deleted.
-# On EKS Auto Mode, volumes it created after April 22, 2026 can be hidden from this list call;
-# the report names the idle ones the review recovered by ID.
-aws ec2 describe-volumes --region <REGION> --output json \
+# --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) also lists the volumes
+# EKS Auto Mode can hide from list calls (an account and Region setting). An older CLI
+# rejects the flag: drop it (or upgrade the CLI), and then the hidden ones are missing; the
+# report names the idle ones the review recovered by ID. The collector does not pass the flag,
+# so this list can show hidden idle volumes cost-8 did not count.
+aws ec2 describe-volumes --include-managed-resources --region <REGION> --output json \
   | jq --arg cn '<CLUSTER>' '[.Volumes[]|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0)|select((.State!="in-use") and (.State!="error") and (.State!="deleted"))|{Id:.VolumeId,State:.State,Size:.Size,Created:.CreateTime,Tags:.Tags}]'
 ```
 
