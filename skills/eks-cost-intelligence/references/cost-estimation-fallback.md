@@ -77,7 +77,7 @@ def get_control_plane_hourly_rate(k8s_version: str) -> float:
     return 0.10  # Standard support: $0.10/hr
 ```
 
-> **Important:** Always check the cluster's Kubernetes version. A cluster on a version past its end of standard support (the dates above) costs **6× more** for the control plane than one in standard support. This is often overlooked and can be a significant finding itself.
+> **Important:** Always check the cluster's Kubernetes version. A cluster on a version past its end of standard support (the dates above) costs **6× more** for the control plane than one in standard support. This is often overlooked and can be a significant finding itself. The 6× applies to clusters whose `upgradePolicy.supportType` is `EXTENDED` (the default); a cluster set to `STANDARD` is not charged for extended support and is auto-upgraded instead.
 
 ---
 
@@ -315,7 +315,7 @@ Sum all node costs plus the EKS control plane fee:
 ```python
 HOURS_PER_MONTH = 730  # 24 hours × 30.4 days
 
-# Run the EKS Control Plane Pricing block above first: it defines END_OF_STANDARD_SUPPORT and is_extended_support() (one table to update)
+# Run the EKS Control Plane Pricing block above first: it defines END_OF_STANDARD_SUPPORT, is_extended_support() and get_control_plane_hourly_rate() (one table to update)
 
 # Reference pricing table (FALLBACK — prefer Price List API)
 # Last verified: June 2026, us-east-1
@@ -339,16 +339,9 @@ INSTANCE_HOURLY_RATES = {
 }
 
 
-def get_control_plane_hourly_rate(k8s_version: str) -> float:
-    """Return EKS control plane hourly rate based on version support status."""
-    if is_extended_support(k8s_version):
-        return 0.60  # Extended support: $0.60/hr ($438/month)
-    return 0.10  # Standard support: $0.10/hr ($73/month)
-
-
 def estimate_cluster_cost(
     nodes: list[dict],
-    k8s_version: str = "1.31",
+    k8s_version: str,
     region: str = "us-east-1",
     use_price_list_api: bool = True,
 ) -> dict:
