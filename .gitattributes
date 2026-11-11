@@ -1,0 +1,2 @@
+# Check out every text file with LF endings whatever core.autocrlf says, so shell scripts and the generators run on a fresh checkout.
+* text=auto eol=lf

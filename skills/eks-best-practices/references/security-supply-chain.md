@@ -250,8 +250,8 @@ Amazon Inspector scans EC2 instances for network reachability issues and vulnera
 | **HIPAA Eligible** | Yes | Yes | Yes |
 | **SOC I, II, III** | Yes | Yes | Yes |
 | **ISO 27001/9001/27017/27018** | Yes | Yes | Yes |
-| **FedRAMP Moderate** | Yes | No | Yes |
-| **FedRAMP High (GovCloud)** | Yes | No | Yes |
+| **FedRAMP Class C (formerly Moderate baseline)** | Yes | No | Yes |
+| **FedRAMP Class D (formerly High baseline, GovCloud)** | Yes | No | Yes |
 | **HITRUST CSF** | Yes | Yes | Yes |
 
 Status changes over time. Always check [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) for the latest.
