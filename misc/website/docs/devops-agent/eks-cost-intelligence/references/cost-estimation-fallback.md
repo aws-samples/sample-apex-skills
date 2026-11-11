@@ -33,9 +33,9 @@ level in the output.
 
 ## Pricing Lookup Strategy (Priority Order)
 
-**Always prefer dynamic pricing over static tables:**
+**Prefer dynamic pricing over static tables** when `pricing:GetProducts` is granted (the shipped `references/iam-policy.json` does not include it); otherwise use the reference table below.
 
-1. **AWS Price List API** (preferred) — Call `aws pricing get-products` for real-time, region-accurate pricing. See Step 2, Option B below.
+1. **AWS Price List API** (when `pricing:GetProducts` is granted) — Call `aws pricing get-products` for real-time, region-accurate pricing. See Step 2, Option B below.
 2. **Reference pricing table** (fallback only) — Use the static table below ONLY when the Price List API is unavailable (e.g., no `pricing:GetProducts` permission, network-restricted environment). Mark findings as **Low confidence** when using the static table.
 
 > ⚠️ **The reference pricing table is a point-in-time snapshot (last verified: June 2026, us-east-1).** AWS adjusts EC2 pricing periodically. Always prefer the Price List API for production assessments. If using the static table for a non-us-east-1 region, apply a ±15% confidence margin.
@@ -108,10 +108,10 @@ Use the Kubernetes API to list all Nodes. Extract metadata.labels for instance-t
 
 ## Step 2: Look Up Instance Pricing
 
-**Primary method: AWS Price List API** — provides real-time, region-accurate pricing.
+**Primary method, when `pricing:GetProducts` is granted: AWS Price List API** — provides real-time, region-accurate pricing.
 **Fallback: Reference table** — use only when the API is unavailable.
 
-### Option B (PRIMARY): AWS Price List API Lookup
+### Option B (when `pricing:GetProducts` is granted): AWS Price List API Lookup
 
 ### Option A: Reference Pricing Table (FALLBACK ONLY — us-east-1, On-Demand, Linux)
 
@@ -563,7 +563,7 @@ Include this section in the report's Methodology & Confidence Notes:
 
 1. **No Savings Plans / Reserved Instances reflected** — Node-based estimation uses On-Demand rates; actual cost may be lower if SP/RI coverage exists
 2. **Spot pricing is approximate when using default 65% discount** — Real Spot prices fluctuate; query `describe-spot-price-history` for accuracy. The 30% of On-Demand is a conservative average.
-3. **Region pricing differences** — Reference table uses us-east-1; other regions may differ. **Always use the Price List API (Option B) for non-us-east-1 regions.**
+3. **Region pricing differences** — Reference table uses us-east-1; other regions may differ. **For non-us-east-1 regions, use the Price List API (Option B) when `pricing:GetProducts` is granted; otherwise mark the estimate Low confidence.**
 4. **No data transfer costs** — This method estimates compute only; networking costs require separate analysis
 5. **System overhead not subtracted** — DaemonSets and system pods consume resources but are not allocated to user namespaces in the simple model above
 6. **Extended support clusters** — Clusters on older K8s versions (in extended support) incur $0.60/hr control plane cost instead of $0.10/hr. The skill detects this automatically.
