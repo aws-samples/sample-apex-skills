@@ -606,6 +606,15 @@ class RenderReport(TmpCase):
         self.assertEqual(rc, 0, log)
         self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)
         self.assertNotIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read |", md)
+        # R2-1 residual: a pool whose node an add-on advisory holds as pending is not listed under AWS-patched
+        fd, inv = self.patched_fixture()
+        addon = fd["findings"][-1]
+        fd["findings"].append(dict(addon, advisory="CVE-TEST-0009", verdict="aws_managed_rotation_pending",
+                                   nodes_pending=["i-c"]))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)
+        self.assertNotIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read |", md)
 
     def test_unknown_actions_for_nodes_build_and_minor(self):
         # S2: no_nodes_read, eks_build and minor_only each get their own action, not the generic one

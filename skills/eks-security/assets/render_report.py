@@ -230,9 +230,11 @@ def findings_blocks(fd, inv):
             auto = {c.get("id"): c for c in inv.get("components") or [] if isinstance(c, dict)
                     and c.get("kind") == "node-os" and c.get("managed_by") == "aws-auto-mode"}
             pc = {f.get("component") for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_patched"}
-            pend = {f.get("component") for f in fd.get("findings") or []
-                    if f.get("verdict") == "aws_managed_rotation_pending"}
-            rows = sorted((c for i, c in auto.items() if i not in pend and (i in pc or not pc <= set(auto))),
+            pf = [f for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_rotation_pending"]
+            pend = {f.get("component") for f in pf}
+            pend_nodes = {n for f in pf for n in f.get("nodes_pending") or []}
+            rows = sorted((c for i, c in auto.items() if i not in pend and not pend_nodes & set(c.get("nodes") or [])
+                           and (i in pc or not pc <= set(auto))),
                           key=lambda c: (s(c.get("where")), s(c.get("os_image"))))
             if rows:
                 blocks.append(("table", ["NodePool", "OS image", "AMI", "Nodes", "Oldest node created"],
