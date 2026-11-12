@@ -3513,9 +3513,10 @@ def container(title, body, counter=None, desc=None, flush=False, anchor=None):
 #   `sec-21` on an all-Auto-Mode cluster -- state `all`, names Auto Mode, opens with a ratio:
 #   `11/11 encrypted (cluster vols) — every EC2 node is an EKS Auto Mode node, so the root and data
 #    volumes AWS attaches at launch are encrypted by design …`
-# COPIED BYTE-EXACTLY OUT OF A results.jsonl RECORD: never compose one here. On a cluster with no
-# Auto Mode nodes the same question emits `N/M encrypted (cluster vols)` with NO Auto Mode clause,
-# so a quote joining that ratio to the Auto Mode clause would describe output no run emits.
+# COPIED BYTE-EXACTLY OUT OF A results.jsonl RECORD: never compose one here. On any other
+# cluster the same question emits `N/M encrypted (cluster vols)` without the
+# `every EC2 node is an EKS Auto Mode node` clause, so a quote joining that ratio to that clause
+# would describe output no run emits.
 # sec-21 is not the only answer rule 4 can exclude, either.
 # Rule 4 also excludes `sec-4`,
 # whose ratio arm in identity-access.md opens with `N/M` and, scoring `most`/`all`, can name Auto
