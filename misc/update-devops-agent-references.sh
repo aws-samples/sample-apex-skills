@@ -126,11 +126,11 @@ build_table() {
   done
 }
 
-# --- Check that each marker is exactly one whole line in a file ---
+# --- Check that each marker is exactly one whole line in a file, start above end ---
 check_markers() {
   local file="$1" marker n
   for marker in "$2" "$3"; do
-    n=$(grep -cxF -- "$marker" "$file" || true)
+    n=$(grep -acxF -- "$marker" "$file" || true)
     if [[ "$n" -eq 0 ]]; then
       echo "ERROR: Could not find $marker in $file" >&2
       return 1
@@ -139,6 +139,13 @@ check_markers() {
       return 1
     fi
   done
+  local start_line end_line
+  start_line=$(grep -anxF -- "$2" "$file" | cut -d: -f1)
+  end_line=$(grep -anxF -- "$3" "$file" | cut -d: -f1)
+  if (( start_line > end_line )); then
+    echo "ERROR: $2 must come before $3 in $file" >&2
+    return 1
+  fi
 }
 
 # --- Replace a section between markers in a file ---

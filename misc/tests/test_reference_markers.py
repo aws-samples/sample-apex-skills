@@ -2,9 +2,10 @@
 """Tests that the README reference scripts refuse a damaged block marker.
 
 Each script replaces the lines between a start and an end marker. A marker
-line with extra whitespace, or a marker pair present twice, must make the
-script fail and leave the file alone, and a script that rewrites two files
-must not rewrite the first when the second's markers are bad.
+line with extra whitespace, a marker pair present twice or a reversed pair
+must make the script fail and leave the file alone, and a script that
+rewrites two files must not rewrite the first when the second's markers
+are bad.
 
 Run directly with:
 
@@ -128,6 +129,20 @@ class DamagedMarkerTests(unittest.TestCase):
                     proc, before, after = self._run_and_read(root, script, path)
                 self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
                 self.assertIn("exactly once", proc.stderr)
+                self.assertEqual(before, after)
+
+    def test_reversed_marker_pair_fails_and_keeps_file(self):
+        for script, paths, target, start, end in CASES:
+            with self.subTest(script=script):
+                with tempfile.TemporaryDirectory() as root:
+                    _copy_tree(root, paths, script)
+                    path = os.path.join(root, target)
+                    _damage(path, start, "swap placeholder")
+                    _damage(path, end, start)
+                    _damage(path, "swap placeholder", end)
+                    proc, before, after = self._run_and_read(root, script, path)
+                self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertIn("must come before", proc.stderr)
                 self.assertEqual(before, after)
 
     def test_failed_second_file_leaves_first_file_alone(self):

@@ -261,11 +261,11 @@ build_examples_detail() {
   done <<< "$readmes"
 }
 
-# --- Check that each marker is exactly one whole line in a file ---
+# --- Check that each marker is exactly one whole line in a file, start above end ---
 check_markers() {
   local file="$1" marker n
   for marker in "$2" "$3"; do
-    n=$(grep -cxF -- "$marker" "$file" || true)
+    n=$(grep -acxF -- "$marker" "$file" || true)
     if [[ "$n" -eq 0 ]]; then
       echo "ERROR: Could not find $marker in $file" >&2
       return 1
@@ -274,6 +274,13 @@ check_markers() {
       return 1
     fi
   done
+  local start_line end_line
+  start_line=$(grep -anxF -- "$2" "$file" | cut -d: -f1)
+  end_line=$(grep -anxF -- "$3" "$file" | cut -d: -f1)
+  if (( start_line > end_line )); then
+    echo "ERROR: $2 must come before $3 in $file" >&2
+    return 1
+  fi
 }
 
 # --- Replace a section between markers in a file ---
@@ -357,7 +364,7 @@ if $DRY_RUN; then
   exit 0
 fi
 
-# Check every marker before writing either file, so a missing or repeated marker changes nothing.
+# Check every marker before writing either file, so a missing, repeated or out-of-order marker changes nothing.
 check_markers "$README" "$README_START" "$README_END"
 if [[ -n "$NEW_EXAMPLES_SECTION" ]]; then
   check_markers "$EXAMPLES_README" "$EXAMPLES_START" "$EXAMPLES_END"
