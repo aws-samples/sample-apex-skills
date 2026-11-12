@@ -1434,13 +1434,13 @@ class PosturePartialRead(TmpCase):
         q, doc = self.pipeline(work)
         return {c["id"]: c for c in doc["checks"]}
 
-    # sec-21 / SEC-POSTURE-18, cause 1: the by-id volume read failed (hidden Auto Mode volume, throttle)
+    # sec-21 / SEC-POSTURE-18, a named volume not read: the by-id volume read failed (throttle, denial, volume deleted)
     def test_sec21_volume_unread_is_unknown(self):
         c = self.run_case(nodes_read=(A, B), vols_read=(A,))["SEC-POSTURE-18"]
         self.assertEqual(c["result"], "unknown", c)
         self.assertIn("vol-0bbb222200000", c["evidence"])
 
-    # sec-21 cause 1 via the instance read: an unread node's block devices are never asked for
+    # sec-21, a node's instance not read: its block devices are never asked for
     def test_sec21_instance_unread_is_unknown(self):
         c = self.run_case(nodes_read=(A,), vols_read=(A,))["SEC-POSTURE-18"]
         self.assertEqual(c["result"], "unknown", c)
@@ -1458,8 +1458,8 @@ class PosturePartialRead(TmpCase):
         self.assertNotIn("NOT READ", c["evidence"])
         self.assertNotIn(self.SEC21_AUTO, c["evidence"])
 
-    # sec-21 cause 2: on an Auto Mode cluster a volume nothing names may be missing from the list; the clause says so
-    SEC21_AUTO = "not counted: an EBS volume that EKS Auto Mode can hide from the volume list for this Region"
+    # sec-21, a volume nothing names: on an Auto Mode cluster EC2 can hide it from the volume list; the clause says so
+    SEC21_AUTO = "not counted: a volume no PersistentVolume names and no node of this cluster has attached"
 
     def test_sec21_auto_mode_names_the_uncounted_volumes(self):
         c = self.run_case(nodes_read=(A, B), auto_mode=True)["SEC-POSTURE-18"]
@@ -1474,15 +1474,11 @@ class PosturePartialRead(TmpCase):
             self.assertIn(B, cs[cid]["evidence"], cid)
 
     # Read node A carries the open SG while node B is unread: the fail stands, B is named
-    def test_sec30_measured_fail_with_unread_stays_fail(self):
-        c = self.run_case(nodes_read=(A,), sg_extra=True, open_on=A)["SEC-POSTURE-28"]
-        self.assertEqual(c["result"], "fail", c)
-        self.assertIn(B, c["evidence"])
-
-    def test_net2_measured_fail_with_unread_stays_fail(self):
-        c = self.run_case(nodes_read=(A,), sg_extra=True, open_on=A)["SEC-POSTURE-29"]
-        self.assertEqual(c["result"], "fail", c)
-        self.assertIn(B, c["evidence"])
+    def test_sec30_net2_measured_fail_with_unread_stays_fail(self):
+        cs = self.run_case(nodes_read=(A,), sg_extra=True, open_on=A)
+        for cid in ("SEC-POSTURE-28", "SEC-POSTURE-29"):
+            self.assertEqual(cs[cid]["result"], "fail", cs[cid])
+            self.assertIn(B, cs[cid]["evidence"], cid)
 
     def test_sec30_net2_full_read_fails_on_the_open_sg(self):
         cs = self.run_case(nodes_read=(A, B), sg_extra=True)
@@ -1500,6 +1496,13 @@ class PosturePartialRead(TmpCase):
         self.assertEqual(c["result"], "unknown", c)
         self.assertIn("acme-guard", c["evidence"])
         self.assertIn("NOT READ", c["evidence"])
+
+    # An add-on name the collector does not describe (an AWS Marketplace name has an underscore) is not unread
+    def test_sec10_marketplace_addon_name_is_not_unread(self):
+        c = self.run_case(nodes_read=(A, B), addons=["vpc-cni", "acme_guard"],
+                          details=[{"addonName": "vpc-cni"}], webhooks=self.HOOK)["SEC-POSTURE-33"]
+        self.assertEqual(c["result"], "pass", c)
+        self.assertNotIn("NOT READ", c["evidence"])
 
     def test_sec10_full_read_excludes_the_addon_webhook(self):
         c = self.run_case(nodes_read=(A, B), addons=["vpc-cni", "acme-guard"],
