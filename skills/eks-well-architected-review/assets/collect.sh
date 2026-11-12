@@ -1447,8 +1447,10 @@ awsjson "$WORK/vpcendpoints.json" -- aws ec2 describe-vpc-endpoints   --filters 
 #    already existed in your account before that date remain visible. You can change this behavior
 #    using managed resource visibility settings."
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-ec2-managed-instances.html, verbatim:
-#   "The visibility setting applies to all managed resources in a Region, regardless of when they were
-#    created."
+#   "By default, Amazon EC2 hides managed resources for accounts that did not have managed resources
+#    before visibility settings became available. For accounts that already had managed resources,
+#    Amazon EC2 sets the visibility setting to **Visible** to preserve existing workflows. The visibility
+#    setting applies to all managed resources in a Region, regardless of when they were created."
 # So the Region's setting decides it, not when a node was launched: a review run today can hit this on
 # any Auto Mode cluster in a Region whose setting is hidden. The EKS page, verbatim, gives the ways through:
 #   "Even when managed resources are hidden from EC2 console views and list APIs, you can still view EKS
