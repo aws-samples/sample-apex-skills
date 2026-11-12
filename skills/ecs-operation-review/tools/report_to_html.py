@@ -264,13 +264,28 @@ def main():
     output_path = None
     files = []
     i = 0
+    # Refuse anything not documented above, before any file is written.
+    def usage_error(msg):
+        print(f"Error: {msg}", file=sys.stderr)
+        print("Usage: python3 report_to_html.py <input.md> [-o <output.html>] | <file.md>...", file=sys.stderr)
+        sys.exit(2)
+
     while i < len(args):
-        if args[i] == '-o' and i + 1 < len(args):
+        if args[i] == '-o':
+            if i + 1 >= len(args):
+                usage_error("-o needs a filename")
+            if output_path is not None:
+                usage_error("-o given more than once")
             output_path = args[i + 1]
             i += 2
+        elif args[i].startswith('-'):
+            usage_error(f"unknown argument: {args[i]}")
         else:
             files.append(args[i])
             i += 1
+
+    if output_path is not None and len(files) > 1:
+        usage_error("-o takes exactly one input file")
 
     if not files:
         print("Error: no input files specified", file=sys.stderr)
