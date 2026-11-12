@@ -1257,6 +1257,75 @@ class PostureScoring(TmpCase):
         self.assertTrue(row.startswith("| pass (exceptions) |"), row)
         self.assertIn("i-0bad", row)
 
+    def imds_nodes(self, read, optional=(), ids=("i-0aaa1111", "i-0bbb2222", "i-0ccc3333"), no_provider=False):
+        # Linux EC2 nodes `ids`; instances.json holds only the ids in `read` (a failed by-id read leaves the
+        # file in place); ids in `optional` allow IMDSv1; `no_provider` adds a node with no providerID.
+        # Returns the IMDS checks of posture.json by id.
+        work = self.build([n for n in self.PC["files"] if n != self.PC["denied_file"]])
+        node0 = self.PC["files"]["nodes"]["items"][0]
+        inst0 = self.PC["files"]["instances"]["Reservations"][0]["Instances"][0]
+        nodes, insts = [], []
+        for iid in ids:
+            n = copy.deepcopy(node0)
+            n["metadata"]["name"] = "node-" + iid
+            n["spec"]["providerID"] = "aws:///us-west-2a/" + iid
+            nodes.append(n)
+            if iid in read:
+                x = copy.deepcopy(inst0)
+                x["InstanceId"] = iid
+                x["MetadataOptions"] = {"HttpTokens": "optional" if iid in optional else "required",
+                                        "HttpPutResponseHopLimit": 1, "HttpEndpoint": "enabled"}
+                insts.append(x)
+        if no_provider:
+            n = copy.deepcopy(node0)
+            n["metadata"]["name"] = "node-registering"
+            del n["spec"]["providerID"]
+            nodes.append(n)
+        self.write(os.path.join("work", "posture", "nodes.json"), dict(self.PC["files"]["nodes"], items=nodes))
+        self.write(os.path.join("work", "posture", "instances.json"), {"Reservations": [{"Instances": insts}]})
+        q, doc = self.pipeline(work)
+        return {c["id"]: c for c in doc["checks"] if c["id"] in ("SEC-POSTURE-46", "SEC-POSTURE-55")}
+
+    def test_imds_unread_node_is_unknown_not_pass(self):
+        # A1: every instance read passes, but one node's instance was not read
+        for cid, c in self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222")).items():
+            self.assertEqual(c["result"], "unknown", c)
+            self.assertIn("NOT READ", c["evidence"], cid)
+            self.assertIn("i-0ccc3333", c["evidence"], cid)
+
+    def test_imds_unread_node_named_when_a_read_node_fails(self):
+        for cid, c in self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222"), optional=("i-0bbb2222",)).items():
+            self.assertEqual(c["result"], "fail", c)
+            self.assertIn("i-0ccc3333", c["evidence"], cid)
+            self.assertIn("failing: i-0bbb2222", c["evidence"], cid)
+
+    def test_imds_every_node_read_scores_as_before(self):
+        # negative control: no node unread, so nothing is named and the checks pass
+        for cid, c in self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222", "i-0ccc3333")).items():
+            self.assertEqual(c["result"], "pass", c)
+            self.assertNotIn("NOT READ", c["evidence"], cid)
+
+    def test_imds_bucket_pass_with_unread_node_is_unknown(self):
+        # 10 read, 1 of them failing (90%, the `all` bucket), 1 unread: still no pass
+        ids = tuple("i-0%07d" % k for k in range(11))
+        for cid, c in self.imds_nodes(read=ids[:10], optional=ids[:1], ids=ids).items():
+            self.assertEqual(c["result"], "unknown", c)
+            self.assertIn(ids[10], c["evidence"], cid)
+
+    def test_imds_no_instance_read_names_the_nodes(self):
+        for cid, c in self.imds_nodes(read=()).items():
+            self.assertEqual(c["result"], "unknown", c)
+            self.assertIn("NOT READ", c["evidence"], cid)
+            self.assertIn("i-0ccc3333", c["evidence"], cid)
+            self.assertNotIn("0/0", c["evidence"], cid)
+            if cid == "SEC-POSTURE-55":
+                self.assertIn("no Linux EC2 instance was read", c["evidence"])
+
+    def test_imds_node_without_provider_id_scores(self):
+        # a node registers before the cloud controller sets providerID; every token is still emitted
+        checks = self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222", "i-0ccc3333"), no_provider=True)
+        self.assertEqual({c["result"] for c in checks.values()}, {"pass"}, checks)
+
     def test_sparse_workdir_score_null(self):
         q, doc = self.pipeline(self.build(self.PC["sparse_files"]))
         self.assertEqual(q.returncode, 3, q.stdout + q.stderr)

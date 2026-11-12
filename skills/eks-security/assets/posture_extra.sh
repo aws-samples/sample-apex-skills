@@ -10,7 +10,8 @@
 #   <workdir>/posture/results-extra.jsonl:
 #   {"pillar":"security","id":"SEC-POSTURE-<n>","track":"measured","state":"all|most|some|none|na|unknown",
 #    "detail":"...","resources":{"pass":[...],"fail":[...],"context":[...]}}
-#   A check whose input file was not collected emits `unknown` (never a pass).
+#   A check whose input file was not collected emits `unknown` (never a pass), and so does SEC-POSTURE-55 when
+#   a Linux EC2 node has no instance record and the instances that were read would score a pass (none read included).
 #
 # Each check exists because WAR's security pillar (commit 7965ae3) does not measure it:
 #   SEC-POSTURE-55  IMDS hop limit 1 per node type   lens-11 reads HttpTokens only, not the hop limit
@@ -81,6 +82,8 @@ x(){ local id="$1"; shift; local fs=() m="" r
 x SEC-POSTURE-55 instances nodes '
   input as $nd
   | ([$nd.items[]?|select((.metadata.labels["eks.amazonaws.com/compute-type"]//"")=="auto")|((.spec.providerID//"")|split("/")|last)]) as $auto
+  | ([.Reservations[]?.Instances[]?.InstanceId]) as $got
+  | [$nd.items[]?|select(((.metadata.labels["eks.amazonaws.com/compute-type"]//"")|IN("fargate","hybrid"))|not)|select(((.metadata.labels["kubernetes.io/os"]//"")!="windows"))|((.spec.providerID//"")|split("/")|last)|strings|select(test("^i-[0-9a-f]{8,}$"))|select(. as $x|$got|index($x)|not)] as $nr
   | [.Reservations[]?.Instances[]?|select(((.State.Name//"")|IN("terminated","shutting-down"))|not)] as $all
   | [$all[]|select(((.Platform//"")|ascii_downcase)=="windows")] as $win
   | [$all[]|select(((.Platform//"")|ascii_downcase)!="windows")] as $i
@@ -90,10 +93,11 @@ x SEC-POSTURE-55 instances nodes '
     def n: (.InstanceId//"?")+" ["+kind+"] tokens="+((.MetadataOptions.HttpTokens//"?")|tostring)+" hop="+((.MetadataOptions.HttpPutResponseHopLimit//"?")|tostring);
   ($i|length) as $t | ([$i[]|select(ok)]|length) as $ok
   | ([$i[]|select(ok|not)|kind]|group_by(.)|map("\(.[0]) (\(length))")|join(", ")) as $bad
-  | {state:b($ok;$t),
-     detail:((if $t==0 then "no running Linux EC2 instance was collected for this cluster, so there is no instance metadata service to assess (Fargate and hybrid nodes have none)"
+  | {state:(if ($nr|length)>0 and (b($ok;$t)|IN("all","na")) then "unknown" else b($ok;$t) end),
+     detail:((if $t==0 and ($nr|length)==0 then "no running Linux EC2 instance was collected for this cluster, so there is no instance metadata service to assess (Fargate and hybrid nodes have none)"
+             elif $t==0 then "no Linux EC2 instance was read; \($nr|length) EC2 node(s) NOT READ: "+($nr|join(", "))+" (see posture/meta.json errors)"
              else "\($ok)/\($t) Linux EC2 node instances block pod access to IMDS (HttpTokens=required with hop limit 1, or the endpoint disabled)"+(if $bad!="" then "; failing by node type: "+$bad else "" end)
-               +"; read off the running instances, so launch-template, Karpenter and Auto Mode settings are judged as in effect" end)
+               +(if ($nr|length)>0 then "; \($nr|length) EC2 node(s) NOT READ: "+($nr|join(", "))+" (see posture/meta.json errors)" else "" end)+"; read off the running instances, so launch-template, Karpenter and Auto Mode settings are judged as in effect" end)
              +(if ($win|length)>0 then " (\($win|length) Windows instance(s) not assessed)" else "" end)),
      pass:[$i[]|select(ok)|n], fail:[$i[]|select(ok|not)|n]}'
 
