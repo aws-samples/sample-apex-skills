@@ -11,7 +11,7 @@ Run from any directory with `aws`, `kubectl`, `jq` 1.6 or later, and `timeout` a
 | Step | Command | Writes | Exit codes |
 |---|---|---|---|
 | 1. Collect | `posture_collect.sh --cluster <name> --region <region> --context <kubectl-context> [--work <dir>] [--profile <aws-profile>] [--kubeconfig <file>] [--preflight-only]` | `<workdir>/posture/*.json` and `posture/meta.json` (0700 dir, 0600 files) | 0 collected (some files may be missing: `meta.json` `errors`); 2 usage or refusal, one JSON line `{"ok":false,"code":...,"error":...}` |
-| 2. Score the copied checks | `posture_score.sh <workdir>` | `posture/results.jsonl`, one token per question | 0; 2 no collection, or already scored; 1 a collection file does not parse (a broken file is not a finding) |
+| 2. Score the copied checks | `posture_score.sh <workdir>` | `posture/results.jsonl`, one token per question | 0; 2 bad arguments, no collection, or already scored; 1 a collection file does not parse (a broken file is not a finding) |
 | 3. Score the added checks | `posture_extra.sh <workdir> [--admin-allow <regex>]` | `posture/results-extra.jsonl` | as step 2 |
 | 4. Reduce | `posture_reduce.sh <workdir>` | `<workdir>/posture.json` (schema `eks-security/posture@1`) | 0 written, coverage at or above the gate; 3 written but below the gate (score null); 2 refused, nothing written |
 | 5. Render | `render_report.py --posture <workdir>/posture.json --out-md <file> [--out-html <file>]` | the report | 0; 3 rendered, coverage below the gate; 2 usage or input error |

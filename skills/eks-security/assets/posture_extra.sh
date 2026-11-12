@@ -34,7 +34,8 @@
 set -uo pipefail
 umask 077
 
-WORK="${1:?usage: posture_extra.sh <workdir> [--admin-allow <regex>]}"
+[ $# -ge 1 ] && [ -n "$1" ] || { echo "posture_extra.sh: usage: posture_extra.sh <workdir> [--admin-allow <regex>]" >&2; exit 2; }
+WORK="$1"
 W="$WORK/posture"
 [ -f "$W/cluster.json" ] || { echo "posture_extra.sh: $W has no cluster.json; run posture_collect.sh first" >&2; exit 2; }
 command -v jq >/dev/null 2>&1 || { echo "posture_extra.sh: jq not found on PATH" >&2; exit 2; }

@@ -300,7 +300,7 @@ replatform_environment_build:
 
 ### The approved path is a Rearchitect compute model
 
-This module does not run. Express Mode, Fargate, and Managed Instances environments are `ecs-build`'s scope — hand off per [deploy-verify-handoff.md](deploy-verify-handoff.md). Generating an ECS on EC2 environment for an approved Fargate path contradicts the approval.
+This module does not run. Fargate (including ECS Express Mode) and Managed Instances environments are `ecs-build`'s scope — hand off per [deploy-verify-handoff.md](deploy-verify-handoff.md). Generating an ECS on EC2 environment for an approved Fargate path contradicts the approval.
 
 ### The approved path is the Windows_Container_Path
 
