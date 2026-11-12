@@ -1369,5 +1369,157 @@ class PostureScoring(TmpCase):
                 self.assertEqual(os.listdir(self.tmp), ["work"])
 
 
+# Partial reads: each case runs the real scorer, extra and reducer on the posture fixture with one read
+# missing. A failed read gives unknown and names what was not read; a measured fail on what was read stands.
+A, B = "i-0aaa1111", "i-0bbb2222"
+ACCT = "111122223333"
+
+
+@NEEDS_JQ
+class PosturePartialRead(TmpCase):
+    PC = CASES["posture"]
+    build = PostureScoring.build
+    pipeline = PostureScoring.pipeline
+
+    def run_case(self, nodes_read, vols_read=None, sg_extra=False, addons=None, details=None,
+                 webhooks=None, images=None, repos=None, open_on=B, unenc=(), auto_mode=False):
+        work = self.build([n for n in self.PC["files"] if n != self.PC["denied_file"]])
+        F = self.PC["files"]
+        if auto_mode:
+            cl = copy.deepcopy(F["cluster"])
+            cl["cluster"]["computeConfig"] = {"enabled": True}
+            self.write(os.path.join("work", "posture", "cluster.json"), cl)
+        node0, inst0 = F["nodes"]["items"][0], F["instances"]["Reservations"][0]["Instances"][0]
+        nodes, insts, vols = [], [], []
+        for iid in (A, B):
+            n = copy.deepcopy(node0)
+            n["metadata"]["name"] = "node-" + iid
+            n["spec"]["providerID"] = "aws:///us-west-2a/" + iid
+            nodes.append(n)
+            vid = "vol-0" + iid[3:] + "00000"
+            if iid in nodes_read:
+                x = copy.deepcopy(inst0)
+                x["InstanceId"] = iid
+                x["MetadataOptions"] = {"HttpTokens": "required", "HttpPutResponseHopLimit": 1, "HttpEndpoint": "enabled"}
+                x["SecurityGroups"] = [{"GroupId": "sg-0open22" if iid == open_on else "sg-0node1"}]
+                x["BlockDeviceMappings"] = [{"Ebs": {"VolumeId": vid}}]
+                insts.append(x)
+            if vols_read is None or iid in vols_read:
+                vols.append({"VolumeId": vid, "Encrypted": iid not in unenc, "Attachments": [{"InstanceId": iid}]})
+        self.write(os.path.join("work", "posture", "nodes.json"), dict(F["nodes"], items=nodes))
+        self.write(os.path.join("work", "posture", "instances.json"), {"Reservations": [{"Instances": insts}]})
+        self.write(os.path.join("work", "posture", "volumes.json"), {"Volumes": vols})
+        sg = copy.deepcopy(F["sg"])
+        if sg_extra:  # the open_on node's own launch-template SG: untagged, port 22 and 0.0.0.0/0
+            sg["SecurityGroups"].append({"GroupId": "sg-0open22", "IpPermissions": [
+                {"IpProtocol": "tcp", "FromPort": 22, "ToPort": 22, "IpRanges": [{"CidrIp": "0.0.0.0/0"}]}],
+                "IpPermissionsEgress": []})
+        self.write(os.path.join("work", "posture", "sg.json"), sg)
+        if addons is not None:
+            self.write(os.path.join("work", "posture", "addons.json"), {"addons": addons, "addonDetails": details})
+        if webhooks is not None:
+            self.write(os.path.join("work", "posture", "validatingwebhooks.json"),
+                       {"apiVersion": "v1", "kind": "List", "items": webhooks})
+        if images is not None:
+            pods = copy.deepcopy(F["pods"])
+            p0 = pods["items"][0]
+            pods["items"] = []
+            for k, img in enumerate(images):
+                p = copy.deepcopy(p0)
+                p["metadata"]["name"] = "p%d" % k
+                p["spec"]["containers"][0]["image"] = img
+                pods["items"].append(p)
+            self.write(os.path.join("work", "posture", "pods.json"), pods)
+            self.write(os.path.join("work", "posture", "ecr.json"), {"repositories": repos})
+        q, doc = self.pipeline(work)
+        return {c["id"]: c for c in doc["checks"]}
+
+    # sec-21 / SEC-POSTURE-18, cause 1: the by-id volume read failed (hidden Auto Mode volume, throttle)
+    def test_sec21_volume_unread_is_unknown(self):
+        c = self.run_case(nodes_read=(A, B), vols_read=(A,))["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "unknown", c)
+        self.assertIn("vol-0bbb222200000", c["evidence"])
+
+    # sec-21 cause 1 via the instance read: an unread node's block devices are never asked for
+    def test_sec21_instance_unread_is_unknown(self):
+        c = self.run_case(nodes_read=(A,), vols_read=(A,))["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "unknown", c)
+        self.assertIn(B, c["evidence"])
+
+    # A read node's volume is measurably unencrypted while node B is unread: the fail stands, B is named
+    def test_sec21_measured_fail_with_unread_stays_fail(self):
+        c = self.run_case(nodes_read=(A,), vols_read=(A,), unenc=(A,))["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "fail", c)
+        self.assertIn(B, c["evidence"])
+
+    def test_sec21_full_read_passes(self):
+        c = self.run_case(nodes_read=(A, B))["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "pass", c)
+        self.assertNotIn("NOT READ", c["evidence"])
+        self.assertNotIn(self.SEC21_AUTO, c["evidence"])
+
+    # sec-21 cause 2: on an Auto Mode cluster a volume nothing names may be missing from the list; the clause says so
+    SEC21_AUTO = "not counted: an EBS volume that EKS Auto Mode can hide from the volume list for this Region"
+
+    def test_sec21_auto_mode_names_the_uncounted_volumes(self):
+        c = self.run_case(nodes_read=(A, B), auto_mode=True)["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "pass", c)
+        self.assertIn(self.SEC21_AUTO, c["evidence"])
+
+    # sec-30 / SEC-POSTURE-28 and net-2 / SEC-POSTURE-29: an unread node's untagged SG drops out of $lsg
+    def test_sec30_net2_unread_node_is_unknown(self):
+        cs = self.run_case(nodes_read=(A,), sg_extra=True)
+        for cid in ("SEC-POSTURE-28", "SEC-POSTURE-29"):
+            self.assertEqual(cs[cid]["result"], "unknown", cs[cid])
+            self.assertIn(B, cs[cid]["evidence"], cid)
+
+    # Read node A carries the open SG while node B is unread: the fail stands, B is named
+    def test_sec30_measured_fail_with_unread_stays_fail(self):
+        c = self.run_case(nodes_read=(A,), sg_extra=True, open_on=A)["SEC-POSTURE-28"]
+        self.assertEqual(c["result"], "fail", c)
+        self.assertIn(B, c["evidence"])
+
+    def test_net2_measured_fail_with_unread_stays_fail(self):
+        c = self.run_case(nodes_read=(A,), sg_extra=True, open_on=A)["SEC-POSTURE-29"]
+        self.assertEqual(c["result"], "fail", c)
+        self.assertIn(B, c["evidence"])
+
+    def test_sec30_net2_full_read_fails_on_the_open_sg(self):
+        cs = self.run_case(nodes_read=(A, B), sg_extra=True)
+        for cid in ("SEC-POSTURE-28", "SEC-POSTURE-29"):
+            self.assertEqual(cs[cid]["result"], "fail", cs[cid])
+
+    # sec-10 / SEC-POSTURE-33: a failed describe-addon leaves the add-on's own webhook counted as policy
+    HOOK = [{"metadata": {"name": "acme-guard"}, "webhooks": [{"name": "v.acme.io",
+             "clientConfig": {"service": {"namespace": "acme-system", "name": "acme"}},
+             "rules": [{"apiGroups": [""], "resources": ["pods"], "operations": ["CREATE"], "scope": "*"}]}]}]
+
+    def test_sec10_addon_unread_is_unknown(self):
+        c = self.run_case(nodes_read=(A, B), addons=["vpc-cni", "acme-guard"],
+                          details=[{"addonName": "vpc-cni"}], webhooks=self.HOOK)["SEC-POSTURE-33"]
+        self.assertEqual(c["result"], "unknown", c)
+        self.assertIn("acme-guard", c["evidence"])
+        self.assertIn("NOT READ", c["evidence"])
+
+    def test_sec10_full_read_excludes_the_addon_webhook(self):
+        c = self.run_case(nodes_read=(A, B), addons=["vpc-cni", "acme-guard"],
+                          details=[{"addonName": "vpc-cni"},
+                                   {"addonName": "acme-guard", "namespaceConfig": {"namespace": "acme-system"}}],
+                          webhooks=self.HOOK)["SEC-POSTURE-33"]
+        self.assertEqual(c["result"], "fail", c)
+
+    # lens-13 / SEC-POSTURE-31: wording only; the result stays, the skipped count is named
+    def test_lens13_names_the_skipped_images(self):
+        c = self.run_case(nodes_read=(A, B), images=[
+            ACCT + ".dkr.ecr.us-west-2.amazonaws.com/web:1",
+            "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon-k8s-cni:v1",
+            ACCT + ".dkr.ecr.eu-west-1.amazonaws.com/web:1"],
+            repos=[{"repositoryName": "web", "imageTagMutability": "IMMUTABLE",
+                    "repositoryUri": ACCT + ".dkr.ecr.us-west-2.amazonaws.com/web"}])["SEC-POSTURE-31"]
+        self.assertEqual(c["result"], "pass", c)
+        self.assertIn("not examined: 2 of the 3 distinct ECR repositories", c["evidence"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
