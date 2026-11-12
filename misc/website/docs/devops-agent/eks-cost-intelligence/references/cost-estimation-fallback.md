@@ -25,6 +25,11 @@ Use node-based estimation when:
 - Running in a restricted environment without `ce:GetCostAndUsage` permission
 - Account is newly created (Cost Explorer needs 24 hours of data)
 
+When section 1.4 of [cost-data-collection.md](cost-data-collection.md) returns a total, use it, scaled to a month,
+as Step 4's `total_compute_cost` in place of Steps 1 to 3; keep the control plane rate. On this path the
+Total cluster cost row reads `Cost Explorer EC2 instance cost by usage type (amortized, section 1.4)`,
+the Spot pricing row is dropped and the Confidence level row reads Medium; Limitations 1 to 3 and To-improve item 1 do not apply.
+
 Node-based estimation is less precise than Cost Explorer data but still produces
 useful directional findings. Always note the estimation method and confidence
 level in the output.
@@ -76,13 +81,13 @@ def get_control_plane_hourly_rate(k8s_version: str) -> float:
 | Scenario | Confidence | Accuracy | Notes |
 |----------|-----------|----------|-------|
 | Cost Explorer + namespace tags + Container Insights | **High** | ±5% | Most accurate — real billing data with per-namespace attribution |
-| Cost Explorer + cluster tag only | **Medium** | ±15% | Cluster total accurate, namespace allocation estimated by requests |
+| Cost Explorer + cluster tag only | **Medium** | No better than the node-based rows (section 1.4 caveats) | EC2 instance total from Cost Explorer (amortized); control plane from the per-version rate; EBS, load balancers, NAT and data transfer not included; namespace allocation estimated by requests |
 | Node-based + Container Insights utilization | **Medium** | ±20% | Good for waste ratios, less accurate for absolute dollar cost |
 | Node-based + kubectl requests only | **Low** | ±30% | Directional only — flag as estimate in all findings |
 
 **Rules for confidence reporting:**
 - Always include the confidence level in every finding's `confidence` field
-- Always include `"estimation_method": "node_based"` in the data sources
+- Always state the estimation method in the report's Cost Estimation Method table and as `estimation_method` on the cost result: `ce_usage_type` when the compute total comes from section 1.4 of cost-data-collection.md, else `node_based`
 - When confidence is Low, prefix savings estimates with "~" (approximate)
 - Never present Low-confidence estimates as exact dollar amounts
 
