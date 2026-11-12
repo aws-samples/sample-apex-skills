@@ -47,21 +47,37 @@ The EKS control plane cost depends on the cluster's Kubernetes version support s
 
 ```python
 # Determine control plane hourly cost based on K8s version support status
-# Versions in extended support as of June 2026: 1.25, 1.26, 1.27, 1.28
-# NOTE: This list is illustrative and rotates as new K8s versions release.
-# Always verify against: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
-# In production, query `aws eks describe-cluster` and compare the version against the EKS calendar.
-EXTENDED_SUPPORT_VERSIONS = ["1.23", "1.24", "1.25", "1.26", "1.27", "1.28"]
+from datetime import date, datetime, timezone
+
+# End of standard support per minor version, from the EKS release calendar (UTC dates; read 2026-11-11):
+# https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
+# Extended support billing starts at the beginning of that day (UTC). Add each new version when EKS releases it.
+END_OF_STANDARD_SUPPORT = {
+    "1.31": date(2025, 11, 26), "1.32": date(2026, 3, 23), "1.33": date(2026, 7, 29),
+    "1.34": date(2026, 12, 2), "1.35": date(2027, 3, 27), "1.36": date(2027, 8, 2),
+    "1.37": date(2027, 12, 1),
+}
+
+def _minor(k8s_version: str) -> tuple[int, int]:
+    major, minor = k8s_version.split(".")[:2]  # "1.33" and "1.33.4" both give (1, 33)
+    return int(major), int(minor)
+
+def is_extended_support(k8s_version: str) -> bool:
+    """True when the cluster's minor version is past its end of standard support today (UTC)."""
+    end = END_OF_STANDARD_SUPPORT.get("%d.%d" % _minor(k8s_version))
+    if end is None:
+        # Older than the table: past standard support. Newer: released after the table, still standard.
+        return _minor(k8s_version) < min(_minor(v) for v in END_OF_STANDARD_SUPPORT)
+    return datetime.now(timezone.utc).date() >= end
 
 def get_control_plane_hourly_rate(k8s_version: str) -> float:
     """Return EKS control plane hourly rate based on version support status."""
-    minor_version = ".".join(k8s_version.split(".")[:2])
-    if minor_version in EXTENDED_SUPPORT_VERSIONS:
+    if is_extended_support(k8s_version):
         return 0.60  # Extended support: $0.60/hr
     return 0.10  # Standard support: $0.10/hr
 ```
 
-> **Important:** Always check the cluster's Kubernetes version. A cluster on K8s 1.27 in extended support costs **6× more** for the control plane than one on 1.31 in standard support. This is often overlooked and can be a significant finding itself.
+> **Important:** Always check the cluster's Kubernetes version. A cluster on a version past its end of standard support (the dates above) costs **6× more** for the control plane than one in standard support. This is often overlooked and can be a significant finding itself. The 6× assumes `upgradePolicy.supportType` is `EXTENDED` (the default; it cannot be changed once the cluster is in extended support, so upgrading is the only way to stop the charge). A cluster set to `STANDARD` before its date is not charged and is auto-upgraded instead.
 
 ---
 
@@ -236,9 +252,7 @@ Sum all node costs plus the EKS control plane fee:
 ```python
 HOURS_PER_MONTH = 730  # 24 hours × 30.4 days
 
-# Extended support K8s versions (update as versions rotate)
-# Check: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
-EXTENDED_SUPPORT_VERSIONS = ["1.23", "1.24", "1.25", "1.26", "1.27", "1.28"]
+# Run the EKS Control Plane Pricing block above first: it defines END_OF_STANDARD_SUPPORT, is_extended_support() and get_control_plane_hourly_rate() (one table to update)
 
 # Reference pricing table (FALLBACK — prefer Price List API when pricing:GetProducts is granted)
 # Last verified: June 2026, us-east-1
@@ -262,17 +276,9 @@ INSTANCE_HOURLY_RATES = {
 }
 
 
-def get_control_plane_hourly_rate(k8s_version: str) -> float:
-    """Return EKS control plane hourly rate based on version support status."""
-    minor_version = ".".join(k8s_version.split(".")[:2])
-    if minor_version in EXTENDED_SUPPORT_VERSIONS:
-        return 0.60  # Extended support: $0.60/hr ($438/month)
-    return 0.10  # Standard support: $0.10/hr ($73/month)
-
-
 def estimate_cluster_cost(
     nodes: list[dict],
-    k8s_version: str = "1.31",
+    k8s_version: str,
     region: str = "us-east-1",
     use_price_list_api: bool = True,
 ) -> dict:
@@ -356,7 +362,7 @@ def estimate_cluster_cost(
         "control_plane_cost": round(control_plane_cost, 2),
         "control_plane_hourly": control_plane_hourly,
         "k8s_version": k8s_version,
-        "extended_support": k8s_version in EXTENDED_SUPPORT_VERSIONS,
+        "extended_support": is_extended_support(k8s_version),
         "node_count": len(nodes),
         "node_breakdown": breakdown,
         "unknown_instance_types": unknown_types,
@@ -371,7 +377,7 @@ def estimate_cluster_cost(
             f"Spot nodes estimated at 30% of On-Demand (query describe-spot-price-history for accuracy). "
             f"{'Unknown types defaulted to $0.192/hr. ' if unknown_types else ''}"
             f"EKS control plane: ${control_plane_cost:.2f}/month "
-            f"({'extended support' if k8s_version in EXTENDED_SUPPORT_VERSIONS else 'standard support'})."
+            f"({'extended support' if is_extended_support(k8s_version) else 'standard support'})."
         ),
     }
 ```
@@ -391,7 +397,7 @@ def estimate_cluster_cost(
 | m6g.xlarge | 5 | Spot | $0.154 × 0.30 = $0.046 | $33.73 | $168.63 |
 | c5.2xlarge | 2 | On-Demand | $0.340 | $248.20 | $496.40 |
 | **Compute subtotal** | | | | | **$1,085.51** |
-| EKS control plane | 1 | — | $0.10 | $73.00 | $73.00 |
+| EKS control plane (standard support, e.g. 1.34) | 1 | — | $0.10 | $73.00 | $73.00 |
 | **Total** | | | | | **$1,158.51/month** |
 
 ---
