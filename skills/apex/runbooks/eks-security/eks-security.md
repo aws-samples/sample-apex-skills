@@ -52,7 +52,7 @@ Ask the **required** questions before any recommendation (full list in the skill
 > **STOP:** Do not proceed to a recommendation until the required-8 are answered. The first four (regime, OS mandate, audit timeline, ops tolerance) determine ~80% of the answer. Reflexively recommending "Bottlerocket" or "AL2023 + CIS" without them is the #1 mistake. On an existing cluster, a C3 posture check answers much of question 8 from live data.
 
 ### Phase 2: Compliance-regime position
-State which programs apply and whether EKS is natively in scope vs alignment/framework only. **Always include the disclaimer** ("verify on the live AWS Services in Scope page"). Precision: EKS is HIPAA-*eligible* (BAA required), not "HIPAA-compliant"; FedRAMP High = GovCloud only.
+State which programs apply and whether EKS is natively in scope vs alignment/framework only. **Always include the disclaimer** ("verify on the live AWS Services in Scope page"). Precision: EKS is HIPAA-*eligible* (BAA required), not "HIPAA-compliant"; FedRAMP Class D (formerly High baseline) = GovCloud only.
 
 ### Phase 3: Top-level stack recommendation
 One paragraph naming the choice at each of the 7 layers, each one-sentence-justified against the discovery answers; surface the vendor-OS path and third-party CNAPP alternatives with the conditions that justify them.
@@ -64,15 +64,15 @@ Walk all 7 layers, citing the AWS doc/blog/workshop for each and giving the **sh
 Baseline (non-disruptive: logging, GuardDuty, ECR scanning, Security Hub, a C3 posture check and kube-bench, the C1 sweep) → identity + workload (Access Entries, Pod Identity, PSA, Kyverno, NetworkPolicy) → OS + image + accelerators (Bottlerocket/CIS-AL2023, signing, Config conformance packs, Artifact). Greenfield deploys the full stack at creation.
 
 ### Phase 6: Security baseline, gotchas, escalation
-Include the non-negotiable baseline regardless of regime; surface 3-5 relevant gotchas (Auto Mode no custom AMI, PSP removed 1.25+, Pod Identity 5,000-association limit, HIPAA-needs-BAA, FedRAMP Moderate≠High, FIPS 140-3≠140-2, CIS AL2≠AL2023, App Mesh EOS, AL2 EOL); escalate per the skill's criteria when stakes warrant it.
+Include the non-negotiable baseline regardless of regime; surface 3-5 relevant gotchas (Auto Mode no custom AMI, PSP removed 1.25+, Pod Identity 5,000-association limit, HIPAA-needs-BAA, FedRAMP Class C≠Class D, FIPS 140-3≠140-2, CIS AL2≠AL2023, App Mesh EOS, AL2 EOL); escalate per the skill's criteria when stakes warrant it.
 
 ## Quality Checklist (before delivering)
 
 - [ ] Reviews: coverage line present; no "not exposed" for a component that was not read; unknowns carry their reason and action; every fix printed, none run.
 - [ ] Reviews: every version fact quotes its source URL and read time; context notes never lower a verdict or priority.
 - [ ] Required-8 discovery questions answered before any hardening recommendation.
-- [ ] Compliance-status disclaimer included; EKS framed as HIPAA-*eligible* (not "compliant"); FedRAMP Moderate vs High not conflated.
+- [ ] Compliance-status disclaimer included; EKS framed as HIPAA-*eligible* (not "compliant"); FedRAMP Class C vs Class D not conflated.
 - [ ] IRSA framed as a fully supported alternative (Pod Identity recommended for new), **never** "legacy".
 - [ ] Every recommendation cites an AWS-published source; no synthesized compliance claims.
 - [ ] Non-negotiable security baseline included; 3-5 relevant gotchas surfaced; shared-responsibility split given per layer.
-- [ ] Escalation flagged when first-time cert + mission-critical, FedRAMP High, or any ungroundable claim.
+- [ ] Escalation flagged when first-time cert + mission-critical, FedRAMP Class D, or any ungroundable claim.

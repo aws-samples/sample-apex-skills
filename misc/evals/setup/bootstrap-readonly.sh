@@ -130,4 +130,4 @@ if ! aws sts get-federation-token \
 fi
 
 log "done. both artefacts are in ${SECRETS_DIR}/ (gitignored)."
-log "you can now run: make score-full INCLUDE_LIVE_ONLY=1"
+log "you can now run: make task-eks-recon INCLUDE_LIVE_ONLY=1 (or task-eks-operation-review)"

@@ -97,8 +97,11 @@ kubectl get storageclass -o custom-columns=NAME:.metadata.name,PROVISIONER:.prov
 **Via AWS CLI (cross-reference EBS volumes):**
 
 ```bash
+# --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) also lists the volumes
+# EKS Auto Mode can hide, if they carry this filter's tag (Auto Mode requires only eks:eks-cluster-name). An older CLI rejects
+# the flag: drop it (or upgrade the CLI), and then the hidden ones are missing from both counts.
 # Get EBS volumes tagged with the cluster and check volume type
-aws ec2 describe-volumes \
+aws ec2 describe-volumes --include-managed-resources \
   --filters "Name=tag:kubernetes.io/cluster/<cluster>,Values=owned" \
   --query 'Volumes[?VolumeType==`gp2`].{
     VolumeId: VolumeId,
@@ -110,7 +113,7 @@ aws ec2 describe-volumes \
   --output table
 
 # Count gp2 vs gp3 volumes for the cluster
-aws ec2 describe-volumes \
+aws ec2 describe-volumes --include-managed-resources \
   --filters "Name=tag:kubernetes.io/cluster/<cluster>,Values=owned" \
   --query 'Volumes[].VolumeType' \
   --output text | tr '\t' '\n' | sort | uniq -c

@@ -91,7 +91,7 @@ For each Fargate-scheduled pod:
     → Finding: right-size requests toward P95 + headroom, re-check tier fit
 ```
 
-Use Fargate per-vCPU-hour and per-GB-hour rates from the AWS Price List API or https://aws.amazon.com/fargate/pricing/ — do not hardcode rates.
+Use Fargate per-vCPU-hour and per-GB-hour rates from the AWS Price List API when `pricing:GetProducts` is granted, otherwise from https://aws.amazon.com/fargate/pricing/ — do not hardcode rates.
 
 ### Severity classification
 

@@ -1,8 +1,11 @@
 import type {CatalogSkill} from './skillCatalog';
 
 // Ranked skill search. Rules (carry/site-redesign-20261107/design.md section 3):
-// 1. every query word must match (AND), so "upgrade check" narrows instead of
-//    widening;
+// 1. when some skill has every query word, only those are shown, so "upgrade
+//    check" narrows instead of widening; else every skill with any query word
+//    is shown, best score first (FILLER verbs not counted), so a word no skill
+//    knows lowers the match instead of emptying it; when no word matches at
+//    all, every skill is listed, as for a stop-word-only query;
 // 2. words are whole words, compared after a trailing "s", then "ing", then
 //    "e" is cut, so "upgrades" finds "upgrade" and "settings" finds
 //    "setting" (a doubled last letter left by "ing" is undoubled, so "running"
@@ -37,12 +40,81 @@ const STOP = new Set(
 // A word visitors type for one the skills use. Each target is the word in the
 // skill's own text: "Native K8s" next to Kubernetes (eks-best-practices
 // SKILL.md:35); "wasting money, and how much can I save" and "spending
-// assessment" (eks-cost-intelligence SKILL.md:12, :18), whose name says cost.
+// assessment" (eks-cost-intelligence SKILL.md:12, :18), whose name says cost;
+// "too expensive" is the same ask.
 const ALIAS = new Map(
-  [['k8s', 'kubernetes'], ['save', 'cost'], ['money', 'cost'], ['spend', 'cost']].map(
+  [['k8s', 'kubernetes'], ['save', 'cost'], ['money', 'cost'], ['spend', 'cost'], ['expensive', 'cost']].map(
     ([from, to]) => [stem(from), stem(to)],
   ),
 );
+// Phrases visitors type, indexed with the skill's summary.
+// Each is true of its skill, by the SKILL.md lines cited beside it.
+export const PHRASES: Record<string, string[]> = {
+  // skills/eks-build/SKILL.md:3 "Use when building EKS clusters. Generates complete,
+  // production-ready Terraform projects"; "generating EKS Terraform code from scratch".
+  'eks-build': ['deploy an EKS cluster', 'set up a new Kubernetes cluster on EKS', 'spin up EKS', 'make an EKS cluster'],
+  // skills/ecs-build/SKILL.md:3 "apply-ready code for clusters, services, and task definitions";
+  // :18 "Generating ECS Terraform code"; :19 "Scaffolding an ECS cluster".
+  'ecs-build': ['deploy an ECS cluster', 'ECS Terraform code', 'scaffold an ECS cluster'],
+  // skills/eks-cost-intelligence/SKILL.md:3 "how much am I wasting on EKS?",
+  // "dollar-quantified findings and ready-to-apply remediation snippets".
+  'eks-cost-intelligence': ['make my cluster cheaper', 'cut my EKS bill'],
+  // skills/apex/SKILL.md:3, :8.
+  'apex': ['where do I start', 'pick the right skill'],
+  // skills/dotnet-aws-ecs/SKILL.md:12, :13.
+  'dotnet-aws-ecs': ['deploy my ASP.NET Core app', 'deploy a Blazor app'],
+  // skills/ecs-architect/SKILL.md:17, :32, :62.
+  'ecs-architect': ['ECS task CPU memory sizing', 'replace App Runner', 'quick URL for my web app'],
+  // skills/ecs-devops/SKILL.md:18, :107.
+  'ecs-devops': ['roll back a bad ECS deployment', 'zero downtime deploys on ECS', 'failed ECS deployment'],
+  // skills/ecs-genai/SKILL.md:20.
+  'ecs-genai': ['fine-tune a model on ECS', 'host a model on ECS'],
+  // skills/ecs-modernize/SKILL.md:20, :34.
+  'ecs-modernize': ['containerize a legacy app', 'move my VM app to containers'],
+  // skills/ecs-observability/SKILL.md:25, :59.
+  'ecs-observability': ['send ECS logs to Datadog', 'alert on ECS errors'],
+  // skills/ecs-operation-review/SKILL.md:10, :27.
+  'ecs-operation-review': ['is my ECS cluster healthy', 'grade my ECS services'],
+  // skills/ecs-recon/SKILL.md:13, :93, :114.
+  'ecs-recon': ['list my ECS services', 'inventory my ECS estate', 'describe my ECS setup'],
+  // skills/ecs-security/SKILL.md:8, :18, :24.
+  'ecs-security': ['secure my ECS tasks', 'least privilege task role', 'scan ECS images for vulnerabilities'],
+  // skills/eks-best-practices/SKILL.md:3, :51, :54.
+  'eks-best-practices': ['EKS on premises', 'handle a traffic spike on EKS', 'EKS in my data center'],
+  // skills/eks-design/SKILL.md:18, :19.
+  'eks-design': ['draw my EKS architecture', 'architecture decision records for EKS', 'plan my subnet layout'],
+  // skills/eks-genai/SKILL.md:16.
+  'eks-genai': ['fine-tune a model on EKS', 'serve a model on EKS', 'train a model on EKS'],
+  // skills/eks-ingress-migration/SKILL.md:19, :46, :47.
+  'eks-ingress-migration': ['swap NGINX for ALB', 'convert ingress annotations', 'NGINX ingress end of life'],
+  // skills/eks-mcp-server/SKILL.md:3.
+  'eks-mcp-server': ['MCP tools missing', 'EKS MCP server broken'],
+  // skills/eks-operation-review/SKILL.md:12.
+  'eks-operation-review': ['is my EKS cluster healthy', 'review RBAC on my cluster'],
+  // skills/eks-platform-engineering/SKILL.md:17, :37.
+  'eks-platform-engineering': ['paved path for app teams', 'platform team tooling'],
+  // skills/eks-recon/SKILL.md:62, :137.
+  'eks-recon': ['what is installed on my cluster', 'what Helm charts are installed'],
+  // skills/eks-security/SKILL.md:13, :26, :79.
+  'eks-security': ['secure my EKS cluster', 'EKS cluster hacked', 'incident response on EKS'],
+  // skills/eks-upgrade-check/SKILL.md:13, :218.
+  'eks-upgrade-check': ['is it safe to upgrade my cluster', 'Kubernetes version skew'],
+  // skills/eks-well-architected-review/SKILL.md:3 "Well-Architected Framework review of an Amazon
+  // EKS cluster", :17.
+  'eks-well-architected-review': ['Well-Architected review of an EKS cluster', 'EKS pillar scorecard'],
+  // skills/graviton-migration/SKILL.md:3, :8.
+  'graviton-migration': ['move off x86', 'rebuild containers for arm64'],
+  // skills/skill-creator/SKILL.md:13, :18.
+  'skill-creator': ['draft a skill', 'rewrite a skill'],
+  // skills/terraform-skill/SKILL.md:18, :34.
+  'terraform-skill': ['tofu module tests', 'terraform import'],
+  // skills/update-docs/SKILL.md:15, :47.
+  'update-docs': ['stale README', 'check docs before a PR'],
+};
+// Verbs that start many tasks ("set up ingress", "spin up fargate"). They still
+// match, so "spin up eks" finds its phrase and "up" alone finds its skills, but
+// they do not rank a partial match: "up" is a part-word hit in "upgrade".
+const FILLER = new Set(['up', 'spin'].map(stem));
 // "agent" finds the skills that also run in AWS DevOps Agent (PORTS, the
 // folders under devops-agent/) and apex, the router, first, so the home
 // search keeps it in view, all ahead of eks-mcp-server, whose use line only
@@ -111,7 +183,10 @@ export function buildIndex(skills: CatalogSkill[]): Indexed[] {
     port: PORTS.has(skill.name),
     agent: PORTS.has(skill.name) ? 6 : skill.name === ROUTER ? 7 : 0,
     // The hand-written "use" line, as on the page (skillCatalog.ts SKILLS), and the manifest summary.
-    summary: new Set(words(positive([skill.use, skill.summary].filter(Boolean).join('. '), names))),
+    summary: new Set([
+      ...words(positive([skill.use, skill.summary].filter(Boolean).join('. '), names)),
+      ...words((PHRASES[skill.name] ?? []).join(' ')),
+    ]),
     description: new Set(words(positive(skill.description, names))),
   }));
 }
@@ -121,11 +196,13 @@ const AGENT_WORD = stem('agent');
 const DEVOPS_AGENT = `${stem('devops')} ${AGENT_WORD}`;
 const AGENT = new Set([AGENT_WORD, DEVOPS_AGENT]);
 
-// passing: some word was found only in the long description.
-function score(entry: Indexed, query: string[]): {score: number; passing: boolean} {
+// passing: some word was found only in the long description; matched: how many
+// query words the skill has.
+function score(entry: Indexed, query: string[]): {score: number; passing: boolean; matched: number} {
   const name = ` ${entry.name} `;
   let total = 0;
   let passing = false;
+  let matched = 0;
   for (const word of query) {
     if (name.includes(` ${word} `)) total += 10;
     else if (entry.agent && AGENT.has(word)) total += entry.agent;
@@ -134,31 +211,43 @@ function score(entry: Indexed, query: string[]): {score: number; passing: boolea
     else if (entry.description.has(word)) {
       total += 1;
       passing = true;
-    } else return {score: 0, passing};
+    } else continue;
+    matched += 1;
   }
   if (name.includes(` ${query.join(' ')} `)) total += 20;
-  return {score: total, passing};
+  return {score: total, passing, matched};
 }
 
-// port: an agent query found a skill that has an AWS DevOps Agent page.
-export type Hit = {skill: CatalogSkill; score: number; passing: boolean; port: boolean};
+// port: an agent query found a skill that has an AWS DevOps Agent page;
+// partial: the skill does not have every query word.
+export type Hit = {skill: CatalogSkill; score: number; passing: boolean; port: boolean; partial: boolean};
 
 export function search(index: Indexed[], query: string): Hit[] {
   const q = queryWords(query);
   // Only stop words, such as "aws skills": the whole catalogue, EKS first.
   if (q.length === 0 && words(query).length === 0) return [];
   const agentQuery = q.some((w) => AGENT.has(w));
-  return index
-    .map((entry) => ({
-      skill: entry.skill,
-      port: agentQuery && entry.port,
-      ...(q.length === 0 ? {score: 0, passing: false} : score(entry, q)),
-    }))
-    .filter((hit) => q.length === 0 || hit.score > 0)
+  const telling = q.filter((w) => !FILLER.has(w));
+  const scored = index.map((entry) => ({
+    skill: entry.skill,
+    port: agentQuery && entry.port,
+    ...(q.length === 0 ? {score: 0, passing: false, matched: 0} : score(entry, q)),
+    told: telling.length > 0 ? score(entry, telling).score : 0,
+  }));
+  // Rule 1: when some skill has every query word, keep only those; else keep
+  // every skill with at least one, best score first; none matched keeps all.
+  const most = Math.max(...scored.map((hit) => hit.matched));
+  const least = most === q.length ? most : Math.min(most, 1);
+  // A partial match ranks by its words other than FILLER, when it has any.
+  const rank = (hit: (typeof scored)[number]) => (most < q.length && telling.length > 0 ? hit.told : hit.score);
+  return scored
+    .filter((hit) => hit.matched >= least)
     .sort(
       (a, b) =>
-        b.score - a.score ||
+        rank(b) - rank(a) ||
+        (most < q.length ? 0 : b.score - a.score) ||
         PLATFORM_ORDER[a.skill.group] - PLATFORM_ORDER[b.skill.group] ||
         a.skill.name.localeCompare(b.skill.name),
-    );
+    )
+    .map(({matched, told, ...hit}) => ({...hit, partial: matched < q.length}));
 }

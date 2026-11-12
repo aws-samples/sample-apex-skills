@@ -31,9 +31,11 @@ SKILLS_README="$REPO_ROOT/skills/README.md"
 SKILLS_DIR="$REPO_ROOT/skills"
 DRY_RUN=false
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
-fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--dry-run) DRY_RUN=true ;;
+  *) echo "usage: $0 [--dry-run]" >&2; exit 2 ;;
+esac
 
 # --- Parse frontmatter from a SKILL.md file ---
 # Extracts the value for a given key from YAML frontmatter (between --- delimiters)
@@ -391,12 +393,12 @@ replace_section() {
   local end_marker="$3"
   local new_content="$4"
 
-  if ! grep -q "$start_marker" "$file"; then
+  if ! grep -qxF -- "$start_marker" "$file"; then
     echo "ERROR: Could not find $start_marker in $file" >&2
     return 1
   fi
 
-  if ! grep -q "$end_marker" "$file"; then
+  if ! grep -qxF -- "$end_marker" "$file"; then
     echo "ERROR: Could not find $end_marker in $file" >&2
     return 1
   fi
