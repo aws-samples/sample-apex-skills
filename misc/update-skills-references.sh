@@ -386,6 +386,21 @@ _emit_skills_group() {
   done
 }
 
+# --- Check that each marker is exactly one whole line in a file ---
+check_markers() {
+  local file="$1" marker n
+  for marker in "$2" "$3"; do
+    n=$(grep -cxF -- "$marker" "$file" || true)
+    if [[ "$n" -eq 0 ]]; then
+      echo "ERROR: Could not find $marker in $file" >&2
+      return 1
+    elif [[ "$n" -ne 1 ]]; then
+      echo "ERROR: $marker must appear exactly once in $file (found $n)" >&2
+      return 1
+    fi
+  done
+}
+
 # --- Replace a section between markers in a file ---
 replace_section() {
   local file="$1"
@@ -393,15 +408,7 @@ replace_section() {
   local end_marker="$3"
   local new_content="$4"
 
-  if ! grep -qxF -- "$start_marker" "$file"; then
-    echo "ERROR: Could not find $start_marker in $file" >&2
-    return 1
-  fi
-
-  if ! grep -qxF -- "$end_marker" "$file"; then
-    echo "ERROR: Could not find $end_marker in $file" >&2
-    return 1
-  fi
+  check_markers "$file" "$start_marker" "$end_marker" || return 1
 
   awk -v start="$start_marker" -v end="$end_marker" -v new_section="$new_content" '
     $0 == start {
@@ -473,6 +480,12 @@ fi
 if $DRY_RUN; then
   echo "=== No changes written ==="
   exit 0
+fi
+
+# Check every marker before writing either file, so a missing or repeated marker changes nothing.
+check_markers "$README" "$README_START" "$README_END"
+if [[ -n "$NEW_SKILLS_SECTION" ]]; then
+  check_markers "$SKILLS_README" "$SKILLS_START" "$SKILLS_END"
 fi
 
 # Update main README.md
