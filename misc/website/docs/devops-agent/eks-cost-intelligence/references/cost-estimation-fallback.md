@@ -25,6 +25,11 @@ Use node-based estimation when:
 - Running in a restricted environment without `ce:GetCostAndUsage` permission
 - Account is newly created (Cost Explorer needs 24 hours of data)
 
+When section 1.4 of [cost-data-collection.md](cost-data-collection.md) returns a total, use it, scaled to a month,
+as Step 4's `total_compute_cost` in place of Steps 1 to 3; keep the control plane rate. On this path the
+Total cluster cost row reads `Cost Explorer EC2 instance cost by usage type (amortized, section 1.4)`,
+the Spot pricing row is dropped and the Confidence level row reads Medium; Limitations 1 to 3 and To-improve item 1 do not apply.
+
 Node-based estimation is less precise than Cost Explorer data but still produces
 useful directional findings. Always note the estimation method and confidence
 level in the output.
@@ -33,12 +38,12 @@ level in the output.
 
 ## Pricing Lookup Strategy (Priority Order)
 
-**Always prefer dynamic pricing over static tables:**
+**Prefer dynamic pricing over static tables** when `pricing:GetProducts` is granted (the shipped `references/iam-policy.json` does not include it); otherwise use the reference table below.
 
-1. **AWS Price List API** (preferred) — Call `aws pricing get-products` for real-time, region-accurate pricing. See Step 2, Option B below.
-2. **Reference pricing table** (fallback only) — Use the static table below ONLY when the Price List API is unavailable (e.g., no `pricing:GetProducts` permission, network-restricted environment). Mark findings as **Low confidence** when using the static table.
+1. **AWS Price List API** (when `pricing:GetProducts` is granted) — Call `aws pricing get-products` for real-time, region-accurate pricing (the Regions in REGION_MAP; others use the table at Low confidence). See Step 2, Option B below.
+2. **Reference pricing table** (fallback only) — Use the static table below ONLY when the Price List API is unavailable (e.g., no `pricing:GetProducts` permission, network-restricted environment). With the static table, confidence is Medium in us-east-1 when no node falls to the $0.192 default, else Low.
 
-> ⚠️ **The reference pricing table is a point-in-time snapshot (last verified: June 2026, us-east-1).** AWS adjusts EC2 pricing periodically. Always prefer the Price List API for production assessments. If using the static table for a non-us-east-1 region, apply a ±15% confidence margin.
+> ⚠️ **The reference pricing table is a point-in-time snapshot (last verified: June 2026, us-east-1).** AWS adjusts EC2 pricing periodically. Prefer the Price List API for production assessments when `pricing:GetProducts` is granted.
 
 ---
 
@@ -53,21 +58,37 @@ The EKS control plane cost depends on the cluster's Kubernetes version support s
 
 ```python
 # Determine control plane hourly cost based on K8s version support status
-# Versions in extended support as of June 2026: 1.25, 1.26, 1.27, 1.28
-# NOTE: This list is illustrative and rotates as new K8s versions release.
-# Always verify against: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
-# In production, query `aws eks describe-cluster` and compare the version against the EKS calendar.
-EXTENDED_SUPPORT_VERSIONS = ["1.23", "1.24", "1.25", "1.26", "1.27", "1.28"]
+from datetime import date, datetime, timezone
+
+# End of standard support per minor version, from the EKS release calendar (UTC dates; read 2026-11-11):
+# https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
+# Extended support billing starts at the beginning of that day (UTC). Add each new version when EKS releases it.
+END_OF_STANDARD_SUPPORT = {
+    "1.31": date(2025, 11, 26), "1.32": date(2026, 3, 23), "1.33": date(2026, 7, 29),
+    "1.34": date(2026, 12, 2), "1.35": date(2027, 3, 27), "1.36": date(2027, 8, 2),
+    "1.37": date(2027, 12, 1),
+}
+
+def _minor(k8s_version: str) -> tuple[int, int]:
+    major, minor = k8s_version.split(".")[:2]  # "1.33" and "1.33.4" both give (1, 33)
+    return int(major), int(minor)
+
+def is_extended_support(k8s_version: str) -> bool:
+    """True when the cluster's minor version is past its end of standard support today (UTC)."""
+    end = END_OF_STANDARD_SUPPORT.get("%d.%d" % _minor(k8s_version))
+    if end is None:
+        # Older than the table: past standard support. Newer: released after the table, still standard.
+        return _minor(k8s_version) < min(_minor(v) for v in END_OF_STANDARD_SUPPORT)
+    return datetime.now(timezone.utc).date() >= end
 
 def get_control_plane_hourly_rate(k8s_version: str) -> float:
     """Return EKS control plane hourly rate based on version support status."""
-    minor_version = ".".join(k8s_version.split(".")[:2])
-    if minor_version in EXTENDED_SUPPORT_VERSIONS:
+    if is_extended_support(k8s_version):
         return 0.60  # Extended support: $0.60/hr
     return 0.10  # Standard support: $0.10/hr
 ```
 
-> **Important:** Always check the cluster's Kubernetes version. A cluster on K8s 1.27 in extended support costs **6× more** for the control plane than one on 1.31 in standard support. This is often overlooked and can be a significant finding itself.
+> **Important:** Always check the cluster's Kubernetes version. A cluster on a version past its end of standard support (the dates above) costs **6× more** for the control plane than one in standard support. This is often overlooked and can be a significant finding itself. The 6× assumes `upgradePolicy.supportType` is `EXTENDED` (the default; it cannot be changed once the cluster is in extended support, so upgrading is the only way to stop the charge). A cluster set to `STANDARD` before its date is not charged and is auto-upgraded instead.
 
 ---
 
@@ -76,13 +97,13 @@ def get_control_plane_hourly_rate(k8s_version: str) -> float:
 | Scenario | Confidence | Accuracy | Notes |
 |----------|-----------|----------|-------|
 | Cost Explorer + namespace tags + Container Insights | **High** | ±5% | Most accurate — real billing data with per-namespace attribution |
-| Cost Explorer + cluster tag only | **Medium** | ±15% | Cluster total accurate, namespace allocation estimated by requests |
+| Cost Explorer + cluster tag only | **Medium** | No better than the node-based rows (section 1.4 caveats) | EC2 instance total from Cost Explorer (amortized); control plane from the per-version rate; EBS, load balancers, NAT and data transfer not included; namespace allocation estimated by requests |
 | Node-based + Container Insights utilization | **Medium** | ±20% | Good for waste ratios, less accurate for absolute dollar cost |
 | Node-based + kubectl requests only | **Low** | ±30% | Directional only — flag as estimate in all findings |
 
 **Rules for confidence reporting:**
 - Always include the confidence level in every finding's `confidence` field
-- Always include `"estimation_method": "node_based"` in the data sources
+- Always state the estimation method in the report's Cost Estimation Method table and as `estimation_method` on the cost result: `ce_usage_type` when the compute total comes from section 1.4 of cost-data-collection.md, else `node_based`
 - When confidence is Low, prefix savings estimates with "~" (approximate)
 - Never present Low-confidence estimates as exact dollar amounts
 
@@ -108,19 +129,74 @@ Use the Kubernetes API to list all Nodes. Extract metadata.labels for instance-t
 
 ## Step 2: Look Up Instance Pricing
 
-**Primary method: AWS Price List API** — provides real-time, region-accurate pricing.
+**Primary method, when `pricing:GetProducts` is granted: AWS Price List API** — provides real-time, region-accurate pricing (the Regions in REGION_MAP; others use the table at Low confidence).
 **Fallback: Reference table** — use only when the API is unavailable.
 
-### Option B (PRIMARY): AWS Price List API Lookup
+### Option B (when `pricing:GetProducts` is granted): AWS Price List API Lookup
+
+For accurate, region-specific pricing:
+
+```python
+import boto3
+import json
+
+# Map region code to location name
+REGION_MAP = {
+    "us-east-1": "US East (N. Virginia)",
+    "us-east-2": "US East (Ohio)",
+    "us-west-2": "US West (Oregon)",
+    "eu-west-1": "EU (Ireland)",
+    "eu-central-1": "EU (Frankfurt)",
+    "ap-southeast-1": "Asia Pacific (Singapore)",
+    "ap-northeast-1": "Asia Pacific (Tokyo)",
+}
+
+def get_instance_price(instance_type: str, region: str = "us-east-1") -> float:
+    """Look up On-Demand hourly price for an EC2 instance type."""
+    # The Price List API has three endpoints (us-east-1, eu-central-1, ap-south-1); this code calls us-east-1
+    pricing = boto3.client("pricing", region_name="us-east-1")
+
+    location = REGION_MAP.get(region)
+    if location is None:
+        return None  # Region not in REGION_MAP: use the reference table, never us-east-1 rates as this Region's
+
+    response = pricing.get_products(
+        ServiceCode="AmazonEC2",
+        Filters=[
+            {"Type": "TERM_MATCH", "Field": "instanceType", "Value": instance_type},
+            {"Type": "TERM_MATCH", "Field": "operatingSystem", "Value": "Linux"},
+            {"Type": "TERM_MATCH", "Field": "location", "Value": location},
+            {"Type": "TERM_MATCH", "Field": "tenancy", "Value": "Shared"},
+            {"Type": "TERM_MATCH", "Field": "preInstalledSw", "Value": "NA"},
+            {"Type": "TERM_MATCH", "Field": "capacitystatus", "Value": "Used"},
+            {"Type": "TERM_MATCH", "Field": "marketoption", "Value": "OnDemand"},
+        ],
+        MaxResults=1,
+    )
+
+    if not response["PriceList"]:
+        return None  # Instance type not found
+
+    price_data = json.loads(response["PriceList"][0])
+    terms = price_data["terms"]["OnDemand"]
+    # Navigate the nested pricing structure
+    for term in terms.values():
+        for dimension in term["priceDimensions"].values():
+            return float(dimension["pricePerUnit"]["USD"])
+
+    return None
+```
+
+Use the AWS Price List GetProducts API (us-east-1) to look up On-Demand hourly rates for each instance type, filtering by operatingSystem=Linux, tenancy=Shared, preInstalledSw=NA, capacitystatus=Used, marketoption=OnDemand.
 
 ### Option A: Reference Pricing Table (FALLBACK ONLY — us-east-1, On-Demand, Linux)
 
-> ⚠️ **Last verified: June 2026.** This table is a fallback for when the Price List API (Option B) is unavailable. Prices may drift. Always prefer Option B for production assessments.
+> ⚠️ **Last verified: June 2026.** This table is a fallback for when the Price List API (Option B) is unavailable. Prices may drift. Prefer Option B for production assessments when `pricing:GetProducts` is granted.
 
 Use this table ONLY when:
 - `pricing:GetProducts` permission is not available (it is not in the skill's baseline IAM policy — using the Price List API requires adding `pricing:GetProducts` to `references/iam-policy.json`)
 - Network-restricted environment cannot reach the Price List API endpoint
-- Quick directional estimate needed (mark all findings as Low confidence)
+- Quick directional estimate needed (confidence: Medium in us-east-1 when no node falls to the $0.192 default, else Low)
 
 | Instance Type | vCPU | Memory (GiB) | Arch | $/hour | $/month (730h) |
 |---------------|------|--------------|------|--------|-----------------|
@@ -170,66 +246,13 @@ Use this table ONLY when:
 
 **Pricing adjustments:**
 - **Spot instances:** Apply ~70% discount → `spot_rate ≈ on_demand_rate × 0.30` (see Spot pricing note below)
-- **Graviton (arm64):** The table covers Graviton2 and Graviton3 (`6g` and `7g`) only; for a Graviton4 or later target use the Price List API (Option B). The gap depends on generation, see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1
-- **Other regions:** Rates can differ from us-east-1; **use Price List API (Option B) for accuracy**
-- **Unknown instance type:** Use the Price List API. If unavailable, default to $0.192/hour (m5.xlarge equivalent) and flag as Low confidence
+- **Graviton (arm64):** The table covers Graviton2 and Graviton3 (`6g` and `7g`) only; for a Graviton4 or later target use the Price List API (Option B) when `pricing:GetProducts` is granted, otherwise mark the estimate Low confidence. The gap depends on generation, see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1
+- **Other regions:** Rates can differ from us-east-1; **use Price List API (Option B) for accuracy when `pricing:GetProducts` is granted** (the Regions in REGION_MAP; others use the table at Low confidence), otherwise mark the estimate Low confidence
+- **Unknown instance type:** Use the Price List API when `pricing:GetProducts` is granted. Otherwise, or if the lookup finds nothing, default to $0.192/hour (m5.xlarge equivalent) and flag as Low confidence
 
 > **Spot pricing note:** The 70% discount (30% of On-Demand) is a conservative average. Actual Spot discounts vary by instance type, region, and AZ (range: 40–90%). For accurate Spot pricing, query live Spot prices:
 > Use the EC2 DescribeSpotPriceHistory API to get current Spot pricing for the target instance types and AZs.
 > Use this command to get the customer's actual Spot rate for their specific instance types and AZs. This produces **High confidence** Spot savings estimates vs the 30% assumption which is **Low confidence**.
-
-### Option A (FALLBACK): Reference Pricing Table
-
-For accurate, region-specific pricing:
-
-```python
-import boto3
-import json
-
-def get_instance_price(instance_type: str, region: str = "us-east-1") -> float:
-    """Look up On-Demand hourly price for an EC2 instance type."""
-    # Price List API is only available in us-east-1 and ap-south-1
-    pricing = boto3.client("pricing", region_name="us-east-1")
-
-    # Map region code to location name
-    REGION_MAP = {
-        "us-east-1": "US East (N. Virginia)",
-        "us-east-2": "US East (Ohio)",
-        "us-west-2": "US West (Oregon)",
-        "eu-west-1": "EU (Ireland)",
-        "eu-central-1": "EU (Frankfurt)",
-        "ap-southeast-1": "Asia Pacific (Singapore)",
-        "ap-northeast-1": "Asia Pacific (Tokyo)",
-    }
-    location = REGION_MAP.get(region, "US East (N. Virginia)")
-
-    response = pricing.get_products(
-        ServiceCode="AmazonEC2",
-        Filters=[
-            {"Type": "TERM_MATCH", "Field": "instanceType", "Value": instance_type},
-            {"Type": "TERM_MATCH", "Field": "operatingSystem", "Value": "Linux"},
-            {"Type": "TERM_MATCH", "Field": "location", "Value": location},
-            {"Type": "TERM_MATCH", "Field": "tenancy", "Value": "Shared"},
-            {"Type": "TERM_MATCH", "Field": "preInstalledSw", "Value": "NA"},
-            {"Type": "TERM_MATCH", "Field": "capacitystatus", "Value": "Used"},
-        ],
-        MaxResults=1,
-    )
-
-    if not response["PriceList"]:
-        return None  # Instance type not found
-
-    price_data = json.loads(response["PriceList"][0])
-    terms = price_data["terms"]["OnDemand"]
-    # Navigate the nested pricing structure
-    for term in terms.values():
-        for dimension in term["priceDimensions"].values():
-            return float(dimension["pricePerUnit"]["USD"])
-
-    return None
-```
-
-Use the AWS Price List GetProducts API (us-east-1) to look up On-Demand hourly rates for each instance type, filtering by operatingSystem=Linux, tenancy=Shared, preInstalledSw=NA, capacitystatus=Used.
 
 ---
 
@@ -240,11 +263,9 @@ Sum all node costs plus the EKS control plane fee:
 ```python
 HOURS_PER_MONTH = 730  # 24 hours × 30.4 days
 
-# Extended support K8s versions (update as versions rotate)
-# Check: https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
-EXTENDED_SUPPORT_VERSIONS = ["1.23", "1.24", "1.25", "1.26", "1.27", "1.28"]
+# Run the EKS Control Plane Pricing block above first: it defines END_OF_STANDARD_SUPPORT, is_extended_support() and get_control_plane_hourly_rate() (one table to update)
 
-# Reference pricing table (FALLBACK — prefer Price List API)
+# Reference pricing table (FALLBACK — prefer Price List API when pricing:GetProducts is granted)
 # Last verified: June 2026, us-east-1
 INSTANCE_HOURLY_RATES = {
     "t3.medium": 0.042, "t3.large": 0.083, "t3.xlarge": 0.166,
@@ -266,17 +287,9 @@ INSTANCE_HOURLY_RATES = {
 }
 
 
-def get_control_plane_hourly_rate(k8s_version: str) -> float:
-    """Return EKS control plane hourly rate based on version support status."""
-    minor_version = ".".join(k8s_version.split(".")[:2])
-    if minor_version in EXTENDED_SUPPORT_VERSIONS:
-        return 0.60  # Extended support: $0.60/hr ($438/month)
-    return 0.10  # Standard support: $0.10/hr ($73/month)
-
-
 def estimate_cluster_cost(
     nodes: list[dict],
-    k8s_version: str = "1.31",
+    k8s_version: str,
     region: str = "us-east-1",
     use_price_list_api: bool = True,
 ) -> dict:
@@ -295,7 +308,8 @@ def estimate_cluster_cost(
     total_compute = 0.0
     breakdown = []
     unknown_types = []
-    pricing_source = "reference_table"
+    table_nodes = 0  # nodes priced from the reference table
+    lookup_errors = []
 
     for node in nodes:
         instance_type = node["instance_type"]
@@ -306,14 +320,16 @@ def estimate_cluster_cost(
         if use_price_list_api:
             try:
                 hourly_rate = get_instance_price(instance_type, region)
-                pricing_source = "price_list_api"
-            except Exception:
-                pass  # Fall back to reference table
+            except Exception as exc:
+                # Record each error code once: an AccessDeniedException usually means no pricing:GetProducts
+                code = getattr(exc, "response", {}).get("Error", {}).get("Code") or type(exc).__name__
+                if code not in lookup_errors:
+                    lookup_errors.append(code)
 
         # Fallback: reference pricing table
         if hourly_rate is None:
             hourly_rate = INSTANCE_HOURLY_RATES.get(instance_type)
-            pricing_source = "reference_table"
+            table_nodes += 1
 
         if hourly_rate is None:
             # Last resort: default to m5.xlarge and flag
@@ -340,6 +356,9 @@ def estimate_cluster_cost(
     control_plane_hourly = get_control_plane_hourly_rate(k8s_version)
     control_plane_cost = control_plane_hourly * HOURS_PER_MONTH
 
+    # "price_list_api" only when no node fell back to the reference table
+    pricing_source = "reference_table" if table_nodes or not nodes else "price_list_api"
+
     # Determine confidence
     if pricing_source == "price_list_api" and not unknown_types:
         confidence = "high"
@@ -354,7 +373,7 @@ def estimate_cluster_cost(
         "control_plane_cost": round(control_plane_cost, 2),
         "control_plane_hourly": control_plane_hourly,
         "k8s_version": k8s_version,
-        "extended_support": k8s_version in EXTENDED_SUPPORT_VERSIONS,
+        "extended_support": is_extended_support(k8s_version),
         "node_count": len(nodes),
         "node_breakdown": breakdown,
         "unknown_instance_types": unknown_types,
@@ -363,11 +382,13 @@ def estimate_cluster_cost(
         "confidence": confidence,
         "notes": (
             f"Pricing source: {pricing_source}. "
-            f"{'Price List API used for region-accurate rates. ' if pricing_source == 'price_list_api' else 'Reference table (us-east-1 rates, last verified June 2026). '}"
+            f"{'Price List API used for region-accurate rates. ' if pricing_source == 'price_list_api' else f'Reference table or default for {table_nodes} of {len(nodes)} nodes (us-east-1 rates, last verified June 2026). '}"
+            f"{f'Region {region} not in REGION_MAP. ' if use_price_list_api and region not in REGION_MAP else ''}"
+            f"{'Price List lookup errors: ' + '; '.join(lookup_errors) + '. ' if lookup_errors else ''}"
             f"Spot nodes estimated at 30% of On-Demand (query describe-spot-price-history for accuracy). "
             f"{'Unknown types defaulted to $0.192/hr. ' if unknown_types else ''}"
             f"EKS control plane: ${control_plane_cost:.2f}/month "
-            f"({'extended support' if k8s_version in EXTENDED_SUPPORT_VERSIONS else 'standard support'})."
+            f"({'extended support' if is_extended_support(k8s_version) else 'standard support'})."
         ),
     }
 ```
@@ -387,7 +408,7 @@ def estimate_cluster_cost(
 | m6g.xlarge | 5 | Spot | $0.154 × 0.30 = $0.046 | $33.73 | $168.63 |
 | c5.2xlarge | 2 | On-Demand | $0.340 | $248.20 | $496.40 |
 | **Compute subtotal** | | | | | **$1,085.51** |
-| EKS control plane | 1 | — | $0.10 | $73.00 | $73.00 |
+| EKS control plane (standard support, e.g. 1.34) | 1 | — | $0.10 | $73.00 | $73.00 |
 | **Total** | | | | | **$1,158.51/month** |
 
 ---
@@ -563,7 +584,7 @@ Include this section in the report's Methodology & Confidence Notes:
 
 1. **No Savings Plans / Reserved Instances reflected** — Node-based estimation uses On-Demand rates; actual cost may be lower if SP/RI coverage exists
 2. **Spot pricing is approximate when using default 65% discount** — Real Spot prices fluctuate; query `describe-spot-price-history` for accuracy. The 30% of On-Demand is a conservative average.
-3. **Region pricing differences** — Reference table uses us-east-1; other regions may differ. **Always use the Price List API (Option B) for non-us-east-1 regions.**
+3. **Region pricing differences** — Reference table uses us-east-1; other regions may differ. **For non-us-east-1 regions, use the Price List API (Option B) when `pricing:GetProducts` is granted; otherwise mark the estimate Low confidence.**
 4. **No data transfer costs** — This method estimates compute only; networking costs require separate analysis
 5. **System overhead not subtracted** — DaemonSets and system pods consume resources but are not allocated to user namespaces in the simple model above
 6. **Extended support clusters** — Clusters on older K8s versions (in extended support) incur $0.60/hr control plane cost instead of $0.10/hr. The skill detects this automatically.

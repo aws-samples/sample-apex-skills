@@ -28,11 +28,12 @@ DEVOPS_DIR="$REPO_ROOT/devops-agent"
 DRY_RUN=false
 CHECK=false
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
-elif [[ "${1:-}" == "--check" ]]; then
-  CHECK=true
-fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--dry-run) DRY_RUN=true ;;
+  1:--check) CHECK=true ;;
+  *) echo "usage: $0 [--check|--dry-run]" >&2; exit 2 ;;
+esac
 
 # --- Parse frontmatter from a SKILL.md file ---
 # Extracts the value for a given key from YAML frontmatter (between --- delimiters)

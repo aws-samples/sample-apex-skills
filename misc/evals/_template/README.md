@@ -13,7 +13,7 @@
 - **`sibling-skill-b`** (one-line scope) — negative K ("short quoted near-miss phrase").
 <!-- SIBLING_MAP_END -->
 
-<REPLACE: close with a sentence naming the discriminator that separates this skill from its neighbours. The `make score` parser reads only what's between the SIBLING_MAP markers — keep each bullet shaped `- **`sibling-name`** ... negatives N, M ...` (ranges like `9-11` or `9–11` also work) so the sibling-leakage attribution matches every negative in `triggering.json`. Prose outside the markers is free.>
+<REPLACE: close with a sentence naming the discriminator that separates this skill from its neighbours. The `run_all_evals.py` sibling-map parser reads only what's between the SIBLING_MAP markers — keep each bullet shaped `- **`sibling-name`** ... negatives N, M ...` (ranges like `9-11` or `9–11` also work) so the sibling-leakage attribution matches every negative in `triggering.json`. Prose outside the markers is free.>
 
 ## Live-MCP caveat
 

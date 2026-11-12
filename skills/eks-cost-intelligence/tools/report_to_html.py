@@ -28,13 +28,34 @@ def parse_args():
         print("  --output <file.html>  Optional custom output filename (default: replaces .md with .html)")
         sys.exit(0 if "--help" in sys.argv or "-h" in sys.argv else 1)
 
-    input_file = sys.argv[1]
-    output_file = None
+    # Refuse anything not documented above, so a mistyped flag never writes a file.
+    def usage_error(msg):
+        print(f"Error: {msg}", file=sys.stderr)
+        print("Usage: python3 report_to_html.py <input.md> [--output <output.html>]", file=sys.stderr)
+        sys.exit(2)
 
-    if "--output" in sys.argv:
-        idx = sys.argv.index("--output")
-        if idx + 1 < len(sys.argv):
-            output_file = sys.argv[idx + 1]
+    input_file = None
+    output_file = None
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        if args[i] == "--output":
+            if i + 1 >= len(args):
+                usage_error("--output needs a filename")
+            if output_file is not None:
+                usage_error("--output given more than once")
+            output_file = args[i + 1]
+            i += 2
+        elif args[i].startswith("-"):
+            usage_error(f"unknown argument: {args[i]}")
+        elif input_file is not None:
+            usage_error(f"only one input file is taken (got {input_file} and {args[i]})")
+        else:
+            input_file = args[i]
+            i += 1
+
+    if input_file is None:
+        usage_error("no input file given")
 
     if output_file is None:
         output_file = str(Path(input_file).with_suffix(".html"))

@@ -72,7 +72,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 | **Kubernetes API** | `kubectl` or MCP `list_k8s_resources` | Resource requests, limits, replica counts, PVCs |
 | **EC2 API** | `aws ec2 describe-instances` | Instance types, pricing tier, Spot vs On-Demand |
 
-If Cost Explorer is unavailable, the skill falls back to node-based cost estimation (see `references/cost-estimation-fallback.md`).
+If Cost Explorer is unavailable, the skill falls back to node-based cost estimation (see `references/cost-estimation-fallback.md`). If Cost Explorer is available but section 1.2 of `references/cost-data-collection.md` returns no namespace data, run its section 1.4 before falling back.
 
 ### Default Time Window
 

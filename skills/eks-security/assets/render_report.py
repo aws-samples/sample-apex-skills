@@ -46,8 +46,7 @@ UNKNOWN_ACTION = {
     "digest_only": "The image is pinned by digest only; map the digest to its release in the registry",
     "unparsed": "The version string did not parse; read it by hand and record it",
     "no_fix_date": "Find the time AWS released the fix for Auto Mode, record it as fixed_at with its source line, "
-                   "and run match again (Auto Mode release notes: "
-                   "https://docs.aws.amazon.com/eks/latest/userguide/auto-change.html)",
+                   "and run match again (take the fix date from the AWS security bulletin for the issue)",
     "no_version_range": "Compare the installed version with the advisory by hand",
     "bad_range": "Correct the record's range, check it with advisory_check.py and run match again",
     "no_nodes_read": "No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and "
@@ -227,13 +226,16 @@ def findings_blocks(fd, inv):
             blocks.append(("p", ("Auto Mode components: " if printed else "Overall verdict: ")
                            + PATCHED % "; ".join(patched)))
             # the nodes the patched verdicts were judged on: a node-os finding its own group, any other every group;
-            # a group another advisory holds as pending rotation is never listed here
+            # a NodePool any advisory holds as pending rotation, on any of its node groups, is never listed here
             auto = {c.get("id"): c for c in inv.get("components") or [] if isinstance(c, dict)
                     and c.get("kind") == "node-os" and c.get("managed_by") == "aws-auto-mode"}
             pc = {f.get("component") for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_patched"}
-            pend = {f.get("component") for f in fd.get("findings") or []
-                    if f.get("verdict") == "aws_managed_rotation_pending"}
-            rows = sorted((c for i, c in auto.items() if i not in pend and (i in pc or not pc <= set(auto))),
+            pf = [f for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_rotation_pending"]
+            pend = {f.get("component") for f in pf}
+            pend_nodes = {n for f in pf for n in f.get("nodes_pending") or []}
+            pend_pools = {s(c.get("where")) for i, c in auto.items() if i in pend or pend_nodes & set(c.get("nodes") or [])}
+            rows = sorted((c for i, c in auto.items() if s(c.get("where")) not in pend_pools
+                           and (i in pc or not pc <= set(auto))),
                           key=lambda c: (s(c.get("where")), s(c.get("os_image"))))
             if rows:
                 blocks.append(("table", ["NodePool", "OS image", "AMI", "Nodes", "Oldest node created"],

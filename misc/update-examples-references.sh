@@ -31,9 +31,11 @@ EXAMPLES_README="$REPO_ROOT/examples/README.md"
 EXAMPLES_DIR="$REPO_ROOT/examples"
 DRY_RUN=false
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
-fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--dry-run) DRY_RUN=true ;;
+  *) echo "usage: $0 [--dry-run]" >&2; exit 2 ;;
+esac
 
 # --- Parse frontmatter from a markdown file ---
 parse_frontmatter() {

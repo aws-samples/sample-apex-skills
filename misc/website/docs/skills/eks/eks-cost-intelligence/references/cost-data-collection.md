@@ -42,7 +42,7 @@ This reference documents the exact API calls needed to collect cost and utilizat
 
 - Cost Allocation Tags activated in Billing console (`aws:eks:cluster-name`, `kubernetes-namespace`); `eks:cluster-name` (set only by managed node groups) misses Karpenter and self-managed nodes
 - Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can view the data in CUR once its payer opts in)
-- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
+- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`, `ce:GetSavingsPlansUtilization`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
 
 ### Time Window
@@ -175,7 +175,7 @@ else echo "management account: opt-in is in this account's Cost Management prefe
 ```
 
 **When Split Cost Allocation is not enabled:**
-Fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
+Run section 1.4; if it returns no instance total, fall back to node-based estimation. See [cost-estimation-fallback.md](cost-estimation-fallback.md). Say why in the report: split cost allocation data is in CUR and CUR 2.0 only, not Cost Explorer, so this read cannot show whether the account opted in; if it has not, a member account's payer (name it) opts in; in a regular or payer account, this account's Cost Management preferences; if the tier is unknown (DescribeOrganization failed), say the opt-in needs this account if standalone, else its payer, and that the tier could not be read.
 
 ---
 
@@ -229,6 +229,33 @@ for period in utilization_response["SavingsPlansUtilizationsByTime"]:
 - Coverage < 70% on stable workloads = Savings Plan opportunity (MEDIUM finding)
 - Coverage < 40% on stable workloads = significant Savings Plan opportunity (HIGH finding)
 - Utilization < 80% = over-committed Savings Plans (MEDIUM finding)
+
+---
+
+### 1.4 Cluster EC2 Cost by Usage Type (when 1.2 returns no namespace data)
+
+Run this when section 1.2 returns no namespace groups, in any account tier. It needs Cost Explorer access ([Controlling access to Cost Explorer](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-access.html); in a Billing Conductor billing group the total is at the proforma rate) and the `aws:eks:cluster-name` tag active (Prerequisites above; [Organize Amazon EKS resources with tags](https://docs.aws.amazon.com/eks/latest/userguide/eks-using-tags.html)). In an organization the payer sets both; in a standalone account the account owner does.
+
+**Via AWS CLI:**
+```bash
+aws ce get-cost-and-usage \
+  --time-period Start=$(date -v-30d +%Y-%m-%d 2>/dev/null || date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
+  --granularity MONTHLY \
+  --metrics "AmortizedCost" \
+  --filter '{"Tags": {"Key": "aws:eks:cluster-name", "Values": ["<cluster-name>"]}}' \
+  --group-by Type=DIMENSION,Key=USAGE_TYPE \
+  --region us-east-1
+```
+
+**How to read it:**
+- Instance cost is the sum of the groups whose usage type contains `BoxUsage` but not `HostBoxUsage` (On-Demand), `SpotUsage` (Spot) or `DedicatedUsage` (Dedicated Instances), each ending in `:<instance-type>`, so the report can show the total per instance type and Spot apart from On-Demand ([EC2 billing codes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-billing-usage-reports.html)). A window that crosses the 1st of a month returns one `ResultsByTime` entry per calendar month: sum the groups across every entry, not only `ResultsByTime[0]` ([calendar months](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-modify.html)). A `HostBoxUsage` group means the nodes run on Dedicated Hosts, billed per host (`HostUsage`), not per instance: say the instance total leaves out the host charge. Report any other usage type apart.
+- `AmortizedCost`, not section 1.1's `UnblendedCost`: usage covered by a Reserved Instance has a usage cost of zero ([reservation line items](https://docs.aws.amazon.com/cur/latest/userguide/regular-reserved-instances.html): "the cost associated with the usage line item is always zero"), and in Cost and Usage Reports Savings Plans covered usage shows its On-Demand cost unblended, offset by a negation line ([Savings Plans line items](https://docs.aws.amazon.com/cur/latest/userguide/cur-sp.html)), while amortized cost spreads Reserved Instance and Savings Plans fees across the usage ([amortized costs](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-exploring-data.html)). In a member account the total carries its own Reserved Instance and Savings Plans discounts first, then any that other accounts share with it ([discount sharing](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/ri-turn-off.html)).
+- Use one cluster EC2 figure: when this total is used, it replaces section 1.1's EC2 line; never add the two.
+- Namespace split: scale the instance total to a month (`total × 730 / window hours`) and apply the request-share formula in [cost-estimation-fallback.md](cost-estimation-fallback.md) (Step 4), at the "Cost Explorer + cluster tag only" confidence, leaving out Fargate-scheduled namespaces ([fargate-costs.md](fargate-costs.md)).
+- Tag data starts when the tag was activated (or a payer backfill of up to twelve months, [Backfill cost allocation tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-allocation-backfill.html)), so a window that starts earlier returns a low total: say the window may start before the tag was active. The latest day can be incomplete; say so, or end the window a day earlier ([Cost Explorer data](https://docs.aws.amazon.com/cost-management/latest/userguide/differences-billing-data-cost-explorer-data.html): "refreshed at least once per day").
+- Not covered: the control plane (keep the per-version rate), Fargate pods, the EKS Auto Mode fee, EBS, load balancers, NAT and data transfer; say in the report that the spend total and the namespace split leave these out.
+
+**Empty result:** say why it may be empty (the tag is not active, it has no data yet, or the cluster has no tagged EC2 instances, such as Fargate only; whether EKS Auto Mode instances carry the tag is not checked) and keep the node-based estimate.
 
 ---
 
@@ -1173,6 +1200,7 @@ def run_full_correlation(cluster_name, region):
     # --- Step 1: Collect Cost Explorer data ---
     try:
         namespace_costs = get_namespace_costs(cluster_name)  # Section 1.2
+        # empty: run section 1.4, else node-based (cost-estimation-fallback.md)
         sp_coverage = get_savings_plan_coverage()             # Section 1.3
         data_sources_used.append("Cost Explorer")
     except Exception as e:
@@ -1259,7 +1287,7 @@ def run_full_correlation(cluster_name, region):
 | Check | Cost Explorer | Container Insights | Kubernetes API | Fallback |
 |-------|:---:|:---:|:---:|---|
 | Total cluster spend | Required | — | — | Node-based estimation |
-| Namespace cost attribution | Required | — | — | Node-based estimation |
+| Namespace cost attribution | Required | — | — | Section 1.4 usage-type total, else node-based estimation. |
 | Savings Plan coverage | Required | — | — | Skip (note in report) |
 | CPU/memory P50/P95 | — | Required | — | Logs Insights or metrics-server |
 | Node utilization | — | Required | — | Logs Insights |

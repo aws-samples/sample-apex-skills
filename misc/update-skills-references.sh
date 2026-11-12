@@ -31,9 +31,11 @@ SKILLS_README="$REPO_ROOT/skills/README.md"
 SKILLS_DIR="$REPO_ROOT/skills"
 DRY_RUN=false
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
-fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--dry-run) DRY_RUN=true ;;
+  *) echo "usage: $0 [--dry-run]" >&2; exit 2 ;;
+esac
 
 # --- Parse frontmatter from a SKILL.md file ---
 # Extracts the value for a given key from YAML frontmatter (between --- delimiters)

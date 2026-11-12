@@ -91,6 +91,7 @@ jobs:
           'skills/eks-security/**'
           'devops-agent/eks-security/**'
           'misc/tests/test_eks_security_match.py'
+          'misc/tests/test_eks_security_posture_collect.py'
           'misc/tests/fixtures/eks_security_cases.json'
           '.github/workflows/evals.yml'
           '.github/scripts/ci-gate.sh'
@@ -100,7 +101,7 @@ jobs:
           python-version: '3.x'
       - name: Run offline eks-security fixtures and read-only guard
         if: steps.changes.outputs.relevant != 'false'
-        run: jq --version && python3 -B misc/tests/test_eks_security_match.py -v
+        run: jq --version && python3 -B misc/tests/test_eks_security_match.py -v && python3 -B misc/tests/test_eks_security_posture_collect.py -v
 
   eks-cost-read-coverage:
     name: eks-cost-intelligence read coverage regression

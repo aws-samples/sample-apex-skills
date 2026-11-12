@@ -32,7 +32,7 @@
 #
 # Usage:
 #   ./misc/update-pages.sh              # regenerate in place
-#   ./misc/update-pages.sh --check      # fail if generated artifacts are stale
+#   ./misc/update-pages.sh --check      # regenerate in place, then fail if the generated files have unstaged changes or new files
 #   ./misc/update-pages.sh --dry-run    # print what would be written; no edits
 #
 # --check is what the `docs-sync` CI job runs alongside
@@ -49,11 +49,12 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 MODE="run"
-if [[ "${1:-}" == "--check" ]]; then
-  MODE="check"
-elif [[ "${1:-}" == "--dry-run" ]]; then
-  MODE="dry-run"
-fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--check) MODE="check" ;;
+  1:--dry-run) MODE="dry-run" ;;
+  *) echo "usage: $0 [--check|--dry-run]" >&2; exit 2 ;;
+esac
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -968,6 +969,8 @@ PY
 copy_examples_static() {
   mapfile -t STATIC_FILES < <(git ls-files -- 'examples/**/*.html' 'examples/**/*.png')
   for asset in "${STATIC_FILES[@]}"; do
+    # Sample app pages: their relative links work only inside the running app.
+    [[ "$asset" == */src/main/webapp/* ]] && continue
     local rel="${asset#examples/}"
     local dest="$EXAMPLES_STATIC/$rel"
     if [[ "$MODE" == "dry-run" ]]; then
