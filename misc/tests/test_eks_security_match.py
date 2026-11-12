@@ -1242,6 +1242,20 @@ class PostureScoring(TmpCase):
                 self.assertEqual(last_json(q.stdout)["code"], code)
                 self.assertFalse(os.path.exists(os.path.join(work, "posture.json")))
 
+    def test_score_refuses_bad_arguments(self):
+        work = self.build(["cluster"])
+        cases = (("posture_score.sh", "mistyped flag", [work, "--chek"]), ("posture_score.sh", "no workdir", []),
+                 ("posture_score.sh", "empty workdir", [""]), ("posture_extra.sh", "no workdir", []),
+                 ("posture_extra.sh", "empty workdir", [""]))
+        for script, name, args in cases:
+            with self.subTest(script=script, case=name):
+                q = subprocess.run(["bash", os.path.join(ASSETS, script)] + args, capture_output=True,
+                                   text=True, timeout=60, cwd=self.tmp)
+                self.assertEqual(q.returncode, 2, q.stdout + q.stderr)
+                self.assertIn("usage: %s <workdir>" % script, q.stderr)
+                self.assertEqual(sorted(os.listdir(os.path.join(work, "posture"))), ["cluster.json"])
+                self.assertEqual(os.listdir(self.tmp), ["work"])
+
 
 if __name__ == "__main__":
     unittest.main()

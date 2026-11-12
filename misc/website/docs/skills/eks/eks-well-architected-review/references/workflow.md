@@ -167,8 +167,9 @@ would score *better* than one that was fully audited.
   same request").
 
 The third documented remedy, "The `DescribeInstances` API with the `include-managed-resources`
-parameter", is **not** used: `aws-cli/2.34.30` rejects the flag (`aws: [ERROR]: Unknown options:
---include-managed-resources`) and a skill cannot dictate the operator's CLI version. The account-wide
+parameter", is **not** used: the CLI did not expose the flag before aws-cli 2.34.35 / 1.44.84
+(`aws-cli/2.34.30` rejects it: `aws: [ERROR]: Unknown options: --include-managed-resources`), and a
+skill cannot dictate the operator's CLI version. The account-wide
 managed-resource *visibility setting* would also fix this, and is deliberately neither changed nor
 suggested as a prerequisite — this skill only looks.
 

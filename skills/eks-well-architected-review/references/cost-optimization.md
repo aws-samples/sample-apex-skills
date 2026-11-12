@@ -205,7 +205,8 @@ m cost-7 cluster '(.cluster.tags//{}) as $t|(["project","environment|^env$","cos
 # so neither label is true of it. `creating` and `deleting` are races, not leaks, but count as failures while
 # they last: a one-run finding that disappears beats a false pass.
 rl cost-8 volumes cluster pv 'input as $cl|input as $pvs|($cl.cluster.name//"") as $cn|([$pvs.items[]?|(.spec.csi.volumeHandle?,.spec.awsElasticBlockStore.volumeID?)]|map(select((type=="string") and .!="")|split("/")|last)|unique) as $pvid|[.Volumes[]?|select(([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0) or ((.VolumeId//"")|IN($pvid[])))] as $all|[$all[]|select((.State!="error") and (.State!="deleted"))] as $v|[$v[]|select(.State=="in-use")] as $p|def n: (.VolumeId//"?")+" ("+(.State//"?")+")";{pass:[$p[]|n],fail:[($v-$p)[]|n]}'
-m3 cost-8 volumes cluster pv 'input as $cl|input as $pvs|($cl.cluster.name//"") as $cn|([$pvs.items[]?|(.spec.csi.volumeHandle?,.spec.awsElasticBlockStore.volumeID?)]|map(select((type=="string") and .!="")|split("/")|last)|unique) as $pvid|[.Volumes[]?|select(([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0) or ((.VolumeId//"")|IN($pvid[])))] as $all|[$all[]|select((.State!="error") and (.State!="deleted"))] as $v|(($all|length)-($v|length)) as $x|($v|length) as $t|([$v[]|select(.State=="in-use")]|length) as $ok| if $t==0 then (if $x>0 then "na~no cluster volumes (tagged or named by a PV) other than \($x) in state error or deleted, which EBS does not bill" else "na~no cluster volumes (tagged or named by a PV)" end) else b($ok;$t)+"~\($ok)/\($t) attached (cluster or PV vols)" end'
+# The detail names the blind spot: collect.sh fetches by id only the volumes an instance or a PV names (VOL_IDS).
+m3 cost-8 volumes cluster pv 'input as $cl|input as $pvs|($cl.cluster.name//"") as $cn|([$pvs.items[]?|(.spec.csi.volumeHandle?,.spec.awsElasticBlockStore.volumeID?)]|map(select((type=="string") and .!="")|split("/")|last)|unique) as $pvid|[.Volumes[]?|select(([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0) or ((.VolumeId//"")|IN($pvid[])))] as $all|[$all[]|select((.State!="error") and (.State!="deleted"))] as $v|(($all|length)-($v|length)) as $x|($v|length) as $t|([$v[]|select(.State=="in-use")]|length) as $ok| if $t==0 then (if $x>0 then "na~no cluster volumes (tagged or named by a PV) other than \($x) in state error or deleted, which EBS does not bill; a volume that no instance or PV names is counted only if the volume list for this Region returns it, and EKS Auto Mode can hide its volumes from that list" else "na~no cluster volumes (tagged or named by a PV); a volume that no instance or PV names is counted only if the volume list for this Region returns it, and EKS Auto Mode can hide its volumes from that list" end) else b($ok;$t)+"~\($ok)/\($t) attached (cluster or PV vols); a volume that no instance or PV names is counted only if the volume list for this Region returns it, and EKS Auto Mode can hide its volumes from that list" end'
 # cost-9 tests BOTH halves of its title, "gp3, Delete reclaim policy". Reading only `.parameters.type` would let
 # a gp3 class with `reclaimPolicy: Retain` -- which leaves EBS volumes behind on every PVC delete, the leak
 # cost-8 reports -- score like a correct one. `reclaimPolicy` defaults to Delete when unset
@@ -494,9 +495,12 @@ delete:
 # (failed hardware, not billed) and deleted -- available, creating and deleting. No --filters form selects
 # it: the predicate accepts any tag key containing "cluster" in any case. It also counts an untagged volume a
 # PV names (`kubectl get pv`, .spec.csi.volumeHandle). Only an available volume can be deleted.
-# On EKS Auto Mode, volumes it created after April 22, 2026 can be hidden from this list call;
-# the report names the idle ones the review recovered by ID.
-aws ec2 describe-volumes --region <REGION> --output json \
+# --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) also lists the volumes
+# EKS Auto Mode can hide from list calls (an account and Region setting). An older CLI
+# rejects the flag: drop it (or upgrade the CLI), and then the hidden ones are missing; the
+# report names the idle ones the review recovered by ID. The collector does not pass the flag,
+# so this list can show hidden idle volumes cost-8 did not count.
+aws ec2 describe-volumes --include-managed-resources --region <REGION> --output json \
   | jq --arg cn '<CLUSTER>' '[.Volumes[]|select([.Tags[]?|select((.Key==("kubernetes.io/cluster/"+$cn)) or (((.Key|ascii_downcase)|test("cluster")) and (.Value==$cn)))]|length>0)|select((.State!="in-use") and (.State!="error") and (.State!="deleted"))|{Id:.VolumeId,State:.State,Size:.Size,Created:.CreateTime,Tags:.Tags}]'
 ```
 

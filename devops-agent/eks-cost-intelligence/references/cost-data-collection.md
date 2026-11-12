@@ -30,7 +30,7 @@ This reference documents the exact API calls needed to collect cost and utilizat
 
 - Cost Allocation Tags activated in Billing console (`aws:eks:cluster-name`, `kubernetes-namespace`); `eks:cluster-name` (set only by managed node groups) misses Karpenter and self-managed nodes
 - Split Cost Allocation Data enabled for namespace-level attribution (only a regular or payer account can opt in; a member account can view the data in CUR once its payer opts in)
-- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`; optional `organizations:DescribeOrganization` for the account tier check below
+- IAM permission: `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`, `ce:GetSavingsPlansUtilization`; optional `organizations:DescribeOrganization` for the account tier check below
 - Cost Explorer API is only available in `us-east-1` regardless of cluster region
 
 ### Time Window

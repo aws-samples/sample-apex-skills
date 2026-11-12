@@ -28,11 +28,12 @@ DEVOPS_DIR="$REPO_ROOT/devops-agent"
 DRY_RUN=false
 CHECK=false
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
-elif [[ "${1:-}" == "--check" ]]; then
-  CHECK=true
-fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--dry-run) DRY_RUN=true ;;
+  1:--check) CHECK=true ;;
+  *) echo "usage: $0 [--check|--dry-run]" >&2; exit 2 ;;
+esac
 
 # --- Parse frontmatter from a SKILL.md file ---
 # Extracts the value for a given key from YAML frontmatter (between --- delimiters)
@@ -132,12 +133,12 @@ replace_section() {
   local end_marker="$3"
   local new_content="$4"
 
-  if ! grep -q "$start_marker" "$file"; then
+  if ! grep -qxF -- "$start_marker" "$file"; then
     echo "ERROR: Could not find $start_marker in $file" >&2
     return 1
   fi
 
-  if ! grep -q "$end_marker" "$file"; then
+  if ! grep -qxF -- "$end_marker" "$file"; then
     echo "ERROR: Could not find $end_marker in $file" >&2
     return 1
   fi

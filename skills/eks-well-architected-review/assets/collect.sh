@@ -1461,13 +1461,13 @@ awsjson "$WORK/vpcendpoints.json" -- aws ec2 describe-vpc-endpoints   --filters 
 #   "IncludeManagedResources: Indicates whether to include managed resources in the output. If this
 #    parameter is set to `true`, the output includes resources that are managed by AWS services, even if
 #    managed resource visibility is set to hidden."
-# The CLI does not expose it yet. Tested 2026-09-11 against
+# The CLI did not expose it before aws-cli 2.34.35 / 1.44.84. Tested 2026-09-11 against
 # `aws-cli/2.34.30 Python/3.14.7 Darwin/25.6.0 source/arm64`:
 #   $ aws ec2 describe-instances --include-managed-resources --max-items 1
 #   aws: [ERROR]: Unknown options: --include-managed-resources
 # A skill cannot dictate the operator's CLI version, so everything below is built on the instance-ID
 # path, which works on every version. The negative result is recorded here rather than left as folklore:
-# when a CLI ships the flag, this block can collapse to two calls, and a maintainer should be able to
+# on aws-cli 2.34.35 / 1.44.84 or later this block could collapse to two calls, and a maintainer should be able to
 # see why it is built the complicated way.
 #
 # HOW THE ID PATH WORKS.
