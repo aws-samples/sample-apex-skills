@@ -37,8 +37,9 @@ OVERALL = {"exposed": "Exposed: at least one component is inside an affected ran
            "unknown": "Unknown: nothing was found exposed, but at least one component or advisory could not be "
                       "decided. See Unknown"}
 PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node it was judged on was created at or after the fix "
-           "time %s; the Auto Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves, so a "
-           "node created after the fix time can still run an older AMI.")
+           "time %s; the Auto Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves "
+           "(https://docs.aws.amazon.com/whitepapers/latest/security-overview-amazon-eks-auto-mode/eks-auto-mode-data-plane.html, "
+           "Node patching), so a node created after the fix time can still run an older AMI.")
 UNKNOWN_ACTION = {
     "denied": "Grant the read named in the preflight (see read-only-access.md) and re-run collect",
     "not_found": "Confirm whether the component is installed another way (Helm, manifest) and re-run with --namespaces",
