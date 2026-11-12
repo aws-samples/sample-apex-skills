@@ -1459,7 +1459,7 @@ class PosturePartialRead(TmpCase):
         self.assertNotIn(self.SEC21_AUTO, c["evidence"])
 
     # sec-21, a volume nothing names: on an Auto Mode cluster EC2 can hide it from the volume list; the clause says so
-    SEC21_AUTO = "not counted: a volume no PersistentVolume names and no node of this cluster has attached"
+    SEC21_AUTO = "not counted: a volume that EC2 hides from the volume list for this Region (managed resource visibility set to hidden) and that no PersistentVolume names and no node of this cluster has attached"
 
     def test_sec21_auto_mode_names_the_uncounted_volumes(self):
         c = self.run_case(nodes_read=(A, B), auto_mode=True)["SEC-POSTURE-18"]
