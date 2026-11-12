@@ -969,6 +969,8 @@ PY
 copy_examples_static() {
   mapfile -t STATIC_FILES < <(git ls-files -- 'examples/**/*.html' 'examples/**/*.png')
   for asset in "${STATIC_FILES[@]}"; do
+    # Sample app pages: their relative links work only inside the running app.
+    [[ "$asset" == */src/main/webapp/* ]] && continue
     local rel="${asset#examples/}"
     local dest="$EXAMPLES_STATIC/$rel"
     if [[ "$MODE" == "dry-run" ]]; then
