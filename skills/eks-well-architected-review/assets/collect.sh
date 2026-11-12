@@ -1444,9 +1444,13 @@ awsjson "$WORK/vpcendpoints.json" -- aws ec2 describe-vpc-endpoints   --filters 
 #   "Beginning April 22, 2026, new Amazon EC2 managed instances and associated resources (for example,
 #    EC2 launch templates, EBS volumes, and network interfaces (ENIs)) created by EKS Auto Mode are
 #    hidden from EC2 console views and `describe` API list operations by default. Managed resources that
-#    already existed in your account before that date remain visible."
-# That date is past, so a review run today can hit this on an Auto Mode cluster whose nodes
-# were launched after it. The same page, verbatim, gives the ways through:
+#    already existed in your account before that date remain visible. You can change this behavior
+#    using managed resource visibility settings."
+# https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-ec2-managed-instances.html, verbatim:
+#   "The visibility setting applies to all managed resources in a Region, regardless of when they were
+#    created."
+# So the Region's setting decides it, not when a node was launched: a review run today can hit this on
+# any Auto Mode cluster in a Region whose setting is hidden. The EKS page, verbatim, gives the ways through:
 #   "Even when managed resources are hidden from EC2 console views and list APIs, you can still view EKS
 #    Auto Mode instances through:" ... "Kubernetes APIs (for example, `kubectl get nodes`)." ...
 #   "Direct EC2 API queries by instance ID (for example, `describe-instances --instance-ids
