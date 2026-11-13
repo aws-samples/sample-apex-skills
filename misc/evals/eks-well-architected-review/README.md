@@ -37,7 +37,7 @@ Negative 20 is the counterweight to positive 6 and the tightest pair in the set:
 
 The skill uses **no MCP server**. It depends on the plain `aws` CLI (authenticated), `kubectl` with access to the target cluster, `jq`, and `python3` for the report renderer — see the `compatibility:` line in `SKILL.md`.
 
-The `evals.json` tasks **need no live cluster and no credentials.** Following the convention in `eks-cost-intelligence/evals.json`, each prompt carries its own mock collection inline — the contents `cluster.json`, `nodes.json`, `pods.json`, `deployments.json`, `fargate.json` and friends would have held after Step 2 — and instructs the skill not to fabricate anything beyond it. That keeps graded behaviour reproducible, which matters more here than for most skills: determinism is this skill's central claim, so an eval whose inputs varied run to run could not test it.
+The `evals.json` tasks **need no live cluster or cluster credentials**; the model calls need Bedrock (default) or Anthropic API credentials. Following the convention in `eks-cost-intelligence/evals.json`, each prompt carries its own mock collection inline — the contents `cluster.json`, `nodes.json`, `pods.json`, `deployments.json`, `fargate.json` and friends would have held after Step 2 — and instructs the skill not to fabricate anything beyond it. That keeps graded behaviour reproducible, which matters more here than for most skills: determinism is this skill's central claim, so an eval whose inputs varied run to run could not test it.
 
 The three tasks deliberately target the paths where a scoring skill is most likely to flatter its subject:
 
@@ -45,7 +45,7 @@ The three tasks deliberately target the paths where a scoring skill is most like
 - **`standard-cluster-deterministic-score`** — a populated cluster, asserting the numbers come from the Step 7 reducer rather than prose arithmetic, and that the Cost pillar is labelled **cost hygiene** with Spot and Graviton named as narrative opportunities held outside the score.
 - **`fargate-only-na-and-coverage-gate`** — the `na` path. EC2 and node-hardening questions on a Fargate-only cluster must score `na`, never `none`, and the 50% coverage gate must return `INSUFFICIENT` rather than a flattering number.
 
-Triggering evals are pure classification and are likewise unaffected by cluster or credential availability.
+Triggering evals are pure classification and are likewise unaffected by cluster availability.
 
 ## How to run
 

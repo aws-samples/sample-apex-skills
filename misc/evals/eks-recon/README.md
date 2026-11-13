@@ -2,7 +2,7 @@
 
 ## What these evals target
 
-These artifacts exercise the `eks-recon` skill, whose job is read-only discovery of an existing EKS cluster: current version, compute strategy (Karpenter / MNG / Auto Mode / Fargate), IaC tooling, CI/CD pipelines, add-on inventory, networking, security posture, and observability. `triggering.json` checks that the skill fires on realistic recon phrasings and does NOT fire on near-miss requests that belong to its sibling skills. `evals.json` contains two live recon tasks (upgrade-prep context and a team handoff) and four offline report-comparison tasks (cases 3–6).
+These artifacts exercise the `eks-recon` skill, whose job is read-only discovery of an existing EKS cluster: current version, compute strategy (Karpenter / MNG / Auto Mode / Fargate), IaC tooling, CI/CD pipelines, add-on inventory, networking, security posture, and observability. `triggering.json` checks that the skill fires on realistic recon phrasings and does NOT fire on near-miss requests that belong to its sibling skills. `evals.json` contains two live recon tasks (upgrade-prep context and a team handoff) and four fixture-based report-comparison tasks (cases 3–6).
 
 ## Neighbour-skill disambiguation
 
@@ -63,7 +63,7 @@ From `misc/evals/`:
 
 See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
 
-## Offline prior-report comparisons
+## Fixture-based prior-report comparisons
 
 Cases 3–6 use manually authored selective YAML snapshots under `files/eval-<id>/`.
 They exercise report generation after collection: inventory additions/removals and
@@ -73,7 +73,7 @@ not from live AWS observations. Absent fields in these fixtures are unknown.
 
 Run `python3 misc/evals/scripts/run_task_evals.py --skill eks-recon --runs 1 --model <configured-model>`
 from the repository root in the runner's POSIX environment (Python + PyYAML, Make,
-and authenticated Claude Code). Without `--include-live-only`, only these offline
+and authenticated Claude Code). Without `--include-live-only`, only these fixture
 cases run. Structural assertions check output paths and representative delta rows;
 the expectations also require semantic inspection of complete deltas, current YAML
 facts, coverage, and byte-for-byte prior preservation. The runner snapshots input
@@ -81,7 +81,7 @@ fixtures too: validate `reports/delta.*`, not any matching YAML in the output tr
 These are agent report-generation evaluations, not live-cluster tests. CI runs
 eval hygiene, not these model-backed tasks.
 
-The offline cases also cover an unconfirmed GitOps result with empty sibling fields
+The fixture cases also cover an unconfirmed GitOps result with empty sibling fields
 and differing capped evidence samples. Missing modules remain outside comparison
 coverage, even when all comparable facts are unchanged. Structural checks anchor
 selected before/after cells and forbid delta rows in mismatch/reorder-only cases;

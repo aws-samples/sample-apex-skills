@@ -26,7 +26,7 @@ The `triggering.json` positives mix two phrasing styles: assessment-language req
 
 ## Live-MCP caveat
 
-The five `evals.json` tasks are **fully self-contained mock-data prompts**: each prompt embeds the cluster findings inline (versions, add-ons, node groups, workloads, insights) and explicitly instructs the grader to NOT run `aws` or `kubectl` commands. No live cluster, no MCP tools, no network calls are required to run or grade these evals — they exercise the scoring algorithm and report-template logic in isolation. The skill itself supports live-cluster operation in production via AWS CLI, `kubectl`, or the optional `eks-mcp-server` integration; that path is exercised through end-to-end smoke testing rather than these evals.
+The five `evals.json` tasks are **fully self-contained mock-data prompts**: each prompt embeds the cluster findings inline (versions, add-ons, node groups, workloads, insights) and explicitly instructs the subject to NOT run `aws` or `kubectl` commands. No live cluster or MCP tools are required to run or grade these evals; they exercise the scoring algorithm and report-template logic in isolation. The skill itself supports live-cluster operation in production via AWS CLI, `kubectl`, or the optional `eks-mcp-server` integration; that path is exercised through end-to-end smoke testing rather than these evals.
 
 ## How to run
 
