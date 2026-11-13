@@ -23,7 +23,9 @@ Attach the appropriate managed policy to your IAM role/user:
 | Access Level | Managed Policy |
 |--------------|----------------|
 | **Read-only** (recommended to start) | `AmazonEKSMCPReadOnlyAccess` |
-| **Full access** (includes write ops) | Create custom policy below |
+| **Full access** (includes write ops) | Create a write policy (AWS example `EKSMcpWriteManagementPolicy`, [Getting started, Step 2](https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html)) |
+
+AWS-hosted read-only still returns pod logs, events, CloudWatch logs and resource reads; there is no sensitive-data flag. Limit what the principal's access entry can read.
 
 For read-only, attach via IAM console or CLI:
 ```bash
@@ -54,7 +56,8 @@ The package is `mcp-proxy-for-aws-cli`, which the proxy's maintainers recommend 
         "mcp-proxy-for-aws-cli@<version>",
         "https://eks-mcp.{region}.api.aws/mcp",
         "--service", "eks-mcp",
-        "--region", "{region}"
+        "--region", "{region}",
+        "--read-only"
       ]
     }
   }
@@ -70,19 +73,9 @@ The package is `mcp-proxy-for-aws-cli`, which the proxy's maintainers recommend 
 | Kiro IDE | `~/.kiro/settings/mcp.json` or `.kiro/settings/mcp.json` | — |
 | VS Code (Cline Extension) | Cmd/Ctrl+Shift+P → "MCP" → Add Server → Open User Configuration | — |
 
-## Optional: Read-Only Mode
+## Opt-in: Write Access
 
-Add `--read-only` to args to disable write operations:
-
-```json
-"args": [
-  "mcp-proxy-for-aws-cli@<version>",
-  "https://eks-mcp.{region}.api.aws/mcp",
-  "--service", "eks-mcp",
-  "--region", "{region}",
-  "--read-only"
-]
-```
+The examples here are read-only (`--read-only` removes write tools from the list and rejects calls to them), the recommended start. To enable writes, remove `--read-only` from args and attach a write policy (Step 1).
 
 ## Optional: Multiple AWS Profiles
 
@@ -94,7 +87,8 @@ Specify a profile with `--profile`:
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
   "--profile", "production",
-  "--region", "{region}"
+  "--region", "{region}",
+  "--read-only"
 ]
 ```
 
@@ -108,7 +102,8 @@ Use this format for the args array:
   "mcp-proxy-for-aws-cli.exe",
   "https://eks-mcp.{region}.api.aws/mcp",
   "--service", "eks-mcp",
-  "--region", "{region}"
+  "--region", "{region}",
+  "--read-only"
 ]
 ```
 
@@ -122,7 +117,7 @@ Use this format for the args array:
 
 | Issue | Solution |
 |-------|----------|
-| "Access Denied" | Check IAM policy has `eks-mcp:*` actions |
+| "Access Denied" | Check the IAM policy grants `eks-mcp:InvokeMcp` and `eks-mcp:CallReadOnlyTool` (both in `AmazonEKSMCPReadOnlyAccess`); for write mode, also attach a write policy with `eks-mcp:CallPrivilegedTool` and the service write actions (AWS example `EKSMcpWriteManagementPolicy`, [Getting started, Step 2](https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-getting-started.html)) |
 | Tools not appearing | Restart IDE/CLI after config change |
 | Connection timeout | Verify region matches your EKS clusters |
 | Proxy issues | Set `HTTP_PROXY`/`HTTPS_PROXY` env vars |

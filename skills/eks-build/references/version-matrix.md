@@ -67,7 +67,7 @@ The `eks-blueprints-addons` module ships chart defaults that lag behind. These a
 | aws-load-balancer-controller | Module default is many versions behind; old versions CrashLoop on IMDS hop-limit | **Yes -- always override** |
 | external-secrets | Module default lags significantly | Recommended |
 | gatekeeper | Module default lags | Recommended |
-| velero | Module default uses old chart major version | Recommended for Pattern 2 |
+| velero | Module default uses old chart major version | **Yes -- always override** (chart 12.0.0 or later; the module default, 3.2.0, runs a bitnami/kubectl CRD hook whose tags no longer exist) |
 | kyverno (custom-addons) | Custom-addons module default is behind stable | Always override |
 
 ## Addon-Specific Version Rules
@@ -92,9 +92,7 @@ The `eks-blueprints-addons` module ships chart defaults that lag behind. These a
 - Watch for major chart version bumps that change value schemas
 
 ### velero
-- Set `upgradeCRDs: false` -- bitnami/kubectl image for latest K8s may not exist
-- Pin `kubectl.image.tag` to the latest available -- search Docker Hub for `bitnami/kubectl`
-- Set `credentials.useSecret: false` when using Pod Identity
+- Set `credentials.useSecret: false` when using Pod Identity or IRSA
 
 ### kyverno
 - Override custom-addons module chart version to latest stable

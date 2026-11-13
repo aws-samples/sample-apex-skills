@@ -1,6 +1,6 @@
 ---
 title: "Cluster Lifecycle & Upgrades"
-description: ""
+description: "Assess EKS cluster version currency, data plane alignment, upgrade readiness, add-on compatibility, and upgrade process maturity."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/cluster-lifecycle.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-operation-review/references/cluster-life
 
 
 :::info[Vendored skill]
-This skill is sourced from [eks-operation-review](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review), also maintained by the APEX team.
+This skill is sourced from [sample-eks-operation-review-skill](https://github.com/aws-samples/sample-eks-operation-review-skill), also maintained by the APEX team.
 :::
 
 # Cluster Lifecycle & Upgrades

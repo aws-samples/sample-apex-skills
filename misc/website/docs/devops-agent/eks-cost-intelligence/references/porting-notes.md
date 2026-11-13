@@ -1,6 +1,6 @@
 ---
 title: "Porting Notes — eks-cost-intelligence"
-description: ""
+description: "This file documents the differences between the Claude Code version and the DevOps Agent port."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/porting-notes.md
 format: md
 ---
@@ -27,3 +27,4 @@ This file documents the differences between the Claude Code version and the DevO
 | Script dependencies | Python script for HTML conversion | None — no scripts permitted |
 | Cluster selection | Shows list, asks user to choose | Auto-selects a single cluster; assesses all discovered clusters when none is specified |
 | Core-read scoring guard | Step 0 requires successful lists of nodes, namespaces, pods and deployments before scoring | Start Here requires the receiving agent to confirm the same four lists before delegation or scoring; successful empty lists are valid |
+| Price List API | Preferred; runs on the caller's credentials, `pricing:GetProducts` optional (SKILL.md Prerequisites) | Used only when `pricing:GetProducts` is granted; the shipped `references/iam-policy.json` does not include it, so the reference table is the default |

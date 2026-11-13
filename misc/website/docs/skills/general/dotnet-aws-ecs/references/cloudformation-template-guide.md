@@ -1,6 +1,6 @@
 ---
 title: "CloudFormation Template Guide"
-description: ""
+description: "This reference defines the complete structure for the single CloudFormation template that provisions all infrastructure for an ECS Fargate deployment."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/dotnet-aws-ecs/references/cloudformation-template-guide.md
 format: md
 ---

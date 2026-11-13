@@ -1,6 +1,6 @@
 ---
 title: "eks-cost-intelligence"
-description: ""
+description: "A Kiro agent skill that connects to a live EKS cluster, analyzes cost signals across 6 dimensions, and produces a scored cost intelligence report with..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/README.md
 format: md
 ---
@@ -61,8 +61,7 @@ skills/eks-cost-intelligence/
 
 - AWS credentials with EKS read access
 - `kubectl` configured for the target cluster
-- **Required permissions:** `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `elasticloadbalancing:DescribeLoadBalancers`
-- **Optional (for richer analysis):** `ce:GetCostAndUsage`, `cloudwatch:GetMetricData`, `pricing:GetProducts`, `route53:ListHostedZonesByVPC`, `organizations:DescribeOrganization`, `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration`
+- See SKILL.md Prerequisites for the required and optional permissions.
 
 ## Relationship to other skills
 

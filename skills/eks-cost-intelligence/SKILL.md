@@ -45,12 +45,13 @@ This skill is focused on **live cost assessment** — answering the question: "W
 1. **AWS credentials configured** — `aws configure` or `~/.aws/credentials` with EKS access
 2. **Kubernetes access** for the assessment caller. An access entry with a suitable policy or RBAC binding, or an existing `aws-auth` mapping in `CONFIG_MAP` or `API_AND_CONFIG_MAP` mode, can grant the required reads. `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read this skill needs through the connection the assessment will use. A caller without Secret list permission leaves Idle Resources SKIPPED for scoring.
 3. **Required AWS Permissions (minimum):**
-   - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`, `eks:ListFargateProfiles`, `eks:DescribeFargateProfile`
-   - `ec2:DescribeInstances`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`
-   - `elasticloadbalancing:DescribeLoadBalancers`, `elasticloadbalancing:DescribeTargetHealth`
+   - `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListNodegroups`, `eks:DescribeNodegroup`, `eks:ListAddons`, `eks:ListFargateProfiles`, `eks:DescribeFargateProfile`
+   - `ec2:DescribeInstances`, `ec2:DescribeInstanceTypes`, `ec2:DescribeVolumes`, `ec2:DescribeSubnets`, `ec2:DescribeVpcEndpoints`, `ec2:DescribeNatGateways`
+   - `elasticloadbalancing:DescribeLoadBalancers`, `elasticloadbalancing:DescribeTargetGroups`, `elasticloadbalancing:DescribeTargetHealth`
 4. **Optional permissions (enable richer analysis):**
-   - `ce:GetCostAndUsage` — enables dollar-accurate spend data from Cost Explorer
-   - `cloudwatch:GetMetricData` — enables utilization-based analysis from Container Insights
+   - `ce:GetCostAndUsage`, `ce:GetSavingsPlansCoverage`, `ce:GetSavingsPlansUtilization` (dollar-accurate spend and Savings Plans coverage from Cost Explorer)
+   - `cloudwatch:GetMetricData`, `cloudwatch:GetMetricStatistics`, `cloudwatch:ListMetrics`, `logs:DescribeLogGroups`, `logs:StartQuery`, `logs:GetQueryResults` (utilization from Container Insights, metric cardinality, log volume and retention), `eks:DescribeAddon` (the Container Insights add-on)
+   - `pricing:GetProducts`, `ec2:DescribeSpotPriceHistory` (On-Demand and Spot prices for savings estimates), `sqs:GetQueueUrl` (the Karpenter interruption queue), `ecr:BatchGetImage` (arm64 images in ECR)
    - `route53:ListHostedZonesByVPC`, `organizations:DescribeOrganization` (centralized VPC endpoint zones; the account tier check)
    - `elasticfilesystem:DescribeFileSystems`, `elasticfilesystem:DescribeLifecycleConfiguration` — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension
 
@@ -63,7 +64,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 | **Kubernetes API** | `kubectl` or MCP `list_k8s_resources` | Resource requests, limits, replica counts, PVCs |
 | **EC2 API** | `aws ec2 describe-instances` | Instance types, pricing tier, Spot vs On-Demand |
 
-If Cost Explorer is unavailable, the skill falls back to node-based cost estimation (see `references/cost-estimation-fallback.md`).
+If Cost Explorer is unavailable, the skill falls back to node-based cost estimation (see `references/cost-estimation-fallback.md`). If Cost Explorer is available but section 1.2 of `references/cost-data-collection.md` returns no namespace data, run its section 1.4 before falling back.
 
 ### Default Time Window
 
@@ -119,6 +120,8 @@ Do NOT proceed if cluster status is not ACTIVE.
 
 For each kubectl target, compare the candidate context's server (`kubectl --context <ctx> config view --minify -o jsonpath='{.clusters[0].cluster.server}'`) with the endpoint from `aws eks describe-cluster --name <cluster> --region <region>`. Complete this comparison before issuing Kubernetes requests. Accept a matching alias. If no context matches, stop and ask the user to add the target's kubeconfig entry. Leave current-context unchanged. Every kubectl command in this skill runs with `--context <verified-context>` added, even where the example omits it. For MCP instead, match the active connection to the intended cluster ARN or endpoint before reading. Stop if the binding cannot be verified. Read nodes, namespaces, pods and deployments through the verified connection before scoring, including delegated assessments. If a core read fails, stop without a score. Other denied reads make their dependent checks UNKNOWN; apply the dimension coverage rule in `references/report-generation.md`. On denial, report the failed read. Use the cluster's authentication mode and any available access-entry information to diagnose it. A denied entry listing leaves the entries unverified.
 
+**Access pre-flight (advisory, kubectl only).** In Step 0, before Step 1, run `kubectl --context <verified-context> auth can-i <verb> <resource>` (adding `-n <ns>` or `--subresource=<sub>` as the read needs) for each read the six dimension files run (take the list from their kubectl commands; `kubectl top` reads `nodes.metrics.k8s.io` and `pods.metrics.k8s.io`, and `kubectl top nodes` also core nodes), and tell the user each `no` before the run. A `no`, `yes` or error decides nothing; every read still runs and its result decides.
+
 Collect:
 - Kubernetes version and platform version
 - Node groups: `aws eks list-nodegroups --cluster-name <cluster>`
@@ -145,7 +148,7 @@ Checks:
 - Workloads without resource requests or limits
 - Fargate pod request right-sizing against Fargate's vCPU/memory combinations — only when Step 0 found Fargate profiles (read `references/fargate-costs.md`, Check F1)
 
-If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (4 and 5), and the report names it partly assessed.
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed. A denied metrics read (`Forbidden`) is UNKNOWN, not "no source": name the missing permission and give no setup steps (a denied `kubectl top` means a metrics provider is installed); a read that failed otherwise is UNKNOWN with its error and no install step; only when the metrics-server read shows it absent, ask during the run, before the report, whether it is installed, and give setup steps if it is not (`references/compute-efficiency.md`, metrics availability).
 
 ### Step 2: Spot/Graviton Adoption Assessment
 

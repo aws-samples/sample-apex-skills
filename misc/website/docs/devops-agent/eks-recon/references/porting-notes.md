@@ -1,6 +1,6 @@
 ---
 title: "Porting Notes — eks-recon"
-description: ""
+description: "This file documents the differences between the Claude Code version and the DevOps Agent port."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/porting-notes.md
 format: md
 ---
@@ -25,7 +25,7 @@ This file documents the differences between the Claude Code version and the DevO
 | Subagent orchestration | 10 module subagents spawned in parallel via the Agent tool (`agents/*.md`) | No Agent tool — collapsed into SKILL.md reference-loading. Each module is a `references/<module>.md` file loaded on demand via the routing table. |
 | Report generation | Markdown fact report + YAML artifact, written to `<output-prefix>.{md,yaml}`; caller-supplied prefix honored, default `EKS-Recon-<cluster>-<YYYY-MM-DD>-<HHMM>` | Markdown primary + YAML snapshot, fixed UTC timestamped names; no caller prefix. Named-destination collision checks only when supported by the service; no filesystem APIs assumed |
 | Prior-run comparison | Optional caller-selected YAML path; facts-only delta; collision prompts for a new prefix after showing facts inline | Optional accessible YAML content/attachment; same fact-comparison semantics, but collision returns an error without prompting; facts remain inline |
-| Script dependencies | Python 3 for the GitOps metadata extractor ([invocation](../../../skills/eks/eks-recon/references/cicd#spoke-side-tracking-and-the-gitops-outcome)) | None — no scripts permitted |
+| Script dependencies | Python 3 for the GitOps metadata extractor ([invocation](../../../skills/eks/eks-recon/references/cicd.md#spoke-side-tracking-and-the-gitops-outcome)) | None — no scripts permitted |
 | Cluster selection | Auto-discovers, asks user on ambiguity | Auto-selects single cluster; assesses all discovered on ambiguity; HARD STOP on API failure / zero clusters |
 | MCP dependencies | References eks-mcp-server for richer live data | No MCP dependencies; uses Agent Space APIs directly |
 | iac `evidence.type` enum | 4 values (upstream Output Schema): includes `workspace_files` and `cfn_stacks` | 2 values (port Output Schema): `cluster_tags` \| `in_cluster_crds`. Drops `workspace_files` (no filesystem in Agent Space) and `cfn_stacks` (the port's `iam-policy.json` grants no `cloudformation:*` permission). CloudFormation cluster-tag evidence remains available via `aws:cloudformation:*` tags → `cluster_tags` evidence + `tags.cfn_stack_id`; stack API observations are unavailable in the port. |

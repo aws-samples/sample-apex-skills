@@ -73,7 +73,7 @@ Only attach these policies -- never application permissions:
 **Prerequisites:** The account must have the `AWSServiceRoleForEC2Spot` service-linked role for Spot instances. Create with `aws iam create-service-linked-role --aws-service-name spot.amazonaws.com` or via Terraform `aws_iam_service_linked_role`.
 
 **Key components:**
-1. `module "karpenter"` -- controller IAM role (Pod Identity) + node IAM role
+1. `module "karpenter"` with `enable_inline_policy = true` (the controller policy can exceed the 6,144-character managed policy limit; [lessons-learned.md Section 23](lessons-learned.md#23-karpenter-controller-iam-policy-size-limit)) -- controller IAM role (Pod Identity) + node IAM role
 2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`), with `depends_on = [module.eks_addons_webhooks]` in Pattern 1
    - Pattern 1 (not in air-gapped builds or partitions without ECR Public): configure the `helm` provider to log in to `oci://public.ecr.aws` with a fresh ECR Public token on every run (an `ephemeral "aws_ecrpublic_authorization_token"` in `us-east-1` feeding the provider's `registries` list), not resource-level `repository_username` / `repository_password`. See [lessons-learned.md Section 17](lessons-learned.md#17-karpenter-dedicated-submodule), "Stale public.ecr.aws login (403)".
 3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs
@@ -155,7 +155,7 @@ configuration_values = jsonencode({
     ENABLE_PREFIX_DELEGATION = "true"    # 4-16x more pods/node
     WARM_PREFIX_TARGET       = "1"
   }
-  enableNetworkPolicy = "true"           # Native network policy (v1.14+)
+  enableNetworkPolicy = "true"           # Native network policy (use VPC CNI v1.22.3+, bulletin 2026-170)
 })
 ```
 
@@ -278,7 +278,7 @@ topologySpreadConstraints:
 
 For addons behind ALB:
 - `terminationGracePeriodSeconds: 60`
-- `preStop: sleep 15` (allows kube-proxy and LB to deregister before SIGTERM)
+- preStop sleep of 15s (allows kube-proxy and LB to deregister before SIGTERM): `lifecycle.preStop.sleep.seconds: 15` on Kubernetes 1.30+, the `exec` `sleep 15` form only on older clusters
 
 ### HPA Defaults (When Applicable)
 
@@ -302,7 +302,7 @@ For addons behind ALB:
 
 - **Requests**: Always set for CPU and memory (scheduling guarantee)
 - **Limits**: Always set memory (OOM protection). Usually omit CPU limits (avoid throttling)
-- **Memory limit** = 1.5-2x memory requests
+- **Memory limit** = memory requests for predictable behavior; if a workload must burst, do not set the limit much larger than the request ([EKS Best Practices: data plane](https://docs.aws.amazon.com/eks/latest/best-practices/data-plane.html))
 
 ## IAM
 
@@ -315,6 +315,32 @@ For addons behind ALB:
 - Pod Identity associations for EKS managed addons: use **separate `aws_eks_pod_identity_association` resources** (not inline in addon config) for correct destroy ordering
 - Node role: Only `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`
 - Access entries: Use scoped AWS-managed policies, not aws-auth ConfigMap
+
+### Permissions Boundary (Optional)
+
+Some organisations require a permissions boundary on every IAM role that automation creates. `cluster.yaml` takes one optional top-level key, `permissions_boundary`, a policy ARN, null by default:
+
+```yaml
+permissions_boundary: null   # e.g. "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"
+```
+
+When it is set, pass `try(local.cluster_config.permissions_boundary, null)` only to the roles the customer named in the boundary question (apex runbook question 30); leave the line out of a snippet whose role the customer did not name (service-linked roles take no boundary). A null value leaves the role without a boundary. In a child module (`eks-cluster/`, `custom-addons/`), declare `variable "permissions_boundary" { default = null }` and pass it from the root. The input name differs by module (names checked at terraform-aws-eks v21.29.0, eks-pod-identity v2.10.0, eks-blueprints-addons v1.24.3, eks-blueprints-addon v1.3.0; re-check them at the version you pin):
+
+| Role | Module or resource | Input |
+|------|--------------------|-------|
+| Cluster role | `terraform-aws-modules/eks/aws` | `iam_role_permissions_boundary` |
+| EKS Auto Mode node role | `terraform-aws-modules/eks/aws` | `node_iam_role_permissions_boundary` |
+| Node group and Fargate roles | each entry of `eks_managed_node_groups`, `self_managed_node_groups`, `fargate_profiles` | `iam_role_permissions_boundary` |
+| Karpenter controller role | `terraform-aws-modules/eks/aws//modules/karpenter` | `iam_role_permissions_boundary_arn` |
+| Karpenter node role | `terraform-aws-modules/eks/aws//modules/karpenter` | `node_iam_role_permissions_boundary` |
+| Pod Identity add-on roles | `terraform-aws-modules/eks-pod-identity/aws` | `permissions_boundary_arn` |
+| IRSA add-on roles (Pattern 1, 2a) | `aws-ia/eks-blueprints-addons/aws`, inside each add-on map (e.g. `aws_load_balancer_controller = { role_permissions_boundary_arn = ... }`) | `role_permissions_boundary_arn` |
+| Custom add-on roles | `aws-ia/eks-blueprints-addon/aws` | `role_permissions_boundary_arn` |
+| ACK, KRO and ArgoCD capability roles | `terraform-aws-modules/eks/aws//modules/capability` | `iam_role_permissions_boundary_arn` |
+| Pattern 2b Velero role | `aws_iam_role` | `permissions_boundary` |
+| ACK IAM Role manifest (Pattern 2b) | `iam.services.k8s.aws/v1alpha1` `Role` | `spec.permissionsBoundary` |
+
+A boundary caps a role: its effective permissions are what both its policies and the boundary allow. The boundary must allow every action the add-on calls, or that call fails with `AccessDenied`; the Karpenter controller role needs `iam:PassRole` and the instance-profile actions in the submodule's controller policy, which boundaries often deny. The Permissions boundary check in `scripts/validate_project.sh` confirms only the ARN shape; check by hand that each role the customer named carries the boundary.
 
 ## Observability
 

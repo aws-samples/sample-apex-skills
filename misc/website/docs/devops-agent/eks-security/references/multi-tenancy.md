@@ -1,6 +1,6 @@
 ---
 title: "Multi-tenancy & Multi-Account Isolation"
-description: ""
+description: "A first-class security area in the AWS EKS Best Practices guide."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/multi-tenancy.md
 format: md
 ---
@@ -31,7 +31,7 @@ Layer these; each compounds:
 - **Node isolation**: dedicate node pools to sensitive tenants (taints/tolerations + `nodeSelector`, or separate Karpenter NodePools) so workloads of different trust levels don't share a kernel. Recall: containers share the host kernel, so co-tenancy on a node is a shared-fate boundary.
 - **Separate namespaces for secrets** (see `encryption-and-secrets.md`).
 
-In a security event, contain the suspect pods by label rather than shutting the tenant's whole namespace: see [security-event-response.md](security-event-response) step 3.
+In a security event, contain the suspect pods by label rather than shutting the tenant's whole namespace: see [security-event-response.md](security-event-response.md) step 3.
 
 ## Cross-cluster / multi-account isolation (hard multi-tenancy)
 

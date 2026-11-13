@@ -21,6 +21,8 @@ fail() { echo -e "${RED}✗${NC} $1"; (( FAIL++ )) || true; }
 warn() { echo -e "${YELLOW}!${NC} $1"; (( WARN++ )) || true; }
 
 PROJECT_DIR="${1:?Usage: $0 <project-directory>}"
+# A relative path that starts with "-" would be read as an option by find, grep and terraform.
+case "$PROJECT_DIR" in -*) PROJECT_DIR="./$PROJECT_DIR" ;; esac
 
 if [ ! -d "$PROJECT_DIR" ]; then
     echo "Error: $PROJECT_DIR is not a directory"
@@ -55,6 +57,9 @@ for f in configs/cluster.yaml configs/compute.yaml configs/addons.yaml configs/b
         fail "$f missing"
     fi
 done
+if [ -f "$PROJECT_DIR/configs/backend.hcl" ] && ! grep -Eq '^[[:space:]]*use_lockfile[[:space:]]*=[[:space:]]*true([[:space:]#]|$)' "$PROJECT_DIR/configs/backend.hcl" 2>/dev/null; then
+    warn "configs/backend.hcl: could not confirm use_lockfile = true (S3 state locking; DynamoDB locking is deprecated)"
+fi
 
 # --- 3. terraform fmt check ---
 echo ""
@@ -207,23 +212,6 @@ if [ -f "$ADDONS_YAML" ]; then
     fi
 fi
 
-# --- 9. Velero configuration ---
-echo ""
-echo "9. Velero configuration"
-echo "-------------------------------------------"
-
-if [ -f "$ADDONS_YAML" ]; then
-    if grep -q "velero" "$ADDONS_YAML"; then
-        if grep -A10 "velero" "$ADDONS_YAML" | grep -q "upgradeCRDs.*false"; then
-            pass "Velero upgradeCRDs set to false"
-        else
-            warn "Velero may need upgradeCRDs: false (bitnami/kubectl image may not exist)"
-        fi
-    else
-        pass "Velero not configured"
-    fi
-fi
-
 # --- 10. Multus check ---
 echo ""
 echo "10. Multus safety check"
@@ -245,7 +233,7 @@ echo "-------------------------------------------"
 # Karpenter launches nodes only into subnets and security groups whose tags
 # match the EC2NodeClass selector terms (terms are ORed, the tags inside one
 # term are ANDed); a mismatch fails silently at runtime. Intended to run on
-# macOS too (POSIX awk, no grep -P), but not run there; section 6 uses grep -P.
+# macOS too (POSIX awk, no grep -P), but not run there.
 
 # Shared helpers. strip() drops # and // comments; tok() splits a line into
 # T[1..n]: { } [ ] ( ) , outside quotes and ${...}, and trimmed text between;
@@ -492,9 +480,10 @@ else
         KARP_APPLIED=$(awk "$KARP_TAG_AWK" "${KARP_TF_FILES[@]}" || true)
     fi
     # The Pattern 2 shape applies local.cluster_config.name, decoded from
-    # configs/cluster.yaml: judge it as that file's top-level name literal.
+    # configs/cluster.yaml: judge it as that file's top-level name literal, only
+    # when locals.tf decodes that file directly (any other shape stays an expression).
     KARP_CNAME=""
-    if [ -r "$PROJECT_DIR/configs/cluster.yaml" ]; then
+    if [ -r "$PROJECT_DIR/configs/cluster.yaml" ] && grep -Eq '^[[:space:]]*cluster_config[[:space:]]*=[[:space:]]*yamldecode\(file\("[^"]*configs/cluster\.yaml"\)\)[[:space:]]*$' "$PROJECT_DIR/locals.tf" 2>/dev/null; then
         KARP_CNAME=$(awk '/^name[[:space:]]*:/ { sub(/^name[[:space:]]*:[[:space:]]*/, ""); sub(/[[:space:]]+#.*$/, ""); gsub(/["'\''[:space:]]/, ""); if ($0 !~ /[${}]/) print; exit }' "$PROJECT_DIR/configs/cluster.yaml")
     fi
     if [ -n "$KARP_CNAME" ] && [ -n "$KARP_APPLIED" ]; then
@@ -528,6 +517,34 @@ if command -v terraform &>/dev/null; then
     fi
 else
     warn "terraform not found — skipping validate"
+fi
+
+# --- 13. Permissions boundary (optional) ---
+echo ""
+echo "13. Permissions boundary"
+echo "-------------------------------------------"
+
+CLUSTER_YAML="$PROJECT_DIR/configs/cluster.yaml"
+BOUNDARY=""
+UNREADABLE=0
+if [ -f "$CLUSTER_YAML" ] && [ ! -r "$CLUSTER_YAML" ]; then
+    UNREADABLE=1
+elif [ -f "$CLUSTER_YAML" ]; then
+    # Top-level key only; strip CR so a CRLF file reads the same
+    BOUNDARY=$(grep -E '^permissions_boundary[[:space:]]*:' "$CLUSTER_YAML" | head -1 | tr -d '\r' \
+        | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]+#.*$//; s/^["'\'']//; s/["'\''][[:space:]]*$//' || true)
+fi
+if [ "$UNREADABLE" = 1 ]; then
+    fail "configs/cluster.yaml is not readable: cannot check permissions_boundary"
+elif [ -z "$BOUNDARY" ] || [ "$BOUNDARY" = "null" ] || [ "$BOUNDARY" = "~" ]; then
+    pass "permissions_boundary not set: no boundary check needed"
+else
+    # A customer managed (account id) or AWS managed (`aws`) policy can be a boundary
+    if [[ "$BOUNDARY" =~ ^arn:aws[a-z-]*:iam::([0-9]{12}|aws):policy/.+$ ]]; then
+        pass "permissions_boundary is an IAM policy ARN"
+    else
+        fail "permissions_boundary is not an IAM policy ARN: $BOUNDARY"
+    fi
 fi
 
 # --- Summary ---

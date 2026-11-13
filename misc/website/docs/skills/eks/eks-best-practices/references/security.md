@@ -1,6 +1,6 @@
 ---
 title: "EKS Security Best Practices"
-description: ""
+description: "Core security guidance for Amazon EKS clusters — IAM, cluster access, pod identity, pod security, multi-tenancy, secrets management, and data encryption"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/security.md
 format: md
 ---
@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/security.md](h
 
 # EKS Security Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Core security guidance for Amazon EKS clusters — IAM, cluster access, pod identity, pod security, multi-tenancy, secrets management, and data encryption
 
-**For runtime/network security, see:** [Runtime & Network Security](security-runtime-network)
-**For supply chain, infrastructure, and compliance, see:** [Supply Chain & Compliance](security-supply-chain)
+**For runtime/network security, see:** [Runtime & Network Security](security-runtime-network.md)
+**For supply chain, infrastructure, and compliance, see:** [Supply Chain & Compliance](security-supply-chain.md)
 
 ---
 
@@ -646,7 +646,7 @@ Configure KMS to automatically rotate your CMKs. This rotates keys once a year w
 - Application to AWS services: HTTPS endpoints, VPC endpoints for private traffic
 - Nitro instances (C5n, M5n, R5n, etc.): Traffic between them is automatically encrypted
 
-**For runtime security, network policies, and encryption in transit details, see:** [Runtime & Network Security](security-runtime-network)
+**For runtime security, network policies, and encryption in transit details, see:** [Runtime & Network Security](security-runtime-network.md)
 
 ---
 

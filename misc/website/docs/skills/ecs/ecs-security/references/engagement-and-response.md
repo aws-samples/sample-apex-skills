@@ -1,6 +1,6 @@
 ---
 title: "Engagement & Response Framework"
-description: ""
+description: "How to run an ECS security/compliance conversation: the full discovery question set, the adoption-challenge archetypes, the response structure, and..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/engagement-and-response.md
 format: md
 ---
@@ -18,7 +18,7 @@ How to run an ECS security/compliance conversation: the full discovery question 
 Do NOT proceed to a recommendation without these. The first four determine ~80% of the answer, and **launch type is first** because it moves the shared-responsibility line.
 
 1. **Launch type(s)?** AWS Fargate / ECS on EC2 / ECS Managed Instances / ECS Anywhere (external) / mixed.
-2. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001 / NIST 800-53/171 / IL4-IL5 — rank primary/secondary if multiple.
+2. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (formerly Moderate baseline) / Class D (formerly High baseline) / GDPR / ISO 27001 / NIST 800-53/171 / IL4-IL5 — rank primary/secondary if multiple.
 3. **Workload sensitivity?** Public / internal-confidential / PII / PHI (HIPAA) / cardholder data (PCI) / federal / mixed.
 4. **Audit timeline?** None (greenfield posture) / <3 mo (urgent) / 3-6 mo / 6-12 mo / continuous (e.g., FedRAMP ConMon).
 5. **Network topology?** Public subnets + IGW / private subnets + NAT / fully private + VPC endpoints; single vs multi-account; multi-region; GovCloud.
@@ -35,10 +35,10 @@ Cross-account resource access (drives confused-deputy + `iam:PassRole` scoping) 
 ## The 5 adoption-challenge archetypes
 
 Identify the customer's #1 concern early — it shapes every subsequent step:
-1. **Role-trust firefight** — "ECS was unable to assume the role" blocking task launch → lead with the [identity-and-access](identity-and-access) trust-policy diagnosis, then least-privilege the role split.
+1. **Role-trust firefight** — "ECS was unable to assume the role" blocking task launch → lead with the [identity-and-access](identity-and-access.md) trust-policy diagnosis, then least-privilege the role split.
 2. **Compliance audit panic** — audit imminent, posture gap unclear → lead with the 30/60/90 non-disruptive baseline (CloudTrail + GuardDuty + ECR scanning + Security Hub ECS controls) and defer scope to the live Services-in-Scope page.
 3. **Secrets sprawl** — credentials in plaintext env vars → lead with Secrets Manager/SSM injection + execution-role permission + VPC endpoint.
-4. **Shared-responsibility confusion** — unclear what AWS vs customer secures across Fargate/EC2/MI → lead with the per-launch-type [shared-responsibility](shared-responsibility) split.
+4. **Shared-responsibility confusion** — unclear what AWS vs customer secures across Fargate/EC2/MI → lead with the per-launch-type [shared-responsibility](shared-responsibility.md) split.
 5. **Tooling sprawl** — many tools, no unified posture → lead with Security Hub aggregation + the ECS controls pack.
 
 ## Response framework (8 steps)
@@ -58,7 +58,7 @@ Skip a step only if the question is narrow enough that it doesn't apply.
 Escalate (SpecReq / Specialist / Security review) when any holds:
 - First-time certification on a **mission-critical regulated workload** (highest stakes).
 - **XXL+ segment** (all security/compliance recommendations require human review).
-- **FedRAMP High / GovCloud** → federal partner engagement (also the boundary for Fargate FIPS).
+- **FedRAMP Class D / GovCloud** → federal partner engagement (also the boundary for Fargate FIPS).
 - **IL4 / IL5** → GovCloud + DoD partner.
 - **ECS Anywhere inside a compliance boundary** → the customer owns the entire on-prem host, OS, and network; shared-responsibility boundary mapping required.
 - **Multi-tenant SaaS** with cross-tenant PHI / cardholder / federal isolation, especially on **shared EC2 container instances** (no task isolation) → recommend Fargate or account-per-tenant.

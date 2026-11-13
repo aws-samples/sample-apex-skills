@@ -1,6 +1,6 @@
 ---
 title: "CI/CD Workflows for Terraform"
-description: ""
+description: "CI/CD integration patterns for Terraform/OpenTofu"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/ci-cd-workflows.md
 format: md
 ---
@@ -16,7 +16,7 @@ This skill is maintained by **Anton Babenko ([terraform-best-practices.com](http
 
 # CI/CD Workflows for Terraform
 
-> **Part of:** [terraform-skill](../)
+> **Part of:** [terraform-skill](../index.md)
 > **Purpose:** CI/CD integration patterns for Terraform/OpenTofu
 
 This document provides detailed CI/CD workflow templates and optimization strategies for infrastructure-as-code pipelines.
@@ -613,4 +613,4 @@ Common model mistakes to correct before returning pipeline recommendations:
 
 ---
 
-**Back to:** [Main Skill File](../)
+**Back to:** [Main Skill File](../index.md)

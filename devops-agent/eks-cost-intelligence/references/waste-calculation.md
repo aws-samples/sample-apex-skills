@@ -117,12 +117,12 @@ monthly_waste = node_waste_ratio * node_monthly_cost
 | `node_avg_cpu_7d` | CloudWatch `CPUUtilization` (7-day avg) | 6% |
 | `node_avg_mem_7d` | CloudWatch / kubelet metrics (7-day avg) | 12% |
 | `instance_type` | `kubectl get node` labels | m5.xlarge |
-| `instance_hourly_rate` | AWS Price List (see reference table) | $0.192 |
+| `instance_hourly_rate` | AWS Price List when `pricing:GetProducts` is granted (see reference table) | $0.192 |
 | `node_has_gpu` | Node labels `nvidia.com/gpu` | false |
 
 #### Reference: Instance Hourly Rates (us-east-1, On-Demand)
 
-> ⚠️ **Fallback only — last verified June 2026.** Prefer the AWS Price List API for production assessments. See `cost-estimation-fallback.md` Step 2.
+> ⚠️ **Fallback only — last verified June 2026.** Prefer the AWS Price List API for production assessments when `pricing:GetProducts` is granted; otherwise use this table. See `cost-estimation-fallback.md` Step 2.
 
 | Instance Type | vCPU | Memory | Hourly Rate |
 |---------------|------|--------|-------------|
@@ -145,9 +145,9 @@ monthly_waste = node_waste_ratio * node_monthly_cost
 | r7i.xlarge | 4 | 32 GiB | $0.264 |
 | r7g.xlarge | 4 | 32 GiB | $0.214 |
 
-For instance types not in this table, use the AWS Price List API:
+For instance types not in this table, use the AWS Price List API when `pricing:GetProducts` is granted:
 
-Use the AWS Price List GetProducts API to look up hourly instance rates for types not in the reference table.
+Use the AWS Price List GetProducts API to look up hourly instance rates for types not in the reference table; without it, see `cost-estimation-fallback.md` Step 2.
 
 #### Detection Criteria
 
@@ -566,7 +566,7 @@ Cluster has 5 Spot-eligible workloads:
 | `workload_architecture` | Node label `kubernetes.io/arch` | amd64 |
 | `image_supports_arm64` | `docker manifest inspect` or ECR image index | true |
 | `workload_monthly_cost` | Allocated node cost | $192.00 |
-| `graviton_discount` | Graviton vs x86 price differential | 0.20 (20% cheaper) |
+| `graviton_discount` | Graviton vs x86 price differential, by generation ([spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1) | 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4 (against m6i) |
 
 #### Graviton Eligibility Criteria
 
@@ -588,7 +588,7 @@ graviton_eligible = [
 
 # Per workload
 x86_cost = workload_monthly_cost
-graviton_savings = x86_cost * graviton_discount  # typically 20%
+graviton_savings = x86_cost * graviton_discount  # by target Graviton generation
 
 monthly_waste = graviton_savings  # "waste" = premium paid for x86
 monthly_savings = graviton_savings
@@ -610,8 +610,8 @@ Workload: api/order-service
   arm64 support: yes (multi-arch image)
   Monthly cost on x86: $192.00
 
-Graviton equivalent: m6g.xlarge (20% cheaper than m5.xlarge)
-  m5.xlarge:  $0.192/hr
+Graviton equivalent: m6g.xlarge (Graviton2, 0.20 discount)
+  m5.xlarge:  $0.192/hr  (same rate as m6i.xlarge, the Graviton2 table pair)
   m6g.xlarge: $0.154/hr  (19.8% savings)
 
 Calculation:
@@ -785,11 +785,11 @@ def determine_confidence(data_sources: list[str]) -> str:
 
 ## Notes
 
-- All prices are US East (N. Virginia) On-Demand rates. **Use the AWS Price List API for region-specific pricing** (see `cost-estimation-fallback.md` Step 2).
+- All prices are US East (N. Virginia) On-Demand rates. **Use the AWS Price List API for region-specific pricing when `pricing:GetProducts` is granted** (see `cost-estimation-fallback.md` Step 2).
 - Spot discounts vary by instance type and region (40–90%). Use 65% as conservative default. **For production accuracy:** Use the EC2 DescribeSpotPriceHistory API to get current Spot pricing for the customer's instance types and region.
-- Graviton savings vary by instance family (15–40%). Use 20% as conservative default.
+- Graviton savings vary by generation, family and Region (us-east-1 On-Demand, 2026-11-07: 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4, none for Graviton5). Each figure compares m6i with Graviton, m family. Price both types when they are known (see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1); otherwise use the target generation's figure, and when the target is unknown (a Karpenter NodePool admitting several generations) report the range.
 - Cross-AZ pricing is consistent across regions ($0.01/GiB each direction).
 - NAT Gateway pricing is consistent across regions ($0.045/GiB processed).
 - Storage pricing varies by region; us-east-1 rates used as reference.
 - **EKS control plane cost:** $0.10/hr (standard support) or $0.60/hr (extended support for older K8s versions). Always check the cluster's K8s version — see `cost-estimation-fallback.md` for details.
-- **Static pricing data in this file is a fallback.** The skill should prefer live API lookups for dollar-accurate findings. Mark findings using static prices as "Medium" or "Low" confidence.
+- **Static pricing data in this file is a fallback.** The skill should prefer live API lookups for dollar-accurate findings when `pricing:GetProducts` is granted. Mark findings using static prices as "Medium" or "Low" confidence.

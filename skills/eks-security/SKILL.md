@@ -61,7 +61,7 @@ Exit codes: 0 ok; 2 usage or validation error (one JSON line with `code` on stdo
 
 ## C1: CVE and advisory review
 
-1. **Collect.** `collect.sh --cluster <c> --region <r>` (add `--preflight-only` first to check access). Reads control plane and platform version, every add-on and its available versions, `kube-system` and named-namespace images with digests, per-node OS image, kernel, kubelet and runtime, AMIs, ECR scanning configuration and Inspector findings for running images. `ok` is true only when every Kubernetes read is allowed; any `denied` or `error` entry becomes unknown in the report.
+1. **Collect.** `collect.sh --cluster <c> --region <r>` (add `--preflight-only` first to check access). Reads control plane and platform version, every add-on and its available versions, `kube-system` and named-namespace images with digests, per-node OS image, kernel, kubelet and runtime, AMIs, ECR scanning configuration and Inspector findings for running images. With `--preflight-only`, `ok` is true only when every Kubernetes read is allowed; a full run prints `ok: true` once the inventory is built, lists the preflight probes that were not `ok` (denied or error, Kubernetes and AWS) in `preflight_not_ok` and counts every failed read in `errors` (details in meta.json); a read that failed shows as unknown in the report.
 2. **Get the advisory as a record.**
    - Structured source (repository GHSA, Kubernetes CVE feed, ALAS, Bottlerocket): `advisory_fetch.py` writes records directly. Kubernetes feed, ALAS and Bottlerocket items carry no comparable range: they are listed for manual review (`unknown`), never compared.
    - AWS bulletin (free text): `advisory_fetch.py --url <url> --save <page>`; the model reads the saved page and writes one record whose every affected line is a verbatim quote; `advisory_check.py` refuses the whole record if any quote, component id or range fails.
@@ -89,7 +89,7 @@ If step 1 finds nothing in scope, the report says what was read and stops. Proce
 
 64 checks, `SEC-POSTURE-1` to `64`, on one collection, in this order (all read-only):
 
-1. `posture_collect.sh --cluster <name> --region <r> --context <kubectl-context> [--work <dir>] [--profile <p>] [--kubeconfig <file>] [--preflight-only]` writes `<workdir>/posture/`. `--context` is required and must match the cluster's endpoint and CA. A denied read leaves its file out; every check that needs it is unknown.
+1. `posture_collect.sh --cluster <name> --region <r> --context <kubectl-context> [--work <dir>] [--profile <p>] [--kubeconfig <file>] [--preflight-only]` writes `<workdir>/posture/`. `--context` is required and must match the cluster's endpoint and CA. A denied read leaves its file out; every check that needs it is unknown, as are SEC-POSTURE-18, -28, -29, -33, -46 and -55 when a node, volume or add-on they need was not read while the ones that were read would pass.
 2. `posture_score.sh <workdir>`: SEC-POSTURE-1 to 54, adapted from eks-well-architected-review's security pillar with its question ids (`war_id`) and severities. 15 are governance questions: always unknown, confirm them with the team. A full five-pillar review stays in eks-well-architected-review.
 3. `posture_extra.sh <workdir> [--admin-allow <regex>]`: SEC-POSTURE-55 to 64, containment checks the pillar lacks: pod access to IMDS (IMDSv2 with hop limit 1) per node type, default-deny ingress and egress per workload namespace, host namespaces in workload pods, authenticator log, GuardDuty EKS Audit Log Monitoring and Runtime Monitoring (detector configuration only), continuous ECR registry scanning, images pinned by digest, cluster admin through an access policy. `--admin-allow` names the principal ARNs expected to hold admin (the cluster creator, a break-glass role); without it the creator's entry fails SEC-POSTURE-64.
 4. `posture_reduce.sh <workdir>` writes `<workdir>/posture.json` (`eks-security/posture@1`): each check pass / fail / na / unknown with evidence, severity and a printed recommendation; a severity-weighted 0-100 score (high 3, medium 2, low 1); a coverage gate (at least half of the 49 measured checks answered, else score null and exit 3); one verdict per containment layer: contained, partly, not-contained or unknown.
@@ -118,7 +118,7 @@ The right hardening stack depends on *(compliance regime × OS mandate × team s
 
 Do not recommend a hardening stack before answering these; the first four decide most of it.
 
-1. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001 / HITRUST / NIST 800-53/171 / CJIS / DISA IL5.
+1. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (formerly Moderate baseline) / Class D (formerly High baseline) / GDPR / ISO 27001 / HITRUST / NIST 800-53/171 / CJIS / DISA IL5.
 2. **Workload sensitivity?** Public / internal / PII / PHI / cardholder data / federal.
 3. **OS / AMI strategy?** AWS defaults / Bottlerocket-first / AL2023+CIS custom AMI / Ubuntu or RHEL mandate / custom hardened / EKS Auto Mode.
 4. **Audit timeline?** None / under 3 months / 3-6 / 6-12 / continuous.
@@ -143,9 +143,9 @@ Cross-cutting: encryption and secrets ([encryption-and-secrets.md](references/en
 
 ### Compliance-regime scope
 
-EKS is **in scope** for PCI-DSS, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Moderate (commercial) and High (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud). AWS gives **framework support**, not attestation, for GDPR, NIST 800-53/800-171 and CJIS. Scope table and worked scenarios: [compliance-regimes.md](references/compliance-regimes.md); quick-starts: [HIPAA](references/compliance-hipaa.md), [PCI DSS](references/compliance-pci.md), [SOC 2](references/compliance-soc2.md), [FedRAMP](references/compliance-fedramp.md).
+EKS is **in scope** for PCI-DSS, HIPAA-eligible (BAA required), SOC 1/2/3, ISO 27001/27017/27018/9001, FedRAMP Class C (US East/West) and Class D (GovCloud only), HITRUST CSF, IRAP, C5, K-ISMS, ENS High, OSPAR, DISA IL4/IL5 (GovCloud). AWS gives **framework support**, not attestation, for GDPR, NIST 800-53/800-171 and CJIS. Scope table and worked scenarios: [compliance-regimes.md](references/compliance-regimes.md); quick-starts: [HIPAA](references/compliance-hipaa.md), [PCI DSS](references/compliance-pci.md), [SOC 2](references/compliance-soc2.md), [FedRAMP](references/compliance-fedramp.md).
 
-> **Disclaimer for customer-facing output:** "Compliance status changes over time; verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting program coverage." EKS is HIPAA-*eligible* with a signed BAA, not "HIPAA-compliant"; FedRAMP High is GovCloud only.
+> **Disclaimer for customer-facing output:** "Compliance status changes over time; verify on the live [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) page before quoting program coverage." EKS is HIPAA-*eligible* with a signed BAA, not "HIPAA-compliant"; FedRAMP Class D is GovCloud only.
 
 ### Securing an EKS Auto Mode cluster
 
@@ -224,13 +224,13 @@ Each row links its AWS source; re-read the linked page before quoting a row to a
 - **Don't recommend AWS App Mesh for new work**: AWS set its end of support for September 30, 2026; check the [App Mesh page](https://docs.aws.amazon.com/app-mesh/latest/userguide/what-is-app-mesh.html) for current status and use Istio, Linkerd, Cilium mesh or VPC Lattice.
 - **Don't recommend Auto Mode under a custom-AMI mandate**: Auto Mode supports only Amazon-provided Bottlerocket AMIs and no alternate CNI (checked 2026-11-05); use Bottlerocket on self-managed Karpenter NodePools. See [auto-mode-security.md](references/auto-mode-security.md).
 - **Don't promise "HIPAA-compliant"**: EKS is HIPAA-eligible with a signed BAA.
-- **Don't conflate** FedRAMP Moderate (commercial) with High (GovCloud); FIPS 140-3 with 140-2; CIS AL2 with CIS AL2023.
+- **Don't conflate** FedRAMP Class C (US East/West) with Class D (GovCloud); FIPS 140-3 with 140-2; CIS AL2 with CIS AL2023.
 - **Don't treat a CMK as risk-free**: disabling the envelope-encryption key degrades the cluster and deleting it makes it unrecoverable. Guard it with least-privilege IAM and an alarm.
 - **Don't synthesize compliance claims**: cite an AWS-published source or escalate.
 
 ### Escalation
 
-Escalate (your AWS account team) for: first-time certification of a mission-critical regulated workload; FedRAMP High or GovCloud; classified workloads (out of scope); EKS Anywhere or Hybrid Nodes inside a FedRAMP boundary; multi-tenant SaaS with cross-tenant PHI, cardholder or federal isolation; customer and auditor disagreeing on an AWS-managed control; an exposed finding the team cannot remediate within its patch window; or any claim you cannot ground. Criteria: [engagement-and-response.md](references/engagement-and-response.md).
+Escalate (your AWS account team) for: first-time certification of a mission-critical regulated workload; FedRAMP Class D (formerly High baseline) or GovCloud; classified workloads (out of scope); EKS Anywhere or Hybrid Nodes inside a FedRAMP boundary; multi-tenant SaaS with cross-tenant PHI, cardholder or federal isolation; customer and auditor disagreeing on an AWS-managed control; an exposed finding the team cannot remediate within its patch window; or any claim you cannot ground. Criteria: [engagement-and-response.md](references/engagement-and-response.md).
 
 ## How to use the references
 

@@ -1,6 +1,6 @@
 ---
 title: "Module: Security"
-description: ""
+description: "Detect security posture - IAM model, Pod Security, policy engines, secrets management"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/references/security.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/security.md](https://gi
 
 # Module: Security
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect security posture - IAM model, Pod Security, policy engines, secrets management
 
 ## Table of Contents
@@ -370,7 +370,7 @@ aws eks describe-cluster --name <cluster-name> --region <region> \
 
 > **Scope note:** `cluster.encryptionConfig` is fully owned by cluster-basics
 > (`encryption_config.detected` / `.kms_key_arn` / `.resources` — see
-> [`references/cluster-basics.md`](cluster-basics) "## Cluster Detail (full recon)").
+> [`references/cluster-basics.md`](cluster-basics.md) "## Cluster Detail (full recon)").
 > Security reports only the secrets-management view: `secrets.kms_encryption.{enabled,kms_key_arn}`.
 > The resources-scope list (e.g. `["secrets"]`) is not re-owned here — defer to cluster-basics.
 

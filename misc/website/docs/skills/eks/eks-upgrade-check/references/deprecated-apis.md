@@ -1,6 +1,6 @@
 ---
 title: "Deprecated API Detection"
-description: ""
+description: "Scan live cluster resources for usage of deprecated or removed Kubernetes APIs that will break during or after the upgrade."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check/references/deprecated-apis.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-upgrade-check/references/deprecated-apis
 
 
 :::info[Vendored skill]
-This skill is sourced from [eks-upgrade-check](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-upgrade-check), also maintained by the APEX team.
+This skill is sourced from [sample-eks-upgrade-skill](https://github.com/aws-samples/sample-eks-upgrade-skill), also maintained by the APEX team.
 :::
 
 # Deprecated API Detection

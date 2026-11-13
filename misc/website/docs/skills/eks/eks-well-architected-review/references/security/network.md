@@ -1,6 +1,6 @@
 ---
 title: "🔒 Security — Network Segmentation & Infrastructure"
-description: ""
+description: "8 questions — Network policies, pod network separation, SSH access, cluster security group egress, subnet IP capacity, prefix delegation."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/security/network.md
 format: md
 ---
@@ -19,7 +19,7 @@ This page is generated from [skills/eks-well-architected-review/references/secur
 
 **8 questions** — Network policies, pod network separation, SSH access, cluster security group egress, subnet IP capacity, prefix delegation.
 
-> **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access).**
+> **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access.md).**
 > The per-question `Detection:` tags below are explanatory only; the scorer decides measured vs governance.
 
 Scoring (applies to every question): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`.
@@ -293,8 +293,19 @@ health-check range or a partner's fixed IP that nobody documented — so revokin
 off with no warning. Find who is actually using the port before narrowing it:
 
 ```bash
-aws ec2 describe-network-interfaces --filters Name=group-id,Values=<SG_ID> --region <REGION> \
+aws ec2 describe-network-interfaces --include-managed-resources --filters Name=group-id,Values=<SG_ID> --region <REGION> \
   --query 'NetworkInterfaces[].{Id:NetworkInterfaceId,Desc:Description,Attachment:Attachment.InstanceId}'
+# --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) also lists the ENIs
+# EKS Auto Mode hides from list calls (node and pod branch ENIs). An older CLI rejects the
+# flag: drop it (or upgrade the CLI), and then an empty result is not proof the group is
+# unused, so also check this
+# cluster's nodes by id (pod branch ENIs and other clusters' nodes are not covered); any
+# id printed uses the group. Ids come from both providerID and the node name, which on
+# Auto Mode is the instance id. Run in bash; on InvalidInstanceID.NotFound a node was just
+# removed, so run it again.
+IDS=$(kubectl get nodes -o jsonpath='{.items[*].spec.providerID} {.items[*].metadata.name}' | tr ' ' '\n' | sed 's#.*/##' | grep -E '^i-[0-9a-f]{8,}$' | sort -u)
+aws ec2 describe-instances --region <REGION> --instance-ids ${IDS:?no EC2 node ids: check that kubectl points at this cluster} \
+  --query "Reservations[].Instances[?contains(NetworkInterfaces[].Groups[].GroupId, '<SG_ID>')].InstanceId[]"
 # Cross-check against VPC Flow Logs for the source IPs actually hitting this port, and any
 # documented partner/office CIDR or load balancer health-check range before revoking.
 ```

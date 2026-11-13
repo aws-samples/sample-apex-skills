@@ -1,6 +1,6 @@
 ---
 title: "Observability Costs"
-description: ""
+description: "Checks for EKS control plane logging configuration (all log types enabled unnecessarily), high-cardinality metric sources (Prometheus scrape configs,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/observability-costs.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/obser
 
 # Observability Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for EKS control plane logging configuration (all log types enabled unnecessarily), high-cardinality metric sources (Prometheus scrape configs, CloudWatch agent), DEBUG/TRACE log levels in production, and log filtering/sampling configurations (FluentBit, CloudWatch agent)
 
 ---

@@ -12,9 +12,9 @@ This page is generated from [examples/eks-upgrades/in-place-karpenter-check/READ
 
 # Assess Your EKS Cluster Upgrade Readiness with APEX EKS
 
-A hands-on exercise that demonstrates the APEX [`eks-upgrade-check` skill](../../../skills/eks/eks-upgrade-check/) in practice (the APEX upgrade check runbook, listed under Further Reading, applies when the apex skill routes the request). Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
+A hands-on exercise that demonstrates the APEX [`eks-upgrade-check` skill](../../../skills/eks/eks-upgrade-check/index.md) in practice (the APEX upgrade check runbook, listed under Further Reading, applies when the apex skill routes the request). Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
 
-The upgrade-check runbook uses the [`eks-upgrade-check`](../../../skills/eks/eks-upgrade-check/) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
+The upgrade-check runbook uses the [`eks-upgrade-check`](../../../skills/eks/eks-upgrade-check/index.md) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
 
 ## Overview
 
@@ -146,7 +146,7 @@ The assessment correctly identified all 3 planted issues:
 2. **Blocking PDB on singleton-app** — drain-blocking PDB flagged under workload risks
 3. **Endpoints API deprecation** — detected as a behavioral change for 1.33
 
-Full sample output: [`sample-report.md`](static/cc/sample-report) | [`sample-report.html`](pathname:///sample-apex-skills/examples/eks-upgrades/in-place-karpenter-check/static/cc/sample-report.html)
+Full sample output: [`sample-report.md`](static/cc/sample-report.md) | [`sample-report.html`](pathname:///sample-apex-skills/examples/eks-upgrades/in-place-karpenter-check/static/cc/sample-report.html)
 
 <iframe src="/sample-apex-skills/examples/eks-upgrades/in-place-karpenter-check/static/cc/sample-report.html" width="100%" height="600px" style={{border:"1px solid var(--ifm-color-emphasis-300)", borderRadius:"8px"}}></iframe>
 
@@ -169,7 +169,7 @@ The assessment correctly identified all 3 planted issues:
 2. **Drain-blocking PDB on singleton-app** — flagged under workload risks
 3. **Single-replica deployment** — singleton-app flagged as availability risk
 
-Full sample output: [`sample-report.md`](static/kiro/sample-report) | [`sample-report.html`](pathname:///sample-apex-skills/examples/eks-upgrades/in-place-karpenter-check/static/kiro/sample-report.html)
+Full sample output: [`sample-report.md`](static/kiro/sample-report.md) | [`sample-report.html`](pathname:///sample-apex-skills/examples/eks-upgrades/in-place-karpenter-check/static/kiro/sample-report.html)
 
 <iframe src="/sample-apex-skills/examples/eks-upgrades/in-place-karpenter-check/static/kiro/sample-report.html" width="100%" height="600px" style={{border:"1px solid var(--ifm-color-emphasis-300)", borderRadius:"8px"}}></iframe>
 
@@ -200,11 +200,11 @@ If you ran this example's deploy.sh before v2, also remove `.claude/commands/ape
 
 ## Further Reading
 
-- [APEX EKS Upgrade Check Runbook](../../../skills/general/apex/runbooks/eks-upgrade-check/)
-- [EKS Upgrade Check Skill](../../../skills/eks/eks-upgrade-check/)
-  - [Version Validation Reference](../../../skills/eks/eks-upgrade-check/references/version-validation)
-  - [Add-on Compatibility Reference](../../../skills/eks/eks-upgrade-check/references/addon-compatibility)
-  - [Workload Risks Reference](../../../skills/eks/eks-upgrade-check/references/workload-risks)
-  - [Report Generation Reference](../../../skills/eks/eks-upgrade-check/references/report-generation)
+- [APEX EKS Upgrade Check Runbook](../../../skills/general/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md)
+- [EKS Upgrade Check Skill](../../../skills/eks/eks-upgrade-check/index.md)
+  - [Version Validation Reference](../../../skills/eks/eks-upgrade-check/references/version-validation.md)
+  - [Add-on Compatibility Reference](../../../skills/eks/eks-upgrade-check/references/addon-compatibility.md)
+  - [Workload Risks Reference](../../../skills/eks/eks-upgrade-check/references/workload-risks.md)
+  - [Report Generation Reference](../../../skills/eks/eks-upgrade-check/references/report-generation.md)
 - [Karpenter Compatibility Matrix](https://karpenter.sh/docs/upgrading/compatibility/)
 - [EKS Version Release Notes](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions-standard.html)

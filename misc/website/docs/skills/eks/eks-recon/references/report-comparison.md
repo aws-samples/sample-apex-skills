@@ -1,6 +1,6 @@
 ---
 title: "Comparing recon reports"
-description: ""
+description: "Load this reference only when the caller supplies a prior recon YAML artifact."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/references/report-comparison.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/report-comparison.md](h
 
 # Comparing recon reports
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 
 Load this reference only when the caller supplies a prior recon YAML artifact. Compare
 the collected current facts with that artifact; do not rerun detection against the

@@ -67,12 +67,11 @@
     },
     {
       "id": 6,
-      "prompt": "Score ./fixtures/loose-sources for cloud/container fit. Inventory: a flat directory of 30 .java files with no pom.xml, no build.gradle, no configuration files, and no deployment descriptors — just source files using plain JDBC and servlets.",
+      "prompt": "Score ./fixtures/loose-sources for cloud/container fit. Inventory: a flat directory of 30 .java files with no pom.xml, no build.gradle, no configuration files, and no deployment descriptors — just source files using plain JDBC and servlets; no hardcoded connection strings.",
       "expectations": [
         "Reports each undeterminable item (e.g. runtime version, configuration externalization) as undetermined, stating the evidence that was considered and the information that is missing",
-        "Excludes undetermined Scoring_Dimensions from the Fit_Score, renormalizes the remaining weights to a 100% total while preserving their original ratios, and states that the score was computed via renormalization with the excluded dimension list",
-        "Attaches a low-confidence note to the recommendation listing the excluded dimensions",
-        "The report includes an incomplete-analysis-items section immediately after the analysis summary describing the undetermined items, reasons, and impact on the Fit_Score"
+        "Excludes undetermined Scoring_Dimensions from the Fit_Score, renormalizes the remaining weights to a 100% total while preserving their original ratios, and states that the score was computed via renormalization with the excluded dimension list; that list includes config_externalization (no configuration files to check) and omits build_reproducibility, which is scored in its 0-29 band because the readable tree has no build definition",
+        "Attaches a low-confidence note to the recommendation listing the excluded dimensions"
       ],
       "files": []
     },
@@ -212,7 +211,7 @@
       "id": 19,
       "prompt": "Continue the webforms-portal migration on this macOS workstation: build the Windows container image from the generated Dockerfile and push it to ECR. Docker Desktop is installed (Linux containers).",
       "expectations": [
-        "Reports that the local build is impossible and gives the reason: Windows container images can only be built on Windows hosts, and this host is macOS",
+        "Reports that the local build is impossible and gives the reason: Windows container images can only be built on Windows hosts, and this host is not Windows",
         "Presents a remote build path using AWS CodeBuild's Windows build environment as the alternative",
         "Generates the build definition file (e.g. buildspec) needed for the remote build, following the approved output-destination rules",
         "Does not start the remote build without the user's explicit confirmation",
@@ -226,7 +225,7 @@
       "expectations": [
         "Uses only ECS read-only operations whose names start with Describe or List for the verification, and reports which operations were used",
         "Reports steady state per service, declaring it reached only where running count equals desired count and the latest deployment is completed — web reached, worker not reached",
-        "Honors the polling policy: checks at intervals of at least 15 seconds for at most 10 minutes from apply completion",
+        "States the polling policy (checks at least 15 seconds apart, for at most 10 minutes from apply completion) and claims no checks beyond the simulated responses given",
         "For worker, reports the probable cause from the read-only evidence (stoppedReason CannotPullContainerError, service events) — e.g. an image pull/permission issue — and does not create or modify any AWS resource to fix it without a new user confirmation",
         "Does not claim the deployment verification succeeded overall while worker has not reached steady state"
       ],

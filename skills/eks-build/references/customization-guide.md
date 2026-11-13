@@ -6,34 +6,32 @@ Covers environment-specific constraints that require modifications to the baseli
 
 ## 1. Air-Gapped / VPC-Endpoint-Only Networks
 
-Clusters with no internet egress must reach AWS services through VPC endpoints. Every image pull, Helm fetch, and API call must stay within the VPC.
+Clusters with no internet egress must reach AWS services through VPC endpoints. Every image pull, Helm fetch, and API call must stay within the VPC. One exception: when ECR is reached through interface VPC endpoints, the first pull of an image through an ECR pull-through cache rule needs a route to the internet from the VPC ([ECR pull-through cache considerations](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html)). For a VPC with no egress, seed the cache first: pull each image and tag once through its pull-through URI from a network with a route. Later pulls of that tag are served from the cache, so seed again for each new tag.
 
 **Required VPC endpoints** (all Interface type except S3 which is Gateway):
 `eks`, `eks-auth`, `ecr.api`, `ecr.dkr`, `s3` (Gateway), `sts`, `ec2`,
-`elasticloadbalancing`, `autoscaling`, `logs`, `ebs`, `ssm`.
+`elasticloadbalancing`, `autoscaling`, `logs`, `ssm`, and `oidc-eks` to set up IRSA from inside the VPC ([private cluster requirements](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html)). The `ebs` endpoint serves the EBS direct APIs (snapshot data); add it only for a workload that calls them ([EBS direct APIs endpoint](https://docs.aws.amazon.com/ebs/latest/userguide/ebs-apis-vpc-endpoints.html)).
 All interface endpoints must have private DNS enabled and share the worker node subnets and security groups.
 
 **ECR pull-through cache** -- mirror every public registry into private ECR:
 ```bash
+# No upstream credentials needed
 aws ecr create-pull-through-cache-rule --ecr-repository-prefix ecr-public  --upstream-registry-url public.ecr.aws
-aws ecr create-pull-through-cache-rule --ecr-repository-prefix docker-hub  --upstream-registry-url registry-1.docker.io
+aws ecr create-pull-through-cache-rule --ecr-repository-prefix k8s         --upstream-registry-url registry.k8s.io
 aws ecr create-pull-through-cache-rule --ecr-repository-prefix quay        --upstream-registry-url quay.io
-aws ecr create-pull-through-cache-rule --ecr-repository-prefix ghcr        --upstream-registry-url ghcr.io
-```
 
-**containerd mirror config** via AL2023 nodeadm in `compute.yaml`:
-```yaml
-cloudinit_pre_nodeadm:
-  - content_type: application/node.eks.aws
-    content: |
-      [settings.container-registry.mirrors]
-        [settings.container-registry.mirrors."docker.io"]
-          endpoints = ["https://<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/docker-hub"]
-        [settings.container-registry.mirrors."quay.io"]
-          endpoints = ["https://<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/quay"]
-        [settings.container-registry.mirrors."ghcr.io"]
-          endpoints = ["https://<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/ghcr"]
+# Docker Hub and ghcr.io need a Secrets Manager secret (keys username, accessToken),
+# named with the ecr-pullthroughcache/ prefix, in the same account and Region as the rule
+aws secretsmanager create-secret --name ecr-pullthroughcache/docker-hub --secret-string file://docker-hub-creds.json
+aws secretsmanager create-secret --name ecr-pullthroughcache/ghcr       --secret-string file://ghcr-creds.json
+aws ecr create-pull-through-cache-rule --ecr-repository-prefix docker-hub  --upstream-registry-url registry-1.docker.io \
+  --credential-arn <DOCKER_HUB_SECRET_ARN>
+aws ecr create-pull-through-cache-rule --ecr-repository-prefix ghcr        --upstream-registry-url ghcr.io \
+  --credential-arn <GHCR_SECRET_ARN>
 ```
+Sources: [Creating a pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-creating-rule.html), [Storing upstream credentials in a Secrets Manager secret](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-creating-secret.html).
+
+Reference each image by its pull-through URI, `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<prefix>/<upstream repository>:<tag>`. For example, `quay.io/jetstack/cert-manager-controller` becomes `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/quay/jetstack/cert-manager-controller:<tag>`. Docker Hub official images need the `/library` part, as in `docker-hub/library/<image>` ([Pulling an image with a pull through cache rule](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-working-pulling.html)). This guide sets up no node-level mirror, so every image value a chart exposes (sub-images and hook Jobs included), and every other add-on, workload and init container, needs the same rewrite. Section 3 gives the override values for 7 common add-ons; any other add-on you enable needs the same rewrite, built from its chart's values.yaml. AWS add-ons pull from an Amazon EKS ECR repository in each Region (through the ECR interface endpoints and the S3 gateway endpoint), so they need no rewrite; check where a community or Marketplace add-on pulls from ([Amazon container image registries for Amazon EKS add-ons](https://docs.aws.amazon.com/eks/latest/userguide/add-ons-images.html)). Kubelet's ECR credential provider authenticates these pulls with the node role. The principal behind an image's first pull also needs `ecr:BatchImportUpstreamImage`, plus `ecr:CreateRepository` while the cache repository does not exist yet ([IAM permissions for pull through cache](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache-iam.html)). A managed node group role (`AmazonEC2ContainerRegistryReadOnly`) carries neither; Karpenter and Auto Mode node roles (`AmazonEC2ContainerRegistryPullOnly`) carry `ecr:BatchImportUpstreamImage` but not `ecr:CreateRepository`. Grant what is missing to the principal behind the first pull: the node role, or in a VPC with no egress the identity that seeds the cache (see the first-pull note at the top of this section).
 
 **Helm chart mirroring** -- push OCI artifacts to ECR or host tarballs in S3 (reachable via the S3 gateway endpoint):
 ```bash
@@ -90,44 +88,59 @@ Apply the same pattern to: `cluster_autoscaler`, `external_dns`, `external_secre
 
 All images must come from an approved private registry. Override every addon's image references and restrict what the cluster can pull.
 
-**Per-addon image repository overrides** in `addons.yaml`:
+**ECR pull-through cache** (Section 1 rules and prefixes): each value is `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<prefix>/<full upstream path>`. Overrides in `addons.yaml` (upstream paths from each chart's values.yaml at aws-load-balancer-controller 3.6.2, cluster-autoscaler 9.60.0, cert-manager v1.21.3, external-secrets 2.14.0, velero 12.2.4, metrics-server 3.14.0 and external-dns 1.23.0; re-check at the chart version you pin):
 ```yaml
 aws_load_balancer_controller:
   config:
     set:
-      - { name: image.repository, value: "<REGISTRY_HOST>/eks/aws-load-balancer-controller" }
+      - { name: image.repository, value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/ecr-public/eks/aws-load-balancer-controller" }
 cluster_autoscaler:
   config:
     set:
-      - { name: image.repository, value: "<REGISTRY_HOST>/k8s/cluster-autoscaler" }
+      - { name: image.repository, value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/k8s/autoscaling/cluster-autoscaler" }
 cert_manager:
   config:
     set:
-      - { name: image.repository,            value: "<REGISTRY_HOST>/jetstack/cert-manager-controller" }
-      - { name: webhook.image.repository,    value: "<REGISTRY_HOST>/jetstack/cert-manager-webhook" }
-      - { name: cainjector.image.repository, value: "<REGISTRY_HOST>/jetstack/cert-manager-cainjector" }
+      # chart v1.20.0+; covers controller, webhook, cainjector, acmesolver and startupapicheck (imageNamespace stays jetstack)
+      - { name: imageRegistry, value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/quay" }
 external_secrets:
   config:
     set:
-      - { name: image.repository, value: "<REGISTRY_HOST>/ghcr/external-secrets" }
+      # covers controller, webhook and cert-controller
+      - { name: global.repository, value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/ghcr/external-secrets/external-secrets" }
 velero:
   config:
     set:
-      - { name: image.repository,        value: "<REGISTRY_HOST>/docker/velero/velero" }
-      - { name: kubectl.image.repository, value: "<REGISTRY_HOST>/docker/bitnami/kubectl" }
+      - { name: image.repository,         value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/docker-hub/velero/velero" }
+      # replaces the AWS plugin initContainer the blueprints-addons module sets (velero/velero-plugin-for-aws)
+      # <PLUGIN_TAG>: the plugin minor the velero-plugin-for-aws README compatibility matrix pairs with
+      # the chart's Velero version (chart 12.2.x ships Velero 1.18.x, so plugin v1.14.x); not the
+      # module's v1.7.1, which pairs with Velero 1.11
+      - name: initContainers
+        value: |
+          - name: velero-plugin-for-aws
+            image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/docker-hub/velero/velero-plugin-for-aws:<PLUGIN_TAG>
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+              - mountPath: /target
+                name: plugins
 metrics_server:
   config:
     set:
-      - { name: image.repository, value: "<REGISTRY_HOST>/k8s/metrics-server" }
+      - { name: image.repository, value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/k8s/metrics-server/metrics-server" }
 external_dns:
   config:
     set:
-      - { name: image.repository, value: "<REGISTRY_HOST>/k8s/external-dns" }
+      - { name: image.repository, value: "<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/k8s/external-dns/external-dns" }
 ```
 
-**ImagePullSecret** -- create a `kubernetes.io/dockerconfigjson` Secret in each namespace, then inject it via Kyverno mutation policy or by patching the default ServiceAccount.
+**Separate private registry** (not ECR): mirror each image under its full upstream path and set the same keys to `<REGISTRY_HOST>/<full upstream path>` (cert-manager: `imageRegistry: <REGISTRY_HOST>`).
 
-**Kyverno registry restriction policy** -- deploy a `ClusterPolicy` with `validationFailureAction: Enforce` that matches all Pods and validates both `containers[*].image` and `initContainers[*].image` against an allow-list: `<REGISTRY_HOST>/*` and `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/*`. Reject anything else at admission.
+**ImagePullSecret** (separate private registry only) -- create a `kubernetes.io/dockerconfigjson` Secret in each namespace, then inject it via Kyverno mutation policy or by patching the default ServiceAccount.
+
+**Kyverno registry restriction policy** -- deploy a `ValidatingPolicy` (legacy: a `ClusterPolicy` with `validationFailureAction: Enforce`) that matches all Pods and validates both `containers[*].image` and `initContainers[*].image` against an allow-list: `<REGISTRY_HOST>/*`, `<ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/*` and the Amazon EKS add-on registry for your Region. Reject anything else at admission.
+
+Note: Kyverno `ClusterPolicy` (`kyverno.io/v1`) is deprecated as of Kyverno v1.19 ([Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)); on v1.19+ write this rule as a `ValidatingPolicy` (`policies.kyverno.io/v1`). Kyverno v1.20 (a release candidate as of 2026-11-08) no longer executes ClusterPolicy; migrate before upgrading past 1.19.
 
 ---
 
@@ -157,7 +170,10 @@ endpoint_public_access: false                # Private endpoint only
 endpoint_private_access: true
 kms_key_arn: "arn:aws:kms:<REGION>:<ACCOUNT_ID>:key/<KEY_ID>"
 cluster_enabled_log_types: [api, audit, authenticator, controllerManager, scheduler]
+permissions_boundary: null   # e.g. "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"
 ```
+
+**Permissions boundary**: Only when the customer answered yes to question 30 with an ARN, set `permissions_boundary` in `cluster.yaml`. Every role the customer named then carries it; the input name per module is in [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional).
 
 CloudWatch log retention at 365 days:
 ```hcl
@@ -189,3 +205,5 @@ managed_node_groups:
 **PSS Baseline enforcement** -- set `pss_level: baseline` and `default_deny: true` on all platform namespaces. The `default_deny` flag auto-creates a NetworkPolicy that blocks all ingress and egress (`podSelector: {}`, `policyTypes: [Ingress, Egress]`). Addon-specific allow rules must be layered on top per namespace.
 
 **KMS envelope encryption**: the `kms_key_arn` in `cluster.yaml` enables encryption for all Kubernetes Secrets at rest. The KMS key must grant `eks.amazonaws.com` in its key policy, reside in the same region, and have automatic rotation enabled.
+
+**FIPS endpoints and pull-through cache**: the first pull of an image through an ECR pull-through cache rule does not work through the ECR FIPS endpoints; later pulls do ([ECR pull-through cache considerations](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html)).

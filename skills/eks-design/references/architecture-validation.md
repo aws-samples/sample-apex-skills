@@ -39,7 +39,7 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 | 8 | Cost & scalability | Cost strategies (Graviton, Spot, right-sizing), scaling guidance | Yes |
 | 9 | DR & backup | Backup tiers, recovery scenarios, availability design | Yes |
 | 10 | Multi-tenancy | Namespace isolation, RBAC, quotas, onboarding, cost attribution | If multi-tenant |
-| 11 | Air-gapped | VPC endpoints, ECR pull-through, containerd mirrors | If air-gapped |
+| 11 | Air-gapped | VPC endpoints, ECR pull-through with images referenced by their pull-through URI (first pull needs an internet route; see eks-best-practices container-registry, Pull-Through Cache) | If air-gapped |
 | 12 | Proxy | HTTP_PROXY injection, NO_PROXY list | If proxy required |
 | 13 | Private registry | Image overrides, ImagePullSecrets | If private registry |
 | 14 | Compliance | Policy engine, benchmark mapping, audit logging | If compliance required |
@@ -131,8 +131,6 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 - [ ] ADRs — one per required category (minimum 6)
 - [ ] security-architecture.md — IAM, pod security, encryption, secrets, audit
 - [ ] Mermaid diagrams — cluster topology, addon dependencies (minimum 2)
-- [ ] Diagrams rendered to high-res PNG (4x scale, white background) in `diagrams/` folder
-- [ ] If docx/pptx generated: all rendered PNGs embedded in the documents (not just Mermaid code blocks)
 
 **ADR quality checklist**:
 - [ ] Every ADR has at least 2 alternatives with pros/cons
@@ -181,7 +179,7 @@ Comprehensive validation of EKS architecture completeness, integration feasibili
 |----------|--------|-----------|
 | Required documents present | 10 | All = 10, most = 7, major gaps = 4 |
 | ADR quality | 5 | All pass checklist = 5, partial = 3, poor = 1 |
-| Diagram quality | 5 | Mermaid in markdown + rendered PNGs in `diagrams/` + embedded in docx/pptx = 5, Mermaid only (no PNGs) = 3, missing = 0 |
+| Diagram quality | 5 | Every Mermaid diagram the checklist above names, in markdown = 5, some = 3, none = 0 |
 
 ### Overall Score
 

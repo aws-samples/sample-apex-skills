@@ -188,9 +188,7 @@ Three-part config: S3 bucket + auth (IRSA or Pod Identity) + Helm chart.
 
 | Setting | Value | Reason |
 |---------|-------|--------|
-| `upgradeCRDs` | `false` | bitnami/kubectl image for latest K8s may not exist |
-| `kubectl.image.tag` | Look up latest available | Search Docker Hub for `bitnami/kubectl` tags |
-| `credentials.useSecret` | `false` | When using Pod Identity |
+| `credentials.useSecret` | `false` | When using Pod Identity or IRSA |
 | `s3_backup_location` | S3 bucket ARN | Required for IRSA policy |
 
 ### CRD name collision
@@ -394,12 +392,15 @@ module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
   version = "<LOOK_UP>"  # Look up latest from Terraform Registry
   cluster_name                    = module.eks_cluster.cluster_name
+  enable_inline_policy            = true  # controller policy can exceed the 6,144-character managed policy limit (Section 23)
   create_pod_identity_association = true
   node_iam_role_use_name_prefix   = false
   node_iam_role_name              = "${local.cluster_config.name}-karpenter-node"
   node_iam_role_additional_policies = {
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   }
+  iam_role_permissions_boundary_arn  = try(local.cluster_config.permissions_boundary, null)  # only if the customer named this role in question 30
+  node_iam_role_permissions_boundary = try(local.cluster_config.permissions_boundary, null)  # only if the customer named this role in question 30
   tags = local.tags
 }
 ```
@@ -415,7 +416,7 @@ aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
 
 ### Stale public.ecr.aws login (403)
 
-**Pattern:** 1 (Terraform `helm_release`; plan-proven in issue 304, not applied. Pattern 2 pulls the chart through ArgoCD)
+**Pattern:** 1 (Terraform `helm_release`. Pattern 2 pulls the chart through ArgoCD)
 
 The Karpenter chart is public, so an anonymous pull works, but only while the machine running Terraform has no `public.ecr.aws` entry in its Helm registry config or Docker config. An earlier `helm registry login` or `docker login public.ecr.aws` leaves a token that lasts 12 hours; once it expires, Helm sends it instead of pulling anonymously and `terraform plan` (the helm provider locates the chart while planning) or `apply` fails:
 
@@ -445,7 +446,7 @@ provider "helm" {
 }
 ```
 
-The provider login also writes this token to Helm's registry config, so other Helm pulls from public.ecr.aws on that machine can hit the same 403 after 12 hours; recover with the logout below.
+The provider login also writes this token to Helm's default registry config (the path `helm env HELM_REGISTRY_CONFIG` prints), even when `registry_config_path` is set, so other Helm pulls from public.ecr.aws on that machine can hit the same 403 after 12 hours; recover with the logout below.
 
 - Prefer the ephemeral resource. Below hashicorp/aws 6.31.0 use the `data "aws_ecrpublic_authorization_token"` form in the same `registries` list (on aws 5.x, which has no `region` argument, through a `us-east-1` provider alias); its token is stored in state (and in a saved plan, so applying a saved plan can reuse it past its 12 hours). Do not use resource-level `repository_username` / `repository_password`: `repository_password` is stored in state and cannot take an ephemeral value.
 - The identity running Terraform needs `ecr-public:GetAuthorizationToken` and `sts:GetServiceBearerToken`.
@@ -474,6 +475,7 @@ module "ebs_csi_pod_identity" {
   use_name_prefix = false
   attach_aws_ebs_csi_policy  = true
   aws_ebs_csi_policy_name    = "${local.cluster_config.name}-EBS_CSI"
+  permissions_boundary_arn   = try(local.cluster_config.permissions_boundary, null)  # only if the customer named this role in question 30
   tags = local.tags
 }
 ```
@@ -516,10 +518,14 @@ resource "kubernetes_namespace_v1" "argocd" {
 
 **Fix:** Add a `null_resource` with destroy-time provisioner that deletes capabilities via the EKS API before Terraform attempts deletion. Include `sleep 180` for ArgoCD capability deletion time.
 
-**Workaround:** Manually delete capabilities via API, remove from state, then destroy:
+**Workaround:** Stop the hung `terraform destroy` first: interrupt it once (Ctrl-C or SIGINT) and wait for it to exit. List the capabilities and show them to the user with the intent to destroy; if the user declines any capability, stop, since the destroy removes the cluster it runs on. Deleting a capability "removes the capability infrastructure but retains all resources that were managed by the capability", so ask the user whether to delete or keep the Kubernetes resources each capability manages (for ACK, deleting them deletes the AWS resources by default), and do that before you delete the capability. Wait until the deleted capabilities are no longer listed, remove only the `aws_eks_capability` resources from state, then show the destroy plan and apply it only after the user approves it:
 ```bash
-terraform state list | grep capability | xargs -I{} terraform state rm {}
-terraform destroy -auto-approve
+aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].[capabilityName,status]' --output text  # show the user, get their yes
+aws eks delete-capability --cluster-name <cluster> --capability-name <name>  # only the names the user approved
+aws eks list-capabilities --cluster-name <cluster> --query 'capabilities[].[capabilityName,status]' --output text  # repeat until they are gone; on DELETE_FAILED stop and report it to the user
+terraform state list | grep -E '(^|\.)aws_eks_capability\.' | xargs -I{} terraform state rm {}
+terraform plan -destroy -out=destroy.tfplan
+terraform apply destroy.tfplan  # only after the user approves the plan above
 ```
 
 ---

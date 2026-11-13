@@ -18,6 +18,7 @@ This is a **path module**: unlike the orchestrator-neutral analysis modules, ECS
   - [Effort Scale (Single Definition)](#effort-scale-single-definition)
   - [Framework Migration Options](#framework-migration-options)
   - [AWS Transform Applicability Guidance](#aws-transform-applicability-guidance)
+  - [Containerization Policy](#containerization-policy)
   - [Delegation to ecs-architect](#delegation-to-ecs-architect)
 - [Output Schema](#output-schema)
 - [Edge Cases](#edge-cases)
@@ -56,14 +57,17 @@ Run the steps in this order:
                                                     with approximate effort
 8. Annotate AWS Transform applicability          -> recommendation only; execution belongs to
                                                     the code transformation module post-gate
-9. Assemble the output with the delegation note  -> detailed design goes to ecs-architect
+9. Present the containerization policy          -> three items for the target stack
+                                                    (Containerization Policy)
+10. Assemble the output with the delegation note -> detailed design goes to ecs-architect
 ```
 
 **Why this order:**
 
 - Candidates before items (steps 2–3 before 4): applicability judgments consume the raw findings; the modernization items then explain *what closes the gap* for candidates marked applicable-after-remediation, so the items must be derived with the candidate gaps already known.
 - Coverage verification (step 5) sits between derivation and effort classification: an unmapped blocker discovered late would invalidate the item list, so check completeness before investing in per-item classification.
-- Framework migration (step 7) and AWS Transform annotations (step 8) come last among content steps because both attach to already-derived items — they modify presentation (optionality, accelerator notes), never the underlying finding-to-item mapping.
+- Framework migration (step 7) and AWS Transform annotations (step 8) come last among the item steps because both attach to already-derived items — they modify presentation (optionality, accelerator notes), never the underlying finding-to-item mapping.
+- The containerization policy (step 9) follows them because its Item 1 is for the target runtime after porting or AWS Transform.
 
 ---
 
@@ -118,7 +122,7 @@ Fully managed EC2 capacity for ECS (GA Sept 30, 2025 ([launch](https://aws.amazo
 - The workload benefits from EC2 instance-type flexibility (GPU, specific families, resource footprints beyond Fargate limits) or Spot/Reserved capacity economics, without the team wanting to operate a fleet.
 - Linux containers on **Bottlerocket only** (X86_64 / ARM64) — no custom AMI/kernel, no Windows; OS-specific dependencies must be resolved by porting items, as with Fargate.
 - `awsvpc` or `host` network mode (no `bridge`).
-- Tasks tolerate being cycled by the 14–21 day drain-and-replace patching lifecycle — which makes the graceful-shutdown modernization item a first-class prerequisite ([Managed Instances patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)).
+- Tasks tolerate being cycled by the 14–21 day drain-and-replace patching lifecycle (draining starts at day 14 from launch, or earlier for a detected software vulnerability, hardware health degradation or a configured event window; any instance not drained by day 21 is deregistered with its remaining tasks) — which makes the graceful-shutdown modernization item a first-class prerequisite ([Managed Instances patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)).
 - Available in all commercial AWS Regions and, since **November 21, 2025**, in **AWS GovCloud (US-East and US-West)** ([What's New — GovCloud](https://aws.amazon.com/about-aws/whats-new/2025/11/ecs-managed-instances-govcloud-us-regions/)); the **China Regions remain excluded** — so only a China-Region target rules this compute model out. (The [ECS Managed Instances FAQs](https://aws.amazon.com/ecs/managed-instances/faqs/) page can lag Region-availability updates — prefer the dated What's New posts.)
 
 **Typical grounding:** *applicable* when findings evidence resource or hardware needs Fargate cannot serve (cite the `tech_stack` or dependency evidence); *applicable_after_remediation* when graceful-shutdown or state findings must be resolved first (instance cycling makes unhandled shutdown a live risk, not a theoretical one); *not_applicable* when the deployment must land in a China Region or genuinely requires a custom AMI/kernel — the latter is also a signal to revisit the Replatform path (ECS on EC2), which the report's both-strategies comparison already presents.
@@ -190,13 +194,22 @@ AWS Transform is presented in the assessment as an **optional accelerator recomm
 | Modernization item | AWS Transform applicability | Automation scope to present |
 |---|---|---|
 | EOL Java / Node.js / Python runtime version upgrade | Out-of-the-box transformation definitions for language version upgrades | Dependency and API updates for the version jump; residual work (documented gaps) remains with the agent or the user ([AWS Transform user guide](https://docs.aws.amazon.com/transform/latest/userguide/)) |
-| .NET Framework → .NET 8 (LTS) / .NET 10 porting (including the ASP.NET MVC → ASP.NET Core and Web Forms UI → Blazor Server framework items) | AWS Transform for .NET — sources .NET Framework 3.5+, .NET Core 3.1, .NET 5.x+; targets .NET 8 / .NET 10, C# only | Entity Framework / ADO.NET migration, MVC Razor Views → ASP.NET Core Razor Views, NuGet version resolution, Web Forms UI → Blazor Server ([AWS Transform for .NET](https://docs.aws.amazon.com/transform/latest/userguide/dotnet.html)) |
+| .NET Framework → .NET 8 (LTS) / .NET 10 porting (including the ASP.NET MVC → ASP.NET Core and Web Forms UI → Blazor Server framework items) | AWS Transform for .NET — sources .NET Framework 3.5+, .NET Core 3.1, .NET 5.x+; targets .NET 8 / .NET 10 / .NET Standard (class libraries); languages C#, VB.NET; project types include Desktop (WinForms, WPF) and Mobile (Xamarin) | Entity Framework / ADO.NET migration, MVC Razor Views → ASP.NET Core Razor Views, NuGet version resolution ([AWS Transform for .NET](https://docs.aws.amazon.com/transform/latest/userguide/dotnet.html)), Web Forms UI → Blazor Server ([UI porting](https://docs.aws.amazon.com/transform/latest/userguide/dotnet-porting-ui.html)) |
 
 **Annotation rules:**
 
 - Attach the applicability as the item's `aws_transform_applicability` string — naming the matching source/target versions and the automation scope. Items with no matching transformation get `null`, never a speculative claim.
 - Add the **effort-reduction note**: when AWS Transform is applicable and adopted, the item's effort tier may effectively drop (e.g. a *large* .NET port trending toward *medium* for the automated portion). The classified tier itself stays the manual-effort judgment; the note is presentation, not reclassification.
 - Coverage claims are fast-moving: before asserting them in a report, re-verify against the live documentation URLs above (the technical-freshness directive in [code-transformation.md](code-transformation.md) applies here too).
+
+### Containerization Policy
+
+Present the three policy items of [replatform-path.md's Containerization Policy](replatform-path.md#containerization-policy) (base image, application-server bundling, configuration intake) for the stack the app runs on after its modernization items, with two qualifiers:
+
+- **Item 1:** version parity means the **target** runtime after porting or AWS Transform, not the currently detected one; state the grounds for the target stack, since the Replatform grounds wording does not carry over.
+- **Item 3:** the intake method follows the `config_env_vars` and `secret_externalization` items; only configuration no item covers takes the replatform intake table as written.
+
+Item 2 and the undetermined-stack rule apply as written, except that Item 2's grounds are stated for the target stack. Record the result as `containerization_policy`: it is the assessed policy that [containerization-execution.md](containerization-execution.md) builds against.
 
 ### Delegation to ecs-architect
 
@@ -235,6 +248,8 @@ rearchitect_path:
   no_items: bool                   # true -> the explicit zero-item statement is mandatory
   framework_migration_note: string | null
                                    # the no-established-path report when applicable; null otherwise
+  containerization_policy: {...}   # same shape as `replatform_path.containerization_policy`
+                                   # (replatform-path.md): the three policy items, each with its grounds or rationale (Containerization Policy)
   delegation_note: string          # REQUIRED: the ecs-architect delegation statement
                                    # (capacity provider strategy / task sizing / network design)
 ```
@@ -246,6 +261,7 @@ rearchitect_path:
 - `blocker_coverage.unmapped` is empty in every shipped output.
 - `no_items: true` and a non-empty `modernization_items` list are mutually exclusive; `no_items: true` obliges the explicit statement in the report.
 - `delegation_note` is always present — the Rearchitect section of the report never appears without it.
+- All three `containerization_policy` items are present whenever the Rearchitect path is presented.
 - No evidence entry or item description contains any part of a credential value.
 
 ---

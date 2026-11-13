@@ -1,6 +1,6 @@
 ---
 title: "ECS DevOps — Deployment Strategies Deep Dive"
-description: ""
+description: "Full configuration detail for rolling, blue/green, linear, and canary deployments under the ECS deployment controller — lifecycle hooks, test traffic,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/references/deployment-strategies.md
 format: md
 ---
@@ -11,11 +11,11 @@ This page is generated from [skills/ecs-devops/references/deployment-strategies.
 
 # ECS DevOps — Deployment Strategies Deep Dive
 
-> **Part of:** [ecs-devops](../)
+> **Part of:** [ecs-devops](../index.md)
 > **Purpose:** Full configuration detail for rolling, blue/green, linear, and canary deployments under the ECS deployment controller — lifecycle hooks, test traffic, pause/continue, and deployment-speed tuning
 
-**For failure detection and rollback mechanics, see:** [failure-detection-and-rollback.md](failure-detection-and-rollback)
-**For CodeDeploy-controller specifics and migration, see:** [controllers-and-migration.md](controllers-and-migration)
+**For failure detection and rollback mechanics, see:** [failure-detection-and-rollback.md](failure-detection-and-rollback.md)
+**For CodeDeploy-controller specifics and migration, see:** [controllers-and-migration.md](controllers-and-migration.md)
 
 > Facts in this file verified 2026-07-09 against the AWS documentation URLs cited inline. Strategy/LB/launch-type support in this domain changed repeatedly between Jul 2025 and Jul 2026 — re-verify any support-matrix claim against the live [service deployment options page](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_service-options.html) before repeating it.
 
@@ -60,7 +60,7 @@ Behavioral details worth knowing:
 - **Version consistency:** ECS resolves image tags to digests when the deployment starts (the first started task establishes digests for the revision). With circuit breaker enabled, 3+ digest-resolution failures fail and roll back the deployment. Opt out per container with `versionConsistency`. On the EC2 launch type, digest resolution requires container agent ≥ 1.31.0 (all registries ≥ 1.70.0).
 - **Healthy counting without an LB** (verified 2026-07-09): tasks whose essential containers have no health check count toward min-healthy 40 seconds after reaching RUNNING; with an LB, target-group health must also pass ([API_DeploymentConfiguration](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_DeploymentConfiguration.html)).
 
-Zero-downtime recipe: `minimumHealthyPercent=100, maximumPercent=200`, plus failure detection (see [failure-detection-and-rollback.md](failure-detection-and-rollback)). On the EC2 launch type this needs spare cluster capacity for the extra tasks; on Fargate/Managed Instances it is purely a temporary-spend question.
+Zero-downtime recipe: `minimumHealthyPercent=100, maximumPercent=200`, plus failure detection (see [failure-detection-and-rollback.md](failure-detection-and-rollback.md)). On the EC2 launch type this needs spare cluster capacity for the extra tasks; on Fargate/Managed Instances it is purely a temporary-spend question.
 
 ---
 
@@ -127,7 +127,7 @@ aws ecs create-service \
 
 Field shapes per [API_CreateService](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_CreateService.html): `deploymentConfiguration.strategy`, `bakeTimeInMinutes`, `lifecycleHooks`, `canaryConfiguration`, `linearConfiguration`, plus the rolling-era `maximumPercent`/`minimumHealthyPercent`. Do **not** include `deploymentCircuitBreaker` in a blue/green-family config — circuit breaker is rolling-only ([circuit breaker](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html)).
 
-Every subsequent deployment is then triggered by plain `aws ecs update-service --task-definition web:43 ...` — the configured strategy governs how it rolls out. This is also what your CI/CD pipeline calls (see [cicd-pipelines.md](cicd-pipelines)).
+Every subsequent deployment is then triggered by plain `aws ecs update-service --task-definition web:43 ...` — the configured strategy governs how it rolls out. This is also what your CI/CD pipeline calls (see [cicd-pipelines.md](cicd-pipelines.md)).
 
 ---
 
@@ -180,7 +180,7 @@ Source: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/blue-green-d
 - Lambda hooks must complete — or return `IN_PROGRESS` — within 15 minutes per invocation, and are re-invoked until they return `SUCCEEDED` or `FAILED`. A `FAILED` (or hook-initiated ROLLBACK) rolls back the whole deployment.
 - Hook use cases: pre-shift smoke tests against the test-traffic endpoint, synthetic checks at each linear/canary step, change-ticket validation before production shift.
 - Official sample patterns: https://github.com/aws-samples/sample-amazon-ecs-blue-green-deployment-patterns
-- Contrast with CodeDeploy-controller hooks (per-deployment AppSpec, 1-hour limit, `PutLifecycleEventHookExecutionStatus`) — see [controllers-and-migration.md](controllers-and-migration).
+- Contrast with CodeDeploy-controller hooks (per-deployment AppSpec, 1-hour limit, `PutLifecycleEventHookExecutionStatus`) — see [controllers-and-migration.md](controllers-and-migration.md).
 
 ---
 
@@ -235,7 +235,7 @@ Note (verified 2026-07-09): the standalone ECS Best Practices Guide deployment c
 |---|---|---|---|---|
 | ROLLING | ✅ | ✅ | ✅ | ✅ (the practical strategy) |
 | BLUE_GREEN / LINEAR / CANARY (managed shifting) | ✅ | ✅ | ✅ | ❌ no ELB, no Service Connect |
-| Circuit breaker (rolling) / alarms (any `ECS`-controller strategy) | ✅ | ✅ | ⚠️ inferred from controller-only scoping — not explicitly documented as of 2026-07-10; verify ([details](failure-detection-and-rollback)) | ⚠️ circuit breaker not explicitly documented for the EXTERNAL launch type — verify ([details](failure-detection-and-rollback)); alarms per metric availability |
+| Circuit breaker (rolling) / alarms (any `ECS`-controller strategy) | ✅ | ✅ | ⚠️ inferred from controller-only scoping — not explicitly documented as of 2026-07-10; verify ([details](failure-detection-and-rollback.md)) | ⚠️ circuit breaker not explicitly documented for the EXTERNAL launch type — verify ([details](failure-detection-and-rollback.md)); alarms per metric availability |
 | DAEMON scheduling | ✅ (max% must be 100) | ❌ | ❌ | ✅ |
 | Selected via | `launchType: EC2` or capacity provider | `launchType: FARGATE` or FARGATE/FARGATE_SPOT capacity providers | `capacityProviderStrategy` only (omit `launchType`) | `launchType: EXTERNAL` (capacity providers unsupported) |
 

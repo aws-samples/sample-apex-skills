@@ -1,6 +1,6 @@
 ---
 title: "Module: Networking"
-description: ""
+description: "Discover networking configuration, load balancing, and service-to-service connectivity for ECS services"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/networking.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/networking.md](https://
 
 # Module: Networking
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Discover networking configuration, load balancing, and service-to-service connectivity for ECS services
 
 ## Table of Contents

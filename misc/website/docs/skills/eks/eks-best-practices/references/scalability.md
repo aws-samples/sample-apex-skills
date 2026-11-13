@@ -1,6 +1,6 @@
 ---
 title: "EKS Scalability"
-description: ""
+description: "Scaling theory, control plane and data plane scaling, cluster services, workload patterns, node efficiency, and large-cluster guidance for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/scalability.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/scalability.md
 
 # EKS Scalability
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Scaling theory, control plane and data plane scaling, cluster services, workload patterns, node efficiency, and large-cluster guidance for Amazon EKS
 
 ---
@@ -106,7 +106,7 @@ etcd database size is a hard ceiling, not a soft target — when it is exceeded,
 
 **Alert on the rate of growth toward the ceiling, not on a mid-range absolute.** A database sitting at a healthy fraction of its limit is not a problem — an absolute value in the middle of the range is normal and alarming on it causes fatigue and premature escalation. What matters is a *sustained upward trend* that will reach the ceiling. AWS documents pre-built alert rules for exactly this — `etcdBackendQuotaLowSpace` (near-quota) and `etcdExcessiveDatabaseGrowth` (trend) — in [Managing etcd database size on Amazon EKS clusters](https://aws.amazon.com/blogs/containers/managing-etcd-database-size-on-amazon-eks-clusters/). Track `apiserver_storage_size_bytes` and reduce CRD/object churn (event TTLs, finalizer hygiene) to hold headroom.
 
-**Attribute latency correctly — don't alarm on LIST latency alone.** A high LIST/read latency during a surge is a *symptom* whose root cause may be etcd or the API server. The cluster-wide read SLO is generous (upstream targets **≤30 s** at p99 for cluster/namespace-scoped LISTs; ≤1 s for single-resource reads — see [Kubernetes SLOs](https://github.com/kubernetes/community/blob/master/sig-scalability/slos/slos.md)), so a LIST-latency number that looks alarming in isolation may be within SLO. Correlate LIST latency with `etcd_request_duration_seconds` before tuning — the skill already teaches this chain at [observability.md — API vs etcd Latency](observability#api-vs-etcd-latency).
+**Attribute latency correctly — don't alarm on LIST latency alone.** A high LIST/read latency during a surge is a *symptom* whose root cause may be etcd or the API server. The cluster-wide read SLO is generous (upstream targets **≤30 s** at p99 for cluster/namespace-scoped LISTs; ≤1 s for single-resource reads — see [Kubernetes SLOs](https://github.com/kubernetes/community/blob/master/sig-scalability/slos/slos.md)), so a LIST-latency number that looks alarming in isolation may be within SLO. Correlate LIST latency with `etcd_request_duration_seconds` before tuning — the skill already teaches this chain at [observability.md — API vs etcd Latency](observability.md#api-vs-etcd-latency).
 
 ### Burst Limits
 
@@ -180,7 +180,7 @@ clusters:
 
 **Managed Node Groups + Cluster Autoscaler** is the alternative when you need ASG-based management or features not yet supported by Karpenter.
 
-**See also:** [Autoscaling Reference](autoscaling) | [Karpenter Reference](karpenter)
+**See also:** [Autoscaling Reference](autoscaling.md) | [Karpenter Reference](karpenter.md)
 
 ### Use Diverse EC2 Instance Types
 

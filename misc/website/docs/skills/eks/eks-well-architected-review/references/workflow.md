@@ -1,6 +1,6 @@
 ---
 title: "Data Collection Reference"
-description: ""
+description: "Collect all cluster data once into a work directory with fixed filenames."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/workflow.md
 format: md
 ---
@@ -33,13 +33,13 @@ requests.** Collection calls the AWS and Kubernetes APIs, and whatever this revi
 > resources may fall back to an empty document, and only when the error is specifically "the resource
 > does not exist" — the list is in **Why it fails loud** below, kept in one place so the two cannot
 > drift. An EC2 *list* API that has gone quiet is **not** on that list and never will be; see
-> *Auto Mode hides instances and volumes from the list APIs*. **Do not score data that failed this gate.**
+> *Auto Mode can hide instances and volumes from the list APIs*. **Do not score data that failed this gate.**
 
 ## Table of Contents
 
 1. [Run it](#run-it)
 2. [What it collects](#what-it-collects)
-   - [Auto Mode hides instances and volumes from the list APIs](#auto-mode-hides-instances-and-volumes-from-the-list-apis)
+   - [Auto Mode can hide instances and volumes from the list APIs](#auto-mode-can-hide-instances-and-volumes-from-the-list-apis)
 3. [Why it fails loud](#why-it-fails-loud)
 4. [What counts as "an EKS cluster" here](#what-counts-as-an-eks-cluster-here)
 5. [Read-only, grants and the work directory](#read-only-grants-and-the-work-directory)
@@ -107,7 +107,7 @@ Into `$WORK`, one file per resource, canonical filenames the scorers read:
 |---|---|
 | `aws eks` | `cluster`, `nodegroups`, `addons`, `fargate`, `fargateprofiles`, `podidentity`, `insights` — `addons` carries merged per-object detail, see below |
 | `aws iam` | `oidcproviders` |
-| `aws ec2` | `sg`, `subnets`, `nat`, `routetables`, `vpcendpoints`, `instances`, `volumes` — the last two are a list call **merged with** an instance-id / volume-id call, see *Auto Mode hides instances and volumes from the list APIs* below |
+| `aws ec2` | `sg`, `subnets`, `nat`, `routetables`, `vpcendpoints`, `instances`, `volumes` — the last two are a list call **merged with** an instance-id / volume-id call, see *Auto Mode can hide instances and volumes from the list APIs* below |
 | `aws ecr` / `cloudtrail` | `ecr`, `cloudtrail` |
 | `kubectl` cluster-scoped | `nodes`, `namespaces`, `storageclasses`, `pv`, `clusterroles`, `clusterrolebindings`, `validatingwebhookconfigurations`, `mutatingwebhookconfigurations` |
 | `kubectl` namespaced | `pods`, `deployments`, `statefulsets`, `daemonsets`, `services`, `ingresses`, `networkpolicies`, `hpa`, `pdb`, `serviceaccounts`, `pvc`, `resourcequotas`, `limitranges`, `cronjobs`, `jobs`, `rolebindings` |
@@ -135,15 +135,18 @@ files are **not written**: their content would be byte-identical to the matching
 merged array is the only form a scorer can read. A name present in `.addons` with no matching
 `.addonDetails` entry is a collection gap and the collector refuses over it.
 
-### Auto Mode hides instances and volumes from the list APIs
+### Auto Mode can hide instances and volumes from the list APIs
 
 `eks/latest/userguide/automode-learn-instances.html`: "Beginning April 22, 2026, new Amazon EC2 managed
 instances and associated resources (for example, EC2 launch templates, EBS volumes, and network
 interfaces (ENIs)) created by EKS Auto Mode are hidden from EC2 console views and `describe` API list
 operations by default. Managed resources that already existed in your account before that date remain
-visible."
+visible." Hiding is an account-wide setting, not fixed behavior:
+`AWSEC2/latest/UserGuide/amazon-ec2-managed-instances.html`: "For accounts that already had managed
+resources, Amazon EC2 sets the visibility setting to **Visible** to preserve existing workflows. The
+visibility setting applies to all managed resources in a Region, regardless of when they were created."
 
-That date is past. A single `describe-instances --filters …` therefore returns **nothing** on an Auto
+That date is past. A single `describe-instances --filters …` can therefore return **nothing** on an Auto
 Mode cluster, and an empty-but-valid document would sail through collection — so `lens-11` (IMDSv2),
 `sec-21` (EBS encryption) and `cost-8` (idle volumes), **weight 3 each**, would silently answer `na` off a
 zero denominator. Because `na` removes a question from the *denominator*, the cluster nobody could see
@@ -164,8 +167,9 @@ would score *better* than one that was fully audited.
   same request").
 
 The third documented remedy, "The `DescribeInstances` API with the `include-managed-resources`
-parameter", is **not** used: `aws-cli/2.34.30` rejects the flag (`aws: [ERROR]: Unknown options:
---include-managed-resources`) and a skill cannot dictate the operator's CLI version. The account-wide
+parameter", is **not** used: the CLI did not expose the flag before aws-cli 2.34.35 / 1.44.84
+(`aws-cli/2.34.30` rejects it: `aws: [ERROR]: Unknown options: --include-managed-resources`), and a
+skill cannot dictate the operator's CLI version. The account-wide
 managed-resource *visibility setting* would also fix this, and is deliberately neither changed nor
 suggested as a prerequisite — this skill only looks.
 
@@ -811,11 +815,11 @@ a reader sees. It refuses a block that does not define `emit()`, so a per-questi
 
 | Pillar | Block extracted from |
 |---|---|
-| Operational Excellence | [references/operational-excellence.md](operational-excellence) |
-| Security — all 57 questions in one block | [references/security/identity-access.md](security/identity-access) |
-| Reliability | [references/reliability.md](reliability) |
-| Performance Efficiency | [references/performance-efficiency.md](performance-efficiency) |
-| Cost Optimization | [references/cost-optimization.md](cost-optimization) |
+| Operational Excellence | [references/operational-excellence.md](operational-excellence.md) |
+| Security — all 57 questions in one block | [references/security/identity-access.md](security/identity-access.md) |
+| Reliability | [references/reliability.md](reliability.md) |
+| Performance Efficiency | [references/performance-efficiency.md](performance-efficiency.md) |
+| Cost Optimization | [references/cost-optimization.md](cost-optimization.md) |
 
 The other four security files (data-protection, network, workload-security, governance-compliance) hold
 per-question rationale and remediation you load when writing findings; they carry no scorer block.
@@ -888,7 +892,7 @@ still prints to stdout, so a redirect-based caller still works.
   governance record has no such relationship — `g` emits `unknown` and `b()` never runs — so there is
   no second projection to cross-check.
 - **The severity source.** The weights are not in the reducer; it parses
-  [references/severity.md](severity) on every run, on the same principle as `b()` above,
+  [references/severity.md](severity.md) on every run, on the same principle as `b()` above,
   and publishes what it parsed in `scores.json` under `severity` for the renderer to label findings
   with. A row's weight is the tier of the **nearest preceding** `### High`/`### Medium`/`### Low`
   heading, so any edit changing which heading that is changes the score. The reducer therefore requires
@@ -940,7 +944,7 @@ still prints to stdout, so a redirect-based caller still works.
   editing the reducer.
 
 **Which tier each question is in lives in exactly one place:
-[references/severity.md](severity).** `assets/reduce.sh` parses its `### High` /
+[references/severity.md](severity.md).** `assets/reduce.sh` parses its `### High` /
 `### Medium` / `### Low` tables on every run and weights the score with what it finds, then publishes the
 parsed map in `scores.json` under `severity`; `assets/render-report.py` reads it back from there for the
 risk-weight chips and the improvement-plan ordering. Neither script assigns a question to a tier, so **to
@@ -1126,7 +1130,7 @@ run is evidence the references were intact for that cluster, not that they are i
    opportunities and are **not** in that score, together with the cluster's actual posture on all
    three. A bare Cost number reads as "no cost levers taken", which it does not measure — a 100%
    Spot + Graviton cluster scores identically to one on neither. See the disclosure block at the top
-   of [references/cost-optimization.md](cost-optimization).
+   of [references/cost-optimization.md](cost-optimization.md).
 6. **Governance** — the list of Not Assessed questions.
 7. **Action Plan** — immediate / short-term / strategic.
 

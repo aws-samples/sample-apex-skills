@@ -1,6 +1,6 @@
 ---
 title: "ECS Capacity Providers and Scaling"
-description: ""
+description: "Design a capacity-provider strategy and cluster auto scaling correctly."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/capacity-and-scaling.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-architect/references/capacity-and-scalin
 
 # ECS Capacity Providers and Scaling
 
-> **Part of:** [ecs-architect](../)
+> **Part of:** [ecs-architect](../index.md)
 > **Purpose:** Design a capacity-provider strategy and cluster auto scaling correctly. Covers the base/weight model, managed scaling, the mixed-instance-type ASG constraint, scale-in edge cases, and Spot. Facts verified against AWS docs on **2026-07-09**.
 
 ---
@@ -48,7 +48,7 @@ A **capacity-provider strategy** is a list of `{capacityProvider, base, weight}`
 
 **Important for Managed Instances:** because it is delivered as a capacity provider, a service that uses Managed Instances **must** set `capacityProviderStrategy`, not `launchType`. ([update-service CLI reference](https://docs.aws.amazon.com/cli/v1/reference/ecs/update-service.html))
 
-Supported transitions between launch types and capacity providers (and the immutability trap) are covered in [launch-type-migration.md](launch-type-migration).
+Supported transitions between launch types and capacity providers (and the immutability trap) are covered in [launch-type-migration.md](launch-type-migration.md).
 
 ---
 
@@ -96,7 +96,7 @@ When an ASG has multiple instance types, ECS sorts them by vCPU, memory, ENIs, p
 
 **Practical rule:** one resource profile per ASG + capacity provider. Don't mix a `c5.large` and a `c5.24xlarge` in one managed-scaling ASG expecting large tasks to land — they'll hang. This is also the basis of the **separate-ASG-per-GPU-type** pattern (see `ecs-genai`).
 
-**Bin-pack on the hard limit — memory, not CPU** (field heuristic). When you pack tasks onto shared instances, size and reason off **memory**: container-level `cpu` is a *soft* share (containers burst into unused CPU), so CPU overcommit is invisible and tasks still get placed even when CPU looks "full," whereas the container `memory` hard limit OOM-kills on breach. Note the softness is at the container-share level — the **task-level `cpu` value is itself a hard ceiling** for the whole task. The strategy *configuration* is **EC2/ASG-only**: memory bin-packing (`binpack` on `memory`) combined with `spread` across `availabilityZone` gives a predictable, safe density guarantee on EC2 capacity providers (see [architecture-design.md](architecture-design#task-placement-ec2)). **Managed Instances does not support task placement strategies** — ECS places for you (best-effort AZ spread, driven by the capacity-provider launch template, task requirements, and placement *constraints*); the memory-not-CPU sizing heuristic still applies to MI task definitions, but there is no `binpack`/`spread` knob to set. ([task definition CPU/memory parameters](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html) · [task placement — "Amazon ECS Managed Instances does not support task placement strategies"](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-placement.html))
+**Bin-pack on the hard limit — memory, not CPU** (field heuristic). When you pack tasks onto shared instances, size and reason off **memory**: container-level `cpu` is a *soft* share (containers burst into unused CPU), so CPU overcommit is invisible and tasks still get placed even when CPU looks "full," whereas the container `memory` hard limit OOM-kills on breach. Note the softness is at the container-share level — the **task-level `cpu` value is itself a hard ceiling** for the whole task. The strategy *configuration* is **EC2/ASG-only**: memory bin-packing (`binpack` on `memory`) combined with `spread` across `availabilityZone` gives a predictable, safe density guarantee on EC2 capacity providers (see [architecture-design.md](architecture-design.md#task-placement-ec2)). **Managed Instances does not support task placement strategies** — ECS places for you (best-effort AZ spread, driven by the capacity-provider launch template, task requirements, and placement *constraints*); the memory-not-CPU sizing heuristic still applies to MI task definitions, but there is no `binpack`/`spread` knob to set. ([task definition CPU/memory parameters](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html) · [task placement — "Amazon ECS Managed Instances does not support task placement strategies"](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-placement.html))
 
 ---
 
@@ -120,7 +120,7 @@ Deeper scale-in scoring for a *live* estate belongs to `ecs-operation-review`; t
 
 ## Managed Instances Capacity Provider
 
-The Managed Instances capacity provider lets you constrain instance selection by attributes or explicit types (GPU, network-optimized, burstable), while AWS handles provisioning, placement, patching (drain from day 14, instance replaced no later than day 21 — [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)), and scaling. Because it is a capacity provider, services must use `capacityProviderStrategy`. The `capacityOptionType` parameter picks the purchase model — `on-demand` (default), `spot` (up to 90% off, two-minute warning; Dec 2025), or `reserved` (EC2 Capacity Reservations with reservations-only / reservations-first / reservations-excluded preferences; Feb 2026). See [model-selection-framework.md](model-selection-framework#ecs-managed-instances) for GA/Region facts and pricing. ([Announcing Amazon ECS Managed Instances — News Blog](https://aws.amazon.com/blogs/aws/announcing-amazon-ecs-managed-instances-for-containerized-applications/) · [Managed Instances + Spot](https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-ecs-managed-instances-ec2-spot-instances/) · [Managed Instances + Capacity Reservations](https://aws.amazon.com/about-aws/whats-new/2026/02/ecs-mi-ec2-capacity-reservations/))
+The Managed Instances capacity provider lets you constrain instance selection by attributes or explicit types (GPU, network-optimized, burstable), while AWS handles provisioning, placement, patching (drain from day 14, instance replaced no later than day 21 — [Patching in ECS Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html)), and scaling. Because it is a capacity provider, services must use `capacityProviderStrategy`. The `capacityOptionType` parameter picks the purchase model — `on-demand` (default), `spot` (up to 90% off, two-minute warning; Dec 2025), or `reserved` (EC2 Capacity Reservations with reservations-only / reservations-first / reservations-excluded preferences; Feb 2026). See [model-selection-framework.md](model-selection-framework.md#ecs-managed-instances) for GA/Region facts and pricing. ([Announcing Amazon ECS Managed Instances — News Blog](https://aws.amazon.com/blogs/aws/announcing-amazon-ecs-managed-instances-for-containerized-applications/) · [Managed Instances + Spot](https://aws.amazon.com/about-aws/whats-new/2025/12/amazon-ecs-managed-instances-ec2-spot-instances/) · [Managed Instances + Capacity Reservations](https://aws.amazon.com/about-aws/whats-new/2026/02/ecs-mi-ec2-capacity-reservations/))
 
 ---
 

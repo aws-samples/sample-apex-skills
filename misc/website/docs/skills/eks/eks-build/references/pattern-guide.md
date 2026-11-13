@@ -1,6 +1,6 @@
 ---
 title: "EKS Infrastructure Pattern Comparison and Selection Guide"
-description: ""
+description: "Use Pattern 1 when the team is Terraform-native, needs deterministic plan/apply cycles, or operates in strict change-management environments."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-build/references/pattern-guide.md
 format: md
 ---
@@ -74,11 +74,11 @@ EKS managed addons `vpc-cni` and `eks-pod-identity-agent` set `before_compute: t
 
 ### Karpenter (When Selected)
 
-Uses dedicated `terraform-aws-modules/eks/aws//modules/karpenter` submodule. See [baseline-defaults.md](baseline-defaults) for NodePool/EC2NodeClass defaults and [lessons-learned.md](lessons-learned) Section 17.
+Uses dedicated `terraform-aws-modules/eks/aws//modules/karpenter` submodule. See [baseline-defaults.md](baseline-defaults.md) for NodePool/EC2NodeClass defaults and [lessons-learned.md](lessons-learned.md) Section 17.
 
 ### AWS Resource Management
 
-Terraform directly creates AWS resources (Velero S3 bucket, etc.). The `eks-blueprints-addons` module handles IRSA role creation. EKS managed addons use **Pod Identity** with separate `aws_eks_pod_identity_association` resources -- see [lessons-learned.md](lessons-learned) Section 15.
+Terraform directly creates AWS resources (Velero S3 bucket, etc.). The `eks-blueprints-addons` module handles IRSA role creation. EKS managed addons use **Pod Identity** with separate `aws_eks_pod_identity_association` resources -- see [lessons-learned.md](lessons-learned.md) Section 15.
 
 ## Pattern 2a: ArgoCD + Terraform AWS
 
@@ -121,11 +121,11 @@ The ACK EKS Capability provisions AWS resources via Kubernetes CRDs. For example
 
 ### Pod Identity for Velero
 
-Pattern 2b uses Pod Identity for Velero (not IRSA). Terraform creates the IAM role with `pods.eks.amazonaws.com` as trusted principal and a `aws_eks_pod_identity_association`.
+Pattern 2b uses Pod Identity for Velero (not IRSA). Terraform creates the IAM role with `pods.eks.amazonaws.com` as trusted principal and a `aws_eks_pod_identity_association`. When `permissions_boundary` is set in `cluster.yaml`, that role carries it when the customer named it in question 30 (see [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional)).
 
 ### KRO Capability
 
-KRO provides Kubernetes Resource Orchestration for composing higher-level abstractions from ACK and native resources. KRO needs no IAM permissions; it operates through Kubernetes RBAC.
+KRO provides Kubernetes Resource Orchestration for composing higher-level abstractions from ACK and native resources. KRO's capability IAM role must exist but needs no attached policies: KRO operates through Kubernetes RBAC.
 
 ## Pattern 3: ArgoCD Cluster Creation (Placeholder)
 

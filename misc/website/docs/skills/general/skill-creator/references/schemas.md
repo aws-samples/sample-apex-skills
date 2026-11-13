@@ -1,6 +1,6 @@
 ---
 title: "JSON Schemas"
-description: ""
+description: "This document defines the JSON schemas used by skill-creator."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/skill-creator/references/schemas.md
 format: md
 ---

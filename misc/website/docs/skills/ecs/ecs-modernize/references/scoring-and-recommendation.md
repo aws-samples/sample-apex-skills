@@ -1,6 +1,6 @@
 ---
 title: "Module: Scoring and Recommendation"
-description: ""
+description: "Compute the 0–100 Fit_Score from the Source_Analysis evidence using the scoring criteria defined in this file — the single source of truth for every..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/scoring-and-recommendation.md
 format: md
 ---
@@ -11,9 +11,9 @@ This page is generated from [skills/ecs-modernize/references/scoring-and-recomme
 
 # Module: Scoring and Recommendation
 
-> **Part of:** [ecs-modernize](../)
+> **Part of:** [ecs-modernize](../index.md)
 > **Purpose:** Compute the 0–100 Fit_Score from the Source_Analysis evidence using the scoring criteria defined in this file — the single source of truth for every evaluation item, classification, score band, and weight — and derive the migration-strategy recommendation from it
-> **Prerequisites:** Tech Stack Detection ([tech-stack-detection.md](tech-stack-detection)) and Blocker Detection ([blocker-detection.md](blocker-detection)) — every dimension score is grounded in their outputs
+> **Prerequisites:** Tech Stack Detection ([tech-stack-detection.md](tech-stack-detection.md)) and Blocker Detection ([blocker-detection.md](blocker-detection.md)) — every dimension score is grounded in their outputs
 
 This module is deliberately orchestrator-neutral: the scoring criteria (evaluation items, weights, legacy/modern classifications, the modernity ladder) and the strategy classification logic are expressed exclusively in strategy-level vocabulary — Replatform and Rearchitect. Target-platform vocabulary does not appear in this file at all; mapping a strategy onto concrete compute models belongs to the path modules. This file covers scoring criteria and recommendation rules only; tech stack detection and blocker detection are each defined in their own reference file.
 
@@ -145,7 +145,7 @@ Each dimension below defines its evaluation items, the evidence it consumes, and
 
 | Band | Condition |
 |---|---|
-| 90–100 | No OS-specific API or process-model findings; no vendor-specific application-server coupling |
+| 90–100 | No OS-specific API or process-model findings; no vendor-specific application-server coupling; the artifact embeds its server (e.g. an executable JAR or a self-hosted Kestrel app), so an app that needs an external standard server (a WAR on Tomcat) sits in 60–89 |
 | 60–89 | Standard application-server hosting only (servlet container, standard web-server hosting) with no OS-specific API findings |
 | 30–59 | OS-specific API or process-model findings present, but all carry remediation class `replatform_ok` (they function inside a container of the matching OS); **or** vendor application-server coupling with no `must_fix` findings — position descriptor-level coupling near the top of the band and code-level proprietary-API coupling (e.g. `com.ibm.websphere.*` usage across the codebase) near the bottom, since the code-level dependence must be unwound before the app can leave the vendor server |
 | 0–29 | One or more `must_fix` findings in these categories (interactive desktop UI, hardware drivers, kernel-mode components, host-managed daemon arrangements) |
@@ -202,7 +202,7 @@ The legacy cap (40) is strictly below the modern floor (60); the interval 41–5
 
 Tiers 1–2 sit at or above the modern floor; tier 4 sits at or below the legacy cap; tier 3 occupies the interval between them. Within a tier, position the score by version currency and support status (a framework on its newest supported line scores near the top of its band; an aging line near the bottom).
 
-**EOL beats the tier — check support status before banding.** Tier 2 in particular lists lines that have since gone end of life: Spring Boot 2.x left OSS support in November 2023, and .NET 6 and 7 are both past their end of support. An EOL line belongs to the legacy classification (see the EOL entry above) and is therefore **capped at 40**, whichever tier its family appears in here. The runtime-constraint rule below catches this when the *runtime* is EOL; this note is what catches it when the **framework line** is EOL on a still-supported runtime — an EOL Spring Boot 2.x application on Java 17 is the case that would otherwise slip through at 60–79. Verify the support status of the detected line at analysis time rather than reading the tier off this table, and record the support fact in the dimension's evidence.
+**EOL beats the tier — check support status before banding.** Tier 2 in particular lists lines that have since gone end of life (as of 2026-11-07): Spring Boot 2.x left OSS support in November 2023, and .NET 6 and 7 are both past their end of support. An EOL line belongs to the legacy classification (see the EOL entry above) and is therefore **capped at 40**, whichever tier its family appears in here. The runtime-constraint rule below catches this when the *runtime* is EOL; this note is what catches it when the **framework line** is EOL on a still-supported runtime — an EOL Spring Boot 2.x application on Java 17 is the case that would otherwise slip through at 60–79. Verify the support status of the detected line at analysis time rather than reading the tier off this table, and record the support fact in the dimension's evidence.
 
 **Scoring rules:**
 
@@ -342,7 +342,7 @@ scoring:
 Absence of findings is not automatically a high score, and not automatically undetermined either. Distinguish:
 
 - **Checked and found none** — the prerequisite modules examined the relevant artifacts and reported no findings (e.g. the explicit zero-blocker statement): the dimension is determinable, scored per its anchors, with the examined artifacts as evidence.
-- **Could not check** — the relevant artifacts were unreadable or absent from the analysis (e.g. no configuration files readable for `config_externalization`): the dimension is **undetermined**, with the missing evidence named.
+- **Could not check** — the relevant artifacts were unreadable or absent from the analysis (e.g. no configuration files readable for `config_externalization`): the dimension is **undetermined**, with the missing evidence named. Hardcoded configuration values found in source are a finding, not "could not check", even when no configuration file exists.
 
 ### All dimensions undetermined
 
@@ -441,7 +441,7 @@ Regardless of where the Fit_Score lands — firm Rearchitect, firm Replatform, g
 
 - at least **one advantage**,
 - at least **one drawback**, and
-- an **effort classification** on the three-tier scale (small / medium / large) as defined in [rearchitect-path.md](rearchitect-path) — small = localized configuration/code changes, medium = cross-cutting but mechanical changes, large = architecture/framework-level changes. Use that module's criteria as-is; this file does not define a competing scale.
+- an **effort classification** on the three-tier scale (small / medium / large) as defined in [rearchitect-path.md](rearchitect-path.md) — small = localized configuration/code changes, medium = cross-cutting but mechanical changes, large = architecture/framework-level changes. Use that module's criteria as-is; this file does not define a competing scale.
 
 A recommendation is a weighting of the two options, never the suppression of one.
 
@@ -480,7 +480,7 @@ If the Fit_Score could not be computed at all (every dimension undetermined — 
 
 ### Strategy-to-Compute-Model Boundary
 
-The scoring criteria and the strategy classification logic in this file are expressed **exclusively** in strategy-level vocabulary — **Replatform** and **Rearchitect**. Target-platform compute-model vocabulary does not appear anywhere in this file, by design. Mapping a chosen strategy onto the concrete compute models of the target platform is performed **only by the path modules** — [replatform-path.md](replatform-path) and [rearchitect-path.md](rearchitect-path). This module hands them a strategy classification and nothing more; the separation keeps the scoring and recommendation knowledge portable across orchestrators.
+The scoring criteria and the strategy classification logic in this file are expressed **exclusively** in strategy-level vocabulary — **Replatform** and **Rearchitect**. Target-platform compute-model vocabulary does not appear anywhere in this file, by design. Mapping a chosen strategy onto the concrete compute models of the target platform is performed **only by the path modules** — [replatform-path.md](replatform-path.md) and [rearchitect-path.md](rearchitect-path.md). This module hands them a strategy classification and nothing more; the separation keeps the scoring and recommendation knowledge portable across orchestrators.
 
 ### Recommendation Output Schema
 

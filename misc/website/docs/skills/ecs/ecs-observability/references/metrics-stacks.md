@@ -1,6 +1,6 @@
 ---
 title: "ECS Observability — Metrics Stack Selection"
-description: ""
+description: "Deep guidance on Container Insights (standard vs enhanced), free vended metrics, ADOT + Amazon Managed Service for Prometheus (AMP) + Amazon Managed Grafana..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-observability/references/metrics-stacks.md
 format: md
 ---
@@ -11,11 +11,11 @@ This page is generated from [skills/ecs-observability/references/metrics-stacks.
 
 # ECS Observability — Metrics Stack Selection
 
-> **Part of:** [ecs-observability](../)
+> **Part of:** [ecs-observability](../index.md)
 > **Purpose:** Deep guidance on Container Insights (standard vs enhanced), free vended metrics, ADOT + Amazon Managed Service for Prometheus (AMP) + Amazon Managed Grafana (AMG), and GPU telemetry scoping for Amazon ECS
 
-**For traces and Application Signals, see:** [tracing-and-signals.md](tracing-and-signals)
-**For the per-capability launch-type matrix, see:** [launch-type-matrix.md](launch-type-matrix)
+**For traces and Application Signals, see:** [tracing-and-signals.md](tracing-and-signals.md)
+**For the per-capability launch-type matrix, see:** [launch-type-matrix.md](launch-type-matrix.md)
 
 ---
 
@@ -62,7 +62,7 @@ Mechanics common to both tiers:
 
 Release date for enhanced observability: December 2024 (What's New: https://aws.amazon.com/about-aws/whats-new/2024/12/amazon-cloudwatch-container-insights-observability-ecs/).
 
-Container Insights can also be produced via an ADOT collector instead of the ECS-native path — relevant when a customer already standardizes on OTel pipelines: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-ECS-adot.html. Launch-type scope: that setup page does not enumerate launch types (its console walkthrough is launch-type-agnostic), but the ADOT-on-ECS integration itself is documented for Fargate + EC2 only — see the ADOT row of [launch-type-matrix.md](launch-type-matrix); support beyond Fargate/EC2 is not documented as of 2026-07-10 — verify before advising.
+Container Insights can also be produced via an ADOT collector instead of the ECS-native path — relevant when a customer already standardizes on OTel pipelines: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-ECS-adot.html. Launch-type scope: that setup page does not enumerate launch types (its console walkthrough is launch-type-agnostic), but the ADOT-on-ECS integration itself is documented for Fargate + EC2 only — see the ADOT row of [launch-type-matrix.md](launch-type-matrix.md); support beyond Fargate/EC2 is not documented as of 2026-07-10 — verify before advising.
 
 ## GPU telemetry — the launch-type trap
 
@@ -92,7 +92,7 @@ Two documented ways to get Prometheus-format metrics off ECS (facts verified 202
 
 - The ADOT collector runs as a **sidecar container per task** (`public.ecr.aws/aws-observability/aws-otel-collector`), remote-writing task-level CPU/memory/network/storage and custom app metrics to an AMP workspace (`AWS_PROMETHEUS_ENDPOINT`, built-in `ecs-amp.yaml` config; custom config via SSM Parameter Store). The ECS console can inject the sidecar ("Use metric collection").
 - App exposes `/metrics` via Prometheus client libraries or uses the OTel SDK.
-- **Launch-type scope:** Fargate + EC2 only; **EXTERNAL explicitly unsupported**; MI not documented as of 2026-07-10 — the source quote and URL live in the **ADOT sidecar row of [launch-type-matrix.md](launch-type-matrix)** (single source of truth); verify the live doc before advising MI.
+- **Launch-type scope:** Fargate + EC2 only; **EXTERNAL explicitly unsupported**; MI not documented as of 2026-07-10 — the source quote and URL live in the **ADOT sidecar row of [launch-type-matrix.md](launch-type-matrix.md)** (single source of truth); verify the live doc before advising MI.
 - Task role needs the collector's destination permissions (CloudWatch logs for collector logging, `cloudwatch:PutMetricData` or AMP remote-write per path).
 - Querying AMP needs Grafana or the API; Amazon Managed Grafana connects via the Prometheus data source with SigV4, and a dedicated AMP data source exists from AMG version 12 (per https://docs.aws.amazon.com/prometheus/latest/userguide/AMP-onboard-query.html and https://docs.aws.amazon.com/grafana/latest/userguide/amazon-prometheus-data-source.html).
 

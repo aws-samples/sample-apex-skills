@@ -1,6 +1,6 @@
 ---
 title: "C3: posture check (\"does my setup contain the next one?\")"
-description: ""
+description: "The question is not \"is every setting perfect\" but \"if one pod is compromised tomorrow, does this cluster keep it contained?\"."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/posture-check.md
 format: md
 ---
@@ -17,7 +17,7 @@ The question is not "is every setting perfect" but "if one pod is compromised to
 
 This port runs no scripts. The agent makes the reads named in each row through the Agent Space's read-only AWS and Kubernetes API access, applies the row's rule and scores the result. The Claude Code skill runs the same checks as scripts (`posture_collect.sh`, `posture_score.sh`, `posture_extra.sh`, `posture_reduce.sh`); each row here carries that skill's check id (`SEC-POSTURE-<n>`) and, for checks it copied from the Well-Architected review's security pillar, the pillar question id, so the two copies report the same check under the same id. Of that skill's 64 checks this port walks the containment subset below; the rest of the copied pillar is not ported and the report lists it under "not checked". Two rows are port-only (marked): they are reported but kept out of the score and the layer verdicts, so the score rule is the scripted one. The score and layer verdicts are computed over these 20 checks, so they are not comparable with the scripted skill's 49-check score.
 
-The access needed is in [read-only-access.md](read-only-access), C3 section. Checks that read RBAC objects or policy engine objects need the supplementary ClusterRole named there; without it they are `unknown`, never pass.
+The access needed is in [read-only-access.md](read-only-access.md), C3 section. Checks that read RBAC objects or policy engine objects need the supplementary ClusterRole named there; without it they are `unknown`, never pass.
 
 ## Results, score and coverage
 
@@ -36,8 +36,8 @@ These rules are the Claude Code skill's `posture_reduce.sh` rules.
 
 | Id | Check | Reads the agent makes | Rule | Severity |
 |---|---|---|---|---|
-| SEC-POSTURE-46 (lens-11) | IMDSv2 required on every node | `aws ec2 describe-instances` for the cluster's node instances: `MetadataOptions.HttpTokens` | Per running instance: pass when `required`; bucketed over instances | high |
-| SEC-POSTURE-55 | Pods cannot reach IMDS | same read: `HttpEndpoint`, `HttpTokens`, `HttpPutResponseHopLimit`; `kubectl get nodes -o json` to tell Auto Mode nodes (label `eks.amazonaws.com/compute-type: auto`) | Per running Linux instance: pass when the endpoint is `disabled`, or `HttpTokens` is `required` with hop limit 1; bucketed; list the failing instances by node type (managed node group, Karpenter node pool, Auto Mode, other); Windows not assessed; no Linux instance: na | high |
+| SEC-POSTURE-46 (lens-11) | IMDSv2 required on every node | `aws ec2 describe-instances --instance-ids`, reading `MetadataOptions.HttpTokens`, for every EC2 node in `kubectl get nodes`: the id is the `i-<hex>` after the last `/` of its providerID; skip a node whose last segment is not `i-<hex>` (Fargate; hybrid, named `mi-<hex>` under SSM activations). One malformed or nonexistent id (`InvalidInstanceID.Malformed` or `.NotFound`) fails the whole call: drop the id or ids the error names (Malformed names one per call), re-run, and list each dropped node as not read, outside the count, and give `unknown` when the instances that were read would score a pass (none read included). A by-id read also returns Auto Mode instances that EC2's managed resource visibility setting hides from list and filter calls. | Per running instance: pass when `required`; bucketed over instances | high |
+| SEC-POSTURE-55 | Pods cannot reach IMDS | same read: `HttpEndpoint`, `HttpTokens`, `HttpPutResponseHopLimit`; `kubectl get nodes -o json` to tell Auto Mode nodes (label `eks.amazonaws.com/compute-type: auto`) | Per running Linux instance: pass when the endpoint is `disabled`, or `HttpTokens` is `required` with hop limit 1; bucketed; list the failing instances by node type (managed node group, Karpenter node pool, Auto Mode, other); Windows not assessed; no Linux instance: na; a Linux node not read, as in SEC-POSTURE-46, is listed and gives `unknown` when the instances that were read would score a pass (none read included) | high |
 | Port only: node role | Node role carries only node permissions | `aws eks describe-nodegroup` `nodeRole` (Auto Mode: NodeClass `spec.role`); `aws iam list-attached-role-policies` and `list-role-policies` for that role | pass: only the EKS worker node, CNI and ECR pull managed policies; fail: any other attached or inline policy, named. Reported, not scored | high |
 
 Why: with IMDSv1 allowed, or IMDSv2 with a hop limit above 1, any pod can fetch the node role's credentials and act as the node. A workload that needs AWS access from a pod should get its own identity (EKS Pod Identity or IRSA) instead of a higher hop limit.
@@ -97,13 +97,13 @@ Feature names as in the [GuardDuty API reference](https://docs.aws.amazon.com/gu
 |---|---|---|---|---|
 | SEC-POSTURE-62 | Registry scanning is enhanced with continuous rescan | `aws ecr get-registry-scanning-configuration` | `all` (pass): `ENHANCED` with a `CONTINUOUS_SCAN` rule whose filter is `*`; `some` (fail): `ENHANCED` with narrower or on-push rules only; `none`: `BASIC` or no rule | medium |
 | SEC-POSTURE-63 | Workload images pinned by digest | `kubectl get pods -A -o json` (the agent's own read): `image` of every container and init container of unfinished workload pods | Per container: pass when the image ends in `@sha256:<64 hex>`; bucketed; list the rest | low |
-| Port only: image admission | Admission policy for signed or allowed images, where an engine is installed | Kyverno `ClusterPolicy` with a `verifyImages` rule, or a Gatekeeper constraint on image sources | pass: present and in enforce mode; fail: engine installed, no such policy; n.a.: no engine. Reported, not scored (the scripted copy treats image signing, sec-32, as a governance question) | low |
+| Port only: image admission | Admission policy for signed or allowed images, where an engine is installed | Kyverno `ImageValidatingPolicy` (`policies.kyverno.io/v1`) or legacy `ClusterPolicy` with a `verifyImages` rule, or a Gatekeeper constraint on image sources | pass: present and enforcing (`spec.validationActions` holds `Deny`; legacy: `failureAction: Enforce`); fail: engine installed, no such policy; n.a.: no engine. Reported, not scored (the scripted copy treats image signing, sec-32, as a governance question) | low |
 
 Why: continuous rescan surfaces a new CVE on an image already running; digest pinning makes "what is running" a fact C1 can compare; admission policy stops an unknown image starting.
 
 ## Currency rule
 
-No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: plain version lag goes to eks-upgrade-check against a target version, or to eks-operation-review with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are read in the C1 inventory (`eks:DescribeAddonVersions`) for a manual read.
+No posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: plain version lag goes to eks-upgrade-check against a target version, or to eks-operation-review with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are read in the C1 inventory (`eks:DescribeAddonVersions`) for a manual read.
 
 ## Repository checks (not in this port)
 

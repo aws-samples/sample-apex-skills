@@ -1,6 +1,6 @@
 ---
 title: "Layer 6: Audit Logging & Forensics"
-description: ""
+description: "Proving what happened is the backbone of every compliance audit."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/audit-logging.md
 format: md
 ---
@@ -27,7 +27,7 @@ For compliance regimes, **always enable `audit` and `authenticator` at minimum.*
 
 > **Gotcha:** EKS audit-log **filtering is not supported**: it's all-or-nothing per log type. Large clusters can generate substantial audit-log volume → meaningful CloudWatch Logs cost. Budget for it and set a retention policy that meets the regime (below) without over-retaining.
 
-During a security event, follow [security-event-response.md](security-event-response); it does not run log or CloudTrail queries yet (issue 351).
+During a security event, follow [security-event-response.md](security-event-response.md); it does not run log or CloudTrail queries yet (issue 351).
 
 ## CloudTrail: EKS API audit trail
 
@@ -39,7 +39,7 @@ Especially valuable combined with **Security Groups for Pods** (Layer 3), giving
 
 ## SIEM forwarding pattern
 
-CloudWatch Logs subscription → Kinesis Data Streams → Firehose → SIEM destination (Splunk, Elastic, Datadog, Microsoft Sentinel). For federal workloads, Datadog has a [FedRAMP High-certified solution](https://aws.amazon.com/blogs/publicsector/transforming-federal-it-with-datadogs-fedramp-high-solution/).
+CloudWatch Logs subscription → Kinesis Data Streams → Firehose → SIEM destination (Splunk, Elastic, Datadog, Microsoft Sentinel). For federal workloads, Datadog has a [FedRAMP Class D (formerly High baseline) certified solution](https://aws.amazon.com/blogs/publicsector/transforming-federal-it-with-datadogs-fedramp-high-solution/).
 
 ## Retention requirements by regime (set this deliberately)
 
@@ -61,4 +61,4 @@ Apply the retention to the CloudWatch Logs groups holding `audit`/`authenticator
 
 ## Sources
 - [Send control plane logs to CloudWatch](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html) · [AWS CloudTrail](https://aws.amazon.com/cloudtrail/) · [VPC Flow Logs](https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs.html)
-- [Datadog FedRAMP High solution](https://aws.amazon.com/blogs/publicsector/transforming-federal-it-with-datadogs-fedramp-high-solution/)
+- [Datadog FedRAMP Class D solution](https://aws.amazon.com/blogs/publicsector/transforming-federal-it-with-datadogs-fedramp-high-solution/)

@@ -1,6 +1,6 @@
 ---
 title: "Security & Compliance for GenAI on EKS"
-description: ""
+description: "Non-negotiable security baseline for every GenAI-on-EKS deployment, plus compliance-regime notes and escalation triggers."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/security-and-compliance.md
 format: md
 ---
@@ -24,15 +24,20 @@ These controls apply to **every** GenAI workload on EKS — training, inference,
 **Rule:** Pods MUST use [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) (preferred, K8s 1.24+) or IRSA for AWS API access. **NEVER** static `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in env vars, ConfigMaps, or baked into images.
 
 ```yaml
-# EKS Pod Identity association (preferred)
-apiVersion: eks.amazonaws.com/v1
+# EKS Pod Identity association (preferred), via the ACK EKS controller
+# (CRD: https://github.com/aws-controllers-k8s/eks-controller/blob/main/config/crd/bases/eks.services.k8s.aws_podidentityassociations.yaml)
+apiVersion: eks.services.k8s.aws/v1alpha1
 kind: PodIdentityAssociation
 metadata:
   name: vllm-s3-access
 spec:
-  serviceAccountName: vllm-inference
-  roleArn: arn:aws:iam::ACCOUNT:role/vllm-model-reader
+  clusterName: CLUSTER
+  namespace: NAMESPACE
+  serviceAccount: vllm-inference
+  roleARN: arn:aws:iam::ACCOUNT:role/vllm-model-reader
 ```
+
+This manifest requires the ACK EKS controller in the cluster. Without it, create the association through the EKS API: the AWS Management Console, the AWS CLI (`aws eks create-pod-identity-association`), the AWS SDKs, AWS CloudFormation and other tools such as eksctl and Terraform ([Pod Identity association](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-association.html)).
 
 Why for GenAI: model-serving pods need S3 (weights), Bedrock (gateway routing), and Secrets Manager (API keys). Static creds leak in logs, crash dumps, and large cached images.
 
@@ -69,7 +74,7 @@ spec:
 
 | Model source | Verification method |
 |-------------|---------------------|
-| Baked into container image | **Image signing** via AWS Signer or Sigstore Cosign + admission controller (Kyverno/OPA) to reject unsigned images |
+| Baked into container image | **Image signing** via AWS Signer or Sigstore Cosign + admission controller to reject unsigned images; AWS Signer verification needs the Signer plugin (Kyverno v1.11 to 1.19.x with kyverno-notation-aws, or Gatekeeper with Ratify) |
 | Downloaded from Hugging Face | Verify **SHA256 checksums** against model card; pin exact revision hashes, not branch names |
 | Downloaded from S3 | Enable **S3 Object Lock** (compliance mode) for production artifacts; verify ETag/checksum |
 
@@ -140,7 +145,7 @@ spec:
           port: 8000                                    # NOTE: vLLM serves the API and /metrics on the SAME port
 ```
 
-Requires a NetworkPolicy-enforcing CNI (VPC CNI network policy, Cilium, or Calico). Caveats: (1) a default-deny that omits the scraper silently blocks Prometheus from reaching vLLM `/metrics`, so keep the scraper allow rule above. Because vLLM serves the API and `/metrics` on the same port (8000), that rule also grants the scraper API access, so scope it to the scraper pods (as shown). If that shared exposure matters, enable `/metrics` authentication, or accept it and keep the scraper rule tightly scoped. vLLM serves `/metrics` on the same port as the API and has no separate-metrics-port flag, so a dedicated metrics port isn't an option. With the CNIs listed (VPC CNI network policy, Cilium, or Calico), kubelet liveness/readiness probes are node-local and not governed by these ingress rules, so they keep working; this assumes DCGM Exporter runs **outside** this locked-down namespace (its own DaemonSet on a separate port, scraped independently, not through this rule). (2) This policy denies ingress only. If you add a companion default-deny `Egress` policy it must allow the workload's real dependencies or the pod fails closed: kube-dns (UDP/TCP 53, scoped to the kube-system DNS pods), plus the S3/AWS API endpoints (443) used for weight loading and the L2 cache endpoint (e.g. 6379), not DNS alone. This is the in-cluster complement to the gateway auth caveat in [ai-gateway.md](ai-gateway). (3) **This example is scoped to standalone-vLLM namespaces.** If you run vLLM inside **Ray Serve / KubeRay** in this namespace, the policy blocks Ray traffic (Ray pods don't carry `app: vllm-llama`), silently halting RayService reconciliation. Additionally allow intra-namespace Ray head↔worker traffic (GCS 6379, dashboard/health 8265, Serve proxy, object/worker ports) and KubeRay-operator→head ingress, or scope this policy to non-Ray namespaces.
+Requires a NetworkPolicy-enforcing CNI (VPC CNI network policy, Cilium, or Calico). Caveats: (1) a default-deny that omits the scraper silently blocks Prometheus from reaching vLLM `/metrics`, so keep the scraper allow rule above. Because vLLM serves the API and `/metrics` on the same port (8000), that rule also grants the scraper API access, so scope it to the scraper pods (as shown). If that shared exposure matters, enable `/metrics` authentication, or accept it and keep the scraper rule tightly scoped. vLLM serves `/metrics` on the same port as the API and has no separate-metrics-port flag, so a dedicated metrics port isn't an option. With the CNIs listed (VPC CNI network policy, Cilium, or Calico), kubelet liveness/readiness probes are node-local and not governed by these ingress rules, so they keep working; this assumes DCGM Exporter runs **outside** this locked-down namespace (its own DaemonSet on a separate port, scraped independently, not through this rule). (2) This policy denies ingress only. If you add a companion default-deny `Egress` policy it must allow the workload's real dependencies or the pod fails closed: kube-dns (UDP/TCP 53, scoped to the kube-system DNS pods), plus the S3/AWS API endpoints (443) used for weight loading and the L2 cache endpoint (e.g. 6379), not DNS alone. This is the in-cluster complement to the gateway auth caveat in [ai-gateway.md](ai-gateway.md). (3) **This example is scoped to standalone-vLLM namespaces.** If you run vLLM inside **Ray Serve / KubeRay** in this namespace, the policy blocks Ray traffic (Ray pods don't carry `app: vllm-llama`), silently halting RayService reconciliation. Additionally allow intra-namespace Ray head↔worker traffic (GCS 6379, dashboard/health 8265, Serve proxy, object/worker ports) and KubeRay-operator→head ingress, or scope this policy to non-Ray namespaces.
 
 ### 6. Audit Logging
 
@@ -186,10 +191,15 @@ For regulated workloads: **CIS-hardened AMIs** (AL2023 CIS Level 1 or Bottlerock
 - Quarterly vulnerability scans of all DLC/vLLM images; retain scan reports.
 - RBAC + IAM identity mapping restricting kubectl to GenAI namespace.
 
-### FedRAMP (Moderate / High)
+### FedRAMP (Moderate-impact / High-impact systems)
 
-- Deploy in **GovCloud** or FedRAMP-authorized commercial regions.
-- FIPS 140-2 validated modules — FIPS-enabled AMIs; TLS libraries in DLCs support FIPS mode.
+- Deploy in **GovCloud** or the FedRAMP Class C Regions (AWS US East/West).
+- FIPS-validated modules:
+  - Bottlerocket FIPS AMIs use FIPS 140-3 validated cryptographic modules ([Bottlerocket FIPS AMIs](https://docs.aws.amazon.com/eks/latest/userguide/bottlerocket-fips-amis.html)).
+  - AL2023 is certified under FIPS 140-3 (enable FIPS mode yourself). AL2's FIPS 140-2 certificates are on the CMVP Historical List (existing systems only); its EKS-optimized AMIs stopped publishing on November 26, 2025 ([EKS AL2 deprecation FAQ](https://docs.aws.amazon.com/eks/latest/userguide/eks-ami-deprecation-faqs.html)).
+  - Exception: EKS Auto Mode Node Class `advancedSecurity.fips: true` provisions AMIs with FIPS 140-2 validated modules, available in AWS US East/West, AWS GovCloud (US) and AWS Canada (Central/West) Regions ([Auto Mode advanced security](https://docs.aws.amazon.com/eks/latest/userguide/auto-advanced-security.html)) (140-2: existing systems only, see the next bullet).
+  - Since September 22, 2026, NIST CMVP lists all FIPS 140-2 certificates as Historical, for existing systems only; use the 140-3 options for new systems ([CMVP](https://csrc.nist.gov/projects/cryptographic-module-validation-program), [FIPS 140-3 transition](https://csrc.nist.gov/projects/fips-140-3-transition-effort)).
+  - For AWS API calls from DLC containers, use FIPS endpoints ([DLC data protection](https://github.com/aws/deep-learning-containers/blob/main/docs/security/data-protection.md)); validate each image's crypto libraries yourself.
 - Continuous monitoring: EKS audit logs + CloudTrail → organization SIEM.
 - Supply chain: all base images from approved registry (ECR in same boundary); no Docker Hub/HF pulls in production.
 

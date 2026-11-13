@@ -1,6 +1,6 @@
 ---
 title: "Securing an EKS Auto Mode Cluster"
-description: ""
+description: "EKS Auto Mode shifts a large slice of data-plane security responsibility to AWS, but it is not \"security handled.\" The 7-layer stack still applies; what..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/auto-mode-security.md
 format: md
 ---
@@ -17,7 +17,7 @@ EKS Auto Mode shifts a large slice of data-plane security responsibility to AWS,
 
 ## What Auto Mode handles automatically
 
-- **Node lifecycle and patching**: AWS creates, patches, and terminates the EC2 managed instances. Nodes are **patched by replacement**: a new instance on the latest Auto Mode AMI replaces the old one (a new AMI is made available at most once per week). **Built-in NodePools expire nodes after 14 days by default**; your own NodePools can raise or lower that, and **21 days is the hard maximum** lifetime, enforced even when PDBs or disruption budgets block replacement ([data plane](https://docs.aws.amazon.com/whitepapers/latest/security-overview-amazon-eks-auto-mode/eks-auto-mode-data-plane.html), [auto-security](https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html)). Until a node is replaced it runs the older build: list node ages with `kubectl get nodes -l eks.amazonaws.com/compute-type=auto --sort-by=.metadata.creationTimestamp`; [cve-advisory-review.md](cve-advisory-review) reports the nodes still pending rotation for an advisory.
+- **Node lifecycle and patching**: AWS creates, patches, and terminates the EC2 managed instances. Nodes are **patched by replacement**: a new instance on the latest Auto Mode AMI replaces the old one (a new AMI is made available at most once per week). **Built-in NodePools expire nodes after 14 days by default**; your own NodePools can raise or lower that, and **21 days is the hard maximum** lifetime, enforced even when PDBs or disruption budgets block replacement ([data plane](https://docs.aws.amazon.com/whitepapers/latest/security-overview-amazon-eks-auto-mode/eks-auto-mode-data-plane.html), [auto-security](https://docs.aws.amazon.com/eks/latest/userguide/auto-security.html)). Until a node is replaced it runs the older build: list node ages with `kubectl get nodes -l eks.amazonaws.com/compute-type=auto --sort-by=.metadata.creationTimestamp`; [cve-advisory-review.md](cve-advisory-review.md) reports the nodes still pending rotation for an advisory.
 - **Node OS hardening**: nodes run AWS-selected Bottlerocket-variant AMIs treated as immutable: locked-down software, **SELinux enforcing**, **read-only root filesystem**. Direct access is blocked, **no SSH, no SSM**; management goes through the EKS and Kubernetes APIs only.
 - **IMDS posture**: **IMDSv2 enforced with hop limit 1** by default.
 - **Managed core components**: pod networking (VPC CNI function), the **NetworkPolicy enforcement engine**, load-balancing controller, EBS CSI, cluster DNS, Karpenter-based autoscaling, and GPU drivers run as service-owned components AWS configures and patches (not customer-managed add-ons).

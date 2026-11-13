@@ -1,6 +1,6 @@
 ---
 title: "🔒 Security — Workload, Pod & Supply Chain Security"
-description: ""
+description: "18 questions — Admission control, Pod Security Standards, security contexts, image pull policy & signing, runtime monitoring, pod security baselines, IMDSv2."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-well-architected-review/references/security/workload-security.md
 format: md
 ---
@@ -19,7 +19,7 @@ This page is generated from [skills/eks-well-architected-review/references/secur
 
 **18 questions** — Admission control, Pod Security Standards, security contexts, image pull policy & signing, runtime monitoring, pod security baselines, IMDSv2.
 
-> **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access).**
+> **Scoring is authoritative in the consolidated Security scorer in [identity-access.md](identity-access.md).**
 > The per-question `Detection:` tags below are explanatory only; the scorer decides measured vs governance.
 
 Scoring (applies to every question except podsec-1 to podsec-5, which one offending container or pod fails): percentage-based — ≥90% → `all`, ≥70% → `most`, >0% → `some`, 0% → `none`; boolean — true/present → `all`, false/absent → `none`.
@@ -559,6 +559,8 @@ it done.
 ```bash
 aws ec2 describe-instances --filters "Name=tag:kubernetes.io/cluster/<CLUSTER>,Values=owned,shared" --region <REGION>
 # Check MetadataOptions.HttpTokens == required
+# EKS Auto Mode nodes can be hidden from filter calls like this one; the collector adds them by id (on Auto Mode the node name is the instance id).
+# Count any not already listed: Auto Mode enforces IMDSv2 with a hop limit of 1, and that cannot be changed, so they pass.
 ```
 
 <!-- MAINTAINER NOTE — not report content, placed here (before **Remediation:**, after the Commands
@@ -688,7 +690,7 @@ label one namespace at a time, start it in warn mode, and move it to enforce onc
 
 > Filed under Security, not Cost Optimization. Both questions are ECR controls that limit what can enter
 > the cluster, which the EKS Best Practices Guides cover under Security / Image Security. Scored
-> in the consolidated Security scorer in [identity-access.md](identity-access).
+> in the consolidated Security scorer in [identity-access.md](identity-access.md).
 
 ### lens-12: Do ECR repositories have scan-on-push enabled?
 

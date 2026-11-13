@@ -1,6 +1,6 @@
 ---
 title: "Module: Deploy, Verify and Handoff"
-description: ""
+description: "Close out Migration_Execution: hand off the Rearchitect compute models to ecs-build with a traceable name/value input list, run terraform apply only behind..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-modernize/references/deploy-verify-handoff.md
 format: md
 ---
@@ -11,13 +11,13 @@ This page is generated from [skills/ecs-modernize/references/deploy-verify-hando
 
 # Module: Deploy, Verify and Handoff
 
-> **Part of:** [ecs-modernize](../)
+> **Part of:** [ecs-modernize](../index.md)
 > **Purpose:** Close out Migration_Execution: hand off the Rearchitect compute models to `ecs-build` with a traceable name/value input list, run `terraform apply` only behind the destroy check and the user's confirmation, verify that every ECS service the apply created or updated reaches steady state using read-only APIs only — and own the Execution_Log rules that every execution module of this skill records against
-> **Prerequisites:** **Execution_Gate passage** (Requirement 14) + **availability of the environment Terraform** — the `ecs-build` output for a Rearchitect compute model, the Replatform_Environment_Terraform generated per [replatform-environment-build.md](replatform-environment-build), or the Windows_Environment_Terraform generated per [windows-environment-build.md](windows-environment-build)
+> **Prerequisites:** **Execution_Gate passage** (Requirement 14) + **availability of the environment Terraform** — the `ecs-build` output for a Rearchitect compute model, the Replatform_Environment_Terraform generated per [replatform-environment-build.md](replatform-environment-build.md), or the Windows_Environment_Terraform generated per [windows-environment-build.md](windows-environment-build.md)
 
-This module is the final stage of Migration_Execution. It has four responsibilities: (1) for **Rearchitect compute models**, present the structured handoff that delegates environment IaC generation to `ecs-build` and detailed design to `ecs-architect`; (2) apply the environment Terraform — gated by the pre-apply destroy check and the `terraform apply` action-class confirmation — or, when the user declines, enable them to apply it themselves; (3) verify steady state for all services the apply touched, with strictly read-only ECS APIs; (4) define the **Execution_Log recording rules** for the whole skill — [code-transformation.md](code-transformation), [containerization-execution.md](containerization-execution), [replatform-environment-build.md](replatform-environment-build), and [windows-environment-build.md](windows-environment-build) all record their actions per the rules in this file.
+This module is the final stage of Migration_Execution. It has four responsibilities: (1) for **Rearchitect compute models**, present the structured handoff that delegates environment IaC generation to `ecs-build` and detailed design to `ecs-architect`; (2) apply the environment Terraform — gated by the pre-apply destroy check and the `terraform apply` action-class confirmation — or, when the user declines, enable them to apply it themselves; (3) verify steady state for all services the apply touched, with strictly read-only ECS APIs; (4) define the **Execution_Log recording rules** for the whole skill — [code-transformation.md](code-transformation.md), [containerization-execution.md](containerization-execution.md), [replatform-environment-build.md](replatform-environment-build.md), and [windows-environment-build.md](windows-environment-build.md) all record their actions per the rules in this file.
 
-**Which paths hand off and which do not.** The handoff below applies to the Rearchitect compute models (Express Mode, Fargate, Managed Instances) only. The **Replatform** path and the **Windows_Container_Path** are generated inside this skill, because `ecs-build` does not cover their shape — see the coverage table in [SKILL.md](../). For those two, skip the handoff section and proceed directly to the [Deploy Procedure](#deploy-procedure) with the generated Terraform directory.
+**Which paths hand off and which do not.** The handoff below applies to the Rearchitect compute models (Fargate, including ECS Express Mode, which runs on Fargate, or Managed Instances) only. The **Replatform** path and the **Windows_Container_Path** are generated in this skill; see [Delegation Boundaries](../index.md#delegation-boundaries). For those two, skip the handoff section and proceed directly to the [Deploy Procedure](#deploy-procedure) with the generated Terraform directory.
 
 This module is ECS-specific: it depends on the ECS resource model (services, task definitions, deployments) and the ECS steady-state verification APIs.
 
@@ -38,11 +38,11 @@ This module is ECS-specific: it depends on the ECS resource model (services, tas
 
 - **Execution_Gate passage** (required) — the gate's two conditions hold. This module never runs before the gate.
 - **Environment Terraform** (required for deploy and verification) — one of:
-  - the **`ecs-build` output** for an approved Rearchitect compute model (Express Mode / Fargate / Managed Instances), or
-  - the **Replatform_Environment_Terraform** generated by [replatform-environment-build.md](replatform-environment-build) for an approved Linux Replatform path (ECS on EC2, `bridge`, sticky sessions), or
-  - the **Windows_Environment_Terraform** generated by [windows-environment-build.md](windows-environment-build) for the Windows_Container_Path.
+  - the **`ecs-build` output** for an approved Rearchitect compute model (Fargate, including ECS Express Mode, which runs on Fargate, or Managed Instances), or
+  - the **Replatform_Environment_Terraform** generated by [replatform-environment-build.md](replatform-environment-build.md) for an approved Linux Replatform path (ECS on EC2, `bridge`, sticky sessions), or
+  - the **Windows_Environment_Terraform** generated by [windows-environment-build.md](windows-environment-build.md) for the Windows_Container_Path.
   The handoff portion of this module can run *before* the Terraform exists — its purpose is to produce the inputs `ecs-build` needs — and it applies to the Rearchitect compute models only.
-- **Containerization execution results** (Requirement 16 outputs) — the generated Containerization_Artifact files (Dockerfile, task-definition input values) and the push result (the full image URI), from [containerization-execution.md](containerization-execution). These are the source of truth for image URI, exposed ports, and health check values in the handoff.
+- **Containerization execution results** (Requirement 16 outputs) — the generated Containerization_Artifact files (Dockerfile, task-definition input values) and the push result (the full image URI), from [containerization-execution.md](containerization-execution.md). These are the source of truth for image URI, exposed ports, and health check values in the handoff.
 - **Source_Analysis findings** (when the assessment ran) — Blocker detection results and Replatform/Rearchitect path outputs. These are the source of truth for volume/EFS needs (local-filesystem-write findings) and session affinity needs (in-process session state Blockers).
 - **Action-class confirmation state** — the `terraform apply` action class of Requirement 14 gates the apply. Its confirmation presents the Terraform directory to be applied; if that directory changes after confirmation, re-obtain the confirmation before applying.
 
@@ -50,7 +50,7 @@ This module is ECS-specific: it depends on the ECS resource model (services, tas
 
 ## Rearchitect Compute-Model Handoff
 
-When the approved target path is a **Rearchitect compute model** (ECS Express Mode, Fargate, or Managed Instances), this skill does not generate the environment IaC. Instead:
+When the approved target path is a **Rearchitect compute model** (Fargate, including ECS Express Mode, which runs on Fargate, or Managed Instances), this skill does not generate the environment IaC. Instead:
 
 - **Environment IaC generation is delegated to `ecs-build`** — state the delegation by name and hand over the input list below. Never generate Rearchitect compute-model environment Terraform in this skill, neither in the answer nor in the Modernization_Report.
 - **Detailed target design is delegated to `ecs-architect`** — capacity-provider strategy, task sizing, and network design are named as `ecs-architect`'s scope; this skill does not produce those design values.
@@ -101,7 +101,7 @@ This check is mandatory before *every* apply, including re-applies after a plan 
 
 ### Step 2 — Apply confirmation
 
-Obtain the `terraform apply` action-class confirmation (Requirement 14), presenting the Terraform directory to be applied. An ambiguous response is not a confirmation — re-present and ask for an unambiguous answer. If the target directory changed since a prior confirmation, re-obtain the confirmation with the changed content.
+Obtain the `terraform apply` action-class confirmation (Requirement 14), presenting the Terraform directory to be applied. An ambiguous response is not a confirmation — re-present and ask for an unambiguous answer. If the target directory changed since a prior confirmation, re-obtain the confirmation with the changed content. For a Replatform or Windows environment, the confirmation restates its as-shipped posture (HTTP:80 with no TLS, egress `0.0.0.0/0`, not hardened) from [replatform-environment-build.md](replatform-environment-build.md#what-verified-means-here-and-what-the-skeleton-is-not) or [windows-environment-build.md](windows-environment-build.md#as-shipped-security-posture-disclose-at-hand-off).
 
 ### Step 3a — Confirmed: run the apply
 
@@ -134,7 +134,7 @@ Use **only ECS API operations whose names start with `Describe` or `List`** — 
 ### Polling window
 
 - **Start:** the point at which the apply completion was confirmed.
-- **Duration:** at most **10 minutes** from that start point.
+- **Duration:** at most **10 minutes** from that start point. A Windows task's first image pull can outlast this window: before reporting a Windows service as not reached, check its service events and stopped reasons for a pull still in progress, and say so.
 - **Interval:** successive checks of the same service are spaced **at least 15 seconds** apart.
 
 ### Steady-state predicate
@@ -153,6 +153,8 @@ When verification ends — whether every service reached steady state or not —
 - **The items checked** (running vs. desired task counts, latest deployment status, and any stopped-task / service-event data gathered),
 - **The API operations used** (the exact operation names),
 - **The per-service outcome** — reached / not reached, with the observed counts and deployment state for each service.
+
+Steady state verified is not traffic cutover: this skill does not move production traffic to the new environment or roll it back. Cutover and rollback stay with the user.
 
 ### Timeout diagnosis (read-only)
 
@@ -180,7 +182,7 @@ If any target service has not reached steady state when the 10-minute window clo
 
 ## Execution_Log Rules
 
-> **Canonical section.** These rules govern the Execution_Log for **all** Migration_Execution actions across this skill — file generation, AWS Transform job starts, image builds and pushes, ECR repository creation, Terraform generation and application, and this module's own actions. The other execution modules ([code-transformation.md](code-transformation), [containerization-execution.md](containerization-execution), [windows-environment-build.md](windows-environment-build)) reference this section rather than restating it.
+> **Canonical section.** These rules govern the Execution_Log for **all** Migration_Execution actions across this skill — file generation, AWS Transform job starts, image builds and pushes, ECR repository creation, Terraform generation and application, and this module's own actions. The other execution modules ([code-transformation.md](code-transformation.md), [containerization-execution.md](containerization-execution.md), [windows-environment-build.md](windows-environment-build.md)) reference this section rather than restating it.
 
 ### Recording rule
 

@@ -29,14 +29,14 @@ The AWS-published foundation for every recommendation is the [ECS Best Practices
 - **GenAI / GPU / ML-workload** security specifically (model-artifact provenance, GPU-node compliance) → `ecs-genai` (or `eks-genai` on EKS)
 - **AWS App Runner / Lambda / Batch** — different services with different security models
 - **AWS account-level / org-wide** security with no ECS-specific angle (SCPs, SSO, org GuardDuty) → Security guidance, not this skill
-- Choosing a launch/deployment model with no security driver (→ `ecs-architect`), auditing live operational posture (→ `ecs-operation-review`), or discovery/inventory of an estate (→ `ecs-recon`, once available)
+- Choosing a launch/deployment model with no security driver (→ `ecs-architect`), auditing live operational posture (→ `ecs-operation-review`), or discovery/inventory of an estate (→ `ecs-recon`)
 
 ## Discovery First — the Required Questions
 
 **Do NOT recommend a hardening stack before answering these.** The single most common mistake is prescribing controls without confirming the launch type — a Fargate answer and an ECS-on-EC2 answer differ at Layers 1, 3, 5, and 6. The first four answers determine ~80% of the recommendation.
 
 1. **Launch type(s)?** AWS Fargate / ECS on EC2 / ECS Managed Instances / ECS Anywhere (external) / mixed. *(This is the ECS-specific first question — it sets the shared-responsibility line.)*
-2. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Moderate / FedRAMP High / GDPR / ISO 27001 / NIST 800-53/171 / IL4-IL5 — rank primary/secondary if multiple.
+2. **Compliance regime(s)?** None / SOC 2 / HIPAA / PCI-DSS / FedRAMP Class C (formerly Moderate baseline) / Class D (formerly High baseline) / GDPR / ISO 27001 / NIST 800-53/171 / IL4-IL5 — rank primary/secondary if multiple.
 3. **Workload sensitivity?** Public / internal / PII / PHI (HIPAA) / cardholder data (PCI) / federal.
 4. **Audit timeline?** None / <3 mo (urgent) / 3-6 mo / 6-12 mo / continuous.
 5. **Network topology?** Public subnets + IGW / private subnets + NAT / fully private + VPC endpoints; single vs multi-account; multi-region; GovCloud.
@@ -112,7 +112,7 @@ Regardless of regime, every ECS hardening recommendation MUST include:
 
 ## Escalation
 
-Create a SpecReq / escalate for: first-time certification on a mission-critical regulated workload; XXL+ segment; FedRAMP High / GovCloud; IL4/IL5; ECS Anywhere inside a compliance boundary (customer owns the on-prem host entirely); multi-tenant SaaS with cross-tenant PHI/cardholder/federal isolation on shared EC2 container instances; customer-vs-auditor disagreement on AWS-managed-control acceptability; or any claim you cannot ground. Full criteria: [references/engagement-and-response.md](references/engagement-and-response.md).
+Create a SpecReq / escalate for: first-time certification on a mission-critical regulated workload; XXL+ segment; FedRAMP Class D / GovCloud; IL4/IL5; ECS Anywhere inside a compliance boundary (customer owns the on-prem host entirely); multi-tenant SaaS with cross-tenant PHI/cardholder/federal isolation on shared EC2 container instances; customer-vs-auditor disagreement on AWS-managed-control acceptability; or any claim you cannot ground. Full criteria: [references/engagement-and-response.md](references/engagement-and-response.md).
 
 ## How to Use the References
 

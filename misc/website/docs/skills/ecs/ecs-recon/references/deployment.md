@@ -1,6 +1,6 @@
 ---
 title: "Module: Deployment Configuration"
-description: ""
+description: "Discover deployment mechanisms and safety controls for ECS services"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-recon/references/deployment.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-recon/references/deployment.md](https://
 
 # Module: Deployment Configuration
 
-> **Part of:** [ecs-recon](../)
+> **Part of:** [ecs-recon](../index.md)
 > **Purpose:** Discover deployment mechanisms and safety controls for ECS services
 
 ## Table of Contents

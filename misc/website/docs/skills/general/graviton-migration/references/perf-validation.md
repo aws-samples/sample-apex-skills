@@ -1,6 +1,6 @@
 ---
 title: "Post-Cutover Performance Validation & C/C++ Arch Flags"
-description: ""
+description: "Getting a workload to run on arm64 is not the same as getting it to run well."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/references/perf-validation.md
 format: md
 ---
@@ -11,9 +11,9 @@ This page is generated from [skills/graviton-migration/references/perf-validatio
 
 # Post-Cutover Performance Validation & C/C++ Arch Flags
 
-> **Part of:** [graviton-migration](../)
+> **Part of:** [graviton-migration](../index.md)
 
-Getting a workload to *run* on arm64 is not the same as getting it to run *well*. The [dependency-floor scanner](scanner-workflow) and [multi-arch pipeline](multi-arch-pipelines) prove a build exists and starts on Graviton; this reference covers the step after that — measuring real performance against your SLO, and (for C/C++) picking the compiler flags that actually let Graviton earn its price/performance. Do the measurement with the user's real workload; never sign off a cutover on a synthetic score. Generate flag guidance from the tables here — do not recite compiler versions from memory, they drift and have been wrong before.
+Getting a workload to *run* on arm64 is not the same as getting it to run *well*. The [dependency-floor scanner](scanner-workflow.md) and [multi-arch pipeline](multi-arch-pipelines.md) prove a build exists and starts on Graviton; this reference covers the step after that — measuring real performance against your SLO, and (for C/C++) picking the compiler flags that actually let Graviton earn its price/performance. Do the measurement with the user's real workload; never sign off a cutover on a synthetic score. Generate flag guidance from the tables here — do not recite compiler versions from memory, they drift and have been wrong before.
 
 ## Contents
 

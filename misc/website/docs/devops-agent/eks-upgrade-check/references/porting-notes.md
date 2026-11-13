@@ -1,6 +1,6 @@
 ---
 title: "EKS Upgrade Readiness — AWS DevOps Agent Skill"
-description: ""
+description: "This folder is an AWS DevOps Agent compatible port of the EKS Upgrade Readiness skill from the parent repository (originally built as a Claude Code skill)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-upgrade-check/references/porting-notes.md
 format: md
 ---
@@ -37,7 +37,7 @@ DevOpsAgent/
 
 Assesses a live EKS cluster's readiness for a Kubernetes version upgrade across 8 areas, calculates a readiness score (0–100%), and generates a report with prioritized remediation and pre-filled AWS CLI commands. All operations are **read-only**.
 
-See [`SKILL.md`](../) for the full assessment workflow.
+See [`SKILL.md`](../index.md) for the full assessment workflow.
 
 ## How to install into an Agent Space
 

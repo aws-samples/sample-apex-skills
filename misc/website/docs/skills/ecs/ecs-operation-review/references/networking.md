@@ -1,6 +1,6 @@
 ---
 title: "Section 02 — Networking"
-description: ""
+description: "Assess task network mode, security-group segmentation, subnet IP capacity for awsvpc ENIs, private connectivity to AWS services, and service-to-service..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/networking.md
 format: md
 ---

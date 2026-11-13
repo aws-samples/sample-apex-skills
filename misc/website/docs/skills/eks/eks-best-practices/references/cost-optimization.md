@@ -1,6 +1,6 @@
 ---
 title: "EKS Cost Optimization"
-description: ""
+description: "Cost optimization framework, compute/networking/storage cost strategies, observability cost management, tagging, and cost visibility tools for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/cost-optimization.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/cost-optimizat
 
 # EKS Cost Optimization
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Cost optimization framework, compute/networking/storage cost strategies, observability cost management, tagging, and cost visibility tools for Amazon EKS
 
 ---
@@ -118,7 +118,7 @@ kubectl get vpa app-vpa -o jsonpath='{.status.recommendation.containerRecommenda
 | CPU request >> actual usage (consistently) | Reduce CPU request to P95 usage |
 | Memory request >> actual usage | Reduce memory request to P99 usage + 20% buffer |
 | CPU throttling observed | Increase CPU request (or remove CPU limit) |
-| OOMKilled events | Increase memory limit |
+| OOMKilled events | Raise memory request and limit |
 | Pod pending due to resources | Scale nodes or reduce requests |
 
 ### Reducing Unused Capacity
@@ -141,9 +141,9 @@ spec:
 
 Karpenter selects the most cost-effective instance from your allowed types. It replaces underutilized nodes with smaller ones and removes empty nodes automatically.
 
-For workloads that shouldn't be interrupted (long batch jobs without checkpointing), use the `karpenter.sh/do-not-disrupt: "true"` annotation. On a pod it blocks consolidation (and drift unless the NodeClaim has a `terminationGracePeriod`); on a node it blocks consolidation and drift. It does not block expiration, interruption, manual deletion or Node Auto Repair: see [Karpenter Reference](karpenter#do-not-disrupt-does-not-block-forceful-disruption).
+For workloads that shouldn't be interrupted (long batch jobs without checkpointing), use the `karpenter.sh/do-not-disrupt: "true"` annotation. On a pod it blocks consolidation (and drift unless the NodeClaim has a `terminationGracePeriod`); on a node it blocks consolidation and drift. It does not block expiration, interruption, manual deletion or Node Auto Repair: see [Karpenter Reference](karpenter.md#do-not-disrupt-does-not-block-forceful-disruption).
 
-**See also:** [Karpenter Reference](karpenter) for detailed NodePool configuration, consolidation tuning, and Spot handling.
+**See also:** [Karpenter Reference](karpenter.md) for detailed NodePool configuration, consolidation tuning, and Spot handling.
 
 ### Cluster Autoscaler Priority Expander
 
@@ -334,7 +334,7 @@ Use **IP mode** to eliminate data transfer charges from LB-to-Pod traffic. Ensur
 | NAT Gateway per AZ | Eliminates inter-AZ NAT traversal | Low |
 | In-region ECR pulls | Free (vs cross-region data transfer) | Low |
 
-**For detailed networking configuration, see:** [Networking Reference](networking) | [Networking -- Ingress & DNS](networking-ingress-dns)
+**For detailed networking configuration, see:** [Networking Reference](networking.md) | [Networking -- Ingress & DNS](networking-ingress-dns.md)
 
 ---
 
@@ -506,11 +506,16 @@ AWS resource tags don't directly correlate with Kubernetes labels. Use Kubernete
 
 Kubecost provides real-time cost monitoring, namespace/label allocation, and right-sizing recommendations:
 
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+
+First create the `kubecost` namespace and, in it, a Secret named `cloud-integration` whose key `cloud-integration.json` holds the cloud integration JSON; the chart expects that Secret in the release namespace.
+
 ```bash
-helm install kubecost kubecost/cost-analyzer \
+helm repo add kubecost https://kubecost.github.io/kubecost/
+helm install kubecost kubecost/kubecost --version <chart-version> \
   --namespace kubecost --create-namespace \
-  --set kubecostProductConfigs.clusterName=my-cluster \
-  --set kubecostProductConfigs.cloudIntegrationSecret=cloud-integration
+  --set global.clusterId=<cluster-name> \
+  --set cloudCost.cloudIntegrationSecret=cloud-integration
 ```
 
 | Feature | Free | Enterprise |

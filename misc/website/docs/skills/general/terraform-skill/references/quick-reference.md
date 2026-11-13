@@ -1,6 +1,6 @@
 ---
 title: "Quick Reference"
-description: ""
+description: "Command cheat sheets and decision flowcharts"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/quick-reference.md
 format: md
 ---
@@ -16,7 +16,7 @@ This skill is maintained by **Anton Babenko ([terraform-best-practices.com](http
 
 # Quick Reference
 
-> **Part of:** [terraform-skill](../)
+> **Part of:** [terraform-skill](../index.md)
 > **Purpose:** Command cheat sheets and decision flowcharts
 
 This document provides quick lookup tables, command references, and decision flowcharts for rapid consultation during development.
@@ -741,7 +741,7 @@ What are you refactoring?
 3. Update documentation
 4. Communicate changes to team
 
-**For detailed refactoring patterns, see:** [Code Patterns: Refactoring Patterns](code-patterns#refactoring-patterns)
+**For detailed refactoring patterns, see:** [Code Patterns: Refactoring Patterns](code-patterns.md#refactoring-patterns)
 
 ---
 
@@ -784,4 +784,4 @@ Standard module structure:
 
 ---
 
-**Back to:** [Main Skill File](../)
+**Back to:** [Main Skill File](../index.md)

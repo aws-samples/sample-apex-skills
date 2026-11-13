@@ -1,6 +1,6 @@
 ---
 title: "Module: Storage"
-description: ""
+description: "Detect storage configuration — CSI drivers, StorageClasses, PVs, PVCs, snapshots, backup tooling"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/storage.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/storage.md](https
 
 # Module: Storage
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect storage configuration — CSI drivers, StorageClasses, PVs, PVCs, snapshots, backup tooling
 
 This module OWNS the canonical PVC block (the workloads module defers PVCs here) and OWNS

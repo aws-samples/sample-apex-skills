@@ -1,6 +1,6 @@
 ---
 title: "Fargate Cost Checks"
-description: ""
+description: "Fargate profile detection for Step 0, plus Fargate-specific cost checks — pod request right-sizing against Fargate's vCPU/memory combinations, and capacity..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/fargate-costs.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/farga
 
 # Fargate Cost Checks
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Fargate profile detection for Step 0, plus Fargate-specific cost checks — pod request right-sizing against Fargate's vCPU/memory combinations, and capacity strategy for interruption-tolerant Fargate workloads
 >
 > Facts verified 2026-07-17 against https://docs.aws.amazon.com/eks/latest/userguide/fargate-pod-configuration.html, https://docs.aws.amazon.com/eks/latest/userguide/fargate.html, and https://docs.aws.amazon.com/savingsplans/latest/userguide/sp-services.html
@@ -91,7 +91,7 @@ For each Fargate-scheduled pod:
     → Finding: right-size requests toward P95 + headroom, re-check tier fit
 ```
 
-Use Fargate per-vCPU-hour and per-GB-hour rates from the AWS Price List API or https://aws.amazon.com/fargate/pricing/ — do not hardcode rates.
+Use Fargate per-vCPU-hour and per-GB-hour rates from the AWS Price List API when `pricing:GetProducts` is granted, otherwise from https://aws.amazon.com/fargate/pricing/ — do not hardcode rates.
 
 ### Severity classification
 

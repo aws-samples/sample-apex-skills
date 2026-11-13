@@ -1,6 +1,6 @@
 ---
 title: "Task Definition Guide"
-description: ""
+description: "Generating aws_ecs_task_definition (or the container-definition submodule) correctly."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/task-definition-guide.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-build/references/task-definition-guide.m
 
 # Task Definition Guide
 
-> **Part of:** [ecs-build](../)
+> **Part of:** [ecs-build](../index.md)
 
 Generating `aws_ecs_task_definition` (or the container-definition submodule) correctly.
 
@@ -29,7 +29,7 @@ Generating `aws_ecs_task_definition` (or the container-definition submodule) cor
 - Execution role is required on Fargate, Managed Instances, and external instances for private-ECR pulls and awslogs.
 - `ecr:GetAuthorizationToken` requires `Resource: "*"` -- do not try to scope it.
 - ECS Exec permissions (`ssmmessages:*`) go on the **task** role, not the execution role.
-- Trust-policy scoping (account-wide `aws:SourceArn` wildcard, never cluster-scoped): see [networking-security.md](networking-security).
+- Trust-policy scoping (account-wide `aws:SourceArn` wildcard, never cluster-scoped): see [networking-security.md](networking-security.md).
 - One role pair per service, not one shared pair per cluster.
 
 ## Secrets injection

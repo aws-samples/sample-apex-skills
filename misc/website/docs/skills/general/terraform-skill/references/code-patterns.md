@@ -1,6 +1,6 @@
 ---
 title: "Code Patterns & Structure"
-description: ""
+description: "Comprehensive patterns for Terraform/OpenTofu code structure and modern features"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/code-patterns.md
 format: md
 ---
@@ -16,10 +16,10 @@ This skill is maintained by **Anton Babenko ([terraform-best-practices.com](http
 
 # Code Patterns & Structure
 
-> **Part of:** [terraform-skill](../)
+> **Part of:** [terraform-skill](../index.md)
 > **Purpose:** Comprehensive patterns for Terraform/OpenTofu code structure and modern features
 
-This document provides detailed code patterns, structure guidelines, and modern Terraform features. For high-level principles, see the [main skill file](../).
+This document provides detailed code patterns, structure guidelines, and modern Terraform features. For high-level principles, see the [main skill file](../index.md).
 
 ---
 
@@ -84,7 +84,7 @@ resource "aws_nat_gateway" "this" {
 }
 ```
 
-> Pattern applies identically on Azure/GCP; for resource equivalents see [Module Patterns: Cross-cloud resource map](module-patterns#cross-cloud-resource-map).
+> Pattern applies identically on Azure/GCP; for resource equivalents see [Module Patterns: Cross-cloud resource map](module-patterns.md#cross-cloud-resource-map).
 
 ### Variable Definition Structure
 
@@ -949,7 +949,7 @@ variable "config" {
 
 ### Secrets Remediation
 
-Move secret material out of state into external secret management. Canonical depth lives in [security-compliance.md](security-compliance) — patterns below are the minimum refactor shape.
+Move secret material out of state into external secret management. Canonical depth lives in [security-compliance.md](security-compliance.md) — patterns below are the minimum refactor shape.
 
 ❌ BAD — both shapes land the secret in state:
 
@@ -1077,4 +1077,4 @@ Common model mistakes when generating HCL. Correct these before returning code:
 
 ---
 
-**Back to:** [Main Skill File](../)
+**Back to:** [Main Skill File](../index.md)

@@ -36,9 +36,10 @@ OVERALL = {"exposed": "Exposed: at least one component is inside an affected ran
            "not_exposed": "Not exposed: every targeted component was read and is outside the affected ranges.",
            "unknown": "Unknown: nothing was found exposed, but at least one component or advisory could not be "
                       "decided. See Unknown"}
-PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node was created at or after the fix time %s; the Auto "
-           "Mode components' versions were not read. AMI rollouts can lag the fix date: confirm the nodes' AMI or "
-           "osImage against the release note.")
+PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node it was judged on was created at or after the fix "
+           "time %s; the Auto Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves "
+           "(https://docs.aws.amazon.com/whitepapers/latest/security-overview-amazon-eks-auto-mode/eks-auto-mode-data-plane.html, "
+           "Node patching), so a node created after the fix time can still run an older AMI.")
 UNKNOWN_ACTION = {
     "denied": "Grant the read named in the preflight (see read-only-access.md) and re-run collect",
     "not_found": "Confirm whether the component is installed another way (Helm, manifest) and re-run with --namespaces",
@@ -46,14 +47,12 @@ UNKNOWN_ACTION = {
     "digest_only": "The image is pinned by digest only; map the digest to its release in the registry",
     "unparsed": "The version string did not parse; read it by hand and record it",
     "no_fix_date": "Find the time AWS released the fix for Auto Mode, record it as fixed_at with its source line, "
-                   "and run match again (Auto Mode release notes: "
-                   "https://docs.aws.amazon.com/eks/latest/userguide/auto-change.html)",
+                   "and run match again (take the fix date from the AWS security bulletin for the issue)",
     "no_version_range": "Compare the installed version with the advisory by hand",
     "bad_range": "Correct the record's range, check it with advisory_check.py and run match again",
     "no_nodes_read": "No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and "
                      "that the NodePools have nodes, then re-run collect",
-    "eks_build": "A range bound carries an eksbuild number, which is not compared; compare the add-on build with "
-                 "the advisory by hand",
+    "eks_build": "Compare the build with the advisory by hand",
     "minor_only": "The installed version names no patch release; find the patch release (for the control plane, "
                   "from its platform version) and compare by hand"}
 _TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+=-]{0,199}$")
@@ -227,6 +226,22 @@ def findings_blocks(fd, inv):
         if patched:
             blocks.append(("p", ("Auto Mode components: " if printed else "Overall verdict: ")
                            + PATCHED % "; ".join(patched)))
+            # the nodes the patched verdicts were judged on: a node-os finding its own group, any other every group;
+            # a NodePool any advisory holds as pending rotation, on any of its node groups, is never listed here
+            auto = {c.get("id"): c for c in inv.get("components") or [] if isinstance(c, dict)
+                    and c.get("kind") == "node-os" and c.get("managed_by") == "aws-auto-mode"}
+            pc = {f.get("component") for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_patched"}
+            pf = [f for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_rotation_pending"]
+            pend = {f.get("component") for f in pf}
+            pend_nodes = {n for f in pf for n in f.get("nodes_pending") or []}
+            pend_pools = {s(c.get("where")) for i, c in auto.items() if i in pend or pend_nodes & set(c.get("nodes") or [])}
+            rows = sorted((c for i, c in auto.items() if s(c.get("where")) not in pend_pools
+                           and (i in pc or not pc <= set(auto))),
+                          key=lambda c: (s(c.get("where")), s(c.get("os_image"))))
+            if rows:
+                blocks.append(("table", ["NodePool", "OS image", "AMI", "Nodes", "Oldest node created"],
+                               [[c.get("where"), c.get("os_image") or "not read", c.get("ami") or "not read",
+                                 len(c.get("nodes") or []), c.get("oldest_node_created")] for c in rows]))
     src = fd.get("sources") or []
     blocks += [("h2", "Sources"),
                ("table", ["Advisory", "Title", "Origin", "Read at", "Source URL"],

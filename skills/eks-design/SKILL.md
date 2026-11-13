@@ -104,7 +104,7 @@ Refer to `eks-best-practices` skill for detailed reference material on autoscali
 | Component Integration | /20 | All interfaces defined and compatible, data flows documented |
 | Service Limits | /15 | AWS service limits assessed with mitigation for high-risk items |
 | Technical Feasibility | /20 | Technology choices validated, EKS-specific checks pass |
-| Documentation Completeness | /20 | All required docs present, **narrative quality** (not just tables), ADR quality, diagrams rendered to PNG and embedded in docx/pptx |
+| Documentation Completeness | /20 | All required docs present, **narrative quality** (not just tables), ADR quality, Mermaid diagrams in the markdown design files (PNG rendering is checked in Stage 5) |
 
 **Output**: `appendices/architecture-integration-validation.md`
 
@@ -169,8 +169,8 @@ Generate handoff artifacts for `eks-build`:
 1. **AGENTS.md** — machine-readable instructions listing which design files the build agent must read
 2. **README.md** — human-readable navigation guide
 3. Verify output structure matches specification
-4. **Render Mermaid diagrams to PNG** — extract every Mermaid code block from the architecture markdown files, save each as a `.mmd` file, then convert to PNG in `diagrams/`. Install and convert: `npm install -g @mermaid-js/mermaid-cli && mmdc -i diagram.mmd -o diagrams/<name>.png -b white -s 4`. `mmdc` renders through a headless Chrome driven by puppeteer; if `mmdc` fails with "Could not find Chrome" or "Could not find chrome-headless-shell" (puppeteer's browser download was blocked, or the version it wants is not installed), point it at an installed Chrome or Chromium with `PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`. If `mmdc` still doesn't work, **search the internet for how to use mermaid-cli to convert .mmd to .png**. Requirements: 4x scale, white background, auto-sized canvas (no fixed width/height). Use descriptive kebab-case names (e.g., `defense-in-depth-layers.png`, `pod-identity-flow.png`).
-5. **Ask the user** if they want Word (.docx) and PowerPoint (.pptx) versions. Only generate if confirmed — the `docx` and `aws-pptx` skills handle generation. When generating, embed the rendered PNGs from `diagrams/` into the documents.
+4. **Render Mermaid diagrams to PNG** — extract every Mermaid code block from the architecture markdown files, save each as a `.mmd` file, then convert to PNG in `diagrams/`. Install and convert: `npm install -g @mermaid-js/mermaid-cli && mmdc -i diagram.mmd -o diagrams/<name>.png -b white -s 4`. `mmdc` renders through a headless Chrome driven by puppeteer; if `mmdc` fails with "Could not find Chrome" or "Could not find chrome-headless-shell" (no matching browser in puppeteer's cache), point it at an installed Chrome or Chromium with `PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`. If `mmdc` still doesn't work, **search the internet for how to use mermaid-cli to convert .mmd to .png**. Requirements: 4x scale, white background, auto-sized canvas (no fixed width/height). Use descriptive kebab-case names (e.g., `defense-in-depth-layers.png`, `pod-identity-flow.png`).
+5. **Ask the user** if they want Word (.docx) and PowerPoint (.pptx) versions. Only generate if confirmed. Generation uses the `docx` and `pptx` skills from [anthropics/skills](https://github.com/anthropics/skills), which this repo does not ship (they are Apache 2.0). Check they are installed first, with the tools each lists under Dependencies (for example the npm `docx` or `pptxgenjs` package and LibreOffice). If a skill or a tool it depends on is missing, ask the user whether to install it. In Claude Code, ask the user to type `/plugin marketplace add anthropics/skills` then `/plugin install document-skills@anthropic-agent-skills` (the second opens the plugin panel to review it and choose a scope); this installs the whole document-skills plugin: xlsx, docx, pptx and pdf. This marketplace auto-updates by default; to keep it fixed, choose Disable auto-update for it in the `/plugin` Marketplaces tab. Otherwise, or if the user prefers a copy, copy `skills/docx` or `skills/pptx` from anthropics/skills into the folder this repo's skills are in (`~/.claude/skills/` for Claude Code, `~/.kiro/skills/` for Kiro CLI, `~/.agents/skills/` for Codex) at a fixed commit SHA (the repo has no tags), and tell the user the SHA. Install only on a yes; on a no, tell the user and skip the documents. Do not write a document generator yourself. When generating, embed the rendered PNGs from `diagrams/` into the documents.
 
 **Output**: `AGENTS.md`, `README.md`, `diagrams/*.png`, optionally `.docx` and `.pptx`
 
@@ -192,10 +192,9 @@ projects/<project-name>/design/
 │   ├── cluster-topology.png
 │   ├── network-architecture.png
 │   └── addon-dependencies.png
-├── generate-docx.js                         # DOCX generator script (optional — user must confirm)
-├── generate-pptx.js                         # PPTX generator script (optional — user must confirm)
-├── system-architecture.docx                 # Word document (optional — with embedded diagrams)
-├── system-architecture.pptx                 # PowerPoint deck (optional — with embedded diagrams)
+├── exports/                                 # Optional: generated documents, with embedded diagrams
+│   ├── architecture-document.docx           # Word document
+│   └── architecture-presentation.pptx       # PowerPoint deck
 └── appendices/
     ├── input-assessment-analysis.md         # Stage 1 output
     ├── architecture-integration-validation.md # Stage 3 output

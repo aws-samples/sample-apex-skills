@@ -1,6 +1,6 @@
 ---
 title: "ECS DevOps — Controllers & CodeDeploy Migration"
-description: ""
+description: "The CodeDeploy deployment controller (capabilities, constraints, when to keep it), the three migration paths to ECS-native blue/green, and the external..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-devops/references/controllers-and-migration.md
 format: md
 ---
@@ -11,10 +11,10 @@ This page is generated from [skills/ecs-devops/references/controllers-and-migrat
 
 # ECS DevOps — Controllers & CodeDeploy Migration
 
-> **Part of:** [ecs-devops](../)
+> **Part of:** [ecs-devops](../index.md)
 > **Purpose:** The CodeDeploy deployment controller (capabilities, constraints, when to keep it), the three migration paths to ECS-native blue/green, and the external deployment controller
 
-**For native-strategy configuration, see:** [deployment-strategies.md](deployment-strategies)
+**For native-strategy configuration, see:** [deployment-strategies.md](deployment-strategies.md)
 
 > Facts in this file verified 2026-07-09 against the AWS documentation URLs cited inline.
 
@@ -89,7 +89,7 @@ Approach 1 mechanics:
 4. Failure mode to expect if step 1 is wrong: "Service deployment rolled back because of invalid networking configuration. Both targetGroup and alternateTargetGroup must be associated with the productionListenerRule or testListenerRule." ([migration page](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/migrate-code-deploy-to-ecs-blue-green.html))
 
 Post-migration checklist (from the AWS guide):
-- Switch CI/CD from CodeDeploy `CreateDeployment` to ECS `UpdateService` (see [cicd-pipelines.md](cicd-pipelines)).
+- Switch CI/CD from CodeDeploy `CreateDeployment` to ECS `UpdateService` (see [cicd-pipelines.md](cicd-pipelines.md)).
 - Move deployment monitoring from CodeDeploy deployments to ECS service deployments (`list-service-deployments`, EventBridge deployment events).
 - Recreate AppSpec hooks as service `lifecycleHooks` (mind the different Lambda contract above).
 

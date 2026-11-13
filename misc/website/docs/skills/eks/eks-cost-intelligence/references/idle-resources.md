@@ -1,6 +1,6 @@
 ---
 title: "Idle Resources"
-description: ""
+description: "Checks for zero-replica Deployments idle for extended periods, LoadBalancer Services with no healthy endpoints, namespaces with no running workloads but..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/references/idle-resources.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/idle-resour
 
 # Idle Resources
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for zero-replica Deployments idle for extended periods, LoadBalancer Services with no healthy endpoints, namespaces with no running workloads but allocated quotas, orphaned ConfigMaps/Secrets not referenced by running workloads, and per-hour cost of unused load balancers
 
 ---

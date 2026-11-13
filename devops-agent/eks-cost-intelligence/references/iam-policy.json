@@ -10,6 +10,7 @@
         "eks:ListNodegroups",
         "eks:DescribeNodegroup",
         "eks:ListAddons",
+        "eks:DescribeAddon",
         "eks:ListFargateProfiles",
         "eks:DescribeFargateProfile"
       ],
@@ -20,9 +21,12 @@
       "Effect": "Allow",
       "Action": [
         "ec2:DescribeInstances",
+        "ec2:DescribeInstanceTypes",
         "ec2:DescribeVolumes",
         "ec2:DescribeSubnets",
         "ec2:DescribeVpcEndpoints",
+        "ec2:DescribeNatGateways",
+        "ec2:DescribeSpotPriceHistory",
         "route53:ListHostedZonesByVPC"
       ],
       "Resource": "*"
@@ -43,6 +47,8 @@
       "Action": [
         "ce:GetCostAndUsage",
         "ce:GetCostForecast",
+        "ce:GetSavingsPlansCoverage",
+        "ce:GetSavingsPlansUtilization",
         "organizations:DescribeOrganization"
       ],
       "Resource": "*"
@@ -54,7 +60,8 @@
         "cloudwatch:GetMetricData",
         "cloudwatch:ListMetrics",
         "logs:StartQuery",
-        "logs:GetQueryResults"
+        "logs:GetQueryResults",
+        "logs:DescribeLogGroups"
       ],
       "Resource": "*"
     },
@@ -64,6 +71,22 @@
       "Action": [
         "elasticfilesystem:DescribeFileSystems",
         "elasticfilesystem:DescribeLifecycleConfiguration"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SQSOptional",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:GetQueueUrl"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECROptional",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage"
       ],
       "Resource": "*"
     }

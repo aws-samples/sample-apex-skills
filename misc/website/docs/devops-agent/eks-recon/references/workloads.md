@@ -1,6 +1,6 @@
 ---
 title: "Module: Workloads"
-description: ""
+description: "Detect running workloads — deployments, services, ingresses, jobs"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/workloads.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/workloads.md](htt
 
 # Module: Workloads
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect running workloads — deployments, services, ingresses, jobs
 
 **Note:** This is an optional module for migration assessments or workload inventory. Skip for basic infrastructure recon.

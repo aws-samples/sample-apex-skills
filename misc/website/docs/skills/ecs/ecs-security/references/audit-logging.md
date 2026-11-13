@@ -1,6 +1,6 @@
 ---
 title: "Layer 7a — Audit Logging & Monitoring"
-description: ""
+description: "Proving what happened is the backbone of every compliance audit."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/audit-logging.md
 format: md
 ---
@@ -35,7 +35,7 @@ CloudTrail is on by default in every account (Event history), but for compliance
 
 ## SIEM forwarding
 
-CloudWatch Logs subscription → Kinesis Data Streams → Firehose → SIEM (Splunk, Elastic, Datadog, Microsoft Sentinel), or route directly via **FireLens** from the tasks. Keep the pipeline in-Region (and EU-resident where the customer's GDPR data-residency policy requires it — EU-only residency is a customer choice, not a GDPR mandate; see [compliance-regimes.md](compliance-regimes)).
+CloudWatch Logs subscription → Kinesis Data Streams → Firehose → SIEM (Splunk, Elastic, Datadog, Microsoft Sentinel), or route directly via **FireLens** from the tasks. Keep the pipeline in-Region (and EU-resident where the customer's GDPR data-residency policy requires it — EU-only residency is a customer choice, not a GDPR mandate; see [compliance-regimes.md](compliance-regimes.md)).
 
 ## Shared responsibility (Layer 7a)
 

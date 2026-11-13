@@ -1,6 +1,6 @@
 ---
 title: "EKS Cluster Upgrade Best Practices"
-description: ""
+description: "Upgrade planning, in-place and blue-green strategies, add-on management, API deprecation detection, and version support for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/cluster-upgrades.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/cluster-upgrad
 
 # EKS Cluster Upgrade Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Upgrade planning, in-place and blue-green strategies, add-on management, API deprecation detection, and version support for Amazon EKS
 
 ---
@@ -501,7 +501,7 @@ kubectl-convert -f old-deployment.yaml --output-version apps/v1
 
 This applies to MNG, self-managed nodes, and Fargate. However, keep AMI versions current for security — older kubelet versions may have unpatched CVEs.
 
-Set a node image cadence and an emergency path for security fixes: see [Security Operations](security-operations#patch-cadence-and-the-emergency-path).
+Set a node image cadence and an emergency path for security fixes: see [Security Operations](security-operations.md#patch-cadence-and-the-emergency-path).
 
 ### Karpenter Node Upgrades
 
@@ -697,7 +697,7 @@ To verify SSM connectivity: check that the SSM agent is running on the node, the
 | Security patch for Bottlerocket OS | OS update in-place | BUO | Reboot only |
 | New Bottlerocket AMI (same K8s version) | Node replacement | Karpenter drift or MNG update | Pod eviction + reschedule |
 | K8s minor version upgrade (e.g., 1.34 → 1.35) | Control plane + data plane upgrade | EKS API + Karpenter drift | Full upgrade sequence |
-| Critical CVE requiring immediate patch | OS update (if BUO patch available) or node replacement, through the emergency path in [Security Operations](security-operations#the-emergency-path); confirm exposure first with eks-security C1 | BUO or Karpenter | Depends on patch availability |
+| Critical CVE requiring immediate patch | OS update (if BUO patch available) or node replacement, through the emergency path in [Security Operations](security-operations.md#the-emergency-path); confirm exposure first with eks-security C1 | BUO or Karpenter | Depends on patch availability |
 
 ---
 

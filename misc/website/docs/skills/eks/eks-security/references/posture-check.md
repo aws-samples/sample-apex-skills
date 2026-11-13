@@ -1,6 +1,6 @@
 ---
 title: "C3: posture check (\"does my setup contain the next one?\")"
-description: ""
+description: "The question is not \"is every setting perfect\" but \"if one pod is compromised tomorrow, does this cluster keep it contained?\"."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/posture-check.md
 format: md
 ---
@@ -13,7 +13,7 @@ This page is generated from [skills/eks-security/references/posture-check.md](ht
 
 The question is not "is every setting perfect" but "if one pod is compromised tomorrow, does this cluster keep it contained?". This file describes what the four posture scripts in `assets/` do. The scripts are the authority: where this file and a script differ, the script is right and this file is the bug.
 
-Each check reads only files the collector wrote, returns a result with the evidence it read, and carries a severity. A check whose input file was not collected (the read was denied or failed) is `unknown`, never pass.
+Each check reads only files the collector wrote, returns a result with the evidence it read, and carries a severity. A check whose input file was not collected (the read was denied or failed), or, for SEC-POSTURE-18, -28, -29, -33, -46 and -55, a node, volume or add-on it needs was not read while the ones that were read would pass, is `unknown`, never pass.
 
 ## How it runs
 
@@ -22,7 +22,7 @@ Run from any directory with `aws`, `kubectl`, `jq` 1.6 or later, and `timeout` a
 | Step | Command | Writes | Exit codes |
 |---|---|---|---|
 | 1. Collect | `posture_collect.sh --cluster <name> --region <region> --context <kubectl-context> [--work <dir>] [--profile <aws-profile>] [--kubeconfig <file>] [--preflight-only]` | `<workdir>/posture/*.json` and `posture/meta.json` (0700 dir, 0600 files) | 0 collected (some files may be missing: `meta.json` `errors`); 2 usage or refusal, one JSON line `{"ok":false,"code":...,"error":...}` |
-| 2. Score the copied checks | `posture_score.sh <workdir>` | `posture/results.jsonl`, one token per question | 0; 2 no collection, or already scored; 1 a collection file does not parse (a broken file is not a finding) |
+| 2. Score the copied checks | `posture_score.sh <workdir>` | `posture/results.jsonl`, one token per question | 0; 2 bad arguments, no collection, or already scored; 1 a collection file does not parse (a broken file is not a finding) |
 | 3. Score the added checks | `posture_extra.sh <workdir> [--admin-allow <regex>]` | `posture/results-extra.jsonl` | as step 2 |
 | 4. Reduce | `posture_reduce.sh <workdir>` | `<workdir>/posture.json` (schema `eks-security/posture@1`) | 0 written, coverage at or above the gate; 3 written but below the gate (score null); 2 refused, nothing written |
 | 5. Render | `render_report.py --posture <workdir>/posture.json --out-md <file> [--out-html <file>]` | the report | 0; 3 rendered, coverage below the gate; 2 usage or input error |
@@ -36,7 +36,7 @@ Notes on the flags, from the scripts:
 - `--admin-allow` (step 3 only) is a regular expression, matched with jq `test`, for principal ARNs that are expected to hold cluster admin through an access entry: the role that created the cluster, or a break-glass role. The EKS API does not name the cluster creator, so without this flag the creator's entry fails SEC-POSTURE-64.
 - Steps 2 and 3 refuse a work dir that is already scored, so re-running cannot emit duplicate tokens.
 
-The access needed is in [read-only-access.md](read-only-access), C3 section. The preflight probes each AWS action with a small real read (EC2 with `--dry-run`) and each Kubernetes read with `kubectl auth can-i`. A denied probe does not abort the run: the matching file is not collected, the denial is recorded in `meta.json`, and every check that needs the file reports `unknown`. Only a failed `eks:DescribeCluster`, an unreachable Kubernetes API or expired credentials stop the run.
+The access needed is in [read-only-access.md](read-only-access.md), C3 section. The preflight probes each AWS action with a small real read (EC2 with `--dry-run`) and each Kubernetes read with `kubectl auth can-i`. A denied probe does not abort the run: the matching file is not collected, the denial is recorded in `meta.json`, and every check that needs the file reports `unknown`. Only a failed `eks:DescribeCluster`, an unreachable Kubernetes API or expired credentials stop the run.
 
 The collected pod and workload JSON carries container environment values and arguments: treat the work dir as sensitive, keep it out of version control and delete it after the review. No Secret object is read; two named ConfigMaps are (`kube-system/aws-auth`, `kube-system/amazon-vpc-cni`).
 
@@ -64,7 +64,7 @@ eks-well-architected-review's security pillar does not measure these, or measure
 
 | Id | Check | Evidence source file | Pass / fail rule | Layer | Severity |
 |---|---|---|---|---|---|
-| SEC-POSTURE-55 | Node instances block pod access to IMDS | `instances.json`, `nodes.json` | Per running Linux instance: pass when `MetadataOptions.HttpEndpoint` is `disabled`, or `HttpTokens` is `required` with `HttpPutResponseHopLimit` 1; bucketed over instances; failing instances grouped by node type (managed node group, Karpenter node pool, Auto Mode, other). Read off the running instance, so launch templates, Karpenter and Auto Mode are judged as in effect. Windows instances are not assessed; no Linux instance gives na | node-credential | high |
+| SEC-POSTURE-55 | Node instances block pod access to IMDS | `instances.json`, `nodes.json` | Per running Linux instance: pass when `MetadataOptions.HttpEndpoint` is `disabled`, or `HttpTokens` is `required` with `HttpPutResponseHopLimit` 1; bucketed over instances; failing instances grouped by node type (managed node group, Karpenter node pool, Auto Mode, other). Read off the running instance, so launch templates, Karpenter and Auto Mode are judged as in effect. Windows instances are not assessed; no Linux instance gives na. A Linux EC2 node with no instance record is named, and gives unknown when the instances that were read would score a pass (none read included) | node-credential | high |
 | SEC-POSTURE-56 | Default-deny ingress per workload namespace | `networkpolicies.json`, `namespaces.json` | A namespace passes when it has a NetworkPolicy with an empty `podSelector`, `Ingress` in `policyTypes` (implied when absent) and no ingress rule; bucketed over workload namespaces. Objects only: enforcement is SEC-POSTURE-26 | lateral-movement | high |
 | SEC-POSTURE-57 | Egress limited per workload namespace | `networkpolicies.json`, `namespaces.json` | A namespace passes when a NetworkPolicy with an empty `podSelector` lists `Egress` in `policyTypes`; bucketed. The allowed destinations are not judged | lateral-movement | medium |
 | SEC-POSTURE-58 | No host namespaces in workload pods | `pods.json` | Any workload pod not finished (phase other than `Succeeded` or `Failed`) with `hostNetwork`, `hostPID` or `hostIPC` true fails the check (`none`); otherwise `all`; no workload pods gives na | privilege | high |
@@ -98,7 +98,7 @@ Each check's title, source files and recommendation are in the catalog at the to
 
 ## Currency rule
 
-The posture scripts do not read C1 output: no posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: route it to eks-upgrade-check against a target version, or to eks-operation-review (version currency) with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are collected in inventory.json for a manual read.
+The posture scripts do not read C1 output: no posture check judges component versions. Version exposure comes from a C1 sweep ([cve-advisory-review.md](cve-advisory-review.md)), reported beside the posture result. Only a gap to a published fixed version is a security finding. A component that is merely behind the latest release, with no advisory, is not: route it to eks-upgrade-check against a target version, or to eks-operation-review (version currency) with no target version. Issue 348's currency group (behind latest) is not checked in this version; add-on available versions are collected in inventory.json for a manual read.
 
 ## Repository checks (manual, not scripted)
 

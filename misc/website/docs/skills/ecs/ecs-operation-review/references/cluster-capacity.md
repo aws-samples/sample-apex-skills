@@ -1,6 +1,6 @@
 ---
 title: "Section 01 — Clusters & Capacity"
-description: ""
+description: "Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacity providers / ECS Managed Instances), and whether capacity-provider scale-in..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/cluster-capacity.md
 format: md
 ---

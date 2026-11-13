@@ -1,6 +1,6 @@
 ---
 title: "Layer 2: Identity & Access on EKS"
-description: ""
+description: "Two distinct concerns: pod-level IAM (how a pod gets AWS credentials) and cluster-level access (how an IAM principal maps to Kubernetes RBAC)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-security/references/identity-and-access.md
 format: md
 ---
@@ -28,7 +28,7 @@ Two distinct concerns: **pod-level IAM** (how a pod gets AWS credentials) and **
 
 > **Credential caching (checked 2026-11-06):** the Pod Identity Agent caches credentials based on the association as it was when they were fetched: 6 hours for an association with only a Pod Identity role, 59 minutes when it also has a Target IAM Role. Modifying an existing association (its role ARN, adding a Target IAM Role, its session policy) does not reset that cache, so recreate the pods to apply the change sooner, or wait for the cache to expire. Edits to the permission policies of the role the pod's credentials are for (the Target IAM Role, when one is set) need no pod restart: IAM evaluates them on every request, including for credentials already issued, though they can take a few minutes to apply. References: [Caching considerations](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-assign-target-role.html) · [Disabling permissions for temporary security credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_control-access_disable-perms.html).
 
-When a workload identity is implicated in a security event, revoke it as in [security-event-response.md](security-event-response) step 3.
+When a workload identity is implicated in a security event, revoke it as in [security-event-response.md](security-event-response.md) step 3.
 
 Fine-grained scoping and at-scale management: [Session policies for EKS Pod Identity](https://aws.amazon.com/blogs/containers/session-policies-for-amazon-eks-pod-identity) · [Managing Pod Identities at scale with Argo CD and ACK](https://aws.amazon.com/blogs/containers/how-to-manage-eks-pod-identities-at-scale-using-argo-cd-and-aws-ack).
 

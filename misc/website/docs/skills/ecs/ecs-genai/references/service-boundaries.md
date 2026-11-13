@@ -1,6 +1,6 @@
 ---
 title: "Service Boundaries — Fargate-GPU Exclusion & When to Leave ECS"
-description: ""
+description: "This skill's most important job is to keep GPU/ML workloads on the right AWS service."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/service-boundaries.md
 format: md
 ---
@@ -23,7 +23,7 @@ State this as fact, not opinion. GPU is a **container-instance (EC2)** capabilit
 
 **Consequence:** any GPU/accelerator container must run on **ECS-on-EC2**, **ECS Managed Instances**, or **ECS Anywhere/External**. Fargate can still host **CPU-only** parts of a GenAI app (an API front-end, an orchestrator, a RAG retriever calling Bedrock) — just not the accelerated container.
 
-**Guidance for the CPU-only orchestrator/RAG/gateway pieces** (so this isn't a dead-end blessing): a **RAG retriever or agent orchestrator** that calls a model runs fine on Fargate — the boundary to name is **Amazon Bedrock AgentCore** for a fully-managed agent runtime (memory/tools/identity) vs **self-hosting the framework on ECS** when you want to own it. A self-hosted **AI gateway (e.g. LiteLLM)** — model routing, key management, cost attribution across your ECS-hosted models and Bedrock — is a documented `ai-gateway` target and also runs as a CPU-only ECS/Fargate service. See [inference-serving.md](inference-serving) for the gateway/agentic patterns; agentic workloads with autonomous tool/code execution → also loop in `ecs-security`.
+**Guidance for the CPU-only orchestrator/RAG/gateway pieces** (so this isn't a dead-end blessing): a **RAG retriever or agent orchestrator** that calls a model runs fine on Fargate — the boundary to name is **Amazon Bedrock AgentCore** for a fully-managed agent runtime (memory/tools/identity) vs **self-hosting the framework on ECS** when you want to own it. A self-hosted **AI gateway (e.g. LiteLLM)** — model routing, key management, cost attribution across your ECS-hosted models and Bedrock — is a documented `ai-gateway` target and also runs as a CPU-only ECS/Fargate service. See [inference-serving.md](inference-serving.md) for the gateway/agentic patterns; agentic workloads with autonomous tool/code execution → also loop in `ecs-security`.
 
 ## 2. Stay on ECS vs Route Elsewhere
 

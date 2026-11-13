@@ -1,6 +1,6 @@
 ---
 title: "Storage Costs"
-description: ""
+description: "Checks for gp2 PersistentVolumes (flag for gp3 migration with 20% cost reduction), unbound/unmounted PVCs, over-provisioned volumes (used vs provisioned..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/storage-costs.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/stora
 
 # Storage Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for gp2 PersistentVolumes (flag for gp3 migration with 20% cost reduction), unbound/unmounted PVCs, over-provisioned volumes (used vs provisioned capacity), and EFS Intelligent-Tiering/lifecycle policies
 
 ---
@@ -64,7 +64,7 @@ PersistentVolumes (PVs) and PersistentVolumeClaims (PVCs) using the `gp2` storag
 
 Use the Kubernetes API to list PersistentVolumeClaims across all namespaces. Filter for storageClassName == "gp2" or null (which defaults to the cluster's default StorageClass). Also list StorageClasses to identify the default and check if a gp3 class exists. Extract capacity from spec.resources.requests.storage.
 
-Use the EC2 DescribeVolumes API filtered by the cluster tag (`kubernetes.io/cluster/<cluster>=owned`) to verify volume types and get actual sizes. Count gp2 vs gp3 volumes for the cluster.
+Use the EC2 DescribeVolumes API filtered by the cluster tag (`kubernetes.io/cluster/<cluster>=owned`), with `IncludeManagedResources` set to true so the volumes EKS Auto Mode can hide from list calls are included where they carry that tag, to verify volume types and get actual sizes. Count gp2 vs gp3 volumes for the cluster.
 
 ### Analysis logic
 
@@ -419,7 +419,7 @@ actual_deduction = min(deduction, 15)  # Cap at maximum
 |-----------|--------|
 | All checks completed | ASSESSED |
 | Check 3 skipped (no volume stats) | ASSESSED (with note) |
-| Check 4 skipped (no EFS in cluster) | ASSESSED (EFS check not applicable) |
+| Check 4 not applicable (no EFS in cluster) | ASSESSED (EFS check not applicable) |
 | All checks skipped (no kubectl access) | SKIPPED |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.

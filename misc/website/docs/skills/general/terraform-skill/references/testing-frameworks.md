@@ -1,6 +1,6 @@
 ---
 title: "Testing Frameworks - Detailed Guide"
-description: ""
+description: "Detailed guides for Terraform/OpenTofu testing frameworks"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/testing-frameworks.md
 format: md
 ---
@@ -16,10 +16,10 @@ This skill is maintained by **Anton Babenko ([terraform-best-practices.com](http
 
 # Testing Frameworks - Detailed Guide
 
-> **Part of:** [terraform-skill](../)
+> **Part of:** [terraform-skill](../index.md)
 > **Purpose:** Detailed guides for Terraform/OpenTofu testing frameworks
 
-This document provides in-depth guidance on testing frameworks for Infrastructure as Code. For the decision matrix and high-level overview, see the [main skill file](../#testing-strategy).
+This document provides in-depth guidance on testing frameworks for Infrastructure as Code. For the decision matrix and high-level overview, see the [main skill file](../index.md#testing-strategy).
 
 ---
 
@@ -122,7 +122,7 @@ run "verify_encryption" {
 }
 ```
 
-> Pattern applies identically on Azure/GCP; only provider/resource names change. See [Module Patterns: Cross-cloud resource map](module-patterns#cross-cloud-resource-map).
+> Pattern applies identically on Azure/GCP; only provider/resource names change. See [Module Patterns: Cross-cloud resource map](module-patterns.md#cross-cloud-resource-map).
 
 ### Critical: Validate Resource Schemas First
 
@@ -531,4 +531,4 @@ Common model mistakes when generating test code:
 
 ---
 
-**Back to:** [Main Skill File](../)
+**Back to:** [Main Skill File](../index.md)

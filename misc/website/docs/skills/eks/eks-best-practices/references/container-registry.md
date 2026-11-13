@@ -1,6 +1,6 @@
 ---
 title: "Container Registry Best Practices"
-description: ""
+description: "ECR architecture, operating models, image promotion, vulnerability scanning, base image curation, lifecycle policies, pull-through cache, managed signing,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/container-registry.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/container-regi
 
 # Container Registry Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** ECR architecture, operating models, image promotion, vulnerability scanning, base image curation, lifecycle policies, pull-through cache, managed signing, archival storage, and registry configuration for Amazon EKS
 
 ---
@@ -374,7 +374,7 @@ DON'T:
 
 ## Managed Signing
 
-ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers like Kyverno or OPA Gatekeeper.
+ECR managed signing automatically signs container images on push using AWS Signer, providing cryptographic proof that an image was built and pushed through your pipeline. This supports verification at deploy time via admission controllers configured with an AWS Signer plugin, such as Kyverno or OPA Gatekeeper with Ratify (Kyverno through the kyverno-notation-aws extension on Kyverno v1.11 to 1.19.x; see the table below).
 
 ### How It Works
 
@@ -398,9 +398,8 @@ Managed signing pairs with Kubernetes admission controllers for deploy-time veri
 
 | Tool | How It Verifies |
 |---|---|
-| **Kyverno** | `verifyImages` policy checks Notation signatures against trusted signing profiles |
-| **OPA Gatekeeper** | Custom constraint template validates signature presence and signer identity |
-| **Ratify** | External data provider for Gatekeeper, native Notation support |
+| **Kyverno** | As of Kyverno v1.19.2, built-in Notation verification (`verifyImages` and `ImageValidatingPolicy`) cannot verify AWS Signer signatures. Use the [kyverno-notation-aws](https://github.com/nirmata/kyverno-notation-aws) extension service, which runs the AWS Signer plugin ("Kyverno – A Kubernetes policy engine configured with an AWS Signer plugin for validating signatures.", [EKS user guide](https://docs.aws.amazon.com/eks/latest/userguide/image-verification.html)); its sample is a `ClusterPolicy` (deprecated since v1.19 per [Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)), and Kyverno v1.20 (a release candidate as of 2026-11-08) no longer executes legacy policies ([Upgrading to Kyverno v1.20](https://kyverno.io/docs/installation/upgrading/)), so this route needs Kyverno v1.11 to 1.19.x (recheck when v1.20 ships); on a newer Kyverno, use Gatekeeper with Ratify. Pin the Kyverno version: a non-Helm upgrade to v1.20 leaves the policy NotReady and admits unsigned images |
+| **OPA Gatekeeper + Ratify** | Gatekeeper is the admission controller; Ratify (external data provider, configured with the AWS Signer plugin and a Notation trust policy) verifies the signature, and the constraint template blocks on Ratify's result (Ratify v1.4; enable dynamic plugins) |
 
 DO:
 - Enable managed signing for production repositories to establish image provenance
@@ -411,7 +410,7 @@ DON'T:
 - Treat signing as a substitute for vulnerability scanning -- signing proves provenance, not safety
 - Use the same signing profile for all environments -- separate dev and prod signing identities
 
-**See also:** [Security -- Supply Chain](security-supply-chain) for admission control patterns and image verification policies
+**See also:** [Security -- Supply Chain](security-supply-chain.md) for admission control patterns and image verification policies
 
 ---
 

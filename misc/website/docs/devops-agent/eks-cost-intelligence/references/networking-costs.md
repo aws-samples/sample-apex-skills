@@ -1,6 +1,6 @@
 ---
 title: "Networking Costs"
-description: ""
+description: "Checks for topology-aware routing configuration, instance mode vs IP mode on load balancers, VPC endpoints for ECR/S3/STS, cross-AZ traffic potential based..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-cost-intelligence/references/networking-costs.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-cost-intelligence/references/netwo
 
 # Networking Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for topology-aware routing configuration, instance mode vs IP mode on load balancers, VPC endpoints for ECR/S3/STS, cross-AZ traffic potential based on service topology and pod distribution, and NAT Gateway cost estimation
 
 ---
@@ -770,4 +770,4 @@ START
 
 ---
 
-*This reference is loaded on-demand when the networking costs dimension is being assessed. See [report-generation.md](report-generation) for how findings from this dimension contribute to the overall Cost Score.*
+*This reference is loaded on-demand when the networking costs dimension is being assessed. See [report-generation.md](report-generation.md) for how findings from this dimension contribute to the overall Cost Score.*

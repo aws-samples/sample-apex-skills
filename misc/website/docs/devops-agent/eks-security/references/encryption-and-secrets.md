@@ -1,6 +1,6 @@
 ---
 title: "Data Encryption & Secrets Management"
-description: ""
+description: "A first-class security area in the AWS EKS Best Practices guide."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-security/references/encryption-and-secrets.md
 format: md
 ---
@@ -27,7 +27,7 @@ A first-class security area in the AWS EKS Best Practices guide. Two concerns: *
 > - **Mitigation:** least-privilege IAM on KMS key operations + a CloudWatch alarm on key disable/delete; treat the CMK as a cluster-critical dependency. Same CMK can serve multiple clusters in-region, but a disable then has a wider blast radius.
 
 ## Encryption in transit
-- TLS for all in-cluster API traffic (managed). For **east-west workload mTLS**, use a service mesh (Istio/Linkerd/Cilium) or VPC Lattice, see [workload-security.md](workload-security).
+- TLS for all in-cluster API traffic (managed). For **east-west workload mTLS**, use a service mesh (Istio/Linkerd/Cilium) or VPC Lattice, see [workload-security.md](workload-security.md).
 - Storage in-transit: FSx for Lustre (default), EFS (`tls` mount option).
 
 ## Secrets management: the hierarchy
@@ -44,7 +44,7 @@ Kubernetes Secrets are stored in etcd as **base64-encoded** strings (not encrypt
 
 Additional AWS-recommended secret hygiene: **mount secrets as volumes, not env vars** (env values leak into logs; volume mounts are tmpfs, removed on pod deletion); **separate namespaces** to isolate secrets across apps; **rotate** (Kubernetes doesn't auto-rotate, use an external store); **audit secret access** via the EKS audit log (e.g. a CloudWatch metric filter `{($.verb="get") && ($.objectRef.resource="secrets")}`, note the resource is **`secrets`** plural, matching the API path; the singular form silently matches nothing).
 
-If a secret or credential leaks, follow [security-event-response.md](security-event-response) (scope who could read it, revoke and rotate).
+If a secret or credential leaks, follow [security-event-response.md](security-event-response.md) (scope who could read it, revoke and rotate).
 
 ## Shared responsibility (encryption & secrets)
 

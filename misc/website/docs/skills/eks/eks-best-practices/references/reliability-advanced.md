@@ -1,6 +1,6 @@
 ---
 title: "Reliability & Resiliency — Advanced / Operational"
-description: ""
+description: "Disaster recovery, deployment strategies, cluster-level enforcement, zonal shift, large-cluster guidance, and chaos engineering for Amazon EKS."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/reliability-advanced.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/reliability-ad
 
 # Reliability & Resiliency — Advanced / Operational
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Disaster recovery, deployment strategies, cluster-level enforcement, zonal shift, large-cluster guidance, and chaos engineering for Amazon EKS.
 
 ---
@@ -138,7 +138,7 @@ The default `KubeSchedulerConfiguration` cannot be changed in Amazon EKS. The bu
 - Node-level state (Karpenter will reprovision)
 - Cached data (Redis, Memcached — ephemeral by design)
 
-> **Ephemeral ≠ unsized.** "Don't back up the cache" is a *backup-scope* decision and it is correct — a cache is reconstructible, so it does not belong in your recovery set. It is **not** a statement that an in-cluster cache can be left unsized. An in-cluster cache whose memory ceiling is not sized for real peak demand is a reliability risk regardless of backup policy: it can OOM under load and take dependent services down with it. Backup scope and capacity sizing are orthogonal — see [reliability-core.md — In-Cluster Stateful Cache: Sizing & Blast Radius](reliability-core#in-cluster-stateful-cache-sizing--blast-radius).
+> **Ephemeral ≠ unsized.** "Don't back up the cache" is a *backup-scope* decision and it is correct — a cache is reconstructible, so it does not belong in your recovery set. It is **not** a statement that an in-cluster cache can be left unsized. An in-cluster cache whose memory ceiling is not sized for real peak demand is a reliability risk regardless of backup policy: it can OOM under load and take dependent services down with it. Backup scope and capacity sizing are orthogonal — see [reliability-core.md — In-Cluster Stateful Cache: Sizing & Blast Radius](reliability-core.md#in-cluster-stateful-cache-sizing--blast-radius).
 
 **What to ALWAYS back up:**
 - Custom resources and CRDs not in Git
@@ -262,7 +262,7 @@ DON'T:
 
 ---
 
-Prerequisite reading: [reliability-core.md](reliability-core).
+Prerequisite reading: [reliability-core.md](reliability-core.md).
 
 ---
 

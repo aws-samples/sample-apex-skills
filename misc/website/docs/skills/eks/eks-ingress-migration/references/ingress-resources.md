@@ -1,6 +1,6 @@
 ---
 title: "Ingress Resource Analysis"
-description: ""
+description: "Analyze existing Ingress resources to determine what must be converted to HTTPRoute and identify conversion complexity."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-ingress-migration/references/ingress-resources.md
 format: md
 ---

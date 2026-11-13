@@ -1,6 +1,6 @@
 ---
 title: "EKS Supply Chain, Infrastructure & Compliance Security"
-description: ""
+description: "Image security, software supply chain, infrastructure hardening, regulatory compliance, and incident response"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/security-supply-chain.md
 format: md
 ---
@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/security-suppl
 
 # EKS Supply Chain, Infrastructure & Compliance Security
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Image security, software supply chain, infrastructure hardening, regulatory compliance, and incident response
 
-**For core IAM, pod security, and secrets, see:** [Security](security)
-**For runtime and network security, see:** [Runtime & Network Security](security-runtime-network)
+**For core IAM, pod security, and secrets, see:** [Security](security.md)
+**For runtime and network security, see:** [Runtime & Network Security](security-runtime-network.md)
 
 ---
 
@@ -95,12 +95,14 @@ Attestations are cryptographically signed statements that verify artifact integr
 - **Sigstore cosign** — open-source signing and verification
 
 **Validate at admission with:**
-- **Kyverno** — [verify image signatures and attestations](https://kyverno.io/docs/writing-policies/verify-images/sigstore/)
-- **OPA Gatekeeper** or **Ratify** — alternative admission controllers
+- **Kyverno** — [verify image signatures and attestations](https://release-1-19-0.kyverno.io/docs/policy-types/image-validating-policy/) (Cosign or Notation with your own keys; AWS Signer signatures need the kyverno-notation-aws extension on Kyverno v1.11 to 1.19.x, see container-registry.md)
+- **OPA Gatekeeper with Ratify**: Ratify verifies the signature for Gatekeeper; AWS Signer signatures need Ratify's AWS Signer plugin (see container-registry.md) ([Ratify on AWS](https://ratify.dev/docs/quickstarts/ratify-on-aws), [Ratify with AWS Signer](https://ratify.dev/docs/quickstarts/ratify-with-aws-signer))
 
 ### Admission Control for Images
 
 **Kyverno policy — require images from ECR only:**
+
+> `ClusterPolicy` (`kyverno.io/v1`) is deprecated since Kyverno v1.19; `ValidatingPolicy` and `ImageValidatingPolicy` (`policies.kyverno.io/v1`) replace it ([Kyverno v1.19 policy types](https://release-1-19-0.kyverno.io/docs/policy-types/overview/)). Kyverno v1.20 (a release candidate as of 2026-11-08) no longer executes ClusterPolicy; migrate before upgrading past 1.19. The example below is the legacy form; on v1.19+ write it as a `ValidatingPolicy`.
 
 ```yaml
 apiVersion: kyverno.io/v1
@@ -259,8 +261,8 @@ Amazon Inspector scans EC2 instances for network reachability issues and vulnera
 | **HIPAA Eligible** | Yes | Yes | Yes |
 | **SOC I, II, III** | Yes | Yes | Yes |
 | **ISO 27001/9001/27017/27018** | Yes | Yes | Yes |
-| **FedRAMP Moderate** | Yes | No | Yes |
-| **FedRAMP High (GovCloud)** | Yes | No | Yes |
+| **FedRAMP Class C (formerly Moderate baseline)** | Yes | No | Yes |
+| **FedRAMP Class D (formerly High baseline, GovCloud)** | Yes | No | Yes |
 | **HITRUST CSF** | Yes | Yes | Yes |
 
 Status changes over time. Always check [AWS Services in Scope](https://aws.amazon.com/compliance/services-in-scope/) for the latest.
@@ -291,21 +293,21 @@ The benefit of shift-left is that developers get feedback before their applicati
 
 ## Incident Response
 
-The response shape (prepare, scope, record, contain, investigate, remediate, verify, report) and the patch paths it relies on are in [Security Operations: Responding to a Security Event](security-operations#responding-to-a-security-event). eks-security C2 runs scope, evidence capture and containment proposals on a live cluster; investigation (step 4) is the team's own step for now.
+The response shape (prepare, scope, record, contain, investigate, remediate, verify, report) and the patch paths it relies on are in [Security Operations: Responding to a Security Event](security-operations.md#responding-to-a-security-event). eks-security C2 runs scope, evidence capture and containment proposals on a live cluster; investigation (step 4) is the team's own step for now.
 
 ### EKS-Specific Forensics Steps
 
-EKS-specific commands for the steps in [Security Operations](security-operations#responding-to-a-security-event), in the same order:
+EKS-specific commands for the steps in [Security Operations](security-operations.md#responding-to-a-security-event), in the same order:
 
 2. **Record:** `kubectl get pod <pod> -n <namespace> -o yaml`, `kubectl logs <pod> -n <namespace>` (and `--previous`), the image digest and the node name
-3. **Contain:** the pod-scoped quarantine in [Security Operations](security-operations#containment-that-stays-pod-scoped), then `kubectl cordon <node-name>`
+3. **Contain:** the pod-scoped quarantine in [Security Operations](security-operations.md#containment-that-stays-pod-scoped), then `kubectl cordon <node-name>`
 4. **Investigate:** capture volatile state (processes, connections, memory where tooling exists, see the [AWS IR guide](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html); on EKS Auto Mode, with no SSH or SSM: `kubectl debug node/<node> -it --profile=sysadmin` for processes and connections, and a NodeDiagnostic for the node log bundle) before the pod or node is replaced; snapshot the node's EBS volumes (root and data) where the platform allows it; export CloudWatch Logs, audit logs and VPC Flow Logs
 
 **Deleting, scaling down or draining destroys evidence; isolating does not, unless a liveness probe then fails and restarts the container.**
 
 ### Automated Response Patterns
 
-- GuardDuty finding -> EventBridge rule -> Lambda function -> apply the quarantine label to the affected pod (pod-scoped isolation, with the caveats in [Security Operations](security-operations#containment-that-stays-pod-scoped))
+- GuardDuty finding -> EventBridge rule -> Lambda function -> apply the quarantine label to the affected pod (pod-scoped isolation, with the caveats in [Security Operations](security-operations.md#containment-that-stays-pod-scoped))
 
 ### Key Investigation Tools
 

@@ -1,6 +1,6 @@
 ---
 title: "ArgoCD Patterns for EKS"
-description: ""
+description: "ArgoCD architecture patterns, deployment strategies, and multi-tenant RBAC for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/argocd-patterns.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/argocd-pattern
 
 # ArgoCD Patterns for EKS
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** ArgoCD architecture patterns, deployment strategies, and multi-tenant RBAC for Amazon EKS
 
 ---

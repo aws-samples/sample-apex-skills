@@ -1,6 +1,6 @@
 ---
 title: "ECS Deployment-Model Selection Framework"
-description: ""
+description: "The full criteria matrix and per-model deep dives for choosing an Amazon ECS compute/launch model."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/model-selection-framework.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-architect/references/model-selection-fra
 
 # ECS Deployment-Model Selection Framework
 
-> **Part of:** [ecs-architect](../)
+> **Part of:** [ecs-architect](../index.md)
 > **Purpose:** The full criteria matrix and per-model deep dives for choosing an Amazon ECS compute/launch model. Every GA-status, Region-availability, and pricing claim is cited to an AWS doc URL and was verified live against the AWS docs on **2026-07-09**. Re-verify fast-moving facts before asserting them to a customer.
 
 ---
@@ -69,7 +69,7 @@ Serverless compute for ECS: AWS runs each task in its own managed microVM. You s
 **Key facts:**
 - **Platform versions.** Fargate exposes a Linux "platform version" (kernel + runtime). PV `1.4.0` is current. **PV 1.3.0 ends support June 30, 2026**; from **June 15, 2026** it is marked Retired (no new tasks/services on 1.3.0), and on June 30, 2026 remaining 1.3.0 tasks are terminated. Migrate to 1.4.0. ([Fargate Linux platform version deprecation](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/platform-versions-retired.html))
 - **Platform version revisions** are immutable and retired periodically (historically 1–2/month) for security/performance; long-running tasks are the ones that feel retirements. ([Fargate task retirement notifications](https://aws.amazon.com/blogs/containers/improving-operational-visibility-with-aws-fargate-task-retirement-notifications/))
-- **SOCI lazy loading** (faster task starts) requires PV `1.4.0`; **SOCI Index Manifest v2 is now the standard** method (v1 still works but migrate) — see [best-practices-corpus.md](best-practices-corpus).
+- **SOCI lazy loading** (faster task starts) requires PV `1.4.0`; **SOCI Index Manifest v2 is now the standard** method (v1 still works but migrate) — see [best-practices-corpus.md](best-practices-corpus.md).
 - **Migration gotcha — PV 1.3.0 → 1.4.0 shifts ECR/Secrets Manager/SSM traffic onto the task ENI (inside your VPC).** Previously that traffic flowed over the AWS-managed Fargate ENI; on 1.4.0 tasks that pull private ECR images or reference Secrets Manager/SSM secrets need a route to those endpoints (NAT or interface VPC endpoints for `ecr.dkr` **and** `ecr.api`, plus S3 gateway, Secrets Manager, SSM) and matching security-group rules — otherwise tasks fail to start after migration. Don't confuse this platform-version migration with routine same-PV task-retirement patching. ([Migrating to Linux PV 1.4.0](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/platform-version-migration.html) · [PV 1.4.0 launch — traffic-flow change](https://aws.amazon.com/blogs/containers/aws-fargate-launches-platform-version-1-4/))
 
 ---
@@ -81,7 +81,7 @@ You register EC2 instances (via Auto Scaling groups) to the cluster and run task
 **Choose ECS on EC2 when:**
 - **GPU** or other specialized hardware is required (GPU-optimized AMIs, g/p instance families).
 - You need a **custom AMI or kernel**, privileged containers, host device/volume access, or specific instance families not otherwise reachable. **Caveat on privileged mode:** it is a significant security-posture decision, not a neutral capability — `ecs-security` treats `privileged: false` as the default and requires explicit justification to enable it. Route the decision there; needing privileged mode is a *reason it lands on EC2*, not an endorsement of turning it on.
-- You want the **densest bin-packing** and are willing to run ENI trunking (see [networking-and-eni-density.md](networking-and-eni-density)).
+- You want the **densest bin-packing** and are willing to run ENI trunking (see [networking-and-eni-density.md](networking-and-eni-density.md)).
 - You have deep, steady utilization where per-instance economics (with Savings Plans/Spot/Graviton) beat per-task billing (quantify with `ecs-cost-intelligence`).
 
 **Trade-off:** highest operational overhead — you are responsible for AMI currency, security patching, capacity, and agent health. If the only reason you're on EC2 is instance flexibility (not custom AMI/kernel), Managed Instances removes that ops burden.
@@ -152,7 +152,7 @@ ECS Anywhere registers an **external instance** — an on-prem server or VM (inc
 → Not Fargate (no GPU). ECS on EC2 or Managed Instances with GPU instance types; use EC2 Capacity Blocks for scarce GPU capacity. Hand the workload design to `ecs-genai`.
 
 **"Hundreds of steady microservices, cost-sensitive, willing to tune."**
-→ ECS on EC2 with Graviton + Spot in a capacity-provider strategy, or Managed Instances if they want to shed fleet ops. Quantify with `ecs-cost-intelligence`; design capacity in [capacity-and-scaling.md](capacity-and-scaling).
+→ ECS on EC2 with Graviton + Spot in a capacity-provider strategy, or Managed Instances if they want to shed fleet ops. Quantify with `ecs-cost-intelligence`; design capacity in [capacity-and-scaling.md](capacity-and-scaling.md).
 
 **"Regulated workload in GovCloud (US)."**
 → All of Fargate, ECS on EC2, and Managed Instances are available in GovCloud (US) (Managed Instances since Nov 2025; FIPS-certified workloads on Graviton/GPU instances since March 26, 2026). Choose on the usual ops/control axis. In the **China Regions**, Managed Instances is not available — fall back to Fargate or ECS on EC2. Take hardening to `ecs-security`.

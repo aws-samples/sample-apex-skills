@@ -1,6 +1,6 @@
 ---
 title: "Capacity Provider Guide"
-description: ""
+description: "How to wire each capacity model in Terraform, and the constraints that break strategies."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/capacity-provider-guide.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-build/references/capacity-provider-guide
 
 # Capacity Provider Guide
 
-> **Part of:** [ecs-build](../)
+> **Part of:** [ecs-build](../index.md)
 
 How to wire each capacity model in Terraform, and the constraints that break strategies.
 
@@ -70,7 +70,7 @@ resource "aws_ecs_capacity_provider" "ec2" {
 
 - `managed_termination_protection = "ENABLED"` requires the ASG itself to have `protect_from_scale_in = true`.
 - `managed_draining` gracefully drains instances on instance refresh, max-lifetime replacement, scale-in, and Spot interruption/rebalance.
-- ASG uses the ECS-optimized AMI (resolve via SSM parameter, see [version-matrix.md](version-matrix)) and an instance profile with the container-instance role (`AmazonEC2ContainerServiceforEC2Role`) -- distinct from execution/task roles.
+- ASG uses the ECS-optimized AMI (resolve via SSM parameter, see [version-matrix.md](version-matrix.md)) and an instance profile with the container-instance role (`AmazonEC2ContainerServiceforEC2Role`) -- distinct from execution/task roles.
 
 ### Mixed instance types: supported but constrained (Critical Rule 11)
 
@@ -204,7 +204,7 @@ Verified 2026-07-10 against https://docs.aws.amazon.com/AmazonECS/latest/develop
 - **GPU metrics are agentless on MI:** Container Insights with enhanced observability collects DCGM GPU metrics at container/task/instance level with no agent installation (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/monitoring-managed-instances.html, verified 2026-07-10). On the EC2 launch type you deploy and manage the CloudWatch agent yourself.
 - **Purchase options:** On-Demand (default), Spot (`capacity_option_type = "SPOT"`), or Capacity Reservations (`capacityOptionType=Reserved` + a capacity reservation group); Savings Plans/RIs apply automatically. GPU Capacity Blocks mechanics (single-AZ, extendable): https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-how.html -- details with `ecs-genai`.
 - With `capacityOptionType=Reserved`, remember default deployments burst to 200% of steady state -- reserve headroom or tune `maximumPercent`.
-- **GuardDuty Runtime Monitoring is NOT supported for workloads on ECS Managed Instances** as of 2026-07-10 (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html). Do not generate GuardDuty agent expectations for MI; see [networking-security.md](networking-security).
+- **GuardDuty Runtime Monitoring is NOT supported for workloads on ECS Managed Instances** as of 2026-07-10 (https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-guard-duty-integration.html). Do not generate GuardDuty agent expectations for MI; see [networking-security.md](networking-security.md).
 
 ## Known Terraform/provider issues (check before generating)
 

@@ -1,6 +1,6 @@
 ---
 title: "Module: Add-ons"
-description: ""
+description: "Detect add-on inventory - EKS-managed add-ons, Helm releases, manifest-installed components"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-recon/references/addons.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-recon/references/addons.md](https://gith
 
 # Module: Add-ons
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect add-on inventory - EKS-managed add-ons, Helm releases, manifest-installed components
 
 ## Table of Contents

@@ -1,6 +1,6 @@
 ---
 title: "Module: CI/CD"
-description: ""
+description: "Detect CI/CD pipelines and GitOps tools - GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/cicd.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/cicd.md](https://
 
 # Module: CI/CD
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect CI/CD pipelines and GitOps tools - GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux
 
 ## Table of Contents

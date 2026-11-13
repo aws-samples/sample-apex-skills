@@ -7,7 +7,7 @@
 #
 # Usage:
 #   ./misc/update-devops-agent-references.sh          # run from repo root
-#   ./misc/update-devops-agent-references.sh --check  # fail if block is stale
+#   ./misc/update-devops-agent-references.sh --check  # regenerate in place, then fail if devops-agent/README.md has unstaged changes
 #   ./misc/update-devops-agent-references.sh --dry-run # preview without writing
 
 set -euo pipefail
@@ -28,11 +28,12 @@ DEVOPS_DIR="$REPO_ROOT/devops-agent"
 DRY_RUN=false
 CHECK=false
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-  DRY_RUN=true
-elif [[ "${1:-}" == "--check" ]]; then
-  CHECK=true
-fi
+case "$#:${1:-}" in
+  0:) ;;
+  1:--dry-run) DRY_RUN=true ;;
+  1:--check) CHECK=true ;;
+  *) echo "usage: $0 [--check|--dry-run]" >&2; exit 2 ;;
+esac
 
 # --- Parse frontmatter from a SKILL.md file ---
 # Extracts the value for a given key from YAML frontmatter (between --- delimiters)
@@ -112,10 +113,8 @@ build_table() {
       description="_(no description in frontmatter)_"
     fi
 
-    # Truncate long descriptions for table readability
-    if [[ ${#description} -gt 200 ]]; then
-      description="${description:0:197}..."
-    fi
+    # Truncate long descriptions for table readability (by characters in any locale)
+    description="$(python3 -c 'import sys; s = sys.argv[1]; print(s if len(s) <= 200 else s[:197] + "...")' "$description")"
 
     local status
     status="$(get_skill_status "$skill_dir")"
@@ -127,6 +126,28 @@ build_table() {
   done
 }
 
+# --- Check that each marker is exactly one whole line in a file, start above end ---
+check_markers() {
+  local file="$1" marker n
+  for marker in "$2" "$3"; do
+    n=$(grep -acxF -- "$marker" "$file" || true)
+    if [[ "$n" -eq 0 ]]; then
+      echo "ERROR: Could not find $marker in $file" >&2
+      return 1
+    elif [[ "$n" -ne 1 ]]; then
+      echo "ERROR: $marker must appear exactly once in $file (found $n)" >&2
+      return 1
+    fi
+  done
+  local start_line end_line
+  start_line=$(grep -anxF -- "$2" "$file" | cut -d: -f1)
+  end_line=$(grep -anxF -- "$3" "$file" | cut -d: -f1)
+  if (( start_line > end_line )); then
+    echo "ERROR: $2 must come before $3 in $file" >&2
+    return 1
+  fi
+}
+
 # --- Replace a section between markers in a file ---
 replace_section() {
   local file="$1"
@@ -134,15 +155,7 @@ replace_section() {
   local end_marker="$3"
   local new_content="$4"
 
-  if ! grep -q "$start_marker" "$file"; then
-    echo "ERROR: Could not find $start_marker in $file" >&2
-    return 1
-  fi
-
-  if ! grep -q "$end_marker" "$file"; then
-    echo "ERROR: Could not find $end_marker in $file" >&2
-    return 1
-  fi
+  check_markers "$file" "$start_marker" "$end_marker" || return 1
 
   awk -v start="$start_marker" -v end="$end_marker" -v new_section="$new_content" '
     $0 == start {

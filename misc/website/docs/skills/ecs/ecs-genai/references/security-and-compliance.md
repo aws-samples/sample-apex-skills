@@ -1,6 +1,6 @@
 ---
 title: "Security & Compliance for GPU / ML Workloads on Amazon ECS"
-description: ""
+description: "This file is the GPU/ML-specific security slice only."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/security-and-compliance.md
 format: md
 ---
@@ -18,13 +18,13 @@ This file is the **GPU/ML-specific security slice only.** The generic ECS securi
 Every GPU/ML-on-ECS response still MUST include the standard baseline (roles, secrets, ECR scanning, private subnets + endpoints, hardening, audit) — see **`ecs-security`** for the how. Two baseline items have GPU/ML-specific twists worth stating inline:
 
 - **Task role** grants the model server/trainer its S3 (weights/checkpoints), Secrets Manager, and — if the app calls Bedrock as a model target — **`bedrock-runtime`** permissions; scope to exact buckets/prefixes/secrets, never static keys.
-- **Container hardening exception:** the GPU-sharing pattern (making `nvidia` the default Docker runtime) **loosens isolation** — reserve it for dev/test ([compute-hardware.md](compute-hardware)).
+- **Container hardening exception:** the GPU-sharing pattern (making `nvidia` the default Docker runtime) **loosens isolation** — reserve it for dev/test ([compute-hardware.md](compute-hardware.md)).
 
 ## GPU/ML-Specific Controls (the reason this file exists)
 
 ### Model-artifact provenance (the top GenAI supply-chain risk)
 
-A poisoned model artifact executes arbitrary inference on customer data — treat weights like application binaries. Verify integrity before serving: pin **exact model revisions** (not floating tags/branches); verify **SHA256 checksums** for downloaded weights; use **image signing** (AWS Signer / Sigstore) for baked-in models; enable **S3 Object Lock** for production artifact buckets. Never pull weights from Hugging Face at task start in prod — stage in S3/ECR first ([storage.md](storage)).
+A poisoned model artifact executes arbitrary inference on customer data — treat weights like application binaries. Verify integrity before serving: pin **exact model revisions** (not floating tags/branches); verify **SHA256 checksums** for downloaded weights; use **image signing** (AWS Signer / Sigstore) for baked-in models; enable **S3 Object Lock** for production artifact buckets. Never pull weights from Hugging Face at task start in prod — stage in S3/ECR first ([storage.md](storage.md)).
 
 ### GPU/ML-specific supply chain
 
@@ -36,7 +36,7 @@ If the ECS app calls Bedrock as a downstream model target, add the **`bedrock-ru
 
 ### Inference-endpoint authentication
 
-A self-hosted model endpoint has **no built-in auth**. Decide **internal vs internet-facing** (internal ALB/NLB in private subnets reached via VPC/PrivateLink is the default for internal consumers), and always put an authN/authZ layer in front — Cognito/OIDC on the ALB, API Gateway, or a JWT/mTLS-validating reverse proxy — plus WAF for internet-facing. Deep endpoint-security design → **`ecs-security`**. See [inference-serving.md](inference-serving) for the streaming/idle-timeout interaction.
+A self-hosted model endpoint has **no built-in auth**. Decide **internal vs internet-facing** (internal ALB/NLB in private subnets reached via VPC/PrivateLink is the default for internal consumers), and always put an authN/authZ layer in front — Cognito/OIDC on the ALB, API Gateway, or a JWT/mTLS-validating reverse proxy — plus WAF for internet-facing. Deep endpoint-security design → **`ecs-security`**. See [inference-serving.md](inference-serving.md) for the streaming/idle-timeout interaction.
 
 ### GuardDuty Runtime Monitoring — MI carve-out
 

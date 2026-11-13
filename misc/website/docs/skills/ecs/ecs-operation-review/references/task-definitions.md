@@ -1,6 +1,6 @@
 ---
 title: "Section 03 — Task Definitions"
-description: ""
+description: "Assess task-definition hygiene: right-sized task CPU/memory, container image discipline, logging configuration, storage/volumes, and presence of task +..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-operation-review/references/task-definitions.md
 format: md
 ---

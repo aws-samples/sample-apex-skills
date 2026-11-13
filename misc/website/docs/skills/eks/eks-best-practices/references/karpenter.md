@@ -1,6 +1,6 @@
 ---
 title: "Karpenter Best Practices"
-description: ""
+description: "Comprehensive Karpenter configuration and operational guidance for Amazon EKS"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/karpenter.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/karpenter.md](
 
 # Karpenter Best Practices
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Comprehensive Karpenter configuration and operational guidance for Amazon EKS
 
 ---
@@ -212,7 +212,7 @@ Do not use Karpenter interruption handling alongside AWS Node Termination Handle
 - Pod disruption budgets
 - `karpenter.sh/do-not-disrupt: "true"` annotation on pods or nodes
 
-On a pod, these two protections gate **consolidation**, and **drift** unless the node's NodeClaim has a `terminationGracePeriod`; on a node, `do-not-disrupt` blocks consolidation and drift. They do **not** block the forceful methods (**expiration**, **interruption**, manual deletion such as `kubectl delete node`), and `do-not-disrupt` does not block Node Auto Repair (opt a node out with `karpenter.sh/do-not-repair`, self-managed Karpenter v1.15+, not EKS Auto Mode) -- see [do-not-disrupt Does Not Block Forceful Disruption](#do-not-disrupt-does-not-block-forceful-disruption).
+On a pod, these two protections gate **consolidation**, and **drift** unless the node's NodeClaim has a `terminationGracePeriod`; on a node, `do-not-disrupt` blocks consolidation and drift. They do **not** block the forceful methods (**expiration**, **interruption**, manual deletion such as `kubectl delete node`), and `do-not-disrupt` does not block Node Auto Repair (opt a node out with `karpenter.sh/do-not-repair`, self-managed Karpenter v1.15+; not honored when `--legacy-node-repair` is set, and not on EKS Auto Mode) -- see [do-not-disrupt Does Not Block Forceful Disruption](#do-not-disrupt-does-not-block-forceful-disruption).
 
 ### Set requests=limits for Non-CPU Resources
 
@@ -248,13 +248,13 @@ spec:
 ```
 
 **Scheduled / business-hours budgets** (e.g. a `nodes: "0"` block on a cron `schedule` + `duration` to freeze disruption during business hours) are documented once, alongside the drift-during-upgrade flow, rather than duplicated here. See:
-- [cluster-upgrades.md -- Karpenter Node Upgrades](cluster-upgrades#karpenter-node-upgrades) for the canonical 3-budget pattern in one NodePool spec: a 10% fallback scoped to churn (drift/underutilization), an unthrottled `Empty` budget at 100%, and a scheduled `nodes: "0"` freeze window (UTC cron)
-- [SKILL.md -- Data Plane with Karpenter](../#data-plane-with-karpenter) for the same budget in the upgrade-speed context
-- [reliability-core.md -- PDB Interaction with Karpenter](reliability-core#pdb-interaction-with-karpenter) for how budgets compose with Pod Disruption Budgets
+- [cluster-upgrades.md -- Karpenter Node Upgrades](cluster-upgrades.md#karpenter-node-upgrades) for the canonical 3-budget pattern in one NodePool spec: a 10% fallback scoped to churn (drift/underutilization), an unthrottled `Empty` budget at 100%, and a scheduled `nodes: "0"` freeze window (UTC cron)
+- [SKILL.md -- Data Plane with Karpenter](../index.md#data-plane-with-karpenter) for the same budget in the upgrade-speed context
+- [reliability-core.md -- PDB Interaction with Karpenter](reliability-core.md#pdb-interaction-with-karpenter) for how budgets compose with Pod Disruption Budgets
 
 ### do-not-disrupt Does Not Block Forceful Disruption
 
-`karpenter.sh/do-not-disrupt: "true"` and blocking PDBs gate the **graceful/voluntary** disruption methods -- on a pod, consolidation, and drift unless the NodeClaim has a `terminationGracePeriod`; on a node, `do-not-disrupt` blocks consolidation and drift. **The forceful methods (expiration via `expireAfter`, interruption, and manual deletion such as `kubectl delete node`) are NOT blocked by these protections, and `do-not-disrupt` does not block Node Auto Repair either (alpha, `NodeRepair` feature gate, off by default; annotate the node `karpenter.sh/do-not-repair: "true"`, Karpenter v1.15+, to exclude it).** (Node Auto Repair is a graceful method from v1.15, forceful before; `do-not-disrupt` does not block it in either.) This is self-managed Karpenter; on EKS Auto Mode node repair is always on and cannot be configured, it is forceful (Pods deleted with a minimal grace period, PDBs bypassed), and the v1.15 changes, `do-not-repair` included, do not apply. When a node reaches `expireAfter`, Karpenter proceeds with replacement regardless of the annotation; pod eviction waits at most for the node's `terminationGracePeriod` when one is set, after which pods are force-drained; with none set (the default, see below), a `do-not-disrupt` pod or a blocking PDB can block the drain indefinitely. Do not rely on `do-not-disrupt` to keep an expired node alive indefinitely -- use it to protect against consolidation/drift churn, and tune `expireAfter` for node lifetime.
+`karpenter.sh/do-not-disrupt: "true"` and blocking PDBs gate the **graceful/voluntary** disruption methods -- on a pod, consolidation, and drift unless the NodeClaim has a `terminationGracePeriod`; on a node, `do-not-disrupt` blocks consolidation and drift. **The forceful methods (expiration via `expireAfter`, interruption, and manual deletion such as `kubectl delete node`) are NOT blocked by these protections, and `do-not-disrupt` does not block Node Auto Repair either (alpha, `NodeRepair` feature gate, off by default; annotate the node `karpenter.sh/do-not-repair: "true"`, Karpenter v1.15+, to exclude it; not honored when `--legacy-node-repair` (`LEGACY_NODE_REPAIR=true`) runs the legacy repair controller).** (Node Auto Repair is a graceful method from v1.15 unless `--legacy-node-repair` is set, forceful before; `do-not-disrupt` does not block it in either.) This is self-managed Karpenter; on EKS Auto Mode node repair is always on and cannot be configured, it is forceful (Pods deleted with a minimal grace period, PDBs bypassed), and the v1.15 changes, `do-not-repair` included, do not apply. When a node reaches `expireAfter`, Karpenter proceeds with replacement regardless of the annotation; pod eviction waits at most for the node's `terminationGracePeriod` when one is set, after which pods are force-drained; with none set (the default, see below), a `do-not-disrupt` pod or a blocking PDB can block the drain indefinitely. Do not rely on `do-not-disrupt` to keep an expired node alive indefinitely -- use it to protect against consolidation/drift churn, and tune `expireAfter` for node lifetime.
 
 ### NodePool terminationGracePeriod (v1)
 
@@ -423,12 +423,14 @@ spec:
   limits:
   - default:
       cpu: 500m
-      memory: 512Mi
+      memory: 256Mi
     defaultRequest:
       cpu: 250m
       memory: 256Mi
     type: Container
 ```
+
+A container that requests more than 256Mi of memory or 500m CPU and sets no limit for it is rejected at admission (for a Deployment, the ReplicaSet fails to create pods), since its request would exceed the default limit: set its limit too ([Kubernetes: Limit Ranges](https://kubernetes.io/docs/concepts/policy/limit-range/)).
 
 ### Apply Accurate Resource Requests
 
@@ -468,7 +470,7 @@ Karpenter's rapid node churn (creating and terminating nodes dynamically) makes 
 - **Use NodeLocal DNSCache** -- prevents DNS failures during node scaling events by caching DNS responses locally
 - **Configure CoreDNS readiness probes** -- ensures DNS queries are not directed to pods that aren't ready
 
-For detailed CoreDNS scaling configuration, see the [Autoscaling Reference -- CoreDNS section](autoscaling#coredns-autoscaling).
+For detailed CoreDNS scaling configuration, see the [Autoscaling Reference -- CoreDNS section](autoscaling.md#coredns-autoscaling).
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: "Code Intelligence (terraform-ls)"
-description: ""
+description: "Semantic navigation for HCL via the terraform-ls language server."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/terraform-skill/references/code-intelligence-lsp.md
 format: md
 ---
@@ -119,7 +119,7 @@ terraform-ls has no rename provider. Branch by what is being renamed.
 
 - Add a `moved` block and run `terraform plan`; confirm it shows 0 destroy /
   0 create for the moved address.
-- See [Code Patterns: Moved Blocks](code-patterns#moved-blocks-terraform-11)
+- See [Code Patterns: Moved Blocks](code-patterns.md#moved-blocks-terraform-11)
   for block syntax and the count/for_each address rules.
 
 ❌ Never blind-replace a resource address as text - it forces destroy/recreate.

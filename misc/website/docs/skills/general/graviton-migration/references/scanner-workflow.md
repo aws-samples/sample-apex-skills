@@ -1,6 +1,6 @@
 ---
 title: "Pre-Migration Scanning Workflow"
-description: ""
+description: "This reference turns the Arm migration MCP into a repeatable pre-migration scan that produces a per-workload readiness verdict — clean,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/graviton-migration/references/scanner-workflow.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/graviton-migration/references/scanner-workfl
 
 # Pre-Migration Scanning Workflow
 
-> **Part of:** [graviton-migration](../)
+> **Part of:** [graviton-migration](../index.md)
 
 This reference turns the Arm migration MCP into a repeatable pre-migration scan that produces a **per-workload readiness verdict** — clean, portable-with-changes, or blocked — grounded in evidence, not optimism. The core rule: **no single tool is the oracle.** Readiness is decided by **three co-equal input layers** plus a hard gate that refuses to call an under-scanned tree "clean."
 
@@ -50,7 +50,7 @@ Layer 1 is **never the sole oracle.** Its output is one input to the gate below,
 
 ### Layer 2 — dependency-manifest parse (mandatory)
 
-Parse the dependency manifests directly — this is where the `<classifier>` and native-package blind spots are caught, because layer 1 does not read them. This layer is owned by [dependency-knowledge.md](dependency-knowledge); follow its per-ecosystem procedure (Maven/Gradle, pip/Poetry, npm, Go modules, Cargo). It **must run** on every workload, even when layer 1 returns zero.
+Parse the dependency manifests directly — this is where the `<classifier>` and native-package blind spots are caught, because layer 1 does not read them. This layer is owned by [dependency-knowledge.md](dependency-knowledge.md); follow its per-ecosystem procedure (Maven/Gradle, pip/Poetry, npm, Go modules, Cargo). It **must run** on every workload, even when layer 1 returns zero.
 
 ### Layer 3 — binary / JAR ELF scan (mandatory)
 
@@ -186,4 +186,4 @@ After remediation, re-run all three layers and the image check on the **built** 
 - **PORTABLE WITH CHANGES** — findings exist but each has an assigned remediation pattern and owner.
 - **BLOCKED** — at least one finding has no viable arm64 path yet.
 
-Hand the verdict table to the cutover runbook. Only workloads with a re-scanned-CLEAN verdict **on the built tree** proceed to the [Karpenter arm64 cutover](karpenter-migration) (a first-pass CLEAN on an un-built or under-scanned tree does NOT qualify); the multi-arch image each needs is produced by the [multi-arch CI pipeline](multi-arch-pipelines).
+Hand the verdict table to the cutover runbook. Only workloads with a re-scanned-CLEAN verdict **on the built tree** proceed to the [Karpenter arm64 cutover](karpenter-migration.md) (a first-pass CLEAN on an un-built or under-scanned tree does NOT qualify); the multi-arch image each needs is produced by the [multi-arch CI pipeline](multi-arch-pipelines.md).

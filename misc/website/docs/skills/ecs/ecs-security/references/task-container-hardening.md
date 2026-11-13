@@ -1,6 +1,6 @@
 ---
 title: "Layer 3 — Task & Container Hardening"
-description: ""
+description: "What a container is allowed to do."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/task-container-hardening.md
 format: md
 ---
@@ -50,7 +50,7 @@ Example hardened container definition fragment:
 - **Remove `setuid`/`setgid` binaries** — they enable privilege escalation. AWS suggests a Dockerfile line: `RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} \; || true`.
 - **Curated base images** — vet a set of organization-approved base images rather than letting developers pull arbitrary Docker Hub images (unknown contents + rate limits).
 - **Static code analysis** before build (e.g. Amazon Inspector / SAST tooling).
-- **Immutable ECR tags** — prevents an attacker from overwriting a good tag with a compromised image; also see [image-supply-chain.md](image-supply-chain).
+- **Immutable ECR tags** — prevents an attacker from overwriting a good tag with a compromised image; also see [image-supply-chain.md](image-supply-chain.md).
 
 ## Verify with Security Hub ECS controls
 

@@ -1,6 +1,6 @@
 ---
 title: "Infrastructure as Code & GitOps"
-description: ""
+description: "Assess whether cluster infrastructure and workload deployments are reproducible, auditable, and version-controlled."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review/references/infrastructure-as-code.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-operation-review/references/infrastructu
 
 
 :::info[Vendored skill]
-This skill is sourced from [eks-operation-review](https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-operation-review), also maintained by the APEX team.
+This skill is sourced from [sample-eks-operation-review-skill](https://github.com/aws-samples/sample-eks-operation-review-skill), also maintained by the APEX team.
 :::
 
 # Infrastructure as Code & GitOps

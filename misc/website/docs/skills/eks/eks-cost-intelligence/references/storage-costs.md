@@ -1,6 +1,6 @@
 ---
 title: "Storage Costs"
-description: ""
+description: "Checks for gp2 PersistentVolumes (flag for gp3 migration with 20% cost reduction), unbound/unmounted PVCs, over-provisioned volumes (used vs provisioned..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/references/storage-costs.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/storage-cos
 
 # Storage Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for gp2 PersistentVolumes (flag for gp3 migration with 20% cost reduction), unbound/unmounted PVCs, over-provisioned volumes (used vs provisioned capacity), and EFS Intelligent-Tiering/lifecycle policies
 
 ---
@@ -97,8 +97,11 @@ kubectl get storageclass -o custom-columns=NAME:.metadata.name,PROVISIONER:.prov
 **Via AWS CLI (cross-reference EBS volumes):**
 
 ```bash
+# --include-managed-resources (aws-cli 2.34.35 or 1.44.84 and later) also lists the volumes
+# EKS Auto Mode can hide, if they carry this filter's tag (Auto Mode requires only eks:eks-cluster-name). An older CLI rejects
+# the flag: drop it (or upgrade the CLI), and then the hidden ones are missing from both counts.
 # Get EBS volumes tagged with the cluster and check volume type
-aws ec2 describe-volumes \
+aws ec2 describe-volumes --include-managed-resources \
   --filters "Name=tag:kubernetes.io/cluster/<cluster>,Values=owned" \
   --query 'Volumes[?VolumeType==`gp2`].{
     VolumeId: VolumeId,
@@ -110,7 +113,7 @@ aws ec2 describe-volumes \
   --output table
 
 # Count gp2 vs gp3 volumes for the cluster
-aws ec2 describe-volumes \
+aws ec2 describe-volumes --include-managed-resources \
   --filters "Name=tag:kubernetes.io/cluster/<cluster>,Values=owned" \
   --query 'Volumes[].VolumeType' \
   --output text | tr '\t' '\n' | sort | uniq -c
@@ -274,7 +277,7 @@ kubectl get pvc --all-namespaces -o json | \
     [.[] | select(.key as $k | $mounted[0] | index($k) | not)]'
 ```
 
-If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+If any read here fails (an error on stderr; the pipe hides kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via kubectl (simplified — single pipeline):**
 
@@ -285,7 +288,7 @@ comm -23 \
   <(kubectl get pods -A -o json | jq -r '.items[] | select(.status.phase=="Running") | .metadata.namespace as $ns | .spec.volumes[]? | select(.persistentVolumeClaim) | "\($ns)/\(.persistentVolumeClaim.claimName)"' | sort -u)
 ```
 
-If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+If any read here fails (an error on stderr; pipes and process substitution hide kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via EKS MCP Server:**
 
@@ -739,7 +742,7 @@ actual_deduction = min(deduction, 15)  # Cap at maximum
 |-----------|--------|
 | All checks completed | ASSESSED |
 | Check 3 skipped (no volume stats) | ASSESSED (with note) |
-| Check 4 skipped (no EFS in cluster) | ASSESSED (EFS check not applicable) |
+| Check 4 not applicable (no EFS in cluster) | ASSESSED (EFS check not applicable) |
 | All checks skipped (no kubectl access) | SKIPPED |
 
 If the dimension is fully SKIPPED, it contributes **zero deduction** and is excluded from the score denominator.

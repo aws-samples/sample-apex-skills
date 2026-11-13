@@ -29,13 +29,22 @@ def badge_wrap(text: str) -> str:
 
 
 def inline(text: str) -> str:
-    t = H.escape(text)
+    t = H.escape(text).replace("\x00", "")
+    # Links first, only safe URL schemes; an unsafe link stays as text. Each href
+    # waits behind a placeholder until the passes below are done, so they cannot
+    # write markup into the attribute.
+    hrefs = []
+    def link(m):
+        if not m.group(2).startswith(("http://", "https://", "mailto:", "#", "/")):
+            return m.group(0)
+        hrefs.append(m.group(2))
+        return f'<a href="\x00{len(hrefs) - 1}\x00" target="_blank">{m.group(1)}</a>'
+    t = re.sub(r"\[(.+?)\]\((.+?)\)", link, t)
     t = t.replace("&lt;br&gt;", "<br>").replace("&lt;br/&gt;", "<br>").replace("&lt;br /&gt;", "<br>")
     t = re.sub(r"!!(.+?)!!", r'<span class="hot">\1</span>', t)          # high-impact red highlight
     t = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", t)               # bold
     t = re.sub(r"`(.+?)`", r"<code>\1</code>", t)
-    t = re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2" target="_blank">\1</a>', t)
-    return badge_wrap(t)
+    return re.sub(r"\x00(\d+)\x00", lambda m: hrefs[int(m.group(1))], badge_wrap(t))
 
 
 def render_list(items: list[tuple[int, str]]) -> str:
@@ -640,7 +649,12 @@ def main():
         if not md_path.exists():
             print(f"File not found: {md_path}"); sys.exit(1)
 
-        md_text = md_path.read_text(encoding="utf-8")
+        try:
+            md_text = md_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print(f"Not UTF-8 text: {md_path}"); sys.exit(1)
+        except OSError as exc:
+            print(f"Could not read {md_path}: {exc}"); sys.exit(1)
         body, toc = convert_md(md_text, id_prefix=f"c{i}-")
 
         # Extract cluster name: prefer topology JSON "cluster" field, fallback to filename

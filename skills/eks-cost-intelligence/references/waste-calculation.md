@@ -154,6 +154,7 @@ aws pricing get-products --service-code AmazonEC2 --region us-east-1 \
             "Type=TERM_MATCH,Field=tenancy,Value=Shared" \
             "Type=TERM_MATCH,Field=preInstalledSw,Value=NA" \
             "Type=TERM_MATCH,Field=capacitystatus,Value=Used" \
+            "Type=TERM_MATCH,Field=marketoption,Value=OnDemand" \
   --query 'PriceList[0]' --output text | jq -r '.terms.OnDemand | to_entries[0].value.priceDimensions | to_entries[0].value.pricePerUnit.USD'
 ```
 
@@ -582,7 +583,7 @@ Cluster has 5 Spot-eligible workloads:
 | `workload_architecture` | Node label `kubernetes.io/arch` | amd64 |
 | `image_supports_arm64` | `docker manifest inspect` or ECR image index | true |
 | `workload_monthly_cost` | Allocated node cost | $192.00 |
-| `graviton_discount` | Graviton vs x86 price differential | 0.20 (20% cheaper) |
+| `graviton_discount` | Graviton vs x86 price differential, by generation ([spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1) | 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4 (against m6i) |
 
 #### Graviton Eligibility Criteria
 
@@ -604,7 +605,7 @@ graviton_eligible = [
 
 # Per workload
 x86_cost = workload_monthly_cost
-graviton_savings = x86_cost * graviton_discount  # typically 20%
+graviton_savings = x86_cost * graviton_discount  # by target Graviton generation
 
 monthly_waste = graviton_savings  # "waste" = premium paid for x86
 monthly_savings = graviton_savings
@@ -633,8 +634,8 @@ Workload: api/order-service
   arm64 support: yes (multi-arch image)
   Monthly cost on x86: $192.00
 
-Graviton equivalent: m6g.xlarge (20% cheaper than m5.xlarge)
-  m5.xlarge:  $0.192/hr
+Graviton equivalent: m6g.xlarge (Graviton2, 0.20 discount)
+  m5.xlarge:  $0.192/hr  (same rate as m6i.xlarge, the Graviton2 table pair)
   m6g.xlarge: $0.154/hr  (19.8% savings)
 
 Calculation:
@@ -818,7 +819,7 @@ def determine_confidence(data_sources: list[str]) -> str:
     --query 'SpotPriceHistory[].{Type:InstanceType,AZ:AvailabilityZone,Price:SpotPrice}' \
     --output table
   ```
-- Graviton savings vary by instance family (15–40%). Use 20% as conservative default.
+- Graviton savings vary by generation, family and Region (us-east-1 On-Demand, 2026-11-07: 0.20 Graviton2, 0.15 Graviton3, 0.065 Graviton4, none for Graviton5). Each figure compares m6i with Graviton, m family. Price both types when they are known (see [spot-graviton-adoption.md](spot-graviton-adoption.md) Check 1); otherwise use the target generation's figure, and when the target is unknown (a Karpenter NodePool admitting several generations) report the range.
 - Cross-AZ pricing is consistent across regions ($0.01/GiB each direction).
 - NAT Gateway pricing is consistent across regions ($0.045/GiB processed).
 - Storage pricing varies by region; us-east-1 rates used as reference.

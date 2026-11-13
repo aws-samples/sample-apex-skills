@@ -28,13 +28,34 @@ def parse_args():
         print("  --output <file.html>  Optional custom output filename (default: replaces .md with .html)")
         sys.exit(0 if "--help" in sys.argv or "-h" in sys.argv else 1)
 
-    input_file = sys.argv[1]
-    output_file = None
+    # Refuse anything not documented above, so a mistyped flag never writes a file.
+    def usage_error(msg):
+        print(f"Error: {msg}", file=sys.stderr)
+        print("Usage: python3 report_to_html.py <input.md> [--output <output.html>]", file=sys.stderr)
+        sys.exit(2)
 
-    if "--output" in sys.argv:
-        idx = sys.argv.index("--output")
-        if idx + 1 < len(sys.argv):
-            output_file = sys.argv[idx + 1]
+    input_file = None
+    output_file = None
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        if args[i] == "--output":
+            if i + 1 >= len(args):
+                usage_error("--output needs a filename")
+            if output_file is not None:
+                usage_error("--output given more than once")
+            output_file = args[i + 1]
+            i += 2
+        elif args[i].startswith("-"):
+            usage_error(f"unknown argument: {args[i]}")
+        elif input_file is not None:
+            usage_error(f"only one input file is taken (got {input_file} and {args[i]})")
+        else:
+            input_file = args[i]
+            i += 1
+
+    if input_file is None:
+        usage_error("no input file given")
 
     if output_file is None:
         output_file = str(Path(input_file).with_suffix(".html"))
@@ -384,17 +405,23 @@ def md_to_html(md_content: str) -> str:
 
     def inline_format(text: str) -> str:
         """Apply inline formatting with cost-intelligence-specific patterns."""
-        text = html.escape(text)
+        text = html.escape(text).replace("\x00", "")
 
-        # Code spans first (protect content inside)
-        text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
-
-        # Links — only allow safe URL schemes
+        # Links: only allow safe URL schemes. Each href waits behind a
+        # placeholder until the passes below are done, so they cannot write
+        # markup into the attribute.
+        hrefs = []
         def render_link(match):
             label, url = match.group(1), match.group(2)
             safe = url.startswith(("http://", "https://", "mailto:", "#", "/"))
-            return f'<a href="{url}">{label}</a>' if safe else match.group(0)
+            if not safe:
+                return match.group(0)
+            hrefs.append(url)
+            return f'<a href="\x00{len(hrefs) - 1}\x00">{label}</a>'
         text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", render_link, text)
+
+        # Code spans
+        text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
 
         # Bold
         text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
@@ -499,7 +526,7 @@ def md_to_html(md_content: str) -> str:
             text,
         )
 
-        return text
+        return re.sub(r"\x00(\d+)\x00", lambda m: hrefs[int(m.group(1))], text)
 
     for line in lines:
         # Code blocks
@@ -648,8 +675,15 @@ def main():
         print(f"Error: File not found: {input_file}")
         sys.exit(1)
 
-    with open(input_file, "r", encoding="utf-8") as f:
-        md_content = f.read()
+    try:
+        with open(input_file, "r", encoding="utf-8") as f:
+            md_content = f.read()
+    except UnicodeDecodeError:
+        print(f"Error: Not UTF-8 text: {input_file}")
+        sys.exit(1)
+    except OSError as exc:
+        print(f"Error: Could not read {input_file}: {exc}")
+        sys.exit(1)
 
     title = extract_title(md_content)
     body_html = md_to_html(md_content)

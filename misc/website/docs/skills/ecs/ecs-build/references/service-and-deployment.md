@@ -1,6 +1,6 @@
 ---
 title: "Service and Deployment"
-description: ""
+description: "How to generate aws_ecs_service (or the module's service submodule) with the right deployment configuration."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-build/references/service-and-deployment.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/ecs-build/references/service-and-deployment.
 
 # Service and Deployment
 
-> **Part of:** [ecs-build](../)
+> **Part of:** [ecs-build](../index.md)
 
 How to generate `aws_ecs_service` (or the module's service submodule) with the right deployment configuration. Strategy *selection* and pipeline wiring belong to `ecs-devops` -- this file covers rendering the Terraform for a strategy that is already chosen.
 
@@ -70,12 +70,12 @@ deployment_configuration {
 - ALB/NLB blue/green needs the alternate-target-group plumbing: a production listener rule with two weighted target groups, plus per-`load_balancer` `advanced_configuration` (`alternate_target_group_arn`, `production_listener_rule`, optional `test_listener_rule`, and a role carrying `AmazonECSInfrastructureRolePolicyForLoadBalancers`). The module service submodule supports alternate target groups + listener rules for this.
 - Both revisions run simultaneously until cleanup -- plan for up to 2x capacity during the deployment.
 - **Failure detection on blue/green-family:** use the `alarms { alarm_names, enable, rollback }` block (works with any strategy under the `ECS` controller) plus bake time; NOT the circuit breaker.
-- Autoscaling caveat: `ALBRequestCountPerTarget` target tracking is not compatible with the blue/green deployment type -- re-check https://docs.aws.amazon.com/AmazonECS/latest/developerguide/target-tracking-create-policy.html before combining (see [autoscaling.md](autoscaling)).
+- Autoscaling caveat: `ALBRequestCountPerTarget` target tracking is not compatible with the blue/green deployment type -- re-check https://docs.aws.amazon.com/AmazonECS/latest/developerguide/target-tracking-create-policy.html before combining (see [autoscaling.md](autoscaling.md)).
 
 ## Load balancing
 
 - Service `load_balancer { target_group_arn, container_name, container_port }`; target group `target_type = "ip"` for awsvpc tasks.
-- Target group hygiene (see [baseline-defaults.md](baseline-defaults)): `deregistration_delay` 30-60s, health check path/matcher explicit, `health_check_grace_period_seconds` on the service for slow starters.
+- Target group hygiene (see [baseline-defaults.md](baseline-defaults.md)): `deregistration_delay` 30-60s, health check path/matcher explicit, `health_check_grace_period_seconds` on the service for slow starters.
 - Both target groups referenced by blue/green listener rules must actually be associated with the listener, or deployments fail with an invalid-networking-configuration rollback.
 
 ## Service Connect (Critical Rule 7)

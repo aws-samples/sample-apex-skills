@@ -1,6 +1,6 @@
 ---
 title: "Storage for GPU / ML Workloads on Amazon ECS"
-description: ""
+description: "Where model weights, training data, and checkpoints live — and how to get them to GPU/Neuron tasks fast enough that expensive accelerators aren't idle..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-genai/references/storage.md
 format: md
 ---
@@ -34,8 +34,8 @@ Where model weights, training data, and checkpoints live — and how to get them
 
 Rules:
 - **Never pull weights from Hugging Face at every task start** — egress cost, rate limits, and cold-start. Stage in **S3** (or ECR for baked images) first.
-- **Pre-compile Neuron models offline** and ship the compiled artifact via S3/image — never compile at task startup ([neuron-on-ecs.md](neuron-on-ecs)).
-- **Access S3 via the task role** (least-privilege, per-bucket/prefix) — never static keys ([security-and-compliance.md](security-and-compliance)).
+- **Pre-compile Neuron models offline** and ship the compiled artifact via S3/image — never compile at task startup ([neuron-on-ecs.md](neuron-on-ecs.md)).
+- **Access S3 via the task role** (least-privilege, per-bucket/prefix) — never static keys ([security-and-compliance.md](security-and-compliance.md)).
 
 ## Container Image Size — the Cold-Start Tax
 
@@ -47,7 +47,7 @@ For distributed training and checkpoint-heavy workloads, FSx for Lustre delivers
 
 - **Same-AZ rule (critical):** deploy FSx in the **same Availability Zone** as the GPU/Neuron instances. Cross-AZ round-trip latency dwarfs FSx's native performance — a top silent-bad-architecture decision.
 - **Pre-warm** FSx with training data (via an admin task) **before** launching Spot GPU capacity, so you don't burn expensive accelerator minutes waiting on data ingest.
-- **Checkpoint flow:** training task writes to FSx → DRA async-exports to S3 → on interruption a replacement task lazy-loads the latest checkpoint from S3 into a fresh FSx volume. See [distributed-training.md](distributed-training).
+- **Checkpoint flow:** training task writes to FSx → DRA async-exports to S3 → on interruption a replacement task lazy-loads the latest checkpoint from S3 into a fresh FSx volume. See [distributed-training.md](distributed-training.md).
 
 ## Amazon EFS — Shared Weights
 
@@ -55,7 +55,7 @@ Use EFS when multiple inference tasks (possibly across instances) must read the 
 
 ## Amazon S3 — the Backbone
 
-S3 is the durable source of truth for weights, checkpoints, and the train→serve handoff artifact. Access via the **task role**; reach it privately from GPU instances in private subnets via an **S3 VPC endpoint** ([security-and-compliance.md](security-and-compliance)). Version models by key path (`s3://models/<name>/v3/`) to make promotion a task-definition update.
+S3 is the durable source of truth for weights, checkpoints, and the train→serve handoff artifact. Access via the **task role**; reach it privately from GPU instances in private subnets via an **S3 VPC endpoint** ([security-and-compliance.md](security-and-compliance.md)). Version models by key path (`s3://models/<name>/v3/`) to make promotion a task-definition update.
 
 ## Storage + Capacity Notes
 

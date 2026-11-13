@@ -19,8 +19,9 @@ passed, so the Makefile remains the single source of truth for defaults.
 
 Exit codes:
   0  success, no regressions
-  1  one or more `make triggering-<skill>` invocations errored
-  2  --fail-on-regression threshold breached (exit 1 is reserved for make failure)
+  1  one or more `make triggering-<skill>` invocations errored, or (without
+     --dry-run) misc/evals/README.md has no SCORECARD markers; checked before any run
+  2  --fail-on-regression threshold breached
 """
 
 from __future__ import annotations
@@ -897,24 +898,32 @@ def _render_skill_detail(s: dict) -> list[str]:
     return out
 
 
-def splice_readme(readme_path: Path, rendered: str) -> None:
-    """Replace the SCORECARD_START…SCORECARD_END block in place. Raises if
-    the markers are missing — the README edit is not auto-self-healing.
+SCORECARD_RE = re.compile(
+    re.escape(SCORECARD_START) + r".*?" + re.escape(SCORECARD_END),
+    re.DOTALL,
+)
+
+
+def require_scorecard_markers(readme_path: Path) -> str:
+    """Return the README text. Raises if the markers are missing: the
+    README edit is not auto-self-healing.
     """
     text = readme_path.read_text()
-    pattern = re.compile(
-        re.escape(SCORECARD_START) + r".*?" + re.escape(SCORECARD_END),
-        re.DOTALL,
-    )
-    if not pattern.search(text):
+    if not SCORECARD_RE.search(text):
         raise RuntimeError(
             f"SCORECARD markers missing in {readme_path}; add both "
             f"{SCORECARD_START} and {SCORECARD_END} before running score."
         )
+    return text
+
+
+def splice_readme(readme_path: Path, rendered: str) -> None:
+    """Replace the SCORECARD_START…SCORECARD_END block in place. Raises if the markers are missing."""
+    text = require_scorecard_markers(readme_path)
     # Use a lambda so regex-metacharacters in `rendered` (e.g. \d coming from
     # a grader-produced regex in a suggestion) don't get interpreted as
     # replacement-string backreferences.
-    new_text = pattern.sub(lambda _m: rendered, text, count=1)
+    new_text = SCORECARD_RE.sub(lambda _m: rendered, text, count=1)
     readme_path.write_text(new_text)
 
 
@@ -1115,6 +1124,16 @@ def main() -> int:
         print("no skills discovered under misc/evals/", file=sys.stderr)
         return 1
 
+    # Refuse before any run: the splice comes last, after the triggering runs
+    # and their artefact and history writes.
+    readme = EVALS_ROOT / "README.md"
+    if not args.dry_run:
+        try:
+            require_scorecard_markers(readme)
+        except RuntimeError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+
     # Resolve Makefile defaults once so the scorecard metadata is accurate.
     resolved_provider = resolve_makefile_default("PROVIDER") or "bedrock"
     default_model = "global.anthropic.claude-opus-4-6-v1" if resolved_provider == "bedrock" else "claude-opus-4-6-v1"
@@ -1185,7 +1204,6 @@ def main() -> int:
     if args.dry_run:
         print(rendered)
     else:
-        readme = EVALS_ROOT / "README.md"
         splice_readme(readme, rendered)
         print(f"[run_all_evals] rewrote {readme}", file=sys.stderr)
 

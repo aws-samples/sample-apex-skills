@@ -1,6 +1,6 @@
 ---
 title: "ECS Observability — Log Delivery Architecture"
-description: ""
+description: "Deep guidance on awslogs delivery modes (blocking vs non-blocking), buffer sizing, FireLens/Fluent Bit routing, and high-throughput logging patterns for..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-observability/references/log-delivery.md
 format: md
 ---
@@ -11,10 +11,10 @@ This page is generated from [skills/ecs-observability/references/log-delivery.md
 
 # ECS Observability — Log Delivery Architecture
 
-> **Part of:** [ecs-observability](../)
+> **Part of:** [ecs-observability](../index.md)
 > **Purpose:** Deep guidance on awslogs delivery modes (blocking vs non-blocking), buffer sizing, FireLens/Fluent Bit routing, and high-throughput logging patterns for Amazon ECS
 
-**For the per-capability launch-type matrix, see:** [launch-type-matrix.md](launch-type-matrix)
+**For the per-capability launch-type matrix, see:** [launch-type-matrix.md](launch-type-matrix.md)
 
 ---
 
@@ -110,7 +110,7 @@ Facts verified 2026-07-09 against https://docs.aws.amazon.com/AmazonECS/latest/d
 
 ## Choosing awslogs vs FireLens
 
-> Launch-type facts in this table verified 2026-07-10; the matrix ([launch-type-matrix.md](launch-type-matrix)) is the source of truth for the support rows — re-check it before load-bearing use.
+> Launch-type facts in this table verified 2026-07-10; the matrix ([launch-type-matrix.md](launch-type-matrix.md)) is the source of truth for the support rows — re-check it before load-bearing use.
 
 | Criterion | awslogs | FireLens (Fluent Bit) |
 |---|---|---|

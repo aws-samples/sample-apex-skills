@@ -34,14 +34,18 @@ The following permissions are included:
 - `eks:ListNodegroups`
 - `eks:DescribeNodegroup`
 - `eks:ListAddons`
+- `eks:DescribeAddon`
 - `eks:ListFargateProfiles`
 - `eks:DescribeFargateProfile`
 
 **EC2 (required):**
 - `ec2:DescribeInstances`
+- `ec2:DescribeInstanceTypes`
 - `ec2:DescribeVolumes`
 - `ec2:DescribeSubnets`
 - `ec2:DescribeVpcEndpoints`
+- `ec2:DescribeNatGateways`
+- `ec2:DescribeSpotPriceHistory` (optional: live Spot prices)
 - `route53:ListHostedZonesByVPC` (optional: centralized VPC endpoint zones)
 
 **Elastic Load Balancing (required):**
@@ -52,6 +56,8 @@ The following permissions are included:
 **Cost Explorer (optional — enables dollar-accurate spend):**
 - `ce:GetCostAndUsage`
 - `ce:GetCostForecast`
+- `ce:GetSavingsPlansCoverage`
+- `ce:GetSavingsPlansUtilization`
 - `organizations:DescribeOrganization`
 
 **CloudWatch (optional — enables utilization-based analysis):**
@@ -59,10 +65,17 @@ The following permissions are included:
 - `cloudwatch:ListMetrics`
 - `logs:StartQuery`
 - `logs:GetQueryResults`
+- `logs:DescribeLogGroups` (required for log group sizing in the observability dimension)
 
 **Amazon EFS (optional — enables EFS Intelligent-Tiering/lifecycle checks in the storage dimension):**
 - `elasticfilesystem:DescribeFileSystems`
 - `elasticfilesystem:DescribeLifecycleConfiguration`
+
+**Amazon SQS (optional: confirms the Karpenter interruption queue exists in the Spot dimension):**
+- `sqs:GetQueueUrl`
+
+**Amazon ECR (optional: reads image manifests for the arm64 check in the Graviton estimate):**
+- `ecr:BatchGetImage`
 
 **Kubernetes API access (required):**
 - The Agent Space role requires an authentication mode that includes the EKS API and an access entry associated with `AmazonAIOpsAssistantPolicy`.
@@ -173,7 +186,7 @@ Data collection uses:
 - CloudWatch Container Insights metrics (pod CPU/memory utilization) via CloudWatch GetMetricData API
 - Kubernetes API to list nodes with allocatable resources and current allocations
 
-If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (4 and 5), and the report names it partly assessed.
+If no utilization metrics source is available (metrics-server, Container Insights or Prometheus), mark utilization checks as SKIPPED and proceed with request-only analysis; Compute Efficiency stays assessed on its request-based checks (5 and, with Karpenter, 4), and the report names it partly assessed. A denied metrics read (`Forbidden`) is UNKNOWN, not "no source": the report names the missing permission and covers both cases (installed: grant it; not installed: the setup steps); a read that failed otherwise is UNKNOWN with its error and no install step (`references/compute-efficiency.md`, metrics availability).
 
 ### Step 2: Spot/Graviton Adoption Assessment
 
@@ -324,7 +337,7 @@ The skill calculates a weighted cost efficiency score:
 | **Kubernetes API** | Kubernetes list/get operations | Resource requests, limits, replica counts, PVCs |
 | **EC2 API** | EC2 DescribeInstances API | Instance types, pricing tier, Spot vs On-Demand |
 
-If Cost Explorer is unavailable, the skill falls back to node-based cost estimation (see `references/cost-estimation-fallback.md`).
+If Cost Explorer is unavailable, the skill falls back to node-based cost estimation (see `references/cost-estimation-fallback.md`). If Cost Explorer is available but section 1.2 of `references/cost-data-collection.md` returns no namespace data, run its section 1.4 before falling back.
 
 ### Default Time Window
 

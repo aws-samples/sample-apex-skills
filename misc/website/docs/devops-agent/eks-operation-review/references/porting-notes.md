@@ -1,6 +1,6 @@
 ---
 title: "EKS Operation Review — AWS DevOps Agent Skill"
-description: ""
+description: "This folder contains the AWS DevOps Agent port of the EKS Operation Review skill."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/references/porting-notes.md
 format: md
 ---
@@ -384,4 +384,4 @@ Total skill size: ~250 KB (well under the 6 MB limit).
 
 ## License
 
-Same as the parent project — [MIT-0](https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/LICENSE).
+Same as the parent project — [MIT-0](https://github.com/aws-samples/sample-apex-skills/blob/main/LICENSE).

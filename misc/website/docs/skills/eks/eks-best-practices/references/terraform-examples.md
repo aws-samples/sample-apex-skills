@@ -1,6 +1,6 @@
 ---
 title: "EKS Terraform Examples and Patterns"
-description: ""
+description: "Reference architecture examples from terraform-aws-modules/terraform-aws-eks with decision guidance"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/terraform-examples.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-best-practices/references/terraform-exam
 
 # EKS Terraform Examples and Patterns
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Reference architecture examples from terraform-aws-modules/terraform-aws-eks with decision guidance
 
 ---
@@ -85,7 +85,7 @@ module "eks" {
 
 *Values shown for EKS v1.30+. Standard mode (default) auto-scales and is sufficient for most workloads.*
 
-> **Note:** The advanced control-plane configuration parameters (`kubeSchedulerConfig` / `kubeControllerManagerConfig` / `kubeApiServerConfig` — e.g. scheduler `MostAllocated`, HPA sync period, `eventTtl`) are **not yet exposed by the terraform-aws-eks module** (as of 2026-08-20) — set them via the Console, AWS CLI, SDKs, or CloudFormation. See [Scalability — Control Plane Configuration Parameters](scalability#control-plane-configuration-parameters).
+> **Note:** The advanced control-plane configuration parameters (`kubeSchedulerConfig` / `kubeControllerManagerConfig` / `kubeApiServerConfig` — e.g. scheduler `MostAllocated`, HPA sync period, `eventTtl`) are **not yet exposed by the terraform-aws-eks module** (as of 2026-08-20) — set them via the Console, AWS CLI, SDKs, or CloudFormation. See [Scalability — Control Plane Configuration Parameters](scalability.md#control-plane-configuration-parameters).
 
 ---
 
@@ -179,31 +179,40 @@ Deploys AWS Controllers for Kubernetes (ACK), ArgoCD, and Kubernetes Resource Or
 
 ```hcl
 module "ack_capability" {
-  source = "terraform-aws-modules/eks/aws//modules/capability"
+  source  = "terraform-aws-modules/eks/aws//modules/capability"
+  version = "~> 21.13"
 
+  type         = "ACK"
   cluster_name = module.eks.cluster_name
-  capability_type = "ACK"
   iam_role_policies = {
     # AdministratorAccess mirrors the upstream example for brevity. In production,
-    # replace it with policies scoped to the AWS services ACK manages (least privilege).
+    # map per-namespace IAM roles with IAM Role Selectors and drop AdministratorAccess
+    # (the role then needs only sts:AssumeRole and sts:TagSession), or replace it with
+    # policies scoped to the AWS services ACK manages (least privilege).
     admin = "arn:aws:iam::aws:policy/AdministratorAccess"
   }
 }
 
+# Declare data.aws_ssoadmin_instances.this and data.aws_identitystore_group.admin (your IAM Identity Center group) before using this block.
 module "argocd_capability" {
-  source = "terraform-aws-modules/eks/aws//modules/capability"
+  source  = "terraform-aws-modules/eks/aws//modules/capability"
+  version = "~> 21.13"
 
-  cluster_name    = module.eks.cluster_name
-  capability_type = "ARGOCD"
-  namespace       = "argocd"
+  type         = "ARGOCD"
+  cluster_name = module.eks.cluster_name
 
-  argocd_configuration = {
-    admin_setup = {
-      sso_enabled       = true
-      identity_store_id = data.aws_ssoadmin_instances.this.identity_store_ids[0]
-      roles = [{
-        role_name = "ADMIN"
-        groups    = [data.aws_identitystore_group.admin.group_id]
+  configuration = {
+    argo_cd = {
+      aws_idc = {
+        idc_instance_arn = one(data.aws_ssoadmin_instances.this.arns)
+      }
+      namespace = "argocd"
+      rbac_role_mapping = [{
+        role = "ADMIN"
+        identity = [{
+          id   = data.aws_identitystore_group.admin.group_id
+          type = "SSO_GROUP"
+        }]
       }]
     }
   }
@@ -349,6 +358,7 @@ module "karpenter" {
   source = "terraform-aws-modules/eks/aws//modules/karpenter"
 
   cluster_name          = module.eks.cluster_name
+  enable_inline_policy  = true # (v21.8.0+) controller policy can exceed the 6,144-character managed policy limit; inline role policies allow 10,240 in total
 
   node_iam_role_additional_policies = {
     AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -572,7 +582,7 @@ addons = {
 | `most_recent = true` | Non-production, staying current | May introduce breaking changes |
 | Pin to specific version | Production | Must manually update; check compatibility |
 
-**Recommendation:** Pin add-on versions in production and update deliberately during upgrade windows.
+**Recommendation:** Pin add-on versions in production and update deliberately during upgrade windows. A security fix does not wait for the window: follow [the emergency path](security-operations.md#the-emergency-path).
 
 ### Common Dependency Issues
 

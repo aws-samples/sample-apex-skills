@@ -1,6 +1,7 @@
 ---
-title: "eks-operation-review"
-description: "Perform a structured EKS operational excellence assessment against a live cluster. Covers 10 areas: cluster lifecycle, infrastructure as code, access and identity, observability, workload configuration, networking, autoscaling, deployment practices, operational processes, and add-on management. Produces a GREEN/AMBER/RED rated report with prioritized recommendations. Activate for any request to audit, review, health-check, or score an EKS cluster operational posture, including section-scoped reviews and version currency / current-state add-on and deprecated-API review with no target version. Not for upgrade readiness assessment against a target version, cluster discovery, or architectural design advice."
+title: "EKS Operation Review (eks-operation-review) for AWS DevOps Agent"
+sidebar_label: "eks-operation-review"
+description: "AWS DevOps Agent port. Structured EKS operational excellence assessment of a live cluster across 10 areas: GREEN/AMBER/RED rated, prioritized recommendations"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-operation-review/SKILL.md
 format: md
 ---

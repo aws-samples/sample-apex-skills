@@ -1,6 +1,6 @@
 ---
 title: "EKS Networking — Ingress, Load Balancing & DNS"
-description: ""
+description: "Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-best-practices/references/networking-ingress-dns.md
 format: md
 ---
@@ -11,11 +11,11 @@ This page is generated from [skills/eks-best-practices/references/networking-ing
 
 # EKS Networking — Ingress, Load Balancing & DNS
 
-> **Part of:** [eks-best-practices](../)
+> **Part of:** [eks-best-practices](../index.md)
 > **Purpose:** Ingress patterns (ALB, NLB, Gateway API), AWS Load Balancer Controller, service mesh, DNS/CoreDNS tuning, private cluster connectivity
 
-**For VPC CNI, subnet planning, IPv6, and IP management, see:** [Networking](networking)
-**For network policies and traffic control, see:** [Security — Runtime & Network](security-runtime-network)
+**For VPC CNI, subnet planning, IPv6, and IP management, see:** [Networking](networking.md)
+**For network policies and traffic control, see:** [Security — Runtime & Network](security-runtime-network.md)
 
 ---
 
@@ -188,7 +188,7 @@ Gateway API is the successor to the Ingress resource, offering role-oriented res
 | **AWS Load Balancer Controller (LBC) Gateway API** | `gateway.k8s.aws/alb` (L7) or `gateway.k8s.aws/nlb` (L4) | An ALB (L7) or NLB (L4) | In-cluster ingress that would otherwise use an ALB/NLB Ingress or Service |
 | **VPC Lattice (Gateway API controller)** | `application-networking.k8s.aws/gateway-api-controller` | A VPC Lattice service network | Cross-VPC / cross-account service-to-service networking |
 
-Copy-pasting the Lattice `controllerName` when you actually want an ALB yields a Lattice service network, not a load balancer — a common mistake. The LBC Gateway API support is GA (v3.0.0, released 2026-01-23; current v3.5.0 as of 2026-08-04) and requires installing its CRDs (`TargetGroupBinding`, the LBC Gateway CRDs, and the upstream Gateway API CRDs) via a manual `kubectl apply` step, per the [v3.0.0 release notes'](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/tag/v3.0.0) Action-Required block; both L7 (ALB) and L4 (NLB) Gateways are supported.
+Copy-pasting the Lattice `controllerName` when you actually want an ALB yields a Lattice service network, not a load balancer — a common mistake. The LBC Gateway API support is GA (v3.0.0, released 2026-01-23; v3.6.2 the latest as of 2026-11-08) and requires installing its CRDs (`TargetGroupBinding`, the LBC Gateway CRDs, and the upstream Gateway API CRDs) via a manual `kubectl apply` step, per the [v3.0.0 release notes'](https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/tag/v3.0.0) Action-Required block; both L7 (ALB) and L4 (NLB) Gateways are supported.
 
 **Example A — ALB via the LBC Gateway API** (in-cluster HTTP ingress):
 
@@ -328,9 +328,11 @@ spec:
 
 ### External DNS
 
+**Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
+
 ```bash
 # Auto-manage Route 53 records for Services/Ingresses
-helm install external-dns external-dns/external-dns \
+helm install external-dns external-dns/external-dns --version <chart-version> \
   --set provider=aws \
   --set policy=sync \
   --set registry=txt \
@@ -382,19 +384,19 @@ resource "aws_eks_cluster" "private" {
 
 ## Network Policies
 
-For detailed network policy guidance including default-deny patterns, DNS allow rules, and policy engine comparison (VPC CNI native, Calico, Cilium), see **[Security — Runtime & Network](security-runtime-network#network-policies)**.
+For detailed network policy guidance including default-deny patterns, DNS allow rules, and policy engine comparison (VPC CNI native, Calico, Cilium), see **[Security — Runtime & Network](security-runtime-network.md#network-policies)**.
 
 **Quick summary:**
 
 | Option | Standard | EKS Support | Features |
 |--------|----------|-------------|----------|
-| **VPC CNI Network Policy** | K8s NetworkPolicy | Native (use v1.21.1+) | L3/L4 policies, eBPF-based |
+| **VPC CNI Network Policy** | K8s NetworkPolicy | Native (use v1.22.3+, the fixed release in [AWS security bulletin 2026-170](https://aws.amazon.com/security/security-bulletins/2026-170-aws/)) | L3/L4 policies, eBPF-based |
 | **Calico** | K8s + Calico extended | Add-on | L3/L4 + DNS-based policies |
 | **Cilium** | K8s + Cilium extended | Self-managed | L3/L4/L7 + DNS + identity |
 
 **Recommendation:** Use VPC CNI native network policies for most workloads. Use Cilium or Calico only if you need L7 policies or advanced features like DNS hostname rules.
 
-> Beyond the namespaced `NetworkPolicy` above, EKS adds two AWS-native CRDs (`networking.k8s.aws/v1alpha1`, VPC CNI v1.21.1+): cluster-scoped **`ClusterNetworkPolicy`** with a `tier: Admin | Baseline` field (the Admin tier is evaluated first and can't be overridden by namespace policies; Baseline is an overridable default), and namespaced **`ApplicationNetworkPolicy`**, an EKS Auto Mode CRD adding an FQDN-based egress filter that applies only on Auto Mode nodes. (Kubernetes 1.29+ is the Auto Mode / new-cluster rollout floor, not a ClusterNetworkPolicy gate.) See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
+> Beyond the namespaced `NetworkPolicy` above, EKS adds two AWS-native CRDs (`networking.k8s.aws/v1alpha1`; `ClusterNetworkPolicy` supported from VPC CNI v1.21.0; use v1.22.3+ per the bulletin above): cluster-scoped **`ClusterNetworkPolicy`** with a `tier: Admin | Baseline` field (the Admin tier is evaluated first and can't be overridden by namespace policies; Baseline is an overridable default), and namespaced **`ApplicationNetworkPolicy`**, an EKS Auto Mode CRD adding an FQDN-based egress filter that applies only on Auto Mode nodes. The managed add-on at v1.22.3 is offered for Kubernetes 1.30+ (`aws eks describe-addon-versions --addon-name vpc-cni`, as of 2026-11-09), so a 1.29 cluster cannot run the fixed release as a managed add-on. See `security-runtime-network.md` for detail; verify your installed VPC CNI version before relying on either.
 
 ---
 

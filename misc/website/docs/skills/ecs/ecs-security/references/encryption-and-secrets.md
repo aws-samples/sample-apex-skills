@@ -1,6 +1,6 @@
 ---
 title: "Encryption & Secrets Management"
-description: ""
+description: "A first-class security area in the ECS Best Practices guide."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-security/references/encryption-and-secrets.md
 format: md
 ---
@@ -44,7 +44,7 @@ A secret injected as an environment variable is read **only at container start**
 
 ### Keep secret retrieval private
 
-Create an **interface VPC endpoint for Secrets Manager (and SSM)** so retrieval doesn't traverse the public internet — required for fully private subnets and recommended under compliance regimes. See [network-isolation.md](network-isolation).
+Create an **interface VPC endpoint for Secrets Manager (and SSM)** so retrieval doesn't traverse the public internet — required for fully private subnets and recommended under compliance regimes. See [network-isolation.md](network-isolation.md).
 
 ## Encryption at rest
 
@@ -52,7 +52,7 @@ Create an **interface VPC endpoint for Secrets Manager (and SSM)** so retrieval 
 - **Fargate ephemeral storage** — encrypted with **AES-256 by default for tasks on platform version 1.4.0 or later** (earlier PVs don't get this default — pin/verify the PV); you can bring a CMK for the ephemeral volume on supported platform versions ([Fargate ephemeral storage encryption](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-storage.html)).
 - **EBS volumes attached to tasks** (Fargate or EC2, via the infrastructure role) — enable encryption, with a CMK for compliance.
 - **EFS volumes** — support encryption at rest (CMK) and in-transit (TLS mount).
-- **CloudWatch Logs / CloudTrail S3** — encrypt with a CMK for high-sensitivity workloads (see [audit-logging.md](audit-logging)).
+- **CloudWatch Logs / CloudTrail S3** — encrypt with a CMK for high-sensitivity workloads (see [audit-logging.md](audit-logging.md)).
 
 ## Encryption in transit
 

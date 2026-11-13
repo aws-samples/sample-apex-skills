@@ -1,6 +1,6 @@
 ---
 title: "Gateway API Migration Plan"
-description: ""
+description: "Generate a concrete, phased migration plan from Ingress to Gateway API based on assessment findings."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-ingress-migration/references/migration-plan.md
 format: md
 ---
@@ -30,18 +30,18 @@ Generate a concrete, phased migration plan from Ingress to Gateway API based on 
    | Controller line | Standard CRDs | Notes |
    |---|---|---|
    | v3.4.0 (the tag the `lbc-migrate` CLI is built from) | **v1.5.0** | TLSRoute is standard from v1.5.0; **TCPRoute/UDPRoute** still need the experimental channel on this pairing |
-   | **v3.5.0** (the recommended target) | **v1.6.0** | LBC v3.5.0 is built for Gateway API v1.6.0; TCPRoute/UDPRoute are in the standard channel from v1.6.0, so no experimental install is needed for L4 |
+   | **v3.5.0 line** (v3.5.0 and later releases on CRDs v1.6.0, see gateway-api.md; recommend the newest) | **v1.6.0** | LBC v3.5.0 is built for Gateway API v1.6.0; TCPRoute/UDPRoute are in the standard channel from v1.6.0, so no experimental install is needed for L4 |
 
    ```
-   # v1.6.0 — pair with a v3.5.0 controller (see step 2)
+   # v1.6.0: pair with a controller of the v3.5.0 line (see gateway-api.md)
    kubectl apply --server-side=true -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.0/standard-install.yaml
    ```
 
    Also install the **LBC Gateway API CRDs** (`LoadBalancerConfiguration`, `TargetGroupConfiguration`, `ListenerRuleConfiguration`) — the ALB Gateway controller does not enable without them, and Phase 2 configures the load balancer through them.
 
-2. Upgrade AWS LB Controller to **≥ v3.0.0** (the Gateway API production floor; the **v3.5.0** line is the recommended target) — still required on EKS Auto Mode, whose built-in controller does not provide Gateway API. There is **no `aws-load-balancer-controller` EKS add-on** — it is not in the AWS add-on catalog nor the community add-on list, so install and upgrade go through Helm (or the release manifests):
+2. Upgrade AWS LB Controller to **≥ v3.0.0** (the Gateway API production floor; the newest release of the **v3.5.0** line is the recommended target) — still required on EKS Auto Mode, whose built-in controller does not provide Gateway API. There is **no `aws-load-balancer-controller` EKS add-on** — it is not in the AWS add-on catalog nor the community add-on list, so install and upgrade go through Helm (or the release manifests):
    ```
-   helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set serviceAccount.create=false
+   helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=<cluster-name> --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
    ```
 
 3. Create GatewayClass:

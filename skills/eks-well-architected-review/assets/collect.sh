@@ -1444,9 +1444,15 @@ awsjson "$WORK/vpcendpoints.json" -- aws ec2 describe-vpc-endpoints   --filters 
 #   "Beginning April 22, 2026, new Amazon EC2 managed instances and associated resources (for example,
 #    EC2 launch templates, EBS volumes, and network interfaces (ENIs)) created by EKS Auto Mode are
 #    hidden from EC2 console views and `describe` API list operations by default. Managed resources that
-#    already existed in your account before that date remain visible."
-# That date is past, so a review run today hits this by default on any Auto Mode cluster whose nodes
-# were launched after it. The same page, verbatim, gives the ways through:
+#    already existed in your account before that date remain visible. You can change this behavior
+#    using managed resource visibility settings."
+# https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-ec2-managed-instances.html, verbatim:
+#   "By default, Amazon EC2 hides managed resources for accounts that did not have managed resources
+#    before visibility settings became available. For accounts that already had managed resources,
+#    Amazon EC2 sets the visibility setting to **Visible** to preserve existing workflows. The visibility
+#    setting applies to all managed resources in a Region, regardless of when they were created."
+# So the Region's setting decides it, not when a node was launched: a review run today can hit this on
+# any Auto Mode cluster in a Region whose setting is hidden. The EKS page, verbatim, gives the ways through:
 #   "Even when managed resources are hidden from EC2 console views and list APIs, you can still view EKS
 #    Auto Mode instances through:" ... "Kubernetes APIs (for example, `kubectl get nodes`)." ...
 #   "Direct EC2 API queries by instance ID (for example, `describe-instances --instance-ids
@@ -1461,13 +1467,13 @@ awsjson "$WORK/vpcendpoints.json" -- aws ec2 describe-vpc-endpoints   --filters 
 #   "IncludeManagedResources: Indicates whether to include managed resources in the output. If this
 #    parameter is set to `true`, the output includes resources that are managed by AWS services, even if
 #    managed resource visibility is set to hidden."
-# The CLI does not expose it yet. Tested 2026-09-11 against
+# The CLI did not expose it before aws-cli 2.34.35 / 1.44.84. Tested 2026-09-11 against
 # `aws-cli/2.34.30 Python/3.14.7 Darwin/25.6.0 source/arm64`:
 #   $ aws ec2 describe-instances --include-managed-resources --max-items 1
 #   aws: [ERROR]: Unknown options: --include-managed-resources
 # A skill cannot dictate the operator's CLI version, so everything below is built on the instance-ID
 # path, which works on every version. The negative result is recorded here rather than left as folklore:
-# when a CLI ships the flag, this block can collapse to two calls, and a maintainer should be able to
+# on aws-cli 2.34.35 / 1.44.84 or later this block could collapse to two calls, and a maintainer should be able to
 # see why it is built the complicated way.
 #
 # HOW THE ID PATH WORKS.
@@ -1723,7 +1729,7 @@ if [ -f "$WORK/nodes.json" ] && [ -f "$WORK/instances.json" ]; then
   # providerID and `eks.amazonaws.com/compute-type=hybrid`. NEITHER is backed by an EC2 instance, so a
   # Fargate-only or hybrid-only cluster legitimately has zero instances and must not trip this. Counting
   # hybrid nodes as EC2 would make this canary fire on every hybrid-only cluster and refuse the run with
-  # "EKS Auto Mode hides managed instances from list APIs" -- a cause that has nothing to do with the
+  # "EKS Auto Mode can hide managed instances from list APIs" -- a cause that has nothing to do with the
   # cluster in front of it -- while the SCOPE-PLATFORMS block in references/workflow.md says such a cluster is "not
   # refused".
   #
@@ -1819,7 +1825,7 @@ if [ -f "$WORK/nodes.json" ] && [ -f "$WORK/instances.json" ]; then
     INVALID="$INVALID was NOT checked -- do not read this as a pass; re-collect both files)"
   elif [ "$EC2_NODES" -gt 0 ] && [ "$INST_TOTAL" -eq 0 ]; then
     INVALID="$INVALID instances.json(NOT COLLECTED: ${EC2_NODES} EC2 node(s) in nodes.json but"
-    INVALID="$INVALID zero EC2 instances -- EKS Auto Mode hides managed instances from list APIs and the"
+    INVALID="$INVALID zero EC2 instances -- EKS Auto Mode can hide managed instances from list APIs and the"
     INVALID="$INVALID instance-id fallback also came back empty; lens-11/sec-21/cost-8 would score 0/0)"
   elif [ -n "$MISSING_IIDS" ]; then
     _nm=0; for _i in $MISSING_IIDS; do _nm=$((_nm+1)); done
@@ -1855,7 +1861,7 @@ if [ -f "$WORK/volumes.json" ] && [ -f "$WORK/instances.json" ] && [ -f "$WORK/p
     _nm=0; for _v in $MISSING_VOLS; do _nm=$((_nm+1)); done
     INVALID="$INVALID volumes.json(INCOMPLETE: ${_nm} of the ${EBS_EXPECTED} EBS volume id(s) referenced by the"
     INVALID="$INVALID collected instances or PersistentVolumes are not in it -- the describe-volumes"
-    INVALID="$INVALID --volume-ids lookup for them failed (see the WARN line(s) above; EKS Auto Mode hides"
+    INVALID="$INVALID --volume-ids lookup for them failed (see the WARN line(s) above; EKS Auto Mode can hide"
     INVALID="$INVALID its volumes from the list call); sec-21/cost-8 would grade a subset)"
   fi
 fi

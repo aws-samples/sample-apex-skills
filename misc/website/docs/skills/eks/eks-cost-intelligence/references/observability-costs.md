@@ -1,6 +1,6 @@
 ---
 title: "Observability Costs"
-description: ""
+description: "Checks for EKS control plane logging configuration (all log types enabled unnecessarily), high-cardinality metric sources (Prometheus scrape configs,..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-cost-intelligence/references/observability-costs.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [skills/eks-cost-intelligence/references/observabili
 
 # Observability Costs
 
-> **Part of:** [eks-cost-intelligence](../)
+> **Part of:** [eks-cost-intelligence](../index.md)
 > **Purpose:** Checks for EKS control plane logging configuration (all log types enabled unnecessarily), high-cardinality metric sources (Prometheus scrape configs, CloudWatch agent), DEBUG/TRACE log levels in production, and log filtering/sampling configurations (FluentBit, CloudWatch agent)
 
 ---
@@ -785,10 +785,6 @@ kubectl get configmap -n <logging-namespace> <fluent-bit-config> -o json | \
 kubectl get configmap -n amazon-cloudwatch \
   $(kubectl get configmap -n amazon-cloudwatch -o name | grep -i "cwagent\|cloudwatch-agent" | head -1 | cut -d'/' -f2) \
   -o json | jq -r '.data'
-
-# Check for log_filters or exclusion patterns
-kubectl get configmap -n amazon-cloudwatch cloudwatch-agent-config -o json 2>/dev/null | \
-  jq -r '.data[] | select(test("exclude|filter|blacklist"; "i"))' 
 ```
 
 ```bash
@@ -812,16 +808,16 @@ kubectl get daemonsets --all-namespaces -o json | \
 # Check if any log pipeline exists at all
 echo "--- Logging pipeline detection ---"
 echo "FluentBit:"
-kubectl get ds -A -l app.kubernetes.io/name=fluent-bit --no-headers | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=fluent-bit --no-headers --ignore-not-found | wc -l
 echo "Fluentd:"
-kubectl get ds -A -l app=fluentd --no-headers | wc -l
+kubectl get ds -A -l app=fluentd --no-headers --ignore-not-found | wc -l
 echo "CloudWatch agent:"
-kubectl get ds -A -l app.kubernetes.io/name=cloudwatch-agent --no-headers | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=cloudwatch-agent --no-headers --ignore-not-found | wc -l
 echo "ADOT:"
-kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers | wc -l
+kubectl get ds -A -l app.kubernetes.io/name=adot-collector --no-headers --ignore-not-found | wc -l
 ```
 
-If any read here fails (nonzero exit or an error on stderr), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
+If any read here fails (an error on stderr; the pipe hides kubectl's exit code), treat the check as UNKNOWN per `report-generation.md` Read Coverage; do not use this output.
 
 **Via EKS MCP Server:**
 

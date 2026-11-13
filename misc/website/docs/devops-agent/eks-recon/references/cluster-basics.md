@@ -1,6 +1,6 @@
 ---
 title: "Module: Cluster Basics"
-description: ""
+description: "Detect core cluster information - name, version, region, endpoint, platform version"
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/devops-agent/eks-recon/references/cluster-basics.md
 format: md
 ---
@@ -11,7 +11,7 @@ This page is generated from [devops-agent/eks-recon/references/cluster-basics.md
 
 # Module: Cluster Basics
 
-> **Part of:** [eks-recon](../)
+> **Part of:** [eks-recon](../index.md)
 > **Purpose:** Detect core cluster information - name, version, region, endpoint, platform version
 
 ## Table of Contents

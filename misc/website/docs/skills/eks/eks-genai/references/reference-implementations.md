@@ -1,6 +1,6 @@
 ---
 title: "Reference Implementations — Blueprints, Workshops & Validated Stacks"
-description: ""
+description: "Canonical awslabs/ai-on-eks blueprint catalog, current workshops, AWS Solutions Library guidance, and a concrete validated stack with pinned versions from..."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/eks-genai/references/reference-implementations.md
 format: md
 ---
@@ -174,7 +174,7 @@ Key architectural decisions validated by the workshop:
 
 - Versions above are validated as of **June 2026**. Before recommending to a customer, verify the `awslabs/ai-on-eks` repo's `main` branch for any updates — Terraform module versions and Helm chart versions move quarterly.
 - **Kubernetes version — pinned ≠ latest.** The table pins **K8s 1.34** because that is what the workshop was validated on (1.34 reached EKS in Oct 2025 and remains in standard support). It is **not the newest** — EKS added **1.36** on June 2, 2026. For a *new* cluster, default to the latest EKS-supported version after confirming the accelerator add-ons (NVIDIA/Neuron device plugins, Karpenter, KubeRay) support it; treat the pinned 1.34 as "known-good for this workshop," not "the version to deploy today." Current standard-support list: [EKS Kubernetes version lifecycle](https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html).
-- **Amazon S3 Vectors is GA** (general availability since Dec 2, 2025) — safe as a production default for cost-efficient RAG; see the latency profile in [storage.md](storage) before using it for low-latency, high-concurrency retrieval.
+- **Amazon S3 Vectors is GA** (general availability since Dec 2, 2025) — safe as a production default for cost-efficient RAG; see the latency profile in [storage.md](storage.md) before using it for low-latency, high-concurrency retrieval.
 - The workshop infra lives under `infra/workshops/genai-on-eks` in the repo — separate from the production blueprints under `infra/`.
 - KubeRay operator, kube-prometheus-stack, and grafana-operator versions are pinned in the workshop's Terraform; production deployments should track these or newer patch versions.
 

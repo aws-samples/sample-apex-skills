@@ -2,7 +2,7 @@
 
 The question is not "is every setting perfect" but "if one pod is compromised tomorrow, does this cluster keep it contained?". This file describes what the four posture scripts in `assets/` do. The scripts are the authority: where this file and a script differ, the script is right and this file is the bug.
 
-Each check reads only files the collector wrote, returns a result with the evidence it read, and carries a severity. A check whose input file was not collected (the read was denied or failed) is `unknown`, never pass.
+Each check reads only files the collector wrote, returns a result with the evidence it read, and carries a severity. A check whose input file was not collected (the read was denied or failed), or, for SEC-POSTURE-18, -28, -29, -33, -46 and -55, a node, volume or add-on it needs was not read while the ones that were read would pass, is `unknown`, never pass.
 
 ## How it runs
 
@@ -11,7 +11,7 @@ Run from any directory with `aws`, `kubectl`, `jq` 1.6 or later, and `timeout` a
 | Step | Command | Writes | Exit codes |
 |---|---|---|---|
 | 1. Collect | `posture_collect.sh --cluster <name> --region <region> --context <kubectl-context> [--work <dir>] [--profile <aws-profile>] [--kubeconfig <file>] [--preflight-only]` | `<workdir>/posture/*.json` and `posture/meta.json` (0700 dir, 0600 files) | 0 collected (some files may be missing: `meta.json` `errors`); 2 usage or refusal, one JSON line `{"ok":false,"code":...,"error":...}` |
-| 2. Score the copied checks | `posture_score.sh <workdir>` | `posture/results.jsonl`, one token per question | 0; 2 no collection, or already scored; 1 a collection file does not parse (a broken file is not a finding) |
+| 2. Score the copied checks | `posture_score.sh <workdir>` | `posture/results.jsonl`, one token per question | 0; 2 bad arguments, no collection, or already scored; 1 a collection file does not parse (a broken file is not a finding) |
 | 3. Score the added checks | `posture_extra.sh <workdir> [--admin-allow <regex>]` | `posture/results-extra.jsonl` | as step 2 |
 | 4. Reduce | `posture_reduce.sh <workdir>` | `<workdir>/posture.json` (schema `eks-security/posture@1`) | 0 written, coverage at or above the gate; 3 written but below the gate (score null); 2 refused, nothing written |
 | 5. Render | `render_report.py --posture <workdir>/posture.json --out-md <file> [--out-html <file>]` | the report | 0; 3 rendered, coverage below the gate; 2 usage or input error |
@@ -53,7 +53,7 @@ eks-well-architected-review's security pillar does not measure these, or measure
 
 | Id | Check | Evidence source file | Pass / fail rule | Layer | Severity |
 |---|---|---|---|---|---|
-| SEC-POSTURE-55 | Node instances block pod access to IMDS | `instances.json`, `nodes.json` | Per running Linux instance: pass when `MetadataOptions.HttpEndpoint` is `disabled`, or `HttpTokens` is `required` with `HttpPutResponseHopLimit` 1; bucketed over instances; failing instances grouped by node type (managed node group, Karpenter node pool, Auto Mode, other). Read off the running instance, so launch templates, Karpenter and Auto Mode are judged as in effect. Windows instances are not assessed; no Linux instance gives na | node-credential | high |
+| SEC-POSTURE-55 | Node instances block pod access to IMDS | `instances.json`, `nodes.json` | Per running Linux instance: pass when `MetadataOptions.HttpEndpoint` is `disabled`, or `HttpTokens` is `required` with `HttpPutResponseHopLimit` 1; bucketed over instances; failing instances grouped by node type (managed node group, Karpenter node pool, Auto Mode, other). Read off the running instance, so launch templates, Karpenter and Auto Mode are judged as in effect. Windows instances are not assessed; no Linux instance gives na. A Linux EC2 node with no instance record is named, and gives unknown when the instances that were read would score a pass (none read included) | node-credential | high |
 | SEC-POSTURE-56 | Default-deny ingress per workload namespace | `networkpolicies.json`, `namespaces.json` | A namespace passes when it has a NetworkPolicy with an empty `podSelector`, `Ingress` in `policyTypes` (implied when absent) and no ingress rule; bucketed over workload namespaces. Objects only: enforcement is SEC-POSTURE-26 | lateral-movement | high |
 | SEC-POSTURE-57 | Egress limited per workload namespace | `networkpolicies.json`, `namespaces.json` | A namespace passes when a NetworkPolicy with an empty `podSelector` lists `Egress` in `policyTypes`; bucketed. The allowed destinations are not judged | lateral-movement | medium |
 | SEC-POSTURE-58 | No host namespaces in workload pods | `pods.json` | Any workload pod not finished (phase other than `Succeeded` or `Failed`) with `hostNetwork`, `hostPID` or `hostIPC` true fails the check (`none`); otherwise `all`; no workload pods gives na | privilege | high |

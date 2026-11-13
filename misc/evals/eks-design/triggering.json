@@ -86,5 +86,13 @@
   {
     "query": "run a Well-Architected review against our live EKS cluster and score the five pillars",
     "should_trigger": false
+  },
+  {
+    "query": "Assess our WebSphere traditional app running on VMware from its source code and tell us whether to replatform or rearchitect it onto Amazon ECS, then plan the migration.",
+    "should_trigger": false
+  },
+  {
+    "query": "We have a .NET Framework app on a Windows EC2 instance. Containerize it and move it onto Amazon ECS.",
+    "should_trigger": false
   }
 ]

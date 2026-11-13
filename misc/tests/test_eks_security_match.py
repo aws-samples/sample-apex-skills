@@ -547,8 +547,108 @@ class RenderReport(TmpCase):
         self.assertEqual(rc, 0, log)
         self.assertEqual(len([ln for ln in md.splitlines() if ln.startswith("Overall verdict:")]), 1, md)
         self.assertIn("Overall verdict: Exposed", md)
-        self.assertIn("Auto Mode components: AWS-patched (inferred, not read): every Auto Mode node was created at or "
-                      "after the fix time", md)
+        self.assertIn("Auto Mode components: AWS-patched (inferred, not read): every Auto Mode node it was judged on "
+                      "was created at or after the fix time", md)
+
+    def patched_fixture(self):
+        fd, inv = self.fixture()
+        fd["findings"].append(dict(fd["findings"][0], component="addon:vpc-cni@auto-mode", verdict="aws_managed_patched",
+                                   fixed_at="2026-11-01", priority="P4"))
+        node = {"kind": "node-os", "kernel": "6.1.0", "kubelet": "v1.33.1", "runtime": "containerd://1.7.27",
+                "readable": True, "reason": None}
+        inv["components"] += [
+            dict(node, id="node-os:general-purpose", os_image="Bottlerocket OS 1.40.0 (aws-k8s-1.33)",
+                 ami="ami-0aaa1111bbbb2222c", nodes=["i-a", "i-b"], managed_by="aws-auto-mode", where=["general-purpose"],
+                 node_created={"i-a": "2026-11-02T01:00:00Z", "i-b": "2026-11-03T01:00:00Z"},
+                 oldest_node_created="2026-11-02T01:00:00Z"),
+            dict(node, id="node-os:system", os_image="Bottlerocket OS 1.40.0 (aws-k8s-1.33)", ami=None, nodes=["i-c"],
+                 managed_by="aws-auto-mode", where=["system"], node_created={"i-c": "2026-11-04T01:00:00Z"},
+                 oldest_node_created="2026-11-04T01:00:00Z"),
+            dict(node, id="node-os:workers", os_image="Amazon Linux 2023", ami="ami-0ccc3333dddd4444e", nodes=["i-d"],
+                 managed_by="customer", where=["workers"], node_created={"i-d": "2026-10-01T01:00:00Z"},
+                 oldest_node_created="2026-10-01T01:00:00Z")]
+        return fd, inv
+
+    def test_patched_lists_auto_mode_groups(self):
+        # A1: the AWS-patched line lists each Auto Mode NodePool's OS image and AMI, so the reader need not look them up
+        fd, inv = self.patched_fixture()
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("so a node created after the fix time can still run an older AMI.\n", md)
+        self.assertIn("| NodePool | OS image | AMI | Nodes | Oldest node created |", md)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 | "
+                      "2026-11-02T01:00:00Z |", md)
+        self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 | 2026-11-04T01:00:00Z |", md)
+        self.assertNotIn("ami-0ccc3333dddd4444e", md)
+        for cell in ("<th>NodePool</th>", "<td>general-purpose</td>", "<td>ami-0aaa1111bbbb2222c</td>",
+                     "<td>not read</td>"):
+            self.assertIn(cell, ht)
+        self.assertNotIn("ami-0ccc3333dddd4444e", ht)
+
+    def test_patched_table_skips_pending_pool(self):
+        # M1: a node-os finding is judged on its own pool, so a pending pool is not listed under AWS-patched
+        fd, inv = self.patched_fixture()
+        base = fd["findings"][-1]
+        fd["findings"][-1] = dict(base, component="node-os:general-purpose")
+        fd["findings"].append(dict(base, component="node-os:system", verdict="aws_managed_rotation_pending",
+                                   nodes_pending=["i-c"]))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)
+        self.assertNotIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read |", md)
+        # R2-1: an add-on patched on every Auto Mode node does not bring back a pool another advisory holds as pending
+        fd, inv = self.patched_fixture()
+        addon = fd["findings"][-1]
+        fd["findings"] += [dict(addon, advisory="CVE-TEST-0009", component="node-os:general-purpose"),
+                           dict(addon, advisory="CVE-TEST-0009", component="node-os:system",
+                                verdict="aws_managed_rotation_pending", nodes_pending=["i-c"])]
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | 2 |", md)
+        self.assertNotIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read |", md)
+        # R2-1 residual: a pool whose node an add-on advisory holds as pending is not listed under AWS-patched;
+        # pending is every node created before the fix time, so it holds i-a and i-b, not i-c
+        fd, inv = self.patched_fixture()
+        addon = fd["findings"][-1]
+        fd["findings"].append(dict(addon, advisory="CVE-TEST-0009", verdict="aws_managed_rotation_pending",
+                                   nodes_pending=["i-a", "i-b"]))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertNotIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) |", md)
+        self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 |", md)
+
+    def split_patched_fixture(self):
+        # general-purpose split into two node groups mid-rotation: i-b on the new AMI, i-a still on the old one
+        fd, inv = self.patched_fixture()
+        gp = next(c for c in inv["components"] if c["id"] == "node-os:general-purpose")
+        gp.update(nodes=["i-b"], node_created={"i-b": "2026-11-03T01:00:00Z"}, oldest_node_created="2026-11-03T01:00:00Z")
+        inv["components"].append(dict(gp, id="node-os:general-purpose/2", ami="ami-0eee5555ffff6666a", nodes=["i-a"],
+                                      node_created={"i-a": "2026-11-02T01:00:00Z"},
+                                      oldest_node_created="2026-11-02T01:00:00Z"))
+        return fd, inv
+
+    def test_patched_table_skips_split_pending_pool(self):
+        # M2: a NodePool split into two node groups mid-rotation is left out when any of its nodes is pending
+        fd, inv = self.split_patched_fixture()
+        addon = fd["findings"][-1]
+        fd["findings"].append(dict(addon, advisory="CVE-TEST-0009", verdict="aws_managed_rotation_pending",
+                                   nodes_pending=["i-a"]))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertNotIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) |", md)
+        self.assertNotIn("ami-0aaa1111bbbb2222c", md + ht)
+        self.assertNotIn("ami-0eee5555ffff6666a", md + ht)
+        self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 |", md)
+
+    def test_patched_table_skips_split_pool_node_os_pending(self):
+        # a node-os finding pending on the split pool's second node group, with no nodes_pending, leaves out the pool
+        fd, inv = self.split_patched_fixture()
+        fd["findings"].append(dict(fd["findings"][-1], component="node-os:general-purpose/2",
+                                   verdict="aws_managed_rotation_pending"))
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        self.assertNotIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) |", md)
+        self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | not read | 1 |", md)
 
     def test_unknown_actions_for_nodes_build_and_minor(self):
         # S2: no_nodes_read, eks_build and minor_only each get their own action, not the generic one
@@ -560,8 +660,7 @@ class RenderReport(TmpCase):
         self.assertEqual(rc, 0, log)
         for text in ("No Auto Mode node was read; check the nodes read in the preflight (read-only-access.md) and that "
                      "the NodePools have nodes, then re-run collect",
-                     "A range bound carries an eksbuild number, which is not compared; compare the add-on build with "
-                     "the advisory by hand",
+                     "To resolve: Compare the build with the advisory by hand.",
                      "The installed version names no patch release; find the patch release (for the control plane, "
                      "from its platform version) and compare by hand"):
             self.assertIn(text, md)
@@ -896,6 +995,42 @@ class CollectReadOnly(TmpCase):
         self.assertEqual(doc["overall"], "exposed")
 
     @NEEDS_JQ
+    def test_collect_hidden_instance_found_by_id(self):
+        # M2: an Auto Mode instance hidden from the filter call is looked up by its instance id
+        cc = CASES["collect"]
+        aws = dict(cc["aws"], **{"ec2 describe-instances": {"json": {"Reservations": []},
+                                                            "if_arg": {"--instance-ids": cc["aws"]["ec2 describe-instances"]}}})
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                                 {"aws": aws, "kubectl": cc["kubectl"], "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        by_id = [c["args"] for c in calls if c["args"][:2] == ["ec2", "describe-instances"] and "--instance-ids" in c["args"]]
+        self.assertEqual(len(by_id), 1, by_id)
+        self.assertIn("i-0abc123", by_id[0])
+        with open(os.path.join(work, "inventory.json"), encoding="utf-8") as f:
+            amis = {c.get("ami") for c in json.load(f)["components"] if c.get("kind") == "node-os"}
+        self.assertIn("ami-0123456789abcdef0", amis)
+
+    @NEEDS_JQ
+    def test_collect_hybrid_node_not_looked_up(self):
+        # LC-1: an SSM hybrid node (name mi-<hex>) is not an EC2 instance, so its providerID yields no instance id
+        cc = CASES["collect"]
+        aws = dict(cc["aws"], **{"ec2 describe-instances": {"json": {"Reservations": []},
+                                                            "if_arg": {"--instance-ids": cc["aws"]["ec2 describe-instances"]}}})
+        kubectl = copy.deepcopy(cc["kubectl"])
+        hyb = copy.deepcopy(kubectl["get nodes"]["json"]["items"][0])
+        hyb["metadata"] = {"name": "mi-0ccc123", "creationTimestamp": "2026-10-20T00:00:00Z", "labels": {}}
+        hyb["spec"]["providerID"] = "eks-hybrid:///us-west-2/demo/mi-0ccc123"
+        kubectl["get nodes"]["json"]["items"].append(hyb)
+        work = os.path.join(self.tmp, "work")
+        p, calls = run_collector(self, "collect.sh", ["--cluster", "demo", "--region", "us-west-2", "--out", work],
+                                 {"aws": aws, "kubectl": kubectl, "files": {}})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        ec2 = [c["args"] for c in calls if c["args"][:2] == ["ec2", "describe-instances"]]
+        self.assertFalse([a for a in ec2 if any("i-0ccc123" in x for x in a)], ec2)
+        self.assertEqual(len([a for a in ec2 if "--instance-ids" in a]), 1, ec2)
+
+    @NEEDS_JQ
     def test_collect_preflight_partial_k8s_not_ok(self):
         cc = CASES["collect"]
         kubectl = dict(cc["kubectl"], **{"auth can-i": {"text": "yes", "if_arg": {"--all-namespaces": {"text": "no"}}}})
@@ -1122,6 +1257,75 @@ class PostureScoring(TmpCase):
         self.assertTrue(row.startswith("| pass (exceptions) |"), row)
         self.assertIn("i-0bad", row)
 
+    def imds_nodes(self, read, optional=(), ids=("i-0aaa1111", "i-0bbb2222", "i-0ccc3333"), no_provider=False):
+        # Linux EC2 nodes `ids`; instances.json holds only the ids in `read` (a failed by-id read leaves the
+        # file in place); ids in `optional` allow IMDSv1; `no_provider` adds a node with no providerID.
+        # Returns the IMDS checks of posture.json by id.
+        work = self.build([n for n in self.PC["files"] if n != self.PC["denied_file"]])
+        node0 = self.PC["files"]["nodes"]["items"][0]
+        inst0 = self.PC["files"]["instances"]["Reservations"][0]["Instances"][0]
+        nodes, insts = [], []
+        for iid in ids:
+            n = copy.deepcopy(node0)
+            n["metadata"]["name"] = "node-" + iid
+            n["spec"]["providerID"] = "aws:///us-west-2a/" + iid
+            nodes.append(n)
+            if iid in read:
+                x = copy.deepcopy(inst0)
+                x["InstanceId"] = iid
+                x["MetadataOptions"] = {"HttpTokens": "optional" if iid in optional else "required",
+                                        "HttpPutResponseHopLimit": 1, "HttpEndpoint": "enabled"}
+                insts.append(x)
+        if no_provider:
+            n = copy.deepcopy(node0)
+            n["metadata"]["name"] = "node-registering"
+            del n["spec"]["providerID"]
+            nodes.append(n)
+        self.write(os.path.join("work", "posture", "nodes.json"), dict(self.PC["files"]["nodes"], items=nodes))
+        self.write(os.path.join("work", "posture", "instances.json"), {"Reservations": [{"Instances": insts}]})
+        q, doc = self.pipeline(work)
+        return {c["id"]: c for c in doc["checks"] if c["id"] in ("SEC-POSTURE-46", "SEC-POSTURE-55")}
+
+    def test_imds_unread_node_is_unknown_not_pass(self):
+        # A1: every instance read passes, but one node's instance was not read
+        for cid, c in self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222")).items():
+            self.assertEqual(c["result"], "unknown", c)
+            self.assertIn("NOT READ", c["evidence"], cid)
+            self.assertIn("i-0ccc3333", c["evidence"], cid)
+
+    def test_imds_unread_node_named_when_a_read_node_fails(self):
+        for cid, c in self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222"), optional=("i-0bbb2222",)).items():
+            self.assertEqual(c["result"], "fail", c)
+            self.assertIn("i-0ccc3333", c["evidence"], cid)
+            self.assertIn("failing: i-0bbb2222", c["evidence"], cid)
+
+    def test_imds_every_node_read_scores_as_before(self):
+        # negative control: no node unread, so nothing is named and the checks pass
+        for cid, c in self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222", "i-0ccc3333")).items():
+            self.assertEqual(c["result"], "pass", c)
+            self.assertNotIn("NOT READ", c["evidence"], cid)
+
+    def test_imds_bucket_pass_with_unread_node_is_unknown(self):
+        # 10 read, 1 of them failing (90%, the `all` bucket), 1 unread: still no pass
+        ids = tuple("i-0%07d" % k for k in range(11))
+        for cid, c in self.imds_nodes(read=ids[:10], optional=ids[:1], ids=ids).items():
+            self.assertEqual(c["result"], "unknown", c)
+            self.assertIn(ids[10], c["evidence"], cid)
+
+    def test_imds_no_instance_read_names_the_nodes(self):
+        for cid, c in self.imds_nodes(read=()).items():
+            self.assertEqual(c["result"], "unknown", c)
+            self.assertIn("NOT READ", c["evidence"], cid)
+            self.assertIn("i-0ccc3333", c["evidence"], cid)
+            self.assertNotIn("0/0", c["evidence"], cid)
+            if cid == "SEC-POSTURE-55":
+                self.assertIn("no Linux EC2 instance was read", c["evidence"])
+
+    def test_imds_node_without_provider_id_scores(self):
+        # a node registers before the cloud controller sets providerID; every token is still emitted
+        checks = self.imds_nodes(read=("i-0aaa1111", "i-0bbb2222", "i-0ccc3333"), no_provider=True)
+        self.assertEqual({c["result"] for c in checks.values()}, {"pass"}, checks)
+
     def test_sparse_workdir_score_null(self):
         q, doc = self.pipeline(self.build(self.PC["sparse_files"]))
         self.assertEqual(q.returncode, 3, q.stdout + q.stderr)
@@ -1149,6 +1353,175 @@ class PostureScoring(TmpCase):
                 self.assertEqual(q.returncode, 2, q.stdout + q.stderr)
                 self.assertEqual(last_json(q.stdout)["code"], code)
                 self.assertFalse(os.path.exists(os.path.join(work, "posture.json")))
+
+    def test_score_refuses_bad_arguments(self):
+        work = self.build(["cluster"])
+        cases = (("posture_score.sh", "mistyped flag", [work, "--chek"]), ("posture_score.sh", "no workdir", []),
+                 ("posture_score.sh", "empty workdir", [""]), ("posture_extra.sh", "no workdir", []),
+                 ("posture_extra.sh", "empty workdir", [""]))
+        for script, name, args in cases:
+            with self.subTest(script=script, case=name):
+                q = subprocess.run(["bash", os.path.join(ASSETS, script)] + args, capture_output=True,
+                                   text=True, timeout=60, cwd=self.tmp)
+                self.assertEqual(q.returncode, 2, q.stdout + q.stderr)
+                self.assertIn("usage: %s <workdir>" % script, q.stderr)
+                self.assertEqual(sorted(os.listdir(os.path.join(work, "posture"))), ["cluster.json"])
+                self.assertEqual(os.listdir(self.tmp), ["work"])
+
+
+# Partial reads: each case runs the real scorer, extra and reducer on the posture fixture with one read
+# missing. A failed read gives unknown and names what was not read; a measured fail on what was read stands.
+A, B = "i-0aaa1111", "i-0bbb2222"
+ACCT = "111122223333"
+
+
+@NEEDS_JQ
+class PosturePartialRead(TmpCase):
+    PC = CASES["posture"]
+    build = PostureScoring.build
+    pipeline = PostureScoring.pipeline
+
+    def run_case(self, nodes_read, vols_read=None, sg_extra=False, addons=None, details=None,
+                 webhooks=None, images=None, repos=None, open_on=B, unenc=(), auto_mode=False):
+        work = self.build([n for n in self.PC["files"] if n != self.PC["denied_file"]])
+        F = self.PC["files"]
+        if auto_mode:
+            cl = copy.deepcopy(F["cluster"])
+            cl["cluster"]["computeConfig"] = {"enabled": True}
+            self.write(os.path.join("work", "posture", "cluster.json"), cl)
+        node0, inst0 = F["nodes"]["items"][0], F["instances"]["Reservations"][0]["Instances"][0]
+        nodes, insts, vols = [], [], []
+        for iid in (A, B):
+            n = copy.deepcopy(node0)
+            n["metadata"]["name"] = "node-" + iid
+            n["spec"]["providerID"] = "aws:///us-west-2a/" + iid
+            nodes.append(n)
+            vid = "vol-0" + iid[3:] + "00000"
+            if iid in nodes_read:
+                x = copy.deepcopy(inst0)
+                x["InstanceId"] = iid
+                x["MetadataOptions"] = {"HttpTokens": "required", "HttpPutResponseHopLimit": 1, "HttpEndpoint": "enabled"}
+                x["SecurityGroups"] = [{"GroupId": "sg-0open22" if iid == open_on else "sg-0node1"}]
+                x["BlockDeviceMappings"] = [{"Ebs": {"VolumeId": vid}}]
+                insts.append(x)
+            if vols_read is None or iid in vols_read:
+                vols.append({"VolumeId": vid, "Encrypted": iid not in unenc, "Attachments": [{"InstanceId": iid}]})
+        self.write(os.path.join("work", "posture", "nodes.json"), dict(F["nodes"], items=nodes))
+        self.write(os.path.join("work", "posture", "instances.json"), {"Reservations": [{"Instances": insts}]})
+        self.write(os.path.join("work", "posture", "volumes.json"), {"Volumes": vols})
+        sg = copy.deepcopy(F["sg"])
+        if sg_extra:  # the open_on node's own launch-template SG: untagged, port 22 and 0.0.0.0/0
+            sg["SecurityGroups"].append({"GroupId": "sg-0open22", "IpPermissions": [
+                {"IpProtocol": "tcp", "FromPort": 22, "ToPort": 22, "IpRanges": [{"CidrIp": "0.0.0.0/0"}]}],
+                "IpPermissionsEgress": []})
+        self.write(os.path.join("work", "posture", "sg.json"), sg)
+        if addons is not None:
+            self.write(os.path.join("work", "posture", "addons.json"), {"addons": addons, "addonDetails": details})
+        if webhooks is not None:
+            self.write(os.path.join("work", "posture", "validatingwebhooks.json"),
+                       {"apiVersion": "v1", "kind": "List", "items": webhooks})
+        if images is not None:
+            pods = copy.deepcopy(F["pods"])
+            p0 = pods["items"][0]
+            pods["items"] = []
+            for k, img in enumerate(images):
+                p = copy.deepcopy(p0)
+                p["metadata"]["name"] = "p%d" % k
+                p["spec"]["containers"][0]["image"] = img
+                pods["items"].append(p)
+            self.write(os.path.join("work", "posture", "pods.json"), pods)
+            self.write(os.path.join("work", "posture", "ecr.json"), {"repositories": repos})
+        q, doc = self.pipeline(work)
+        return {c["id"]: c for c in doc["checks"]}
+
+    # sec-21 / SEC-POSTURE-18, a named volume not read: the by-id volume read failed (throttle, denial, volume deleted)
+    def test_sec21_volume_unread_is_unknown(self):
+        c = self.run_case(nodes_read=(A, B), vols_read=(A,))["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "unknown", c)
+        self.assertIn("vol-0bbb222200000", c["evidence"])
+
+    # sec-21, a node's instance not read: its block devices are never asked for
+    def test_sec21_instance_unread_is_unknown(self):
+        c = self.run_case(nodes_read=(A,), vols_read=(A,))["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "unknown", c)
+        self.assertIn(B, c["evidence"])
+
+    # A read node's volume is measurably unencrypted while node B is unread: the fail stands, B is named
+    def test_sec21_measured_fail_with_unread_stays_fail(self):
+        c = self.run_case(nodes_read=(A,), vols_read=(A,), unenc=(A,))["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "fail", c)
+        self.assertIn(B, c["evidence"])
+
+    def test_sec21_full_read_passes(self):
+        c = self.run_case(nodes_read=(A, B))["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "pass", c)
+        self.assertNotIn("NOT READ", c["evidence"])
+        self.assertNotIn(self.SEC21_AUTO, c["evidence"])
+
+    # sec-21, a volume nothing names: on an Auto Mode cluster EC2 can hide it from the volume list; the clause says so
+    SEC21_AUTO = "not counted: a volume that EC2 hides from the volume list for this Region (managed resource visibility set to hidden) and that no PersistentVolume names and no node of this cluster has attached"
+
+    def test_sec21_auto_mode_names_the_uncounted_volumes(self):
+        c = self.run_case(nodes_read=(A, B), auto_mode=True)["SEC-POSTURE-18"]
+        self.assertEqual(c["result"], "pass", c)
+        self.assertIn(self.SEC21_AUTO, c["evidence"])
+
+    # sec-30 / SEC-POSTURE-28 and net-2 / SEC-POSTURE-29: an unread node's untagged SG drops out of $lsg
+    def test_sec30_net2_unread_node_is_unknown(self):
+        cs = self.run_case(nodes_read=(A,), sg_extra=True)
+        for cid in ("SEC-POSTURE-28", "SEC-POSTURE-29"):
+            self.assertEqual(cs[cid]["result"], "unknown", cs[cid])
+            self.assertIn(B, cs[cid]["evidence"], cid)
+
+    # Read node A carries the open SG while node B is unread: the fail stands, B is named
+    def test_sec30_net2_measured_fail_with_unread_stays_fail(self):
+        cs = self.run_case(nodes_read=(A,), sg_extra=True, open_on=A)
+        for cid in ("SEC-POSTURE-28", "SEC-POSTURE-29"):
+            self.assertEqual(cs[cid]["result"], "fail", cs[cid])
+            self.assertIn(B, cs[cid]["evidence"], cid)
+
+    def test_sec30_net2_full_read_fails_on_the_open_sg(self):
+        cs = self.run_case(nodes_read=(A, B), sg_extra=True)
+        for cid in ("SEC-POSTURE-28", "SEC-POSTURE-29"):
+            self.assertEqual(cs[cid]["result"], "fail", cs[cid])
+
+    # sec-10 / SEC-POSTURE-33: a failed describe-addon leaves the add-on's own webhook counted as policy
+    HOOK = [{"metadata": {"name": "acme-guard"}, "webhooks": [{"name": "v.acme.io",
+             "clientConfig": {"service": {"namespace": "acme-system", "name": "acme"}},
+             "rules": [{"apiGroups": [""], "resources": ["pods"], "operations": ["CREATE"], "scope": "*"}]}]}]
+
+    def test_sec10_addon_unread_is_unknown(self):
+        c = self.run_case(nodes_read=(A, B), addons=["vpc-cni", "acme-guard"],
+                          details=[{"addonName": "vpc-cni"}], webhooks=self.HOOK)["SEC-POSTURE-33"]
+        self.assertEqual(c["result"], "unknown", c)
+        self.assertIn("acme-guard", c["evidence"])
+        self.assertIn("NOT READ", c["evidence"])
+
+    # An add-on name the collector does not describe (an AWS Marketplace name has an underscore) is not unread
+    def test_sec10_marketplace_addon_name_is_not_unread(self):
+        c = self.run_case(nodes_read=(A, B), addons=["vpc-cni", "acme_guard"],
+                          details=[{"addonName": "vpc-cni"}], webhooks=self.HOOK)["SEC-POSTURE-33"]
+        self.assertEqual(c["result"], "pass", c)
+        self.assertNotIn("NOT READ", c["evidence"])
+
+    def test_sec10_full_read_excludes_the_addon_webhook(self):
+        c = self.run_case(nodes_read=(A, B), addons=["vpc-cni", "acme-guard"],
+                          details=[{"addonName": "vpc-cni"},
+                                   {"addonName": "acme-guard", "namespaceConfig": {"namespace": "acme-system"}}],
+                          webhooks=self.HOOK)["SEC-POSTURE-33"]
+        self.assertEqual(c["result"], "fail", c)
+
+    # lens-13 / SEC-POSTURE-31: wording only; the result stays, the skipped count is named
+    def test_lens13_names_the_skipped_images(self):
+        c = self.run_case(nodes_read=(A, B), images=[
+            ACCT + ".dkr.ecr.us-west-2.amazonaws.com/web:1",
+            "602401143452.dkr.ecr.us-west-2.amazonaws.com/amazon-k8s-cni:v1",
+            ACCT + ".dkr.ecr.eu-west-1.amazonaws.com/web:1"],
+            repos=[{"repositoryName": "web", "imageTagMutability": "IMMUTABLE",
+                    "repositoryUri": ACCT + ".dkr.ecr.us-west-2.amazonaws.com/web"}])["SEC-POSTURE-31"]
+        self.assertEqual(c["result"], "pass", c)
+        self.assertIn("not examined: 2 of the 3 distinct ECR repositories", c["evidence"])
+
 
 
 if __name__ == "__main__":
