@@ -149,6 +149,9 @@ def parse_events(events: list[dict]) -> Trajectory:
 
     pending_calls: list[ToolCall] = []
     pending_text: list[str] = []
+    # A tool_result can arrive several events after its call (stream_event
+    # lines, other calls), so it is matched to the call by tool_use_id.
+    calls_by_id: dict[str, ToolCall] = {}
 
     i = 0
     while i < len(events):
@@ -171,6 +174,8 @@ def parse_events(events: list[dict]) -> Trajectory:
                         index=global_tool_index,
                     )
                     turn_calls.append(tc)
+                    if c.get("id"):
+                        calls_by_id[c["id"]] = tc
                     tool_sequence.append(tc.name)
                     global_tool_index += 1
                 elif ctype == "text":
@@ -179,26 +184,21 @@ def parse_events(events: list[dict]) -> Trajectory:
                         turn_text_parts.append(text)
 
             if turn_calls:
-                # Look ahead for the user event with tool_results
-                if i + 1 < len(events):
-                    next_evt = events[i + 1]
-                    if next_evt.get("type") == "user":
-                        results_content = (next_evt.get("message") or {}).get("content") or []
-                        result_idx = 0
-                        for rc in results_content:
-                            if rc.get("type") == "tool_result" and result_idx < len(turn_calls):
-                                turn_calls[result_idx].result = _extract_text_from_result_content(
-                                    rc.get("content")
-                                )
-                                turn_calls[result_idx].is_error = rc.get("is_error") is True
-                                result_idx += 1
-
                 step = Step(
                     tool_calls=turn_calls,
                     step_index=len(steps),
                     text_output="\n".join(turn_text_parts) if turn_text_parts else None,
                 )
                 steps.append(step)
+
+        elif etype == "user":
+            for rc in (evt.get("message") or {}).get("content") or []:
+                if not isinstance(rc, dict) or rc.get("type") != "tool_result":
+                    continue
+                tc = calls_by_id.get(rc.get("tool_use_id"))
+                if tc is not None:
+                    tc.result = _extract_text_from_result_content(rc.get("content"))
+                    tc.is_error = rc.get("is_error") is True
 
         elif etype == "result":
             usage = evt.get("usage") or {}
