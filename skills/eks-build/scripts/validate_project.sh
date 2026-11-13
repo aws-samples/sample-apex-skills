@@ -447,13 +447,13 @@ END {
             if (TS[tid] == "I") print "P", h " uses ids (no discovery tag to check)"
             else if (TS[tid] == "P") print "P", h " " TT[tid] ": every tag matches a tag the project applies to " (GT[s] == "subnet" ? "private subnets" : "security groups")
             else if (TS[tid] == "W" || ok) print "W", h ": " TM[tid] (ok ? " (another term matches)" : "")
-            else { print "F", h ": " TM[tid] (allf ? " -- no term matches and no scanned input carries this value, so Karpenter would find no " lab : ""); if (GT[s] != "subnet") sgf = 1 }
+            else print "F", h ": " TM[tid] (allf ? " -- no term matches and no scanned input carries this value, so Karpenter would find no " lab : "")
         }
     }
     if (SGK == "") exit
     for (z in HAS) { split(z, q, SUBSEP); if (q[1] == "nodesg" && q[2] == SGK) ns = 1; if (q[1] == "clustersg" && q[2] == SGK) cs = 1; if (q[1] == "unk" && q[2] == SGK) cu = 1 }
     if (ns && cs) print "W", "Both the node security group and the cluster primary security group carry the " SGK " tag: tag only the node security group"
-    else if (ns) { if (!sgf) print "P", "Node security group carries the " SGK " tag (node_security_group_tags)" }
+    else if (ns) print "P", "node_security_group_tags carries the " SGK " key"
     else if (cs) print "F", "The cluster primary security group carries the " SGK " tag, but with the terraform-aws-eks module's defaults managed node group nodes do not carry that group: tag the node security group (node_security_group_tags) instead"
     else if (cu || REF["nodesg"]) print "W", "Node security group: the " SGK " tag target or node_security_group_tags could not be read, check manually"
     else print "W", "Node security group: no " SGK " key in node_security_group_tags found (an aws_ec2_tag on node_security_group_id and module-level tags are not counted here, check manually)"
