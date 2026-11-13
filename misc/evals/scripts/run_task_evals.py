@@ -665,6 +665,11 @@ def run_grader(
         if not isinstance(exp, dict) or "text" not in exp or "passed" not in exp:
             return {"error": f"grading.json expectation missing required fields: {exp}"}
 
+    # The vendored aggregate_benchmark.py calls .get() on this; a null crashes it.
+    if not isinstance(grading.get("user_notes_summary", {}), dict):
+        del grading["user_notes_summary"]
+        grading_path.write_text(json.dumps(grading, indent=2))
+
     # Ensure summary is present — aggregate_benchmark reads it.
     if "summary" not in grading or "pass_rate" not in (grading.get("summary") or {}):
         passed = sum(1 for e in expectations_raw if e.get("passed"))
@@ -952,7 +957,11 @@ def run_skill(
     run_benchmark(skill, runs_dir)
     update_latest_symlink(skill, runs_dir)
 
-    benchmark = json.loads((runs_dir / "benchmark.json").read_text())
+    bench_path = runs_dir / "benchmark.json"
+    benchmark = json.loads(bench_path.read_text())
+    # The vendored aggregator hard-codes 3 here; record the real count.
+    benchmark.setdefault("metadata", {})["runs_per_configuration"] = runs
+    bench_path.write_text(json.dumps(benchmark, indent=2))
     rs = benchmark.get("run_summary") or {}
     with_pr = (rs.get("with_skill") or {}).get("pass_rate") or {}
     wo_pr = (rs.get("without_skill") or {}).get("pass_rate") or {}
