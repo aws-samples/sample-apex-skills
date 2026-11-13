@@ -238,7 +238,7 @@ ACK DynamoDB controller installs a `Backup` CRD that conflicts with Velero's. Al
 5. kubectl apply            tenants applicationset.yaml
 ```
 
-For Pattern 1, a single `terraform apply` handles everything (two-phase module architecture manages internal ordering). For a first deploy into an empty account, a plan from empty passes with `lazy_load = true` on the `kubectl` provider (Section 24). Do not split the first deploy with `-target`: a targeted first step created the EBS CSI add-on without its Pod Identity association ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)).
+For Pattern 1, a single `terraform apply` handles everything (two-phase module architecture manages internal ordering). For a first deploy into an empty account, a plan from empty passes with `lazy_load = true` on the `kubectl` provider (Section 24). Do not split the first deploy with `-target`: a targeted first step can create an add-on without its separate Pod Identity association (seen with EBS CSI before its role moved into the add-on entry; [addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)).
 
 ---
 
@@ -346,7 +346,7 @@ The cert-controller and webhook pods show `0/1 Ready` for ~90 seconds. This is n
 
 ### Problem
 
-When Pod Identity IAM roles are created by separate modules and role ARNs are passed to the EKS addon config, `terraform destroy` may delete IAM roles before the addons that reference them.
+When Pod Identity IAM roles are created by separate modules and role ARNs are passed to the EKS addon config, `terraform destroy` may delete IAM roles before the addons that reference them. Through the `terraform-aws-modules/eks` `addons` map this does not happen: the add-on depends on the role through that input, so destroy removes the add-on first. Separate associations stay the convention for every add-on but EBS CSI.
 
 ### Fix
 
@@ -357,7 +357,7 @@ resource "aws_eks_pod_identity_association" "efs_csi" {
   cluster_name    = module.eks_cluster.cluster_name
   namespace       = "kube-system"
   service_account = "efs-csi-controller-sa"
-  role_arn        = module.efs_csi_pod_identity.iam_role_arn
+  role_arn        = module.efs_csi_pod_identity.iam_role_arn  # example: a role module shaped like ebs_csi_pod_identity (addon-catalog.md)
 }
 ```
 

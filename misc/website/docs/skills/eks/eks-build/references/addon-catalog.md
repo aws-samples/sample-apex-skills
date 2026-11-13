@@ -88,9 +88,9 @@ EKS managed addons (EBS CSI, EFS CSI, FSx CSI, Mountpoint S3 CSI, CloudWatch) us
 When `permissions_boundary` is set in `cluster.yaml`, pass it only to the add-on roles the customer named in question 30; input names per module: [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional).
 
 **Why separate resources (not inline `pod_identity_association`):**
-1. Separate resources create correct destroy ordering -- associations destroyed before IAM roles
+1. Separate resources create correct destroy ordering -- associations destroyed before IAM roles (an inline association through the eks module's `addons` map is ordered too, since the add-on depends on the role through that input; separate resources stay the convention for the other add-ons)
 
-**EBS CSI is the exception:** pass its role in the add-on entry's `pod_identity_association` (an input of the `terraform-aws-modules/eks` 21.29.0 `addons` map), so EKS creates the association with the add-on. In a targeted first apply that created the add-on without its separate association, the controller pods started with no credentials, crash-looped on `no EC2 IMDS role found`, and were not recreated when the association was added later, so the add-on stayed CREATING. The module's add-on `for_each` keys are the add-on names, so the unknown role ARN in the value does not block the plan.
+**EBS CSI is the exception:** pass its role in the add-on entry's `pod_identity_association` (an input of the `terraform-aws-modules/eks` 21.29.0 `addons` map), so EKS creates the association with the add-on. The `addons = ...` line goes in the wrapper's call to the eks module, and the wrapper's input stays `type = any` or carries `pod_identity_association` (a typed `map(object({...}))` drops it silently). Add the role only when addons.yaml enables EBS CSI, so leaving EBS out neither fails with Invalid index nor turns EBS on. In a targeted first apply that created the add-on without its separate association, the controller pods started with no credentials, crash-looped on `no EC2 IMDS role found`, and were not recreated when the association was added later, so the add-on stayed CREATING. The module's add-on `for_each` keys are the add-on names, so the unknown role ARN in the value does not block the plan.
 
 ```hcl
 # IAM role (the association is created with the add-on)
@@ -105,14 +105,14 @@ module "ebs_csi_pod_identity" {
   tags = local.tags
 }
 
-# EKS module add-on map: the EBS CSI entry from addons.yaml plus its role
+# In the wrapper's call to the eks module: the add-ons from addons.yaml, with the role on EBS CSI only when it is enabled
 addons = merge(local.eks_addons, {
-  aws-ebs-csi-driver = merge(local.eks_addons["aws-ebs-csi-driver"], {
+  for k, v in local.eks_addons : k => merge(v, {
     pod_identity_association = [{
       role_arn        = module.ebs_csi_pod_identity.iam_role_arn
       service_account = "ebs-csi-controller-sa"
     }]
-  })
+  }) if k == "aws-ebs-csi-driver"
 })
 ```
 

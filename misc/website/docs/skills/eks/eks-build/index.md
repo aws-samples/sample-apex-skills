@@ -129,7 +129,7 @@ Generate the `gitops/` tree with ArgoCD ApplicationSets. Use cluster ARN as dest
 
 ### Step 9-10: README and Validate
 
-Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration. A section 11 (Karpenter discovery tags) FAIL is a literal tag mismatch, or the tag on the cluster primary SG only: fix it. A section 11 WARN means the match could not be proved from the files (an expression, a wildcard value, a map passed by reference, a tag target or input the script does not read), or is risky (a tag only on public subnets, a stray term beside a matching one, the tag on both SGs); resolve each one by hand before deploying. For the usual Pattern 2 shape, a literal cluster name in GitOps YAML against Terraform's `local.cluster_config.name`, when locals.tf sets `cluster_config = yamldecode(file(".../configs/cluster.yaml"))` on its own, the script reads `name` from configs/cluster.yaml and gives PASS on a match and FAIL on a mismatch; WARN when locals.tf builds it any other way (such as a `merge(...)` override), the line carries a comment or spans lines, or that name cannot be read.
+Generate README and run `scripts/validate_project.sh` to verify structure, formatting, and critical configuration. A section 11 (Karpenter discovery tags) FAIL is a literal tag mismatch, or the tag on the cluster primary SG only (unless the node groups set `attach_cluster_primary_security_group = true`, which the script does not read): fix it. A section 11 WARN means the match could not be proved from the files (an expression, a wildcard value, a map passed by reference, a tag target or input the script does not read), or is risky (a tag only on public subnets, a stray term beside a matching one, the tag on both SGs); resolve each one by hand before deploying. For the usual Pattern 2 shape, a literal cluster name in GitOps YAML against Terraform's `local.cluster_config.name`, when locals.tf sets `cluster_config = yamldecode(file(".../configs/cluster.yaml"))` on its own, the script reads `name` from configs/cluster.yaml and gives PASS on a match and FAIL on a mismatch; WARN when locals.tf builds it any other way (such as a `merge(...)` override), the line carries a comment or spans lines, or that name cannot be read.
 
 ## Critical Build Rules
 
@@ -170,7 +170,7 @@ Use `Replace=true`, NOT `ServerSideApply=true`. SSA conflicts with ArgoCD `selfH
 
 ### 8. Velero Configuration
 
-Three-part config: S3 bucket (encrypted) + Auth (Pod Identity or IRSA) + Helm values (`credentials.useSecret: false` with Pod Identity or IRSA). Wherever `enable_velero` is passed to `eks-blueprints-addons`, also pass `velero = { s3_backup_location = "arn:<partition>:s3:::<bucket name>/<prefix>" }` (`<prefix>`: one path segment, no slashes; optional), and write the bucket (Patterns 1 and 2a; in Pattern 2b the bucket is ACK's, pattern-guide.md) and that argument even when Velero is off, gated on `velero.enabled` (the `terraform-aws-modules/s3-bucket` module's `create_bucket`), so turning the addons.yaml toggle on passes plan: eks-blueprints-addons fails at plan on Velero with no `s3_backup_location`, and the bucket module's ARN output is null when the bucket is off, so build the ARN from the bucket name.
+Three-part config: S3 bucket (encrypted) + Auth (Pod Identity or IRSA) + Helm values (`credentials.useSecret: false` with Pod Identity or IRSA). Wherever `enable_velero` is passed to `eks-blueprints-addons`, also pass `velero = { s3_backup_location = "arn:<partition>:s3:::<bucket name>/<prefix>" }` (`/<prefix>` optional; `<prefix>` is one path segment, no slashes), and write the bucket (Patterns 1 and 2a; in Pattern 2b the bucket is ACK's, pattern-guide.md) and that argument even when Velero is off, gated on `velero.enabled` (the `terraform-aws-modules/s3-bucket` module's `create_bucket`), so turning the addons.yaml toggle on passes plan: eks-blueprints-addons fails at plan on Velero with no `s3_backup_location`, and the bucket module's ARN output is null when the bucket is off, so build the ARN from the bucket name.
 
 ### 9. ACK/KRO Are Capabilities, Crossplane Is Not
 
@@ -280,7 +280,7 @@ terraform init -backend-config=configs/backend.hcl
 terraform plan && terraform apply
 ```
 
-For a first deploy into an empty account, use this same plan and apply, with no `-target` step: with `lazy_load = true` on the `kubectl` provider a plan from empty passes ([lessons-learned.md Section 24](references/lessons-learned.md#24-kubectl-provider-fails-at-plan-from-empty)), and a targeted first step created the EBS CSI add-on without its Pod Identity association ([addon-catalog.md](references/addon-catalog.md#pod-identity-for-eks-managed-addons)).
+For a first deploy into an empty account, use this same plan and apply, with no `-target` step: with `lazy_load = true` on the `kubectl` provider a plan from empty passes ([lessons-learned.md Section 24](references/lessons-learned.md#24-kubectl-provider-fails-at-plan-from-empty)), and a targeted first step can create an add-on without its separate Pod Identity association (seen with EBS CSI before its role moved into the add-on entry; [addon-catalog.md](references/addon-catalog.md#pod-identity-for-eks-managed-addons)).
 
 **Pattern 2:**
 ```bash
