@@ -10,7 +10,9 @@
 # What varies between runs, and where it comes from:
 #
 #   * stickiness            -> var.session_affinity_required, set from the
-#                              in_process_session blocker (cite the id)
+#                              in_process_session blocker (cite the id), or
+#                              the user's recorded answer when session state
+#                              is unknown
 #   * persistent volumes    -> add efs.tf ONLY when local_state findings were
 #                              classified persistent (see the module reference)
 #   * image_uri / sizing    -> variables, from the containerization artifact
@@ -220,10 +222,12 @@ resource "aws_lb_target_group" "app" {
     unhealthy_threshold = 3
   }
 
-  # CONDITIONED on the in_process_session blocker. Enabled means the unchanged
+  # CONDITIONED on the in_process_session blocker, or the user's recorded
+  # answer when session state is unknown. Enabled means the unchanged
   # application's in-memory session survives across requests from one user;
-  # it does NOT survive that task's replacement. Cite the blocker id in the
-  # value supplied for var.session_affinity_required.
+  # it does NOT survive that task's replacement. Cite the grounds (blocker id
+  # or recorded answer) in the value supplied for
+  # var.session_affinity_required.
   stickiness {
     enabled = var.session_affinity_required
     type    = "lb_cookie"

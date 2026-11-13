@@ -111,14 +111,15 @@ variable "instance_count" {
 
 variable "session_affinity_required" {
   description = <<-EOT
-    Enable ALB target-group stickiness. Set true ONLY when blocker detection
-    reported an in_process_session finding, and cite the blocker id where this
+    Enable ALB target-group stickiness. Set true only when blocker detection
+    reported an in_process_session finding or, when session state is unknown,
+    the user confirms it, and cite the blocker id or the answer where this
     value is supplied. Affinity keeps a user on one task but does NOT survive
     that task's replacement — sessions are still lost then.
 
-    When the session state could not be established (assessment skipped, or
-    server-side session persistence lives outside the source tree), set true as
-    the fail-safe and record that it is provisional pending user confirmation.
+    When the session state could not be established (assessment skipped), ask
+    the user whether the application keeps in-process session state, set this
+    per the answer and record the answer as the grounds. Never default it to true.
   EOT
   type        = bool
 }
