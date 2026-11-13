@@ -174,7 +174,7 @@ Terraform writes cluster metadata to a K8s Secret annotated with `argocd.argopro
 | Prerequisites | OIDC provider | eks-pod-identity-agent addon |
 
 - **Pod Identity is preferred** for new workloads (simpler, better auditing).
-- EKS managed addons: use Pod Identity with separate `aws_eks_pod_identity_association` resources -- see Section 15.
+- EKS managed addons: use Pod Identity with separate `aws_eks_pod_identity_association` resources, except EBS CSI ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)) -- see Section 15.
 - Helm-based addons (LBC, External DNS, Velero): IRSA via eks-blueprints-addons.
 - Karpenter: Pod Identity via dedicated submodule -- see Section 17.
 - When both are configured for the same SA, **Pod Identity takes precedence**.
@@ -350,7 +350,7 @@ resource "aws_eks_pod_identity_association" "efs_csi" {
 }
 ```
 
-This creates correct destroy ordering: association first, then role and addon. EBS CSI is the exception: its role goes in the add-on entry's `pod_identity_association`, so EKS creates the association with the add-on ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)). Create order: role -> addon with its association. Destroy order: addon with its association -> role.
+Destroy: the separate association goes before its role. EBS CSI is the exception: its role goes in the add-on entry's `pod_identity_association`, so EKS creates the association with the add-on ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)). Create order: role -> addon with its association. For EBS CSI the module's `preserve` defaults to true, so removing only the add-on leaves its association; a full destroy removes it with the cluster.
 
 ---
 

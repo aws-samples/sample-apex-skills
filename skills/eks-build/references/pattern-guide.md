@@ -67,7 +67,7 @@ Uses dedicated `terraform-aws-modules/eks/aws//modules/karpenter` submodule. See
 
 ### AWS Resource Management
 
-Terraform directly creates AWS resources (Velero S3 bucket, etc.). The `eks-blueprints-addons` module handles IRSA role creation. EKS managed addons use **Pod Identity** with separate `aws_eks_pod_identity_association` resources -- see [lessons-learned.md](lessons-learned.md) Section 15.
+Terraform directly creates AWS resources (Velero S3 bucket, etc.). The `eks-blueprints-addons` module handles IRSA role creation. EKS managed addons use **Pod Identity** with separate `aws_eks_pod_identity_association` resources, except EBS CSI ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)) -- see [lessons-learned.md](lessons-learned.md) Section 15.
 
 ## Pattern 2a: ArgoCD + Terraform AWS
 

@@ -314,7 +314,7 @@ For addons behind ALB:
 | **IRSA** | Helm-based addons via eks-blueprints-addons (LBC, External DNS, Velero, etc.) or Fargate workloads |
 
 - Pod Identity is default. IRSA as fallback only
-- Pod Identity associations for EKS managed addons: use **separate `aws_eks_pod_identity_association` resources** (not inline in addon config) for correct destroy ordering
+- Pod Identity associations for EKS managed addons: use **separate `aws_eks_pod_identity_association` resources** (not inline in addon config) for correct destroy ordering, except EBS CSI ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons))
 - Node role: Only `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`
 - Access entries: Use scoped AWS-managed policies, not aws-auth ConfigMap
 
