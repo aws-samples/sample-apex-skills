@@ -406,7 +406,7 @@ module "karpenter" {
 }
 ```
 
-In Pattern 1, then deploy the Helm chart via `helm_release` with `depends_on = [module.eks_addons_webhooks]` (Section 2) and NodePool/EC2NodeClass via `kubectl_manifest`; in Pattern 2 via ArgoCD. Tag private subnets and cluster primary SG with `karpenter.sh/discovery: <cluster-name>`.
+In Pattern 1, then deploy the Helm chart via `helm_release` with `depends_on = [module.eks_addons_webhooks]` (Section 2) and NodePool/EC2NodeClass via `kubectl_manifest`; in Pattern 2 via ArgoCD. Tag private subnets and the node security group (the EKS module's `node_security_group_tags`, not the cluster primary SG) with `karpenter.sh/discovery: <cluster-name>`; only one security group should carry the tag.
 
 ### EC2 Spot Service-Linked Role
 

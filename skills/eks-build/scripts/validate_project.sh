@@ -338,10 +338,11 @@ AWK
 )
 
 # Tags the Terraform applies: "<type> <key> <value> <L|E>", type subnet (private
-# subnets), pubsubnet, subunk (a subnet target that is neither), sg, clustersg
-# or unk (aws_ec2_tag target not identifiable). Inputs read: aws_ec2_tag
-# resources and the private_subnet_tags, public_subnet_tags and
-# node_security_group_tags maps; a map by reference prints key __ref__.
+# subnets), pubsubnet, subunk (a subnet target that is neither), sg, nodesg
+# (node_security_group_tags), clustersg or unk (aws_ec2_tag target not
+# identifiable). Inputs read: aws_ec2_tag resources and the
+# private_subnet_tags, public_subnet_tags and node_security_group_tags maps;
+# a map by reference prints key __ref__.
 KARP_TAG_AWK="$KARP_LIB_AWK"$(cat <<'AWK'
 
 function emit(k, v, kd,   x) {
@@ -363,6 +364,7 @@ FNR == 1 { mode = "" }
         } else if (match(line, /(private_subnet|public_subnet|node_security_group)_tags[[:space:]]*=/)) {
             mode = substr(line, RSTART, 2)
             mode = (mode == "pr") ? "subnet" : (mode == "pu") ? "pubsubnet" : "sg"
+            nsg = (mode == "sg")
             d = 0; p = 0; seen = 0; ref = 0; line = substr(line, RSTART + RLENGTH)
         } else next
     }
@@ -380,21 +382,21 @@ FNR == 1 { mode = "" }
             else if (r == 1 && PK == "value") { tv = PV; tkind = PKIND }
             else if (d >= 1) blob = blob " " t
         } else if (d >= 1) {
-            if (r == 1) print mode, PK, PV, PKIND
+            if (r == 1) { print mode, PK, PV, PKIND; if (nsg) print "nodesg", PK, PV, PKIND }
         } else if (!(i < n && T[i + 1] == "(")) ref = 1
     }
     if (d > 0 || p > 0 || (mode == "ec2tag" && !seen)) next
     if (mode == "ec2tag") {
         if (tk != "" && kk == "L" && tv != "") emit(tk, tv, tkind)
         else emit("__ref__", "-", "E")
-    } else if (ref || !seen) print mode, "__ref__", "-", "E"
+    } else if (ref || !seen) { print mode, "__ref__", "-", "E"; if (nsg) print "nodesg", "__ref__", "-", "E" }
     mode = ""
 }
 AWK
 )
 
 # Judge each selector term. Input: "A" + applied rows, then "S" + selector rows.
-# Prints "<P|W|F> <message>" per term, then the cluster security group line.
+# Prints "<P|W|F> <message>" per term, then the node security group line.
 KARP_EVAL_AWK=$(cat <<'AWK'
 BEGIN { FS = OFS = "\t" }
 $1 == "A" {
@@ -449,10 +451,12 @@ END {
         }
     }
     if (SGK == "") exit
-    for (z in HAS) { split(z, q, SUBSEP); if (q[1] == "clustersg" && q[2] == SGK) cs = 1; if (q[1] == "unk" && q[2] == SGK) cu = 1 }
-    if (cs) print "P", "Cluster security group carries the " SGK " tag"
-    else if (cu) print "W", "Cluster security group: an aws_ec2_tag with key " SGK " has a target that is not identifiable, check manually"
-    else print "W", "Cluster security group: no aws_ec2_tag with key " SGK " on cluster_primary_security_group_id found (module-level tags are not read)"
+    for (z in HAS) { split(z, q, SUBSEP); if (q[1] == "nodesg" && q[2] == SGK) ns = 1; if (q[1] == "clustersg" && q[2] == SGK) cs = 1; if (q[1] == "unk" && q[2] == SGK) cu = 1 }
+    if (ns && cs) print "W", "Both the node security group and the cluster primary security group carry the " SGK " tag: tag only the node security group"
+    else if (ns) print "P", "Node security group carries the " SGK " tag (node_security_group_tags)"
+    else if (cs) print "W", "The cluster primary security group carries the " SGK " tag, but managed node group nodes do not carry that group by default: tag the node security group (node_security_group_tags) instead"
+    else if (cu || REF["nodesg"]) print "W", "Node security group: the " SGK " tag target or node_security_group_tags could not be read, check manually"
+    else print "W", "Node security group: no " SGK " key in node_security_group_tags found (module-level tags are not read)"
 }
 AWK
 )
