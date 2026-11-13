@@ -40,6 +40,9 @@ PATCHED = ("AWS-patched (inferred, not read): every Auto Mode node it was judged
            "time %s; the Auto Mode components' versions were not read. Auto Mode AMIs roll out to clusters and Regions in waves "
            "(https://docs.aws.amazon.com/whitepapers/latest/security-overview-amazon-eks-auto-mode/eks-auto-mode-data-plane.html, "
            "Node patching), so a node created after the fix time can still run an older AMI.")
+OLD_AMI = ("Likely unpatched, AMI built before the fix time: %s. These nodes were created after the fix time but run an "
+           "older AMI, so they most likely lack the fix (AMI built, below). An AMI built after the fix time is not proof "
+           "that it carries the fix.")
 UNKNOWN_ACTION = {
     "denied": "Grant the read named in the preflight (see read-only-access.md) and re-run collect",
     "not_found": "Confirm whether the component is installed another way (Helm, manifest) and re-run with --namespaces",
@@ -238,9 +241,16 @@ def findings_blocks(fd, inv):
             rows = sorted((c for i, c in auto.items() if s(c.get("where")) not in pend_pools
                            and (i in pc or not pc <= set(auto))),
                           key=lambda c: (s(c.get("where")), s(c.get("os_image"))))
+            old = {i for f in fd.get("findings") or [] if f.get("verdict") == "aws_managed_patched"
+                   for i in f.get("ami_before_fix") or []}
+            old_pools = sorted({s(c.get("where")) for c in rows if c.get("id") in old})
+            if old_pools:
+                blocks.append(("p", OLD_AMI % ", ".join(old_pools)))
             if rows:
-                blocks.append(("table", ["NodePool", "OS image", "AMI", "Nodes", "Oldest node created"],
+                blocks.append(("table", ["NodePool", "OS image", "AMI", "AMI built", "Nodes", "Oldest node created"],
                                [[c.get("where"), c.get("os_image") or "not read", c.get("ami") or "not read",
+                                 (c.get("ami_created") or "not read")
+                                 + (", likely unpatched (built before the fix)" if c.get("id") in old else ""),
                                  len(c.get("nodes") or []), c.get("oldest_node_created")] for c in rows]))
     src = fd.get("sources") or []
     blocks += [("h2", "Sources"),

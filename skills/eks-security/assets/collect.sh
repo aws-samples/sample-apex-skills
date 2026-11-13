@@ -242,7 +242,8 @@ if [ "$ST_NODES" = ok ]; then
   jq -s '{Reservations:.}' "$OUT/.inst.jsonl" >"$OUT/instances.json"
   amis="$(jq -r '[.Reservations[].Instances[].ImageId // empty] | unique | join(",")' "$OUT/instances.json")"
   if [ -n "$amis" ]; then
-    call "$OUT/images.json" describe-images aws ec2 describe-images --region "$REGION" --filters "Name=image-id,Values=$amis" || true
+    # --include-deprecated: by default a deprecated AMI (an old one) is left out of the response
+    call "$OUT/images.json" describe-images aws ec2 describe-images --region "$REGION" --include-deprecated --filters "Name=image-id,Values=$amis" || true
   fi
 fi
 
@@ -296,7 +297,7 @@ if jq -n \
   --arg st_addons "$ST_ADDONS" --arg st_nodes "$ST_NODES" --arg st_wl "$ST_WL" --arg reg "${reg:-}" \
   --slurpfile c "$(pick "$OUT/cluster.json")" --slurpfile ad "$(pick "$OUT/addons.json")" \
   --slurpfile nd "$(pick "$OUT/nodes.json")" --slurpfile wl "$(pick "$OUT/workloads.json")" \
-  --slurpfile ins "$(pick "$OUT/instances.json")" --slurpfile insp "$(pick "$OUT/inspector-findings.json")" \
+  --slurpfile ins "$(pick "$OUT/instances.json")" --slurpfile img "$(pick "$OUT/images.json")" --slurpfile insp "$(pick "$OUT/inspector-findings.json")" \
   --slurpfile cat "$CAT" '
   def tag_of: sub("@sha256:.*$";"") | (split("/") | last) as $l | if ($l | test(":")) then ($l | split(":") | last) else null end;
   def dig: if . == null then null else (capture("(?<d>sha256:[0-9a-f]{64})").d // null) end;
@@ -307,6 +308,7 @@ if jq -n \
   | ([$wl[0].items[]? | select(.kind == "Pod")]) as $pods
   | ([$wl[0].items[]? | select(.kind == "DaemonSet" or .kind == "Deployment" or .kind == "StatefulSet")]) as $ctrl
   | ([$ins[0].Reservations[]?.Instances[]? | {key: .InstanceId, value: .ImageId}] | from_entries) as $amis
+  | ([$img[0].Images[]? | {key: .ImageId, value: .CreationDate}] | from_entries) as $amidates
   # images in use, one entry per image reference and digest
   | ([$pods[] | . as $p
       | ((.status.containerStatuses // []) + (.status.initContainerStatuses // [])) as $sts
@@ -382,7 +384,7 @@ if jq -n \
       | if $st_wl == "ok" then img_read($e; $e.read; $e.id) else unread($e; "container-image"; $st_wl) end]) as $selfm
   # node OS groups
   | (if $st_nodes != "ok" then
-       [{id: "node-os:unread", kind: "node-os", os_image: null, kernel: null, kubelet: null, runtime: null, ami: null,
+       [{id: "node-os:unread", kind: "node-os", os_image: null, kernel: null, kubelet: null, runtime: null, ami: null, ami_created: null,
          nodes: [], node_created: {}, oldest_node_created: null, managed_by: "customer", where: [], readable: false,
          reason: (if $st_nodes == "denied" then "denied" else "unparsed" end)}]
      else
@@ -398,6 +400,7 @@ if jq -n \
          | map(.key as $i | .value as $v
            | {id: ("node-os:" + $g[0].group + (if $i == 0 then "" else "/" + ($i + 1 | tostring) end)), kind: "node-os",
               os_image: $v[0].os, kernel: $v[0].kernel, kubelet: $v[0].kubelet, runtime: $v[0].runtime, ami: $v[0].ami,
+              ami_created: (if $v[0].ami then $amidates[$v[0].ami] else null end),
               nodes: ($v | map(.name)), node_created: ($v | map({key: .name, value: .created}) | from_entries),
               oldest_node_created: ($v | map(.created) | min),
               managed_by: (if $v[0].auto then "aws-auto-mode" else "customer" end), where: [$g[0].group],

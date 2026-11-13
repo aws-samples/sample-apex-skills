@@ -952,6 +952,101 @@
     "exit": 0
    },
    {
+    "name": "auto_mode_patched_ami_age",
+    "components": [
+     {
+      "id": "addon:vpc-cni@auto-mode",
+      "kind": "eks-addon",
+      "name": "vpc-cni",
+      "version": null,
+      "managed_by": "aws-auto-mode",
+      "where": [
+       "auto-mode-nodes"
+      ],
+      "readable": true,
+      "reason": null
+     },
+     {
+      "kind": "node-os",
+      "os_image": "Bottlerocket (EKS Auto, Standard) 2025.10.20",
+      "kubelet": "v1.33.4-eks-abc1234",
+      "managed_by": "aws-auto-mode",
+      "readable": true,
+      "reason": null,
+      "id": "node-os:old-ami",
+      "ami": "ami-0aaa1111bbbb2222c",
+      "ami_created": "2026-10-20T11:06:51.000Z",
+      "nodes": [
+       "i-a"
+      ],
+      "node_created": {
+       "i-a": "2026-11-05T00:00:00Z"
+      },
+      "where": [
+       "old-ami"
+      ]
+     },
+     {
+      "kind": "node-os",
+      "os_image": "Bottlerocket (EKS Auto, Standard) 2025.10.20",
+      "kubelet": "v1.33.4-eks-abc1234",
+      "managed_by": "aws-auto-mode",
+      "readable": true,
+      "reason": null,
+      "id": "node-os:new-ami",
+      "ami": "ami-0bbb2222cccc3333d",
+      "ami_created": "2026-11-04T06:00:00.000Z",
+      "nodes": [
+       "i-b"
+      ],
+      "node_created": {
+       "i-b": "2026-11-06T00:00:00Z"
+      },
+      "where": [
+       "new-ami"
+      ]
+     },
+     {
+      "kind": "node-os",
+      "os_image": "Bottlerocket (EKS Auto, Standard) 2025.10.20",
+      "kubelet": "v1.33.4-eks-abc1234",
+      "managed_by": "aws-auto-mode",
+      "readable": true,
+      "reason": null,
+      "id": "node-os:gone-ami",
+      "ami": "ami-0ccc3333dddd4444e",
+      "ami_created": null,
+      "nodes": [
+       "i-c"
+      ],
+      "node_created": {
+       "i-c": "2026-11-06T00:00:00Z"
+      },
+      "where": [
+       "gone-ami"
+      ]
+     }
+    ],
+    "advisory": {
+     "fixed_at": "2026-11-04T00:00:00Z"
+    },
+    "expect": [
+     {
+      "component": "addon:vpc-cni@auto-mode",
+      "verdict": "aws_managed_patched",
+      "nodes_pending": [],
+      "ami_before_fix": [
+       "node-os:old-ami"
+      ],
+      "ami_date_unknown": [
+       "node-os:gone-ami"
+      ]
+     }
+    ],
+    "overall": "not_exposed",
+    "exit": 0
+   },
+   {
     "name": "auto_mode_no_fix_date",
     "components": [
      {
@@ -1304,7 +1399,8 @@
      "Images": [
       {
        "ImageId": "ami-0123456789abcdef0",
-       "Name": "amazon-eks-node-al2023-x86_64-standard-1.33-v20251020"
+       "Name": "amazon-eks-node-al2023-x86_64-standard-1.33-v20251020",
+       "CreationDate": "2025-10-20T11:06:51.000Z"
       }
      ]
     }
