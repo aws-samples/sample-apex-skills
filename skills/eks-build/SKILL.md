@@ -162,7 +162,7 @@ Use `Replace=true`, NOT `ServerSideApply=true`. SSA conflicts with ArgoCD `selfH
 
 ### 8. Velero Configuration
 
-Three-part config: S3 bucket (encrypted) + Auth (Pod Identity or IRSA) + Helm values (`credentials.useSecret: false` with Pod Identity or IRSA).
+Three-part config: S3 bucket (encrypted) + Auth (Pod Identity or IRSA) + Helm values (`credentials.useSecret: false` with Pod Identity or IRSA). Wherever `enable_velero` is passed to `eks-blueprints-addons`, also pass `velero = { s3_backup_location = "arn:<partition>:s3:::<bucket name>/<prefix>" }`, and write the bucket and that argument even when Velero is off, gated on `velero.enabled` (the `terraform-aws-modules/s3-bucket` module's `create_bucket`), so the addons.yaml toggle works: the module fails at plan on Velero with no `s3_backup_location`, and the bucket module's ARN output is null when the bucket is off, so build the ARN from the bucket name.
 
 ### 9. ACK/KRO Are Capabilities, Crossplane Is Not
 
