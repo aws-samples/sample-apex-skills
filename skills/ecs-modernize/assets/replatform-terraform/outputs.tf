@@ -30,8 +30,9 @@ output "log_group" {
 output "session_affinity_enabled" {
   description = <<-EOT
     Whether ALB stickiness is on. True means an in_process_session blocker was
-    reported; the value should be traceable to that blocker id. Remember it does
-    not survive task replacement.
+    reported or, when session state was unknown, the user confirmed it; the
+    value should be traceable to that blocker id or the user's recorded answer.
+    Remember it does not survive task replacement.
   EOT
   value       = var.session_affinity_required
 }
