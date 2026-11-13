@@ -52,7 +52,7 @@ eks_addons:
   kube-proxy:
     most_recent: true
   aws-ebs-csi-driver:
-    most_recent: true
+    most_recent: true             # created outside the module's add-on map, after its association (below)
   aws-efs-csi-driver:
     most_recent: true
   eks-pod-identity-agent:
@@ -100,7 +100,24 @@ resource "aws_eks_pod_identity_association" "ebs_csi" {
   service_account = "ebs-csi-controller-sa"
   role_arn        = module.ebs_csi_pod_identity.iam_role_arn
 }
+
+# EBS CSI add-on, created only after its association. Pass the module
+# addons = { for k, v in local.eks_addons : k => v if k != "aws-ebs-csi-driver" }
+data "aws_eks_addon_version" "ebs_csi" {
+  addon_name         = "aws-ebs-csi-driver"
+  kubernetes_version = module.eks_cluster.cluster_version
+  most_recent        = true
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name  = module.eks_cluster.cluster_name
+  addon_name    = "aws-ebs-csi-driver"
+  addon_version = data.aws_eks_addon_version.ebs_csi.version
+  depends_on    = [aws_eks_pod_identity_association.ebs_csi]
+}
 ```
+
+The add-on must wait for its association: controller pods that start before it get no Pod Identity credentials, fall back to IMDS (`no EC2 IMDS role found`), crash-loop, and are not recreated when the association lands later, so the add-on stays CREATING. Nothing in the module's add-on map orders an entry after a resource outside the module.
 
 ## Blueprints Addons (Pattern 1)
 

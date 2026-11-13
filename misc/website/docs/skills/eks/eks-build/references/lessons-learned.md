@@ -36,6 +36,7 @@ This page is generated from [skills/eks-build/references/lessons-learned.md](htt
 - [21. CIS Policies Cannot Be Deployed as Helm Chart](#21-cis-policies-cannot-be-deployed-as-helm-chart)
 - [22. Pattern 2a Custom-Addons Require Real Git Repo](#22-pattern-2a-custom-addons-require-real-git-repo)
 - [23. Karpenter Controller IAM Policy Size Limit](#23-karpenter-controller-iam-policy-size-limit)
+- [24. kubectl Provider Fails at Plan From Empty](#24-kubectl-provider-fails-at-plan-from-empty)
 
 Consolidated findings from two EKS deployment patterns:
 - **Pattern 1 (terraform-eks)**: Full Terraform with eks-blueprints-addons, two-phase module architecture
@@ -237,7 +238,7 @@ ACK DynamoDB controller installs a `Backup` CRD that conflicts with Velero's. Al
 5. kubectl apply            tenants applicationset.yaml
 ```
 
-For Pattern 1, a single `terraform apply` handles everything (two-phase module architecture manages internal ordering).
+For Pattern 1, a single `terraform apply` handles everything (two-phase module architecture manages internal ordering), the first deploy into an empty account included. That needs `lazy_load = true` on the `kubectl` provider (Section 24). Do not split the first deploy with `-target`: a targeted first step can create an add-on without its Pod Identity association (Section 15).
 
 ---
 
@@ -360,7 +361,7 @@ resource "aws_eks_pod_identity_association" "ebs_csi" {
 }
 ```
 
-This creates correct dependency graph: Create (role -> addon -> association), Destroy (association first -> role and addon in parallel).
+Then create the add-on outside the module's add-on map with `depends_on = [aws_eks_pod_identity_association.ebs_csi]` ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)). An add-on created before its association starts pods with no credentials, and they stay that way. Create order: role -> association -> addon. Destroy order: addon -> association -> role.
 
 ---
 
@@ -568,3 +569,27 @@ terraform apply destroy.tfplan  # only after the user approves the plan above
 **Problem:** The controller IAM policy that the `terraform-aws-modules/eks/aws//modules/karpenter` submodule generates (Section 17) can exceed the 6,144-character limit on a customer managed policy (IAM does not count white space). Apply then fails with `LimitExceeded: Cannot exceed quota for PolicySize: 6144`.
 
 **Fix:** Set `enable_inline_policy = true` on the submodule (available since v21.8.0). The controller policy is then created as an inline role policy, whose limit is 10,240 characters across all inline policies on the role. Upstream Karpenter has split its controller policy into several policies (aws/karpenter-provider-aws PR 8690), but the submodule does not follow that split yet (terraform-aws-modules/terraform-aws-eks issue 3637 is open, checked 2026-10-30), so the inline policy is the mitigation until it does.
+
+---
+
+## 24. kubectl Provider Fails at Plan From Empty
+
+**Patterns:** Pattern 1
+
+**Problem:** The first `terraform plan` into an empty account fails with `Error: kubectl provider: configure failed` ... `no configuration has been provided, try setting KUBERNETES_MASTER environment variable`. The `alekc/kubectl` provider (3.x) builds its client at configure time, and `host` and the CA come from the cluster module's outputs, which are unknown until the cluster exists. `load_config_file = false` does not help.
+
+**Fix:** Set `lazy_load = true` in the `kubectl` provider block in `providers.tf`. The client is then built on first use, so the plan succeeds and the single `terraform apply` (Section 11) creates the cluster before any `kubectl_manifest`. A wrong host or token then shows up at the first `kubectl_manifest`, not at configure.
+
+```hcl
+provider "kubectl" {
+  host                   = module.eks_cluster.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks_cluster.cluster_certificate_authority_data)
+  load_config_file       = false
+  lazy_load              = true  # host and CA are unknown until the cluster exists
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks_cluster.cluster_name, "--region", local.region]
+  }
+}
+```

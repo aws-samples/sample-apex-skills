@@ -38,6 +38,8 @@ This skill generates code from scratch every time. **Always search the internet*
 - **Latest versions** of all addons, Helm charts, and Terraform modules before generating code -- never use hardcoded versions from cached knowledge
 - **Latest EKS best practices** when requirements don't exactly match existing patterns
 - **Addon-specific configuration** for addons not fully covered in existing patterns
+
+If the runtime cannot reach the web, tell the user before generating. Do not pin versions from memory: use the versions the user gives, mark each pin the search did not confirm with a `# not checked: no web access` comment, and list those pins in `validation-checklist.md` for a check before `terraform apply`.
 - **Breaking changes** in new versions of addons or Terraform modules
 - **Pattern 2b: KRO, ACK, and Crossplane** -- these evolve rapidly. Always search for latest RGD schema syntax, supported CRDs, ProviderConfig format, and known limitations
 
@@ -269,6 +271,8 @@ cd projects/<project-name>/code
 terraform init -backend-config=configs/backend.hcl
 terraform plan && terraform apply
 ```
+
+This single plan and apply is also the first deploy into an empty account, with no `-target` step. It needs `lazy_load = true` on the `kubectl` provider ([lessons-learned.md Section 24](references/lessons-learned.md#24-kubectl-provider-fails-at-plan-from-empty)); a targeted first step can leave an add-on without its Pod Identity association ([Section 15](references/lessons-learned.md#15-pod-identity-destroy-ordering)).
 
 **Pattern 2:**
 ```bash

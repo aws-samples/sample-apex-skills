@@ -87,8 +87,10 @@ Only attach these policies -- never application permissions:
 1. `module "karpenter"` with `enable_inline_policy = true` (the controller policy can exceed the 6,144-character managed policy limit; [lessons-learned.md Section 23](lessons-learned.md#23-karpenter-controller-iam-policy-size-limit)) -- controller IAM role (Pod Identity) + node IAM role
 2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`), with `depends_on = [module.eks_addons_webhooks]` in Pattern 1
    - Pattern 1 (not in air-gapped builds or partitions without ECR Public): configure the `helm` provider to log in to `oci://public.ecr.aws` with a fresh ECR Public token on every run (an `ephemeral "aws_ecrpublic_authorization_token"` in `us-east-1` feeding the provider's `registries` list), not resource-level `repository_username` / `repository_password`. See [lessons-learned.md Section 17](lessons-learned.md#17-karpenter-dedicated-submodule), "Stale public.ecr.aws login (403)".
-3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs
+3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs (the `kubectl` provider needs `lazy_load = true`; [lessons-learned.md Section 24](lessons-learned.md#24-kubectl-provider-fails-at-plan-from-empty))
 4. `aws_ec2_tag` -- discovery tags on private subnets and cluster primary security group
+
+**Bootstrap capacity:** Karpenter launches no node until its controller runs, so the system node group alone must host the Karpenter controller and the Phase 1 webhook add-ons (the Load Balancer Controller, and Gatekeeper when enabled), which install with `wait = true` before it. Size it for those pods, and if it carries the `CriticalAddonsOnly` taint, give each of them a matching toleration in its Helm `values`.
 
 **Discovery tags:** Karpenter finds subnets and security groups via `karpenter.sh/discovery: <cluster-name>` tags. Tag ALL private subnets and the cluster primary security group.
 
