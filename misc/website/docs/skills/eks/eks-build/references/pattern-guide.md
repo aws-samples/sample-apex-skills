@@ -179,6 +179,6 @@ This pattern extends Pattern 2b so that ArgoCD manages the full cluster lifecycl
 All patterns share:
 
 - **EKS cluster module**: `terraform-aws-modules/eks/aws` with API-based access, KMS encryption, private endpoint
-- **EKS managed addons**: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver, eks-pod-identity-agent with `before_compute` ordering. Pod Identity via separate association resources.
+- **EKS managed addons**: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver, eks-pod-identity-agent; vpc-cni and eks-pod-identity-agent with `before_compute`. Pod Identity via separate association resources, except EBS CSI, whose role goes in its add-on entry.
 - **Platform namespaces**: Pod Security Standards labels + default-deny NetworkPolicy
 - **EKS Capabilities**: ACK and KRO available in all patterns via capability submodule

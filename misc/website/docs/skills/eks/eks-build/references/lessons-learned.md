@@ -238,7 +238,7 @@ ACK DynamoDB controller installs a `Backup` CRD that conflicts with Velero's. Al
 5. kubectl apply            tenants applicationset.yaml
 ```
 
-For Pattern 1, a single `terraform apply` handles everything (two-phase module architecture manages internal ordering), the first deploy into an empty account included. That needs `lazy_load = true` on the `kubectl` provider (Section 24). Do not split the first deploy with `-target`: a targeted first step can create an add-on without its Pod Identity association (Section 15).
+For Pattern 1, a single `terraform apply` handles everything (two-phase module architecture manages internal ordering). For a first deploy into an empty account, a plan from empty passes with `lazy_load = true` on the `kubectl` provider (Section 24). Do not split the first deploy with `-target`: a targeted first step created the EBS CSI add-on without its Pod Identity association ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)).
 
 ---
 
@@ -353,15 +353,15 @@ When Pod Identity IAM roles are created by separate modules and role ARNs are pa
 Create Pod Identity associations as **separate `aws_eks_pod_identity_association` resources**:
 
 ```hcl
-resource "aws_eks_pod_identity_association" "ebs_csi" {
+resource "aws_eks_pod_identity_association" "efs_csi" {
   cluster_name    = module.eks_cluster.cluster_name
   namespace       = "kube-system"
-  service_account = "ebs-csi-controller-sa"
-  role_arn        = module.ebs_csi_pod_identity.iam_role_arn
+  service_account = "efs-csi-controller-sa"
+  role_arn        = module.efs_csi_pod_identity.iam_role_arn
 }
 ```
 
-Then create the add-on outside the module's add-on map with `depends_on = [aws_eks_pod_identity_association.ebs_csi]` ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)). An add-on created before its association starts pods with no credentials, and they stay that way. Create order: role -> association -> addon. Destroy order: addon -> association -> role.
+This creates correct destroy ordering: association first, then role and addon. EBS CSI is the exception: its role goes in the add-on entry's `pod_identity_association`, so EKS creates the association with the add-on ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)). Create order: role -> addon with its association. Destroy order: addon with its association -> role.
 
 ---
 
@@ -576,9 +576,9 @@ terraform apply destroy.tfplan  # only after the user approves the plan above
 
 **Patterns:** Pattern 1
 
-**Problem:** The first `terraform plan` into an empty account fails with `Error: kubectl provider: configure failed` ... `no configuration has been provided, try setting KUBERNETES_MASTER environment variable`. The `alekc/kubectl` provider (3.x) builds its client at configure time, and `host` and the CA come from the cluster module's outputs, which are unknown until the cluster exists. `load_config_file = false` does not help.
+**Problem:** The first `terraform plan` into an empty account fails with `Error: kubectl provider: configure failed` ... `no configuration has been provided, try setting KUBERNETES_MASTER environment variable`. The `alekc/kubectl` provider (since v2.3.0) builds its client at configure time, and `host` and the CA come from the cluster module's outputs, which are unknown until the cluster exists. `load_config_file = false` does not help.
 
-**Fix:** Set `lazy_load = true` in the `kubectl` provider block in `providers.tf`. The client is then built on first use, so the plan succeeds and the single `terraform apply` (Section 11) creates the cluster before any `kubectl_manifest`. A wrong host or token then shows up at the first `kubectl_manifest`, not at configure.
+**Fix:** Set `lazy_load = true` in the `kubectl` provider block in `providers.tf`. The client is then built on first use, and a plan from an empty account passes. The trade-off: a wrong host or token shows up as a less specific error at the first `kubectl_manifest`, not at configure.
 
 ```hcl
 provider "kubectl" {
