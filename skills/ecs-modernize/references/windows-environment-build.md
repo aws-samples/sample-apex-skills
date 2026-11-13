@@ -314,7 +314,7 @@ Source_Analysis classified one or more write targets as persistent, and the pare
 
 ### The assessment was skipped and session-state is unknown
 
-No Blocker data exists to condition the load balancer. Ask whether the application keeps in-process session state; generate stickiness (or not) per the answer and record the answer as the grounds. An ambiguous answer confirms nothing — re-ask. (The Linux path instead pre-fills stickiness **enabled** as a provisional fail-safe, because its shipped skeleton's `session_affinity_required` variable documents `true` as the fail-safe for this case ([replatform-environment-build.md](replatform-environment-build.md#the-assessment-was-skipped-and-session-state-is-unknown)); this path ships no skeleton, so it waits for the answer.)
+No Blocker data exists to condition the load balancer. Ask whether the application keeps in-process session state; generate stickiness (or not) per the answer and record the answer as the grounds. An ambiguous answer confirms nothing: re-ask. The Linux path asks the same way ([replatform-environment-build.md](replatform-environment-build.md#the-assessment-was-skipped-and-session-state-is-unknown)).
 
 ### The image URI is unresolved
 

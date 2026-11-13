@@ -84,7 +84,7 @@ A verified skeleton ships with this skill at **[`assets/replatform-terraform/`](
 **What varies per run, and only this:**
 
 1. **`terraform.tfvars`** — the values. Write each with its origin as a comment (`# BLK-002 (in_process_session): cart held in HttpSession`), which is how the [traceability rule](#value-traceability) is satisfied mechanically.
-2. **`session_affinity_required`** — `true` only when the `in_process_session` blocker exists. The `stickiness` block itself stays in the skeleton either way; the variable decides. This is deliberate: a reviewer can see that the decision was *made* rather than that the block was forgotten.
+2. **`session_affinity_required`**: `true` only when the `in_process_session` blocker exists, or, when session state is unknown, the user confirms in-process session state. The `stickiness` block itself stays in the skeleton either way; the variable decides. This is deliberate: a reviewer can see that the decision was *made* rather than that the block was forgotten.
 3. **The EFS fragment** — added, renamed to `efs.tf`, and wired into the task definition **only** when a `local_state` finding was classified persistent. Both shapes — skeleton alone, and skeleton plus fragment — are `terraform validate`-clean as shipped.
 
 **`validate` is not `plan`, and the difference has bitten this skeleton.** `terraform validate` checks syntax and references without resolving values, so it passes on configurations that cannot plan. The EFS fragment originally keyed its mount targets with `for_each = toset(local.subnet_ids)`; in CREATE mode those ids do not exist until apply, and `for_each` keys must be known at plan time, so `terraform plan` failed outright with *"Invalid for_each argument … cannot be determined until apply"* while `validate` stayed green. The fragment now uses `count`, whose value is known in both modes. Both network modes have since been **plan-verified** with the fragment added — but the general rule is what matters: when a generated shape depends on values, a clean `validate` is necessary and not sufficient. Say which check was run, and do not describe `validate` coverage as though it were plan coverage.
@@ -157,7 +157,7 @@ This element is generated in this skill (see [Delegation Boundaries](../SKILL.md
 - **ALB, listener, target group** — the target group's `target_type` is **`instance`** (the correct pairing with `bridge` mode and dynamic host ports; `ip` targets belong to `awsvpc`).
 - **Health check** — the path from the app-provided health endpoint when Source_Analysis identified one (cite the finding); otherwise the application's root path, with the substitution stated.
 - **`stickiness` — conditioned.** Generate the target group's `stickiness` block **enabled** exactly when the `in_process_session` Blocker was detected, and cite the Blocker id in a comment on the block. When the Blocker was **not** detected, generate `stickiness` **disabled** (or omit it) and state that the absence of the finding is the grounds. Carry the constraint the Replatform path states: affinity keeps a user on one task but does **not** survive that task's replacement — sessions are still lost then. Never generate stickiness unconditionally: an application with no session state does not need it, and enabling it would degrade load distribution for no reason.
-- **When the session state is unknown** (assessment skipped, or the tWAS-style caveat where server-side session persistence lives outside the source tree) — apply the [edge case](#the-assessment-was-skipped-and-session-state-is-unknown): generate affinity **enabled** as the fail-safe and state that it is provisional pending user confirmation.
+- **When the session state is unknown** (assessment skipped, or the tWAS-style caveat where server-side session persistence lives outside the source tree): ask the user, set stickiness per the answer and record the answer as the grounds (the [edge case](#the-assessment-was-skipped-and-session-state-is-unknown)).
 
 ### Persistent write targets — EFS conditioned on the Blocker finding
 
@@ -262,8 +262,7 @@ replatform_environment_build:
     health_check_path: {value: string, source: string}
     stickiness:
       enabled: bool
-      grounds: string              # the in_process_session blocker id, or its explicit absence
-      provisional: bool            # true when enabled as the unknown-session fail-safe
+      grounds: string              # the in_process_session blocker id, its explicit absence, or the user's recorded answer
   volumes:                         # empty list => the explicit not-needed statement is required
     - {path: string, blocker_id: string, mechanism: efs}
   unresolved_items:
@@ -278,7 +277,7 @@ replatform_environment_build:
 
 - `network_mode` is always `bridge` and `target_type` always `instance` on this path; a generated `awsvpc` task definition here is an error.
 - `service.autoscaling` is always `none`, and its absence is stated in the report rather than left implicit.
-- `load_balancer.stickiness.grounds` is non-empty in every output — either a Blocker id or the explicit absence statement.
+- `load_balancer.stickiness.grounds` is non-empty in every output: a Blocker id, the explicit absence statement, or the user's recorded answer.
 - `volumes: []` obliges the explicit not-needed statement with its grounds.
 - `validation.validate: passed` requires an actual successful run; `not_run` requires a reason.
 - Every unresolved item carries its settling condition; none is silently dropped.
@@ -297,7 +296,7 @@ This module does not run; [windows-environment-build.md](windows-environment-bui
 
 ### The assessment was skipped and session state is unknown
 
-Generate `stickiness` **enabled** as the fail-safe, and state explicitly that it is provisional: the `in_process_session` finding that would justify it was never established, so the user must confirm whether the application holds server-side session state. The same applies to the tWAS caveat where session persistence is cell configuration outside the source tree ([blocker-detection.md](blocker-detection.md)).
+Ask whether the application keeps in-process session state; set `session_affinity_required` per the answer and record the answer as the grounds. An ambiguous answer confirms nothing: re-ask. There is no provisional enabled default, because the module's rule is never to generate stickiness unconditionally. The same applies to the tWAS caveat where session persistence is cell configuration outside the source tree ([blocker-detection.md](blocker-detection.md)).
 
 ### The image URI is unresolved
 
