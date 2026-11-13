@@ -417,7 +417,7 @@ module "karpenter" {
 }
 ```
 
-In Pattern 1, then deploy the Helm chart via `helm_release` with `depends_on = [module.eks_addons_webhooks]` (Section 2) and NodePool/EC2NodeClass via `kubectl_manifest`; in Pattern 2 via ArgoCD. Tag private subnets and the node security group (the EKS module's `node_security_group_tags`, not the cluster primary SG) with `karpenter.sh/discovery: <cluster-name>`; only one security group should carry the tag.
+In Pattern 1, then deploy the Helm chart via `helm_release` with `depends_on = [module.eks_addons_webhooks]` (Section 2) and NodePool/EC2NodeClass via `kubectl_manifest`; in Pattern 2 via ArgoCD. Tag private subnets and the node security group (the EKS module's `node_security_group_tags`, not the cluster primary SG) with `karpenter.sh/discovery: <cluster-name>`; only one security group should carry the tag, because Karpenter attaches every security group that matches its selector, and two security groups tagged `kubernetes.io/cluster/<name>` on one node break the AWS Load Balancer Controller.
 
 ### EC2 Spot Service-Linked Role
 
