@@ -242,7 +242,7 @@ if [ "$ST_NODES" = ok ]; then
   jq -s '{Reservations:.}' "$OUT/.inst.jsonl" >"$OUT/instances.json"
   amis="$(jq -r '[.Reservations[].Instances[].ImageId // empty] | unique | join(",")' "$OUT/instances.json")"
   if [ -n "$amis" ]; then
-    # --include-deprecated: by default a deprecated AMI (an old one) is left out of the response
+    # --include-deprecated: a deprecated AMI (past its owner-set deprecation time) is left out of the response unless asked for
     call "$OUT/images.json" describe-images aws ec2 describe-images --region "$REGION" --include-deprecated --filters "Name=image-id,Values=$amis" || true
   fi
 fi

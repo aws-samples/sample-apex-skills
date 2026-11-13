@@ -146,7 +146,7 @@ class MatchVerdicts(TmpCase):
             self.assertEqual(f["verdict"], exp["verdict"], "%s: %s" % (case["name"], f))
             if "reason_prefix" in exp:
                 self.assertTrue(f["reason"].startswith(exp["reason_prefix"]), "%s: reason %r" % (case["name"], f["reason"]))
-            for k in ("priority", "fixed", "installed", "nodes_pending", "ami_before_fix", "ami_date_unknown"):
+            for k in ("priority", "fixed", "installed", "nodes_pending", "ami_before_fix"):
                 if k in exp:
                     self.assertEqual(f[k], exp[k], "%s: %s" % (case["name"], k))
             if f["verdict"] == "not_exposed":
@@ -587,24 +587,28 @@ class RenderReport(TmpCase):
         self.assertNotIn("ami-0ccc3333dddd4444e", ht)
 
     def test_patched_flags_ami_built_before_fix(self):
-        # SEC-6: a NodePool whose AMI was built before the fix time is likely unpatched; after it, no flag; unread, named
+        # a NodePool whose AMI was built before the fix time is likely unpatched, per advisory; after it, no flag
         fd, inv = self.patched_fixture()
         comps = {c["id"]: c for c in inv["components"]}
         comps["node-os:general-purpose"]["ami_created"] = "2026-10-20T11:06:51.000Z"
         comps["node-os:system"].update(ami="ami-0bbb2222cccc3333d", ami_created="2026-11-02T00:00:00.000Z")
-        fd["findings"][-1].update(ami_before_fix=["node-os:general-purpose"], ami_date_unknown=[])
+        fd["findings"][-1].update(ami_before_fix=["node-os:general-purpose"])
+        fd["findings"].append(dict(fd["findings"][-1], advisory="CVE-TEST-0009", fixed_at="2026-10-01", ami_before_fix=[]))
         rc, md, ht, log = self.render(fd, inv)
         self.assertEqual(rc, 0, log)
-        self.assertIn("Likely unpatched, AMI built before the fix time: general-purpose. These nodes were created after "
-                      "the fix time but run an older AMI", md)
+        self.assertIn("Likely unpatched for CVE-TEST-0001 (fix time 2026-11-01): general-purpose. These nodes were created "
+                      "after the fix time but run an older AMI", md)
+        self.assertIn("Replace these NodePools' nodes and run the review again.", md)
+        self.assertNotIn("Likely unpatched for CVE-TEST-0009", md + ht)
         self.assertIn("| general-purpose | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0aaa1111bbbb2222c | "
-                      "2026-10-20T11:06:51.000Z, likely unpatched (built before the fix) | 2 |", md)
+                      "2026-10-20T11:06:51.000Z | 2 |", md)
         self.assertIn("| system | Bottlerocket OS 1.40.0 (aws-k8s-1.33) | ami-0bbb2222cccc3333d | 2026-11-02T00:00:00.000Z | 1 |",
                       md)
-        self.assertIn("<td>2026-10-20T11:06:51.000Z, likely unpatched (built before the fix)</td>", ht)
+        self.assertIn("<td>2026-10-20T11:06:51.000Z</td>", ht)
         # no AMI built before the fix: no line; an unread date reads "not read" and the pool stays listed
         comps["node-os:general-purpose"]["ami_created"] = None
-        fd["findings"][-1].update(ami_before_fix=[], ami_date_unknown=["node-os:general-purpose"])
+        for f in fd["findings"]:
+            f["ami_before_fix"] = []
         rc, md, ht, log = self.render(fd, inv)
         self.assertEqual(rc, 0, log)
         self.assertNotIn("Likely unpatched", md + ht)
@@ -1035,7 +1039,7 @@ class CollectReadOnly(TmpCase):
         with open(os.path.join(work, "inventory.json"), encoding="utf-8") as f:
             amis = {c.get("ami") for c in json.load(f)["components"] if c.get("kind") == "node-os"}
         self.assertIn("ami-0123456789abcdef0", amis)
-        # SEC-6: the AMI build date is kept per node group, and deprecated (old) AMIs are asked for
+        # the AMI build date is kept per node group, and deprecated (old) AMIs are asked for
         img = [c["args"] for c in calls if c["args"][:2] == ["ec2", "describe-images"] and "--dry-run" not in c["args"]]
         self.assertEqual(len(img), 1, img)
         self.assertIn("--include-deprecated", img[0])

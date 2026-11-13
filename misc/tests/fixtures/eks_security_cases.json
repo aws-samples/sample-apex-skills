@@ -1037,10 +1037,57 @@
       "nodes_pending": [],
       "ami_before_fix": [
        "node-os:old-ami"
-      ],
-      "ami_date_unknown": [
-       "node-os:gone-ami"
       ]
+     }
+    ],
+    "overall": "not_exposed",
+    "exit": 0
+   },
+   {
+    "name": "auto_mode_patched_ami_same_day",
+    "components": [
+     {
+      "id": "addon:vpc-cni@auto-mode",
+      "kind": "eks-addon",
+      "name": "vpc-cni",
+      "version": null,
+      "managed_by": "aws-auto-mode",
+      "where": [
+       "auto-mode-nodes"
+      ],
+      "readable": true,
+      "reason": null
+     },
+     {
+      "kind": "node-os",
+      "os_image": "Bottlerocket (EKS Auto, Standard) 2025.10.20",
+      "kubelet": "v1.33.4-eks-abc1234",
+      "managed_by": "aws-auto-mode",
+      "readable": true,
+      "reason": null,
+      "id": "node-os:old-ami",
+      "ami": "ami-0aaa1111bbbb2222c",
+      "ami_created": "2026-11-04T10:00:00.000Z",
+      "nodes": [
+       "i-a"
+      ],
+      "node_created": {
+       "i-a": "2026-11-05T00:00:00Z"
+      },
+      "where": [
+       "old-ami"
+      ]
+     }
+    ],
+    "advisory": {
+     "fixed_at": "2026-11-04"
+    },
+    "expect": [
+     {
+      "component": "addon:vpc-cni@auto-mode",
+      "verdict": "aws_managed_patched",
+      "nodes_pending": [],
+      "ami_before_fix": []
      }
     ],
     "overall": "not_exposed",
