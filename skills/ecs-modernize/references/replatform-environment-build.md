@@ -106,7 +106,7 @@ State this boundary when handing the environment over, and name **`ecs-security`
 
 **Deviating from the skeleton.** A concrete migration finding may require something the skeleton does not carry (a second port, a sidecar, an extra egress rule). Add it, and state in the Execution_Log what was added and which finding required it. What is not permitted is silently changing the four elements that define this path — `bridge` networking, `hostPort = 0`, `target_type = "instance"`, and the fixed-count-no-scaling service. Changing those makes it a different path, and the approved strategy no longer describes what was built.
 
-**Why this order:** the approved-path check (step 1) gates everything, because generating an ECS on EC2 environment for a path the user approved as Fargate is a worse outcome than generating nothing. The conditioned elements (step 4) are resolved before generation so that stickiness and volumes are present exactly when their grounding findings (or, for stickiness, the user's answer when session state is unknown) are, rather than being added or removed after the fact. `terraform validate` (step 6) precedes any success report: unvalidated Terraform is not a deliverable.
+**Why this order:** the approved-path check (step 1) gates everything, because generating an ECS on EC2 environment for a path the user approved as Fargate is a worse outcome than generating nothing. The conditioned elements (step 5) are resolved before generation so that stickiness and volumes are present exactly when their grounding findings (or, for stickiness, the user's answer when session state is unknown) are, rather than being added or removed after the fact. `terraform validate` (step 7) precedes any success report: unvalidated Terraform is not a deliverable.
 
 ---
 
@@ -156,7 +156,7 @@ This element is generated in this skill (see [Delegation Boundaries](../SKILL.md
 
 - **ALB, listener, target group** — the target group's `target_type` is **`instance`** (the correct pairing with `bridge` mode and dynamic host ports; `ip` targets belong to `awsvpc`).
 - **Health check** — the path from the app-provided health endpoint when Source_Analysis identified one (cite the finding); otherwise the application's root path, with the substitution stated.
-- **`stickiness`: conditioned.** Generate the target group's `stickiness` block **enabled** exactly when the `in_process_session` Blocker was detected or, when session state is unknown, the user confirms it (next bullet), and cite the Blocker id in a comment on the block. When the Blocker was **not** detected, generate `stickiness` **disabled** (or omit it) and state that the absence of the finding is the grounds. Carry the constraint the Replatform path states: affinity keeps a user on one task but does **not** survive that task's replacement: sessions are still lost then. Never generate stickiness unconditionally: an application with no session state does not need it, and enabling it would degrade load distribution for no reason.
+- **`stickiness`: conditioned.** Generate the target group's `stickiness` block **enabled** exactly when the `in_process_session` Blocker was detected or, when session state is unknown, the user confirms it (next bullet), and cite the Blocker id, or the user's recorded answer, in a comment on the block. When the Blocker was **not** detected, generate `stickiness` **disabled** (or omit it) and state that the absence of the finding is the grounds. Carry the constraint the Replatform path states: affinity keeps a user on one task but does **not** survive that task's replacement: sessions are still lost then. Never generate stickiness unconditionally: an application with no session state does not need it, and enabling it would degrade load distribution for no reason.
 - **When the session state is unknown** (assessment skipped): ask the user, set stickiness per the answer and record the answer as the grounds (the [edge case](#the-assessment-was-skipped-and-session-state-is-unknown)).
 
 ### Persistent write targets — EFS conditioned on the Blocker finding
@@ -261,7 +261,7 @@ replatform_environment_build:
     target_type: instance          # always instance with bridge + dynamic ports
     health_check_path: {value: string, source: string}
     stickiness:
-      enabled: bool
+      enabled: bool | unresolved
       grounds: string              # the in_process_session blocker id, its explicit absence, or the user's recorded answer
   volumes:                         # empty list => the explicit not-needed statement is required
     - {path: string, blocker_id: string, mechanism: efs}
@@ -277,7 +277,7 @@ replatform_environment_build:
 
 - `network_mode` is always `bridge` and `target_type` always `instance` on this path; a generated `awsvpc` task definition here is an error.
 - `service.autoscaling` is always `none`, and its absence is stated in the report rather than left implicit.
-- `load_balancer.stickiness.grounds` is non-empty in every output: a Blocker id, the explicit absence statement, or the user's recorded answer.
+- `load_balancer.stickiness.grounds` is non-empty in every output: a Blocker id, the explicit absence statement, or the user's recorded answer, or, with no answer, `enabled: unresolved` and its `unresolved_items` entry.
 - `volumes: []` obliges the explicit not-needed statement with its grounds.
 - `validation.validate: passed` requires an actual successful run; `not_run` requires a reason.
 - Every unresolved item carries its settling condition; none is silently dropped.
@@ -296,7 +296,7 @@ This module does not run; [windows-environment-build.md](windows-environment-bui
 
 ### The assessment was skipped and session state is unknown
 
-Ask whether the application keeps in-process session state; set `session_affinity_required` per the answer and record the answer as the grounds. An ambiguous answer confirms nothing: re-ask. With no answer, list it under `unresolved_items`, settling on the user's answer. There is no provisional enabled default, because the module's rule is never to generate stickiness unconditionally.
+Ask whether the application keeps in-process session state; set `session_affinity_required` per the answer and record the answer as the grounds. An ambiguous answer confirms nothing: re-ask. There is no provisional enabled default, because the module's rule is never to generate stickiness unconditionally.
 
 ### The image URI is unresolved
 

@@ -225,9 +225,9 @@ resource "aws_lb_target_group" "app" {
   # CONDITIONED on the in_process_session blocker, or the user's recorded
   # answer when session state is unknown. Enabled means the unchanged
   # application's in-memory session survives across requests from one user;
-  # it does NOT survive that task's replacement. Cite the blocker id, or the
-  # user's recorded answer when session state is unknown, in the value
-  # supplied for var.session_affinity_required.
+  # it does NOT survive that task's replacement. Cite the grounds (blocker id
+  # or recorded answer) in the value supplied for
+  # var.session_affinity_required.
   stickiness {
     enabled = var.session_affinity_required
     type    = "lb_cookie"
