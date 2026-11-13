@@ -45,6 +45,7 @@ Apply these to ALL generated projects regardless of environment (production, sta
 - **Spot**: Recommend for dev/staging. Never for production stateful workloads
 - **Multiple instance types**: Always 3+ per node group for AZ availability
 - **IMDSv2**: Enforce hop limit 1 in launch template -- prevents pods from accessing node IMDS credentials
+- **IAM role name**: Set `iam_role_use_name_prefix = false` on each managed node group. The default name prefix `<node group name>-eks-node-group-` may be at most 38 characters, so a node group named `<cluster>-system` fails at plan once the cluster name reaches 16 characters
 
 ```hcl
 # Launch template metadata options

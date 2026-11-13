@@ -65,14 +65,14 @@ Assess VPC CNI configuration, IP capacity, DNS health, and network segmentation.
 ### 6.3 — Network Policies & Segmentation
 
 **What to check:**
-- VPC CNI Network Policy Controller enabled (the `aws-network-policy-agent` container runs with `--enable-network-policy=true`, or the vpc-cni add-on `configurationValues` sets `enableNetworkPolicy: "true"`)
+- VPC CNI Network Policy Controller enabled (the `aws-eks-nodeagent` container runs with `--enable-network-policy=true`, or the vpc-cni add-on `configurationValues` sets `enableNetworkPolicy: "true"`)
 - Calico pods (alternative enforcement engine)
 - NetworkPolicy resources across namespaces
 - Default-deny policies (podSelector: {})
 - Namespaces without any NetworkPolicy
 
 **How to check:**
-1. Read DaemonSet `aws-node` in kube-system → inspect the `aws-network-policy-agent` container for the `--enable-network-policy=true` arg (or check the vpc-cni add-on `configurationValues` for `enableNetworkPolicy: true`). A self-managed Helm install instead sets the `amazon-vpc-cni` ConfigMap key `enable-network-policy-controller: "true"`. **Routing note:** a 403/Forbidden on THIS enforcement read (aws-node DaemonSet / add-on config), WHEN the NetworkPolicy list in step 3 succeeded and policies are present, does NOT go to UNKNOWN — policy presence WAS determined; only enforcement was not verified, so route it to the AMBER "policies defined but enforcement not verified" arm.
+1. Read DaemonSet `aws-node` in kube-system → inspect the `aws-eks-nodeagent` container for the `--enable-network-policy=true` arg (or check the vpc-cni add-on `configurationValues` for `enableNetworkPolicy: true`). A self-managed Helm install instead sets the `amazon-vpc-cni` ConfigMap key `enable-network-policy-controller: "true"`. **Routing note:** a 403/Forbidden on THIS enforcement read (aws-node DaemonSet / add-on config), WHEN the NetworkPolicy list in step 3 succeeded and policies are present, does NOT go to UNKNOWN — policy presence WAS determined; only enforcement was not verified, so route it to the AMBER "policies defined but enforcement not verified" arm.
 2. List pods with label `k8s-app=calico-node`
 3. List NetworkPolicies across all namespaces. If 403/Forbidden when listing NetworkPolicies → mark the network-policy signal UNKNOWN; do not rate RED on a forbidden list. (NetworkPolicy is a core `networking.k8s.io` API, so 404 is not expected; an empty successful list means no NetworkPolicies.) **Routing note:** a 403 on THIS NetworkPolicy list is the only 403 that routes to the UNKNOWN band (policy presence genuinely undeterminable); a 403 on the step-1 enforcement read while this list succeeded routes to AMBER instead (see step 1).
 4. Inspect NetworkPolicies for default-deny (empty podSelector)
