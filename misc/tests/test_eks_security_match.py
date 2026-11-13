@@ -1039,7 +1039,7 @@ class CollectReadOnly(TmpCase):
         with open(os.path.join(work, "inventory.json"), encoding="utf-8") as f:
             amis = {c.get("ami") for c in json.load(f)["components"] if c.get("kind") == "node-os"}
         self.assertIn("ami-0123456789abcdef0", amis)
-        # the AMI build date is kept per node group, and deprecated (old) AMIs are asked for
+        # the AMI build date is kept per node group, and deprecated AMIs (past their owner-set deprecation time) are asked for
         img = [c["args"] for c in calls if c["args"][:2] == ["ec2", "describe-images"] and "--dry-run" not in c["args"]]
         self.assertEqual(len(img), 1, img)
         self.assertIn("--include-deprecated", img[0])

@@ -1025,6 +1025,26 @@
       "where": [
        "gone-ami"
       ]
+     },
+     {
+      "kind": "node-os",
+      "os_image": "Bottlerocket (EKS Auto, Standard) 2025.10.20",
+      "kubelet": "v1.33.4-eks-abc1234",
+      "managed_by": "aws-auto-mode",
+      "readable": true,
+      "reason": null,
+      "id": "node-os:eq-ami",
+      "ami": "ami-0ddd4444eeee5555f",
+      "ami_created": "2026-11-04T00:00:00.000Z",
+      "nodes": [
+       "i-d"
+      ],
+      "node_created": {
+       "i-d": "2026-11-06T00:00:00Z"
+      },
+      "where": [
+       "eq-ami"
+      ]
      }
     ],
     "advisory": {
