@@ -1,10 +1,10 @@
-"""Offline fixtures for optional networking and observability fields.
+"""Offline fixtures for eks-recon jq queries and optional fields.
 
 Run with Python 3 and jq on PATH:
     python3 misc/tests/test_eks_recon_jq_null.py -v
 
 Queries come from the maintained Markdown. Inputs and expected outputs are
-hand-authored from the optional-field contract, not captured from a cluster.
+hand-authored from the detection contracts, not captured from a cluster.
 The DevOps Agent pseudocode is exercised with client-shaped Python objects;
 this is not an end-to-end agent or Kubernetes client integration test.
 """
@@ -31,6 +31,8 @@ def load_queries(root=ROOT):
         ("dns", "networking.md", "### 9. external-dns"),
         ("amp", "observability.md", "# Check for ADOT or Prometheus remote write config"),
         ("search", "observability.md", "# Check for OpenSearch endpoint in configs"),
+        ("kyverno", "security.md", "kubectl get clusterpolicies.kyverno.io -o json"),
+        ("gatekeeper", "security.md", "kubectl get constraints -o json"),
     ):
         text = (root / "skills/eks-recon/references" / filename).read_text(encoding="utf-8")
         if text.count(marker) != 1:
@@ -98,6 +100,51 @@ def fixture_cases():
     ]}, [{"ns": "first", "domain_filters": []}, {"ns": "second", "domain_filters": ["--domain-filter=example.test"]}]
 
 
+def admission_policy_cases():
+    pod = {"resources": {"kinds": ["Pod"]}}
+    service = {"resources": {"kinds": ["Service"]}}
+    wildcard = {"resources": {"kinds": ["*"]}}
+    mixed = {"resources": {"kinds": ["Service", "Pod"]}}
+    subject = {"subjects": [{"kind": "ServiceAccount", "name": "builder", "namespace": "default"}]}
+    core_pod = {"apiGroups": [""], "kinds": ["Pod"]}
+    for name, matches, expected in (
+        ("legacy_pod", [pod], True),
+        ("legacy_mixed", [mixed], True),
+        ("legacy_wildcard", [wildcard], True),
+        ("any_mixed", [{"any": [service, mixed]}], True),
+        ("any_wildcard", [{"any": [service, wildcard]}], True),
+        ("all_pod", [{"all": [pod, mixed]}], True),
+        ("all_with_subject", [{"all": [pod, subject]}], True),
+        ("all_wildcard", [{"all": [wildcard, pod]}], True),
+        ("all_disjoint", [{"all": [pod, service]}], False),
+        ("all_without_kinds", [{"all": [{}]}], False),
+        ("later_rule", [{}, pod], True),
+        ("multiple_matching_rules", [pod, mixed], True),
+        ("non_pod", [service], False),
+        ("no_rules", [], False),
+    ):
+        item = {"metadata": {"name": name}, "spec": {"rules": [{"match": m} for m in matches]}}
+        yield f"kyverno_{name}", "kyverno", {"items": [item]}, [name] if expected else []
+
+    for name, spec, expected in (
+        ("legacy_pod", {"match": {"kinds": [core_pod]}}, True),
+        ("wildcard", {"match": {"kinds": [{"apiGroups": ["*"], "kinds": ["*"]}]}}, True),
+        ("no_match", {}, True),
+        ("no_kinds", {"match": {"scope": "Namespaced"}}, True),
+        ("empty_kinds", {"match": {"kinds": []}}, True),
+        ("empty_group", {"match": {"kinds": [{"apiGroups": [], "kinds": ["Pod"]}]}}, True),
+        ("group_only", {"match": {"kinds": [{"apiGroups": [""]}]}}, True),
+        ("non_pod", {"match": {"kinds": [{"apiGroups": [""], "kinds": ["Service"]}]}}, False),
+        ("wrong_group", {"match": {"kinds": [{"apiGroups": ["apps"], "kinds": ["Pod", "*"]}]}}, False),
+        ("cluster_scope", {"match": {"scope": "Cluster", "kinds": [core_pod]}}, False),
+    ):
+        item = {"metadata": {"name": name}, "spec": spec}
+        yield f"gatekeeper_{name}", "gatekeeper", {"items": [item]}, [name] if expected else []
+
+    for engine in ("kyverno", "gatekeeper"):
+        yield f"{engine}_empty_inventory", engine, {"items": []}, []
+
+
 class QueryFixtures(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -106,7 +153,7 @@ class QueryFixtures(unittest.TestCase):
         cls.queries = load_queries()
 
 
-for name, key, data, expected in fixture_cases():
+for name, key, data, expected in (*fixture_cases(), *admission_policy_cases()):
     def _check_fixture(self, key=key, data=data, expected=expected):
         self.assertEqual(run_jq(self.queries[key], data), expected)
     setattr(QueryFixtures, "test_" + name.replace("-", "_"), _check_fixture)

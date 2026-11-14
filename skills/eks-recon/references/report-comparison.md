@@ -75,6 +75,10 @@ Coverage takes precedence over a difference:
   In particular, legacy `cicd.gitops.tool: none` is not equivalent to the newer
   `not_observed` or `unconfirmed`; exclude the legacy GitOps result scope when its
   observation semantics cannot be established. Missing newer fields remain unknown.
+  For `security.image_security.admission_policies`, the Pod selectors changed in
+  `eks-recon/2026-11-11`. Compare this field only when both reports are known to
+  use equivalent selectors and cover the same policy resources. List differing or
+  unknown selector semantics under Comparison coverage.
 - Workspace-derived facts describe the checkout that was scanned, not the cluster.
   Compare `cicd.workspace` and the file-based `iac.workspace` entries (Terraform,
   CloudFormation, CDK, eksctl and Pulumi) only when both runs are known to have
