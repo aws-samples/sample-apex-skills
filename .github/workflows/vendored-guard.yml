@@ -2,7 +2,7 @@ name: vendored-guard
 
 on:
   # No paths filter, so the check reports on every pull request. labeled and
-  # unlabeled re-run it when the vendor-sync label changes.
+  # unlabeled re-run it when the vendor-update label changes.
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
@@ -28,5 +28,5 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPO: ${{ github.repository }}
-          HAS_SYNC_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'vendor-sync') }}
+          HAS_VENDOR_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'vendor-update') }}
         run: bash .github/scripts/vendored-guard.sh
