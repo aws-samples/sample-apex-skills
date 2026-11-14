@@ -64,7 +64,7 @@
 #    `uvx awslabs.eks-mcp-server@<version>` test pointed at apex's
 #    eks-mcp-server skill. The sync exits non-zero if an anchor is
 #    missing; the runbook then has only its `steering/` paths rewritten
-#    and the skill's UPSTREAM.md is not written until the script is fixed and re-run.
+#    and `skills/eks-operation-review/UPSTREAM.md` is not written until the script is fixed and re-run.
 #
 # 6. Report tool path (Step 7a): references/report-generation.md runs
 #    `python3 tools/report_to_html.py`, upstream's repo-root layout. In apex
@@ -344,7 +344,7 @@ The sync script applies six deterministic edits to upstream content:
 
 4. **\`SKILL.md\` Prerequisites MCP line.** Upstream lists "MCP servers configured in \`.mcp.json\`" as a prerequisite. Apex doesn't ship \`.mcp.json\`; MCP setup is handled by the \`eks-mcp-server\` skill. The sync rewrites the line to point users at that skill instead.
 
-5. **Runbook fit.** The copied workflow at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\` gets its \`steering/\` paths pointed at this skill's folder (\`../../../eks-operation-review/references/\` from the runbook), apex's \`name\`/\`description\` frontmatter, and its \`.mcp.json\` instructions and fixed \`uvx awslabs.eks-mcp-server@<version>\` test pointed at the \`eks-mcp-server\` skill. The sync exits non-zero if an anchor is missing; the runbook then has only its \`steering/\` paths rewritten and the skill's UPSTREAM.md is not written until the script is fixed and re-run.
+5. **Runbook fit.** The copied workflow at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\` gets its \`steering/\` paths pointed at this skill's folder (\`../../../eks-operation-review/references/\` from the runbook), apex's \`name\`/\`description\` frontmatter, and its \`.mcp.json\` instructions and fixed \`uvx awslabs.eks-mcp-server@<version>\` test pointed at the \`eks-mcp-server\` skill. The sync exits non-zero if an anchor is missing; the runbook then has only its \`steering/\` paths rewritten and this \`UPSTREAM.md\` is not written until the script is fixed and re-run.
 
 6. **Report tool path.** \`references/report-generation.md\` runs \`python3 tools/report_to_html.py\` (upstream's repo-root layout); the sync points it at this skill's folder, \`python3 \${CLAUDE_SKILL_DIR}/tools/report_to_html.py\`. The sync exits non-zero if the anchor is missing.
 
