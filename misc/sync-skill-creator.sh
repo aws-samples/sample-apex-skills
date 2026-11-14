@@ -6,7 +6,8 @@
 #
 # This script treats Anthropic's skill-creator as the source of truth.
 # It clones (or pulls) the upstream repo into a temp directory, then
-# replaces our local skill-creator folder entirely with the upstream version.
+# replaces our local skill-creator folder entirely with the upstream version,
+# and writes `.vendor-sha` (upstream HEAD).
 #
 # Usage:
 #   chmod +x misc/sync-skill-creator.sh

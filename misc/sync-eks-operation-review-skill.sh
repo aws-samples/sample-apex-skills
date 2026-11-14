@@ -15,7 +15,8 @@
 #
 # Also copied: upstream's .claude/commands/eks-operation-review.md (the
 # workflow) to skills/apex/runbooks/eks-operation-review/eks-operation-review.md,
-# with steering/ rewritten to ../../../eks-operation-review/references/ (Step 8).
+# with steering/ rewritten to ../../../eks-operation-review/references/ (Step 8),
+# plus a one-line UPSTREAM.md marker in that folder.
 #
 # Excluded (deliberately NOT copied):
 #   - .git/, .github/, the rest of .claude/, .mcp.json
@@ -37,7 +38,7 @@
 #
 # 2. SKILL.md body path fix — Upstream's body says "Read and follow
 #    `.claude/commands/eks-operation-review.md`" — that path doesn't exist
-#    in apex (Step 8 copies that file outside the vendored folder, to
+#    in apex (Step 8 copies that file outside this skill's folder, to
 #    skills/apex/runbooks/eks-operation-review/eks-operation-review.md).
 #    We rewrite the line to that path, relative to this skill's folder.
 #
@@ -63,7 +64,7 @@
 #    `uvx awslabs.eks-mcp-server@<version>` test pointed at apex's
 #    eks-mcp-server skill. The sync exits non-zero if an anchor is
 #    missing; the runbook then has only its `steering/` paths rewritten
-#    and UPSTREAM.md is not written until the script is fixed and re-run.
+#    and the skill's UPSTREAM.md is not written until the script is fixed and re-run.
 #
 # 6. Report tool path (Step 7a): references/report-generation.md runs
 #    `python3 tools/report_to_html.py`, upstream's repo-root layout. In apex
@@ -271,7 +272,7 @@ mkdir -p "$(dirname "$RUNBOOK")"
 cp "$UPSTREAM_ROOT/.claude/commands/eks-operation-review.md" "$RUNBOOK"
 sed -i.bak 's|steering/|../../../eks-operation-review/references/|g' "$RUNBOOK"
 rm -f "$RUNBOOK.bak"
-echo 'This runbook is written by `misc/sync-eks-operation-review-skill.sh` from upstream (see `skills/eks-operation-review/UPSTREAM.md`); change it there, not here.' > "$(dirname "$RUNBOOK")/UPSTREAM.md"
+echo '`eks-operation-review.md` in this folder is written by `misc/sync-eks-operation-review-skill.sh` from the upstream repo (see `skills/eks-operation-review/UPSTREAM.md`); change it upstream or in that script, not here.' > "$(dirname "$RUNBOOK")/UPSTREAM.md"
 
 # --- Step 8a: Fit the runbook to the apex layout (apex-flavored #5) ---
 echo "Adapting the runbook to the apex layout (frontmatter, MCP setup)..."
@@ -343,7 +344,7 @@ The sync script applies six deterministic edits to upstream content:
 
 4. **\`SKILL.md\` Prerequisites MCP line.** Upstream lists "MCP servers configured in \`.mcp.json\`" as a prerequisite. Apex doesn't ship \`.mcp.json\`; MCP setup is handled by the \`eks-mcp-server\` skill. The sync rewrites the line to point users at that skill instead.
 
-5. **Runbook fit.** The copied workflow at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\` gets its \`steering/\` paths pointed at this skill's folder (\`../../../eks-operation-review/references/\` from the runbook), apex's \`name\`/\`description\` frontmatter, and its \`.mcp.json\` instructions and fixed \`uvx awslabs.eks-mcp-server@<version>\` test pointed at the \`eks-mcp-server\` skill. The sync exits non-zero if an anchor is missing; the runbook then has only its \`steering/\` paths rewritten and UPSTREAM.md is not written until the script is fixed and re-run.
+5. **Runbook fit.** The copied workflow at \`skills/apex/runbooks/eks-operation-review/eks-operation-review.md\` gets its \`steering/\` paths pointed at this skill's folder (\`../../../eks-operation-review/references/\` from the runbook), apex's \`name\`/\`description\` frontmatter, and its \`.mcp.json\` instructions and fixed \`uvx awslabs.eks-mcp-server@<version>\` test pointed at the \`eks-mcp-server\` skill. The sync exits non-zero if an anchor is missing; the runbook then has only its \`steering/\` paths rewritten and the skill's UPSTREAM.md is not written until the script is fixed and re-run.
 
 6. **Report tool path.** \`references/report-generation.md\` runs \`python3 tools/report_to_html.py\` (upstream's repo-root layout); the sync points it at this skill's folder, \`python3 \${CLAUDE_SKILL_DIR}/tools/report_to_html.py\`. The sync exits non-zero if the anchor is missing.
 
@@ -460,7 +461,7 @@ fi
 # `git ls-files`, so newly-synced port files must be staged or the generators
 # miss them on the next run (mirrors sync-eks-upgrade-skill.sh:321).
 echo "Staging synced files for generator visibility (git ls-files)..."
-git -C "$REPO_ROOT" add "$LOCAL_DIR" "$DEVOPS_DIR" "$(dirname "$RUNBOOK")" 2>/dev/null || true
+git -C "$REPO_ROOT" add "$LOCAL_DIR" "$DEVOPS_DIR" "$RUNBOOK" 2>/dev/null || true
 
 echo ""
 

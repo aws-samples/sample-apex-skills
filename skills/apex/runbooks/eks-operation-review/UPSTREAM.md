@@ -1,1 +1,1 @@
-This runbook is written by `misc/sync-eks-operation-review-skill.sh` from upstream (see `skills/eks-operation-review/UPSTREAM.md`); change it there, not here.
+`eks-operation-review.md` in this folder is written by `misc/sync-eks-operation-review-skill.sh` from the upstream repo (see `skills/eks-operation-review/UPSTREAM.md`); change it upstream or in that script, not here.
