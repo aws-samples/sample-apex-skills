@@ -19,6 +19,9 @@ Verdicts per (advisory, inventory component):
   aws_managed_patched        Auto Mode component, every node in scope created at or after the
                              record's fixed_at (a date-only fixed_at is compared as the end of
                              that day UTC)
+                             (`ami_before_fix` lists the node groups whose AMI was built before
+                             fixed_at, the start of that day when date-only: likely unpatched,
+                             inferred from dates only)
   aws_managed_rotation_pending  Auto Mode component, nodes created before fixed_at (listed)
   unknown / no_fix_date      Auto Mode component, record has no fixed_at
   unknown / no_nodes_read    Auto Mode component, no Auto Mode node was read (not counted as read)
@@ -124,15 +127,11 @@ class Matcher:
             return m.group(1) if m else comp.get("os_image")
         return comp.get("version")
 
-    def auto_nodes(self, comp):
-        """{node: created} for the nodes an Auto Mode verdict is judged on."""
+    def auto_groups(self, comp):
+        """The Auto Mode node-os groups an Auto Mode verdict is judged on."""
         if comp.get("kind") == "node-os":
-            return dict(comp.get("node_created") or {})
-        out = {}
-        for c in self.comps:
-            if c.get("kind") == "node-os" and c.get("managed_by") == "aws-auto-mode":
-                out.update(c.get("node_created") or {})
-        return out
+            return [comp]
+        return [c for c in self.comps if c.get("kind") == "node-os" and c.get("managed_by") == "aws-auto-mode"]
 
     # ---- one finding
     def judge(self, rec, cid, ranges, comp):
@@ -194,7 +193,8 @@ class Matcher:
         if fix_at is None:
             f["reason"] = "no_fix_date: AWS manages this component on Auto Mode nodes; the record has no fix date"
             return
-        nodes = self.auto_nodes(comp)
+        groups = self.auto_groups(comp)
+        nodes = {n: t for g in groups for n, t in (g.get("node_created") or {}).items()}
         if not nodes:
             f["reason"] = "no_nodes_read: no Auto Mode node was read, so node age cannot be judged"
             return
@@ -208,6 +208,9 @@ class Matcher:
             f["verdict"] = "aws_managed_patched"
             f["reason"] = ("every Auto Mode node in scope (%d) was created at or after the fix date %s"
                            % (len(nodes), rec.get("fixed_at")))
+            fix_start = parse_time(rec.get("fixed_at"))
+            built = [(g.get("id"), parse_time(g.get("ami_created"))) for g in groups]
+            f["ami_before_fix"] = sorted(i for i, b in built if b is not None and b < fix_start)
 
     # ---- catalog ids a range-less record's text names
     def hinted(self, rec):

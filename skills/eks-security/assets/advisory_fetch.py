@@ -273,6 +273,7 @@ def ghsa_records(data, aliases, read_at, origin, fallback_url):
                                  if isinstance(i, dict) and i.get("value") and i.get("value") != rec["id"]}
                                 | ({ghsa} if ghsa and ghsa != rec["id"] else set()))
         rec["published_at"] = adv.get("published_at")
+        rec["description"] = adv.get("description") or ""
         notes = []
         if adv.get("withdrawn_at"):
             notes.append("withdrawn at %s" % adv["withdrawn_at"])
