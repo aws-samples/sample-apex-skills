@@ -63,7 +63,7 @@ eks_addons:
   kube-proxy:
     most_recent: true
   aws-ebs-csi-driver:
-    most_recent: true
+    most_recent: true             # role passed in the entry's pod_identity_association (below)
   aws-efs-csi-driver:
     most_recent: true
   eks-pod-identity-agent:
@@ -83,16 +83,14 @@ eks_addons:
 
 ### Pod Identity for EKS Managed Addons
 
-EKS managed addons (EBS CSI, EFS CSI, FSx CSI, Mountpoint S3 CSI, CloudWatch) use **Pod Identity** instead of IRSA. IAM roles are created by `terraform-aws-modules/eks-pod-identity/aws` modules. Associations are **separate `aws_eks_pod_identity_association` resources** -- not inline in addon config.
+EKS managed addons (EBS CSI, EFS CSI, FSx CSI, Mountpoint S3 CSI, CloudWatch) use **Pod Identity** instead of IRSA. IAM roles are created by `terraform-aws-modules/eks-pod-identity/aws` modules. Associations are **separate `aws_eks_pod_identity_association` resources** -- not inline in addon config -- except EBS CSI (below).
 
 When `permissions_boundary` is set in `cluster.yaml`, pass it only to the add-on roles the customer named in question 30; input names per module: [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional).
 
-**Why separate resources (not inline `pod_identity_association`):**
-1. Terraform v1.14's strict `for_each` rejects unknown module outputs in the upstream EKS module's filter expression
-2. Separate resources create correct destroy ordering -- associations destroyed before IAM roles
+**EBS CSI is the exception:** pass its role in the add-on entry's `pod_identity_association` (an input of the `terraform-aws-modules/eks` 21.29.0 `addons` map), so EKS creates the association with the add-on. The `addons = ...` line goes in the wrapper's call to the eks module, and the wrapper's input stays `type = any` (a typed `map(object({...}))` silently drops every attribute it does not list, such as `before_compute` and `configuration_values`). Pass the role in the entry only when addons.yaml enables EBS CSI, so leaving EBS out neither fails with Invalid index nor turns EBS on. In a targeted first apply that created the add-on without its separate association, the controller pods started with no credentials, crash-looped on `no EC2 IMDS role found`, and were not recreated when the association was added later, so the add-on stayed CREATING. The module's add-on `for_each` keys are the add-on names, so the unknown role ARN in the value does not block the plan.
 
 ```hcl
-# IAM role (no association -- created separately)
+# IAM role (the association is created with the add-on)
 module "ebs_csi_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "<LOOK_UP>"  # Look up latest from Terraform Registry
@@ -104,13 +102,15 @@ module "ebs_csi_pod_identity" {
   tags = local.tags
 }
 
-# Separate association (depends on both cluster and IAM role)
-resource "aws_eks_pod_identity_association" "ebs_csi" {
-  cluster_name    = module.eks_cluster.cluster_name
-  namespace       = "kube-system"
-  service_account = "ebs-csi-controller-sa"
-  role_arn        = module.ebs_csi_pod_identity.iam_role_arn
-}
+# In the wrapper's call to the eks module: the add-ons from addons.yaml, with the role on EBS CSI only when it is enabled
+addons = merge(local.eks_addons, {
+  for k, v in local.eks_addons : k => merge(v, {
+    pod_identity_association = [{
+      role_arn        = module.ebs_csi_pod_identity.iam_role_arn
+      service_account = "ebs-csi-controller-sa"
+    }]
+  }) if k == "aws-ebs-csi-driver"
+})
 ```
 
 ## Blueprints Addons (Pattern 1)

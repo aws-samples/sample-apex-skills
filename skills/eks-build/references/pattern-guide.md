@@ -67,7 +67,7 @@ Uses dedicated `terraform-aws-modules/eks/aws//modules/karpenter` submodule. See
 
 ### AWS Resource Management
 
-Terraform directly creates AWS resources (Velero S3 bucket, etc.). The `eks-blueprints-addons` module handles IRSA role creation. EKS managed addons use **Pod Identity** with separate `aws_eks_pod_identity_association` resources -- see [lessons-learned.md](lessons-learned.md) Section 15.
+Terraform directly creates AWS resources (Velero S3 bucket, etc.). The `eks-blueprints-addons` module handles IRSA role creation. EKS managed addons use **Pod Identity** with separate `aws_eks_pod_identity_association` resources, except EBS CSI ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)) -- see [lessons-learned.md](lessons-learned.md) Section 15.
 
 ## Pattern 2a: ArgoCD + Terraform AWS
 
@@ -168,6 +168,6 @@ This pattern extends Pattern 2b so that ArgoCD manages the full cluster lifecycl
 All patterns share:
 
 - **EKS cluster module**: `terraform-aws-modules/eks/aws` with API-based access, KMS encryption, private endpoint
-- **EKS managed addons**: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver, eks-pod-identity-agent with `before_compute` ordering. Pod Identity via separate association resources.
+- **EKS managed addons**: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver, eks-pod-identity-agent; vpc-cni and eks-pod-identity-agent with `before_compute`. Pod Identity via separate association resources, except EBS CSI, whose role goes in its add-on entry.
 - **Platform namespaces**: Pod Security Standards labels + default-deny NetworkPolicy
 - **EKS Capabilities**: ACK and KRO available in all patterns via capability submodule
