@@ -1,0 +1,32 @@
+name: vendored-guard
+
+on:
+  # No paths filter, so the check reports on every pull request. labeled and
+  # unlabeled re-run it when the vendor-update label changes.
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  vendored-guard:
+    name: vendored folders are changed only by a vendor sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The guard diffs the base commit against the head commit.
+          fetch-depth: 0
+      - name: Test the guard
+        run: python3 -B misc/tests/test_vendored_guard.py -v
+      - name: Check vendored folders
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          HAS_VENDOR_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'vendor-update') }}
+        run: bash .github/scripts/vendored-guard.sh
