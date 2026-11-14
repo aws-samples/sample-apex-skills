@@ -271,6 +271,7 @@ mkdir -p "$(dirname "$RUNBOOK")"
 cp "$UPSTREAM_ROOT/.claude/commands/eks-operation-review.md" "$RUNBOOK"
 sed -i.bak 's|steering/|../../../eks-operation-review/references/|g' "$RUNBOOK"
 rm -f "$RUNBOOK.bak"
+echo 'This runbook is written by `misc/sync-eks-operation-review-skill.sh` from upstream (see `skills/eks-operation-review/UPSTREAM.md`); change it there, not here.' > "$(dirname "$RUNBOOK")/UPSTREAM.md"
 
 # --- Step 8a: Fit the runbook to the apex layout (apex-flavored #5) ---
 echo "Adapting the runbook to the apex layout (frontmatter, MCP setup)..."
@@ -459,7 +460,7 @@ fi
 # `git ls-files`, so newly-synced port files must be staged or the generators
 # miss them on the next run (mirrors sync-eks-upgrade-skill.sh:321).
 echo "Staging synced files for generator visibility (git ls-files)..."
-git -C "$REPO_ROOT" add "$LOCAL_DIR" "$DEVOPS_DIR" "$RUNBOOK" 2>/dev/null || true
+git -C "$REPO_ROOT" add "$LOCAL_DIR" "$DEVOPS_DIR" "$(dirname "$RUNBOOK")" 2>/dev/null || true
 
 echo ""
 

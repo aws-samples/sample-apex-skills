@@ -74,6 +74,9 @@ cp "$UPSTREAM_ROOT/LICENSE" "$LOCAL_DIR/LICENSE"
 # Progressive disclosure reference files
 cp "$UPSTREAM_DIR/references/"*.md "$LOCAL_DIR/references/"
 
+# Upstream commit synced (the wipe above removed the old record)
+git -C "$UPSTREAM_ROOT" rev-parse HEAD > "$LOCAL_DIR/.vendor-sha"
+
 echo ""
 
 # --- Step 4: Show what we got ---

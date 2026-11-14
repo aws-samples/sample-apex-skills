@@ -53,6 +53,9 @@ echo ""
 # --- Step 3: Copy upstream skill-creator ---
 echo "Copying upstream skill-creator to local..."
 cp -r "$UPSTREAM_DIR" "$LOCAL_DIR"
+
+# Upstream commit synced (the wipe above removed the old record)
+git -C "$TEMP_DIR/skills" rev-parse HEAD > "$LOCAL_DIR/.vendor-sha"
 echo ""
 
 # --- Step 4: Show what we got ---
