@@ -306,3 +306,5 @@ Progressive disclosure — essentials here, depth on demand:
 Apache License 2.0. See LICENSE for full terms.
 
 **Copyright © 2026 Anton Babenko**
+
+<!-- fixture: vendored-guard must fail -->
