@@ -21,7 +21,7 @@ Contract:
   its url or final_url (else source_unreadable). A source without the header (a page the
   user saved) is accepted, and raw HTML in it is converted to text first.
 - source_url must be https; with origin "live" its host must be in allowed_hosts.
-- Feed-only optional keys (aliases, packages, unmapped, published_at, fixed_at) are
+- Feed-only optional keys (aliases, packages, unmapped, published_at, fixed_at, description) are
   accepted; unmapped entries may carry component null.
 - Any failing entry refuses the whole input: exit 2 and one JSON line on stdout
   {"ok":false,"code":<first code>,"error":...,"errors":[...]}. Codes: schema,
@@ -63,7 +63,7 @@ ORIGINS = ("live", "file")
 REQUIRED_KEYS = ("schema", "id", "title", "severity", "severity_source", "workaround",
                  "source_url", "read_at", "origin", "affected")
 OPTIONAL_KEYS = ("workaround_text", "notes", "fixed_at", "published_at", "aliases",
-                 "packages", "unmapped")
+                 "packages", "unmapped", "description")
 SOURCE_HEADER = "# eks-security-source "
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
 MAX_QUOTE = 2000
@@ -346,7 +346,7 @@ def check_record(rec, cat_ids, allowed_hosts, nsource, header_url, idx):
         errs.append(("schema", "%s severity_source must be one of %s" % (w, SEVERITY_SOURCES)))
     if rec["workaround"] not in (True, False, None):
         errs.append(("schema", "%s workaround must be true, false or null" % w))
-    for k in ("workaround_text", "notes"):
+    for k in ("workaround_text", "notes", "description"):
         if k in rec and not isinstance(rec[k], str):
             errs.append(("schema", "%s %s must be a string" % (w, k)))
     if rec["origin"] not in ORIGINS:
