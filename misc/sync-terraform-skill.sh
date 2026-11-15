@@ -11,6 +11,7 @@
 #   - SKILL.md       (the skill itself)
 #   - LICENSE         (required for Apache 2.0 compliance)
 #   - references/*.md (progressive disclosure content referenced by SKILL.md)
+# and writes `.vendor-sha` (upstream HEAD).
 #
 # Everything else (README, CLAUDE.md, CONTRIBUTING.md, CHANGELOG.md,
 # tests/, .github/, .claude-plugin/) is left behind — those are repo
@@ -73,6 +74,9 @@ cp "$UPSTREAM_ROOT/LICENSE" "$LOCAL_DIR/LICENSE"
 
 # Progressive disclosure reference files
 cp "$UPSTREAM_DIR/references/"*.md "$LOCAL_DIR/references/"
+
+# Upstream commit synced (the wipe above removed the old record)
+git -C "$UPSTREAM_ROOT" rev-parse HEAD > "$LOCAL_DIR/.vendor-sha"
 
 echo ""
 
