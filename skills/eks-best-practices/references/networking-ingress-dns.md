@@ -154,6 +154,7 @@ spec:
 | `service.beta.kubernetes.io/aws-load-balancer-proxy-protocol-v2-enabled` | Proxy protocol | `true`, `false` |
 | `service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled` | Cross-AZ balancing | `true` |
 | `service.beta.kubernetes.io/aws-load-balancer-ssl-cert` | TLS termination at NLB | ACM ARN |
+| `service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy` | TLS security policy for the NLB listener; the LBC default (unless `--default-ssl-policy` is set) is `ELBSecurityPolicy-2016-08`, so pick one against your oldest clients (the example PQ policy is TLS 1.2 and 1.3 only) | `ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09` |
 
 ✅ DO:
 - Use `aws-load-balancer-type: external` to ensure LBC manages the NLB (not the legacy in-tree controller)
