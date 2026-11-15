@@ -169,9 +169,11 @@ cis_benchmark:
 endpoint_public_access: false                # Private endpoint only
 endpoint_private_access: true
 kms_key_arn: "arn:aws:kms:<REGION>:<ACCOUNT_ID>:key/<KEY_ID>"
-cluster_enabled_log_types: [api, audit, authenticator, controllerManager, scheduler]
+enabled_log_types: [api, audit, authenticator, controllerManager, scheduler]
 permissions_boundary: null   # e.g. "arn:aws:iam::<ACCOUNT_ID>:policy/<BOUNDARY_NAME>"
 ```
+
+These keys feed `terraform-aws-modules/eks` v21 inputs: `endpoint_public_access`, `endpoint_private_access` and `enabled_log_types` pass through under the same names (v21 dropped the v20 `cluster_` prefix, such as `cluster_enabled_log_types`; the module's `docs/UPGRADE-21.0.md`), and `kms_key_arn` goes in as `encryption_config = { provider_key_arn = <kms_key_arn> }` with `create_kms_key = false`.
 
 **Permissions boundary**: Only when the customer answered yes to question 30 with an ARN, set `permissions_boundary` in `cluster.yaml`. Every role the customer named then carries it; the input name per module is in [baseline-defaults.md](baseline-defaults.md#permissions-boundary-optional).
 

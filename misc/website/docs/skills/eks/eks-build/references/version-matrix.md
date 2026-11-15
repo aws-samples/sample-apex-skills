@@ -113,7 +113,7 @@ The `eks-blueprints-addons` module ships chart defaults that lag behind. These a
 
 | Module | Version Strategy | Notes |
 |--------|-----------------|-------|
-| eks | `~> <MAJOR>.0` | Look up latest major; pin with `~>` for minor flexibility |
+| eks | `~> <MAJOR>.0` | Look up latest major; pin with `~>` for minor flexibility. v21 renamed most `cluster_*` inputs (`cluster_name` -> `name`, `cluster_version` -> `kubernetes_version`, `cluster_enabled_log_types` -> `enabled_log_types`); on a major bump read the module's `docs/UPGRADE-<MAJOR>.0.md` and use the new names |
 | eks-blueprints-addons | Exact pin | Chart defaults are stale -- always override chart versions |
 | eks-blueprints-addon | Exact pin | Single addon wrapper for custom addons |
 | eks capability | Same as eks module | Submodule -- version tied to eks module |

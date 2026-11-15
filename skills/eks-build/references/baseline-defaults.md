@@ -76,10 +76,12 @@ Only attach these policies -- never application permissions:
 1. `module "karpenter"` with `enable_inline_policy = true` (the controller policy can exceed the 6,144-character managed policy limit; [lessons-learned.md Section 23](lessons-learned.md#23-karpenter-controller-iam-policy-size-limit)) -- controller IAM role (Pod Identity) + node IAM role
 2. `helm_release "karpenter"` -- Karpenter controller (chart: `oci://public.ecr.aws/karpenter/karpenter`), with `depends_on = [module.eks_addons_webhooks]` in Pattern 1
    - Pattern 1 (not in air-gapped builds or partitions without ECR Public): configure the `helm` provider to log in to `oci://public.ecr.aws` with a fresh ECR Public token on every run (an `ephemeral "aws_ecrpublic_authorization_token"` in `us-east-1` feeding the provider's `registries` list), not resource-level `repository_username` / `repository_password`. See [lessons-learned.md Section 17](lessons-learned.md#17-karpenter-dedicated-submodule), "Stale public.ecr.aws login (403)".
-3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs
-4. `aws_ec2_tag` -- discovery tags on private subnets and cluster primary security group
+3. `kubectl_manifest` -- NodePool + EC2NodeClass CRDs (the `kubectl` provider needs `lazy_load = true`; [lessons-learned.md Section 24](lessons-learned.md#24-kubectl-provider-fails-at-plan-from-empty))
+4. Discovery tags: private subnets through the VPC module's `private_subnet_tags` (not an `aws_ec2_tag` `for_each` over subnet IDs, which are unknown at plan time), and the node security group through the EKS module's `node_security_group_tags` (no `aws_ec2_tag`)
 
-**Discovery tags:** Karpenter finds subnets and security groups via `karpenter.sh/discovery: <cluster-name>` tags. Tag ALL private subnets and the cluster primary security group.
+**Bootstrap capacity:** Karpenter launches no node until its controller runs, so the system node group alone must host the Karpenter controller and the Phase 1 webhook add-ons (the Load Balancer Controller, and Gatekeeper when enabled), which install with `wait = true` before it. Size it for those pods, and if it carries the `CriticalAddonsOnly` taint, give each of them a matching toleration in its Helm `values`.
+
+**Discovery tags:** Karpenter finds subnets and security groups via `karpenter.sh/discovery: <cluster-name>` tags. Tag ALL private subnets and the node security group (`node_security_group_tags = { "karpenter.sh/discovery" = <cluster-name> }`, as the module's Karpenter example does). Only one security group should carry the tag: Karpenter attaches every security group that matches its selector, and two security groups tagged `kubernetes.io/cluster/<name>` on one node break the AWS Load Balancer Controller. Tag the node security group, not the cluster primary one: with the terraform-aws-eks module's defaults, managed node group nodes do not carry the cluster primary security group, and the node security group allows DNS and node-to-node traffic only from itself, so Karpenter nodes need the same group.
 
 NodePool defaults:
 
@@ -312,7 +314,7 @@ For addons behind ALB:
 | **IRSA** | Helm-based addons via eks-blueprints-addons (LBC, External DNS, Velero, etc.) or Fargate workloads |
 
 - Pod Identity is default. IRSA as fallback only
-- Pod Identity associations for EKS managed addons: use **separate `aws_eks_pod_identity_association` resources** (not inline in addon config) for correct destroy ordering
+- Pod Identity associations for EKS managed addons: use **separate `aws_eks_pod_identity_association` resources** (not inline in addon config) as the convention, except EBS CSI ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons))
 - Node role: Only `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, `AmazonEC2ContainerRegistryReadOnly`
 - Access entries: Use scoped AWS-managed policies, not aws-auth ConfigMap
 

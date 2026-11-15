@@ -36,6 +36,7 @@ This page is generated from [skills/eks-build/references/lessons-learned.md](htt
 - [21. CIS Policies Cannot Be Deployed as Helm Chart](#21-cis-policies-cannot-be-deployed-as-helm-chart)
 - [22. Pattern 2a Custom-Addons Require Real Git Repo](#22-pattern-2a-custom-addons-require-real-git-repo)
 - [23. Karpenter Controller IAM Policy Size Limit](#23-karpenter-controller-iam-policy-size-limit)
+- [24. kubectl Provider Fails at Plan From Empty](#24-kubectl-provider-fails-at-plan-from-empty)
 
 Consolidated findings from two EKS deployment patterns:
 - **Pattern 1 (terraform-eks)**: Full Terraform with eks-blueprints-addons, two-phase module architecture
@@ -184,7 +185,7 @@ Terraform writes cluster metadata to a K8s Secret annotated with `argocd.argopro
 | Prerequisites | OIDC provider | eks-pod-identity-agent addon |
 
 - **Pod Identity is preferred** for new workloads (simpler, better auditing).
-- EKS managed addons: use Pod Identity with separate `aws_eks_pod_identity_association` resources -- see Section 15.
+- EKS managed addons: use Pod Identity with separate `aws_eks_pod_identity_association` resources, except EBS CSI ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)) -- see Section 15.
 - Helm-based addons (LBC, External DNS, Velero): IRSA via eks-blueprints-addons.
 - Karpenter: Pod Identity via dedicated submodule -- see Section 17.
 - When both are configured for the same SA, **Pod Identity takes precedence**.
@@ -237,7 +238,7 @@ ACK DynamoDB controller installs a `Backup` CRD that conflicts with Velero's. Al
 5. kubectl apply            tenants applicationset.yaml
 ```
 
-For Pattern 1, a single `terraform apply` handles everything (two-phase module architecture manages internal ordering).
+For Pattern 1, a single `terraform apply` handles everything (two-phase module architecture manages internal ordering). For a first deploy into an empty account, a plan from empty passes with `lazy_load = true` on the `kubectl` provider (Section 24). Do not split the first deploy with `-target`: a targeted first step can create an add-on without its separate Pod Identity association (seen with EBS CSI before its role moved into the add-on entry; [addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)).
 
 ---
 
@@ -345,22 +346,22 @@ The cert-controller and webhook pods show `0/1 Ready` for ~90 seconds. This is n
 
 ### Problem
 
-When Pod Identity IAM roles are created by separate modules and role ARNs are passed to the EKS addon config, `terraform destroy` may delete IAM roles before the addons that reference them.
+When Pod Identity IAM roles are created by separate modules and role ARNs are passed to the EKS addon config, `terraform destroy` may delete IAM roles before the addons that reference them. Through the `terraform-aws-modules/eks` `addons` map this does not happen: the add-on depends on the role through that input, so destroy removes the add-on first. Separate associations stay the convention for every add-on but EBS CSI.
 
 ### Fix
 
 Create Pod Identity associations as **separate `aws_eks_pod_identity_association` resources**:
 
 ```hcl
-resource "aws_eks_pod_identity_association" "ebs_csi" {
+resource "aws_eks_pod_identity_association" "efs_csi" {
   cluster_name    = module.eks_cluster.cluster_name
   namespace       = "kube-system"
-  service_account = "ebs-csi-controller-sa"
-  role_arn        = module.ebs_csi_pod_identity.iam_role_arn
+  service_account = "efs-csi-controller-sa"
+  role_arn        = module.efs_csi_pod_identity.iam_role_arn  # example: a role module shaped like ebs_csi_pod_identity (addon-catalog.md)
 }
 ```
 
-This creates correct dependency graph: Create (role -> addon -> association), Destroy (association first -> role and addon in parallel).
+Destroy: the separate association goes before its role. EBS CSI is the exception: its role goes in the add-on entry's `pod_identity_association`, so EKS creates the association with the add-on ([addon-catalog.md](addon-catalog.md#pod-identity-for-eks-managed-addons)). Create order: role -> addon with its association. For EBS CSI the module's `preserve` defaults to true, so removing only the add-on leaves its association; a full destroy removes it with the cluster.
 
 ---
 
@@ -416,7 +417,7 @@ module "karpenter" {
 }
 ```
 
-In Pattern 1, then deploy the Helm chart via `helm_release` with `depends_on = [module.eks_addons_webhooks]` (Section 2) and NodePool/EC2NodeClass via `kubectl_manifest`; in Pattern 2 via ArgoCD. Tag private subnets and cluster primary SG with `karpenter.sh/discovery: <cluster-name>`.
+In Pattern 1, then deploy the Helm chart via `helm_release` with `depends_on = [module.eks_addons_webhooks]` (Section 2) and NodePool/EC2NodeClass via `kubectl_manifest`; in Pattern 2 via ArgoCD. Tag private subnets and the node security group (the EKS module's `node_security_group_tags`, not the cluster primary SG) with `karpenter.sh/discovery: <cluster-name>`; only one security group should carry the tag, because Karpenter attaches every security group that matches its selector, and two security groups tagged `kubernetes.io/cluster/<name>` on one node break the AWS Load Balancer Controller.
 
 ### EC2 Spot Service-Linked Role
 
@@ -568,3 +569,27 @@ terraform apply destroy.tfplan  # only after the user approves the plan above
 **Problem:** The controller IAM policy that the `terraform-aws-modules/eks/aws//modules/karpenter` submodule generates (Section 17) can exceed the 6,144-character limit on a customer managed policy (IAM does not count white space). Apply then fails with `LimitExceeded: Cannot exceed quota for PolicySize: 6144`.
 
 **Fix:** Set `enable_inline_policy = true` on the submodule (available since v21.8.0). The controller policy is then created as an inline role policy, whose limit is 10,240 characters across all inline policies on the role. Upstream Karpenter has split its controller policy into several policies (aws/karpenter-provider-aws PR 8690), but the submodule does not follow that split yet (terraform-aws-modules/terraform-aws-eks issue 3637 is open, checked 2026-10-30), so the inline policy is the mitigation until it does.
+
+---
+
+## 24. kubectl Provider Fails at Plan From Empty
+
+**Patterns:** Pattern 1
+
+**Problem:** The first `terraform plan` into an empty account fails with `Error: kubectl provider: configure failed` ... `no configuration has been provided, try setting KUBERNETES_MASTER environment variable`. The `alekc/kubectl` provider (since v2.3.0) builds its client at configure time, and `host` and the CA come from the cluster module's outputs, which are unknown until the cluster exists. `load_config_file = false` does not help.
+
+**Fix:** Set `lazy_load = true` in the `kubectl` provider block in `providers.tf`. The client is then built on first use, and a plan from an empty account passes. The trade-off: a wrong host or token shows up as a less specific error at the first `kubectl_manifest`, not at configure.
+
+```hcl
+provider "kubectl" {
+  host                   = module.eks_cluster.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks_cluster.cluster_certificate_authority_data)
+  load_config_file       = false
+  lazy_load              = true  # host and CA are unknown until the cluster exists
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks_cluster.cluster_name, "--region", local.region]
+  }
+}
+```
