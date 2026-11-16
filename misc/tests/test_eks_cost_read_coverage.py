@@ -131,18 +131,19 @@ class ReadCoverage(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
 
-    def test_config_candidate_survives_denied_secret_list(self):
+    def test_config_candidate_without_reading_secrets(self):
         data = fixture()
-        data.update(configmaps=inventory(item("ConfigMap")), secrets={"error": "Forbidden"})
-        result, _ = self.run_example("unreferenced configuration", data)
-        self.assertNotEqual(result.returncode, 0)
+        data.update(configmaps=inventory(item("ConfigMap")), secrets=inventory(item("Secret")))
+        result, calls = self.run_example("unreferenced configuration", data)
+        self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout.strip(), "team/configmap/web")
+        self.assertFalse([c for c in calls if len(c) > 1 and c[1] in ("secret", "secrets")])
 
-    def test_denied_configmap_does_not_hide_verified_secret_candidate(self):
+    def test_denied_configmap_is_unknown(self):
         data = fixture()
-        data.update(configmaps={"error": "Forbidden"}, secrets=inventory(item("Secret")))
+        data.update(configmaps={"error": "Forbidden"})
         result, _ = self.run_example("unreferenced configuration", data)
         self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(result.stdout.strip(), "team/secret/web")
+        self.assertEqual(result.stdout, "")
 if __name__ == "__main__":
     unittest.main()

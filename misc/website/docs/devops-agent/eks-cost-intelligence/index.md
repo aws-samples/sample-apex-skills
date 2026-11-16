@@ -82,8 +82,8 @@ The following permissions are included:
 
 **Kubernetes API access (required):**
 - The Agent Space role requires an authentication mode that includes the EKS API and an access entry associated with `AmazonAIOpsAssistantPolicy`.
-- `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the verified connection. A caller without Secret list permission leaves Idle Resources SKIPPED for scoring.
-- RBAC used across the assessment: `get`, `list` on pods, nodes, deployments, services, persistentvolumeclaims, configmaps, secrets, namespaces, events, endpointslices
+- `AmazonEKSViewPolicy` grants Kubernetes read permissions only, no IAM permissions, and covers most namespaced workload resources but not Secrets or most cluster-scoped and extension resources (for example nodes, persistentvolumes, storageclasses, ingressclasses, CRDs, admission webhook configurations, Gateway API resources and metrics.k8s.io); confirm each read through the verified connection.
+- RBAC used across the assessment: `get`, `list` on pods, nodes, deployments, services, persistentvolumeclaims, configmaps, namespaces, events, endpointslices
 
 ---
 
@@ -267,7 +267,7 @@ Checks:
 - Deployments scaled to zero replicas for extended periods
 - LoadBalancer Services with no healthy backend endpoints
 - Namespaces with no running workloads but allocated quotas
-- Orphaned ConfigMaps and Secrets not referenced by running workloads
+- Orphaned ConfigMaps not referenced by running workloads (Secrets are not read)
 
 Data collection uses:
 - Kubernetes API to list deployments (replicas=0, last-update timestamps)
