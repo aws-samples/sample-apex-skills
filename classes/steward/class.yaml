@@ -13,11 +13,9 @@ generators:
   - run: "./misc/update-pages.sh"
     check: "./misc/update-pages.sh --check"
     note: "reads the git index (git ls-files): git add new files first"
-  - run: "python3 misc/validate-frontmatter.py"
-    check: "python3 misc/validate-frontmatter.py"
   - run: "python3 misc/sync-classes.py"
     check: "python3 misc/sync-classes.py --check"
-    status: "planned: the class sync, not built yet"
+    status: planned
 
 # Hand-kept, not generated.
 hand_kept:
@@ -25,5 +23,3 @@ hand_kept:
   - "misc/website/src/components/skillSearch.ts (PORTS)"
 
 add_a_skill: "CONTRIBUTING.md, Creating a New Skill, steps 1-7; then run the class sync (planned)"
-
-checks: []

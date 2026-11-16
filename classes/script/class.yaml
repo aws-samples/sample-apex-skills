@@ -5,21 +5,13 @@
 name: script
 parents: [operator]
 
-inline: rules.md
-
-rules:
-  script.output-schema: {}
-  script.same-output: {}
-  script.os-matrix:
-    note: "today skill-script CI runs on Linux only (.github/workflows/evals.yml:23); the installer refuses native Windows (.github/workflows/installer-test.yml:89, :106-107); no member names Windows as a host it runs on"
-
 checks:
   - id: output-schema-fixtures
     what: "Schema validation of fixtures"
-    status: "planned: the output validator"
+    status: planned
   - id: k-run-diff
     what: "Same input, same output across k runs"
     status: planned
   - id: os-matrix-ci
     what: "The skill's scripts run in CI on Linux, macOS and Windows"
-    status: "planned: not yet assigned"
+    status: planned

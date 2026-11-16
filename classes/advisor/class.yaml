@@ -7,11 +7,8 @@
 name: advisor
 parents: [platform]
 
-inline: rules.md
-
-rules:
-  advisor.no-side-effects:
-    open: "eks-platform-engineering pauses an ArgoCD sync only after the user confirms, which this rule forbids; the no-shipped-runnables check reads shell fences and aws, not kubectl"
+open:
+  - "advisor.no-side-effects: eks-platform-engineering pauses an ArgoCD sync only after the user confirms, which this rule forbids; the no-shipped-runnables check reads shell fences and aws, not kubectl"
 
 checks:
   - id: no-shipped-runnables

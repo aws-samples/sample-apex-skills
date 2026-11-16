@@ -12,34 +12,11 @@
 name: apex-base
 parents: []
 
-inline: rules.md
-references:
-  - references/apex-base-harness.md
-
-rules:
-  apex.data-not-instructions: {}
-  apex.validate-output: {}
-  apex.strongest-layer: {}
-  apex.tighten-only: {}
-  apex.thin-description: {}
-  apex.mcp-first:
-    open: "whether this order holds for the ECS skills, which put the AWS CLI first because the ECS MCP Server (preview) has no cluster-enumeration tools"
-  apex.read-only-unless-confirmed: {}
-  apex.no-secrets:
-    open: "members read Secret objects today, and those reads are replaced when they join: eks-recon (the Helm release Secrets in references/addons.md and the Prometheus config Secret in references/observability.md), eks-operation-review check 3.1 (Secret key names, references/access-identity.md and its runbook's carve-out) and the router's `helm list` (rule 1)"
-  apex.one-way-to-ask: {}
-  apex.declared-schemas:
-    open: "the frontmatter key names a skill uses to declare its schemas"
-  apex.dated-sources: {}
-  apex.verify-or-say-so: {}
-  apex.prefer-iac: {}
-  apex.ascii-names: {}
-  apex.skill-first: {}
-  apex.no-path-into-another-skill: {}
-  apex.harness-notes: {}
-
 open:
-  - "the rule that an EKS, ECS or APEX request loads the skill named exactly `apex` first when it is installed (from the removed rules/AGENTS.md): the router class will hold it"
+  - "apex.mcp-first: whether this order holds for the ECS skills, which put the AWS CLI first because the ECS MCP Server (preview) has no cluster-enumeration tools"
+  - "apex.mcp-first: eks-operation-review (owner-held) requires the EKS MCP Server today and stops at its pre-flight without it; its fix goes to its owner's issue"
+  - "apex.no-secrets: members read Secret objects today, and those reads are replaced when they join: eks-recon (the Helm release Secrets in references/addons.md and the Prometheus config Secret in references/observability.md), eks-operation-review check 3.1 (Secret key names, references/access-identity.md and its runbook's carve-out) and the router's `helm list` (rule 1)"
+  - "apex.declared-schemas: the frontmatter key names a skill uses to declare its schemas"
 
 # Deterministic checks one CI script runs on every member.
 # status "exists" names today's command; "planned" is not built yet.
@@ -49,14 +26,14 @@ checks:
     status: exists
     run: "python3 misc/validate-frontmatter.py"
   - id: rule-ids-in-marker-block
-    what: "Every rule id above appears in the member's SKILL.md marker block. This proves the copy landed, not behaviour"
-    status: "planned: the class sync and its --check mode"
+    what: "Every rule id in rules.md appears in the member's SKILL.md marker block. This proves the copy landed, not behaviour"
+    status: planned
   - id: no-path-into-another-skill
     what: "A path grep: no link or path from a member into another skill's folder"
     status: planned
   - id: shared-trigger-evals
     what: "The class's shared trigger evals run against each member"
-    status: "planned: the shared class evals"
+    status: planned
   - id: read-only-and-no-secrets-evals
     what: "Read-only and no-Secrets are tested by evals, since a text check proves only that the rule's text landed"
-    status: "planned: the shared class evals"
+    status: planned

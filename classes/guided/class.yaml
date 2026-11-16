@@ -4,8 +4,3 @@
 
 name: guided
 parents: [operator]
-
-inline: rules.md
-
-rules: {}
-checks: []

@@ -5,15 +5,10 @@
 name: operator
 parents: [platform]
 
-inline: rules.md
-
-rules:
-  operator.confirm-before-change: {}
-  operator.typed-input: {}
-  operator.artifact-checks:
-    open: "the key a skill uses to declare its checks; today they sit in misc/evals/<skill>/.skilleval.yaml (eks-build today: terraform-validate, terraform-fmt, checkov, structural; the target adds tflint, a plan against a fixture and requirement coverage)"
+open:
+  - "operator.artifact-checks: the key a skill uses to declare its checks; today they sit in misc/evals/<skill>/.skilleval.yaml (eks-build today: terraform-validate, terraform-fmt, checkov, structural; the target adds tflint, a plan against a fixture and requirement coverage)"
 
 checks:
   - id: declared-artifact-checks
     what: "The declared checks run on fixture artifacts in CI"
-    status: "planned: the output validator"
+    status: planned

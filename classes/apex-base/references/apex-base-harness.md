@@ -9,7 +9,7 @@ APEX skills run in several harnesses. They differ in four places: how the user a
 | Claude Code | `/<skill> <request>`, for example `/apex <request>`; the text typed after the command follows the skill as `ARGUMENTS:`. A skill can also load on its own when its description matches. |
 | Codex | `$<skill> <request>`, once the skills are copied into a Codex skills folder (the APEX installer does not set this up). |
 | Kiro | `/<skill> <request>` in Kiro CLI (tested on 2.35.1, checked on 2026-10-28; 1.27.0 rejected it), or by asking for the skill by name in the chat. |
-| AWS DevOps Agent | Through its own skill ports. A zip upload that holds scripts is rejected unless Sandbox (preview) is enabled; a repository import keeps all files. |
+| AWS DevOps Agent | Through its own skill ports. A zip upload with a `scripts/` folder is rejected; a repository import keeps all files. With Sandbox (preview) enabled, a skill can include executable code the agent runs in the sandbox. |
 
 ## Asking the user
 

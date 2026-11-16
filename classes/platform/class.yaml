@@ -6,6 +6,3 @@
 
 name: platform
 parents: [apex-base]
-
-rules: {}
-checks: []
