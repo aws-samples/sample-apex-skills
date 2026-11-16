@@ -138,7 +138,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["no file (edits|changes|writes)", "(without|not) (editing|writing|modifying|changing) (any )?files"],
+          "patterns": ["no file (edits|changes|writes)", "no files? (were |will be |are )?(edited|modified|changed|written)", "(without|not|never) (edit|editing|write|writing|modify|modifying|change|changing) (any )?files?"],
           "context": "Must acknowledge chat-only mode constraints (no file edits, emit fix commands instead)",
           "source": "skills/update-docs/SKILL.md: Modes section"
         },

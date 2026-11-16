@@ -32,4 +32,4 @@ From `misc/evals/`:
 - `make artifact-ecs-modernize` — artifact validation against outputs/ (deterministic)
 - `make composite-ecs-modernize` — weighted composite score + letter grade (deterministic)
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration. Note: layers 1–3 (process/artifact/knowledge) are disabled in `.skilleval.yaml` until assertion fields are added to `evals.json`.
+See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration. Note: layers 1-3 (process/artifact/knowledge) are disabled in `.skilleval.yaml`, so the process and artifact assertions in `evals.json` run but carry no weight in the composite until the layer weights are decided.

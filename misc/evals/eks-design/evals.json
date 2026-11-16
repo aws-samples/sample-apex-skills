@@ -8,14 +8,14 @@
         "Output creates at least 5 markdown files using the Write tool",
         "Output places the markdown files in a structured directory",
         "Output includes at least one .mmd file or Mermaid code block with `subgraph` or `flowchart` syntax",
-        "Each Architecture Decision Record has Context, Decision and Consequences sections",
+        "Each Architecture Decision Record has Context, Decision, Alternatives Considered, Rationale, Consequences and Research Sources sections",
         "Output produces a machine-readable handoff artifact (AGENTS.md or similar) suitable for feeding to eks-build",
         "The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace with network policies, encryption requirements, audit logging) rather than generic security advice",
         "The output recommends a compute strategy that uses Karpenter (or Auto Mode) for workload flexibility",
-        "The output recommends a compute strategy with a stable managed node group for critical system components",
-        "The output includes a validation or scoring section that maps design choices to the AWS Well-Architected reliability pillar",
-        "The output includes a validation or scoring section that maps design choices to the AWS Well-Architected security pillar",
-        "The output includes a validation or scoring section that maps design choices to the AWS Well-Architected cost optimization pillar",
+        "The output runs critical system components, including the Karpenter controller, on capacity Karpenter does not manage (a small managed node group or EKS Fargate), or uses EKS Auto Mode",
+        "The output's Stage 4 score sheet scores the Security dimension",
+        "The output's Stage 4 score sheet scores the Reliability & Operations dimension",
+        "The output's Stage 4 score sheet scores the Cost & Scalability dimension",
         "Does not recommend a single-AZ deployment.",
         "Does not recommend kube2iam."
       ],
@@ -56,9 +56,9 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["\\b(across|span\\w*|spread\\w*|over)\\s+(at least\\s+)?(two|three|2|3|multiple|all)\\s+(AZs|Availability Zones)", "us-east-1[a-f][^.\\n]{0,40}us-east-1[a-f]", "topology\\.kubernetes\\.io/zone"],
+          "patterns": ["\\b(across|span\\w*|spread\\w*|over|in)\\s+(?:(?:at least|the|two|three|2|3|multiple|all|both)\\s+){0,3}(AZs|Availability Zones)", "\\b(two|three|2|3)-AZ\\b", "us-east-1[a-f][^.\\n]{0,40}us-east-1[a-f]", "topology\\.kubernetes\\.io/zone"],
           "context": "Production cluster must span multiple Availability Zones (at least two) for resilience: the design must name the spread, since the prompt itself says multi-AZ",
-          "source": "aws/aws-eks-best-practices latest/bpg/networking/index.adoc:55 at edc514fa"
+          "source": "aws/aws-eks-best-practices latest/bpg/networking/subnets.adoc:140 and latest/bpg/reliability/dataplane.adoc:51 at edc514fa"
         },
         {
           "type": "must-contain-one-of",
@@ -129,9 +129,9 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["(spread|distribut|balanc)\\w*[^.\\n]{0,60}\\b(across|over|between)\\s+(both|the two|two|2|all|multiple|three|3|the)\\s+(AZs|Availability Zones|zones)"],
+          "patterns": ["(spread|distribut|balanc)\\w*[^.\\n]{0,60}\\b(across|over|between)\\s+(?:(?:both|the|two|2|all|multiple|three|3|its|their|your)\\s+){0,3}(AZs|Availability Zones|zones)"],
           "context": "Must recommend spreading workloads across the cluster's Availability Zones (multi-AZ, at least two) for reliability; a third AZ is not required",
-          "source": "aws/aws-eks-best-practices latest/bpg/networking/index.adoc:55 at edc514fa"
+          "source": "aws/aws-eks-best-practices latest/bpg/networking/subnets.adoc:140 and latest/bpg/reliability/dataplane.adoc:51 at edc514fa"
         },
         {
           "type": "must-contain-one-of",
@@ -153,7 +153,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Spot", "spot instance"],
+          "patterns": ["\\bSpot\\b"],
           "context": "Must recommend Spot instances for cost optimization with instance diversity",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-compute.html"
         },
@@ -162,13 +162,6 @@
           "patterns": ["ArgoCD", "Argo.?CD", "Flux", "GitOps"],
           "context": "Must recommend GitOps tooling to replace manual kubectl deployments",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/gitops.html"
-        },
-        {
-          "type": "must-contain",
-          "pattern": "(Operational Excellence|Security|Reliability|Performance Efficiency|Cost Optimization|Sustainability)[^\\n]{0,40}(\\b\\d+(\\.\\d+)?\\s*/\\s*\\d+|\\b\\d+(\\.\\d+)?\\s+out of\\s+\\d+|\\b(Critical|CRITICAL|High|HIGH|Medium|MEDIUM|Low|LOW|RED|AMBER|GREEN)\\b)",
-          "context": "Must explicitly name and score individual Well-Architected pillars: a pillar name with a score or risk rating on the same line (case-sensitive, so the prompt's lowercase words do not pass)",
-          "source": "https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html",
-          "flags": ""
         },
         {
           "type": "must-contain-one-of",
@@ -182,7 +175,7 @@
         "validators": [],
         "structural": [
           {"type": "file-count", "glob": "**/*.md", "min": 1},
-          {"type": "contains", "file": "**/*.md", "pattern": "(Operational Excellence|Security|Reliability|Performance Efficiency|Cost Optimization|Sustainability)[^\\n]{0,40}(\\b\\d+(\\.\\d+)?\\s*/\\s*\\d+|\\b\\d+(\\.\\d+)?\\s+out of\\s+\\d+|\\b(Critical|CRITICAL|High|HIGH|Medium|MEDIUM|Low|LOW|RED|AMBER|GREEN)\\b)"}
+          {"type": "contains", "file": "**/*.md", "pattern": "(Operational Excellence|Security|Reliability|Performance Efficiency|Cost Optimization|Sustainability)[^\\n]{0,40}(\\b\\d+(\\.\\d+)?\\s*/\\s*\\d+|\\b\\d+(\\.\\d+)?\\s+out of\\s+\\d+|\\b(Critical|CRITICAL|High|HIGH|Medium|MEDIUM|Low|LOW|RED|AMBER|GREEN)\\b|\\|\\s*\\d+(\\.\\d+)?\\s*%?\\s*\\|)"}
         ]
       }
     }

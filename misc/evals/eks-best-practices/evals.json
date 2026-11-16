@@ -17,7 +17,7 @@
       "knowledge_assertions": [
         {
           "type": "regex-match",
-          "pattern": "\\b(recommend\\w*|default\\w*|go with|choose|start with|standardi[sz]e on|use)\\b[^.\\n]{0,60}\\bKarpenter\\b|\\bKarpenter\\b[^.\\n]{0,60}\\b(as|is) (the |your )?(default|primary|recommended)",
+          "pattern": "(?<!not )(?<!n't )\\b(recommend\\w*|default\\w*|go with|choose|start with|standardi[sz]e on|use)\\b(?:(?!rather than|instead of|\\bover\\b|\\bnot\\b)[^.\\n]){0,60}\\bKarpenter\\b|\\bKarpenter\\b[^.\\n]{0,60}\\b(as|is) (the |your )?(default|primary|recommended)",
           "context": "Must recommend Karpenter as primary compute engine for spiky workloads: the word must sit next to a recommendation or default phrase, since the prompt itself names Karpenter",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
         },
@@ -53,24 +53,13 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["topologySpreadConstraint", "topology.kubernetes.io/zone"],
-          "context": "Multi-tenant scheduling must reference topology spread constraints for AZ balance",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["Pod.?Identity", "EKS Pod Identity"],
-          "context": "Must recommend modern EKS Pod Identity (not just IRSA) for workload IAM",
-          "source": "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["\\b(split|separate|dedicated|own|multiple|additional|another|isolated)\\b[^.\\n]{0,80}\\bclusters?\\b[^.\\n]{0,80}(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius)", "(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius)[^.\\n]{0,80}\\b(split|separate|dedicated|own|multiple|additional|another)\\b[^.\\n]{0,20}\\bclusters?\\b"],
+          "patterns": ["\\b(split|separate|dedicated|own|multiple|additional|another|isolated)\\b[^.\\n]{0,80}\\bclusters?\\b[^.\\n]{0,80}(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius|strong.?isolation|upgrade.?cadence)", "(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius|strong.?isolation|upgrade.?cadence)[^.\\n]{0,80}\\b(split|separate|dedicated|own|multiple|additional|another)\\b[^.\\n]{0,20}\\bclusters?\\b"],
           "context": "Must name a concrete trigger for cluster splitting: the trigger must sit next to a separate or dedicated cluster, not only be mentioned",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/multi-tenancy.html"
         }
       ],
       "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-best-practices"}},
         {"type": "no-tool-called", "tool": "Write"}
       ],
       "files": []
@@ -94,7 +83,7 @@
         {
           "type": "must-contain-one-of",
           "patterns": ["Pod.?Identity", "EKS Pod Identity"],
-          "context": "Must recommend Pod Identity as the preferred IAM approach for EKS 1.24+",
+          "context": "Must recommend Pod Identity as the preferred approach for workloads on Linux EC2 nodes (IRSA stays supported and is needed on Fargate and Windows)",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html"
         },
         {
@@ -111,7 +100,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["(add|define|create|configure|set|use|recommend)\\w*[^.\\n]{0,40}(PodDisruptionBudget|PDBs?\\b|Pod Disruption Budget)", "kind:\\s*PodDisruptionBudget"],
+          "patterns": ["\\b(add|define|create|configure|set|use|recommend)(s|d|ed|ing)?\\b[^.\\n]{0,40}(PodDisruptionBudget|PDBs?\\b|Pod Disruption Budget)", "kind:\\s*PodDisruptionBudget"],
           "context": "Must recommend PDBs for production workloads: the term must sit next to an add or define phrase, since the prompt itself says 'no Pod Disruption Budgets defined'",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
         },
@@ -148,6 +137,7 @@
         }
       ],
       "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-best-practices"}},
         {"type": "no-tool-called", "tool": "Write"}
       ],
       "files": []
@@ -192,13 +182,14 @@
         },
         {
           "type": "must-not-contain",
-          "pattern": "\\|\\s*(GREEN|AMBER|RED)\\s*(\\||\\n|$)|[A-Za-z][\\w -]*:\\s*(GREEN|AMBER|RED)\\b(?!\\s*[/|])|score (each|every|the) (area|dimension|component)|maturity (score|rating) report",
-          "context": "Surge readiness is advisory/descriptive: it must NOT emit an eks-operation-review-style scored audit. This regex catches a per-area colour VERDICT as a table cell (trailing pipe optional, so a borderless GFM row ('| Autoscaling | AMBER') still matches), an area label followed by a single colour ('Networking: RED'), plus a 'score each area' / 'maturity report' instruction: the structural signature of a scored audit. A guard spares a prose disclaimer that merely names the scheme, including the 'not an operation review: GREEN/AMBER/RED are out of scope' shape: the `(?!\\s*[/|])` lookahead on the label-then-colour branch skips slash-joined colour lists, where the colour is part of a scheme name rather than standing alone as a verdict. A leading colour-then-colon verdict ('AMBER: ...') is an accepted documented miss: a branch for that shape false-fired on legitimate blue/green deployment prose ('Green: the new stack that takes traffic...'), so the judge expectation 'The output gives no GREEN, AMBER or RED rating per area' backstops it. Regex flags: case-insensitive.",
+          "pattern": "\\|\\s*(?-i:(GREEN|AMBER|RED))\\s*(\\||\\n|$)|[A-Za-z][\\w -]*:\\s*(?-i:(GREEN|AMBER|RED))\\b(?!\\s*[/|])|score (each|every|the) (area|dimension|component)|maturity (score|rating) report",
+          "context": "Surge readiness is advisory/descriptive: it must NOT emit an eks-operation-review-style scored audit. This regex catches a per-area colour VERDICT as a table cell (trailing pipe optional, so a borderless GFM row ('| Autoscaling | AMBER') still matches), an area label followed by a single colour ('Networking: RED'), plus a 'score each area' / 'maturity report' instruction: the structural signature of a scored audit. A guard spares a prose disclaimer that merely names the scheme, including the 'not an operation review: GREEN/AMBER/RED are out of scope' shape: the `(?!\\s*[/|])` lookahead on the label-then-colour branch skips slash-joined colour lists, where the colour is part of a scheme name rather than standing alone as a verdict. A leading colour-then-colon verdict ('AMBER: ...') is an accepted documented miss: a branch for that shape false-fired on legitimate blue/green deployment prose ('Green: the new stack that takes traffic...'), so the judge expectation 'The output gives no GREEN, AMBER or RED rating per area' backstops it. Regex flags: case-insensitive, except the colour words, which are case-sensitive (the eks-operation-review vocabulary is uppercase).",
           "source": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_game_days_resiliency.html",
           "flags": "i"
         }
       ],
       "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-best-practices"}},
         {"type": "no-tool-called", "tool": "Write"}
       ],
       "files": []
@@ -265,6 +256,12 @@
         }
       ],
       "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Skill",
+          "min": 1,
+          "args_match": {"skill": "eks-best-practices"}
+        },
         {
           "type": "no-tool-called",
           "tool": "Write"

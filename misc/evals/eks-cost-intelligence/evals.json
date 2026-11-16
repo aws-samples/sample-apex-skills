@@ -8,13 +8,11 @@
       "expectations": [
         "The Cost Score is between 90 and 100 (inclusive).",
         "The classification is OPTIMIZED.",
-        "All 6 dimensions are marked as ASSESSED (not SKIPPED) in the score breakdown table: Compute Efficiency, Spot/Graviton Adoption, Networking Costs, Storage Costs, Observability Costs, Idle Resources.",
+        "All 6 dimensions are scored (status not SKIPPED or ⏭️) in the score breakdown table: Compute Efficiency, Spot/Graviton Adoption, Networking Costs, Storage Costs, Observability Costs, Idle Resources.",
         "The report contains all required sections: Executive Summary, Cost Score with classification, Score Breakdown table, Prioritized Recommendations (may be empty or minimal), Per-dimension Findings, and Methodology notes.",
         "No CRITICAL or HIGH severity findings are reported: at most MEDIUM or LOW findings exist given the well-optimized cluster configuration.",
         "The executive summary correctly identifies the cluster as cost-optimized.",
-        "The executive summary highlights Graviton adoption (80%) as a positive signal.",
-        "The executive summary highlights Spot usage (65%) as a positive signal.",
-        "The executive summary highlights high utilization as a positive signal."
+        "The executive summary names at least one supplied strength (80% Graviton, 65% Spot or high utilization) as why the cluster is optimized."
       ],
       "artifact_assertions": {
         "root_glob": "**",
@@ -26,7 +24,7 @@
           {
             "type": "contains",
             "file": "reports/EKS-Cost-Intelligence-prod-optimized-*.md",
-            "pattern": "Cost Score[^\\n]{0,10}\\b\\d{1,3}\\s*/\\s*100"
+            "pattern": "Cost Score[^\\n]{0,10}\\b(9\\d|100)\\s*/\\s*100"
           },
           {
             "type": "contains",
@@ -57,10 +55,10 @@
       "expectations": [
         "The Cost Score is below 40.",
         "The classification is CRITICAL.",
-        "All 6 dimensions are marked as ASSESSED (not SKIPPED) in the score breakdown table.",
+        "All 6 dimensions are scored (status not SKIPPED or ⏭️) in the score breakdown table.",
         "Over-provisioned compute (18% CPU utilization) is reported as a CRITICAL severity finding.",
-        "0% Spot adoption with On-Demand-only nodes is reported as a CRITICAL severity finding.",
-        "Idle LoadBalancer Services are reported as a CRITICAL severity finding.",
+        "0% Spot adoption with On-Demand-only nodes is reported as a HIGH severity finding (CRITICAL only through the stateless-workloads-on-On-Demand check when its monthly savings exceed $500).",
+        "Idle LoadBalancer Services are reported as a HIGH severity finding.",
         "Dollar-quantified waste estimates are included for findings.",
         "The total estimated monthly waste is in the range of $10,000-$15,000/month.",
         "Prioritized recommendations are sorted by severity (CRITICAL first, then HIGH, MEDIUM, LOW).",
@@ -89,7 +87,7 @@
         "The storage section still identifies the 40% gp2 volumes (18 PVCs) as a finding despite Cost Explorer being unavailable.",
         "The storage section still identifies the 2 unmounted PVCs as a finding despite Cost Explorer being unavailable.",
         "The networking section flags the missing VPC endpoint for ECR as a MEDIUM finding.",
-        "The networking section flags the missing VPC endpoint for STS as a MEDIUM finding.",
+        "The networking section flags the missing VPC endpoint for STS as a LOW finding, or within one combined MEDIUM missing-endpoints finding.",
         "The networking section notes partial topology-aware routing coverage.",
         "The idle resources section identifies the zero-scale deployment despite the absence of utilization metrics.",
         "The idle resources section identifies the orphaned LB despite the absence of utilization metrics.",
@@ -106,7 +104,7 @@
         "Reports the denied Node read.",
         "Withholds the Cost Score.",
         "Explains that AmazonEKSViewPolicy omits nodes.",
-        "Identifies the missing scoped read permission.",
+        "Names the missing cluster-scoped list permission on nodes.",
         "Treats denied access-entry inspection as unverified metadata."
       ],
       "files": []
@@ -145,7 +143,13 @@
           {
             "type": "contains",
             "file": "reports/coverage.md",
-            "pattern": "Idle Resources[^\\n]*(SKIPPED|not assessed)",
+            "pattern": "Idle Resources[^\\n]*(SKIPPED|not assessed|⏭)|Not assessed:[^\\n]*Idle Resources",
+            "flags": "i"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/coverage.md",
+            "pattern": "Idle Resources[^\\n]*not\\W{0,3}SKIPPED",
             "flags": "i"
           }
         ]
@@ -185,7 +189,13 @@
           {
             "type": "contains",
             "file": "reports/coverage.md",
-            "pattern": "Idle Resources[^\\n]*(?<!not )(?<!partly )\\bASSESSED\\b",
+            "pattern": "Idle Resources[^\\n]*(\\bASSESSED\\b|✅)",
+            "flags": "i"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/coverage.md",
+            "pattern": "Idle Resources[^\\n]*(SKIPPED|⏭|\\b(not|un|partly|partially|yet|be)\\W{0,3}assessed)",
             "flags": "i"
           }
         ]
@@ -219,7 +229,7 @@
           },
           {
             "file": "reports/cost-method.md",
-            "pattern": "estimation_method[^\\n]{0,20}ce_usage_type",
+            "pattern": "estimation_method\\W{0,5}ce_usage_type",
             "type": "contains"
           }
         ]

@@ -97,15 +97,15 @@
           "type": "must-contain-one-of",
           "patterns": [
             "(overall|verdict|result)\\W{0,4}(is\\s+)?\\W{0,3}exposed",
-            "\\|\\s*`?exposed`?\\s*\\|",
-            "\\b(is|are) exposed\\b"
+            "\\|\\s*`?exposed`?\\s*\\|"
           ],
           "context": "Both components are below the fixed versions",
           "source": "skills/eks-security/references/cve-advisory-review.md (Verdict rules; worked example table, standard cluster row)"
         },
         {
           "type": "must-contain",
-          "pattern": "P1",
+          "pattern": "\\bP1\\b",
+          "flags": "",
           "context": "Important is base P2; no workaround raises it one step",
           "source": "skills/eks-security/references/cve-advisory-review.md (Verdict rules: Priority)"
         },
@@ -117,7 +117,8 @@
         },
         {
           "type": "must-contain",
-          "pattern": "1\\.22\\.3",
+          "pattern": "^\\|[^\\n]*1\\.22\\.3",
+          "flags": "im",
           "context": "Fixed add-on version from the bulletin",
           "source": "skills/eks-security/references/cve-advisory-review.md (Worked example: impacted versions line)"
         },
@@ -133,9 +134,11 @@
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "no workaround",
-            "no workarounds"
+            "^\\|[^\\n]*no workarounds?",
+            "workarounds?\\W{1,3}(no|none)\\b",
+            "\\|\\s*Workaround\\s*\\|"
           ],
+          "flags": "im",
           "context": "Workaround status is printed per finding",
           "source": "skills/eks-security/references/cve-advisory-review.md (Report sections: findings table, workaround yes/no)"
         }
@@ -175,27 +178,28 @@
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "not exposed",
-            "not_exposed"
+            "(overall|verdict|result)\\W{0,4}(is\\s+)?\\W{0,3}not[ _]exposed"
           ],
           "context": "Both components at or above the fixed versions",
           "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: Not exposed)"
         },
         {
           "type": "must-contain",
-          "pattern": "2026-11-05T15:04",
+          "pattern": "^\\|[^\\n]*2026-11-05T15:04",
+          "flags": "im",
           "context": "Read time of the advisory source is printed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: Not exposed line)"
         },
         {
           "type": "must-contain",
-          "pattern": "2026-11-05T18:00",
+          "pattern": "(?<![\"'])2026-11-05T18:00",
           "context": "Inventory collection time is printed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: compared against the inventory collected <collected_at>)"
         },
         {
           "type": "must-not-contain",
-          "pattern": "update-addon\\s+--cluster-name",
+          "pattern": "^\\s*(\\$\\s*)?aws eks update-addon\\s+--cluster-name",
+          "flags": "im",
           "context": "No fix proposed when not exposed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Report sections: proposed fixes are for exposed items)"
         }
@@ -238,7 +242,7 @@
         },
         {
           "type": "must-contain",
-          "pattern": "latest",
+          "pattern": "(?<![\"'])tag\\\\?_latest|tag `?latest`?",
           "context": "Reason for the unknown is named",
           "source": "skills/eks-security/references/cve-advisory-review.md (Unknown reasons table: tag_latest)"
         },
@@ -258,9 +262,7 @@
           "type": "must-contain-one-of",
           "patterns": [
             "1\\s*/\\s*2",
-            "1 of 2",
-            "50\\s*%",
-            "0\\.5"
+            "1 of 2"
           ],
           "context": "Coverage line",
           "source": "skills/eks-security/SKILL.md (Common rule 3: coverage gate)"
@@ -306,19 +308,22 @@
         },
         {
           "type": "must-contain",
-          "pattern": "i-0a1b2c3d4e5f60001",
+          "pattern": "^\\|[^\\n]*i-0a1b2c3d4e5f60001",
+          "flags": "im",
           "context": "Oldest pending node is listed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: lists nodes_pending oldest first)"
         },
         {
           "type": "must-contain",
-          "pattern": "i-0a1b2c3d4e5f60002",
+          "pattern": "^\\|[^\\n]*i-0a1b2c3d4e5f60002",
+          "flags": "im",
           "context": "Second pending node is listed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: lists nodes_pending oldest first)"
         },
         {
           "type": "must-not-contain",
-          "pattern": "update-addon\\s+--cluster-name",
+          "pattern": "^\\s*(\\$\\s*)?aws eks update-addon\\s+--cluster-name",
+          "flags": "im",
           "context": "Never a patch command for an AWS-managed component",
           "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: never a patch command for an AWS-managed component)"
         },
@@ -473,54 +478,61 @@
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "SEC-POSTURE-55",
+          "pattern": "^\\|[^\\n]*SEC-POSTURE-55",
+          "flags": "im",
           "context": "Failed check listed by its SEC-POSTURE id",
           "source": "skills/eks-security/references/posture-check.md (The added containment checks: SEC-POSTURE-55 IMDS)"
         },
         {
           "type": "must-contain",
-          "pattern": "0\\.0\\.0\\.0/0",
+          "pattern": "^\\|[^\\n]*0\\.0\\.0\\.0/0",
+          "flags": "im",
           "context": "Open public endpoint evidence",
           "source": "skills/eks-security/references/posture-check.md (The copied checks: SEC-POSTURE-2, sec-2)"
         },
         {
           "type": "must-contain",
-          "pattern": "unknown",
+          "pattern": "^\\|[^\\n]*unknown",
+          "flags": "im",
           "context": "Unread checks are unknown, never pass",
           "source": "skills/eks-security/references/posture-check.md (A check whose input file was not collected is unknown, never pass)"
         },
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "not-contained",
-            "not contained"
+            "^\\|[^\\n]*not-contained",
+            "^\\|[^\\n]*not contained"
           ],
+          "flags": "im",
           "context": "Per-layer verdict values",
           "source": "skills/eks-security/references/posture-check.md (Layer verdict: contained, partly, not-contained, unknown)"
         },
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "partly",
-            "partial"
+            "^\\|[^\\n]*partly",
+            "^\\|[^\\n]*partial"
           ],
+          "flags": "im",
           "context": "Per-layer verdict values",
           "source": "skills/eks-security/references/posture-check.md (Layer verdict)"
         },
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "hop limit (of )?1",
-            "HttpPutResponseHopLimit\\W+1",
-            "hop-limit 1",
-            "http-put-response-hop-limit 1"
+            "^\\|[^\\n]*hop limit (of )?1",
+            "^\\|[^\\n]*HttpPutResponseHopLimit\\W+1",
+            "^\\|[^\\n]*hop-limit 1",
+            "^\\|[^\\n]*http-put-response-hop-limit 1"
           ],
+          "flags": "im",
           "context": "IMDS fix shape",
           "source": "skills/eks-security/references/posture-check.md (Output: hop limit 1 in the launch template)"
         },
         {
           "type": "must-contain",
-          "pattern": "--admin-allow",
+          "pattern": "^\\|[^\\n]*--admin-allow",
+          "flags": "im",
           "context": "Expected admins are named with --admin-allow",
           "source": "skills/eks-security/references/posture-check.md (Notes on the flags: --admin-allow)"
         }

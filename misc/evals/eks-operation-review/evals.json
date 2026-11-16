@@ -13,7 +13,7 @@
         "Every finding rated RED appears in Prioritized Actions (Critical, or Quick Wins if fixable in under 1 hour).",
         "Every finding rated AMBER appears in either Important or Quick Wins: no AMBER finding is missing from Prioritized Actions.",
         "Ratings are consistent across the report: a finding rated RED in the Findings table is also called out as RED in the Executive Summary.",
-        "Ratings are consistent across the report: a finding rated RED in the Findings table is also named with its finding ID (e.g., '4.1: Control Plane Logging RED') in Prioritized Actions.",
+        "Ratings are consistent across the report: a finding rated RED in the Findings table is also named with its finding ID (e.g., '4.1 -- Control Plane Logging RED') in Prioritized Actions.",
         "Critical actions are ordered by blast radius (security > availability > cost): security-flagged RED findings appear before availability- or cost-flagged ones.",
         "Every RED finding has a specific, actionable recommendation (not boilerplate like 'enable logging').",
         "UNKNOWN items are explained in 'Items to Investigate Manually' with a question the user can answer.",
@@ -137,7 +137,7 @@
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "(#{1,6}[^\\n]*|\\b0?6(\\.\\d+)?[.:)]?\\s+)Networking\\b",
+          "pattern": "(#{1,6}[^\\n]*|\\b0?6(\\.\\d+)?[.:)]?\\s+)Networking\\b(?!-)",
           "context": "Report must cover the Networking section: a heading or a numbered section 06 line, case-sensitive, so the prompt's 'networking-scoped' does not pass",
           "source": "skills/eks-operation-review/references/networking.md",
           "flags": ""
@@ -151,7 +151,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["IP capacity", "IP headroom", "subnet[^.\\n]{0,60}(available|free|remaining|IPs?\\b|capacity|headroom|exhaust|utili[sz])", "available IP"],
+          "patterns": ["IP capacity", "IP headroom", "subnet[^.\\n]{0,60}(available|free|remaining|capacity|headroom|exhaust|utili[sz])", "available IP"],
           "context": "Networking review must assess VPC subnet IP capacity",
           "source": "skills/eks-operation-review/references/networking.md check 6.1"
         },
@@ -181,9 +181,10 @@
         },
         {
           "type": "must-not-contain",
-          "pattern": "Cluster Lifecycle.*Upgrades",
-          "context": "Section-scoped review must NOT include other sections like Cluster Lifecycle",
-          "source": "skills/eks-operation-review/SKILL.md section-scoped review behavior"
+          "pattern": "^(#{1,6}[^\\n]*|\\|[^\\n]*\\|\\s*\\**(GREEN|AMBER|RED)\\b[^\\n]*|\\*\\*\\d+\\.\\s*)Cluster Lifecycle",
+          "flags": "m",
+          "context": "Section-scoped review must NOT include the Cluster Lifecycle section: no Cluster Lifecycle heading, rated table row or numbered item; a scope sentence that names it as not included passes",
+          "source": "skills/apex/runbooks/eks-operation-review/eks-operation-review.md:268 (Findings section heading form)"
         },
         {
           "type": "must-contain-one-of",
