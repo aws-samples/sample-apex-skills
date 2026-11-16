@@ -74,5 +74,9 @@
   {
     "query": "score our EKS cluster against the Well-Architected Framework's five pillars",
     "should_trigger": false
+  },
+  {
+    "query": "Run a cost audit on my ECS cluster: how much am I wasting?",
+    "should_trigger": false
   }
 ]

@@ -223,7 +223,7 @@ The sibling skills below bound this skill's scope. When a hand-off applies, **na
 | Deployment strategy, traffic shifting and rollback between ECS service revisions, CI/CD pipelines | `ecs-devops` | Include a named hand-off; generated environments keep conservative deployment defaults. |
 | Logging, metrics, tracing and alerting design (Container Insights, X-Ray, OpenTelemetry) | `ecs-observability` | Include a named hand-off; do not design the monitoring stack. |
 
-Cost estimates and rightsizing are out of scope: no APEX skill covers a dollar cost or TCO analysis, so say so rather than produce cost figures or sizing changes.
+Cost estimates and rightsizing are out of scope: say so rather than produce cost figures or sizing changes.
 
 **Work this skill does NOT delegate** — no sibling skill covers these, so they remain in scope and are executed here (behind the Execution_Gate):
 

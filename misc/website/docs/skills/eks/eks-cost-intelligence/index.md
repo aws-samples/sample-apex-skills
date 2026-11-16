@@ -37,6 +37,7 @@ This skill is focused on **live cost assessment** — answering the question: "W
 - Wants cluster discovery or reconnaissance → use `eks-recon`
 - Asks about upgrade readiness → use `eks-upgrade-check`
 - Asks to set up the EKS MCP server → use `eks-mcp-server`
+- Asks about an Amazon ECS estate → no APEX skill covers ECS cost; say so
 
 ### Sibling Skill Disambiguation
 
