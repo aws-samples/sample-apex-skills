@@ -2,9 +2,9 @@
 # share text: the "Progressive disclosure" reading hint (eks-genai,
 # ecs-genai, ecs-security) and the Security Baseline and Top Guardrails
 # sections (eks-genai, ecs-genai: Advisor; ecs-security, ecs-devops:
-# Guided). That text is in rules.md here, not in apex-base, since the
-# router and the Steward member hold none of it (read at
-# sample-apex-skills 9157fe03).
+# Guided). That text stays in the skills, so this class holds no rules of
+# its own: domain text stays in the skill (R:205), and a class line is
+# copied into every member (R:334). Read at sample-apex-skills 9157fe03.
 
 name: platform
 parents: [apex-base]

@@ -1,7 +1,8 @@
 # Service: the parent of the per-service classes (service-eks, then
-# service-ecs). Its one rule, service.credentials-check, is the line EKS and
-# ECS members share word for word (skills/eks-recon/SKILL.md:220 and
-# skills/ecs-recon/SKILL.md:62, at sample-apex-skills 9157fe03).
+# service-ecs). It holds no rules of its own yet: the only line EKS and ECS
+# members share word for word is the credentials line
+# (skills/eks-recon/SKILL.md:220 and skills/ecs-recon/SKILL.md:62, at
+# sample-apex-skills 9157fe03). A class that shares nothing is not built.
 
 name: service
 parents: [apex-base]
