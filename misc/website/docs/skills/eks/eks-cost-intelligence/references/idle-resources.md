@@ -152,7 +152,9 @@ kubectl delete deployment <name> -n <namespace>
 kubectl scale deployment <name> -n <namespace> --replicas=1
 
 # List all associated resources before cleanup
-kubectl get all,pvc,configmap,secret -n <namespace> -l app=<deployment-label>
+kubectl get all,pvc,configmap -n <namespace> -l app=<deployment-label>
+# Secrets are not read (apex.no-secrets); the pod template names the ones this Deployment uses
+kubectl get deployment <name> -n <namespace> -o json | jq -r '.spec.template.spec | [(.volumes[]? | .secret.secretName, .projected.sources[]?.secret.name), ((.containers[], .initContainers[]?) | .envFrom[]?.secretRef.name, .env[]?.valueFrom.secretKeyRef.name)] | map(select(. != null)) | unique[]'
 ```
 
 ```bash
@@ -441,8 +443,9 @@ kubectl delete namespace <namespace>
 kubectl delete resourcequota <quota-name> -n <namespace>
 kubectl delete limitrange <limitrange-name> -n <namespace>
 
-# Before deleting, check for any non-running resources (PVCs, Secrets, etc.)
-kubectl get all,pvc,configmap,secret,serviceaccount -n <namespace>
+# Before deleting, check for any non-running resources (PVCs, ConfigMaps, etc.)
+kubectl get all,pvc,configmap,serviceaccount -n <namespace>
+# Secrets are not read (apex.no-secrets): deleting the namespace deletes its Secrets too, so the report tells the user to check them first
 ```
 
 ---
