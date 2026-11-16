@@ -128,7 +128,8 @@ kubectl get statefulset -n prometheus prometheus-server 2>/dev/null
 # Check for kube-prometheus-stack (Helm), never with `helm list` (it reads Helm's release
 # Secrets). The chart labels its own objects with the legacy `chart:` label
 # (kube-prometheus-stack-<version>), not `helm.sh/chart`, and the operator copies the
-# Prometheus resource's labels onto the StatefulSet it builds, so this matches either label.
+# Prometheus resource's labels onto the StatefulSet it builds, so this matches helm.sh/chart,
+# else the legacy chart label.
 # On a failed read kubectl's error prints on stderr: report it unconfirmed, not "not found".
 out=$(kubectl get deploy,statefulset -A -o json) && printf '%s' "$out" | jq -r '
   .items[] | (.metadata.labels // {}) as $l
@@ -203,7 +204,7 @@ kubectl get daemonset -A -l "app.kubernetes.io/name=nri-bundle" 2>/dev/null
 
 **Prometheus type + version:** classify how Prometheus runs and record its version.
 - `self-managed` — a `prometheus-server` Deployment/StatefulSet (e.g. Helm `prometheus`).
-- `operator` — the Prometheus Operator is present (label `app.kubernetes.io/name=prometheus-operator`), managing `Prometheus` CRs.
+- `operator`: the Prometheus Operator is present (a Deployment labelled `app.kubernetes.io/name=prometheus-operator`, or kube-prometheus-stack found by its chart label as above, which names its operator `kube-prometheus-stack-prometheus-operator`), managing `Prometheus` CRs.
 - `amp` — Amazon Managed Prometheus; an `aps-workspaces` remote_write target with no in-cluster server.
 ```bash
 # Version from the prometheus image tag (self-managed / operator)
@@ -228,14 +229,19 @@ scrape job names and remote_write URLs verbatim — do not interpret them.
 # No Secret is read. The Prometheus Operator renders each Prometheus's config into a Secret,
 # so the operator case reads the Prometheus and PrometheusAgent resources instead.
 # On a failed read kubectl's error prints on stderr: report remote_write_targets
-# unconfirmed with it, unless it says the resource type does not exist (no operator).
+# unconfirmed with it, unless it says the resource type does not exist (no operator or,
+# for prometheusagents, an operator older than v0.64.0).
 # Self-managed: remote_write targets (e.g. aps-workspaces AMP URLs), every url under each
-# remote_write block, from the ConfigMaps. This reads the data of every ConfigMap except
-# Helm's own release records, which Helm's configmap storage driver labels owner=helm.
+# remote_write block, and the job_name of every entry under each scrape_configs block,
+# from the ConfigMaps. Block-style only, flow style not read. This reads the data of every
+# ConfigMap except Helm's own release records, which Helm's configmap storage driver
+# labels owner=helm.
 out=$(kubectl get cm -A -l 'owner!=helm' -o json) && printf '%s' "$out" | jq -r '
   .items[] | .data // {} | to_entries[] | .value
-  | capture("(?m)^(?<i>[ \\t]*)remote_write:[ \\t]*\\n(?<b>(?:\\k<i>[ \\t-].*\\n?)*)"; "g") | .b
-  | scan("url:[ \\t]*(\\S+)") | .[0]' \
+  | (capture("(?m)^(?<i>[ \\t]*)remote_write:[ \\t]*(?:#.*)?\\r?\\n(?<b>(?:\\k<i>[ \\t-].*\\n?|[ \\t]*\\r?\\n)*)"; "g") | .b
+      | scan("(?m)^[ \\t]*(?:-[ \\t]*)?url:[ \\t]*([^\\s#]+)") | "remote_write_url: \(.[0])"),
+    (capture("(?m)^(?<i>[ \\t]*)scrape_configs:[ \\t]*(?:#.*)?\\r?\\n(?<b>(?:\\k<i>[ \\t-].*\\n?|[ \\t]*\\r?\\n)*)"; "g") | .b
+      | scan("(?m)^[ \\t]*(?:-[ \\t]*)?job_name:[ \\t]*[\"\u0027]?([^\\s#\"\u0027]+)") | "job_name: \(.[0])")' \
   || echo "configmaps: read failed (see the error above)"
 # Operator: remote_write URLs from the Prometheus and PrometheusAgent resources
 # (spec.remoteWrite[].url; a PrometheusAgent shares the field with Prometheus)

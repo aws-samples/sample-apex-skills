@@ -120,6 +120,8 @@ Use Helm detection when you need to inventory third-party components that were i
 > `meta.helm.sh/release-namespace`. Helm v3.2.0 added the annotations, when it began adopting
 > existing resources into a release ([Helm v3.2.0 release notes](https://github.com/helm/helm/releases/tag/v3.2.0)).
 
+**MCP:** `list_k8s_resources(cluster_name="<cluster-name>", kind=..., api_version=...)` with no `namespace` (all namespaces), once each for `Deployment`, `DaemonSet`, `StatefulSet` (`apps/v1`) and `Service` (`v1`), and for `ConfigMap` (`v1`) with `label_selector="app.kubernetes.io/managed-by=Helm"`. It returns only each object's name, namespace, creation time, labels and annotations ([eks-mcp-server k8s_handler.py](https://github.com/awslabs/mcp/blob/c3d28b016ac5fec02a8f8954b86ab273a5a0ba5d/src/eks-mcp-server/awslabs/eks_mcp_server/k8s_handler.py#L519-L615)), so build the same `count`, `list` and `label_only` from those fields.
+
 **CLI:**
 ```bash
 # kubectl returns full objects (pod-template env values, Helm-managed ConfigMap data). They
@@ -179,8 +181,7 @@ status are in Helm's release record, which this skill does not read. On a Flux-m
 release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status, chart version
 and app version in its Ready condition and `status.history`
 ([Flux HelmRelease](https://fluxcd.io/flux/components/helm/helmreleases/)); this skill does
-not read it, because the full object also holds `spec.values`, which can carry sensitive
-values. A listed release is not known to be deployed: Helm applies a release's objects before
+not read it. A listed release is not known to be deployed: Helm applies a release's objects before
 it marks the release failed, and `helm uninstall` leaves resources annotated
 `helm.sh/resource-policy: keep` in place with their release annotations
 ([Helm chart tips](https://helm.sh/docs/howto/charts_tips_and_tricks/)), so a listed release

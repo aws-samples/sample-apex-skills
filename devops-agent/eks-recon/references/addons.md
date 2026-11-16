@@ -113,7 +113,7 @@ for add-ons not available as EKS-managed add-ons.
 > `meta.helm.sh/release-namespace`. Helm v3.2.0 added the annotations, when it began adopting
 > existing resources into a release ([Helm v3.2.0 release notes](https://github.com/helm/helm/releases/tag/v3.2.0)).
 
-**Via Kubernetes API**: read the objects and keep only their metadata for Helm's marks:
+**Via Kubernetes API**: read the objects for Helm's marks. The API returns whole objects (pod-template env values, Helm-managed ConfigMap data); record only the metadata fields below:
 
 - **Resource:** `Deployment`, `DaemonSet`, `StatefulSet` (group/version `apps/v1`) and `Service` (`v1`), all namespaces; `ConfigMap` (`v1`), all namespaces, label selector `app.kubernetes.io/managed-by=Helm` (so other ConfigMaps' data is not fetched).
 - **Fields to extract:** annotation `meta.helm.sh/release-name` → release name; annotation `meta.helm.sh/release-namespace` → release namespace; label `helm.sh/chart` → `chart_labels` (verbatim, unique per release). Group objects by release namespace and name; one group is one release. An object labelled `app.kubernetes.io/managed-by: Helm` with no release annotations goes to `label_only` as `<kind>/<namespace>/<name>`.
@@ -139,8 +139,7 @@ status are in Helm's release record, which this skill does not read. On a Flux-m
 release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status, chart version
 and app version in its Ready condition and `status.history`
 ([Flux HelmRelease](https://fluxcd.io/flux/components/helm/helmreleases/)); this skill does
-not read it, because the full object also holds `spec.values`, which can carry sensitive
-values. A listed release is not known to be deployed: Helm applies a release's objects before
+not read it. A listed release is not known to be deployed: Helm applies a release's objects before
 it marks the release failed, and `helm uninstall` leaves resources annotated
 `helm.sh/resource-policy: keep` in place with their release annotations
 ([Helm chart tips](https://helm.sh/docs/howto/charts_tips_and_tricks/)), so a listed release

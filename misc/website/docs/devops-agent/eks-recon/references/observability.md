@@ -179,7 +179,7 @@ so the operator case reads the Prometheus and PrometheusAgent custom resources i
 
 - **Resource:** `Prometheus` (group/version `monitoring.coreos.com/v1`) and `PrometheusAgent` (`monitoring.coreos.com/v1alpha1`), all namespaces.
 - **Fields to extract:** every `spec.remoteWrite[].url` of each `Prometheus` and `PrometheusAgent` (a PrometheusAgent shares the field with Prometheus) → `remote_write_targets`.
-- **RBAC verbs:** `get`, `list` on `prometheuses.monitoring.coreos.com`, `prometheusagents.monitoring.coreos.com`. A failed read (such as `403 Forbidden`) makes `remote_write_targets` unconfirmed, with the error, not empty; a resource type that does not exist means no operator is installed.
+- **RBAC verbs:** `get`, `list` on `prometheuses.monitoring.coreos.com`, `prometheusagents.monitoring.coreos.com`. A failed read (such as `403 Forbidden`) makes `remote_write_targets` unconfirmed, with the error, not empty; a resource type that does not exist means no operator is installed or, for prometheusagents, an operator older than v0.64.0.
 
 Record `scrape_configs` (count + list of job names) and `remote_write_targets` (list of URLs)
 exactly as found; report `null`/empty where the config is not readable. For the operator,

@@ -29,6 +29,7 @@ Detect all add-ons and installed components for the specified EKS cluster and re
      - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
+   - Helm releases via MCP: `list_k8s_resources` on the kinds the Helm section of `references/addons.md` names (it returns metadata only, no object data)
 
 3. **Handle MCP 401 errors - IMPORTANT**:
    - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl
