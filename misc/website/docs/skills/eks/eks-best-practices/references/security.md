@@ -506,7 +506,7 @@ fields @timestamp, @message
 ```
 
 - A `watch` is logged twice, at stage `ResponseStarted` and at `ResponseComplete`, so both queries count each watch twice.
-- A blank secret name is a `list` or `watch` of every Secret in the namespace.
+- A blank secret name is a `list` or `watch` of Secrets across its namespace, or across the whole cluster when the namespace is blank too.
 
 ### Secrets Best Practices
 
