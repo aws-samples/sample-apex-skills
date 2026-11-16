@@ -18,8 +18,8 @@ parents: []
 #   owner=helm Secret fallback, references/addons.md, agents/addons-recon.md)
 #   and the Prometheus config (references/observability.md); it moves to
 #   the Helm annotations apex.no-secrets names and to ConfigMap and
-#   Prometheus custom-resource reads, in the eks-recon rebuild (step 3.7,
-#   after the current owner's work on eks-recon lands; R:508, R:511).
+#   Prometheus custom-resource reads, in the eks-recon rebuild, after
+#   the current owner's work on eks-recon lands.
 # - eks-ingress-migration (owner-held) uses `helm list`
 #   (references/report-generation.md, and its devops-agent copy): its owner
 #   changes it; no issue yet (searched 2026-11-16).

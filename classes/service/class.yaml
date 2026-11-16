@@ -1,8 +1,8 @@
-# Service: built as the parent of the per-service classes, service-eks
-# (P-304) and service-ecs (R:188). It holds no rules of its own yet: the
+# Service: built as the parent of the planned per-service classes,
+# service-eks and service-ecs. It holds no rules of its own yet: the
 # only line EKS and ECS members share word for word is the credentials line
 # (skills/eks-recon/SKILL.md:220 and skills/ecs-recon/SKILL.md:62, at
-# sample-apex-skills 9157fe03), and it stays in the skills (R:205, R:334).
+# sample-apex-skills 9157fe03), and it stays in the skills: domain text stays in the skill.
 
 name: service
 parents: [apex-base]
