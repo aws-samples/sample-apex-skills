@@ -243,6 +243,8 @@ For each Deployment/StatefulSet in non-system namespaces:
 | 1–10 workloads pinned to amd64 | LOW |
 | Workloads with high replica count (>5) pinned to amd64 | MEDIUM |
 
+When more than one row applies, the finding takes the highest severity among them.
+
 ### Remediation
 
 ```yaml
@@ -407,10 +409,10 @@ For each Deployment in non-system namespaces:
       monthly_savings = pods_on_demand × per_pod_cost × 0.60  # ~60% Spot savings
 
 If len(spot_eligible_workloads) > 0 AND cluster_spot_pct == 0:
-  → Generate HIGH severity finding (Requirement 6.5)
+  → Generate a finding (Requirement 6.5); severity from the summed monthly_savings, HIGH when no savings figure (Severity classification below)
 
 If len(spot_eligible_workloads) > 0 AND cluster_spot_pct > 0:
-  → Generate MEDIUM severity finding (more workloads could use Spot)
+  → Generate a finding (more workloads could use Spot); severity from the summed monthly_savings, MEDIUM when no savings figure
 ```
 
 ### Severity classification
@@ -423,6 +425,8 @@ If len(spot_eligible_workloads) > 0 AND cluster_spot_pct > 0:
 | Monthly savings $200–$500 | HIGH |
 | Monthly savings $50–$200 | MEDIUM |
 | Monthly savings < $50 | LOW |
+
+Which rows apply: when the workloads can be priced (`monthly_savings` above), the savings rows set the severity, since severity is always determined by monthly waste ([findings-format.md](findings-format.md), Severity Assignment Rules 1). The two condition rows apply only when no per-pod cost is available; the finding is then `confidence: low`, which rule 4 caps at HIGH.
 
 > **Spot pricing note:** The discount used (60-65%) is a conservative average. Actual Spot discounts vary 40-90% by instance type, region, and AZ. For production assessments, query live Spot prices: `aws ec2 describe-spot-price-history --instance-types <types> --product-descriptions "Linux/UNIX"`
 
@@ -522,6 +526,8 @@ For each Spot-enabled NodePool or node group:
 | Spot NodePool with only 1 instance category | MEDIUM |
 | All Spot from single instance family | MEDIUM |
 | 5+ types across 2+ families | No finding |
+
+When more than one row applies, the finding takes the highest severity among them.
 
 ### Remediation
 
