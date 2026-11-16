@@ -5,7 +5,6 @@
 # sample-apex-skills 9157fe03). A class that shares nothing is not built.
 
 name: service
-title: Service skill
 parents: [apex-base]
 
 rules: {}

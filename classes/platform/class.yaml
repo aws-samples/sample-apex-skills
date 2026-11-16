@@ -5,7 +5,6 @@
 # not decided, so this class holds no rules yet.
 
 name: platform
-title: Platform skill
 parents: [apex-base]
 
 rules: {}

@@ -1,9 +1,8 @@
 # Steward: skills that maintain the APEX repo (update-docs, apex-new-skill).
 # Its members run the repo generators below, the add-a-skill steps and the
-# class sync. "from" cites repo paths at sample-apex-skills 9157fe03.
+# class sync.
 
 name: steward
-title: Steward
 parents: [apex-base]
 
 # The repo generators and their --check modes. CI runs the --check forms in
@@ -11,35 +10,20 @@ parents: [apex-base]
 generators:
   - run: "./misc/update-all-references.sh"
     check: "./misc/update-all-references.sh --check"
-    writes: "the marker blocks in README.md and skills/README.md"
-    from: "CONTRIBUTING.md:285; .github/workflows/docs-sync.yml:61"
   - run: "./misc/update-pages.sh"
     check: "./misc/update-pages.sh --check"
-    writes: "the website copy under misc/website/"
     note: "reads the git index (git ls-files): git add new files first"
-    from: "CONTRIBUTING.md:285; .github/workflows/docs-sync.yml:62"
   - run: "python3 misc/validate-frontmatter.py"
     check: "python3 misc/validate-frontmatter.py"
-    writes: "nothing: it checks SKILL.md frontmatter and manifest sync"
-    from: "misc/validate-frontmatter.py:2; .github/workflows/docs-sync.yml:56"
   - run: "python3 misc/sync-classes.py"
     check: "python3 misc/sync-classes.py --check"
-    writes: "each member skill's class copies"
     status: "planned: the class sync, not built yet"
 
 # Hand-kept, not generated.
 hand_kept:
-  - "misc/website/src/components/SkillFinder.tsx"
+  - "misc/website/src/components/skillCatalog.ts (LINES)"
+  - "misc/website/src/components/skillSearch.ts (PORTS)"
 
-# The add-a-skill steps, in order (CONTRIBUTING.md:276-286).
-add_a_skill:
-  - "Understand the skill with concrete examples; for an AWS service with no skills yet, open an issue first (CONTRIBUTING.md:280)"
-  - "Plan reusable contents: scripts, references, assets (:281)"
-  - "Hand-author skills/<name>/SKILL.md and its references/, agents/, scripts/ or assets/ folders (:282)"
-  - "Scaffold misc/evals/<name>/ with `cd misc/evals && make init-evals SKILL=<name>`; triggering.json gets 16 or more prompts, 8 or more positives and 8 or more near-miss negatives (:283)"
-  - "Update every neighbour's sibling map and triggering.json with misc/evals/scripts/update_sibling_map.py, one call per neighbour (:284)"
-  - "Fan out: the routing row in skills/apex/SKILL.md, the hand-written catalogues, the SKILL_META line in misc/update-pages.sh, then run the generators above (:285)"
-  - "Package: python skills/skill-creator/scripts/package_skill.py skills/<name> (:286)"
-  - "Run the class sync for the skill's classes (planned: the class sync, not built yet)"
+add_a_skill: "CONTRIBUTING.md, Creating a New Skill, steps 1-7; then run the class sync (planned)"
 
 checks: []

@@ -3,22 +3,17 @@
 # matrix stay in Script.
 
 name: operator
-title: Operator
 parents: [platform]
 
 inline: rules.md
 
 rules:
-  operator.confirm-before-change:
-    basis: "Operator skills confirm before any change"
-    from: "skills/ecs-modernize/SKILL.md:133, :142 (Execution_Gate, explicit approval)"
-  operator.typed-input:
-    basis: "Typed input: the task's input has a declared shape"
+  operator.confirm-before-change: {}
+  operator.typed-input: {}
   operator.artifact-checks:
-    basis: "Checked output: a skill that produces an artifact declares its checks, and the artifact must pass them (eks-build: terraform validate, fmt, tflint, a security scan, requirement coverage, a plan against a fixture; eks-design: structure checks on its doc and diagrams)"
-    open: "the key a skill uses to declare its checks; today they sit in misc/evals/<skill>/.skilleval.yaml:11"
+    open: "the key a skill uses to declare its checks; today they sit in misc/evals/<skill>/.skilleval.yaml (eks-build today: terraform-validate, terraform-fmt, checkov, structural; the target adds tflint, a plan against a fixture and requirement coverage)"
 
 checks:
   - id: declared-artifact-checks
     what: "The declared checks run on fixture artifacts in CI"
-    status: "planned: the output validator and the Stop gate"
+    status: "planned: the output validator"

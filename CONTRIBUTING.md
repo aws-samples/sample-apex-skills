@@ -6,13 +6,12 @@ This guide explains how the repository is organized, where new content should go
 
 ## Repository Architecture
 
-APEX organizes content into four directories, each serving a distinct purpose in the agentic workflow. Understanding the distinction is critical — putting content in the wrong place degrades the agent's performance.
+APEX organizes content into three directories, each serving a distinct purpose in the agentic workflow. Understanding the distinction is critical: putting content in the wrong place degrades the agent's performance.
 
 ```
 sample-apex-skills/
 ├── skills/             → 📚 WHAT the agent knows (domain knowledge)
 │   └── apex/runbooks/  →   🎯 HOW the agent runs an engagement (guided procedures, routed by the apex skill)
-├── rules/              → 📏 Project-level agent rules (AGENTS.md for consumers)
 ├── devops-agent/       → Non-executable ports for AWS DevOps Agent
 └── examples/           → 🏗️ HOW to try it (hands-on exercises)
 ```

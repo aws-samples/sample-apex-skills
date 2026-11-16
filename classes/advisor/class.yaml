@@ -1,19 +1,20 @@
 # Advisor / Knowledge: skills that advise and ship nothing that runs.
-# Built because its four members share that: no tools/ or scripts/, and no
-# shell or aws commands in SKILL.md (read at sample-apex-skills 9157fe03).
+# Built because its four members (eks-best-practices, eks-genai,
+# eks-platform-engineering, ecs-genai) share that: no tools/ or scripts/,
+# and in SKILL.md no shell fence and no aws command line (read at
+# sample-apex-skills 9157fe03).
 
 name: advisor
-title: Advisor
 parents: [platform]
 
 inline: rules.md
 
 rules:
   advisor.no-side-effects:
-    basis: "Advisor skills have no side effects. No member states it today; apex-base allows a change on confirmation, which this rule removes"
+    open: "eks-platform-engineering pauses an ArgoCD sync only after the user confirms, which this rule forbids; the no-shipped-runnables check reads shell fences and aws, not kubectl"
 
 checks:
   - id: no-shipped-runnables
     what: "The member ships no tools/ or scripts/ and its SKILL.md holds no shell fence and no aws command line"
-    status: "planned: the admission-check runner"
-    open: "whether the check also reads references/ and flags the 53 example lines there that change a cluster or account"
+    status: planned
+    open: "whether the check also reads references/ and flags the example lines there that change a cluster or account"

@@ -3,19 +3,14 @@
 # sit in Operator.
 
 name: script
-title: Script
 parents: [operator]
 
 inline: rules.md
 
 rules:
-  script.output-schema:
-    basis: "A script's own output validates against the JSON Schema in assets/"
-  script.same-output:
-    basis: "The same input gives the same output on every run"
-    from: "skills/eks-well-architected-review/SKILL.md:124-130 (the one full determinism guarantee today)"
+  script.output-schema: {}
+  script.same-output: {}
   script.os-matrix:
-    basis: "The scripts run on Linux, macOS and Windows"
     note: "today skill-script CI runs on Linux only (.github/workflows/evals.yml:23); the installer refuses native Windows (.github/workflows/installer-test.yml:89, :106-107); no member names Windows as a host it runs on"
 
 checks:
@@ -24,7 +19,7 @@ checks:
     status: "planned: the output validator"
   - id: k-run-diff
     what: "Same input, same output across k runs"
-    status: "planned: the Script k-run diff"
+    status: planned
   - id: os-matrix-ci
     what: "The skill's scripts run in CI on Linux, macOS and Windows"
     status: "planned: not yet assigned"

@@ -60,7 +60,7 @@ git clone https://github.com/aws-samples/sample-apex-skills.git
 mkdir -p ~/.agents/skills && cp -r sample-apex-skills/skills/* ~/.agents/skills/
 ```
 
-In Codex the router is `$apex`. `/apex` in Kiro CLI was tested on 2.35.1 (2026-10-28); 1.27.0 rejected it. Other harnesses, and the optional agent guardrails in [rules/AGENTS.md](rules/AGENTS.md): [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/).
+In Codex the router is `$apex`. `/apex` in Kiro CLI was tested on 2.35.1 (2026-10-28); 1.27.0 rejected it. Other harnesses: [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/). [classes/](classes/) holds the shared rules; the class sync (planned) copies them into each skill.
 
 ## See it work
 

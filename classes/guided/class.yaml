@@ -1,9 +1,8 @@
 # Guided: solution skills where a script does not fit (eks-design, eks-build).
-# They inherit the artifact checks from Operator; the same rule id from two
-# classes fails the build, so this class adds none.
+# They inherit the artifact checks from Operator; the class sync (planned)
+# will fail on the same rule id from two classes, so this class adds none.
 
 name: guided
-title: Guided
 parents: [operator]
 
 inline: rules.md
