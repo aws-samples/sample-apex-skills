@@ -7,6 +7,8 @@ description: Advisory guidance for Amazon EKS architecture and configuration —
 
 Comprehensive guidance for designing, deploying, and operating Amazon EKS clusters. Consolidates guidance from the AWS EKS Best Practices Guide, AWS EKS HA/Resiliency Guide, and terraform-aws-modules/terraform-aws-eks examples.
 
+A command marked customer-run in references/ changes a cluster or account: run it only when the user explicitly asks for it, after showing the exact command and what it changes and getting a yes.
+
 ## When to Use This Skill
 
 **Activate this skill when:**

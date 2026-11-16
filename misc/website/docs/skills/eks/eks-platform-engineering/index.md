@@ -146,6 +146,8 @@ Full ML/data golden paths: [references/aiml-data-platform.md](references/aiml-da
 
 This skill uses **progressive disclosure** — the essentials are above; load a reference only when the task needs that depth:
 
+A command marked customer-run in references/ changes a cluster or account: run it only when the user explicitly asks for it, after showing the exact command and what it changes and getting a yes.
+
 | Reference | Load when the task is about… |
 |-----------|------------------------------|
 | [idp-architecture.md](references/idp-architecture.md) | IDP concept, reference architecture, hub-and-spoke, GitOps Bridge, value/challenges |
