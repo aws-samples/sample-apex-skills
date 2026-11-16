@@ -12,11 +12,24 @@
 name: apex-base
 parents: []
 
-open:
-  - "apex.mcp-first: whether this order holds for the ECS skills, which put the AWS CLI first because the ECS MCP Server (preview) has no cluster-enumeration tools"
-  - "apex.mcp-first: eks-operation-review (owner-held) requires the EKS MCP Server today and stops at its pre-flight without it; its fix goes to its owner's issue"
-  - "apex.no-secrets: members read Secret objects today, and those reads are replaced when they join: eks-recon (the Helm release Secrets in references/addons.md and the Prometheus config Secret in references/observability.md), eks-operation-review check 3.1 (Secret key names, references/access-identity.md and its runbook's carve-out) and the router's `helm list` (rule 1)"
-  - "apex.declared-schemas: the frontmatter key names a skill uses to declare its schemas"
+# Members whose text today conflicts with a rule here, and who changes it
+# (read at sample-apex-skills origin/main 7efa0776):
+# - eks-recon reads Secret objects for Helm releases (`helm list` and the
+#   owner=helm Secret fallback, references/addons.md, agents/addons-recon.md)
+#   and the Prometheus config (references/observability.md); it moves to
+#   the Helm annotations apex.no-secrets names and to ConfigMap and
+#   Prometheus custom-resource reads.
+# - eks-ingress-migration (owner-held) uses `helm list`
+#   (references/report-generation.md, and its devops-agent copy): its owner
+#   changes it.
+# - The apex eks-upgrade-check runbook lists `helm list` as a read; it goes
+#   with the runbook absorption.
+# - eks-operation-review (owner-held, vendored) needs the EKS MCP
+#   Server and reads Secret key names in check 3.1
+#   (references/access-identity.md): its owner changes it, tracked in
+#   aws-samples/sample-apex-skills issue 189 (open, checked on 2026-11-16).
+# The router's `helm list` is replaced in this piece (skills/apex/SKILL.md,
+# shared rule 1).
 
 # Deterministic checks one CI script runs on every member.
 # status "exists" names today's command; "planned" is not built yet.

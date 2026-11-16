@@ -83,7 +83,7 @@ One workflow for any event, every action proposed for the team to run:
 6. **Verify**: re-run C1 for the advisory and the C3 checks for the affected control.
 7. **Report**: what happened, exposure, what was read, actions proposed and taken, open items.
 
-If step 1 finds nothing in scope, the report says what was read and stops. Procedure and the proposals to print: [security-event-response.md](references/security-event-response.md). The why and the full quarantine and identity patterns: eks-best-practices, references/security-operations.md, section "Responding to a Security Event".
+If step 1 finds nothing in scope, the report says what was read and stops. Procedure and the proposals to print: [security-event-response.md](references/security-event-response.md). The why and the full quarantine and identity patterns: the eks-best-practices skill, its guidance on responding to a security event.
 
 ## C3: Posture check
 

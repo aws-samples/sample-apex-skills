@@ -18,9 +18,9 @@ Ask with the harness's ask tool where it has one; else ask in plain text (rule `
 | Harness | Ask tool |
 |---|---|
 | Claude Code | `AskUserQuestion` |
-| Codex | UNVERIFIED: not checked against a live source; ask in plain text until it is |
-| Kiro | UNVERIFIED: not checked against a live source; ask in plain text until it is |
-| AWS DevOps Agent | UNVERIFIED: not checked against a live source; ask in plain text until it is |
+| Codex | `request_user_input` (one to three short questions), in Plan mode only; in Default mode ask in plain text. Source: openai/codex `codex-rs/core/src/tools/handlers/request_user_input_spec.rs` ("This tool is only available in {allowed_modes}") and `codex-rs/protocol/src/config_types.rs` (`allows_request_user_input`: Plan only), checked on 2026-11-16. |
+| Kiro | None: Kiro's built-in tools (https://kiro.dev/docs/tools/, checked on 2026-11-16) include no ask tool, so ask in plain text in the chat. |
+| AWS DevOps Agent | None a skill can call: ask in plain text in the chat; the agent shows its own clarification options there ("Disambiguation cards in chat", May 13, 2026, https://docs.aws.amazon.com/devopsagent/latest/userguide/whats-new.html, checked on 2026-11-16). A scheduled or event-triggered run has no chat to ask in, so it states what it assumed. |
 
 ## Path variables
 

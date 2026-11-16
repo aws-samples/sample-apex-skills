@@ -7,11 +7,11 @@
 name: advisor
 parents: [platform]
 
-open:
-  - "advisor.no-side-effects: eks-platform-engineering pauses an ArgoCD sync only after the user confirms, which this rule forbids; the no-shipped-runnables check reads shell fences and aws, not kubectl"
+# eks-platform-engineering's one assistant rule (SKILL.md, Guardrails) now
+# gives the user the steps to pause an ArgoCD sync instead of pausing it,
+# so no member makes a change.
 
 checks:
   - id: no-shipped-runnables
-    what: "The member ships no tools/ or scripts/ and its SKILL.md holds no shell fence and no aws command line"
+    what: "The member ships no tools/ or scripts/; its SKILL.md holds no shell fence and no aws, kubectl, helm or eksctl command line; every line in references/ that changes a cluster or account (kubectl apply/create/delete/patch/annotate/label/edit, helm install/upgrade, aws create-/delete-/update-/put-/associate-, eksctl create/delete) sits in a block marked customer-run"
     status: planned
-    open: "whether the check also reads references/ and flags the example lines there that change a cluster or account"

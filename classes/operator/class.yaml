@@ -5,8 +5,11 @@
 name: operator
 parents: [platform]
 
-open:
-  - "operator.artifact-checks: the key a skill uses to declare its checks; today they sit in misc/evals/<skill>/.skilleval.yaml (eks-build today: terraform-validate, terraform-fmt, checkov, structural; the target adds tflint, a plan against a fixture and requirement coverage)"
+# operator.artifact-checks: a member declares its checks in
+# metadata.apex-artifact-checks. Today they sit in
+# misc/evals/<skill>/.skilleval.yaml (eks-build: terraform-validate,
+# terraform-fmt, checkov, structural); the target adds tflint, a security
+# scan, requirement coverage and a plan against a fixture.
 
 checks:
   - id: declared-artifact-checks
