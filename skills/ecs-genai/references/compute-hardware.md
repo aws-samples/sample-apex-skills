@@ -105,6 +105,7 @@ Request GPUs at the container level with `resourceRequirements` type `GPU`. ECS 
 
 The number of GPUs reserved across all containers in a task can't exceed the GPUs available on the instance ([CfnTaskDefinition ResourceRequirement](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ecs.CfnTaskDefinition.ResourceRequirementProperty.html)). Use **task placement constraints** on `ecs.instance-type` to steer a task to a specific GPU instance type:
 
+<!-- customer-run -->
 ```bash
 aws ecs run-task --cluster default --task-definition gpu-inference \
   --placement-constraints type=memberOf,expression="attribute:ecs.instance-type == g4dn.xlarge"

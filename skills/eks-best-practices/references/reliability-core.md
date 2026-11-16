@@ -734,13 +734,14 @@ Use startup probes for applications with slow initialization (>10 seconds). The 
 The Terraform state file is the primary recovery artifact. If the cluster is destroyed:
 
 1. Ensure the S3 state bucket has versioning enabled.
-2. Re-run `terraform apply` with the same configuration to recreate the cluster.
+2. Re-run `terraform apply` with the same configuration to recreate the cluster. <!-- customer-run -->
 3. Restore workloads from backups (Velero, if enabled).
 
 ### State Backup
 
 Enable S3 versioning on the state bucket:
 
+<!-- customer-run -->
 ```bash
 aws s3api put-bucket-versioning \
   --bucket my-state-bucket \
@@ -758,12 +759,14 @@ aws s3api get-object --bucket my-state-bucket --key eks/terraform.tfstate --vers
 
 If Velero is enabled, schedule regular cluster backups:
 
+<!-- customer-run -->
 ```bash
 velero schedule create daily-backup --schedule="0 2 * * *" --ttl 168h0m0s
 ```
 
 Restore from backup:
 
+<!-- customer-run -->
 ```bash
 velero restore create --from-backup daily-backup-<timestamp>
 ```

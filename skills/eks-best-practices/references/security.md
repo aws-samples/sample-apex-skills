@@ -41,6 +41,7 @@ Move VPC CNI permissions to IRSA/Pod Identity to reduce node role scope. Never a
 
 **Require IMDSv2 with hop limit 1 to block pods from accessing node credentials:**
 
+<!-- customer-run -->
 ```bash
 # In launch template user data or EC2NodeClass
 aws ec2 modify-instance-metadata-options --instance-id <id> \
@@ -64,6 +65,7 @@ Cluster Access Manager is the preferred way to manage access. It eliminates the 
 - **Access Entries** — cluster identity linked to an AWS IAM principal (user or role)
 - **Access Policies** — EKS-specific policies providing K8s authorization
 
+<!-- customer-run -->
 ```bash
 # Create cluster with API authentication (recommended for new clusters)
 aws eks create-cluster \
@@ -75,6 +77,7 @@ aws eks create-cluster \
 
 **Create access entries:**
 
+<!-- customer-run -->
 ```bash
 # Grant namespace-scoped access
 aws eks create-access-entry \
@@ -136,6 +139,7 @@ If `stsendpoint` equals `sts.amazonaws.com`, the client is using the global endp
 
 ### Pod Identity Setup
 
+<!-- customer-run -->
 ```yaml
 # 1. Install the Pod Identity Agent add-on
 aws eks create-addon \
@@ -162,6 +166,7 @@ aws eks create-pod-identity-association \
 
 ### IRSA Setup (when Pod Identity is not available)
 
+<!-- customer-run -->
 ```yaml
 # 1. Create OIDC provider (one per cluster)
 eksctl utils associate-iam-oidc-provider --cluster my-cluster --approve
@@ -438,6 +443,7 @@ The ExternalId requirement mitigates confused-deputy attacks by ensuring only th
 
 Envelope encryption for Kubernetes secrets is already **on by default** on every cluster (see [Data Encryption](#data-encryption)). `associate-encryption-config` does **not** turn encryption on — its current role is to layer your own customer-managed KMS key (CMK) over the default AWS-owned key, giving you CloudTrail visibility into key usage and direct control over the key (disable/rotate/scope via key policy). On ≥1.28, default envelope encryption covers all Kubernetes API data; associating a CMK makes it the KEK for all of it. The `associate-encryption-config` API still accepts only `resources: ["secrets"]` as input, but the effect extends to all API data.
 
+<!-- customer-run -->
 ```bash
 # Associate a customer-managed CMK for secrets (adds key control + CloudTrail visibility;
 # does NOT enable encryption — that is already on by default)

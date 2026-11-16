@@ -67,6 +67,7 @@ If cluster subnets are running low on IPs, add new subnets in the same AZs via `
 
 Enable logging **before** the upgrade to capture any errors during the process:
 
+<!-- customer-run -->
 ```bash
 aws eks update-cluster-config --name my-cluster \
   --logging '{"clusterLogging":[{"types":["api","audit","authenticator","controllerManager","scheduler"],"enabled":true}]}'
@@ -126,6 +127,7 @@ If an insight shows `"status": ERROR`, you **must** resolve it before upgrading.
 
 ### Step 1: Upgrade Control Plane
 
+<!-- customer-run -->
 ```bash
 # Check current version
 aws eks describe-cluster --name my-cluster \
@@ -150,6 +152,7 @@ aws eks describe-update \
 
 ### Step 2: Upgrade Add-ons
 
+<!-- customer-run -->
 ```bash
 # Check current add-on versions
 aws eks describe-addon --cluster-name my-cluster --addon-name vpc-cni
@@ -174,6 +177,7 @@ EKS add-ons are **not** automatically upgraded during a control plane upgrade �
 
 **For Managed Node Groups:**
 
+<!-- customer-run -->
 ```bash
 aws eks update-nodegroup-version \
   --cluster-name my-cluster \
@@ -193,6 +197,7 @@ aws eks describe-nodegroup \
 
 **For Fargate:** Redeploy workloads to pick up the new version. Identify Fargate pods:
 
+<!-- customer-run -->
 ```bash
 kubectl get pods -A -o wide | grep fargate-
 # Restart each deployment running on Fargate
@@ -294,6 +299,7 @@ Spreading across zones and hosts ensures pods migrate to new nodes automatically
 
 For L4 / internal-NLB blue/green cutover, use **NLB weighted target groups** (a weighted `forward` action), GA as of 2025-11-19. Point one NLB listener at two target groups — one registered to the blue cluster, one to the green — and shift weights to move traffic:
 
+<!-- customer-run -->
 ```bash
 aws elbv2 modify-listener \
   --listener-arn <listener-arn> \
@@ -538,6 +544,7 @@ Karpenter does not add jitter to expiry — configure PDBs to prevent simultaneo
 
 To force replacement of a specific node, delete its NodeClaim — Karpenter drains the node (respecting PDBs) and provisions a replacement:
 
+<!-- customer-run -->
 ```bash
 kubectl delete nodeclaim/<nodeclaim-name>
 ```
@@ -546,6 +553,7 @@ There is no `karpenter.sh/voluntary-disruption` annotation that forces replaceme
 
 ### Managed Node Group Upgrades
 
+<!-- customer-run -->
 ```bash
 # Rolling update (default strategy)
 aws eks update-nodegroup-version \
@@ -699,10 +707,10 @@ To verify SSM connectivity: check that the SSM agent is running on the node, the
 | **EKS control plane** | Yes (within 7 days) | In-place rollback to N-1 via `update-cluster-version` type `VersionRollback` (gated by a `ROLLBACK_READINESS` insight); Auto Mode rolls back nodes automatically | Post-7-day: blue-green or rebuild is the fallback, not the only path. Add-ons/data-plane roll back separately. |
 | **Data plane nodes** | Yes | Replace with previous AMI | Karpenter: update EC2NodeClass AMI; MNG: update launch template |
 | **EKS managed add-ons** | Yes | Revert to previous version via API/Terraform | Some add-ons have minimum version requirements |
-| **Helm-managed add-ons** | Yes | `helm rollback` or GitOps revert | Check CRD compatibility |
-| **Application deployments** | Yes | `kubectl rollout undo` or GitOps revert | Verify DB schema compatibility |
+| **Helm-managed add-ons** | Yes | `helm rollback` or GitOps revert | Check CRD compatibility | <!-- customer-run -->
+| **Application deployments** | Yes | `kubectl rollout undo` or GitOps revert | Verify DB schema compatibility | <!-- customer-run -->
 | **CRD changes** | Partial | Can revert CRD spec, but data migration may not reverse | Test CRD rollback in non-prod first |
-| **Network policies** | Yes | Revert via GitOps or kubectl apply | Immediate effect |
+| **Network policies** | Yes | Revert via GitOps or kubectl apply | Immediate effect | <!-- customer-run -->
 | **IAM changes** | Yes | Revert Terraform/CloudFormation | May take minutes to propagate |
 
 ### Full Cluster Rebuild from Backup
