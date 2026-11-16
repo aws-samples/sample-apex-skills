@@ -62,8 +62,11 @@ class ProcessAssertionResults:
         }
 
 
-def _args_match(tool_input: dict, args_match: dict) -> bool:
-    """Partial match: every key in args_match must exist with the same value."""
+def _args_match(tool_input: Any, args_match: dict) -> bool:
+    """Partial match: every key in args_match must exist with the same value.
+    A call with no input (None) or a non-object input matches no key."""
+    if not isinstance(tool_input, dict):
+        return not args_match
     for key, expected in args_match.items():
         if key not in tool_input:
             return False
@@ -307,8 +310,9 @@ def _eval_tool_effectiveness(trajectory: Trajectory, assertion: dict) -> Asserti
     )
 
 
-def _validate_against_schema(instance: dict, schema: dict) -> bool:
-    """Validate instance against JSON Schema. Falls back to basic checks if jsonschema unavailable."""
+def _validate_against_schema(instance: Any, schema: dict) -> bool:
+    """Validate instance against JSON Schema. Falls back to basic checks if jsonschema unavailable.
+    A call with no input arrives as None, which an object schema rejects."""
     if _HAS_JSONSCHEMA:
         try:
             jsonschema.validate(instance, schema)
@@ -318,6 +322,8 @@ def _validate_against_schema(instance: dict, schema: dict) -> bool:
     # Fallback: basic type + required checking
     warnings.warn("jsonschema package not installed; using basic type/required validation only")
     if schema.get("type") == "object" and not isinstance(instance, dict):
+        return False
+    if schema.get("required") and not isinstance(instance, dict):
         return False
     for req in schema.get("required", []):
         if req not in instance:

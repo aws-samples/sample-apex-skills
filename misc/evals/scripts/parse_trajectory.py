@@ -56,7 +56,9 @@ def model_usage_entries(model_usage: Any) -> list[dict]:
 @dataclass
 class ToolCall:
     name: str
-    input: dict
+    # The tool_use block's `input` as sent. None when the block has no
+    # `input` key or it is null, so "no input" stays apart from `{}`.
+    input: Any
     result: str | None
     is_error: bool
     index: int
@@ -104,6 +106,9 @@ class Trajectory:
     cache_read_input_tokens: int | None = None
     cache_creation_input_tokens: int | None = None
     token_source: str | None = None
+    # Events that were not a JSON object (a list, string, number or null
+    # line in events.jsonl); they are skipped.
+    skipped_events: int = 0
 
     def to_dict(self) -> dict:
         return {
@@ -119,6 +124,7 @@ class Trajectory:
             "cache_read_input_tokens": self.cache_read_input_tokens,
             "cache_creation_input_tokens": self.cache_creation_input_tokens,
             "token_source": self.token_source,
+            "skipped_events": self.skipped_events,
         }
 
 
@@ -149,10 +155,15 @@ def parse_events(events: list[dict]) -> Trajectory:
 
     pending_calls: list[ToolCall] = []
     pending_text: list[str] = []
+    skipped_events = 0
 
     i = 0
     while i < len(events):
         evt = events[i]
+        if not isinstance(evt, dict):
+            skipped_events += 1
+            i += 1
+            continue
         etype = evt.get("type")
 
         if etype == "assistant":
@@ -161,11 +172,13 @@ def parse_events(events: list[dict]) -> Trajectory:
             turn_text_parts: list[str] = []
 
             for c in msg.get("content") or []:
+                if not isinstance(c, dict):
+                    continue
                 ctype = c.get("type")
                 if ctype == "tool_use":
                     tc = ToolCall(
                         name=c.get("name", ""),
-                        input=c.get("input") or {},
+                        input=c.get("input"),
                         result=None,
                         is_error=False,
                         index=global_tool_index,
@@ -182,11 +195,11 @@ def parse_events(events: list[dict]) -> Trajectory:
                 # Look ahead for the user event with tool_results
                 if i + 1 < len(events):
                     next_evt = events[i + 1]
-                    if next_evt.get("type") == "user":
+                    if isinstance(next_evt, dict) and next_evt.get("type") == "user":
                         results_content = (next_evt.get("message") or {}).get("content") or []
                         result_idx = 0
                         for rc in results_content:
-                            if rc.get("type") == "tool_result" and result_idx < len(turn_calls):
+                            if isinstance(rc, dict) and rc.get("type") == "tool_result" and result_idx < len(turn_calls):
                                 turn_calls[result_idx].result = _extract_text_from_result_content(
                                     rc.get("content")
                                 )
@@ -235,6 +248,7 @@ def parse_events(events: list[dict]) -> Trajectory:
         total_tokens=total_tokens,
         **token_counts,
         token_source=token_source,
+        skipped_events=skipped_events,
     )
 
 

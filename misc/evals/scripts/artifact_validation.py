@@ -875,12 +875,27 @@ def _run_command(cmd: list[str], cwd: Path, timeout: int = 120) -> tuple[int, st
         return -2, "", f"Command not found: {cmd[0]}"
 
 
+def _no_tf_files(root: Path, validator: dict) -> ValidatorResult | None:
+    """A skipped result when root holds no .tf file, else None. terraform fmt
+    and validate exit 0 with nothing to check, which must not read as a pass;
+    the other validators skip on no matching files the same way."""
+    if _resolve_glob(root, "**/*.tf"):
+        return None
+    return ValidatorResult(
+        validator=validator, status="skipped",
+        detail="No .tf files found", exit_code=None, duration_ms=0,
+    )
+
+
 def _validator_terraform_fmt(root: Path, validator: dict) -> ValidatorResult:
     if not shutil.which("terraform"):
         return ValidatorResult(
             validator=validator, status="skipped",
             detail="terraform not found on PATH", exit_code=None, duration_ms=0,
         )
+    no_files = _no_tf_files(root, validator)
+    if no_files:
+        return no_files
 
     start = time.time()
     rc, stdout, stderr = _run_command(["terraform", "fmt", "-check", "-recursive", "."], root)
@@ -910,6 +925,9 @@ def _validator_terraform_validate(root: Path, validator: dict) -> ValidatorResul
             validator=validator, status="skipped",
             detail="terraform not found on PATH", exit_code=None, duration_ms=0,
         )
+    no_files = _no_tf_files(root, validator)
+    if no_files:
+        return no_files
 
     start = time.time()
     rc, stdout, stderr = _run_command(
@@ -947,6 +965,10 @@ def _validator_checkov(root: Path, validator: dict) -> ValidatorResult:
         )
 
     framework = validator.get("framework", "terraform")
+    if framework == "terraform":
+        no_files = _no_tf_files(root, validator)
+        if no_files:
+            return no_files
     skip_checks = validator.get("skip_checks", [])
     cmd = ["checkov", "-d", ".", "--framework", framework, "--compact", "--output", "json"]
     for check in skip_checks:
