@@ -119,12 +119,12 @@ Container Insights fact.
 
 Classify how Prometheus runs and record its version.
 - `self-managed` — a `prometheus-server` Deployment/StatefulSet (e.g. Helm `prometheus`).
-- `operator` — the Prometheus Operator is present (label `app.kubernetes.io/name=prometheus-operator`), managing `Prometheus` CRs.
+- `operator`: the Prometheus Operator is present (a Deployment labelled `app.kubernetes.io/name=prometheus-operator` or `app.kubernetes.io/component=prometheus-operator`, or whose `helm.sh/chart` or `chart` label starts with `kube-prometheus-stack-`), managing `Prometheus` CRs.
 - `amp` — Amazon Managed Prometheus; an `aps-workspaces` remote_write target with no in-cluster server (record `version: null`).
 
 **Via Kubernetes API** — detect Prometheus and its version:
 
-- **Resource:** `Deployment` and `StatefulSet`, group/version `apps/v1`, label selector `app.kubernetes.io/name=prometheus`, all namespaces. Also check `Deployment` with label `app.kubernetes.io/name=prometheus-operator` to set `type: operator`.
+- **Resource:** `Deployment` and `StatefulSet`, group/version `apps/v1`, label selector `app.kubernetes.io/name=prometheus`, all namespaces. Also check `Deployment`, all namespaces, with label `app.kubernetes.io/name=prometheus-operator` or `app.kubernetes.io/component=prometheus-operator`, or whose `helm.sh/chart` or `chart` label starts with `kube-prometheus-stack-` (kube-prometheus-stack names its operator `kube-prometheus-stack-prometheus-operator`), to set `type: operator`.
 - **Fields to extract:** container image whose name matches `prometheus` → parse the image tag for the version; `metadata.namespace`.
 - **RBAC verbs:** `get`, `list` on `deployments.apps`, `statefulsets.apps`.
 
@@ -160,11 +160,11 @@ so the operator case reads the Prometheus and PrometheusAgent custom resources i
 
 **Via Kubernetes API**, self-managed: read the Prometheus config ConfigMap:
 
-- **Resource:** `ConfigMap`, group/version `v1` (core), all namespaces, whose name matches `prometheus`.
+- **Resource:** `ConfigMap`, group/version `v1` (core), all namespaces, whose name matches `prometheus`, label selector `owner!=helm`.
 - **Fields to extract:** from the rendered config body — `scrape_configs[].job_name` (scrape job names) and `remote_write[].url` (remote_write URLs, e.g. `aps-workspaces` AMP endpoints).
 - **RBAC verbs:** `get`, `list` on `configmaps`.
 
-**Via Kubernetes API**, operator: read the custom resources:
+**Via Kubernetes API**, operator: read the custom resources whenever the `Prometheus` CRD exists, whatever type the detection above found:
 
 - **Resource:** `Prometheus` (group/version `monitoring.coreos.com/v1`) and `PrometheusAgent` (`monitoring.coreos.com/v1alpha1`), all namespaces.
 - **Fields to extract:** every `spec.remoteWrite[].url` of each `Prometheus` and `PrometheusAgent` (a PrometheusAgent shares the field with Prometheus) → `remote_write_targets`.
@@ -284,7 +284,7 @@ Their config identifies where logs are being sent.
 
 **Via Kubernetes API** — detect additional log backends:
 
-- **Resource:** `ConfigMap` (core `v1`) whose data references `opensearch`/`elasticsearch`; `Deployment`/`StatefulSet` (`apps/v1`) with label `app.kubernetes.io/name=loki`.
+- **Resource:** `ConfigMap` (core `v1`), label selector `owner!=helm`, whose data references `opensearch`/`elasticsearch`; `Deployment`/`StatefulSet` (`apps/v1`) with label `app.kubernetes.io/name=loki`.
 - **Fields to extract:** presence → set the corresponding `log_destinations` boolean.
 - **RBAC verbs:** `get`, `list` on `configmaps`, `deployments.apps`, `statefulsets.apps`.
 
