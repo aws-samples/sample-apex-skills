@@ -222,7 +222,7 @@ first_sentence() {
 SKILL_META="$(cat <<'META'
 apex	APEX Router: pick the right EKS or ECS skill	Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills	Set up and extend
 dotnet-aws-ecs	.NET on Amazon ECS: Fargate with CloudFormation or CDK	Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide	Day 1 Build
-ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, plus capacity providers and task sizing	Day 0 Design
+ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS compute model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, plus capacity providers and task sizing	Day 0 Design
 ecs-build	ECS Build: apply-ready Terraform for Amazon ECS	Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances	Day 1 Build
 ecs-devops	ECS DevOps: deployments and CI/CD for Amazon ECS	Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks	Day 1 Build
 ecs-genai	ECS GenAI: GPU, ML and LLM workloads on Amazon ECS	GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference	Knowledge Skills
