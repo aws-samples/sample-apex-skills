@@ -326,9 +326,9 @@ For each unmounted PVC:
 | Monthly Waste | Severity |
 |---------------|----------|
 | > $500 (aggregate unmounted) | CRITICAL |
-| $200–$500 | HIGH |
-| $50–$200 | MEDIUM |
-| < $50 | LOW |
+| > $200 to $500 | HIGH |
+| > $50 to $200 | MEDIUM |
+| $50 or less | LOW |
 
 ### Remediation
 
@@ -481,9 +481,9 @@ For each mounted PVC with available usage data:
 | Monthly Waste | Severity |
 |---------------|----------|
 | > $500 | CRITICAL |
-| $200–$500 | HIGH |
-| $50–$200 | MEDIUM |
-| < $50 | LOW |
+| > $200 to $500 | HIGH |
+| > $50 to $200 | MEDIUM |
+| $50 or less | LOW |
 
 ### Graceful degradation
 
@@ -783,7 +783,7 @@ Check 2 — Unmounted PVCs:
     - staging/redis-backup (50 GiB, gp3) → $4.00/month
     - default/test-data (100 GiB, gp2) → $10.00/month
   total_monthly_waste = $30.00/month
-  severity = LOW (< $50 aggregate)
+  severity = LOW ($50 or less aggregate)
   effort = Low
 
 Check 3 — Over-Provisioned Volumes:
@@ -791,7 +791,7 @@ Check 3 — Over-Provisioned Volumes:
     - analytics/clickstream-data (500 GiB provisioned, 45 GiB used) → $32.80/month savings
     - ml/training-cache (200 GiB provisioned, 30 GiB used) → $11.20/month savings
   total_monthly_savings = $44.00/month
-  severity = LOW (< $50 aggregate)
+  severity = LOW ($50 or less aggregate)
   effort = Medium
 
 Check 4 — EFS Lifecycle:

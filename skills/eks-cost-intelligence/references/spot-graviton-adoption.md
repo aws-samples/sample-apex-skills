@@ -535,22 +535,22 @@ spot_pct = spot_nodes / total_nodes × 100
 has_spot_eligible_workloads = (count of Spot-eligible workloads > 0)
 
 If spot_pct == 0 AND has_spot_eligible_workloads:
-  → Generate HIGH severity finding (Requirement 6.5)
+  → Generate a finding (Requirement 6.5), reported as Check 5's finding
   savings_estimate = eligible_workload_cost × 0.60  # ~60% Spot discount average
 
 If spot_pct > 0 AND spot_pct < 30 AND has_spot_eligible_workloads:
-  → Generate MEDIUM severity finding (room for more Spot)
+  → Generate a finding, reported as Check 5's finding
 ```
 
 ### Severity classification
 
 | Condition | Severity |
 |-----------|----------|
-| 0% Spot + eligible workloads exist | HIGH |
-| 1–29% Spot + more eligible workloads | MEDIUM |
+| 0% Spot + eligible workloads exist | As Check 5 |
+| 1–29% Spot + more eligible workloads | As Check 5 |
 | 30%+ Spot or no eligible workloads | No finding |
 
-Check 4 and Check 5 on the same eligible workloads are one finding (findings-format.md Severity Assignment Rules 2): report and deduct it once, rated by Check 5's Severity classification.
+Check 4 and Check 5 on the same eligible workloads are one finding: report and deduct it once, rated by Check 5's Severity classification.
 
 ### Remediation
 
@@ -880,9 +880,11 @@ For each Spot-enabled NodePool or node group:
 |-----------|----------|
 | Spot node group with only 1–2 instance types | MEDIUM |
 | Spot node group with 3–4 instance types | MEDIUM |
-| Spot NodePool with only 1 instance category | MEDIUM |
+| Spot NodePool with fewer than 2 instance categories and no instance-family set | MEDIUM |
 | Spot types from one family (node group), or fewer than 3 families (NodePool) | MEDIUM |
-| 5+ types across 2+ families | No finding |
+| 5+ types across 2+ families (node group), or 3+ families (NodePool) | No finding |
+
+A node group or NodePool that matches more than one row is one finding.
 
 ### Remediation
 
@@ -1151,7 +1153,7 @@ START
   │   │   ├─ Criteria: stateless + replicas ≥ 2 + has PDB
   │   │   └─ Eligible workloads on OD → one finding, severity by summed savings
   │   ├─ Check instance type diversity for Spot (Check 6)
-  │   │   └─ If < 5 types or single family → MEDIUM finding
+  │   │   └─ If any Check 6 table row matches → one MEDIUM finding
   │   └─ Check interruption handling (Check 7)
   │       └─ If Spot nodes + no handler → HIGH finding
   │
@@ -1169,7 +1171,7 @@ START
 - Check 4: reported as Check 5's finding
 - Check 5: one finding, severity by summed savings
 - Check 7: not applicable (no Spot nodes)
-- **Expected deduction:** 20 points (capped)
+- **Expected deduction:** 12 points plus Check 5's finding (20, capped, when summed savings exceed $500/month)
 
 ### Scenario B: Karpenter with Spot + Graviton
 
