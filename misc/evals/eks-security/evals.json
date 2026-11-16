@@ -6,11 +6,18 @@
       "prompt": "We're a healthcare SaaS building a NEW EKS cluster to process PHI. HIPAA-eligible workload, no vendor-OS mandate, moderate Kubernetes skill, 6-month audit timeline, single cluster, low operational-overhead tolerance. Lay out the AWS-recommended security baseline across the full stack plus a 30/60/90 plan.",
       "expectations": [
         "Recommends Bottlerocket as the Layer-1 default for a container-first HIPAA workload with no vendor-OS mandate",
-        "States EKS is HIPAA-ELIGIBLE and a signed BAA with AWS is required before processing PHI (does NOT say 'HIPAA-compliant')",
-        "Recommends EKS Pod Identity for new workloads AND EKS Access Entries instead of the aws-auth ConfigMap",
-        "Includes the non-negotiable baseline: PSA restricted, default-deny NetworkPolicy, control-plane audit+authenticator logging, GuardDuty for EKS, ECR Enhanced Scanning, secrets via Secrets Manager + CSI driver (not plain K8s Secrets)",
+        "States EKS is HIPAA-ELIGIBLE (does NOT say 'HIPAA-compliant')",
+        "States a signed BAA with AWS is required before processing PHI",
+        "Recommends EKS Pod Identity for new workloads",
+        "Recommends EKS Access Entries instead of the aws-auth ConfigMap",
+        "Includes PSA restricted in the non-negotiable baseline",
+        "Includes default-deny NetworkPolicy in the non-negotiable baseline",
+        "Includes control-plane audit+authenticator logging in the non-negotiable baseline",
+        "Includes GuardDuty for EKS in the non-negotiable baseline",
+        "Includes ECR Enhanced Scanning in the non-negotiable baseline",
+        "Includes secrets via Secrets Manager + CSI driver (not plain K8s Secrets) in the non-negotiable baseline",
         "Includes the compliance-status disclaimer to verify on the live AWS Services in Scope page",
-        "Does NOT call IRSA 'legacy': frames Pod Identity as recommended-for-new while IRSA is a fully supported alternative. TODO: human review"
+        "Does NOT call IRSA 'legacy': frames Pod Identity as recommended-for-new while IRSA is a fully supported alternative."
       ],
       "files": [],
       "name": "hipaa-greenfield-baseline"
@@ -22,7 +29,7 @@
         "States EKS Auto Mode does NOT support custom AMIs",
         "Recommends Bottlerocket on self-managed Karpenter NodePools when a CIS-hardened custom AMI is a hard requirement",
         "Distinguishes a hard regulatory requirement from an organizational preference before recommending",
-        "Notes that on Auto Mode the identity, image, runtime, audit and compliance layers (2, 4, 5, 6, 7) and all policy content stay the customer's, so Auto Mode is not 'security handled'. TODO: human review"
+        "Notes that on Auto Mode the identity, image, runtime, audit and compliance layers (2, 4, 5, 6, 7) and all policy content stay the customer's, so Auto Mode is not 'security handled'."
       ],
       "files": [],
       "name": "automode-vs-cis-custom-ami"
@@ -34,9 +41,11 @@
         "Sequences non-disruptive baseline (logging, GuardDuty, ECR scanning, Security Hub, kube-bench) BEFORE making changes",
         "Recommends migrating aws-auth ConfigMap to EKS Access Entries during a planned change window",
         "Recommends PSA restricted rolled out in audit mode before enforce mode",
-        "Notes AL2 must be migrated (AL2023 or Bottlerocket) and references the correct AL2 timing (EKS stopped AL2 AMIs Nov 2025 / AL2 OS EOL June 30 2026)",
-        "Recommends AWS Config conformance packs (the PCI DSS 4.0 pack) + Security Hub as the audit-prep path, and does NOT prescribe standing up AWS Audit Manager for this audit: Audit Manager is in maintenance mode / closed to new accounts (as of 2026-04-30); its PCI framework continues for existing setups only.",
-        "States PCI-DSS requires 1-year minimum audit-log retention. TODO: human review"
+        "Notes AL2 must be migrated (AL2023 or Bottlerocket)",
+        "References the correct AL2 timing (EKS stopped AL2 AMIs Nov 2025 / AL2 OS EOL June 30 2026)",
+        "Recommends AWS Config conformance packs (the PCI DSS 4.0 pack) + Security Hub as the audit-prep path",
+        "Does NOT prescribe standing up AWS Audit Manager for this audit: Audit Manager is in maintenance mode / closed to new accounts (as of 2026-04-30); its PCI framework continues for existing setups only.",
+        "States PCI-DSS requires 1-year minimum audit-log retention."
       ],
       "files": [],
       "name": "pci-existing-cluster-priority"
@@ -51,10 +60,15 @@
         "eval-4/bulletin.txt"
       ],
       "expectations": [
-        "Gives the verdict exposed for both the vpc-cni add-on (v1.21.1-eksbuild.3, fixed 1.22.3) and the aws-network-policy-agent image (v1.2.0-eksbuild.1, fixed 1.3.7)",
-        "Uses the bulletin's own severity (Important) and raises the priority one step (P2 to P1) because the bulletin states there is no workaround; it does not invent its own severity rating",
-        "Proposes the add-on update as a command for the team to review and run (describe-addon-versions first, a non-prod test, then update-addon to 1.22.3 or later with --resolve-conflicts PRESERVE) and does not claim to have run it",
-        "Cites the source URL and the advisory read time (2026-11-05T15:04:00Z), and opens with a coverage line (2 of 2 components read)",
+        "Gives the verdict exposed for the vpc-cni add-on (v1.21.1-eksbuild.3, fixed 1.22.3)",
+        "Gives the verdict exposed for the aws-network-policy-agent image (v1.2.0-eksbuild.1, fixed 1.3.7)",
+        "Uses the bulletin's own severity (Important); it does not invent its own severity rating",
+        "Raises the priority one step (P2 to P1) because the bulletin states there is no workaround",
+        "Proposes the add-on update as a command for the team to review and run (describe-addon-versions first, a non-prod test, then update-addon to 1.22.3 or later with --resolve-conflicts PRESERVE)",
+        "Does not claim to have run the add-on update",
+        "Cites the source URL",
+        "Cites the advisory read time (2026-11-05T15:04:00Z)",
+        "Opens with a coverage line (2 of 2 components read)",
         "Treats the advisory's NetworkPolicy condition as a note, not as a reason to lower the priority"
       ],
       "process_assertions": [
@@ -125,8 +139,14 @@
         "eval-5/bulletin.txt"
       ],
       "expectations": [
-        "Gives the verdict not exposed: vpc-cni v1.22.3-eksbuild.1 is at the fixed 1.22.3 and the agent v1.3.7-eksbuild.1 is at the fixed 1.3.7 (build suffix ignored for the compare)",
-        "Each not-exposed line names the component, installed version, fixed version, the source URL, the advisory read time and the inventory collection time (2026-11-05T18:00:00Z)",
+        "Gives the verdict not exposed for vpc-cni: v1.22.3-eksbuild.1 is at the fixed 1.22.3 (build suffix ignored for the compare)",
+        "Gives the verdict not exposed for the agent: v1.3.7-eksbuild.1 is at the fixed 1.3.7 (build suffix ignored for the compare)",
+        "Each not-exposed line names the component",
+        "Each not-exposed line names the installed version",
+        "Each not-exposed line names the fixed version",
+        "Each not-exposed line names the source URL",
+        "Each not-exposed line names the advisory read time",
+        "Each not-exposed line names the inventory collection time (2026-11-05T18:00:00Z)",
         "Does not raise a false alarm: no exposed finding and no urgent upgrade or patch proposal for this advisory",
         "Opens with a coverage line showing every targeted component was read (2 of 2)"
       ],
@@ -187,7 +207,9 @@
       ],
       "expectations": [
         "Does NOT confirm 'not exposed': the overall result is unknown because the aws-network-policy-agent image runs with tag `latest` and could not be compared",
-        "Gives the reason for the unknown (tag_latest) and the action to resolve it (find the digest's version in the registry or pin the image), and says it is not a clean result",
+        "Gives the reason for the unknown (tag_latest)",
+        "Gives the action to resolve the unknown (find the digest's version in the registry or pin the image)",
+        "Says the unknown is not a clean result",
         "Reports the vpc-cni add-on line as not exposed on its own while keeping the overall verdict unknown",
         "Prints a coverage line showing 1 of 2 targeted components read"
       ],
@@ -260,9 +282,13 @@
       ],
       "expectations": [
         "States that on Auto Mode AWS manages and patches the VPC CNI and the network policy agent, so the team runs no add-on update for them",
-        "Lists the nodes created before the fix date 2026-11-03T00:00:00Z as pending rotation, oldest first with creation times (i-0a1b2c3d4e5f60001 created 2026-10-22, i-0a1b2c3d4e5f60002 created 2026-10-25), and treats i-0a1b2c3d4e5f60003 (created 2026-11-04) as already on the fixed build",
-        "Proposes the customer's lever as a printed proposal for review: a shorter NodePool expireAfter or a planned replacement of the pending nodes, and notes Auto Mode instances live at most 21 days",
-        "Does not propose an aws eks update-addon command for an AWS-managed component and does not call the result a plain clean 'not exposed' while nodes are pending",
+        "Lists the nodes created before the fix date 2026-11-03T00:00:00Z as pending rotation with creation times (i-0a1b2c3d4e5f60001 created 2026-10-22, i-0a1b2c3d4e5f60002 created 2026-10-25)",
+        "Lists the pending-rotation nodes oldest first",
+        "Treats i-0a1b2c3d4e5f60003 (created 2026-11-04) as already on the fixed build",
+        "Proposes the customer's lever as a printed proposal for review: a shorter NodePool expireAfter or a planned replacement of the pending nodes",
+        "Notes Auto Mode instances live at most 21 days",
+        "Does not propose an aws eks update-addon command for an AWS-managed component",
+        "Does not call the result a plain clean 'not exposed' while nodes are pending",
         "Keeps the base priority (P2) for the Auto Mode verdict rather than raising it"
       ],
       "process_assertions": [
@@ -329,8 +355,12 @@
         "eval-8/scope.json"
       ],
       "expectations": [
-        "Scopes first: the cluster, the shop namespace, the two orders-api pods and their nodes, the image digest, and the identity (the orders-api service account, its Pod Identity association and role orders-api-pod with its S3 and SQS policies)",
-        "Takes only a quick record before containing (pod specs, node records, the running digest and logs, read through the API server), then contains at once; says not to delete, drain or restart the pods and not to scale them down before the EBS snapshots, and proposes pausing the orders-api rollout so the pods stay in place",
+        "Scopes first",
+        "The scope covers the cluster, the shop namespace, the two orders-api pods and their nodes, the image digest, and the identity (the orders-api service account, its Pod Identity association and role orders-api-pod with its S3 and SQS policies)",
+        "Takes only a quick record before containing (pod specs, node records, the running digest and logs, read through the API server)",
+        "Contains at once after the quick record",
+        "Says not to delete, drain or restart the pods and not to scale them down before the EBS snapshots",
+        "Proposes pausing the orders-api rollout so the pods stay in place",
         "Proposes pod-scoped NetworkPolicy isolation by an added quarantine label on the two orders-api pods (app labels unchanged), explicitly not a namespace-wide deny-all that would cut cart, checkout and catalog, and states its limits: policies are additive, so it holds only where policy is enforced and no other policy selecting the pods allows the traffic",
         "Proposes identity containment for the leaked credentials and names what each breaks: revoke the role's active sessions (credentials already issued stay valid until then) and remove or narrow the Pod Identity association, plus blocking the digest at admission since Kyverno is installed",
         "Proposes EBS snapshots of the node volumes and volatile capture only after the pods are isolated, not before containment",
@@ -410,11 +440,22 @@
         "eval-9/posture.json"
       ],
       "expectations": [
-        "Gives the coverage line (46 of 49 measured checks answered, gate 50%) and the score (59 of 100) as posture.json states them, and one verdict row per containment layer (node-credential, lateral-movement, privilege, identity, detection, api-exposure, supply-chain) with the file's verdicts: not-contained for the first four and api-exposure, partly for detection and supply-chain",
-        "Lists the failed high-severity checks by SEC-POSTURE id with their evidence: SEC-POSTURE-55 hop limit 2 on the four general node group instances, SEC-POSTURE-56 orders and web without default-deny ingress, SEC-POSTURE-34 legacy without a PSA enforce label, SEC-POSTURE-58 the hostNetwork log-shipper pod, SEC-POSTURE-2 public endpoint open to 0.0.0.0/0, SEC-POSTURE-64 two principals with cluster admin through an access policy",
-        "Reports SEC-POSTURE-60 and SEC-POSTURE-61 (GuardDuty) as unknown because guardduty.json was not collected, and the governance checks as unknown to confirm with the team, never as pass",
-        "For SEC-POSTURE-64, says one holder is likely the cluster creator and that a re-run of posture_extra.sh with --admin-allow naming the expected admin roles (creator, break-glass) lists them under pass; the fix is to scope the others, printed only",
-        "Fixes are printed for the team to review (for example hop limit 1 in the launch template, a default-deny NetworkPolicy per namespace, the PSA label, restricting the endpoint CIDRs, scoping the admin access entries) and nothing is applied",
+        "Gives the coverage line (46 of 49 measured checks answered, gate 50%) as posture.json states it",
+        "Gives the score (59 of 100) as posture.json states it",
+        "Gives one verdict row per containment layer (node-credential, lateral-movement, privilege, identity, detection, api-exposure, supply-chain) with the file's verdicts: not-contained for the first four and api-exposure, partly for detection and supply-chain",
+        "Lists the failed high-severity check SEC-POSTURE-55 by id with its evidence: hop limit 2 on the four general node group instances",
+        "Lists the failed high-severity check SEC-POSTURE-56 by id with its evidence: orders and web without default-deny ingress",
+        "Lists the failed high-severity check SEC-POSTURE-34 by id with its evidence: legacy without a PSA enforce label",
+        "Lists the failed high-severity check SEC-POSTURE-58 by id with its evidence: the hostNetwork log-shipper pod",
+        "Lists the failed high-severity check SEC-POSTURE-2 by id with its evidence: public endpoint open to 0.0.0.0/0",
+        "Lists the failed high-severity check SEC-POSTURE-64 by id with its evidence: two principals with cluster admin through an access policy",
+        "Reports SEC-POSTURE-60 and SEC-POSTURE-61 (GuardDuty) as unknown because guardduty.json was not collected, never as pass",
+        "Reports the governance checks as unknown to confirm with the team, never as pass",
+        "For SEC-POSTURE-64, says one holder is likely the cluster creator",
+        "For SEC-POSTURE-64, says that a re-run of posture_extra.sh with --admin-allow naming the expected admin roles (creator, break-glass) lists them under pass",
+        "For SEC-POSTURE-64, says the fix is to scope the others, printed only",
+        "Fixes are printed for the team to review (for example hop limit 1 in the launch template, a default-deny NetworkPolicy per namespace, the PSA label, restricting the endpoint CIDRs, scoping the admin access entries)",
+        "Nothing is applied",
         "Does not treat plain version lag as a posture finding: no posture check judges component versions, and a currency gap is only a component below a fixed version from a C1 sweep"
       ],
       "process_assertions": [
