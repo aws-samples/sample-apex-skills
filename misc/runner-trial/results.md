@@ -21,7 +21,7 @@ Each case is graded on its own single pass condition (cases.md). That condition 
 
 ## Extending the homegrown runner (C1), sized
 
-The trial is to drive C1 "as extended" from a separate script, misc/runner-trial/drive_c1.py (not yet written), so the runner code is not changed here. Building the extension for real touches these files (misc/evals/scripts/ unless noted):
+The trial is to drive C1 "as extended" from a separate script, misc/runner-trial/drive_c1.py, so the runner code is not changed here. Building the extension for real touches these files (misc/evals/scripts/ unless noted):
 
 | Piece | Files | What changes | Size |
 |---|---|---|---|

@@ -2,7 +2,7 @@
 
 Repo line cites are at commit 7efa0776.
 
-Stated before any paid run. Spent so far: $0 (no trial run has run). All prices are AWS list prices read 2026-11-16. The subject model for the claude harness is `global.anthropic.claude-opus-4-6-v1` (misc/evals/Makefile:35, misc/evals/scripts/run_task_evals.py:1025); Claude Code also calls Haiku 4.5 inside a run, C2's judge is Haiku, Codex runs gpt-5.6-sol and C3 uses its built-in evaluators' models. The trial is budgeted at $205 for all candidates together, unless the maintainers set another limit with the spend decision. Only C2's run has a hard stop (`--max-cost-usd 60`); the C1 driver and the C3 calls are stopped by hand when the running total reaches the limit.
+Stated before any paid run. Spent so far: $0 (no trial run has run). All prices are AWS list prices read 2026-11-16. The subject model for the claude harness is `global.anthropic.claude-opus-4-6-v1` (misc/evals/Makefile:35, misc/evals/scripts/run_task_evals.py:1025); Claude Code also calls Haiku 4.5 inside a run, C2's judge is Haiku, Codex runs gpt-5.6-sol and C3 uses its built-in evaluators' models. The trial is budgeted at $205 for all candidates together, unless the maintainers set another limit with the spend decision. Only C2's run has a hard stop (`--max-cost-usd 60`); the C1 driver stops before its next run once the subjects' recorded cost reaches the limit (the grader's cost is not recorded), and the C3 calls are stopped by hand when the running total reaches the limit.
 
 ## Per-run basis
 
