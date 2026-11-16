@@ -399,10 +399,8 @@
         "Proposes pausing the orders-api rollout so the pods stay in place",
         "Proposes pod-scoped NetworkPolicy isolation by an added quarantine label on the two orders-api pods (app labels unchanged), explicitly not a namespace-wide deny-all that would cut cart, checkout and catalog, and states its limits: policies are additive, so it holds only where policy is enforced and no other policy selecting the pods allows the traffic",
         "Proposes identity containment for the leaked credentials and names what each breaks: revoke the role's active sessions (credentials already issued stay valid until then) and remove or narrow the Pod Identity association, plus blocking the digest at admission since Kyverno is installed",
-        "Proposes EBS snapshots of the node volumes only after the pods are isolated, not before containment",
-        "Proposes volatile capture only after the pods are isolated, not before containment",
-        "Every change is printed for the team to review and run",
-        "The answer does not claim to have applied anything",
+        "Proposes EBS snapshots of the node volumes and volatile capture only after the pods are isolated, not before containment",
+        "Every change is printed for the team to review and run; the answer does not claim to have applied anything",
         "States that checking whether the stolen credentials were used (GuardDuty findings, CloudTrail, audit log queries) is not covered by the skill"
       ],
       "process_assertions": [
