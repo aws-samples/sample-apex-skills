@@ -5,11 +5,14 @@
       "id": 1,
       "prompt": "We're a platform team standing up an Internal Developer Platform on Amazon EKS so our app teams can self-serve. Lay out the reference architecture and the opinionated tool stack — what runs where, how clusters are organized, and how a developer goes from idea to running service. We don't want to manage nodes and we want GitOps end to end.",
       "expectations": [
-        "Recommends a hub-and-spoke topology with EKS Auto Mode (hub for the platform control plane, spokes for workloads). TODO: human review",
-        "Names Backstage as the developer portal/self-service front door and ArgoCD as the GitOps CD engine. TODO: human review",
-        "Describes the end-to-end self-service flow: Backstage template to Git to ArgoCD sync to controller reconciliation (KubeVela/ACK). TODO: human review",
-        "Identifies that EKS Auto Mode removes node management, matching the 'we don't want to manage nodes' requirement. TODO: human review",
-        "Covers identity (Keycloak SSO) and credential-free workload IAM (EKS Pod Identity / IRSA). TODO: human review"
+        "Recommends a hub-and-spoke topology (hub for the platform control plane, spokes for workloads).",
+        "Recommends EKS Auto Mode for the hub-and-spoke topology.",
+        "Names Backstage as the developer portal/self-service front door.",
+        "Names ArgoCD as the GitOps CD engine.",
+        "Describes the end-to-end self-service flow: Backstage template to Git to ArgoCD sync to controller reconciliation (KubeVela/ACK).",
+        "Identifies that EKS Auto Mode removes node management, matching the 'we don't want to manage nodes' requirement.",
+        "Covers identity (Keycloak SSO).",
+        "Covers credential-free workload IAM (EKS Pod Identity / IRSA)."
       ],
       "process_assertions": [
         {"type": "step-count", "min": 2, "max": 20},
@@ -85,11 +88,21 @@
       "id": 2,
       "prompt": "I want a golden path for app teams on our EKS platform: a developer should only provide a Dockerfile and a simple app definition, then get a CI/CD pipeline and a safe rollout to dev and prod. Walk me through how to design this — the developer contract, how the pipeline is provisioned, how the app is described without raw Kubernetes YAML, and how we promote to prod safely.",
       "expectations": [
-        "Defines a narrow developer contract: the developer provides a Dockerfile and an OAM Application manifest, the platform handles the rest. TODO: human review",
-        "Uses a Backstage template that provisions the pipeline via a kro CICDPipeline (Argo Workflows for CI, ArgoCD for CD). TODO: human review",
-        "Explains the app is described with OAM/KubeVela components and traits rather than raw Kubernetes manifests. TODO: human review",
-        "Specifies Argo Rollouts canary with quality gates (functional, performance, and/or metrics) that auto-rollback on failure. TODO: human review",
-        "Uses Kargo for multi-stage promotion of the same validated artifact, with auto-promotion to dev and manual approval for prod. TODO: human review"
+        "Defines a narrow developer contract: the developer provides a Dockerfile and an OAM Application manifest.",
+        "States that the platform handles everything beyond the Dockerfile and the OAM Application manifest.",
+        "Uses a Backstage template that provisions the pipeline.",
+        "Provisions the pipeline via a kro CICDPipeline.",
+        "Uses Argo Workflows for CI in the pipeline.",
+        "Uses ArgoCD for CD in the pipeline.",
+        "Explains the app is described with OAM/KubeVela components rather than raw Kubernetes manifests.",
+        "Explains the app is described with OAM/KubeVela traits rather than raw Kubernetes manifests.",
+        "Specifies Argo Rollouts canary.",
+        "Specifies quality gates (functional, performance, and/or metrics) for the canary.",
+        "Specifies that the quality gates auto-rollback on failure.",
+        "Uses Kargo for multi-stage promotion.",
+        "Uses multi-stage promotion of the same validated artifact.",
+        "Kargo auto-promotes to dev.",
+        "Kargo requires manual approval to promote to prod."
       ],
       "process_assertions": [
         {"type": "step-count", "min": 2, "max": 20},

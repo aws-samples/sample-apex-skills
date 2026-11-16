@@ -5,11 +5,13 @@
       "id": 1,
       "prompt": "We run ~40 microservices across 3 product teams on EC2 today and we're moving to EKS. Traffic is spiky, teams want autonomy, and we expect the service count to double in 12 months. Should we run one shared EKS cluster or split per team, and what compute model (Karpenter, MNG, Fargate, Auto Mode) should we default to? Explain the tradeoffs.",
       "expectations": [
-        "The output recommends a shared multi-tenant EKS cluster as the default over per-team clusters for this scale, with per-team namespace isolation (at least two of: RBAC, NetworkPolicy, ResourceQuota) called out explicitly. TODO: human review",
-        "The output recommends Karpenter (or EKS Auto Mode) as the default compute model over pure MNG or Fargate, citing at least one concrete reason such as consolidation, instance flexibility, or faster scale-up for spiky traffic. TODO: human review",
-        "The output recommends running system/platform components (e.g. CoreDNS, Karpenter controller, ingress controller) on a stable managed node group or Fargate rather than on Karpenter-managed workload nodes. TODO: human review",
-        "The output names at least one concrete trigger that would justify splitting into multiple clusters (e.g. strict compliance/data-residency boundary, blast-radius isolation for a critical workload, or drastically different upgrade cadences). TODO: human review",
-        "The output mentions a path for tenant autonomy that is not cluster-per-team (e.g. namespace-as-a-service, GitOps per-team app-of-apps, or platform abstractions) so teams can move fast on a shared cluster. TODO: human review"
+        "The output recommends a shared multi-tenant EKS cluster as the default over per-team clusters for this scale.",
+        "The output calls out per-team namespace isolation explicitly, with at least two of: RBAC, NetworkPolicy, ResourceQuota.",
+        "The output recommends Karpenter (or EKS Auto Mode) as the default compute model over pure MNG or Fargate.",
+        "The output cites at least one concrete reason for Karpenter (or EKS Auto Mode) as the default compute model, such as consolidation, instance flexibility, or faster scale-up for spiky traffic.",
+        "The output recommends running system/platform components (e.g. CoreDNS, Karpenter controller, ingress controller) on a stable managed node group or Fargate rather than on Karpenter-managed workload nodes.",
+        "The output names at least one concrete trigger that would justify splitting into multiple clusters (e.g. strict compliance/data-residency boundary, blast-radius isolation for a critical workload, or drastically different upgrade cadences).",
+        "The output mentions a path for tenant autonomy that is not cluster-per-team (e.g. namespace-as-a-service, GitOps per-team app-of-apps, or platform abstractions) so teams can move fast on a shared cluster."
       ],
       "knowledge_assertions": [
         {
@@ -84,11 +86,15 @@
       "id": 2,
       "prompt": "Review this EKS setup for production readiness. We have a single managed node group of 2 m5.large on-demand nodes in one AZ, no Pod Disruption Budgets defined, no ingress controller installed yet (we're hitting pods via NodePort), and application IAM permissions are attached directly to the node IAM role. What should we fix, in priority order?",
       "expectations": [
-        "The output identifies the single-AZ / two-node configuration as a high-priority reliability issue and recommends spreading nodes across at least 3 AZs (or 2 at minimum) with topology spread constraints or equivalent. TODO: human review",
-        "The output recommends adding Pod Disruption Budgets for production workloads with more than one replica, with at least one concrete example target (e.g. minAvailable 50% for stateless, maxUnavailable 1 for stateful quorum). TODO: human review",
-        "The output flags NodePort as inappropriate for production ingress and recommends the AWS Load Balancer Controller with ALB or NLB (or Gateway API) as the replacement. TODO: human review",
-        "The output flags attaching application IAM permissions to the node role as a security anti-pattern and recommends migrating to EKS Pod Identity (preferred) or IRSA per workload. TODO: human review",
-        "The output presents the fixes in a prioritized order (e.g. reliability first, then security, then ingress) rather than as an unordered list. TODO: human review"
+        "The output identifies the single-AZ / two-node configuration as a high-priority reliability issue.",
+        "The output recommends spreading nodes across at least 3 AZs (or 2 at minimum) with topology spread constraints or equivalent.",
+        "The output recommends adding Pod Disruption Budgets for production workloads with more than one replica.",
+        "The output gives at least one concrete example Pod Disruption Budget target (e.g. minAvailable 50% for stateless, maxUnavailable 1 for stateful quorum).",
+        "The output flags NodePort as inappropriate for production ingress.",
+        "The output recommends the AWS Load Balancer Controller with ALB or NLB (or Gateway API) as the replacement for NodePort.",
+        "The output flags attaching application IAM permissions to the node role as a security anti-pattern.",
+        "The output recommends migrating to EKS Pod Identity (preferred) or IRSA per workload.",
+        "The output presents the fixes in a prioritized order (e.g. reliability first, then security, then ingress) rather than as an unordered list."
       ],
       "knowledge_assertions": [
         {
@@ -164,11 +170,13 @@
       "id": 3,
       "prompt": "We run an e-commerce platform on EKS. Next month we have a big flash sale: at a fixed time our push notification fires and traffic steps almost instantly to many multiples of baseline, with a few secondary peaks over the following hours. Last time, a load test that hit our target request rate still didn't prevent an outage. How do we get the cluster ready to absorb this kind of surge, and how should we think about pre-scaling and load testing?",
       "expectations": [
-        "The output recommends scheduled/proactive pre-scaling ahead of the known event time (raising replica floors or desired counts before the trigger) rather than relying solely on reactive metric-driven autoscaling to catch up. TODO: human review",
-        "The output distinguishes the spike SHAPE (near-instant step / rate of arrival) from magnitude, and warns against scaling down or consolidating in the trough between peaks. TODO: human review",
-        "The output addresses capacity assurance ahead of the event — at least one of: service-quota pre-checks, On-Demand Capacity Reservations (ODCR), or load-balancer warm-up. TODO: human review",
-        "The output explains the load-test-realism lesson: a test passing on request rate can still miss a resource-consumption (e.g. memory) failure from a new/changed access pattern, so scenarios must cover consumption shapes and findings must be acted on before the event. TODO: human review",
-        "The output stays advisory — it does NOT invent a specific maximum absorbable step, headroom number, or sizing verdict for the cluster. TODO: human review"
+        "The output recommends scheduled/proactive pre-scaling ahead of the known event time (raising replica floors or desired counts before the trigger) rather than relying solely on reactive metric-driven autoscaling to catch up.",
+        "The output distinguishes the spike SHAPE (near-instant step / rate of arrival) from magnitude.",
+        "The output warns against scaling down or consolidating in the trough between peaks.",
+        "The output addresses capacity assurance ahead of the event, at least one of: service-quota pre-checks, On-Demand Capacity Reservations (ODCR), or load-balancer warm-up.",
+        "The output explains the load-test-realism lesson: a test passing on request rate can still miss a resource-consumption (e.g. memory) failure from a new/changed access pattern, so scenarios must cover consumption shapes.",
+        "The output says load-test findings must be acted on before the event.",
+        "The output stays advisory: it does NOT invent a specific maximum absorbable step, headroom number, or sizing verdict for the cluster."
       ],
       "knowledge_assertions": [
         {
@@ -214,11 +222,16 @@
       "id": 4,
       "prompt": "We run several EKS clusters (managed node groups and one EKS Auto Mode cluster) and we keep hearing about security fixes late. How should our platform team set up security operations: which sources to watch, how often to patch add-ons, node images and container images, how to handle an urgent security fix, and what our build pipeline should do so one bad dependency cannot spread far?",
       "expectations": [
-        "The output names concrete sources to watch across layers (for example AWS security bulletins, the Kubernetes CVE feed, node OS advisories, add-on releases, image scan findings) and recommends routing them into alerting rather than periodic review. TODO: human review",
-        "The output separates a normal patch cadence from an emergency path for security fixes, and the emergency path still tests in non-production before production. TODO: human review",
-        "The output explains that on EKS Auto Mode AWS patches the node image but existing nodes keep the old build until they are replaced (drift to the new AMI, node expiry, or planned rotation). TODO: human review",
-        "The output recommends digest-pinned base images moved through review, installing dependencies from a committed lockfile in an isolated build step, and rebuilding on a cadence because package scanners (such as ECR enhanced scanning) match only packages tracked in CVE advisories. TODO: human review",
-        "The output routes live checks (whether a cluster is exposed to a specific advisory, live event response) to eks-security rather than claiming to inspect the clusters itself. TODO: human review"
+        "The output names concrete sources to watch across layers (for example AWS security bulletins, the Kubernetes CVE feed, node OS advisories, add-on releases, image scan findings).",
+        "The output recommends routing the watched sources into alerting rather than periodic review.",
+        "The output separates a normal patch cadence from an emergency path for security fixes.",
+        "The output says the emergency path for security fixes still tests in non-production before production.",
+        "The output explains that on EKS Auto Mode AWS patches the node image but existing nodes keep the old build until they are replaced (drift to the new AMI, node expiry, or planned rotation).",
+        "The output recommends digest-pinned base images moved through review.",
+        "The output recommends installing dependencies from a committed lockfile in an isolated build step.",
+        "The output recommends rebuilding on a cadence.",
+        "The output gives the reason for rebuilding on a cadence: package scanners (such as ECR enhanced scanning) match only packages tracked in CVE advisories.",
+        "The output routes live checks (whether a cluster is exposed to a specific advisory, live event response) to eks-security rather than claiming to inspect the clusters itself."
       ],
       "knowledge_assertions": [
         {
