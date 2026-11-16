@@ -18,7 +18,7 @@ This skill has explicit-trigger semantics — it deliberately does NOT auto-acti
 - **Amazon ECS** (not EKS; no APEX skill covers an ECS dollar cost analysis): negative 20 ("run a cost audit on my ECS cluster").
 <!-- SIBLING_MAP_END -->
 
-The `triggering.json` positives (entries 0–9) use two phrasing styles: explicit cost-assessment language ("run a cost audit", "score my cluster's cost efficiency") and business-outcome forms ("justify optimization work to leadership", "internal chargebacks"). Both must trigger the skill. The negatives (entries 10–17) are deliberately drawn from neighbouring apex skills' territory — advisory cost guidance, operational reviews, discovery, upgrade readiness, MCP setup, and architectural recommendations.
+The `triggering.json` positives (entries 0–9) use two phrasing styles: explicit cost-assessment language ("run a cost audit", "score my cluster's cost efficiency") and business-outcome forms ("justify optimization work to leadership", "internal chargebacks"). Both must trigger the skill. The negatives (entries 10–19) are deliberately drawn from neighbouring apex skills' territory — advisory cost guidance, operational reviews, discovery, upgrade readiness, MCP setup, and architectural recommendations.
 
 ## Live-MCP caveat
 
