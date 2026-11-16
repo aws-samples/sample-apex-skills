@@ -68,7 +68,7 @@ All figures are **estimates**; nothing was run. Prices are AWS list prices from 
 - Workers: 3 x $0.4032 = $1.2096 per hour.
 - EKS control plane: $0.10 per cluster per hour on standard support [W4].
 - NAT gateway: "$0.045 per NAT Gateway Hour", one gateway.
-- EBS root volumes: 3 x 100 GiB gp3 (Lite's host minimum, SREGym-Lite.md:15 [S4]) at "$0.08 per GB-month of General Purpose (gp3) provisioned storage", 300 x $0.08 / 730 h = $0.0329 per hour.
+- EBS root volumes: 3 x 100 GB gp3 (Lite's host minimum, SREGym-Lite.md:15 [S4]) at "$0.08 per GB-month of General Purpose (gp3) provisioned storage", 300 x $0.08 / 730 h = $0.0329 per hour.
 - **Per hour: $1.3875.**
 - Data, one-off per cluster: image pulls through NAT, about 20 GB (estimate) at "$0.045 per GB Data Processed by NAT Gateways" = $0.90; traffic between Availability Zones, up to 50 GB (estimate) at "$0.010 per GB - regional data transfer - in/out/between EC2 AZs" = $0.50. Nothing is sent out to the internet beyond replies (out to the internet would be "$0.090 per GB - first 10 TB / month").
 
@@ -77,12 +77,12 @@ All figures are **estimates**; nothing was run. Prices are AWS list prices from 
 **Runs.** The trial's shape is three runs per case, with and without the skill.
 - Lite, diagnosis only: 17 problems x 3 runs x 2 arms (with and without our skill) = **102 attempts**.
 - Serial wall time: 102 x 0.25 h = 25.5 h, to 102 x 0.75 h = 76.5 h.
-- Cluster cost: 25.5 h x $1.3875 = $35.38, to 76.5 h x $1.3875 = $106.14, plus about 2 h of build and teardown (2 x $1.3875 = $2.78) and the $1.40 of data above: **$39.56 to $110.32**. This is not part of the runner trial or its $205 budget.
+- Cluster cost: 25.5 h x $1.3875 = $35.38, to 76.5 h x $1.3875 = $106.14, plus about 2 h of build and teardown (2 x $1.3875 = $2.78) and the $1.40 of data above: **$39.56 to $110.32**. This is not part of the runner trial or its budget ($205 for all candidates together, unless the maintainers set another limit with the spend decision, cost-estimate.md).
 - The full-flow sanity check before that (one run per Lite problem, one arm): 17 attempts, 4.25 to 12.75 h, $5.90 to $17.69.
 
 **Fault injection.** No separate cost: the injectors are in-cluster API calls and pods. Chaos Mesh runs on the same nodes.
 
-**Model calls per problem.** One Claude Code session per attempt (clients/claudecode/driver.py:297-328 waits for a submission-ready stage, then calls `agent.run(instruction)` once, with one instruction that covers both stages, :178-186; the session is one `claude -p`, claudecode_agent.py:311-320), plus 1 judge call with up to 3 parse attempts (judge.py:506). Model requests inside a session are not bounded by the harness except by the 1800 s timeout. Assuming 20 to 60 model turns per session (estimate, opinion), that is 21 to 63 requests per attempt, or 2,142 to 6,426 for the 102 attempts. Estimate: $0.16 to $1.81 per attempt on the trial's measured basis (cost-estimate.md), higher for a 20 to 60 turn session; re-measured on an EKS run. The `autosubmit` agent (agents.yaml:8-13) can smoke-test the harness on EKS with no agent model calls, only the judge's.
+**Model calls per problem.** One Claude Code session per attempt (clients/claudecode/driver.py:297-328 waits for a submission-ready stage, then calls `agent.run(instruction)` once, with one instruction that covers both stages, :178-186; the session is one `claude -p`, claudecode_agent.py:311-320), plus 1 judge call with up to 3 parse attempts (judge.py:506). Model requests inside a session are not bounded by the harness except by the 1800 s timeout. Assuming 20 to 60 model turns per session (estimate, opinion), that is 21 to 63 requests per attempt, or 2,142 to 6,426 for the 102 attempts. Estimate: $0.16 to $1.81 per attempt, the span of the trial's measured runs (cost-estimate.md), so $16.32 to $184.62 for the 102 attempts. A 20 to 60 turn session is longer than any measured run, so this span is a lower bound (estimate); re-measured on an EKS run. The `autosubmit` agent (agents.yaml:8-13) can smoke-test the harness on EKS with no agent model calls, only the judge's.
 
 ## 4. What it would measure that our evals do not
 
@@ -110,12 +110,12 @@ The mitigation stage does not fit our read-only skills (readonly-rbac.yaml:57) a
 
 ## 5. Questions and their answers
 
-1. **Does Calico create the `adminnetworkpolicy` tier SREGym's setup check reads (setup_check.py:379-393)?** On Calico 3.31, yes, automatically [W6], and its code creates the tier whatever the CNI, so policy-only mode beside VPC CNI on EKS creates it too (libcalico-go/lib/clientv3/client.go:279 at v3.31.7 [W12]; read from source, not run on a cluster); from 3.32, no, since AdminNetworkPolicy support was removed for `ClusterNetworkPolicy` [W7]. Feasibility does not hang on it: if the tier is absent, `--internet-access open` is used, or remove Calico and write a VPC CNI ClusterNetworkPolicy egress module.
-2. **Wall time and tokens per attempt on EKS:** estimated in section 3 (:68 and :78); measured only on an EKS run, which waits on question 3's answer.
-3. **Who pays, and in which account** ($39.56 to $110.32 for the cluster, section 3, plus model tokens): waits on the maintainers' decision.
+1. **Does Calico create the `adminnetworkpolicy` tier SREGym's setup check reads (setup_check.py:379-393)?** On Calico 3.31 or earlier, yes; from 3.32, no: answered in section 2 (Filtered egress row), with its fallback.
+2. **Wall time and tokens per attempt on EKS:** estimated in section 3 (:75 and :85); measured only on an EKS run, which waits on question 3's answer.
+3. **Who pays, and in which account** ($39.56 to $110.32 for the cluster, section 3, plus model calls from $16.32 to $184.62, section 3, a lower bound): waits on the maintainers' decision.
 4. **Is incident diagnosis being measured?** No. The use in section 4 runs our skills' own prompts on seeded-fault fixtures and grades whether the report names the planted state. That measures the skills' existing jobs (fact report, operational review, security review), not incident diagnosis.
 5. **Grade with SREGym's LLM judge or with our runner's expectations?** Our runner's expectations. SREGym's judge grades a diagnosis against a root cause, and the use in section 4 grades our skills' reports against what they claim to do.
-6. **Where Claude Code reads skills under `CLAUDE_CONFIG_DIR`, and the containerd socket for Chaos Mesh on AL2023:** answered in section 2 (`$CLAUDE_CONFIG_DIR/skills/<skill-name>/SKILL.md` [W10, W11]); the Chaos Mesh socket on AL2023 is /run/containerd/containerd.sock [W2], which SREGym's installer already selects (manager.py:369-389).
+6. **Where Claude Code reads skills under `CLAUDE_CONFIG_DIR`, and the containerd socket for Chaos Mesh on AL2023:** answered in section 2 (the `claudecode` agent client row and the Chaos Mesh noise row); the socket is /run/containerd/containerd.sock [W2].
 7. **The license** is MIT [S1 LICENSE.txt]. Vendoring or forking it into an aws-samples repo needs the repo owners' usual open-source review before any code lands in a public repo.
 
 ## Sources

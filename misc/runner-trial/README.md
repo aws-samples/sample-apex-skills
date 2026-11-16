@@ -22,7 +22,7 @@ A short trial to choose the eval runner before more eval work is built on one. I
 ## How it runs
 
 - The subject model for the claude harness is `global.anthropic.claude-opus-4-6-v1`, the runner's default (misc/evals/Makefile:35); Claude Code also calls Haiku 4.5 inside a run, C2's judge is Haiku, Codex runs gpt-5.6-sol and C3 uses its built-in evaluators' models.
-- C1 is driven by a separate script that calls the existing runner's functions one case and arm at a time. The runner code in misc/evals/scripts/ is not changed by the trial. Kiro and Codex are driven directly for T1.
+- C1 is to be driven by a separate script, not yet written, at misc/runner-trial/drive_c1.py, that calls the existing runner's functions one case and arm at a time. The runner code in misc/evals/scripts/ is not changed by the trial. Kiro and Codex are driven directly for T1.
 - C2 runs on a plugin wrapper outside the repo, with `--no-publish` and `--max-cost-usd 60`.
 - C3 scores C1's runs through the on-demand Evaluate API. It is planned to create no AWS resource and change no account setting; that holds only if Evaluate scores spans never ingested (score-sheet.md).
 - T7 reads a test cluster through an existing read-only kubeconfig. Every case's subject can still reach the trial host's AWS credentials (cases.md, Credentials and permissions).
@@ -30,4 +30,4 @@ A short trial to choose the eval runner before more eval work is built on one. I
 
 ## Status
 
-No paid run has happened yet. The runs wait on the maintainers' spend decision for the paid runs (cost-estimate.md).
+No paid run has happened yet. The runs wait on the maintainers' spend decision and a subject credential limited to the model calls (cost-estimate.md; cases.md, Credentials and permissions).
