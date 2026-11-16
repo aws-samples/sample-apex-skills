@@ -64,7 +64,7 @@ On EC2, the biggest disadvantage of `awsvpc` is that EC2 instances cap how many 
 - Trunking uses two ENI attachments by default (the instance's primary ENI plus the ECS-managed trunk ENI). Density scales with instance size on supported types — e.g. larger Graviton instances host many tens of tasks. Check the supported-instance-type list before assuming a density number.
 - The trunk ENI is fully managed by ECS and deleted on instance termination/deregistration.
 - Trunking must be enabled **before** launching the instances that should benefit — it applies to newly-launched instances.
-- Denser bin-packing via trunking improves cost efficiency for tasks that don't hit CPU/memory limits; quantify with `ecs-cost-intelligence`.
+- Denser bin-packing via trunking improves cost efficiency for tasks that don't hit CPU/memory limits.
 
 ---
 
@@ -121,7 +121,7 @@ Amazon VPC Lattice has **built-in Amazon ECS support**: an ECS service can be as
 - **Only ECS rolling deployments work with VPC Lattice — CodeDeploy and blue/green deployment controllers are not supported** ([Use VPC Lattice with ECS](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-vpc-lattice.html)). If you need native blue/green *and* Lattice, that is a conflict to resolve at design time.
 - **Not supported on ECS Anywhere (`EXTERNAL`).**
 - Attaching multiple (up to five) VPC Lattice configurations can lengthen deployment time.
-- **Lattice has its own cost dimensions** — unlike Service Connect (whose cost is the proxy sidecar's task CPU/memory, above), VPC Lattice bills **per service-hour, per GB of data processed, and per HTTP request (or TCP connection for TLS listeners)** ([VPC Lattice pricing](https://aws.amazon.com/vpc/lattice/pricing/)). Weigh both cost models when choosing; quantify with `ecs-cost-intelligence`.
+- **Lattice has its own cost dimensions** — unlike Service Connect (whose cost is the proxy sidecar's task CPU/memory, above), VPC Lattice bills **per service-hour, per GB of data processed, and per HTTP request (or TCP connection for TLS listeners)** ([VPC Lattice pricing](https://aws.amazon.com/vpc/lattice/pricing/)). Weigh both cost models when choosing.
 
 ---
 

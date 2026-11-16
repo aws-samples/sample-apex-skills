@@ -12,7 +12,7 @@ This page is generated from [skills/ecs-operation-review/references/cluster-capa
 # Section 01 — Clusters & Capacity
 
 ## Purpose
-Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacity providers / ECS Managed Instances), and whether **capacity-provider scale-in is correct** — the single richest source of ECS production incidents ("empty instance won't terminate", "instance running tasks got terminated", "won't scale out"). This section deals with capacity *correctness and resilience*; dollar-denominated efficiency (Savings Plans, Graviton, Spot economics, right-sizing) is out of scope here — defer to **`ecs-cost-intelligence`**.
+Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacity providers / ECS Managed Instances), and whether **capacity-provider scale-in is correct** — the single richest source of ECS production incidents ("empty instance won't terminate", "instance running tasks got terminated", "won't scale out"). This section deals with capacity *correctness and resilience*; dollar-denominated efficiency (Savings Plans, Graviton, Spot economics, right-sizing) is out of scope here — no APEX skill covers it.
 
 ## Checks to Execute
 
@@ -118,9 +118,9 @@ Assess how the cluster obtains compute (Fargate / EC2 Auto Scaling Group capacit
 - 🟡 AMBER: Spot used for stateful/critical services with no On-Demand base, or an EC2 Spot ASG on only 1–2 instance types (concentrated capacity-pool risk).
 - 🔴 RED: 100% Spot for a production, interruption-sensitive service with no fallback, or a single-instance-type Spot ASG behind a production service.
 - ⚪ N/A: No Spot capacity in use anywhere in the estate (no `FARGATE_SPOT` in any strategy, no Spot in any ASG `MixedInstancesPolicy`) — there is no Spot posture to rate.
-- ⬜ UNKNOWN: Cannot determine workload criticality — flag for manual review. Dollar-level Spot economics → **`ecs-cost-intelligence`**.
+- ⬜ UNKNOWN: Cannot determine workload criticality — flag for manual review. Dollar-level Spot economics are not covered by an APEX skill.
 
-**Note:** This item rates *resilience of the Spot posture*, not cost savings. Deep Spot-strategy and TCO analysis belongs to `ecs-cost-intelligence`. See [best practices for handling EC2 Spot interruptions](https://aws.amazon.com/blogs/compute/best-practices-for-handling-ec2-spot-instance-interruptions/).
+**Note:** This item rates *resilience of the Spot posture*, not cost savings. Spot-strategy design belongs to `ecs-architect`; a TCO analysis is not covered by an APEX skill. See [best practices for handling EC2 Spot interruptions](https://aws.amazon.com/blogs/compute/best-practices-for-handling-ec2-spot-instance-interruptions/).
 
 ---
 

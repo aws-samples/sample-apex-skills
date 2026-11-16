@@ -1,6 +1,6 @@
 ---
 title: "ECS Best-Practices Corpus (Shared Knowledge)"
-description: "The shared \"what good looks like\" knowledge that ecs-architect, ecs-operation-review, and ecs-cost-intelligence all draw on."
+description: "The shared \"what good looks like\" knowledge that ecs-architect draws on (ecs-operation-review keeps its own audit references)."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/best-practices-corpus.md
 format: md
 ---
@@ -12,9 +12,9 @@ This page is generated from [skills/ecs-architect/references/best-practices-corp
 # ECS Best-Practices Corpus (Shared Knowledge)
 
 > **Part of:** [ecs-architect](../index.md)
-> **Purpose:** The shared "what good looks like" knowledge that `ecs-architect`, `ecs-operation-review`, and `ecs-cost-intelligence` all draw on. This is the shared **design baseline** for ECS fundamentals; a factor-out to a standalone `ecs-best-practices` skill is deferred. It is not the sole authority on any deep domain — security, cost, observability, and other sibling skills own the depth over their own areas and may carry their own, more detailed per-domain references; where they do, defer to them. Facts verified against the AWS ECS Best Practices Guide and Developer Guide on **2026-07-09**.
+> **Purpose:** The shared "what good looks like" knowledge that `ecs-architect` draws on (`ecs-operation-review` keeps its own audit references). This is the shared **design baseline** for ECS fundamentals; a factor-out to a standalone `ecs-best-practices` skill is deferred. It is not the sole authority on any deep domain — security, cost, observability, and other sibling skills own the depth over their own areas and may carry their own, more detailed per-domain references; where they do, defer to them. Facts verified against the AWS ECS Best Practices Guide and Developer Guide on **2026-07-09**.
 >
-> **How to use:** In `ecs-architect` this informs design decisions — synthesize it into project-specific recommendations, don't paste it into deliverables. Deep audit/scoring of a live estate against these belongs to `ecs-operation-review`; dollar-quantified cost work to `ecs-cost-intelligence`.
+> **How to use:** In `ecs-architect` this informs design decisions — synthesize it into project-specific recommendations, don't paste it into deliverables. Deep audit/scoring of a live estate against these belongs to `ecs-operation-review`; dollar-quantified cost work is not covered by an APEX skill.
 
 ---
 
@@ -63,7 +63,7 @@ The further left, the less you operate. This table drives the ops-overhead crite
 - **SOCI Index Manifest v2 is the standard** as of **July 2025** — it uses a cryptographic link between image and index for deployment consistency. v1 still works but AWS strongly advises migrating; generate v2 with the `convert` subcommand of the `soci` CLI. ([Fargate supports SOCI Index Manifest v2](https://aws.amazon.com/about-aws/whats-new/2025/07/aws-fargate-soci-index-manifest-v2-deployment-consistency/) · [Improving ECS deployment consistency with SOCI v2](https://aws.amazon.com/blogs/containers/improving-amazon-ecs-deployment-consistency-with-soci-index-manifest-v2/))
 - **Selective SOCI:** you can index only large images in a task and let small sidecars download eagerly. ([Fargate selectively leverage SOCI](https://aws.amazon.com/about-aws/whats-new/2023/11/aws-fargate-amazon-ecs-tasks-selectively-leverage-soci/))
 - Only use SOCI indexes from trusted sources — the index is authoritative for image contents.
-- Prefer **Graviton (arm64)** images where the app supports it for price/performance (quantify with `ecs-cost-intelligence`).
+- Prefer **Graviton (arm64)** images where the app supports it for price/performance.
 
 ---
 

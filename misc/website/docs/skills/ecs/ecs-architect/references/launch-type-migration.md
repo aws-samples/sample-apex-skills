@@ -92,7 +92,7 @@ Because config changes take effect only during deployments, gate the rollout wit
 3. **Choose the mechanism**: API/CLI (supported-transition list, no recreation) vs IaC (accept replacement or use the escape hatch). Never let an unplanned IaC apply silently delete-and-recreate a production service — and if you migrate a CFN/CDK-managed service via the API, reconcile the template immediately afterward, or the next apply reverts the change (see the drift warning above).
 4. **Design capacity** ([capacity-and-scaling.md](capacity-and-scaling.md)): base/weight, one resource profile per ASG, managed scaling + draining.
 5. **Migrate connectivity**: Service Discovery → Service Connect via the cutover steps above (and App Mesh → Service Connect if applicable — App Mesh is discontinued Sept 30, 2026; see [networking-and-eni-density.md](networking-and-eni-density.md#service-connect-vs-service-discovery)). If any tasks are still on Fargate PV 1.3.0, fold in the PV 1.4.0 migration (task-ENI traffic + VPC-endpoint prep) before its June 30, 2026 end of support.
-6. **Validate** with `ecs-operation-review`; quantify the cost delta with `ecs-cost-intelligence`.
+6. **Validate** with `ecs-operation-review`.
 
 ---
 
