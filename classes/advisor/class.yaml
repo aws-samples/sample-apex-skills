@@ -7,9 +7,9 @@
 name: advisor
 parents: [platform]
 
-# eks-platform-engineering's one assistant rule (SKILL.md, Guardrails) now
-# gives the user the steps to pause an ArgoCD sync instead of pausing it,
-# so no member makes a change.
+# eks-platform-engineering's one assistant rule (SKILL.md, Guardrails)
+# pauses an ArgoCD sync only when the user explicitly asks, which is
+# advisor.no-side-effects as written.
 
 checks:
   - id: no-shipped-runnables
