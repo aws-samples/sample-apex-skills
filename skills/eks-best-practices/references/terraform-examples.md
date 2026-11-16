@@ -492,7 +492,7 @@ module "vpc" {
 - Use `one_nat_gateway_per_az = true` for production (HA)
 - Tag public subnets with `kubernetes.io/role/elb` for internet-facing LBs
 - Tag private subnets with `kubernetes.io/role/internal-elb` for internal LBs
-- Use 3 AZs minimum for production
+- Use subnets in at least two AZs, the EKS Best Practices Guide's floor, and three for production where the Region has them
 
 ❌ DON'T:
 - Use `single_nat_gateway = true` in production (single point of failure)
