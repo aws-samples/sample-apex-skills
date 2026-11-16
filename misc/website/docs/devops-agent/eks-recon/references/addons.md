@@ -117,37 +117,59 @@ Inventory third-party components installed via Helm charts. Many platform teams 
 for add-ons not available as EKS-managed add-ons.
 
 > **No Secret reads.** Helm keeps each release record (chart, values, revision, status) in a
-> Secret by default (the `secret` storage driver, helm/helm `pkg/action/action.go:674-675` at
-> 3c2635de). This skill never lists or gets Secrets. It reads the marks Helm puts on a
-> release's own resources instead: on install, upgrade and rollback Helm sets the label
+> Secret by default ([Helm storage backends](https://helm.sh/docs/topics/advanced/)). This
+> skill never lists or gets Secrets. It reads the marks Helm puts on a release's own
+> resources instead: on install, upgrade and rollback Helm sets the label
 > `app.kubernetes.io/managed-by: Helm` and the annotations `meta.helm.sh/release-name` and
-> `meta.helm.sh/release-namespace` (`pkg/action/validate.go:35-38` and `:224-236`, called from
-> `install.go:410`, `upgrade.go:362` and `rollback.go:241`, at 3c2635de). Helm v3.2.0 added them
-> (`validate.go` at tag v3.2.0 has `meta.helm.sh/release-name`, v3.1.3 does not).
+> `meta.helm.sh/release-namespace`. Helm v3.2.0 added the annotations, when it began adopting
+> existing resources into a release ([Helm v3.2.0 release notes](https://github.com/helm/helm/releases/tag/v3.2.0)).
 
-**Via Kubernetes API**: read object metadata for Helm's marks:
+**Via Kubernetes API**: read the objects and keep only their metadata for Helm's marks:
 
 - **Resource:** `Deployment`, `DaemonSet`, `StatefulSet` (group/version `apps/v1`) and `Service` (`v1`), all namespaces; `ConfigMap` (`v1`), all namespaces, label selector `app.kubernetes.io/managed-by=Helm` (so other ConfigMaps' data is not fetched).
 - **Fields to extract:** annotation `meta.helm.sh/release-name` → release name; annotation `meta.helm.sh/release-namespace` → release namespace; label `helm.sh/chart` → `chart_labels` (verbatim, unique per release). Group objects by release namespace and name; one group is one release. An object labelled `app.kubernetes.io/managed-by: Helm` with no release annotations goes to `label_only` as `<kind>/<namespace>/<name>`.
 - **RBAC verbs:** `get`, `list` on `deployments.apps`, `daemonsets.apps`, `statefulsets.apps`, `services`, `configmaps`.
 
-> **chart_labels note.** The chart's own templates set `helm.sh/chart` (the `helm create`
-> scaffold, `pkg/chart/v2/util/create.go:599` at 3c2635de), not Helm, so it can be absent or
-> differ between a release's subcharts. It is not Helm's record of the chart version.
+> **chart_labels note.** The chart's own templates set `helm.sh/chart`
+> ([Helm label conventions](https://helm.sh/docs/chart_best_practices/labels/)), not Helm, so
+> it can be absent. A release can show more than one value: its subcharts set their own, and
+> an upgrade that fails part-way leaves some objects at the old chart, since Helm goes on
+> updating a release's other objects when one update fails. It is not Helm's record of the
+> chart version. `app.kubernetes.io/version`, where a chart sets it, is chart text in the same
+> way, not Helm's record of the app version.
 
-**What this cannot report.** Chart version as Helm recorded it, app version, revision,
-status and pending or failed releases live only in the release Secret, so they are not
-read. Helm does not annotate a chart's `crds/` CRDs (`install.go:197` builds them with no
-metadata visitor) or its hooks (`hooks.go:84`), and a release installed before Helm v3.2.0
-and never upgraded since has no annotations. Report a release found here by name and
-namespace only, and scope an absence claim to the kinds read: "no Helm-annotated
-Deployments, DaemonSets, StatefulSets, Services or ConfigMaps", never "no Helm releases".
+> **label_only note.** The `app.kubernetes.io/managed-by: Helm` label is chart text too: chart
+> templates set it from `{{ .Release.Service }}`, which always renders `Helm`, also when Argo
+> CD renders the chart with `helm template`
+> ([Argo CD Helm](https://argo-cd.readthedocs.io/en/stable/user-guide/helm/)) or someone runs
+> `helm template | kubectl apply`. So `label_only` objects may belong to no Helm release.
+> Never report them as releases; `count` leaves them out.
+
+**What this does not report.** Chart version as Helm recorded it, app version, revision and
+status are in Helm's release record, which this skill does not read. On a Flux-managed
+release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status, chart version
+and app version in its Ready condition and `status.history`
+([Flux HelmRelease](https://fluxcd.io/flux/components/helm/helmreleases/)); this skill does
+not read it, because the full object also holds `spec.values`, which can carry sensitive
+values. A listed release is not known to be deployed: Helm applies a release's objects before
+it marks the release failed, and `helm uninstall` leaves resources annotated
+`helm.sh/resource-policy: keep` in place with their release annotations
+([Helm chart tips](https://helm.sh/docs/howto/charts_tips_and_tricks/)), so a listed release
+may be failed, pending or uninstalled. Helm does not annotate a chart's `crds/` CRDs or its
+hooks, a release installed before Helm v3.2.0 and never upgraded since has no annotations,
+and a chart that ships only kinds not read here (CRDs, Jobs, CronJobs, Ingresses, RBAC) is
+not found. Report a release by name and namespace, and its `chart_labels` verbatim as
+chart-set labels, never as the chart version Helm recorded. Scope an absence claim to the
+kinds read: "no Helm-annotated Deployments, DaemonSets, StatefulSets, Services or
+ConfigMaps", never "no Helm releases".
 
 > **Coverage honesty:** report `helm_releases.count: 0` only when every read above ran and
 > returned no Helm-annotated objects. If the Kubernetes API is unreachable or a read fails,
 > emit `helm_releases: {unconfirmed: true, reason: "<kind> read failed: <error>"}` rather
-> than a count of 0. Always add a Coverage line: `addons.helm_releases: chart version,
-> revision and status not read (Helm release Secrets are not read)`.
+> than a count of 0. Always add a Coverage line: `addons.helm_releases: found from Helm
+> annotations on Deployments, DaemonSets, StatefulSets, Services and Helm-labelled
+> ConfigMaps only; chart version, app version, revision and status not read (Helm release
+> Secrets are not read); listed releases may be failed, pending or uninstalled`.
 
 *Reference pseudocode (kubernetes client), not executable:*
 ```python
@@ -421,10 +443,9 @@ Record `latest_version` = the first element, and `update_available` = (`latest_v
 
 ### Helm Release in Pending State
 
-Not reported. A release's status (`deployed`, `failed`, `pending-install`, `pending-upgrade`)
-is a label on its release Secret (helm/helm `pkg/storage/driver/secrets.go:263-266` at
-3c2635de), and this skill reads no Secret, so it cannot see a stuck or failed release. The
-Coverage line in [Helm Releases](#2-helm-releases) already names status as not read.
+Not reported: a release's status is in Helm's release record, which this skill does not
+read. See "What this does not report" and the Coverage line in
+[Helm Releases](#2-helm-releases); on Flux, the HelmRelease resource carries it.
 
 ### Orphaned Resources
 

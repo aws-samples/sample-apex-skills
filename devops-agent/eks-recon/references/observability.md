@@ -155,9 +155,8 @@ Classify how Grafana runs and record its version.
 **Prometheus scrape_configs / remote_write targets (raw fact):** capture the configured
 scrape job names and remote_write URLs verbatim — do not interpret them.
 
-No Secret is read. The Prometheus Operator renders each Prometheus's config into a Secret
-(prometheus-operator `pkg/prometheus/server/operator.go:1565` at 5ac08992), so the operator
-case reads the Prometheus and monitor custom resources instead.
+No Secret is read. The Prometheus Operator renders each Prometheus's config into a Secret,
+so the operator case reads the Prometheus and PrometheusAgent custom resources instead.
 
 **Via Kubernetes API**, self-managed: read the Prometheus config ConfigMap:
 
@@ -167,16 +166,16 @@ case reads the Prometheus and monitor custom resources instead.
 
 **Via Kubernetes API**, operator: read the custom resources:
 
-- **Resource:** `Prometheus`, `ServiceMonitor` and `PodMonitor`, group/version `monitoring.coreos.com/v1`, all namespaces.
-- **Fields to extract:** `Prometheus` `spec.remoteWrite[].url` → `remote_write_targets` (`pkg/apis/monitoring/v1/prometheus_types.go:502` and `:1767` at 5ac08992); each ServiceMonitor and PodMonitor as `<kind>/<namespace>/<name>` → `scrape_configs.list` (the operator renders them into scrape jobs).
-- **RBAC verbs:** `get`, `list` on `prometheuses.monitoring.coreos.com`, `servicemonitors.monitoring.coreos.com`, `podmonitors.monitoring.coreos.com`.
+- **Resource:** `Prometheus` (group/version `monitoring.coreos.com/v1`) and `PrometheusAgent` (`monitoring.coreos.com/v1alpha1`), all namespaces.
+- **Fields to extract:** every `spec.remoteWrite[].url` of each `Prometheus` and `PrometheusAgent` (a PrometheusAgent shares the field with Prometheus) → `remote_write_targets`.
+- **RBAC verbs:** `get`, `list` on `prometheuses.monitoring.coreos.com`, `prometheusagents.monitoring.coreos.com`. A failed read (such as `403 Forbidden`) makes `remote_write_targets` unconfirmed, with the error, not empty; a resource type that does not exist means no operator is installed.
 
 Record `scrape_configs` (count + list of job names) and `remote_write_targets` (list of URLs)
 exactly as found; report `null`/empty where the config is not readable. For the operator,
-the rendered job names live only in the config Secret: add `observability.scrape_configs:
-operator job names not read (config Secret is not read)` to Coverage. Scrape jobs set
-through `additionalScrapeConfigs` (a Secret key reference, `prometheus_types.go:604`) are
-not read either.
+the rendered job names live only in the config Secret, so report `scrape_configs` as `null`
+and add `observability.scrape_configs: operator job names not read (config Secret is not
+read)` to Coverage. Scrape jobs set through `additionalScrapeConfigs` (a Secret key
+reference) are not read either.
 
 **Other Metrics Tools:**
 
@@ -393,7 +392,7 @@ observability:
 
     scrape_configs:               # raw fact — scrape jobs found in the prometheus config
       count: int
-      list: list                  # scrape job names, verbatim; operator: <kind>/<namespace>/<name> monitors
+      list: list                  # scrape job names, verbatim
     remote_write_targets: list    # remote_write URLs verbatim (e.g. aps-workspaces AMP URLs)
 
     other_tools:                  # commercial APM agents detected in-cluster

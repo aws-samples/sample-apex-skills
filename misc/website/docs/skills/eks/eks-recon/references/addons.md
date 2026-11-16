@@ -112,21 +112,23 @@ aws eks describe-addon --cluster-name <cluster-name> --addon-name <addon-name> \
 Use Helm detection when you need to inventory third-party components that were installed via Helm charts. Many platform teams use Helm for add-ons not available as EKS-managed add-ons.
 
 > **No Secret reads.** Helm keeps each release record (chart, values, revision, status) in a
-> Secret by default (the `secret` storage driver, helm/helm `pkg/action/action.go:674-675` at
-> 3c2635de). `helm list`, `helm get`, `helm status` and `helm history` read those records, so
+> Secret by default ([Helm storage backends](https://helm.sh/docs/topics/advanced/)).
+> `helm list`, `helm get`, `helm status` and `helm history` read those records, so
 > this skill runs none of them and never lists Secrets. It reads the marks Helm puts on a
 > release's own resources instead: on install, upgrade and rollback Helm sets the label
 > `app.kubernetes.io/managed-by: Helm` and the annotations `meta.helm.sh/release-name` and
-> `meta.helm.sh/release-namespace` (`pkg/action/validate.go:35-38` and `:224-236`, called from
-> `install.go:410`, `upgrade.go:362` and `rollback.go:241`, at 3c2635de). Helm v3.2.0 added them
-> (`validate.go` at tag v3.2.0 has `meta.helm.sh/release-name`, v3.1.3 does not).
+> `meta.helm.sh/release-namespace`. Helm v3.2.0 added the annotations, when it began adopting
+> existing resources into a release ([Helm v3.2.0 release notes](https://github.com/helm/helm/releases/tag/v3.2.0)).
 
 **CLI:**
 ```bash
-# Read only object metadata. ConfigMaps are filtered server-side to Helm-managed ones,
-# so other ConfigMaps' data is not fetched. Run jq only when both reads succeed.
-kubectl get deployments,daemonsets,statefulsets,services -A -o json > helm-objects.json \
-  && kubectl get configmaps -A -l app.kubernetes.io/managed-by=Helm -o json > helm-configmaps.json \
+# kubectl returns full objects (pod-template env values, Helm-managed ConfigMap data). They
+# go to a private temp dir, removed on success and on failure; only metadata reaches the
+# output. ConfigMaps are filtered server-side to Helm-managed ones, so other ConfigMaps'
+# data is not fetched. jq runs only when both reads succeed, and the exit code is kept.
+d=$(mktemp -d) \
+  && kubectl get deployments,daemonsets,statefulsets,services -A -o json > "$d/objects.json" \
+  && kubectl get configmaps -A -l app.kubernetes.io/managed-by=Helm -o json > "$d/configmaps.json" \
   && jq -s '
   [.[].items[]
    | {kind, namespace: .metadata.namespace, name: .metadata.name,
@@ -140,7 +142,7 @@ kubectl get deployments,daemonsets,statefulsets,services -A -o json > helm-objec
             | map({name: .[0].release, namespace: .[0].release_namespace,
                    chart_labels: ([.[].chart_label | select(. != null)] | unique)})),
      label_only: [.[] | select(.release == null) | "\(.kind)/\(.namespace)/\(.name)"]}' \
-  helm-objects.json helm-configmaps.json
+  "$d/objects.json" "$d/configmaps.json"; rc=$?; rm -rf "$d"; (exit "$rc")
 ```
 
 **Example output:**
@@ -159,25 +161,44 @@ kubectl get deployments,daemonsets,statefulsets,services -A -o json > helm-objec
 ```
 
 - `chart_labels` holds the `helm.sh/chart` label values on the release's objects, verbatim.
-  The chart's own templates set that label (the `helm create` scaffold,
-  `pkg/chart/v2/util/create.go:599` at 3c2635de), not Helm, so it can be absent or differ
-  between a release's subcharts. It is not Helm's record of the chart version.
+  The chart's own templates set that label ([Helm label conventions](https://helm.sh/docs/chart_best_practices/labels/)),
+  not Helm, so it can be absent. A release can show more than one value: its subcharts set
+  their own, and an upgrade that fails part-way leaves some objects at the old chart, since
+  Helm goes on updating a release's other objects when one update fails. It is not Helm's
+  record of the chart version. `app.kubernetes.io/version`, where a chart sets it, is chart
+  text in the same way, not Helm's record of the app version.
 - `label_only` lists objects labelled `app.kubernetes.io/managed-by: Helm` that carry no
-  release annotations, so their release cannot be named from metadata.
+  release annotations. That label is chart text too: chart templates set it from
+  `{{ .Release.Service }}`, which always renders `Helm`, also when Argo CD renders the chart
+  with `helm template` ([Argo CD Helm](https://argo-cd.readthedocs.io/en/stable/user-guide/helm/))
+  or someone runs `helm template | kubectl apply`. So these objects may belong to no Helm
+  release. Never report them as releases; `count` leaves them out.
 
-**What this cannot report.** Chart version as Helm recorded it, app version, revision,
-status and pending or failed releases live only in the release Secret, so they are not
-read. Helm does not annotate a chart's `crds/` CRDs (`install.go:197` builds them with no
-metadata visitor) or its hooks (`hooks.go:84`), and a release installed before Helm v3.2.0
-and never upgraded since has no annotations. Report a release found here by name and
-namespace only, and scope an absence claim to the kinds read: "no Helm-annotated
-Deployments, DaemonSets, StatefulSets, Services or ConfigMaps", never "no Helm releases".
+**What this does not report.** Chart version as Helm recorded it, app version, revision and
+status are in Helm's release record, which this skill does not read. On a Flux-managed
+release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status, chart version
+and app version in its Ready condition and `status.history`
+([Flux HelmRelease](https://fluxcd.io/flux/components/helm/helmreleases/)); this skill does
+not read it, because the full object also holds `spec.values`, which can carry sensitive
+values. A listed release is not known to be deployed: Helm applies a release's objects before
+it marks the release failed, and `helm uninstall` leaves resources annotated
+`helm.sh/resource-policy: keep` in place with their release annotations
+([Helm chart tips](https://helm.sh/docs/howto/charts_tips_and_tricks/)), so a listed release
+may be failed, pending or uninstalled. Helm does not annotate a chart's `crds/` CRDs or its
+hooks, a release installed before Helm v3.2.0 and never upgraded since has no annotations,
+and a chart that ships only kinds not read here (CRDs, Jobs, CronJobs, Ingresses, RBAC) is
+not found. Report a release by name and namespace, and its `chart_labels` verbatim as
+chart-set labels, never as the chart version Helm recorded. Scope an absence claim to the
+kinds read: "no Helm-annotated Deployments, DaemonSets, StatefulSets, Services or
+ConfigMaps", never "no Helm releases".
 
 > **Coverage honesty:** report `helm_releases.count: 0` only when both reads ran and
 > returned no Helm-annotated objects. If either read fails, emit
 > `helm_releases: {unconfirmed: true, reason: "<kind> read failed: <error>"}` rather than a
-> count of 0. Always add a Coverage line: `addons.helm_releases: chart version, revision and
-> status not read (Helm release Secrets are not read)`.
+> count of 0. Always add a Coverage line: `addons.helm_releases: found from Helm annotations
+> on Deployments, DaemonSets, StatefulSets, Services and Helm-labelled ConfigMaps only; chart
+> version, app version, revision and status not read (Helm release Secrets are not read);
+> listed releases may be failed, pending or uninstalled`.
 
 ### 3. Common Platform Components
 
@@ -435,10 +456,9 @@ Record `latest_version` = the first element, and `update_available` = (`latest_v
 
 ### Helm Release in Pending State
 
-Not reported. A release's status (`deployed`, `failed`, `pending-install`, `pending-upgrade`)
-is a label on its release Secret (helm/helm `pkg/storage/driver/secrets.go:263-266` at
-3c2635de), and this skill reads no Secret, so it cannot see a stuck or failed release. The
-Coverage line in [Helm Releases](#2-helm-releases) already names status as not read.
+Not reported: a release's status is in Helm's release record, which this skill does not
+read. See "What this does not report" and the Coverage line in
+[Helm Releases](#2-helm-releases); on Flux, the HelmRelease resource carries it.
 
 ### Orphaned Resources
 
