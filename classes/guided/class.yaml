@@ -1,7 +1,6 @@
 # Guided: solution skills where a script does not fit (eks-design, eks-build).
-# They inherit the artifact checks from Operator (R:193); a rule id restated
-# here would fail the build (R:209), so this class adds none.
-# plan: R:193 (Guided row); the tree R:64
+# They inherit the artifact checks from Operator; the same rule id from two
+# classes fails the build, so this class adds none.
 
 name: guided
 title: Guided

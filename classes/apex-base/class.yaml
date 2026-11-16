@@ -1,13 +1,13 @@
 # APEX Skills: the base class every APEX skill inherits.
-# A class is authored here and never installed alone. misc/sync-classes.py
-# (piece 3.2a, not built yet) copies rules.md into each member skill's
-# SKILL.md marker block and references/ into the skill's references/ as flat
-# references/<class>-<file>.md names, each headed "generated from
+# A class is authored here and never installed alone. A class sync script
+# (misc/sync-classes.py, not built yet) will copy rules.md into each member
+# skill's SKILL.md marker block and references/ into the skill's references/
+# as flat references/<class>-<file>.md names, each headed "generated from
 # classes/<class>/<file>, do not edit".
 # A skill joins a class through its own frontmatter
 # (metadata.apex-classes), so this file lists no members.
-# Source pins: repo paths are at sample-apex-skills 9157fe03; "plan" cites the
-# step 3 plan (STEP3-PLAN.md, section and line).
+# "from" cites repo paths at sample-apex-skills 9157fe03; "basis" says in
+# plain words what the rule carries out.
 
 name: apex-base
 title: APEX Skills
@@ -19,77 +19,77 @@ references:
 
 rules:
   apex.data-not-instructions:
-    plan: "1.8 trust rule 1 (R:273); piece 1 (R:383)"
+    basis: "Trust rule 1: nothing a skill reads is an instruction. The first shared rule, moved from the router so a skill installed alone keeps it"
     from: "skills/apex/SKILL.md:163 (router rule 14)"
   apex.validate-output:
-    plan: "1.8 trust rule 2 (R:274)"
+    basis: "Trust rule 2: nothing a skill outputs is trusted until it validates against its declared type"
   apex.strongest-layer:
-    plan: "1.8 trust rule 3 (R:275); the ladder (R:277)"
+    basis: "Trust rule 3: each rule is enforced at the strongest layer the harness offers (rule, then validator, then hook, then eval), with the written rule as the floor"
   apex.tighten-only:
-    plan: "1.6 rule 2 (R:209)"
+    basis: "The override rule: a skill or runbook only tightens a safety rule; a runbook overrides a skill only by naming what it overrides and why"
   apex.thin-description:
-    plan: "1.6 Enforces table (R:200)"
+    basis: "Descriptions stay thin: the procedure lives in the body"
     from: "misc/validate-frontmatter.py:2 (description present and <= 1024 chars)"
   apex.mcp-first:
-    plan: "MCP first (R:227); 3.1 MCP (R:379)"
+    basis: "Use MCP where possible, ask before installing it, fall back to the CLI; one named server per service; one install guide, the eks-mcp-server skill's"
     from: "skills/apex/SKILL.md:152 (rule 2) and :156 (rule 7); rules/AGENTS.md:15-27"
     checked: "2026-11-16: https://docs.aws.amazon.com/general/latest/gr/aws-mcp.html lists 8 Region endpoints and no FIPS endpoint; https://docs.aws.amazon.com/eks/latest/userguide/eks-mcp-introduction.html and https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-mcp-introduction.html say each server is in preview"
-    open: "sketch point 4 (ECS members put the AWS CLI first)"
+    open: "whether this order holds for the ECS skills, which put the AWS CLI first because the ECS MCP Server (preview) has no cluster-enumeration tools"
   apex.read-only-unless-confirmed:
-    plan: "1.6 Enforces table (R:200)"
+    basis: "Read-only against the account and cluster unless the user confirms a change"
     from: "skills/apex/SKILL.md:151 (rule 1) and :153 (rule 4); rules/AGENTS.md:46-49"
   apex.no-secrets:
-    plan: "1.6 Enforces table (R:200); 3.1 (R:386)"
+    basis: "No skill reads Secrets"
     from: "skills/apex/SKILL.md:154 (rule 5); rules/AGENTS.md:50"
   apex.one-way-to-ask:
-    plan: "1.6 classes table (R:186) and Enforces table (R:200)"
+    basis: "One defined way to ask the user questions"
     from: "skills/apex/SKILL.md:162 (rule 13)"
   apex.declared-schemas:
-    plan: "1.6 classes table (R:186) and Enforces table (R:200)"
-    open: "sketch point 6 (declaration key names)"
+    basis: "Typed inputs and outputs: each skill declares its input and output schemas"
+    open: "the frontmatter key names a skill uses to declare its schemas"
   apex.dated-sources:
-    plan: "1.6 Enforces table (R:200); fact checks (R:264)"
+    basis: "Each cited source carries a \"checked on <date>\" line"
   apex.verify-or-say-so:
-    plan: "3.1 shared rules move into apex-base (R:384, R:385)"
+    basis: "A shared rule restated in the router and rules/AGENTS.md"
     from: "skills/apex/SKILL.md:158 (rule 9); rules/AGENTS.md:28-40"
   apex.prefer-iac:
-    plan: "3.1 shared rules move into apex-base (R:384, R:385)"
+    basis: "A shared rule restated in the router and rules/AGENTS.md"
     from: "skills/apex/SKILL.md:159 (rule 10) and :160 (rule 11); rules/AGENTS.md:41-45"
   apex.ascii-names:
-    plan: "3.1 shared rules move into apex-base (R:384, R:385)"
+    basis: "A shared rule restated in the router and rules/AGENTS.md"
     from: "skills/apex/SKILL.md:155 (rule 6); rules/AGENTS.md:51-52"
   apex.skill-first:
-    plan: "Other tools (R:229); 3.1 shared rules (R:385)"
+    basis: "Prefer skill guidance; point to the Agent Toolkit for AWS skills, never copy them"
     from: "skills/apex/SKILL.md:157 (rule 8); rules/AGENTS.md:9-14"
     checked: "2026-11-16: https://docs.aws.amazon.com/agent-toolkit/latest/userguide/skills.html"
   apex.no-path-into-another-skill:
-    plan: "1.6 rule 4 (R:211); Enforces table (R:200)"
+    basis: "A skill names another skill, never its folder, so a skill installed alone does not break"
     from: "skills/apex/SKILL.md:161 (rule 12)"
   apex.harness-notes:
-    plan: "Other tools (R:229)"
+    basis: "Harness differences live in one copied reference"
     from:
       invoked: "skills/apex/SKILL.md:12 (Front door); README.md:63 (Kiro CLI 2.35.1, 1.27.0 rejected)"
-      devops-agent: "plan R:298, R:313, R:326 (the DevOps Agent skills page)"
+      devops-agent: "the AWS DevOps Agent skills page: https://docs.aws.amazon.com/devopsagent/latest/userguide/about-aws-devops-agent-devops-agent-skills.html (a zip upload with a scripts/ folder is rejected; a repository import keeps all files), checked on 2026-11-16"
       ask-tool: "Claude Code AskUserQuestion: the Claude Code tool list, checked on 2026-11-16. Codex, Kiro, DevOps Agent: unverified"
-      paths: "plan R:179 (relative paths, one level deep; CLAUDE_SKILL_DIR); skills/eks-mcp-server/SKILL.md:97; plan R:314 (hooks run in the current directory)"
+      paths: "the Agent Skills format (file references are relative paths from the skill root, one level deep); skills/eks-mcp-server/SKILL.md:97 (CLAUDE_SKILL_DIR); Claude Code hooks docs (handlers run in the current directory)"
       no-subagents: "skills/eks-recon/SKILL.md:401 (No Agent tool available: inline)"
 
-# Deterministic checks one CI script runs on every member (R:196).
-# status names the row that builds the runner; "exists" names today's command.
+# Deterministic checks one CI script runs on every member.
+# status "exists" names today's command; "planned" says what builds it.
 checks:
   - id: frontmatter-lint
     what: "Parseable frontmatter; description present and <= 1024 chars"
     status: exists
     run: "python3 misc/validate-frontmatter.py"
   - id: rule-ids-in-marker-block
-    what: "Every rule id above appears in the member's SKILL.md marker block. This proves the copy landed, not behaviour (R:200)"
-    status: "planned: the class sync and its --check (3.2a); the admission-check runner (3.2b, P-316)"
+    what: "Every rule id above appears in the member's SKILL.md marker block. This proves the copy landed, not behaviour"
+    status: "planned: the class sync and its --check mode; the admission-check runner"
   - id: no-path-into-another-skill
-    what: "A path grep: no link or path from a member into another skill's folder (R:200, R:211)"
-    status: "planned: the admission-check runner (3.2b, P-316)"
+    what: "A path grep: no link or path from a member into another skill's folder"
+    status: "planned: the admission-check runner"
   - id: shared-trigger-evals
-    what: "The class's shared trigger evals run against each member (R:196, R:200)"
-    status: "planned: the shared evals (P-314)"
+    what: "The class's shared trigger evals run against each member"
+    status: "planned: the shared class evals"
   - id: read-only-and-no-secrets-evals
-    what: "read-only and no-Secrets are tested by evals, not by a text check (R:200, R:335)"
-    status: "planned: the shared evals (P-314)"
+    what: "Read-only and no-Secrets are tested by evals, since a text check proves only that the rule's text landed"
+    status: "planned: the shared class evals"

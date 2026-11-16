@@ -1,7 +1,6 @@
 # Script: a skill whose own scripts do the task and give a typed result.
 # Determinism and the OS matrix stay here; typed input and checked output
-# moved up to Operator (the Script contract split, R:196, R:381).
-# plan: R:194 (Script row), R:203 (Enforces row)
+# sit in Operator.
 
 name: script
 title: Script
@@ -11,21 +10,21 @@ inline: rules.md
 
 rules:
   script.output-schema:
-    plan: "1.6 classes table (R:194); Enforces row (R:203)"
+    basis: "A script's own output validates against the JSON Schema in assets/"
   script.same-output:
-    plan: "1.6 classes table (R:194); Enforces row (R:203)"
-    from: "skills/eks-well-architected-review/SKILL.md:124-130 (the one full determinism guarantee today, class survey)"
+    basis: "The same input gives the same output on every run"
+    from: "skills/eks-well-architected-review/SKILL.md:124-130 (the one full determinism guarantee today)"
   script.os-matrix:
-    plan: "1.6 classes table (R:194); Enforces row (R:203)"
-    note: "class survey, OS matrix row: skill-script CI runs on Linux only (.github/workflows/evals.yml:23); the installer refuses native Windows (.github/workflows/installer-test.yml:89, :106-107); no member names Windows as a host it runs on"
+    basis: "The scripts run on Linux, macOS and Windows"
+    note: "today skill-script CI runs on Linux only (.github/workflows/evals.yml:23); the installer refuses native Windows (.github/workflows/installer-test.yml:89, :106-107); no member names Windows as a host it runs on"
 
 checks:
   - id: output-schema-fixtures
-    what: "Schema validation of fixtures (R:203)"
-    status: "planned: the output validator (P-311)"
+    what: "Schema validation of fixtures"
+    status: "planned: the output validator"
   - id: k-run-diff
-    what: "Same input, same output across k runs (R:203)"
-    status: "planned: the Script k-run diff (P-311)"
+    what: "Same input, same output across k runs"
+    status: "planned: the Script k-run diff"
   - id: os-matrix-ci
-    what: "The skill's scripts run in CI on Linux, macOS and Windows (R:203)"
-    status: "planned: no row named in cluster 1"
+    what: "The skill's scripts run in CI on Linux, macOS and Windows"
+    status: "planned: not yet assigned"

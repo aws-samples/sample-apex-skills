@@ -1,7 +1,6 @@
 # Operator / Solutions: skills that do a task, with confirmation before any
 # change. Typed input and checked output sit here; determinism and the OS
-# matrix stay in Script (the Script contract split, R:196, R:381).
-# plan: R:192 (Operator row), R:202 (Enforces row)
+# matrix stay in Script.
 
 name: operator
 title: Operator
@@ -11,15 +10,15 @@ inline: rules.md
 
 rules:
   operator.confirm-before-change:
-    plan: "1.6 classes table (R:192)"
-    from: "skills/ecs-modernize/SKILL.md:133, :142 (Execution_Gate, explicit approval), class survey"
+    basis: "Operator skills confirm before any change"
+    from: "skills/ecs-modernize/SKILL.md:133, :142 (Execution_Gate, explicit approval)"
   operator.typed-input:
-    plan: "1.6 classes table (R:192); the split (R:196)"
+    basis: "Typed input: the task's input has a declared shape"
   operator.artifact-checks:
-    plan: "1.6 classes table (R:192); Enforces row (R:202): eks-build terraform validate, fmt, tflint, a security scan, requirement coverage, a plan against a fixture; eks-design structure checks on its doc and diagrams"
-    open: "sketch point 6 (the key a skill uses to declare its checks; today misc/evals/<skill>/.skilleval.yaml:11)"
+    basis: "Checked output: a skill that produces an artifact declares its checks, and the artifact must pass them (eks-build: terraform validate, fmt, tflint, a security scan, requirement coverage, a plan against a fixture; eks-design: structure checks on its doc and diagrams)"
+    open: "the key a skill uses to declare its checks; today they sit in misc/evals/<skill>/.skilleval.yaml:11"
 
 checks:
   - id: declared-artifact-checks
-    what: "The declared checks run on fixture artifacts in CI (R:202)"
-    status: "planned: the output validator (P-311) and the Stop gate (3.4d)"
+    what: "The declared checks run on fixture artifacts in CI"
+    status: "planned: the output validator and the Stop gate"

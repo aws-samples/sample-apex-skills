@@ -1,15 +1,13 @@
 # Steward: skills that maintain the APEX repo (update-docs, apex-new-skill).
 # Its members run the repo generators below, the add-a-skill steps and the
-# class sync. Source pins: repo paths at sample-apex-skills 9157fe03; "plan"
-# cites the step 3 plan (STEP3-PLAN.md, R:<line>).
-# plan: R:187 (Steward row); R:213 (how a change spreads)
+# class sync. "from" cites repo paths at sample-apex-skills 9157fe03.
 
 name: steward
 title: Steward
 parents: [apex-base]
 
-# The repo generators and their --check modes (R:187). CI runs the --check
-# forms in .github/workflows/docs-sync.yml:56-62.
+# The repo generators and their --check modes. CI runs the --check forms in
+# .github/workflows/docs-sync.yml:56-62.
 generators:
   - run: "./misc/update-all-references.sh"
     check: "./misc/update-all-references.sh --check"
@@ -27,10 +25,9 @@ generators:
   - run: "python3 misc/sync-classes.py"
     check: "python3 misc/sync-classes.py --check"
     writes: "each member skill's class copies"
-    status: "planned: the class sync (3.2a)"
-    from: "plan R:213, R:222"
+    status: "planned: the class sync, not built yet"
 
-# Hand-kept, not generated (R:187).
+# Hand-kept, not generated.
 hand_kept:
   - "misc/website/src/components/SkillFinder.tsx"
 
@@ -43,6 +40,6 @@ add_a_skill:
   - "Update every neighbour's sibling map and triggering.json with misc/evals/scripts/update_sibling_map.py, one call per neighbour (:284)"
   - "Fan out: the routing row in skills/apex/SKILL.md, the hand-written catalogues, the SKILL_META line in misc/update-pages.sh, then run the generators above (:285)"
   - "Package: python skills/skill-creator/scripts/package_skill.py skills/<name> (:286)"
-  - "Run the class sync for the skill's classes (planned: 3.2a)"
+  - "Run the class sync for the skill's classes (planned: the class sync, not built yet)"
 
 checks: []

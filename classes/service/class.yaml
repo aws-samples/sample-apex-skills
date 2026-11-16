@@ -1,9 +1,8 @@
-# Service: the parent of the per-service classes (service-eks in step 3,
-# piece 3.1e; service-ecs in step 5). It holds no rules of its own yet: the
-# only line EKS and ECS members share word for word is the credentials line
+# Service: the parent of the per-service classes (service-eks, then
+# service-ecs). It holds no rules of its own yet: the only line EKS and ECS
+# members share word for word is the credentials line
 # (skills/eks-recon/SKILL.md:220 and skills/ecs-recon/SKILL.md:62, at
-# sample-apex-skills 9157fe03; the class survey's Service row).
-# plan: R:188 (Service row); collapse rule R:181
+# sample-apex-skills 9157fe03). A class that shares nothing is not built.
 
 name: service
 title: Service skill
