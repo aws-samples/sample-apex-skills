@@ -17,7 +17,7 @@ We weighed and dropped four other ways to share: symlinks, a shared base skill r
 
 Until now the repo kept its vendor sync scripts and added no tooling that copies files from one place into many. Classes need exactly that tooling.
 
-Earlier documents set one of two questions and left the other open: when the contributor skill for new skills is built (step 7, in ADR 0002 and the design notes), and what happens to a skill held by an outside owner who does not take up v2.
+Earlier documents answered one of two questions and left the other open: when the contributor skill for new skills is built (step 7, in ADR 0002 and the design notes), and what happens to a skill held by an outside owner who does not take up v2. This record answers the first. For the second it sets only how owners are asked; what a decline does to the skill is not decided here.
 
 ## Decision
 
