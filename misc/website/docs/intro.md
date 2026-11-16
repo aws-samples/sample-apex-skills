@@ -20,7 +20,7 @@ Each skill is a self-contained folder of instructions, scripts, and references t
 | `examples/` | Hands-on labs to try APEX against real workloads                     |
 | `misc/`     | Maintenance scripts, evaluations, and this docs site                 |
 
-> **Key principle:** Skills provide the knowledge. Runbooks provide the structure. Rules provide the guardrails.
+> **Key principle:** Skills provide the knowledge. Runbooks provide the structure. Classes provide the guardrails.
 
 ## Where to go next
 

@@ -10,8 +10,10 @@ parents: [apex-base]
 generators:
   - run: "./misc/update-all-references.sh"
     check: "./misc/update-all-references.sh --check"
+    status: exists
   - run: "./misc/update-pages.sh"
     check: "./misc/update-pages.sh --check"
+    status: exists
     note: "reads the git index (git ls-files): git add new files first"
   - run: "python3 misc/sync-classes.py"
     check: "python3 misc/sync-classes.py --check"

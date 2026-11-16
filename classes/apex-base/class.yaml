@@ -18,16 +18,20 @@ parents: []
 #   owner=helm Secret fallback, references/addons.md, agents/addons-recon.md)
 #   and the Prometheus config (references/observability.md); it moves to
 #   the Helm annotations apex.no-secrets names and to ConfigMap and
-#   Prometheus custom-resource reads.
+#   Prometheus custom-resource reads, in the eks-recon rebuild (step 3.7,
+#   after the current owner's work on eks-recon lands; R:508, R:511).
 # - eks-ingress-migration (owner-held) uses `helm list`
 #   (references/report-generation.md, and its devops-agent copy): its owner
-#   changes it.
+#   changes it; no issue yet (searched 2026-11-16).
 # - The apex eks-upgrade-check runbook lists `helm list` as a read; it goes
 #   with the runbook absorption.
 # - eks-operation-review (owner-held, vendored) needs the EKS MCP
 #   Server and reads Secret key names in check 3.1
-#   (references/access-identity.md): its owner changes it, tracked in
-#   aws-samples/sample-apex-skills issue 189 (open, checked on 2026-11-16).
+#   (references/access-identity.md): its owner changes it. Issue 189
+#   (open, checked on 2026-11-16) tracks the MCP hard-halt; its Secret item
+#   keeps the names-only read, so the Secret clause has no issue yet.
+# - The router's runbooks hold 22 `../../../<skill>/` paths, against
+#   apex.no-path-into-another-skill; they go with the runbook absorption.
 # The router's `helm list` is replaced in this piece (skills/apex/SKILL.md,
 # shared rule 1).
 

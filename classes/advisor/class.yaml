@@ -13,5 +13,5 @@ parents: [platform]
 
 checks:
   - id: no-shipped-runnables
-    what: "The member ships no tools/ or scripts/; its SKILL.md holds no shell fence and no aws, kubectl, helm or eksctl command line; every line in references/ that changes a cluster or account (kubectl apply/create/delete/patch/annotate/label/edit, helm install/upgrade, aws create-/delete-/update-/put-/associate-, eksctl create/delete) sits in a block marked customer-run"
+    what: "The member ships no tools/ or scripts/; its SKILL.md holds no shell fence or command line to run; every line in references/ that changes a cluster or account (the hand-classified list in the class survey, not a verb regex) is marked customer-run, in one of three forms: the marker on the line above a fence, at the end of the line, or on a blockquote line above a quoted fence. `aws eks update-kubeconfig` is exempt (apex.read-only-unless-confirmed)"
     status: planned

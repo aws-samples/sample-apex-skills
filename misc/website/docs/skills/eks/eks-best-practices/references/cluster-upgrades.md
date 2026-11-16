@@ -721,7 +721,7 @@ To verify SSM connectivity: check that the SSM agent is running on the node, the
 | **Helm-managed add-ons** | Yes | `helm rollback` or GitOps revert | Check CRD compatibility | <!-- customer-run -->
 | **Application deployments** | Yes | `kubectl rollout undo` or GitOps revert | Verify DB schema compatibility | <!-- customer-run -->
 | **CRD changes** | Partial | Can revert CRD spec, but data migration may not reverse | Test CRD rollback in non-prod first |
-| **Network policies** | Yes | Revert via GitOps or kubectl apply | Immediate effect | <!-- customer-run -->
+| **Network policies** | Yes | Revert via GitOps or kubectl apply | Immediate effect |
 | **IAM changes** | Yes | Revert Terraform/CloudFormation | May take minutes to propagate |
 
 ### Full Cluster Rebuild from Backup
