@@ -494,14 +494,14 @@ Enable audit logging and use CloudWatch Logs Insights to monitor secret access:
 fields @timestamp, @message
 | sort @timestamp desc
 | limit 100
+| filter objectRef.resource="secrets" and verb in ["get", "watch", "list"]
 | stats count(*) by objectRef.name as secret
-| filter verb="get" and objectRef.resource="secrets"
 
 # Show who accessed which secrets
 fields @timestamp, @message
 | sort @timestamp desc
 | limit 100
-| filter verb="get" and objectRef.resource="secrets"
+| filter objectRef.resource="secrets" and verb in ["get", "watch", "list"]
 | display objectRef.namespace, objectRef.name, user.username, responseStatus.code
 ```
 
