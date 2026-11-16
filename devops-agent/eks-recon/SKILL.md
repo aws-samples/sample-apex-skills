@@ -197,7 +197,7 @@ _generated <timestamp> · source: AWS API + K8s API · modules: N/N_
 ## Coverage
 <modules that could not run + reason, AND sub-facts that ran but could not be confirmed>
 - storage: unavailable (reason: K8s API access entry absent — AWS-API-only mode)
-- addons.helm_releases: unconfirmed (reason: Helm release Secrets not readable) — reported as `unconfirmed`, not `count: 0`
+- addons.helm_releases: unconfirmed (reason: Deployment read failed: 403 Forbidden), reported as `unconfirmed`, not `count: 0`
 ```
 
 Keep every absence claim within the successfully inspected scope. State that

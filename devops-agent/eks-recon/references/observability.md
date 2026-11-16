@@ -155,14 +155,28 @@ Classify how Grafana runs and record its version.
 **Prometheus scrape_configs / remote_write targets (raw fact):** capture the configured
 scrape job names and remote_write URLs verbatim — do not interpret them.
 
-**Via Kubernetes API** — read the Prometheus config:
+No Secret is read. The Prometheus Operator renders each Prometheus's config into a Secret
+(prometheus-operator `pkg/prometheus/server/operator.go:1565` at 5ac08992), so the operator
+case reads the Prometheus and monitor custom resources instead.
 
-- **Resource:** `ConfigMap` and `Secret`, group/version `v1` (core), all namespaces, whose name matches `prometheus`.
+**Via Kubernetes API**, self-managed: read the Prometheus config ConfigMap:
+
+- **Resource:** `ConfigMap`, group/version `v1` (core), all namespaces, whose name matches `prometheus`.
 - **Fields to extract:** from the rendered config body — `scrape_configs[].job_name` (scrape job names) and `remote_write[].url` (remote_write URLs, e.g. `aps-workspaces` AMP endpoints).
-- **RBAC verbs:** `get`, `list` on `configmaps`, `secrets`.
+- **RBAC verbs:** `get`, `list` on `configmaps`.
+
+**Via Kubernetes API**, operator: read the custom resources:
+
+- **Resource:** `Prometheus`, `ServiceMonitor` and `PodMonitor`, group/version `monitoring.coreos.com/v1`, all namespaces.
+- **Fields to extract:** `Prometheus` `spec.remoteWrite[].url` → `remote_write_targets` (`pkg/apis/monitoring/v1/prometheus_types.go:502` and `:1767` at 5ac08992); each ServiceMonitor and PodMonitor as `<kind>/<namespace>/<name>` → `scrape_configs.list` (the operator renders them into scrape jobs).
+- **RBAC verbs:** `get`, `list` on `prometheuses.monitoring.coreos.com`, `servicemonitors.monitoring.coreos.com`, `podmonitors.monitoring.coreos.com`.
 
 Record `scrape_configs` (count + list of job names) and `remote_write_targets` (list of URLs)
-exactly as found; report `null`/empty where the config is not readable.
+exactly as found; report `null`/empty where the config is not readable. For the operator,
+the rendered job names live only in the config Secret: add `observability.scrape_configs:
+operator job names not read (config Secret is not read)` to Coverage. Scrape jobs set
+through `additionalScrapeConfigs` (a Secret key reference, `prometheus_types.go:604`) are
+not read either.
 
 **Other Metrics Tools:**
 
@@ -379,7 +393,7 @@ observability:
 
     scrape_configs:               # raw fact — scrape jobs found in the prometheus config
       count: int
-      list: list                  # scrape job names, verbatim
+      list: list                  # scrape job names, verbatim; operator: <kind>/<namespace>/<name> monitors
     remote_write_targets: list    # remote_write URLs verbatim (e.g. aps-workspaces AMP URLs)
 
     other_tools:                  # commercial APM agents detected in-cluster

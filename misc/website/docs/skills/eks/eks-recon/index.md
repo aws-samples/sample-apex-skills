@@ -67,7 +67,6 @@ If MCP tools are NOT available:
 |------|-------------|
 | `aws` CLI | Cluster-level detection (describe-cluster, list-nodegroups, list-addons) |
 | `kubectl` | K8s resource detection (deployments, CRDs, service accounts) |
-| `helm` | Helm release inventory (optional) |
 | Python 3 | CLI GitOps metadata extractor (standard library) |
 | `jq` | CLI JSON filtering and projections across recon modules |
 
@@ -176,7 +175,7 @@ Load only the references needed for the user's request — this keeps context fo
 | Fargate profiles | `aws eks list-fargate-profiles --cluster-name <name> --region <region>` |
 | Auto Mode | `aws eks describe-cluster --name <name> --region <region> --query 'cluster.computeConfig'` |
 | Karpenter | `kubectl get nodepools.karpenter.sh 2>/dev/null` |
-| Helm releases | `helm list -A` |
+| Helm releases | `kubectl get deployments,daemonsets,statefulsets,services -A -o json`, read for the `meta.helm.sh/release-name` annotation (never `helm list`: it reads Secrets; see [addons.md](references/addons.md)) |
 
 ---
 
@@ -302,7 +301,7 @@ _generated <timestamp> · source: MCP | CLI · modules: N/N_
 ## Coverage
 <modules that could not run + reason, AND sub-facts that ran but could not be confirmed — makes gaps visible>
 - storage: unavailable (reason: MCP 401 and kubectl not configured)
-- addons.helm_releases: unconfirmed (reason: helm CLI absent, secret fallback not run) — reported as `unconfirmed`, not `count: 0`
+- addons.helm_releases: unconfirmed (reason: Deployment read failed: 403 Forbidden), reported as `unconfirmed`, not `count: 0`
 
 ## Machine artifact
 - `<output-prefix>.yaml` written (secondary point-in-time facts snapshot)
