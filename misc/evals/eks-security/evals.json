@@ -54,6 +54,7 @@
         "Recommends AWS Config conformance packs (the PCI DSS 4.0 pack) as the audit-prep path",
         "Recommends Security Hub as the audit-prep path",
         "Does NOT prescribe standing up AWS Audit Manager for this audit.",
+        "States that AWS Audit Manager is in maintenance mode / closed to new accounts (as of 2026-04-30); its PCI framework continues for existing setups only.",
         "States PCI-DSS requires 1-year minimum audit-log retention."
       ],
       "files": [],
@@ -497,7 +498,8 @@
         "For SEC-POSTURE-64, says the fix is to scope the admin holders not named as expected admins",
         "Fixes are printed for the team to review (for example hop limit 1 in the launch template, a default-deny NetworkPolicy per namespace, the PSA label, restricting the endpoint CIDRs, scoping the admin access entries)",
         "Nothing is applied",
-        "Does not treat plain version lag as a posture finding"
+        "Does not treat plain version lag as a posture finding",
+        "States that no posture check judges component versions, and a currency gap is only a component below a fixed version from a C1 sweep"
       ],
       "process_assertions": [
         {
