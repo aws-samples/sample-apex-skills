@@ -1,6 +1,6 @@
 ---
 name: ecs-operation-review
-description: Run a structured Amazon ECS operational-excellence assessment against a live estate (Fargate/EC2/Managed Instances/ECS Anywhere) and score it GREEN/AMBER/RED. Skip for EKS/Kubernetes (use eks-operation-review). Covers 8 domains — clusters & capacity, networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (grace period, draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for "audit my ECS estate", "ECS health check", "score my ECS posture", "review my ECS services", "GREEN/AMBER/RED my ECS clusters", including single-domain reviews. For Day-0 design use ecs-architect; for security hardening use ecs-security; for cost/TCO use ecs-cost-intelligence (once available); for observability design use ecs-observability; for CI/CD engineering use ecs-devops; for replatform/refactor use ecs-modernize; for read-only inventory use ecs-recon.
+description: Run a structured Amazon ECS operational-excellence assessment against a live estate (Fargate/EC2/Managed Instances/ECS Anywhere) and score it GREEN/AMBER/RED. Skip for EKS/Kubernetes (use eks-operation-review). Covers 8 domains — clusters & capacity, networking, task definitions, services & deployment safety (circuit breaker, blue/green, canary), service health & autoscaling (grace period, draining, AZ rebalancing), observability, security posture, and operational processes — producing a rated report with prioritized actions. Activate for "audit my ECS estate", "ECS health check", "score my ECS posture", "review my ECS services", "GREEN/AMBER/RED my ECS clusters", including single-domain reviews. For Day-0 design use ecs-architect; for security hardening use ecs-security; for cost posture use ecs-architect (a dollar TCO is not covered); for observability design use ecs-observability; for CI/CD engineering use ecs-devops; for replatform/refactor use ecs-modernize; for read-only inventory use ecs-recon.
 ---
 
 # ECS Operation Review
@@ -38,19 +38,19 @@ Activate for any request to **audit, review, health-check, or score** an ECS est
 | "Which launch type should I use — Fargate vs EC2 vs Managed Instances?", greenfield architecture/design/selection | **`ecs-architect`** (Day-0 design; generative) |
 | Read-only inventory / "what's in my estate" / discovery report before an audit | **`ecs-recon`** (discovery front door; until then inventory with `aws ecs describe-*`) |
 | Deep security hardening, task/execution-role trust remediation, PCI/HIPAA/FedRAMP scoping | **`ecs-security`** |
-| Dollar-quantified cost / TCO / Savings Plans / Spot / Graviton right-sizing | **`ecs-cost-intelligence`** |
+| Dollar-quantified cost / TCO / Savings Plans / Spot / Graviton right-sizing | No APEX skill covers it: say so (cost posture as a design criterion: **`ecs-architect`**) |
 | Designing the logs/metrics/traces stack (FireLens vs ADOT vs Datadog) | **`ecs-observability`** |
 | Building deployment pipelines / choosing rollout strategy / CI-CD engineering | **`ecs-devops`** |
 | Replatform vs refactor of an existing application | **`ecs-modernize`** |
 
-The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-security`, `ecs-cost-intelligence`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family; route to them by name where relevant. `ecs-cost-intelligence` has not shipped yet: for cost asks, note that and fall back to the AWS CLI / this skill's audit-depth guidance. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
+The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-security`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family; route to them by name where relevant. No APEX skill covers a dollar cost or TCO analysis: for cost asks, say so and fall back to the AWS CLI / this skill's audit-depth guidance. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
 
 ## Defers to deep skills
 
 This review scores each domain at **audit depth** — enough to rate it and flag the top gaps — then hands off. When a finding warrants deeper work, name the sibling skill in the recommendation rather than reproducing its guidance here:
 
 - **Security posture** findings (Section 07) → `ecs-security` for role-trust hardening, secrets, compliance scope.
-- **Cost / capacity-efficiency** angles surfaced during the capacity review (Section 01) → `ecs-cost-intelligence` for $-denominated TCO.
+- **Cost / capacity-efficiency** angles surfaced during the capacity review (Section 01) → say a $-denominated TCO is not covered by an APEX skill.
 - **Observability** findings (Section 06) → `ecs-observability` for stack design.
 - **Deployment / release-engineering** findings (Section 04) → `ecs-devops` for pipeline and rollout-strategy design.
 

@@ -53,7 +53,7 @@ Supported transitions between launch types and capacity providers (and the immut
 | `FARGATE` | 1 | 1 | At least 1 on-demand task always; then 1-in-2 of the rest on-demand |
 | `FARGATE_SPOT` | 0 | 1 | ~half of scaled tasks on cheaper interruptible capacity |
 
-Tune weights toward Spot for interruption-tolerant workloads, toward on-demand for latency-critical ones. Quantify the savings with `ecs-cost-intelligence`.
+Tune weights toward Spot for interruption-tolerant workloads, toward on-demand for latency-critical ones.
 
 ---
 
@@ -103,7 +103,7 @@ Deeper scale-in scoring for a *live* estate belongs to `ecs-operation-review`; t
 
 ## Fargate Spot
 
-`FARGATE_SPOT` provides interruptible Fargate capacity at a discount. Interruptions come with a **two-minute warning** before the task is stopped (sent as a task state change event to EventBridge and a SIGTERM to the task), so pair it with graceful shutdown (`stopTimeout` ≤ 120s) and, for services, a `FARGATE` base for a resilient floor (see the base/weight table above). Suitable for stateless, retry-tolerant, and batch workloads. Quantify the discount and blast-radius trade-off with `ecs-cost-intelligence`. ([Fargate Spot termination notices — ECS clusters for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-capacity-providers.html))
+`FARGATE_SPOT` provides interruptible Fargate capacity at a discount. Interruptions come with a **two-minute warning** before the task is stopped (sent as a task state change event to EventBridge and a SIGTERM to the task), so pair it with graceful shutdown (`stopTimeout` ≤ 120s) and, for services, a `FARGATE` base for a resilient floor (see the base/weight table above). Suitable for stateless, retry-tolerant, and batch workloads. Weigh the discount against the blast-radius trade-off. ([Fargate Spot termination notices — ECS clusters for Fargate](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-capacity-providers.html))
 
 ---
 

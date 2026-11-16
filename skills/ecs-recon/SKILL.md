@@ -1,6 +1,6 @@
 ---
 name: ecs-recon
-description: "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, inspect a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment strategy design and CI/CD engineering (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost/TCO (ecs-cost-intelligence, once available), observability design (ecs-observability), and replatform/migration (ecs-modernize)."
+description: "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, inspect a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment strategy design and CI/CD engineering (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost posture (ecs-architect), observability design (ecs-observability), and replatform/migration (ecs-modernize)."
 ---
 
 # ECS Reconnaissance
@@ -23,7 +23,7 @@ Discover everything about an ECS environment. Run this skill to gather comprehen
 - You need to understand the ECS setup before giving guidance
 
 **Do NOT use this skill for:**
-- **Cost scoring or efficiency analysis** — belongs to `ecs-cost-intelligence` (once available)
+- **Cost scoring or efficiency analysis** — not covered by an APEX skill; cost posture as a design criterion is `ecs-architect`'s
 - **Security auditing or compliance scoring** — belongs to `ecs-security`
 - **Best-practices evaluation or maturity ratings** — belongs to `ecs-operation-review`
 - **Migration planning (replatform/refactor onto ECS)** — belongs to `ecs-modernize`

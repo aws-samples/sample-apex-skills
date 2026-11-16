@@ -1,6 +1,6 @@
 ---
 name: ecs-architect
-description: 'Use when choosing and architecting an Amazon ECS deployment model for a NEW workload — Fargate vs ECS on EC2 vs Managed Instances vs Express Mode vs ECS Anywhere/External — plus capacity-provider strategy, task sizing, awsvpc/ENI density, networking, service parameters, and launch-type or topology migration (EC2 launch type to capacity providers/Managed Instances; Service Discovery to Service Connect). Also the shared ECS best-practices corpus. Triggers include "which ECS launch type", "Fargate or EC2", "should I use Managed Instances", "migrate off EC2 launch type", "App Mesh to Service Connect", "migrate off App Runner". Skip for existing-app replatform (ecs-modernize); auditing a live estate (ecs-operation-review); cost/TCO (ecs-cost-intelligence); inventory (ecs-recon); security (ecs-security); deployment/CICD (ecs-devops); observability (ecs-observability); GPU/ML design AND GPU launch-type choice (ecs-genai); Kubernetes/EKS (eks-design); Terraform generation of a settled design (use ecs-build).'
+description: 'Use when choosing and architecting an Amazon ECS deployment model for a NEW workload — Fargate vs ECS on EC2 vs Managed Instances vs Express Mode vs ECS Anywhere/External — plus capacity-provider strategy, task sizing, awsvpc/ENI density, networking, service parameters, and launch-type or topology migration (EC2 launch type to capacity providers/Managed Instances; Service Discovery to Service Connect). Also the shared ECS best-practices corpus. Triggers include "which ECS launch type", "Fargate or EC2", "should I use Managed Instances", "migrate off EC2 launch type", "App Mesh to Service Connect", "migrate off App Runner". Skip for existing-app replatform (ecs-modernize); auditing a live estate (ecs-operation-review); dollar cost/TCO (not covered); inventory (ecs-recon); security (ecs-security); deployment/CICD (ecs-devops); observability (ecs-observability); GPU/ML design AND GPU launch-type choice (ecs-genai); Kubernetes/EKS (eks-design); Terraform generation of a settled design (use ecs-build).'
 ---
 
 # Amazon ECS Deployment-Model Design and Selection
@@ -23,7 +23,7 @@ Choose the right Amazon ECS compute/launch model for a workload, architect the c
 
 - **Existing application** you want to replatform or refactor onto ECS (assess app → replatform vs refactor → target design) — use the `ecs-modernize` skill. This skill is greenfield model selection; `ecs-modernize` starts from an app and adds the assessment + replatform/refactor decision on top, then leans on this skill for the target design.
 - **Auditing / scoring a live estate** GREEN/AMBER/RED across best-practices domains — use the `ecs-operation-review` skill (Day-2 evaluative). This skill is Day-0 generative.
-- **Dollar-denominated cost / TCO** analysis (Fargate vs EC2 vs Spot economics, Savings Plans, right-sizing with $ findings) — use the `ecs-cost-intelligence` skill once available. This skill covers cost *posture* as a selection criterion, not quantified TCO.
+- **Dollar-denominated cost / TCO** analysis (Fargate vs EC2 vs Spot economics, Savings Plans, right-sizing with $ findings) — no APEX skill covers it; say so. This skill covers cost *posture* as a selection criterion, not quantified TCO.
 - **Discovering what is already running** (inventory launch types, capacity providers, task defs) — use the `ecs-recon` skill.
 - **Security / compliance hardening** (task-role trust, secrets injection, GuardDuty, PCI/HIPAA/FedRAMP scope) — use `ecs-security`.
 - **Deployment strategy + CI/CD** (rolling/blue-green/canary mechanics, circuit breaker, pipelines) — use the `ecs-devops` skill. This skill names *which* deployment controller a model supports; `ecs-devops` designs the release process.
@@ -49,7 +49,7 @@ Do not recommend a model before you have the answers to these. If the workload i
 | **Ops-overhead tolerance** | Does the team want to manage EC2 (AMIs, patching, scaling) at all? | None → Fargate or Managed Instances. Willing → ECS on EC2 for full control. |
 | **Control needs** | Custom AMI/kernel, privileged mode, host access, daemon workloads, specific instance families? | Full control → ECS on EC2. Instance-type choice without lifecycle ops → Managed Instances. |
 | **Scale + density** | How many tasks, how tightly packed? IP-constrained VPC? | High density on EC2 needs ENI trunking planning; Fargate is 1 ENI per task. |
-| **Cost posture** | Interruption-tolerant (Spot)? Committed spend (Savings Plans)? Graviton? | Spot/Graviton mix → capacity-provider strategy. Deep TCO → hand to `ecs-cost-intelligence`. |
+| **Cost posture** | Interruption-tolerant (Spot)? Committed spend (Savings Plans)? Graviton? | Spot/Graviton mix → capacity-provider strategy. Deep TCO: not covered by an APEX skill; say so. |
 | **Compliance / residency** | PCI/HIPAA/FedRAMP? Data residency, air-gap, on-prem? | On-prem/edge → ECS Anywhere (EXTERNAL). China Regions → **Managed Instances not available there** (GovCloud (US) *is* supported since Nov 2025, incl. FIPS on Graviton/GPU). |
 | **Speed to first deploy** | Simple web app/API, want a URL fast, demo or internal tool? | Opinionated fast path → **Express Mode**. |
 | **Team skill** | Container-native, or lifting a legacy app? | Legacy/minimal-change → EC2 launch type (or `ecs-modernize` replatform). |
@@ -115,14 +115,14 @@ Migration playbook with exact supported transitions and citations: **[references
 
 ## Shared ECS Best-Practices Corpus
 
-The "what good looks like" knowledge that this skill, `ecs-operation-review`, and `ecs-cost-intelligence` all draw on — task-definition hygiene, image/SOCI, capacity correctness, deployment safety, health checks, and the shared-responsibility split per model. Factor-out to a standalone skill is deferred; it lives here as the *shared design baseline* — deep domains (security, cost, observability) own the depth in their own references: **[references/best-practices-corpus.md](references/best-practices-corpus.md)**.
+The "what good looks like" knowledge that this skill draws on (`ecs-operation-review` keeps its own audit references) — task-definition hygiene, image/SOCI, capacity correctness, deployment safety, health checks, and the shared-responsibility split per model. Factor-out to a standalone skill is deferred; it lives here as the *shared design baseline* — deep domains (security, cost, observability) own the depth in their own references: **[references/best-practices-corpus.md](references/best-practices-corpus.md)**.
 
 ## Output Discipline
 
 - **Recommend, then justify against the customer's stated criteria** — never lead with a model before the discovery table is answered.
 - **Cite every GA/Region/quota/date claim** to an AWS doc URL (the references carry them). If you cannot verify a fast-moving claim live, say so explicitly rather than asserting it.
 - **State constraints precisely**: "Fargate has no GPU", "Managed Instances is not available in the China Regions" (it *is* in GovCloud (US) since Nov 2025), "PV 1.3.0 reaches end of support June 30, 2026" — exact, not hand-wavy.
-- Produce decision tables, an architecture sketch, a capacity-provider strategy, and (when migrating) a step-ordered transition plan. Hand off cost to `ecs-cost-intelligence`, security to `ecs-security`, deployment mechanics to `ecs-devops`.
+- Produce decision tables, an architecture sketch, a capacity-provider strategy, and (when migrating) a step-ordered transition plan. Say a dollar TCO is not covered by an APEX skill; hand off security to `ecs-security`, deployment mechanics to `ecs-devops`.
 
 ## Detailed References
 

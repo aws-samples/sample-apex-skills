@@ -37,7 +37,7 @@ Fargate requires CPU and memory at the **task** level. Only specific combination
 - The largest Fargate task is **16 vCPU / 120 GB** in the general table; **32 vCPU** with 60/120/244 GB is also available on Linux PV 1.4.0+. Anything larger, or GPU, must go to EC2/Managed Instances.
 - CPU can be given in units (`1024`) or vCPUs (`1 vCPU`); memory in MiB (`3072`) or GB (`3 GB`).
 - Windows containers on Fargate have a narrower set of combinations.
-- Right-size to the P95 of real usage, not peak — over-provisioning Fargate is a direct dollar cost (see `ecs-cost-intelligence`).
+- Right-size to the P95 of real usage, not peak — over-provisioning Fargate is a direct dollar cost.
 
 ---
 
