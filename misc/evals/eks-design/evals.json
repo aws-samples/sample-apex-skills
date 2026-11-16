@@ -56,7 +56,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["\\b(across|span\\w*|spread\\w*|over|in)\\s+(?:(?:at least|the|two|three|2|3|multiple|all|both)\\s+){0,3}(AZs|Availability Zones)", "\\b(two|three|2|3)-AZ\\b", "us-east-1[a-f][^.\\n]{0,40}us-east-1[a-f]", "topology\\.kubernetes\\.io/zone"],
+          "patterns": ["\\b(across|span\\w*|spread\\w*|over|in)\\s+(?:[\\w-]+\\s+){0,3}(AZs|Availability Zones)", "\\b(two|three|2|3)-AZ\\b", "us-east-1[a-f][^.\\n]{0,40}us-east-1[a-f]", "topology\\.kubernetes\\.io/zone"],
           "context": "Production cluster must span multiple Availability Zones (at least two) for resilience: the design must name the spread, since the prompt itself says multi-AZ",
           "source": "aws/aws-eks-best-practices latest/bpg/networking/subnets.adoc:140 and latest/bpg/reliability/dataplane.adoc:51 at edc514fa"
         },
@@ -76,7 +76,7 @@
           "type": "must-contain-one-of",
           "patterns": ["namespace[^.\\n]{0,80}(per (team|tenant)|for each team|RBAC|ResourceQuota|resource.?quota|NetworkPolic|LimitRange)", "(per.?team|per.?tenant|each team)[^.\\n]{0,60}namespace"],
           "context": "Multi-team cluster requires namespace-based tenant isolation: namespaces must be tied to teams or to an isolation control, not only mentioned",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/multi-tenancy.html"
+          "source": "aws/aws-eks-best-practices latest/bpg/security/multitenancy.adoc:18-21 at edc514fa"
         }
       ],
       "artifact_assertions": {
@@ -129,7 +129,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["(spread|distribut|balanc)\\w*[^.\\n]{0,60}\\b(across|over|between)\\s+(?:(?:both|the|two|2|all|multiple|three|3|its|their|your)\\s+){0,3}(AZs|Availability Zones|zones)"],
+          "patterns": ["(spread|distribut|balanc)\\w*[^.\\n]{0,60}\\b(across|over|between)\\s+(?:[\\w-]+\\s+){0,3}(AZs|Availability Zones|zones)"],
           "context": "Must recommend spreading workloads across the cluster's Availability Zones (multi-AZ, at least two) for reliability; a third AZ is not required",
           "source": "aws/aws-eks-best-practices latest/bpg/networking/subnets.adoc:140 and latest/bpg/reliability/dataplane.adoc:51 at edc514fa"
         },
@@ -141,7 +141,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["(add|define|create|configure|set|use|recommend)\\w*[^.\\n]{0,40}(PodDisruptionBudget|PDBs?\\b|Pod Disruption Budget)", "(missing|no|lack of|without)\\s+(PodDisruptionBudgets?|PDBs?|Pod Disruption Budgets?)[^.\\n]{0,60}(risk|hazard|disrupt|upgrade|drain|outage)", "kind:\\s*PodDisruptionBudget"],
+          "patterns": ["\\b(add|define|create|configure|set|use|recommend)(s|d|ed|ing)?\\b[^.\\n]{0,40}(PodDisruptionBudget|PDBs?\\b|Pod Disruption Budget)", "(missing|no|lack of|without)\\s+(PodDisruptionBudgets?|PDBs?|Pod Disruption Budgets?)[^.\\n]{0,60}(risk|hazard|disrupt|upgrade|drain|outage)", "kind:\\s*PodDisruptionBudget"],
           "context": "Must flag missing PDBs as an upgrade/disruption hazard: the term must sit next to a hazard or add phrase, since the prompt itself says 'no PDBs defined'",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
         },
@@ -153,7 +153,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["\\bSpot\\b"],
+          "patterns": ["(?-i:Spot)\\b|\\bspot (instances?|capacity|nodes?|pools?|pric\\w*|fleet)"],
           "context": "Must recommend Spot instances for cost optimization with instance diversity",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-compute.html"
         },

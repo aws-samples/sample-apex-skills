@@ -27,19 +27,19 @@
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "update-all-references",
-          "context": "Must reference the Tier 1 marker-block script by name",
+          "pattern": "\\./(misc/)?update-all-references",
+          "context": "Must name the Tier 1 marker-block script by its path, as the skill writes it",
           "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain",
-          "pattern": "update-pages",
-          "context": "Must reference the Tier 1 Docusaurus wrapper script by name",
+          "pattern": "\\./(misc/)?update-pages",
+          "context": "Must name the Tier 1 Docusaurus wrapper script by its path, as the skill writes it",
           "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["--check", "\\-\\-check"],
+          "patterns": ["update-(all-references|pages)(\\.sh)?`?\\s+--check", "`--check`"],
           "context": "Must use the --check flag to detect staleness before re-running scripts",
           "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
@@ -102,19 +102,19 @@
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "update-all-references",
-          "context": "Must reference the Tier 1 marker-block script by name",
+          "pattern": "\\./(misc/)?update-all-references",
+          "context": "Must name the Tier 1 marker-block script by its path, as the skill writes it",
           "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain",
-          "pattern": "update-pages",
-          "context": "Must reference the Tier 1 Docusaurus wrapper script by name",
+          "pattern": "\\./(misc/)?update-pages",
+          "context": "Must name the Tier 1 Docusaurus wrapper script by its path, as the skill writes it",
           "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["--check", "\\-\\-check"],
+          "patterns": ["update-(all-references|pages)(\\.sh)?`?\\s+--check", "`--check`"],
           "context": "Must use the --check flag to detect staleness before re-running scripts",
           "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
@@ -144,8 +144,9 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Marker.?block", "marker.?block", "Docusaurus"],
-          "context": "Must name at least one of the two script-managed surface types",
+          "patterns": ["^\\|[^\\n|]*marker.?blocks?", "^\\|[^\\n|]*Docusaurus"],
+          "flags": "im",
+          "context": "Must name a script-managed surface type in a summary-table row",
           "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces table"
         }
       ]

@@ -10,15 +10,15 @@
         "The output recommends Karpenter (or EKS Auto Mode) as the default compute model over pure MNG or Fargate.",
         "The output cites at least one concrete reason for Karpenter (or EKS Auto Mode) as the default compute model, such as consolidation, instance flexibility, or faster scale-up for spiky traffic.",
         "The output recommends running system/platform components (e.g. CoreDNS, Karpenter controller, ingress controller) on a stable managed node group or Fargate rather than on Karpenter-managed workload nodes.",
-        "The output names at least one concrete trigger that would justify splitting into multiple clusters (e.g. strict compliance/data-residency boundary, blast-radius isolation for a critical workload, or drastically different upgrade cadences).",
+        "The output names at least one concrete trigger that would justify splitting into multiple clusters (e.g. strict compliance/data-residency boundary, or blast-radius isolation for a critical workload).",
         "The output mentions a path for tenant autonomy that is not cluster-per-team (e.g. namespace-as-a-service, GitOps per-team app-of-apps, or platform abstractions) so teams can move fast on a shared cluster.",
         "Does not recommend kube2iam."
       ],
       "knowledge_assertions": [
         {
           "type": "regex-match",
-          "pattern": "(?<!not )(?<!n't )\\b(recommend\\w*|default\\w*|go with|choose|start with|standardi[sz]e on|use)\\b(?:(?!rather than|instead of|\\bover\\b|\\bnot\\b)[^.\\n]){0,60}\\bKarpenter\\b|\\bKarpenter\\b[^.\\n]{0,60}\\b(as|is) (the |your )?(default|primary|recommended)",
-          "context": "Must recommend Karpenter as primary compute engine for spiky workloads: the word must sit next to a recommendation or default phrase, since the prompt itself names Karpenter",
+          "pattern": "(?<!not )(?<!n't )\\b(recommend\\w*|default\\w*|go with|choose|start with|standardi[sz]e on|use)\\b(?:(?!rather than|instead of|\\bover\\b|\\bnot\\b)[^.\\n]){0,60}\\b(Karpenter|Auto Mode)\\b|\\b(Karpenter|Auto Mode)\\b[^.\\n]{0,60}\\b(as|is) (the |your )?(default|primary|recommended)",
+          "context": "Must recommend Karpenter or EKS Auto Mode as the primary compute engine for spiky workloads: the word must sit next to a recommendation or default phrase, since the prompt itself names Karpenter",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
         },
         {
@@ -31,7 +31,7 @@
           "type": "must-contain-one-of",
           "patterns": ["ResourceQuota", "resource.?quota"],
           "context": "Multi-tenant clusters need resource quotas per namespace",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/multi-tenancy.html"
+          "source": "aws/aws-eks-best-practices latest/bpg/security/multitenancy.adoc:175-177 at edc514fa"
         },
         {
           "type": "must-contain",
@@ -53,9 +53,9 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["\\b(split|separate|dedicated|own|multiple|additional|another|isolated)\\b[^.\\n]{0,80}\\bclusters?\\b[^.\\n]{0,80}(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius|strong.?isolation|upgrade.?cadence)", "(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius|strong.?isolation|upgrade.?cadence)[^.\\n]{0,80}\\b(split|separate|dedicated|own|multiple|additional|another)\\b[^.\\n]{0,20}\\bclusters?\\b"],
+          "patterns": ["\\b(split|separate|dedicated|multiple|additional|another|isolated|own(?=\\s+(?:[\\w-]+\\s+){0,2}clusters?\\b))\\b[^.\\n]{0,80}\\bclusters?\\b[^.\\n]{0,80}(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius|strong.?isolation)", "(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius|strong.?isolation)[^.\\n]{0,80}\\b(split|separate|dedicated|own|multiple|additional|another)\\b[^.\\n]{0,20}\\bclusters?\\b"],
           "context": "Must name a concrete trigger for cluster splitting: the trigger must sit next to a separate or dedicated cluster, not only be mentioned",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/multi-tenancy.html"
+          "source": "aws/aws-eks-best-practices latest/bpg/security/multitenancy.adoc:538-540 at edc514fa"
         }
       ],
       "process_assertions": [
@@ -100,7 +100,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["\\b(add|define|create|configure|set|use|recommend)(s|d|ed|ing)?\\b[^.\\n]{0,40}(PodDisruptionBudget|PDBs?\\b|Pod Disruption Budget)", "kind:\\s*PodDisruptionBudget"],
+          "patterns": ["(?<!not )(?<!\\bno )\\b(add|define|create|configure|set|use|recommend)(s|d|ed|ing)?\\b[^.\\n]{0,40}(?<!\\bno )(?<!any )(PodDisruptionBudget|PDBs?\\b|Pod Disruption Budget)", "kind:\\s*PodDisruptionBudget"],
           "context": "Must recommend PDBs for production workloads: the term must sit next to an add or define phrase, since the prompt itself says 'no Pod Disruption Budgets defined'",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
         },

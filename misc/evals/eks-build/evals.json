@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Generate a complete production-ready EKS Terraform project for a customer in us-west-2. Requirements: EKS 1.30, Karpenter for autoscaling, AWS Load Balancer Controller, CoreDNS, VPC-CNI with prefix delegation enabled, and cert-manager. The cluster should use private endpoint access only with VPC endpoints for ECR, S3, STS, and SSM. Use IRSA for all addon service accounts. Output the full project structure.",
+      "prompt": "Generate a complete production-ready EKS Terraform project for a customer in us-west-2. Requirements: Karpenter for autoscaling, AWS Load Balancer Controller, CoreDNS, VPC-CNI with prefix delegation enabled, and cert-manager. The cluster should use private endpoint access only with VPC endpoints for ECR, S3, STS, and SSM. Use IRSA for all addon service accounts. Output the full project structure.",
       "expectations": [
         "Generates a versions.tf with required_providers block",
         "The required_providers block in versions.tf pins the aws provider version",
@@ -223,7 +223,7 @@
       "expectations": [
         "Recommends Pattern 2a (or provides a clear rationale if choosing differently) based on the stated constraints of small team and drift detection needs",
         "If Pattern 2a chosen, generates a directory structure separating base infrastructure Terraform from ArgoCD addon manifests. If Pattern 1 chosen, generates multi-environment Terraform structure with a projects/<cluster>/code/ tree per cluster with its own configs/*.yaml",
-        "If Pattern 2a chosen, includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments. If Pattern 1 chosen, uses Terraform workspaces or per-environment directories to manage multiple clusters",
+        "If Pattern 2a chosen, includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments.",
         "Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status, terraform plan -detailed-exitcode in CI, or OPA/Kyverno policies",
         "Does not recommend OpenTofu in place of Terraform."
       ],
@@ -236,7 +236,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["kind:\\s*ApplicationSet", "terraform\\s+workspace\\s+(new|select)", "environments/(dev|staging|prod)\\b"],
+          "patterns": ["kind:\\s*ApplicationSet", "terraform\\s+workspace\\s+(new|select)", "environments/(dev|staging|prod)\\b", "projects/[\\w-]+/code/"],
           "context": "If Pattern 2a: uses ArgoCD ApplicationSets for multi-cluster management. If Pattern 1: uses Terraform for_each, workspaces, or per-environment directories",
           "source": "https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/"
         },
@@ -326,7 +326,7 @@
     },
     {
       "id": 4,
-      "prompt": "Generate a Pattern 1 EKS Terraform project in us-west-2, cluster name orgb-prod, EKS 1.33, for a customer whose security team requires the permissions boundary arn:aws:iam::123456789012:policy/OrgBoundary on every IAM role that automation creates. Requirements: EKS managed node group, Karpenter, AWS Load Balancer Controller and the EBS CSI driver with Pod Identity.",
+      "prompt": "Generate a Pattern 1 EKS Terraform project in us-west-2, cluster name orgb-prod, for a customer whose security team requires the permissions boundary arn:aws:iam::123456789012:policy/OrgBoundary on every IAM role that automation creates. Requirements: EKS managed node group, Karpenter, AWS Load Balancer Controller and the EBS CSI driver with Pod Identity.",
       "expectations": [
         "Sets the boundary ARN once in configs/cluster.yaml as permissions_boundary",
         "References the boundary ARN from the Terraform code rather than repeating the literal ARN in each role",

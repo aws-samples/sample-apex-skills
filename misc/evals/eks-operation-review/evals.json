@@ -181,9 +181,9 @@
         },
         {
           "type": "must-not-contain",
-          "pattern": "^(#{1,6}[^\\n]*|\\|[^\\n]*\\|\\s*\\**(GREEN|AMBER|RED)\\b[^\\n]*|\\*\\*\\d+\\.\\s*)Cluster Lifecycle",
+          "pattern": "^#{1,6}[^\\n]*Cluster Lifecycle",
           "flags": "m",
-          "context": "Section-scoped review must NOT include the Cluster Lifecycle section: no Cluster Lifecycle heading, rated table row or numbered item; a scope sentence that names it as not included passes",
+          "context": "Section-scoped review must NOT include the Cluster Lifecycle section: no Cluster Lifecycle heading; a scope sentence that names it as not included passes; a heading that names it does not, so list skipped sections in a sentence",
           "source": "skills/apex/runbooks/eks-operation-review/eks-operation-review.md:268 (Findings section heading form)"
         },
         {

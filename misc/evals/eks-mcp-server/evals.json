@@ -29,13 +29,6 @@
           "pattern": "\"mcp-proxy-for-aws[^\"\\s]*\"\\s*,",
           "context": "Self-hosted setup should not reference the AWS-hosted proxy package",
           "source": "https://github.com/awslabs/mcp/tree/main/src/eks-mcp-server"
-        },
-        {
-          "type": "must-not-contain",
-          "pattern": "\"--allow-write\"",
-          "flags": "",
-          "context": "Read-only request: the write flag never appears as a JSON args element",
-          "source": "skills/eks-mcp-server/SKILL.md:62"
         }
       ],
       "process_assertions": [

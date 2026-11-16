@@ -62,4 +62,4 @@ From `misc/evals/`:
 - `make artifact-eks-security`: artifact validation against outputs/ (deterministic)
 - `make composite-eks-security`: weighted composite score + letter grade (deterministic)
 
-See `misc/evals/README.md` for the full capability catalogue (A to K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.

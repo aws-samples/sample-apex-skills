@@ -34,4 +34,4 @@ From `misc/evals/`:
 - `make snapshot-graviton-migration` — freeze current scores as baseline
 - `make regression-graviton-migration` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.

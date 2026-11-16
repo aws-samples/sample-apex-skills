@@ -31,5 +31,3 @@ From `misc/evals/`:
 - `make validate-eks-cost-intelligence` — frontmatter + 64/1024-char limits
 - `make triggering-eks-cost-intelligence` — triggering accuracy score
 - `make benchmark-eks-cost-intelligence` — aggregate task-eval stats
-
-See `misc/evals/README.md` for the full capability catalogue (A–K).

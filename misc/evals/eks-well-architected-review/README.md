@@ -59,4 +59,4 @@ From `misc/evals/`:
 
 > **macOS note:** the `Makefile` derives its `SKILLS` list with `find -printf`, which is GNU-only. On BSD `find` the per-skill targets are not generated and these commands report `No rule to make target`. Run them from Linux or a container, or `brew install findutils` and put `gfind` ahead of `find` on `PATH`.
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.

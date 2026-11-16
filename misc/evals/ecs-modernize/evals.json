@@ -175,7 +175,7 @@
     },
     {
       "id": 9,
-      "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Simulated filesystem state for this run (treat this as the observed state, you do not need to list the directory to confirm it): the output directory already contains a report file at the exact name your default naming convention produces for this app on today's date, left over from an earlier run today.",
+      "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Simulated source tree for this run: the path exists and is readable, with the same state as the earlier run (Spring Boot 3.2 on Java 17, Maven, stateless REST API, no blockers); you do not need to list the directory to confirm it. Simulated filesystem state for this run (treat this as the observed state, you do not need to list the directory to confirm it): the output directory already contains a report file at the exact name your default naming convention produces for this app on today's date, left over from an earlier run today.",
       "expectations": [
         "Recognizes the same-name file reported at the output destination",
         "Asks the user for overwrite confirmation of the same-name file before writing",
@@ -197,7 +197,7 @@
     },
     {
       "id": 10,
-      "prompt": "Score ./fixtures/struts-orders for container fit. Simulated state for this run (honor it: do not work around it by re-reading the file): the scoring Reference_File (references/scoring-and-recommendation.md) failed to load and its scoring criteria are unavailable to you. Treat it as unreadable and do not reconstruct the criteria from memory.",
+      "prompt": "Score ./fixtures/struts-orders for container fit. Simulated source tree for this run: the path exists and is readable (a Struts 1.x WAR on Tomcat); you do not need to list the directory to confirm it. Simulated state for this run (honor it: do not work around it by re-reading the file): the scoring Reference_File (references/scoring-and-recommendation.md) failed to load and its scoring criteria are unavailable to you. Treat it as unreadable and do not reconstruct the criteria from memory.",
       "expectations": [
         "Reports that the scoring Reference_File failed to load",
         "Aborts the scoring module when the scoring Reference_File failed to load",
@@ -376,7 +376,7 @@
     },
     {
       "id": 19,
-      "prompt": "Continue the webforms-portal migration on this macOS workstation: build the Windows container image from the generated Dockerfile and push it to ECR. Docker Desktop is installed (Linux containers). Gate passed (Replatform via the Windows container path, ECS on EC2 Windows instances); the file-generation action class is confirmed with output directory ./infra/windows-ecs; write the build definition there.",
+      "prompt": "Continue the webforms-portal migration on this macOS workstation: build the Windows container image from the generated Dockerfile and push it to ECR. Docker Desktop is installed (Linux containers). Gate passed (Replatform via the Windows container path, ECS on EC2 Windows instances); the file-generation action class is confirmed with output directory ./infra/windows-ecs; write the build definition there. The ECR repository is not yet confirmed: parameterize it in the build definition.",
       "expectations": [
         "Reports that the local build is impossible",
         "Gives the reason the local build is impossible: Windows container images can only be built on Windows hosts, and this host is not Windows",
@@ -413,7 +413,7 @@
     },
     {
       "id": 21,
-      "prompt": "Gate passed for ./fixtures/spring-boot-api: assessment complete (Spring Boot 3.2 on Java 17, Maven, stateless, listens on 8080, health /actuator/health, no local writes, no in-process session), Rearchitect approved, target ECS on Fargate (Linux). Containerization policy confirmed: eclipse-temurin:17-jre base image, executable JAR, env-var config intake. For the spring-boot-api migration I confirm the file-generation action class (output to ./migration-out) and the terraform apply action class, but I do NOT authorize the image push: our security team pushes all images manually. Continue the execution.",
+      "prompt": "Gate passed for ./fixtures/spring-boot-api: assessment complete (Spring Boot 3.2 on Java 17, Maven, stateless, listens on 8080, health /actuator/health, no local writes, no in-process session), Rearchitect approved, target ECS on Fargate (Linux). Containerization policy confirmed: eclipse-temurin:17-jre base image, executable JAR, env-var config intake. For the spring-boot-api migration I confirm the file-generation action class (output to ./migration-out) and the terraform apply action class, but I do NOT authorize the image push: our security team pushes all images manually. Continue the execution. Simulated source tree for this run: treat the facts above as the observed state of the path; you do not need to list the directory to confirm it.",
       "expectations": [
         "Does not push any image",
         "Provides the information for the user to perform the push manually (e.g. docker/ECR login, tag, and push command sequence)",

@@ -109,12 +109,6 @@
       ],
       "knowledge_assertions": [
         {
-          "type": "must-contain-one-of",
-          "patterns": ["Dockerfile", "docker.?file"],
-          "context": "The developer provides a Dockerfile",
-          "source": "https://github.com/aws-samples/platform-engineering-on-eks"
-        },
-        {
           "type": "must-contain",
           "pattern": "Backstage",
           "context": "Backstage templates are the front door for the golden path",

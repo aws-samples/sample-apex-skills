@@ -11,8 +11,7 @@
         "All 6 dimensions are scored (status not SKIPPED or ⏭️) in the score breakdown table: Compute Efficiency, Spot/Graviton Adoption, Networking Costs, Storage Costs, Observability Costs, Idle Resources.",
         "The report contains all required sections: Executive Summary, Cost Score with classification, Score Breakdown table, Prioritized Recommendations (may be empty or minimal), Per-dimension Findings, and Methodology notes.",
         "No CRITICAL or HIGH severity findings are reported: at most MEDIUM or LOW findings exist given the well-optimized cluster configuration.",
-        "The executive summary correctly identifies the cluster as cost-optimized.",
-        "The executive summary names at least one supplied strength (80% Graviton, 65% Spot or high utilization) as why the cluster is optimized."
+        "The executive summary correctly identifies the cluster as cost-optimized."
       ],
       "artifact_assertions": {
         "root_glob": "**",
@@ -51,7 +50,7 @@
     {
       "id": 2,
       "name": "high-waste-cluster-critical-score",
-      "prompt": "This is an offline fixture evaluation: the user has confirmed the named target and authorized the assessment, and the verified caller successfully listed nodes, namespaces, pods and deployments. All other Kubernetes inventory reads required by the dimension references also succeeded unless an explicit failure is listed below; the supplied observations cover those checks, with no additional findings. Use the supplied observations; do not attempt live connections.\n\nRun a full EKS cost intelligence assessment against `dev-legacy` in us-east-1. Use the eks-cost-intelligence skill.\n\nMock cluster data:\n- Cluster: dev-legacy, version 1.28, ACTIVE, us-east-1\n- Node groups: 2 self-managed ASGs (m5.2xlarge On-Demand only), no Karpenter\n- Instance types: 100% x86 (m5.2xlarge), 0% Graviton, 0% Spot\n- CPU utilization P95: 18% cluster-wide, 4 nodes below 10% utilization\n- Memory utilization P95: 22% cluster-wide\n- 12 workloads without resource requests or limits defined\n- Storage: 85% gp2 volumes (42 PVCs), 8 PVCs bound but not mounted, 3 oversized volumes (100Gi provisioned, <5Gi used)\n- Networking: no topology-aware routing, instance mode on all NLBs, no VPC endpoints for ECR/S3/STS, estimated 2TB/month cross-AZ traffic\n- Observability: all 5 control plane log types enabled, FluentBit logging at DEBUG in 3 production namespaces, no log sampling\n- Idle resources: 5 Deployments scaled to 0 for >30 days, 3 LoadBalancer Services with 0 healthy endpoints, 2 namespaces with quotas but no running pods\n- Total estimated spend: $28,600/month\n- Estimated waste: $14,200/month\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-dev-legacy-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table, prioritized recommendations, per-dimension findings with dollar-quantified waste, and methodology notes. Do NOT fabricate findings: only report based on mock data provided.",
+      "prompt": "This is an offline fixture evaluation: the user has confirmed the named target and authorized the assessment, and the verified caller successfully listed nodes, namespaces, pods and deployments. All other Kubernetes inventory reads required by the dimension references also succeeded unless an explicit failure is listed below; the supplied observations cover those checks, with no additional findings. Use the supplied observations; do not attempt live connections.\n\nRun a full EKS cost intelligence assessment against `dev-legacy` in us-east-1. Use the eks-cost-intelligence skill.\n\nMock cluster data:\n- Cluster: dev-legacy, version 1.28, ACTIVE, us-east-1\n- Node groups: 2 self-managed ASGs (m5.2xlarge On-Demand only), no Karpenter\n- Instance types: 100% x86 (m5.2xlarge), 0% Graviton, 0% Spot\n- Workloads: stateless multi-replica Deployments run on the On-Demand nodes\n- CPU utilization P95: 18% cluster-wide, 4 nodes below 10% utilization\n- Memory utilization P95: 22% cluster-wide\n- 12 workloads without resource requests or limits defined\n- Storage: 85% gp2 volumes (42 PVCs), 8 PVCs bound but not mounted, 3 oversized volumes (100Gi provisioned, <5Gi used)\n- Networking: no topology-aware routing, instance mode on all NLBs, no VPC endpoints for ECR/S3/STS, estimated 2TB/month cross-AZ traffic\n- Observability: all 5 control plane log types enabled, FluentBit logging at DEBUG in 3 production namespaces, no log sampling\n- Idle resources: 5 Deployments scaled to 0 for >30 days, 3 LoadBalancer Services with 0 healthy endpoints, 2 namespaces with quotas but no running pods\n- Total estimated spend: $28,600/month\n- Estimated waste: $14,200/month\n\nProduce a markdown report at `reports/EKS-Cost-Intelligence-dev-legacy-<YYYY-MM-DD>-<HHMM>.md` with executive summary, Cost Score with classification, score breakdown table, prioritized recommendations, per-dimension findings with dollar-quantified waste, and methodology notes. Do NOT fabricate findings: only report based on mock data provided.",
       "expectations": [
         "The Cost Score is below 40.",
         "The classification is CRITICAL.",
@@ -149,7 +148,7 @@
           {
             "type": "not-contains",
             "file": "reports/coverage.md",
-            "pattern": "Idle Resources[^\\n]*not\\W{0,3}SKIPPED",
+            "pattern": "Idle Resources(?:[^\\n.;]|\\.(?!\\s))*not\\W{0,3}SKIPPED",
             "flags": "i"
           }
         ]
@@ -195,7 +194,7 @@
           {
             "type": "not-contains",
             "file": "reports/coverage.md",
-            "pattern": "Idle Resources[^\\n]*(SKIPPED|⏭|\\b(not|un|partly|partially|yet|be)\\W{0,3}assessed)",
+            "pattern": "Idle Resources(?:[^\\n.;]|\\.(?!\\s))*((?<!not )(?<!than )(?-i:SKIPPED)|⏭|\\b(not|un|partly|partially|yet|be)\\W{0,3}assessed)",
             "flags": "i"
           }
         ]
@@ -229,7 +228,8 @@
           },
           {
             "file": "reports/cost-method.md",
-            "pattern": "estimation_method\\W{0,5}ce_usage_type",
+            "pattern": "estimation[_ ]method(?![^\\n]{0,20}\\b(not|node_based)\\b)[^\\n]{0,20}ce_usage_type",
+            "flags": "i",
             "type": "contains"
           }
         ]

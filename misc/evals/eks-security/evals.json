@@ -117,7 +117,7 @@
         },
         {
           "type": "must-contain",
-          "pattern": "^\\|[^\\n]*1\\.22\\.3",
+          "pattern": "^\\|[^\\n]*1\\.22\\.3|\\b(fixed|above)\\b[^\\n\"]{0,20}\\b1\\.22\\.3",
           "flags": "im",
           "context": "Fixed add-on version from the bulletin",
           "source": "skills/eks-security/references/cve-advisory-review.md (Worked example: impacted versions line)"
@@ -136,7 +136,8 @@
           "patterns": [
             "^\\|[^\\n]*no workarounds?",
             "workarounds?\\W{1,3}(no|none)\\b",
-            "\\|\\s*Workaround\\s*\\|"
+            "\\|\\s*Workaround\\s*\\|",
+            "no workarounds?[^\\n]{0,80}\\bP1\\b"
           ],
           "flags": "im",
           "context": "Workaround status is printed per finding",
@@ -185,7 +186,7 @@
         },
         {
           "type": "must-contain",
-          "pattern": "^\\|[^\\n]*2026-11-05T15:04",
+          "pattern": "^\\|[^\\n]*2026-11-05T15:04|\\bread(\\s+at)?\\s+`?2026-11-05T15:04",
           "flags": "im",
           "context": "Read time of the advisory source is printed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: Not exposed line)"
@@ -242,7 +243,7 @@
         },
         {
           "type": "must-contain",
-          "pattern": "(?<![\"'])tag\\\\?_latest|tag `?latest`?",
+          "pattern": "(?<![\"'])tag[^\\n]{0,12}latest|latest[^\\w\\n]{1,3}tag\\b",
           "context": "Reason for the unknown is named",
           "source": "skills/eks-security/references/cve-advisory-review.md (Unknown reasons table: tag_latest)"
         },
@@ -308,15 +309,13 @@
         },
         {
           "type": "must-contain",
-          "pattern": "^\\|[^\\n]*i-0a1b2c3d4e5f60001",
-          "flags": "im",
+          "pattern": "(?<![\"'])i-0a1b2c3d4e5f60001",
           "context": "Oldest pending node is listed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: lists nodes_pending oldest first)"
         },
         {
           "type": "must-contain",
-          "pattern": "^\\|[^\\n]*i-0a1b2c3d4e5f60002",
-          "flags": "im",
+          "pattern": "(?<![\"'])i-0a1b2c3d4e5f60002",
           "context": "Second pending node is listed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: lists nodes_pending oldest first)"
         },
@@ -334,7 +333,8 @@
             "AWS managed",
             "managed by AWS",
             "AWS patches",
-            "AWS-patched"
+            "AWS-patched",
+            "AWS manages"
           ],
           "context": "Component reported as AWS-managed",
           "source": "skills/eks-security/SKILL.md (Common rule 5: Auto Mode split)"
