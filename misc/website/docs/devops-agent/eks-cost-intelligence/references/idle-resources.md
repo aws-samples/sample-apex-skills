@@ -99,8 +99,8 @@ kubectl scale deployment <name> -n <namespace> --replicas=1
 
 # List all associated resources before cleanup
 kubectl get all,pvc,configmap -n <namespace> -l app=<deployment-label>
-# Secrets are not read (apex.no-secrets); the pod template names the volume and env Secrets this Deployment uses (not imagePullSecrets or CSI refs)
-set -o pipefail; kubectl get deployment <name> -n <namespace> -o json | jq -r '.spec.template.spec | [(.volumes[]? | .secret.secretName, .projected.sources[]?.secret.name), ((.containers[], .initContainers[]?) | .envFrom[]?.secretRef.name, .env[]?.valueFrom.secretKeyRef.name)] | map(select(. != null)) | unique[]'
+# Secrets are not read (apex.no-secrets); the pod template names the Secrets this Deployment uses (volume, projected and env refs only; not imagePullSecrets, CSI or other volume-plugin refs)
+( set -o pipefail; kubectl get deployment <name> -n <namespace> -o json | jq -r '.spec.template.spec | [(.volumes[]? | .secret.secretName, .projected.sources[]?.secret.name), ((.containers[], .initContainers[]?) | .envFrom[]?.secretRef.name, .env[]?.valueFrom.secretKeyRef.name)] | map(select(. != null)) | unique[]' )
 ```
 
 ```bash
@@ -243,16 +243,16 @@ For each non-system namespace from confirmed inventory:
 ### Remediation
 
 ```bash
+# Before deleting, check for any non-running resources (PVCs, ConfigMaps, etc.)
+kubectl get all,pvc,configmap,serviceaccount -n <namespace>
+# Deleting the namespace also deletes its Secrets. This assessment does not read them: confirm with the namespace owner that none are still needed before you delete.
+
 # Review and delete empty namespaces (CAUTION: deletes all resources in namespace)
 kubectl delete namespace <namespace>
 
 # Or remove just the quota if the namespace may be reused
 kubectl delete resourcequota <quota-name> -n <namespace>
 kubectl delete limitrange <limitrange-name> -n <namespace>
-
-# Before deleting, check for any non-running resources (PVCs, ConfigMaps, etc.)
-kubectl get all,pvc,configmap,serviceaccount -n <namespace>
-# Deleting the namespace also deletes its Secrets, which this assessment does not list.
 ```
 
 ---
@@ -263,7 +263,7 @@ kubectl get all,pvc,configmap,serviceaccount -n <namespace>
 
 ConfigMaps that exist in non-system namespaces but are not referenced by any running pod, either as volume mounts, environment variable sources (envFrom/valueFrom), or projected volumes. These represent configuration debt.
 
-Secrets are not read (apex.no-secrets), so this check does not list them: state in the report's Idle Resources section: Secrets not read.
+Secrets are not read (apex.no-secrets), so this check does not list them: state in the report's Idle Resources section: Orphaned Secrets not checked: this assessment does not read Secrets.
 
 ### Data collection
 
@@ -276,7 +276,8 @@ These channels produce candidates; confirm actual references and ownership befor
 Always exclude from orphan detection:
 - ConfigMaps named `kube-root-ca.crt` (system-managed)
 - ConfigMaps in system namespaces (`kube-*`, `amazon-*`, `aws-*`)
-- ConfigMaps with label `app.kubernetes.io/managed-by: Helm` and a `meta.helm.sh/release-name` annotation (release status not read)
+- ConfigMaps with label `app.kubernetes.io/managed-by: Helm` and a `meta.helm.sh/release-name` annotation (release status not read, so resources Helm kept after uninstall are not flagged)
+- ConfigMaps labelled `owner: helm` (Helm release records when HELM_DRIVER=configmap)
 
 ### Analysis logic
 
@@ -284,7 +285,6 @@ Always exclude from orphan detection:
 For each non-system namespace:
   A confirmed empty ConfigMap list, or one containing only unconditionally excluded objects, needs no reference comparison.
   For listed objects, require confirmed Pod references; otherwise mark the comparison UNKNOWN.
-  Secrets are not listed (apex.no-secrets): state in the report's Idle Resources section: Secrets not read.
   referenced_cms = set of ConfigMap names used by running pods (volumes, envFrom, valueFrom)
   
   all_cms = set of all ConfigMaps in namespace (excluding system CMs)
@@ -292,7 +292,7 @@ For each non-system namespace:
   orphaned_cms = all_cms - referenced_cms only if both inputs are confirmed
   
   If len(orphaned_cms) > 0:
-    → Generate finding
+    → Generate one LOW finding for this namespace
     # ConfigMaps are low risk (configuration debt)
 ```
 
@@ -378,7 +378,7 @@ START
   │   ├─ List all ConfigMaps (excluding system objects)
   │   ├─ Diff: all - referenced = orphaned
   │   ├─ Exclude system and Helm-managed CMs
-  │   └─ Generate finding if orphan count exceeds threshold
+  │   └─ Generate a LOW finding for each namespace with orphaned ConfigMaps
   │
   └─ Aggregate findings → Calculate dimension deduction (max 15 pts)
 ```

@@ -137,7 +137,7 @@ class ReadCoverage(unittest.TestCase):
         result, calls = self.run_example("unreferenced configuration", data)
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout.strip(), "team/configmap/web")
-        self.assertFalse([c for c in calls if len(c) > 1 and c[1] in ("secret", "secrets")])
+        self.assertFalse([c for c in calls if any(re.search(r"(?i)\bsecrets?\b", a) for a in c)])
 
     def test_denied_configmap_is_unknown(self):
         data = fixture()
