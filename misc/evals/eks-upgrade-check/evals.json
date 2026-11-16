@@ -4,13 +4,13 @@
     {
       "id": 1,
       "name": "clean-cluster-ready",
-      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: clean-prod\n- Region: us-west-2\n- Account: 123456789012\n- Current Version: 1.31\n- Target Version: 1.32\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.31, Target: 1.32 — valid one-hop upgrade\n- 1.31 is in EXTENDED support (ends November 26, 2026) — assessment date is before that\n- Node groups all at 1.31, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- No breaking changes apply for target 1.32\n\n### Deprecated APIs (Step 3)\n- No deprecated or removed APIs found in cluster\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.19.2: ACTIVE, COMPATIBLE\n- coredns v1.11.4: ACTIVE, COMPATIBLE\n- kube-proxy v1.31.4: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.40.0: ACTIVE, COMPATIBLE\n- No OSS add-ons found\n- Karpenter: not installed\n\n### Node Readiness (Step 5)\n- 1 node group: clean-prod-ng, version 1.31, AL2023, t3.large, 3/3/6 scaling\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (52 available), subnet-bbb (48 available), subnet-ccc (61 available)\n\n### Workload Risks (Step 6)\n- 4 deployments in default namespace, all have: replicas >= 2, RollingUpdate, readiness+liveness probes, cpu+mem requests\n- All multi-replica deployments have matching PDBs\n- No DaemonSets or StatefulSets in non-system namespaces\n- No drain-blocking PDBs\n\n### AWS Upgrade Insights (Step 7)\n- 4 insights, all PASSING\n\n### AL2 / Behavioral\n- No AL2 nodes\n- No behavioral changes for 1.32 target\n\nGenerate the full readiness report inline in your response.",
+      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `.claude/skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: clean-prod\n- Region: us-west-2\n- Account: 123456789012\n- Current Version: 1.31\n- Target Version: 1.32\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.31, Target: 1.32, valid one-hop upgrade\n- 1.31 is in EXTENDED support (ends November 26, 2026), assessment date is before that\n- Node groups all at 1.31, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- No breaking changes apply for target 1.32\n\n### Deprecated APIs (Step 3)\n- No deprecated or removed APIs found in cluster\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.19.2: ACTIVE, COMPATIBLE\n- coredns v1.11.4: ACTIVE, COMPATIBLE\n- kube-proxy v1.31.4: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.40.0: ACTIVE, COMPATIBLE\n- No OSS add-ons found\n- Karpenter: not installed\n\n### Node Readiness (Step 5)\n- 1 node group: clean-prod-ng, version 1.31, AL2023, t3.large, 3/3/6 scaling\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (52 available), subnet-bbb (48 available), subnet-ccc (61 available)\n\n### Workload Risks (Step 6)\n- 4 deployments in default namespace, all have: replicas >= 2, RollingUpdate, readiness+liveness probes, cpu+mem requests\n- All multi-replica deployments have matching PDBs\n- No DaemonSets or StatefulSets in non-system namespaces\n- No drain-blocking PDBs\n\n### AWS Upgrade Insights (Step 7)\n- 4 insights, all PASSING\n\n### AL2 / Behavioral\n- No AL2 nodes\n- No behavioral changes for 1.32 target\n\nGenerate the full readiness report inline in your response.",
       "expectations": [
         "The report shows a readiness score of 90 or higher.",
         "The report shows the rating READY.",
-        "The Blockers & Critical Actions section is empty or contains exactly the phrase 'No blockers identified'.",
-        "The report contains all required top-level sections: Readiness Score, Blockers & Critical Actions, Recommended Actions, Informational Findings, Evidence, Upgrade Plan, AWS Reference Links.",
-        "The report's required top-level sections appear in order: Readiness Score, Blockers & Critical Actions, Recommended Actions, Informational Findings, Evidence, Upgrade Plan, AWS Reference Links.",
+        "The Blockers section is empty or contains exactly the phrase 'No blockers identified'.",
+        "The report contains all required top-level sections: Readiness Score, Blockers, Critical Actions, Recommended Actions, Informational Findings, Unassessed, Evidence, Upgrade Plan, AWS Reference Links.",
+        "The report's required top-level sections appear in order: Readiness Score, Blockers, Critical Actions, Recommended Actions, Informational Findings, Unassessed, Evidence, Upgrade Plan, AWS Reference Links.",
         "The Upgrade Plan references the cluster name `clean-prod`, not a generic placeholder.",
         "The Upgrade Plan references the region `us-west-2`, not a generic placeholder.",
         "The Upgrade Plan references the current version 1.31, not a generic placeholder.",
@@ -18,52 +18,51 @@
       ],
       "process_assertions": [
         {"type": "tool-called", "tool": "Read", "min": 1},
-        {"type": "no-tool-called", "tool": "Write"},
-        {"type": "step-count", "min": 2, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5}
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "READY",
-          "context": "Score 90-100 maps to READY rating",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Score Interpretation table: 90-100 = READY"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["No blockers identified", "No blockers", "no.*blocker", "None", "0 blockers"],
-          "context": "Clean cluster must have empty blockers section",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — report template says write 'No blockers identified.' when section is empty"
+          "pattern": "Readiness Score:?\\**\\s*(9[0-9]|100)\\s*%[^\\n]{0,20}?(?<!NOT )READY\\b",
+          "flags": "",
+          "context": "The headline shows a score of 90 or more with the READY band",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Score Interpretation table, 90-100 = READY; report template headline `## Readiness Score: [XX]% - [LEVEL]`"
         },
         {
           "type": "must-contain",
-          "pattern": "clean-prod",
-          "context": "Report must reference the actual cluster name, not placeholders",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — report template uses [CLUSTER] placeholders that must be filled"
+          "pattern": "## Blockers\\s*\\n\\s*\\**No blockers identified",
+          "context": "Clean cluster: the Blockers section holds the empty-section text",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: report template says write 'No blockers identified.' when the section is empty"
         },
         {
           "type": "must-contain",
-          "pattern": "us-west-2",
-          "context": "Report must include the cluster region",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — report metadata table requires Region field"
+          "pattern": "--(cluster-)?name[= ]+[\"']?clean-prod\\b",
+          "context": "Upgrade Plan commands carry the actual cluster name, not the [CLUSTER] placeholder",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Upgrade Plan template, `aws eks update-cluster-version --name [CLUSTER] ... --region [REGION]`"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "--region[= ]+[\"']?us-west-2\\b",
+          "context": "Upgrade Plan commands carry the actual region, not the [REGION] placeholder",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Upgrade Plan template, `--region [REGION]`"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Upgrade Plan", "Recommended Upgrade Sequence", "Pre-Upgrade", "Remediation Plan"],
           "context": "Report must contain the Upgrade Plan section",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — required section order includes Upgrade Plan"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, required section order includes Upgrade Plan"
         },
         {
           "type": "must-contain",
           "pattern": "Score Breakdown",
           "context": "Report must include the Score Breakdown table for auditability",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Step 2 requires Score Breakdown table"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, Step 2 requires Score Breakdown table"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["update-cluster-version", "update.cluster.version"],
           "context": "Upgrade Plan must include the control plane upgrade CLI command",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Upgrade Plan Step 2 template includes aws eks update-cluster-version"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, Upgrade Plan Step 2 template includes aws eks update-cluster-version"
         }
       ],
       "files": []
@@ -71,71 +70,70 @@
     {
       "id": 2,
       "name": "hard-blocker-karpenter",
-      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: payment-prod\n- Region: us-east-1\n- Account: 987654321098\n- Current Version: 1.30\n- Target Version: 1.31\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.30, Target: 1.31 — valid one-hop upgrade\n- 1.30 is in EXTENDED support (ends July 23, 2026) — assessment date is before that\n- Node groups all at 1.30, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- No breaking changes apply for target 1.31\n\n### Deprecated APIs (Step 3)\n- No deprecated or removed APIs found in cluster\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.20.4: ACTIVE, COMPATIBLE\n- coredns v1.11.4: ACTIVE, COMPATIBLE\n- kube-proxy v1.30.14: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.53.0: ACTIVE, COMPATIBLE\n- Karpenter v0.37.0 installed — INCOMPATIBLE with K8s 1.31 (requires >= 1.0.5)\n\n### Node Readiness (Step 5)\n- 1 node group: payment-prod-ng, version 1.30, AL2023, t3.medium, 2/2/4 scaling\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (35 available), subnet-bbb (42 available)\n\n### Workload Risks (Step 6)\n- 3 deployments in default namespace:\n  - order-service: replicas=3, RollingUpdate, probes present, requests present\n  - payment-api: replicas=2, RollingUpdate, probes present, requests present\n  - notification-worker: replicas=1, RollingUpdate, no probes, requests present\n- No DaemonSets or StatefulSets in non-system namespaces\n- No drain-blocking PDBs\n- PDB exists for order-service and payment-api\n\n### AWS Upgrade Insights (Step 7)\n- 5 insights, all PASSING\n\n### AL2 / Behavioral\n- No AL2 nodes\n- No behavioral changes for 1.31 target\n\nGenerate the full readiness report inline in your response.",
+      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `.claude/skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: payment-prod\n- Region: us-east-1\n- Account: 987654321098\n- Current Version: 1.30\n- Target Version: 1.31\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.30, Target: 1.31, valid one-hop upgrade\n- 1.30 is in EXTENDED support (ends July 23, 2026), assessment date is before that\n- Node groups all at 1.30, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- No breaking changes apply for target 1.31\n\n### Deprecated APIs (Step 3)\n- No deprecated or removed APIs found in cluster\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.20.4: ACTIVE, COMPATIBLE\n- coredns v1.11.4: ACTIVE, COMPATIBLE\n- kube-proxy v1.30.14: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.53.0: ACTIVE, COMPATIBLE\n- Karpenter v0.37.0 installed, INCOMPATIBLE with K8s 1.31 (requires >= 1.0.5)\n\n### Node Readiness (Step 5)\n- 1 node group: payment-prod-ng, version 1.30, AL2023, t3.medium, 2/2/4 scaling\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (35 available), subnet-bbb (42 available)\n\n### Workload Risks (Step 6)\n- 3 deployments in default namespace:\n  - order-service: replicas=3, RollingUpdate, probes present, requests present\n  - payment-api: replicas=2, RollingUpdate, probes present, requests present\n  - notification-worker: replicas=1, RollingUpdate, no probes, requests present\n- No DaemonSets or StatefulSets in non-system namespaces\n- No drain-blocking PDBs\n- PDB exists for order-service and payment-api\n\n### AWS Upgrade Insights (Step 7)\n- 5 insights, all PASSING\n\n### AL2 / Behavioral\n- No AL2 nodes\n- No behavioral changes for 1.31 target\n\nGenerate the full readiness report inline in your response.",
       "expectations": [
         "The readiness score is 59 or lower.",
         "The rating is NOT READY.",
-        "The Blockers & Critical Actions section explicitly names Karpenter as a blocker.",
-        "The Karpenter blocker in the Blockers & Critical Actions section references the installed version 0.37 (or 0.37.0).",
-        "The Karpenter blocker in the Blockers & Critical Actions section references the target K8s version 1.31.",
+        "The Blockers section explicitly names Karpenter as a blocker.",
+        "The Karpenter blocker in the Blockers section references the installed version 0.37 (or 0.37.0).",
+        "The Karpenter blocker in the Blockers section references the target K8s version 1.31.",
         "The Upgrade Plan sequences the Karpenter upgrade to v1.0.5 or later before the control-plane upgrade, not after.",
         "The report explains that the score cap is the result of a hard-blocker override.",
         "The report explains that the score would otherwise have been higher based on arithmetic alone."
       ],
       "process_assertions": [
         {"type": "tool-called", "tool": "Read", "min": 1},
-        {"type": "no-tool-called", "tool": "Write"},
-        {"type": "step-count", "min": 2, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5}
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "knowledge_assertions": [
         {
-          "type": "must-contain-one-of",
-          "patterns": ["([0-4][0-9]|5[0-9])%", "NOT READY", "overrid", "capped"],
-          "context": "Hard blocker must either cap score at 59 or below, or display an annotation that the score was overridden",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Hard Blocker Override: score = min(score, 59)"
+          "type": "must-contain",
+          "pattern": "Readiness Score:?\\**\\s*([0-9]|[1-4][0-9]|5[0-9])\\s*%[^\\n]{0,20}?NOT READY",
+          "flags": "",
+          "context": "The headline shows a score of 59 or lower with the NOT READY band (hard-blocker cap)",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Hard Blocker Override, score = min(score, 59); report template headline `## Readiness Score: [XX]% - [LEVEL]`"
         },
         {
           "type": "must-contain",
           "pattern": "NOT READY",
           "context": "Score 0-59 maps to NOT READY rating",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Score Interpretation table: 0-59 = NOT READY"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, Score Interpretation table: 0-59 = NOT READY"
         },
         {
           "type": "must-contain",
-          "pattern": "Karpenter",
-          "context": "Karpenter must be named as the hard blocker",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — hard blocker #2: Karpenter version incompatible with target"
+          "pattern": "## Blockers\\b(?:(?!\\n## )[\\s\\S])*?Karpenter",
+          "context": "Karpenter is named in the Blockers section",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: hard blocker #2, Karpenter version incompatible with target; `## Blockers` lists hard-blocker findings only"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "## Blockers\\b(?:(?!\\n## )[\\s\\S])*?v?0\\.37",
+          "context": "The Blockers entry gives the installed Karpenter version 0.37",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Blockers template, What we found: specific to this cluster"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["0\\.37", "v0\\.37"],
-          "context": "Must reference the installed Karpenter version 0.37",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — report must show specific findings from the assessment"
+          "patterns": ["(upgrade|update|bump)[^\\n]{0,80}?Karpenter[^\\n]{0,80}?v?1\\.(0\\.([5-9]|\\d\\d)|[1-9]\\d*\\.\\d+)", "Karpenter[^\\n]{0,80}?(upgrade|update)[^\\n]{0,80}?v?1\\.(0\\.([5-9]|\\d\\d)|[1-9]\\d*\\.\\d+)"],
+          "context": "The remediation upgrades Karpenter to a version at or above the given minimum 1.0.5",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Upgrade Plan Step 0 (CONDITIONAL), Karpenter if installed and target-incompatible"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["1\\.0\\.5", "v1\\.0", ">= 1\\.0"],
-          "context": "Must state the minimum compatible Karpenter version",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — remediation must specify the target version to upgrade to"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["hard.?blocker", "blocker.?override", "cap", "overrid"],
+          "patterns": ["hard.?blocker (cap|override)", "min\\(\\s*\\d+\\s*%?\\s*,\\s*59\\s*%?\\s*\\)", "cap(ped|s)? (the (final )?score )?at 59", "59\\s*% (cap|ceiling)"],
           "context": "Must explain the score was capped by a hard-blocker override",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Hard Blocker Override applies AFTER arithmetic"
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Hard Blocker Override applies AFTER arithmetic; Adjustment row, min([CALCULATED], 59) = [FINAL]"
         },
         {
           "type": "must-contain",
-          "pattern": "payment-prod",
-          "context": "Report must reference the actual cluster name",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — report metadata table requires Cluster field"
+          "pattern": "--(cluster-)?name[= ]+[\"']?payment-prod\\b",
+          "context": "Upgrade Plan commands carry the actual cluster name, not the [CLUSTER] placeholder",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Upgrade Plan template, `aws eks update-cluster-version --name [CLUSTER] ... --region [REGION]`"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Upgrade Plan", "Recommended Upgrade Sequence", "Pre-Upgrade", "Remediation Plan"],
           "context": "Report must contain the Upgrade Plan section",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — required section order includes Upgrade Plan"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, required section order includes Upgrade Plan"
         }
       ],
       "files": []
@@ -143,70 +141,69 @@
     {
       "id": 3,
       "name": "hard-blocker-degraded-addon",
-      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: data-platform\n- Region: eu-west-1\n- Account: 111222333444\n- Current Version: 1.31\n- Target Version: 1.32\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.31, Target: 1.32 — valid one-hop upgrade\n- 1.31 is in EXTENDED support (ends November 26, 2026)\n- Node groups all at 1.31, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- Anonymous Auth Restricted (target >= 1.32): MEDIUM severity\n  - Found 1 ClusterRoleBinding granting access to system:unauthenticated for a monitoring endpoint\n\n### Deprecated APIs (Step 3)\n- flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema: removed in 1.32, 3 resources found — HIGH severity\n- flowcontrol.apiserver.k8s.io/v1beta3 PriorityLevelConfiguration: removed in 1.32, 2 resources found — HIGH severity\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.19.0: ACTIVE, COMPATIBLE\n- coredns v1.11.4: ACTIVE, COMPATIBLE\n- kube-proxy v1.31.2: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.48.0: DEGRADED — controller pods crash-looping, no IAM credentials\n- Karpenter: not installed\n\n### Node Readiness (Step 5)\n- 2 node groups: data-ng-1 (1.31, AL2023, m5.xlarge, 3/3/6), data-ng-2 (1.31, AL2023, r5.2xlarge, 2/2/4)\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (28 available), subnet-bbb (31 available), subnet-ccc (45 available)\n\n### Workload Risks (Step 6)\n- 6 deployments in non-system namespaces:\n  - spark-driver: replicas=1, RollingUpdate, probes present, requests present\n  - kafka-consumer: replicas=3, RollingUpdate, probes present, requests present\n  - api-gateway: replicas=2, RollingUpdate, probes present, requests present\n  - batch-processor: replicas=1, Recreate, no probes, no requests\n  - monitoring-dashboard: replicas=2, RollingUpdate, probes present, requests present\n  - data-ingestion: replicas=3, RollingUpdate, no probes, requests present\n- PDBs exist for kafka-consumer, api-gateway, monitoring-dashboard\n- No drain-blocking PDBs\n\n### AWS Upgrade Insights (Step 7)\n- 6 insights: 5 PASSING, 1 WARNING (deprecated FlowSchema APIs, flagged for 1.32)\n\n### AL2 / Behavioral\n- No AL2 nodes\n\nGenerate the full readiness report inline in your response.",
+      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `.claude/skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: data-platform\n- Region: eu-west-1\n- Account: 111222333444\n- Current Version: 1.31\n- Target Version: 1.32\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.31, Target: 1.32, valid one-hop upgrade\n- 1.31 is in EXTENDED support (ends November 26, 2026)\n- Node groups all at 1.31, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- Anonymous Auth Restricted (target >= 1.32): MEDIUM severity\n  - Found 1 ClusterRoleBinding granting access to system:unauthenticated for a monitoring endpoint\n\n### Deprecated APIs (Step 3)\n- flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema: removed in 1.32, 3 resources found, HIGH severity\n- flowcontrol.apiserver.k8s.io/v1beta3 PriorityLevelConfiguration: removed in 1.32, 2 resources found, HIGH severity\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.19.0: ACTIVE, COMPATIBLE\n- coredns v1.11.4: ACTIVE, COMPATIBLE\n- kube-proxy v1.31.2: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.48.0: DEGRADED, controller pods crash-looping, no IAM credentials\n- Karpenter: not installed\n\n### Node Readiness (Step 5)\n- 2 node groups: data-ng-1 (1.31, AL2023, m5.xlarge, 3/3/6), data-ng-2 (1.31, AL2023, r5.2xlarge, 2/2/4)\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (28 available), subnet-bbb (31 available), subnet-ccc (45 available)\n\n### Workload Risks (Step 6)\n- 6 deployments in non-system namespaces:\n  - spark-driver: replicas=1, RollingUpdate, probes present, requests present\n  - kafka-consumer: replicas=3, RollingUpdate, probes present, requests present\n  - api-gateway: replicas=2, RollingUpdate, probes present, requests present\n  - batch-processor: replicas=1, Recreate, no probes, no requests\n  - monitoring-dashboard: replicas=2, RollingUpdate, probes present, requests present\n  - data-ingestion: replicas=3, RollingUpdate, no probes, requests present\n- PDBs exist for kafka-consumer, api-gateway, monitoring-dashboard\n- No drain-blocking PDBs\n\n### AWS Upgrade Insights (Step 7)\n- 6 insights: 5 PASSING, 1 WARNING (deprecated FlowSchema APIs, flagged for 1.32)\n\n### AL2 / Behavioral\n- No AL2 nodes\n\nGenerate the full readiness report inline in your response.",
       "expectations": [
         "The readiness score is 59 or lower.",
         "The rating is NOT READY.",
-        "The Blockers & Critical Actions section names aws-ebs-csi-driver (or 'EBS CSI driver') as a blocker.",
-        "The Blockers & Critical Actions section identifies the DEGRADED status of aws-ebs-csi-driver as the trigger of that blocker.",
+        "The Blockers section names aws-ebs-csi-driver (or 'EBS CSI driver') as a blocker.",
+        "The Blockers section identifies the DEGRADED status of aws-ebs-csi-driver as the trigger of that blocker.",
         "The blocker section includes a remediation step that addresses the IAM-credentials root cause (e.g., verify IRSA / pod identity, restore the IAM role binding) before re-running the upgrade.",
         "A finding about the FlowSchema v1beta3 removal (a valid hard blocker: removed API in target version with resources found) is present in the report alongside the DEGRADED add-on blocker.",
         "A finding about the Anonymous Auth restriction is present in the report alongside the DEGRADED add-on blocker."
       ],
       "process_assertions": [
         {"type": "tool-called", "tool": "Read", "min": 1},
-        {"type": "no-tool-called", "tool": "Write"},
-        {"type": "step-count", "min": 2, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5}
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "knowledge_assertions": [
         {
-          "type": "must-contain-one-of",
-          "patterns": ["([0-4][0-9]|5[0-9])%", "NOT READY", "overrid", "capped"],
-          "context": "Hard blocker must either cap score at 59 or below, or display an annotation that the score was overridden",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Hard Blocker Override: score = min(score, 59)"
+          "type": "must-contain",
+          "pattern": "Readiness Score:?\\**\\s*([0-9]|[1-4][0-9]|5[0-9])\\s*%[^\\n]{0,20}?NOT READY",
+          "flags": "",
+          "context": "The headline shows a score of 59 or lower with the NOT READY band (hard-blocker cap)",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Hard Blocker Override, score = min(score, 59); report template headline `## Readiness Score: [XX]% - [LEVEL]`"
         },
         {
           "type": "must-contain",
           "pattern": "NOT READY",
           "context": "Score 0-59 maps to NOT READY rating",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Score Interpretation table: 0-59 = NOT READY"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["ebs-csi-driver", "EBS CSI", "ebs.csi"],
-          "context": "Must identify the EBS CSI driver as a hard blocker",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — hard blocker #4: Critical add-on DEGRADED"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, Score Interpretation table: 0-59 = NOT READY"
         },
         {
           "type": "must-contain",
-          "pattern": "DEGRADED",
-          "context": "Must state the DEGRADED status as the trigger for a hard blocker",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — critical add-on DEGRADED or FAILED triggers hard blocker override"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["IAM", "IRSA", "Pod.?Identity", "credentials", "service.?account"],
-          "context": "Must address the IAM credentials root cause in remediation",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — remediation must address the root cause"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["FlowSchema", "flowcontrol", "v1beta3"],
-          "context": "Report must include the FlowSchema removal finding as a hard blocker (removed API in target version with active resources)",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — hard blocker #5: API removed in target version AND actively used"
+          "pattern": "## Blockers\\b(?:(?!\\n## )[\\s\\S])*?(ebs-csi-driver|EBS CSI|ebs\\.csi)",
+          "context": "The EBS CSI driver is named in the Blockers section",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: hard blocker #4, critical add-on DEGRADED"
         },
         {
           "type": "must-contain",
-          "pattern": "data-platform",
-          "context": "Report must reference the actual cluster name",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — report metadata table requires Cluster field"
+          "pattern": "## Blockers\\b(?:(?!\\n## )[\\s\\S])*?DEGRADED",
+          "context": "The Blockers entry states the DEGRADED status as the trigger",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: critical add-on DEGRADED or FAILED triggers the hard blocker override"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": ["IRSA", "Pod.?Identity", "service.?account", "IAM role", "role.?arn"],
+          "context": "The remediation addresses the IAM credentials root cause (IRSA, Pod Identity, the service account or its IAM role)",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Blockers template, Remediation"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "flowcontrol\\.apiserver\\.k8s\\.io/v1\\b",
+          "context": "The FlowSchema/PriorityLevelConfiguration finding gives the replacement API version flowcontrol.apiserver.k8s.io/v1",
+          "source": "skills/eks-upgrade-check/references/deprecated-apis.md: 1.32 row, v1beta3 replaced by flowcontrol.apiserver.k8s.io/v1"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "--(cluster-)?name[= ]+[\"']?data-platform\\b",
+          "context": "Upgrade Plan commands carry the actual cluster name, not the [CLUSTER] placeholder",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Upgrade Plan template, `aws eks update-cluster-version --name [CLUSTER] ... --region [REGION]`"
         },
         {
           "type": "must-contain",
           "pattern": "Score Breakdown",
           "context": "Report must include the Score Breakdown table",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Step 2 requires Score Breakdown table"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, Step 2 requires Score Breakdown table"
         }
       ],
       "files": []
@@ -214,71 +211,69 @@
     {
       "id": 4,
       "name": "hard-blocker-subnet-ips",
-      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: edge-services\n- Region: ap-southeast-1\n- Account: 555666777888\n- Current Version: 1.32\n- Target Version: 1.33\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.32, Target: 1.33 — valid one-hop upgrade\n- 1.32 is in STANDARD support (ends March 23, 2027)\n- Node groups all at 1.32, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- Endpoints API Deprecated (target >= 1.33): MEDIUM severity\n  - 2 custom Endpoints resources found (excluding default kubernetes endpoint)\n\n### Deprecated APIs (Step 3)\n- No removed APIs for 1.33\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.21.0: ACTIVE, COMPATIBLE\n- coredns v1.11.6: ACTIVE, COMPATIBLE\n- kube-proxy v1.32.1: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.55.0: ACTIVE, COMPATIBLE\n- Karpenter: not installed\n\n### Node Readiness (Step 5)\n- 1 node group: edge-ng, version 1.32, AL2023, t3.small, 4/4/8 scaling\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (3 available), subnet-bbb (12 available)\n  - subnet-aaa has < 5 IPs — HARD BLOCKER\n\n### Workload Risks (Step 6)\n- 5 deployments in non-system namespaces:\n  - edge-proxy: replicas=4, RollingUpdate, probes present, requests present\n  - auth-service: replicas=2, RollingUpdate, probes present, requests present\n  - rate-limiter: replicas=2, RollingUpdate, probes present, requests present\n  - cache-warmer: replicas=1, RollingUpdate, probes present, requests present\n  - log-shipper: replicas=2, RollingUpdate, no probes, requests present\n- PDBs exist for edge-proxy, auth-service, rate-limiter\n- No drain-blocking PDBs\n\n### AWS Upgrade Insights (Step 7)\n- 4 insights, all PASSING\n\n### AL2 / Behavioral\n- No AL2 nodes\n- No behavioral changes for 1.33 target\n\nGenerate the full readiness report inline in your response.",
+      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `.claude/skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: edge-services\n- Region: ap-southeast-1\n- Account: 555666777888\n- Current Version: 1.32\n- Target Version: 1.33\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.32, Target: 1.33, valid one-hop upgrade\n- 1.32 is in STANDARD support (ends March 23, 2027)\n- Node groups all at 1.32, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- Endpoints API Deprecated (target >= 1.33): MEDIUM severity\n  - 2 custom Endpoints resources found (excluding default kubernetes endpoint)\n\n### Deprecated APIs (Step 3)\n- No removed APIs for 1.33\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.21.0: ACTIVE, COMPATIBLE\n- coredns v1.11.6: ACTIVE, COMPATIBLE\n- kube-proxy v1.32.1: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.55.0: ACTIVE, COMPATIBLE\n- Karpenter: not installed\n\n### Node Readiness (Step 5)\n- 1 node group: edge-ng, version 1.32, AL2023, t3.small, 4/4/8 scaling\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (3 available), subnet-bbb (1 available)\n\n### Workload Risks (Step 6)\n- 5 deployments in non-system namespaces:\n  - edge-proxy: replicas=4, RollingUpdate, probes present, requests present\n  - auth-service: replicas=2, RollingUpdate, probes present, requests present\n  - rate-limiter: replicas=2, RollingUpdate, probes present, requests present\n  - cache-warmer: replicas=1, RollingUpdate, probes present, requests present\n  - log-shipper: replicas=2, RollingUpdate, no probes, requests present\n- PDBs exist for edge-proxy, auth-service, rate-limiter\n- No drain-blocking PDBs\n\n### AWS Upgrade Insights (Step 7)\n- 4 insights, all PASSING\n\n### AL2 / Behavioral\n- No AL2 nodes\n- No behavioral changes for 1.33 target\n\nGenerate the full readiness report inline in your response.",
       "expectations": [
         "The readiness score is 59 or lower.",
         "The rating is NOT READY.",
-        "The Blockers & Critical Actions section names the subnet IP exhaustion as the blocker.",
-        "The Blockers & Critical Actions section identifies subnet-aaa as the specific subnet with insufficient capacity (3 available, threshold is 5).",
-        "The blocker entry offers at least one remediation path (free unused ENIs, expand the subnet CIDR, add a new subnet).",
-        "The blocker entry conveys that the upgrade cannot proceed until sufficient IPs are available.",
-        "The report still treats subnet-bbb (12 IPs) as a non-blocker.",
-        "The report raises subnet-bbb as a Recommended Action / warning given the 5-15 IP risk band."
+        "The Blockers section names cluster subnet IP capacity as the blocker.",
+        "The Blockers section gives the complete cluster-subnet total of 4 available IPs (subnet-aaa 3, subnet-bbb 1) as below the threshold of 5.",
+        "The blocker entry offers at least one remediation path (reclaim unused ENIs after checking their owners, add cluster subnets with free addresses, or add a VPC CIDR with new subnets).",
+        "The blocker entry presents the cap as a capacity review the assessment policy requires before the upgrade, not as proof that AWS will reject the update.",
+        "The Score Breakdown's Node Readiness deduction counts a 2-point low-subnet warning for each of subnet-aaa and subnet-bbb plus the 5-point capacity guard (9 points)."
       ],
       "process_assertions": [
         {"type": "tool-called", "tool": "Read", "min": 1},
-        {"type": "no-tool-called", "tool": "Write"},
-        {"type": "step-count", "min": 2, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5}
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "knowledge_assertions": [
         {
-          "type": "must-contain-one-of",
-          "patterns": ["([0-4][0-9]|5[0-9])%", "NOT READY", "overrid", "capped"],
-          "context": "Hard blocker must either cap score at 59 or below, or display an annotation that the score was overridden",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Hard Blocker Override: score = min(score, 59)"
+          "type": "must-contain",
+          "pattern": "Readiness Score:?\\**\\s*([0-9]|[1-4][0-9]|5[0-9])\\s*%[^\\n]{0,20}?NOT READY",
+          "flags": "",
+          "context": "The headline shows a score of 59 or lower with the NOT READY band (hard-blocker cap)",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Hard Blocker Override, score = min(score, 59); report template headline `## Readiness Score: [XX]% - [LEVEL]`"
         },
         {
           "type": "must-contain",
           "pattern": "NOT READY",
           "context": "Score 0-59 maps to NOT READY rating",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Score Interpretation table: 0-59 = NOT READY"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, Score Interpretation table: 0-59 = NOT READY"
         },
         {
           "type": "must-contain",
-          "pattern": "subnet-aaa",
-          "context": "Must identify the specific subnet that is exhausted",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — hard blocker #8: Any cluster subnet has < 5 available IPs"
+          "pattern": "## Blockers\\b(?:(?!\\n## )[\\s\\S])*?subnet",
+          "context": "Subnet IP capacity is named in the Blockers section",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: hard blocker #8, complete cluster-subnet total < 5 reported available IPs"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["< ?5", "fewer than 5", "less than 5", "3 available", "only 3"],
-          "context": "Must state the IP threshold or actual count showing exhaustion",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — subnet.available_ips < 5 triggers hard blocker"
+          "patterns": ["total[^\\n]{0,60}?\\b4\\b", "\\b4\\b (available )?(IPs|IP addresses|addresses)", "3 ?\\+ ?1 ?= ?4"],
+          "context": "Must state the complete cluster-subnet total of 4 available IPs",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: subnet_capacity_guard_triggered = sum(AvailableIpAddressCount) across ALL cluster subnets < 5"
         },
         {
           "type": "must-contain",
-          "pattern": "subnet-bbb",
-          "context": "Must address subnet-bbb (12 IPs) which falls in the 5-15 warning band",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — subnet.available_ips <= 15 gets 2 pts deduction (warning)"
+          "pattern": "Node Readiness\\s*\\|[^\\n]*?[-−]\\s*9\\s*pts?",
+          "context": "Node Readiness deduction is 2 + 2 (one low-subnet warning per subnet) + 5 (capacity guard) = 9",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Category 3, the +2 per-low-subnet warning ALWAYS applies, the +5 guard is additional"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["ENI", "CIDR", "free.*IP", "add.*subnet", "update-cluster-config", "reject", "insufficient"],
-          "context": "Must offer at least one remediation path for subnet IP exhaustion",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — remediation section must provide actionable steps"
+          "patterns": ["\\bENIs?\\b", "add[^\\n]{0,40}?subnet", "update-cluster-config[^\\n]{0,80}?subnet", "(additional|secondary|new) (VPC )?CIDR"],
+          "context": "Must offer at least one remediation path the skill names for subnet IP capacity",
+          "source": "skills/eks-upgrade-check/references/node-readiness.md: 5.5 owner review options (reclaim unused ENIs, add cluster subnets, add a VPC CIDR and new subnets)"
         },
         {
           "type": "must-contain",
-          "pattern": "edge-services",
-          "context": "Report must reference the actual cluster name",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — report metadata table requires Cluster field"
+          "pattern": "--(cluster-)?name[= ]+[\"']?edge-services\\b",
+          "context": "Upgrade Plan commands carry the actual cluster name, not the [CLUSTER] placeholder",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Upgrade Plan template, `aws eks update-cluster-version --name [CLUSTER] ... --region [REGION]`"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Upgrade Plan", "Recommended Upgrade Sequence", "Pre-Upgrade", "Remediation Plan"],
           "context": "Report must contain the Upgrade Plan section",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — required section order includes Upgrade Plan"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, required section order includes Upgrade Plan"
         }
       ],
       "files": []
@@ -286,7 +281,7 @@
     {
       "id": 5,
       "name": "multiple-medium-no-blockers",
-      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: staging-apps\n- Region: us-east-2\n- Account: 999888777666\n- Current Version: 1.31\n- Target Version: 1.32\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.31, Target: 1.32 — valid one-hop upgrade\n- 1.31 is in EXTENDED support (ends November 26, 2026)\n- Node groups all at 1.31, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- Anonymous Auth Restricted (target >= 1.32): MEDIUM severity\n  - Found 2 ClusterRoleBindings granting access to system:unauthenticated\n\n### Deprecated APIs (Step 3)\n- flowcontrol.apiserver.k8s.io/v1beta3 FlowSchema: deprecated but still served in 1.32, 5 resources — LOW (1 API path)\n- flowcontrol.apiserver.k8s.io/v1beta3 PriorityLevelConfiguration: deprecated but still served in 1.32, 3 resources — LOW (1 API path)\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.18.5: ACTIVE, UPDATE_RECOMMENDED (behind but compatible)\n- coredns v1.11.4: ACTIVE, COMPATIBLE\n- kube-proxy v1.31.2: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.45.0: ACTIVE, UPDATE_RECOMMENDED (behind but compatible)\n- external-dns v0.14.0: COMPATIBLE (verified via upstream)\n- Karpenter: not installed\n\n### Node Readiness (Step 5)\n- 2 node groups: staging-ng-1 (1.31, AL2023, t3.medium, 3/3/5), staging-ng-2 (1.31, AL2023, t3.large, 2/2/4)\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (22 available), subnet-bbb (19 available), subnet-ccc (31 available)\n\n### Workload Risks (Step 6)\n- 8 deployments in non-system namespaces:\n  - web-frontend: replicas=3, RollingUpdate, probes present, requests present\n  - api-backend: replicas=2, RollingUpdate, probes present, requests present\n  - worker-queue: replicas=2, RollingUpdate, probes present, requests present\n  - cron-scheduler: replicas=1, RollingUpdate, probes present, requests present\n  - legacy-importer: replicas=1, Recreate, no probes, no requests\n  - report-generator: replicas=2, RollingUpdate, no probes, requests present\n  - email-sender: replicas=2, RollingUpdate, probes present, requests present\n  - admin-panel: replicas=1, RollingUpdate, probes present, requests present\n- PDBs exist for web-frontend, api-backend, worker-queue\n- No PDB for report-generator or email-sender (multi-replica without PDB)\n- No drain-blocking PDBs\n\n### AWS Upgrade Insights (Step 7)\n- 6 insights: 4 PASSING, 2 WARNING (deprecated FlowSchema APIs, flagged for future removal)\n\n### AL2 / Behavioral\n- No AL2 nodes\n\nGenerate the full readiness report inline in your response.",
+      "prompt": "I'm testing the EKS upgrade-check scoring logic with mock data. Do NOT run any aws or kubectl commands. Use the findings below as if you had already executed all checks.\n\nRead `.claude/skills/eks-upgrade-check/references/report-generation.md` for the scoring algorithm and report template, then generate the report.\n\n## Cluster Metadata\n- Cluster: staging-apps\n- Region: us-east-2\n- Account: 999888777666\n- Current Version: 1.31\n- Target Version: 1.32\n- Cluster Status: ACTIVE\n- Assessment Date: 2026-05-09 15:00\n\n## Findings from Assessment\n\n### Version Validation (Step 1)\n- Current: 1.31, Target: 1.32, valid one-hop upgrade\n- 1.31 is in EXTENDED support (ends November 26, 2026)\n- Node groups all at 1.31, skew against target = 1 (within policy)\n\n### Breaking Changes (Step 2)\n- Anonymous Auth Restricted (target >= 1.32): MEDIUM severity\n  - Found 2 ClusterRoleBindings granting access to system:unauthenticated\n\n### Deprecated APIs (Step 3)\n- No deprecated or removed APIs found in cluster\n\n### Add-on Compatibility (Step 4)\n- vpc-cni v1.18.5: ACTIVE, UPDATE_RECOMMENDED (behind but compatible)\n- coredns v1.11.4: ACTIVE, COMPATIBLE\n- kube-proxy v1.31.2: ACTIVE, COMPATIBLE\n- aws-ebs-csi-driver v1.45.0: ACTIVE, UPDATE_RECOMMENDED (behind but compatible)\n- external-dns v0.14.0: COMPATIBLE (verified via upstream)\n- Karpenter: not installed\n\n### Node Readiness (Step 5)\n- 2 node groups: staging-ng-1 (1.31, AL2023, t3.medium, 3/3/5), staging-ng-2 (1.31, AL2023, t3.large, 2/2/4)\n- All nodes on containerd 2.x\n- No self-managed nodes\n- Subnet IPs: subnet-aaa (22 available), subnet-bbb (19 available), subnet-ccc (31 available)\n\n### Workload Risks (Step 6)\n- 8 deployments in non-system namespaces:\n  - web-frontend: replicas=3, RollingUpdate, probes present, requests present\n  - api-backend: replicas=2, RollingUpdate, probes present, requests present\n  - worker-queue: replicas=2, RollingUpdate, probes present, requests present\n  - cron-scheduler: replicas=1, RollingUpdate, probes present, requests present\n  - legacy-importer: replicas=1, Recreate, no probes, no requests\n  - report-generator: replicas=2, RollingUpdate, no probes, requests present\n  - email-sender: replicas=2, RollingUpdate, probes present, requests present\n  - admin-panel: replicas=1, RollingUpdate, probes present, requests present\n- PDBs exist for web-frontend, api-backend, worker-queue\n- No PDB for report-generator or email-sender (multi-replica without PDB)\n- No drain-blocking PDBs\n\n### AWS Upgrade Insights (Step 7)\n- 6 insights, all PASSING\n\n### AL2 / Behavioral\n- No AL2 nodes\n\nGenerate the full readiness report inline in your response.",
       "expectations": [
         "The readiness score falls between 60 and 89 (no hard-blocker override applied).",
         "The rating is one of FAIR / RISKY / GOOD.",
@@ -294,58 +289,63 @@
         "Flags single-replica plus Recreate on `legacy-importer` as HIGH-severity workload risks under Critical Actions.",
         "The Recommended Actions section is populated with MEDIUM-severity workload risks, including the missing PDB on `report-generator`.",
         "The Recommended Actions section is populated with MEDIUM-severity workload risks, including the missing PDB on `email-sender`.",
-        "The report lists the UPDATE_RECOMMENDED version for vpc-cni as a LOW add-on finding.",
-        "The report lists the UPDATE_RECOMMENDED version for aws-ebs-csi-driver as a LOW add-on finding.",
+        "The report lists vpc-cni as UPDATE_RECOMMENDED, a LOW add-on finding.",
+        "The report lists aws-ebs-csi-driver as UPDATE_RECOMMENDED, a LOW add-on finding.",
         "The Score Breakdown table shows the workload-risks deduction at the 10-point category cap rather than the raw uncapped sum, demonstrating the per-category cap is being applied."
       ],
       "process_assertions": [
         {"type": "tool-called", "tool": "Read", "min": 1},
-        {"type": "no-tool-called", "tool": "Write"},
-        {"type": "step-count", "min": 2, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5}
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "knowledge_assertions": [
         {
-          "type": "must-contain-one-of",
-          "patterns": ["FAIR", "RISKY", "GOOD"],
-          "context": "Score 60-89 maps to FAIR, RISKY, or GOOD",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Score Interpretation table"
+          "type": "must-contain",
+          "pattern": "Readiness Score:?\\**\\s*([6-8][0-9])\\s*%[^\\n]{0,20}?\\b(GOOD|FAIR|RISKY)\\b",
+          "flags": "",
+          "context": "The headline shows a score of 60 to 89 with the FAIR, RISKY or GOOD band",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Score Interpretation table"
         },
         {
           "type": "must-not-contain",
           "pattern": "NOT READY",
           "context": "No hard blockers means score should not be in NOT READY range",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — hard blocker override not triggered"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, hard blocker override not triggered"
         },
         {
           "type": "must-contain",
-          "pattern": "legacy-importer",
-          "context": "Must identify the high-risk single-replica Recreate workload by name",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — workload risks section must name affected workloads"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["UPDATE.?RECOMMENDED", "update recommended", "behind.*(compat|version)"],
-          "context": "Must flag the vpc-cni and ebs-csi-driver as needing updates",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — UPDATE_RECOMMENDED deducts 1 pt per addon"
+          "pattern": "## Critical Actions\\b(?:(?!\\n## )[\\s\\S])*?legacy-importer",
+          "context": "legacy-importer (single replica, Recreate) is named under Critical Actions",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: HIGH-severity findings that are not hard blockers go under `## Critical Actions`"
         },
         {
           "type": "must-contain",
-          "pattern": "staging-apps",
-          "context": "Report must reference the actual cluster name",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — report metadata table requires Cluster field"
+          "pattern": "## Informational Findings\\b(?:(?!\\n## )[\\s\\S])*?vpc-cni",
+          "context": "vpc-cni UPDATE_RECOMMENDED is a LOW finding under Informational Findings",
+          "source": "skills/eks-upgrade-check/references/addon-compatibility.md: UPDATE_RECOMMENDED is LOW; skills/eks-upgrade-check/references/report-generation.md: LOW findings go under Informational Findings"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "## Informational Findings\\b(?:(?!\\n## )[\\s\\S])*?(aws-ebs-csi-driver|ebs-csi)",
+          "context": "aws-ebs-csi-driver UPDATE_RECOMMENDED is a LOW finding under Informational Findings",
+          "source": "skills/eks-upgrade-check/references/addon-compatibility.md: UPDATE_RECOMMENDED is LOW; skills/eks-upgrade-check/references/report-generation.md: LOW findings go under Informational Findings"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "--(cluster-)?name[= ]+[\"']?staging-apps\\b",
+          "context": "Upgrade Plan commands carry the actual cluster name, not the [CLUSTER] placeholder",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: Upgrade Plan template, `aws eks update-cluster-version --name [CLUSTER] ... --region [REGION]`"
         },
         {
           "type": "must-contain",
           "pattern": "Score Breakdown",
           "context": "Report must include the Score Breakdown table for auditability",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — Step 2 requires Score Breakdown table"
+          "source": "skills/eks-upgrade-check/references/report-generation.md, Step 2 requires Score Breakdown table"
         },
         {
-          "type": "must-contain-one-of",
-          "patterns": ["report-generator", "email-sender"],
-          "context": "Must identify multi-replica deployments missing PDBs",
-          "source": "skills/eks-upgrade-check/references/report-generation.md — multi-replica without PDB is a MEDIUM workload risk"
+          "type": "must-contain",
+          "pattern": "## Recommended Actions\\b(?:(?!\\n## )[\\s\\S])*?(report-generator|email-sender)",
+          "context": "A multi-replica deployment missing a PDB is named under Recommended Actions",
+          "source": "skills/eks-upgrade-check/references/report-generation.md: multi-replica without PDB is a MEDIUM workload risk; MEDIUM findings go under Recommended Actions"
         }
       ],
       "files": []

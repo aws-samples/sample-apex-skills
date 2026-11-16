@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "We're a product team with EKS already running non-AI workloads, and we want to self-host an open LLM (Llama 3 8B class) for a product feature. Target ~100-500ms TTFT, balanced cost posture, no strong hardware preference. Lay out the full GenAI-on-EKS stack — hardware, scheduler, serving framework, storage, observability, and the gateway — plus a 30/60/90 build path.",
+      "prompt": "We're a product team with EKS already running non-AI workloads, and we want to self-host an open LLM (Llama 3 8B class) for a product feature. Target ~100-500ms TTFT, balanced cost posture, no strong hardware preference. Lay out the full GenAI-on-EKS stack: hardware, scheduler, serving framework, storage, observability, and the gateway, plus a 30/60/90 build path.",
       "expectations": [
         "Recommends NVIDIA GPU (g6 or g6e) as the time-to-value default.",
         "Explicitly flags AWS Neuron / Inferentia2 as a phase-2 cost-optimization option rather than reflexively picking GPU only.",
@@ -16,7 +16,7 @@
         "Covers observability via DCGM Exporter + Prometheus/Grafana.",
         "Covers observability including a token-latency (TTFT) metric.",
         "Includes the security baseline: EKS Pod Identity/IRSA for pod credentials (never static keys).",
-        "Includes, as part of the security baseline, a LiteLLM gateway for the OpenAI-compatible endpoint."
+        "Recommends an AI gateway in front of the OpenAI-compatible endpoint: LiteLLM as the default, or Envoy AI Gateway where L7 routing at ingress is the need."
       ],
       "files": []
     },

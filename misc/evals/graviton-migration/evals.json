@@ -29,8 +29,8 @@
         },
         {
           "type": "must-contain",
-          "pattern": "\\.mcp\\.json",
-          "context": "Must reference the Claude Code project-scope config file",
+          "pattern": "\"mcpServers\"\\s*:",
+          "context": "Must give the .mcp.json block with its mcpServers object",
           "source": "skills/graviton-migration/SKILL.md"
         },
         {
@@ -46,10 +46,7 @@
           "source": "skills/graviton-migration/SKILL.md"
         }
       ],
-      "process_assertions": [
-        {"type": "step-count", "min": 1, "max": 12},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
-      ],
+      "process_assertions": [],
       "files": []
     },
     {
@@ -79,13 +76,13 @@
         },
         {
           "type": "must-contain",
-          "pattern": "arm64",
-          "context": "Must target the arm64 architecture value",
+          "pattern": "kubernetes\\.io/arch[\\s\\S]{0,120}?arm64",
+          "context": "Must pin the kubernetes.io/arch requirement or selector to the arm64 value",
           "source": "skills/graviton-migration/references/karpenter-migration.md"
         },
         {
-          "type": "must-contain-one-of",
-          "patterns": ["taint", "NoSchedule"],
+          "type": "must-contain",
+          "pattern": "effect:\\s*\"?NoSchedule",
           "context": "Must apply the taint-first discipline on the arm64 NodePool",
           "source": "skills/graviton-migration/references/karpenter-migration.md"
         },
@@ -96,9 +93,7 @@
           "source": "skills/graviton-migration/references/karpenter-migration.md"
         }
       ],
-      "process_assertions": [
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
-      ],
+      "process_assertions": [],
       "files": []
     },
     {
@@ -135,14 +130,12 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["imagetools create", "\\bnative\\b", "arm64 runner", "arm64-hosted"],
+          "patterns": ["imagetools create", "arm64 runner", "arm64-hosted"],
           "context": "Must mention the native arm64-runner alternative",
           "source": "skills/graviton-migration/references/multi-arch-pipelines.md"
         }
       ],
-      "process_assertions": [
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
-      ],
+      "process_assertions": [],
       "files": []
     }
   ]

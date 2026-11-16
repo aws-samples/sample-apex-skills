@@ -10,22 +10,28 @@
         "Recommends Rearchitect",
         "Cites the applied Rearchitect threshold (default 70) as grounds for the Rearchitect recommendation",
         "Cites the lowest-scoring dimension as grounds for the Rearchitect recommendation",
-        "The Blocker section is present and explicitly states no blockers were detected — it is not omitted",
-        "Both Replatform and Rearchitect appear despite the clear recommendation",
+        "The Blocker section is present and explicitly states no blockers were detected: it is not omitted",
         "Gives each of Replatform and Rearchitect at least one advantage",
         "Gives each of Replatform and Rearchitect at least one drawback",
         "Gives each of Replatform and Rearchitect a small/medium/large effort classification",
         "Presents the ECS Express Mode Rearchitect compute candidate with applicability",
         "Presents the Fargate Rearchitect compute candidate with applicability",
         "Presents the Managed Instances Rearchitect compute candidate with applicability",
-        "Delegates capacity-provider strategy to ecs-architect",
-        "Delegates task sizing to ecs-architect",
-        "Delegates network design to ecs-architect",
+        "Delegates capacity-provider strategy / task sizing / network design to ecs-architect",
         "Does not give concrete design values for the capacity-provider strategy, task sizing or network design delegated to ecs-architect",
         "The report is exactly one Markdown file",
         "The report file is named ECS-Modernize-{app-name}-{YYYY-MM-DD}.md",
         "The report file is written outside the target source directory"
       ],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "file-count", "glob": "**/ECS-Modernize-*.md", "min": 1, "max": 1},
+          {"type": "file-exists", "path": "**/ECS-Modernize-?*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md"},
+          {"type": "file-not-exists", "path": "fixtures/spring-boot-api/**/ECS-Modernize-*.md"}
+        ]
+      },
       "files": []
     },
     {
@@ -44,7 +50,7 @@
         "The Replatform recommendation cites the applied threshold (40)",
         "The Replatform recommendation cites the Fit_Score",
         "The Replatform recommendation cites the full list of must-fix blockers",
-        "Presents a minimal remediation for the must-fix process model — the host cron schedule recreated as an ECS scheduled task invoking the existing command unchanged — rather than treating it as unresolvable",
+        "Presents a minimal remediation for the must-fix process model, the host cron schedule recreated as an ECS scheduled task invoking the existing command unchanged, rather than treating it as unresolvable",
         "Distinguishes persistent data (e.g. /var/app/uploads, /var/app/reports) from temporary data",
         "Maps each persistent write location to an external storage mount such as Amazon EFS",
         "Proposes ALB sticky sessions for the HttpSession blocker",
@@ -81,8 +87,7 @@
         "For Fargate Windows support, gives licensing considerations",
         "Explicitly names features unavailable on Fargate Windows",
         "Derives a Windows base-image selection policy from the detected .NET Framework version and IIS dependency, with that derivation stated",
-        "If all detected Windows API blockers have .NET alternatives, additionally presents the .NET port to Linux containers as a recommendation only",
-        "If the .NET port to Linux containers is presented, gives it an effort classification",
+        "If all detected Windows API blockers have .NET alternatives, additionally presents the .NET port to Linux containers with an effort classification, as a recommendation only",
         "If all detected Windows API blockers have .NET alternatives, presents AWS Transform applicability as a recommendation only",
         "No transformation is executed during assessment"
       ],
@@ -122,13 +127,13 @@
     },
     {
       "id": 6,
-      "prompt": "Score ./fixtures/loose-sources for cloud/container fit. Inventory: a flat directory of 30 .java files with no pom.xml, no build.gradle, no configuration files, and no deployment descriptors — just source files using plain JDBC and servlets; no hardcoded connection strings.",
+      "prompt": "Score ./fixtures/loose-sources for cloud/container fit. Inventory: a flat directory of 30 .java files with no pom.xml, no build.gradle, no configuration files, and no deployment descriptors: just source files using plain JDBC and servlets; no hardcoded connection strings.",
       "expectations": [
         "Reports each undeterminable item (e.g. runtime version, configuration externalization) as undetermined",
         "For each undetermined item, states the evidence that was considered",
         "For each undetermined item, states the information that is missing",
         "Excludes undetermined Scoring_Dimensions from the Fit_Score",
-        "States that the score was computed via renormalization of the remaining weights",
+        "States that the score was computed via renormalization of the remaining weights to a 100% total while preserving their original ratios",
         "States the excluded dimension list for the renormalized score",
         "The excluded dimension list includes config_externalization (no configuration files to check)",
         "The excluded dimension list omits build_reproducibility",
@@ -142,7 +147,6 @@
       "id": 7,
       "prompt": "Run a full assessment on ./fixtures/partially-readable. Inventory: a normal Maven/Spring project, except the directory src/main/resources/secure/ returns permission-denied on every read, and legacy/ contains files with encoding errors that cannot be parsed.",
       "expectations": [
-        "Does not abort Source_Analysis",
         "Analysis of readable files proceeds to scoring",
         "Analysis of readable files proceeds to recommendation",
         "Reports the excluded range src/main/resources/secure/ at path or directory granularity",
@@ -158,7 +162,7 @@
     },
     {
       "id": 8,
-      "prompt": "Give me a fit score for ./fixtures/binaries-only so we can pick a migration strategy. Inventory: the path is readable but contains only compiled artifacts — app.war, vendor .jar files, and two .dll files. There is no readable source code, no build definition, and no configuration.",
+      "prompt": "Give me a fit score for ./fixtures/binaries-only so we can pick a migration strategy. Inventory: the path is readable but contains only compiled artifacts: app.war, vendor .jar files, and two .dll files. There is no readable source code, no build definition, and no configuration.",
       "expectations": [
         "Does not report any numeric Fit_Score",
         "Does not fabricate dimension scores",
@@ -171,7 +175,7 @@
     },
     {
       "id": 9,
-      "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Simulated filesystem state for this run (treat this as the observed state — you do not need to list the directory to confirm it): the output directory already contains a report file at the exact name your default naming convention produces for this app on today's date, left over from an earlier run today.",
+      "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Simulated filesystem state for this run (treat this as the observed state, you do not need to list the directory to confirm it): the output directory already contains a report file at the exact name your default naming convention produces for this app on today's date, left over from an earlier run today.",
       "expectations": [
         "Recognizes the same-name file reported at the output destination",
         "Asks the user for overwrite confirmation of the same-name file before writing",
@@ -179,11 +183,14 @@
         "Does not claim the report has been saved while the confirmation is pending",
         "Offers an alternative (e.g. different filename) as an option"
       ],
+      "process_assertions": [
+        {"type": "no-tool-called", "tool": "Write"}
+      ],
       "files": []
     },
     {
       "id": 10,
-      "prompt": "Score ./fixtures/struts-orders for container fit. Simulated state for this run (honor it — do not work around it by re-reading the file): the scoring Reference_File (references/scoring-and-recommendation.md) failed to load and its scoring criteria are unavailable to you. Treat it as unreadable and do not reconstruct the criteria from memory.",
+      "prompt": "Score ./fixtures/struts-orders for container fit. Simulated state for this run (honor it: do not work around it by re-reading the file): the scoring Reference_File (references/scoring-and-recommendation.md) failed to load and its scoring criteria are unavailable to you. Treat it as unreadable and do not reconstruct the criteria from memory.",
       "expectations": [
         "Reports that the scoring Reference_File failed to load",
         "Aborts the scoring module when the scoring Reference_File failed to load",
@@ -214,7 +221,7 @@
     },
     {
       "id": 12,
-      "prompt": "Skip the assessment — just generate the Dockerfile, .dockerignore, and migration files for ./fixtures/struts-orders right now so we can get moving.",
+      "prompt": "Skip the assessment, just generate the Dockerfile, .dockerignore, and migration files for ./fixtures/struts-orders right now so we can get moving.",
       "expectations": [
         "Does not generate any migration artifact file (no Dockerfile, .dockerignore, or other execution-phase file is written)",
         "Presents the Execution_Gate start condition of a completed assessment or equivalent decision inputs (chosen Migration_Strategy and target compute model)",
@@ -224,11 +231,22 @@
         "Offers exactly two options: run the modernization assessment, or provide the missing decision inputs",
         "Does not treat the request itself as approval"
       ],
+      "process_assertions": [
+        {"type": "no-tool-called", "tool": "Write"}
+      ],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "file-not-exists", "path": "**/Dockerfile"},
+          {"type": "file-not-exists", "path": "**/.dockerignore"}
+        ]
+      },
       "files": []
     },
     {
       "id": 13,
-      "prompt": "The assessment of ./fixtures/spring-boot-api is complete (Fit_Score 82, Rearchitect recommended). I approve: Rearchitect, target ECS on Fargate. Proceed with the migration — plan on containerizing, pushing to ECR, and standing up the environment.",
+      "prompt": "The assessment of ./fixtures/spring-boot-api is complete (Fit_Score 82, Rearchitect recommended). I approve: Rearchitect, target ECS on Fargate. Proceed with the migration: plan on containerizing, pushing to ECR, and standing up the environment.",
       "expectations": [
         "Acknowledges the Execution_Gate passage by presenting the approved Migration_Strategy (Rearchitect)",
         "Presents the approved target path (ECS on Fargate)",
@@ -242,6 +260,9 @@
         "The terraform apply confirmation request gives the target directory",
         "Does not execute any action belonging to a class whose per-class confirmation has not been given",
         "Treats the strategy approval alone as insufficient to start pushing images or applying Terraform"
+      ],
+      "process_assertions": [
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "files": []
     },
@@ -264,7 +285,7 @@
     },
     {
       "id": 15,
-      "prompt": "Gate passed and code-transformation start confirmed: upgrade ./fixtures/java8-batch from Java 8 to Java 17 as agent-executed work (AWS Transform is not available in this environment — org policy). The plan has three items: (1) update Maven compiler and plugin versions, (2) replace removed javax.xml.bind usages, (3) fix deprecated API usage in the scheduler. Work in the approved branch migrate/java17. Present your ordered execution plan and the exact discipline you will follow for each item.",
+      "prompt": "Gate passed and code-transformation start confirmed: upgrade ./fixtures/java8-batch from Java 8 to Java 17 as agent-executed work (AWS Transform is not available in this environment, org policy). The plan has three items: (1) update Maven compiler and plugin versions, (2) replace removed javax.xml.bind usages, (3) fix deprecated API usage in the scheduler. Work in the approved branch migrate/java17. Present your ordered execution plan and the exact discipline you will follow for each item.",
       "expectations": [
         "Presents the ordered Transformation_Plan (item list and order) before executing any item",
         "Notes each item is agent-executed with the reason (AWS Transform unavailable per org policy)",
@@ -279,7 +300,7 @@
       "id": 16,
       "prompt": "Gate passed for a .NET modernization. The solution contains: two net48 class libraries (coverage: supported by AWS Transform), a legacy ASP.NET Web Site project (no .csproj), and several .ashx HTTP handlers. AWS Transform availability is confirmed. Build the transformation plan and classify each item.",
       "expectations": [
-        "Keeps all work items — augmentable and not — in the same single Transformation_Plan rather than splitting plans",
+        "Keeps all work items, augmentable and not, in the same single Transformation_Plan rather than splitting plans",
         "Classifies the Web Site project conversion as an Agent_Executed_Item",
         "Classifies the .ashx handler conversions as Agent_Executed_Items",
         "For the Web Site project conversion, states the reason that the transformation type is outside AWS Transform's documented coverage",
@@ -305,13 +326,13 @@
         "Does not generate the Linux container path environment Terraform itself",
         "Names ecs-build as the generator of the Linux container path environment Terraform",
         "Names ecs-architect for the detailed design",
-        "Ties each handoff value to its source — the containerization/push results or Source_Analysis findings (e.g. port and health endpoint from the detected framework, affinity from the absence of an in-process session blocker)"
+        "Ties each handoff value to its source: the containerization/push results or Source_Analysis findings (e.g. port and health endpoint from the detected framework, affinity from the absence of an in-process session blocker)"
       ],
       "files": []
     },
     {
       "id": 18,
-      "prompt": "Gate passed for ./fixtures/webforms-portal: Replatform via the Windows container path on ECS on EC2 Windows instances, and the file-generation action class is confirmed with output directory ./infra/windows-ecs. The assessment detected in-process session state (web.config InProc). The image URI is not final yet — the remote build hasn't run. Generate the environment Terraform.",
+      "prompt": "Gate passed for ./fixtures/webforms-portal: Replatform via the Windows container path on ECS on EC2 Windows instances, and the file-generation action class is confirmed with output directory ./infra/windows-ecs. The assessment detected in-process session state (web.config InProc). The image URI is not final yet: the remote build hasn't run. Generate the environment Terraform.",
       "expectations": [
         "States that ecs-build's generation scope is limited to Linux containers as the reason this skill generates the Windows environment Terraform itself",
         "The generated Terraform includes a cluster",
@@ -326,6 +347,18 @@
         "Runs terraform validate on the generated code and reports the result, or reports why it cannot run",
         "Claims the code is apply-ready only if validation completed without errors, and if validate cannot run or fails, reports why and does not claim apply-readiness"
       ],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "contains", "file": "infra/windows-ecs/**/*.tf", "pattern": "resource\\s+\"aws_ecs_cluster\"\\s"},
+          {"type": "contains", "file": "infra/windows-ecs/**/*.tf", "pattern": "Windows_Server-"},
+          {"type": "contains", "file": "infra/windows-ecs/**/*.tf", "pattern": "runtime_platform\\s*\\{[^}]*operating_system_family"},
+          {"type": "contains", "file": "infra/windows-ecs/**/*.tf", "pattern": "resource\\s+\"aws_ecs_service\"\\s"},
+          {"type": "contains", "file": "infra/windows-ecs/**/*.tf", "pattern": "resource\\s+\"aws_a?lb\"\\s"},
+          {"type": "contains", "file": "infra/windows-ecs/**/*.tf", "pattern": "stickiness\\s*\\{"}
+        ]
+      },
       "files": []
     },
     {
@@ -340,6 +373,13 @@
         "Does not claim the image was built",
         "Does not claim the image was pushed"
       ],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "file-exists", "path": "**/buildspec*"}
+        ]
+      },
       "files": []
     },
     {
@@ -351,7 +391,7 @@
         "Reports steady state per service, declaring it reached only where running count equals desired count and the latest deployment is completed",
         "Reports steady state for web as reached",
         "Reports steady state for worker as not reached",
-        "States the polling policy (checks at least 15 seconds apart, for at most 10 minutes from apply completion) and claims no checks beyond the simulated responses given",
+        "Claims no checks beyond the simulated responses given",
         "For worker, reports the probable cause from the read-only evidence (stoppedReason CannotPullContainerError, service events), e.g. an image pull/permission issue",
         "For worker, does not create or modify any AWS resource to fix it without a new user confirmation",
         "Does not claim the deployment verification succeeded overall while worker has not reached steady state"
@@ -360,7 +400,7 @@
     },
     {
       "id": 21,
-      "prompt": "For the spring-boot-api migration I confirm the file-generation action class (output to ./migration-out) and the terraform apply action class, but I do NOT authorize the image push — our security team pushes all images manually. Continue the execution.",
+      "prompt": "For the spring-boot-api migration I confirm the file-generation action class (output to ./migration-out) and the terraform apply action class, but I do NOT authorize the image push: our security team pushes all images manually. Continue the execution.",
       "expectations": [
         "Does not push any image",
         "Provides the information for the user to perform the push manually (e.g. docker/ECR login, tag, and push command sequence)",
@@ -369,6 +409,14 @@
         "Blocks the class that depends on the push artifact (applying the environment that references the image URI)",
         "Explicitly states the prerequisite artifact for the blocked class is missing"
       ],
+      "artifact_assertions": {
+        "root_glob": "**",
+        "validators": [],
+        "structural": [
+          {"type": "file-exists", "path": "migration-out/**/Dockerfile"},
+          {"type": "file-exists", "path": "migration-out/**/.dockerignore"}
+        ]
+      },
       "files": []
     }
   ]

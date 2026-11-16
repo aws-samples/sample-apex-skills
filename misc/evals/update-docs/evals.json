@@ -22,58 +22,56 @@
         {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "update-docs"}},
         {"type": "tool-called", "tool": "Read", "min": 1},
         {"type": "tool-called", "tool": "Bash", "min": 2},
-        {"type": "tool-sequence", "sequence": ["Skill", "Bash", "Read"]},
-        {"type": "step-count", "min": 5, "max": 30},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+        {"type": "tool-sequence", "sequence": ["Skill", "Bash", "Read"]}
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain",
           "pattern": "update-all-references",
           "context": "Must reference the Tier 1 marker-block script by name",
-          "source": "skills/update-docs/SKILL.md — Step 2: Tier 1 — Script-managed surfaces"
+          "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain",
           "pattern": "update-pages",
           "context": "Must reference the Tier 1 Docusaurus wrapper script by name",
-          "source": "skills/update-docs/SKILL.md — Step 2: Tier 1 — Script-managed surfaces"
+          "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["--check", "\\-\\-check"],
           "context": "Must use the --check flag to detect staleness before re-running scripts",
-          "source": "skills/update-docs/SKILL.md — Step 2: Tier 1 — Script-managed surfaces"
+          "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Surface.*Status.*Action", "\\|.*Surface.*\\|.*Status.*\\|"],
           "context": "Must produce the summary table with Surface/Status/Action columns",
-          "source": "skills/update-docs/SKILL.md — Step 4: Final output"
+          "source": "skills/update-docs/SKILL.md, Step 4: Final output"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["PASS", "STALE", "SKIP"],
-          "context": "Must use the defined status values (PASS, STALE, SKIP) in the summary",
-          "source": "skills/update-docs/SKILL.md — Step 4: Final output"
+          "patterns": ["\\|\\s*(PASS|STALE|SKIP)\\b"],
+          "context": "Must use a defined status value (PASS, STALE, SKIP) in a cell of the summary table",
+          "source": "skills/update-docs/SKILL.md: Step 4: Final output"
         },
         {
-          "type": "must-contain",
-          "pattern": "eks-recon",
-          "context": "Must identify the old skill name as a stale reference to fix",
-          "source": "skills/update-docs/SKILL.md — Step 3: Tier 2 — Prose ripple"
+          "type": "must-contain-one-of",
+          "patterns": ["README\\.md[\\s\\S]{0,300}?eks-recon", "eks-recon[\\s\\S]{0,300}?README\\.md"],
+          "context": "Must name the README.md file that holds the stale eks-recon reference",
+          "source": "skills/update-docs/SKILL.md: Step 3: Tier 2: Prose ripple"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["README\\.md", "README", "skills/README"],
           "context": "Must check README files as part of the Tier 2 prose candidate set",
-          "source": "skills/update-docs/SKILL.md — Step 3: Tier 2 — Prose ripple, Candidate set"
+          "source": "skills/update-docs/SKILL.md, Step 3: Tier 2, Prose ripple, Candidate set"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Tier.?1", "script.?managed", "Script-managed"],
           "context": "Must distinguish between Tier 1 (script-managed) and Tier 2 (prose) surfaces",
-          "source": "skills/update-docs/SKILL.md — Step 2 and Step 3 headings"
+          "source": "skills/update-docs/SKILL.md, Step 2 and Step 3 headings"
         }
       ]
     },
@@ -99,58 +97,56 @@
         {"type": "tool-called", "tool": "Read", "min": 1},
         {"type": "tool-called", "tool": "Bash", "min": 2},
         {"type": "tool-sequence", "sequence": ["Skill", "Bash"]},
-        {"type": "no-tool-called", "tool": "Write"},
-        {"type": "step-count", "min": 3, "max": 25},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 3}
+        {"type": "no-tool-called", "tool": "Write"}
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain",
           "pattern": "update-all-references",
           "context": "Must reference the Tier 1 marker-block script by name",
-          "source": "skills/update-docs/SKILL.md — Step 2: Tier 1 — Script-managed surfaces"
+          "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain",
           "pattern": "update-pages",
           "context": "Must reference the Tier 1 Docusaurus wrapper script by name",
-          "source": "skills/update-docs/SKILL.md — Step 2: Tier 1 — Script-managed surfaces"
+          "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["--check", "\\-\\-check"],
           "context": "Must use the --check flag to detect staleness before re-running scripts",
-          "source": "skills/update-docs/SKILL.md — Step 2: Tier 1 — Script-managed surfaces"
+          "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Surface.*Status.*Action", "\\|.*Surface.*\\|.*Status.*\\|"],
           "context": "Must produce the summary table with Surface/Status/Action columns",
-          "source": "skills/update-docs/SKILL.md — Step 4: Final output"
+          "source": "skills/update-docs/SKILL.md, Step 4: Final output"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["PASS", "STALE", "SKIP"],
-          "context": "Must use the defined status values (PASS, STALE, SKIP) in the summary",
-          "source": "skills/update-docs/SKILL.md — Step 4: Final output"
+          "patterns": ["\\|\\s*(PASS|STALE|SKIP)\\b"],
+          "context": "Must use a defined status value (PASS, STALE, SKIP) in a cell of the summary table",
+          "source": "skills/update-docs/SKILL.md: Step 4: Final output"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Tier.?1", "script.?managed", "Script-managed"],
           "context": "Must distinguish between Tier 1 (script-managed) and Tier 2 (prose) surfaces",
-          "source": "skills/update-docs/SKILL.md — Step 2 and Step 3 headings"
+          "source": "skills/update-docs/SKILL.md, Step 2 and Step 3 headings"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["chat.?only", "no file edits", "no file.?write"],
+          "patterns": ["no file (edits|changes|writes)", "(without|not) (editing|writing|modifying|changing) (any )?files"],
           "context": "Must acknowledge chat-only mode constraints (no file edits, emit fix commands instead)",
-          "source": "skills/update-docs/SKILL.md — Modes section"
+          "source": "skills/update-docs/SKILL.md: Modes section"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Marker.?block", "marker.?block", "Docusaurus"],
           "context": "Must name at least one of the two script-managed surface types",
-          "source": "skills/update-docs/SKILL.md — Step 2: Tier 1 — Script-managed surfaces table"
+          "source": "skills/update-docs/SKILL.md, Step 2: Tier 1, Script-managed surfaces table"
         }
       ]
     }

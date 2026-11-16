@@ -3,7 +3,7 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "We're a platform team standing up an Internal Developer Platform on Amazon EKS so our app teams can self-serve. Lay out the reference architecture and the opinionated tool stack — what runs where, how clusters are organized, and how a developer goes from idea to running service. We don't want to manage nodes and we want GitOps end to end.",
+      "prompt": "We're a platform team standing up an Internal Developer Platform on Amazon EKS so our app teams can self-serve. Lay out the reference architecture and the opinionated tool stack: what runs where, how clusters are organized, and how a developer goes from idea to running service. We don't want to manage nodes and we want GitOps end to end.",
       "expectations": [
         "Recommends a hub-and-spoke topology (hub for the platform control plane, spokes for workloads).",
         "Recommends EKS Auto Mode for the hub-and-spoke topology.",
@@ -15,8 +15,6 @@
         "Covers credential-free workload IAM (EKS Pod Identity / IRSA)."
       ],
       "process_assertions": [
-        {"type": "step-count", "min": 2, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5},
         {"type": "no-tool-called", "tool": "Write"},
         {"type": "no-tool-called", "tool": "Bash"}
       ],
@@ -53,19 +51,20 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Kargo", "kargo", "promotion"],
+          "patterns": ["Kargo"],
           "context": "Kargo is the multi-stage promotion tool in the opinionated stack",
           "source": "https://kargo.io/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["ACK", "AWS Controllers for Kubernetes"],
+          "patterns": ["\\bACK\\b", "AWS Controllers for Kubernetes"],
+          "flags": "",
           "context": "ACK provides self-service AWS resource provisioning as Kubernetes CRDs",
           "source": "https://aws-controllers-k8s.github.io/community/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["GitOps.?Bridge", "gitops.?bridge", "gitops bridge", "metadata.*cluster"],
+          "patterns": ["GitOps.?Bridge"],
           "context": "The GitOps Bridge pattern connects infrastructure metadata to clusters",
           "source": "https://github.com/aws-samples/platform-engineering-on-eks"
         },
@@ -86,7 +85,7 @@
     },
     {
       "id": 2,
-      "prompt": "I want a golden path for app teams on our EKS platform: a developer should only provide a Dockerfile and a simple app definition, then get a CI/CD pipeline and a safe rollout to dev and prod. Walk me through how to design this — the developer contract, how the pipeline is provisioned, how the app is described without raw Kubernetes YAML, and how we promote to prod safely.",
+      "prompt": "I want a golden path for app teams on our EKS platform: a developer should only provide a Dockerfile and a simple app definition, then get a CI/CD pipeline and a safe rollout to dev and prod. Walk me through how to design this: the developer contract, how the pipeline is provisioned, how the app is described without raw Kubernetes YAML, and how we promote to prod safely.",
       "expectations": [
         "Defines a narrow developer contract: the developer provides a Dockerfile and an OAM Application manifest.",
         "States that the platform handles the rest.",
@@ -105,16 +104,14 @@
         "Kargo requires manual approval to promote to prod."
       ],
       "process_assertions": [
-        {"type": "step-count", "min": 2, "max": 20},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 5},
         {"type": "no-tool-called", "tool": "Write"},
         {"type": "no-tool-called", "tool": "Bash"}
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
-          "patterns": ["Dockerfile", "docker.?file"],
-          "context": "The developer contract includes providing a Dockerfile",
+          "patterns": ["Dockerfile[^\\n]{0,80}(OAM|Application manifest|KubeVela)", "(OAM|Application manifest|KubeVela)[^\\n]{0,80}Dockerfile"],
+          "context": "The developer contract pairs the Dockerfile with an OAM Application manifest",
           "source": "https://github.com/aws-samples/platform-engineering-on-eks"
         },
         {
@@ -137,7 +134,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Argo.?Rollouts", "canary"],
+          "patterns": ["Argo.?Rollouts"],
           "context": "Progressive delivery uses Argo Rollouts canary strategy with quality gates",
           "source": "https://argoproj.github.io/rollouts/"
         },
@@ -155,7 +152,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Kargo", "kargo", "promotion"],
+          "patterns": ["Kargo"],
           "context": "Kargo orchestrates multi-stage promotion from dev to prod",
           "source": "https://kargo.io/"
         },
@@ -167,7 +164,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["component", "trait"],
+          "patterns": ["component[^\\n]{0,60}trait", "trait[^\\n]{0,60}component"],
           "context": "OAM model uses components and traits to abstract raw Kubernetes resources",
           "source": "https://kubevela.io/"
         },

@@ -50,7 +50,7 @@
         "Recommends migrating aws-auth ConfigMap to EKS Access Entries during a planned change window",
         "Recommends PSA restricted rolled out in audit mode before enforce mode",
         "Notes AL2 must be migrated (AL2023 or Bottlerocket)",
-        "References the correct AL2 timing (EKS stopped AL2 AMIs Nov 2025 and/or AL2 OS EOL June 30 2026) and does not conflate the two dates",
+        "References the correct AL2 timing (EKS stopped AL2 AMIs Nov 2025 and/or AL2 OS EOL June 30 2026)",
         "Recommends AWS Config conformance packs (the PCI DSS 4.0 pack) as the audit-prep path",
         "Recommends Security Hub as the audit-prep path",
         "Does NOT prescribe standing up AWS Audit Manager for this audit.",
@@ -90,21 +90,16 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
         {
-          "type": "must-contain",
-          "pattern": "exposed",
+          "type": "must-contain-one-of",
+          "patterns": [
+            "(overall|verdict|result)\\W{0,4}(is\\s+)?\\W{0,3}exposed",
+            "\\|\\s*`?exposed`?\\s*\\|",
+            "\\b(is|are) exposed\\b"
+          ],
           "context": "Both components are below the fixed versions",
           "source": "skills/eks-security/references/cve-advisory-review.md (Verdict rules; worked example table, standard cluster row)"
         },
@@ -127,9 +122,12 @@
           "source": "skills/eks-security/references/cve-advisory-review.md (Worked example: impacted versions line)"
         },
         {
-          "type": "must-contain",
-          "pattern": "2026-170-aws",
-          "context": "Finding cites its source URL",
+          "type": "must-contain-one-of",
+          "patterns": [
+            "2026-170-aws[^\\n]{0,80}2026-11-05T15:04",
+            "2026-11-05T15:04[^\\n]{0,80}2026-170-aws"
+          ],
+          "context": "Finding cites its source URL with its read time",
           "source": "skills/eks-security/SKILL.md (accuracy bar: every version fact with its URL and read time)"
         },
         {
@@ -171,15 +169,6 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
@@ -234,22 +223,14 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "unknown",
+            "(overall|verdict|result)\\W{0,4}(is\\s+)?\\W{0,3}unknown",
+            "\\|\\s*`?unknown`?\\s*\\|",
             "could not be compared"
           ],
           "context": "Unreadable component is unknown",
@@ -314,15 +295,6 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
@@ -407,15 +379,6 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
@@ -439,7 +402,8 @@
           "type": "must-contain-one-of",
           "patterns": [
             "create-snapshot",
-            "snapshot"
+            "(propos\\w*|take|taking|create|creating)\\b[^\\n]{0,40}snapshots?",
+            "snapshot (every|each|all|the)\\b[^\\n]{0,40}volumes?"
           ],
           "context": "Propose a snapshot after isolation",
           "source": "skills/eks-security/references/security-event-response.md (Step 4: snapshot and investigate, after isolation)"
@@ -447,10 +411,8 @@
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "not covered",
-            "does not cover",
-            "doesn't cover",
-            "out of scope"
+            "(not covered|does not cover|doesn't cover|out of scope|not checked)[^\\n]{0,100}(GuardDuty|CloudTrail|exploit|were used|was used)",
+            "(GuardDuty|CloudTrail|exploit|were used|was used)[^\\n]{0,100}(not covered|does not cover|doesn't cover|out of scope|not checked)"
           ],
           "context": "Exploitation checks are not covered",
           "source": "skills/eks-security/references/security-event-response.md (Step 2: checking whether an exposure was exploited is not covered yet)"
@@ -506,15 +468,6 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [

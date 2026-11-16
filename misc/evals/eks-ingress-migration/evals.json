@@ -3,21 +3,30 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Here is a cluster's ingress inventory: 18 Ingress resources — 6 already on the AWS Load Balancer Controller (ingressClassName: alb), 2 nginx ingresses that are plain annotation-only rewrites, and 10 nginx ingresses including one with an nginx.ingress.kubernetes.io/configuration-snippet Lua block on /checkout, three with rewrite-target, CORS + rate-limit + IP-allowlist on the API ingress, and cert-manager TLS. Produce the Migration Difficulty Score and Score Breakdown.",
+      "prompt": "Here is a cluster's ingress inventory: 18 Ingress resources: 6 already on the AWS Load Balancer Controller (ingressClassName: alb), 2 nginx ingresses that are plain annotation-only rewrites, and 10 nginx ingresses including one with an nginx.ingress.kubernetes.io/configuration-snippet Lua block on /checkout, three with rewrite-target, CORS + rate-limit + IP-allowlist on the API ingress, and cert-manager TLS. Produce the Migration Difficulty Score and Score Breakdown.",
       "expectations": [
         "Reports a single Migration Difficulty Score between 0 and 100",
         "Reports the score with a band label (TRIVIAL/EASY/MODERATE/HARD/VERY HARD)",
         "Score Breakdown deductions sum to (100 - score)",
         "Score Breakdown arithmetic is shown and consistent",
-        "The /checkout configuration-snippet is flagged as a no-equivalent Tier-A item",
-        "The /checkout configuration-snippet raises the Re-architecture Gate (gate >= 1)",
+        "The /checkout configuration-snippet is flagged as having no equivalent on the target (no workaround)",
+        "The /checkout configuration-snippet raises the Re-architecture Gate (counted as a blocker that needs a redesign decision)",
         "The Re-architecture Gate is reported separately from the numeric score (no hard cap applied)",
         "CORS is scored Impact 2 or 3 (its app/backend or WAF workaround is applicable in this scenario: no closed/unmodifiable-backend escalation), not 4 or 5",
         "Rate-limit is scored Impact 2 or 3 (its app/backend or WAF workaround is applicable in this scenario: no closed/unmodifiable-backend escalation), not 4 or 5",
         "IP-allowlist is scored Impact 2 or 3 (its app/backend or WAF workaround is applicable in this scenario: no closed/unmodifiable-backend escalation), not 4 or 5",
         "Scale/Volume is computed from the 12 routes needing work (18 total minus the 6 ALB-served routes; the 2 annotation-only class-switch moves are counted as work, not free)",
         "The 6 ALB-served routes are listed at 0 effort, not counted as migration work",
-        "No GREEN/AMBER/RED rating language is used — only the Impact 0-5 scale"
+        "No GREEN/AMBER/RED rating language is used: only the Impact 0-5 scale"
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-not-contain",
+          "pattern": "\\|\\s*\\**(GREEN|AMBER|RED)\\**\\s*(\\||\\n|$)|[A-Za-z][\\w -]*:\\s*\\**(GREEN|AMBER|RED)\\b(?!\\s*[/|])",
+          "flags": "",
+          "context": "The skill never uses GREEN/AMBER/RED (skills/eks-ingress-migration/SKILL.md:319): this catches a colour verdict as a table cell or after a label ('CORS: RED'), case-sensitive so blue/green cutover prose passes; the slash lookahead spares a disclaimer naming the scheme ('not GREEN/AMBER/RED'). The judge expectation backstops other shapes.",
+          "source": "skills/eks-ingress-migration/SKILL.md:319"
+        }
       ],
       "files": []
     },
@@ -36,7 +45,7 @@
     },
     {
       "id": 3,
-      "prompt": "Assess three clusters and give each a Migration Difficulty Score with explicit presence/absence reasoning. Cluster A: no ingress controller, no IngressClass, and no Ingress resources. Cluster B: 5 nginx Ingress objects exist but no ingress-nginx controller is installed, and nothing else — and no surviving load balancers or target groups still front those objects (verified zero live traffic). Cluster C: a healthy ingress-nginx controller on image v1.10.0 with its validating admission webhook exposed (the `--validating-webhook` server listening on :8443), currently serving zero Ingress routes.",
+      "prompt": "Assess three clusters and give each a Migration Difficulty Score with explicit presence/absence reasoning. Cluster A: no ingress controller, no IngressClass, and no Ingress resources. Cluster B: 5 nginx Ingress objects exist but no ingress-nginx controller is installed, and nothing else, and no surviving load balancers or target groups still front those objects (verified zero live traffic). Cluster C: a healthy ingress-nginx controller on image v1.10.0 with its validating admission webhook exposed (the `--validating-webhook` server listening on :8443), currently serving zero Ingress routes.",
       "expectations": [
         "Cluster A (empty estate) scores 100/TRIVIAL",
         "Cluster A carries a 'nothing to migrate' note",
@@ -74,7 +83,7 @@
         "Treats the mutating step --dry-run=false apply as an operator action the assessment documents but does not execute",
         "Treats the mutating step kubectl delete ingress as an operator action the assessment documents but does not execute",
         "Treats translate as read-only/assessor-run",
-        "Treats the dry-run preview as read-only/assessor-run"
+        "Treats inspecting the dry-run plan (the Migration Console diff or the dry-run-plan annotation) as read-only/assessor-run"
       ],
       "files": []
     },
@@ -90,9 +99,9 @@
     },
     {
       "id": 6,
-      "prompt": "A cluster is fully on the AWS Load Balancer Controller (ingressClassName: alb) with about 20 ALB Ingress resources and the team wants to move to the Gateway API. The installed controller is v2.12.1 and the cluster has Gateway API standard CRDs v1.2.0 installed. Can we use the lbc-migrate toolkit? Recommend the path.",
+      "prompt": "A cluster is fully on the AWS Load Balancer Controller (ingressClassName: alb) with about 20 ALB Ingress resources and the team wants to move to the Gateway API. The installed controller is v2.12.0 and the cluster has Gateway API standard CRDs v1.2.0 installed. Can we use the lbc-migrate toolkit? Recommend the path.",
       "expectations": [
-        "States that controller v2.12.1 is below the Gateway API production floor of v3.0.0",
+        "States that controller v2.12.0 is below the Gateway API production floor of v3.0.0",
         "States that standard CRDs v1.2.0 are below the version the target controller line requires",
         "Concludes lbc-migrate cannot be used on the estate as it stands",
         "Concludes that Option 1 (Gateway API) as a whole is blocked until the operator upgrades - not just the automation sub-path",
