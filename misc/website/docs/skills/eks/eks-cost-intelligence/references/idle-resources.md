@@ -39,7 +39,7 @@ Unlike compute efficiency (which identifies *under-utilized* resources), this di
 | 1 | Zero-replica Deployments idle for extended periods | 0 replicas for > 7 days | By count × resource allocation |
 | 2 | LoadBalancer Services with no healthy endpoints | 0 healthy endpoints | **HIGH** (Req 10.5) — per LB hourly cost |
 | 3 | Namespaces with no running workloads but allocated quotas | 0 running pods + active quota | MEDIUM |
-| 4 | Orphaned ConfigMaps not referenced by running workloads (Secrets not read) | Not mounted/envFrom by any running pod | LOW–MEDIUM by count |
+| 4 | Orphaned ConfigMaps not referenced by running workloads | Not mounted/envFrom by any running pod | LOW |
 
 ---
 
@@ -153,8 +153,8 @@ kubectl scale deployment <name> -n <namespace> --replicas=1
 
 # List all associated resources before cleanup
 kubectl get all,pvc,configmap -n <namespace> -l app=<deployment-label>
-# Secrets are not read (apex.no-secrets); the pod template names the ones this Deployment uses
-kubectl get deployment <name> -n <namespace> -o json | jq -r '.spec.template.spec | [(.volumes[]? | .secret.secretName, .projected.sources[]?.secret.name), ((.containers[], .initContainers[]?) | .envFrom[]?.secretRef.name, .env[]?.valueFrom.secretKeyRef.name)] | map(select(. != null)) | unique[]'
+# Secrets are not read (apex.no-secrets); the pod template names the volume and env Secrets this Deployment uses (not imagePullSecrets or CSI refs)
+set -o pipefail; kubectl get deployment <name> -n <namespace> -o json | jq -r '.spec.template.spec | [(.volumes[]? | .secret.secretName, .projected.sources[]?.secret.name), ((.containers[], .initContainers[]?) | .envFrom[]?.secretRef.name, .env[]?.valueFrom.secretKeyRef.name)] | map(select(. != null)) | unique[]'
 ```
 
 ```bash
@@ -445,7 +445,7 @@ kubectl delete limitrange <limitrange-name> -n <namespace>
 
 # Before deleting, check for any non-running resources (PVCs, ConfigMaps, etc.)
 kubectl get all,pvc,configmap,serviceaccount -n <namespace>
-# Secrets are not read (apex.no-secrets): deleting the namespace deletes its Secrets too, so the report tells the user to check them first
+# Deleting the namespace also deletes its Secrets, which this assessment does not list.
 ```
 
 ---
@@ -456,7 +456,7 @@ kubectl get all,pvc,configmap,serviceaccount -n <namespace>
 
 ConfigMaps that exist in non-system namespaces but are not referenced by any running pod, either as volume mounts, environment variable sources (envFrom/valueFrom), or projected volumes. These represent configuration debt.
 
-Secrets are not read (apex.no-secrets), so this check does not list them: the report states "Secrets not read (apex.no-secrets)" for this check, with one line for the user: to find unused Secrets yourself, list them with `kubectl get secrets -n <namespace>` and compare the names with the Secret references in your running pods (volumes, envFrom, env valueFrom).
+Secrets are not read (apex.no-secrets), so this check does not list them: state in the report's Idle Resources section: Secrets not read.
 
 ### Data collection
 
@@ -528,7 +528,7 @@ list_k8s_resources(
 Always exclude from orphan detection:
 - ConfigMaps named `kube-root-ca.crt` (system-managed)
 - ConfigMaps in system namespaces (`kube-*`, `amazon-*`, `aws-*`)
-- ConfigMaps with label `app.kubernetes.io/managed-by: Helm` that match a deployed release
+- ConfigMaps with label `app.kubernetes.io/managed-by: Helm` and a `meta.helm.sh/release-name` annotation (release status not read)
 
 ### Analysis logic
 
@@ -536,7 +536,7 @@ Always exclude from orphan detection:
 For each non-system namespace:
   A confirmed empty ConfigMap list, or one containing only unconditionally excluded objects, needs no reference comparison.
   For listed objects, require confirmed Pod references; otherwise mark the comparison UNKNOWN.
-  Secrets are not listed (apex.no-secrets): report them as "Secrets not read (apex.no-secrets)".
+  Secrets are not listed (apex.no-secrets): state in the report's Idle Resources section: Secrets not read.
   referenced_cms = set of ConfigMap names used by running pods (volumes, envFrom, valueFrom)
   
   all_cms = set of all ConfigMaps in namespace (excluding system CMs)
@@ -552,9 +552,7 @@ For each non-system namespace:
 
 | Condition | Severity |
 |-----------|----------|
-| > 20 orphaned ConfigMaps in a namespace | MEDIUM |
 | Orphaned ConfigMaps (any count) | LOW |
-| Total orphaned objects across cluster > 50 | MEDIUM (cluster hygiene) |
 
 > Note: Orphaned ConfigMaps have minimal direct cost impact but indicate configuration debt and complicate cluster operations.
 
@@ -627,7 +625,7 @@ START
   │   ├─ If 0 running pods + quota exists → Generate finding
   │   └─ Check for bound PVCs in empty namespace (escalates severity)
   │
-  ├─ Check 4: Orphaned ConfigMaps (Secrets not read)
+  ├─ Check 4: Orphaned ConfigMaps
   │   ├─ Build reference map from all running pods
   │   ├─ List all ConfigMaps (excluding system objects)
   │   ├─ Diff: all - referenced = orphaned
