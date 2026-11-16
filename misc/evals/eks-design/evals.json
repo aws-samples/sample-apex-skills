@@ -5,13 +5,16 @@
       "id": 1,
       "prompt": "Design a production-ready EKS architecture for a B2B SaaS platform with these requirements: 3 product teams sharing one cluster, PCI-DSS scope for the payments service, 200+ microservices expected within 12 months, bursty traffic with 10x spikes during business hours, multi-AZ in us-east-1, and a hard requirement for GitOps-based deployments. Produce the full architecture design document including system architecture with Mermaid diagrams, ADRs for key decisions, security architecture, and a validation summary.",
       "expectations": [
-        "Output creates at least 5 markdown files using the Write tool in a structured directory TODO: human review",
-        "Output includes at least one .mmd file or Mermaid code block with `subgraph` or `flowchart` syntax TODO: human review",
-        "Output creates at least 2 Architecture Decision Records as separate files with Status/Context/Decision/Consequences sections TODO: human review",
-        "Output produces a machine-readable handoff artifact (AGENTS.md or similar) suitable for feeding to eks-build TODO: human review",
-        "The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace with network policies, encryption requirements, audit logging) rather than generic security advice TODO: human review",
-        "The output recommends a compute strategy that combines Karpenter (or Auto Mode) for workload flexibility with a stable managed node group for critical system components TODO: human review",
-        "The output includes a validation or scoring section that maps design choices to AWS Well-Architected pillars (at least reliability, security, and cost optimization) TODO: human review"
+        "Output creates at least 5 markdown files using the Write tool",
+        "Output places the markdown files in a structured directory",
+        "Output includes at least one .mmd file or Mermaid code block with `subgraph` or `flowchart` syntax",
+        "Output creates at least 2 Architecture Decision Records as separate files",
+        "Each Architecture Decision Record has Status/Context/Decision/Consequences sections",
+        "Output produces a machine-readable handoff artifact (AGENTS.md or similar) suitable for feeding to eks-build",
+        "The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace with network policies, encryption requirements, audit logging) rather than generic security advice",
+        "The output recommends a compute strategy that uses Karpenter (or Auto Mode) for workload flexibility",
+        "The output recommends a compute strategy with a stable managed node group for critical system components",
+        "The output includes a validation or scoring section that maps design choices to AWS Well-Architected pillars (at least reliability, security, and cost optimization)"
       ],
       "files": [],
       "process_assertions": [
@@ -114,14 +117,20 @@
       "id": 2,
       "prompt": "Validate and score this existing EKS architecture design against Well-Architected best practices. Current design: Single EKS 1.29 cluster in ap-southeast-1, 2 AZs, one Karpenter NodePool with only m5.xlarge on-demand instances, VPC CNI in default mode (secondary IPs), no network policies, all workloads use the node IAM role for AWS access, ALB Ingress Controller with a single public ALB for all services, no pod security standards enforced, CloudWatch Container Insights for observability, no PDBs defined, manual kubectl deployments. Produce a validation report with risk scores per Well-Architected pillar and a prioritized remediation plan.",
       "expectations": [
-        "Output creates at least 1 file using the Write tool (not just inline conversation text) TODO: human review",
-        "The output provides explicit scores or risk ratings for at least 4 of the 6 Well-Architected pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability) TODO: human review",
-        "The output flags the node IAM role sharing as a critical/high security finding and recommends migration to Pod Identity or IRSA with per-workload roles TODO: human review",
-        "The output identifies the 2-AZ configuration as a reliability risk and recommends expanding to 3 AZs TODO: human review",
-        "The output recommends topology spread constraints or pod anti-affinity for distributing workloads across AZs TODO: human review",
-        "The output flags the single instance type (m5.xlarge on-demand only) as both a cost and availability risk, recommending instance diversification and Spot for non-critical workloads TODO: human review",
-        "The output presents remediation items in a prioritized order with security and reliability fixes ranked above cost optimization TODO: human review",
-        "The output identifies the lack of GitOps (manual kubectl) as an operational excellence gap and recommends a GitOps tool (ArgoCD, Flux) for declarative deployments TODO: human review"
+        "Output creates at least 1 file using the Write tool (not just inline conversation text)",
+        "The output provides explicit scores or risk ratings for at least 4 of the 6 Well-Architected pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability)",
+        "The output flags the node IAM role sharing as a critical/high security finding",
+        "The output recommends migration to Pod Identity or IRSA with per-workload roles",
+        "The output identifies the 2-AZ configuration as a reliability risk",
+        "The output recommends expanding to 3 AZs",
+        "The output recommends topology spread constraints or pod anti-affinity for distributing workloads across AZs",
+        "The output flags the single instance type (m5.xlarge on-demand only) as a cost risk",
+        "The output flags the single instance type as an availability risk",
+        "The output recommends instance diversification",
+        "The output recommends Spot for non-critical workloads",
+        "The output presents remediation items in a prioritized order with security and reliability fixes ranked above cost optimization",
+        "The output identifies the lack of GitOps (manual kubectl) as an operational excellence gap",
+        "The output recommends a GitOps tool (ArgoCD, Flux) for declarative deployments"
       ],
       "files": [],
       "process_assertions": [

@@ -5,14 +5,17 @@
       "id": 1,
       "prompt": "Generate a complete production-ready EKS Terraform project for a customer in us-west-2. Requirements: EKS 1.30, Karpenter for autoscaling, AWS Load Balancer Controller, CoreDNS, VPC-CNI with prefix delegation enabled, and cert-manager. The cluster should use private endpoint access only with VPC endpoints for ECR, S3, STS, and SSM. Use IRSA for all addon service accounts. Output the full project structure.",
       "expectations": [
-        "Generates a versions.tf with required_providers block pinning aws, kubernetes, and helm provider versions TODO: human review",
-        "Creates IRSA IAM roles with proper trust policies for at least aws-load-balancer-controller and Karpenter TODO: human review",
-        "Configures EKS cluster with endpoint_private_access = true and endpoint_public_access = false TODO: human review",
-        "Includes VPC endpoint resources for at minimum ecr.api, ecr.dkr, s3, sts TODO: human review",
-        "Karpenter configuration includes an EC2NodeClass and at least one NodePool resource TODO: human review",
-        "Uses two-phase module architecture or separate webhook addon module to handle dependency ordering between cert-manager and LBC TODO: human review",
-        "Sets before_compute = true for vpc-cni or eks-pod-identity-agent to prevent NodeCreationFailure TODO: human review",
-        "Uses terraform-aws-modules/eks community module as the cluster foundation (not raw aws_eks_cluster resource) TODO: human review"
+        "Generates a versions.tf with required_providers block",
+        "The required_providers block in versions.tf pins aws, kubernetes, and helm provider versions",
+        "Creates IRSA IAM roles for at least aws-load-balancer-controller and Karpenter",
+        "The IRSA IAM roles for aws-load-balancer-controller and Karpenter have proper trust policies",
+        "Configures EKS cluster with endpoint_private_access = true",
+        "Configures EKS cluster with endpoint_public_access = false",
+        "Includes VPC endpoint resources for at minimum ecr.api, ecr.dkr, s3, sts",
+        "Karpenter configuration includes an EC2NodeClass and at least one NodePool resource",
+        "Uses two-phase module architecture or separate webhook addon module to handle dependency ordering between cert-manager and LBC",
+        "Sets before_compute = true for vpc-cni or eks-pod-identity-agent to prevent NodeCreationFailure",
+        "Uses terraform-aws-modules/eks community module as the cluster foundation (not raw aws_eks_cluster resource)"
       ],
       "knowledge_assertions": [
         {
@@ -156,10 +159,13 @@
       "id": 2,
       "prompt": "Add Kyverno and external-secrets-operator as custom addons to my existing EKS Terraform project. Kyverno needs two-phase webhook ordering (install CRDs first, then policies). External-secrets needs IRSA with access to AWS Secrets Manager. The project uses Pattern 2a (ArgoCD managing addons). Generate the ArgoCD Application manifests and any supporting Terraform for IAM.",
       "expectations": [
-        "Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies with sync-wave annotations ensuring CRDs deploy first TODO: human review",
-        "Creates an IAM role with trust policy for the external-secrets-operator service account with secretsmanager:GetSecretValue permission TODO: human review",
-        "ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override TODO: human review",
-        "Both addons specify a target namespace and create-namespace sync option TODO: human review"
+        "Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies",
+        "The Kyverno ArgoCD Application manifests have sync-wave annotations ensuring CRDs deploy first",
+        "Creates an IAM role with trust policy for the external-secrets-operator service account",
+        "The external-secrets-operator IAM role has secretsmanager:GetSecretValue permission",
+        "ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override",
+        "Both addons specify a target namespace",
+        "Both addons specify a create-namespace sync option"
       ],
       "knowledge_assertions": [
         {
@@ -252,10 +258,12 @@
       "id": 3,
       "prompt": "I need to choose between Pattern 1 (full Terraform), Pattern 2a (ArgoCD+Terraform), and Pattern 2b (ArgoCD+ACK/KRO) for my customer. They have: 5 EKS clusters across 3 environments, a platform team of 2 people, no existing GitOps tooling, and a requirement for SOC2 compliance with drift detection. Generate the project scaffold for your recommended pattern.",
       "expectations": [
-        "Recommends Pattern 2a (or provides a clear rationale if choosing differently) based on the stated constraints of small team and drift detection needs TODO: human review",
-        "If Pattern 2a chosen, generates a directory structure separating base infrastructure Terraform from ArgoCD addon manifests. If Pattern 1 chosen, generates multi-environment Terraform structure with separate tfvars per environment TODO: human review",
-        "If Pattern 2a chosen, includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments. If Pattern 1 chosen, uses Terraform workspaces or per-environment directories to manage multiple clusters TODO: human review",
-        "Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status, terraform plan -detailed-exitcode in CI, or OPA/Kyverno policies TODO: human review"
+        "Recommends Pattern 2a (or provides a clear rationale if choosing differently) based on the stated constraints of small team and drift detection needs",
+        "If Pattern 2a chosen, generates a directory structure separating base infrastructure Terraform from ArgoCD addon manifests",
+        "If Pattern 1 chosen, generates multi-environment Terraform structure with separate tfvars per environment",
+        "If Pattern 2a chosen, includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments",
+        "If Pattern 1 chosen, uses Terraform workspaces or per-environment directories to manage multiple clusters",
+        "Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status, terraform plan -detailed-exitcode in CI, or OPA/Kyverno policies"
       ],
       "knowledge_assertions": [
         {
@@ -377,10 +385,12 @@
       "id": 4,
       "prompt": "Generate a Pattern 1 EKS Terraform project for a customer whose security team requires the permissions boundary arn:aws:iam::123456789012:policy/OrgBoundary on every IAM role that automation creates. Requirements: EKS managed node group, Karpenter, AWS Load Balancer Controller and the EBS CSI driver with Pod Identity.",
       "expectations": [
-        "Sets the boundary ARN once in configs/cluster.yaml as permissions_boundary and references it from the Terraform code rather than repeating the literal ARN in each role TODO: human review",
-        "Passes the boundary to the cluster role and node group roles of terraform-aws-modules/eks (iam_role_permissions_boundary) TODO: human review",
-        "Passes the boundary to both Karpenter roles (iam_role_permissions_boundary_arn and node_iam_role_permissions_boundary) TODO: human review",
-        "Passes the boundary to the EBS CSI Pod Identity role (permissions_boundary_arn) and the LBC IRSA role (role_permissions_boundary_arn in its eks-blueprints-addons map) TODO: human review"
+        "Sets the boundary ARN once in configs/cluster.yaml as permissions_boundary",
+        "References the boundary ARN from the Terraform code rather than repeating the literal ARN in each role",
+        "Passes the boundary to the cluster role and node group roles of terraform-aws-modules/eks (iam_role_permissions_boundary)",
+        "Passes the boundary to both Karpenter roles (iam_role_permissions_boundary_arn and node_iam_role_permissions_boundary)",
+        "Passes the boundary to the EBS CSI Pod Identity role (permissions_boundary_arn)",
+        "Passes the boundary to the LBC IRSA role (role_permissions_boundary_arn in its eks-blueprints-addons map)"
       ],
       "knowledge_assertions": [
         {
@@ -413,10 +423,11 @@
       "id": 5,
       "prompt": "Generate a Pattern 1 EKS Terraform project with an EKS managed node group, Karpenter and the EBS CSI driver with Pod Identity. Our security team says we need a permissions boundary, so yes, add one.",
       "expectations": [
-        "Does not generate the project: stops before writing any file TODO: human review",
-        "Names what is missing: the boundary policy ARN and which roles should carry it TODO: human review",
-        "Asks for those answers again instead of choosing them TODO: human review",
-        "Does not write, suggest or guess a boundary policy or an ARN TODO: human review"
+        "Does not generate the project: stops before writing any file",
+        "Names what is missing: the boundary policy ARN",
+        "Names what is missing: which roles should carry the boundary policy",
+        "Asks for those answers again instead of choosing them",
+        "Does not write, suggest or guess a boundary policy or an ARN"
       ],
       "knowledge_assertions": [
         {
