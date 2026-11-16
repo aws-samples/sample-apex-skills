@@ -291,7 +291,6 @@
         "The readiness score falls between 60 and 89 (no hard-blocker override applied).",
         "The rating is one of FAIR / RISKY / GOOD.",
         "The Blockers section is empty (or contains 'No blockers identified').",
-        "The FlowSchema v1beta3 APIs are flagged as deprecated-but-still-served (LOW), not as removed-in-target.",
         "Flags single-replica plus Recreate on `legacy-importer` as HIGH-severity workload risks under Critical Actions.",
         "The Recommended Actions section is populated with MEDIUM-severity workload risks, including the missing PDB on `report-generator`.",
         "The Recommended Actions section is populated with MEDIUM-severity workload risks, including the missing PDB on `email-sender`.",

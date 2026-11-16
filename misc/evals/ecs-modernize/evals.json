@@ -204,7 +204,7 @@
         "Does not generate the Linux container path environment Terraform in the answer or the report",
         "Names ecs-architect for capacity-provider strategy / task sizing / network design",
         "Presents compute-model candidates only, without concrete design values",
-        "Names ecs-security for IAM and secrets hardening",
+        "Names ecs-security for IAM, secrets and compliance hardening",
         "Does not produce a hardening design",
         "Names ecs-recon for the live ECS estate inventory",
         "Does not call AWS APIs to enumerate the running environment",

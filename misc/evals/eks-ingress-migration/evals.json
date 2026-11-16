@@ -74,8 +74,7 @@
         "Treats the mutating step --dry-run=false apply as an operator action the assessment documents but does not execute",
         "Treats the mutating step kubectl delete ingress as an operator action the assessment documents but does not execute",
         "Treats translate as read-only/assessor-run",
-        "Treats the dry-run preview as read-only/assessor-run",
-        "Presents no step other than translate and the dry-run preview as read-only/assessor-run"
+        "Treats the dry-run preview as read-only/assessor-run"
       ],
       "files": []
     },

@@ -89,7 +89,7 @@
       "prompt": "I want a golden path for app teams on our EKS platform: a developer should only provide a Dockerfile and a simple app definition, then get a CI/CD pipeline and a safe rollout to dev and prod. Walk me through how to design this — the developer contract, how the pipeline is provisioned, how the app is described without raw Kubernetes YAML, and how we promote to prod safely.",
       "expectations": [
         "Defines a narrow developer contract: the developer provides a Dockerfile and an OAM Application manifest.",
-        "States that the platform handles everything beyond the Dockerfile and the OAM Application manifest.",
+        "States that the platform handles the rest.",
         "Uses a Backstage template that provisions the pipeline.",
         "Provisions the pipeline via a kro CICDPipeline.",
         "Uses Argo Workflows for CI in the pipeline.",
