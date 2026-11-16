@@ -50,3 +50,12 @@ checks:
   - id: read-only-and-no-secrets-evals
     what: "Read-only and no-Secrets are tested by evals, since a text check proves only that the rule's text landed"
     status: planned
+  - id: metadata-version-bumped
+    what: "A required metadata.version, bumped on every change to a skill's instructions, scripts or references"
+    status: planned
+  - id: skill-md-under-500-lines
+    what: "SKILL.md under 500 lines"
+    status: planned
+  - id: relative-links-resolve
+    what: "The relative link check"
+    status: planned

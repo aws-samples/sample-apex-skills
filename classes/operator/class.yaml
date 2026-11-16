@@ -15,3 +15,15 @@ checks:
   - id: declared-artifact-checks
     what: "The declared checks run on fixture artifacts in CI"
     status: planned
+
+# The Stop gate (piece 8), one gate for Operator and Script members. Before a
+# turn ends it re-runs the validator on a Script skill's output and an
+# Operator skill's declared artifact checks (operator.artifact-checks).
+# Script's parent is operator, so this one entry reaches both classes.
+hooks:
+  - id: operator.stop-gate
+    what: "The turn does not end until the skill's output, or its declared artifact checks, pass"
+    status: planned
+    event: Stop
+    script: "../script/hooks/stop-gate/gate.py"
+    mode: block
