@@ -15,7 +15,8 @@
         "The output does not claim the server calls AWS; it may note the entry is credential-free while still making non-AWS outbound calls (image-manifest/registry checks and host-execution tools).",
         "The output does not claim the knowledge-base search is a network call: it is a local bundled index.",
         "The output tells the user to restart/reload Claude Code.",
-        "The output tells the user to verify by listing MCP tools and smoke-testing the readiness scanner against the mounted repo.",
+        "The output tells the user to verify by listing MCP tools.",
+        "The output tells the user to verify by smoke-testing the readiness scanner against the mounted repo.",
         "The output does not invent a precise MCP tool identifier it is unsure of.",
         "The output does not fabricate an alternate image name (the image is `armlimited/arm-mcp`, at `:latest` or a pinned tag like `:2.9.0`)."
       ],
@@ -60,7 +61,7 @@
         "The NodePool has a NoSchedule taint keeping un-vetted pods off.",
         "The canary pod spec includes a toleration matching the taint.",
         "The canary pod spec also includes an arm64 `nodeSelector` (or equivalent nodeAffinity) so placement is forced, not merely permitted.",
-        "The output explains the taint-first rationale — without the taint an amd64-only pod could land on arm64 and hit CrashLoopBackOff / exec format error.",
+        "The output explains the taint-first rationale: without the taint an amd64-only pod could land on arm64 and hit CrashLoopBackOff / exec format error.",
         "The output does not tell the user to hardcode an `-arm64` tag suffix into the Kubernetes manifest (the multi-arch manifest list handles arch selection)."
       ],
       "knowledge_assertions": [

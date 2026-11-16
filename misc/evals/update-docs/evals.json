@@ -8,7 +8,10 @@
         "Runs ./misc/update-all-references.sh --check to detect marker-block staleness",
         "Runs ./misc/update-pages.sh --check to detect Docusaurus wrapper staleness",
         "Identifies prose references to the old name 'eks-recon' in tracked markdown files",
-        "Produces the final Surface | Status | Action taken | Confirm? markdown table"
+        "Produces the final markdown table with a Surface column",
+        "Produces the final markdown table with a Status column",
+        "Produces the final markdown table with an Action taken column",
+        "Produces the final markdown table with a Confirm? column"
       ],
       "live_only": true,
       "files": [
@@ -84,7 +87,10 @@
         "Checks Tier 1 surfaces by running both --check scripts",
         "Checks Tier 1 surfaces by reporting the status of both --check scripts",
         "Scans Tier 2 prose surfaces for references to the new skill that might need adding",
-        "Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns",
+        "Outputs the final markdown table with a Surface column",
+        "Outputs the final markdown table with a Status column",
+        "Outputs the final markdown table with an Action taken column",
+        "Outputs the final markdown table with a Confirm? column",
         "Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits)"
       ],
       "live_only": true,

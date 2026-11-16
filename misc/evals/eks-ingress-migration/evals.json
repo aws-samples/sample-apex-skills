@@ -12,7 +12,9 @@
         "The /checkout configuration-snippet is flagged as a no-equivalent Tier-A item",
         "The /checkout configuration-snippet raises the Re-architecture Gate (gate >= 1)",
         "The Re-architecture Gate is reported separately from the numeric score (no hard cap applied)",
-        "CORS, rate-limit, and IP-allowlist are each scored Impact 2 or 3 (their app/backend or WAF workaround is applicable in this scenario — no closed/unmodifiable-backend escalation), not 4 or 5",
+        "CORS is scored Impact 2 or 3 (its app/backend or WAF workaround is applicable in this scenario: no closed/unmodifiable-backend escalation), not 4 or 5",
+        "rate-limit is scored Impact 2 or 3 (its app/backend or WAF workaround is applicable in this scenario: no closed/unmodifiable-backend escalation), not 4 or 5",
+        "IP-allowlist is scored Impact 2 or 3 (its app/backend or WAF workaround is applicable in this scenario: no closed/unmodifiable-backend escalation), not 4 or 5",
         "Scale/Volume is computed from the 12 routes needing work (18 total minus the 6 ALB-served routes; the 2 annotation-only class-switch moves are counted as work, not free)",
         "The 6 ALB-served routes are listed at 0 effort, not counted as migration work",
         "No GREEN/AMBER/RED rating language is used — only the Impact 0-5 scale"
@@ -25,7 +27,8 @@
       "expectations": [
         "Identifies server-snippet as having no faithful ALB/Gateway-API equivalent (Tier-A, no workaround)",
         "Marks the generated target manifest for this ingress as INCOMPLETE / not safe to blind-apply",
-        "Names the hidden /healthz and /internal/ paths for this ingress",
+        "Names the hidden /healthz path for this ingress",
+        "Names the hidden /internal/ path for this ingress",
         "Tells the user to hand-port the snippet-injected routes before applying",
         "Counts this ingress toward the Re-architecture Gate, not as a clean annotation swap"
       ],
@@ -37,7 +40,8 @@
       "expectations": [
         "Cluster A (empty estate) scores 100/TRIVIAL with a 'nothing to migrate' note",
         "Cluster A is explicitly NOT rated as high-difficulty / a low score for being empty; absence is not equated with health",
-        "Cluster B treats the absent controller and the 5 orphaned nginx Ingress objects as non-events (Impact 0)",
+        "Cluster B treats the absent controller as a non-event (Impact 0)",
+        "Cluster B treats the 5 orphaned nginx Ingress objects as non-events (Impact 0)",
         "Cluster B emits a Migration Crew Alert",
         "Because no surviving load balancer fronts the Cluster B orphans (verified zero live traffic), they are confirmed dead rather than treated as live",
         "With no other live findings, the Cluster B headline is 100/TRIVIAL",
@@ -57,12 +61,18 @@
         "States that the lbc-migrate CLI ships in LBC v3.4.0",
         "States that the path uses Gateway API standard CRDs v1.5.0",
         "States that cluster reads are read-only",
-        "Describes the dry-run preview step (gateway.k8s.aws/dry-run annotation plus the IngressPlanAnnotation=true feature gate) before creating real ALBs",
+        "Describes the dry-run preview step (gateway.k8s.aws/dry-run annotation) before creating real ALBs",
+        "Describes the dry-run preview step (the IngressPlanAnnotation=true feature gate) before creating real ALBs",
         "Describes new Gateway ALBs running alongside the existing Ingress ALBs",
         "Flags that the capture-group url-rewrite (replace: /$1) has NO Gateway API equivalent: lbc-migrate skips it (the original regex is discarded)",
         "Flags that the capture-group url-rewrite stays a Tier-A / Re-architecture-Gate hand-redesign",
         "Does NOT present static ReplacePrefixMatch (prefix-strip only) as able to express the capture group",
-        "Treats the mutating steps as operator actions the assessment documents but does not execute (CRD install, IngressPlanAnnotation feature-gate enable, --dry-run=false apply, kubectl delete ingress) — only translate and the dry-run preview are read-only/assessor-run"
+        "Treats the mutating step CRD install as an operator action the assessment documents but does not execute",
+        "Treats the mutating step IngressPlanAnnotation feature-gate enable as an operator action the assessment documents but does not execute",
+        "Treats the mutating step --dry-run=false apply as an operator action the assessment documents but does not execute",
+        "Treats the mutating step kubectl delete ingress as an operator action the assessment documents but does not execute",
+        "Treats translate as read-only/assessor-run",
+        "Treats the dry-run preview as read-only/assessor-run"
       ],
       "files": []
     },
@@ -85,10 +95,12 @@
         "States that standard CRDs v1.2.0 are below the version the target controller line requires",
         "Concludes lbc-migrate cannot be used on the estate as it stands",
         "Concludes that Option 1 (Gateway API) as a whole is blocked until the operator upgrades - not just the automation sub-path",
-        "Recommends upgrading the AWS Load Balancer Controller to the v3.5.0 release line as the first step, noting it both clears the production floor and still carries the lbc-migrate CLI",
+        "Recommends upgrading the AWS Load Balancer Controller to the v3.5.0 release line as the first step, noting it clears the production floor",
+        "Recommends upgrading the AWS Load Balancer Controller to the v3.5.0 release line as the first step, noting it still carries the lbc-migrate CLI",
         "Recommends the v3.5.0 upgrade in preference to hand-authoring ~20 HTTPRoutes against a controller upstream did not recommend for production",
         "Does NOT conflate the CLI build tag with the runtime floor: v3.4.0 is a release the lbc-migrate CLI can be built from, while the Gateway API runtime requirement is the v3.0.0 production floor",
-        "Treats the controller upgrade and the Gateway API CRD install as operator actions the assessment documents but does not run"
+        "Treats the controller upgrade as an operator action the assessment documents but does not run",
+        "Treats the Gateway API CRD install as an operator action the assessment documents but does not run"
       ],
       "files": []
     },
@@ -97,13 +109,16 @@
       "prompt": "A cluster runs the AWS Load Balancer Controller v2.15.0 (ingressClassName: alb) with 12 ALB Ingress resources, Gateway API standard CRDs v1.5.0 installed, and one ingress using an alb.ingress.kubernetes.io/transforms url-rewrite. The team wants to move to the Gateway API and says the controller already supports HTTPRoute. Is the estate ready for the Gateway API path?",
       "expectations": [
         "Does NOT confirm the estate is production-ready for Gateway API on v2.15.0",
-        "Identifies v3.0.0 as the production floor and v2.15.0 as below it",
+        "Identifies v3.0.0 as the production floor",
+        "Identifies v2.15.0 as below the production floor",
         "Distinguishes 'reconciliation began at v2.14.0 (L7)' from 'production floor v3.0.0', rather than treating v2.14.0 as sufficient",
-        "Cites that the upstream not-suggested-for-production warning persisted across the whole v2.x line (still present at v2.17.1) and was removed at v3.0.0",
+        "Cites that the upstream not-suggested-for-production warning persisted across the whole v2.x line (still present at v2.17.1)",
+        "Cites that the upstream not-suggested-for-production warning was removed at v3.0.0",
         "Recommends upgrading to the v3.5.0 release line before production cutover",
         "Notes the standard Gateway API CRD pairing for the v3.5.0 line is v1.6.0 (v1.5.0 pairs with v3.4.0)",
         "Confirms the transforms url-rewrite annotation is supported at v2.15.0 because v2.15.0 is at or above the v2.14.1 release that introduced it, and does NOT flag it as silently ignored here",
-        "Treats the controller upgrade and CRD install as operator actions the assessment documents but does not run"
+        "Treats the controller upgrade as an operator action the assessment documents but does not run",
+        "Treats the CRD install as an operator action the assessment documents but does not run"
       ],
       "files": []
     },
@@ -112,7 +127,8 @@
       "prompt": "A cluster is on the AWS Load Balancer Controller v2.14.0 (ingressClassName: alb) with 9 ALB Ingress resources. Three of them carry alb.ingress.kubernetes.io/transforms.<svc> url-rewrite annotations that were copied from a migration guide, and the team reports that requests are arriving at the backends with the original, un-rewritten path. Assess the estate.",
       "expectations": [
         "Attributes the un-rewritten paths to the controller version, not to malformed JSON or a wrong regex",
-        "States the transforms floor is v2.14.1 and that v2.14.0 is below it (absent in v2.14.0 and all v2.13.x)",
+        "States the transforms floor is v2.14.1",
+        "States that v2.14.0 is below the transforms floor (absent in v2.14.0 and all v2.13.x)",
         "Explains that an unknown annotation is silently ignored, so the failure is silent rather than a visible error",
         "Does NOT cite v2.15.0 as the transforms floor",
         "Does NOT conflate the transforms floor with the Gateway API HTTPRoute URLRewrite filter added in v2.15.0",

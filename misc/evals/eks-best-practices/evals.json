@@ -173,10 +173,12 @@
         "The output recommends scheduled/proactive pre-scaling ahead of the known event time (raising replica floors or desired counts before the trigger) rather than relying solely on reactive metric-driven autoscaling to catch up.",
         "The output distinguishes the spike SHAPE (near-instant step / rate of arrival) from magnitude.",
         "The output warns against scaling down or consolidating in the trough between peaks.",
-        "The output addresses capacity assurance ahead of the event — at least one of: service-quota pre-checks, On-Demand Capacity Reservations (ODCR), or load-balancer warm-up.",
+        "The output addresses capacity assurance ahead of the event, at least one of: service-quota pre-checks, On-Demand Capacity Reservations (ODCR), or load-balancer warm-up.",
         "The output explains the load-test-realism lesson: a test passing on request rate can still miss a resource-consumption (e.g. memory) failure from a new/changed access pattern, so scenarios must cover consumption shapes.",
         "The output says load-test findings must be acted on before the event.",
-        "The output stays advisory — it does NOT invent a specific maximum absorbable step, headroom number, or sizing verdict for the cluster."
+        "The output stays advisory: it does NOT invent a specific maximum absorbable step for the cluster.",
+        "The output stays advisory: it does NOT invent a specific headroom number for the cluster.",
+        "The output stays advisory: it does NOT invent a specific sizing verdict for the cluster."
       ],
       "knowledge_assertions": [
         {

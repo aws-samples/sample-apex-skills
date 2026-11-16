@@ -5,7 +5,9 @@
       "id": 1,
       "prompt": "Run a full modernization assessment on ./fixtures/spring-boot-api (currently on EC2, target is ECS). Source tree inventory: pom.xml declaring spring-boot-starter-web 3.2.x and maven.compiler.release 17; stateless REST controllers under src/main/java; application.yml resolving every setting from environment variables; spring-boot-starter-actuator health endpoint; no HttpSession usage, no local file writes, no hardcoded credentials, no OS-specific APIs.",
       "expectations": [
-        "Reports an integer Fit_Score (0-100) with a per-dimension breakdown (individual score, weight, contribution)",
+        "Reports an integer Fit_Score (0-100) with a per-dimension breakdown that gives each dimension's individual score",
+        "Reports an integer Fit_Score (0-100) with a per-dimension breakdown that gives each dimension's weight",
+        "Reports an integer Fit_Score (0-100) with a per-dimension breakdown that gives each dimension's contribution",
         "The per-dimension contributions in the Fit_Score breakdown sum to the Fit_Score within +/-1",
         "Recommends Rearchitect and cites the applied Rearchitect threshold (default 70) as grounds",
         "Cites the lowest-scoring dimension as grounds for the Rearchitect recommendation",
@@ -13,8 +15,13 @@
         "Both Replatform and Rearchitect appear with at least one advantage each, despite the clear recommendation",
         "Both Replatform and Rearchitect appear with at least one drawback each",
         "Both Replatform and Rearchitect appear with a small/medium/large effort classification each",
-        "Presents all three Rearchitect compute candidates (ECS Express Mode, Fargate, Managed Instances) with applicability",
-        "Delegates capacity-provider strategy / task sizing / network design to ecs-architect without giving concrete design values",
+        "Presents the ECS Express Mode Rearchitect compute candidate with applicability",
+        "Presents the Fargate Rearchitect compute candidate with applicability",
+        "Presents the Managed Instances Rearchitect compute candidate with applicability",
+        "Delegates capacity-provider strategy to ecs-architect",
+        "Delegates task sizing to ecs-architect",
+        "Delegates network design to ecs-architect",
+        "Does not give concrete design values for the capacity-provider strategy, task sizing or network design delegated to ecs-architect",
         "The report is exactly one Markdown file",
         "The report file is named ECS-Modernize-{app-name}-{YYYY-MM-DD}.md",
         "The report file is written outside the target source directory"
@@ -41,7 +48,8 @@
         "Maps each persistent write location to an external storage mount such as Amazon EFS",
         "Proposes ALB sticky sessions for the HttpSession blocker",
         "States the constraint that sessions on a task are lost when the task is stopped or replaced",
-        "Reports the hardcoded credential blocker with file path (db.properties) and category",
+        "Reports the hardcoded credential blocker with file path (db.properties)",
+        "Reports the hardcoded credential blocker with category",
         "Never reproduces the hardcoded credential value in whole or in part",
         "The Replatform target is ECS on EC2 with a static configuration",
         "The Replatform static configuration has a fixed desired task count",
@@ -54,12 +62,23 @@
       "id": 3,
       "prompt": "Assess ./fixtures/webforms-portal for ECS migration. Inventory: three .csproj files targeting net48; .aspx pages with System.Web references (ASP.NET Web Forms); hosted on IIS (web.config with system.webServer section); RegistryConfigProvider reads settings from Microsoft.Win32.Registry; no desktop GUI, hardware driver, or kernel-mode dependencies.",
       "expectations": [
-        "Detects and reports the .NET Framework (4.x) runtime, ASP.NET Web Forms framework, and IIS app server",
-        "Gives file-path evidence for each of the detected .NET Framework runtime, ASP.NET Web Forms framework, and IIS app server",
-        "Reports the Microsoft.Win32.Registry usage as an OS-specific API blocker with file path",
+        "Detects and reports the .NET Framework (4.x) runtime",
+        "Detects and reports the ASP.NET Web Forms framework",
+        "Detects and reports the IIS app server",
+        "Gives file-path evidence for the detected .NET Framework runtime",
+        "Gives file-path evidence for the detected ASP.NET Web Forms framework",
+        "Gives file-path evidence for the detected IIS app server",
+        "Reports the Microsoft.Win32.Registry usage as an OS-specific API blocker",
+        "Reports the Microsoft.Win32.Registry OS-specific API blocker with file path",
         "Presents the Windows_Container_Path as a Replatform option (registry blocker present), not merely as a variant",
-        "Presents both ECS on EC2 Windows instances and Fargate Windows support",
-        "For each of ECS on EC2 Windows instances and Fargate Windows support, gives available Windows Server versions, licensing considerations, and feature constraints",
+        "Presents ECS on EC2 Windows instances",
+        "Presents Fargate Windows support",
+        "For ECS on EC2 Windows instances, gives available Windows Server versions",
+        "For ECS on EC2 Windows instances, gives licensing considerations",
+        "For ECS on EC2 Windows instances, gives feature constraints",
+        "For Fargate Windows support, gives available Windows Server versions",
+        "For Fargate Windows support, gives licensing considerations",
+        "For Fargate Windows support, gives feature constraints",
         "Explicitly names features unavailable on Fargate Windows",
         "Derives a Windows base-image selection policy from the detected .NET Framework version and IIS dependency, with that derivation stated",
         "If all detected Windows API blockers have .NET alternatives, additionally presents the .NET port to Linux containers with an effort classification",
@@ -72,11 +91,17 @@
       "id": 4,
       "prompt": "Assess ./fixtures/winforms-scheduler for ECS migration. Inventory: a net48 .csproj referencing System.Windows.Forms; MainForm.cs opens a desktop GUI window; the app also references a vendor USB dongle driver via P/Invoke. The customer asks specifically whether Windows containers on ECS can run this.",
       "expectations": [
-        "Reports the System.Windows.Forms desktop GUI dependency and the driver P/Invoke dependency as blockers that cannot run inside a (Windows) container",
-        "Classifies the System.Windows.Forms desktop GUI and driver P/Invoke blockers as must-fix, with file paths",
-        "Reports the Windows_Container_Path applicability as not applicable and lists the blocking dependencies as the grounds",
+        "Reports the System.Windows.Forms desktop GUI dependency as a blocker that cannot run inside a (Windows) container",
+        "Reports the driver P/Invoke dependency as a blocker that cannot run inside a (Windows) container",
+        "Classifies the System.Windows.Forms desktop GUI blocker as must-fix",
+        "Classifies the driver P/Invoke blocker as must-fix",
+        "Reports the System.Windows.Forms desktop GUI blocker with file path",
+        "Reports the driver P/Invoke blocker with file path",
+        "Reports the Windows_Container_Path applicability as not applicable",
+        "Lists the blocking dependencies as the grounds for Windows_Container_Path not applicable",
         "Does not present the Windows_Container_Path as a Replatform option",
-        "Still presents the Replatform path section itself, with the container-incompatible dependencies listed as unresolved items requiring user resolution rather than omitting the path"
+        "Still presents the Replatform path section itself rather than omitting the path",
+        "The Replatform path section lists the container-incompatible dependencies as unresolved items requiring user resolution"
       ],
       "files": []
     },
@@ -86,8 +111,10 @@
       "expectations": [
         "Reports every detected language, classifying each as Java, C# (.NET), or other with the language name attached",
         "Identifies exactly one primary language for subsequent framework detection and scoring",
-        "Gives an explicit rationale for the primary language citing the build definitions and source-file composition",
-        "Framework detection and classification (Spring Boot) is applied to the primary language, with evidence paths"
+        "Gives an explicit rationale for the primary language citing the build definitions",
+        "Gives an explicit rationale for the primary language citing the source-file composition",
+        "Framework detection and classification (Spring Boot) is applied to the primary language",
+        "The Spring Boot framework detection on the primary language gives evidence paths"
       ],
       "files": []
     },
@@ -96,12 +123,16 @@
       "prompt": "Score ./fixtures/loose-sources for cloud/container fit. Inventory: a flat directory of 30 .java files with no pom.xml, no build.gradle, no configuration files, and no deployment descriptors — just source files using plain JDBC and servlets; no hardcoded connection strings.",
       "expectations": [
         "Reports each undeterminable item (e.g. runtime version, configuration externalization) as undetermined",
-        "For each undetermined item, states the evidence that was considered and the information that is missing",
-        "Excludes undetermined Scoring_Dimensions from the Fit_Score and renormalizes the remaining weights to a 100% total while preserving their original ratios",
-        "States that the score was computed via renormalization with the excluded dimension list",
+        "For each undetermined item, states the evidence that was considered",
+        "For each undetermined item, states the information that is missing",
+        "Excludes undetermined Scoring_Dimensions from the Fit_Score",
+        "Renormalizes the remaining weights to a 100% total while preserving their original ratios",
+        "States that the score was computed via renormalization",
+        "States the excluded dimension list for the renormalized score",
         "The excluded dimension list includes config_externalization (no configuration files to check)",
         "The excluded dimension list omits build_reproducibility, which is scored in its 0-29 band because the readable tree has no build definition",
-        "Attaches a low-confidence note to the recommendation listing the excluded dimensions"
+        "Attaches a low-confidence note to the recommendation",
+        "The low-confidence note on the recommendation lists the excluded dimensions"
       ],
       "files": []
     },
@@ -109,12 +140,16 @@
       "id": 7,
       "prompt": "Run a full assessment on ./fixtures/partially-readable. Inventory: a normal Maven/Spring project, except the directory src/main/resources/secure/ returns permission-denied on every read, and legacy/ contains files with encoding errors that cannot be parsed.",
       "expectations": [
-        "Does not abort Source_Analysis: analysis of readable files proceeds to scoring and recommendation",
-        "Reports the excluded ranges at path or directory granularity (src/main/resources/secure/, legacy/)",
+        "Does not abort Source_Analysis: analysis of readable files proceeds to scoring",
+        "Does not abort Source_Analysis: analysis of readable files proceeds to recommendation",
+        "Reports the excluded range src/main/resources/secure/ at path or directory granularity",
+        "Reports the excluded range legacy/ at path or directory granularity",
         "Reports the reason for each excluded range",
         "Explicitly marks the analysis result as partial",
         "The report includes an incomplete-analysis-items section immediately after the analysis summary",
-        "The incomplete-analysis-items section covers the exclusions, reasons, and impact on results"
+        "The incomplete-analysis-items section covers the exclusions",
+        "The incomplete-analysis-items section covers the reasons",
+        "The incomplete-analysis-items section covers the impact on results"
       ],
       "files": []
     },
@@ -122,10 +157,13 @@
       "id": 8,
       "prompt": "Give me a fit score for ./fixtures/binaries-only so we can pick a migration strategy. Inventory: the path is readable but contains only compiled artifacts — app.war, vendor .jar files, and two .dll files. There is no readable source code, no build definition, and no configuration.",
       "expectations": [
-        "Does not report any numeric Fit_Score and does not fabricate dimension scores",
+        "Does not report any numeric Fit_Score",
+        "Does not fabricate dimension scores",
         "States the score is uncomputable with the reason each dimension is undetermined",
         "Makes no score-based recommendation",
-        "Presents Replatform and Rearchitect in parallel with decision factors (rework tolerance, migration deadline, container maturity) mapped to the strategy each favors",
+        "Presents Replatform and Rearchitect in parallel with the decision factor rework tolerance mapped to the strategy it favors",
+        "Presents Replatform and Rearchitect in parallel with the decision factor migration deadline mapped to the strategy it favors",
+        "Presents Replatform and Rearchitect in parallel with the decision factor container maturity mapped to the strategy it favors",
         "Explicitly states that the Fit_Score could not be computed in the report/response"
       ],
       "files": []
@@ -134,7 +172,8 @@
       "id": 9,
       "prompt": "Re-run the assessment of ./fixtures/spring-boot-api and save the report. Simulated filesystem state for this run (treat this as the observed state — you do not need to list the directory to confirm it): the output directory already contains a report file at the exact name your default naming convention produces for this app on today's date, left over from an earlier run today.",
       "expectations": [
-        "Recognizes the same-name file reported at the output destination and asks the user for overwrite confirmation before writing",
+        "Recognizes the same-name file reported at the output destination",
+        "Asks the user for overwrite confirmation of the same-name file before writing",
         "Does not overwrite the existing file without confirmation",
         "Does not claim the report has been saved while the confirmation is pending",
         "Offers an alternative (e.g. different filename) as an option"
@@ -147,7 +186,9 @@
       "expectations": [
         "Reports that the scoring Reference_File failed to load",
         "Aborts the scoring module when the scoring Reference_File failed to load",
-        "Does not produce a Fit_Score, dimension scores, or a threshold-based recommendation without the reference knowledge",
+        "Does not produce a Fit_Score without the reference knowledge",
+        "Does not produce dimension scores without the reference knowledge",
+        "Does not produce a threshold-based recommendation without the reference knowledge",
         "Prerequisite modules that loaded successfully (tech-stack detection, blocker detection) may report their results, but no scoring output is generated"
       ],
       "files": []
@@ -156,12 +197,18 @@
       "id": 11,
       "prompt": "Assess ./fixtures/spring-boot-api for ECS migration, and in the same go: generate the Fargate environment Terraform, give me concrete task sizing and network design for the target, harden the IAM and secrets posture, and inventory what's already running in our existing ECS cluster prod-cluster. Source tree inventory: pom.xml declaring spring-boot-starter-web 3.2.x and maven.compiler.release 17; stateless REST controllers under src/main/java; application.yml resolving every setting from environment variables; spring-boot-starter-actuator health endpoint; no HttpSession usage, no local file writes, no hardcoded credentials, no OS-specific APIs.",
       "expectations": [
-        "Executes the in-scope assessment (Source_Analysis, scoring, recommendation) rather than refusing the whole request",
+        "Executes the in-scope Source_Analysis rather than refusing the whole request",
+        "Executes the in-scope scoring rather than refusing the whole request",
+        "Executes the in-scope recommendation rather than refusing the whole request",
         "Names ecs-build as the delegation target for Linux container path environment Terraform",
         "Does not generate the Linux container path environment Terraform in the answer or the report",
-        "Names ecs-architect for capacity-provider strategy / task sizing / network design",
+        "Names ecs-architect for capacity-provider strategy",
+        "Names ecs-architect for task sizing",
+        "Names ecs-architect for network design",
         "Presents compute-model candidates only, without concrete design values",
-        "Names ecs-security for IAM/secrets/compliance hardening",
+        "Names ecs-security for IAM hardening",
+        "Names ecs-security for secrets hardening",
+        "Names ecs-security for compliance hardening",
         "Does not produce a hardening design",
         "Names ecs-recon for the live ECS estate inventory",
         "Does not call AWS APIs to enumerate the running environment",
@@ -175,7 +222,8 @@
       "expectations": [
         "Does not generate any migration artifact file (no Dockerfile, .dockerignore, or other execution-phase file is written)",
         "Presents the Execution_Gate start condition of a completed assessment or equivalent decision inputs (chosen Migration_Strategy and target compute model)",
-        "Presents the Execution_Gate start condition of explicit user approval of strategy and target path",
+        "Presents the Execution_Gate start condition of explicit user approval of strategy",
+        "Presents the Execution_Gate start condition of explicit user approval of target path",
         "Identifies which decision inputs are missing",
         "Offers exactly two options: run the modernization assessment, or provide the missing decision inputs",
         "Does not treat the request itself as approval"
@@ -189,7 +237,13 @@
         "Acknowledges the Execution_Gate passage by presenting the approved Migration_Strategy (Rearchitect)",
         "Presents the approved target path (ECS on Fargate)",
         "Presents the list of planned action classes",
-        "Requests an individual confirmation per action class before its first execution — file generation (with output paths), image push (with ECR repository name and whether it must be created), terraform apply (with the target directory)",
+        "Requests an individual confirmation for the file generation action class before its first execution",
+        "The file generation confirmation request gives the output paths",
+        "Requests an individual confirmation for the image push action class before its first execution",
+        "The image push confirmation request gives the ECR repository name",
+        "The image push confirmation request states whether the ECR repository must be created",
+        "Requests an individual confirmation for the terraform apply action class before its first execution",
+        "The terraform apply confirmation request gives the target directory",
         "Does not execute any action belonging to a class whose per-class confirmation has not been given",
         "Treats the strategy approval alone as insufficient to start pushing images or applying Terraform"
       ],
@@ -202,7 +256,10 @@
         "Constructs exactly one ordered Transformation_Plan",
         "Presents the work-item list and order to the user before starting any item",
         "Proposes Transform_Augmentation only for work items whose transformation type is within AWS Transform's documented coverage",
-        "Gives the rationale for Transform_Augmentation along the four dimensions: operational factors, local verifiability, scale, and transformation-type coverage",
+        "Gives the rationale for Transform_Augmentation along the operational factors dimension",
+        "Gives the rationale for Transform_Augmentation along the local verifiability dimension",
+        "Gives the rationale for Transform_Augmentation along the scale dimension",
+        "Gives the rationale for Transform_Augmentation along the transformation-type coverage dimension",
         "Bundles the three same-type items into a single proposal",
         "Keeps adoption identifiable per work item within the bundled proposal",
         "Explicitly states that no public evidence of a capability difference between Transform augmentation and agent execution exists for .NET porting",
@@ -219,7 +276,8 @@
         "Presents the ordered Transformation_Plan (item list and order) before executing any item",
         "Notes each item is agent-executed with the reason (AWS Transform unavailable per org policy)",
         "States that all changes will be made only in the approved working branch migrate/java17 and never in the original source branch (any branch operations shown are confined to that branch)",
-        "Specifies a build verification (plus tests where available) after each work item",
+        "Specifies a build verification after each work item",
+        "Specifies tests where available after each work item",
         "Specifies a checkpoint commit after each work item",
         "States that a verification failure blocks subsequent items until it is resolved in the branch or the user chooses continue/skip/abort"
       ],
@@ -230,8 +288,10 @@
       "prompt": "Gate passed for a .NET modernization. The solution contains: two net48 class libraries (coverage: supported by AWS Transform), a legacy ASP.NET Web Site project (no .csproj), and several .ashx HTTP handlers. AWS Transform availability is confirmed. Build the transformation plan and classify each item.",
       "expectations": [
         "Keeps all work items — augmentable and not — in the same single Transformation_Plan rather than splitting plans",
-        "Classifies the Web Site project and .ashx handler conversions as Agent_Executed_Items",
-        "For each of the Web Site project and .ashx handler conversions, states the reason that the transformation type is outside AWS Transform's documented coverage",
+        "Classifies the Web Site project conversion as an Agent_Executed_Item",
+        "Classifies the .ashx handler conversions as Agent_Executed_Items",
+        "For the Web Site project conversion, states the reason that the transformation type is outside AWS Transform's documented coverage",
+        "For the .ashx handler conversions, states the reason that the transformation type is outside AWS Transform's documented coverage",
         "Proposes Transform_Augmentation only for the two supported class-library items",
         "Reports the augmentation-applicability decision per work item (the two conditions: availability confirmed AND coverage)"
       ],
@@ -241,7 +301,12 @@
       "id": 17,
       "prompt": "Migration execution for ./fixtures/spring-boot-api is at the environment step. Approved target: ECS on Fargate (Linux). Containerization done: image pushed as 123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/spring-boot-api:v1, container listens on 8080, health endpoint /actuator/health, no local persistence detected, no session affinity needed. Memory/CPU sizing hasn't been load-tested yet. Set up the environment.",
       "expectations": [
-        "Presents the handoff as a name-to-value list including at least: image URI, exposed port, health check, resource sizing inputs, volume/EFS need, and session affinity need",
+        "Presents the handoff as a name-to-value list including the image URI",
+        "Presents the handoff as a name-to-value list including the exposed port",
+        "Presents the handoff as a name-to-value list including the health check",
+        "Presents the handoff as a name-to-value list including the resource sizing inputs",
+        "Presents the handoff as a name-to-value list including the volume/EFS need",
+        "Presents the handoff as a name-to-value list including the session affinity need",
         "Marks the unconfirmed sizing values as unresolved instead of inventing values",
         "States the condition required to resolve the unresolved sizing values (e.g. load testing)",
         "Does not generate the Linux container path environment Terraform itself",
@@ -256,12 +321,17 @@
       "prompt": "Gate passed for ./fixtures/webforms-portal: Replatform via the Windows container path on ECS on EC2 Windows instances, and the file-generation action class is confirmed with output directory ./infra/windows-ecs. The assessment detected in-process session state (web.config InProc). The image URI is not final yet — the remote build hasn't run. Generate the environment Terraform.",
       "expectations": [
         "States that ecs-build's generation scope is limited to Linux containers as the reason this skill generates the Windows environment Terraform itself",
-        "The generated Terraform includes: cluster and EC2 Windows instance capacity for the approved option, a task definition specifying a Windows runtime_platform, a service, and a load balancer",
+        "The generated Terraform includes a cluster",
+        "The generated Terraform includes EC2 Windows instance capacity for the approved option",
+        "The generated Terraform includes a task definition specifying a Windows runtime_platform",
+        "The generated Terraform includes a service",
+        "The generated Terraform includes a load balancer",
         "The generated load balancer has session affinity (stickiness) because the in-process session blocker was detected",
         "Defines the container image URI as a Terraform input variable",
         "States that the container image URI variable's value is unresolved",
         "Reports the remaining work to resolve the container image URI (the remote build path)",
-        "Runs terraform validate on the generated code and reports the result",
+        "Runs terraform validate on the generated code",
+        "Reports the result of terraform validate on the generated code",
         "Claims the code is apply-ready only if validation completed without errors, and if validate cannot run or fails, reports why and does not claim apply-readiness"
       ],
       "files": []
@@ -275,7 +345,8 @@
         "Presents a remote build path using AWS CodeBuild's Windows build environment as the alternative",
         "Generates the build definition file (e.g. buildspec) needed for the remote build, following the approved output-destination rules",
         "Does not start the remote build without the user's explicit confirmation",
-        "Does not claim the image was built or pushed"
+        "Does not claim the image was built",
+        "Does not claim the image was pushed"
       ],
       "files": []
     },

@@ -8,12 +8,24 @@
       "expectations": [
         "The Cost Score is between 90 and 100 (inclusive).",
         "The classification is OPTIMIZED.",
-        "All 6 dimensions are marked as ASSESSED (not SKIPPED) in the score breakdown table: Compute Efficiency, Spot/Graviton Adoption, Networking Costs, Storage Costs, Observability Costs, Idle Resources.",
+        "The Compute Efficiency dimension is marked as ASSESSED (not SKIPPED) in the score breakdown table.",
+        "The Spot/Graviton Adoption dimension is marked as ASSESSED (not SKIPPED) in the score breakdown table.",
+        "The Networking Costs dimension is marked as ASSESSED (not SKIPPED) in the score breakdown table.",
+        "The Storage Costs dimension is marked as ASSESSED (not SKIPPED) in the score breakdown table.",
+        "The Observability Costs dimension is marked as ASSESSED (not SKIPPED) in the score breakdown table.",
+        "The Idle Resources dimension is marked as ASSESSED (not SKIPPED) in the score breakdown table.",
         "The total deductions across all dimensions sum to 10 or fewer points (score >= 90).",
-        "The report contains all required sections: Executive Summary, Cost Score with classification, Score Breakdown table, Prioritized Recommendations (may be empty or minimal), Per-dimension Findings, and Methodology notes.",
-        "No CRITICAL or HIGH severity findings are reported — at most MEDIUM or LOW findings exist given the well-optimized cluster configuration.",
+        "The report contains the required Executive Summary section.",
+        "The report contains the required Cost Score with classification section.",
+        "The report contains the required Score Breakdown table section.",
+        "The report contains the required Prioritized Recommendations section (may be empty or minimal).",
+        "The report contains the required Per-dimension Findings section.",
+        "The report contains the required Methodology notes section.",
+        "No CRITICAL or HIGH severity findings are reported: at most MEDIUM or LOW findings exist given the well-optimized cluster configuration.",
         "The executive summary correctly identifies the cluster as cost-optimized.",
-        "The executive summary highlights Graviton adoption (80%), Spot usage (65%), and high utilization as positive signals."
+        "The executive summary highlights Graviton adoption (80%) as a positive signal.",
+        "The executive summary highlights Spot usage (65%) as a positive signal.",
+        "The executive summary highlights high utilization as a positive signal."
       ],
       "files": []
     },
@@ -47,13 +59,17 @@
       "expectations": [
         "The Compute Efficiency dimension is named partly assessed (utilization checks skipped), not SKIPPED.",
         "The report gives a clear reason the Compute Efficiency dimension is partly assessed (no metrics-server, Container Insights or Prometheus).",
-        "Compute Efficiency's request-based findings (check 5; check 4 needs Karpenter) deduct as usual and its 25-point max stays in the denominator.",
-        "The report includes a graceful degradation section or methodology note explaining which data sources are unavailable (metrics-server, Container Insights, Cost Explorer) and their impact on the assessment.",
+        "Compute Efficiency's request-based findings (check 5; check 4 needs Karpenter) deduct as usual.",
+        "Compute Efficiency's 25-point max stays in the denominator.",
+        "The report includes a graceful degradation section or methodology note explaining that the metrics-server data source is unavailable and its impact on the assessment.",
+        "The report includes a graceful degradation section or methodology note explaining that the Container Insights data source is unavailable and its impact on the assessment.",
+        "The report includes a graceful degradation section or methodology note explaining that the Cost Explorer data source is unavailable and its impact on the assessment.",
         "Cost estimation falls back to node-based estimation (using instance types and counts) since Cost Explorer is unavailable.",
         "The report notes reduced confidence in dollar figures.",
         "The storage section still identifies the 40% gp2 volumes (18 PVCs) as a finding despite Cost Explorer being unavailable.",
         "The storage section still identifies the 2 unmounted PVCs as a finding despite Cost Explorer being unavailable.",
-        "The networking section flags missing VPC endpoints for ECR and STS as MEDIUM findings.",
+        "The networking section flags the missing VPC endpoint for ECR as a MEDIUM finding.",
+        "The networking section flags the missing VPC endpoint for STS as a MEDIUM finding.",
         "The networking section notes partial topology-aware routing coverage.",
         "The idle resources section identifies the zero-scale deployment despite the absence of utilization metrics.",
         "The idle resources section identifies the orphaned LB despite the absence of utilization metrics.",
@@ -86,7 +102,8 @@
         "Retains the independently observed abandoned-api finding.",
         "Gives the skipped idle dimension zero deduction.",
         "Continues the independently assessed Storage dimension and its severity-weighted deduction.",
-        "Does not abort the whole assessment or present skipped coverage as proof of optimization."
+        "Does not abort the whole assessment.",
+        "Does not present skipped coverage as proof of optimization."
       ],
       "process_assertions": [
         {
@@ -120,10 +137,15 @@
       "name": "successful-empty-core-inventory",
       "prompt": "Use eks-cost-intelligence to assess the following captured cluster observations as an offline fixture. Do not query a live cluster or change resources. Read the relevant skill references and write a compact Markdown assessment to reports/coverage.md. The verified target is an idle Auto Mode cluster. Successful API responses contain nodes.items=[], pods.items=[], deployments.items=[] and namespaces.items=[{\"metadata\":{\"name\":\"default\"}}]. All other required idle-resource lists also succeeded with empty items. Assess core-read readiness and the Idle Resources dimension.",
       "expectations": [
-        "Accepts the confirmed successful empty Node, Pod and Deployment lists rather than returning Assessment Error for missing core data.",
+        "Accepts the confirmed successful empty Node list rather than returning Assessment Error for missing core data.",
+        "Accepts the confirmed successful empty Pod list rather than returning Assessment Error for missing core data.",
+        "Accepts the confirmed successful empty Deployment list rather than returning Assessment Error for missing core data.",
         "Marks Idle Resources ASSESSED with no idle findings, based on the successful required reads.",
         "Gives Idle Resources zero deduction.",
-        "Does not invent nodes, workloads, idle load balancers or unsupported dollar savings."
+        "Does not invent nodes.",
+        "Does not invent workloads.",
+        "Does not invent idle load balancers.",
+        "Does not invent unsupported dollar savings."
       ],
       "process_assertions": [
         {
@@ -161,7 +183,8 @@
         "Uses the cluster EC2 cost by usage type instead of only a node-based estimate.",
         "Counts the BoxUsage and SpotUsage groups (144.00 USD for the window) as instance cost.",
         "Scales the instance total to a month (about 626 USD at 730 hours) before applying the request-share split to checkout and batch.",
-        "Splits about 626 USD as checkout about 443 USD (70.8%) and batch about 183 USD (29.2%).",
+        "Splits about 626 USD with checkout at about 443 USD (70.8%).",
+        "Splits about 626 USD with batch at about 183 USD (29.2%).",
         "Adds the control plane at 73 USD (0.10/hr \u00d7 730, 1.35 standard support) apart from the split.",
         "Labels the result with the Cost Explorer + cluster tag only confidence (Medium).",
         "Records estimation_method ce_usage_type.",
