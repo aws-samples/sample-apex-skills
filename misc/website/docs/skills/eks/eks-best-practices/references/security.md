@@ -505,6 +505,9 @@ fields @timestamp, @message
 | display objectRef.namespace, objectRef.name, user.username, responseStatus.code
 ```
 
+- A `watch` is logged twice, at stage `ResponseStarted` and at `ResponseComplete`, so both queries count each watch twice.
+- A blank secret name is a `list` or `watch` of every Secret in the namespace.
+
 ### Secrets Best Practices
 
 - Envelope encryption for etcd secrets is on by default; layer a customer-managed KMS CMK when you need key control and CloudTrail visibility
