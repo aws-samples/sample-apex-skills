@@ -2,7 +2,7 @@
 
 Repo line cites are at commit 7efa0776.
 
-Stated before any paid run. Spent so far: $0 (no trial run has run). All prices are AWS list prices read 2026-11-16. The subject model for the claude harness is `global.anthropic.claude-opus-4-6-v1` (misc/evals/Makefile:35, misc/evals/scripts/run_task_evals.py:1025); Claude Code also calls Haiku 4.5 inside a run, C2's judge is Haiku, Codex runs gpt-5.6-sol and C3 uses its built-in evaluators' models. The trial is budgeted at $205 for all candidates together, unless the maintainers set another limit with the spend decision. Only C2's run has a hard stop (`--max-cost-usd 60`); the C1 driver stops before its next run once the subjects' recorded cost reaches the limit (the grader's cost is not recorded), and the C3 calls are stopped by hand when the running total reaches the limit.
+Stated before any paid run. Spent so far: $0 (no trial run has run). All prices are AWS list prices read 2026-11-16. The subject model for the claude harness is `global.anthropic.claude-opus-4-6-v1` (misc/evals/Makefile:35, misc/evals/scripts/run_task_evals.py:1025); Claude Code also calls Haiku 4.5 inside a run, C2's judge is Haiku, Codex runs gpt-5.6-sol and C3 uses its built-in evaluators' models. The trial is budgeted at $205 for all candidates together, unless the maintainers set another limit with the spend decision. Only C2's run has a hard stop (`--max-cost-usd 60`); the C1 driver stops before its next run once the subjects' recorded cost reaches the limit (the stop counts only the subjects' recorded cost: grader calls, T6 query runs and a run that times out or crashes add nothing, and the run that crosses the limit completes), and the C3 calls are stopped by hand when the running total reaches the limit.
 
 ## Per-run basis
 
@@ -75,4 +75,4 @@ Run counts are those in cases.md.
 
 **$43.12 to $141.13**: C1 claude harness $26.21 to $58.80, Kiro $0.30 to $1.20, Codex $1.80 to $9.12, C2 $11.01 to $25.58, C3 $3.80 to $46.43.
 
-Gate: the first paid run is C1 on T4, one run. That run checks only the measured basis; each assumed row (T1, T2, T6, grader, Codex, C3) is re-stated from its own first run, and the trial stops if a re-stated figure takes the total above that budget.
+Gate: the first paid run is C1 on T4, one run: `python3 misc/runner-trial/drive_c1.py --case T4 --paid --out <new dir> --spend-limit-usd 0.01 --credential-note '<credential>'` stops after the first subject run, provided that run records a cost; one that times out or crashes records none, and the driver goes on to the next run. That run checks only the measured basis; each assumed row (T1, T2, T6, grader, Codex, C3) is re-stated from its own first run, and the trial stops if a re-stated figure takes the total above that budget.

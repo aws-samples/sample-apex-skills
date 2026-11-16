@@ -6,7 +6,7 @@ The sheet compares three candidate runners on the same seven cases (cases.md). N
 
 What "pass" means: the trial passes when every cell S1 to S10 is filled for all three candidates (a measured value, a value read from the tool or code where the cell says so, the S10 estimate, 'cannot run (why)' or 'n/a (why)'), and results.md states the pick with its reasons from S2, S6 and S10; otherwise it fails. A case's own pass is its condition in cases.md, counted per run in S2.
 
-Candidates C1 to C3: README.md. C1's extension is sized, not built, in this trial (results.md); C2 is `claude plugin eval` in Claude Code 2.1.325.
+Candidates C1 to C3: README.md. C1's extension is sized, not built, in this trial (results.md), except two pieces the trial's driver does itself (old against new by git archive, and three runs); C2 is `claude plugin eval` in Claude Code 2.1.325.
 
 ## Grid
 
@@ -15,7 +15,7 @@ Every C1, C2 and C3 cell not filled below waits on the maintainers' spend decisi
 | Row | Measured | Cell values | How it is filled | C1 | C2 | C3 |
 |---|---|---|---|---|---|---|
 | S1 | each case T1 to T7: did the runner execute it as written | ran / cannot run (why), per case | from the run log of the first run of each case | pending | pending; T5 cannot run (C2 cases, below) | n/a: needs a subject runner (C3 runs no agent, cost-estimate.md, C3) |
-| S2 | each case: pass count out of 3 runs, with the skill and without | n/3, n/3, or n/a (cannot run, see S1), per case | count of runs meeting the case's pass condition (cases.md); T6 has one arm | pending | pending | pending |
+| S2 | each case: pass count out of 3 runs, with the skill and without | n/3, n/3, or n/a (cannot run, see S1), per case | count of runs meeting the case's pass condition (cases.md); T6 has one arm (drive_c1.py summary.json `both_queries`); T7: plus the same-answer result (same-answer-rule.md), worked out by hand from <out>/T7/<arm>/run-1..3 | pending | pending | pending |
 | S3 | old against new on T1 to T4 | supported (how) / not supported | from the old-against-new runs of T1 to T4; "how" names the mechanism | pending | not supported (`--ablation` offers only none or with-without) | pending |
 | S4 | three runs per case with no hand work | yes / no | yes if one command or config gives 3 runs of every case; for C1, scored on the shipped runner (`--runs 3`, one command per suite), not on the trial's driver script (misc/runner-trial/drive_c1.py, which drives the runner's functions one case and arm at a time) | pending | yes (`--runs`, default case.runs ?? 3) | pending |
 | S5 | which harnesses it drives (Claude Code, Kiro, Codex) | list | the harnesses the runner itself drove T1 on; for C1 the Kiro and Codex T1 runs are driven by hand (adapters sized, not built) and are recorded as adapter evidence, not as harnesses C1 drives | pending | pending | n/a: needs a subject runner (C3 runs no agent, cost-estimate.md, C3) |

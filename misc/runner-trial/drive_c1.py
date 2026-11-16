@@ -2,23 +2,32 @@
 """Drive candidate C1 of the runner trial: the homegrown runner in
 misc/evals/scripts/ on the claude harness, one case and one arm at a time.
 
-It calls the runner's own functions (run_subject, run_grader, validate_run,
-run_single_query, knowledge_assertions.evaluate) for the seven cases in
-cases.md and copies none of their logic. Each case is scored on its single
-pass condition (cases.md); the source suites' other expectations are not.
+It calls the runner's own functions (run_task_evals.run_subject,
+run_task_evals.run_grader, run_task_evals._resolve_makefile_default,
+artifact_validation.validate_run, run_triggering.run_single_query,
+run_triggering.read_skill_meta, knowledge_assertions.evaluate,
+skilleval_config.load_config, elicitation.ElicitationConfig.from_dict) for the
+seven cases in cases.md. Each case is scored on its single pass condition
+(cases.md); the source suites' other expectations are not.
 
 Default: a dry run that prints the planned runs and makes no model call.
---paid starts the runs. It refuses to start without --spend-limit-usd and
---credential-note, and stops before the next run once the subjects' recorded
-cost reaches the limit (the grader's cost is not recorded by the runner).
+--paid starts the runs. It refuses to start without --out (empty or new),
+--spend-limit-usd (finite, above 0) and --credential-note (recorded, not
+enforced), and stops before the next run once the subjects' recorded cost
+reaches the limit. The stop counts only the subjects' recorded cost: grader
+calls, T6 query runs and a run that times out or crashes add nothing, and the
+run that crosses the limit completes. The limit is per invocation.
 
 Do not run --paid on the trial host: every subject can reach the host's AWS
 credentials (cases.md, Credentials and permissions).
 
 Output (--out): runs.jsonl, one line per run (case, arm, run, status, pass,
 tokens, duration_ms, wall_seconds, total_cost_usd, reason), summary.json
-(pass count per case and arm, for score-sheet.md S1 and S2), and each run's
-runner files under <case>/<arm>/run-<k>/.
+(pass count per case and arm, for score-sheet.md S1 and S2, plus a T6
+"both_queries" cell counting runs k where both query arms passed at run k),
+and each run's runner files under <case>/<arm>/run-<k>/. S2 reads `pass`
+over `ran`, and n/a when `ran` is 0: "cannot run", "not run" (spend stop) and
+"error" runs count in `runs` but not in `ran`.
 """
 from __future__ import annotations
 
@@ -26,6 +35,7 @@ import argparse
 import contextlib
 import io
 import json
+import math
 import shutil
 import subprocess
 import sys
@@ -108,8 +118,8 @@ def case_source(case: dict) -> Path:
 
 
 def pinned_paths(case: dict) -> list[str]:
-    """Repo paths whose text must equal PIN: the case file and its fixtures."""
-    paths = [str(case_source(case).relative_to(REPO_ROOT))]
+    """Repo paths whose text must equal PIN: the case file, its fixtures and the skill."""
+    paths = [str(case_source(case).relative_to(REPO_ROOT)), f"skills/{case['skill']}"]
     if case["eval_id"] is not None:
         files = REPO_ROOT / "misc" / "evals" / case["skill"] / "files"
         paths += [str((files / d).relative_to(REPO_ROOT)) for d in ("shared", f"eval-{case['eval_id']}")
@@ -118,12 +128,14 @@ def pinned_paths(case: dict) -> list[str]:
 
 
 def check_pin(cases: list[dict]) -> list[str]:
-    """Paths that differ from PIN (git diff, no model call)."""
+    """Paths that differ from PIN or hold untracked files (git, no model call)."""
     changed = []
     for case in cases:
         for p in pinned_paths(case):
             r = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--quiet", PIN, "--", p])
-            if r.returncode != 0:
+            st = subprocess.run(["git", "-C", str(REPO_ROOT), "status", "--porcelain", "--", p],
+                                capture_output=True, text=True)
+            if (r.returncode != 0 or st.returncode != 0 or st.stdout.strip()) and p not in changed:
                 changed.append(p)
     return changed
 
@@ -214,7 +226,8 @@ def old_skill_dir(skill: str):
         archive = subprocess.run(["git", "-C", str(REPO_ROOT), "archive", OLD, f"skills/{skill}"],
                                  capture_output=True, check=True).stdout
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-            tar.extractall(tmp, filter="data")
+            # filter= needs tarfile.data_filter; /usr/bin/python3 3.9.16 here has none
+            tar.extractall(tmp, **({"filter": "data"} if hasattr(tarfile, "data_filter") else {}))
         yield tmp / "skills" / skill
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -240,7 +253,9 @@ def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model:
         grading = runner.run_grader(expectations=expectations, transcript_path=transcript,
                                     outputs_dir=outputs, run_dir=run_dir, model=model, timeout=GRADER_TIMEOUT)
         if "error" in grading:
-            return False, f"grader: {grading['error']}"
+            return None, f"grader: {grading['error']}"
+        if len(grading["expectations"]) != len(expectations):
+            return None, f"grader returned {len(grading['expectations'])} expectations, want {len(expectations)}"
         ok = all(e.get("passed") for e in grading["expectations"])
         return ok, f"grader {sum(bool(e.get('passed')) for e in grading['expectations'])}/{len(expectations)}"
     if kind == "artifact":
@@ -299,7 +314,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
         rec.update(status="error", reason=f"subject: {subj.get('reason')}")
         return rec
     ok, why = grade_task(runner, case, spec, subj, run_dir, model)
-    rec.update(status="ran", reason=why, **{"pass": ok})
+    rec.update(status="error" if ok is None else "ran", reason=why, **{"pass": ok})
     return rec
 
 
@@ -309,7 +324,7 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
     by_id = {c["id"]: c for c in cases}
     specs = check_specs(cases)
     spent, records = 0.0, []
-    with (out_dir / "runs.jsonl").open("a") as log:
+    with (out_dir / "runs.jsonl").open("w") as log:
         for item in plan_runs(cases):
             case = by_id[item["case"]]
             if spent >= spend_limit:
@@ -325,8 +340,7 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
             print(f"[c1] {rec['case']} {rec['arm']} run-{rec['run']}: {rec['status']} pass={rec['pass']} "
                   f"subject spend ${spent:.2f} of ${spend_limit}", file=sys.stderr)
     summary = {"model": model, "pin": PIN, "old": OLD, "credential_note": credential_note,
-               "spend_limit_usd": spend_limit, "subject_cost_usd": round(spent, 4),
-               "grader_cost_usd": None, "cases": {}}
+               "spend_limit_usd": spend_limit, "subject_cost_usd": round(spent, 4), "cases": {}}
     for rec in records:
         cell = summary["cases"].setdefault(rec["case"], {}).setdefault(
             rec["arm"], {"pass": 0, "ran": 0, "runs": 0, "statuses": []})
@@ -334,6 +348,16 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
         cell["ran"] += rec["status"] == "ran"
         cell["pass"] += bool(rec["pass"])
         cell["statuses"].append(rec["status"])
+    t6 = {(r["arm"], r["run"]): r for r in records if r["case"] == "T6"}
+    if t6:
+        # cases.md T6: a run k passes only when both query arms passed at run k
+        arms = next(c["arms"] for c in cases if c["id"] == "T6")
+        ks = range(1, RUNS + 1)
+        both = [[t6.get((a, k), {}) for a in arms] for k in ks]
+        summary["cases"]["T6"]["both_queries"] = {
+            "pass": sum(all(r.get("pass") for r in rs) for rs in both),
+            "ran": sum(all(r.get("status") == "ran" for r in rs) for rs in both),
+            "runs": RUNS}
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     return summary
 
@@ -343,12 +367,13 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
         description="Drive runner-trial candidate C1 (misc/runner-trial/cases.md). Dry run by default: "
                     "prints the planned runs and makes no model call. Do not run --paid on the trial host: "
                     "every subject can reach the host's AWS credentials (cases.md, Credentials and permissions).")
-    p.add_argument("--out", type=Path, help="output dir (required with --paid)")
+    p.add_argument("--out", type=Path, help="output dir, empty or new (required with --paid)")
     p.add_argument("--case", action="append", help="case id, repeatable (default: T1 to T7)")
     p.add_argument("--paid", action="store_true", help="start the runs (model calls, billed)")
-    p.add_argument("--spend-limit-usd", type=float, help="the maintainers' spend limit for C1 (required with --paid)")
+    p.add_argument("--spend-limit-usd", type=float, help="the maintainers' spend limit for C1, per invocation "
+                                                         "(required with --paid)")
     p.add_argument("--credential-note", help="which subject credential, limited to the model calls, "
-                                             "the maintainers provided (required with --paid)")
+                                             "the maintainers provided; recorded, not enforced (required with --paid)")
     p.add_argument("--kubeconfig", help="read-only kubeconfig for T7 (without it T7 reads 'cannot run')")
     p.add_argument("--model", help="subject and grader model (default: the runner's)")
     args = p.parse_args(argv)
@@ -376,15 +401,26 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
         print(f"dry run: {len(plan)} runs planned, no model call made")
         return 0
 
+    note = (args.credential_note or "").strip()
     missing = [f for f, v in (("--out", args.out), ("--spend-limit-usd", args.spend_limit_usd),
-                              ("--credential-note", args.credential_note)) if v in (None, "")]
-    if missing or (args.spend_limit_usd is not None and args.spend_limit_usd <= 0):
-        print(f"--paid refused: needs {', '.join(missing) or 'a --spend-limit-usd above 0'}", file=sys.stderr)
+                              ("--credential-note", note)) if v in (None, "")]
+    limit = args.spend_limit_usd
+    if missing or (limit is not None and not (math.isfinite(limit) and limit > 0)):
+        print(f"--paid refused: needs {', '.join(missing) or 'a finite --spend-limit-usd above 0'}", file=sys.stderr)
         return 2
+    if args.out.exists() and (not args.out.is_dir() or any(args.out.iterdir())):
+        print(f"--paid refused: --out {args.out} is not an empty or new directory", file=sys.stderr)
+        return 2
+    kubeconfig = None
+    if args.kubeconfig:
+        kcp = Path(args.kubeconfig).resolve()   # as run_task_evals.py main does
+        if not kcp.exists():
+            print(f"kubeconfig not found: {kcp}", file=sys.stderr)
+            return 2
+        kubeconfig = str(kcp)
     runner = runner or load_runner()
     summary = execute(runner, cases, args.out, model=args.model or runner.default_model(),
-                      spend_limit=args.spend_limit_usd, credential_note=args.credential_note,
-                      kubeconfig=args.kubeconfig)
+                      spend_limit=limit, credential_note=note, kubeconfig=kubeconfig)
     print(json.dumps(summary, indent=2))
     return 0
 

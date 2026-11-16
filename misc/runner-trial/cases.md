@@ -29,7 +29,7 @@ Only T4's pass condition rests on an EKS fact (below); the others use fixture da
 ### T3: a generated project checked by a script
 - Source: misc/evals/eks-build/evals.json:5 (id 1).
 - Fixtures: none (`files` is empty).
-- Pass: the skill's own skills/eks-build/scripts/validate_project.sh exits 0 on the generated folder (validator at :138).
+- Pass: the skill's own skills/eks-build/scripts/validate_project.sh exits 0 on the generated folder (validator at :138). The old arm is checked by the 7efa0776 validator, one yardstick for all arms.
 - Runs: 2 arms x 3, plus 3 old against new.
 
 ### T4: a scored report with a hard-blocker override
@@ -42,7 +42,7 @@ Only T4's pass condition rests on an EKS fact (below); the others use fixture da
 ### T5: multi-turn, the skill asks and the runner answers
 - Source: misc/evals/eks-build/evals.json:252 (id 3, with an `elicitation` block).
 - Fixtures: none.
-- Pass: the run is resumed at least once with a canned answer (the elicitation block at :347-359, up to 8 turns), and the run's final output names one pattern (:262-264). The runner's multi-turn path gives a second turn only when a run ends on an AskUserQuestion call (misc/evals/scripts/elicitation.py:58, `detect_pending_question`), so a runner that cannot answer a plain-text question fails this case.
+- Pass: the run is resumed at least once with a canned answer (the elicitation block at :347-359, up to 8 turns), and the last turn's result text names one pattern (:262-264). The runner's multi-turn path gives a second turn only when a run ends on an AskUserQuestion call (misc/evals/scripts/elicitation.py:58, `detect_pending_question`), so a runner that cannot answer a plain-text question fails this case.
 - Runs: 2 arms x 3.
 
 ### T6: triggering, did the Skill load
@@ -56,7 +56,7 @@ Only T4's pass condition rests on an EKS fact (below); the others use fixture da
 ### T7: a live read-only run, repeated for the same-answer rule
 - Source: misc/evals/eks-recon/evals.json:5 (id 1, live_only at :15).
 - Fixtures: none. Needs a running cluster and a read-only kubeconfig. The trial uses an existing read-only kubeconfig for its test cluster. It does not run misc/evals/setup/bootstrap-readonly.sh, so the trial creates no IAM role, policy or access entry.
-- Pass, per run: the report holds each compared field; S2 counts those runs out of 3, and the same-answer result across the three (same / differs / cannot compare) is recorded beside it. A runner that cannot reach the cluster is marked "cannot run", not fail.
+- Pass, per run: the report holds each compared field; S2 counts those runs out of 3, and the same-answer result across the three (same / differs / cannot compare) is recorded beside it. A runner that cannot reach the cluster is marked "cannot run", not fail. The C1 driver marks it so when no kubeconfig is given and refuses a kubeconfig path that does not exist; a run whose cluster reads fail is re-marked "cannot run" by hand from its transcript.
 - Runs: 2 arms x 3. The same-answer test applies within each arm.
 
 ## Credentials and permissions per case

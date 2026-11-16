@@ -9,7 +9,9 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
@@ -108,6 +110,9 @@ class PaidRefusal(unittest.TestCase):
                 (["--paid", "--out", d, "--spend-limit-usd", "50"], "needs --credential-note"),
                 (["--paid", "--spend-limit-usd", "50", "--credential-note", "c"], "needs --out"),
                 (["--paid", "--out", d, "--spend-limit-usd", "0", "--credential-note", "c"], "above 0"),
+                (["--paid", "--out", d, "--spend-limit-usd", "nan", "--credential-note", "c"], "finite"),
+                (["--paid", "--out", d, "--spend-limit-usd", "inf", "--credential-note", "c"], "finite"),
+                (["--paid", "--out", d, "--spend-limit-usd", "50", "--credential-note", "  "], "needs --credential-note"),
             ):
                 rc, _, err = run_main(argv, runner=fake_runner(calls))
                 self.assertEqual(rc, 2, argv)
@@ -148,7 +153,7 @@ class OutputShape(unittest.TestCase):
         self.assertEqual(summary["cases"]["T1"]["old_skill"], {"pass": 3, "ran": 3, "runs": 3, "statuses": ["ran"] * 3})
         self.assertEqual(summary["cases"]["T5"]["with_skill"]["pass"], 3)
         self.assertEqual(summary["credential_note"], "model-only test credential")
-        self.assertIsNone(summary["grader_cost_usd"])
+        self.assertNotIn("grader_cost_usd", summary)
         graded = [kw["expectations"] for name, kw in calls if name == "run_grader"]
         self.assertTrue(all(len(e) == 1 and "verdict exposed for both" in e[0] for e in graded))
         picked = [kw["assertions_config"] for name, kw in calls if name == "validate_run"]
@@ -163,6 +168,90 @@ class OutputShape(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual([r["status"] for r in recs], ["ran", "ran"] + ["not run"] * 7)
         self.assertEqual(sum(1 for name, _ in calls if name == "run_subject"), 2)
+
+
+def paid(d, cases, runner, *extra):
+    argv = ["--paid", "--out", d, "--spend-limit-usd", "100", "--credential-note", "c", *extra]
+    for c in cases:
+        argv += ["--case", c]
+    rc, _, err = run_main(argv, runner=runner)
+    recs = [json.loads(l) for l in (Path(d) / "runs.jsonl").read_text().splitlines()] if rc == 0 else []
+    summary = json.loads((Path(d) / "summary.json").read_text()) if rc == 0 else None
+    return rc, err, recs, summary
+
+
+class FixedBranches(unittest.TestCase):
+    def test_t6_both_queries_pairs_runs_by_index(self):
+        runner, seen = fake_runner([]), {}
+        passes = {3: {1, 2}, 18: {2, 3}}   # q3 passes runs 1, 2; q18 runs 2, 3: 2/3 each, both at run 2 only
+        queries = json.loads((ROOT / "misc/evals/eks-mcp-server/triggering.json").read_text())
+
+        def run_single_query(query, name, skill_dir, model, timeout):
+            idx = next(i for i, q in enumerate(queries) if q["query"] == query)
+            seen[idx] = seen.get(idx, 0) + 1
+            return {"triggered": (seen[idx] in passes[idx]) == (idx == 3), "invalid": False}
+        runner.run_single_query = run_single_query
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, _, summary = paid(d, ["T6"], runner)
+        self.assertEqual(rc, 0)
+        t6 = summary["cases"]["T6"]
+        self.assertEqual((t6["with_skill_q3"]["pass"], t6["with_skill_q18"]["pass"]), (2, 2))
+        self.assertEqual(t6["both_queries"], {"pass": 1, "ran": 3, "runs": 3})
+
+    def test_kubeconfig_is_resolved_or_refused(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as out:
+            rc, err, _, _ = paid(out, ["T7"], fake_runner(calls), "--kubeconfig", str(Path(d) / "missing"))
+            self.assertEqual(rc, 2)
+            self.assertIn("kubeconfig not found", err)
+            self.assertEqual(calls, [])
+            kc = Path(d) / "kc"
+            kc.write_text("k")
+            cwd = os.getcwd()
+            os.chdir(d)   # a relative path, as a maintainer would type it
+            try:
+                rc, _, _, _ = paid(out, ["T7"], fake_runner(calls), "--kubeconfig", "kc")
+            finally:
+                os.chdir(cwd)
+        self.assertEqual(rc, 0)
+        envs = [kw["extra_env"] for name, kw in calls if name == "run_subject"]
+        self.assertEqual(len(envs), 6)
+        self.assertTrue(all(e == {"KUBECONFIG": str(kc.resolve())} for e in envs))
+
+    def test_grader_error_is_status_error(self):
+        runner = fake_runner([])
+        runner.run_grader = lambda **kw: {"error": "grader timeout"}
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, recs, summary = paid(d, ["T4"], runner)
+        self.assertEqual(rc, 0)
+        self.assertTrue(all(r["status"] == "error" and r["pass"] is None for r in recs))
+        self.assertEqual(summary["cases"]["T4"]["with_skill"]["ran"], 0)
+
+    def test_grader_with_too_few_expectations_is_not_a_pass(self):
+        runner = fake_runner([])
+        runner.run_grader = lambda **kw: {"expectations": []}
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, recs, summary = paid(d, ["T4"], runner)
+        self.assertEqual(rc, 0)
+        self.assertTrue(all(r["status"] == "error" for r in recs))
+        self.assertEqual(summary["cases"]["T4"]["with_skill"]["pass"], 0)
+
+    def test_non_empty_out_is_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "runs.jsonl").write_text("{}\n")
+            rc, err, _, _ = paid(d, ["T4"], fake_runner([]))
+        self.assertEqual(rc, 2)
+        self.assertIn("not an empty or new directory", err)
+
+    @unittest.skipUnless(subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e", f"{drive_c1.OLD}^{{commit}}"],
+                                        capture_output=True).returncode == 0, "old tag not in this clone")
+    def test_old_skill_dir_extracts_the_tag(self):
+        with drive_c1.old_skill_dir("eks-security") as d:
+            self.assertEqual(d.name, "eks-security")
+            want = subprocess.run(["git", "-C", str(ROOT), "show", f"{drive_c1.OLD}:skills/eks-security/SKILL.md"],
+                                  capture_output=True, check=True).stdout
+            self.assertEqual((d / "SKILL.md").read_bytes(), want)
+        self.assertFalse(d.exists())
 
 
 if __name__ == "__main__":
