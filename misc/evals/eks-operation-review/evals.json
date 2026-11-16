@@ -102,7 +102,7 @@
         {
           "type": "must-not-contain",
           "pattern": "kube2iam",
-          "context": "Must not recommend deprecated kube2iam for IAM",
+          "context": "Must not recommend kube2iam for IAM (a community tool AWS does not endorse, condone, nor support)",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         }
       ],

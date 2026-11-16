@@ -71,7 +71,7 @@
         {
           "type": "must-not-contain",
           "pattern": "kube2iam",
-          "context": "kube2iam is deprecated; must not recommend it",
+          "context": "kube2iam is a community tool AWS does not endorse, condone, nor support; must not recommend it",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         }
       ],
@@ -155,7 +155,7 @@
         {
           "type": "must-not-contain",
           "pattern": "kube2iam",
-          "context": "kube2iam is deprecated; must not recommend it",
+          "context": "kube2iam is a community tool AWS does not endorse, condone, nor support; must not recommend it",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         }
       ],

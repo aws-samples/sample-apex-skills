@@ -9,7 +9,7 @@
         "Output places the markdown files in a structured directory",
         "Output includes at least one .mmd file or Mermaid code block with `subgraph` or `flowchart` syntax",
         "Output creates at least 2 Architecture Decision Records as separate files",
-        "Each Architecture Decision Record has Status, Context, Decision and Consequences sections",
+        "Each Architecture Decision Record has Context, Decision and Consequences sections",
         "Output produces a machine-readable handoff artifact (AGENTS.md or similar) suitable for feeding to eks-build",
         "The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace with network policies, encryption requirements, audit logging) rather than generic security advice",
         "The output recommends a compute strategy that uses Karpenter (or Auto Mode) for workload flexibility",
