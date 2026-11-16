@@ -331,6 +331,7 @@ spec:
 
 **Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
+<!-- customer-run -->
 ```bash
 # Auto-manage Route 53 records for Services/Ingresses
 helm install external-dns external-dns/external-dns --version <chart-version> \

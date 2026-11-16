@@ -748,6 +748,7 @@ Each pattern and environment should use a separate state file:
 
 If state becomes corrupted or out of sync:
 
+<!-- customer-run -->
 ```bash
 # List resources in state
 terraform state list

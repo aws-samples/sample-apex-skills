@@ -33,6 +33,7 @@ This page is generated from [skills/eks-best-practices/references/reliability-ad
 
 ### Backup Strategy with Velero
 
+<!-- customer-run -->
 ```bash
 # Install Velero with AWS plugin
 velero install \
@@ -199,7 +200,7 @@ strategy:
 
 The default `maxUnavailable: 25%` means if you have 100 pods, only 75 may be active during rollout. If your app needs 80+, set `maxUnavailable: 20%` or lower.
 
-Always use `kubectl rollout undo deployment <name>` for quick rollbacks.
+Always use `kubectl rollout undo deployment <name>` for quick rollbacks. <!-- customer-run -->
 
 ### Blue/Green Deployments
 

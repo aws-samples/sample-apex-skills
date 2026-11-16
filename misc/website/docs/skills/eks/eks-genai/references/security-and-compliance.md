@@ -37,7 +37,7 @@ spec:
   roleARN: arn:aws:iam::ACCOUNT:role/vllm-model-reader
 ```
 
-This manifest requires the ACK EKS controller in the cluster. Without it, create the association through the EKS API: the AWS Management Console, the AWS CLI (`aws eks create-pod-identity-association`), the AWS SDKs, AWS CloudFormation and other tools such as eksctl and Terraform ([Pod Identity association](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-association.html)).
+This manifest requires the ACK EKS controller in the cluster. Without it, create the association through the EKS API: the AWS Management Console, the AWS CLI (`aws eks create-pod-identity-association`), the AWS SDKs, AWS CloudFormation and other tools such as eksctl and Terraform ([Pod Identity association](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-association.html)). <!-- customer-run -->
 
 Why for GenAI: model-serving pods need S3 (weights), Bedrock (gateway routing), and Secrets Manager (API keys). Static creds leak in logs, crash dumps, and large cached images.
 

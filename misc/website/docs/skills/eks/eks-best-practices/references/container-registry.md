@@ -485,7 +485,7 @@ Blob mounting allows image layers that already exist in one repository to be ref
 | **Disabled (default)** | Every push uploads all layers, even if identical copies exist in the registry |
 | **Enabled (opt-in)** | Push operations mount existing layers from other repos, saving bandwidth and time |
 
-Blob mounting is **off by default** -- opt in at the registry level with `aws ecr put-account-setting --name BLOB_MOUNTING --value ENABLED`. Constraints once enabled:
+Blob mounting is **off by default** -- opt in at the registry level with `aws ecr put-account-setting --name BLOB_MOUNTING --value ENABLED`. Constraints once enabled: <!-- customer-run -->
 - Not supported for pull-through-cache (PTC) images (as of 2026-08-04)
 - Source and destination repositories must use identical encryption keys
 - Cross-repository mounts require the caller to hold `ecr:GetDownloadUrlForLayer` on the source repository
@@ -524,7 +524,7 @@ The workflow for Helm charts stored in ECR OCI follows three steps:
 
 1. **Authenticate:** Obtain an ECR authorization token and pass it to `helm registry login`. The same ECR IAM credentials used for container images work for Helm charts.
 2. **Package and push:** Package the chart directory into a `.tgz` archive, then push it to an OCI URI in ECR (e.g., `oci://<account-id>.dkr.ecr.<region>.amazonaws.com/charts/`).
-3. **Install from ECR:** Reference the OCI URI directly in `helm install` or in ArgoCD Application source configuration with a specific version tag.
+3. **Install from ECR:** Reference the OCI URI directly in `helm install` or in ArgoCD Application source configuration with a specific version tag. <!-- customer-run -->
 
 **Design considerations:**
 - Use a dedicated `charts/` prefix in ECR to separate Helm charts from container images

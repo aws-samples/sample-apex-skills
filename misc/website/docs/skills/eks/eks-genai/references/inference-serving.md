@@ -110,6 +110,7 @@ When you need >1 replica, autoscaling, or multi-model routing at the framework l
 
 **Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
+<!-- customer-run -->
 ```bash
 # Install KubeRay operator (Helm)
 helm repo add kuberay https://ray-project.github.io/kuberay-helm/

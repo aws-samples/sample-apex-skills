@@ -510,6 +510,7 @@ Kubecost provides real-time cost monitoring, namespace/label allocation, and rig
 
 First create the `kubecost` namespace and, in it, a Secret named `cloud-integration` whose key `cloud-integration.json` holds the cloud integration JSON; the chart expects that Secret in the release namespace.
 
+<!-- customer-run -->
 ```bash
 helm repo add kubecost https://kubecost.github.io/kubecost/
 helm install kubecost kubecost/kubecost --version <chart-version> \

@@ -382,6 +382,7 @@ For I/O-bound workloads on large nodes, consider [CPU pinning](https://kubernete
 
 iptables rules are O(n) for n services -- IPVS uses hash tables for O(1) lookup:
 
+<!-- customer-run -->
 ```bash
 aws eks update-addon --cluster-name $CLUSTER_NAME --addon-name kube-proxy \
   --configuration-values '{"ipvs": {"scheduler": "rr"}, "mode": "ipvs"}' \
