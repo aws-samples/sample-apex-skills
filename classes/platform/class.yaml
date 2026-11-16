@@ -1,0 +1,13 @@
+# Platform: what Advisor and Operator members share. Built because they
+# share text (the class survey's Platform row; collapse rule R:181).
+# plan: R:190 (Platform row)
+# OPEN (sketch point 1): whether that shared text (the shared headings, the
+# reading hint, the copied knowledge) goes into this class or into apex-base
+# is not decided, so this class holds no rules yet.
+
+name: platform
+title: Platform skill
+parents: [apex-base]
+
+rules: {}
+checks: []
