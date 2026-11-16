@@ -198,7 +198,7 @@ _generated <timestamp> · source: AWS API + K8s API · modules: N/N_
 <modules that could not run + reason, AND sub-facts that ran but could not be confirmed>
 - storage: unavailable (reason: K8s API access entry absent — AWS-API-only mode)
 - addons.helm_releases: found from Helm annotations on Deployments, DaemonSets, StatefulSets, Services and Helm-labelled ConfigMaps only; chart version, app version, revision and status not read (Helm release Secrets are not read); listed releases may be failed, pending or uninstalled
-- addons.helm_releases: unconfirmed (reason: configmaps read failed: <error>), reported as `unconfirmed`, not `count: 0`
+- addons.helm_releases: unconfirmed (reason: configmaps read failed: <error>)
 ```
 
 Keep every absence claim within the successfully inspected scope. State that

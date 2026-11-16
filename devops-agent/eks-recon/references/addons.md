@@ -116,7 +116,7 @@ for add-ons not available as EKS-managed add-ons.
 **Via Kubernetes API**: read the objects for Helm's marks. The API returns whole objects (pod-template env values, Helm-managed ConfigMap data); record only the metadata fields below:
 
 - **Resource:** `Deployment`, `DaemonSet`, `StatefulSet` (group/version `apps/v1`) and `Service` (`v1`), all namespaces; `ConfigMap` (`v1`), all namespaces, label selector `app.kubernetes.io/managed-by=Helm` (so other ConfigMaps' data is not fetched).
-- **Fields to extract:** annotation `meta.helm.sh/release-name` → release name; annotation `meta.helm.sh/release-namespace` → release namespace; label `helm.sh/chart` → `chart_labels` (verbatim, unique per release). Group objects by release namespace and name; one group is one release. An object labelled `app.kubernetes.io/managed-by: Helm` with no release annotations goes to `label_only` as `<kind>/<namespace>/<name>`.
+- **Fields to extract:** annotation `meta.helm.sh/release-name` → release name; annotation `meta.helm.sh/release-namespace` → release namespace; label `helm.sh/chart`, else the legacy `chart` label (kube-prometheus-stack sets only `chart:`) → `chart_labels` (verbatim, unique per release). Group objects by release namespace and name; one group is one release. An object labelled `app.kubernetes.io/managed-by: Helm` with no release annotations goes to `label_only` as `<kind>/<namespace>/<name>`.
 - **RBAC verbs:** `get`, `list` on `deployments.apps`, `daemonsets.apps`, `statefulsets.apps`, `services`, `configmaps`.
 
 > **chart_labels note.** The chart's own templates set `helm.sh/chart`
@@ -136,8 +136,8 @@ for add-ons not available as EKS-managed add-ons.
 
 **What this does not report.** Chart version as Helm recorded it, app version, revision and
 status are in Helm's release record, which this skill does not read. On a Flux-managed
-release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status, chart version
-and app version in its Ready condition and `status.history`
+release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status and chart
+version in its Ready condition, and app version in `status.history`
 ([Flux HelmRelease](https://fluxcd.io/flux/components/helm/helmreleases/)); this skill does
 not read it. A listed release is not known to be deployed: Helm applies a release's objects before
 it marks the release failed, and `helm uninstall` leaves resources annotated
@@ -176,8 +176,9 @@ for kind, o in objs:
     if name:
         key = (ann.get("meta.helm.sh/release-namespace"), name)
         r = releases.setdefault(key, {"name": name, "namespace": key[0], "chart_labels": set()})
-        if lab.get("helm.sh/chart"):
-            r["chart_labels"].add(lab["helm.sh/chart"])
+        chart = lab.get("helm.sh/chart") or lab.get("chart")
+        if chart:
+            r["chart_labels"].add(chart)
     elif lab.get("app.kubernetes.io/managed-by") == "Helm":
         label_only.append(f"{kind}/{o.metadata.namespace}/{o.metadata.name}")
 ```
@@ -295,7 +296,7 @@ addons:
     list:
       - name: string                # meta.helm.sh/release-name
         namespace: string           # meta.helm.sh/release-namespace
-        chart_labels: list          # helm.sh/chart label values set by the chart, verbatim; [] if none
+        chart_labels: list          # helm.sh/chart (else legacy chart) label values set by the chart, verbatim; [] if none
     label_only: list                # "<kind>/<namespace>/<name>": managed-by Helm, no release annotations
     # Chart version as Helm recorded it, app version, revision and status are in the
     # release Secret and are not read, so no field carries them.

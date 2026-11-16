@@ -302,7 +302,7 @@ _generated <timestamp> · source: MCP | CLI · modules: N/N_
 <modules that could not run + reason, AND sub-facts that ran but could not be confirmed — makes gaps visible>
 - storage: unavailable (reason: MCP 401 and kubectl not configured)
 - addons.helm_releases: found from Helm annotations on Deployments, DaemonSets, StatefulSets, Services and Helm-labelled ConfigMaps only; chart version, app version, revision and status not read (Helm release Secrets are not read); listed releases may be failed, pending or uninstalled
-- addons.helm_releases: unconfirmed (reason: configmaps read failed: <error>), reported as `unconfirmed`, not `count: 0`
+- addons.helm_releases: unconfirmed (reason: configmaps read failed: <error>)
 
 ## Machine artifact
 - `<output-prefix>.yaml` written (secondary point-in-time facts snapshot)

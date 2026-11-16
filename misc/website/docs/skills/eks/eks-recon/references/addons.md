@@ -120,7 +120,7 @@ Use Helm detection when you need to inventory third-party components that were i
 > `meta.helm.sh/release-namespace`. Helm v3.2.0 added the annotations, when it began adopting
 > existing resources into a release ([Helm v3.2.0 release notes](https://github.com/helm/helm/releases/tag/v3.2.0)).
 
-**MCP:** `list_k8s_resources(cluster_name="<cluster-name>", kind=..., api_version=...)` with no `namespace` (all namespaces), once each for `Deployment`, `DaemonSet`, `StatefulSet` (`apps/v1`) and `Service` (`v1`), and for `ConfigMap` (`v1`) with `label_selector="app.kubernetes.io/managed-by=Helm"`. It returns only each object's name, namespace, creation time, labels and annotations ([eks-mcp-server k8s_handler.py](https://github.com/awslabs/mcp/blob/c3d28b016ac5fec02a8f8954b86ab273a5a0ba5d/src/eks-mcp-server/awslabs/eks_mcp_server/k8s_handler.py#L519-L615)), so build the same `count`, `list` and `label_only` from those fields.
+**MCP:** Helm releases: CLI only. The MCP tool returns annotations whole ([eks-mcp-server k8s_handler.py](https://github.com/awslabs/mcp/blob/c3d28b016ac5fec02a8f8954b86ab273a5a0ba5d/src/eks-mcp-server/awslabs/eks_mcp_server/k8s_handler.py#L613)), and `last-applied-configuration` can hold the full object ([Kubernetes declarative configuration](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/)).
 
 **CLI:**
 ```bash
@@ -137,7 +137,7 @@ d=$(mktemp -d) \
       release: .metadata.annotations["meta.helm.sh/release-name"],
       release_namespace: .metadata.annotations["meta.helm.sh/release-namespace"],
       managed_by: .metadata.labels["app.kubernetes.io/managed-by"],
-      chart_label: .metadata.labels["helm.sh/chart"]}
+      chart_label: (.metadata.labels["helm.sh/chart"] // .metadata.labels.chart)}
    | select(.release != null or .managed_by == "Helm")]
   | {count: ([.[] | select(.release != null)] | group_by([.release_namespace, .release]) | length),
      list: ([.[] | select(.release != null)] | group_by([.release_namespace, .release])
@@ -162,7 +162,7 @@ d=$(mktemp -d) \
 }
 ```
 
-- `chart_labels` holds the `helm.sh/chart` label values on the release's objects, verbatim.
+- `chart_labels` holds the `helm.sh/chart` label values on the release's objects, else the legacy `chart` label's (kube-prometheus-stack sets only `chart:`), verbatim.
   The chart's own templates set that label ([Helm label conventions](https://helm.sh/docs/chart_best_practices/labels/)),
   not Helm, so it can be absent. A release can show more than one value: its subcharts set
   their own, and an upgrade that fails part-way leaves some objects at the old chart, since
@@ -178,8 +178,8 @@ d=$(mktemp -d) \
 
 **What this does not report.** Chart version as Helm recorded it, app version, revision and
 status are in Helm's release record, which this skill does not read. On a Flux-managed
-release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status, chart version
-and app version in its Ready condition and `status.history`
+release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status and chart
+version in its Ready condition, and app version in `status.history`
 ([Flux HelmRelease](https://fluxcd.io/flux/components/helm/helmreleases/)); this skill does
 not read it. A listed release is not known to be deployed: Helm applies a release's objects before
 it marks the release failed, and `helm uninstall` leaves resources annotated
@@ -314,7 +314,7 @@ addons:
     list:
       - name: string                # meta.helm.sh/release-name
         namespace: string           # meta.helm.sh/release-namespace
-        chart_labels: list          # helm.sh/chart label values set by the chart, verbatim; [] if none
+        chart_labels: list          # helm.sh/chart (else legacy chart) label values set by the chart, verbatim; [] if none
     label_only: list                # "<kind>/<namespace>/<name>": managed-by Helm, no release annotations
     # Chart version as Helm recorded it, app version, revision and status are in the
     # release Secret and are not read, so no field carries them.

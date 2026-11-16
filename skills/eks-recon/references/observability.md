@@ -193,7 +193,7 @@ kubectl get daemonset -A -l "app.kubernetes.io/name=nri-bundle" 2>/dev/null
 
 **Prometheus type + version:** classify how Prometheus runs and record its version.
 - `self-managed` — a `prometheus-server` Deployment/StatefulSet (e.g. Helm `prometheus`).
-- `operator`: the Prometheus Operator is present (a Deployment labelled `app.kubernetes.io/name=prometheus-operator`, or kube-prometheus-stack found by its chart label as above, which names its operator `kube-prometheus-stack-prometheus-operator`), managing `Prometheus` CRs.
+- `operator`: the Prometheus Operator is present (a Deployment labelled `app.kubernetes.io/name=prometheus-operator`, or kube-prometheus-stack found by its chart label as above, which labels its operator `app.kubernetes.io/name=kube-prometheus-stack-prometheus-operator`), managing `Prometheus` CRs.
 - `amp` — Amazon Managed Prometheus; an `aps-workspaces` remote_write target with no in-cluster server.
 ```bash
 # Version from the prometheus image tag (self-managed / operator)
@@ -213,30 +213,40 @@ kubectl get alertmanagers.monitoring.coreos.com -A 2>/dev/null
 ```
 
 **Prometheus scrape_configs / remote_write targets (raw fact):** capture the configured
-scrape job names and remote_write URLs verbatim — do not interpret them.
+scrape job names and remote_write URLs verbatim (each url's userinfo removed); do not interpret them.
 ```bash
 # No Secret is read. The Prometheus Operator renders each Prometheus's config into a Secret,
 # so the operator case reads the Prometheus and PrometheusAgent resources instead.
 # On a failed read kubectl's error prints on stderr: report remote_write_targets
-# unconfirmed with it, unless it says the resource type does not exist (no operator or,
-# for prometheusagents, an operator older than v0.64.0).
+# unconfirmed with it, unless it says the resource type does not exist: no operator or,
+# for prometheusagents, the PrometheusAgent CRD is not installed (added in v0.64.0,
+# shipped separately).
 # Self-managed: remote_write targets (e.g. aps-workspaces AMP URLs), every url under each
 # remote_write block, and the job_name of every entry under each scrape_configs block,
 # from the ConfigMaps. Block-style only, flow style not read. This reads the data of every
 # ConfigMap except Helm's own release records, which Helm's configmap storage driver
-# labels owner=helm.
+# labels owner=helm. It takes any remote_write, scrape_configs, url or job_name key in any
+# ConfigMap, nested keys included. Each line starts with its ConfigMap's namespace/name.
+# Lines can come from collector configs (OpenTelemetry or ADOT prometheus receiver, Grafana
+# Agent); attribute them by ConfigMap and count a repeated job or url once. A quoted value is read whole. Each url's
+# userinfo (user[:password]@) is removed before it prints; never quote it.
 out=$(kubectl get cm -A -l 'owner!=helm' -o json) && printf '%s' "$out" | jq -r '
-  .items[] | .data // {} | to_entries[] | .value
+  def val: if .[0] != null then .[0] elif .[1] != null then .[1] else .[2] end;
+  def nouser: sub("^(?<s>[A-Za-z][A-Za-z0-9+.-]*://)[^/@]*@"; "\(.s)");
+  .items[] | "\(.metadata.namespace)/\(.metadata.name)" as $cm | .data // {} | to_entries[] | .value
   | (capture("(?m)^(?<i>[ \\t]*)remote_write:[ \\t]*(?:#.*)?\\r?\\n(?<b>(?:\\k<i>[ \\t-].*\\n?|[ \\t]*\\r?\\n)*)"; "g") | .b
-      | scan("(?m)^[ \\t]*(?:-[ \\t]*)?url:[ \\t]*([^\\s#]+)") | "remote_write_url: \(.[0])"),
+      | scan("(?m)^[ \\t]*(?:-[ \\t]*)?url:[ \\t]*(?:\"([^\"]*)\"|\u0027([^\u0027]*)\u0027|([^\\s#]+))")
+      | "\($cm) remote_write_url: \(val | nouser)"),
     (capture("(?m)^(?<i>[ \\t]*)scrape_configs:[ \\t]*(?:#.*)?\\r?\\n(?<b>(?:\\k<i>[ \\t-].*\\n?|[ \\t]*\\r?\\n)*)"; "g") | .b
-      | scan("(?m)^[ \\t]*(?:-[ \\t]*)?job_name:[ \\t]*[\"\u0027]?([^\\s#\"\u0027]+)") | "job_name: \(.[0])")' \
+      | scan("(?m)^[ \\t]*(?:-[ \\t]*)?job_name:[ \\t]*(?:\"([^\"]*)\"|\u0027([^\u0027]*)\u0027|([^\\s#]+))")
+      | "\($cm) job_name: \(val)")' \
   || echo "configmaps: read failed (see the error above)"
 # Operator: remote_write URLs from the Prometheus and PrometheusAgent resources
-# (spec.remoteWrite[].url; a PrometheusAgent shares the field with Prometheus)
+# (spec.remoteWrite[].url; a PrometheusAgent shares the field with Prometheus), userinfo removed
 for r in prometheuses prometheusagents; do
   out=$(kubectl get "$r.monitoring.coreos.com" -A -o json) \
-    && printf '%s' "$out" | jq -r '.items[] | .spec.remoteWrite[]?.url' \
+    && printf '%s' "$out" | jq -r '.items[] | .spec.remoteWrite[]?.url | strings
+         | sub("^(?<s>[A-Za-z][A-Za-z0-9+.-]*://)[^/@]*@"; "\(.s)")' \
     || echo "$r: read failed (see the error above)"
 done
 ```
@@ -458,7 +468,7 @@ observability:
     scrape_configs:               # raw fact — scrape jobs found in the prometheus config
       count: int
       list: list                  # scrape job names, verbatim
-    remote_write_targets: list    # remote_write URLs verbatim (e.g. aps-workspaces AMP URLs)
+    remote_write_targets: list    # remote_write URLs verbatim, userinfo removed (e.g. aps-workspaces AMP URLs)
 
     other_tools:                  # commercial APM agents detected in-cluster
       count: int

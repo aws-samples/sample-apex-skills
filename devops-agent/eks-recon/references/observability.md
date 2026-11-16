@@ -124,7 +124,7 @@ Classify how Prometheus runs and record its version.
 
 **Via Kubernetes API** — detect Prometheus and its version:
 
-- **Resource:** `Deployment` and `StatefulSet`, group/version `apps/v1`, label selector `app.kubernetes.io/name=prometheus`, all namespaces. Also check `Deployment`, all namespaces, with label `app.kubernetes.io/name=prometheus-operator` or `app.kubernetes.io/component=prometheus-operator`, or whose `helm.sh/chart` or `chart` label starts with `kube-prometheus-stack-` (kube-prometheus-stack names its operator `kube-prometheus-stack-prometheus-operator`), to set `type: operator`.
+- **Resource:** `Deployment` and `StatefulSet`, group/version `apps/v1`, label selector `app.kubernetes.io/name=prometheus`, all namespaces. Also check `Deployment`, all namespaces, with label `app.kubernetes.io/name=prometheus-operator` or `app.kubernetes.io/component=prometheus-operator`, or whose `helm.sh/chart` or `chart` label starts with `kube-prometheus-stack-` (kube-prometheus-stack labels its operator `app.kubernetes.io/name=kube-prometheus-stack-prometheus-operator`), to set `type: operator`.
 - **Fields to extract:** container image whose name matches `prometheus` → parse the image tag for the version; `metadata.namespace`.
 - **RBAC verbs:** `get`, `list` on `deployments.apps`, `statefulsets.apps`.
 
@@ -153,22 +153,22 @@ Classify how Grafana runs and record its version.
 - **RBAC verbs:** `get`, `list` on `deployments.apps`, `statefulsets.apps`, `alertmanagers.monitoring.coreos.com`.
 
 **Prometheus scrape_configs / remote_write targets (raw fact):** capture the configured
-scrape job names and remote_write URLs verbatim — do not interpret them.
+scrape job names and remote_write URLs verbatim (each url's userinfo removed); do not interpret them.
 
 No Secret is read. The Prometheus Operator renders each Prometheus's config into a Secret,
 so the operator case reads the Prometheus and PrometheusAgent custom resources instead.
 
 **Via Kubernetes API**, self-managed: read the Prometheus config ConfigMap:
 
-- **Resource:** `ConfigMap`, group/version `v1` (core), all namespaces, whose name matches `prometheus`, label selector `owner!=helm`.
-- **Fields to extract:** from the rendered config body — `scrape_configs[].job_name` (scrape job names) and `remote_write[].url` (remote_write URLs, e.g. `aps-workspaces` AMP endpoints).
+- **Resource:** `ConfigMap`, group/version `v1` (core), all namespaces, label selector `owner!=helm` (every ConfigMap except Helm's release records).
+- **Fields to extract:** from the rendered config body: `scrape_configs[].job_name` (scrape job names) and `remote_write[].url` (remote_write URLs, e.g. `aps-workspaces` AMP endpoints). Record each with its ConfigMap's namespace/name: values can come from collector configs (OpenTelemetry or ADOT prometheus receiver, Grafana Agent), so attribute them by ConfigMap and count a repeated job or url once. Remove each url's userinfo (`user[:password]@`) before recording; never quote it.
 - **RBAC verbs:** `get`, `list` on `configmaps`.
 
 **Via Kubernetes API**, operator: read the custom resources whenever the `Prometheus` CRD exists, whatever type the detection above found:
 
 - **Resource:** `Prometheus` (group/version `monitoring.coreos.com/v1`) and `PrometheusAgent` (`monitoring.coreos.com/v1alpha1`), all namespaces.
-- **Fields to extract:** every `spec.remoteWrite[].url` of each `Prometheus` and `PrometheusAgent` (a PrometheusAgent shares the field with Prometheus) → `remote_write_targets`.
-- **RBAC verbs:** `get`, `list` on `prometheuses.monitoring.coreos.com`, `prometheusagents.monitoring.coreos.com`. A failed read (such as `403 Forbidden`) makes `remote_write_targets` unconfirmed, with the error, not empty; a resource type that does not exist means no operator is installed or, for prometheusagents, an operator older than v0.64.0.
+- **Fields to extract:** every `spec.remoteWrite[].url` of each `Prometheus` and `PrometheusAgent` (a PrometheusAgent shares the field with Prometheus) → `remote_write_targets`. Remove each url's userinfo (`user[:password]@`) before recording; never quote it.
+- **RBAC verbs:** `get`, `list` on `prometheuses.monitoring.coreos.com`, `prometheusagents.monitoring.coreos.com`. A failed read (such as `403 Forbidden`) makes `remote_write_targets` unconfirmed, with the error, not empty; a resource type that does not exist means no operator is installed or, for prometheusagents, the PrometheusAgent CRD is not installed (added in v0.64.0, shipped separately).
 
 Record `scrape_configs` (count + list of job names) and `remote_write_targets` (list of URLs)
 exactly as found; report `null`/empty where the config is not readable. For the operator,
@@ -393,7 +393,7 @@ observability:
     scrape_configs:               # raw fact — scrape jobs found in the prometheus config
       count: int
       list: list                  # scrape job names, verbatim
-    remote_write_targets: list    # remote_write URLs verbatim (e.g. aps-workspaces AMP URLs)
+    remote_write_targets: list    # remote_write URLs verbatim, userinfo removed (e.g. aps-workspaces AMP URLs)
 
     other_tools:                  # commercial APM agents detected in-cluster
       count: int
