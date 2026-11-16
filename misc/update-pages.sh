@@ -215,7 +215,7 @@ first_sentence() {
 # skill's own SKILL.md. SKILL.md descriptions are routing text for agents and
 # run to 1,000 characters, which is why the pages do not use them directly.
 # A skill missing here falls back to its name and its description's first
-# sentence, and the generator warns.
+# sentence, and the generator warns; --check fails on it instead.
 # The group is the README heading the skill is listed under; the README list
 # is generated from this table by misc/update-skills-references.sh, which fails
 # on a skill with no line or no group here.
@@ -255,6 +255,10 @@ skill_title() {
   local t
   t="$(awk -F'\t' -v n="$1" '$1 == n { print $2; exit }' <<<"$SKILL_META")"
   if [[ -z "$t" ]]; then
+    if [[ "$MODE" == "check" ]]; then
+      echo "ERROR: skills/$1 has no SKILL_META line in misc/update-pages.sh" >&2
+      exit 1
+    fi
     echo "WARNING: skills/$1 has no SKILL_META line in misc/update-pages.sh" >&2
     t="$(derive_title "$SKILLS_DIR/$1/SKILL.md")"
   fi
