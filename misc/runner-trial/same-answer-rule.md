@@ -1,6 +1,8 @@
 # Runner trial: the "same answer" rule
 
-This rule says which fields are compared between two runs, and how times and counts are normalised. It is needed because eks-recon reads live state and names its output with a timestamp. The trial uses it for T7 and for comparing runners on every case (cases.md).
+Repo line cites are at commit 7efa0776.
+
+This rule says which fields are compared between two runs, and how times and counts are normalised. It is needed because eks-recon reads live state and names its output with a timestamp. The trial uses it for T7 (cases.md).
 
 ## The rule
 
@@ -14,7 +16,8 @@ Two runs, or two runners, give the same answer on a case when all of these hold:
    - Ignored: whitespace, table column order and heading wording.
    - Compared: row values.
    - A compared field whose live value changed between the two runs (a node group that scaled, an add-on updated between runs) is skipped, not counted as a different answer, and both values are logged with the run ids. A change in the cluster is not a disagreement between runs. A pair of runs with more than one skipped field reads "cannot compare", not "same answer".
+   - Three runs give the same answer when each of their three pairs does; if any pair reads 'cannot compare', the three runs read 'cannot compare'.
 4. **Generated project cases (T3).** The same validator result. File contents are not compared, so two different valid projects count as the same answer.
 5. **Free prose** outside the compared fields is not compared.
 
-For T5, T6 and T8, rule 1 alone applies: each has a pass condition and no compared fields.
+For T5 and T6, rule 1 alone applies: each has a pass condition and no compared fields.
