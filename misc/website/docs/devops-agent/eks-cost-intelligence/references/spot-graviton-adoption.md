@@ -27,7 +27,7 @@ Spot and Graviton adoption is the second-highest weighted dimension (20 points m
 | 1 | Graviton (arm64) adoption percentage | < 50% of eligible nodes | HIGH if below 50% |
 | 2 | Node groups/NodePools without arm64 | Any group missing arm64 | One finding, rated by the Check 2 severity table |
 | 3 | Workloads with explicit amd64 affinity | Any workload pinned to amd64 | LOW–MEDIUM |
-| 4 | Spot vs On-Demand percentage | No Spot + stateless workloads exist | HIGH |
+| 4 | Spot vs On-Demand percentage | No Spot + stateless workloads exist | As Check 5 |
 | 5 | Stateless multi-replica workloads on On-Demand | Eligible workloads not on Spot | By waste $ |
 | 6 | Instance type diversity for Spot | < 5 instance types in Spot pool | MEDIUM |
 | 7 | Node Termination Handler / interruption handling | Missing handler with Spot nodes | HIGH |
@@ -332,6 +332,8 @@ If spot_pct > 0 AND spot_pct < 30 AND has_spot_eligible_workloads:
 | 1–29% Spot + more eligible workloads | MEDIUM |
 | 30%+ Spot or no eligible workloads | No finding |
 
+Check 4 and Check 5 on the same eligible workloads are one finding (findings-format.md Severity Assignment Rules 2): report and deduct it once, rated by Check 5's Severity classification.
+
 ### Remediation
 
 ```yaml
@@ -420,10 +422,10 @@ For each Deployment in non-system namespaces:
       monthly_savings = pods_on_demand × per_pod_cost × 0.60  # ~60% Spot savings
 
 If len(spot_eligible_workloads) > 0 AND cluster_spot_pct == 0:
-  → Generate a finding (Requirement 6.5); severity from the summed monthly_savings, HIGH when no savings figure (Severity classification below)
+  → Generate a finding (Requirement 6.5); severity per Severity classification below
 
 If len(spot_eligible_workloads) > 0 AND cluster_spot_pct > 0:
-  → Generate a finding (more workloads could use Spot); severity from the summed monthly_savings, MEDIUM when no savings figure
+  → Generate a finding (more workloads could use Spot); severity per Severity classification below
 ```
 
 ### Severity classification
@@ -433,11 +435,11 @@ If len(spot_eligible_workloads) > 0 AND cluster_spot_pct > 0:
 | Eligible workloads on On-Demand + zero Spot in cluster | HIGH |
 | Eligible workloads on On-Demand + some Spot exists | MEDIUM |
 | Monthly savings > $500 | CRITICAL |
-| Monthly savings $200–$500 | HIGH |
-| Monthly savings $50–$200 | MEDIUM |
-| Monthly savings < $50 | LOW |
+| Monthly savings > $200 to $500 | HIGH |
+| Monthly savings > $50 to $200 | MEDIUM |
+| Monthly savings $50 or less | LOW |
 
-Which rows apply: when the workloads can be priced (`monthly_savings` above), the savings rows set the severity, since severity is always determined by monthly waste ([findings-format.md](findings-format.md), Severity Assignment Rules 1). The two condition rows apply only when no per-pod cost is available; the finding is then `confidence: low`, which rule 4 caps at HIGH.
+Which rows apply: the savings rows set the severity from the summed `monthly_savings` ([findings-format.md](findings-format.md), Severity Assignment Rules 1 and 2), and a `confidence: low` estimate is capped at HIGH (rule 4). The two condition rows apply only when no `monthly_savings` figure can be made.
 
 > **Spot pricing note:** The discount used (60-65%) is a conservative average. Actual Spot discounts vary 40-90% by instance type, region, and AZ. For production assessments, query live Spot prices: `aws ec2 describe-spot-price-history --instance-types <types> --product-descriptions "Linux/UNIX"`
 
@@ -532,13 +534,11 @@ For each Spot-enabled NodePool or node group:
 
 | Condition | Severity |
 |-----------|----------|
-| Spot node group with only 1–2 instance types | HIGH |
+| Spot node group with only 1–2 instance types | MEDIUM |
 | Spot node group with 3–4 instance types | MEDIUM |
 | Spot NodePool with only 1 instance category | MEDIUM |
-| All Spot from single instance family | MEDIUM |
+| Spot types from one family (node group), or fewer than 3 families (NodePool) | MEDIUM |
 | 5+ types across 2+ families | No finding |
-
-When more than one row applies, the finding takes the highest severity among them.
 
 ### Remediation
 
@@ -727,10 +727,10 @@ START
   │
   ├─ SPOT CHECKS
   │   ├─ Calculate Spot vs On-Demand percentage (Check 4)
-  │   │   └─ If 0% Spot + eligible workloads → HIGH finding
+  │   │   └─ If 0% Spot + eligible workloads → finding by summed savings (Check 5)
   │   ├─ Identify Spot-eligible workloads on On-Demand (Check 5)
   │   │   ├─ Criteria: stateless + replicas ≥ 2 + has PDB
-  │   │   └─ For each eligible workload on OD → finding by waste $
+  │   │   └─ Eligible workloads on OD → one finding, severity by summed savings
   │   ├─ Check instance type diversity for Spot (Check 6)
   │   │   └─ If < 5 types or single family → MEDIUM finding
   │   └─ Check interruption handling (Check 7)
@@ -747,8 +747,8 @@ START
 
 - Check 1: HIGH (0% Graviton)
 - Check 2: HIGH (all groups amd64-only)
-- Check 4: HIGH (0% Spot + eligible workloads)
-- Check 5: Multiple findings (eligible workloads on OD)
+- Check 4: reported as Check 5's finding
+- Check 5: one finding, severity by summed savings
 - Check 7: not applicable (no Spot nodes)
 - **Expected deduction:** 20 points (capped)
 
