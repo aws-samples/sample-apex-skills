@@ -4,7 +4,7 @@ Repo line cites are at commit 7efa0776.
 
 ## Status
 
-No paid run has happened. The runs wait on the maintainers' spend decision for the paid runs (cost-estimate.md: $49.02 to $149.39). They also wait on a subject credential limited to the model calls: on the trial host every case's subject can reach an IAM user with AdministratorAccess, so no case runs safely as written (cases.md, Credentials and permissions). Until both are given, these sections hold that line and nothing else:
+No paid run has happened. The runs wait on the maintainers' spend decision for the paid runs (cost-estimate.md: $49.02 to $149.39). They also wait on a subject credential limited to the model calls: on the trial host every case's subject can reach an IAM user with AdministratorAccess whose full scope is unread, so no case is shown safe to run as written (cases.md, Credentials and permissions). Until both are given, these sections hold that line and nothing else:
 
 - Results per candidate (score-sheet.md S1 to S10): waits on the maintainers' spend decision for the paid runs.
 - The runner pick, with its reasons from S2, S6 and S10: waits on the maintainers' spend decision for the paid runs.

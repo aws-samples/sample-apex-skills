@@ -63,15 +63,15 @@ Only T4's pass condition rests on an EKS fact (below); the others use fixture da
 
 Read on the trial host on 2026-11-16, with instance metadata turned off for the reads (`AWS_EC2_METADATA_DISABLED=true`):
 - The runner links the host ~/.aws into every sandbox HOME (misc/evals/scripts/run_triggering.py:92-94 and :112-114) and passes the parent environment through, `AWS_PROFILE` included (`build_subprocess_env`, :126). The subject runs with `--permission-mode bypassPermissions` (misc/evals/scripts/run_task_evals.py:480), so a Bash call in any case can use those credentials.
-- `aws configure list` shows the profile reads long-term access keys from the shared credentials file. `aws sts get-caller-identity` through it returns an IAM user (`arn:aws:iam::<account>:user/<name>`), and `aws iam list-attached-user-policies` for that user lists the AWS managed policy `AdministratorAccess`. That user can read and write across the account.
+- `aws configure list` shows the profile reads long-term access keys from the shared credentials file. `aws sts get-caller-identity` through it returns an IAM user (`arn:aws:iam::<account>:user/<name>`), and `aws iam list-attached-user-policies` for that user lists the AWS managed policy `AdministratorAccess`. The user's inline policy and the attached policies of the read-only kubeconfig's role were not read, so the effective scope of these credentials is unread; with `AdministratorAccess` attached, no case is shown safe.
 
-| Case | What the case needs from AWS | What the subject can reach | Runs safely today |
+| Case | What the case needs from AWS | What the subject can reach | Shown safe today |
 |---|---|---|---|
-| T1, T2, T3, T4, T6 | Model calls on Bedrock only; the prompts are offline (T1 and T4 say not to run aws or kubectl) | The IAM user above, AdministratorAccess | No |
-| T5 | Model calls on Bedrock only | The IAM user above, AdministratorAccess | No |
-| T7 | Model calls on Bedrock, plus read-only cluster and EKS API reads through the read-only kubeconfig | The IAM user above, AdministratorAccess; the read-only kubeconfig's role is itself reached through that user's keys | No |
+| T1, T2, T3, T4, T6 | Model calls on Bedrock only; the prompts are offline (T1 and T4 say not to run aws or kubectl) | The IAM user above, AdministratorAccess | Not shown safe |
+| T5 | Model calls on Bedrock only | The IAM user above, AdministratorAccess | Not shown safe |
+| T7 | Model calls on Bedrock, plus read-only cluster and EKS API reads through the read-only kubeconfig | The IAM user above, AdministratorAccess; the read-only kubeconfig's role is itself reached through that user's keys | Not shown safe |
 
-No read-only path the runner already has removes those keys from the subject's reach. The runner's one scoped mode, `--aws-session-policy` (run_task_evals.py:1034-1047), mints a federation token per run, and it still leaves the ~/.aws link and `AWS_PROFILE` in place, where `--profile` in a Bash call outranks the session's environment variables. So every case, T1 to T7, is "cannot run safely as written" on this host until the subject and the grader get a HOME with no ~/.aws link and an environment holding only credentials limited to the model calls (and, for T7, the cluster reads). That runner change is sized in results.md (Clean credentials per run); the credential itself is for the maintainers to provide.
+No read-only path the runner already has removes those keys from the subject's reach. The runner's one scoped mode, `--aws-session-policy` (run_task_evals.py:1034-1047), mints a federation token per run, and it still leaves the ~/.aws link and `AWS_PROFILE` in place, where `--profile` in a Bash call outranks the session's environment variables. So every case, T1 to T7, is "not shown safe to run as written" on this host until the subject and the grader get a HOME with no ~/.aws link and an environment holding only credentials limited to the model calls (and, for T7, the cluster reads). That runner change is sized in results.md (Clean credentials per run); the credential itself is for the maintainers to provide.
 
 ## Run count
 
