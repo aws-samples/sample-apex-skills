@@ -91,7 +91,7 @@ class ArtifactValidationResults:
         passed = self.structural_passed + self.validators_passed
         failed = self.structural_failed + self.validators_failed
         total = passed + failed
-        return passed / total if total else 1.0
+        return passed / total if total else 0.0
 
     def to_dict(self) -> dict:
         return {
@@ -878,7 +878,8 @@ def _run_command(cmd: list[str], cwd: Path, timeout: int = 120) -> tuple[int, st
 def _no_tf_files(root: Path, validator: dict) -> ValidatorResult | None:
     """A skipped result when root holds no .tf file, else None. terraform fmt
     and validate exit 0 with nothing to check, which must not read as a pass;
-    the other validators skip on no matching files the same way."""
+    the other validators skip on no matching files the same way. Output with
+    only .tf.json files counts as no files."""
     if _resolve_glob(root, "**/*.tf"):
         return None
     return ValidatorResult(

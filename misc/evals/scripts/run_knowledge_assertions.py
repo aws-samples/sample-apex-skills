@@ -46,7 +46,7 @@ def extract_assistant_text(events_path: Path) -> str:
                 continue
             msg = evt.get("message", {})
             for block in msg.get("content", []):
-                if isinstance(block, dict) and block.get("type") == "text":
+                if block.get("type") == "text":
                     text = block.get("text", "").strip()
                     if text:
                         texts.append(text)

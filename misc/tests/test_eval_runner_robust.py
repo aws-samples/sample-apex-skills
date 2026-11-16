@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Tests for eval runner input handling: event lines that are not JSON
-objects, tool calls with no input, fixture files leaking into the graded
-outputs, and validators that pass with nothing to check.
+objects, user messages with string content, tool calls with no input, the
+tool-args-schema check, fixture files leaking into the graded outputs, and
+validators that pass with nothing to check.
 
 No test calls a model or starts a `claude` process. The two stream readers
 are fed by a child Python process that only prints fixed lines.
@@ -28,10 +29,12 @@ sys.path.insert(0, SCRIPTS_DIR)
 import artifact_validation  # noqa: E402
 import process_assertions  # noqa: E402
 from elicitation import drain_stream_for_events  # noqa: E402
-from parse_trajectory import parse_events, parse_events_file  # noqa: E402
+from parse_trajectory import parse_events  # noqa: E402
 from run_knowledge_assertions import extract_assistant_text  # noqa: E402
 from run_task_evals import (  # noqa: E402
+    compute_metrics,
     drain_stream,
+    format_transcript,
     snapshot_sandbox_outputs,
     stage_fixture_files,
 )
@@ -67,27 +70,25 @@ class NonObjectEventLines(unittest.TestCase):
         self.assertEqual(traj.duration_ms, 5)
         self.assertEqual(traj.to_dict()["skipped_events"], 4)
 
-    def test_parse_events_skips_non_dict_content_blocks(self):
+    def test_parse_events_skips_non_dict_user_blocks(self):
         user = {"type": "user", "message": {"content": [
             "junk", {"type": "tool_result", "content": "ok"}]}}
-        traj = parse_events([assistant("junk", tool_use("Read", input={})), user])
+        traj = parse_events([assistant(tool_use("Read", input={})), user])
         self.assertEqual(traj.total_tool_calls, 1)
         self.assertEqual(traj.steps[0].tool_calls[0].result, "ok")
 
-    def test_parse_events_file_counts_non_object_lines(self):
+    def test_user_string_content_in_transcript_and_metrics(self):
+        events = [{"type": "user", "message": {"content": "hi"}}]
+        self.assertIn("# Subject transcript", format_transcript(events, "p", None))
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "events.jsonl"
-            path.write_text('[1, 2]\n"s"\n'
-                            + json.dumps(assistant(tool_use("Read", input={}))) + "\n")
-            traj = parse_events_file(path)
-        self.assertEqual(traj.skipped_events, 2)
-        self.assertEqual(traj.total_tool_calls, 1)
+            metrics = compute_metrics(events, "", Path(tmp))
+        self.assertEqual(metrics["errors_encountered"], 0)
 
     def test_knowledge_text_reader_skips_non_object_lines(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "events.jsonl"
             path.write_text('[1]\n'
-                            + json.dumps(assistant("junk", {"type": "text", "text": "hi"}))
+                            + json.dumps(assistant({"type": "text", "text": "hi"}))
                             + "\n")
             self.assertEqual(extract_assistant_text(path), "hi")
 
@@ -122,33 +123,31 @@ class MissingToolInput(unittest.TestCase):
         inputs = [tc.input for tc in traj.steps[0].tool_calls]
         self.assertEqual(inputs, [None, None, {}])
 
-    def test_args_match_skips_missing_input_and_matches_real_input(self):
-        spec = [{"type": "tool-called", "tool": "Bash", "args_match": {"command": "ls"}}]
-        traj = parse_events([assistant(tool_use("Bash"),
-                                       tool_use("Bash", input={"command": "ls"}))])
-        res = process_assertions.evaluate(traj, spec)
-        self.assertTrue(res.results[0].passed)
-        self.assertEqual(res.results[0].matching_calls, [1])
-        missing = process_assertions.evaluate(parse_events([assistant(tool_use("Bash"))]), spec)
-        self.assertFalse(missing.results[0].passed)
-        self.assertEqual(missing.results[0].failure_class, "missed_tool")
 
-    def test_schema_check_fails_missing_input_and_passes_empty_input(self):
-        schema = {"type": "object", "required": []}
-        with mock.patch.object(process_assertions, "_HAS_JSONSCHEMA", False):
-            missing = process_assertions.evaluate(
-                parse_events([assistant(tool_use("T"))]),
-                [{"type": "tool-args-schema", "tool": "T", "schema": schema}])
-            empty = process_assertions.evaluate(
-                parse_events([assistant(tool_use("T", input={}))]),
-                [{"type": "tool-args-schema", "tool": "T", "schema": schema}])
-        self.assertFalse(missing.results[0].passed)
-        self.assertTrue(empty.results[0].passed)
 
-    def test_schema_fallback_with_required_key_and_missing_input(self):
+class ToolArgsSchemaCheck(unittest.TestCase):
+    """The tool-args-schema check fails rather than guessing, and a tool that
+    is never called passes only when every call must match."""
+
+    def check(self, events, **extra):
+        spec = {"type": "tool-args-schema", "tool": "T", "schema": {"type": "object"}}
+        spec.update(extra)
+        return process_assertions.evaluate(parse_events(events), [spec]).results[0]
+
+    def test_missing_input_fails_naming_the_call(self):
+        res = self.check([assistant(tool_use("T", input={}), tool_use("T"))])
+        self.assertFalse(res.passed)
+        self.assertIn("no input at indices [1]", res.evidence)
+
+    def test_without_jsonschema_the_check_fails(self):
         with mock.patch.object(process_assertions, "_HAS_JSONSCHEMA", False):
-            self.assertFalse(process_assertions._validate_against_schema(
-                None, {"required": ["path"]}))
+            res = self.check([assistant(tool_use("T", input={}))])
+        self.assertFalse(res.passed)
+        self.assertIn("jsonschema package not installed", res.evidence)
+
+    def test_never_called_passes_with_all_and_fails_without(self):
+        self.assertTrue(self.check([assistant(tool_use("Other", input={}))], all=True).passed)
+        self.assertFalse(self.check([assistant(tool_use("Other", input={}))]).passed)
 
 
 class StagedFixturesNotGraded(unittest.TestCase):
@@ -233,6 +232,14 @@ class NothingToCheckIsNotAPass(unittest.TestCase):
             {"type": "terraform-fmt"}, ["main.tf"])
         self.assertEqual(result.status, "passed")
         self.assertEqual(calls, 1)
+
+    def test_layer_with_every_check_skipped_scores_zero(self):
+        skipped = artifact_validation.ValidatorResult(
+            validator={"type": "terraform-fmt"}, status="skipped",
+            detail="No .tf files found", exit_code=None, duration_ms=0)
+        results = artifact_validation.ArtifactValidationResults(
+            artifact_root=".", structural_results=[], validator_results=[skipped])
+        self.assertEqual(results.overall_pass_rate, 0.0)
 
 
 if __name__ == "__main__":

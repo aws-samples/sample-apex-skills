@@ -62,7 +62,7 @@ from parse_trajectory import (
 )
 from process_assertions import evaluate
 from artifact_validation import validate_run as validate_artifacts
-from elicitation import ElicitationConfig, run_multiturn_subject
+from elicitation import ElicitationConfig, _append_event, run_multiturn_subject
 from skilleval_config import load_config as load_skilleval_config
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
@@ -73,17 +73,6 @@ GRADER_MD = REPO_ROOT / "skills" / "skill-creator" / "agents" / "grader.md"
 
 
 # ---------- stream consumption ------------------------------------------------
-
-
-def _append_event(events: list[dict], line: str) -> None:
-    """Append one stream-json line if it parses to a JSON object; a line that
-    is not JSON, or parses to a list, string, number or null, is dropped."""
-    try:
-        evt = json.loads(line)
-    except json.JSONDecodeError:
-        return
-    if isinstance(evt, dict):
-        events.append(evt)
 
 
 def drain_stream(
@@ -188,7 +177,8 @@ def format_transcript(events: list[dict], prompt: str, skill_name: str | None) -
                     lines.append("")
         elif etype == "user":
             msg = evt.get("message") or {}
-            for c in msg.get("content") or []:
+            blocks = msg.get("content")
+            for c in blocks if isinstance(blocks, list) else []:
                 if c.get("type") == "tool_result":
                     content = c.get("content")
                     if isinstance(content, list):
@@ -237,7 +227,8 @@ def compute_metrics(events: list[dict], transcript_text: str, outputs_dir: Path)
                 steps += 1
         elif evt.get("type") == "user":
             msg = evt.get("message") or {}
-            for c in msg.get("content") or []:
+            blocks = msg.get("content")
+            for c in blocks if isinstance(blocks, list) else []:
                 if c.get("type") == "tool_result" and c.get("is_error"):
                     errors += 1
 
@@ -365,7 +356,7 @@ def stage_fixture_files(
     skill_eval_dir: Path,
     eval_id: int | str,
     files: list[str] | None,
-) -> dict[str, str | None]:
+) -> dict[str, str]:
     """Copy fixture files into the sandbox before the subject runs.
 
     Convention:
@@ -379,11 +370,11 @@ def stage_fixture_files(
       1. The eval case declares a non-empty "files" array, AND
       2. The <skill_eval_dir>/files/ directory actually exists on disk.
 
-    Returns what was staged, keyed by sandbox-relative POSIX path: a file maps
-    to the sha256 of its staged bytes, a directory to None. Empty when nothing
-    was staged. snapshot_sandbox_outputs uses it to leave staged files out.
+    Returns each staged file's sandbox-relative POSIX path mapped to the
+    sha256 of its staged bytes; empty when nothing was staged.
+    snapshot_sandbox_outputs uses it to leave staged files out.
     """
-    staged: dict[str, str | None] = {}
+    staged: dict[str, str] = {}
     if not files:
         return staged
 
@@ -402,10 +393,8 @@ def stage_fixture_files(
         if not source.is_dir():
             continue
         for path in source.rglob("*"):
-            rel = path.relative_to(source).as_posix()
-            if path.is_dir():
-                staged[rel] = None
-            else:
+            if path.is_file():
+                rel = path.relative_to(source).as_posix()
                 staged[rel] = _sha256(sandbox / rel)
     return staged
 
@@ -420,38 +409,28 @@ def _sha256(path: Path) -> str:
 def snapshot_sandbox_outputs(
     sandbox: Path,
     outputs_dir: Path,
-    staged: dict[str, str | None] | None = None,
+    staged: dict[str, str] | None = None,
 ) -> None:
-    """Copy what the subject created or changed inside the sandbox (excluding
-    the staged .claude/ dir) into outputs_dir so the grader can inspect it.
+    """Copy any files the subject created inside the sandbox (excluding the
+    staged .claude/ dir) into outputs_dir so the grader can inspect them.
 
     `staged` is stage_fixture_files' return. A staged file still byte-identical
-    to what was staged is left out, and so is a staged directory left empty,
-    so a check on outputs cannot pass on fixture text alone. A staged file the
-    subject edited is kept.
+    to what was staged is then removed from outputs_dir, so a check on outputs
+    cannot pass on fixture text alone. A staged file the subject edited is kept.
     """
-    staged = staged or {}
     outputs_dir.mkdir(parents=True, exist_ok=True)
-    for dirpath, dirnames, filenames in os.walk(sandbox, followlinks=True):
-        here = Path(dirpath)
-        if here == sandbox and ".claude" in dirnames:
-            dirnames.remove(".claude")
-        rel_dir = here.relative_to(sandbox)
-        if here != sandbox and not dirnames and not filenames \
-                and rel_dir.as_posix() not in staged:
-            (outputs_dir / rel_dir).mkdir(parents=True, exist_ok=True)
-        for name in filenames:
-            src = here / name
-            if here == sandbox and name == ".claude":
-                continue
-            rel = (rel_dir / name).as_posix()
-            if not src.is_file():
-                continue
-            if rel in staged and staged[rel] == _sha256(src):
-                continue
-            dest = outputs_dir / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dest)
+    for item in sandbox.iterdir():
+        if item.name == ".claude":
+            continue
+        dest = outputs_dir / item.name
+        if item.is_dir():
+            shutil.copytree(item, dest, symlinks=False, dirs_exist_ok=True)
+        elif item.is_file():
+            shutil.copy2(item, dest)
+    for rel, digest in (staged or {}).items():
+        out = outputs_dir / rel
+        if out.is_file() and _sha256(out) == digest:
+            out.unlink()
 
 
 # ---------- subject run -------------------------------------------------------
@@ -492,7 +471,7 @@ def run_subject(
 
     with ctx as (sandbox, home):
         # Stage fixture files into the sandbox before running the subject.
-        staged: dict[str, str | None] = {}
+        staged: dict[str, str] = {}
         if skill_eval_dir and eval_id is not None and fixture_files:
             staged = stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
 

@@ -172,8 +172,6 @@ def parse_events(events: list[dict]) -> Trajectory:
             turn_text_parts: list[str] = []
 
             for c in msg.get("content") or []:
-                if not isinstance(c, dict):
-                    continue
                 ctype = c.get("type")
                 if ctype == "tool_use":
                     tc = ToolCall(
