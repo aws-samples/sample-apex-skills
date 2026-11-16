@@ -123,7 +123,7 @@ Migration playbook with exact supported transitions and citations: **[references
 
 ## Shared ECS Best-Practices Corpus
 
-The "what good looks like" knowledge that this skill draws on (`ecs-operation-review` keeps its own audit references) — task-definition hygiene, image/SOCI, capacity correctness, deployment safety, health checks, and the shared-responsibility split per model. Factor-out to a standalone skill is deferred; it lives here as the *shared design baseline* — deep domains (security, cost, observability) own the depth in their own references: **[references/best-practices-corpus.md](references/best-practices-corpus.md)**.
+The "what good looks like" knowledge that this skill draws on — task-definition hygiene, image/SOCI, capacity correctness, deployment safety, health checks, and the shared-responsibility split per model. It lives here as the *shared design baseline*; `ecs-security` and `ecs-observability` own the depth in their own references: **[references/best-practices-corpus.md](references/best-practices-corpus.md)**.
 
 ## Output Discipline
 

@@ -36,21 +36,21 @@ Activate for any request to **audit, review, health-check, or score** an ECS est
 | Request | Route to |
 |---|---|
 | "Which launch type should I use — Fargate vs EC2 vs Managed Instances?", greenfield architecture/design/selection | **`ecs-architect`** (Day-0 design; generative) |
-| Read-only inventory / "what's in my estate" / discovery report before an audit | **`ecs-recon`** (discovery front door; until then inventory with `aws ecs describe-*`) |
+| Read-only inventory / "what's in my estate" / discovery report before an audit | **`ecs-recon`** (discovery front door) |
 | Deep security hardening, task/execution-role trust remediation, PCI/HIPAA/FedRAMP scoping | **`ecs-security`** |
 | Dollar-quantified cost / TCO / Savings Plans / Spot / Graviton right-sizing | No APEX skill covers it: say so (cost posture as a design criterion: **`ecs-architect`**) |
 | Designing the logs/metrics/traces stack (FireLens vs ADOT vs Datadog) | **`ecs-observability`** |
 | Building deployment pipelines / choosing rollout strategy / CI-CD engineering | **`ecs-devops`** |
 | Replatform vs refactor of an existing application | **`ecs-modernize`** |
 
-The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-security`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family; route to them by name where relevant. No APEX skill covers a dollar cost or TCO analysis: for cost asks, say so and fall back to the AWS CLI / this skill's audit-depth guidance. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
+The deep ECS sibling skills named above (`ecs-architect`, `ecs-recon`, `ecs-security`, `ecs-observability`, `ecs-devops`, `ecs-modernize`) are part of the ECS skill family; route to them by name where relevant. No APEX skill covers a dollar cost or TCO analysis: for cost asks, say so; cost posture as a design criterion is `ecs-architect`'s. General container questions, one-off `aws ecs` commands, and cluster creation should be handled directly without this skill.
 
 ## Defers to deep skills
 
 This review scores each domain at **audit depth** — enough to rate it and flag the top gaps — then hands off. When a finding warrants deeper work, name the sibling skill in the recommendation rather than reproducing its guidance here:
 
 - **Security posture** findings (Section 07) → `ecs-security` for role-trust hardening, secrets, compliance scope.
-- **Cost / capacity-efficiency** angles surfaced during the capacity review (Section 01) → say a $-denominated TCO is not covered by an APEX skill.
+- **Cost / capacity-efficiency** angles surfaced during the capacity review (Section 01) → say a $-denominated TCO is not covered by an APEX skill; cost posture as a design criterion is `ecs-architect`'s.
 - **Observability** findings (Section 06) → `ecs-observability` for stack design.
 - **Deployment / release-engineering** findings (Section 04) → `ecs-devops` for pipeline and rollout-strategy design.
 

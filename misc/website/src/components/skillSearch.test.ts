@@ -111,10 +111,8 @@ for (const [query, want, most] of FIRST) {
 }
 
 test('M1: a skill that only routes away is not matched', () => {
-  // ecs-cost-intelligence does not ship; the clauses that route to it ("for
-  // cost/TCO use ecs-cost-intelligence") are not indexed, so "cost intelligence"
-  // never reaches ecs-operation-review; "ecs" alone still finds every ECS skill.
-  assert.ok(!shown('cost intelligence').all.includes('ecs-operation-review'));
+  // ecs-architect's description routes Kubernetes asks away ("Skip for"), so
+  // "kubernetes" never reaches it.
   assert.ok(!shown('kubernetes').all.includes('ecs-architect'));
 });
 

@@ -388,18 +388,6 @@ deployment:
 
 ## Integration with Other Workflows
 
-### Cost Intelligence Workflow
-
-The cost intelligence workflow can invoke ecs-recon to gather baseline context:
-
-```
-1. Run ecs-recon modules: overview, compute, autoscaling
-2. Extract:
-   - Cluster capacity providers → cost model
-   - Service task counts → utilization baseline
-   - Auto scaling config → scaling efficiency
-```
-
 ### Security Audit Workflow
 
 The security audit workflow can use ecs-recon for discovery:

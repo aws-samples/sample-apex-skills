@@ -32,7 +32,7 @@ Assess task-definition hygiene: right-sized task CPU/memory, container image dis
 - 🔴 RED: No memory limit/reservation on EC2 tasks (a runaway container can starve the instance), or invalid/edge Fargate sizing.
 - ⬜ UNKNOWN: Cannot describe task definitions.
 
-**Key talking point:** On EC2, a container with no memory limit can consume the whole instance and destabilize co-located tasks. Dollar-level right-sizing is not covered by an APEX skill. See [ECS task sizes](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-tasksize.html).
+**Key talking point:** On EC2, a container with no memory limit can consume the whole instance and destabilize co-located tasks. See [ECS task sizes](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-tasksize.html).
 
 ---
 

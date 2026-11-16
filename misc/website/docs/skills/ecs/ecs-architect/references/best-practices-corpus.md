@@ -1,6 +1,6 @@
 ---
 title: "ECS Best-Practices Corpus (Shared Knowledge)"
-description: "The shared \"what good looks like\" knowledge that ecs-architect draws on (ecs-operation-review keeps its own audit references)."
+description: "The shared \"what good looks like\" knowledge that ecs-architect draws on."
 custom_edit_url: https://github.com/aws-samples/sample-apex-skills/blob/main/skills/ecs-architect/references/best-practices-corpus.md
 format: md
 ---
@@ -12,9 +12,9 @@ This page is generated from [skills/ecs-architect/references/best-practices-corp
 # ECS Best-Practices Corpus (Shared Knowledge)
 
 > **Part of:** [ecs-architect](../index.md)
-> **Purpose:** The shared "what good looks like" knowledge that `ecs-architect` draws on (`ecs-operation-review` keeps its own audit references). This is the shared **design baseline** for ECS fundamentals; a factor-out to a standalone `ecs-best-practices` skill is deferred. It is not the sole authority on any deep domain — security, cost, observability, and other sibling skills own the depth over their own areas and may carry their own, more detailed per-domain references; where they do, defer to them. Facts verified against the AWS ECS Best Practices Guide and Developer Guide on **2026-07-09**.
+> **Purpose:** The shared "what good looks like" knowledge that `ecs-architect` draws on. This is the shared **design baseline** for ECS fundamentals. It is not the sole authority on any deep domain — `ecs-security`, `ecs-observability` and other sibling skills own the depth over their own areas and may carry their own, more detailed per-domain references; where they do, defer to them. Facts verified against the AWS ECS Best Practices Guide and Developer Guide on **2026-07-09**.
 >
-> **How to use:** In `ecs-architect` this informs design decisions — synthesize it into project-specific recommendations, don't paste it into deliverables. Deep audit/scoring of a live estate against these belongs to `ecs-operation-review`; dollar-quantified cost work is not covered by an APEX skill.
+> **How to use:** In `ecs-architect` this informs design decisions — synthesize it into project-specific recommendations, don't paste it into deliverables. Deep audit/scoring of a live estate against these belongs to `ecs-operation-review`.
 
 ---
 

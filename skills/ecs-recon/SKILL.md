@@ -1,6 +1,6 @@
 ---
 name: ecs-recon
-description: "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, inspect a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment strategy design and CI/CD engineering (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost posture (ecs-architect), observability design (ecs-observability), and replatform/migration (ecs-modernize)."
+description: "ECS environment reconnaissance and discovery. Detects compute and capacity providers, task definitions, deployment configuration, auto scaling, networking, security posture, observability, and IaC/CI-CD tooling. Use when someone asks about their ECS environment, wants to describe a cluster, inspect a service, or document task definitions — even without naming the skill. Applies to Amazon ECS, not Amazon EKS (use eks-recon). Discovers current state only — does not score, audit, or design. Skip for operational audits and GREEN/AMBER/RED scoring (ecs-operation-review), deployment-model design, launch-type selection, and ECS best practices (ecs-architect), deployment strategy design and CI/CD engineering (ecs-devops), GPU/ML workloads (ecs-genai), security and compliance (ecs-security), cost posture (ecs-architect; a dollar cost/TCO is not covered), observability design (ecs-observability), and replatform/migration (ecs-modernize)."
 ---
 
 # ECS Reconnaissance
@@ -379,18 +379,6 @@ deployment:
 ---
 
 ## Integration with Other Workflows
-
-### Cost Intelligence Workflow
-
-The cost intelligence workflow can invoke ecs-recon to gather baseline context:
-
-```
-1. Run ecs-recon modules: overview, compute, autoscaling
-2. Extract:
-   - Cluster capacity providers → cost model
-   - Service task counts → utilization baseline
-   - Auto scaling config → scaling efficiency
-```
 
 ### Security Audit Workflow
 
