@@ -161,7 +161,7 @@ These rules apply to every run this router starts, alongside the routed skill's 
 | 4 | Never create, change or delete anything in the user's AWS account or cluster without explicit user confirmation first (for example tagging a resource, node drain, cluster delete, force eviction). |
 | 5 | Never output secrets, credentials or kubeconfig contents. |
 | 6 | Use ASCII only in AWS resource names and descriptions; use hyphens, not em dashes. |
-| 7 | When configured, prefer the AWS MCP Server and the Amazon EKS MCP Server (preview) over the AWS CLI and kubectl. FIPS- or FedRAMP-bound work keeps the AWS CLI, since the AWS MCP Server has no FIPS endpoints (checked on 2026-11-16). |
+| 7 | When configured, prefer the AWS MCP Server and the Amazon EKS MCP Server (preview) over the AWS CLI and kubectl. FIPS- or FedRAMP-bound work keeps the AWS CLI and kubectl, since, as of 2026-11-16, AWS documents no FIPS endpoint for the AWS MCP Server or the hosted Amazon EKS MCP Server. |
 | 8 | Check for a relevant AWS or APEX skill first; prefer skill guidance over general knowledge. |
 | 9 | Unsure of an AWS or EKS detail (API parameters, permissions, limits, add-on versions, controller behavior): check the AWS docs or the current release's upstream repo (Karpenter, VPC CNI, AWS Load Balancer Controller, CoreDNS, EKS AMI, terraform-aws-eks), never guess; if you cannot confirm it, say so. |
 | 10 | Prefer IaC (Terraform with `terraform-aws-modules/terraform-aws-eks`, AWS CDK or CloudFormation) over direct CLI commands. |
