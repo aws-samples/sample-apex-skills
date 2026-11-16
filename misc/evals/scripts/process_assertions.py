@@ -314,7 +314,7 @@ def _validate_against_schema(instance: Any, schema: dict) -> bool:
     try:
         jsonschema.validate(instance, schema)
         return True
-    except jsonschema.ValidationError:
+    except (jsonschema.ValidationError, jsonschema.SchemaError):
         return False
 
 
@@ -322,9 +322,12 @@ def _eval_tool_args_schema(trajectory: Trajectory, assertion: dict) -> Assertion
     """Check each call of `tool` against `schema`.
 
     A tool that is never called passes with `all: true`, since no call can
-    break the schema, and fails without it. A call with no input fails the
-    check, naming the call's index. Without the jsonschema package the check
-    fails instead of guessing.
+    break the schema, unless `min` asks for a call; it fails without `all`.
+    Tool names match exactly, so a misspelt name passes under `all: true`.
+    A call with no input fails the whole check, with or without `all`, even
+    when another call matches, and the evidence names the call's index.
+    Without the jsonschema package the check fails instead of guessing. An
+    invalid schema fails the check, not the run.
     """
     tool = assertion["tool"]
     schema = assertion["schema"]
@@ -335,11 +338,12 @@ def _eval_tool_args_schema(trajectory: Trajectory, assertion: dict) -> Assertion
     tool_calls = [tc for tc in all_calls if tc.name == tool]
 
     if not tool_calls:
+        never_called_passes = bool(require_all) and not min_matches
         return AssertionResult(
             assertion=assertion,
-            passed=bool(require_all),
+            passed=never_called_passes,
             evidence=f"Tool '{tool}' was never called",
-            failure_class=None if require_all else "invalid_tool_args",
+            failure_class=None if never_called_passes else "invalid_tool_args",
             matching_calls=[],
         )
 
@@ -358,7 +362,7 @@ def _eval_tool_args_schema(trajectory: Trajectory, assertion: dict) -> Assertion
             assertion=assertion,
             passed=False,
             evidence="jsonschema package not installed; cannot check the schema",
-            failure_class="invalid_tool_args",
+            failure_class=None,
             matching_calls=[],
         )
 

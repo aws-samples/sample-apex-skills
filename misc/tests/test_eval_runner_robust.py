@@ -12,6 +12,8 @@ Run directly with:
     python3 -B misc/tests/test_eval_runner_robust.py
 """
 
+import contextlib
+import io
 import json
 import os
 import subprocess
@@ -28,6 +30,7 @@ sys.path.insert(0, SCRIPTS_DIR)
 
 import artifact_validation  # noqa: E402
 import process_assertions  # noqa: E402
+import run_artifact_validation  # noqa: E402
 from elicitation import drain_stream_for_events  # noqa: E402
 from parse_trajectory import parse_events  # noqa: E402
 from run_knowledge_assertions import extract_assistant_text  # noqa: E402
@@ -146,8 +149,23 @@ class ToolArgsSchemaCheck(unittest.TestCase):
         self.assertIn("jsonschema package not installed", res.evidence)
 
     def test_never_called_passes_with_all_and_fails_without(self):
-        self.assertTrue(self.check([assistant(tool_use("Other", input={}))], all=True).passed)
+        res = self.check([assistant(tool_use("Other", input={}))], all=True)
+        self.assertTrue(res.passed)
+        self.assertIsNone(res.failure_class)
         self.assertFalse(self.check([assistant(tool_use("Other", input={}))]).passed)
+
+    def test_never_called_fails_when_min_asks_for_a_call(self):
+        res = self.check([assistant(tool_use("Other", input={}))], all=True, min=1)
+        self.assertFalse(res.passed)
+        self.assertEqual(res.failure_class, "invalid_tool_args")
+
+    @unittest.skipUnless(process_assertions._HAS_JSONSCHEMA,
+                         "needs the jsonschema package")
+    def test_invalid_schema_fails_the_check_not_the_run(self):
+        res = self.check([assistant(tool_use("T", input={}))],
+                         schema={"type": "not-a-type"})
+        self.assertFalse(res.passed)
+        self.assertIn("calls match schema", res.evidence)
 
 
 class StagedFixturesNotGraded(unittest.TestCase):
@@ -240,6 +258,33 @@ class NothingToCheckIsNotAPass(unittest.TestCase):
         results = artifact_validation.ArtifactValidationResults(
             artifact_root=".", structural_results=[], validator_results=[skipped])
         self.assertEqual(results.overall_pass_rate, 0.0)
+
+    def test_printed_total_rate_with_every_check_skipped(self):
+        skipped = artifact_validation.ValidatorResult(
+            validator={"type": "terraform-fmt"}, status="skipped",
+            detail="No .tf files found", exit_code=None, duration_ms=0)
+        results = artifact_validation.ArtifactValidationResults(
+            artifact_root=".", structural_results=[], validator_results=[skipped])
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "sk").mkdir()
+            (root / "sk" / "evals.json").write_text(json.dumps({"evals": [
+                {"id": 1, "artifact_assertions": {"validators": [{"type": "terraform-fmt"}]}}]}))
+            run_dir = root / "sk" / "workspace" / "latest" / "eval-1" / "with_skill" / "run-1"
+            (run_dir / "outputs").mkdir(parents=True)
+            (run_dir.parent.parent / "eval_metadata.json").write_text(json.dumps({"eval_id": 1}))
+            argv = ["run_artifact_validation.py", "--skill", "sk",
+                    "--workspace", str(root / "sk" / "workspace" / "latest")]
+            err = io.StringIO()
+            with mock.patch.object(run_artifact_validation, "EVALS_ROOT", root), \
+                    mock.patch.object(run_artifact_validation, "validate_run",
+                                      return_value=results), \
+                    mock.patch.object(sys, "argv", argv), \
+                    contextlib.redirect_stderr(err):
+                rc = run_artifact_validation.main()
+        # The rate reads 0%; the verdict and the exit code are unchanged.
+        self.assertIn("TOTAL: 0/0 (0%) PASS", err.getvalue())
+        self.assertEqual(rc, 0)
 
 
 if __name__ == "__main__":
