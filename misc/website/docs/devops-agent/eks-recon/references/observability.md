@@ -130,12 +130,12 @@ Container Insights fact.
 
 Classify how Prometheus runs and record its version.
 - `self-managed` — a `prometheus-server` Deployment/StatefulSet (e.g. Helm `prometheus`).
-- `operator` — the Prometheus Operator is present (label `app.kubernetes.io/name=prometheus-operator`), managing `Prometheus` CRs.
+- `operator`: the Prometheus Operator is present (a Deployment labelled `app.kubernetes.io/name=prometheus-operator` or `app.kubernetes.io/component=prometheus-operator`, or whose `helm.sh/chart` or `chart` label starts with `kube-prometheus-stack-`), managing `Prometheus` CRs.
 - `amp` — Amazon Managed Prometheus; an `aps-workspaces` remote_write target with no in-cluster server (record `version: null`).
 
 **Via Kubernetes API** — detect Prometheus and its version:
 
-- **Resource:** `Deployment` and `StatefulSet`, group/version `apps/v1`, label selector `app.kubernetes.io/name=prometheus`, all namespaces. Also check `Deployment` with label `app.kubernetes.io/name=prometheus-operator` to set `type: operator`.
+- **Resource:** `Deployment` and `StatefulSet`, group/version `apps/v1`, label selector `app.kubernetes.io/name=prometheus`, all namespaces. Also check `Deployment`, all namespaces, with label `app.kubernetes.io/name=prometheus-operator` or `app.kubernetes.io/component=prometheus-operator`, or whose `helm.sh/chart` or `chart` label starts with `kube-prometheus-stack-` (kube-prometheus-stack labels its operator `app.kubernetes.io/name=kube-prometheus-stack-prometheus-operator`), to set `type: operator`.
 - **Fields to extract:** container image whose name matches `prometheus` → parse the image tag for the version; `metadata.namespace`.
 - **RBAC verbs:** `get`, `list` on `deployments.apps`, `statefulsets.apps`.
 
@@ -164,16 +164,29 @@ Classify how Grafana runs and record its version.
 - **RBAC verbs:** `get`, `list` on `deployments.apps`, `statefulsets.apps`, `alertmanagers.monitoring.coreos.com`.
 
 **Prometheus scrape_configs / remote_write targets (raw fact):** capture the configured
-scrape job names and remote_write URLs verbatim — do not interpret them.
+scrape job names and remote_write URLs verbatim (each url's userinfo removed); do not interpret them.
 
-**Via Kubernetes API** — read the Prometheus config:
+No Secret is read. The Prometheus Operator renders each Prometheus's config into a Secret,
+so the operator case reads the Prometheus and PrometheusAgent custom resources instead.
 
-- **Resource:** `ConfigMap` and `Secret`, group/version `v1` (core), all namespaces, whose name matches `prometheus`.
-- **Fields to extract:** from the rendered config body — `scrape_configs[].job_name` (scrape job names) and `remote_write[].url` (remote_write URLs, e.g. `aps-workspaces` AMP endpoints).
-- **RBAC verbs:** `get`, `list` on `configmaps`, `secrets`.
+**Via Kubernetes API**, self-managed: read the Prometheus config ConfigMap:
+
+- **Resource:** `ConfigMap`, group/version `v1` (core), all namespaces, label selector `owner!=helm` (every ConfigMap except Helm's release records).
+- **Fields to extract:** from the rendered config body: `scrape_configs[].job_name` (scrape job names) and `remote_write[].url` (remote_write URLs, e.g. `aps-workspaces` AMP endpoints). Record each with its ConfigMap's namespace/name: values can come from collector configs (OpenTelemetry or ADOT prometheus receiver, Grafana Agent), so attribute them by ConfigMap and count a repeated job or url once. Remove each url's userinfo (`user[:password]@`) before recording; never quote it.
+- **RBAC verbs:** `get`, `list` on `configmaps`.
+
+**Via Kubernetes API**, operator: read the custom resources whenever the `Prometheus` CRD exists, whatever type the detection above found:
+
+- **Resource:** `Prometheus` (group/version `monitoring.coreos.com/v1`) and `PrometheusAgent` (`monitoring.coreos.com/v1alpha1`), all namespaces.
+- **Fields to extract:** every `spec.remoteWrite[].url` of each `Prometheus` and `PrometheusAgent` (a PrometheusAgent shares the field with Prometheus) → `remote_write_targets`. Remove each url's userinfo (`user[:password]@`) before recording; never quote it.
+- **RBAC verbs:** `get`, `list` on `prometheuses.monitoring.coreos.com`, `prometheusagents.monitoring.coreos.com`. A failed read (such as `403 Forbidden`) makes `remote_write_targets` unconfirmed, with the error, not empty; a resource type that does not exist means no operator is installed or, for prometheusagents, the PrometheusAgent CRD is not installed (added in v0.64.0, shipped separately).
 
 Record `scrape_configs` (count + list of job names) and `remote_write_targets` (list of URLs)
-exactly as found; report `null`/empty where the config is not readable.
+exactly as found; report `null`/empty where the config is not readable. For the operator,
+the rendered job names live only in the config Secret, so report `scrape_configs` as `null`
+and add `observability.scrape_configs: operator job names not read (config Secret is not
+read)` to Coverage. Scrape jobs set through `additionalScrapeConfigs` (a Secret key
+reference) are not read either.
 
 **Other Metrics Tools:**
 
@@ -282,7 +295,7 @@ Their config identifies where logs are being sent.
 
 **Via Kubernetes API** — detect additional log backends:
 
-- **Resource:** `ConfigMap` (core `v1`) whose data references `opensearch`/`elasticsearch`; `Deployment`/`StatefulSet` (`apps/v1`) with label `app.kubernetes.io/name=loki`.
+- **Resource:** `ConfigMap` (core `v1`), label selector `owner!=helm`, whose data references `opensearch`/`elasticsearch`; `Deployment`/`StatefulSet` (`apps/v1`) with label `app.kubernetes.io/name=loki`.
 - **Fields to extract:** presence → set the corresponding `log_destinations` boolean.
 - **RBAC verbs:** `get`, `list` on `configmaps`, `deployments.apps`, `statefulsets.apps`.
 
@@ -391,7 +404,7 @@ observability:
     scrape_configs:               # raw fact — scrape jobs found in the prometheus config
       count: int
       list: list                  # scrape job names, verbatim
-    remote_write_targets: list    # remote_write URLs verbatim (e.g. aps-workspaces AMP URLs)
+    remote_write_targets: list    # remote_write URLs verbatim, userinfo removed (e.g. aps-workspaces AMP URLs)
 
     other_tools:                  # commercial APM agents detected in-cluster
       count: int

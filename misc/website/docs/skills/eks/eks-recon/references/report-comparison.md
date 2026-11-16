@@ -86,6 +86,16 @@ Coverage takes precedence over a difference:
   In particular, legacy `cicd.gitops.tool: none` is not equivalent to the newer
   `not_observed` or `unconfirmed`; exclude the legacy GitOps result scope when its
   observation semantics cannot be established. Missing newer fields remain unknown.
+- `addons.helm_releases` changed meaning at `eks-recon/2026-11-16`: releases are now found
+  from Helm's annotations on Deployments, DaemonSets, StatefulSets, Services and
+  Helm-labelled ConfigMaps, with no Secret read. `chart`, `app_version`, `revision` and
+  `status` are no longer reported, `chart_labels` (chart-set labels, not Helm's record) and
+  `label_only` are new, and `count` covers only releases with annotated objects of those
+  kinds. A release in an older report that a newer one lacks may be one this read cannot
+  see (CRD-only or Job-only charts, releases installed before Helm v3.2.0 and never
+  upgraded), not a removal. For an operator-run Prometheus, `observability.scrape_configs`
+  is now `null` (its config Secret is not read). Compare these fields only between reports
+  that both carry `eks-recon/2026-11-16` or later.
 - Workspace-derived facts describe the checkout that was scanned, not the cluster.
   Compare `cicd.workspace` and the file-based `iac.workspace` entries (Terraform,
   CloudFormation, CDK, eksctl and Pulumi) only when both runs are known to have

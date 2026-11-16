@@ -47,7 +47,7 @@ Kubernetes-API facts (nodes, CRDs, workloads, RBAC, StorageClasses, etc.) are re
 - The cluster's `authenticationMode` **must include `API`** (i.e. `API` or `API_AND_CONFIG_MAP`). A `CONFIG_MAP`-only cluster cannot be reached via the access entry.
 - The access entry (not an IAM action) provides the K8s-API **authentication**; the `AmazonAIOpsAssistantPolicy` provides the **authorization** (RBAC).
 - **What `AmazonAIOpsAssistantPolicy` actually authorizes (read-only get/list):** built-in API groups only — core (`pods`, `services`, `nodes`, `namespaces`, `events`, `persistentvolumes`, `persistentvolumeclaims`, `configmaps`), `apps` (deployments/replicasets/statefulsets/daemonsets), `batch` (jobs/cronjobs), `events.k8s.io`, `networking.k8s.io` (ingresses/ingressclasses), `storage.k8s.io` (storageclasses), and `metrics.k8s.io`. **It grants NO CustomResourceDefinition groups** (and not `apiextensions.k8s.io`).
-- **Consequence for CRD-based facts:** the managed policy alone does **not** authorize reading Karpenter (`karpenter.sh`, `karpenter.k8s.aws`), Auto Mode `NodeClass` (`eks.amazonaws.com`), `TargetGroupBinding` (`elbv2.k8s.aws`/`eks.amazonaws.com`), `VolumeSnapshotClass` (`snapshot.storage.k8s.io`), `VerticalPodAutoscaler` (`autoscaling.k8s.io`), Kyverno/Gatekeeper, Calico/Cilium, service-mesh, ArgoCD/Flux, Crossplane/ACK, or Velero CRDs. Under a plain `AmazonAIOpsAssistantPolicy`-only association those reads return `403 Forbidden`. To capture CRD-based facts, bind the Agent Space role to a **supplementary read-only ClusterRole** granting `get`/`list` on the relevant CRD groups (or associate a broader access policy). Absent that, the CRD-dependent sub-facts are reported as `unconfirmed` per the hedge below — never as `false`/`count: 0`.
+- **Consequence for CRD-based facts:** the managed policy alone does **not** authorize reading Karpenter (`karpenter.sh`, `karpenter.k8s.aws`), Auto Mode `NodeClass` (`eks.amazonaws.com`), `TargetGroupBinding` (`elbv2.k8s.aws`/`eks.amazonaws.com`), `VolumeSnapshotClass` (`snapshot.storage.k8s.io`), `VerticalPodAutoscaler` (`autoscaling.k8s.io`), Kyverno/Gatekeeper, Calico/Cilium, service-mesh, ArgoCD/Flux, Crossplane/ACK, Velero, or Prometheus Operator (`monitoring.coreos.com`: Prometheus, PrometheusAgent, Alertmanager) CRDs. Under a plain `AmazonAIOpsAssistantPolicy`-only association those reads return `403 Forbidden`. To capture CRD-based facts, bind the Agent Space role to a **supplementary read-only ClusterRole** granting `get`/`list` on the relevant CRD groups (or associate a broader access policy). Absent that, the CRD-dependent sub-facts are reported as `unconfirmed` per the hedge below — never as `false`/`count: 0`.
 
 > **Availability hedge.** When the access entry is absent (or `authenticationMode` excludes `API`), the skill **degrades gracefully to AWS-control-plane-only facts** — it still reports everything reachable via the EKS/EC2/ELB/IAM APIs. Each K8s-API-dependent module or sub-fact that cannot be read — whether because the access entry is missing, `authenticationMode` excludes `API`, or the RBAC (see above) does not authorize that resource (e.g. a CRD group) — is recorded as `unavailable` / `unconfirmed` in the report's Coverage section, **never** as `false` / `count: 0`.
 
@@ -197,7 +197,8 @@ _generated <timestamp> · source: AWS API + K8s API · modules: N/N_
 ## Coverage
 <modules that could not run + reason, AND sub-facts that ran but could not be confirmed>
 - storage: unavailable (reason: K8s API access entry absent — AWS-API-only mode)
-- addons.helm_releases: unconfirmed (reason: Helm release Secrets not readable) — reported as `unconfirmed`, not `count: 0`
+- addons.helm_releases: found from Helm annotations on Deployments, DaemonSets, StatefulSets, Services and Helm-labelled ConfigMaps only; chart version, app version, revision and status not read (Helm release Secrets are not read); listed releases may be failed, pending or uninstalled
+- addons.helm_releases: unconfirmed (reason: configmaps read failed: <error>)
 ```
 
 Keep every absence claim within the successfully inspected scope. State that
@@ -243,7 +244,7 @@ Assemble one top-level key per module, each emitted **verbatim in the canonical 
 Include a `report` metadata block alongside the canonical module blocks in every
 new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
 report (reuse the filename's clock reading where applicable). Set `schema_revision`
-to `eks-recon/2026-10-31`, identifying the fact definitions used here, not a promised
+to `eks-recon/2026-11-16`, identifying the fact definitions used here, not a promised
 versioned API. Update this marker when fact types, value sets or meanings change,
 and document affected comparison boundaries in the comparison reference.
 `unconfirmed_paths` lists canonical dot-separated field paths whose reads were incomplete or denied;
@@ -254,7 +255,7 @@ This metadata is not a recon module and is excluded from module counts and delta
 
 ```yaml
 report:
-  schema_revision: "eks-recon/2026-10-31"
+  schema_revision: "eks-recon/2026-11-16"
   generated_at: "2026-10-29T08:30:00Z"  # actual report time, not this example
   unconfirmed_paths: []                # e.g. [security.authentication.access_entries]
 ```
@@ -265,7 +266,7 @@ report:
 # EKS Reconnaissance Report — illustrative envelope only.
 # Canonical shape per module = references/<module>.md "## Output Schema".
 report:              # metadata defined above; not a module
-  schema_revision: "eks-recon/2026-10-31"
+  schema_revision: "eks-recon/2026-11-16"
   generated_at: "2026-10-29T08:30:00Z"  # replace with actual report time
   unconfirmed_paths: []
 cluster:              # shape: references/cluster-basics.md "## Shared Cluster Block"

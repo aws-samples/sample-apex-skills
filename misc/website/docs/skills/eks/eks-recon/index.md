@@ -67,7 +67,6 @@ If MCP tools are NOT available:
 |------|-------------|
 | `aws` CLI | Cluster-level detection (describe-cluster, list-nodegroups, list-addons) |
 | `kubectl` | K8s resource detection (deployments, CRDs, service accounts) |
-| `helm` | Helm release inventory (optional) |
 | Python 3 | CLI GitOps metadata extractor (standard library) |
 | `jq` | CLI JSON filtering and projections across recon modules |
 
@@ -176,7 +175,7 @@ Load only the references needed for the user's request — this keeps context fo
 | Fargate profiles | `aws eks list-fargate-profiles --cluster-name <name> --region <region>` |
 | Auto Mode | `aws eks describe-cluster --name <name> --region <region> --query 'cluster.computeConfig'` |
 | Karpenter | `kubectl get nodepools.karpenter.sh 2>/dev/null` |
-| Helm releases | `helm list -A` |
+| Helm releases | `kubectl get deployments,daemonsets,statefulsets,services -A -o json` and `kubectl get configmaps -A -l app.kubernetes.io/managed-by=Helm -o json`, read for the `meta.helm.sh/release-name` annotation through the temp-dir pipeline in [addons.md](references/addons.md), which keeps only metadata (never `helm list`: it reads Secrets) |
 
 ---
 
@@ -302,7 +301,8 @@ _generated <timestamp> · source: MCP | CLI · modules: N/N_
 ## Coverage
 <modules that could not run + reason, AND sub-facts that ran but could not be confirmed — makes gaps visible>
 - storage: unavailable (reason: MCP 401 and kubectl not configured)
-- addons.helm_releases: unconfirmed (reason: helm CLI absent, secret fallback not run) — reported as `unconfirmed`, not `count: 0`
+- addons.helm_releases: found from Helm annotations on Deployments, DaemonSets, StatefulSets, Services and Helm-labelled ConfigMaps only; chart version, app version, revision and status not read (Helm release Secrets are not read); listed releases may be failed, pending or uninstalled
+- addons.helm_releases: unconfirmed (reason: configmaps read failed: <error>)
 
 ## Machine artifact
 - `<output-prefix>.yaml` written (secondary point-in-time facts snapshot)
@@ -349,7 +349,7 @@ Assemble one top-level key per module, each emitted **verbatim in the canonical 
 Include a `report` metadata block alongside the canonical module blocks in every
 new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
 report (reuse the filename's clock reading where applicable). Set `schema_revision`
-to `eks-recon/2026-10-31`, identifying the fact definitions used here, not a promised
+to `eks-recon/2026-11-16`, identifying the fact definitions used here, not a promised
 versioned API. Update this marker when fact types, value sets or meanings change,
 and document affected comparison boundaries in the comparison reference.
 `unconfirmed_paths` lists canonical dot-separated field paths whose reads were incomplete or denied;
@@ -360,7 +360,7 @@ This metadata is not a recon module and is excluded from module counts and delta
 
 ```yaml
 report:
-  schema_revision: "eks-recon/2026-10-31"
+  schema_revision: "eks-recon/2026-11-16"
   generated_at: "2026-10-29T08:30:00Z"  # actual report time, not this example
   unconfirmed_paths: []                # e.g. [security.authentication.access_entries]
 ```
@@ -371,7 +371,7 @@ report:
 # EKS Reconnaissance Report — illustrative envelope only.
 # Canonical shape per module = references/<module>.md "## Output Schema".
 report:              # metadata defined above; not a module
-  schema_revision: "eks-recon/2026-10-31"
+  schema_revision: "eks-recon/2026-11-16"
   generated_at: "2026-10-29T08:30:00Z"  # replace with actual report time
   unconfirmed_paths: []
 cluster:              # shape: references/cluster-basics.md "## Shared Cluster Block"

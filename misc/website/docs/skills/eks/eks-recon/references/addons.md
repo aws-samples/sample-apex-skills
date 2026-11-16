@@ -37,7 +37,7 @@ This page is generated from [skills/eks-recon/references/addons.md](https://gith
 
 - **Cluster name required:** Yes
 - **MCP tools used:** `list_eks_resources`, `describe_eks_resource`, `list_k8s_resources`
-- **CLI fallback:** `aws eks`, `kubectl`, `helm`
+- **CLI fallback:** `aws eks`, `kubectl`
 
 ---
 
@@ -47,7 +47,7 @@ Add-ons can be installed via multiple mechanisms:
 
 ```
 1. EKS-managed add-ons  -> AWS manages lifecycle, uses EKS add-on API
-2. Helm releases        -> Installed via Helm, tracked in secrets
+2. Helm releases        -> Installed via Helm, found from Helm's annotations on their resources
 3. Manifest-installed   -> Raw YAML applied, no tracking metadata
 4. Operator-managed     -> CRDs and controllers (e.g., cert-manager)
 ```
@@ -111,52 +111,95 @@ aws eks describe-addon --cluster-name <cluster-name> --addon-name <addon-name> \
 
 Use Helm detection when you need to inventory third-party components that were installed via Helm charts. Many platform teams use Helm for add-ons not available as EKS-managed add-ons.
 
-**CLI (Helm required):**
+> **No Secret reads.** Helm keeps each release record (chart, values, revision, status) in a
+> Secret by default ([Helm storage backends](https://helm.sh/docs/topics/advanced/)).
+> `helm list`, `helm get`, `helm status` and `helm history` read those records, so
+> this skill runs none of them and never lists Secrets. It reads the marks Helm puts on a
+> release's own resources instead: on install, upgrade and rollback Helm sets the label
+> `app.kubernetes.io/managed-by: Helm` and the annotations `meta.helm.sh/release-name` and
+> `meta.helm.sh/release-namespace`. Helm v3.2.0 added the annotations, when it began adopting
+> existing resources into a release ([Helm v3.2.0 release notes](https://github.com/helm/helm/releases/tag/v3.2.0)).
+
+**MCP:** Helm releases: CLI only. The MCP tool returns annotations whole ([eks-mcp-server k8s_handler.py](https://github.com/awslabs/mcp/blob/c3d28b016ac5fec02a8f8954b86ab273a5a0ba5d/src/eks-mcp-server/awslabs/eks_mcp_server/k8s_handler.py#L613)), and `last-applied-configuration` can hold the full object ([Kubernetes declarative configuration](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/)).
+
+**CLI:**
 ```bash
-# List all Helm releases across namespaces.
-# `chart` carries the chart name+version (e.g. external-dns-1.13.1); `app_version` is the
-# packaged app version (e.g. 0.13.6); `revision` is the release revision counter. Keep them distinct.
-helm list -A --output json 2>/dev/null | jq -r '.[] | {name: .name, namespace: .namespace, chart: .chart, app_version: .app_version, revision: .revision, status: .status}'
+# kubectl returns full objects (pod-template env values, Helm-managed ConfigMap data). They
+# go to a private temp dir, removed on success and on failure; only metadata reaches the
+# output. ConfigMaps are filtered server-side to Helm-managed ones, so other ConfigMaps'
+# data is not fetched. jq runs only when both reads succeed, and the exit code is kept.
+d=$(mktemp -d) \
+  && kubectl get deployments,daemonsets,statefulsets,services -A -o json > "$d/objects.json" \
+  && kubectl get configmaps -A -l app.kubernetes.io/managed-by=Helm -o json > "$d/configmaps.json" \
+  && jq -s '
+  [.[].items[]
+   | {kind, namespace: .metadata.namespace, name: .metadata.name,
+      release: .metadata.annotations["meta.helm.sh/release-name"],
+      release_namespace: .metadata.annotations["meta.helm.sh/release-namespace"],
+      managed_by: .metadata.labels["app.kubernetes.io/managed-by"],
+      chart_label: (.metadata.labels["helm.sh/chart"] // .metadata.labels.chart)}
+   | select(.release != null or .managed_by == "Helm")]
+  | {count: ([.[] | select(.release != null)] | group_by([.release_namespace, .release]) | length),
+     list: ([.[] | select(.release != null)] | group_by([.release_namespace, .release])
+            | map({name: .[0].release, namespace: .[0].release_namespace,
+                   chart_labels: ([.[].chart_label | select(. != null)] | unique)})),
+     label_only: [.[] | select(.release == null) | "\(.kind)/\(.namespace)/\(.name)"]}' \
+  "$d/objects.json" "$d/configmaps.json"; rc=$?; rm -rf "$d"; (exit "$rc")
 ```
 
 **Example output:**
 ```json
 {
-  "name": "aws-load-balancer-controller",
-  "namespace": "kube-system",
-  "chart": "aws-load-balancer-controller-1.6.2",
-  "app_version": "v2.6.2",
-  "revision": "1",
-  "status": "deployed"
-}
-{
-  "name": "external-dns",
-  "namespace": "external-dns",
-  "chart": "external-dns-1.13.1",
-  "app_version": "0.13.6",
-  "revision": "1",
-  "status": "deployed"
+  "count": 1,
+  "list": [
+    {
+      "name": "external-dns",
+      "namespace": "external-dns",
+      "chart_labels": ["external-dns-1.13.1"]
+    }
+  ],
+  "label_only": ["DaemonSet/monitoring/node-agent"]
 }
 ```
 
-**Alternative (kubectl, no Helm CLI):**
+- `chart_labels` holds the `helm.sh/chart` label values on the release's objects, else the legacy `chart` label's (kube-prometheus-stack sets only `chart:`), verbatim.
+  The chart's own templates set that label ([Helm label conventions](https://helm.sh/docs/chart_best_practices/labels/)),
+  not Helm, so it can be absent. A release can show more than one value: its subcharts set
+  their own, and an upgrade that fails part-way leaves some objects at the old chart, since
+  Helm goes on updating a release's other objects when one update fails. It is not Helm's
+  record of the chart version. `app.kubernetes.io/version`, where a chart sets it, is chart
+  text in the same way, not Helm's record of the app version.
+- `label_only` lists objects labelled `app.kubernetes.io/managed-by: Helm` that carry no
+  release annotations. That label is chart text too: chart templates set it from
+  `{{ .Release.Service }}`, which always renders `Helm`, also when Argo CD renders the chart
+  with `helm template` ([Argo CD Helm](https://argo-cd.readthedocs.io/en/stable/user-guide/helm/))
+  or someone runs `helm template | kubectl apply`. So these objects may belong to no Helm
+  release. Never report them as releases; `count` leaves them out.
 
-Use this approach when Helm CLI is not installed but you still need to detect Helm-managed releases. Helm stores release metadata as Kubernetes secrets.
+**What this does not report.** Chart version as Helm recorded it, app version, revision and
+status are in Helm's release record, which this skill does not read. On a Flux-managed
+release, the HelmRelease resource (`helm.toolkit.fluxcd.io`) carries status and chart
+version in its Ready condition, and app version in `status.history`
+([Flux HelmRelease](https://fluxcd.io/flux/components/helm/helmreleases/)); this skill does
+not read it. A listed release is not known to be deployed: Helm applies a release's objects before
+it marks the release failed, and `helm uninstall` leaves resources annotated
+`helm.sh/resource-policy: keep` in place with their release annotations
+([Helm chart tips](https://helm.sh/docs/howto/charts_tips_and_tricks/)), so a listed release
+may be failed, pending or uninstalled. Helm does not annotate a chart's `crds/` CRDs or its
+hooks, a release installed before Helm v3.2.0 and never upgraded since has no annotations,
+and a chart that ships only kinds not read here (CRDs, Jobs, CronJobs, Ingresses, RBAC) is
+not found. Report a release by name and namespace, and its `chart_labels` verbatim as
+chart-set labels, never as the chart version Helm recorded. Scope an absence claim to the
+kinds read: "no Helm-annotated Deployments, DaemonSets, StatefulSets, Services or
+ConfigMaps", never "no Helm releases".
 
-> **Coverage honesty:** if the Helm CLI is absent, you MUST run the kubectl secret-based fallback below before reporting Helm releases. Do NOT report `helm_releases.count: 0` when `helm` simply isn't installed and the fallback wasn't run — that reports "no releases" when the truth is "not checked". If neither `helm` nor the kubectl fallback can run, emit `helm_releases: {unconfirmed: true, reason: "helm CLI absent and secret fallback unavailable"}` rather than a count of 0.
-
-```bash
-# Helm stores releases as secrets with label owner=helm.
-# NOTE: the "version" label is the RELEASE REVISION (a counter), NOT the chart or app version.
-# Chart version and app_version are NOT available from labels alone — they live inside the
-# gzipped release blob (.data.release). Use `helm list` above to get chart + app_version.
-kubectl get secrets -A -l owner=helm,status=deployed -o json 2>/dev/null | \
-  jq -r '.items[] | {
-    name: .metadata.labels["name"],
-    namespace: .metadata.namespace,
-    revision: .metadata.labels["version"]
-  }'
-```
+> **Coverage honesty:** report `helm_releases.count: 0` only when both reads ran and
+> returned no Helm-annotated objects. If either read fails, emit
+> `helm_releases: {unconfirmed: true, reason: "<kind> read failed: <error>"}` rather than a
+> count of 0. Always add a Coverage line: `addons.helm_releases: found from Helm annotations
+> on Deployments, DaemonSets, StatefulSets, Services and Helm-labelled ConfigMaps only; chart
+> version, app version, revision and status not read (Helm release Secrets are not read);
+> listed releases may be failed, pending or uninstalled`.
 
 ### 3. Common Platform Components
 
@@ -266,15 +309,15 @@ addons:
       version: string
       managed_by: string            # eks-addon | self-managed | auto-mode
 
-  helm_releases:
+  helm_releases:                    # from Helm's annotations on resources; no Secret is read
     count: int
     list:
-      - name: string
-        namespace: string
-        chart: string               # chart name+version, e.g. external-dns-1.13.1
-        app_version: string         # packaged app version (helm list .app_version), null if label-only extraction
-        revision: string            # release revision counter (helm .revision / secret "version" label) — NOT chart/app version
-        status: string              # deployed, failed, pending-*
+      - name: string                # meta.helm.sh/release-name
+        namespace: string           # meta.helm.sh/release-namespace
+        chart_labels: list          # helm.sh/chart (else legacy chart) label values set by the chart, verbatim; [] if none
+    label_only: list                # "<kind>/<namespace>/<name>": managed-by Helm, no release annotations
+    # Chart version as Helm recorded it, app version, revision and status are in the
+    # release Secret and are not read, so no field carries them.
 
   platform_components:
     aws_load_balancer_controller:
@@ -414,22 +457,9 @@ Record `latest_version` = the first element, and `update_available` = (`latest_v
 
 ### Helm Release in Pending State
 
-Detect stuck Helm releases before upgrades. Pending releases indicate failed or interrupted installations that can block subsequent operations on the same release.
-
-```bash
-# Check for stuck Helm releases
-helm list -A --pending --output json 2>/dev/null
-```
-
-**Example output (stuck release):**
-```json
-[{
-  "name": "failed-release",
-  "namespace": "default",
-  "status": "pending-install",
-  "chart": "my-chart-1.0.0"
-}]
-```
+Not reported: a release's status is in Helm's release record, which this skill does not
+read. See "What this does not report" and the Coverage line in
+[Helm Releases](#2-helm-releases); on Flux, the HelmRelease resource carries it.
 
 ### Orphaned Resources
 

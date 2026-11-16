@@ -29,11 +29,12 @@ Detect all add-ons and installed components for the specified EKS cluster and re
      - MCP and CLI commands
 
 2. **Run detections** following the reference guidance
+   - Helm releases: CLI only, by the reads in the Helm section of `references/addons.md` (no MCP read)
 
 3. **Handle MCP 401 errors - IMPORTANT**:
-   - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl/helm
-   - Run: `helm list -A`, `kubectl get crds`, `kubectl get deploy -n kube-system`
-   - Only report "unavailable" if kubectl/helm also fails
+   - If MCP K8s API returns 401 Unauthorized, you MUST fall back to kubectl
+   - Run: `kubectl get crds`, `kubectl get deploy -n kube-system`, and the Helm release reads in `references/addons.md` (they fetch full objects into a private temp dir that is removed afterwards and keep only metadata in the output; never `helm list`, `helm get`, `helm status` or a Secret read)
+   - Only report "unavailable" if kubectl also fails
 
 ## Output Format
 

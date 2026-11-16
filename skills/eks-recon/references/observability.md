@@ -114,8 +114,17 @@ kubectl get deploy -n prometheus prometheus-server 2>/dev/null || \
 kubectl get deploy -n monitoring prometheus-server 2>/dev/null || \
 kubectl get statefulset -n prometheus prometheus-server 2>/dev/null
 
-# Check for kube-prometheus-stack (Helm)
-helm list -A --filter "prometheus\|kube-prometheus" 2>/dev/null
+# Check for kube-prometheus-stack (Helm), never with `helm list` (it reads Helm's release
+# Secrets). The chart labels its own objects with the legacy `chart:` label
+# (kube-prometheus-stack-<version>), not `helm.sh/chart`, and the operator copies the
+# Prometheus resource's labels onto the StatefulSet it builds, so this matches helm.sh/chart,
+# else the legacy chart label.
+# On a failed read kubectl's error prints on stderr: report it unconfirmed, not "not found".
+out=$(kubectl get deploy,statefulset -A -o json) && printf '%s' "$out" | jq -r '
+  .items[] | (.metadata.labels // {}) as $l
+  | select(($l["helm.sh/chart"] // $l.chart // "") | startswith("kube-prometheus-stack-"))
+  | "\(.metadata.namespace)/\(.metadata.name) release=\(.metadata.annotations["meta.helm.sh/release-name"]) chart=\($l["helm.sh/chart"] // $l.chart)"' \
+  || echo "kube-prometheus-stack: unconfirmed (deploy/statefulset read failed)"
 
 # Check for Prometheus Operator
 kubectl get deploy -A -l "app.kubernetes.io/name=prometheus-operator" 2>/dev/null
@@ -133,7 +142,7 @@ Check for AMP when you need managed Prometheus with automatic scaling and AWS in
 
 ```bash
 # Check for ADOT or Prometheus remote write config
-kubectl get configmap -A -o json | jq -r '
+kubectl get configmap -A -l 'owner!=helm' -o json | jq -r '
   .items[] |
   select((.data // {}) | to_entries | .[] | .value | contains("aps-workspaces")) |
   {namespace: .metadata.namespace, name: .metadata.name}'
@@ -184,7 +193,7 @@ kubectl get daemonset -A -l "app.kubernetes.io/name=nri-bundle" 2>/dev/null
 
 **Prometheus type + version:** classify how Prometheus runs and record its version.
 - `self-managed` — a `prometheus-server` Deployment/StatefulSet (e.g. Helm `prometheus`).
-- `operator` — the Prometheus Operator is present (label `app.kubernetes.io/name=prometheus-operator`), managing `Prometheus` CRs.
+- `operator`: the Prometheus Operator is present (a Deployment labelled `app.kubernetes.io/name=prometheus-operator`, or kube-prometheus-stack found by its chart label as above, which labels its operator `app.kubernetes.io/name=kube-prometheus-stack-prometheus-operator`), managing `Prometheus` CRs.
 - `amp` — Amazon Managed Prometheus; an `aps-workspaces` remote_write target with no in-cluster server.
 ```bash
 # Version from the prometheus image tag (self-managed / operator)
@@ -204,18 +213,49 @@ kubectl get alertmanagers.monitoring.coreos.com -A 2>/dev/null
 ```
 
 **Prometheus scrape_configs / remote_write targets (raw fact):** capture the configured
-scrape job names and remote_write URLs verbatim — do not interpret them.
+scrape job names and remote_write URLs verbatim (each url's userinfo removed); do not interpret them.
 ```bash
-# Self-managed / operator: the prometheus config secret or configmap
-kubectl get secret -A -o json 2>/dev/null | jq -r '
-  .items[] | select(.metadata.name|test("prometheus")) | .metadata.namespace + "/" + .metadata.name'
-# Extract remote_write targets (e.g. aps-workspaces AMP URLs) and scrape job names from the rendered config
-kubectl get cm -A -o json 2>/dev/null | jq -r '
-  .items[] | .data // {} | to_entries[] | .value
-  | capture("remote_write:[\\s\\S]*?url:\\s*(?<url>\\S+)") // empty | .url' 2>/dev/null
+# No Secret is read. The Prometheus Operator renders each Prometheus's config into a Secret,
+# so the operator case reads the Prometheus and PrometheusAgent resources instead.
+# On a failed read kubectl's error prints on stderr: report remote_write_targets
+# unconfirmed with it, unless it says the resource type does not exist: no operator or,
+# for prometheusagents, the PrometheusAgent CRD is not installed (added in v0.64.0,
+# shipped separately).
+# Self-managed: remote_write targets (e.g. aps-workspaces AMP URLs), every url under each
+# remote_write block, and the job_name of every entry under each scrape_configs block,
+# from the ConfigMaps. Block-style only, flow style not read. This reads the data of every
+# ConfigMap except Helm's own release records, which Helm's configmap storage driver
+# labels owner=helm. It takes any remote_write, scrape_configs, url or job_name key in any
+# ConfigMap, nested keys included. Each line starts with its ConfigMap's namespace/name.
+# Lines can come from collector configs (OpenTelemetry or ADOT prometheus receiver, Grafana
+# Agent); attribute them by ConfigMap and count a repeated job or url once. A quoted value is read whole. Each url's
+# userinfo (user[:password]@) is removed before it prints; never quote it.
+out=$(kubectl get cm -A -l 'owner!=helm' -o json) && printf '%s' "$out" | jq -r '
+  def val: if .[0] != null then .[0] elif .[1] != null then .[1] else .[2] end;
+  def nouser: sub("^(?<s>[A-Za-z][A-Za-z0-9+.-]*://)[^/@]*@"; "\(.s)");
+  .items[] | "\(.metadata.namespace)/\(.metadata.name)" as $cm | .data // {} | to_entries[] | .value
+  | (capture("(?m)^(?<i>[ \\t]*)remote_write:[ \\t]*(?:#.*)?\\r?\\n(?<b>(?:\\k<i>[ \\t-].*\\n?|[ \\t]*\\r?\\n)*)"; "g") | .b
+      | scan("(?m)^[ \\t]*(?:-[ \\t]*)?url:[ \\t]*(?:\"([^\"]*)\"|\u0027([^\u0027]*)\u0027|([^\\s#]+))")
+      | "\($cm) remote_write_url: \(val | nouser)"),
+    (capture("(?m)^(?<i>[ \\t]*)scrape_configs:[ \\t]*(?:#.*)?\\r?\\n(?<b>(?:\\k<i>[ \\t-].*\\n?|[ \\t]*\\r?\\n)*)"; "g") | .b
+      | scan("(?m)^[ \\t]*(?:-[ \\t]*)?job_name:[ \\t]*(?:\"([^\"]*)\"|\u0027([^\u0027]*)\u0027|([^\\s#]+))")
+      | "\($cm) job_name: \(val)")' \
+  || echo "configmaps: read failed (see the error above)"
+# Operator: remote_write URLs from the Prometheus and PrometheusAgent resources
+# (spec.remoteWrite[].url; a PrometheusAgent shares the field with Prometheus), userinfo removed
+for r in prometheuses prometheusagents; do
+  out=$(kubectl get "$r.monitoring.coreos.com" -A -o json) \
+    && printf '%s' "$out" | jq -r '.items[] | .spec.remoteWrite[]?.url | strings
+         | sub("^(?<s>[A-Za-z][A-Za-z0-9+.-]*://)[^/@]*@"; "\(.s)")' \
+    || echo "$r: read failed (see the error above)"
+done
 ```
 Record `scrape_configs` (count + list of job names) and `remote_write_targets` (list of URLs)
-exactly as found; report `null`/empty where the config is not readable.
+exactly as found; report `null`/empty where the config is not readable. For the operator,
+the rendered job names live only in the config Secret, so report `scrape_configs` as `null`
+and add `observability.scrape_configs: operator job names not read (config Secret is not
+read)` to Coverage. Scrape jobs set through `additionalScrapeConfigs` (a Secret key
+reference) are not read either.
 
 ### 2. Logging Configuration
 
@@ -300,7 +340,7 @@ amazon-cloudwatch  fluent-bit   3         3         3       60d
 **OpenSearch / Elasticsearch:**
 ```bash
 # Check for OpenSearch endpoint in configs
-kubectl get configmap -A -o json | jq -r '
+kubectl get configmap -A -l 'owner!=helm' -o json | jq -r '
   .items[] |
   select((.data // {}) | to_entries | .[] | .value | contains("opensearch") or contains("elasticsearch")) |
   {namespace: .metadata.namespace, name: .metadata.name}'
@@ -428,7 +468,7 @@ observability:
     scrape_configs:               # raw fact — scrape jobs found in the prometheus config
       count: int
       list: list                  # scrape job names, verbatim
-    remote_write_targets: list    # remote_write URLs verbatim (e.g. aps-workspaces AMP URLs)
+    remote_write_targets: list    # remote_write URLs verbatim, userinfo removed (e.g. aps-workspaces AMP URLs)
 
     other_tools:                  # commercial APM agents detected in-cluster
       count: int
