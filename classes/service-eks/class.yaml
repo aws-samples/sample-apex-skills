@@ -1,0 +1,28 @@
+# Service EKS: skills that read an Amazon EKS cluster. Built for the shared
+# kubectl preflight: the context check and preflight text sits today in six
+# EKS skills (eks-recon, eks-upgrade-check, eks-cost-intelligence,
+# eks-ingress-migration, eks-security, eks-well-architected-review), each
+# in its own words. Those lines stay in the skills until each skill joins
+# this class in its own rebuild step; this class lists no members.
+#
+# The class sync (misc/sync-classes.py, planned) copies rules.md into the
+# member's SKILL.md marker block and scripts/preflight.py into the member as
+# scripts/service_eks_preflight.py, the name rules.md uses.
+# A member with no kubectl reads (eks-mcp-server) has nothing for the
+# preflight to act on.
+
+name: service-eks
+parents: [service]
+
+checks:
+  - id: preflight-offline-tests
+    what: "The preflight's stop-and-name path, context check, endpoint check and restore, with fake kubectl and aws"
+    status: exists
+    run: "python3 -B misc/tests/test_service_eks_preflight.py -v"
+  - id: context-on-every-read
+    what: "A line grep: every kubectl read line in a member's SKILL.md, scripts/, tools/ and assets/ carries --context; references/ is skipped (customer-run). It blocks only on members (skills whose metadata.apex-classes names service-eks, none today) and the class's own files; the same test prints a non-blocking report for every other eks-* skill"
+    status: exists
+    run: "python3 -B misc/tests/test_service_eks_preflight.py -v"
+  - id: live-cluster-eval
+    what: "evals/live-cluster/evals.json: the preflight and the core reads against one throwaway sandbox cluster; run by hand, not in CI"
+    status: exists
