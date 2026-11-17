@@ -10,7 +10,7 @@ This page is generated from [skills/apex/runbooks/eks-security/eks-security.md](
 :::
 
 
-<!-- P-305: this runbook keeps eks-security's own procedure until step 5 moves it into the eks-security skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
+<!-- This runbook keeps eks-security's own procedure until that skill's rebuild moves it into the eks-security skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
 
 # EKS Security Workflow
 

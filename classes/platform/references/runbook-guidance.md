@@ -34,8 +34,4 @@ Restate what you understood and wait for the user's confirmation before a recomm
 
 ## Check before presenting
 
-Self-grade the output against the skill's own declared checklist and pass threshold before you present it; for an Operator member these are its artifact checks (`operator.artifact-checks`). The threshold is the skill's: there is no shared one. Below it, fix the gaps first.
-
-## Current facts
-
-Look up versions live before generating, and cite each with a "checked on <date>" line (`apex.verify-or-say-so`, `apex.dated-sources`).
+Self-grade the output against the skill's own declared checklist and pass threshold before you present it; for an Operator member these are its artifact checks, all of which must pass (`operator.artifact-checks`). The threshold is the skill's: there is no shared one. Below it, fix the gaps first.

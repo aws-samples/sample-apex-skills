@@ -10,7 +10,7 @@ This page is generated from [skills/apex/runbooks/eks-genai/eks-genai.md](https:
 :::
 
 
-<!-- P-305: this runbook keeps eks-genai's own procedure until step 5 moves it into the eks-genai skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
+<!-- This runbook keeps eks-genai's own procedure until that skill's rebuild moves it into the eks-genai skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
 
 # GenAI on EKS Workflow
 
@@ -47,6 +47,8 @@ Required inputs — ask for these in one turn:
 - **Cost posture** — cost-first / balanced / stability-first / TCO-driven.
 - **Hardware preference or constraint** — NVIDIA GPU required (CUDA-only/novel arch), Neuron acceptable (PyTorch/vLLM), or no preference.
 - **Compliance regime** — none/commercial, or HIPAA/PCI-DSS/FedRAMP/GDPR/other.
+
+If the user already has an `eks-recon` report, an architecture doc, or a prior design, read it first and skip answered questions.
 
 **STOP.** Restate the workload type, model size, latency target, cost posture, and hardware constraint. Confirm before recommending hardware. If the ask is SageMaker-only or Bedrock-only with no self-hosting, say so and redirect rather than forcing an EKS stack.
 

@@ -10,7 +10,7 @@ This page is generated from [skills/apex/runbooks/eks-platform-engineering/eks-p
 :::
 
 
-<!-- P-305: this runbook keeps eks-platform-engineering's own procedure until step 5 moves it into the eks-platform-engineering skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
+<!-- This runbook keeps eks-platform-engineering's own procedure until that skill's rebuild moves it into the eks-platform-engineering skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
 
 # EKS Platform Engineering Workflow
 
@@ -47,6 +47,8 @@ Required inputs — ask for these in a single turn:
 - Which self-service capabilities to enable first (ship a service, provision infra, scaffold a repo, run an ML/data job).
 - Existing stack to build on or replace (portal, GitOps engine, registry, CI, IaC).
 - Constraints (air-gapped, compliance, multi-account, existing ArgoCD/Backstage investment).
+
+If the user already has an `eks-recon` report or an architecture doc, read it first and skip questions it already answers; do not re-quiz them.
 
 **STOP.** Restate the consumer teams, the first golden paths to build, and the existing stack. Confirm before selecting tools.
 

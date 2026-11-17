@@ -26,7 +26,7 @@ A new EKS cluster, from a blank page to a Terraform project, in one engagement.
 2. **Carry the design forward.** Pass the design's decisions to the next step: the cluster name, the compute strategy, add-on management, the upgrade strategy and the constraints. Do not ask them again.
 3. **Build.** Use the `eks-build` skill to generate the Terraform project from those decisions.
    - Our naming: `<your naming convention>`.
-   - Our pipeline: `<your CI system>`; generate pipeline code for it.
+   - Our pipeline: `<your CI system>`.
    - Gate: show the generated project and its quality check result. Nothing is applied: the team runs `terraform plan` and `apply` through `<your change process>`.
 4. **Hand back.** The design document, the project path and a short list of what the team runs next.
 

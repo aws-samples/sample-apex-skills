@@ -87,7 +87,7 @@ See the auto-generated skill list under [Pick a skill by what you are doing](REA
 
 - **Chains skills**: names each skill by its name and says the order; it does not copy a skill's knowledge or its questions
 - **Written by the customer**: start from one of the two examples, `example-eks-design-to-build.md` and `example-eks-recon-to-operation-review.md`
-- **Routed by the apex skill**: [`skills/apex/SKILL.md`](skills/apex/SKILL.md) detects intent, picks the skill and follows a runbook the request matches. Only the apex skill points at runbooks; other skills' SKILL.md files do not, except the vendored `eks-operation-review`, whose sync script points it at `../apex/runbooks/eks-operation-review/eks-operation-review.md` (the one recorded exception; see its UPSTREAM.md). Start with `/apex`.
+- **Routed by the apex skill**: [`skills/apex/SKILL.md`](skills/apex/SKILL.md) detects intent, picks the skill and follows a runbook the user names, or a skill's own runbook until that skill's rebuild. Only the apex skill points at runbooks; other skills' SKILL.md files do not, except the vendored `eks-operation-review`, whose sync script points it at `../apex/runbooks/eks-operation-review/eks-operation-review.md` (the one recorded exception; see its UPSTREAM.md). Start with `/apex`.
 - **Tightens only**: a runbook may only tighten a safety rule (`apex.tighten-only` in [`classes/apex-base/rules.md`](classes/apex-base/rules.md)), and overrides a skill only by naming what it overrides and why.
 
 ### Where engagement text goes
@@ -284,7 +284,7 @@ When adding new content to the repo, follow this flowchart:
                                                                       └──────────────┘
 ```
 
-For the interaction branch: a flow or STOP gate for one skill goes in that skill (its SKILL.md or `references/`), a convention every skill shares goes in `classes/platform/references/runbook-guidance.md`, routing and hand-offs go in `classes/router/`, and a procedure that chains skills goes in `skills/apex/runbooks/`.
+For the interaction branch, put each piece of text where the table under [Where engagement text goes](#where-engagement-text-goes) says.
 
 ---
 

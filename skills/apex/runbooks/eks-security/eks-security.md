@@ -3,7 +3,7 @@ name: eks-security
 description: Day 1/Day 2 EKS security workflow. Runs the eks-security skill's three read-only reviews of a live cluster (CVE and advisory review, security event response, security posture check, each with the verdict exposed / not exposed / unknown) and guides hardening and compliance-audit prep through the discovery-driven 7-layer stack (OS/AMI, identity and access, workload security, image supply chain, runtime security, audit logging, compliance accelerators), the compliance-regime scope view (HIPAA/PCI/FedRAMP/GDPR/SOC2/ISO), the security baseline and a 30/60/90 hardening roadmap.
 ---
 
-<!-- P-305: this runbook keeps eks-security's own procedure until step 5 moves it into the eks-security skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
+<!-- This runbook keeps eks-security's own procedure until that skill's rebuild moves it into the eks-security skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
 
 # EKS Security Workflow
 

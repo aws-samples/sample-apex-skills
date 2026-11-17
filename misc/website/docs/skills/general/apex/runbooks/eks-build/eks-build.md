@@ -10,7 +10,7 @@ This page is generated from [skills/apex/runbooks/eks-build/eks-build.md](https:
 :::
 
 
-<!-- P-305: this runbook keeps eks-build's own procedure until step 4 (4.2) moves it into the eks-build skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
+<!-- This runbook keeps eks-build's own procedure until that skill's rebuild moves it into the eks-build skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
 
 # Build Workflow
 

@@ -14,7 +14,7 @@
 #   - data/*.json        (OSS add-on registry)
 #   - tools/*.py         (markdown-to-HTML converter)
 #
-# No apex workflow for this skill: its runbook was absorbed by P-305 (its
+# No apex workflow for this skill: its runbook was absorbed (ADR 0007; its
 #   text was router text, now in the apex router and classes/router/).
 #
 # Excluded (deliberately NOT copied):
