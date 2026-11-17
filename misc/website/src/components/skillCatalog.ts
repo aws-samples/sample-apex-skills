@@ -233,6 +233,11 @@ const LINES: Record<string, Lines> = {
     use: 'Write a new skill or improve an existing one.',
     output: 'A skill with evals and a tuned description',
   },
+  'apex-new-skill': {
+    job: 'extend',
+    use: 'Add a new skill or a class change to this repo, step by step.',
+    output: 'A skill or class change ready for its pull request',
+  },
   'update-docs': {
     job: 'extend',
     use: 'Bring every APEX docs surface in line after a skill change.',
