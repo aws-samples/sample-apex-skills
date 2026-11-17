@@ -11,17 +11,16 @@ and run_artifact_checks.py (operator).
 
 The checker is the jsonschema package's Draft 2020-12 validator, with its
 format checker, so `format` is asserted (the format-nongpl extra brings the
-date-time checker). YAML is read with PyYAML's safe loader; a duplicate
-mapping key is refused.
+date-time checker). The format checks need `jsonschema[format-nongpl]`;
+without that extra a bad date-time passes. YAML is read with PyYAML's safe
+loader; a duplicate or unhashable mapping key is refused.
 
-Usage:
-  schema_check.py --schema <schema.json> <file>...
-  schema_check.py --check-schema <schema.json>...
-
-Exit codes: 0 every file validates; 1 a file does not validate;
-2 the check could not run (missing or unreadable file, empty document,
-parse error, an invalid schema or a $ref that does not resolve, jsonschema
-not installed, a schema nested too deep). Nothing ever exits 0 on absent input.
+Exit codes of the tools that import it: 0 every file validates; 1 a file
+does not validate; 2 the check could not run (missing or unreadable file,
+empty document, parse error, a schema that fails the Draft 2020-12
+metaschema check, a $ref an instance reaches that does not resolve (a $ref
+is resolved only when an instance reaches it), jsonschema not installed, a
+schema or document nested too deep). Nothing ever exits 0 on absent input.
 """
 import argparse
 import json
@@ -82,6 +81,10 @@ def loads(text, name="<input>", fmt=None):
         out = {}
         for knode, vnode in node.value:
             key = loader.construct_object(knode, deep=deep)
+            try:
+                hash(key)
+            except TypeError:
+                raise CheckError(f"unhashable key at line {knode.start_mark.line + 1}")
             if key in out:
                 raise CheckError(f"duplicate key {key!r} at line {knode.start_mark.line + 1}")
             out[key] = loader.construct_object(vnode, deep=deep)
@@ -89,11 +92,14 @@ def loads(text, name="<input>", fmt=None):
 
     Loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, mapping)
     try:
-        return yaml.load(text, Loader=Loader)  # noqa: S506 (SafeLoader subclass)
+        doc = yaml.load(text, Loader=Loader)  # noqa: S506 (SafeLoader subclass)
     except CheckError as e:
         raise CheckError(f"{name}: {e}")
     except yaml.YAMLError as e:
         raise CheckError(f"{name}: not valid YAML: {e}")
+    if doc is None:
+        raise CheckError(f"{name}: empty document")
+    return doc
 
 
 def load(path):
@@ -116,7 +122,10 @@ def check_schema(schema):
 
 
 def validate(instance, schema):
-    """Return a list of 'path: message' errors; empty means valid."""
+    """Return a list of 'path: message' errors; empty means valid.
+
+    An anyOf or oneOf failure reports only "is not valid under any of the
+    given schemas", not the branch errors; no shipped schema uses either."""
     jsonschema, ref_errors = _jsonschema()
     validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
     try:
@@ -190,19 +199,15 @@ def run_declared(key, argv, script_file, inline_json=False):
     """CLI shared by validate_input.py and validate_output.py."""
     p = argparse.ArgumentParser(description=f"Check a document against the skill's metadata.{key} schema.")
     p.add_argument("--skill-dir", help="skill folder (default: the folder this copied tool sits in)")
-    p.add_argument("--schema", help="schema path, instead of the skill's declared one")
     if inline_json:
         p.add_argument("--json", dest="inline", help="the document as inline JSON text")
     p.add_argument("files", nargs="*")
     args = p.parse_args(argv)
     try:
-        if args.schema:
-            schema_path = args.schema
-        else:
-            skill_dir = args.skill_dir or default_skill_dir(script_file)
-            if not skill_dir:
-                raise CheckError("give --skill-dir or --schema")
-            schema_path = declared_schema(skill_dir, key)
+        skill_dir = args.skill_dir or default_skill_dir(script_file)
+        if not skill_dir:
+            raise CheckError("give --skill-dir")
+        schema_path = declared_schema(skill_dir, key)
         inline = getattr(args, "inline", None)
         if inline is not None:
             if args.files:
@@ -222,29 +227,3 @@ def run_declared(key, argv, script_file, inline_json=False):
     except RecursionError:
         print("cannot check: the schema or the document is nested too deep", file=sys.stderr)
         return 2
-
-
-def main(argv=None):
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    g = p.add_mutually_exclusive_group(required=True)
-    g.add_argument("--schema", help="the JSON Schema to check the files against")
-    g.add_argument("--check-schema", action="store_true", help="only check that each file is a valid Draft 2020-12 schema")
-    p.add_argument("files", nargs="+")
-    args = p.parse_args(argv)
-    try:
-        if args.check_schema:
-            for f in args.files:
-                load_schema(f)
-                print(f"ok schema {f}")
-            return 0
-        return check_files(args.schema, args.files)
-    except CheckError as e:
-        print(f"cannot check: {e}", file=sys.stderr)
-        return 2
-    except RecursionError:
-        print("cannot check: the schema or the document is nested too deep", file=sys.stderr)
-        return 2
-
-
-if __name__ == "__main__":
-    sys.exit(main())

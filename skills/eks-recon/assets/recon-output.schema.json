@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:sample-apex-skills:eks-recon:recon-output:eks-recon/2026-11-11",
   "title": "eks-recon YAML facts snapshot",
-  "description": "Checks the report block, the shared cluster block, cluster_detail and, for each module that ran, its keys and their value types as the module reference's Output Schema section gives them (SKILL.md Step 4b); a leaf may be null, and an object key stays an object even when its facts are unreadable. report.schema_revision must equal the value SKILL.md sets; change both together.",
+  "description": "Checks the report block, the shared cluster block, cluster_detail and each module that ran (SKILL.md Step 4b): it types every leaf the references give; key presence is checked at each module's first level; key names are not checked; a leaf may be null, and an object key stays an object even when its facts are unreadable. report.schema_revision must equal the value SKILL.md sets; change both together.",
   "type": "object",
   "required": [
     "report",
@@ -119,10 +119,9 @@
           "type": "object",
           "properties": {
             "support_type": {
-              "enum": [
-                "STANDARD",
-                "EXTENDED",
-                null
+              "type": [
+                "string",
+                "null"
               ]
             }
           }
@@ -365,15 +364,9 @@
       ],
       "properties": {
         "strategy": {
-          "enum": [
-            "Karpenter",
-            "MNG",
-            "Auto Mode",
-            "Fargate",
-            "Mixed",
-            "Self-managed",
-            "Unknown",
-            null
+          "type": [
+            "string",
+            "null"
           ]
         },
         "auto_mode": {
@@ -1357,13 +1350,9 @@
           "type": "object",
           "properties": {
             "type": {
-              "enum": [
-                "istio",
-                "appmesh",
-                "linkerd",
-                "cilium",
-                "none",
-                null
+              "type": [
+                "string",
+                "null"
               ]
             },
             "istio": {
@@ -1577,11 +1566,9 @@
           "type": "object",
           "properties": {
             "mode": {
-              "enum": [
-                "API",
-                "API_AND_CONFIG_MAP",
-                "CONFIG_MAP",
-                null
+              "type": [
+                "string",
+                "null"
               ]
             },
             "access_entries": {
@@ -4162,11 +4149,9 @@
           }
         },
         "confidence": {
-          "enum": [
-            "high",
-            "medium",
-            "low",
-            null
+          "type": [
+            "string",
+            "null"
           ]
         },
         "evidence": {
@@ -4554,21 +4539,15 @@
           "type": "object",
           "properties": {
             "tool": {
-              "enum": [
-                "argocd",
-                "flux",
-                "multiple",
-                "unconfirmed",
-                "not_observed",
-                null
+              "type": [
+                "string",
+                "null"
               ]
             },
             "status": {
-              "enum": [
-                "detected",
-                "unconfirmed",
-                "not_observed",
-                null
+              "type": [
+                "string",
+                "null"
               ]
             },
             "detected": {
@@ -4751,20 +4730,15 @@
                 ]
               },
               "category": {
-                "enum": [
-                  "UPGRADE_READINESS",
-                  "MISCONFIGURATION",
-                  "ROLLBACK_READINESS",
-                  null
+                "type": [
+                  "string",
+                  "null"
                 ]
               },
               "status": {
-                "enum": [
-                  "PASSING",
-                  "WARNING",
-                  "ERROR",
-                  "UNKNOWN",
-                  null
+                "type": [
+                  "string",
+                  "null"
                 ]
               },
               "kubernetes_version": {

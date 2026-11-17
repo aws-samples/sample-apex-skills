@@ -150,8 +150,6 @@ Load only the references needed for the user's request — this keeps context fo
 | CI/CD | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd.md) | [cicd-recon.md](agents/cicd-recon.md) |
 | Cluster Insights | EKS-reported upgrade-readiness & configuration insights (raw findings) | [cluster-insights.md](references/cluster-insights.md) | [cluster-insights-recon.md](agents/cluster-insights-recon.md) |
 
-In the input schema (`assets/recon-input.schema.json`), `modules` names the YAML module keys (`compute`, `networking`, `security`, `addons`, `observability`, `workloads`, `storage`, `iac`, `cicd`, `cluster_insights`): a request such as "modules: all" omits `modules`, and cluster basics is never listed, since it always runs.
-
 ---
 
 ## Quick Detection Reference
@@ -350,7 +348,8 @@ Assemble one top-level key per module, each emitted **verbatim in the canonical 
 
 Include a `report` metadata block alongside the canonical module blocks in every
 new YAML artifact. Capture `generated_at` (quoted) from the actual UTC clock once for this
-report (reuse the filename's clock reading where applicable). Set `schema_revision`
+report (reuse the filename's clock reading where applicable). Quote every string value
+YAML would read as another type (dates, times, versions such as 1.30). Set `schema_revision`
 to `eks-recon/2026-11-11`, identifying the fact definitions used here, not a promised
 versioned API. Update this marker when fact types, value sets or meanings change,
 and document affected comparison boundaries in the comparison reference.

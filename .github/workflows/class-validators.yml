@@ -50,7 +50,7 @@ jobs:
           python-version: '3.x'
       # The tests run every validator (input, output, k-run diff, artifact
       # checks) on the fixtures in misc/tests/fixtures/class_validators_cases.json,
-      # the broken eks-recon fixture included, and check every skill schema.
+      # the broken eks-recon fixture included.
       - name: Run the class validators on fixtures
         if: steps.changes.outputs.relevant != 'false'
         run: pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7' && python3 -B misc/tests/test_class_validators.py -v

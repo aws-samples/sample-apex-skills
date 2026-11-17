@@ -8,8 +8,7 @@
 operator.artifact-checks: a skill that produces an artifact declares that
 artifact's checks in its frontmatter, metadata.apex-artifact-checks (a list
 of check ids), and the artifact must pass them before it is handed over.
-CI runs this on fixture artifacts; at run time the skill runs it on its own
-artifact, the same way it runs a schema check.
+CI runs this on fixture artifacts.
 
 Check ids (named after the ids in misc/evals/<skill>/.skilleval.yaml;
 `structural` here is the output-schema check, not the eval's file
@@ -25,9 +24,7 @@ holding the artifact file). An unknown id, or a check whose tool is not on
 PATH, never passes. The eval runner (misc/evals/scripts/artifact_validation.py)
 runs the same tools with other flags and timeouts: terraform fmt, init and
 validate at 120 s with `validate -json`, checkov at 300 s with `--output
-json`. They differ because the eval parses JSON for its score, while this
-tool reads the exit code and shows the tool's own text, with one 300 s
-timeout for every command.
+json`. This tool uses one 300 s timeout for every command.
 
 Usage:
   run_artifact_checks.py [--skill-dir <skill>] <artifact>
@@ -35,10 +32,11 @@ Usage:
 The checks are the ones the skill declares; there is no override. A skill
 that declares none gets no check: "no artifact checks declared; nothing
 checked" (exit 0) is not a pass of any check.
-It imports the apex-base class tool schema_check (the class sync rewrites the
-import to the flat copy's name). In this repo, run it with
+It imports the apex-base class tool schema_check (the class sync (planned)
+rewrites the import to the flat copy's name). In this repo, run it with
 PYTHONPATH=classes/apex-base/scripts.
-Exit codes: 0 every check passed; 1 a check failed; 2 a check could not run.
+Exit codes: 0 every check passed; 1 a check failed; 2 a check could not run
+(an artifact nested too deep included).
 """
 import argparse
 import os
@@ -123,6 +121,10 @@ def main(argv=None):
                 else run_commands(check, args.artifact)
         except CheckError as e:
             print(f"cannot run {check}: {e}")
+            rc = 2
+            continue
+        except RecursionError:
+            print(f"cannot run {check}: the schema or the artifact is nested too deep")
             rc = 2
             continue
         print(f"{'ok' if code == 0 else 'FAIL'} {check}")

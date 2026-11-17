@@ -1,10 +1,13 @@
 {
- "_about": "Cases for misc/tests/test_class_validators.py. recon_report is a valid eks-recon YAML artifact (SKILL.md Step 4b envelope, module keys from references/<module>.md Output Schema); each output case applies its mutations to a copy (set or delete at a dot path), writes it as YAML and expects the validators' exit code (0 valid, 1 invalid, 2 cannot check). V1 is the done test's broken fixture. handwritten_outputs are YAML texts written as a user would write them, not dumped from recon_report.",
+ "_about": "Cases for misc/tests/test_class_validators.py. recon_report is a valid eks-recon YAML artifact (SKILL.md Step 4b envelope, module keys from references/<module>.md Output Schema); each output case applies its mutations to a copy (set or delete at a dot path), writes it as YAML and expects the validators' exit code (0 valid, 1 invalid, 2 cannot check). V1 is the broken-output fixture. handwritten_outputs are YAML texts written as a user would write them, not dumped from recon_report. deep_cases are run outputs or artifacts nested past the recursion limit, built by the test; each must exit 2.",
  "recon_report": {
   "report": {
    "schema_revision": "eks-recon/2026-11-11",
    "generated_at": "2026-11-17T02:15:00Z",
-   "unconfirmed_paths": []
+   "unconfirmed_paths": [
+    "security.iam_for_pods.pod_identity.associations.list",
+    "security.image_security.admission_policies"
+   ]
   },
   "cluster": {
    "name": "demo-cluster",
@@ -56,13 +59,11 @@
      "default"
     ],
     "ec2_node_classes": {
-     "count": 1,
      "names": [
       "default"
      ]
     },
     "node_classes": {
-     "count": 0,
      "names": []
     }
    },
@@ -75,7 +76,7 @@
       "instance_types": [
        "m6i.large"
       ],
-      "desired": 2
+      "desired_size": 2
      }
     ]
    },
@@ -94,9 +95,7 @@
      "name": "ip-10-0-1-10.us-west-2.compute.internal",
      "instance_type": "m6i.large",
      "capacity_type": "ON_DEMAND",
-     "zone": "us-west-2a",
      "os": "linux",
-     "arch": "amd64",
      "kubelet_version": "v1.33.1-eks-1a2b3c4",
      "os_image": "Amazon Linux 2023.7.20250609"
     }
@@ -156,7 +155,7 @@
     "type": "vpc-cni",
     "vpc_cni": {
      "version": "v1.19.5-eksbuild.1",
-     "prefix_delegation": false
+     "mode": "secondary-ip"
     }
    },
    "kube_proxy": {
@@ -172,12 +171,12 @@
     ],
     "classes": {
      "count": 1,
-     "names": [
+     "list": [
       "alb"
      ]
     },
     "gateway_api": {
-     "crds_present": false
+     "detected": false
     }
    },
    "load_balancers": {
@@ -208,7 +207,7 @@
      "replicas": 2
     },
     "nodelocal_dns": {
-     "detected": false
+     "enabled": false
     }
    },
    "network_policies": {
@@ -242,7 +241,7 @@
     },
     "oidc": {
      "issuer": "https://oidc.eks.us-west-2.amazonaws.com/id/0123456789ABCDEF",
-     "provider_exists": true
+     "iam_provider_present": true
     }
    },
    "iam_for_pods": {
@@ -334,13 +333,13 @@
    },
    "core_components": {
     "vpc_cni": {
-     "managed": true
+     "managed_by": "eks-addon"
     },
     "coredns": {
-     "managed": true
+     "managed_by": "eks-addon"
     },
     "kube_proxy": {
-     "managed": true
+     "managed_by": "eks-addon"
     }
    },
    "helm_releases": {
@@ -402,7 +401,8 @@
     },
     "remote_write_targets": [],
     "other_tools": {
-     "datadog": false
+     "count": 0,
+     "list": []
     }
    },
    "logging": {
@@ -413,7 +413,7 @@
      ]
     },
     "application": {
-     "fluent_bit": false
+     "tool": "none"
     },
     "log_destinations": {
      "cloudwatch": true
@@ -439,7 +439,7 @@
      "enabled": false
     },
     "auto_instrumentation": {
-     "detected": false
+     "enabled": false
     }
    }
   },
@@ -511,7 +511,7 @@
    "services": {
     "count": 5,
     "by_type": {
-     "ClusterIP": 5
+     "cluster_ip": 5
     },
     "list": [
      {
@@ -548,10 +548,14 @@
     "count": 2,
     "list": [
      {
-      "name": "system-cluster-critical"
+      "name": "system-cluster-critical",
+      "value": 2000000000,
+      "global_default": false
      },
      {
-      "name": "system-node-critical"
+      "name": "system-node-critical",
+      "value": 2000001000,
+      "global_default": false
      }
     ]
    },
@@ -757,7 +761,7 @@
   },
   {
    "id": "V1",
-   "what": "done test broken fixture: report.generated_at removed",
+   "what": "the broken-output fixture: report.generated_at removed",
    "mutations": [
     {
      "op": "delete",
@@ -992,7 +996,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.compute.strategy: 42 is not one of"
+   "message": "$.compute.strategy: 42 is not of type 'string', 'null'"
   },
   {
    "id": "V13",
@@ -1029,6 +1033,20 @@
    "text": "report: {}\nreport: {}\n",
    "expect": 2,
    "message": "duplicate key 'report'"
+  },
+  {
+   "id": "V6e",
+   "what": "an unhashable mapping key",
+   "text": "? [a, b]\n: 1\n",
+   "expect": 2,
+   "message": "unhashable key at line 1"
+  },
+  {
+   "id": "V6f",
+   "what": "a document holding only a comment",
+   "text": "# no facts\n",
+   "expect": 2,
+   "message": "empty document"
   }
  ],
  "input_cases": [
@@ -1316,13 +1334,24 @@
    "what": "a hand-written targeted run (report and cluster), generated_at quoted",
    "text": "report:\n  schema_revision: eks-recon/2026-11-11\n  generated_at: \"2026-11-17T02:15:00Z\"\n  unconfirmed_paths: []\ncluster:\n  name: demo-cluster\n  region: us-west-2\n  version: '1.33'\n  platform_version: eks.9\n  endpoint: https://0123456789ABCDEF.gr7.us-west-2.eks.amazonaws.com\n  arn: arn:aws:eks:us-west-2:111122223333:cluster/demo-cluster\n  status: ACTIVE\n  created_at: '2025-06-01T10:00:00Z'\n  tags:\n    team: platform\n",
    "expect": 0
+  }
+ ],
+ "deep_cases": [
+  {
+   "id": "D1",
+   "what": "k_run_diff on JSON run outputs nested 5000 deep",
+   "tool": "k_run_diff",
+   "depth": 5000,
+   "expect": 2,
+   "message": "nested too deep"
   },
   {
-   "id": "H1",
-   "what": "the same artifact with generated_at unquoted, which YAML loads as a timestamp (SKILL.md: quote it)",
-   "text": "report:\n  schema_revision: eks-recon/2026-11-11\n  generated_at: 2026-11-17T02:15:00Z\n  unconfirmed_paths: []\ncluster:\n  name: demo-cluster\n  region: us-west-2\n  version: '1.33'\n  platform_version: eks.9\n  endpoint: https://0123456789ABCDEF.gr7.us-west-2.eks.amazonaws.com\n  arn: arn:aws:eks:us-west-2:111122223333:cluster/demo-cluster\n  status: ACTIVE\n  created_at: '2025-06-01T10:00:00Z'\n  tags:\n    team: platform\n",
-   "expect": 1,
-   "message": "$.report.generated_at:"
+   "id": "D2",
+   "what": "structural on a YAML artifact nested 5000 deep",
+   "tool": "run_artifact_checks",
+   "depth": 5000,
+   "expect": 2,
+   "message": "cannot run structural: the schema or the artifact is nested too deep"
   }
  ]
 }

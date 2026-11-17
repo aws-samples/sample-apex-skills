@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:sample-apex-skills:eks-recon:recon-input",
   "title": "eks-recon input",
-  "description": "The inputs of SKILL.md Step 1, checked once the cluster name and region are resolved and before any cluster read. modules omitted means all modules; cluster basics always runs.",
+  "description": "The inputs of SKILL.md Step 1. modules omitted means all modules; cluster basics always runs.",
   "type": "object",
   "required": ["cluster_name", "region"],
   "additionalProperties": false,

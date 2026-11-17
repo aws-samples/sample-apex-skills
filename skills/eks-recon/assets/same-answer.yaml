@@ -1,6 +1,6 @@
 # The "same answer" rule for eks-recon's k-run diff (Script class,
-# script.same-output): 10 runs of eks-recon on one cluster give the same
-# answer all 10 times. Read by k_run_diff.py on the runs' YAML artifacts.
+# script.same-output): 10 runs of eks-recon on one cluster must give the
+# same answer all 10 times. Read by k_run_diff.py on the runs' YAML artifacts.
 #
 # Compared: every field of the YAML artifact except the paths below, values
 # and counts exactly, lists in order. File names never enter the comparison,

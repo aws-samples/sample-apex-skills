@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Offline tests for the class validators (step 3.4a).
+"""Offline tests for the class validators.
 
 Covers classes/apex-base/scripts/schema_check.py and validate_input.py,
 classes/script/scripts/validate_output.py and k_run_diff.py, and
 classes/operator/scripts/run_artifact_checks.py, run as a skill runs them,
-on the eks-recon schemas in skills/eks-recon/assets/. The done test: the
-validators pass on eks-recon fixtures and fail on a broken one (V1).
+on the eks-recon schemas in skills/eks-recon/assets/. The validators must
+pass on eks-recon fixtures and fail on a broken one (V1).
 
 Needs jsonschema and PyYAML (pip install 'jsonschema[format-nongpl]>=4.26,<5'
 'pyyaml>=6,<7'); no network, no cluster. Cases come
@@ -110,7 +110,7 @@ class Tmp(unittest.TestCase):
 
 
 class OutputValidator(Tmp):
-    """Piece 3: validate_output.py on eks-recon YAML, the schema found from SKILL.md."""
+    """validate_output.py on eks-recon YAML, the schema found from SKILL.md."""
 
     def test_output_cases(self):
         for case in CASES["output_cases"]:
@@ -119,7 +119,7 @@ class OutputValidator(Tmp):
                 rc, out = run(os.path.join(SCRIPT, "validate_output.py"), ["--skill-dir", RECON, f])
                 self.expect(case, rc, out)
 
-    def test_done_test_broken_fixture_fails(self):
+    def test_broken_fixture_fails(self):
         good = self.write("good.yaml", output_case(OUTPUTS["V0"]))
         bad = self.write("bad.yaml", output_case(OUTPUTS["V1"]))
         self.assertEqual(run(os.path.join(SCRIPT, "validate_output.py"), ["--skill-dir", RECON, good])[0], 0)
@@ -139,8 +139,10 @@ class OutputValidator(Tmp):
 
     def test_missing_inputs_never_pass(self):
         good = self.write("good.yaml", output_case(OUTPUTS["V0"]))
+        absent = self.skill("absent", {"name": "absent", "description": "x",
+                                       "metadata": {"apex-outputs": "assets/absent.schema.json"}})
         cases = [
-            ["--schema", os.path.join(self.tmp, "absent.schema.json"), good],
+            ["--skill-dir", absent, good],
             ["--skill-dir", RECON, os.path.join(self.tmp, "absent.yaml")],
             ["--skill-dir", RECON],
             [good],  # no skill folder found next to the repo copy
@@ -158,7 +160,7 @@ class OutputValidator(Tmp):
         self.assertIn("inside the skill's assets/", out)
 
     def test_copied_tool_finds_its_skill(self):
-        """A copied tool in <skill>/scripts/, no --skill-dir: under source names; the flat names and the import rewrite are P-310's."""
+        """A copied tool in <skill>/scripts/, no --skill-dir, under source names; the flat names and the import rewrite come with the class sync (planned)."""
         d = self.skill("copied", {"name": "copied", "description": "x",
                                   "metadata": {"apex-outputs": "assets/recon-output.schema.json"}})
         os.makedirs(os.path.join(d, "scripts"))
@@ -172,7 +174,7 @@ class OutputValidator(Tmp):
 
 
 class InputValidator(Tmp):
-    """Piece 5, apex-base half: validate_input.py on eks-recon inputs."""
+    """validate_input.py on eks-recon inputs."""
 
     def test_input_cases_inline(self):
         for case in CASES["input_cases"]:
@@ -203,15 +205,15 @@ class KRunDiff(Tmp):
     """The Script class's k-run diff with eks-recon's same-answer rule."""
 
     def test_krun_cases(self):
-        rule = os.path.join(RECON, "assets", "same-answer.yaml")
+        d = self.skill("krun", {"name": "krun", "description": "x"})
         for case in CASES["krun_cases"]:
             with self.subTest(case["id"]):
                 files = []
                 for i, muts in enumerate(case["runs"]):
                     doc = mutate(CASES["recon_report"], muts)
                     files.append(self.write(f"{case['id']}/run{i}.yaml", yaml.safe_dump(doc)))
-                args = ["--skill-dir", RECON] if case.get("use_skill_rule") else \
-                    ["--same-answer", rule, "--k", str(case["k"])]
+                args = ["--skill-dir", d] if case.get("use_skill_rule") else \
+                    ["--skill-dir", d, "--k", str(case["k"])]
                 self.expect(case, *run(os.path.join(SCRIPT, "k_run_diff.py"), args + files))
 
     def test_same_file_twice_cannot_check(self):
@@ -223,7 +225,7 @@ class KRunDiff(Tmp):
 
     def test_rule_file_shape(self):
         rule = schema_check.load(os.path.join(RECON, "assets", "same-answer.yaml"))
-        self.assertEqual(rule["k"], 10)  # STEP3-PLAN: 10 runs on one cluster
+        self.assertEqual(rule["k"], 10)  # 10 runs on one cluster
         for path in rule["ignore"]:
             parts = path.replace("[]", "").split(".")
             self.assertIn(parts[0], schema_check.load(OUT_SCHEMA)["properties"], path)
@@ -261,18 +263,25 @@ class ArtifactChecks(Tmp):
                 self.expect(case, *run(os.path.join(OPERATOR, "run_artifact_checks.py"), args, path_env))
 
 
-class SchemaChecker(Tmp):
-    """schema_check.py: every skill schema in the repo is valid Draft 2020-12."""
+class DeepInput(Tmp):
+    """Input nested past the recursion limit cannot be checked (exit 2), never a verdict."""
 
-    def test_every_skill_schema_is_valid(self):
-        found = []
-        for name in sorted(os.listdir(os.path.join(ROOT, "skills"))):
-            assets = os.path.join(ROOT, "skills", name, "assets")
-            if os.path.isdir(assets):
-                found += [os.path.join(assets, f) for f in sorted(os.listdir(assets)) if f.endswith(".schema.json")]
-        self.assertTrue(found)
-        rc, out = run(os.path.join(BASE, "schema_check.py"), ["--check-schema"] + found)
-        self.assertEqual(rc, 0, out)
+    def test_deep_cases(self):
+        for case in CASES["deep_cases"]:
+            with self.subTest(case["id"]):
+                n = case["depth"]
+                if case["tool"] == "k_run_diff":
+                    text = '{"report": ' + "[" * n + "]" * n + "}"
+                    files = [self.write(f"{case['id']}/run{i}.json", text) for i in range(2)]
+                    rc, out = run(os.path.join(SCRIPT, "k_run_diff.py"), ["--skill-dir", RECON, "--k", "2"] + files)
+                else:
+                    d = self.skill(case["id"], {"name": case["id"], "description": "x",
+                                                "metadata": {"apex-outputs": "assets/recon-output.schema.json",
+                                                             "apex-artifact-checks": ["structural"]}})
+                    f = self.write(f"{case['id']}.yaml", "report: " + "[" * n + "]" * n + "\n")
+                    rc, out = run(os.path.join(OPERATOR, "run_artifact_checks.py"), ["--skill-dir", d, f])
+                self.expect(case, rc, out)
+                self.assertNotIn("Traceback", out, case["id"])
 
 
 class ReconSchemaMatchesSkill(unittest.TestCase):
@@ -288,7 +297,7 @@ class ReconSchemaMatchesSkill(unittest.TestCase):
         meta = schema_check.skill_metadata(RECON)
         self.assertEqual(schema_check.declared_schema(RECON, "apex-outputs"), os.path.realpath(OUT_SCHEMA))
         self.assertTrue(os.path.isfile(schema_check.declared_schema(RECON, "apex-inputs")))
-        self.assertNotIn("apex-classes", meta)  # class membership is P-310's sync, not this row
+        self.assertNotIn("apex-classes", meta)  # class membership comes when a skill joins its class
 
     def test_schema_revision_matches_skill_md(self):
         revs = set(re.findall(r'schema_revision: "([^"]+)"', self.skill))

@@ -17,14 +17,14 @@ same-answer.yaml:
     - cluster_insights.list[].last_refresh_time
 
 Usage:
-  k_run_diff.py [--skill-dir <skill> | --same-answer <file>] [--k <n>] <run-output>...
+  k_run_diff.py [--skill-dir <skill>] [--k <n>] <run-output>...
 
-It imports the apex-base class tool schema_check (the class sync rewrites the
-import to the flat copy's name). In this repo, run it with
+It imports the apex-base class tool schema_check (the class sync (planned)
+rewrites the import to the flat copy's name). In this repo, run it with
 PYTHONPATH=classes/apex-base/scripts.
 Exit codes: 0 the same answer in every run; 1 a run differs; 2 the check
 could not run (fewer than k files, a file given twice, unreadable input, a
-bad rule file).
+bad rule file, input nested too deep).
 """
 import argparse
 import copy
@@ -106,20 +106,15 @@ def compare(docs, ignore):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    g = p.add_mutually_exclusive_group()
-    g.add_argument("--skill-dir", help="skill folder holding assets/same-answer.yaml")
-    g.add_argument("--same-answer", help="the same-answer rule file")
+    p.add_argument("--skill-dir", help="skill folder holding assets/same-answer.yaml")
     p.add_argument("--k", type=int, help="runs required (default: the rule's k)")
     p.add_argument("files", nargs="*")
     args = p.parse_args(argv)
     try:
-        rule = args.same_answer
-        if not rule:
-            skill_dir = args.skill_dir or schema_check.default_skill_dir(__file__)
-            if not skill_dir:
-                raise CheckError("give --skill-dir or --same-answer")
-            rule = os.path.join(skill_dir, "assets", "same-answer.yaml")
-        k, ignore = load_rule(rule)
+        skill_dir = args.skill_dir or schema_check.default_skill_dir(__file__)
+        if not skill_dir:
+            raise CheckError("give --skill-dir")
+        k, ignore = load_rule(os.path.join(skill_dir, "assets", "same-answer.yaml"))
         k = args.k if args.k is not None else k
         if k < 2:
             raise CheckError("--k must be at least 2")
@@ -129,11 +124,15 @@ def main(argv=None):
         if len(set(real)) != len(real):
             raise CheckError("a run output is given twice")
         docs = [schema_check.load(f) for f in args.files]
+        results = compare(docs, ignore)
     except CheckError as e:
         print(f"cannot check: {e}", file=sys.stderr)
         return 2
+    except RecursionError:
+        print("cannot check: a run output is nested too deep", file=sys.stderr)
+        return 2
     rc = 0
-    for run, found in compare(docs, ignore):
+    for run, found in results:
         if found:
             rc = 1
             print(f"FAIL run {run} ({args.files[run - 1]}) differs from run 1 ({args.files[0]}):")
