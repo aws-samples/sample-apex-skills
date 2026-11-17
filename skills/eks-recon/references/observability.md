@@ -142,10 +142,13 @@ Check for AMP when you need managed Prometheus with automatic scaling and AWS in
 
 ```bash
 # Check for ADOT or Prometheus remote write config
-kubectl get configmap -A -l 'owner!=helm' -o json | jq -r '
-  .items[] |
+# On a failed read kubectl's error prints on stderr: report it unconfirmed, not "not found".
+out=$(kubectl get configmap -A -l 'owner!=helm' -o json) && printf '%s' "$out" | jq -r '
+  [.items[] |
   select((.data // {}) | to_entries | .[] | .value | contains("aps-workspaces")) |
-  {namespace: .metadata.namespace, name: .metadata.name}'
+  {namespace: .metadata.namespace, name: .metadata.name}]
+  | if length == 0 then "aps-workspaces: not found in the ConfigMaps read" else .[] end' \
+  || echo "aps-workspaces: unconfirmed (configmap read failed, see the error above)"
 ```
 
 **Example output (AMP configured):**
@@ -327,8 +330,12 @@ kubectl get daemonset -A -l "app.kubernetes.io/name=fluent-bit" 2>/dev/null
 kubectl get daemonset -A -l "app=fluentd" 2>/dev/null
 
 # Check Fluent Bit ConfigMap for destinations
-kubectl get configmap -n amazon-cloudwatch fluent-bit-config -o yaml 2>/dev/null | \
-  grep -E "cloudwatch|opensearch|s3|kinesis" || true
+# On a failed read kubectl's error prints on stderr: report it unconfirmed, not "not found".
+if out=$(kubectl get configmap -n amazon-cloudwatch fluent-bit-config -o yaml --ignore-not-found); then
+  if [ -z "$out" ]; then echo "fluent-bit-config: not found in amazon-cloudwatch"
+  else printf '%s\n' "$out" | grep -E "cloudwatch|opensearch|s3|kinesis" \
+    || echo "fluent-bit-config: no cloudwatch, opensearch, s3 or kinesis destination found"; fi
+else echo "fluent-bit-config: unconfirmed (configmap read failed, see the error above)"; fi
 ```
 
 **Example output (Fluent Bit detected):**
@@ -340,10 +347,13 @@ amazon-cloudwatch  fluent-bit   3         3         3       60d
 **OpenSearch / Elasticsearch:**
 ```bash
 # Check for OpenSearch endpoint in configs
-kubectl get configmap -A -l 'owner!=helm' -o json | jq -r '
-  .items[] |
+# On a failed read kubectl's error prints on stderr: report it unconfirmed, not "not found".
+out=$(kubectl get configmap -A -l 'owner!=helm' -o json) && printf '%s' "$out" | jq -r '
+  [.items[] |
   select((.data // {}) | to_entries | .[] | .value | contains("opensearch") or contains("elasticsearch")) |
-  {namespace: .metadata.namespace, name: .metadata.name}'
+  {namespace: .metadata.namespace, name: .metadata.name}]
+  | if length == 0 then "opensearch/elasticsearch: not found in the ConfigMaps read" else .[] end' \
+  || echo "opensearch/elasticsearch: unconfirmed (configmap read failed, see the error above)"
 ```
 
 **Loki:**
