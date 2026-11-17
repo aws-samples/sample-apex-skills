@@ -39,15 +39,17 @@ parents: []
 # status "exists" names today's command; "planned" is not built yet.
 checks:
   - id: frontmatter-lint
-    what: "Parseable frontmatter; description present and <= 1024 chars"
+    what: "Parseable frontmatter; name equals the folder name; description present and <= 1024 chars"
     status: exists
-    run: "python3 misc/validate-frontmatter.py"
+    run: "python3 classes/apex-base/checks/ab-fm.py"
   - id: rule-ids-in-marker-block
     what: "Every rule id in rules.md appears in the member's SKILL.md marker block. This proves the copy landed, not behaviour"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-rule.py"
   - id: no-path-into-another-skill
     what: "A path grep: no link or path from a member into another skill's folder"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-path.py"
   - id: shared-trigger-evals
     what: "The class's shared trigger evals run against each member"
     status: planned
@@ -56,10 +58,13 @@ checks:
     status: planned
   - id: metadata-version-bumped
     what: "A required metadata.version, bumped on every change to a skill's instructions, scripts or references"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-ver.py"
   - id: skill-md-under-500-lines
     what: "SKILL.md under 500 lines"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-size.py"
   - id: relative-links-resolve
     what: "The relative link check"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-link.py"
