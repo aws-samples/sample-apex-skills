@@ -55,10 +55,10 @@
       "expectations": [
         "The NodePool uses the Karpenter v1 apiVersion `karpenter.sh/v1`.",
         "The NodePool has a `kubernetes.io/arch` requirement pinned to `arm64`.",
-        "The NodePool has a NoSchedule taint keeping un-vetted pods off.",
-        "The canary pod spec includes a toleration matching the taint.",
+        "The output addresses how amd64-only pods are kept off the arm64 nodes (for example a NoSchedule taint on the NodePool, or an amd64 selector on those pods), with a reason.",
+        "The canary pod spec can schedule onto the arm64 NodePool: it tolerates any taint the NodePool sets.",
         "The canary pod spec includes an arm64 `nodeSelector` (or equivalent nodeAffinity) so placement is forced, not merely permitted.",
-        "The output explains the taint-first rationale: without the taint an amd64-only pod could land on arm64 and hit CrashLoopBackOff / exec format error.",
+        "The output explains why amd64-only pods must stay off arm64 nodes: an amd64-only pod on arm64 hits CrashLoopBackOff / exec format error.",
         "The output does not tell the user to hardcode an `-arm64` tag suffix into the Kubernetes manifest (the multi-arch manifest list handles arch selection)."
       ],
       "knowledge_assertions": [
@@ -81,15 +81,15 @@
           "source": "skills/graviton-migration/references/karpenter-migration.md"
         },
         {
-          "type": "must-contain",
-          "pattern": "effect:\\s*\"?NoSchedule",
-          "context": "Must apply the taint-first discipline on the arm64 NodePool",
+          "type": "must-contain-one-of",
+          "patterns": ["effect:\\s*\"?NoSchedule", "kubernetes\\.io/arch\\W{0,10}amd64"],
+          "context": "Must keep amd64-only pods off the arm64 nodes: a NoSchedule taint on the arm64 NodePool or an amd64 arch selector",
           "source": "skills/graviton-migration/references/karpenter-migration.md"
         },
         {
-          "type": "must-contain",
-          "pattern": "toleration",
-          "context": "The canary must tolerate the arm64 taint",
+          "type": "must-contain-one-of",
+          "patterns": ["toleration", "kubernetes\\.io/arch\\W{0,10}amd64"],
+          "context": "The canary must tolerate the arm64 taint, unless the amd64-only pods are kept off by an amd64 arch selector",
           "source": "skills/graviton-migration/references/karpenter-migration.md"
         }
       ],

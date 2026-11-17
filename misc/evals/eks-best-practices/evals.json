@@ -5,13 +5,13 @@
       "id": 1,
       "prompt": "We run ~40 microservices across 3 product teams on EC2 today and we're moving to EKS. Traffic is spiky, teams want autonomy, and we expect the service count to double in 12 months. Should we run one shared EKS cluster or split per team, and what compute model (Karpenter, MNG, Fargate, Auto Mode) should we default to? Explain the tradeoffs.",
       "expectations": [
-        "The output recommends a shared multi-tenant EKS cluster as the default over per-team clusters for this scale.",
+        "The output addresses the choice between one shared EKS cluster and per-team clusters for this scale, with a reason.",
         "The output calls out per-team namespace isolation explicitly, with at least two of: RBAC, NetworkPolicy, ResourceQuota.",
         "The output recommends Karpenter (or EKS Auto Mode) as the default compute model over pure MNG or Fargate.",
         "The output cites at least one concrete reason for Karpenter (or EKS Auto Mode) as the default compute model, such as consolidation, instance flexibility, or faster scale-up for spiky traffic.",
-        "The output recommends running system/platform components (e.g. CoreDNS, Karpenter controller, ingress controller) on a stable managed node group or Fargate rather than on Karpenter-managed workload nodes.",
+        "The output addresses where system/platform components (e.g. CoreDNS, Karpenter controller, ingress controller) run relative to Karpenter-managed workload nodes, with a reason.",
         "The output names at least one concrete trigger that would justify splitting into multiple clusters (e.g. strict compliance/data-residency boundary, or blast-radius isolation for a critical workload).",
-        "The output mentions a path for tenant autonomy that is not cluster-per-team (e.g. namespace-as-a-service, GitOps per-team app-of-apps, or platform abstractions) so teams can move fast on a shared cluster.",
+        "The output addresses how teams keep autonomy under the cluster model it recommends (e.g. namespace-as-a-service, GitOps per-team app-of-apps, or platform abstractions).",
         "Does not recommend kube2iam."
       ],
       "knowledge_assertions": [
@@ -41,8 +41,8 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["(CoreDNS|system|platform|controller|add-?ons?|critical)[^.\\n]{0,80}\\b(managed.?node.?group|MNG|Fargate)\\b", "\\b(managed.?node.?group|MNG)\\b[^.\\n]{0,80}(system|platform|CoreDNS|controller|add-?ons?)"],
-          "context": "System components should run on stable managed nodes (or Fargate), not Karpenter-managed: the node group must be tied to system components, since the prompt itself names MNG and Fargate",
+          "patterns": ["(CoreDNS|system|platform|controller|add-?ons?|critical)[^.\\n]{0,80}\\b(managed.?node.?group|MNG|Fargate|Karpenter.?managed|node.?pool|Auto Mode)\\b", "\\b(managed.?node.?group|MNG|Karpenter.?managed|node.?pool)\\b[^.\\n]{0,80}(system|platform|CoreDNS|controller|add-?ons?)"],
+          "context": "Must address where system components run: the node placement (a managed node group, Fargate, a node pool, Karpenter-managed nodes or Auto Mode) must be tied to system components, since the prompt itself names MNG and Fargate",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
         },
         {
@@ -53,8 +53,8 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["\\b(split|separate|dedicated|multiple|additional|another|isolated|own(?=\\s+(?:[\\w-]+\\s+){0,2}clusters?\\b))\\b[^.\\n]{0,80}\\bclusters?\\b[^.\\n]{0,80}(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius|strong.?isolation)", "(compliance|regulat|PCI|HIPAA|data.?residency|blast.?radius|strong.?isolation)[^.\\n]{0,80}\\b(split|separate|dedicated|own|multiple|additional|another)\\b[^.\\n]{0,20}\\bclusters?\\b"],
-          "context": "Must name a concrete trigger for cluster splitting: the trigger must sit next to a separate or dedicated cluster, not only be mentioned",
+          "patterns": ["\\b(split|separate|dedicated|multiple|additional|another|isolated|own(?=\\s+(?:[\\w-]+\\s+){0,2}clusters?\\b))\\b[^.\\n]{0,80}\\bclusters?\\b[^.\\n]{0,80}(compliance|regulat|PCI|HIPAA|data.?residency|residency|sovereign|blast.?radius|isolation|noisy.?neighbo|tenant|upgrade|version|region|quota|limit|scale)", "(compliance|regulat|PCI|HIPAA|data.?residency|residency|sovereign|blast.?radius|isolation|noisy.?neighbo|tenant|upgrade|version|region|quota|limit|scale)[^.\\n]{0,80}\\b(split|separate|dedicated|own|multiple|additional|another)\\b[^.\\n]{0,20}\\bclusters?\\b"],
+          "context": "Must name a reason that would justify splitting clusters (any trigger, not one the skill prefers): the reason must sit next to a separate or dedicated cluster, not only be mentioned",
           "source": "aws/aws-eks-best-practices latest/bpg/security/multitenancy.adoc:538-540 at edc514fa"
         }
       ],

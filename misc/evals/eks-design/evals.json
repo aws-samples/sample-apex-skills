@@ -12,7 +12,8 @@
         "Output produces a machine-readable handoff artifact (AGENTS.md or similar) suitable for feeding to eks-build",
         "The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace with network policies, encryption requirements, audit logging) rather than generic security advice",
         "The output recommends a compute strategy that uses Karpenter (or Auto Mode) for workload flexibility",
-        "The output runs critical system components, including the Karpenter controller, on capacity Karpenter does not manage (a small managed node group or EKS Fargate), or uses EKS Auto Mode",
+        "The output runs the Karpenter controller on capacity Karpenter does not manage (a small managed node group or EKS Fargate), or uses EKS Auto Mode",
+        "The output addresses where the other critical system components (e.g. CoreDNS) run, with a reason",
         "The output's Stage 4 score sheet scores the Security dimension",
         "The output's Stage 4 score sheet scores the Reliability & Operations dimension",
         "The output's Stage 4 score sheet scores the Cost & Scalability dimension",
@@ -32,8 +33,8 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["prefix.?delegation", "prefix.?mode"],
-          "context": "200+ microservices needs VPC CNI with prefix delegation for pod density",
+          "patterns": ["prefix.?delegation", "prefix.?mode", "\\b(IP|IPv4)\\b[^.\\n]{0,40}(exhaust|capacity|density|per.?node|planning|consum)", "(pod|IP).?density", "max.?pods", "IPv6"],
+          "context": "Must address Pod density or IP address capacity for 200+ microservices (prefix mode, max Pods, IP exhaustion or IPv6), not one fix the skill prefers",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/networking.html"
         },
         {
