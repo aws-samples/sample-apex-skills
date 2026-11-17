@@ -706,6 +706,7 @@ class RenderReport(TmpCase):
         self.assertEqual(render_report.tok("\x1bdemo", "<P>"), "<P>")
         self.assertEqual(render_report.tok("us-east-1\x00", "<P>"), "<P>")
         self.assertEqual(render_report.tok("demo\t", "<P>"), "demo")
+        self.assertEqual(render_report.tok(["demo\x00"], "<P>"), "<P>")
 
     def test_nul_never_reaches_md_or_html(self):
         fd, inv = self.fixture()
@@ -718,7 +719,7 @@ class RenderReport(TmpCase):
             self.assertIsNone(re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", text))
             self.assertIn("nul here and bell", text)
         self.assertIn("could not be compared (nul here)", md)
-        self.assertIn("--addon-version <VERSION_AT_OR_ABOVE_FIX>", md)
+        self.assertIn("at or above nul here", md)
 
 
 # ------------------------------------------------------------------ collectors: read-only guard
