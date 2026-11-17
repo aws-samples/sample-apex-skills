@@ -23,11 +23,15 @@ passes through; the runner adds `<id> ERROR <skill> <reason>` lines for
 errors. Then it prints `<n> checks on <m> skills, <f> failed, <e> errors`
 (plus `, <p> planned` when any are), runs the hook unit tests
 (run_hook_tests.py) unless --report, and exits 1 when any check or hook test failed or errored, else 0.
+The hook-test runner is the file beside this one whose name is this file's
+with "checks" changed to "hook_tests": run_hook_tests.py in the class
+folder, steward_run_hook_tests.py in a member skill's synced copy.
 
 --report <class> treats every skill as a member of <class> as well, so the
 output lists what would fail if every skill joined it, and always exits 0.
 
---self-test runs the cases in tests/cases.json beside this script: each one
+--self-test runs the cases in classes/steward/tests/cases.json (outside
+scripts/, which the class sync copies flat into members): each one
 builds a temp tree (a git repo when it has commits), runs a command there and
 asserts its exit code and literal output lines (present, absent, in order).
 """
@@ -189,7 +193,8 @@ def run_all(report=None):
         return 0
     rc = 1 if counts["failed"] or counts["errors"] else 0
     sys.stdout.flush()
-    r = subprocess.run([sys.executable, os.path.join(HERE, "run_hook_tests.py")])
+    hook_tests = os.path.basename(__file__).replace("checks", "hook_tests")
+    r = subprocess.run([sys.executable, os.path.join(HERE, hook_tests)])
     return 1 if r.returncode != 0 else rc
 
 
@@ -256,7 +261,7 @@ def run_case(case):
 
 
 def self_test():
-    with open(os.path.join(HERE, "tests", "cases.json"), encoding="utf-8") as f:
+    with open(os.path.join(REPO_ROOT, "classes", "steward", "tests", "cases.json"), encoding="utf-8") as f:
         cases = json.load(f)
     failed = 0
     for case in cases:

@@ -347,7 +347,7 @@
     "commits": [
       {
         "files": {
-          "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\u2028---\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n"
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: d ---\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n"
         }
       }
     ],
@@ -825,6 +825,54 @@
     "stdout_has": [
       "b ERROR skills/demo class base: status 'exists' needs a run command string",
       "1 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner: in the class folder it runs run_hook_tests.py beside it",
+    "files": {
+      "classes/steward/scripts/run_hook_tests.py": "print('HOOK-STUB class-folder name')\n",
+      "classes/steward/scripts/steward_run_hook_tests.py": "print('HOOK-STUB member-copy name')\n",
+      "skills/plain/SKILL.md": "---\nname: plain\ndescription: d\n---\n"
+    },
+    "cmd": [
+      "sh",
+      "-c",
+      "mkdir -p misc && cp \"$2\" misc/ && cp \"$1\" classes/steward/scripts/run_checks.py && exec \"$0\" classes/steward/scripts/run_checks.py",
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "{repo}/misc/safe_frontmatter.py"
+    ],
+    "exit": 0,
+    "stdout_in_order": [
+      "0 checks on 0 skills, 0 failed, 0 errors",
+      "HOOK-STUB class-folder name"
+    ],
+    "stdout_lacks": [
+      "HOOK-STUB member-copy name"
+    ]
+  },
+  {
+    "name": "runner: in a member's synced copy it runs steward_run_hook_tests.py beside it",
+    "files": {
+      "skills/demo/scripts/run_hook_tests.py": "print('HOOK-STUB class-folder name')\n",
+      "skills/demo/scripts/steward_run_hook_tests.py": "print('HOOK-STUB member-copy name')\n",
+      "skills/plain/SKILL.md": "---\nname: plain\ndescription: d\n---\n"
+    },
+    "cmd": [
+      "sh",
+      "-c",
+      "mkdir -p misc && cp \"$2\" misc/ && cp \"$1\" skills/demo/scripts/steward_run_checks.py && exec \"$0\" skills/demo/scripts/steward_run_checks.py",
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "{repo}/misc/safe_frontmatter.py"
+    ],
+    "exit": 0,
+    "stdout_in_order": [
+      "0 checks on 0 skills, 0 failed, 0 errors",
+      "HOOK-STUB member-copy name"
+    ],
+    "stdout_lacks": [
+      "HOOK-STUB class-folder name"
     ]
   }
 ]
