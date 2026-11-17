@@ -20,7 +20,7 @@ checks:
     status: exists
     run: "python3 -B misc/tests/test_service_eks_preflight.py -v"
   - id: context-on-every-read
-    what: "A line grep: every kubectl read line in a member's SKILL.md, scripts/, tools/ and assets/ carries --context; kubectl lines in references/ are not checked by it. It blocks only on members (skills whose metadata.apex-classes names service-eks, none today) and the class's own files; the same test prints a non-blocking, rough (line heuristic) report count for every other eks-* skill"
+    what: "A line grep: every kubectl read line in a member's SKILL.md, scripts/, tools/ and assets/ carries --context; kubectl lines in references/ are not checked by it. It blocks only on members (skills whose metadata.apex-classes names service-eks, none today) and the class's rules.md; the same test prints a non-blocking, rough (line heuristic) report count for every other eks-* skill"
     status: exists
     run: "python3 -B misc/tests/test_service_eks_preflight.py -v"
   - id: live-cluster-eval

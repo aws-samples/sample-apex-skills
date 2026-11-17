@@ -182,7 +182,7 @@ class Check(PreflightCase):
         self.assertEqual(rc, 2)
         self.assertEqual(body["reason"], "permission_missing")
         self.assertIn("get deployments in namespace kube-system: check failed (Unable to connect", body["message"])
-        self.assertIn("fix the credentials or the network first", body["message"])
+        self.assertIn("the credentials or the network must be fixed first", body["message"])
 
     def test_stop_names_every_missing_read_and_makes_no_read(self):
         self.set_state(can_i={"list nodes -A": "no", "list pods -A": "forbidden: oops"})

@@ -29,8 +29,8 @@ restore is for a skill that switched the context: given the context check record
 switches back when the current context differs, and says which context is set when none
 was recorded.
 
-Output: one JSON object on stdout, except usage errors (argparse, stderr, exit 64), `--help` (argparse text on
-stdout, exit 0) and an unexpected crash such as undecodable tool output (traceback, exit 1). Exit 0 ok, 2 stop (a check failed: show "message" to
+Output: one JSON object on stdout, except argparse usage errors (stderr, exit 64), `--help` (stdout, exit 0) and an
+unexpected crash such as undecodable tool output (traceback, exit 1). Exit 0 ok, 2 stop (a check failed: show "message" to
 the user and do not read the cluster), 64 bad usage. Stdlib only.
 """
 
@@ -158,9 +158,10 @@ def check(args):
         return stop("permission_missing",
                     "STOP: the caller on context %r is missing permission, or the check failed, for %d read(s) this "
                     "skill needs:\n%s\nNo cluster read was made. For a denied read, ask the cluster admin to "
-                    "grant these verbs on these resources (an access entry on an API or API_AND_CONFIG_MAP "
-                    "cluster; the aws-auth ConfigMap on CONFIG_MAP). For a "
-                    "failed check, ask the user to fix the credentials or the network first. Then run the preflight again."
+                    "grant these verbs on these resources (an access entry with an access policy, or a Kubernetes "
+                    "group bound by RBAC, on an API or API_AND_CONFIG_MAP cluster; the aws-auth ConfigMap plus RBAC "
+                    "on CONFIG_MAP). For a failed check, the credentials or the network must be fixed first. "
+                    "Then run the preflight again."
                     % (ctx, len(missing), "\n".join(lines)),
                     recorded_context=recorded, missing=missing)
 
