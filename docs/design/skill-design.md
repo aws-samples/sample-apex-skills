@@ -135,7 +135,8 @@ classes/                      (outside skills/, so the installer never treats it
   service-eks/  script/  ...
 skills/eks-recon/SKILL.md     frontmatter: metadata: { apex-classes: "service-eks script" }
   references/apex-base-harness.md, references/service-eks-context.md    (copied, flat)
-  scripts/service_eks_preflight.py, assets/recon-output.schema.json     (copied)
+  scripts/service_eks_preflight.py                                      (copied)
+  assets/recon-output.schema.json                                       (hand-written, not copied)
 misc/sync-classes.py          writes the copies; --check in CI fails on any difference
 ```
 
