@@ -1,0 +1,17 @@
+# Operator / Solutions: skills that do a task, with confirmation before any
+# change. Typed input and checked output sit here; determinism and the OS
+# matrix stay in Script.
+
+name: operator
+parents: [platform]
+
+# operator.artifact-checks: a member declares its checks in
+# metadata.apex-artifact-checks. Today they sit in
+# misc/evals/<skill>/.skilleval.yaml (eks-build: terraform-validate,
+# terraform-fmt, checkov, structural); the target adds tflint, a security
+# scan, requirement coverage and a plan against a fixture.
+
+checks:
+  - id: declared-artifact-checks
+    what: "The declared checks run on fixture artifacts in CI"
+    status: planned

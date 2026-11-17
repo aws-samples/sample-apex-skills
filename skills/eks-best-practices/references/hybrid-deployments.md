@@ -108,7 +108,7 @@ There is **no AWS-native autoscaler for the hybrid data plane** — you provisio
 - **Cluster Autoscaler** likewise scales EC2 node groups, not on-prem hosts.
 - The `eks-hybrid-nodes` Terraform example provisions the **cloud/cluster side** — `remote_network_config`, the `HYBRID_LINUX` access entry, the hybrid-node IAM role, SSM activation, and a Packer node image. What has **no supported IaC** is the **on-prem physical hosts themselves** — no autoscaler and no supported provisioning path for the bare-metal/VM worker lifecycle (as of 2026-08-18); the field pattern is to bake `nodeadm` into a golden OVA/ISO for boot-time join.
 
-**GPU / accelerated inference.** For **GenAI/ML** GPU workloads on Hybrid Nodes or EKS Anywhere (NVIDIA device plugin / GPU Operator, DCGM metrics), see the [`eks-genai`](../../eks-genai/SKILL.md) skill — this guide does not cover accelerator serving. Plain non-ML GPU use (CUDA batch, media transcode) is general EKS and not covered by `eks-genai`.
+**GPU / accelerated inference.** For **GenAI/ML** GPU workloads on Hybrid Nodes or EKS Anywhere (NVIDIA device plugin / GPU Operator, DCGM metrics), see the `eks-genai` skill; this guide does not cover accelerator serving. Plain non-ML GPU use (CUDA batch, media transcode) is general EKS and not covered by `eks-genai`.
 
 ### Security & Identity
 

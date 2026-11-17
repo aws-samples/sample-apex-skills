@@ -278,9 +278,10 @@ version `ghcr.io/kyverno/kyverno:v1.11.4`; ClusterPolicies 12; Policies 3.
 - **Deployment:** `Deployment`, group/version `apps/v1`, name `gatekeeper-controller-manager`,
   namespace `gatekeeper-system`. Presence = Gatekeeper installed. Read
   `spec.template.spec.containers[0].image` and parse the tag for the version (target by name).
-- **Constraint counts:** `constraints` (the aggregate constraint resources) and
-  `constrainttemplates`. Count resources directly.
-- **RBAC verbs:** `get`, `list` on `deployments.apps`, `constraints`, `constrainttemplates`.
+- **Constraint counts:** discover and list each kind in the `constraints.gatekeeper.sh`
+  API group and list `constrainttemplates.templates.gatekeeper.sh`. Count resources directly.
+- **RBAC verbs:** `get`, `list` on `deployments.apps`, the discovered constraint kinds,
+  and `constrainttemplates.templates.gatekeeper.sh`.
 
 **Example facts (Gatekeeper detected):** deployment `gatekeeper-controller-manager` present;
 version `openpolicyagent/gatekeeper:v3.15.0`; ConstraintTemplates 8; Constraints 15.
@@ -346,7 +347,8 @@ aws eks describe-cluster --name <cluster-name> --region <region> \
 Inventory container image sourcing facts:
 - **ECR usage**: whether images pull from ECR (private `*.dkr.ecr.*` or `public.ecr.aws`)
 - **Private registries**: the distinct registry hosts in use
-- **Admission policies**: whether Kyverno/Gatekeeper rules target Pods (image-related admission control exists)
+- **Admission policies**: whether Kyverno `ClusterPolicy` and Gatekeeper constraint
+  selectors include Pods. Namespaced Kyverno `Policy` resources are outside this check.
 
 ECR usage and registry hosts are observed from the images that workloads actually run — the
 authoritative source is pod container images read via the Kubernetes API (the AWS side only
@@ -361,14 +363,38 @@ tells you ECR repositories exist, not that anything pulls from them).
   like a host (contains `.` or `:`).
 - **RBAC verbs:** `get`, `list` on `pods` (all namespaces).
 
-**Via Kubernetes API** — image policy enforcement:
+**Via Kubernetes API** — Pod admission policy selectors:
 
-- **Kyverno:** list `ClusterPolicy` (`clusterpolicies.kyverno.io`); a policy targets images
-  when any rule's `match.resources.kinds` includes `Pod`. Report matching policy names.
-- **Gatekeeper:** list `constraints`; a constraint targets images when any
-  `spec.match.kinds[].kinds` includes `Pod`. Report matching constraint names.
-- `admission_policies` is true if any such Pod-targeting policy/constraint exists.
-- **RBAC verbs:** `get`, `list` on `clusterpolicies.kyverno.io`, `constraints`.
+- **Kyverno:** list `ClusterPolicy` (`clusterpolicies.kyverno.io`). A rule matches by
+  kind when its applicable `kinds` list contains literal `Pod` or `*`. Use any branch
+  of a nonempty `match.any`, otherwise require every branch of a nonempty `match.all`,
+  otherwise use legacy `match.resources.kinds`. Report policies with any matching rule.
+- **Gatekeeper:** discover and list each constraint kind in the
+  `constraints.gatekeeper.sh` API group. Skip constraints with `spec.match.scope: Cluster`.
+  An omitted or empty `spec.match.kinds` allows Pods by kind. Otherwise, at least one
+  entry must allow both the core API group and `Pod`. For each entry, omitted or empty
+  `apiGroups` and `kinds` allow any group and any kind respectively. Nonempty lists
+  must contain the relevant value (empty string for the core group, `Pod` for kind)
+  or `*`. Report matching constraint names.
+- **RBAC verbs:** `get`, `list` on `clusterpolicies.kyverno.io` and the discovered constraint kinds.
+
+Use successful API discovery to confirm that a resource type is absent. Treat
+`Forbidden`, failed discovery, or a failed list for any discovered kind as
+an incomplete read.
+
+These selectors show kind eligibility. Kyverno `spec.admission: false`,
+Gatekeeper `spec.match.source`, exclusions, namespace or label filters, rule bodies,
+and enforcement mode can further restrict what happens to a Pod.
+
+Set `admission_policies: true` when a selector matches. Before reporting `false`,
+confirm complete inventories or resource absence and inspect every entry in the
+Kyverno `kinds` lists on the applicable match path. Count a kind as a confirmed
+nonmatch only if it is a plain, exact name for another kind (such as `Service`).
+Qualified or pattern spellings such as `v1/Pod`, `*/Pod`, and `Po*` leave the result
+inconclusive unless another policy matches. When there is no confirmed match and
+a read or selector is inconclusive, use `null`, mark
+`security.image_security.admission_policies` as `unconfirmed` in Coverage with
+the reason, and list the path in `report.unconfirmed_paths`.
 
 **Example facts (ECR images found):**
 ```
@@ -518,7 +544,7 @@ security:
   image_security:
     ecr_used: bool                  # any pod image pulls from ECR (private or public)
     private_registries: list        # distinct registry hosts across all pod images
-    admission_policies: bool        # Kyverno/Gatekeeper rules targeting Pods exist
+    admission_policies: bool|null   # Pod selector match, confirmed no match, or unconfirmed
 
   admission_webhooks:
     validating:
