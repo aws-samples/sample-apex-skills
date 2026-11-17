@@ -10,13 +10,13 @@ This page is generated from [skills/apex/runbooks/eks-security/eks-security.md](
 :::
 
 
+<!-- This runbook keeps eks-security's own procedure until that skill's rebuild moves it into the eks-security skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
+
 # EKS Security Workflow
 
-> **Lifecycle:** Day 1 (greenfield hardening) / Day 2 (CVE review, event response, posture check, audit prep for an existing cluster)
-> **Skill:** eks-security | cve-advisory-review.md, security-event-response.md, posture-check.md, os-ami-hardening.md, identity-and-access.md, compliance-regimes.md
 > **Access Model:** read-only (the three reviews) / advisory (hardening and compliance)
 
-This workflow covers two kinds of work. The three reviews read a live cluster with read-only AWS and Kubernetes calls (the access the skill's `read-only-access.md` lists), compare by fixed rules, and print every change as a command or manifest for the team to review and run; they never apply, patch, scale, delete, cordon, exec into a pod or read Secret data. The hardening and compliance work produces an opinionated layer-by-layer recommendation and a 30/60/90 roadmap. All domain knowledge comes from the `eks-security` skill; this workflow supplies the engagement structure.
+This workflow covers two kinds of work. The three reviews read a live cluster with read-only AWS and Kubernetes calls (the access the skill's `read-only-access.md` lists), compare by fixed rules, and print every change as a command or manifest for the team to review and run; they never apply, patch, scale, delete, cordon, exec into a pod or read Secret data. The hardening and compliance work produces an opinionated layer-by-layer recommendation and a 30/60/90 roadmap.
 
 ## How to Route Requests
 
@@ -35,7 +35,7 @@ This workflow covers two kinds of work. The three reviews read a live cluster wi
 | "audit logging / control-plane logs / SIEM / retention" | Layer 6 (audit logging) | Day 2 |
 | "Audit Manager / Config / Security Hub / Artifact" | Layer 7 (compliance accelerators) | Day 2 |
 
-A component that is only behind the latest release, with no advisory, is not a security finding: upgrade readiness against a target version goes to `eks-upgrade-check`, version currency with no target version to `eks-operation-review`.
+A component that is only behind the latest release, with no advisory, is not a security finding.
 
 ## Review phases (C1, C2, C3)
 
