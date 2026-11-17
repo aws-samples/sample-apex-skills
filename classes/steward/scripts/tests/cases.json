@@ -1,0 +1,569 @@
+[
+  {
+    "name": "ab-fm pass",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n# Demo\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-fm.py",
+      "skills/demo"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "AB-FM PASS skills/demo/SKILL.md frontmatter ok"
+    ]
+  },
+  {
+    "name": "ab-fm fail: name does not match folder",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: other\ndescription: A demo skill for tests.\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-fm.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-FM FAIL skills/demo/SKILL.md name 'other' does not match folder 'demo'"
+    ]
+  },
+  {
+    "name": "ab-fm fail: no closing ---",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: x\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-fm.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-FM FAIL skills/demo/SKILL.md no YAML frontmatter block found"
+    ]
+  },
+  {
+    "name": "ab-fm fail: empty description",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-fm.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-FM FAIL skills/demo/SKILL.md description is 0 chars (1 to 1024)"
+    ]
+  },
+  {
+    "name": "ab-rule pass",
+    "files": {
+      "rules.md": "# rules\n\n- **apex.one**: one.\n- **apex.two**: two.\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n<!-- APEX_CLASSES_START -->\n- **apex.one**: one.\n- **apex.two**: two.\n<!-- APEX_CLASSES_END -->\n# Demo\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-rule.py",
+      "--rules",
+      "rules.md",
+      "skills/demo"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "AB-RULE PASS skills/demo/SKILL.md 2 rule ids in the marker block"
+    ]
+  },
+  {
+    "name": "ab-rule fail: one id missing from the block",
+    "files": {
+      "rules.md": "# rules\n\n- **apex.one**: one.\n- **apex.two**: two.\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n<!-- APEX_CLASSES_START -->\n- **apex.one**: one.\n- **apex.two-more**: a longer id.\n<!-- APEX_CLASSES_END -->\n# Demo\napex.two outside the block\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-rule.py",
+      "--rules",
+      "rules.md",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-RULE FAIL skills/demo/SKILL.md missing apex.two"
+    ],
+    "stdout_lacks": [
+      "AB-RULE FAIL skills/demo/SKILL.md missing apex.one"
+    ]
+  },
+  {
+    "name": "ab-rule fail: no marker block (apex-base rules.md)",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n- **apex.one**: one.\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-rule.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-RULE FAIL skills/demo/SKILL.md no marker block"
+    ]
+  },
+  {
+    "name": "ab-path pass",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n# Demo\n",
+      "skills/demo/references/b.md": "b\n",
+      "skills/other/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n# Demo\n",
+      "skills/demo/references/a.md": "[b](./b.md) [up](../SKILL.md)\nsource = \"../../modules/vpc\"\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-path.py",
+      "skills/demo"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "AB-PATH PASS skills/demo no path into another skill"
+    ]
+  },
+  {
+    "name": "ab-path fail: path into another skill",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n# Demo\n",
+      "skills/other/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n# Demo\n",
+      "skills/demo/references/a.md": "See [other](../../other/SKILL.md).\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-path.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-PATH FAIL skills/demo/references/a.md:1 path into skills/other"
+    ]
+  },
+  {
+    "name": "ab-ver pass: bumped with a reference change",
+    "commits": [
+      {
+        "as": "BASE_SHA",
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n",
+          "skills/demo/references/a.md": "a\n"
+        }
+      },
+      {
+        "as": "HEAD_SHA",
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"1.0.1\"\n---\n# Demo\n",
+          "skills/demo/references/a.md": "a2\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "AB-VER PASS skills/demo/SKILL.md version 1.0.0 to 1.0.1"
+    ]
+  },
+  {
+    "name": "ab-ver fail: reference changed, version unchanged",
+    "commits": [
+      {
+        "as": "BASE_SHA",
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n",
+          "skills/demo/references/a.md": "a\n"
+        }
+      },
+      {
+        "as": "HEAD_SHA",
+        "files": {
+          "skills/demo/references/a.md": "a2\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-VER FAIL skills/demo version 1.0.0 unchanged; changed: references/a.md"
+    ]
+  },
+  {
+    "name": "ab-ver fail: version lowered",
+    "commits": [
+      {
+        "as": "BASE_SHA",
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n",
+          "skills/demo/references/a.md": "a\n"
+        }
+      },
+      {
+        "as": "HEAD_SHA",
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"0.9.0\"\n---\n# Demo\n",
+          "skills/demo/references/a.md": "a2\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-VER FAIL skills/demo version 0.9.0 not greater than 1.0.0; changed: SKILL.md, references/a.md"
+    ]
+  },
+  {
+    "name": "ab-ver fail: version missing",
+    "commits": [
+      {
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n# Demo\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-VER FAIL skills/demo/SKILL.md metadata.version missing"
+    ]
+  },
+  {
+    "name": "ab-ver fail: version not X.Y.Z",
+    "commits": [
+      {
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"1.0\"\n---\n# Demo\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-VER FAIL skills/demo/SKILL.md metadata.version '1.0' is not X.Y.Z"
+    ]
+  },
+  {
+    "name": "ab-ver pass: only assets changed",
+    "commits": [
+      {
+        "as": "BASE_SHA",
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n",
+          "skills/demo/assets/x.json": "{}\n"
+        }
+      },
+      {
+        "as": "HEAD_SHA",
+        "files": {
+          "skills/demo/assets/x.json": "{\"a\": 1}\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "AB-VER PASS skills/demo/SKILL.md version 1.0.0, no watched path changed"
+    ]
+  },
+  {
+    "name": "ab-size pass: 499 lines",
+    "files": {
+      "skills/demo/SKILL.md": {
+        "text": "---\nname: demo\ndescription: A demo skill for tests.\n---\n",
+        "line": "x\n",
+        "times": 495
+      }
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-size.py",
+      "skills/demo"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "AB-SIZE PASS skills/demo/SKILL.md 499 lines"
+    ]
+  },
+  {
+    "name": "ab-size fail: 500 lines",
+    "files": {
+      "skills/demo/SKILL.md": {
+        "text": "---\nname: demo\ndescription: A demo skill for tests.\n---\n",
+        "line": "x\n",
+        "times": 496
+      }
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-size.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-SIZE FAIL skills/demo/SKILL.md 500 lines (max 499)"
+    ]
+  },
+  {
+    "name": "ab-link pass",
+    "files": {
+      "skills/demo/references/a.md": "a\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n[a](references/a.md) [x](references/a.md#x) [web](https://example.com/missing.md) [top](#demo)\n`[span](missing.md)`\n```\n[fenced](missing.md)\n```\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-link.py",
+      "skills/demo"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "AB-LINK PASS skills/demo relative links resolve"
+    ]
+  },
+  {
+    "name": "ab-link fail: broken link",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n[m](references/missing.md)\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-link.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-LINK FAIL skills/demo/SKILL.md:5 broken link references/missing.md"
+    ]
+  },
+  {
+    "name": "ab-link fail: link leaves the skill folder",
+    "files": {
+      "CONTRIBUTING.md": "c\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n[c](../../CONTRIBUTING.md)\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-link.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-LINK FAIL skills/demo/SKILL.md:5 leaves the skill folder ../../CONTRIBUTING.md"
+    ]
+  },
+  {
+    "name": "hook-test pass: block",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import json, sys\ncmd = json.load(sys.stdin)['tool_input']['command']\nif 'rm ' in cmd:\n    print('blocked: rm', file=sys.stderr)\n    sys.exit(2)\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.expected.json": "{\"exit\": 2, \"decision\": \"block\", \"stderr_contains\": \"rm\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py",
+      "--root",
+      "."
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "HOOK-TEST PASS demo-hook/claude-code-shell ok",
+      "1 hook tests, 0 failed, 0 errors"
+    ]
+  },
+  {
+    "name": "hook-test fail: hook exits 0",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.expected.json": "{\"exit\": 2, \"decision\": \"block\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py",
+      "--root",
+      "."
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST FAIL demo-hook/claude-code-shell expected exit 2, got 0",
+      "1 hook tests, 1 failed, 0 errors"
+    ]
+  },
+  {
+    "name": "hook-test fail: timeout",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys, time\nsys.stdin.read()\ntime.sleep(5)\n",
+      "classes/demo/hooks/demo-hook/tests/codex-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/codex-shell.expected.json": "{\"exit\": 0, \"decision\": \"none\", \"timeout\": 1}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py",
+      "--root",
+      "."
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST FAIL demo-hook/codex-shell timeout"
+    ]
+  },
+  {
+    "name": "hook-test error: no expected file",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py",
+      "--root",
+      "."
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST ERROR demo-hook/kiro-shell cannot read fixture: [Errno 2] No such file or directory: 'classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json'",
+      "1 hook tests, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner pass: parent and child, parents first, planned not counted",
+    "files": {
+      "classes/parent/class.yaml": "name: parent\nparents: []\nchecks:\n  - id: p\n    status: exists\n    run: \"python3 classes/parent/p.py\"\n",
+      "classes/parent/p.py": "import sys\nprint('PARENT PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\nsys.exit(0)\n",
+      "classes/child/class.yaml": "name: child\nparents: [parent]\nchecks:\n  - id: c\n    status: exists\n    run: \"python3 classes/child/c.py\"\n  - id: later\n    status: planned\n",
+      "classes/child/c.py": "import sys\nprint('CHILD PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\nsys.exit(0)\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"child\"\n---\n",
+      "skills/plain/SKILL.md": "---\nname: plain\ndescription: d\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "--root",
+      ".",
+      "--no-hook-tests"
+    ],
+    "exit": 0,
+    "stdout_in_order": [
+      "PARENT PASS skills/demo ok",
+      "CHILD PASS skills/demo ok"
+    ],
+    "stdout_has": [
+      "later PLANNED skills/demo class child, not built yet",
+      "2 checks on 1 skills, 0 failed, 0 errors, 1 planned"
+    ]
+  },
+  {
+    "name": "runner fail: parent check errors and child check fails, runner goes on",
+    "files": {
+      "classes/parent/class.yaml": "name: parent\nparents: []\nchecks:\n  - id: p\n    status: exists\n    run: \"python3 classes/parent/p.py\"\n",
+      "classes/parent/p.py": "import sys\nprint('boom', file=sys.stderr)\nsys.exit(2)\n",
+      "classes/child/class.yaml": "name: child\nparents: [parent]\nchecks:\n  - id: c\n    status: exists\n    run: \"python3 classes/child/c.py\"\n",
+      "classes/child/c.py": "import sys\nprint('CHILD FAIL SKILL bad'.replace('SKILL', sys.argv[-1]))\nsys.exit(1)\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"child\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "--root",
+      ".",
+      "--no-hook-tests"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "p ERROR skills/demo exit 2: boom",
+      "CHILD FAIL skills/demo bad",
+      "2 checks on 1 skills, 1 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner: a shared parent runs once",
+    "files": {
+      "classes/a/class.yaml": "name: a\nparents: []\nchecks:\n  - id: a\n    status: exists\n    run: \"python3 classes/a/a.py\"\n",
+      "classes/a/a.py": "import sys\nprint('A PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\nsys.exit(0)\n",
+      "classes/b/class.yaml": "name: b\nparents: [a]\nchecks:\n  - id: b\n    status: exists\n    run: \"python3 classes/a/a.py\"\n",
+      "classes/c/class.yaml": "name: c\nparents: [a]\nchecks:\n  - id: c\n    status: exists\n    run: \"python3 classes/a/a.py\"\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"b c\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "--root",
+      ".",
+      "--no-hook-tests"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "3 checks on 1 skills, 0 failed, 0 errors"
+    ]
+  },
+  {
+    "name": "runner error: unknown class",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"nope\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "--root",
+      ".",
+      "--no-hook-tests"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "runner ERROR skills/demo unknown class 'nope' (no classes/nope/class.yaml)",
+      "0 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner fail: a failing hook test fails the run",
+    "files": {
+      "classes/parent/class.yaml": "name: parent\nparents: []\nchecks:\n  - id: p\n    status: exists\n    run: \"python3 classes/parent/p.py\"\n",
+      "classes/parent/p.py": "import sys\nprint('PARENT PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\nsys.exit(0)\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"parent\"\n---\n",
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.expected.json": "{\"exit\": 2, \"decision\": \"block\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "--root",
+      "."
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "1 checks on 1 skills, 0 failed, 0 errors",
+      "HOOK-TEST FAIL demo-hook/claude-code-shell expected exit 2, got 0"
+    ]
+  }
+]
