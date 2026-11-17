@@ -242,7 +242,7 @@ python scripts/update_sibling_map.py \
 ## Python dependencies
 
 ```bash
-pip install pyyaml
+pip install pyyaml jsonschema
 ```
 
 ## Reference

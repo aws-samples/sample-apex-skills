@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import sys
-import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -62,8 +61,11 @@ class ProcessAssertionResults:
         }
 
 
-def _args_match(tool_input: dict, args_match: dict) -> bool:
-    """Partial match: every key in args_match must exist with the same value."""
+def _args_match(tool_input: Any, args_match: dict) -> bool:
+    """Partial match: every key in args_match must exist with the same value.
+    A call with no input (None) or a non-object input matches no key."""
+    if not isinstance(tool_input, dict):
+        return False
     for key, expected in args_match.items():
         if key not in tool_input:
             return False
@@ -307,25 +309,26 @@ def _eval_tool_effectiveness(trajectory: Trajectory, assertion: dict) -> Asserti
     )
 
 
-def _validate_against_schema(instance: dict, schema: dict) -> bool:
-    """Validate instance against JSON Schema. Falls back to basic checks if jsonschema unavailable."""
-    if _HAS_JSONSCHEMA:
-        try:
-            jsonschema.validate(instance, schema)
-            return True
-        except jsonschema.ValidationError:
-            return False
-    # Fallback: basic type + required checking
-    warnings.warn("jsonschema package not installed; using basic type/required validation only")
-    if schema.get("type") == "object" and not isinstance(instance, dict):
+def _validate_against_schema(instance: Any, schema: dict) -> bool:
+    """Validate instance against JSON Schema (needs the jsonschema package)."""
+    try:
+        jsonschema.validate(instance, schema)
+        return True
+    except (jsonschema.ValidationError, jsonschema.SchemaError):
         return False
-    for req in schema.get("required", []):
-        if req not in instance:
-            return False
-    return True
 
 
 def _eval_tool_args_schema(trajectory: Trajectory, assertion: dict) -> AssertionResult:
+    """Check each call of `tool` against `schema`.
+
+    A tool that is never called passes with `all: true`, since no call can
+    break the schema, unless `min` asks for a call; it fails without `all`.
+    Tool names match exactly, so a misspelt name passes under `all: true`.
+    A call with no input fails the whole check, with or without `all`, even
+    when another call matches, and the evidence names the call's index.
+    Without the jsonschema package the check fails instead of guessing. An
+    invalid schema fails the check, not the run.
+    """
     tool = assertion["tool"]
     schema = assertion["schema"]
     require_all = assertion.get("all", False)
@@ -335,11 +338,31 @@ def _eval_tool_args_schema(trajectory: Trajectory, assertion: dict) -> Assertion
     tool_calls = [tc for tc in all_calls if tc.name == tool]
 
     if not tool_calls:
+        never_called_passes = bool(require_all) and not min_matches
+        return AssertionResult(
+            assertion=assertion,
+            passed=never_called_passes,
+            evidence=f"Tool '{tool}' was never called",
+            failure_class=None if never_called_passes else "invalid_tool_args",
+            matching_calls=[],
+        )
+
+    no_input = [tc.index for tc in tool_calls if tc.input is None]
+    if no_input:
         return AssertionResult(
             assertion=assertion,
             passed=False,
-            evidence=f"Tool '{tool}' was never called",
+            evidence=f"Tool '{tool}': calls with no input at indices {no_input}",
             failure_class="invalid_tool_args",
+            matching_calls=[],
+        )
+
+    if not _HAS_JSONSCHEMA:
+        return AssertionResult(
+            assertion=assertion,
+            passed=False,
+            evidence="jsonschema package not installed; cannot check the schema",
+            failure_class=None,
             matching_calls=[],
         )
 
