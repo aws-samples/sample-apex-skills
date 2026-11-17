@@ -4,24 +4,28 @@
 
 Usage: ab-path.py <skill dir>
 
-Reads every text file of the skill and resolves each relative path that
-climbs with `../` from the file's folder. A path that lands on another
-skill's folder (a sibling of the skill's own folder that holds a SKILL.md,
-such as `../../eks-genai/SKILL.md` from skills/x/references/) fails: a lone
-copy of the skill does not have that folder. A climb to a sibling that is
-not a skill (a Terraform `../modules/` example) passes. Repo-rooted paths
-(`skills/<name>/...`) are not checked: a lone copy loads none of them.
+Run from the repo root. Reads every text file of the skill and resolves
+each relative path that climbs with `../` from the file's folder. A path
+that lands inside another skill's folder (any skills/<name>/ or
+devops-agent/<name>/ that holds a SKILL.md, such as `../../eks-genai/SKILL.md`
+from skills/x/references/ or `../../../skills/eks-recon/x.md` from
+devops-agent/eks-recon/references/) fails: a lone copy of the skill does not
+have that folder. A climb to a folder that is not a skill (a Terraform
+`../modules/` example) passes. Repo-rooted paths (`skills/<name>/...`) are
+not checked: a lone copy loads none of them.
 
 Exit 0 pass, 1 fail, 2 usage or internal error. Each output line is
 `AB-PATH <PASS|FAIL> <path>[:<line>] <reason>`.
 """
 
+import glob
 import os
 import re
 import sys
 
 CHECK = "AB-PATH"
-CLIMB = re.compile(r"(?<![A-Za-z0-9_.-])((?:\.\./)+)([A-Za-z0-9._-]+)(?=[/)\s\"'`#>\]]|$)")
+CLIMB = re.compile(r"(?<![A-Za-z0-9_.-])((?:\.\./)+)([A-Za-z0-9._/-]*)")
+SKILL_GLOBS = ("skills/*/SKILL.md", "devops-agent/*/SKILL.md")
 
 
 def skill_files(skill_dir):
@@ -31,9 +35,13 @@ def skill_files(skill_dir):
             yield os.path.join(root, name)
 
 
-def hits(skill_dir, path):
+def other_skills(skill_dir):
     own = os.path.realpath(skill_dir)
-    parent = os.path.dirname(own)
+    found = (os.path.realpath(os.path.dirname(p)) for g in SKILL_GLOBS for p in glob.glob(g))
+    return sorted(d for d in found if d != own)
+
+
+def hits(others, path):
     here = os.path.dirname(os.path.realpath(path))
     try:
         with open(path, encoding="utf-8") as f:
@@ -43,9 +51,10 @@ def hits(skill_dir, path):
     for number, line in enumerate(lines, 1):
         for m in CLIMB.finditer(line):
             target = os.path.normpath(os.path.join(here, m.group(1), m.group(2)))
-            if (os.path.dirname(target) == parent and target != own
-                    and os.path.isfile(os.path.join(target, "SKILL.md"))):
-                yield number, os.path.basename(target)
+            for other in others:
+                if target == other or target.startswith(other + os.sep):
+                    yield number, os.path.relpath(other)
+                    break
 
 
 def main(argv):
@@ -56,13 +65,13 @@ def main(argv):
     if not os.path.isfile(os.path.join(skill_dir, "SKILL.md")):
         print(f"{CHECK}: no SKILL.md in {skill_dir}", file=sys.stderr)
         return 2
-    parent_rel = os.path.dirname(skill_dir)
+    others = other_skills(skill_dir)
     failed = 0
     try:
         for path in skill_files(skill_dir):
-            for number, other in hits(skill_dir, path):
+            for number, other in hits(others, path):
                 failed += 1
-                print(f"{CHECK} FAIL {os.path.relpath(path)}:{number} path into {os.path.join(parent_rel, other)}")
+                print(f"{CHECK} FAIL {os.path.relpath(path)}:{number} path into {other}")
     except OSError as e:
         print(f"{CHECK}: cannot read: {e}", file=sys.stderr)
         return 2

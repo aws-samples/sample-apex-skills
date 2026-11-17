@@ -56,20 +56,33 @@
     ],
     "exit": 1,
     "stdout_has": [
-      "AB-FM FAIL skills/demo/SKILL.md description is 0 chars (1 to 1024)"
+      "AB-FM FAIL skills/demo/SKILL.md description is 0 chars without outer spaces (1 to 1024)"
+    ]
+  },
+  {
+    "name": "ab-fm fail: description only spaces",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: \" \"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-fm.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-FM FAIL skills/demo/SKILL.md description is 0 chars without outer spaces (1 to 1024)"
     ]
   },
   {
     "name": "ab-rule pass",
     "files": {
-      "rules.md": "# rules\n\n- **apex.one**: one.\n- **apex.two**: two.\n",
-      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n<!-- APEX_CLASSES_START -->\n- **apex.one**: one.\n- **apex.two**: two.\n<!-- APEX_CLASSES_END -->\n# Demo\n"
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n<!-- APEX_CLASSES_START -->\n- **apex.one**: one.\n- **apex.two**: two.\n<!-- APEX_CLASSES_END -->\n# Demo\n",
+      "classes/apex-base/rules.md": "# rules\n\n- **apex.one**: one.\n- **apex.two**: two.\n"
     },
     "cmd": [
       "{python}",
       "{repo}/classes/apex-base/checks/ab-rule.py",
-      "--rules",
-      "rules.md",
       "skills/demo"
     ],
     "exit": 0,
@@ -80,14 +93,12 @@
   {
     "name": "ab-rule fail: one id missing from the block",
     "files": {
-      "rules.md": "# rules\n\n- **apex.one**: one.\n- **apex.two**: two.\n",
-      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n<!-- APEX_CLASSES_START -->\n- **apex.one**: one.\n- **apex.two-more**: a longer id.\n<!-- APEX_CLASSES_END -->\n# Demo\napex.two outside the block\n"
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n<!-- APEX_CLASSES_START -->\n- **apex.one**: one.\n- **apex.two-more**: a longer id.\n<!-- APEX_CLASSES_END -->\n# Demo\napex.two outside the block\n",
+      "classes/apex-base/rules.md": "# rules\n\n- **apex.one**: one.\n- **apex.two**: two.\n"
     },
     "cmd": [
       "{python}",
       "{repo}/classes/apex-base/checks/ab-rule.py",
-      "--rules",
-      "rules.md",
       "skills/demo"
     ],
     "exit": 1,
@@ -99,9 +110,10 @@
     ]
   },
   {
-    "name": "ab-rule fail: no marker block (apex-base rules.md)",
+    "name": "ab-rule fail: no marker block",
     "files": {
-      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n- **apex.one**: one.\n"
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n- **apex.one**: one.\n",
+      "classes/apex-base/rules.md": "# rules\n\n- **apex.one**: one.\n"
     },
     "cmd": [
       "{python}",
@@ -146,6 +158,40 @@
     "exit": 1,
     "stdout_has": [
       "AB-PATH FAIL skills/demo/references/a.md:1 path into skills/other"
+    ]
+  },
+  {
+    "name": "ab-path fail: path climbs to the repo root and into another skill",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\nSee ../../skills/eks-genai/SKILL.md for more.\n",
+      "skills/eks-genai/SKILL.md": "---\nname: eks-genai\ndescription: A eks-genai skill for tests.\n---\n# Demo\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-path.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-PATH FAIL skills/demo/SKILL.md:5 path into skills/eks-genai"
+    ]
+  },
+  {
+    "name": "ab-path fail: path from devops-agent into a skill under skills/",
+    "files": {
+      "devops-agent/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n# Demo\n",
+      "devops-agent/demo/references/notes.md": "Moved to ../../../skills/demo/references/a.md.\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n# Demo\n",
+      "skills/demo/references/a.md": "a\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-path.py",
+      "devops-agent/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-PATH FAIL devops-agent/demo/references/notes.md:1 path into skills/demo"
     ]
   },
   {
@@ -200,7 +246,7 @@
     ],
     "exit": 1,
     "stdout_has": [
-      "AB-VER FAIL skills/demo version 1.0.0 unchanged; changed: references/a.md"
+      "AB-VER FAIL skills/demo/SKILL.md version 1.0.0 unchanged; changed: references/a.md"
     ]
   },
   {
@@ -228,7 +274,7 @@
     ],
     "exit": 1,
     "stdout_has": [
-      "AB-VER FAIL skills/demo version 0.9.0 not greater than 1.0.0; changed: SKILL.md, references/a.md"
+      "AB-VER FAIL skills/demo/SKILL.md version 0.9.0 not greater than 1.0.0; changed: SKILL.md, references/a.md"
     ]
   },
   {
@@ -297,6 +343,79 @@
     ]
   },
   {
+    "name": "ab-ver fail: U+2028 before --- does not end the frontmatter early",
+    "commits": [
+      {
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\u2028---\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_lacks": [
+      "AB-VER FAIL skills/demo/SKILL.md metadata.version missing"
+    ]
+  },
+  {
+    "name": "ab-ver fail: agents/ changed, version unchanged",
+    "commits": [
+      {
+        "as": "BASE_SHA",
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n",
+          "skills/demo/agents/a.md": "a\n"
+        }
+      },
+      {
+        "as": "HEAD_SHA",
+        "files": {
+          "skills/demo/agents/a.md": "a2\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-VER FAIL skills/demo/SKILL.md version 1.0.0 unchanged; changed: agents/a.md"
+    ]
+  },
+  {
+    "name": "ab-ver fail: tools/ changed, version unchanged",
+    "commits": [
+      {
+        "as": "BASE_SHA",
+        "files": {
+          "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\nmetadata:\n  version: \"1.0.0\"\n---\n# Demo\n",
+          "skills/demo/tools/t.py": "a\n"
+        }
+      },
+      {
+        "as": "HEAD_SHA",
+        "files": {
+          "skills/demo/tools/t.py": "a2\n"
+        }
+      }
+    ],
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-ver.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-VER FAIL skills/demo/SKILL.md version 1.0.0 unchanged; changed: tools/t.py"
+    ]
+  },
+  {
     "name": "ab-size pass: 499 lines",
     "files": {
       "skills/demo/SKILL.md": {
@@ -322,6 +441,26 @@
         "text": "---\nname: demo\ndescription: A demo skill for tests.\n---\n",
         "line": "x\n",
         "times": 496
+      }
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-size.py",
+      "skills/demo"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-SIZE FAIL skills/demo/SKILL.md 500 lines (max 499)"
+    ]
+  },
+  {
+    "name": "ab-size fail: 500 lines, no final newline",
+    "files": {
+      "skills/demo/SKILL.md": {
+        "text": "---\nname: demo\ndescription: A demo skill for tests.\n---\n",
+        "line": "x\n",
+        "times": 495,
+        "end": "x"
       }
     },
     "cmd": [
@@ -390,9 +529,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_hook_tests.py",
-      "--root",
-      "."
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
     ],
     "exit": 0,
     "stdout_has": [
@@ -409,9 +546,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_hook_tests.py",
-      "--root",
-      "."
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
     ],
     "exit": 1,
     "stdout_has": [
@@ -428,9 +563,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_hook_tests.py",
-      "--root",
-      "."
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
     ],
     "exit": 1,
     "stdout_has": [
@@ -445,13 +578,62 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_hook_tests.py",
-      "--root",
-      "."
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
     ],
     "exit": 1,
     "stdout_has": [
       "HOOK-TEST ERROR demo-hook/kiro-shell cannot read fixture: [Errno 2] No such file or directory: 'classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json'",
+      "1 hook tests, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "hook-test fail: exit matches, decision does not (block needs stderr)",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(2)\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.expected.json": "{\"exit\": 2, \"decision\": \"block\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST FAIL demo-hook/claude-code-shell expected decision block",
+      "1 hook tests, 1 failed, 0 errors"
+    ]
+  },
+  {
+    "name": "hook-test fail: stderr lacks the expected text",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nprint('nope', file=sys.stderr)\nsys.exit(2)\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.expected.json": "{\"exit\": 2, \"decision\": \"block\", \"stderr_contains\": \"Secret\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST FAIL demo-hook/claude-code-shell stderr lacks 'Secret'",
+      "1 hook tests, 1 failed, 0 errors"
+    ]
+  },
+  {
+    "name": "hook-test error: args not a list of strings",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"args\": [1]}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST ERROR demo-hook/kiro-shell 'args' must be a list of strings",
       "1 hook tests, 0 failed, 1 errors"
     ]
   },
@@ -467,10 +649,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_checks.py",
-      "--root",
-      ".",
-      "--no-hook-tests"
+      "{repo}/classes/steward/scripts/run_checks.py"
     ],
     "exit": 0,
     "stdout_in_order": [
@@ -493,10 +672,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_checks.py",
-      "--root",
-      ".",
-      "--no-hook-tests"
+      "{repo}/classes/steward/scripts/run_checks.py"
     ],
     "exit": 1,
     "stdout_has": [
@@ -516,10 +692,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_checks.py",
-      "--root",
-      ".",
-      "--no-hook-tests"
+      "{repo}/classes/steward/scripts/run_checks.py"
     ],
     "exit": 0,
     "stdout_has": [
@@ -533,10 +706,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_checks.py",
-      "--root",
-      ".",
-      "--no-hook-tests"
+      "{repo}/classes/steward/scripts/run_checks.py"
     ],
     "exit": 1,
     "stdout_has": [
@@ -556,9 +726,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_checks.py",
-      "--root",
-      "."
+      "{repo}/classes/steward/scripts/run_checks.py"
     ],
     "exit": 1,
     "stdout_has": [
@@ -576,10 +744,7 @@
     },
     "cmd": [
       "{python}",
-      "{repo}/classes/steward/scripts/run_checks.py",
-      "--root",
-      ".",
-      "--no-hook-tests"
+      "{repo}/classes/steward/scripts/run_checks.py"
     ],
     "exit": 1,
     "stdout_has": [
@@ -601,9 +766,6 @@
     "cmd": [
       "{python}",
       "{repo}/classes/steward/scripts/run_checks.py",
-      "--root",
-      ".",
-      "--no-hook-tests",
       "--report",
       "base"
     ],
@@ -612,6 +774,57 @@
       "B FAIL skills/member bad",
       "B FAIL skills/plain bad",
       "2 checks on 2 skills, 2 failed, 0 errors (report: every skill as a member of base, never fails)"
+    ]
+  },
+  {
+    "name": "runner error: a check past its timeout",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    timeout: 1\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import time\ntime.sleep(5)\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "b ERROR skills/demo timeout after 1s",
+      "1 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner error: a check exits 1 with no FAIL line",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "raise RuntimeError('x')\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "b ERROR skills/demo exit 1 with no FAIL line: RuntimeError: x",
+      "1 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner error: run is not a string, the runner goes on",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    run: [\"python3\"]\n",
+      "classes/base/b.py": "import sys\nsys.exit(0)\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "b ERROR skills/demo class base: status 'exists' needs a run command string",
+      "1 checks on 1 skills, 0 failed, 1 errors"
     ]
   }
 ]

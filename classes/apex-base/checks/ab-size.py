@@ -3,7 +3,7 @@
 
 Usage: ab-size.py <skill dir>
 
-Counts lines as `wc -l` does (newline characters); 500 or more fails.
+Counts lines, a last line with no final newline included; 500 or more fails.
 
 Exit 0 pass, 1 fail, 2 usage or internal error. Each output line is
 `AB-SIZE <PASS|FAIL> <path> <reason>`.
@@ -23,7 +23,7 @@ def main(argv):
     skill_md = os.path.relpath(os.path.join(argv[0], "SKILL.md"))
     try:
         with open(skill_md, "rb") as f:
-            count = f.read().count(b"\n")
+            count = len(f.read().splitlines())
     except OSError as e:
         print(f"{CHECK}: cannot read {skill_md}: {e}", file=sys.stderr)
         return 2

@@ -2,11 +2,11 @@
 """AB-RULE: apex-base rule ids present in the SKILL.md marker block
 (apex-base check rule-ids-in-marker-block).
 
-Usage: ab-rule.py [--rules <rules.md>] <skill dir>
+Usage, from the repo root: ab-rule.py <skill dir>
 
 Reads every rule id apex-base declares (`- **<id>**:` lines in
-classes/apex-base/rules.md, or --rules) and requires each one inside the
-skill's class marker block, `<!-- APEX_CLASSES_START -->` to
+classes/apex-base/rules.md, read from the current directory) and requires
+each one inside the skill's class marker block, `<!-- APEX_CLASSES_START -->` to
 `<!-- APEX_CLASSES_END -->`, the block the class sync writes. This proves the
 copy landed, not behaviour. Marker integrity (a block present twice, a block
 edited by hand) is the class sync's --check, not this check.
@@ -22,7 +22,7 @@ import sys
 CHECK = "AB-RULE"
 START = "<!-- APEX_CLASSES_START -->"
 END = "<!-- APEX_CLASSES_END -->"
-DEFAULT_RULES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rules.md")
+RULES = os.path.join("classes", "apex-base", "rules.md")
 RULE_LINE = re.compile(r"^- \*\*([a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*)\*\*:")
 
 
@@ -44,11 +44,9 @@ def marker_block(text):
 
 
 def main(argv):
-    rules_path = DEFAULT_RULES
-    if len(argv) == 3 and argv[0] == "--rules":
-        rules_path, argv = argv[1], argv[2:]
+    rules_path = RULES
     if len(argv) != 1:
-        print(f"usage: {os.path.basename(__file__)} [--rules <rules.md>] <skill dir>", file=sys.stderr)
+        print(f"usage: {os.path.basename(__file__)} <skill dir>", file=sys.stderr)
         return 2
     skill_md = os.path.relpath(os.path.join(argv[0], "SKILL.md"))
     try:

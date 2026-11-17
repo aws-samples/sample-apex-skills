@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Admission-check runner: run every class.yaml check on every member skill.
 
-Usage:
-    run_checks.py [--root <repo root>] [--no-hook-tests] [--report <class>]
+Usage, from the repo root:
+    run_checks.py [--report <class>]
     run_checks.py --self-test
 
 A skill is a member of the classes its SKILL.md frontmatter names in
@@ -12,7 +12,8 @@ walks the class chain, parents first and each class once, and runs each
 
   - status `exists`: its `run` command, from the repo root, with the skill
     folder as the last argument. Exit 0 is a pass, 1 a fail, anything else
-    (or a run past the timeout) an error.
+    (or a run past the entry's `timeout`, default 120 seconds) an error. An
+    exit 1 that printed no FAIL line is an error too.
   - status `planned`: not built yet, so never counted as a pass; named in a
     PLANNED line.
 
@@ -21,7 +22,7 @@ The runner never stops at the first fail. A check prints its own
 passes through; the runner adds `<id> ERROR <skill> <reason>` lines for
 errors. Then it prints `<n> checks on <m> skills, <f> failed, <e> errors`
 (plus `, <p> planned` when any are), runs the hook unit tests
-(run_hook_tests.py) unless --no-hook-tests, and exits 1 when any check or hook test failed or errored, else 0.
+(run_hook_tests.py) unless --report, and exits 1 when any check or hook test failed or errored, else 0.
 
 --report <class> treats every skill as a member of <class> as well, so the
 output lists what would fail if every skill joined it, and always exits 0.
@@ -55,20 +56,25 @@ class ClassError(Exception):
     pass
 
 
-def frontmatter(path):
-    with open(path, encoding="utf-8") as f:
-        lines = f.readlines()
-    if not lines or lines[0].rstrip() != "---":
+def frontmatter(text):
+    """Return the text between the opening and closing `---` lines, or None.
+
+    Splits on "\\n" only, so U+2028 and the other Unicode line breaks never
+    end a line. The same function is in ab-fm.py and ab-ver.py.
+    """
+    lines = text.split("\n")
+    if lines[0].rstrip() != "---":
         return None
-    for i, line in enumerate(lines[1:], 1):
-        if line.rstrip() == "---":
-            return "".join(lines[1:i])
+    for i in range(1, len(lines)):
+        if lines[i].rstrip() == "---":
+            return "".join(line + "\n" for line in lines[1:i])
     return None
 
 
 def declared_classes(skill_md):
     """Return the skill's metadata.apex-classes as a list ([] when absent)."""
-    raw = frontmatter(skill_md)
+    with open(skill_md, encoding="utf-8") as f:
+        raw = frontmatter(f.read())
     if raw is None:
         return []
     meta = load_frontmatter(raw).get("metadata")
@@ -123,33 +129,41 @@ def run_member(skill_dir, classes, cache, counts):
                 print(f"{check_id} PLANNED {skill_dir} class {cls}, not built yet")
                 continue
             counts["checks"] += 1
-            if status != "exists" or not entry.get("run"):
+            run = entry.get("run") if isinstance(entry, dict) else None
+            if status != "exists" or not isinstance(run, str) or not run.strip():
                 counts["errors"] += 1
-                print(f"{check_id} ERROR {skill_dir} class {cls}: status '{status}' with no run command")
+                print(f"{check_id} ERROR {skill_dir} class {cls}: status '{status}' needs a run command string")
+                continue
+            timeout = entry.get("timeout", CHECK_TIMEOUT)
+            if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+                counts["errors"] += 1
+                print(f"{check_id} ERROR {skill_dir} class {cls}: timeout must be a positive number of seconds")
                 continue
             try:
-                r = subprocess.run([*shlex.split(entry["run"]), skill_dir], capture_output=True,
-                                   text=True, timeout=CHECK_TIMEOUT)
+                r = subprocess.run([*shlex.split(run), skill_dir], capture_output=True,
+                                   text=True, timeout=timeout)
             except subprocess.TimeoutExpired:
                 counts["errors"] += 1
-                print(f"{check_id} ERROR {skill_dir} timeout after {CHECK_TIMEOUT}s")
+                print(f"{check_id} ERROR {skill_dir} timeout after {timeout}s")
                 continue
-            except OSError as e:
+            except (OSError, ValueError) as e:
                 counts["errors"] += 1
                 print(f"{check_id} ERROR {skill_dir} cannot run: {e}")
                 continue
             if r.stdout:
                 print(r.stdout, end="" if r.stdout.endswith("\n") else "\n")
-            if r.returncode == 1:
+            last = (r.stderr.strip().splitlines() or [""])[-1]
+            if r.returncode == 1 and any(line.split()[1:2] == ["FAIL"] for line in r.stdout.splitlines()):
                 counts["failed"] += 1
+            elif r.returncode == 1:
+                counts["errors"] += 1
+                print(f"{check_id} ERROR {skill_dir} exit 1 with no FAIL line: {last}")
             elif r.returncode != 0:
                 counts["errors"] += 1
-                last = (r.stderr.strip().splitlines() or [""])[-1]
                 print(f"{check_id} ERROR {skill_dir} exit {r.returncode}: {last}")
 
 
-def run_all(root, hook_tests, report=None):
-    os.chdir(root)
+def run_all(report=None):
     cache = {}
     counts = {"checks": 0, "failed": 0, "errors": 0, "planned": 0}
     members = 0
@@ -171,13 +185,12 @@ def run_all(root, hook_tests, report=None):
     if report:
         summary += f" (report: every skill as a member of {report}, never fails)"
     print(summary)
+    if report:
+        return 0
     rc = 1 if counts["failed"] or counts["errors"] else 0
-    if hook_tests:
-        sys.stdout.flush()
-        r = subprocess.run([sys.executable, os.path.join(HERE, "run_hook_tests.py"), "--root", "."])
-        if r.returncode != 0:
-            rc = 1
-    return 0 if report else rc
+    sys.stdout.flush()
+    r = subprocess.run([sys.executable, os.path.join(HERE, "run_hook_tests.py")])
+    return 1 if r.returncode != 0 else rc
 
 
 def write_files(root, files):
@@ -188,7 +201,7 @@ def write_files(root, files):
                 os.remove(path)
             continue
         if isinstance(content, dict):
-            content = content.get("text", "") + content["line"] * content["times"]
+            content = content.get("text", "") + content["line"] * content["times"] + content.get("end", "")
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             f.write(content)
@@ -226,9 +239,12 @@ def run_case(case):
         for line in case.get("stdout_has", []):
             if line not in out:
                 problems.append(f"missing line {line!r}")
-        order = [out.index(line) for line in case.get("stdout_in_order", []) if line in out]
-        if order != sorted(order):
-            problems.append(f"lines out of order: {case['stdout_in_order']}")
+        in_order = case.get("stdout_in_order", [])
+        missing = [line for line in in_order if line not in out]
+        if missing:
+            problems.append(f"missing in-order line(s) {missing!r}")
+        elif [out.index(line) for line in in_order] != sorted(out.index(line) for line in in_order):
+            problems.append(f"lines out of order: {in_order}")
         for line in case.get("stdout_lacks", []):
             if line in out:
                 problems.append(f"unexpected line {line!r}")
@@ -256,20 +272,12 @@ def self_test():
 def main(argv):
     if argv == ["--self-test"]:
         return self_test()
-    root, hook_tests, report = REPO_ROOT, True, None
-    args = list(argv)
-    while args:
-        arg = args.pop(0)
-        if arg == "--root" and args:
-            root = args.pop(0)
-        elif arg == "--no-hook-tests":
-            hook_tests = False
-        elif arg == "--report" and args:
-            report = args.pop(0)
-        else:
-            print(__doc__.split("\n\n")[1], file=sys.stderr)
-            return 2
-    return run_all(root, hook_tests, report)
+    if argv == []:
+        return run_all()
+    if len(argv) == 2 and argv[0] == "--report":
+        return run_all(argv[1])
+    print(__doc__.split("\n\n")[1], file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Usage: ab-fm.py <skill dir>
 
 Parses SKILL.md frontmatter with misc/safe_frontmatter.py and requires
 `name` (a string equal to the folder name) and `description` (a string of
-1 to 1024 characters). The manifest match stays in
+1 to 1024 characters, outer spaces not counted). The manifest match stays in
 misc/validate-frontmatter.py, which is not a class check.
 
 Exit 0 pass, 1 fail, 2 usage or internal error. Each output line is
@@ -23,22 +23,24 @@ from safe_frontmatter import FrontmatterError, load_frontmatter  # noqa: E402
 CHECK = "AB-FM"
 
 
-def extract_frontmatter(path):
-    """Return the text between the opening and closing `---`, or None."""
-    with open(path, encoding="utf-8") as f:
-        lines = f.readlines()
-    if not lines or lines[0].rstrip() != "---":
+def frontmatter(text):
+    """Return the text between the opening and closing `---` lines, or None.
+
+    Splits on "\\n" only, so U+2028 and the other Unicode line breaks never
+    end a line. The same function is in classes/steward/scripts/run_checks.py and ab-ver.py.
+    """
+    lines = text.split("\n")
+    if lines[0].rstrip() != "---":
         return None
-    fm_lines = []
-    for line in lines[1:]:
-        if line.rstrip() == "---":
-            return "".join(fm_lines)
-        fm_lines.append(line)
+    for i in range(1, len(lines)):
+        if lines[i].rstrip() == "---":
+            return "".join(line + "\n" for line in lines[1:i])
     return None
 
 
 def problems(skill_dir, skill_md):
-    raw = extract_frontmatter(skill_md)
+    with open(skill_md, encoding="utf-8") as f:
+        raw = frontmatter(f.read())
     if raw is None:
         return ["no YAML frontmatter block found"]
     try:
@@ -55,8 +57,8 @@ def problems(skill_dir, skill_md):
     desc = data.get("description")
     if not isinstance(desc, str):
         found.append("missing or invalid 'description' key")
-    elif not 1 <= len(desc) <= 1024:
-        found.append(f"description is {len(desc)} chars (1 to 1024)")
+    elif not 1 <= len(desc.strip()) <= 1024:
+        found.append(f"description is {len(desc.strip())} chars without outer spaces (1 to 1024)")
     return found
 
 

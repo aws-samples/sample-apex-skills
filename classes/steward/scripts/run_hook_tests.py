@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hook-test skeleton (piece 9): feed fixture events to each class hook script.
 
-Usage: run_hook_tests.py [--root <repo root>]
+Usage, from the repo root: run_hook_tests.py
 
 Finds every fixture by the glob classes/*/hooks/*/tests/*.event.json. A
 fixture `<harness>-<case>.event.json` (harness claude-code, codex or kiro)
@@ -10,7 +10,9 @@ has `<harness>-<case>.expected.json` beside it:
     {"exit": 2, "decision": "block", "stderr_contains": "Secret",
      "stdout_contains": "", "args": ["--mode", "block"], "timeout": 10}
 
-`exit` is required; the rest are optional. The hook script is
+`exit` (an integer) is required; the rest are optional: `decision` and the
+`*_contains` fields are strings, `args` a list of strings, `timeout` a
+positive number of seconds. A field of the wrong type is ERROR. The hook script is
 classes/<c>/hooks/<hook>/<hook, with - as _>.py (secret-deny/secret_deny.py),
 run with `args` and the event on stdin, from the repo root. Decisions:
 `block` is exit 2 with non-empty stderr, `none` exit 0 with empty stdout,
@@ -29,7 +31,6 @@ import os
 import subprocess
 import sys
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 HARNESSES = ("claude-code", "codex", "kiro")
 DEFAULT_TIMEOUT = 10
 
@@ -66,14 +67,23 @@ def run_one(event_path):
         json.loads(event)
     except (OSError, ValueError) as e:
         return "ERROR", f"cannot read fixture: {e}"
-    if not isinstance(expected, dict) or not isinstance(expected.get("exit"), int):
+    if not isinstance(expected, dict) or not isinstance(expected.get("exit"), int) \
+            or isinstance(expected["exit"], bool):
         return "ERROR", "expected file needs an integer 'exit'"
+    args = expected.get("args", [])
+    if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
+        return "ERROR", "'args' must be a list of strings"
+    timeout = expected.get("timeout", DEFAULT_TIMEOUT)
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+        return "ERROR", "'timeout' must be a positive number of seconds"
+    for key in ("decision", "stdout_contains", "stderr_contains"):
+        if key in expected and not isinstance(expected[key], str):
+            return "ERROR", f"'{key}' must be a string"
     if not os.path.isfile(script):
         return "ERROR", f"no hook script {os.path.relpath(script)}"
-    args = expected.get("args", [])
     try:
         r = subprocess.run([sys.executable, script, *args], input=event, capture_output=True,
-                           timeout=expected.get("timeout", DEFAULT_TIMEOUT))
+                           timeout=timeout)
     except subprocess.TimeoutExpired:
         return "FAIL", "timeout"
     stdout = r.stdout.decode("utf-8", "replace")
@@ -95,13 +105,9 @@ def run_one(event_path):
 
 
 def main(argv):
-    root = REPO_ROOT
-    if len(argv) == 2 and argv[0] == "--root":
-        root = argv[1]
-    elif argv:
-        print(f"usage: {os.path.basename(__file__)} [--root <repo root>]", file=sys.stderr)
+    if argv:
+        print(f"usage: {os.path.basename(__file__)} (no arguments, from the repo root)", file=sys.stderr)
         return 2
-    os.chdir(root)
     counts = {"PASS": 0, "FAIL": 0, "ERROR": 0}
     for event_path in sorted(glob.glob("classes/*/hooks/*/tests/*.event.json")):
         status, reason = run_one(event_path)

@@ -54,7 +54,7 @@ jobs:
         if: steps.changes.outputs.relevant != 'false'
         run: python3 -B classes/steward/scripts/run_checks.py --self-test
       # Report only: lists what would fail if every skill joined apex-base.
-      # --report exits 0, and continue-on-error keeps even a crash from
+      # It skips the hook tests. --report exits 0, and continue-on-error keeps even a crash from
       # failing the job.
       - name: Report what would fail if every skill were an apex-base member (never fails)
         if: steps.changes.outputs.relevant != 'false'
@@ -62,7 +62,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python3 -B classes/steward/scripts/run_checks.py --no-hook-tests --report apex-base
+        run: python3 -B classes/steward/scripts/run_checks.py --report apex-base
       - name: Run every class check on every member skill, then the hook tests
         id: run
         if: steps.changes.outputs.relevant != 'false'
@@ -82,7 +82,7 @@ jobs:
           - `AB-FM`: frontmatter parses, `name` equals the folder name, `description` is 1 to 1024 characters
           - `AB-RULE`: every rule id in `classes/apex-base/rules.md` is inside the `APEX_CLASSES` marker block (re-run the class sync)
           - `AB-PATH`: name another skill by its name, never by a `../` path into its folder
-          - `AB-VER`: `metadata.version` is X.Y.Z and is raised whenever the skill's SKILL.md, `scripts/` or `references/` change
+          - `AB-VER`: `metadata.version` is X.Y.Z and is raised whenever the skill's SKILL.md, `agents/`, `scripts/`, `tools/` or `references/` change
           - `AB-SIZE`: SKILL.md is under 500 lines
           - `AB-LINK`: every relative Markdown link resolves inside the skill's own folder
           - `HOOK-TEST`: a hook script's result differs from its fixture's `.expected.json`

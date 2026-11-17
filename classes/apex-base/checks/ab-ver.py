@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """AB-VER: a required metadata.version, bumped on every change to a skill's
 instructions, scripts or references (apex-base check metadata-version-bumped).
+Watched paths: SKILL.md, agents/ (loaded as instructions), scripts/ and tools/
+(run as scripts), and references/.
 
 Usage: ab-ver.py <skill dir>
 
@@ -10,7 +12,7 @@ of a branch), only presence and format are checked.
 
 Fails when `metadata.version` is missing or is not X.Y.Z (the form
 misc/bump-version.sh checks). With a base, also fails when a path under the
-skill's SKILL.md, scripts/ or references/ changed between BASE_SHA and
+skill's watched paths changed between BASE_SHA and
 HEAD_SHA and the version is not greater than at the base, compared as
 numbers. A skill with no SKILL.md, or no version, at the base is new to the
 check, so presence and format are enough.
@@ -31,16 +33,21 @@ from safe_frontmatter import FrontmatterError, load_frontmatter  # noqa: E402
 
 CHECK = "AB-VER"
 SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
-WATCHED = ("SKILL.md", "scripts/", "references/")
+WATCHED = ("SKILL.md", "scripts/", "references/", "agents/", "tools/")
 
 
 def frontmatter(text):
-    lines = text.splitlines(keepends=True)
-    if not lines or lines[0].rstrip() != "---":
+    """Return the text between the opening and closing `---` lines, or None.
+
+    Splits on "\\n" only, so U+2028 and the other Unicode line breaks never
+    end a line. The same function is in classes/steward/scripts/run_checks.py and ab-fm.py.
+    """
+    lines = text.split("\n")
+    if lines[0].rstrip() != "---":
         return None
-    for i, line in enumerate(lines[1:], 1):
-        if line.rstrip() == "---":
-            return "".join(lines[1:i])
+    for i in range(1, len(lines)):
+        if lines[i].rstrip() == "---":
+            return "".join(line + "\n" for line in lines[1:i])
     return None
 
 
@@ -115,9 +122,13 @@ def main(argv):
         print(f"{CHECK} PASS {skill_md} version {old} to {version}")
         return 0
     state = "unchanged" if version == old else f"not greater than {old}"
-    print(f"{CHECK} FAIL {skill_dir} version {version} {state}; changed: {', '.join(changed)}")
+    print(f"{CHECK} FAIL {skill_md} version {version} {state}; changed: {', '.join(changed)}")
     return 1
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except UnicodeDecodeError as e:
+        print(f"{CHECK}: git output is not UTF-8: {e}", file=sys.stderr)
+        sys.exit(2)
