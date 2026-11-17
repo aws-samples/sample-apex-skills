@@ -317,6 +317,14 @@ class PinCheck(unittest.TestCase):
                 self.assertEqual(drive_c1.check_pin(self.t1), ["skills/eks-security"])
                 shutil.rmtree(f.parent)
 
+    def test_git_failure_is_not_reported_as_changed_text(self):
+        err = io.StringIO()
+        with mock.patch.object(drive_c1, "PIN", "0" * 40), contextlib.redirect_stderr(err):
+            rc = drive_c1.main(["--case", "T1"])
+        self.assertEqual(rc, 2)
+        self.assertNotIn("case text differs", err.getvalue())
+        self.assertIn("git failed", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

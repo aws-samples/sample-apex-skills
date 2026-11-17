@@ -4,7 +4,7 @@ Repo line cites are at commit 7efa0776.
 
 A short trial to choose the eval runner before more eval work is built on one. It runs three candidates on the same fixed case set and fills one score sheet, so the candidates can be compared on the same evidence:
 
-- C1: the homegrown runner in misc/evals/, extended with old against new, three runs per case and Kiro and Codex adapters (sized here, not built);
+- C1: the homegrown runner in misc/evals/, extended with old against new, three runs per case and Kiro and Codex adapters (sized here, not built; the trial's driver, drive_c1.py, does old against new and three runs itself, score-sheet.md and results.md);
 - C2: `claude plugin eval`;
 - C3: Amazon Bedrock AgentCore Evaluations, on-demand Evaluate API only.
 
@@ -18,11 +18,13 @@ A short trial to choose the eval runner before more eval work is built on one. I
 | cost-estimate.md | The trial's cost, stated before any paid run, with its basis |
 | results.md | Results, the runner pick, the sized C1 extension and the vendored-folder recommendation |
 | sregym-feasibility.md | Whether SREGym can be adapted for EKS, and what it would add |
+| drive_c1.py | The C1 driver: runs the seven cases through the existing runner's functions, one case and arm at a time |
+| ../tests/test_drive_c1.py | The driver's tests, with the runner's functions mocked and no model call |
 
 ## How it runs
 
 - The subject model for the claude harness is `global.anthropic.claude-opus-4-6-v1`, the runner's default (misc/evals/Makefile:35); Claude Code also calls Haiku 4.5 inside a run, C2's judge is Haiku, Codex runs gpt-5.6-sol and C3 uses its built-in evaluators' models.
-- C1 is driven by misc/runner-trial/drive_c1.py, which calls the existing runner's functions one case and arm at a time: a dry run by default, and `--paid` only with an empty or new `--out`, a spend limit and a credential note, stopping before the next run once the subjects' recorded cost reaches the limit. The stop counts only the subjects' recorded cost: grader calls, T6 query runs and a run that times out or crashes before its first result event add nothing; on Claude Code older than 2.1.277, or after an earlier turn that exited abnormally, T5's earlier turns add nothing; and the run that crosses the limit completes. The limit is per invocation. The credential note is recorded, not enforced. The runner code in misc/evals/scripts/ is not changed by the trial. Kiro and Codex are driven directly for T1.
+- C1 is driven by misc/runner-trial/drive_c1.py, which calls the existing runner's functions one case and arm at a time: a dry run by default, and `--paid` only with an empty or new `--out`, a spend limit and a credential note, stopping before the next run once the subjects' recorded cost reaches the limit. The stop counts only the subjects' recorded cost: grader calls, T6 query runs and a run that times out or crashes before its first result event add nothing; on Claude Code older than 2.1.277, or after an earlier turn that exited abnormally, T5's earlier turns add nothing; and the run that crosses the limit completes. The limit is per invocation. The credential note is recorded, not enforced. The driver's tests run by hand only, from the repo root, and no workflow runs them: `python3 -B -m unittest misc.tests.test_drive_c1 -v`. The runner code in misc/evals/scripts/ is not changed by the trial. Kiro and Codex are driven directly for T1.
 - C2 runs on a plugin wrapper outside the repo, with `--no-publish` and `--max-cost-usd 60`.
 - C3 scores C1's runs through the on-demand Evaluate API. It is planned to create no AWS resource and change no account setting; that holds only if Evaluate scores spans never ingested (score-sheet.md).
 - T7 reads a test cluster through an existing read-only kubeconfig. Every case's subject can still reach the trial host's AWS credentials (cases.md, Credentials and permissions).

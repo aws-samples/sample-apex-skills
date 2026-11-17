@@ -112,7 +112,7 @@ The mitigation stage does not fit our read-only skills (readonly-rbac.yaml:57) a
 
 1. **Does Calico create the `adminnetworkpolicy` tier SREGym's setup check reads (setup_check.py:379-393)?** On Calico 3.31 or earlier, yes; from 3.32, no: answered in section 2 (Filtered egress row), with its fallback.
 2. **Wall time and tokens per attempt on EKS:** estimated in section 3 (:75 and :85); measured only on an EKS run, which waits on question 3's answer.
-3. **Who pays, and in which account** ($39.56 to $110.32 for the cluster, section 3, plus model calls from $16.32 to $184.62, section 3, a lower bound): waits on the maintainers' decision.
+3. **Who pays, and in which account** ($39.56 to $110.32 for the cluster, section 3, plus model calls from $16.32 to $184.62, section 3, a lower bound): a later round of this trial takes it if the note finds an EKS adaptation feasible, and sizes it from this note.
 4. **Is incident diagnosis being measured?** No. The use in section 4 runs our skills' own prompts on seeded-fault fixtures and grades whether the report names the planted state. That measures the skills' existing jobs (fact report, operational review, security review), not incident diagnosis.
 5. **Grade with SREGym's LLM judge or with our runner's expectations?** Our runner's expectations. SREGym's judge grades a diagnosis against a root cause, and the use in section 4 grades our skills' reports against what they claim to do.
 6. **Where Claude Code reads skills under `CLAUDE_CONFIG_DIR`, and the containerd socket for Chaos Mesh on AL2023:** answered in section 2 (the `claudecode` agent client row and the Chaos Mesh noise row); the socket is /run/containerd/containerd.sock [W2].

@@ -131,6 +131,10 @@ def pinned_paths(case: dict) -> list[str]:
     return paths
 
 
+class GitError(RuntimeError):
+    """A git read in the pin check failed, so the case text was not compared."""
+
+
 def check_pin(cases: list[dict]) -> list[str]:
     """Paths that differ from PIN or hold untracked or ignored files (git, no model call).
 
@@ -138,15 +142,20 @@ def check_pin(cases: list[dict]) -> list[str]:
     Porcelain lists every file (--untracked-files=all), and only a line whose
     path matches PYCACHE, a .pyc file directly inside a __pycache__/ dir, is
     left out; any other file in or beside a __pycache__/ dir counts.
+    Raises GitError when git itself fails (diff rc other than 0 or 1, status rc not 0).
     """
     changed = []
     for case in cases:
         for p in pinned_paths(case):
-            r = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--quiet", PIN, "--", p])
+            r = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--quiet", PIN, "--", p],
+                               capture_output=True, text=True)
             st = subprocess.run(["git", "-C", str(REPO_ROOT), "status", "--porcelain", "--ignored",
                                  "--untracked-files=all", "--", p], capture_output=True, text=True)
+            if r.returncode not in (0, 1) or st.returncode != 0:
+                raise GitError(f"git failed on {p}: diff rc {r.returncode}, status rc {st.returncode}: "
+                               f"{(r.stderr + st.stderr).strip()}")
             extra = [l for l in st.stdout.splitlines() if not PYCACHE.search(l[3:])]
-            if (r.returncode != 0 or st.returncode != 0 or extra) and p not in changed:
+            if (r.returncode != 0 or extra) and p not in changed:
                 changed.append(p)
     return changed
 
@@ -394,7 +403,11 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
         print(f"unknown case id: {', '.join(unknown)} (known: {', '.join(CASE_IDS)})", file=sys.stderr)
         return 2
     cases = [c for c in CASES if not args.case or c["id"] in args.case]
-    changed = check_pin(cases)
+    try:
+        changed = check_pin(cases)
+    except GitError as e:
+        print(f"pin check could not run: {e}", file=sys.stderr)
+        return 2
     if changed:
         print(f"case text differs from {PIN}: {', '.join(changed)}", file=sys.stderr)
         return 2
