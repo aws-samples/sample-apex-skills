@@ -1,7 +1,7 @@
 ---
 name: EKS Upgrade Readiness Check
 description: Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status.
-workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
+workflow: skills/eks-upgrade-check/SKILL.md
 ---
 
 # Assess Your EKS Cluster Upgrade Readiness with APEX EKS
@@ -187,7 +187,6 @@ If you ran this example's deploy.sh before v2, also remove `.claude/commands/ape
 
 ## Further Reading
 
-- [APEX EKS Upgrade Check Runbook](../../../skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md)
 - [EKS Upgrade Check Skill](../../../skills/eks-upgrade-check/SKILL.md)
   - [Version Validation Reference](../../../skills/eks-upgrade-check/references/version-validation.md)
   - [Add-on Compatibility Reference](../../../skills/eks-upgrade-check/references/addon-compatibility.md)

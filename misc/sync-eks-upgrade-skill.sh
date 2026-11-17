@@ -14,8 +14,8 @@
 #   - data/*.json        (OSS add-on registry)
 #   - tools/*.py         (markdown-to-HTML converter)
 #
-# Not touched: apex's workflow for this skill, kept outside this folder at
-#   skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
+# No apex workflow for this skill: its runbook was absorbed by P-305 (its
+#   text was router text, now in the apex router and classes/router/).
 #
 # Excluded (deliberately NOT copied):
 #   - .git/, .github/, the rest of .claude/ (only .claude/skills/eks-upgrade is copied), .mcp.json

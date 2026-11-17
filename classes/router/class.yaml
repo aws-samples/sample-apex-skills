@@ -1,0 +1,15 @@
+# Router: routing, hand-offs and next-skill suggestions. It carries more
+# text than the other classes: its routing tables, hand-off table and band
+# tables are in references/routing.md. One member today, the APEX router
+# skill; step 5 plans a second, a migration router.
+# The router's text moved here from the router skill's SKILL.md and from the
+# per-skill runbooks (P-305, ADR 0007). Until the class sync
+# (misc/sync-classes.py, not built yet) copies rules.md into the member's
+# marker block and references/routing.md to references/router-routing.md,
+# the member's SKILL.md keeps its own copy of this text, as it does for the
+# apex-base rules; the two must say the same thing.
+# A skill joins a class through its own frontmatter
+# (metadata.apex-classes), so this file lists no members.
+
+name: router
+parents: [apex-base]

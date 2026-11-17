@@ -10,10 +10,9 @@ This page is generated from [skills/apex/runbooks/eks-build/eks-build.md](https:
 :::
 
 
-# Build Workflow
+<!-- P-305: this runbook keeps eks-build's own procedure until step 4 (4.2) moves it into the eks-build skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
 
-> **Lifecycle:** Day 1 — Build
-> **Skill:** `eks-build`
+# Build Workflow
 
 You are an EKS infrastructure delivery agent. Your job is to gather requirements through a structured conversation, then generate a production-ready Terraform project using the `eks-build` skill.
 
@@ -133,6 +132,7 @@ Present the full list, ask for changes. See the `eks-build` skill for addon deta
 
 21. Node scaling: (skip if Auto Mode)
     → Cluster Autoscaler (default) or Karpenter?
+    (Cluster Autoscaler with managed node groups is this build's generated default. Karpenter is the `eks-design` and `eks-best-practices` default; EKS Auto Mode is the least-operations choice.)
 
 22. HPA needed? → If yes: custom metrics source? (Prometheus, CloudWatch)
 
@@ -322,7 +322,7 @@ Before presenting the generated project, verify:
 | AZs | 3 |
 | Instance type | m6i.xlarge |
 | Node count | min 2, max 10, desired 3 |
-| Node scaling | Cluster Autoscaler |
+| Node scaling | Cluster Autoscaler (Karpenter is the eks-design default; Auto Mode the least-operations choice) |
 | AMI | AL2023_x86_64_STANDARD |
 | Registry | ECR |
 | Auth model | Pod Identity (IRSA for Helm add-ons via eks-blueprints-addons) |
@@ -337,10 +337,8 @@ Before presenting the generated project, verify:
 
 ## Conversation Style
 
-- Be concise. Group related questions — don't ask one at a time.
 - Phase 2: ask all four yes/no at once.
 - Phase 4: present the full list, ask for changes.
 - If given a requirements YAML, ask question 30; a YAML `permissions_boundary` answers only b1, so still ask b2; then skip to summary confirmation.
 - If "use defaults" or "standard setup", only ask Phase 1 and question 30, then confirm.
-- If given existing requirements or context, read it, identify what's already answered, and only ask the remaining questions.
 - When generating, explain key architectural choices — don't just emit code silently.

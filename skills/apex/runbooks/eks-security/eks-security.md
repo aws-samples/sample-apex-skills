@@ -3,13 +3,13 @@ name: eks-security
 description: Day 1/Day 2 EKS security workflow. Runs the eks-security skill's three read-only reviews of a live cluster (CVE and advisory review, security event response, security posture check, each with the verdict exposed / not exposed / unknown) and guides hardening and compliance-audit prep through the discovery-driven 7-layer stack (OS/AMI, identity and access, workload security, image supply chain, runtime security, audit logging, compliance accelerators), the compliance-regime scope view (HIPAA/PCI/FedRAMP/GDPR/SOC2/ISO), the security baseline and a 30/60/90 hardening roadmap.
 ---
 
+<!-- P-305: this runbook keeps eks-security's own procedure until step 5 moves it into the eks-security skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
+
 # EKS Security Workflow
 
-> **Lifecycle:** Day 1 (greenfield hardening) / Day 2 (CVE review, event response, posture check, audit prep for an existing cluster)
-> **Skill:** eks-security | cve-advisory-review.md, security-event-response.md, posture-check.md, os-ami-hardening.md, identity-and-access.md, compliance-regimes.md
 > **Access Model:** read-only (the three reviews) / advisory (hardening and compliance)
 
-This workflow covers two kinds of work. The three reviews read a live cluster with read-only AWS and Kubernetes calls (the access the skill's `read-only-access.md` lists), compare by fixed rules, and print every change as a command or manifest for the team to review and run; they never apply, patch, scale, delete, cordon, exec into a pod or read Secret data. The hardening and compliance work produces an opinionated layer-by-layer recommendation and a 30/60/90 roadmap. All domain knowledge comes from the `eks-security` skill; this workflow supplies the engagement structure.
+This workflow covers two kinds of work. The three reviews read a live cluster with read-only AWS and Kubernetes calls (the access the skill's `read-only-access.md` lists), compare by fixed rules, and print every change as a command or manifest for the team to review and run; they never apply, patch, scale, delete, cordon, exec into a pod or read Secret data. The hardening and compliance work produces an opinionated layer-by-layer recommendation and a 30/60/90 roadmap.
 
 ## How to Route Requests
 
@@ -28,7 +28,7 @@ This workflow covers two kinds of work. The three reviews read a live cluster wi
 | "audit logging / control-plane logs / SIEM / retention" | Layer 6 (audit logging) | Day 2 |
 | "Audit Manager / Config / Security Hub / Artifact" | Layer 7 (compliance accelerators) | Day 2 |
 
-A component that is only behind the latest release, with no advisory, is not a security finding: upgrade readiness against a target version goes to `eks-upgrade-check`, version currency with no target version to `eks-operation-review`.
+A component that is only behind the latest release, with no advisory, is not a security finding.
 
 ## Review phases (C1, C2, C3)
 
