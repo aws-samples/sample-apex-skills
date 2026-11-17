@@ -13,8 +13,8 @@ Design (PLAN §1.5.2):
   stage_skill_sandbox(skill_name, repo_skill_dir) yields a confined.Run
   (runs/<id>/{home,sandbox} under /var/lib/apex-eval). A copy of the repo
   skill dir sits at `home/.claude/skills/<skill_name>/` (user scope) and
-  nothing else is staged; the subject can read its files but not change
-  them, and can rename the skills dir (an accepted residual). No host
+  nothing else is staged; the copy is bound read-only, so the subject can
+  read it but neither change it nor rename and replace it. No host
   credentials are linked in: each launch gets its own Bedrock-only role
   session (confined.py). The run root is removed in the `finally:` block.
 
@@ -172,18 +172,16 @@ def parse_stream_for_trigger(
     try:
         while True:
             if time.time() - start > timeout:
-                break
+                # A timeout is a run error, never a not-triggered result.
+                if not out["invalid"]:
+                    _emit_invalid(f"timed out after {timeout:g}s")
+                return out
             if process.poll() is not None:
                 out["exit_code"] = process.returncode
                 # Drain remaining output.
                 rest = process.stdout.read() if process.stdout else b""
                 if rest:
                     buffer += rest.decode("utf-8", errors="replace")
-                while "\n" in buffer:
-                    line, buffer = buffer.split("\n", 1)
-                    _handle_line(line, skill_name, out, _check_init, _emit_invalid, pending_block)
-                    if out["triggered"]:
-                        return out
                 break
 
             ready, _, _ = select.select([process.stdout], [], [], 1.0)
@@ -204,6 +202,14 @@ def parse_stream_for_trigger(
                 )
                 if out["triggered"]:
                     return out
+        # A client that has exited leaves its last lines as one tail, the
+        # last maybe with no newline; the pending block carries across them.
+        for line in buffer.split("\n"):
+            pending_block = _handle_line(
+                line, skill_name, out, _check_init, _emit_invalid, pending_block
+            )
+            if out["triggered"]:
+                return out
     finally:
         if process.poll() is None:
             process.kill()

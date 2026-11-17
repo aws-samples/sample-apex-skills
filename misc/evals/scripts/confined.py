@@ -11,17 +11,20 @@ turn of a multi-turn subject, grader) runs here, as the system user
 What the unit gets:
 
   - Credentials: one role session per launch, minted by the parent with
-    `aws sts assume-role` into the Bedrock-only role ROLE_ARN, through the
-    profile PARENT_PROFILE in PARENT_AWS_CONFIG (whose credential_process
+    `aws sts assume-role` into the Bedrock-only role ROLE_NAME (role_arn():
+    the account is the parent profile's own, read at run time with
+    `aws sts get-caller-identity`, so no account id is in the code), through
+    the profile PARENT_PROFILE in PARENT_AWS_CONFIG (whose credential_process
     returns the payer account's admin session; that session never enters a
     unit). The keys go into an env file (0600, in the invoking user's 0700
     dir) that PID 1 reads at unit start, never into argv. The file is deleted
     when the launch ends.
   - Files: an empty /home, /root and /run/user, a private /tmp, /var/tmp and
     /dev/shm, its own run root from the runs tree (read-only, with home/ and
-    sandbox/ writable), and a root-owned copy of claude under
-    /opt/apex-eval/bin. /etc, /usr and the rest of /var stay readable
-    (ProtectSystem=strict makes them read-only, not hidden).
+    sandbox/ writable), its skill copy bound read-only, and a root-owned copy
+    of claude under /opt/apex-eval/bin. /var/log and the paths in
+    HOST_HIDDEN_FILE are hidden; /etc, /usr and the rest of /var stay
+    readable (ProtectSystem=strict makes them read-only, not hidden).
   - Network: no loopback, link-local (instance metadata), the IP_DENY ranges
     or the instance's public IPv4; the host's resolver (from
     /etc/resolv.conf) and every address outside those ranges.
@@ -55,10 +58,14 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
-ROLE_ARN = "arn:aws:iam::338034595106:role/apex-eval-bedrock-invoke"
+# Settings: the role name, the parent profile and the Region may be set in
+# the environment. The account is never in the code: role_arn() reads it at
+# run time. setup/eval-bedrock-invoke-*.json are a documented example of the
+# role's two policies.
+ROLE_NAME = os.environ.get("APEX_EVAL_ROLE_NAME", "apex-eval-bedrock-invoke")
 PARENT_AWS_CONFIG = Path.home() / ".apex-eval" / "aws-config"
-PARENT_PROFILE = "apex-eval-admin"
-AWS_REGION = "us-west-2"
+PARENT_PROFILE = os.environ.get("APEX_EVAL_PROFILE", "apex-eval-admin")
+AWS_REGION = os.environ.get("APEX_EVAL_REGION", "us-west-2")
 
 EVAL_USER = "apex-eval"
 STATE_ROOT = Path("/var/lib/apex-eval")
@@ -79,7 +86,10 @@ IP_DENY = [
     "fd00::/8",
 ]
 # Hidden on top of ProtectHome; "-" skips a path the host does not have.
-INACCESSIBLE = ["-/var/lib/conduwuit", "-/var/log"]
+INACCESSIBLE = ["-/var/log"]
+# This host's own paths to hide as well: one absolute path per line, "#"
+# comments. Absent means none.
+HOST_HIDDEN_FILE = Path.home() / ".apex-eval" / "inaccessible-paths"
 
 # Role chaining caps a session at one hour, and AssumeRole takes 900 s at least.
 SESSION_MIN, SESSION_MAX, SESSION_SLACK = 900, 3600, 300
@@ -89,7 +99,7 @@ HOST_MODEL_VARS = (
     "ANTHROPIC_DEFAULT_SONNET_MODEL",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL",
 )
-_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+_ID_RE = re.compile(r"[A-Za-z0-9_.-]+")
 _counter = itertools.count(1)
 
 
@@ -137,6 +147,8 @@ def preflight(timeout: int, *, include_live_only: bool = False) -> str:
             "so live-cluster prompts stay off"
         )
     check_timeout(timeout)
+    if shutil.which("aws") is None:
+        raise ConfinedError("the AWS CLI (aws) is not on PATH: every session is minted with it")
     for argv, what in (
         (["sudo", "-n", "true"], "passwordless sudo (sudo -n true)"),
         (["systemd-run", "--version"], "systemd-run"),
@@ -157,6 +169,11 @@ def preflight(timeout: int, *, include_live_only: bool = False) -> str:
     r = subprocess.run([str(CLAUDE_BIN), "--version"], capture_output=True, text=True)
     if r.returncode != 0:
         raise ConfinedError(f"{CLAUDE_BIN} --version failed")
+    # Every launch needs these; read them now, before any session is minted.
+    role_arn()
+    public_ipv4()
+    resolver()
+    inaccessible_paths()
     return r.stdout.strip()
 
 
@@ -195,7 +212,9 @@ def public_ipv4() -> list[str]:
                     raise
                 ip = None
         except Exception as e:  # noqa: BLE001
-            raise ConfinedError(f"cannot read the public IPv4 from IMDS: {e!r}") from None
+            raise ConfinedError(
+                "cannot read the public IPv4 from IMDS (the runners need an EC2 "
+                f"instance with IMDSv2 reachable): {e!r}") from None
         if ip is not None and not re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip):
             raise ConfinedError(f"IMDS public-ipv4 is not an IPv4 address: {ip[:40]!r}")
         _public_ipv4 = [ip] if ip else []
@@ -219,32 +238,79 @@ def resolver() -> str:
     return found[0]
 
 
+def inaccessible_paths() -> list[str]:
+    """INACCESSIBLE plus this host's HOST_HIDDEN_FILE list. An unreadable
+    file, or a line that is not a plain absolute path, raises."""
+    try:
+        text = HOST_HIDDEN_FILE.read_text()
+    except FileNotFoundError:
+        return list(INACCESSIBLE)
+    except OSError as e:
+        raise ConfinedError(f"cannot read {HOST_HIDDEN_FILE}: {e.strerror}") from None
+    extra = []
+    for line in text.splitlines():
+        path = line.strip()
+        if not path or path.startswith("#"):
+            continue
+        if not path.startswith("/") or re.search(r"[\s\"'\\]", path):
+            raise ConfinedError(f"{HOST_HIDDEN_FILE}: not a plain absolute path: {path[:80]!r}")
+        extra.append(f"-{path}")
+    return INACCESSIBLE + extra
+
+
 # ---------- credentials -------------------------------------------------------
+
+
+def _parent_aws_env() -> dict:
+    """The environment of the parent's own aws calls: no AWS_* variable of
+    the caller, only PARENT_AWS_CONFIG, never ~/.aws."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("AWS_")}
+    env["AWS_CONFIG_FILE"] = str(PARENT_AWS_CONFIG)
+    env["AWS_SHARED_CREDENTIALS_FILE"] = os.devnull
+    return env
+
+
+_account: str | None = None
+
+
+def role_arn() -> str:
+    """The role's ARN in the parent profile's own account. The account is
+    read once per process with `aws sts get-caller-identity`; any failure
+    raises, so no launch runs on a guessed account."""
+    global _account
+    if _account is None:
+        r = subprocess.run(
+            ["aws", "sts", "get-caller-identity", "--profile", PARENT_PROFILE,
+             "--region", AWS_REGION, "--query", "Account", "--output", "text"],
+            capture_output=True, text=True, env=_parent_aws_env(),
+        )
+        account = r.stdout.strip()
+        if r.returncode != 0 or not re.fullmatch(r"\d{12}", account):
+            detail = (r.stderr.strip() or account)[-200:]
+            raise ConfinedError(
+                f"cannot read the account of profile {PARENT_PROFILE} "
+                f"(aws sts get-caller-identity): {detail}")
+        _account = account
+    return f"arn:aws:iam::{_account}:role/{ROLE_NAME}"
 
 
 def mint_role_session(session_name: str, timeout: int) -> dict:
     """Assume the Bedrock-only role for one launch. Duration is the launch
     timeout plus SESSION_SLACK, within 900 to 3600 s."""
-    if len(session_name) > 64 or not _ID_RE.match(session_name):
+    if len(session_name) > 64 or not _ID_RE.fullmatch(session_name):
         raise ConfinedError(f"bad role session name {session_name!r}")
     check_timeout(timeout)
     duration = max(SESSION_MIN, timeout + SESSION_SLACK)
-    env = {
-        k: v for k, v in os.environ.items()
-        if not k.startswith("AWS_")
-    }
-    env["AWS_CONFIG_FILE"] = str(PARENT_AWS_CONFIG)
-    env["AWS_SHARED_CREDENTIALS_FILE"] = os.devnull
     cmd = [
         "aws", "sts", "assume-role",
         "--profile", PARENT_PROFILE,
         "--region", AWS_REGION,
-        "--role-arn", ROLE_ARN,
+        "--role-arn", role_arn(),
         "--role-session-name", session_name,
         "--duration-seconds", str(duration),
         "--output", "json",
     ]
-    r = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    r = subprocess.run(cmd, capture_output=True, text=True, env=_parent_aws_env())
     if r.returncode != 0:
         err = r.stderr.strip()
         hint = ""
@@ -386,6 +452,7 @@ def cleanup_run(run: Run) -> list[str]:
             policy_kind="none",
             timeout=SESSION_MIN,
             unit_suffix="cleanup",
+            lock_skills=False,
         ) as proc:
             proc.communicate()
         if proc.returncode != 0:
@@ -409,7 +476,9 @@ def unit_name(run: Run, suffix: str | None) -> str:
     return f"apex-eval-{run.run_id}" + (f"-{suffix}" if suffix else "")
 
 
-def systemd_run_argv(run: Run, unit: str, argv: list[str], timeout: int) -> list[str]:
+def systemd_run_argv(
+    run: Run, unit: str, argv: list[str], timeout: int, lock_skills: bool = True,
+) -> list[str]:
     deny = " ".join(IP_DENY + public_ipv4())
     props = [
         f"EnvironmentFile={run.env_file}",
@@ -418,21 +487,28 @@ def systemd_run_argv(run: Run, unit: str, argv: list[str], timeout: int) -> list
         f"BindReadOnlyPaths={run.root}",
         "TemporaryFileSystem=/opt:ro",
         f"BindReadOnlyPaths={OPT_ROOT}",
-        "InaccessiblePaths=" + " ".join(INACCESSIBLE),
+        "InaccessiblePaths=" + " ".join(inaccessible_paths()),
         "ProtectSystem=strict",
         f"ReadWritePaths={run.home}",
         f"ReadWritePaths={run.sandbox}",
         "ProtectHome=tmpfs",
         "PrivateTmp=yes",
         "PrivateDevices=yes",
-        # PrivateDevices keeps the host's /dev/shm; this makes it private.
-        "TemporaryFileSystem=/dev/shm",
+        # PrivateDevices keeps the host's /dev/shm; this makes it private
+        # and, like a host /dev/shm, writable.
+        "TemporaryFileSystem=/dev/shm:mode=1777",
         "NoNewPrivileges=yes",
         "UMask=0007",
         f"IPAddressAllow={resolver()}",
         f"IPAddressDeny={deny}",
         f"RuntimeMaxSec={timeout + RUNTIME_SLACK}",
     ]
+    skills = run.home / ".claude" / "skills"
+    if lock_skills and skills.is_dir():
+        # The skill copy is read-only, and neither it nor .claude above it
+        # can be renamed and replaced: a mount point cannot be renamed or
+        # removed. The cleanup unit, which deletes the copy, goes without.
+        props += [f"BindPaths={run.home / '.claude'}", f"BindReadOnlyPaths={skills}"]
     cmd = [
         "sudo", "-n", "systemd-run", f"--unit={unit}",
         f"--uid={EVAL_USER}", f"--gid={EVAL_USER}",
@@ -480,6 +556,7 @@ def launch_confined(
     unit_suffix: str | None = None,
     session_suffix: str | None = None,
     stderr=subprocess.PIPE,
+    lock_skills: bool = True,
 ):
     """Start argv in a confined unit and yield the local systemd-run client
     (stdout is the unit's stdout). policy_kind "bedrock" mints a role session
@@ -507,7 +584,7 @@ def launch_confined(
             creds = mint_role_session(name, timeout)
         write_env_file(run, creds)
         proc = subprocess.Popen(
-            systemd_run_argv(run, unit, argv, timeout),
+            systemd_run_argv(run, unit, argv, timeout, lock_skills),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=stderr,

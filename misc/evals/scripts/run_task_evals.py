@@ -10,7 +10,8 @@ for each config in {with_skill, without_skill}, for k in 1..--runs:
      systemd unit as user apex-eval with its own Bedrock-only role session
      (confined.py).
   2. Run `claude -p <prompt>` streaming stream-json. Write
-       transcript.md, events.jsonl, outputs/, timing.json, metrics.json
+       transcript.md, events.jsonl, outputs/, timing.json, metrics.json,
+       confined.json (the confined claude version and what cleanup left)
      under:
        <skill>/workspace/runs/<UTC>/eval-<id>/<config>/run-<k>/
      outputs/ is read back from the unit with tar, links dropped.
@@ -382,7 +383,7 @@ def stage_fixture_files(
     staged: dict[str, str] = {}
     if not files:
         return staged
-    if not confined._ID_RE.match(str(eval_id)):
+    if not confined._ID_RE.fullmatch(str(eval_id)):
         raise confined.ConfinedError(f"bad eval id {eval_id!r}")
 
     files_root = skill_eval_dir / "files"
@@ -788,7 +789,7 @@ def run_skill(
     evals_data = json.loads(evals_json.read_text())
     prompts = evals_data.get("evals") or []
     prompts = [p for p in prompts if not p.get("live_only")]
-    bad_ids = [p.get("id") for p in prompts if not confined._ID_RE.match(str(p.get("id")))]
+    bad_ids = [p.get("id") for p in prompts if not confined._ID_RE.fullmatch(str(p.get("id")))]
     if bad_ids:
         return {"skill": skill, "error": f"bad eval ids {bad_ids!r}"}
     if not prompts:
@@ -1039,14 +1040,19 @@ def main() -> int:
     outcomes = []
     for skill in skills:
         print(f"[task] === {skill} ===", file=sys.stderr)
-        result = run_skill(
-            skill,
-            model=model,
-            runs=args.runs,
-            subject_timeout=args.subject_timeout,
-            grader_timeout=args.grader_timeout,
-            claude_version=claude_version,
-        )
+        try:
+            result = run_skill(
+                skill,
+                model=model,
+                runs=args.runs,
+                subject_timeout=args.subject_timeout,
+                grader_timeout=args.grader_timeout,
+                claude_version=claude_version,
+            )
+        except confined.ConfinedError as e:
+            # A failed mint or launch stops the run, as in run_triggering.
+            print(f"error: run stopped: {e}", file=sys.stderr)
+            return 1
         result["confined_claude_version"] = claude_version
         outcomes.append(result)
         if "error" in result:

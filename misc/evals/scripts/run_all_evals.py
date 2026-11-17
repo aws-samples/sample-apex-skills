@@ -1147,7 +1147,7 @@ def main() -> int:
 
     # Resolve Makefile defaults once so the scorecard metadata is accurate.
     resolved_provider = resolve_makefile_default("PROVIDER") or "bedrock"
-    default_model = "global.anthropic.claude-opus-4-6-v1" if resolved_provider == "bedrock" else "claude-opus-4-6-v1"
+    default_model = "global.anthropic.claude-opus-4-6-v1"
     resolved_model = args.model or resolve_makefile_default("MODEL") or default_model
     resolved_runs = (
         args.runs_per_query

@@ -5,8 +5,8 @@
       "Effect": "Allow",
       "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:GetInferenceProfile"],
       "Resource": [
-        "arn:aws:bedrock:us-west-2:338034595106:inference-profile/global.anthropic.*",
-        "arn:aws:bedrock:us-west-2:338034595106:inference-profile/us.anthropic.*"
+        "arn:aws:bedrock:us-west-2:<ACCOUNT_ID>:inference-profile/global.anthropic.*",
+        "arn:aws:bedrock:us-west-2:<ACCOUNT_ID>:inference-profile/us.anthropic.*"
       ]
     },
     {
@@ -14,8 +14,8 @@
       "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
       "Resource": ["arn:aws:bedrock:*::foundation-model/anthropic.*", "arn:aws:bedrock:::foundation-model/anthropic.*"],
       "Condition": {"StringLike": {"bedrock:InferenceProfileArn": [
-        "arn:aws:bedrock:us-west-2:338034595106:inference-profile/global.anthropic.*",
-        "arn:aws:bedrock:us-west-2:338034595106:inference-profile/us.anthropic.*"
+        "arn:aws:bedrock:us-west-2:<ACCOUNT_ID>:inference-profile/global.anthropic.*",
+        "arn:aws:bedrock:us-west-2:<ACCOUNT_ID>:inference-profile/us.anthropic.*"
       ]}}
     },
     {

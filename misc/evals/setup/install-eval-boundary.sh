@@ -20,8 +20,8 @@
 # installs no package. The runners need passwordless `sudo -n true` (their
 # start check), `sudo -n systemd-run` and `sudo -n systemctl kill` for <you>;
 # this script does not grant that. An existing apex-eval user is reused only
-# when its only group is apex-eval; --uninstall removes the user only if this
-# script created it.
+# when its only group is apex-eval and its shell is nologin or false;
+# --uninstall removes the user only if this script created it.
 set -euo pipefail
 
 EVAL_USER=apex-eval
@@ -78,25 +78,29 @@ case "${mode}" in
     ;;
   install)
     command -v systemd-run >/dev/null || die "systemd-run not found"
-    # 1. The user the units run as.
-    created=0
+    # 1. The user the units run as. STATE_ROOT comes first, so the marker is
+    # written the moment the user exists.
     if ! id "${EVAL_USER}" >/dev/null 2>&1; then
+      install -d -o root -g root -m 0755 "${STATE_ROOT}"
       useradd --system --user-group --home-dir "${STATE_ROOT}" --no-create-home \
         --shell /sbin/nologin "${EVAL_USER}"
-      created=1
+      install -o root -g root -m 0644 /dev/null "${CREATED_MARK}"
       log "added system user ${EVAL_USER}"
     elif [[ "$(id -nG "${EVAL_USER}")" != "${EVAL_USER}" ]]; then
       # systemd gives a unit every group of its user.
       die "user ${EVAL_USER} exists with groups '$(id -nG "${EVAL_USER}")'; only ${EVAL_USER} is allowed"
+    else
+      shell="$(getent passwd "${EVAL_USER}" | cut -d: -f7)"
+      case "${shell}" in
+        */nologin|*/false) ;;
+        *) die "user ${EVAL_USER} exists with login shell '${shell}'; only nologin or false is allowed" ;;
+      esac
     fi
     if id -nG "${owner}" | tr ' ' '\n' | grep -qx "${EVAL_USER}"; then
       die "${owner} is in group ${EVAL_USER}; remove it (it could then read unit files)"
     fi
     # 2. Run and env directories.
     install -d -o root -g root -m 0755 "${STATE_ROOT}"
-    if [[ "${created}" -eq 1 ]]; then
-      install -o root -g root -m 0644 /dev/null "${CREATED_MARK}"
-    fi
     install -d -o "${owner}" -g "${EVAL_USER}" -m 2770 "${STATE_ROOT}/runs"
     install -d -o "${owner}" -g "$(id -gn "${owner}")" -m 0700 "${STATE_ROOT}/env"
     log "made ${STATE_ROOT}/runs (2770) and ${STATE_ROOT}/env (0700)"

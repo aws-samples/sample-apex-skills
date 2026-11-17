@@ -12,6 +12,7 @@ Run directly with:
 import contextlib
 import functools
 import io
+import json
 import multiprocessing
 import os
 import shutil
@@ -110,6 +111,9 @@ class ConfinedTestCase(unittest.TestCase):
             mock.patch.object(confined, "LOCK_FILE", env / "launch.lock"),
             mock.patch.object(confined, "_public_ipv4", ["203.0.113.7"]),
             mock.patch.object(confined, "RESOLV_CONF", resolv),
+            # The AWS documentation's example account id.
+            mock.patch.object(confined, "_account", "123456789012"),
+            mock.patch.object(confined, "HOST_HIDDEN_FILE", self.tmp / "inaccessible-paths"),
         ]
         for p in self.patches:
             p.start()
@@ -211,8 +215,9 @@ class StageTests(ConfinedTestCase):
         (files / "a.txt").write_text("a")
         sandbox = self.tmp / "sb"
         sandbox.mkdir()
-        with self.assertRaisesRegex(confined.ConfinedError, "bad eval id"):
-            run_task_evals.stage_fixture_files(sandbox, self.tmp / "skill-evals", "../up", ["a.txt"])
+        for bad in ("../up", "1\n"):
+            with self.assertRaisesRegex(confined.ConfinedError, "bad eval id"):
+                run_task_evals.stage_fixture_files(sandbox, self.tmp / "skill-evals", bad, ["a.txt"])
         self.assertEqual(list(sandbox.iterdir()), [])
 
     def test_run_skill_refuses_a_bad_eval_id_before_any_path(self):
@@ -280,7 +285,8 @@ class LaunchTests(ConfinedTestCase):
         self.assertEqual(kills, [["sudo", "-n", "systemctl", "kill", "--signal=SIGKILL",
                                   "apex-eval-r1.service"]])
         mint = next(c for c in fake.calls if c[:3] == ["aws", "sts", "assume-role"])
-        self.assertIn(confined.ROLE_ARN, mint)
+        self.assertEqual(mint[mint.index("--role-arn") + 1],
+                         f"arn:aws:iam::123456789012:role/{confined.ROLE_NAME}")
         self.assertEqual(mint[mint.index("--role-session-name") + 1], "evals-r1")
         self.assertEqual(mint[mint.index("--duration-seconds") + 1], "900")
         self.assertFalse(any(k.startswith("AWS_ACCESS") for k in fake.mint_env))
@@ -325,8 +331,44 @@ class LaunchTests(ConfinedTestCase):
     def test_unit_has_private_dev_shm(self):
         run = confined.Run("r5", confined.RUNS_ROOT / "r5")
         argv = confined.systemd_run_argv(run, "apex-eval-r5", ["/bin/true"], 60)
-        self.assertIn("TemporaryFileSystem=/dev/shm", argv)
+        self.assertIn("TemporaryFileSystem=/dev/shm:mode=1777", argv)
         self.assertIn("IPAddressAllow=10.9.0.2", argv)
+
+    def test_skill_copy_is_bound_read_only_for_the_subject(self):
+        # Without the binds, the subject can rename .claude/skills (or
+        # .claude) and put its own skill in its place.
+        src = self.tmp / "src" / "demo"
+        src.mkdir(parents=True)
+        (src / "SKILL.md").write_text("x")
+        run = confined.stage_run("demo", src)
+        home = run.home
+        subject = confined.systemd_run_argv(run, "u", confined.claude_argv([]), 60)
+        self.assertIn(f"BindPaths={home / '.claude'}", subject)
+        self.assertIn(f"BindReadOnlyPaths={home / '.claude' / 'skills'}", subject)
+        cleanup = confined.systemd_run_argv(run, "u", ["/usr/bin/find"], 60, lock_skills=False)
+        self.assertFalse([a for a in cleanup if a.startswith("BindPaths=")], cleanup)
+        empty = confined.stage_run()
+        argv = confined.systemd_run_argv(empty, "u", confined.claude_argv([]), 60)
+        self.assertFalse([a for a in argv if ".claude" in a], argv)
+        fake = FakeHost()
+        with self.patched(fake):
+            confined.cleanup_run(run)
+        self.assertNotIn(f"BindPaths={home / '.claude'}", fake.popen_argv)
+
+    def test_host_hidden_paths_come_from_the_host_file(self):
+        run = confined.Run("r6", confined.RUNS_ROOT / "r6")
+
+        def hidden():
+            argv = confined.systemd_run_argv(run, "u", ["/bin/true"], 60)
+            return next(a for a in argv if a.startswith("InaccessiblePaths="))
+
+        self.assertEqual(hidden(), "InaccessiblePaths=-/var/log")
+        confined.HOST_HIDDEN_FILE.write_text("# this host\n/var/lib/other\n\n")
+        self.assertEqual(hidden(), "InaccessiblePaths=-/var/log -/var/lib/other")
+        for bad in ("var/lib/x\n", "/var/lib/a b\n"):
+            confined.HOST_HIDDEN_FILE.write_text(bad)
+            with self.assertRaisesRegex(confined.ConfinedError, "plain absolute path"):
+                hidden()
 
     def test_triggering_query_goes_through_launch_confined(self):
         seen = {}
@@ -353,9 +395,7 @@ class LaunchTests(ConfinedTestCase):
 
 
 def fake_proc(lines=(), returncode=0):
-    """A finished systemd-run client whose stdout is `lines`. The stream
-    readers read a finished client's output as one tail, so each fake
-    stream that must parse is one line."""
+    """A finished systemd-run client whose stdout is `lines`."""
     proc = mock.Mock()
     proc.poll.return_value = returncode
     proc.wait.return_value = returncode
@@ -433,6 +473,15 @@ class LaunchSiteTests(ConfinedTestCase):
         self.assertFalse(out["ok"])
         self.assertIn("turn 1 exited 1", out["reason"])
         self.assertEqual(len(seen), 1)
+
+    def test_failed_later_turn_fails_the_subject(self):
+        seen, stack = self.launches(fake_proc([ASK]), fake_proc([INIT], returncode=1))
+        elicit = {"strategy": "canned-multiturn", "max_turns": 3,
+                  "turns": [{"question_match": "region", "answer": "us-west-2"}]}
+        with stack:
+            out = self.subject(elicit)
+        self.assertFalse(out["ok"])
+        self.assertIn("turn 2 exited 1", out["reason"])
 
     def test_grader(self):
         transcript = self.tmp / "transcript.md"
@@ -672,7 +721,7 @@ class ReadBackTests(unittest.TestCase):
                     tf.addfile(ti)
                 elif kind == "symlink":
                     ti.type = tarfile.SYMTYPE
-                    ti.linkname = "/home/ec2-user/.aws/credentials"
+                    ti.linkname = "/home/someone/.aws/credentials"
                     tf.addfile(ti)
                 elif kind == "hardlink":
                     ti.type = tarfile.LNKTYPE
@@ -696,6 +745,168 @@ class ReadBackTests(unittest.TestCase):
             self.assertFalse((dest.parent / "up.txt").exists())
         self.assertEqual(len(dropped), 4)
         self.assertTrue(any("leak (link)" in d for d in dropped))
+
+
+class PreflightTests(ConfinedTestCase):
+    """preflight reads the account, IMDS and the resolver before any mint."""
+
+    def setUp(self):
+        super().setUp()
+        config = self.tmp / "aws-config"
+        config.write_text("[profile apex-eval-admin]\n")
+        claude = self.tmp / "claude"
+        claude.write_text("")
+        for p in (
+            mock.patch.object(confined, "PARENT_AWS_CONFIG", config),
+            mock.patch.object(confined, "CLAUDE_BIN", claude),
+            mock.patch.object(confined.shutil, "which", return_value="/usr/bin/aws"),
+        ):
+            p.start()
+            self.addCleanup(p.stop)
+        # The base class's patch restores these when the test ends.
+        confined._account = None
+
+    def host(self, account="123456789012\n", rc=0):
+        fake = FakeHost()
+        base = fake.run
+
+        def run(argv, **kw):
+            if argv[:3] == ["aws", "sts", "get-caller-identity"]:
+                fake.calls.append(list(argv))
+                fake.identity_env = kw.get("env")
+                return _Done(returncode=rc, stdout=account, stderr="ExpiredToken" if rc else "")
+            return base(argv, **kw)
+
+        fake.run = run
+        return fake
+
+    def test_reads_the_account_at_run_time(self):
+        fake = self.host()
+        with self.patched(fake):
+            confined.preflight(600)
+        ident = next(c for c in fake.calls if c[:3] == ["aws", "sts", "get-caller-identity"])
+        self.assertEqual(ident[ident.index("--profile") + 1], confined.PARENT_PROFILE)
+        self.assertEqual(fake.identity_env["AWS_CONFIG_FILE"], str(confined.PARENT_AWS_CONFIG))
+        self.assertEqual(confined.role_arn(),
+                         f"arn:aws:iam::123456789012:role/{confined.ROLE_NAME}")
+        self.assertFalse(any(c[:3] == ["aws", "sts", "assume-role"] for c in fake.calls))
+
+    def test_unreadable_account_fails_closed(self):
+        for kw in ({"rc": 255, "account": ""}, {"account": "None\n"}):
+            confined._account = None
+            fake = self.host(**kw)
+            with self.patched(fake), \
+                 self.assertRaisesRegex(confined.ConfinedError, "cannot read the account"):
+                confined.preflight(600)
+            self.assertFalse(any(c[:3] == ["aws", "sts", "assume-role"] for c in fake.calls))
+
+    def test_no_aws_cli_is_refused(self):
+        with mock.patch.object(confined.shutil, "which", return_value=None), \
+             self.patched(self.host()), \
+             self.assertRaisesRegex(confined.ConfinedError, "AWS CLI"):
+            confined.preflight(600)
+
+    def test_imds_and_resolver_are_read_in_preflight(self):
+        confined._public_ipv4 = None
+        with self.patched(self.host()), \
+             mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")), \
+             self.assertRaisesRegex(confined.ConfinedError, "IMDSv2"):
+            confined.preflight(600)
+        confined._public_ipv4 = ["203.0.113.7"]
+        confined.RESOLV_CONF.write_text("nameserver 127.0.0.53\n")
+        with self.patched(self.host()), \
+             self.assertRaisesRegex(confined.ConfinedError, "loopback"):
+            confined.preflight(600)
+
+
+class ActiveUnitTests(ConfinedTestCase):
+    def test_deactivating_units_counted_and_rc_checked(self):
+        fake = FakeHost()
+        with self.patched(fake):
+            confined._active_units()
+        argv = next(c for c in fake.calls if c[:2] == ["systemctl", "list-units"])
+        self.assertTrue(any("deactivating" in a for a in argv), argv)
+
+        class Bad(FakeHost):
+            def run(self, argv, **kw):
+                if argv[:2] == ["systemctl", "list-units"]:
+                    return _Done(returncode=1, stderr="dbus")
+                return super().run(argv, **kw)
+
+        with self.patched(Bad()):
+            with self.assertRaises(confined.ConfinedError):
+                confined._active_units()
+
+    def test_cgnat_in_deny(self):
+        self.assertIn("100.64.0.0/10", confined.IP_DENY)
+
+
+class RealClientExitTests(ConfinedTestCase):
+    def test_real_client_non_zero_exit_is_invalid(self):
+        # A real child reaches EOF before poll() sees its exit (the EOF branch).
+        code = f"import sys; print({INIT!r}, flush=True); sys.exit(1)"
+
+        @contextlib.contextmanager
+        def fake_launch(run, argv, policy_kind, timeout, **kw):
+            p = _REAL_POPEN([sys.executable, "-c", code], stdin=subprocess.DEVNULL,
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            try:
+                yield p
+            finally:
+                p.wait()
+                p.stdout.close()
+
+        skill = self.tmp / "s"
+        skill.mkdir()
+        (skill / "SKILL.md").write_text("x")
+        with mock.patch("subprocess.Popen", side_effect=AssertionError("direct Popen")), \
+             mock.patch.object(confined, "launch_confined", fake_launch), \
+             mock.patch.object(confined, "cleanup_run", return_value=[]):
+            out = run_triggering.run_single_query("q", "s", skill, None, 30)
+        self.assertTrue(out["invalid"], out)
+
+
+class TriggerStreamTests(unittest.TestCase):
+    def test_timeout_after_init_is_invalid(self):
+        code = f"import time; print({INIT!r}, flush=True); time.sleep(30)"
+        p = _REAL_POPEN([sys.executable, "-c", code], stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        out = run_triggering.parse_stream_for_trigger(p, "s", timeout=2)
+        p.stdout.close()
+        self.assertTrue(out["invalid"], out)
+        self.assertIn("timed out", out["invalid_reason"])
+        self.assertIsNotNone(p.poll())
+
+    def test_every_tail_line_is_read_and_the_pending_block_carried(self):
+        skill_use = json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "name": "Skill", "input": {"skill": "s"}}]}})
+        start = json.dumps({"type": "stream_event", "event": {
+            "type": "content_block_start",
+            "content_block": {"type": "tool_use", "name": "Skill", "input": {}}}})
+        delta = json.dumps({"type": "stream_event", "event": {
+            "type": "content_block_delta",
+            "delta": {"type": "input_json_delta", "partial_json": '{"skill":"s"}'}}})
+        # A last line with no newline; a block split across tail lines.
+        for tail in (f"{INIT}\n{skill_use}", f"{INIT}\n{start}\n{delta}\n"):
+            proc = fake_proc()
+            proc.stdout = io.BytesIO(tail.encode())
+            out = run_triggering.parse_stream_for_trigger(proc, "s", timeout=10)
+            self.assertTrue(out["triggered"], tail)
+
+
+class TaskMainTests(unittest.TestCase):
+    def test_failed_mint_stops_the_task_run(self):
+        err = io.StringIO()
+        boom = confined.ConfinedError("role session mint failed")
+        with mock.patch.object(confined, "preflight", return_value="2.0.0"), \
+             mock.patch.object(run_task_evals, "discover_skills", return_value=["a", "b"]), \
+             mock.patch.object(run_task_evals, "run_skill", side_effect=boom) as run_skill, \
+             mock.patch.object(sys, "argv", ["run_task_evals.py", "--model", "m"]), \
+             contextlib.redirect_stderr(err):
+            rc = run_task_evals.main()
+        self.assertEqual(rc, 1)
+        self.assertIn("run stopped: role session mint failed", err.getvalue())
+        self.assertEqual(run_skill.call_count, 1)
 
 
 if __name__ == "__main__":

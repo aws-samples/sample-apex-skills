@@ -63,10 +63,11 @@ Scored eval runs are maintainer-run: you run them locally when a skill changes a
 
 Every `claude -p` the runners start (subject, each multi-turn turn, grader) runs in its own transient systemd unit as the system user `apex-eval`, with an empty `/home`, no cluster credential and a fresh Bedrock-only role session per launch (`scripts/confined.py`). Before the first run:
 
-1. Install the boundary, as root from a normal shell (the runners never run it): `sudo bash misc/evals/setup/install-eval-boundary.sh`. It adds the `apex-eval` user, `/var/lib/apex-eval` and a root-owned copy of your `claude` under `/opt/apex-eval/bin`. After a `claude` upgrade, rerun it with `--refresh-bin`; `--uninstall` undoes it.
-2. Give the user who runs the evals passwordless sudo for `sudo -n true`, `sudo -n systemd-run` and `sudo -n systemctl kill`. The install script does not grant it, and the runners refuse to start without it.
-3. Create the role the units use, `apex-eval-bedrock-invoke`, from `setup/eval-bedrock-invoke-trust.json` and `setup/eval-bedrock-invoke-permissions.json`. Its ARN is `ROLE_ARN` in `scripts/confined.py`, so every run is Bedrock-only and billed to that one account.
-4. Write `~/.apex-eval/aws-config` (the install script does not create it) with a profile `apex-eval-admin` whose credentials may call `sts:AssumeRole` on that role, for example through `credential_process`:
+1. The host must be an EC2 instance with IMDSv2 reachable (the runner reads the instance's public IPv4 there, so the units cannot reach it), and the AWS CLI (`aws`) must be on PATH. The runners check both before any session is minted, and refuse to start with a named error if either fails.
+2. Install the boundary, as root from a normal shell (the runners never run it): `sudo bash misc/evals/setup/install-eval-boundary.sh`. It adds the `apex-eval` user, `/var/lib/apex-eval` and a root-owned copy of your `claude` under `/opt/apex-eval/bin`. After a `claude` upgrade, rerun it with `--refresh-bin`; `--uninstall` undoes it.
+3. Give the user who runs the evals passwordless sudo for `sudo -n true`, `sudo -n systemd-run` and `sudo -n systemctl kill`. The install script does not grant it, and the runners refuse to start without it. The grant is root-equivalent for that user (`systemd-run` can start any command as root), so give it only on a dedicated eval host.
+4. Create the role the units use, `apex-eval-bedrock-invoke`, in the account that pays for the evals. `setup/eval-bedrock-invoke-trust.json` and `setup/eval-bedrock-invoke-permissions.json` are a documented example of its two policies: replace `<ACCOUNT_ID>` with that account's id and `<ADMIN_ROLE>` with the role of the admin session in item 5 (with its path, if it has one), and change `us-west-2` in the ARNs if you set another Region. The runner builds the role's ARN at run time, from the account that `aws sts get-caller-identity` reports for the item 5 profile, so every run is Bedrock-only and billed to that one account.
+5. Write `~/.apex-eval/aws-config` (the install script does not create it) with a profile `apex-eval-admin` whose credentials may call `sts:AssumeRole` on that role, for example through `credential_process`:
 
    ```ini
    [profile apex-eval-admin]
@@ -74,8 +75,9 @@ Every `claude -p` the runners start (subject, each multi-turn turn, grader) runs
    credential_process = <command that prints a credential_process JSON for that principal>
    ```
 
-   The runner reads only this file (never `~/.aws`), mints each unit's session from it, and passes the session to the unit in a 0600 env file, never in argv.
-5. `/etc/resolv.conf` must name a nameserver the unit can reach: the runner allows only the first IPv4 `nameserver` there and refuses a loopback one.
+   The runner reads only this file (never `~/.aws`), mints each unit's session from it, and passes the session to the unit in a 0600 env file, never in argv. Three optional environment variables change the names and the Region used here: `APEX_EVAL_ROLE_NAME` (default `apex-eval-bedrock-invoke`), `APEX_EVAL_PROFILE` (default `apex-eval-admin`) and `APEX_EVAL_REGION` (default `us-west-2`).
+6. `/etc/resolv.conf` must name a nameserver the unit can reach: the runner allows only the first IPv4 `nameserver` there and refuses a loopback one.
+7. The units always hide `/var/log`. List any other path on this host that a unit must not see (another service's data under `/var/lib`, for example), one absolute path per line, in `~/.apex-eval/inaccessible-paths`. No file means no extra path. Anything world-readable that is not listed stays readable to a unit (`ProtectSystem=strict` makes it read-only, not hidden).
 
 Launches run one at a time on the whole host (a host-wide lock), read-back and cleanup units included, so `NUM_WORKERS` and `task-all-parallel` only queue them, and a run set takes as long as its launches added together. Prompts marked `live_only` are always off: no unit gets a cluster credential, and `--include-live-only` is refused.
 
