@@ -81,4 +81,4 @@ Per runner, for the claude harness:
 | T5, T7 | 2 x 3 | none | 6 each, 12 |
 | T6 | 2 queries x 3, with the skill only | none | 6 query runs |
 
-That is 48 task runs plus 6 triggering query runs, and one grader call per task run. Kiro and Codex each run T1 three times with the skill only, staged in a sandbox HOME (`~/.kiro/skills/`, `~/.agents/skills/`), graded by C1's grader: 6 more grader calls (by hand, as evidence for the sized adapters; S5 counts only harnesses a runner drives itself). A runner with no old-against-new mode runs 36 task runs.
+That is 48 task runs plus 6 triggering query runs, and at most one grader call per task run (the driver grades T1, T4 and T7 only: 24 calls, cost-estimate.md:48). Kiro and Codex each run T1 three times with the skill only, staged in a sandbox HOME (`~/.kiro/skills/`, `~/.agents/skills/`), graded by C1's grader: 6 more grader calls (by hand, as evidence for the sized adapters; S5 counts only harnesses a runner drives itself). A runner with no old-against-new mode runs 36 task runs.

@@ -16,9 +16,9 @@ Default: a dry run that prints the planned runs and makes no model call.
 enforced), and stops before the next run once the subjects' recorded cost
 reaches the limit. The stop counts only the subjects' recorded cost: grader
 calls, T6 query runs and a run that times out or crashes before its first
-result event add nothing; on Claude Code older than 2.1.277, T5's earlier
-turns add nothing; and the run that crosses the limit completes. The limit is
-per invocation.
+result event add nothing; on Claude Code older than 2.1.277, or after an
+earlier turn that exited abnormally, T5's earlier turns add nothing; and the
+run that crosses the limit completes. The limit is per invocation.
 
 Do not run --paid on the trial host: every subject can reach the host's AWS
 credentials (cases.md, Credentials and permissions).
@@ -38,6 +38,7 @@ import contextlib
 import io
 import json
 import math
+import re
 import shutil
 import subprocess
 import sys
@@ -52,6 +53,7 @@ SCRIPTS = REPO_ROOT / "misc" / "evals" / "scripts"
 PIN = "7efa0776"        # case text as it stands at this commit (cases.md)
 OLD = "0678d921"        # tag v1.3.0, the old arm on T1 to T4 (cases.md)
 RUNS = 3
+PYCACHE = re.compile(r"(^|/)__pycache__/[^/]+\.pyc$")   # Python bytecode, left out of the pin check
 TRIGGER_TIMEOUT = 90    # run_triggering.py --timeout default
 GRADER_TIMEOUT = 600    # run_task_evals.py --grader-timeout default
 
@@ -132,16 +134,18 @@ def pinned_paths(case: dict) -> list[str]:
 def check_pin(cases: list[dict]) -> list[str]:
     """Paths that differ from PIN or hold untracked or ignored files (git, no model call).
 
-    An ignored file is staged into the subject's sandbox too, so it counts;
-    __pycache__/ is Python's bytecode cache, holds no case text and is left out.
+    An ignored file is staged into the subject's sandbox too, so it counts.
+    Porcelain lists every file (--untracked-files=all), and only a line whose
+    path matches PYCACHE, a .pyc file directly inside a __pycache__/ dir, is
+    left out; any other file in or beside a __pycache__/ dir counts.
     """
     changed = []
     for case in cases:
         for p in pinned_paths(case):
             r = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--quiet", PIN, "--", p])
-            st = subprocess.run(["git", "-C", str(REPO_ROOT), "status", "--porcelain", "--ignored", "--", p],
-                                capture_output=True, text=True)
-            extra = [l for l in st.stdout.splitlines() if "__pycache__/" not in l]
+            st = subprocess.run(["git", "-C", str(REPO_ROOT), "status", "--porcelain", "--ignored",
+                                 "--untracked-files=all", "--", p], capture_output=True, text=True)
+            extra = [l for l in st.stdout.splitlines() if not PYCACHE.search(l[3:])]
             if (r.returncode != 0 or st.returncode != 0 or extra) and p not in changed:
                 changed.append(p)
     return changed

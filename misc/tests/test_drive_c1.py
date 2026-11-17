@@ -11,6 +11,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -268,6 +269,9 @@ class PinCheck(unittest.TestCase):
     """check_pin, unmocked, on a throwaway repo holding T1's case file and skill."""
 
     def setUp(self):
+        env = mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"})
+        env.start()
+        self.addCleanup(env.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.git = lambda *a: subprocess.run(["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@t",
@@ -303,6 +307,15 @@ class PinCheck(unittest.TestCase):
         (self.root / "skills/eks-security/__pycache__").mkdir()
         (self.root / "skills/eks-security/__pycache__/x.pyc").write_bytes(b"c")
         self.assertEqual(drive_c1.check_pin(self.t1), [])
+
+    def test_near_miss_pycache_names_refuse(self):
+        for rel in ("skills/eks-security/references/my__pycache__/c.md", "skills/eks-security/__pycache__/answer.md"):
+            with self.subTest(rel=rel):
+                f = self.root / rel
+                f.parent.mkdir(parents=True)
+                f.write_text("c")
+                self.assertEqual(drive_c1.check_pin(self.t1), ["skills/eks-security"])
+                shutil.rmtree(f.parent)
 
 
 if __name__ == "__main__":
