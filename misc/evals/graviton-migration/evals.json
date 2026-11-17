@@ -5,12 +5,20 @@
       "id": 1,
       "prompt": "I'm configuring Claude Code and want the Arm migration MCP server available so I can scan this repo for arm64 blockers. Docker is already installed. Give me the exact .mcp.json block to add at my repo root and tell me how to verify it loaded.",
       "expectations": [
-        "The output provides a JSON block for `.mcp.json` at the repo root with an `mcpServers` object containing an entry whose `command` is `docker`. — TODO: human review",
-        "The `args` array runs the container with `--rm`, `-i`, a `-v` volume mount to `/workspace`, and the image `armlimited/arm-mcp:latest`. — TODO: human review",
-        "For the Claude Code config the mount path uses `${CLAUDE_PROJECT_DIR:-.}` (with the `:-.` default, not a bare `${CLAUDE_PROJECT_DIR}` and not `${workspaceFolder}`). — TODO: human review",
-        "The output does not claim the server calls AWS; it may note the entry is credential-free while still making non-AWS outbound calls (image-manifest/registry checks and host-execution tools) — the knowledge-base search is a local bundled index, not a network call. — TODO: human review",
-        "The output tells the user to restart/reload Claude Code and verify by listing MCP tools and smoke-testing the readiness scanner against the mounted repo. — TODO: human review",
-        "The output does not invent a precise MCP tool identifier it is unsure of, and does not fabricate an alternate image name (the image is `armlimited/arm-mcp`, at `:latest` or a pinned tag like `:2.9.0`). — TODO: human review"
+        "The output provides a JSON block for `.mcp.json` at the repo root with an `mcpServers` object.",
+        "The `mcpServers` object in the `.mcp.json` block contains an entry whose `command` is `docker`.",
+        "The `args` array runs the container with `--rm`.",
+        "The `args` array runs the container with `-i`.",
+        "The `args` array runs the container with a `-v` volume mount to `/workspace`.",
+        "The `args` array runs the image `armlimited/arm-mcp:latest`.",
+        "For the Claude Code config the mount path uses `${CLAUDE_PROJECT_DIR:-.}` (with the `:-.` default, not a bare `${CLAUDE_PROJECT_DIR}` and not `${workspaceFolder}`).",
+        "The output does not claim the server calls AWS; it may note the entry is credential-free while still making non-AWS outbound calls (image-manifest/registry checks and host-execution tools).",
+        "The output does not claim the knowledge-base search is a network call: it is a local bundled index.",
+        "The output tells the user to restart/reload Claude Code.",
+        "The output tells the user to verify by listing MCP tools.",
+        "The output tells the user to verify by smoke-testing the readiness scanner against the mounted repo.",
+        "The output does not invent a precise MCP tool identifier it is unsure of.",
+        "The output does not fabricate an alternate image name (the image is `armlimited/arm-mcp`, at `:latest` or a pinned tag like `:2.9.0`)."
       ],
       "knowledge_assertions": [
         {
@@ -48,11 +56,13 @@
       "id": 2,
       "prompt": "My scanner run came back CLEAN for our checkout service. I run Karpenter and want to bring arm64 capacity into the cluster safely and cut this one service over as a canary without risking the amd64-only pods that share the cluster. Give me the NodePool and the canary Deployment pod-spec bits I need.",
       "expectations": [
-        "The NodePool uses the Karpenter v1 apiVersion `karpenter.sh/v1`. — TODO: human review",
-        "The NodePool has a `kubernetes.io/arch` requirement pinned to `arm64` and a NoSchedule taint keeping un-vetted pods off. — TODO: human review",
-        "The canary pod spec includes BOTH a toleration matching the taint AND an arm64 `nodeSelector` (or equivalent nodeAffinity) so placement is forced, not merely permitted. — TODO: human review",
-        "The output explains the taint-first rationale — without the taint an amd64-only pod could land on arm64 and hit CrashLoopBackOff / exec format error. — TODO: human review",
-        "The output does not tell the user to hardcode an `-arm64` tag suffix into the Kubernetes manifest (the multi-arch manifest list handles arch selection). — TODO: human review"
+        "The NodePool uses the Karpenter v1 apiVersion `karpenter.sh/v1`.",
+        "The NodePool has a `kubernetes.io/arch` requirement pinned to `arm64`.",
+        "The NodePool has a NoSchedule taint keeping un-vetted pods off.",
+        "The canary pod spec includes a toleration matching the taint.",
+        "The canary pod spec also includes an arm64 `nodeSelector` (or equivalent nodeAffinity) so placement is forced, not merely permitted.",
+        "The output explains the taint-first rationale: without the taint an amd64-only pod could land on arm64 and hit CrashLoopBackOff / exec format error.",
+        "The output does not tell the user to hardcode an `-arm64` tag suffix into the Kubernetes manifest (the multi-arch manifest list handles arch selection)."
       ],
       "knowledge_assertions": [
         {
@@ -95,11 +105,14 @@
       "id": 3,
       "prompt": "We push our images to ECR from GitHub Actions and it currently only builds amd64. I want every build to publish one tag that works on both amd64 and arm64 so the Graviton cutover sticks. Give me the GitHub Actions job.",
       "expectations": [
-        "The job uses Docker buildx GitHub Actions (`docker/build-push-action` with `docker/setup-buildx-action`, and `docker/setup-qemu-action` for the emulated path). — TODO: human review",
-        "The build sets `platforms: linux/amd64,linux/arm64` and `push: true`, producing one manifest-list tag. — TODO: human review",
-        "The output explains that the `platforms` list is what turns the build into a multi-arch manifest list (one tag, right arch per node). — TODO: human review",
-        "The output mentions the native arm64-runner alternative (per-arch builds joined via `docker buildx imagetools create`) as faster for compile-heavy workloads. — TODO: human review",
-        "The output does not claim a single-tag manifest list requires a separate `-arm64` tag suffix. — TODO: human review"
+        "The job uses the Docker buildx GitHub Action `docker/build-push-action`.",
+        "The job uses the Docker buildx GitHub Action `docker/setup-buildx-action`.",
+        "The job uses the GitHub Action `docker/setup-qemu-action` for the emulated path.",
+        "The build sets `platforms: linux/amd64,linux/arm64`, producing one manifest-list tag.",
+        "The build sets `push: true`.",
+        "The output explains that the `platforms` list is what turns the build into a multi-arch manifest list (one tag, right arch per node).",
+        "The output mentions the native arm64-runner alternative (per-arch builds joined via `docker buildx imagetools create`) as faster for compile-heavy workloads.",
+        "The output does not claim a single-tag manifest list requires a separate `-arm64` tag suffix."
       ],
       "knowledge_assertions": [
         {

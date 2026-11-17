@@ -5,10 +5,13 @@
       "id": 1,
       "prompt": "I just renamed the skill `eks-recon` to `eks-discovery` (moved the directory and updated SKILL.md frontmatter). Run update-docs to find and fix all stale references across the repo.",
       "expectations": [
-        "Runs ./misc/update-all-references.sh --check to detect marker-block staleness — TODO: human review",
-        "Runs ./misc/update-pages.sh --check to detect Docusaurus wrapper staleness — TODO: human review",
-        "Identifies prose references to the old name 'eks-recon' in tracked markdown files — TODO: human review",
-        "Produces the final Surface | Status | Action taken | Confirm? markdown table — TODO: human review"
+        "Runs ./misc/update-all-references.sh --check to detect marker-block staleness",
+        "Runs ./misc/update-pages.sh --check to detect Docusaurus wrapper staleness",
+        "Identifies prose references to the old name 'eks-recon' in tracked markdown files",
+        "Produces the final markdown table with a Surface column",
+        "Produces the final markdown table with a Status column",
+        "Produces the final markdown table with an Action taken column",
+        "Produces the final markdown table with a Confirm? column"
       ],
       "live_only": true,
       "files": [
@@ -81,10 +84,14 @@
       "id": 2,
       "prompt": "I added a brand-new skill `rds-best-practices` and already ran the new-skill workflow. Before I open the PR, run update-docs in chat-only mode to give me a checklist of what's stale.",
       "expectations": [
-        "Checks Tier 1 surfaces by running both --check scripts and reporting their status — TODO: human review",
-        "Scans Tier 2 prose surfaces for references to the new skill that might need adding — TODO: human review",
-        "Outputs the final markdown table with Surface | Status | Action taken | Confirm? columns — TODO: human review",
-        "Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits) — TODO: human review"
+        "Checks Tier 1 surfaces by running both --check scripts",
+        "Checks Tier 1 surfaces by reporting the status of both --check scripts",
+        "Scans Tier 2 prose surfaces for references to the new skill that might need adding",
+        "Outputs the final markdown table with a Surface column",
+        "Outputs the final markdown table with a Status column",
+        "Outputs the final markdown table with an Action taken column",
+        "Outputs the final markdown table with a Confirm? column",
+        "Provides copy-paste fix commands for any STALE surfaces (chat-only mode, no file edits)"
       ],
       "live_only": true,
       "files": [

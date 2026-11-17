@@ -5,11 +5,16 @@
       "id": 1,
       "prompt": "Walk me through installing the self-hosted EKS MCP Server for Claude Code on my laptop. I'm on macOS, my AWS profile is `dev-admin`, and I only want read access for now — no write or sensitive-data tools. Where does the config file go and what exactly should it contain?",
       "expectations": [
-        "The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or mentions a user-scope MCP configuration location (e.g., ~/.claude.json or via claude mcp add). TODO: human review",
-        "Before writing any config, the output asks how to handle the server version (latest, pinned to the current latest, or pinned to a version the user names), and writes no fixed version number of its own. TODO: human review",
-        "The output explicitly omits `--allow-write` and `--allow-sensitive-data-access` from the args array (or equivalently tells the user to leave them out) to satisfy the read-only requirement. TODO: human review",
-        "The output mentions the `uv`/`uvx` package manager (installable via the astral.sh/uv script), and states the Python range from the chosen release once a version is chosen. TODO: human review",
-        "The output tells the user to restart Claude Code after editing the config and verify by asking what EKS MCP tools are available. TODO: human review"
+        "The output states the Claude Code MCP config lives at `.mcp.json` (project scope) or mentions a user-scope MCP configuration location (e.g., ~/.claude.json or via claude mcp add).",
+        "Before writing any config, the output asks how to handle the server version (latest, pinned to the current latest, or pinned to a version the user names).",
+        "The output writes no fixed version number of its own.",
+        "The output explicitly omits `--allow-write` from the args array (or equivalently tells the user to leave it out) to satisfy the read-only requirement.",
+        "The output explicitly omits `--allow-sensitive-data-access` from the args array (or equivalently tells the user to leave it out) to satisfy the read-only requirement.",
+        "The output mentions the `uv`/`uvx` package manager.",
+        "The output says `uv`/`uvx` is installable via the astral.sh/uv script.",
+        "The output states the Python range from the chosen release once a version is chosen.",
+        "The output tells the user to restart Claude Code after editing the config.",
+        "The output tells the user to verify by asking what EKS MCP tools are available."
       ],
       "knowledge_assertions": [
         {
@@ -62,10 +67,10 @@
       "id": 2,
       "prompt": "I set up the AWS-hosted EKS MCP Server (mcp-proxy-for-aws) in my Amazon Q CLI config, but every tool call fails with `AccessDenied: User is not authorized to perform eks-mcp:InvokeMcp`. The tools show up in the list but none of them work. What's wrong and how do I fix it?",
       "expectations": [
-        "The output identifies the root cause as missing IAM permissions on the caller principal for the `eks-mcp:*` action family, not a client-config bug. TODO: human review",
-        "The output names the `AmazonEKSMCPReadOnlyAccess` AWS managed policy as the standard read-only fix and/or lists the required actions `eks-mcp:InvokeMcp`, `eks-mcp:CallReadOnlyTool`, and `eks-mcp:CallPrivilegedTool`. TODO: human review",
-        "The output gives a concrete remediation step such as `aws iam attach-user-policy` (or attach-role-policy) using the `AmazonEKSMCPReadOnlyAccess` policy ARN. TODO: human review",
-        "The output notes that `CallPrivilegedTool` is only required if the user needs write operations, so read-only access is sufficient to unblock tool calls. TODO: human review"
+        "The output identifies the root cause as missing IAM permissions on the caller principal for the `eks-mcp:*` action family, not a client-config bug.",
+        "The output names the `AmazonEKSMCPReadOnlyAccess` AWS managed policy as the standard read-only fix and/or lists the required actions `eks-mcp:InvokeMcp`, `eks-mcp:CallReadOnlyTool`, and `eks-mcp:CallPrivilegedTool`.",
+        "The output gives a concrete remediation step such as `aws iam attach-user-policy` (or attach-role-policy) using the `AmazonEKSMCPReadOnlyAccess` policy ARN.",
+        "The output notes that `CallPrivilegedTool` is only required if the user needs write operations, so read-only access is sufficient to unblock tool calls."
       ],
       "knowledge_assertions": [
         {
@@ -136,8 +141,10 @@
       "name": "version-latest",
       "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. For the version, use latest.",
       "expectations": [
-        "Looks the package up live on PyPI (https://pypi.org/pypi/awslabs.eks-mcp-server/json) and tells the user the current version, or says it will look it up once the user confirms.",
-        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config.",
+        "Looks the package up live on PyPI (https://pypi.org/pypi/awslabs.eks-mcp-server/json), or says it will look it up once the user confirms.",
+        "Tells the user the current version, or says it will look it up once the user confirms.",
+        "Summarizes the choices, including the version read from PyPI if it has looked it up.",
+        "Asks to confirm before writing config.",
         "Does not write a fixed version number."
       ],
       "files": []
@@ -148,7 +155,8 @@
       "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to whatever the latest version is today.",
       "expectations": [
         "Looks the package up live on PyPI and reads `info.version`, or says it will look it up once the user confirms.",
-        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config.",
+        "Summarizes the choices, including the version read from PyPI if it has looked it up.",
+        "Asks to confirm before writing config.",
         "States the Python range from that release's `requires_python`, or says it will once the version is looked up."
       ],
       "files": []
@@ -159,8 +167,10 @@
       "prompt": "Set up the self-hosted EKS MCP Server for Claude Code in my project's .mcp.json. Read-only, region us-west-2, profile default. Pin it to version 0.2.0.",
       "expectations": [
         "Checks on PyPI that 0.2.0 is a published release of awslabs.eks-mcp-server, or says it will check once the user confirms.",
-        "If PyPI shows a newer current release, names both versions and asks the user to confirm the older pin before writing the config.",
-        "Summarizes the choices, including the version read from PyPI if it has looked it up, and asks to confirm before writing config."
+        "If PyPI shows a newer current release, names both versions.",
+        "If PyPI shows a newer current release, asks the user to confirm the older pin before writing the config.",
+        "Summarizes the choices, including the version read from PyPI if it has looked it up.",
+        "Asks to confirm before writing config."
       ],
       "files": []
     },

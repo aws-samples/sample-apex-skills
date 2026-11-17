@@ -7,12 +7,24 @@
       "prompt": "Run a full operational excellence assessment on the EKS cluster currently configured in my kubeconfig. Cover all 10 sections and produce the rated report.",
       "live_only": true,
       "expectations": [
-        "The report contains all required top-level sections in this order: Executive Summary, Maturity Score, Findings (with all 10 numbered sections present), Prioritized Actions (Critical, Important, Quick Wins), Items to Investigate Manually, AWS Reference Links. TODO: human review",
-        "Every finding rated RED appears in the Critical actions table, and every finding rated AMBER appears in either Important or Quick Wins — no RED/AMBER finding is missing from Prioritized Actions. TODO: human review",
-        "Ratings are consistent across the report: a finding rated RED in the Findings table is also called out as RED in the Executive Summary and named with its finding ID (e.g., '4.1 — Control Plane Logging RED') in Prioritized Actions. TODO: human review",
-        "Critical actions are ordered by blast radius (security > availability > cost) — security-flagged RED findings appear before availability- or cost-flagged ones. TODO: human review",
-        "Every RED finding has a specific, actionable recommendation (not boilerplate like 'enable logging'); UNKNOWN items are explained in 'Items to Investigate Manually' with a question the user can answer. TODO: human review",
-        "All AWS reference URLs come from the pre-verified reference map in `references/report-generation.md` Step 7 — no fabricated deep-link URLs. TODO: human review"
+        "The report contains the required top-level section: Executive Summary.",
+        "The report contains the required top-level section: Maturity Score.",
+        "The report contains the required top-level section: Findings.",
+        "The report contains the required top-level section: Prioritized Actions (Critical).",
+        "The report contains the required top-level section: Prioritized Actions (Important).",
+        "The report contains the required top-level section: Prioritized Actions (Quick Wins).",
+        "The report contains the required top-level section: Items to Investigate Manually.",
+        "The report contains the required top-level section: AWS Reference Links.",
+        "The report's required top-level sections appear in this order: Executive Summary, Maturity Score, Findings, Prioritized Actions, Items to Investigate Manually, AWS Reference Links.",
+        "The report's Findings section has all 10 numbered sections present.",
+        "Every finding rated RED appears in the Critical actions table: no RED finding is missing from Prioritized Actions.",
+        "Every finding rated AMBER appears in either Important or Quick Wins: no AMBER finding is missing from Prioritized Actions.",
+        "Ratings are consistent across the report: a finding rated RED in the Findings table is also called out as RED in the Executive Summary.",
+        "Ratings are consistent across the report: a finding rated RED in the Findings table is also named with its finding ID (e.g., '4.1 — Control Plane Logging RED') in Prioritized Actions.",
+        "Critical actions are ordered by blast radius (security > availability > cost): security-flagged RED findings appear before availability- or cost-flagged ones.",
+        "Every RED finding has a specific, actionable recommendation (not boilerplate like 'enable logging').",
+        "UNKNOWN items are explained in 'Items to Investigate Manually' with a question the user can answer.",
+        "All AWS reference URLs come from the pre-verified reference map in `references/report-generation.md` Step 7: no fabricated deep-link URLs."
       ],
       "files": [],
       "process_assertions": [
@@ -121,10 +133,12 @@
       "prompt": "Run a networking-scoped operational review on the EKS cluster in my current kubeconfig context.",
       "live_only": true,
       "expectations": [
-        "The report focuses on Section 06 (Networking) only — does NOT include findings from other sections like Cluster Lifecycle, Access & Identity, etc. TODO: human review",
-        "The skill loaded `references/networking.md` as the source for checks (visible from the assessment narrative or the report's reference links section). TODO: human review",
-        "Networking findings are rated only on observed data: subnet IP capacity is checked against actual subnets, CoreDNS health against actual pod state, NetworkPolicy presence against actual cluster resources. TODO: human review",
-        "If any networking check fails (e.g., MCP unable to list resources, missing permissions), the corresponding item is marked UNKNOWN with a specific reason — not silently skipped or guessed. TODO: human review"
+        "The report focuses on Section 06 (Networking) only: does NOT include findings from other sections like Cluster Lifecycle, Access & Identity, etc.",
+        "The skill loaded `references/networking.md` as the source for checks (visible from the assessment narrative or the report's reference links section).",
+        "Networking findings are rated only on observed data: subnet IP capacity is checked against actual subnets.",
+        "Networking findings are rated only on observed data: CoreDNS health is checked against actual pod state.",
+        "Networking findings are rated only on observed data: NetworkPolicy presence is checked against actual cluster resources.",
+        "If any networking check fails (e.g., MCP unable to list resources, missing permissions), the corresponding item is marked UNKNOWN with a specific reason, not silently skipped or guessed."
       ],
       "files": [],
       "process_assertions": [
