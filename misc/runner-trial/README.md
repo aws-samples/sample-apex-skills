@@ -32,4 +32,4 @@ A short trial to choose the eval runner before more eval work is built on one. I
 
 ## Status
 
-No paid run has happened yet. The runs wait on the maintainers' spend decision and a subject credential limited to the model calls (cost-estimate.md; cases.md, Credentials and permissions).
+No paid run has happened yet. The runs wait on a subject credential limited to the model calls and one proven end-to-end run (cost-estimate.md; cases.md, Credentials and permissions).

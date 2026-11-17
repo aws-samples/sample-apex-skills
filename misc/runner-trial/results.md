@@ -4,14 +4,14 @@ Repo line cites are at commit 7efa0776.
 
 ## Status
 
-No paid run has happened. The runs wait on the maintainers' spend decision for the paid runs (cost-estimate.md: $43.12 to $141.13). They also wait on a subject credential limited to the model calls, since the subject can use whatever AWS credentials the host holds (cases.md, Credentials and permissions). Until both are given, these sections hold that line, except the cost per pull request, which is estimated now:
+No paid run has happened (cost-estimate.md: $43.12 to $141.13). The runs wait on a subject credential limited to the model calls and one proven end-to-end run, since the subject can use whatever AWS credentials the host holds (cases.md, Credentials and permissions). Until both are in place, these sections hold that line, except the cost per pull request, which is estimated now:
 
-- Results per candidate (score-sheet.md S1 to S10): waits on the maintainers' spend decision and a subject credential limited to the model calls.
-- The runner pick, with its reasons from S2, S6 and S10: waits on the maintainers' spend decision and a subject credential limited to the model calls.
+- Results per candidate (score-sheet.md S1 to S10): waits on a subject credential limited to the model calls and one proven end-to-end run.
+- The runner pick, with its reasons from S2, S6 and S10: waits on a subject credential limited to the model calls and one proven end-to-end run.
 - The eval gate's cost per pull request: estimated now, re-measured from S2, S6 and S10 after the runs: C1 claude harness $19.79 to $44.64 for a pull request that adds a skill, which runs with and without the skill (subject $16.19 to $30.24 plus 36 grader calls), and $23.55 to $50.42 for one that changes a skill, which runs it against its previous version (the old arm priced at the with-skill rate, as in cost-estimate.md: subject $19.95 to $36.02 plus 36 grader calls); C2 $11.01 to $25.58; C3 adds $2.85 to $34.82 to the runner that drives the subject (72 judged evaluations, cost-estimate.md, C3). Each figure is one gate pass of the trial's seven cases, three runs each, not of main's 89 task cases (misc/evals/*/evals.json at 2350a75c, _template left out), and holds if the gate runs all seven cases on each pull request. At the 229 pull requests opened from 2026-10-17 to 2026-11-17 (`gh pr list`, read 2026-11-17), about 222 a month, a C1 gate on every pull request costs about $4,393 to $9,910 a month if each adds a skill, or $5,228 to $11,193 if each changes one.
 - Spend against the estimate: $0 of $43.12 to $141.13.
 
-The shared prompt-injection case is not in this trial: it is built in a later round of this trial, on the runner this trial picks.
+The shared prompt-injection case is not in this trial: it is its own eval piece (classes/apex-base/evals/injection/), built on the runner this trial picks.
 
 Everything below is settled without a paid run.
 
