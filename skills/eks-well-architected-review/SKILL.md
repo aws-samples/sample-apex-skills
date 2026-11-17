@@ -393,7 +393,7 @@ python3 -B ${CLAUDE_SKILL_DIR}/assets/render-report.py "$PWD/eks-war-<CLUSTER>" 
 volume IDs, security group and subnet IDs, and IAM role/OIDC ARNs — which carry the AWS account ID — and
 those identifiers should be masked before it leaves the cluster owner's circle.
 **Say *the work directory* is internal, not just `report.html`**: `results.jsonl` and the collected JSON
-name the same identifiers. The work directory also holds the raw, unredacted JSON of every pod, deployment, StatefulSet, DaemonSet, Job and CronJob (`pods.json`, `deployments.json`, `statefulsets.json`, `daemonsets.json`, `jobs.json`, `cronjobs.json`), so every container's literal `env` values, `command` and `args` are on disk, along with the full `aws-auth`, `amazon-vpc-cni` and `aws-logging` ConfigMaps (`awsauth.json`, `vpccniconfig.json`, `awslogging.json`) and a `kubeconfig`. Secrets are not collected, but credentials set directly in `env` are: treat the work directory as credential material, keep it out of version control and delete it after the review. Detail: [references/workflow.md](references/workflow.md) §*Step 8 detail: themes, the internal report, resource lists and what the renderer reads*.
+name the same identifiers, and the collected workload JSON holds every container's literal env values and arguments: treat the work directory as credential material, keep it out of version control and delete it after the review. Detail: [references/workflow.md](references/workflow.md) §*Step 8 detail: themes, the internal report, resource lists and what the renderer reads*.
 
 Tell the user where the file is and summarise the headline result in chat: the technical score and
 rating (or the withheld/not-viable reason), the per-pillar table, and the top 3 priorities — and, where
