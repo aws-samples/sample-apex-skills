@@ -24,5 +24,5 @@ checks:
     status: exists
     run: "python3 -B misc/tests/test_service_eks_preflight.py -v"
   - id: live-cluster-eval
-    what: "evals/live-cluster/evals.json: the preflight and the core reads against one throwaway sandbox cluster; run by hand, not in CI; evals 1-7 run by hand once for this PR, evals 8-9 written, not run"
+    what: "evals/live-cluster/evals.json: the preflight and the core reads against one throwaway sandbox cluster; run by hand, not in CI; evals 1-7 run by hand once for this PR, before review round 1 changed evals 2, 5 and 7, evals 8-9 written, not run"
     status: exists

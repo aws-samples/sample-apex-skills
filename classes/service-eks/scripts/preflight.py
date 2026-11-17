@@ -29,12 +29,14 @@ restore is for a skill that switched the context: given the context check record
 switches back when the current context differs, and says which context is set when none
 was recorded.
 
-Output: one JSON object on stdout, except argparse usage errors (stderr, exit 64). Exit 0 ok, 2 stop (a check failed: show "message" to
+Output: one JSON object on stdout, except usage errors (argparse, stderr, exit 64), `--help` (argparse text on
+stdout, exit 0) and an unexpected crash such as undecodable tool output (traceback, exit 1). Exit 0 ok, 2 stop (a check failed: show "message" to
 the user and do not read the cluster), 64 bad usage. Stdlib only.
 """
 
 import argparse
 import json
+import shlex
 import shutil
 import subprocess
 import sys
@@ -77,7 +79,7 @@ def parse_read(spec):
     if verb not in READ_VERBS:
         raise ValueError("--read %r: verb must be one of %s" % (spec, ", ".join(READ_VERBS)))
     if resource.split("/")[0].split(".")[0] in ("secret", "secrets", "*"):
-        raise ValueError("--read %r: Secrets are never read (apex.no-secrets)" % spec)
+        raise ValueError("--read %r: Secrets, or a wildcard that could include them, are never read (apex.no-secrets)" % spec)
     return {"verb": verb, "resource": resource, "namespace": ns}
 
 
@@ -124,7 +126,7 @@ def check(args):
     rc, endpoint, err = run(["aws", "eks", "describe-cluster", "--name", args.cluster, "--region", args.region,
                              "--query", "cluster.endpoint", "--output", "text"])
     if rc != 0 or not endpoint or endpoint == "None":
-        return stop("describe_cluster_failed", "aws eks describe-cluster for %s in %s failed (it needs eks:DescribeCluster): %s"
+        return stop("describe_cluster_failed", "aws eks describe-cluster for %s in %s failed (check the name and region; the call needs eks:DescribeCluster): %s"
                     % (args.cluster, args.region, err or endpoint or "empty"), recorded_context=recorded)
     if norm_endpoint(server) != norm_endpoint(endpoint):
         return stop("endpoint_mismatch",
@@ -158,11 +160,11 @@ def check(args):
                     "skill needs:\n%s\nNo cluster read was made. For a denied read, ask the cluster admin to "
                     "grant these verbs on these resources (an access entry on an API or API_AND_CONFIG_MAP "
                     "cluster; the aws-auth ConfigMap on CONFIG_MAP). For a "
-                    "failed check, fix the credentials or the network first. Then run the preflight again."
+                    "failed check, ask the user to fix the credentials or the network first. Then run the preflight again."
                     % (ctx, len(missing), "\n".join(lines)),
                     recorded_context=recorded, missing=missing)
 
-    flags = "--context %s" % ctx + (" --kubeconfig %s" % args.kubeconfig if args.kubeconfig else "")
+    flags = "--context %s" % shlex.quote(ctx) + (" --kubeconfig %s" % shlex.quote(args.kubeconfig) if args.kubeconfig else "")
     return {"status": "ok", "context": ctx, "cluster": args.cluster, "region": args.region,
             "endpoint": endpoint, "recorded_context": recorded, "can_i": results,
             "message": "Context %r is bound to cluster %s and every read passed the can-i check. "
