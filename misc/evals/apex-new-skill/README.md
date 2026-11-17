@@ -6,7 +6,7 @@ The `apex-new-skill` skill teaches a contributor how to add a skill, or a class 
 
 ## Neighbour-skill disambiguation
 
-The closest siblings are `skill-creator` (drafting and tuning a skill's content) and `update-docs` (syncing docs after any skill change). The rest of the negatives are vendored-skill edits, an EKS service skill (`eks-design` also writes ADRs, for a customer's cluster), an ADR with no skill change, and generic catch-alls.
+The closest siblings are `skill-creator` (drafting and tuning a skill's content) and `update-docs` (syncing docs after any skill change). The rest of the negatives are vendored-skill edits, an EKS service skill (`eks-design` also writes ADRs, for a customer's cluster), an ADR that changes no skill and no class, and generic catch-alls.
 
 <!-- SIBLING_MAP_START -->
 - **`skill-creator`** (create, edit, optimize and benchmark skill content), negatives 14, 15, 22 ("tighten my skill's description", "benchmark my skill", "Rewrite the troubleshooting section of skills/eks-recon/SKILL.md").
