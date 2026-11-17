@@ -243,7 +243,7 @@ Assemble one top-level key per module, each emitted **verbatim in the canonical 
 Include a `report` metadata block alongside the canonical module blocks in every
 new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
 report (reuse the filename's clock reading where applicable). Set `schema_revision`
-to `eks-recon/2026-10-31`, identifying the fact definitions used here, not a promised
+to `eks-recon/2026-11-11`, identifying the fact definitions used here, not a promised
 versioned API. Update this marker when fact types, value sets or meanings change,
 and document affected comparison boundaries in the comparison reference.
 `unconfirmed_paths` lists canonical dot-separated field paths whose reads were incomplete or denied;
@@ -254,7 +254,7 @@ This metadata is not a recon module and is excluded from module counts and delta
 
 ```yaml
 report:
-  schema_revision: "eks-recon/2026-10-31"
+  schema_revision: "eks-recon/2026-11-11"
   generated_at: "2026-10-29T08:30:00Z"  # actual report time, not this example
   unconfirmed_paths: []                # e.g. [security.authentication.access_entries]
 ```
@@ -265,7 +265,7 @@ report:
 # EKS Reconnaissance Report — illustrative envelope only.
 # Canonical shape per module = references/<module>.md "## Output Schema".
 report:              # metadata defined above; not a module
-  schema_revision: "eks-recon/2026-10-31"
+  schema_revision: "eks-recon/2026-11-11"
   generated_at: "2026-10-29T08:30:00Z"  # replace with actual report time
   unconfirmed_paths: []
 cluster:              # shape: references/cluster-basics.md "## Shared Cluster Block"

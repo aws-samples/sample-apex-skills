@@ -280,7 +280,8 @@
         "Reports vpc-cni version v1.19.0-eksbuild.1 to v1.19.2-eksbuild.1, subnet-a free IPs 200 to 199, removed/added access principal ARNs, and reader role v1 to v2.",
         "Does not report list reordering, coredns, subnet-b, viewer, storage, or report metadata as changed facts.",
         "Preserves prior.yaml and retains current facts in YAML, with no historical delta inside module blocks.",
-        "Reports the add-on service_account_role ARN to null as a confirmed absence change and reports orderedStages array reversal, while ignoring inventory reordering."
+        "Reports the add-on service_account_role ARN to null as a confirmed absence change and reports orderedStages array reversal, while ignoring inventory reordering.",
+        "Preserves current security.image_security.admission_policies: true and lists that path under Comparison coverage because the selector semantics changed across revisions. Other confirmed security deltas still appear."
       ],
       "files": [
         "eval-3/prior.yaml",
@@ -372,7 +373,7 @@
           {
             "type": "contains",
             "file": "reports/delta.yaml",
-            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-11-11[\\\"\\x27]?[ \\t]*$"
           },
           {
             "type": "contains",
@@ -383,6 +384,21 @@
             "type": "contains",
             "file": "reports/delta.yaml",
             "pattern": "(?m)^  unconfirmed_paths:"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^    admission_policies:[ \\t]*true[ \\t]*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?is)### Comparison coverage.*security\\.image_security\\.admission_policies"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/delta.md",
+            "pattern": "(?im)^\\|[ \\t]*(?:Added|Removed|Changed)[ \\t]*\\|[^|\\n]*admission_policies"
           },
           {
             "type": "not-contains",
@@ -463,7 +479,7 @@
           {
             "type": "contains",
             "file": "reports/delta.yaml",
-            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-11-11[\\\"\\x27]?[ \\t]*$"
           },
           {
             "type": "contains",
@@ -552,7 +568,7 @@
           {
             "type": "contains",
             "file": "reports/delta.yaml",
-            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-11-11[\\\"\\x27]?[ \\t]*$"
           },
           {
             "type": "contains",
@@ -622,7 +638,7 @@
           {
             "type": "contains",
             "file": "reports/delta.yaml",
-            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-11-11[\\\"\\x27]?[ \\t]*$"
           },
           {
             "type": "contains",
