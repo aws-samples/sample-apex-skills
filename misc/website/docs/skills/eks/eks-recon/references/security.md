@@ -413,10 +413,10 @@ public.ecr.aws/aws-observability/aws-otel-collector:v0.35.0
    def pod_kind: any(.kinds[]?; . == "Pod" or . == "*");
    .items[]
    | select(any(.spec.rules[]?.match;
-       (.resources | pod_kind)
-       or any(.any[]?.resources; pod_kind)
-       or (any(.all[]?.resources; pod_kind)
-           and all(.all[]?.resources; (.kinds // [] | length == 0) or pod_kind))))
+       if (.any // [] | length) > 0 then any(.any[].resources; pod_kind)
+       elif (.all // [] | length) > 0 then all(.all[].resources; pod_kind)
+       else .resources | pod_kind
+       end))
    | .metadata.name')
 
 # Gatekeeper constraints
@@ -432,20 +432,24 @@ public.ecr.aws/aws-observability/aws-otel-collector:v0.35.0
    | .metadata.name')
 ```
 
-Run the two queries separately and check each exit status. These selectors show kind
-eligibility. Exclusions, namespace or label filters, rule bodies, and enforcement
-mode can further restrict what happens to a Pod. Kyverno kind spellings other than
-literal `Pod` and `*` are outside this check.
+Run the queries separately and check each exit status. A kubectl discovery error
+saying `the server doesn't have a resource type` for the requested resource means
+it is absent when discovery succeeded. Treat `Forbidden`, discovery failures, and
+other errors as incomplete reads, even when they produce no names.
 
-Set `admission_policies: true` when a selector matches. Use `false` when complete
-observations establish no Pod-targeting match among the inspected policy resources,
-including when the resources are confirmed absent or both inventories are confirmed
-empty. For a populated inventory, inspect the `match` fields in the policy objects
-supplied to the selectors before using `false`. When there is no match, use `null`
-if a read is incomplete or a selector cannot be evaluated (for example, it uses
-an unsupported kind spelling). In that case, mark
-`security.image_security.admission_policies` as `unconfirmed` in Coverage with the
-reason. Empty selector output alone is inconclusive.
+These selectors show kind eligibility. Kyverno `spec.admission: false`,
+Gatekeeper `spec.match.source`, exclusions, namespace or label filters, rule bodies,
+and enforcement mode can further restrict what happens to a Pod.
+
+Set `admission_policies: true` when a selector matches. Before reporting `false`,
+confirm complete inventories or resource absence and inspect every entry in the
+Kyverno `kinds` lists on the applicable match path. Count a kind as a confirmed
+nonmatch only if it is a plain, exact name for another kind (such as `Service`).
+Qualified or pattern spellings such as `v1/Pod`, `*/Pod`, and `Po*` are not matched
+by jq and leave the result inconclusive unless another policy matches. When there is no
+confirmed match and a read or selector is inconclusive, use `null`, mark
+`security.image_security.admission_policies` as `unconfirmed` in Coverage with
+the reason, and list the path in `report.unconfirmed_paths`.
 
 ### 7. RBAC Summary
 

@@ -278,9 +278,10 @@ version `ghcr.io/kyverno/kyverno:v1.11.4`; ClusterPolicies 12; Policies 3.
 - **Deployment:** `Deployment`, group/version `apps/v1`, name `gatekeeper-controller-manager`,
   namespace `gatekeeper-system`. Presence = Gatekeeper installed. Read
   `spec.template.spec.containers[0].image` and parse the tag for the version (target by name).
-- **Constraint counts:** `constraints` (the aggregate constraint resources) and
-  `constrainttemplates`. Count resources directly.
-- **RBAC verbs:** `get`, `list` on `deployments.apps`, `constraints`, `constrainttemplates`.
+- **Constraint counts:** discover and list each kind in the `constraints.gatekeeper.sh`
+  API group and list `constrainttemplates.templates.gatekeeper.sh`. Count resources directly.
+- **RBAC verbs:** `get`, `list` on `deployments.apps`, the discovered constraint kinds,
+  and `constrainttemplates.templates.gatekeeper.sh`.
 
 **Example facts (Gatekeeper detected):** deployment `gatekeeper-controller-manager` present;
 version `openpolicyagent/gatekeeper:v3.15.0`; ConstraintTemplates 8; Constraints 15.
@@ -365,29 +366,35 @@ tells you ECR repositories exist, not that anything pulls from them).
 **Via Kubernetes API** — Pod admission policy selectors:
 
 - **Kyverno:** list `ClusterPolicy` (`clusterpolicies.kyverno.io`). A rule matches by
-  kind if its legacy `match.resources.kinds` contains literal `Pod` or `*`, or any
-  `match.any[].resources.kinds` does. For `match.all`, at least one branch must list
-  `Pod` or `*` and every branch with kinds must allow it. Report the names of
-  policies with any matching rule. Other kind spellings are outside this check.
-- **Gatekeeper:** list `constraints`. Skip constraints with `spec.match.scope: Cluster`.
+  kind when its applicable `kinds` list contains literal `Pod` or `*`. Use any branch
+  of a nonempty `match.any`, otherwise require every branch of a nonempty `match.all`,
+  otherwise use legacy `match.resources.kinds`. Report policies with any matching rule.
+- **Gatekeeper:** discover and list each constraint kind in the
+  `constraints.gatekeeper.sh` API group. Skip constraints with `spec.match.scope: Cluster`.
   An omitted or empty `spec.match.kinds` allows Pods by kind. Otherwise, at least one
   entry must allow both the core API group and `Pod`. For each entry, omitted or empty
   `apiGroups` and `kinds` allow any group and any kind respectively. Nonempty lists
   must contain the relevant value (empty string for the core group, `Pod` for kind)
   or `*`. Report matching constraint names.
-- **RBAC verbs:** `get`, `list` on `clusterpolicies.kyverno.io`, `constraints`.
+- **RBAC verbs:** `get`, `list` on `clusterpolicies.kyverno.io` and the discovered constraint kinds.
 
-These selectors show kind eligibility. Exclusions, namespace or label filters,
-rule bodies, and enforcement mode can further restrict what happens to a Pod.
-Set `admission_policies: true` when a selector matches. Use `false` when complete
-observations establish no Pod-targeting match among the inspected policy resources,
-including when the resources are confirmed absent or both inventories are confirmed
-empty. For a populated inventory, inspect the `match` fields in the policy objects
-supplied to the selectors before using `false`. When there is no match, use `null`
-if a read is incomplete or a selector cannot be evaluated (for example, it uses
-an unsupported kind spelling). In that case, mark
-`security.image_security.admission_policies` as `unconfirmed` in Coverage with the
-reason. Empty selector output alone is inconclusive.
+Use successful API discovery to confirm that a resource type is absent. Treat
+`Forbidden`, failed discovery, or a failed list for any discovered kind as
+an incomplete read.
+
+These selectors show kind eligibility. Kyverno `spec.admission: false`,
+Gatekeeper `spec.match.source`, exclusions, namespace or label filters, rule bodies,
+and enforcement mode can further restrict what happens to a Pod.
+
+Set `admission_policies: true` when a selector matches. Before reporting `false`,
+confirm complete inventories or resource absence and inspect every entry in the
+Kyverno `kinds` lists on the applicable match path. Count a kind as a confirmed
+nonmatch only if it is a plain, exact name for another kind (such as `Service`).
+Qualified or pattern spellings such as `v1/Pod`, `*/Pod`, and `Po*` leave the result
+inconclusive unless another policy matches. When there is no confirmed match and
+a read or selector is inconclusive, use `null`, mark
+`security.image_security.admission_policies` as `unconfirmed` in Coverage with
+the reason, and list the path in `report.unconfirmed_paths`.
 
 **Example facts (ECR images found):**
 ```

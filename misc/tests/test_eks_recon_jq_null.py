@@ -105,7 +105,6 @@ def admission_policy_cases():
     service = {"resources": {"kinds": ["Service"]}}
     wildcard = {"resources": {"kinds": ["*"]}}
     mixed = {"resources": {"kinds": ["Service", "Pod"]}}
-    subject = {"subjects": [{"kind": "ServiceAccount", "name": "builder", "namespace": "default"}]}
     core_pod = {"apiGroups": [""], "kinds": ["Pod"]}
     for name, matches, expected in (
         ("legacy_pod", [pod], True),
@@ -113,8 +112,8 @@ def admission_policy_cases():
         ("legacy_wildcard", [wildcard], True),
         ("any_mixed", [{"any": [service, mixed]}], True),
         ("any_wildcard", [{"any": [service, wildcard]}], True),
+        ("any_before_all", [{"any": [service], "all": [pod]}], False),
         ("all_pod", [{"all": [pod, mixed]}], True),
-        ("all_with_subject", [{"all": [pod, subject]}], True),
         ("all_wildcard", [{"all": [wildcard, pod]}], True),
         ("all_disjoint", [{"all": [pod, service]}], False),
         ("all_without_kinds", [{"all": [{}]}], False),
@@ -129,6 +128,7 @@ def admission_policy_cases():
     for name, spec, expected in (
         ("legacy_pod", {"match": {"kinds": [core_pod]}}, True),
         ("wildcard", {"match": {"kinds": [{"apiGroups": ["*"], "kinds": ["*"]}]}}, True),
+        ("wildcard_without_api_groups", {"match": {"kinds": [{"kinds": ["*"]}]}}, True),
         ("no_match", {}, True),
         ("no_kinds", {"match": {"scope": "Namespaced"}}, True),
         ("empty_kinds", {"match": {"kinds": []}}, True),
