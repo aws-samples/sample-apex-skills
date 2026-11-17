@@ -1057,7 +1057,9 @@ def process_skill(
     metrics = enrich_metrics(raw, triggering, sibling_map, unmatched, snapshot)
     run_dir = persist_artifacts(skill, snapshot["started_at"], raw, metrics)
 
-    append_history(skill, history_compact_entry(metrics))
+    entry = history_compact_entry(metrics)
+    entry["claude_version"] = raw.get("confined_claude_version")
+    append_history(skill, entry)
 
     # Re-read history after append so the detail block reflects the row we just wrote.
     history_after = read_history(skill)
