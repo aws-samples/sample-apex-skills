@@ -221,6 +221,7 @@ first_sentence() {
 # on a skill with no line or no group here.
 SKILL_META="$(cat <<'META'
 apex	APEX Router: pick the right EKS or ECS skill	Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills	Set up and extend
+apex-new-skill	APEX New Skill: add a skill or a class change to the repo	Add a new skill or a class change to the APEX repo: classes, SKILL_META line, eval set, generators, CI checks, ADR, design-doc note and pull request	Set up and extend
 dotnet-aws-ecs	.NET on Amazon ECS: Fargate with CloudFormation or CDK	Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide	Day 1 Build
 ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS compute model and launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing	Day 0 Design
 ecs-build	ECS Build: apply-ready Terraform for Amazon ECS	Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances	Day 1 Build

@@ -1,0 +1,215 @@
+{
+  "skill_name": "apex-new-skill",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to add a new in-house skill called ecs-service-connect to the APEX skills repo. I have a draft SKILL.md already. Tell me exactly which files I need, which commands to run, and in what order, up to opening the pull request. Step 1 answers, so do not ask; proceed: name ecs-service-connect; scope: configuring Amazon ECS Service Connect for service-to-service traffic, for platform engineers; trigger prompts: 'set up ECS Service Connect', 'service discovery between my ECS services', 'Service Connect or Cloud Map', 'route traffic between ECS services without a load balancer', 'troubleshoot Service Connect timeouts'; kind: knowledge; target service: ECS; classes: none for now. You have my yes to proceed.",
+      "expectations": [
+        "Says to stage files by explicit path (for example git add skills/ecs-service-connect/) and says never to use git add -A or git add .",
+        "Says to run ./misc/update-all-references.sh and ./misc/update-pages.sh only after the new skill folder is staged, because update-pages.sh lists sources with git ls-files",
+        "Says misc/evals/ecs-service-connect/triggering.json is required with at least 16 prompts: at least 8 that should trigger and at least 8 near-miss negatives",
+        "Says evals.json needs at least 2 prompts with at least 3 expectations each, the floor check_hygiene.py enforces in CI",
+        "Says the SKILL.md front matter must not carry a license field for an in-house skill",
+        "Says to push a feature branch of the contributor's fork and open the pull request from it, never pushing to main",
+        "Says to add the skill's SKILL_META line to misc/update-pages.sh (folder, page title, a summary under 160 characters and a README group) before running the generators",
+        "Says to draft an ADR under docs/adr/ with Status Proposed, a design-doc note and a fact check section for the pull request body, and asks before drafting a blog"
+      ],
+      "live_only": false,
+      "files": [],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Skill",
+          "min": 1,
+          "args_match": {
+            "skill": "apex-new-skill"
+          }
+        },
+        {
+          "type": "step-count",
+          "min": 1,
+          "max": 30
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "triggering.json",
+          "context": "Must name the triggering eval file CONTRIBUTING.md requires",
+          "source": "skills/apex-new-skill/references/evals.md, section 2"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "update-pages",
+            "update-all-references"
+          ],
+          "context": "Must name the docs generators",
+          "source": "skills/apex-new-skill/references/repo-checks.md, section Generators"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "git add skills/",
+            "explicit path"
+          ],
+          "context": "Must teach explicit-path staging",
+          "source": "skills/apex-new-skill/SKILL.md, rule 1"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "SKILL_META",
+          "context": "Must name the SKILL_META line a new skill needs",
+          "source": "skills/apex-new-skill/SKILL.md, step 5"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My skill eks-node-diagnostics landed in skills/ last month without any eval set, and now the evals CI job and check-evals-coverage fail. Retrofit it: what do I add, how do I update the sibling skills, and how do I get it committed and reviewed? Step 1 answers, so do not ask; proceed: name eks-node-diagnostics; scope: diagnosing unhealthy EKS worker nodes, for cluster operators; trigger prompts: 'why is my EKS node NotReady', 'diagnose node pressure on EKS', 'kubelet keeps restarting on my node', 'EKS node failed to join the cluster', 'check node health across my EKS cluster'; kind: discovery; target service: EKS; classes: none for now. You have my yes to proceed.",
+      "expectations": [
+        "Identifies this as the retrofit mode and does not rewrite the existing SKILL.md unless asked",
+        "Says to scaffold misc/evals/eks-node-diagnostics/ (make init-evals SKILL=eks-node-diagnostics, optionally with SIBLINGS=) and fill triggering.json with at least 8 positives and at least 8 near-miss negatives",
+        "Says every negative in triggering.json must be attributed in the README SIBLING_MAP block, and each sibling's eval set is updated with update_sibling_map.py in the same pull request",
+        "Says to run check_hygiene.py (or make init-evals-finalize SKILL=eks-node-diagnostics) and get exit 0 before opening the pull request",
+        "Says to stage by explicit path and to open the pull request from a branch, not push to main"
+      ],
+      "live_only": false,
+      "files": [],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Skill",
+          "min": 1,
+          "args_match": {
+            "skill": "apex-new-skill"
+          }
+        },
+        {
+          "type": "step-count",
+          "min": 1,
+          "max": 30
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "SIBLING_MAP",
+          "context": "Must name the sibling-map block the hygiene check parses",
+          "source": "skills/apex-new-skill/references/evals.md, section 4"
+        },
+        {
+          "type": "must-contain-one-of",
+          "patterns": [
+            "check_hygiene",
+            "init-evals-finalize"
+          ],
+          "context": "Must name the hygiene check CI runs",
+          "source": "skills/apex-new-skill/references/evals.md, section 6"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "update_sibling_map",
+          "context": "Must name the helper that updates each sibling's eval set",
+          "source": "skills/apex-new-skill/references/evals.md, section 5"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Before I open my PR for a new skill in this repo, which checks should I run locally, and what does each one catch?",
+      "expectations": [
+        "Lists python3 misc/validate-frontmatter.py, ./misc/update-all-references.sh --check and ./misc/update-pages.sh --check as the docs-sync checks",
+        "Lists python3 misc/evals/scripts/check_hygiene.py as the evals CI check",
+        "Says the description is capped at 1024 characters",
+        "Says generated files are never hand-edited: the generators are rerun and their output staged by path"
+      ],
+      "live_only": false,
+      "files": [],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Skill",
+          "min": 1,
+          "args_match": {
+            "skill": "apex-new-skill"
+          }
+        },
+        {
+          "type": "step-count",
+          "min": 1,
+          "max": 20
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "validate-frontmatter",
+          "context": "Must name the front matter validator",
+          "source": "skills/apex-new-skill/references/repo-checks.md, section Checks"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "--check",
+          "context": "Must run the generators in check mode",
+          "source": "skills/apex-new-skill/references/repo-checks.md, section Checks"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "1024",
+          "context": "Must state the description length cap",
+          "source": "skills/apex-new-skill/SKILL.md, rule 4"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I want to add a rule to classes/apex-base/rules.md in the APEX skills repo: every report a skill writes says which skill version produced it. Walk me through everything this change needs before I open the pull request. It adds no new skill, and you have my yes to proceed.",
+      "expectations": [
+        "Identifies this as a class change, not a new skill, and reads classes/steward/class.yaml for the generators to run",
+        "Runs or names each Steward generator whose status is exists, and names python3 misc/sync-classes.py as planned and not run while its status is planned",
+        "Drafts an ADR at docs/adr/NNNN-<slug>.md using the next unused number, with Status Proposed, and adds its row to docs/adr/README.md",
+        "Drafts a design-doc note as an edit to docs/design/skill-design.md",
+        "Drafts a Fact check section for the pull request body, with a checked on date for each version or service claim, or says the change makes none",
+        "Asks the contributor whether they want a blog draft before writing one, and does not write one under misc/website/blog/"
+      ],
+      "live_only": false,
+      "files": [],
+      "process_assertions": [
+        {
+          "type": "tool-called",
+          "tool": "Skill",
+          "min": 1,
+          "args_match": {
+            "skill": "apex-new-skill"
+          }
+        },
+        {
+          "type": "step-count",
+          "min": 1,
+          "max": 30
+        }
+      ],
+      "knowledge_assertions": [
+        {
+          "type": "must-contain",
+          "pattern": "docs/adr/",
+          "context": "Must draft the ADR in the ADR folder",
+          "source": "skills/apex-new-skill/SKILL.md, step 7"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "Proposed",
+          "context": "A drafted ADR starts as Proposed",
+          "source": "skills/apex-new-skill/SKILL.md, step 7"
+        },
+        {
+          "type": "must-contain",
+          "pattern": "skill-design.md",
+          "context": "Must draft the design-doc note",
+          "source": "skills/apex-new-skill/SKILL.md, step 7"
+        }
+      ]
+    }
+  ]
+}

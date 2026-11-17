@@ -1,0 +1,25 @@
+[
+  {"query": "How do I add a new skill to this repo?", "should_trigger": true},
+  {"query": "I want to contribute a new skill for ECS service autoscaling to sample-apex-skills. What do I need to do?", "should_trigger": true},
+  {"query": "I finished drafting my skill. How do I open a PR for it against aws-samples/sample-apex-skills?", "should_trigger": true},
+  {"query": "My skill was merged without an eval set. Help me retrofit its triggering.json, evals.json and sibling map so the hygiene check passes.", "should_trigger": true},
+  {"query": "What is the checklist before I submit a pull request that adds a new skill to the APEX repo?", "should_trigger": true},
+  {"query": "Walk me through onboarding a new skill here: folder layout, frontmatter, evals, regenerating the docs and the PR.", "should_trigger": true},
+  {"query": "First time contributing to the APEX skills repo: how do I fork it, branch, and commit my new skill without pulling unrelated files into the PR?", "should_trigger": true},
+  {"query": "The docs-sync job failed on my new-skill PR because the website wrapper for my skill is missing. Which step did I skip?", "should_trigger": true},
+  {"query": "Does my new in-house skill need a license field in its SKILL.md, and what else does this repo require before I submit it?", "should_trigger": true},
+  {"query": "I want to submit a skill for Amazon MSK to this repo. How should I name it and which files does the PR need?", "should_trigger": true},
+  {"query": "I am adding a new EKS skill here. Which classes under classes/ should it join, and what goes in its metadata.apex-classes line?", "should_trigger": true},
+  {"query": "I changed classes/apex-base/rules.md. What else does this repo need from me: the ADR, the design doc note, and the regenerated copies?", "should_trigger": true},
+  {"query": "My new skill's PR failed because it has no SKILL_META line in misc/update-pages.sh. Draft the line and tell me what else I missed.", "should_trigger": true},
+
+  {"query": "Help me tighten my skill's description so it triggers more reliably, and run the description optimization loop on it.", "should_trigger": false},
+  {"query": "Benchmark my skill with and without the skill loaded and show me the variance analysis across runs.", "should_trigger": false},
+  {"query": "Edit skills/terraform-skill/SKILL.md to add a section on our Terraform module naming conventions.", "should_trigger": false},
+  {"query": "What is running on my EKS cluster? Detect the compute strategy, add-ons and IaC tooling.", "should_trigger": false},
+  {"query": "I edited the description of eks-recon. Sync every README marker block and Docusaurus wrapper that still shows the old text.", "should_trigger": false},
+  {"query": "Design the architecture for a new production EKS cluster for a regulated workload, with ADRs and diagrams.", "should_trigger": false},
+  {"query": "How do I open a pull request on GitHub for a bug fix in my Django project?", "should_trigger": false},
+  {"query": "How do I install the APEX skills into Kiro with npx apex-skills?", "should_trigger": false},
+  {"query": "Should I use Karpenter or managed node groups for a new production EKS cluster?", "should_trigger": false}
+]
