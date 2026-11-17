@@ -51,7 +51,7 @@ Each infra blueprint is a Terraform root under `infra/<name>/terraform`.
 
 1. **Clone the repo:** `git clone https://github.com/awslabs/ai-on-eks.git`
 2. **Pick an infra blueprint** (`infra/base`, `infra/jark-stack`, or `infra/trainium-inferentia`) matching your workload.
-3. **Deploy with Terraform:** `cd infra/<blueprint>/terraform && terraform init && terraform apply` (or use the blueprint's `install.sh`). <!-- customer-run -->
+3. **Deploy with Terraform:** `cd infra/<blueprint>/terraform && terraform init && terraform apply` (or use the blueprint's `install.sh`).
 4. **Layer an inference/training blueprint** on top for the specific model/framework.
 5. **Add gateway + observability** (LiteLLM, Langfuse, kube-prometheus-stack) from the workshop patterns.
 

@@ -276,7 +276,7 @@ Features **not available** in the managed capability (use self-managed if you ne
 - **Single namespace:** All ArgoCD CRs (Application, ApplicationSet, AppProject) must be created in one namespace (default: `argocd`). Workloads deploy to any namespace in any target cluster.
 - **Only EKS targets:** Deployment targets must be EKS clusters identified by ARN (not arbitrary Kubernetes API server URLs).
 - **Local cluster not auto-registered:** You must explicitly register the local cluster using its ARN to deploy to it.
-- **CLI differences:** Use `argocd app sync namespace/appname` (namespace prefix required). `argocd admin` and `argocd login` are not supported — use account or project tokens. <!-- customer-run -->
+- **CLI differences:** Use `argocd app sync namespace/appname` (namespace prefix required). `argocd admin` and `argocd login` are not supported — use account or project tokens.
 - **Namespace isolation:** Keep only ArgoCD-relevant secrets in the ArgoCD namespace — the capability has access to all secrets in its namespace.
 
 ### When to Use EKS Managed vs Self-Managed

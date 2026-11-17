@@ -63,7 +63,6 @@
 
 ### Enable Container Insights
 
-<!-- customer-run -->
 ```bash
 # Enable via EKS add-on (recommended -- enables both Container Insights and Application Signals)
 aws eks create-addon \
@@ -140,7 +139,6 @@ Application Signals is the simplest path to APM on EKS -- if you're already usin
 
 **Chart version:** `<chart-version>` is a placeholder, here and at every other `<chart-version>` in this file. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
-<!-- customer-run -->
 ```bash
 # Create AMP workspace
 aws amp create-workspace --alias my-cluster-metrics
@@ -275,7 +273,6 @@ The Elastic Network Adapter (ENA) driver exposes metrics that reveal network-lev
 
 Deploy Prometheus Node Exporter with the ethtool collector:
 
-<!-- customer-run -->
 ```bash
 helm upgrade -i prometheus-node-exporter prometheus-community/prometheus-node-exporter --version <chart-version> \
   --set extraArgs[0]="--collector.ethtool" \
@@ -311,7 +308,6 @@ Remediation:
 
 There is no `aws-for-fluent-bit` EKS add-on (as of 2026-08-04). Two supported paths:
 
-<!-- customer-run -->
 ```bash
 # Recommended: the CloudWatch Observability EKS add-on installs Fluent Bit
 # for CloudWatch Logs (alongside Container Insights and Application Signals)
@@ -436,7 +432,6 @@ GPU Utilization alone is misleading -- 100% can mean one lightweight kernel or f
 
 The CloudWatch Observability add-on auto-deploys DCGM Exporter on GPU nodes. Alternatively, deploy DCGM Exporter manually with Prometheus:
 
-<!-- customer-run -->
 ```bash
 helm install dcgm-exporter gpu-helm-charts/dcgm-exporter --version <chart-version> \
   --namespace monitoring --create-namespace
@@ -458,7 +453,6 @@ These frameworks expose Prometheus endpoints -- scrape them alongside DCGM Expor
 
 ### EKS Audit Logging
 
-<!-- customer-run -->
 ```bash
 # Enable all control plane log types
 aws eks update-cluster-config \
@@ -508,13 +502,11 @@ The kube-apiserver audit log does record these events: a fail-open admission sur
 Alarm on these the same way you alarm on 401/403 spikes — a CloudWatch Logs **metric filter** on the control-plane audit log group, paired with a CloudWatch **alarm**:
 
 > **Prerequisite:** EKS control-plane **audit logging is disabled by default**. Enable the `audit` log type first — nothing below matches until audit events reach the `/aws/eks/<cluster>/cluster` log group:
-> <!-- customer-run -->
 > ```bash
 > aws eks update-cluster-config --name my-cluster \
 >   --logging '{"clusterLogging":[{"types":["audit"],"enabled":true}]}'
 > ```
 
-<!-- customer-run -->
 ```bash
 # Metric filter: count audit records carrying a failed-open webhook annotation
 aws logs put-metric-filter \

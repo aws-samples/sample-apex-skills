@@ -53,7 +53,6 @@ Instead of assigning individual IPs, the CNI assigns /28 prefixes (16 IPs each) 
 
 **Enable prefix delegation:**
 
-<!-- customer-run -->
 ```bash
 kubectl set env daemonset aws-node \
   -n kube-system \
@@ -96,7 +95,6 @@ You must update the max-pods setting on nodes when enabling prefix mode — the 
 
 Assigns pod IPs from a different CIDR than node IPs, typically using a secondary VPC CIDR from CG-NAT space (100.64.0.0/10):
 
-<!-- customer-run -->
 ```bash
 # Enable custom networking
 kubectl set env daemonset aws-node -n kube-system \
@@ -117,7 +115,6 @@ spec:
 
 **Automate AZ-based ENIConfig selection** — name ENIConfigs after AZs and set:
 
-<!-- customer-run -->
 ```bash
 kubectl set env daemonset aws-node -n kube-system \
   ENI_CONFIG_LABEL_DEF=topology.kubernetes.io/zone
@@ -180,7 +177,6 @@ By default, VPC CNI inherits the node IAM role. This gives the CNI (and potentia
 
 **Strongly recommended:** Create a dedicated IAM role for the CNI with only `AmazonEKS_CNI_Policy` attached. Use IRSA or Pod Identity to bind it to the `aws-node` service account:
 
-<!-- customer-run -->
 ```bash
 # Specify CNI role when creating managed add-on
 aws eks create-addon --cluster-name my-cluster \
@@ -428,7 +424,6 @@ Security Groups for Pods assigns AWS security groups directly to individual pods
 
 **Disable TCP early demux** for liveness/readiness probes in strict mode:
 
-<!-- customer-run -->
 ```bash
 kubectl edit daemonset aws-node -n kube-system
 # Under initContainer, set:
@@ -441,7 +436,6 @@ kubectl edit daemonset aws-node -n kube-system
 
 **NAT for outbound:** Source NAT is disabled for pods with security groups. Deploy these pods on **private subnets** with a NAT gateway and enable external SNAT:
 
-<!-- customer-run -->
 ```bash
 kubectl set env daemonset -n kube-system aws-node AWS_VPC_K8S_CNI_EXTERNALSNAT=true
 ```

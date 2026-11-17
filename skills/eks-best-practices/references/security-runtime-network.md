@@ -82,7 +82,6 @@ Bottlerocket has SELinux enabled by default, providing an additional isolation l
 
 **Chart version:** `<chart-version>` is a placeholder. Ask the user whether to pin the chart or take the newest release. To pin, look up the chart's current version live (the chart's Artifact Hub page or releases page, or `helm search repo <chart> --versions` for repo charts) and use it; for the newest, drop `--version`. If the lookup fails, say so plainly and never guess a version.
 
-<!-- customer-run -->
 ```bash
 # Deploy Falco as a DaemonSet via Helm
 helm repo add falcosecurity https://falcosecurity.github.io/charts
@@ -106,7 +105,6 @@ helm install falco falcosecurity/falco --version <chart-version> \
 
 **Use EKS-native VPC CNI network policies (use VPC CNI v1.22.3+, see below):**
 
-<!-- customer-run -->
 ```yaml
 # Enable network policy support in VPC CNI
 # NOTE: pick a current v1.22.3 or later build from
@@ -355,7 +353,6 @@ Where you terminate TLS depends on your security policy:
 
 ### Enable EKS Audit Logging
 
-<!-- customer-run -->
 ```bash
 # Enable all log types
 aws eks update-cluster-config \

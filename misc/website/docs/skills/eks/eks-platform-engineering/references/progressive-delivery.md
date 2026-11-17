@@ -89,7 +89,6 @@ Verify: `kubectl get warehouse,stages -n <app>-kargo -o wide`; confirm the prod 
 
 ## Watching a rollout
 
-<!-- customer-run -->
 ```bash
 kubectl argo rollouts get rollout <name> -n <ns> -w     # live progression + gate status
 kubectl argo rollouts retry rollout <name> -n <ns>      # retry after a fix

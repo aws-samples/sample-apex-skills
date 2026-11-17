@@ -59,7 +59,6 @@ SBOMs provide visibility into what components make up your images. They're essen
 
 **Enable enhanced scanning with Inspector:**
 
-<!-- customer-run -->
 ```bash
 # Enable enhanced scanning (uses Amazon Inspector)
 aws ecr put-registry-scanning-configuration \
@@ -188,7 +187,6 @@ Automate node replacement to minimize human oversight — you'll need to replace
 
 Run [kube-bench](https://github.com/aquasecurity/kube-bench) to evaluate your cluster against the CIS Amazon EKS Benchmark:
 
-<!-- customer-run -->
 ```bash
 # Run kube-bench against EKS cluster
 kubectl apply -f https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-eks.yaml
@@ -291,8 +289,8 @@ The response shape (prepare, scope, record, contain, investigate, remediate, ver
 EKS-specific commands for the steps in [Security Operations](security-operations.md#responding-to-a-security-event), in the same order:
 
 2. **Record:** `kubectl get pod <pod> -n <namespace> -o yaml`, `kubectl logs <pod> -n <namespace>` (and `--previous`), the image digest and the node name
-3. **Contain:** the pod-scoped quarantine in [Security Operations](security-operations.md#containment-that-stays-pod-scoped), then `kubectl cordon <node-name>` <!-- customer-run -->
-4. **Investigate:** capture volatile state (processes, connections, memory where tooling exists, see the [AWS IR guide](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html); on EKS Auto Mode, with no SSH or SSM: `kubectl debug node/<node> -it --profile=sysadmin` for processes and connections, and a NodeDiagnostic for the node log bundle) before the pod or node is replaced; snapshot the node's EBS volumes (root and data) where the platform allows it; export CloudWatch Logs, audit logs and VPC Flow Logs <!-- customer-run -->
+3. **Contain:** the pod-scoped quarantine in [Security Operations](security-operations.md#containment-that-stays-pod-scoped), then `kubectl cordon <node-name>`
+4. **Investigate:** capture volatile state (processes, connections, memory where tooling exists, see the [AWS IR guide](https://docs.aws.amazon.com/eks/latest/best-practices/incident-response-and-forensics.html); on EKS Auto Mode, with no SSH or SSM: `kubectl debug node/<node> -it --profile=sysadmin` for processes and connections, and a NodeDiagnostic for the node log bundle) before the pod or node is replaced; snapshot the node's EBS volumes (root and data) where the platform allows it; export CloudWatch Logs, audit logs and VPC Flow Logs
 
 **Deleting, scaling down or draining destroys evidence; isolating does not, unless a liveness probe then fails and restarts the container.**
 

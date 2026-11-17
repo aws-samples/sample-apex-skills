@@ -209,7 +209,6 @@ The workflow is **manual-first, Karpenter-second**:
 
 > **IAM — spending authority:** `ec2:PurchaseCapacityBlock` (and `ec2:PurchaseCapacityBlockExtension`, for extensions) commits real money upfront. Scope it to FinOps/platform-admin roles, not to cluster operators or CI. Karpenter's node role never needs it — Karpenter only *consumes* the reservation, so its permissions cover launching/terminating instances, not purchasing capacity.
 
-<!-- customer-run -->
 ```bash
 aws ec2 describe-capacity-block-offerings \
   --instance-type p5.48xlarge --instance-count <COUNT> \

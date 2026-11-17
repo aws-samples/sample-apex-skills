@@ -107,8 +107,6 @@ Savings levers in priority order: (1) **Capacity Blocks** for planned multi-day 
 
 ## How to Use the References
 
-A command marked customer-run in references/ changes a cluster or account: run it only when the user explicitly asks for it, after showing the exact command and what it changes and getting a yes.
-
 Progressive disclosure — the essentials are above; load a reference only when the task needs that depth:
 
 | Reference | Load when the task is about… |
