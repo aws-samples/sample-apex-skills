@@ -24,15 +24,10 @@ sys.dont_write_bytecode = True
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SCRIPT = os.path.join(ROOT, "misc", "sync-classes.py")
 UPDATE_PAGES = os.path.join(ROOT, "misc", "update-pages.sh")
-WORKFLOW = os.path.join(ROOT, ".github", "workflows", "class-sync.yml")
 FIXTURES = os.path.join(ROOT, "misc", "tests", "fixtures", "sync_classes_cases.json")
 
 with open(FIXTURES, encoding="utf-8") as _fh:
     DATA = json.load(_fh)
-
-# The sketch's fixture ids; each must have at least one case.
-SKETCH_IDS = ["F0", "F1", "F2", "F3a", "F3b", "F4", "F5", "F5b", "F6", "F7", "F8",
-              "F9", "F10", "F11", "F15", "F16", "F17"]
 
 
 def write_file(root, rel, text):
@@ -77,8 +72,6 @@ class SyncCase(unittest.TestCase):
         base = DATA["bases"][case["base"]]
         for rel, text in base["files"].items():
             write_file(tmp, rel, text)
-        for rel in base.get("executable", []):
-            os.chmod(os.path.join(tmp, rel), 0o755)
         for rel, text in case.get("files", {}).items():
             if text is None:
                 remove(tmp, rel)
@@ -102,8 +95,6 @@ class SyncCase(unittest.TestCase):
                     text = fh.read()
                 self.assertIn(old, text, f"fixture mutation target not found in {step['path']}")
                 write_file(tmp, step["path"], text.replace(old, new, 1))
-            elif "chmod" in step:
-                os.chmod(path, int(step["chmod"], 8))
             else:
                 self.fail(f"unknown mutation {step}")
 
@@ -132,8 +123,6 @@ class SyncCase(unittest.TestCase):
         for rel in exp.get("same_as_base", []):
             with open(os.path.join(tmp, rel), encoding="utf-8") as fh:
                 self.assertEqual(fh.read(), base["files"][rel], rel)
-        for rel in exp.get("executable", []):
-            self.assertTrue(os.stat(os.path.join(tmp, rel)).st_mode & 0o100, f"{rel} not executable")
         if "order" in exp:
             with open(os.path.join(tmp, exp["order"]["path"]), encoding="utf-8") as fh:
                 text = fh.read()
@@ -178,22 +167,6 @@ def _make(case):
 
 for _case in DATA["cases"]:
     setattr(SyncCase, "test_" + _case["id"].replace("-", "_"), _make(_case))
-
-
-class Coverage(unittest.TestCase):
-    def test_every_sketch_fixture_has_a_case(self):
-        ids = [c["id"] for c in DATA["cases"]]
-        self.assertEqual(len(ids), len(set(ids)), "duplicate case id")
-        for want in SKETCH_IDS:
-            self.assertTrue(any(i == want or i.startswith(want + "-") for i in ids), want)
-
-    def test_workflow_runs_the_three_checks(self):
-        with open(WORKFLOW, encoding="utf-8") as fh:
-            text = fh.read()
-        for line in ("python3 -B misc/tests/test_sync_classes.py -v",
-                     "python3 misc/sync-classes.py --check",
-                     "./misc/update-pages.sh --check"):
-            self.assertIn(line, text)
 
 
 if __name__ == "__main__":

@@ -22,14 +22,17 @@ script:
      classes/<c>/scripts/<f> to scripts/<c_with_underscores>_<f> (a file that
      already carries its class prefix keeps its name);
   5. rewrites each import of a class file in a copied script to the flat
-     name (Python `import` and `from ... import`, shell `source` and `.`),
-     and fails on a reference it cannot rewrite (a computed path, an
-     importlib call, a dotted or relative import);
+     name (Python `import` and `from ... import`; shell `source` and `.` at
+     the start of a line or after `&&`, `;` or `then`), and fails on a
+     dotted or relative import of a class module, a dynamic-import call
+     whose argument is not a constant or names a class module, a Python
+     string literal naming a class .py file, and a sourced file with a
+     computed name;
   6. heads each copy "generated from classes/<c>/<f>, do not edit";
   7. fails when copied class text points to the apex skill (a path into
-     skills/apex/, ../apex/ or apex/, or a /apex or $apex command). A rule id
-     such as apex.mcp-first is a label and passes, and so does naming the
-     skill.
+     skills/apex/ or ../apex/, a bare apex/ path, or a /apex or $apex
+     command). A rule id such as apex.mcp-first is a label and passes, and
+     so does naming the skill.
 
 A class script declares its packages in itself (PEP 723 `# /// script`
 metadata for Python, a `# requires: <command> ...` line for shell), so the
@@ -43,19 +46,33 @@ Usage (from anywhere; paths are relative to the repo root):
 
 --check computes every expected file in memory, compares it with the files
 on disk, prints each difference and exits 1 on any. Every refusal (steps 2,
-5 and 7, an unreadable class or skill) stops both modes, and write mode runs
-every check before it writes anything, so a refused run leaves the tree as it
-was. --root points the script at another tree (the tests use it).
+5 and 7, an unreadable class file or SKILL.md) stops both modes, and write
+mode runs every check before it writes anything, so a refused run leaves the
+tree as it was. A class references/ folder, or a folder under it, that
+os.walk cannot read is skipped, not refused. Write mode overwrites any file
+at a copy's target path; --check, which CI runs, is the guard against a
+skill-owned file there. Symlinks are followed on both sides; the repo has
+none. --root points the script at another tree (the tests use it).
+
+What --check does not find (the orphan scan was cut from the design): a copy
+whose class file was removed or renamed, a stray generated file at the top
+level of a member's references/ or scripts/, and the copies and marker block
+left in a skill that drops metadata.apex-classes or sets it empty. A
+generated file one folder down is still reported, because copies are always
+flat, so a nested one is wrong whatever its class; a top-level one could be
+the copy of a removed class, which only the orphan scan would tell. With no
+member skill, --check reads only class.yaml: class rules, references and
+scripts are not read until a skill joins.
 
 Requires PyYAML (pip install 'pyyaml>=6,<7').
 """
 
 import argparse
 import ast
+import io
 import os
 import re
 import shlex
-import stat
 import sys
 
 sys.dont_write_bytecode = True
@@ -74,10 +91,6 @@ except ImportError as exc:  # pragma: no cover - environment problem
 START = "<!-- APEX_CLASSES_START -->"
 END = "<!-- APEX_CLASSES_END -->"
 
-# Entries a class folder may hold. Only rules.md, references/ and scripts/
-# are copied; the rest is read from classes/ by CI.
-CLASS_ENTRIES = {"class.yaml", "rules.md", "references", "scripts", "checks", "evals", "hooks"}
-
 RULE_LINE = re.compile(r"^- \*\*([^*\s]+)\*\*:")
 
 # A pointer to the apex skill: a path into its folder or its command.
@@ -93,7 +106,9 @@ DYNAMIC_IMPORT_CALLS = {
     "run_module", "load_source", "SourceFileLoader",
 }
 
-SHELL_SOURCE = re.compile(r"^(\s*(?:source|\.)\s+)(\S+)(.*)$")
+# A `source` or `.` at the start of a line or after `&&`, `;` or `then`;
+# the sourced word starts at the match end.
+SHELL_SOURCE = re.compile(r"(?:^|&&|;|\bthen\b)\s*(?:source|\.)\s+(?=\S)")
 
 
 class SyncError(Exception):
@@ -146,11 +161,7 @@ def linearize(name, classes, stack=()):
     """C3 linearization, most specific first."""
     if name in stack:
         raise SyncError("class cycle: " + " -> ".join(stack + (name,)))
-    if name not in classes:
-        raise SyncError(f"class {name!r} is not under classes/")
     parents = classes[name]
-    if len(set(parents)) != len(parents):
-        raise SyncError(f"classes/{name}/class.yaml: a parent is listed twice")
     return [name] + c3_merge(
         [linearize(p, classes, stack + (name,)) for p in parents] + [list(parents)], name
     )
@@ -165,7 +176,10 @@ def c3_merge(seqs, who):
             if not any(head in s[1:] for s in seqs):
                 break
         else:
-            raise SyncError(f"{who}: no consistent parents-first order for its classes")
+            raise SyncError(
+                f"{who}: the declared class order contradicts the classes' parents "
+                "(or a class is listed twice); declare leaf classes only, each once"
+            )
         out.append(head)
         seqs = [[x for x in s if x != head] for s in seqs]
         seqs = [s for s in seqs if s]
@@ -174,8 +188,6 @@ def c3_merge(seqs, who):
 
 def resolve_chain(declared, classes, who):
     """Parents first, each class once."""
-    if len(set(declared)) != len(declared):
-        raise SyncError(f"{who}: a class is declared twice")
     for c in declared:
         if c not in classes:
             raise SyncError(f"{who}: declares class {c!r}, which is not under classes/")
@@ -209,8 +221,7 @@ def member_skills(root, classes):
         path = os.path.join(sdir, skill, "SKILL.md")
         if not os.path.isfile(path):
             continue
-        with open(path, encoding="utf-8") as fh:
-            text = fh.read()
+        text = read_text(path)
         fm, _ = split_frontmatter(text)
         if fm is None:
             continue
@@ -237,8 +248,11 @@ def member_skills(root, classes):
 
 
 def read_text(path):
-    with open(path, encoding="utf-8") as fh:
-        return fh.read()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise SyncError(f"{path}: unreadable ({exc.__class__.__name__})") from exc
 
 
 def check_apex_pointers(text, src_rel):
@@ -254,14 +268,6 @@ def check_apex_pointers(text, src_rel):
 def class_files(root, cls):
     """Return (rules text or None, [references], [scripts]) for one class."""
     base = os.path.join(root, "classes", cls)
-    for entry in sorted(os.listdir(base)):
-        if entry.startswith(".") or entry == "__pycache__":
-            continue
-        if entry not in CLASS_ENTRIES:
-            raise SyncError(
-                f"classes/{cls}/{entry}: not a class entry the sync knows "
-                f"({', '.join(sorted(CLASS_ENTRIES))})"
-            )
     rules = None
     rpath = os.path.join(base, "rules.md")
     if os.path.isfile(rpath):
@@ -304,10 +310,9 @@ def class_files(root, cls):
             flat = fname if fname.startswith(prefix) else prefix + fname
             text = read_text(full)
             check_apex_pointers(text, src_rel)
-            executable = bool(os.stat(full).st_mode & stat.S_IXUSR)
             scripts.append({
                 "src": src_rel, "target": f"scripts/{flat}", "text": text,
-                "kind": ext[1:], "class": cls, "name": fname, "exec": executable,
+                "kind": ext[1:], "class": cls, "name": fname,
             })
     return rules, refs, scripts
 
@@ -460,37 +465,43 @@ def rewrite_python(script, mods, other_class_mods):
             edits[i] = new + ("\n" if line.endswith("\n") else "")
     for i, new in edits.items():
         lines[i] = new
-    out = "".join(lines)
-    left = unrewritten_imports(out, {m for m, f in mods.items() if f != m})
-    if left:
-        raise SyncError(f"{src}: import of {', '.join(left)} not rewritten to the flat name")
-    return out
+    return "".join(lines)
 
 
 def rewrite_shell(script, mods, other_class_mods):
     src = script["src"]
     out = []
     for lineno, line in enumerate(script["text"].splitlines(keepends=True), 1):
-        m = SHELL_SOURCE.match(line)
-        if not m or line.lstrip().startswith("#"):
+        if line.lstrip().startswith("#"):
             out.append(line)
             continue
-        rest = m.group(2) + m.group(3)
-        try:
-            word = shlex.split(rest, comments=True)[0]
-        except (ValueError, IndexError):
-            raise SyncError(f"{src}:{lineno}: cannot read the sourced file name") from None
-        last = word.rsplit("/", 1)[-1]
-        if "$" in last or "`" in last:
-            raise SyncError(
-                f"{src}:{lineno}: a sourced file with a computed name; "
-                "the sync cannot rewrite it to the flat name"
-            )
-        if last in other_class_mods and last not in mods:
-            raise SyncError(f"{src}:{lineno}: sources {last}, a class file outside this class's chain")
-        if last in mods and mods[last] != last:
-            cut = m.start(2) + rest.rfind(last)
-            line = line[:cut] + mods[last] + line[cut + len(last):]
+        # Right to left, so an edit leaves the earlier match offsets valid.
+        for m in reversed(list(SHELL_SOURCE.finditer(line))):
+            at = m.end()
+            stream = io.StringIO(line[at:])
+            try:
+                lex = shlex.shlex(stream, posix=True, punctuation_chars=";&|")
+                lex.whitespace_split = True
+                word = next(lex)
+            except (ValueError, StopIteration):
+                raise SyncError(f"{src}:{lineno}: cannot read the sourced file name") from None
+            last = word.rsplit("/", 1)[-1]
+            if "$" in last or "`" in last:
+                raise SyncError(
+                    f"{src}:{lineno}: a sourced file with a computed name; "
+                    "the sync cannot rewrite it to the flat name"
+                )
+            if last in other_class_mods and last not in mods:
+                raise SyncError(f"{src}:{lineno}: sources {last}, a class file outside this class's chain")
+            if last in mods and mods[last] != last:
+                # The sourced word as written: what shlex read for it.
+                pos = line[at:at + stream.tell()].rfind(last)
+                if pos < 0:
+                    raise SyncError(
+                        f"{src}:{lineno}: sources {last} under quoting the sync cannot "
+                        "rewrite to the flat name"
+                    )
+                line = line[:at + pos] + mods[last] + line[at + pos + len(last):]
         out.append(line)
     return "".join(out)
 
@@ -561,7 +572,7 @@ def build_plan(root):
                 expected.append({
                     "skill": skill, "path": f"{who}/{r['target']}", "src": r["src"],
                     "text": with_header(r["text"], header_line(r["src"], "md")),
-                    "exec": False, "decl": [], "mods": {},
+                    "decl": [], "mods": {},
                 })
             for s in scripts:
                 mods = module_map(c, classes, scripts_by_class, s["kind"])
@@ -573,7 +584,7 @@ def build_plan(root):
                 expected.append({
                     "skill": skill, "path": f"{who}/{s['target']}", "src": s["src"],
                     "text": with_header(text, header_line(s["src"], s["kind"])),
-                    "exec": s["exec"], "decl": declarations(s["text"]),
+                    "decl": declarations(s["text"]),
                     "mods": imported_class_modules(s["text"], mods) if s["kind"] == "py" else {},
                 })
         block = START + "\n" + "\n".join(parts) + END
@@ -581,7 +592,7 @@ def build_plan(root):
         text = read_text(skill_md)
         expected.append({
             "skill": skill, "path": f"{who}/SKILL.md", "src": None,
-            "text": with_block(text, block, f"{who}/SKILL.md"), "exec": None,
+            "text": with_block(text, block, f"{who}/SKILL.md"),
             "decl": [], "mods": {},
         })
     return members, expected
@@ -624,8 +635,6 @@ def check(root, expected):
             problems.append(f"{e['path']}: {why}")
             continue
         disk = read_text(path)
-        if e["exec"] is not None and bool(os.stat(path).st_mode & stat.S_IXUSR) != e["exec"]:
-            problems.append(f"{e['path']}: executable bit differs from {e['src']}")
         if disk == e["text"]:
             continue
         if e["src"] is None:
@@ -656,7 +665,7 @@ def check(root, expected):
                     full = os.path.join(dirpath, fname)
                     try:
                         head = read_text(full).splitlines()[:2]
-                    except (OSError, UnicodeDecodeError):
+                    except SyncError:
                         continue
                     if any("generated from classes/" in h for h in head):
                         rel = os.path.relpath(full, root).replace(os.sep, "/")
@@ -665,22 +674,16 @@ def check(root, expected):
 
 
 def write(root, expected):
+    # Read every target first, so an unreadable one stops the run before any write.
+    paths = [os.path.join(root, e["path"]) for e in expected]
+    olds = [read_text(p) if os.path.isfile(p) else None for p in paths]
     changed = []
-    for e in expected:
-        path = os.path.join(root, e["path"])
-        old = read_text(path) if os.path.isfile(path) else None
+    for e, path, old in zip(expected, paths, olds):
         if old != e["text"]:
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8", newline="") as fh:
                 fh.write(e["text"])
             changed.append(e["path"])
-        if e["exec"] is not None:
-            mode = os.stat(path).st_mode
-            want = mode | 0o111 if e["exec"] else mode & ~0o111
-            if want != mode:
-                os.chmod(path, want)
-                if e["path"] not in changed:
-                    changed.append(e["path"])
     return changed
 
 
@@ -693,12 +696,13 @@ def main(argv=None):
     root = os.path.abspath(args.root)
     try:
         members, expected = build_plan(root)
+        problems = check(root, expected) if args.check else None
+        changed = None if args.check else write(root, expected)
     except SyncError as exc:
         print(f"sync-classes: error: {exc}", file=sys.stderr)
         return 1
     names = ", ".join(s for s, _ in members) or "none"
     if args.check:
-        problems = check(root, expected)
         for p in problems:
             print(f"sync-classes: {p}", file=sys.stderr)
         if problems:
@@ -708,7 +712,6 @@ def main(argv=None):
         print(f"sync-classes: --check OK: {len(members)} member skill(s) ({names}), "
               f"{len(expected)} file(s) in sync")
         return 0
-    changed = write(root, expected)
     for p in changed:
         print(f"sync-classes: wrote {p}")
     print(f"sync-classes: {len(members)} member skill(s) ({names}), {len(changed)} file(s) changed")

@@ -37,7 +37,6 @@ jobs:
           'skills/**'
           'misc/sync-classes.py'
           'misc/safe_frontmatter.py'
-          'misc/update-pages.sh'
           'misc/tests/test_sync_classes.py'
           'misc/tests/fixtures/sync_classes_cases.json'
           '.github/workflows/class-sync.yml'
@@ -60,7 +59,9 @@ jobs:
         id: sync
         if: steps.changes.outputs.relevant != 'false'
         # Only skills that declare metadata.apex-classes are checked; a skill
-        # joins in its own rebuild step, so today no skill is a member.
+        # joins in its own rebuild step, so today no skill is a member. With no
+        # member, --check reads only class.yaml: class rules, references and
+        # scripts are not read until a skill joins.
         run: python3 misc/sync-classes.py --check
       - name: Skill pages are in sync
         if: steps.changes.outputs.relevant != 'false'
@@ -75,6 +76,7 @@ jobs:
 
           ```bash
           python3 misc/sync-classes.py
-          git add classes/ skills/<member>/
+          ./misc/update-all-references.sh && ./misc/update-pages.sh
+          git add classes/ skills/<member>/ misc/website/ README.md skills/README.md devops-agent/README.md
           ```
           EOF

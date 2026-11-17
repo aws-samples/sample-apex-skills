@@ -22,11 +22,7 @@
     "classes/service-eks/references/context.md": "# EKS context\n\nContext notes.\n",
     "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"A demo member skill.\"\nmetadata:\n  apex-classes: \"service-eks script\"\n---\n\n# Demo\n\nThe skill's own text.\n",
     "skills/plain/SKILL.md": "---\nname: plain\ndescription: \"A skill that joins no class.\"\n---\n\n# Plain\n\nOwn text only.\n"
-   },
-   "executable": [
-    "classes/apex-base/scripts/helper.sh",
-    "classes/script/scripts/run.sh"
-   ]
+   }
   }
  },
  "cases": [
@@ -81,9 +77,6 @@
     ],
     "same_as_base": [
      "skills/plain/SKILL.md"
-    ],
-    "executable": [
-     "skills/demo/scripts/apex_base_helper.sh"
     ]
    },
    "base": "std"
@@ -119,6 +112,27 @@
    ],
    "expect": {
     "rc": 0
+   },
+   "base": "std"
+  },
+  {
+   "id": "F0-real-harness",
+   "about": "The real apex-base harness reference passes the apex-pointer check and is copied",
+   "files": {
+    "classes/apex-base/references/apex-base-harness.md": "# Harness notes\n\nAPEX skills run in several harnesses. They differ in four places: how the user asks for a skill, the ask tool, path variables, and what to do without subagents. This file holds those differences, so a skill's own text stays the same in every harness (rule `apex.harness-notes`).\n\n## How a skill is invoked\n\n| Harness | How the user reaches a skill |\n|---|---|\n| Claude Code | `/<skill> <request>`, for example `/eks-recon <request>`; the text typed after the command follows the skill as `ARGUMENTS:`. A skill can also load on its own when its description matches. |\n| Codex | `$<skill> <request>`, once the skills are copied into a Codex skills folder (the APEX installer does not set this up). |\n| Kiro | `/<skill> <request>` in Kiro CLI (tested on 2.35.1, checked on 2026-10-28; 1.27.0 rejected it), or by asking for the skill by name in the chat. |\n| AWS DevOps Agent | Through its own skill ports. A zip upload with a `scripts/` folder is rejected; a repository import keeps all files. With Sandbox (preview) enabled, a skill can include executable code the agent runs in the sandbox. |\n\n## Asking the user\n\nAsk with the harness's ask tool where it has one; else ask in plain text (rule `apex.one-way-to-ask`).\n\n| Harness | Ask tool |\n|---|---|\n| Claude Code | `AskUserQuestion` |\n| Codex | `request_user_input` (one to three short questions), in Plan mode only; in Default mode ask in plain text. Source: openai/codex `codex-rs/core/src/tools/handlers/request_user_input_spec.rs` (\"This tool is only available in {allowed_modes}\") and `codex-rs/protocol/src/config_types.rs` (`allows_request_user_input`: Plan only), checked on 2026-11-16. |\n| Kiro | None: Kiro's built-in tools (https://kiro.dev/docs/tools/, checked on 2026-11-16) include no ask tool, so ask in plain text in the chat. |\n| AWS DevOps Agent | None a skill can call: ask in plain text in the chat; the agent shows its own clarification options there (\"Disambiguation cards in chat\", May 13, 2026, https://docs.aws.amazon.com/devopsagent/latest/userguide/whats-new.html, checked on 2026-11-16). A scheduled or event-triggered run has no chat to ask in, so it states what it assumed. |\n\n## Path variables\n\n- Claude Code: `${CLAUDE_SKILL_DIR}` is the installed skill's own folder, for example `${CLAUDE_SKILL_DIR}/references/<file>.md`. It points only at this skill's folder, never at another skill.\n- Other harnesses: give paths relative to the skill root, one level deep (`references/<file>.md`), as the Agent Skills format defines file references.\n- A hook command runs in the current directory, so a relative path in a hook resolves from there, not from the skill folder.\n\n## Without subagents\n\nWhen the harness has no subagent (Agent) tool, run the steps inline, one after another, in the same session. A skill that offers a subagent mode names its inline fallback.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/references/apex-base-harness.md": [
+      "<!-- generated from classes/apex-base/references/apex-base-harness.md, do not edit -->\n# Harness notes\n",
+      "for example `/eks-recon <request>`"
+     ]
+    }
    },
    "base": "std"
   },
@@ -264,6 +278,52 @@
    "base": "std"
   },
   {
+   "id": "F3a-shell-comment",
+   "about": "A sourced class file whose name is repeated in a trailing comment is rewritten in the sourced word",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\nsource \"$(dirname \"$0\")/helper.sh\"  # loads helper.sh\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/scripts/script_run.sh": [
+      "source \"$(dirname \"$0\")/apex_base_helper.sh\"  # loads helper.sh\n"
+     ]
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-after-operator",
+   "about": "A source or . after && and after then is rewritten to the flat name",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\n[ -f x ] && . \"$(dirname \"$0\")/helper.sh\"\nif true; then source \"$(dirname \"$0\")/helper.sh\"; fi\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/scripts/script_run.sh": [
+      "[ -f x ] && . \"$(dirname \"$0\")/apex_base_helper.sh\"\n",
+      "if true; then source \"$(dirname \"$0\")/apex_base_helper.sh\"; fi\n"
+     ]
+    },
+    "count": {
+     "path": "skills/demo/scripts/script_run.sh",
+     "text": "/helper.sh",
+     "n": 0
+    }
+   },
+   "base": "std"
+  },
+  {
    "id": "F3a-ambiguous",
    "about": "Two classes in one script's chain ship a module of the same name",
    "files": {
@@ -382,6 +442,25 @@
     "rc": 1,
     "output": [
      "classes/script/scripts/dyn.py:3:"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-computed-run-path",
+   "about": "runpy.run_path with a computed argument",
+   "files": {
+    "classes/script/scripts/dyn.py": "import runpy\nimport sys\n\nrunpy.run_path(sys.argv[1])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/dyn.py:4: a dynamic import (run_path)"
     ],
     "unchanged": true
    },
@@ -684,27 +763,6 @@
     "rc": 1,
     "output": [
      "apex-base-notes.md: differs from classes/apex-base/references/notes.md (a hand edit, or a class change not synced)"
-    ]
-   },
-   "base": "std"
-  },
-  {
-   "id": "F7-mode",
-   "about": "A script copy lost the executable bit its class file has",
-   "presync": true,
-   "mutate": [
-    {
-     "path": "skills/demo/scripts/apex_base_helper.sh",
-     "chmod": "644"
-    }
-   ],
-   "run": [
-    "check"
-   ],
-   "expect": {
-    "rc": 1,
-    "output": [
-     "apex_base_helper.sh: executable bit differs from classes/apex-base/scripts/helper.sh"
     ]
    },
    "base": "std"
@@ -1090,8 +1148,8 @@
    "base": "std"
   },
   {
-   "id": "F16-unknown-entry",
-   "about": "A class folder entry the sync does not know (schemas/ ships nothing in step 3)",
+   "id": "F16-other-entry",
+   "about": "A class folder entry the sync does not copy (schemas/) is ignored, not refused",
    "files": {
     "classes/apex-base/schemas/x.json": "{}\n"
    },
@@ -1100,11 +1158,11 @@
     "check"
    ],
    "expect": {
-    "rc": 1,
-    "output": [
-     "classes/apex-base/schemas: not a class entry the sync knows"
-    ],
-    "unchanged": true
+    "rc": 0,
+    "absent": [
+     "skills/demo/schemas",
+     "skills/demo/references/apex-base-x.json"
+    ]
    },
    "base": "std"
   },
@@ -1216,7 +1274,7 @@
    "expect": {
     "rc": 1,
     "output": [
-     "skills/demo: a class is declared twice"
+     "skills/demo: the declared class order contradicts the classes' parents"
     ],
     "unchanged": true
    },
