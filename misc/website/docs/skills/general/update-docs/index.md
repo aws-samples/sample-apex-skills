@@ -18,7 +18,7 @@ Walk the APEX repo after any content change and bring every documentation surfac
 ## When to use
 
 - A skill was added, removed, renamed, or had its frontmatter edited
-- A runbook under `skills/apex/runbooks/` was added, removed, or renamed
+- A runbook under `skills/apex/runbooks/` (a per-skill `<skill>/*.md` or a top-level `example-*.md`) was added, removed, or renamed
 - README marker blocks were edited manually
 - Before opening a PR that touches `skills/`
 - The user asks to "check docs", "update docs", or "sync documentation"
@@ -34,7 +34,7 @@ Walk the APEX repo after any content change and bring every documentation surfac
 Determine what changed. Default comparison base is `origin/main`:
 
 ```bash
-git diff --name-status origin/main...HEAD -- 'skills/**/SKILL.md' 'skills/apex/runbooks/*/*.md' 'devops-agent/**'
+git diff --name-status origin/main...HEAD -- 'skills/**/SKILL.md' 'skills/apex/runbooks/*/*.md' 'skills/apex/runbooks/*.md' 'devops-agent/**'
 ```
 
 If the user specifies a different scope ("since my last commit", "just the rename I did"), adjust the base accordingly. Also include any paths the user explicitly names.
@@ -73,7 +73,7 @@ Read each file in the candidate set below. Hold the change set in mind and look 
 - `skills/README.md`
 - Every `skills/<name>/README.md` where present
 - Every `skills/<name>/SKILL.md`
-- Every `skills/apex/runbooks/<skill>/*.md`
+- Every `skills/apex/runbooks/<skill>/*.md` and every `skills/apex/runbooks/example-*.md`
 - `devops-agent/README.md`
 - Every `devops-agent/<name>/SKILL.md`
 - `misc/README.md`

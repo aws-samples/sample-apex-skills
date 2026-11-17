@@ -18,7 +18,7 @@
 ## What APEX is
 
 - **Skills**: what your agent knows. 28 skills, written to the [Agent Skills standard](https://agentskills.io/), that design, build, review, upgrade and secure Amazon EKS and Amazon ECS estates.
-- **The `/apex` router** (installed from `main`, below): one entry point. Type `/apex` with your request and it picks the right skill and, when there is one, that skill's runbook.
+- **The `/apex` router** (installed from `main`, below): one entry point. Type `/apex` with your request and it picks the right skill, or follows a runbook you name: your own procedure that chains skills.
 - **DevOps Agent ports**: 6 Day 2 skills repackaged for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/).
 
 Domain knowledge by AWS Solutions Architects, TAMs and ProServe. 5 skills are vendored from upstream projects; see [Provenance](#provenance).
@@ -76,7 +76,7 @@ The [EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check
 flowchart LR
   U[You] --> H[Agent harness<br/>Claude Code, Kiro CLI, Codex]
   H --> R["/apex router"]
-  R --> S[Skill + runbook]
+  R --> S[Skill]
   S --> T["AWS CLI, kubectl or MCP servers,<br/>when the skill needs them"]
   T --> O[Report or code]
 ```
@@ -175,7 +175,7 @@ Connect tools, write your own skills, keep docs in sync.
 | Example | Description | Workflow |
 |---------|-------------|----------|
 | **[Liberty to ECS Modernization](examples/ecs-modernize/liberty-to-ecs/)** | Assess a Java 8 / WebSphere Liberty application carrying planted modernization blockers, score it with the APEX ecs-modernize skill, then execute both migration paths on ECS — Replatform as-is onto ECS on EC2 and Rearchitect onto Fargate — and re-assess to see the Fit_Score rise from the Replatform band into the Rearchitect band. | -- |
-| **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md) |
+| **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](skills/eks-upgrade-check/SKILL.md) |
 <!-- EXAMPLES_REFERENCE_END -->
 
 ## DevOps Agent
