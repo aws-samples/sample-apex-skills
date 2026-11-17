@@ -45,7 +45,7 @@ A `status: planned` generator or check is not built yet: name it to the contribu
 ## Mode
 
 - `skills/<name>/SKILL.md` does not exist: greenfield. Run every step.
-- It exists but has no `misc/evals/<name>/`: retrofit. Skip step 3 and treat the existing skill as the spec; do not rewrite it unless the contributor asks. Skip step 1's classes question and write no `metadata.apex-classes`: an existing skill joins its classes later, in a pull request of its own.
+- It exists but has no `misc/evals/<name>/`: retrofit. Skip step 3 and treat the existing skill as the spec; do not rewrite it unless the contributor asks. Skip step 1's classes question and write no `metadata.apex-classes`: an existing skill joins its classes later, in a pull request of its own. In step 5 a retrofit only re-runs the generators: its `SKILL_META` line and catalogue entries already exist.
 - The change is to a file under `classes/` and adds no skill: class change. Run step 2's survey only for the class's members (if no skill declares the class yet, say so; where its class.yaml comment names intended members, survey those, else say none are named), then step 5's generators (no staging, no wrapper check) and steps 6 to 8; while the class sync's status is `planned`, name it as not run.
 - Only an eval scaffold asked for: point at `cd misc/evals && make init-evals SKILL=<name>` (`misc/evals/README.md`) and stop.
 
@@ -66,7 +66,7 @@ Restate the answers and the mode, and get a yes before writing files. Push back 
 
 ## Step 2: Survey sibling skills
 
-Read the `description` of every `skills/*/SKILL.md` (front matter only: that is what triggering sees). List the skills a prompt for `<name>` could plausibly land on, one line of rationale each (a service-scoped knowledge skill typically has 1 to 3; a discovery or setup skill 0 to 2; a meta-skill for authoring, linting or cross-service work may have 0), and name any skill a reader might expect on the list but which is not a sibling. Zero siblings is a valid answer. Skip vendored skills and the `apex` router: CONTRIBUTING.md, Creating a New Skill, step 5, excludes them.
+Read the `description` of every `skills/*/SKILL.md` (front matter only: that is what triggering sees). List the skills a prompt for `<name>` could plausibly land on, one line of rationale each (a service-scoped knowledge skill typically has 1 to 3; a discovery or setup skill 0 to 2; a meta-skill for authoring, linting or cross-service work may have 0), and name any skill a reader might expect on the list but which is not a sibling. Zero siblings is a valid answer. Skip skill-creator, terraform-skill and the `apex` router: CONTRIBUTING.md, Creating a New Skill, step 5, excludes them.
 
 The confirmed list drives the description's "when not" clause, the near-miss negatives in step 4 and the sibling-map updates.
 
@@ -135,7 +135,7 @@ Run every check in [references/repo-checks.md](references/repo-checks.md), secti
 For each new skill or class change, draft these three in the contributor's branch and show each one before it is staged:
 
 1. **The ADR.** `docs/adr/NNNN-<slug>.md`, `NNNN` the next unused number in `docs/adr/`, (title line as the existing records use, `# ADR NNNN: <title>`; sections as `docs/adr/README.md` "Format" lists: Status, Date, Context, Decision, Consequences, and Open if anything is undecided). Status is `Proposed`: the maintainers accept it. Add its row to the table in `docs/adr/README.md`. Never edit an earlier record to change its decision: a new record supersedes it.
-2. **The design-doc note.** An edit to `docs/design/skill-design.md` in the section the change belongs to: for a class change, its row in the class table under "The classes"; for a new skill, the section that covers its kind, or "The class tree" when it takes classes no skill had before. Keep it to the facts the ADR decides.
+2. **The design-doc note.** An edit to `docs/design/skill-design.md` in the section the change belongs to: for a class change, its row in the class table under "The classes"; for a new skill, "The class tree" when it takes classes no skill had before. Keep it to the facts the ADR decides.
 3. **The fact check.** A `## Fact check` section for the pull request body: one line per version, price, limit or service-status claim the change adds, each with its live source and "checked on <date>". A claim with no live source is marked unverified, not left out.
 
 Then ask the contributor one question: "Do you want a blog draft for this change?" Draft a blog only on a yes, built from the ADR and the merged facts above, and hand it to the contributor uncommitted. Published posts live in `misc/website/blog/` and follow its blog standard (CONTRIBUTING.md, "Writing a Blog Post"): never write the draft there.
@@ -146,10 +146,10 @@ Follow [references/pull-request.md](references/pull-request.md): fork, branch of
 
 ## Before hand-off
 
-Each item passes or fails, or, in a class change, is marked not applicable:
+Each item passes or fails, or, in a class change or a retrofit, is marked not applicable:
 
 - [ ] Scope and classes restated and confirmed (step 1); siblings listed with rationale, non-siblings named (step 2).
-- [ ] `skills/<name>/SKILL.md` passes `quick_validate.py`; no `license:` field; description at most 1024 characters with a "when not" clause; `metadata.apex-classes` names only leaf classes under `classes/`.
+- [ ] `skills/<name>/SKILL.md` passes `quick_validate.py`; no `license:` field; description at most 1024 characters with a "when not" clause; `metadata.apex-classes` names only leaf classes under `classes/` (check each name with `ls classes/<class>/class.yaml`).
 - [ ] `misc/evals/<name>/` has `triggering.json` (8+ positives, 8+ negatives) and `evals.json` (2+ prompts, 3+ expectations each); each sibling's eval set updated in the same pull request.
 - [ ] The `SKILL_META` line is in `misc/update-pages.sh`; the catalogues are updated; generators run after staging; wrapper `index.md` exists; all checks exit 0, or each failure in a file this change did not touch is reported, and each planned generator or check is named as not run.
 - [ ] The ADR, the design-doc note and the fact check are drafted; the blog was asked about, and drafted only on a yes.

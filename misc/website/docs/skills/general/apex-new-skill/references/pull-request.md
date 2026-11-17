@@ -42,11 +42,13 @@ git push -u origin feat/<name>-skill   # only after the contributor says yes
 
 CONTRIBUTING.md asks only for "clear commit messages"; recent history on `main` uses conventional-commit titles such as `feat(<scope>): ...`, `fix: ...`, `chore(deps): ...`, so `feat(skills): add <name> skill` fits.
 
+For a retrofit (an eval set for an existing skill): branch `feat/<name>-evals`, commit title `feat(evals): add <name> eval set`.
+
 Keep the pull request to the new skill and its obligations: the skill folder, its eval set, sibling eval updates, its `SKILL_META` line and catalogue rows, regenerated docs, and the ADR and design-doc note from SKILL.md step 7. No reformatting of unrelated files (the second list in that section).
 
 ## The pull request
 
-The contributor opens it from the fork's branch against `aws-samples/sample-apex-skills` `main`, in the GitHub web interface or with `gh pr create --repo aws-samples/sample-apex-skills --base main`. Answer the template in `.github/pull_request_template.md`: its "If this PR adds or changes a skill" checklist opens with "Walked the new-skill steps in `CONTRIBUTING.md`": tick it once CONTRIBUTING steps 1 to 6 are done, with any skipped step named in the body with its reason. The rest asks for valid front matter, the `triggering.json` set, the sibling-map updates, and that you ran the `update-docs` skill and committed the result.
+The contributor opens it from the fork's branch against `aws-samples/sample-apex-skills` `main`, in the GitHub web interface or with `gh pr create --repo aws-samples/sample-apex-skills --base main`. Answer the template in `.github/pull_request_template.md`: its "If this PR adds or changes a skill" checklist opens with "Walked the new-skill steps in `CONTRIBUTING.md`": tick it once CONTRIBUTING steps 1 to 7 are done, with any skipped step named in the body with its reason. The rest asks for valid front matter, the `triggering.json` set, the sibling-map updates, and that you ran the `update-docs` skill and committed the result.
 
 In the body: what the skill does, who it is for, its classes, its siblings and how they differ, the check commands you ran with their results (and each planned check named as not run), and the `## Fact check` section from SKILL.md step 7. No internal or customer details: the body is public too.
 
