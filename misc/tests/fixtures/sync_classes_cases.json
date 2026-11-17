@@ -324,6 +324,101 @@
    "base": "std"
   },
   {
+   "id": "F3a-two-imports-one-line",
+   "about": "Two imports of one class module on one line: the second is left under its old name, so the sync refuses",
+   "files": {
+    "classes/script/scripts/validate_output.py": "from schema_check import CheckError; from schema_check import run\nprint(run, CheckError)\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/validate_output.py: import of schema_check not rewritten to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-string-then-import",
+   "about": "A string holding the import text, then the import, on one line: the string is not the import, so the sync refuses",
+   "files": {
+    "classes/script/scripts/validate_output.py": "x = 'from schema_check'; from schema_check import run\nprint(x, run)\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/validate_output.py: import of schema_check not rewritten to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-after-or",
+   "about": "A . after || still names the class file by its old name",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\ntrue || . helper.sh\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/run.sh:2: names the class file helper.sh where the sync cannot rewrite it to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-brace-group",
+   "about": "A . inside { ...; } still names the class file by its old name",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\n{ . helper.sh; }\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/run.sh:2: names the class file helper.sh where the sync cannot rewrite it to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-after-do",
+   "about": "A . after do still names the class file by its old name",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\nfor f in a; do . helper.sh; done\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/run.sh:2: names the class file helper.sh where the sync cannot rewrite it to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
    "id": "F3a-ambiguous",
    "about": "Two classes in one script's chain ship a module of the same name",
    "files": {

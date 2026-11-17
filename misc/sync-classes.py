@@ -26,18 +26,24 @@ script:
      the start of a line or after `&&`, `;` or `then`), and fails on a
      dotted or relative import of a class module, a dynamic-import call
      whose argument is not a constant or names a class module, a Python
-     string literal naming a class .py file, and a sourced file with a
-     computed name;
+     string literal naming a class .py file (docstrings excepted), a
+     sourced file with a computed name, and a shell line whose code part
+     (comments excepted) still names a class .sh file by its old name, so
+     a `source` after `||`, `|`, `&`, `do`, `elif`, `while` or `!`, inside
+     `{ }`, `( )` or `$( )`, or any other mention, fails the sync; a quoted
+     `source` inside an echo also refuses the sync (it fails closed), and
+     heredoc or comment text naming `source helper.sh` is rewritten;
   6. heads each copy "generated from classes/<c>/<f>, do not edit";
   7. fails when copied class text points to the apex skill (a path into
-     skills/apex/ or ../apex/, a bare apex/ path, or a /apex or $apex
+     skills/apex/ or ../apex/, an `apex/<name>` path, or a /apex or $apex
      command). A rule id such as apex.mcp-first is a label and passes, and
      so does naming the skill.
 
 A class script declares its packages in itself (PEP 723 `# /// script`
 metadata for Python, a `# requires: <command> ...` line for shell), so the
-copy carries the declaration with it. checks/, evals/ and hooks/ are not
-copied: CI runs them from classes/.
+copy carries the declaration with it. Copies are written without the
+execute bit; run a class script with `bash` or `python3`. checks/, evals/
+and hooks/ are not copied: CI runs them from classes/.
 
 Usage (from anywhere; paths are relative to the repo root):
 
@@ -47,8 +53,8 @@ Usage (from anywhere; paths are relative to the repo root):
 --check computes every expected file in memory, compares it with the files
 on disk, prints each difference and exits 1 on any. Every refusal (steps 2,
 5 and 7, an unreadable class file or SKILL.md) stops both modes, and write
-mode runs every check before it writes anything, so a refused run leaves the
-tree as it was. A class references/ folder, or a folder under it, that
+mode runs every check before it writes anything, so a refusal leaves the
+tree as it was; an OS error while writing can stop it part way. A class references/ folder, or a folder under it, that
 os.walk cannot read is skipped, not refused. Write mode overwrites any file
 at a copy's target path; --check, which CI runs, is the guard against a
 skill-owned file there. Symlinks are followed on both sides; the repo has
@@ -61,8 +67,8 @@ left in a skill that drops metadata.apex-classes or sets it empty. A
 generated file one folder down is still reported, because copies are always
 flat, so a nested one is wrong whatever its class; a top-level one could be
 the copy of a removed class, which only the orphan scan would tell. With no
-member skill, --check reads only class.yaml: class rules, references and
-scripts are not read until a skill joins.
+member skill, --check reads class.yaml and each skill's frontmatter; class
+rules, references and scripts are not read.
 
 Requires PyYAML (pip install 'pyyaml>=6,<7').
 """
@@ -465,12 +471,18 @@ def rewrite_python(script, mods, other_class_mods):
             edits[i] = new + ("\n" if line.endswith("\n") else "")
     for i, new in edits.items():
         lines[i] = new
-    return "".join(lines)
+    out = "".join(lines)
+    left = unrewritten_imports(out, {m for m, f in mods.items() if f != m})
+    if left:
+        raise SyncError(f"{src}: import of {', '.join(left)} not rewritten to the flat name")
+    return out
 
 
 def rewrite_shell(script, mods, other_class_mods):
     src = script["src"]
     out = []
+    # A class shell file the copy cannot reach by this name: renamed, or outside the chain.
+    old_names = {m for m, f in mods.items() if f != m} | (set(other_class_mods) - set(mods))
     for lineno, line in enumerate(script["text"].splitlines(keepends=True), 1):
         if line.lstrip().startswith("#"):
             out.append(line)
@@ -502,8 +514,34 @@ def rewrite_shell(script, mods, other_class_mods):
                         "rewrite to the flat name"
                     )
                 line = line[:at + pos] + mods[last] + line[at + pos + len(last):]
+        code = shell_code(line)
+        for name in old_names:
+            if re.search(r"(?<![\w.-])" + re.escape(name) + r"(?![\w.-])", code):
+                raise SyncError(
+                    f"{src}:{lineno}: names the class file {name} where the sync cannot "
+                    "rewrite it to the flat name"
+                )
         out.append(line)
     return "".join(out)
+
+
+def shell_code(line):
+    """A shell line without its trailing comment (a `#` that starts an unquoted word)."""
+    quote, i = None, 0
+    while i < len(line):
+        ch = line[i]
+        if ch == "\\" and quote != "'":
+            i += 2
+            continue
+        if quote:
+            if ch == quote:
+                quote = None
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "#" and (i == 0 or line[i - 1].isspace()):
+            return line[:i]
+        i += 1
+    return line
 
 
 def with_header(text, header):

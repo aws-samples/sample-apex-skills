@@ -6,7 +6,8 @@ name: steward
 parents: [apex-base]
 
 # The repo generators and their --check modes. CI runs the --check forms in
-# .github/workflows/docs-sync.yml:56-62.
+# .github/workflows/docs-sync.yml:56-62; the class sync's runs in
+# .github/workflows/class-sync.yml.
 generators:
   - run: "./misc/update-all-references.sh"
     check: "./misc/update-all-references.sh --check"

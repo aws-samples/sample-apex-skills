@@ -60,8 +60,8 @@ jobs:
         if: steps.changes.outputs.relevant != 'false'
         # Only skills that declare metadata.apex-classes are checked; a skill
         # joins in its own rebuild step, so today no skill is a member. With no
-        # member, --check reads only class.yaml: class rules, references and
-        # scripts are not read until a skill joins.
+        # member, --check reads class.yaml and each skill's frontmatter; class
+        # rules, references and scripts are not read.
         run: python3 misc/sync-classes.py --check
       - name: Skill pages are in sync
         if: steps.changes.outputs.relevant != 'false'
@@ -75,7 +75,7 @@ jobs:
           A member skill's copy of a class file differs from `classes/`, or the sync refused its inputs. The exact paths are in the job log above. Never edit a copy by hand: edit the class file, then regenerate and commit the class change and its copies in one pull request:
 
           ```bash
-          python3 misc/sync-classes.py
+          python3 misc/sync-classes.py && git add skills/<member>/
           ./misc/update-all-references.sh && ./misc/update-pages.sh
           git add classes/ skills/<member>/ misc/website/ README.md skills/README.md devops-agent/README.md
           ```
