@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 """Task-axis runner for misc/evals/ (PLAN §2).
 
-For each prompt in <skill>/evals.json (skipping "live_only": true entries
-unless --include-live-only), for each config in {with_skill, without_skill},
-for k in 1..--runs:
+For each prompt in <skill>/evals.json (skipping "live_only": true entries;
+--include-live-only is refused, since no subject gets a cluster credential),
+for each config in {with_skill, without_skill}, for k in 1..--runs:
 
-  1. Stage a sandbox (stage_skill_sandbox or stage_empty_sandbox) with a
-     clean HOME, plus optional KUBECONFIG and read-only AWS session creds
-     exported into the subprocess env so skills that touch real clusters
-     can do so *safely* (reads only, API-server- and IAM-enforced).
+  1. Stage a run root (stage_skill_sandbox or stage_empty_sandbox) with a
+     clean HOME and no host credentials. Every launch runs in a confined
+     systemd unit as user apex-eval with its own Bedrock-only role session
+     (confined.py).
   2. Run `claude -p <prompt>` streaming stream-json. Write
-       transcript.md, events.jsonl, outputs/, timing.json, metrics.json
+       transcript.md, events.jsonl, outputs/, timing.json, metrics.json,
+       confined.json (the confined claude version and what cleanup left)
      under:
        <skill>/workspace/runs/<UTC>/eval-<id>/<config>/run-<k>/
+     outputs/ is read back from the unit with tar, links dropped.
   3. Invoke a grader `claude -p` with grader.md as the role spec, the
-     expectations, and the transcript/outputs paths. Grader writes
-     grading.json at the run-dir (sibling of outputs/).
+     expectations, and copies of the transcript and outputs in its own
+     sandbox. Its grading.json is read back into the run-dir (sibling of
+     outputs/).
   4. After the whole matrix completes: shell out to
      `make benchmark-<skill> BENCHMARK_DIR=<runs-dir>` to aggregate into
      benchmark.json/benchmark.md; update <skill>/workspace/latest ->
@@ -25,9 +28,12 @@ Grader caching is *intentional*-not-supported — every invocation pays the
 grader call so we can detect grader drift.
 
 Exit codes:
-  0  all runs completed, benchmark generated
-  1  subject or grader subprocess failure we couldn't recover from
-  2  invalid inputs (missing evals.json, no fixture-free prompts, etc.)
+  0  every skill ran (benchmark generated) or was skipped (no fixture-free
+     prompts)
+  1  a skill returned an error (missing evals.json, bad eval ids, ...), or
+     the run stopped on a ConfinedError (a failed mint or launch)
+  2  the start checks refused the run (confined.preflight), or --skill
+     names no known skill
 """
 
 from __future__ import annotations
@@ -44,11 +50,12 @@ import shutil
 import subprocess
 import sys
 import time
+import tempfile
 from pathlib import Path
 from typing import Any
 
+import confined
 from run_triggering import (
-    build_subprocess_env,
     stage_empty_sandbox,
     stage_skill_sandbox,
     read_skill_meta,
@@ -116,8 +123,10 @@ def drain_stream(
             if line.strip():
                 _append_event(events, line)
 
-    if buffer.strip():
-        _append_event(events, buffer)
+    # A client that already exited leaves its last lines as one tail.
+    for line in buffer.split("\n"):
+        if line.strip():
+            _append_event(events, line)
     return events, timed_out
 
 
@@ -377,17 +386,20 @@ def stage_fixture_files(
     staged: dict[str, str] = {}
     if not files:
         return staged
+    if not confined._ID_RE.fullmatch(str(eval_id)):
+        raise confined.ConfinedError(f"bad eval id {eval_id!r}")
 
     files_root = skill_eval_dir / "files"
     if not files_root.is_dir():
         return staged
 
     # Stage shared/ first (base layer), then the eval-specific overlay (can
-    # override shared files).
+    # override shared files). Group-writable copies, so the subject (group
+    # apex-eval) can edit them.
     sources = [files_root / "shared", files_root / f"eval-{eval_id}"]
     for source in sources:
         if source.is_dir():
-            shutil.copytree(source, sandbox, symlinks=False, dirs_exist_ok=True)
+            confined.stage_writable_copy(source, sandbox)
 
     for source in sources:
         if not source.is_dir():
@@ -407,26 +419,21 @@ def _sha256(path: Path) -> str:
 
 
 def snapshot_sandbox_outputs(
-    sandbox: Path,
+    run: confined.Run,
     outputs_dir: Path,
     staged: dict[str, str] | None = None,
 ) -> None:
-    """Copy any files the subject created inside the sandbox (excluding the
-    staged .claude/ dir) into outputs_dir so the grader can inspect them.
+    """Read the files the subject left in its sandbox (excluding .claude/)
+    into outputs_dir so the grader can inspect them. Runs after the subject
+    unit has stopped; links and special files are dropped, never followed,
+    and named here in the run log.
 
     `staged` is stage_fixture_files' return. A staged file still byte-identical
     to what was staged is then removed from outputs_dir, so a check on outputs
     cannot pass on fixture text alone. A staged file the subject edited is kept.
     """
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-    for item in sandbox.iterdir():
-        if item.name == ".claude":
-            continue
-        dest = outputs_dir / item.name
-        if item.is_dir():
-            shutil.copytree(item, dest, symlinks=False, dirs_exist_ok=True)
-        elif item.is_file():
-            shutil.copy2(item, dest)
+    for item in confined.read_back(run, outputs_dir):
+        print(f"[task]   read-back dropped: {item}", file=sys.stderr)
     for rel, digest in (staged or {}).items():
         out = outputs_dir / rel
         if out.is_file() and _sha256(out) == digest:
@@ -445,7 +452,6 @@ def run_subject(
     model: str,
     timeout: int,
     run_dir: Path,
-    extra_env: dict[str, str] | None,
     elicitation: ElicitationConfig | None = None,
     skill_eval_dir: Path | None = None,
     eval_id: int | str | None = None,
@@ -469,35 +475,31 @@ def run_subject(
 
     elicitation = elicitation or ElicitationConfig.from_dict(None)
 
-    with ctx as (sandbox, home):
+    with ctx as run:
         # Stage fixture files into the sandbox before running the subject.
         staged: dict[str, str] = {}
         if skill_eval_dir and eval_id is not None and fixture_files:
-            staged = stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
-
-        env = build_subprocess_env(home, extra=extra_env)
+            staged = stage_fixture_files(run.sandbox, skill_eval_dir, eval_id, fixture_files)
 
         if elicitation.strategy == "canned-multiturn" and elicitation.turns:
-            cmd_base = [
-                "claude",
+            args_base = [
                 "--output-format", "stream-json",
                 "--verbose",
                 "--include-partial-messages",
                 "--permission-mode", "bypassPermissions",
                 "--model", model,
             ]
-            events, timed_out, _ = run_multiturn_subject(
+            events, timed_out, _, turn_error = run_multiturn_subject(
                 initial_prompt=prompt,
                 elicitation=elicitation,
-                cmd_base=cmd_base,
-                cwd=str(sandbox),
-                env=env,
+                args_base=args_base,
+                run=run,
                 timeout_per_turn=timeout,
             )
             stderr = b""
+            returncode = None
         else:
-            cmd = [
-                "claude",
+            args = [
                 "-p", prompt,
                 "--output-format", "stream-json",
                 "--verbose",
@@ -505,22 +507,19 @@ def run_subject(
                 "--permission-mode", "bypassPermissions",
                 "--model", model,
             ]
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=str(sandbox),
-                env=env,
-            )
-            events, timed_out = drain_stream(process, timeout=timeout)
-            stderr = b""
-            if process.stderr:
-                try:
-                    stderr = process.stderr.read() or b""
-                except Exception:
-                    stderr = b""
+            # stderr goes to a file, so a noisy subject cannot fill a pipe
+            # nobody reads while stdout is drained.
+            with tempfile.TemporaryFile() as err, confined.launch_confined(
+                run, confined.claude_argv(args), "bedrock", timeout, stderr=err
+            ) as process:
+                events, timed_out = drain_stream(process, timeout=timeout)
+                process.wait()
+                err.seek(0)
+                stderr = err.read()
+            turn_error = None
+            returncode = process.returncode
 
-        snapshot_sandbox_outputs(sandbox, outputs_dir, staged)
+        snapshot_sandbox_outputs(run, outputs_dir, staged)
 
     end_iso = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     wall = time.time() - t0
@@ -550,56 +549,55 @@ def run_subject(
     }
     (run_dir / "timing.json").write_text(json.dumps(timing, indent=2))
 
-    if timed_out:
-        return {
-            "transcript_path": str(transcript_path),
-            "outputs_dir": str(outputs_dir),
-            "ok": False,
-            "reason": f"subject timed out after {timeout}s",
-            "stderr": stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
-        }
-    if not (elicitation.strategy == "canned-multiturn" and elicitation.turns):
-        if process.returncode != 0:
-            return {
-                "transcript_path": str(transcript_path),
-                "outputs_dir": str(outputs_dir),
-                "ok": False,
-                "reason": f"subject exited {process.returncode}",
-                "stderr": stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
-            }
-    return {
+    result = {
         "transcript_path": str(transcript_path),
         "outputs_dir": str(outputs_dir),
         "ok": True,
         "reason": None,
+        "cleanup_left": run.left,
     }
+    if timed_out:
+        reason = f"subject timed out after {timeout}s"
+    elif turn_error:
+        reason = f"subject {turn_error}"
+    elif returncode not in (None, 0):
+        reason = f"subject exited {returncode}"
+    else:
+        return result
+    result.update(
+        ok=False,
+        reason=reason,
+        stderr=stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
+    )
+    return result
 
 
 # ---------- grader run --------------------------------------------------------
 
 
-def _build_grader_prompt(
-    grader_spec: str,
-    expectations: list[str],
-    transcript_path: Path,
-    outputs_dir: Path,
-    run_dir: Path,
-) -> str:
+# The grader unit sees only its own sandbox (its working directory), so
+# the prompt names the input copies and the output relative to it.
+GRADER_TRANSCRIPT = "input/transcript.md"
+GRADER_OUTPUTS = "input/outputs/"
+GRADER_RESULT = "grading.json"
+
+
+def _build_grader_prompt(grader_spec: str, expectations: list[str]) -> str:
     expectations_json = json.dumps(expectations, indent=2)
     return (
         "You are acting as the Grader agent. Follow the spec exactly, then write "
-        f"the grading JSON to {run_dir}/grading.json.\n\n"
+        f"the grading JSON to {GRADER_RESULT} in the current directory.\n\n"
         "<GRADER_SPEC>\n"
         f"{grader_spec}\n"
         "</GRADER_SPEC>\n\n"
         "<INPUTS>\n"
         f"expectations: {expectations_json}\n"
-        f"transcript_path: {transcript_path}\n"
-        f"outputs_dir: {outputs_dir}\n"
+        f"transcript_path: {GRADER_TRANSCRIPT}\n"
+        f"outputs_dir: {GRADER_OUTPUTS}\n"
         "</INPUTS>\n\n"
         "Read the transcript, examine the outputs directory, evaluate each expectation "
         "with evidence, and write the full JSON object per the spec to "
-        f"{run_dir}/grading.json. After writing, stop."
+        f"{GRADER_RESULT} in the current directory. After writing, stop."
     )
 
 
@@ -611,45 +609,46 @@ def run_grader(
     run_dir: Path,
     model: str,
     timeout: int,
+    left_out: list[str],
 ) -> dict:
     """Invoke the grader as a separate `claude -p` subprocess. The grader
     writes grading.json to run_dir. Returns the parsed grading dict on
-    success, else {"error": ...}.
+    success, else {"error": ...}; either way left_out gets what the grader
+    run's cleanup left behind.
     """
     grader_spec = GRADER_MD.read_text()
-    prompt = _build_grader_prompt(
-        grader_spec, expectations, transcript_path, outputs_dir, run_dir
-    )
+    prompt = _build_grader_prompt(grader_spec, expectations)
 
     grading_path = run_dir / "grading.json"
     # Fresh slate — the grader must write it this run.
     if grading_path.exists():
         grading_path.unlink()
 
-    with stage_empty_sandbox() as (sandbox, home):
-        env = build_subprocess_env(home)
-        cmd = [
-            "claude",
+    with stage_empty_sandbox() as run:
+        # Read-only copies: the grader judges them, it does not change them.
+        confined.stage_readonly_copy(transcript_path, run.sandbox / GRADER_TRANSCRIPT)
+        confined.stage_readonly_copy(outputs_dir, run.sandbox / GRADER_OUTPUTS)
+        args = [
             "-p", prompt,
             "--output-format", "stream-json",
             "--verbose",
             "--permission-mode", "bypassPermissions",
             "--model", model,
         ]
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=str(sandbox),
-            env=env,
-        )
-        events, timed_out = drain_stream(process, timeout=timeout)
-        stderr = b""
-        if process.stderr:
-            try:
-                stderr = process.stderr.read() or b""
-            except Exception:
-                stderr = b""
+        with tempfile.TemporaryFile() as err, confined.launch_confined(
+            run, confined.claude_argv(args), "bedrock", timeout, stderr=err
+        ) as process:
+            events, timed_out = drain_stream(process, timeout=timeout)
+            process.wait()
+            err.seek(0)
+            stderr = err.read()
+        with tempfile.TemporaryDirectory(prefix="evals-grader-") as tmp:
+            for item in confined.read_back(run, Path(tmp)):
+                print(f"[task]   grader read-back dropped: {item}", file=sys.stderr)
+            written = Path(tmp) / GRADER_RESULT
+            if written.is_file():
+                shutil.copyfile(written, grading_path)
+    left_out.extend(run.left)
 
     if not grading_path.exists():
         # Fallback: maybe the grader emitted the JSON inline. Sweep the
@@ -740,28 +739,6 @@ def append_history(skill: str, entry: dict) -> None:
             f.write("\n")
 
 
-# ---------- AWS read-only session --------------------------------------------
-
-
-def mint_federation_token(
-    policy_file: Path, name: str, duration: int, tags: dict[str, str]
-) -> dict:
-    """Run `aws sts get-federation-token` with a session policy and session tags."""
-    cmd = [
-        "aws", "sts", "get-federation-token",
-        "--name", name,
-        "--policy", f"file://{policy_file}",
-        "--duration-seconds", str(duration),
-        "--output", "json",
-        "--tags", *(f"Key={k},Value={v}" for k, v in tags.items()),
-    ]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        hint = "; if the error names sts:TagSession, add it to the IAM user's policy"
-        raise RuntimeError(f"get-federation-token failed: {r.stderr.strip()}{hint}")
-    return json.loads(r.stdout)["Credentials"]
-
-
 # ---------- benchmark --------------------------------------------------------
 
 
@@ -791,10 +768,9 @@ def run_skill(
     *,
     model: str,
     runs: int,
-    include_live_only: bool,
     subject_timeout: int | None,
     grader_timeout: int,
-    extra_env: dict[str, str] | None,
+    claude_version: str | None = None,
 ) -> dict:
     skill_eval_dir = EVALS_ROOT / skill
     skill_repo_dir = REPO_ROOT / "skills" / skill
@@ -808,11 +784,17 @@ def run_skill(
     else:
         skill_config = load_skilleval_config(skill)
         effective_timeout = skill_config.timeout
+    try:
+        confined.check_timeout(effective_timeout)
+    except confined.ConfinedError as e:
+        return {"skill": skill, "error": str(e)}
 
     evals_data = json.loads(evals_json.read_text())
     prompts = evals_data.get("evals") or []
-    if not include_live_only:
-        prompts = [p for p in prompts if not p.get("live_only")]
+    prompts = [p for p in prompts if not p.get("live_only")]
+    bad_ids = [p.get("id") for p in prompts if not confined._ID_RE.fullmatch(str(p.get("id")))]
+    if bad_ids:
+        return {"skill": skill, "error": f"bad eval ids {bad_ids!r}"}
     if not prompts:
         return {"skill": skill, "skipped": "no fixture-free prompts (all are live_only)"}
 
@@ -857,12 +839,16 @@ def run_skill(
                     model=model,
                     timeout=effective_timeout,
                     run_dir=run_dir,
-                    extra_env=extra_env,
                     elicitation=eval_elicitation,
                     skill_eval_dir=skill_eval_dir,
                     eval_id=eval_id,
                     fixture_files=p.get("files"),
                 )
+                confined_info = {
+                    "claude_version": claude_version,
+                    "subject_cleanup_left": subj.get("cleanup_left") or [],
+                }
+                (run_dir / "confined.json").write_text(json.dumps(confined_info, indent=2))
                 if not subj["ok"]:
                     print(
                         f"[task]   subject failed: {subj.get('reason')}",
@@ -940,6 +926,7 @@ def run_skill(
                     f"[task] {skill} eval-{eval_id} {config} run-{k} (grader)",
                     file=sys.stderr,
                 )
+                grader_left: list[str] = []
                 grading = run_grader(
                     expectations=p["expectations"],
                     transcript_path=Path(subj["transcript_path"]),
@@ -947,7 +934,10 @@ def run_skill(
                     run_dir=run_dir,
                     model=model,
                     timeout=grader_timeout,
+                    left_out=grader_left,
                 )
+                confined_info["grader_cleanup_left"] = grader_left
+                (run_dir / "confined.json").write_text(json.dumps(confined_info, indent=2))
                 if "error" in grading:
                     print(f"[task]   grader failed: {grading['error']}", file=sys.stderr)
                     (run_dir / "grading.json").write_text(
@@ -995,6 +985,7 @@ def run_skill(
         "delta": round(delta, 4),
         "eval_ids": [p["id"] for p in prompts],
         "token_usage": aggregate_token_usage(runs_dir),
+        "claude_version": claude_version,
     }
     append_history(skill, entry)
 
@@ -1021,24 +1012,24 @@ def main() -> int:
     parser.add_argument("--skill", help="Run only this skill")
     parser.add_argument("--runs", type=int, default=1, help="Runs per (prompt × config). Default 1 for dev; use 3 for stddev.")
     parser.add_argument("--include-live-only", action="store_true",
-                        help="Include prompts marked live_only=true")
+                        help="Refused: no subject gets a cluster credential, so "
+                             "live_only=true prompts stay off")
     parser.add_argument("--model", default=None,
                         help="Model ID. Default comes from the Makefile.")
     parser.add_argument("--subject-timeout", type=int, default=None,
                         help="Subject timeout in seconds. Overrides per-skill .skilleval.yaml timeout. "
                              "If not set, uses .skilleval.yaml timeout (default 600).")
     parser.add_argument("--grader-timeout", type=int, default=600)
-    parser.add_argument("--kubeconfig", default=None,
-                        help="KUBECONFIG path exported into the subject subprocess")
-    parser.add_argument("--aws-session-policy", default=None,
-                        help="Path to an IAM session policy JSON. When set, mints an STS "
-                             "federation token scoped by the policy and exports its creds "
-                             "into the subject subprocess.")
-    parser.add_argument("--aws-duration", type=int, default=7200,
-                        help="STS federation-token lifetime in seconds (default 2h). "
-                             "Long enough for a full task-axis run across 2 prompts × 2 configs.")
-    parser.add_argument("--aws-region", default="us-west-2")
     args = parser.parse_args()
+
+    try:
+        claude_version = confined.preflight(
+            args.grader_timeout, include_live_only=args.include_live_only
+        )
+    except confined.ConfinedError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    print(f"[task] confined claude: {claude_version}", file=sys.stderr)
 
     skills = discover_skills()
     if args.skill:
@@ -1049,44 +1040,24 @@ def main() -> int:
 
     model = args.model or _resolve_makefile_default("MODEL") or "global.anthropic.claude-opus-4-6-v1"
 
-    extra_env: dict[str, str] = {}
-    if args.kubeconfig:
-        kcp = Path(args.kubeconfig).resolve()
-        if not kcp.exists():
-            print(f"kubeconfig not found: {kcp}", file=sys.stderr)
-            return 2
-        extra_env["KUBECONFIG"] = str(kcp)
-    if args.aws_session_policy:
-        policy = Path(args.aws_session_policy).resolve()
-        if not policy.exists():
-            print(f"aws session policy not found: {policy}", file=sys.stderr)
-            return 2
-        run_id = f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{os.getpid()}"
-        creds = mint_federation_token(
-            policy, name=f"evals-readonly-{os.getpid()}", duration=args.aws_duration,
-            tags={"apex-run": run_id},
-        )
-        extra_env["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
-        extra_env["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
-        extra_env["AWS_SESSION_TOKEN"] = creds["SessionToken"]
-        extra_env["AWS_DEFAULT_REGION"] = args.aws_region
-        print(
-            f"[task] minted read-only AWS session (exp {creds['Expiration']}, apex-run={run_id})",
-            file=sys.stderr,
-        )
-
     outcomes = []
     for skill in skills:
         print(f"[task] === {skill} ===", file=sys.stderr)
-        result = run_skill(
-            skill,
-            model=model,
-            runs=args.runs,
-            include_live_only=args.include_live_only,
-            subject_timeout=args.subject_timeout,
-            grader_timeout=args.grader_timeout,
-            extra_env=extra_env or None,
-        )
+        try:
+            result = run_skill(
+                skill,
+                model=model,
+                runs=args.runs,
+                subject_timeout=args.subject_timeout,
+                grader_timeout=args.grader_timeout,
+                claude_version=claude_version,
+            )
+        except confined.ConfinedError as e:
+            # Any ConfinedError (a failed mint or launch, a refused fixture,
+            # a failed read-back) stops the run, as in run_triggering.
+            print(f"error: run stopped: {e}", file=sys.stderr)
+            return 1
+        result["confined_claude_version"] = claude_version
         outcomes.append(result)
         if "error" in result:
             print(f"[task] {skill}: ERROR {result['error']}", file=sys.stderr)

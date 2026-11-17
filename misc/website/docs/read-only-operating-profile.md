@@ -17,7 +17,7 @@ The profile has three layers. The first two are the guardrail only when the agen
 | IAM session policy | [`misc/evals/setup/readonly-session-policy.json`](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/evals/setup/readonly-session-policy.json) | Scopes a temporary STS session to read calls (`Describe*`, `List*`, `Get*` and log filtering) on EKS, EC2, CloudFormation, Auto Scaling, ELB, CloudWatch and Logs, plus Bedrock model invocation |
 | Claude Code hook | [`misc/evals/setup/deny-write-hook.example.sh`](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/evals/setup/deny-write-hook.example.sh) | Denies Bash commands such as `kubectl apply` or `aws ... delete-*` before they run |
 
-The kit started as the read-only sandbox for the repo's live-cluster evals, and the eval runner still uses it.
+The kit started as the read-only sandbox for the repo's live-cluster evals. The eval runner no longer uses it: it runs every subject as a separate OS user with a Bedrock-only role session and no cluster credential (`misc/evals/scripts/confined.py`), so live-cluster eval prompts are skipped.
 
 ## 1. Create the read-only kubeconfig
 
@@ -73,7 +73,7 @@ aws sts get-federation-token \
 
 Calls made with these credentials show up in CloudTrail with `userIdentity.type` `FederatedUser`, and their ARN carries the name you passed: `arn:aws:sts::<account-id>:federated-user/apex-readonly-<user>`. Pick a `--name` that says who ran the agent and why.
 
-The kit tags the sessions it mints: the eval runner (`misc/evals/scripts/run_task_evals.py`, which prints it) and the bootstrap check pass `apex-run` (UTC time and process id). The section 2 command takes the same flag:
+The bootstrap check tags the session it mints with `apex-run` (UTC time and process id). The section 2 command takes the same flag:
 
 ```bash
   --tags Key=apex-run,Value="$(date -u +%Y%m%dT%H%M%SZ)"

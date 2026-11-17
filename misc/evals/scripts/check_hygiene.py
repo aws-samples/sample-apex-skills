@@ -5,7 +5,8 @@ Reuses the pre-flight logic already embedded in run_all_evals.py — runs
 quick_validate, checks triggering.json positive/negative counts, checks
 evals.json prompt/expectation counts, and confirms every `should_trigger=false`
 entry in triggering.json is attributed to a sibling in README.md's
-SIBLING_MAP block.
+SIBLING_MAP block. It also fails on a 12-digit AWS account id in a
+git-tracked file under misc/evals/ (account_ids()).
 
 No model calls, no Makefile shell-outs, no live cluster. Safe for a
 per-PR CI gate.
@@ -16,7 +17,8 @@ Usage:
 
 Exit codes:
   0  every skill is clean
-  1  one or more skills have hygiene warnings
+  1  one or more skills have hygiene warnings, or misc/evals/ holds an
+     account id (or is not in a git checkout)
 """
 
 from __future__ import annotations
@@ -24,11 +26,72 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
+REPO = SCRIPTS_DIR.parents[2]
+
+# No AWS account id in misc/evals/: every git-tracked file there is scanned
+# for a 12-digit number, the shape of an account id. Only the values below
+# pass, each with its reason: a real account belongs in the reader's own
+# settings (the eval runner reads it at run time, misc/evals/README.md
+# Step 0), never in the repo.
+ACCOUNT_SCOPE = "misc/evals"
+ACCOUNT_RE = re.compile(rb"(?<![0-9])[0-9]{12}(?![0-9])")
+# Allowed anywhere under ACCOUNT_SCOPE.
+ALLOWED_IDS = {
+    b"123456789012": "the example account id in the AWS documentation",
+    b"111122223333": "the example account id in the AWS IAM documentation",
+    b"602401143452": "a public AWS service account: the Amazon EKS add-on "
+                     "image registry in us-west-2 (inside an image name)",
+}
+# Fixture placeholders, allowed only in the file that uses them.
+FIXTURE_IDS = {
+    b"111111111111": ("misc/evals/eks-cost-intelligence/evals.json", "a made-up caller account"),
+    b"222222222222": ("misc/evals/eks-cost-intelligence/evals.json", "a made-up payer account"),
+    b"111222333444": ("misc/evals/eks-upgrade-check/evals.json", "a made-up cluster account"),
+    b"555666777888": ("misc/evals/eks-upgrade-check/evals.json", "a made-up cluster account"),
+    b"987654321098": ("misc/evals/eks-upgrade-check/evals.json", "a made-up cluster account"),
+    b"999888777666": ("misc/evals/eks-upgrade-check/evals.json", "a made-up cluster account"),
+    b"999900001111": ("misc/evals/eks-recon/files/eval-5/prior.yaml", "a made-up cluster account"),
+}
+
+
+class AccountScanError(RuntimeError):
+    """The account-id scan could not list the tracked files."""
+
+
+def account_ids(repo: Path = REPO) -> list[str]:
+    """Each 12-digit number under ACCOUNT_SCOPE that is not allowed, as
+    path:line: value. Needs a git checkout (it lists the tracked files)."""
+    try:
+        files = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "-z", "--", ACCOUNT_SCOPE],
+            capture_output=True, check=True,
+        ).stdout.split(b"\0")
+    except (OSError, subprocess.CalledProcessError) as e:
+        raise AccountScanError(
+            f"the account-id scan needs a git checkout (git ls-files failed in {repo}): {e}"
+        ) from None
+    found = []
+    for rel in filter(None, files):
+        path = rel.decode()
+        try:
+            data = (repo / path).read_bytes()
+        except FileNotFoundError:  # deleted in the work tree
+            continue
+        for n, line in enumerate(data.splitlines(), 1):
+            for value in ACCOUNT_RE.findall(line):
+                # This file holds the fixture lists themselves.
+                if value in ALLOWED_IDS or (value in FIXTURE_IDS and path in (
+                        FIXTURE_IDS[value][0], "misc/evals/scripts/check_hygiene.py")):
+                    continue
+                found.append(f"{path}:{n}: {value.decode()}")
+    return found
 
 
 def _load_run_all_evals():
@@ -272,6 +335,16 @@ def main() -> int:
                 print(f"    - {w}")
         else:
             print(f"✓ {skill}")
+
+    try:
+        found = account_ids()
+    except AccountScanError as e:
+        found = [str(e)]
+    if found:
+        any_fail = True
+        print("✗ account ids in misc/evals/ (read the account at run time instead)")
+        for f in found:
+            print(f"    - {f}")
 
     if any_fail:
         print("\nHygiene check failed. Fix the warnings above before merging.", file=sys.stderr)

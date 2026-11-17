@@ -322,9 +322,17 @@ def enrich_metrics(
     neg = [r for r in results if not r["should_trigger"]]
     pos_passed = sum(1 for r in pos if r["pass"])
     neg_passed = sum(1 for r in neg if r["pass"])
+    pos_total, neg_total = len(pos), len(neg)
 
     # Flakes.
     flakes = [r for r in results if 0 < r["trigger_rate"] < 1]
+
+    # A query with an invalid run is a run error, not a skill result: it
+    # fails overall (its `pass` is False) and is left out of the means, the
+    # leakage and the sweep below, which score the skill.
+    run_errors = sum(1 for r in results if r.get("invalid_runs"))
+    pos = [r for r in pos if not r.get("invalid_runs")]
+    neg = [r for r in neg if not r.get("invalid_runs")]
 
     # Mean trigger rates.
     mean_pos = (sum(r["trigger_rate"] for r in pos) / len(pos)) if pos else 0.0
@@ -334,9 +342,7 @@ def enrich_metrics(
     # sibling; numerator = number of those that incorrectly triggered (pass==False).
     leakage: dict[str, dict[str, int]] = {}
     sibling_per_result: list[tuple[dict, str]] = []
-    for r in results:
-        if r["should_trigger"]:
-            continue
+    for r in neg:
         idx = query_to_idx.get(r["query"])
         sibling = sibling_map.get(idx, "other") if idx is not None else "other"
         leakage.setdefault(sibling, {"total": 0, "leaked": 0})
@@ -352,7 +358,7 @@ def enrich_metrics(
         t_neg = sum(1 for r in neg if _pass_at_threshold(r, t))
         sweep[f"{t:.2f}"] = {
             "passed": t_pos + t_neg,
-            "total": total,
+            "total": len(pos) + len(neg),
             "positive_passed": t_pos,
             "positive_total": len(pos),
             "negative_passed": t_neg,
@@ -368,9 +374,10 @@ def enrich_metrics(
             "accuracy": (passed / total) if total else 0.0,
             "ci_lo": ci_lo,
             "ci_hi": ci_hi,
+            "run_errors": run_errors,
         },
-        "positive": {"passed": pos_passed, "total": len(pos)},
-        "negative": {"passed": neg_passed, "total": len(neg)},
+        "positive": {"passed": pos_passed, "total": pos_total},
+        "negative": {"passed": neg_passed, "total": neg_total},
         "flake_count": len(flakes),
         "flakes": [
             {
@@ -725,6 +732,8 @@ def render_scorecard(
             f"{ov['passed']}/{ov['total']} ({pct(ov['accuracy'])}, "
             f"CI {pct(ov['ci_lo'])}–{pct(ov['ci_hi'])})"
         )
+        if ov.get("run_errors"):
+            overall_cell += f", {ov['run_errors']} run errors"
         tpr = f"{m['positive']['passed']}/{m['positive']['total']}"
         tnr = f"{m['negative']['passed']}/{m['negative']['total']}"
         delta_cell = fmt_delta_pp(ov["accuracy"], s.get("previous_accuracy"))
@@ -1057,7 +1066,9 @@ def process_skill(
     metrics = enrich_metrics(raw, triggering, sibling_map, unmatched, snapshot)
     run_dir = persist_artifacts(skill, snapshot["started_at"], raw, metrics)
 
-    append_history(skill, history_compact_entry(metrics))
+    entry = history_compact_entry(metrics)
+    entry["claude_version"] = raw.get("confined_claude_version")
+    append_history(skill, entry)
 
     # Re-read history after append so the detail block reflects the row we just wrote.
     history_after = read_history(skill)
@@ -1136,7 +1147,7 @@ def main() -> int:
 
     # Resolve Makefile defaults once so the scorecard metadata is accurate.
     resolved_provider = resolve_makefile_default("PROVIDER") or "bedrock"
-    default_model = "global.anthropic.claude-opus-4-6-v1" if resolved_provider == "bedrock" else "claude-opus-4-6-v1"
+    default_model = "global.anthropic.claude-opus-4-6-v1"
     resolved_model = args.model or resolve_makefile_default("MODEL") or default_model
     resolved_runs = (
         args.runs_per_query

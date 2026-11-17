@@ -18,6 +18,7 @@ import json
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -29,6 +30,7 @@ SCRIPTS_DIR = os.path.join(MISC_DIR, "evals", "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 import artifact_validation  # noqa: E402
+import confined  # noqa: E402
 import process_assertions  # noqa: E402
 import run_artifact_validation  # noqa: E402
 from elicitation import drain_stream_for_events  # noqa: E402
@@ -168,6 +170,21 @@ class ToolArgsSchemaCheck(unittest.TestCase):
         self.assertIn("calls match schema", res.evidence)
 
 
+def local_read_back(run, dest):
+    """confined.read_back without a unit: tar the sandbox here (minus
+    .claude/) and extract it the same way."""
+    buf = io.BytesIO()
+
+    def skip_claude(ti):
+        return None if ti.name == "./.claude" or ti.name.startswith("./.claude/") else ti
+
+    with tarfile.open(fileobj=buf, mode="w") as tf:
+        tf.add(run.sandbox, arcname=".", filter=skip_claude)
+    dest.mkdir(parents=True, exist_ok=True)
+    return confined.extract_safe(buf.getvalue(), dest)
+
+
+@mock.patch.object(confined, "read_back", local_read_back)
 class StagedFixturesNotGraded(unittest.TestCase):
     """Only what the subject created or changed reaches the graded outputs."""
 
@@ -178,7 +195,8 @@ class StagedFixturesNotGraded(unittest.TestCase):
             (eval_dir / "files" / "shared" / "docs").mkdir(parents=True)
             (eval_dir / "files" / "shared" / "docs" / "guide.md").write_text("staged answer\n")
             (eval_dir / "files" / "shared" / "notes.md").write_text("staged notes\n")
-            sandbox = tmp / "sandbox"
+            run = confined.Run("t", tmp)
+            sandbox = run.sandbox
             sandbox.mkdir()
             staged = stage_fixture_files(sandbox, eval_dir, 1, ["docs/guide.md"])
 
@@ -187,7 +205,7 @@ class StagedFixturesNotGraded(unittest.TestCase):
             (sandbox / "docs" / "answer.md").write_text("subject answer\n")
 
             outputs = tmp / "outputs"
-            snapshot_sandbox_outputs(sandbox, outputs, staged)
+            snapshot_sandbox_outputs(run, outputs, staged)
             got = sorted(p.relative_to(outputs).as_posix()
                          for p in outputs.rglob("*") if p.is_file())
         self.assertEqual(got, ["docs/answer.md", "notes.md"])
@@ -195,12 +213,13 @@ class StagedFixturesNotGraded(unittest.TestCase):
     def test_no_fixtures_copies_everything_but_dot_claude(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
-            sandbox = tmp / "sandbox"
+            run = confined.Run("t", tmp)
+            sandbox = run.sandbox
             (sandbox / ".claude" / "skills").mkdir(parents=True)
             (sandbox / "out.md").write_text("x\n")
             (sandbox / "empty-dir").mkdir()
             outputs = tmp / "outputs"
-            snapshot_sandbox_outputs(sandbox, outputs, {})
+            snapshot_sandbox_outputs(run, outputs, {})
             self.assertTrue((outputs / "out.md").is_file())
             self.assertTrue((outputs / "empty-dir").is_dir())
             self.assertFalse((outputs / ".claude").exists())

@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import confined
+
 
 @dataclass
 class CannedTurn:
@@ -145,41 +147,58 @@ def drain_stream_for_events(
             if line.strip():
                 _append_event(events, line)
 
-    if buffer.strip():
-        _append_event(events, buffer)
+    # A client that already exited leaves its last lines as one tail.
+    for line in buffer.split("\n"):
+        if line.strip():
+            _append_event(events, line)
     return events, timed_out
+
+
+def _run_turn(
+    run: confined.Run, args: list[str], turn: int, timeout: int
+) -> tuple[list[dict], bool, int | None]:
+    """One turn is its own confined unit with its own role session; HOME
+    (the run's home/) stays the same, so --resume finds the session.
+    Returns (events, timed_out, exit code)."""
+    with confined.launch_confined(
+        run, confined.claude_argv(args), "bedrock", timeout,
+        unit_suffix=f"t{turn}", session_suffix=f"t{turn}",
+        stderr=subprocess.DEVNULL,
+    ) as process:
+        events, timed_out = drain_stream_for_events(process, timeout)
+        return events, timed_out, process.poll()
 
 
 def run_multiturn_subject(
     *,
     initial_prompt: str,
     elicitation: ElicitationConfig,
-    cmd_base: list[str],
-    cwd: str,
-    env: dict[str, str],
+    args_base: list[str],
+    run: confined.Run,
     timeout_per_turn: int,
-) -> tuple[list[dict], bool, str | None]:
+) -> tuple[list[dict], bool, str | None, str | None]:
     """Run a canned-multiturn session.
 
     Runs the initial prompt, detects questions, matches canned answers,
     and resumes the session until no more questions match or max_turns is hit.
+    args_base is the claude argument list without the binary or prompt.
 
-    Returns (all_events, timed_out, session_id).
+    Returns (all_events, timed_out, session_id, error); error names the
+    first turn that exited non-zero, and no later turn runs.
     """
     session_id = str(uuid.uuid4())
     all_events: list[dict] = []
     timed_out = False
 
     # First turn
-    cmd = cmd_base + ["-p", initial_prompt, "--session-id", session_id]
-    process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env
-    )
-    events, timed_out = drain_stream_for_events(process, timeout_per_turn)
+    args = args_base + ["-p", initial_prompt, "--session-id", session_id]
+    events, timed_out, rc = _run_turn(run, args, 1, timeout_per_turn)
     all_events.extend(events)
 
     if timed_out:
-        return all_events, True, session_id
+        return all_events, True, session_id, None
+    if rc != 0:
+        return all_events, False, session_id, f"turn 1 exited {rc}"
 
     # Follow-up turns
     turns_used = 1
@@ -193,14 +212,13 @@ def run_multiturn_subject(
             break
 
         turns_used += 1
-        cmd = cmd_base + ["-p", answer, "--resume", session_id]
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env
-        )
-        events, timed_out = drain_stream_for_events(process, timeout_per_turn)
+        args = args_base + ["-p", answer, "--resume", session_id]
+        events, timed_out, rc = _run_turn(run, args, turns_used, timeout_per_turn)
         all_events.extend(events)
 
         if timed_out:
-            return all_events, True, session_id
+            return all_events, True, session_id, None
+        if rc != 0:
+            return all_events, False, session_id, f"turn {turns_used} exited {rc}"
 
-    return all_events, False, session_id
+    return all_events, False, session_id, None

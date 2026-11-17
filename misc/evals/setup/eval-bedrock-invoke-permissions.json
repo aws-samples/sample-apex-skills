@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:GetInferenceProfile"],
+      "Resource": [
+        "arn:aws:bedrock:us-west-2:<ACCOUNT_ID>:inference-profile/global.anthropic.*",
+        "arn:aws:bedrock:us-west-2:<ACCOUNT_ID>:inference-profile/us.anthropic.*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+      "Resource": ["arn:aws:bedrock:*::foundation-model/anthropic.*", "arn:aws:bedrock:::foundation-model/anthropic.*"],
+      "Condition": {"StringLike": {"bedrock:InferenceProfileArn": [
+        "arn:aws:bedrock:us-west-2:<ACCOUNT_ID>:inference-profile/global.anthropic.*",
+        "arn:aws:bedrock:us-west-2:<ACCOUNT_ID>:inference-profile/us.anthropic.*"
+      ]}}
+    },
+    {
+      "Effect": "Allow",
+      "Action": "bedrock:ListInferenceProfiles",
+      "Resource": "*"
+    }
+  ]
+}

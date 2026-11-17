@@ -10,16 +10,19 @@ postmortem of the reverted wrapper attempt.
 
 Design (PLAN §1.5.2):
 
-  stage_skill_sandbox(skill_name, repo_skill_dir) yields a (sandbox, home)
-  pair. `sandbox/.claude/skills/<skill_name>/` symlinks at the repo skill
-  dir and nothing else. `home/.aws/` symlinks at the caller's ~/.aws when
-  present, so Bedrock creds reach the subprocess. No state on disk outside
-  these two mktemp dirs; both are removed in the `finally:` block.
+  stage_skill_sandbox(skill_name, repo_skill_dir) yields a confined.Run
+  (runs/<id>/{home,sandbox} under /var/lib/apex-eval). A copy of the repo
+  skill dir sits at `home/.claude/skills/<skill_name>/` (user scope) and
+  nothing else is staged; the copy is bound read-only, so the subject can
+  read it but neither change it nor rename and replace it. No host
+  credentials are linked in: each launch gets its own Bedrock-only role
+  session (confined.py). The run root is removed in the `finally:` block.
 
-  run_single_query(...) launches `claude -p` with `cwd=sandbox`, `HOME=home`,
-  `CLAUDECODE` stripped, streams stream-json, and watches for a Skill
-  tool_use whose input names the canonical skill. Kills the subprocess on
-  first match so negatives don't burn the full response-generation budget.
+  run_single_query(...) launches `claude -p` through
+  confined.launch_confined (a systemd unit as user apex-eval, cwd=sandbox,
+  HOME=home), streams stream-json, and watches for a Skill tool_use whose
+  input names the canonical skill. Kills the unit on first match so
+  negatives don't burn the full response-generation budget.
 
   main() mirrors run_eval.py's CLI and output schema so misc/evals/
   run_all_evals.py keeps parsing the stdout JSON blob without changes.
@@ -34,16 +37,17 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import multiprocessing
 import os
 import re
 import select
-import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
+
+import confined
 
 try:  # PyYAML is present in this eval env (siblings import it unconditionally),
     import yaml  # but keep the stdlib-only regex fallback below so this runner
@@ -72,62 +76,39 @@ BUILTIN_SKILLS = frozenset({
 
 @contextlib.contextmanager
 def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
-    """Yield (sandbox, home) with exactly one skill staged and a clean HOME.
+    """Yield a confined.Run with exactly one skill staged and a clean HOME.
 
-    sandbox/.claude/skills/<skill_name>/   symlink -> repo_skill_dir
-    home/.aws/                             symlink -> ~/.aws (if present)
+    home/.claude/skills/<skill_name>/   copy of repo_skill_dir; its files
+                                        are read-only to the subject
 
-    Both dirs are mktemp'd; both are removed when the block exits, including
-    on exception. Safe against Ctrl-C during the run. Callers may also use
-    this from Phase 2's task runner — `with_skill` config points here;
-    `without_skill` config should use stage_empty_sandbox() below.
+    No ~/.aws or other host credential is linked in. The run root is
+    removed when the block exits, including on exception. Phase 2's task
+    runner uses this for the `with_skill` config; `without_skill` uses
+    stage_empty_sandbox() below.
     """
-    sandbox = Path(tempfile.mkdtemp(prefix="evals-sandbox-"))
-    clean_home = Path(tempfile.mkdtemp(prefix="evals-home-"))
+    run = confined.stage_run(skill_name, repo_skill_dir)
     try:
-        skills_dir = sandbox / ".claude" / "skills"
-        skills_dir.mkdir(parents=True)
-        (skills_dir / skill_name).symlink_to(repo_skill_dir.resolve())
-
-        host_aws = Path.home() / ".aws"
-        if host_aws.exists():
-            (clean_home / ".aws").symlink_to(host_aws)
-
-        yield sandbox, clean_home
+        yield run
     finally:
-        shutil.rmtree(sandbox, ignore_errors=True)
-        shutil.rmtree(clean_home, ignore_errors=True)
+        _report_leftovers(confined.cleanup_run(run))
 
 
 @contextlib.contextmanager
 def stage_empty_sandbox():
-    """Yield (sandbox, home) with no skills staged — the `without_skill`
-    config for Phase 2's task-axis runner. Same HOME isolation as
-    stage_skill_sandbox (clean HOME with ~/.aws symlinked through), but
-    no `.claude/` dir at all so the subject subprocess sees zero skills.
+    """Yield a confined.Run with no skills staged: the `without_skill`
+    config for Phase 2's task-axis runner, and the grader. Same isolation
+    as stage_skill_sandbox, so the subject subprocess sees zero skills.
     """
-    sandbox = Path(tempfile.mkdtemp(prefix="evals-sandbox-"))
-    clean_home = Path(tempfile.mkdtemp(prefix="evals-home-"))
+    run = confined.stage_run()
     try:
-        host_aws = Path.home() / ".aws"
-        if host_aws.exists():
-            (clean_home / ".aws").symlink_to(host_aws)
-        yield sandbox, clean_home
+        yield run
     finally:
-        shutil.rmtree(sandbox, ignore_errors=True)
-        shutil.rmtree(clean_home, ignore_errors=True)
+        _report_leftovers(confined.cleanup_run(run))
 
 
-def build_subprocess_env(home: Path, extra: dict[str, str] | None = None) -> dict[str, str]:
-    """Build the env dict for a `claude -p` subprocess. Strips CLAUDECODE so
-    a session-local parent doesn't confuse the child, sets HOME to the clean
-    temp dir, and merges caller-supplied overrides (KUBECONFIG, AWS_* for the
-    read-only session policy, etc.)."""
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-    env["HOME"] = str(home)
-    if extra:
-        env.update(extra)
-    return env
+def _report_leftovers(left: list[str]) -> None:
+    for item in left:
+        print(f"[confined] not removed: {item}", file=sys.stderr)
 
 
 # ---------- stream parser -----------------------------------------------------
@@ -161,6 +142,7 @@ def parse_stream_for_trigger(
           "invalid": bool,
           "invalid_reason": str | None,
           "init_skills": list[str] | None,
+          "exit_code": int | None,   # None when killed here (match or timeout)
         }
 
     Returns as soon as the Skill tool_use is observed (kills the process),
@@ -171,6 +153,7 @@ def parse_stream_for_trigger(
         "invalid": False,
         "invalid_reason": None,
         "init_skills": None,
+        "exit_code": None,
     }
     buffer = ""
     pending_block: dict | None = None  # {"type": "tool_use", "name": "...", "input_json": "..."}
@@ -189,17 +172,16 @@ def parse_stream_for_trigger(
     try:
         while True:
             if time.time() - start > timeout:
-                break
+                # A timeout is a run error, never a not-triggered result.
+                if not out["invalid"]:
+                    _emit_invalid(f"timed out after {timeout:g}s")
+                return out
             if process.poll() is not None:
+                out["exit_code"] = process.returncode
                 # Drain remaining output.
                 rest = process.stdout.read() if process.stdout else b""
                 if rest:
                     buffer += rest.decode("utf-8", errors="replace")
-                while "\n" in buffer:
-                    line, buffer = buffer.split("\n", 1)
-                    _handle_line(line, skill_name, out, _check_init, _emit_invalid, pending_block)
-                    if out["triggered"]:
-                        return out
                 break
 
             ready, _, _ = select.select([process.stdout], [], [], 1.0)
@@ -207,6 +189,13 @@ def parse_stream_for_trigger(
                 continue
             chunk = os.read(process.stdout.fileno(), 8192)
             if not chunk:
+                # EOF: the client exits right after; read its exit code.
+                try:
+                    out["exit_code"] = process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # An unknown exit is a run error, never a clean result.
+                    if not out["invalid"]:
+                        _emit_invalid("no exit code 5s after EOF")
                 break
             buffer += chunk.decode("utf-8", errors="replace")
 
@@ -217,6 +206,14 @@ def parse_stream_for_trigger(
                 )
                 if out["triggered"]:
                     return out
+        # A client that has exited leaves its last lines as one tail, the
+        # last maybe with no newline; the pending block carries across them.
+        for line in buffer.split("\n"):
+            pending_block = _handle_line(
+                line, skill_name, out, _check_init, _emit_invalid, pending_block
+            )
+            if out["triggered"]:
+                return out
     finally:
         if process.poll() is None:
             process.kill()
@@ -330,13 +327,12 @@ def run_single_query(
 ) -> dict:
     """Run one `claude -p` invocation in a fresh sandbox. Returns the result
     dict from parse_stream_for_trigger (triggered / invalid / init_skills).
-    Caller maps `triggered` to a pass/fail count.
+    Caller maps `triggered` to a pass/fail count. A unit that sent no
+    system/init event, or exited non-zero on its own, is invalid, never a
+    not-triggered pass.
     """
-    with stage_skill_sandbox(skill_name, repo_skill_dir) as (sandbox, home):
-        env = build_subprocess_env(home)
-
-        cmd = [
-            "claude",
+    with stage_skill_sandbox(skill_name, repo_skill_dir) as run:
+        args = [
             "-p", query,
             "--output-format", "stream-json",
             "--verbose",
@@ -344,16 +340,23 @@ def run_single_query(
             "--permission-mode", "bypassPermissions",
         ]
         if model:
-            cmd.extend(["--model", model])
+            args.extend(["--model", model])
 
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
+        with confined.launch_confined(
+            run, confined.claude_argv(args), "bedrock", timeout,
             stderr=subprocess.DEVNULL,
-            cwd=str(sandbox),
-            env=env,
-        )
-        return parse_stream_for_trigger(process, skill_name, timeout=timeout)
+        ) as process:
+            result = parse_stream_for_trigger(process, skill_name, timeout=timeout)
+    if not result.get("triggered") and not result.get("invalid"):
+        if result.get("init_skills") is None:
+            result["invalid"] = True
+            result["invalid_reason"] = f"no stream from the unit (exit {result.get('exit_code')})"
+        elif result.get("exit_code") not in (None, 0):
+            result["invalid"] = True
+            result["invalid_reason"] = f"unit exited {result['exit_code']}"
+    if run.left:
+        result["cleanup_left"] = run.left
+    return result
 
 
 # ---------- top-level aggregation ---------------------------------------------
@@ -433,10 +436,26 @@ def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
     return name, description
 
 
+_STOP = None
+
+
+def _init_worker(stop) -> None:
+    global _STOP
+    _STOP = stop
+
+
 def _worker(args: tuple) -> tuple[str, dict]:
     query, skill_name, repo_skill_dir, model, timeout = args
+    if _STOP is not None and _STOP.is_set():
+        # A job a worker already holds when the run stops; it starts nothing.
+        return query, {"stopped": True}
     try:
         result = run_single_query(query, skill_name, Path(repo_skill_dir), model, timeout)
+    except confined.ConfinedError:
+        # A failed mint or launch stops the run (run_eval re-raises it).
+        if _STOP is not None:
+            _STOP.set()
+        raise
     except Exception as e:  # noqa: BLE001
         result = {
             "triggered": False,
@@ -468,19 +487,38 @@ def run_eval(
 
     triggers_by_query: dict[str, list[bool]] = {}
     invalids_by_query: dict[str, list[dict]] = {}
+    left_by_query: dict[str, list[str]] = {}
 
-    with ProcessPoolExecutor(max_workers=num_workers) as ex:
+    # Not a `with` block: its exit is shutdown(cancel_futures=False), which
+    # would start every queued job after a failed mint.
+    stop = multiprocessing.Event()
+    ex = ProcessPoolExecutor(max_workers=num_workers, initializer=_init_worker,
+                             initargs=(stop,))
+    try:
         futures = [ex.submit(_worker, j) for j in jobs]
         for fut in as_completed(futures):
             query, result = fut.result()
-            triggers_by_query.setdefault(query, []).append(bool(result["triggered"]))
+            if result.get("stopped"):
+                continue
+            left_by_query.setdefault(query, []).extend(result.get("cleanup_left") or [])
             if result.get("invalid"):
+                # An invalid run is not scored as a trigger or a non-trigger.
                 invalids_by_query.setdefault(query, []).append(
                     {
                         "reason": result.get("invalid_reason"),
                         "init_skills": result.get("init_skills"),
                     }
                 )
+                continue
+            triggers_by_query.setdefault(query, []).append(bool(result["triggered"]))
+    except BaseException:
+        # A failed mint or launch (ConfinedError) stops the run: the pending
+        # jobs are cancelled, the ones a worker already holds start nothing
+        # (the stop flag), and the running ones finish before the raise.
+        stop.set()
+        ex.shutdown(wait=True, cancel_futures=True)
+        raise
+    ex.shutdown(wait=True)
 
     results: list[dict] = []
     item_by_query = {item["query"]: item for item in eval_set}
@@ -501,10 +539,13 @@ def run_eval(
             "trigger_rate": rate,
             "triggers": trigger_count,
             "runs": runs,
-            "pass": did_pass,
+            # A query with an invalid run is a run error, never a pass.
+            "pass": did_pass and query not in invalids_by_query,
         }
         if query in invalids_by_query:
             row["invalid_runs"] = invalids_by_query[query]
+        if left_by_query.get(query):
+            row["cleanup_left"] = left_by_query[query]
         results.append(row)
 
     passed = sum(1 for r in results if r["pass"])
@@ -537,29 +578,39 @@ def main() -> int:
     args = parser.parse_args()
 
     eval_set = json.loads(Path(args.eval_set).read_text())
-    skill_dir = Path(args.skill_path).resolve()
+    skill_dir = Path(args.skill_path).absolute()
     if not (skill_dir / "SKILL.md").exists():
         print(f"error: no SKILL.md at {skill_dir}", file=sys.stderr)
         return 1
 
     name, description = read_skill_meta(skill_dir)
 
+    try:
+        claude_version = confined.preflight(args.timeout)
+    except confined.ConfinedError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
     if args.verbose:
         print(f"[run_triggering] skill={name} prompts={len(eval_set)} "
               f"runs={args.runs_per_query} workers={args.num_workers} model={args.model}",
               file=sys.stderr)
 
-    output = run_eval(
-        eval_set=eval_set,
-        skill_name=name,
-        description=description,
-        repo_skill_dir=skill_dir,
-        num_workers=args.num_workers,
-        timeout=args.timeout,
-        runs_per_query=args.runs_per_query,
-        trigger_threshold=args.trigger_threshold,
-        model=args.model,
-    )
+    try:
+        output = run_eval(
+            eval_set=eval_set,
+            skill_name=name,
+            description=description,
+            repo_skill_dir=skill_dir,
+            num_workers=args.num_workers,
+            timeout=args.timeout,
+            runs_per_query=args.runs_per_query,
+            trigger_threshold=args.trigger_threshold,
+            model=args.model,
+        )
+    except confined.ConfinedError as e:
+        print(f"error: run stopped: {e}", file=sys.stderr)
+        return 1
 
     if args.verbose:
         s = output["summary"]
@@ -570,6 +621,7 @@ def main() -> int:
             print(f"  [{tag}] rate={rate} expected={r['should_trigger']}: {r['query'][:70]}",
                   file=sys.stderr)
 
+    output["confined_claude_version"] = claude_version
     print(json.dumps(output, indent=2))
     return 0
 

@@ -21,24 +21,13 @@ REPO_ROOT      := $(abspath $(CURDIR)/../..)
 SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name 'scripts' ! -name 'history' ! -name 'setup' ! -name '.*' -printf '%f\n' | sort)
 SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 
-# ---------- model / provider configuration ------------------------------------
-# PROVIDER selects how `claude -p` reaches a model:
-#   bedrock    (default) — sets CLAUDE_CODE_USE_BEDROCK=1 and uses a Bedrock
-#                          inference-profile ID. Required on AWS-only setups.
-#   anthropic            — uses the Anthropic API. Expects ANTHROPIC_API_KEY
-#                          to be exported in the caller's environment.
-# Override per invocation: `make triggering-all PROVIDER=anthropic MODEL=claude-opus-4-6-v1`.
-# Defaults for MODEL are provider-aware; explicit MODEL= always wins.
-PROVIDER       ?= bedrock
-
-ifeq ($(PROVIDER),bedrock)
-  MODEL        ?= global.anthropic.claude-opus-4-6-v1
-  export CLAUDE_CODE_USE_BEDROCK := 1
-else ifeq ($(PROVIDER),anthropic)
-  MODEL        ?= claude-opus-4-6-v1
-else
-  $(error PROVIDER must be 'bedrock' or 'anthropic', got '$(PROVIDER)')
-endif
+# ---------- model configuration -----------------------------------------------
+# Every confined launch reaches Bedrock with its own role session (the unit's
+# env file sets CLAUDE_CODE_USE_BEDROCK=1), so MODEL is a Bedrock
+# inference-profile ID. PROVIDER is fixed; run_all_evals.py records it.
+override PROVIDER := bedrock
+MODEL          ?= global.anthropic.claude-opus-4-6-v1
+export CLAUDE_CODE_USE_BEDROCK := 1
 
 NUM_WORKERS    ?= 10
 RUNS_PER_QUERY ?= 3
@@ -59,15 +48,11 @@ REVIEW_T     := $(addprefix review-,$(SKILLS))
 TASK_T       := $(addprefix task-,$(SKILLS))
 
 # Task-axis defaults (PLAN §2). RUNS_PER_PROMPT=1 is cheap dev; bump to 3
-# for stddev. INCLUDE_LIVE_ONLY=1 enables prompts that require a real
-# cluster (eks-recon, eks-operation-review). KUBECONFIG and AWS_SESSION_POLICY feed
-# the sandbox so those live prompts run against a read-only scope.
+# for stddev. Triggering and task runs launch every claude in a confined unit
+# (scripts/confined.py; host setup: setup/install-eval-boundary.sh) with a
+# Bedrock-only role session and no cluster credential, so prompts marked
+# live_only are always skipped.
 RUNS_PER_PROMPT   ?= 1
-INCLUDE_LIVE_ONLY ?= 0
-READONLY_SECRETS  := $(EVALS_ROOT)/.secrets
-KUBECONFIG_RO     ?= $(READONLY_SECRETS)/kubeconfig.readonly
-AWS_POLICY_RO     ?= $(READONLY_SECRETS)/readonly-session-policy.json
-AWS_REGION        ?= us-west-2
 
 PROCESS_T    := $(addprefix process-,$(SKILLS))
 ARTIFACT_T   := $(addprefix artifact-,$(SKILLS))
@@ -105,10 +90,10 @@ help:
 	@echo "  check-evals-coverage                          verify every skills/*/ has a misc/evals/*/ entry"
 	@echo "  hygiene                                       pre-flight every misc/evals/*/ (no model calls)"
 	@echo ""
-	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
-	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, AWS_POLICY_RO, WORKSPACE, BENCHMARK_DIR"
+	@echo "Overrides: MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
+	@echo "           RUNS_PER_PROMPT, WORKSPACE, BENCHMARK_DIR"
 	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
-	@echo "           RUNS_PER_PROMPT=$(RUNS_PER_PROMPT) INCLUDE_LIVE_ONLY=$(INCLUDE_LIVE_ONLY)"
+	@echo "           RUNS_PER_PROMPT=$(RUNS_PER_PROMPT)"
 
 list-skills:
 	@echo $(SKILLS)
@@ -121,7 +106,7 @@ validate-all: $(VALIDATE_T)
 
 # ---------- B  run_triggering (LIVE) ------------------------------------------
 # Local replacement for skill-creator/scripts/run_eval.py (PLAN §1.5). Stages
-# one skill per query into a mktemp sandbox with a clean HOME so plugin-level
+# one skill per query into a confined run root with a clean HOME so plugin-level
 # and user-level skill clones can't compete for trigger routing. Detects
 # triggering by parsing stream-json Skill tool_use events on the canonical
 # skill name. See misc/evals/scripts/run_triggering.py for the full design.
@@ -244,27 +229,15 @@ init-evals-finalize:
 # and the workspace/latest symlink is updated. Appends a kind="task" row to
 # misc/evals/history/<skill>.jsonl.
 #
-# Live-cluster prompts (live_only=true in evals.json) are skipped unless
-# INCLUDE_LIVE_ONLY=1. When enabled, the runner also needs a read-only
-# kubeconfig + an AWS session-policy file to scope what the subject can see.
+# Live-cluster prompts (live_only=true in evals.json) are always skipped: the
+# confined subject has no cluster credential.
 $(TASK_T): task-%:
 	@test -f $(call evals_json,$*) || \
 	  { echo "missing: $(call evals_json,$*)"; exit 1; }
-	@extra="" ; \
-	 if [ "$(INCLUDE_LIVE_ONLY)" = "1" ]; then \
-	   extra="$$extra --include-live-only" ; \
-	   if [ -f "$(KUBECONFIG_RO)" ]; then \
-	     extra="$$extra --kubeconfig $(KUBECONFIG_RO)" ; \
-	   fi ; \
-	   if [ -f "$(AWS_POLICY_RO)" ]; then \
-	     extra="$$extra --aws-session-policy $(AWS_POLICY_RO) --aws-region $(AWS_REGION)" ; \
-	   fi ; \
-	 fi ; \
-	 python3 $(EVALS_ROOT)/scripts/run_task_evals.py \
-	   --skill $* \
-	   --runs $(RUNS_PER_PROMPT) \
-	   --model $(MODEL) \
-	   $$extra
+	python3 $(EVALS_ROOT)/scripts/run_task_evals.py \
+	  --skill $* \
+	  --runs $(RUNS_PER_PROMPT) \
+	  --model $(MODEL)
 
 task-all: $(TASK_T)
 
