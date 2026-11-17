@@ -3,13 +3,13 @@ name: eks-genai
 description: Day 1 GenAI-on-EKS workflow. Guides building, training, fine-tuning, and serving generative AI / LLM workloads on Amazon EKS through the opinionated 6-layer stack — hardware (GPU vs Neuron), Karpenter scheduling, vLLM/Ray serving, distributed training, ML storage, GPU/Neuron observability, and the LiteLLM AI gateway — with a non-negotiable security baseline and cost levers.
 ---
 
+<!-- This runbook keeps eks-genai's own procedure until that skill's rebuild moves it into the eks-genai skill. The shared engagement conventions are in classes/platform/references/runbook-guidance.md; routing and hand-offs are in classes/router/. -->
+
 # GenAI on EKS Workflow
 
-> **Lifecycle:** Day 1 — Build
-> **Skill:** eks-genai | compute-hardware.md, inference-serving.md
 > **Access Model:** advisory
 
-This workflow guides a team through architecting and building a generative AI / LLM workload on Amazon EKS. It produces an opinionated, layer-by-layer stack recommendation and a build path; it does not read or mutate a live cluster. All domain knowledge comes from the `eks-genai` skill (the 6-layer stack, the GPU-vs-Neuron decision, the JARK + vLLM + LiteLLM canonical reference); this workflow supplies the engagement structure.
+This workflow guides a team through architecting and building a generative AI / LLM workload on Amazon EKS. It produces an opinionated, layer-by-layer stack recommendation and a build path; it does not read or mutate a live cluster.
 
 ## How to Route Requests
 
@@ -49,7 +49,7 @@ If the user already has an `eks-recon` report, an architecture doc, or a prior d
 
 Source: knowledge
 
-Frame the two foundational layers. Load `../../../eks-genai/references/compute-hardware.md` for the GPU-vs-Neuron decision and `cluster-and-scheduling.md` for the scheduler.
+Frame the two foundational layers. Load the `eks-genai` skill's `references/compute-hardware.md` for the GPU-vs-Neuron decision and its `references/cluster-and-scheduling.md` for the scheduler.
 
 - **Hardware (Layer 1).** Default to **Neuron** (Trn2/Trn1 training, Inf2 inference) for Transformer-family models when cost-conscious and the team can absorb the compilation ramp; default to **NVIDIA GPU** (g6/g6e inference, p5 training) for fastest time-to-value, CUDA-only dependencies, or novel/multi-modal architectures. Present the trade-off, do not pick reflexively.
 - **Cluster (Layer 2).** Karpenter (only recommended autoscaler) with separate GPU + Neuron NodePools; EKS-optimized accelerated AMI; Neuron device plugin (not the DRA driver) with Karpenter; EFA + NUMA pinning + static CPU manager for multi-node training; Capacity Blocks for planned training; Spot only with checkpoint/resume.
@@ -76,7 +76,7 @@ Apply the non-negotiable security baseline and turn the decisions into a sequenc
 - **Cost levers.** Capacity Blocks, Neuron-over-GPU, Spot+checkpoint, MIG/time-slicing, Karpenter consolidation, KV-cache tiering — directional ranges with caveats, never point estimates.
 - **Build path.** Point at the matching `awslabs/ai-on-eks` blueprint, then a 30/60/90 sequence (deploy a small reference model end-to-end → validate observability → wire the gateway → instrument cost → production cutover). Run the Quality Checklist before presenting.
 
-**STOP.** Present the stack, the security baseline, and the build path. Wait for the user's reaction before chaining into a design or build follow-up. Escalate (SpecReq) for regulated mission-critical workloads, frontier-scale training (>32 accelerator nodes), or strict multi-tenant cross-tenant isolation.
+**STOP.** Present the stack, the security baseline, and the build path. Escalate (SpecReq) for regulated mission-critical workloads, frontier-scale training (>32 accelerator nodes), or strict multi-tenant cross-tenant isolation.
 
 ## Defaults
 
@@ -108,8 +108,6 @@ Pass threshold: 5/6 or more. At 4/6, fix the failed items and re-check. Under 4/
 
 ## Conversation Style
 
-- Be concise. Group Phase 1's questions into one turn, not six.
-- If given an `eks-recon` report or an architecture doc, read it first and only ask what is missing.
 - Explain routing when activating a mode — say which layers you are scoping to and why.
 - Recommend, don't enumerate. Name the default and the trade-off; reach for the full matrix in the skill only when the user pushes back.
 - When a STOP gate fires, name the one decision you need before proceeding.

@@ -1,14 +1,14 @@
 ---
 name: EKS Upgrade Readiness Check
 description: Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status.
-workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
+workflow: skills/eks-upgrade-check/SKILL.md
 ---
 
 # Assess Your EKS Cluster Upgrade Readiness with APEX EKS
 
-A hands-on exercise that demonstrates the APEX [`eks-upgrade-check` skill](../../../skills/eks-upgrade-check/SKILL.md) in practice (the APEX upgrade check runbook, listed under Further Reading, applies when the apex skill routes the request). Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
+A hands-on exercise that demonstrates the APEX [`eks-upgrade-check` skill](../../../skills/eks-upgrade-check/SKILL.md) in practice. Deploy a cluster at EKS 1.32 with planted issues, then run the readiness assessment to produce a scored report identifying blockers before you upgrade.
 
-The upgrade-check runbook uses the [`eks-upgrade-check`](../../../skills/eks-upgrade-check/SKILL.md) skill to assess cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
+The skill assesses cluster readiness across 8 areas: version validation, breaking changes, deprecated APIs, add-on compatibility, node readiness, workload risks, AWS Upgrade Insights, and upgrade planning.
 
 ## Overview
 
@@ -187,7 +187,6 @@ If you ran this example's deploy.sh before v2, also remove `.claude/commands/ape
 
 ## Further Reading
 
-- [APEX EKS Upgrade Check Runbook](../../../skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md)
 - [EKS Upgrade Check Skill](../../../skills/eks-upgrade-check/SKILL.md)
   - [Version Validation Reference](../../../skills/eks-upgrade-check/references/version-validation.md)
   - [Add-on Compatibility Reference](../../../skills/eks-upgrade-check/references/addon-compatibility.md)

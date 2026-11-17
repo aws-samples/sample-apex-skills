@@ -104,7 +104,7 @@ Use the stage only as a hint: to break a tie between two equally specific rows (
 | Create or improve a skill, run its evals, tune its description | `skill-creator`, then the new-skill steps in CONTRIBUTING.md (sibling map, triggering.json, catalogues) |
 | Update, sync or check the repo docs after a skill change | `update-docs` |
 
-An ask to author a runbook gets no row: say that runbooks live in this skill's `runbooks/<skill>/` folders and are written by hand (CONTRIBUTING.md, Creating a New Runbook), then ask one clarifying question rather than routing to a catch-all.
+An ask to author a runbook gets no row: say that a runbook is the customer's own procedure that chains skills, written by hand from the dummy examples in this skill's `runbooks/` folder (CONTRIBUTING.md, Creating a New Runbook), then ask one clarifying question rather than routing to a catch-all.
 
 ## Hand-offs and next skills
 
@@ -112,7 +112,7 @@ This table is the one next-skill map. Carry the listed context forward when one 
 
 | after | natural next skills | context to pass |
 |---|---|---|
-| `eks-design` | `eks-build`, `eks-security` | the design's decisions: compute strategy (Karpenter, MNG, Auto Mode; design Phase 5 Q20), add-on management (Terraform, ArgoCD; Q22), upgrade strategy (in-place, blue-green; Q25), constraints (air-gapped, compliance; Phase 3) |
+| `eks-design` | `eks-build`, `eks-security` | the design's decisions: compute strategy (Karpenter, MNG, Auto Mode), add-on management (Terraform, ArgoCD), upgrade strategy (in-place, blue-green), constraints (air-gapped, compliance) |
 | `eks-best-practices` | `eks-design`, `eks-build` | the options weighed and the choice made |
 | `eks-build` | `eks-security`, `eks-operation-review` | cluster name, compute strategy, add-on management |
 | `eks-recon` | `eks-upgrade-check`, `eks-operation-review`, `eks-cost-intelligence` | the recon report: EKS version, compute strategy, add-on inventory |
@@ -128,7 +128,7 @@ This table is the one next-skill map. Carry the listed context forward when one 
 
 **Suggest next skills** only after a skill this router routed to has finished, and only when a natural next step exists: one line, 1 to 3 skills from the row above that fit the customer's stage, each with a few words on why, for example "Next, if useful: `eks-build` to turn this design into Terraform, or `eks-security` to harden it before go-live." Never load or run a suggested skill until the user asks. When nothing fits, suggest nothing.
 
-After `eks-upgrade-check`, take the band from the report; the score range of each band and the hard-blocker cap are in that skill's Readiness Score section, not here (the partial-assessment cap is in its Step 0 Pre-flight and `references/report-generation.md`; a partial assessment never prints READY, so carry its Unassessed caveat forward):
+After `eks-upgrade-check`, present its report with a one-paragraph summary of the blockers (if any) and the overall readiness rating, then take the band from the report; the score range of each band and the hard-blocker cap are in that skill's Readiness Score section, not here (the partial-assessment cap is in its Step 0 Pre-flight and `references/report-generation.md`; a partial assessment never prints READY, so carry its Unassessed caveat forward):
 
 | band | next step |
 |---|---|
@@ -148,7 +148,7 @@ Separately, if a RED finding is on the cluster version (extended support or unsu
 
 ## Runbooks
 
-A runbook is one skill's procedure for a task. Runbooks live in this skill's folder, one folder per skill: `runbooks/<skill>/<file>.md` (a skill may also call its own reference procedures runbooks). When a request routes to a skill and `runbooks/<skill>/` has a runbook for the task, follow it with that skill; if not, use the skill alone. Name a runbook only after you have found its file. For work that spans several skills, chain them by the routing tables and the hand-off table above.
+A runbook is the customer's own procedure that chains skills: which skills, in what order, what to carry between them and the customer's own gates. Runbooks live in this skill's `runbooks/` folder; `example-eks-design-to-build.md` and `example-eks-recon-to-operation-review.md` there are dummy examples to copy and adapt, followed only when the user names one. Follow a runbook step by step: one skill per step, the context the hand-off table lists carried between steps, each skill's own rules applied; a runbook may only tighten a safety rule, never loosen one. While a skill's own procedure still sits in `runbooks/<skill>/` (until that skill's rebuild moves it into the skill), follow it with that skill when a request routes there and the folder has a runbook for the task; if not, use the skill alone. Name a runbook only after you have found its file. For work that spans several skills with no runbook, chain them by the routing tables and the hand-off table above.
 
 ## Shared rules
 

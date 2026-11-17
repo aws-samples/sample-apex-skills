@@ -17,7 +17,7 @@ That split works. What it lacks is one entry point and one place where a custome
 
 The new design has one entry skill, and every other skill stands on its own:
 
-- **`apex` is the entry skill.** It knows the engagements APEX can run, asks enough to pick the right one, and holds the runbooks that drive them. `/apex` takes you straight to it on Claude Code ([ADR 0002](../adr/0002-apex-command-routes-to-apex-skill.md)).
+- **`apex` is the entry skill.** It knows the engagements APEX can run, asks enough to pick the right one, routes to the skills that run them, and holds the customer's runbooks that chain those skills. `/apex` takes you straight to it on Claude Code ([ADR 0002](../adr/0002-apex-command-routes-to-apex-skill.md)).
 - **Every other skill is a standalone skill**, of one of two kinds:
   - a **knowledge skill** gives guidance and advice on a domain, for example `eks-best-practices`;
   - a **solution skill** does a piece of work and hands back a result, for example `eks-design`, `eks-build` or `eks-cost-intelligence`.
@@ -44,21 +44,18 @@ How this shapes the design:
 
 ## Runbooks
 
-A runbook is the step-by-step part of an engagement: what to ask, in what order, which skill to load at each step, and what to hand back.
+A runbook is the customer's own procedure that chains our skills: which skills to load, in what order, what context to carry from one to the next, and the customer's own gates.
 
 ### Where they live
 
-We looked at two places.
+The steering workflows in `steering/workflows/` became runbooks in step 1, and `steering/` went with them. [ADR 0001](../adr/0001-runbooks-live-in-apex.md) put them under the `apex` skill, one folder per skill. Each was one skill's procedure, so it was a second surface to maintain beside the skill. [ADR 0007](../adr/0007-runbooks-absorbed-into-classes.md) supersedes 0001.
 
-**In each skill**, for example `eks-design/runbook/`. This was our first choice. The appeal is standalone use: a user picks up one skill folder and has everything, runbook included.
+**Set** ([ADR 0007](../adr/0007-runbooks-absorbed-into-classes.md)):
 
-**In one place under the entry skill**, at `skills/apex/runbooks/`. A maintainer made the stronger case: customers get one entry point, and can use, update and edit every runbook in one place.
-
-**Decision:** runbooks live in `skills/apex/runbooks/<skill>/`, one folder per skill, and we remove runbooks from the other skills. Under the classes design, their shared parts are absorbed into the classes and what is left goes into each skill (see [Classes](#classes)). We group them by skill for now, not by task: a task name such as "design" blurs EKS and ECS (an `eks-design` and an `ecs-design` would be different work), while a skill name does not. For now, only the `apex` skill points at runbooks; no other skill links into `apex/runbooks/`, except the vendored `eks-operation-review`, whose sync script rewrites upstream's pointer to its runbook there. See [ADR 0001](../adr/0001-runbooks-live-in-apex.md).
-
-The steering workflows in `steering/workflows/` became these runbooks in step 1, and `steering/` went with them.
-
-**Set:** a runbook is a procedure, not an information source; domain knowledge lives only in the skill, so there is one surface to maintain. **Still open, decided in steps 3 to 5 of the [plan](#plan):** how thin each runbook gets, whether runbooks stay grouped by skill, where a runbook that spans several skills goes, and how the per-skill runbooks are absorbed into the classes and the skills ([ADR 0005](../adr/0005-skill-classes.md)).
+- The `apex` router keeps `skills/apex/runbooks/` for the customer's runbooks that chain skills, and for two dummy examples to copy: `example-eks-design-to-build.md` and `example-eks-recon-to-operation-review.md`.
+- Per-skill procedures move into the classes first: the shared engagement conventions to the platform class (`classes/platform/references/runbook-guidance.md`), routing and hand-offs to the router class (`classes/router/`). The rest of each moves into its skill in that skill's rebuild: eks-design and eks-build in step 4; eks-genai, eks-platform-engineering and eks-security in step 5; eks-operation-review through its owner's issue. The eks-upgrade-check runbook is gone: all of it was router text or a shared rule.
+- Until then the remaining per-skill runbooks stay in `skills/apex/runbooks/<skill>/`, and only the `apex` skill points at them, except the vendored `eks-operation-review`, whose sync script rewrites upstream's pointer to its runbook there.
+- A runbook is a procedure, not an information source; domain knowledge lives only in the skill, so there is one surface to maintain.
 
 ### How customers adapt them
 
@@ -67,11 +64,11 @@ This is the idea going forward: the rest of a skill is domain knowledge, and the
 - **Domain knowledge** (the standalone skills) should stay close to upstream. It is facts, decision frameworks and references, and it improves when we update it.
 - **Runbooks** are where a customer fits APEX to their own use case: their approval gates, their naming, their tooling, the order they like to work in. We strongly advise customers to customize them.
 
-We do not enforce this in the repo layout. Instead this document is where we explain the decisions we made, so readers can understand them and adapt or change them as they like. Keeping every runbook under `skills/apex/runbooks/` means a customer who forks the repo has one folder to review and rebase across upgrades. How `--uninstall` treats a path you changed is in the [installer README](../../misc/installer/README.md#uninstall) (Uninstall). The clone `~/.apex-skills` is a git checkout: `--update` refuses to move it while tracked files are changed, so keep runbook edits in a fork.
+We do not enforce this in the repo layout. Instead this document is where we explain the decisions we made, so readers can understand them and adapt or change them as they like. Keeping a customer's runbooks under `skills/apex/runbooks/` means a customer who forks the repo has one folder to review and rebase across upgrades; the two examples there are the starting point. How `--uninstall` treats a path you changed is in the [installer README](../../misc/installer/README.md#uninstall) (Uninstall). The clone `~/.apex-skills` is a git checkout: `--update` refuses to move it while tracked files are changed, so keep runbook edits in a fork.
 
 ### Standalone skills
 
-A standalone skill works on its own, in any agent that reads the Agent Skills format. But without `apex` it has no runbook, so you get the knowledge without the guided engagement. We accept that as a design trade-off: users who do not take the full APEX setup get a weaker product. See [ADR 0003](../adr/0003-standalone-skills-are-a-weaker-tradeoff.md). Standalone use keeps working: a knowledge skill still gives its advice, and a solution skill keeps its references and scripts. How much of a solution skill's work runs without a runbook is decided per skill in steps 3 to 5.
+A standalone skill works on its own, in any agent that reads the Agent Skills format. But without `apex` it has no routing, hand-offs or customer runbooks, so it does not chain into the next skill. We accept that as a design trade-off: users who do not take the full APEX setup get a weaker product. See [ADR 0003](../adr/0003-standalone-skills-are-a-weaker-tradeoff.md). Standalone use keeps working: a knowledge skill still gives its advice, and a solution skill keeps its references and scripts. Once a skill's own procedure moves into it in its rebuild, the skill alone also runs its guided engagement ([ADR 0007](../adr/0007-runbooks-absorbed-into-classes.md)).
 
 ## Classes
 
