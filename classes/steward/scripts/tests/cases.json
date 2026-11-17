@@ -565,5 +565,53 @@
       "1 checks on 1 skills, 0 failed, 0 errors",
       "HOOK-TEST FAIL demo-hook/claude-code-shell expected exit 2, got 0"
     ]
+  },
+  {
+    "name": "runner fail: only a member is checked, and its fail fails the run",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import sys\nprint('B FAIL SKILL bad'.replace('SKILL', sys.argv[-1]))\nsys.exit(1)\n",
+      "skills/member/SKILL.md": "---\nname: member\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n",
+      "skills/plain/SKILL.md": "---\nname: plain\ndescription: d\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "--root",
+      ".",
+      "--no-hook-tests"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "B FAIL skills/member bad",
+      "1 checks on 1 skills, 1 failed, 0 errors"
+    ],
+    "stdout_lacks": [
+      "B FAIL skills/plain bad"
+    ]
+  },
+  {
+    "name": "runner report: every skill is checked as a member, fails are listed, exit 0",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import sys\nprint('B FAIL SKILL bad'.replace('SKILL', sys.argv[-1]))\nsys.exit(1)\n",
+      "skills/member/SKILL.md": "---\nname: member\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n",
+      "skills/plain/SKILL.md": "---\nname: plain\ndescription: d\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "--root",
+      ".",
+      "--no-hook-tests",
+      "--report",
+      "base"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "B FAIL skills/member bad",
+      "B FAIL skills/plain bad",
+      "2 checks on 2 skills, 2 failed, 0 errors (report: every skill as a member of base, never fails)"
+    ]
   }
 ]

@@ -2,7 +2,7 @@
 """Admission-check runner: run every class.yaml check on every member skill.
 
 Usage:
-    run_checks.py [--root <repo root>] [--no-hook-tests]
+    run_checks.py [--root <repo root>] [--no-hook-tests] [--report <class>]
     run_checks.py --self-test
 
 A skill is a member of the classes its SKILL.md frontmatter names in
@@ -22,6 +22,9 @@ passes through; the runner adds `<id> ERROR <skill> <reason>` lines for
 errors. Then it prints `<n> checks on <m> skills, <f> failed, <e> errors`
 (plus `, <p> planned` when any are), runs the hook unit tests
 (run_hook_tests.py) unless --no-hook-tests, and exits 1 when any check or hook test failed or errored, else 0.
+
+--report <class> treats every skill as a member of <class> as well, so the
+output lists what would fail if every skill joined it, and always exits 0.
 
 --self-test runs the cases in tests/cases.json beside this script: each one
 builds a temp tree (a git repo when it has commits), runs a command there and
@@ -145,7 +148,7 @@ def run_member(skill_dir, classes, cache, counts):
                 print(f"{check_id} ERROR {skill_dir} exit {r.returncode}: {last}")
 
 
-def run_all(root, hook_tests):
+def run_all(root, hook_tests, report=None):
     os.chdir(root)
     cache = {}
     counts = {"checks": 0, "failed": 0, "errors": 0, "planned": 0}
@@ -153,7 +156,7 @@ def run_all(root, hook_tests):
     for skill_md in sorted(p for g in SKILL_GLOBS for p in glob.glob(g)):
         skill_dir = os.path.dirname(skill_md)
         try:
-            names = declared_classes(skill_md)
+            names = declared_classes(skill_md) + ([report] if report else [])
             if not names:
                 continue
             members += 1
@@ -165,6 +168,8 @@ def run_all(root, hook_tests):
                f"{counts['failed']} failed, {counts['errors']} errors")
     if counts["planned"]:
         summary += f", {counts['planned']} planned"
+    if report:
+        summary += f" (report: every skill as a member of {report}, never fails)"
     print(summary)
     rc = 1 if counts["failed"] or counts["errors"] else 0
     if hook_tests:
@@ -172,7 +177,7 @@ def run_all(root, hook_tests):
         r = subprocess.run([sys.executable, os.path.join(HERE, "run_hook_tests.py"), "--root", "."])
         if r.returncode != 0:
             rc = 1
-    return rc
+    return 0 if report else rc
 
 
 def write_files(root, files):
@@ -251,7 +256,7 @@ def self_test():
 def main(argv):
     if argv == ["--self-test"]:
         return self_test()
-    root, hook_tests = REPO_ROOT, True
+    root, hook_tests, report = REPO_ROOT, True, None
     args = list(argv)
     while args:
         arg = args.pop(0)
@@ -259,10 +264,12 @@ def main(argv):
             root = args.pop(0)
         elif arg == "--no-hook-tests":
             hook_tests = False
+        elif arg == "--report" and args:
+            report = args.pop(0)
         else:
             print(__doc__.split("\n\n")[1], file=sys.stderr)
             return 2
-    return run_all(root, hook_tests)
+    return run_all(root, hook_tests, report)
 
 
 if __name__ == "__main__":
