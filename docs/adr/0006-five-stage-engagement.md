@@ -27,9 +27,9 @@ We weighed three options:
 - **Build**: produce the code or the change (for example eks-build, ecs-build, eks-platform-engineering).
 - **Validate**: check the result against the plan, by running an analysing skill again or the design's own validation.
 
-A customer may start at any stage. The router's Day 0, Day 1 and Day 2 stages (its families) stay as they are: they say where a customer is, and the five stages say what comes next.
+A customer may start at any of the five stages. The router's Day 0, Day 1 and Day 2 stages (its families) stay as they are: they say where a customer is, and the five stages say what comes next.
 
-**How it reads to a customer once runbooks are absorbed.** The customer asks `apex`. The router works out where they are, sends them to the first skill that fits, and at each hand-off offers the next skill in stage order, carrying the context forward so nothing is asked twice. Each skill does its own job fully on its own. A customer who wants a fixed engagement, such as recon, then an operations review, then an upgrade check, writes it as their own runbook, using the example runbooks as a model.
+**How it reads to a customer once runbooks are absorbed.** The customer asks `apex`. The router works out where they are, sends them to the first skill that fits, and at each hand-off offers the next skill in the order of the five stages, carrying the context forward so nothing is asked twice. Each skill does its own job fully on its own. A customer who wants a fixed engagement, such as recon, then an operations review, then an upgrade check, writes it as their own runbook, using the example runbooks as a model.
 
 ## Consequences
 
