@@ -29,7 +29,7 @@
       "prompt": "We want EKS Auto Mode for the operational simplicity, but our compliance team says they require CIS-hardened custom AMIs for our HIPAA workload. Can we use Auto Mode, and if not what's the alternative?",
       "expectations": [
         "States EKS Auto Mode does NOT support custom AMIs",
-        "Names a node option outside Auto Mode that can run the CIS-hardened custom AMI (for example Karpenter NodePools or managed node groups), with a reason",
+        "Names a node option outside Auto Mode that can run the CIS-hardened custom AMI (for example self-managed Karpenter (EC2NodeClass amiSelectorTerms) or managed node groups with a launch template), with a reason",
         "Distinguishes a hard regulatory requirement from an organizational preference before recommending",
         "Notes that on Auto Mode the identity layer (2) stays the customer's.",
         "Notes that on Auto Mode the image layer (4) stays the customer's.",

@@ -41,7 +41,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["(CoreDNS|system|platform|controller|add-?ons?|critical)[^.\\n]{0,80}\\b(managed.?node.?group|MNG|Fargate|Karpenter.?managed|node.?pool|Auto Mode)\\b", "\\b(managed.?node.?group|MNG|Karpenter.?managed|node.?pool)\\b[^.\\n]{0,80}(system|platform|CoreDNS|controller|add-?ons?)"],
+          "patterns": ["(CoreDNS|system|platform|controller|add-?ons?|critical)[^.\\n]{0,80}\\b(run\\w*|place\\w*|placement|schedul\\w*|pin\\w*|host\\w*|on)\\b[^.\\n]{0,40}\\b(managed.?node.?group|MNG|Fargate|Karpenter.?managed|node.?pool|Auto.?Mode)\\b", "\\b(managed.?node.?group|MNG|Fargate|Karpenter.?managed|node.?pool|Auto.?Mode)\\b[^.\\n]{0,80}(CoreDNS|system|platform|controller|add-?ons?|critical)[^.\\n]{0,40}\\b(run\\w*|place\\w*|placement|schedul\\w*|pin\\w*|host\\w*|on)\\b", "\\b(managed.?node.?group|MNG|Fargate|Karpenter.?managed|node.?pool|Auto.?Mode)\\b[^.\\n]{0,80}\\b(run\\w*|place\\w*|placement|schedul\\w*|pin\\w*|host\\w*|on)\\b[^.\\n]{0,40}(CoreDNS|system|platform|controller|add-?ons?|critical)"],
           "context": "Must address where system components run: the node placement (a managed node group, Fargate, a node pool, Karpenter-managed nodes or Auto Mode) must be tied to system components, since the prompt itself names MNG and Fargate",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
         },
@@ -53,8 +53,8 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["\\b(split|separate|dedicated|multiple|additional|another|isolated|own(?=\\s+(?:[\\w-]+\\s+){0,2}clusters?\\b))\\b[^.\\n]{0,80}\\bclusters?\\b[^.\\n]{0,80}(compliance|regulat|PCI|HIPAA|data.?residency|residency|sovereign|blast.?radius|isolation|noisy.?neighbo|tenant|upgrade|version|region|quota|limit|scale)", "(compliance|regulat|PCI|HIPAA|data.?residency|residency|sovereign|blast.?radius|isolation|noisy.?neighbo|tenant|upgrade|version|region|quota|limit|scale)[^.\\n]{0,80}\\b(split|separate|dedicated|own|multiple|additional|another)\\b[^.\\n]{0,20}\\bclusters?\\b"],
-          "context": "Must name a reason that would justify splitting clusters (any trigger, not one the skill prefers): the reason must sit next to a separate or dedicated cluster, not only be mentioned",
+          "patterns": ["\\b(split|separate|dedicated|multiple|additional|another|isolated|own(?=\\s+(?:[\\w-]+\\s+){0,2}clusters?\\b))\\b[^.\\n]{0,80}\\bclusters?\\b[^.\\n]{0,80}(compliance|regulat|PCI|HIPAA|data.?residency|residency|sovereign|blast.?radius|isolation|noisy.?neighbo|tenant|upgrade|version|region)", "(compliance|regulat|PCI|HIPAA|data.?residency|residency|sovereign|blast.?radius|isolation|noisy.?neighbo|tenant|upgrade|version|region)[^.\\n]{0,80}\\b(split|separate|dedicated|own|multiple|additional|another|isolated)\\b[^.\\n]{0,20}\\bclusters?\\b"],
+          "context": "Must name a reason that would justify splitting clusters (any trigger the guide or the answer justifies): the reason must sit next to a separate or dedicated cluster, not only be mentioned",
           "source": "aws/aws-eks-best-practices latest/bpg/security/multitenancy.adoc:538-540 at edc514fa"
         }
       ],

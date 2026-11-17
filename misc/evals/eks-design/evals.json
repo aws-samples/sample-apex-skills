@@ -33,7 +33,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["prefix.?delegation", "prefix.?mode", "\\b(IP|IPv4)\\b[^.\\n]{0,40}(exhaust|capacity|density|per.?node|planning|consum)", "(pod|IP).?density", "max.?pods", "IPv6"],
+          "patterns": ["prefix.?delegation", "prefix.?mode", "\\b(IP|IPv4)\\b[^.\\n]{0,40}(exhaust|capacity|density|per.?node|planning|consum)", "(pod|IP).?density", "max.?pods", "IPv6[^.\\n]{0,60}(pod|IP|address|density|exhaust)"],
           "context": "Must address Pod density or IP address capacity for 200+ microservices (prefix mode, max Pods, IP exhaustion or IPv6), not one fix the skill prefers",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/networking.html"
         },

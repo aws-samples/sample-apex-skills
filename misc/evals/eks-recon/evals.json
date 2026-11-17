@@ -298,7 +298,6 @@
         "Leaves prior.yaml unmodified: it still holds the retired node group, the role/retired access principal and the reader-v1 Pod Identity role.",
         "Retains current facts in YAML.",
         "The YAML has no historical delta inside its module blocks.",
-        "Preserves current security.image_security.admission_policies: true in the YAML.",
         "Lists security.image_security.admission_policies under Comparison coverage because the selector semantics changed across revisions.",
         "Other confirmed security deltas still appear."
       ],
