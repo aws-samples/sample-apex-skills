@@ -18,7 +18,7 @@ What CONTRIBUTING.md asks for (section "Pre-PR checklist for new skills"):
 - "`misc/evals/<name>/triggering.json` has ≥16 prompts (≥8 positives, ≥8 negatives)"
 - "Every neighbour's `SIBLING_MAP` block in `misc/evals/<neighbour>/README.md` lists this new skill, and the corresponding negatives are in `misc/evals/<neighbour>/triggering.json`"
 
-The CI hygiene check asks for one more file (see "evals.json" below).
+The CI hygiene check asks for more (see "evals.json" below); `misc/evals/scripts/check_hygiene.py` holds the full list of what it fails on.
 
 ## 1. Scaffold
 
@@ -38,12 +38,12 @@ This copies `misc/evals/_template/` to `misc/evals/<name>/` (`README.md`, `trigg
 A JSON list of `{"query": "...", "should_trigger": true|false}` objects.
 
 - At least 8 positives: the five prompts from step 1 plus near paraphrases, in the words a user would really type.
-- At least 8 near-miss negatives: prompts that sound close but belong to each confirmed sibling. With no siblings, use catch-all negatives (another service, an unrelated domain).
+- At least 8 near-miss negatives: prompts that sound close but belong to each confirmed sibling. With no siblings, use catch-all negatives (another service, an unrelated domain) and attribute them to one bold non-skill bullet in the sibling map.
 - Replace every `<REPLACE: ...>` placeholder entry; leave none behind.
 
 ## 3. evals.json
 
-`misc/evals/scripts/check_hygiene.py` (run by the `evals` CI job on every pull request that touches `skills/**` or `misc/evals/**`) warns, and so exits 1, when `evals.json` is missing, has fewer than 2 prompts, or has a prompt with fewer than 3 expectations. The template ships 1 prompt with 1 expectation, so fill it in: at least 2 realistic task prompts, each with at least 3 grader-checkable expectations.
+`misc/evals/scripts/check_hygiene.py` (run by the `evals` CI job on every pull request that touches `skills/**` or `misc/evals/**`) warns, and so exits 1, when `evals.json` is missing, has fewer than 2 prompts, or has a prompt with fewer than 3 expectations, among other failures (a missing `.skilleval.yaml` or `README.md`, for example; the script holds the full list). The template ships 1 prompt with 1 expectation, so fill it in: at least 2 realistic task prompts, each with at least 3 grader-checkable expectations.
 
 ## 4. README.md and the sibling map
 
@@ -69,7 +69,7 @@ python3 misc/evals/scripts/update_sibling_map.py \
   --negative-prompt "<a second one>"
 ```
 
-You write the scope and the prompts; the helper only does the insertion. The bullet it writes uses an em dash after the scope: replace it with a comma (the parser, `_BULLET_RE` and `_NEGATIVES_RE` in `misc/evals/scripts/run_all_evals.py`, reads only the bold name and the "negatives N" phrase). These sibling updates go in the same pull request as the new skill.
+You write the scope and the prompts; the helper only does the insertion. These sibling updates go in the same pull request as the new skill.
 
 A sibling with no eval set (the helper exits 1 with "sibling eval dir not found"; `make check-evals-coverage` lists such skills): scaffold one for it first (`make init-evals SKILL=<sibling>` from `misc/evals/`), fill it to the hygiene floor in sections 2 to 4, then run the helper. That widens the pull request to the sibling's folder: say so in the body.
 

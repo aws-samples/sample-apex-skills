@@ -6,11 +6,9 @@ All commands run from the repo root. The generators and the validator parse fron
 
 `misc/installer/bin/cli.mjs` (`getSkills`) links every directory under `skills/` into a user's skills folder; there is no opt-in list. A merged skill therefore reaches every `npx apex-skills` install at the next release tag (installer 1.3.0 and later install the newest `v1.x.y` tag, per CONTRIBUTING.md, "Releasing to npm"). Write for that audience, and keep the public-repo rule: no internal or customer content.
 
-`apex-new-skill` installs for everyone the same way, with no opt-in flag: it is mainly for maintainers, and also useful to people who clone the repo to build their own internal APEX repo.
-
 ## Generators
 
-The list to run is the Steward class's `generators` in `classes/steward/class.yaml` (each `run`, then each `check`; a `status: planned` entry is not built yet: name it as not run). The table below describes the two that exist today. Never edit their output by hand. CONTRIBUTING.md: "The regenerator owns everything between the markers".
+The list to run is the Steward class's `generators` in `classes/steward/class.yaml` (each `run`, then each `check`; a `status: planned` entry is not built yet: name it as not run). The table below describes generators that entry lists; run each entry whose status is `exists`. Never edit their output by hand. CONTRIBUTING.md: "The regenerator owns everything between the markers".
 
 | Command | Rebuilds | Reads sources from |
 |---|---|---|
@@ -19,44 +17,37 @@ The list to run is the Steward class's `generators` in `classes/steward/class.ya
 
 `<group>` is `eks` for `eks-*` names, `ecs` for `ecs-*`, else `general`.
 
-Order matters. Run the generators only after `git add skills/<name>/`. If `update-pages.sh` runs first it sees no new files, writes no wrapper and CI fails later. Confirm:
+Order matters. Run the generators only after the skill's files are staged, each by name (SKILL.md, step 5). If `update-pages.sh` runs first it writes manifest and card entries but no wrapper page, and CI fails later. Confirm:
 
 ```bash
 ls misc/website/docs/skills/*/<name>/index.md
 ```
 
-Then stage what they produced, by path. List it with `git status --porcelain` and add each line you expect, for example:
-
-```bash
-git add README.md skills/README.md misc/website/docs/skills/index.md \
-  misc/website/static/manifests/skills.json misc/website/static/llms.txt \
-  misc/website/docs/skills/general/<name>/
-```
-
-Anything in that list you did not expect (a file outside the generator outputs, a stray report) stays unstaged: find out why it changed first.
+Then stage what they produced, by path: list it with `git status --porcelain` and add each line you expect. Anything in that list you did not expect (a file outside the generator outputs, a stray report) stays unstaged: find out why it changed first.
 
 ## Checks
 
-Run each; each must exit 0. The first three are exactly what `.github/workflows/docs-sync.yml` runs; the hygiene check is what `.github/workflows/evals.yml` runs. The `vendored-guard` job also fails a pull request that edits a vendored folder (rule 6 in SKILL.md).
+Run each; each must exit 0. The first three and the two test commands are among what `.github/workflows/docs-sync.yml` runs; the hygiene check is what `.github/workflows/evals.yml` runs. The `vendored-guard` job also fails a pull request that edits a vendored folder (rule 5 in SKILL.md).
 
 | Command | Checks |
 |---|---|
 | `python3 misc/validate-frontmatter.py` | Every `skills/*/SKILL.md` and `devops-agent/*/SKILL.md`: front matter is a YAML mapping; `name` and `description` present; `description` at most 1024 characters; only `name`, `description`, `license`, `metadata`, `allowed-tools` keys; no anchors or aliases; block under 64KB; nesting depth at most 8; description equals the `skills.json` entry (a missing entry is only a warning, so run `update-pages.sh` to add it). |
 | `./misc/update-all-references.sh --check` | Regenerates the marker blocks, then fails on any `git diff` in `README.md`, `skills/README.md`, `devops-agent/README.md`. |
 | `./misc/update-pages.sh --check` | Regenerates wrappers and manifests, then fails on any diff or any untracked generated file under `misc/website/docs/` or `misc/website/static/manifests/`. Unstaged new wrappers count as untracked: stage them first. |
+| `python3 -B misc/tests/test_reference_markers.py -v` | The reference marker blocks. |
+| `node --experimental-strip-types --test misc/website/src/components/skillSearch.test.ts` | The skill finder's search, which reads the catalogue entry step 5 adds. |
 | `python3 misc/evals/scripts/check_hygiene.py` | Every eval set under `misc/evals/`: front matter via `quick_validate.py`, 8+ positives and 8+ negatives in `triggering.json`, 2+ prompts with 3+ expectations each in `evals.json`, every negative attributed in SIBLING_MAP. Per skill: `cd misc/evals && make init-evals-finalize SKILL=<name>`. |
 | `python3 skills/skill-creator/scripts/quick_validate.py skills/<name>` | Name is kebab-case, at most 64 characters; description at most 1024 characters with no `<` or `>`; allowed keys. |
-| `grep -c $'\xe2\x80\x94' <file>` for each authored file | Prints 0: no em dashes. |
-| Each class check with status `exists` in the `checks` of the skill's classes and their parents | What the class says it checks. It blocks only a member of that class. |
+| Each class check with status `exists` in the `checks` of the skill's classes and their parents | What the class says it checks. |
 
 `--check` compares the working tree with the git index, so it passes once regenerated output is staged; CI runs it on the committed tree.
 
 ## Optional: package the skill
 
-CONTRIBUTING.md's manual path ends with "Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`". That writes `<name>.skill` into the current directory, the repo root, where it is untracked and easy to commit by accident. Pass an output directory outside the repo instead, and never commit the `.skill` file. The script imports `scripts.quick_validate`, so run it as a module from `skills/skill-creator` (the repo-root form exits 1 with `ModuleNotFoundError`):
+CONTRIBUTING.md's manual path ends with "Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`". That form exits 1 with `ModuleNotFoundError` and writes nothing: the script imports `scripts.quick_validate`. Run it as a module from `skills/skill-creator`, with an output directory outside the repo (with none, it writes the `.skill` into `skills/skill-creator/`, a vendored folder), and never commit the `.skill` file:
 
 ```bash
-(cd skills/skill-creator && python3 -m scripts.package_skill ../<name> /tmp/skill-package)
+(cd skills/skill-creator && python3 -m scripts.package_skill ../<name> "$(mktemp -d)")
 ```
 
 ## Prose that the generators do not cover

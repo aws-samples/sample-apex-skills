@@ -16,10 +16,11 @@
   {"query": "Help me tighten my skill's description so it triggers more reliably, and run the description optimization loop on it.", "should_trigger": false},
   {"query": "Benchmark my skill with and without the skill loaded and show me the variance analysis across runs.", "should_trigger": false},
   {"query": "Edit skills/terraform-skill/SKILL.md to add a section on our Terraform module naming conventions.", "should_trigger": false},
-  {"query": "What is running on my EKS cluster? Detect the compute strategy, add-ons and IaC tooling.", "should_trigger": false},
+  {"query": "Write an ADR in docs/adr/ recording why the router moved into a class. It changes no skill.", "should_trigger": false},
   {"query": "I edited the description of eks-recon. Sync every README marker block and Docusaurus wrapper that still shows the old text.", "should_trigger": false},
   {"query": "Design the architecture for a new production EKS cluster for a regulated workload, with ADRs and diagrams.", "should_trigger": false},
   {"query": "How do I open a pull request on GitHub for a bug fix in my Django project?", "should_trigger": false},
   {"query": "How do I install the APEX skills into Kiro with npx apex-skills?", "should_trigger": false},
-  {"query": "Should I use Karpenter or managed node groups for a new production EKS cluster?", "should_trigger": false}
+  {"query": "Rewrite the troubleshooting section of skills/eks-recon/SKILL.md so it covers Fargate nodes.", "should_trigger": false},
+  {"query": "eks-recon's files and evals are merged already. Regenerate the README tables and the website pages for it.", "should_trigger": false}
 ]
