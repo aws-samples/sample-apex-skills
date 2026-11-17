@@ -842,6 +842,31 @@
     ]
   },
   {
+    "name": "hook-test pass: run from a subfolder, same result as from the root",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import json, sys\ncmd = json.load(sys.stdin)['tool_input']['command']\nif 'rm ' in cmd:\n    print('blocked: rm', file=sys.stderr)\n    sys.exit(2)\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/claude-code-shell.expected.json": "{\"exit\": 2, \"decision\": \"block\", \"stderr_contains\": \"rm\"}"
+    },
+    "commits": [
+      {
+        "files": {}
+      }
+    ],
+    "cmd": [
+      "sh",
+      "-c",
+      "cd classes && exec \"$0\" \"$1\"",
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 0,
+    "stdout_has": [
+      "HOOK-TEST PASS demo-hook/claude-code-shell ok",
+      "1 hook tests, 0 failed, 0 errors"
+    ]
+  },
+  {
     "name": "runner pass: parent and child, parents first, planned not counted",
     "files": {
       "classes/parent/class.yaml": "name: parent\nparents: []\nchecks:\n  - id: p\n    status: exists\n    run: \"python3 classes/parent/p.py\"\n",

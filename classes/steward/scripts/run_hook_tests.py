@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Hook-test skeleton (piece 9): feed fixture events to each class hook script.
 
-Usage, from the repo root: run_hook_tests.py
+Usage, from the repo root or any folder in its git checkout (it moves to the
+top level first): run_hook_tests.py
 
 Finds every fixture by the glob classes/*/hooks/*/tests/*.event.json. A
 fixture `<harness>-<case>.event.json` (harness claude-code, codex or kiro)
@@ -105,10 +106,20 @@ def run_one(event_path):
     return "PASS", "ok"
 
 
+def repo_top():
+    """The git top level of the current folder, or the current folder outside git."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    except OSError:
+        return "."
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else "."
+
+
 def main(argv):
     if argv:
-        print(f"usage: {os.path.basename(__file__)} (no arguments, from the repo root)", file=sys.stderr)
+        print(f"usage: {os.path.basename(__file__)} (no arguments)", file=sys.stderr)
         return 2
+    os.chdir(repo_top())
     counts = {"PASS": 0, "FAIL": 0, "ERROR": 0}
     for event_path in sorted(glob.glob("classes/*/hooks/*/tests/*.event.json")):
         status, reason = run_one(event_path)
