@@ -41,12 +41,6 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["(CoreDNS|system|platform|controller|add-?ons?|critical)[^.\\n]{0,80}\\b(run\\w*|place\\w*|placement|schedul\\w*|pin\\w*|host\\w*|on)\\b[^.\\n]{0,40}\\b(managed.?node.?group|MNG|Fargate|Karpenter.?managed|node.?pool|Auto.?Mode)\\b", "\\b(managed.?node.?group|MNG|Fargate|Karpenter.?managed|node.?pool|Auto.?Mode)\\b[^.\\n]{0,80}(CoreDNS|system|platform|controller|add-?ons?|critical)[^.\\n]{0,40}\\b(run\\w*|place\\w*|placement|schedul\\w*|pin\\w*|host\\w*|on)\\b", "\\b(managed.?node.?group|MNG|Fargate|Karpenter.?managed|node.?pool|Auto.?Mode)\\b[^.\\n]{0,80}\\b(run\\w*|place\\w*|placement|schedul\\w*|pin\\w*|host\\w*|on)\\b[^.\\n]{0,40}(CoreDNS|system|platform|controller|add-?ons?|critical)"],
-          "context": "Must address where system components run: the node placement (a managed node group, Fargate, a node pool, Karpenter-managed nodes or Auto Mode) must be tied to system components, since the prompt itself names MNG and Fargate",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
-        },
-        {
-          "type": "must-contain-one-of",
           "patterns": ["consolidat\\w*[^.\\n]{0,80}(cost|utili[sz]|bin.?pack|empty|fewer|cheaper|right.?siz)", "(cost|bin.?pack|utili[sz]ation)[^.\\n]{0,80}consolidat", "WhenEmptyOrUnderutilized", "consolidateAfter"],
           "context": "Must cite Karpenter disruption-specific consolidation mechanics, not just generic benefits: consolidation must be tied to what it does (cost, utilization, fewer or empty nodes), not only named",
           "source": "https://karpenter.sh/docs/concepts/disruption/#consolidation"

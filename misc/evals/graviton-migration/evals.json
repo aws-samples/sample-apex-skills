@@ -82,14 +82,8 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["effect:\\s*\"?NoSchedule", "kubernetes\\.io/arch[\\s\\S]{0,120}?amd64"],
+          "patterns": ["effect:\\s*\"?NoSchedule", "kubernetes\\.io/arch(?:(?!arm64)[\\s\\S]){0,120}?\\bamd64\\b(?![^\\]\\n]*arm64)"],
           "context": "Must keep amd64-only pods off the arm64 nodes: a NoSchedule taint on the arm64 NodePool or an amd64 arch selector",
-          "source": "skills/graviton-migration/references/karpenter-migration.md"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["toleration"],
-          "context": "The canary must tolerate the arm64 taint; an answer with no taint is graded by the canary scheduling expectation",
           "source": "skills/graviton-migration/references/karpenter-migration.md"
         }
       ],

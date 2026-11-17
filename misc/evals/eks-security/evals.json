@@ -372,9 +372,18 @@
         "Says not to restart the pods",
         "Says not to scale the pods down before the EBS snapshots",
         "Proposes pausing the orders-api rollout so the pods stay in place",
-        "Proposes pod-scoped NetworkPolicy isolation by an added quarantine label on the two orders-api pods (app labels unchanged), explicitly not a namespace-wide deny-all that would cut cart, checkout and catalog, and states its limits: policies are additive, so it holds only where policy is enforced and no other policy selecting the pods allows the traffic",
-        "Proposes identity containment for the leaked credentials and names what each breaks: revoke the role's active sessions (credentials already issued stay valid until then) and remove or narrow the Pod Identity association, plus blocking the digest at admission since Kyverno is installed",
-        "Proposes EBS snapshots of the node volumes and volatile capture only after the pods are isolated, not before containment",
+        "Proposes pod-scoped NetworkPolicy isolation of the two orders-api pods",
+        "The isolation selects the two pods by an added quarantine label, with their app labels unchanged",
+        "Says not to use a namespace-wide deny-all, which would cut cart, checkout and catalog",
+        "States the isolation's limit: policies are additive, so it holds only where policy is enforced and no other policy selecting the pods allows the traffic",
+        "Proposes identity containment for the leaked credentials and names what each step breaks",
+        "Proposes revoking the role's active sessions",
+        "Says credentials already issued stay valid until they expire, and revoking stops only their AWS API calls",
+        "Says that if the role maps to a Kubernetes identity through an access entry or an aws-auth mapping, the stolen credentials still reach the Kubernetes API until they expire unless that mapping is deleted",
+        "Proposes removing or narrowing the Pod Identity association",
+        "Proposes blocking the digest at admission, since Kyverno is installed",
+        "Proposes EBS snapshots of the node volumes only after the pods are isolated, not before containment",
+        "Proposes volatile capture only after the pods are isolated, not before containment",
         "Every change is printed for the team to review and run",
         "The answer does not claim to have applied anything",
         "States that checking whether the stolen credentials were used (GuardDuty findings, CloudTrail, audit log queries) is not covered by the skill"
@@ -397,10 +406,10 @@
           "type": "must-contain-one-of",
           "patterns": [
             "revoke active sessions",
-            "revoke.{0,20}sessions",
+            "revo(ke|king).{0,20}sessions",
             "AWSRevokeOlderSessions"
           ],
-          "context": "Issued credentials stay valid until revoked",
+          "context": "Issued credentials stay valid until they expire; revoking stops their AWS API calls",
           "source": "skills/eks-security/references/security-event-response.md (Step 3: identity)"
         },
         {

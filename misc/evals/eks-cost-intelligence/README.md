@@ -21,7 +21,7 @@ The `triggering.json` positives (entries 0–9) use two phrasing styles: explici
 
 ## Live-MCP caveat
 
-The skill combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis to produce dollar-quantified findings. Running full task evals end-to-end **requires live cluster access** plus either the EKS MCP server (`awslabs.eks-mcp-server`) or fallback AWS CLI / kubectl connectivity. The skill's pre-flight phase explicitly verifies access before proceeding.
+The skill combines live Cost Explorer data, CloudWatch utilization metrics, and Kubernetes resource analysis to produce dollar-quantified findings. The `evals.json` prompts state their cluster observations inline, so the task evals run with no live cluster or MCP server. A real assessment by the skill **requires live cluster access** plus either the EKS MCP server (`awslabs.eks-mcp-server`) or fallback AWS CLI / kubectl connectivity. The skill's pre-flight phase explicitly verifies access before proceeding.
 
 If MCP and CLI are both unavailable, the skill stops cleanly with troubleshooting guidance. Triggering evals are pure classification and are never affected by MCP availability.
 
