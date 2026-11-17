@@ -28,10 +28,8 @@ try:
     MISSING = None if "date-time" in jsonschema.FormatChecker().checkers else "jsonschema's format-nongpl extra"
 except ImportError as e:
     MISSING = e.name
-if MISSING:
-    print(f"skipped: {MISSING} is not installed; install jsonschema and pyyaml:"
-          " pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'")
-    sys.exit(0)
+NEEDS_DEPS = unittest.skipUnless(not MISSING, f"{MISSING} is not installed; install jsonschema and pyyaml:"
+                                 " pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'")
 
 sys.dont_write_bytecode = True
 
@@ -90,6 +88,7 @@ def output_case(case):
 OUTPUTS = {c["id"]: c for c in CASES["output_cases"]}
 
 
+@NEEDS_DEPS
 class Tmp(unittest.TestCase):
     def setUp(self):
         self._td = tempfile.TemporaryDirectory(prefix="class-validators-")
@@ -296,6 +295,7 @@ class DeepInput(Tmp):
                 self.assertNotIn("Traceback", out, case["id"])
 
 
+@NEEDS_DEPS
 class ReconSchemaMatchesSkill(unittest.TestCase):
     """The hand-written schema stays in step with SKILL.md."""
 
