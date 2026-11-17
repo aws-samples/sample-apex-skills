@@ -29,7 +29,7 @@ restore is for a skill that switched the context: given the context check record
 switches back when the current context differs, and says which context is set when none
 was recorded.
 
-Output: one JSON object on stdout. Exit 0 ok, 2 stop (a check failed: show "message" to
+Output: one JSON object on stdout, except argparse usage errors (stderr, exit 64). Exit 0 ok, 2 stop (a check failed: show "message" to
 the user and do not read the cluster), 64 bad usage. Stdlib only.
 """
 
@@ -76,7 +76,7 @@ def parse_read(spec):
     ns = parts[2] if len(parts) == 3 else ""
     if verb not in READ_VERBS:
         raise ValueError("--read %r: verb must be one of %s" % (spec, ", ".join(READ_VERBS)))
-    if resource.split("/")[0].split(".")[0] == "secrets":
+    if resource.split("/")[0].split(".")[0] in ("secret", "secrets", "*"):
         raise ValueError("--read %r: Secrets are never read (apex.no-secrets)" % spec)
     return {"verb": verb, "resource": resource, "namespace": ns}
 
@@ -124,14 +124,14 @@ def check(args):
     rc, endpoint, err = run(["aws", "eks", "describe-cluster", "--name", args.cluster, "--region", args.region,
                              "--query", "cluster.endpoint", "--output", "text"])
     if rc != 0 or not endpoint or endpoint == "None":
-        return stop("describe_cluster_failed", "aws eks describe-cluster for %s in %s failed: %s"
+        return stop("describe_cluster_failed", "aws eks describe-cluster for %s in %s failed (it needs eks:DescribeCluster): %s"
                     % (args.cluster, args.region, err or endpoint or "empty"), recorded_context=recorded)
     if norm_endpoint(server) != norm_endpoint(endpoint):
         return stop("endpoint_mismatch",
                     "Context %r points at %s, but cluster %s in %s has endpoint %s. Do not read through this "
                     "context; ask the user for the context of %s." % (ctx, server, args.cluster, args.region,
                                                                        endpoint, args.cluster),
-                    recorded_context=recorded, server=server, endpoint=endpoint)
+                    recorded_context=recorded)
 
     # 4. An auth can-i check for each read; a no or an error stops the run.
     results, missing = [], []
@@ -154,16 +154,19 @@ def check(args):
                                      "denied" if m["answer"] == "no" else "check failed (%s)" % m["error"])
                  for m in missing]
         return stop("permission_missing",
-                    "STOP: the caller on context %r is missing permission for %d read(s) this skill needs:\n%s\n"
-                    "No cluster read was made. Ask the cluster admin to grant these verbs on these resources "
-                    "(for example through an EKS access entry with AmazonEKSViewPolicy), then run the preflight "
-                    "again." % (ctx, len(missing), "\n".join(lines)),
-                    recorded_context=recorded, can_i=results, missing=missing)
+                    "STOP: the caller on context %r is missing permission, or the check failed, for %d read(s) this "
+                    "skill needs:\n%s\nNo cluster read was made. For a denied read, ask the cluster admin to "
+                    "grant these verbs on these resources (an access entry on an API or API_AND_CONFIG_MAP "
+                    "cluster, for example with AmazonEKSViewPolicy; the aws-auth ConfigMap on CONFIG_MAP). For a "
+                    "failed check, fix the credentials or the network first. Then run the preflight again."
+                    % (ctx, len(missing), "\n".join(lines)),
+                    recorded_context=recorded, missing=missing)
 
+    flags = "--context %s" % ctx + (" --kubeconfig %s" % args.kubeconfig if args.kubeconfig else "")
     return {"status": "ok", "context": ctx, "cluster": args.cluster, "region": args.region,
             "endpoint": endpoint, "recorded_context": recorded, "can_i": results,
             "message": "Context %r is bound to cluster %s and every read passed the can-i check. "
-                       "Run every kubectl read with --context %s." % (ctx, args.cluster, ctx)}, 0
+                       "Run every kubectl read with %s." % (ctx, args.cluster, flags)}, 0
 
 
 def restore(args):

@@ -196,6 +196,7 @@ jobs:
         run: >-
           bash .github/scripts/ci-gate.sh changed
           'classes/service-eks/**'
+          'skills/**'
           'misc/tests/test_service_eks_preflight.py'
           '.github/workflows/evals.yml'
           '.github/scripts/ci-gate.sh'

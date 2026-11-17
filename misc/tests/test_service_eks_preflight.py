@@ -4,9 +4,10 @@
 The preflight runs against fake kubectl and aws on PATH (no live AWS, no cluster). The
 stop-and-name path: an `auth can-i` answer of no, or an error, stops the run before any read
 and names each missing verb and resource. The static grep: every kubectl read line in a
-service-eks member's SKILL.md, scripts/, tools/ and assets/ carries --context. It blocks on
-members (metadata.apex-classes names service-eks) and on the class's own files, and prints a
-non-blocking report for every other eks-* skill. Stdlib only.
+service-eks member's SKILL.md, scripts/, tools/ and assets/ carries --context; kubectl lines in
+references/ are not checked by it. It blocks on members (metadata.apex-classes names service-eks)
+and on the class's rules.md, and prints a non-blocking, rough (line heuristic) report count for
+every other eks-* skill. Stdlib only.
 
 Override the preflight under test with SERVICE_EKS_PREFLIGHT=<path> (used for a negative control).
 """
@@ -155,7 +156,8 @@ class Check(PreflightCase):
         self.assertEqual(can_i[2][can_i[2].index("-n") + 1], "kube-system")
 
     def test_kubeconfig_passes_to_every_kubectl_call(self):
-        self.check("--kubeconfig", "/proj/kubeconfig")
+        rc, body, _ = self.check("--kubeconfig", "/proj/kubeconfig")
+        self.assertIn("--context user-ctx --kubeconfig /proj/kubeconfig", body["message"])
         for c in self.kubectl_calls():
             self.assertEqual(c[:2], ["--kubeconfig", "/proj/kubeconfig"])
 
@@ -173,6 +175,7 @@ class Check(PreflightCase):
         self.assertEqual([(m["verb"], m["resource"]) for m in body["missing"]], [("list", "pods")])
         self.assertIn("list pods across the cluster (-A): denied", body["message"])
         self.assertIn("STOP", body["message"])
+        self.assertNotIn("can_i", body)
 
     def test_stop_on_error_names_verb_and_resource(self):
         self.set_state(can_i={"get deployments -n kube-system": "Unable to connect to the server: i/o timeout"})
@@ -180,6 +183,7 @@ class Check(PreflightCase):
         self.assertEqual(rc, 2)
         self.assertEqual(body["reason"], "permission_missing")
         self.assertIn("get deployments in namespace kube-system: check failed (Unable to connect", body["message"])
+        self.assertIn("fix the credentials or the network first", body["message"])
 
     def test_stop_names_every_missing_read_and_makes_no_read(self):
         self.set_state(can_i={"list nodes -A": "no", "list pods -A": "forbidden: oops"})
@@ -201,6 +205,8 @@ class Check(PreflightCase):
         rc, body, _ = self.check(context="other-ctx")
         self.assertEqual(rc, 2)
         self.assertEqual(body["reason"], "endpoint_mismatch")
+        self.assertNotIn("server", body)
+        self.assertNotIn("endpoint", body)
         self.assertFalse([c for c in self.kubectl_calls() if "can-i" in c])
 
     def test_describe_cluster_failure_stops(self):
@@ -208,9 +214,10 @@ class Check(PreflightCase):
         rc, body, _ = self.check()
         self.assertEqual(rc, 2)
         self.assertEqual(body["reason"], "describe_cluster_failed")
+        self.assertIn("eks:DescribeCluster", body["message"])
 
     def test_secret_reads_and_write_verbs_are_refused(self):
-        for spec in ("list:secrets", "get:secrets:default", "create:pods", "delete:nodes"):
+        for spec in ("list:secrets", "get:secrets:default", "get:secret", "get:*", "create:pods", "delete:nodes"):
             rc, body, _ = self.run_pf("check", "--cluster", "demo", "--region", "us-west-2", "--context", "user-ctx",
                                       "--read", spec)
             self.assertEqual(rc, 64, spec)
@@ -252,6 +259,7 @@ READ_SUBCOMMANDS = {"get", "describe", "logs", "top", "auth", "api-resources", "
 VALUE_FLAGS = {"-n", "--namespace", "--kubeconfig", "--context", "--cluster", "--user", "-o", "--output", "-l",
                "--selector", "--request-timeout", "-s", "--server"}
 KUBECTL = re.compile(r"(?:^|[^\w./-])kubectl\s+(.*)")
+# The static grep reads SKILL.md, scripts/, tools/ and assets/; kubectl lines in references/ are not checked by it.
 SCAN_DIRS = ("scripts", "tools", "assets")
 
 
@@ -306,7 +314,7 @@ def is_member(skill_dir):
     except OSError:
         return False
     fm = text.split("---", 2)[1] if text.startswith("---") else ""
-    m = re.search(r"^\s*apex-classes:\s*(.*)$", fm, re.M)
+    m = re.search(r"(?:^|[{,])\s*apex-classes:\s*([^}#\n]*)", fm, re.M)
     return bool(m) and "service-eks" in re.split(r"[\s\"',\[\]]+", m.group(1))
 
 
@@ -333,11 +341,24 @@ class StaticGrep(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_is_member_flow_form_and_trailing_comment(self):
+        tmp = tempfile.mkdtemp(prefix="service-eks-member-")
+        try:
+            for fm, want in (('metadata: { apex-classes: "service-eks script" }', True),
+                             ('metadata: { name: x, apex-classes: "service-eks" }', True),
+                             ('metadata:\n  apex-classes: "eks-recon"  # service-eks later', False),
+                             ('metadata: { apex-classes: "script" }  # service-eks', False)):
+                with open(os.path.join(tmp, "SKILL.md"), "w") as f:
+                    f.write("---\nname: x\n%s\n---\nbody\n" % fm)
+                self.assertEqual(is_member(tmp), want, fm)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def test_class_files_carry_context(self):
         hits = []
-        for path in (os.path.join(CLASS_DIR, "rules.md"), PREFLIGHT):
-            with open(path, encoding="utf-8") as f:
-                hits += ["%s:%d" % (path, n) for n, ln in enumerate(f, 1) if is_unbound_read(ln)]
+        path = os.path.join(CLASS_DIR, "rules.md")
+        with open(path, encoding="utf-8") as f:
+            hits += ["%s:%d" % (path, n) for n, ln in enumerate(f, 1) if is_unbound_read(ln)]
         self.assertEqual(hits, [])
 
     def test_members_carry_context(self):
@@ -347,7 +368,7 @@ class StaticGrep(unittest.TestCase):
         self.assertEqual(hits, [], "service-eks members with kubectl reads lacking --context:\n" + "\n".join(hits))
 
     def test_report_other_eks_skills(self):
-        """Non-blocking: skills not yet in service-eks, counted for their own rebuild steps."""
+        """Non-blocking: skills not yet in service-eks, a rough (line heuristic) count for their own rebuild steps."""
         skills = os.path.join(REPO, "skills")
         rows = []
         for d in sorted(os.listdir(skills)):
