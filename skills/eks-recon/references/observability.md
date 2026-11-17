@@ -335,11 +335,11 @@ kubectl get daemonset -A -l "app=fluentd" 2>/dev/null
 # reads the name and the data only, not the metadata.
 if out=$(kubectl get configmap -n amazon-cloudwatch fluent-bit-config -o jsonpath='{.metadata.name}{"\n"}{.data}' --ignore-not-found); then
   if [ -z "$out" ]; then echo "fluent-bit-config: not found in amazon-cloudwatch"
-  else printf '%s\n' "$out" | grep -E "cloudwatch|opensearch|s3|kinesis" \
-    || echo "fluent-bit-config: no cloudwatch, opensearch, s3 or kinesis destination found"; fi
+  else printf '%s\n' "$out" | grep -E "cloudwatch|opensearch|s3|kinesis|[Nn]ame:?[[:space:]]+(es|elasticsearch)([^[:alnum:]_-]|$)" \
+    || echo "fluent-bit-config: no cloudwatch, opensearch, elasticsearch, s3 or kinesis destination found"; fi
 else echo "fluent-bit-config: unconfirmed (configmap read failed, see the error above)"; fi
 ```
-A not-found here covers only the `fluent-bit-config` ConfigMap in `amazon-cloudwatch` (the CloudWatch Observability add-on's): set `log_destinations` to `null`, not `false`, and state that scope in Coverage. On the unconfirmed line, add `observability.logging.log_destinations` to `report.unconfirmed_paths` and give the error in Coverage.
+An `es` or `elasticsearch` output (Fluent Bit's Elasticsearch plugin, which also sends to Amazon OpenSearch Service) sets `log_destinations.opensearch`, since the schema has no Elasticsearch field. A not-found here covers only the `fluent-bit-config` ConfigMap in `amazon-cloudwatch` (the CloudWatch Observability add-on's): set `log_destinations` to `null`, not `false`, and state that scope in Coverage. On the unconfirmed line, add `observability.logging.log_destinations` to `report.unconfirmed_paths` and give the error in Coverage.
 
 **Example output (Fluent Bit detected):**
 ```
