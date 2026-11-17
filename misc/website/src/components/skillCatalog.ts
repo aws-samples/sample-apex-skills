@@ -241,7 +241,7 @@ const LINES: Record<string, Lines> = {
   apex: {
     job: 'extend',
     use: 'Not sure which skill? Describe the task and apex picks one.',
-    output: 'The right skill loaded, with its runbook when one exists',
+    output: 'The right skill loaded, with its own runbook until its rebuild, or the runbook you named',
   },
 };
 

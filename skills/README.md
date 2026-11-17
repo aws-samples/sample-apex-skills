@@ -264,6 +264,14 @@ EKS cluster reconnaissance and environment discovery — reports the raw FACTS o
 |--------|-------------|
 | [gitops_signals.py](./eks-recon/scripts/gitops_signals.py) | Gitops signals |
 
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [recon-input.schema.json](./eks-recon/assets/recon-input.schema.json) | Recon input.schema |
+| [recon-output.schema.json](./eks-recon/assets/recon-output.schema.json) | Recon output.schema |
+| [same-answer.yaml](./eks-recon/assets/same-answer.yaml) | Same answer |
+
 **Agents:**
 
 | File | Description |
@@ -586,7 +594,7 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 
 ### [apex](./apex/)
 
-APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison) and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, and no account or cluster change unless the user explicitly asks for it.
+APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison). Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, and no account or cluster change unless the user explicitly asks for it.
 
 **Runbooks:**
 
@@ -598,7 +606,8 @@ APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or
 | [eks-operation-review/](./apex/runbooks/eks-operation-review/) | Eks operation review |
 | [eks-platform-engineering/](./apex/runbooks/eks-platform-engineering/) | Eks platform engineering |
 | [eks-security/](./apex/runbooks/eks-security/) | Eks security |
-| [eks-upgrade-check/](./apex/runbooks/eks-upgrade-check/) | Eks upgrade check |
+| [example-eks-design-to-build.md](./apex/runbooks/example-eks-design-to-build.md) | Example eks design to build |
+| [example-eks-recon-to-operation-review.md](./apex/runbooks/example-eks-recon-to-operation-review.md) | Example eks recon to operation review |
 
 ---
 

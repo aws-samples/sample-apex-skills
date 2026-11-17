@@ -113,4 +113,4 @@ You should see the EKS reconnaissance skill prompt for cluster context.
 ## Next steps
 
 - Browse the [Skills](./skills/index.md) catalog.
-- With a manual install from `main`, start with the [APEX router](./skills/general/apex/index.md) skill for a phased engagement: it routes to the right skill and its runbook.
+- With a manual install from `main`, start with the [APEX router](./skills/general/apex/index.md) skill for a phased engagement: it routes to the right skill and follows the runbooks you write, your own procedures that chain skills.

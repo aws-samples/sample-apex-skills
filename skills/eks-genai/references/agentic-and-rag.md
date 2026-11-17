@@ -30,6 +30,12 @@ Ranked by recommendation priority for EKS-centric deployments:
 
 Decision rule: default → **Bedrock Knowledge Bases** unless self-managed is required for compliance/data-residency/cost. For cost-at-scale with simple patterns → **S3 Vectors**. For transactional workloads → **PGVector on Aurora**. For hybrid keyword + semantic search → **OpenSearch k-NN**.
 
+### Graph Context (reference only)
+
+| Project | Link | What it is | Use in APEX |
+|---------|------|------------|-------------|
+| aws/context-ontology-accelerator | [github.com/aws/context-ontology-accelerator](https://github.com/aws/context-ontology-accelerator) | AWS open-source layer that turns company data into a governed knowledge graph agents query over MCP; pre-1.0 (v0.3.10, 2026-11-12), Apache-2.0; about $1,600 a month idle in a default deployment, about $900 with `SCL_AOSS_MIN_OCU=0` (its getting-started cost warning); tested in us-east-1 only (its deploying guide); checked on 2026-11-17 | A reference option for agents on EKS that need graph context; it deploys as its own AWS stack, not on the cluster, and is not a dependency of any APEX skill |
+
 ### Embeddings
 
 - Default → **Amazon Titan Embeddings v2** (via Bedrock) — zero self-hosting, strong multilingual quality.
