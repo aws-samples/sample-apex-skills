@@ -15,7 +15,7 @@ All commands run from the repo root. The generators and the validator parse fron
 
 ## What a new skill reaches
 
-`misc/installer/bin/cli.mjs` (`getSkills`) links every directory under `skills/` into a user's skills folder; there is no opt-in list. A merged skill therefore reaches every `npx apex-skills` install at the next release tag (installer 1.3.0 and later install the newest `v1.x.y` tag, per CONTRIBUTING.md, "Releasing to npm"). Write for that audience, and keep the public-repo rule: no internal or customer content.
+`misc/installer/bin/cli.mjs` (`getSkills`) links the directories under `skills/` into a user's skills folder, so a merged content skill reaches every `npx apex-skills` install at the next release tag (installer 1.3.0 and later install the newest `v1.x.y` tag, per CONTRIBUTING.md, "Releasing to npm"). Write for that audience, and keep the public-repo rule: no internal or customer content.
 
 ## Generators
 

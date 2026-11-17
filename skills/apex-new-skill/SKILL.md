@@ -14,7 +14,7 @@ This skill covers the repo's obligations around a new skill or a class change. F
 | # | Rule | Why |
 |---|---|---|
 | 1 | Stage files by explicit path only: `git add skills/<name>/SKILL.md`, never `git add -A` or `git add .`. | Blanket staging sweeps unrelated files (local notes, reports, `.skill` packages) into a public pull request. |
-| 2 | No internal or customer content: no customer names, account IDs, internal URLs, ticket numbers, credentials or private notes. | The repo is public (`aws-samples`), and every skill ships to every install (see [references/repo-checks.md](references/repo-checks.md)). |
+| 2 | No internal or customer content: no customer names, account IDs, internal URLs, ticket numbers, credentials or private notes. | The repo is public (`aws-samples`), and a merged content skill ships to every install (see [references/repo-checks.md](references/repo-checks.md)). |
 | 3 | `description` is at most 1024 characters, third person, says what the skill does, when to use it and when not to. No `<` or `>` in it. | `misc/validate-frontmatter.py` enforces the 1024 cap; skill-creator's `quick_validate.py` also rejects angle brackets. |
 | 4 | Do not add a `license:` field to an in-house skill. | CONTRIBUTING.md, "Per-skill `license:` frontmatter": in-house skills "MUST NOT declare a `license:` field in their `SKILL.md` frontmatter"; the repo LICENSE (MIT-0) governs. |
 | 5 | Never edit a vendored skill: a folder that holds `UPSTREAM.md` or `.vendor-sha` (today `skill-creator` and `terraform-skill`, among others). | The `vendored-guard` CI job fails a pull request that edits one outside a vendor sync, and the next sync overwrites local edits (`.github/scripts/vendored-guard.sh`). |
@@ -127,7 +127,7 @@ Run every check in [references/repo-checks.md](references/repo-checks.md), secti
 For each new skill or class change, draft these three in the contributor's branch and show each one before it is staged:
 
 1. **The ADR.** `docs/adr/NNNN-<slug>.md`, `NNNN` the next unused number in `docs/adr/`, (title line as the existing records use, `# ADR NNNN: <title>`; sections as `docs/adr/README.md` "Format" lists: Status, Date, Context, Decision, Consequences, and Open if anything is undecided). Status is `Proposed`: the maintainers accept it. Add its row to the table in `docs/adr/README.md`. Never edit an earlier record to change its decision: a new record supersedes it.
-2. **The design-doc note.** An edit to `docs/design/skill-design.md` in the section the change belongs to: for a class change, its row in the class table under "The classes"; for a new skill, "The class tree" when it takes classes no skill had before. Keep it to the facts the ADR decides.
+2. **The design-doc note.** An edit to `docs/design/skill-design.md` in the section the change belongs to: for a class change, its row in the class table under "The classes"; for a new skill, "The class tree" when it takes classes no skill had before; a new skill that takes no such class needs no note. Keep it to the facts the ADR decides.
 3. **The fact check.** A `## Fact check` section for the pull request body: one line per version, price, limit or service-status claim the change adds, each with its live source and "checked on <date>". A claim with no live source is marked unverified, not left out.
 
 Then ask the contributor one question: "Do you want a blog draft for this change?" Draft a blog only on a yes, built from the ADR and the merged facts above, and hand it to the contributor uncommitted. Published posts live in `misc/website/blog/` and follow its blog standard (CONTRIBUTING.md, "Writing a Blog Post"): never write the draft there.
@@ -141,9 +141,9 @@ Follow [references/pull-request.md](references/pull-request.md): fork, branch of
 Each item passes or fails, or, in a class change or a retrofit, is marked not applicable:
 
 - [ ] Scope and classes restated and confirmed (step 1); siblings listed with rationale, non-siblings named (step 2).
-- [ ] `skills/<name>/SKILL.md` passes `quick_validate.py`; no `license:` field; description at most 1024 characters with a "when not" clause; `metadata.apex-classes` names only leaf classes under `classes/` (check each name with `ls classes/<class>/class.yaml`).
+- [ ] `skills/<name>/SKILL.md` passes `quick_validate.py`; no `license:` field; description at most 1024 characters with a "when not" clause; `metadata.apex-classes` names only classes under `classes/` (check each name with `ls classes/<class>/class.yaml`), none of them a parent of another it names (follow each `class.yaml`'s `parents:` up the tree; parents follow, `docs/design/skill-design.md` "The class tree").
 - [ ] `misc/evals/<name>/` has `triggering.json` (8+ positives, 8+ negatives) and `evals.json` (2+ prompts, 3+ expectations each); each sibling's eval set updated in the same pull request.
 - [ ] The `SKILL_META` line is in `misc/update-pages.sh`; the catalogues are updated; generators run after staging; wrapper `index.md` exists; all checks exit 0, or each failure in a file this change did not touch is reported, and each planned generator or check is named as not run.
-- [ ] The ADR, the design-doc note and the fact check are drafted; the blog was asked about, and drafted only on a yes.
+- [ ] The ADR, the design-doc note (when step 7 calls for one) and the fact check are drafted; the blog was asked about, and drafted only on a yes.
 - [ ] Every staged path was named explicitly; `git status --porcelain -uall` shows nothing unintended.
 - [ ] No internal or customer content.
