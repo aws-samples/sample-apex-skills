@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import multiprocessing
 import os
 import re
 import select
@@ -425,12 +426,25 @@ def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
     return name, description
 
 
+_STOP = None
+
+
+def _init_worker(stop) -> None:
+    global _STOP
+    _STOP = stop
+
+
 def _worker(args: tuple) -> tuple[str, dict]:
     query, skill_name, repo_skill_dir, model, timeout = args
+    if _STOP is not None and _STOP.is_set():
+        # A job a worker already holds when the run stops; it starts nothing.
+        return query, {"stopped": True}
     try:
         result = run_single_query(query, skill_name, Path(repo_skill_dir), model, timeout)
     except confined.ConfinedError:
         # A failed mint or launch stops the run (run_eval re-raises it).
+        if _STOP is not None:
+            _STOP.set()
         raise
     except Exception as e:  # noqa: BLE001
         result = {
@@ -465,14 +479,17 @@ def run_eval(
     invalids_by_query: dict[str, list[dict]] = {}
     left_by_query: dict[str, list[str]] = {}
 
-    with ProcessPoolExecutor(max_workers=num_workers) as ex:
+    # Not a `with` block: its exit is shutdown(cancel_futures=False), which
+    # would start every queued job after a failed mint.
+    stop = multiprocessing.Event()
+    ex = ProcessPoolExecutor(max_workers=num_workers, initializer=_init_worker,
+                             initargs=(stop,))
+    try:
         futures = [ex.submit(_worker, j) for j in jobs]
         for fut in as_completed(futures):
-            try:
-                query, result = fut.result()
-            except confined.ConfinedError:
-                ex.shutdown(wait=False, cancel_futures=True)
-                raise
+            query, result = fut.result()
+            if result.get("stopped"):
+                continue
             left_by_query.setdefault(query, []).extend(result.get("cleanup_left") or [])
             if result.get("invalid"):
                 # An invalid run is not scored as a trigger or a non-trigger.
@@ -484,6 +501,14 @@ def run_eval(
                 )
                 continue
             triggers_by_query.setdefault(query, []).append(bool(result["triggered"]))
+    except BaseException:
+        # A failed mint or launch (ConfinedError) stops the run: the pending
+        # jobs are cancelled, the ones a worker already holds start nothing
+        # (the stop flag), and the running ones finish before the raise.
+        stop.set()
+        ex.shutdown(wait=True, cancel_futures=True)
+        raise
+    ex.shutdown(wait=True)
 
     results: list[dict] = []
     item_by_query = {item["query"]: item for item in eval_set}
@@ -543,7 +568,7 @@ def main() -> int:
     args = parser.parse_args()
 
     eval_set = json.loads(Path(args.eval_set).read_text())
-    skill_dir = Path(args.skill_path).resolve()
+    skill_dir = Path(args.skill_path).absolute()
     if not (skill_dir / "SKILL.md").exists():
         print(f"error: no SKILL.md at {skill_dir}", file=sys.stderr)
         return 1

@@ -202,27 +202,21 @@ def public_ipv4() -> list[str]:
     return _public_ipv4
 
 
-_resolver: str | None = None
-
-
 def resolver() -> str:
     """The first IPv4 nameserver in /etc/resolv.conf, read by the parent. A
     loopback one (a local stub) is refused: a unit cannot reach loopback."""
-    global _resolver
-    if _resolver is None:
-        try:
-            text = RESOLV_CONF.read_text()
-        except OSError as e:
-            raise ConfinedError(f"cannot read {RESOLV_CONF}: {e.strerror}") from None
-        found = re.findall(r"^\s*nameserver\s+(\d{1,3}(?:\.\d{1,3}){3})\s*$", text, re.M)
-        if not found:
-            raise ConfinedError(f"no IPv4 nameserver in {RESOLV_CONF}")
-        if found[0].startswith("127."):
-            raise ConfinedError(
-                f"{RESOLV_CONF} names loopback {found[0]}, which a unit cannot reach"
-            )
-        _resolver = found[0]
-    return _resolver
+    try:
+        text = RESOLV_CONF.read_text()
+    except OSError as e:
+        raise ConfinedError(f"cannot read {RESOLV_CONF}: {e.strerror}") from None
+    found = re.findall(r"^\s*nameserver\s+(\d{1,3}(?:\.\d{1,3}){3})\s*$", text, re.M)
+    if not found:
+        raise ConfinedError(f"no IPv4 nameserver in {RESOLV_CONF}")
+    if found[0].startswith("127."):
+        raise ConfinedError(
+            f"{RESOLV_CONF} names loopback {found[0]}, which a unit cannot reach"
+        )
+    return found[0]
 
 
 # ---------- credentials -------------------------------------------------------
@@ -336,12 +330,14 @@ def _stage_copy(src: Path, dest: Path, *, group_write: bool) -> None:
     # Source modes are not kept (a 0664 checkout would make a read-only
     # copy group-writable): dirs 0750/0770, files 0640/0660, exec bit kept.
     # A link is refused, never copied: copytree(symlinks=False) would copy
-    # its target, which may be outside the repo (~/.aws/credentials).
+    # its target, which may be outside the repo (~/.aws/credentials). That
+    # holds for src itself and every dir above it, as well as inside it.
+    if os.path.realpath(src) != os.path.abspath(src):
+        raise ConfinedError(f"refusing to stage through a symlink: {src}")
     group = 0o070 if group_write else 0o050
     with staging_umask(0o007 if group_write else 0o027):
         dest.parent.mkdir(parents=True, exist_ok=True)
         if src.is_dir():
-            src = src.resolve()
             pairs = [(src, dest)]
             for dirpath, dirnames, filenames in os.walk(src):
                 for name in [*dirnames, *filenames]:
@@ -354,8 +350,6 @@ def _stage_copy(src: Path, dest: Path, *, group_write: bool) -> None:
                 copy_function=shutil.copyfile, dirs_exist_ok=group_write,
             )
         else:
-            if src.is_symlink():
-                raise ConfinedError(f"refusing to stage a symlink: {src}")
             shutil.copyfile(src, dest)
             pairs = [(src, dest)]
     for s, d in pairs:

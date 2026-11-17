@@ -597,19 +597,7 @@ def _build_grader_prompt(grader_spec: str, expectations: list[str]) -> str:
     )
 
 
-def run_grader(**kwargs) -> dict:
-    """Invoke the grader as a separate `claude -p` subprocess. The grader
-    writes grading.json to run_dir. Returns the parsed grading dict on
-    success, else {"error": ...}; either way "cleanup_left" lists what the
-    grader run's cleanup left behind.
-    """
-    left: list[str] = []
-    grading = _run_grader(**kwargs, left_out=left)
-    grading["cleanup_left"] = left
-    return grading
-
-
-def _run_grader(
+def run_grader(
     *,
     expectations: list[str],
     transcript_path: Path,
@@ -619,6 +607,11 @@ def _run_grader(
     timeout: int,
     left_out: list[str],
 ) -> dict:
+    """Invoke the grader as a separate `claude -p` subprocess. The grader
+    writes grading.json to run_dir. Returns the parsed grading dict on
+    success, else {"error": ...}; either way left_out gets what the grader
+    run's cleanup left behind.
+    """
     grader_spec = GRADER_MD.read_text()
     prompt = _build_grader_prompt(grader_spec, expectations)
 
@@ -929,6 +922,7 @@ def run_skill(
                     f"[task] {skill} eval-{eval_id} {config} run-{k} (grader)",
                     file=sys.stderr,
                 )
+                grader_left: list[str] = []
                 grading = run_grader(
                     expectations=p["expectations"],
                     transcript_path=Path(subj["transcript_path"]),
@@ -936,8 +930,9 @@ def run_skill(
                     run_dir=run_dir,
                     model=model,
                     timeout=grader_timeout,
+                    left_out=grader_left,
                 )
-                confined_info["grader_cleanup_left"] = grading.get("cleanup_left") or []
+                confined_info["grader_cleanup_left"] = grader_left
                 (run_dir / "confined.json").write_text(json.dumps(confined_info, indent=2))
                 if "error" in grading:
                     print(f"[task]   grader failed: {grading['error']}", file=sys.stderr)

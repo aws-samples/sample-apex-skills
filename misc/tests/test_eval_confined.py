@@ -10,14 +10,19 @@ Run directly with:
 """
 
 import contextlib
+import functools
 import io
+import multiprocessing
 import os
+import shutil
 import stat
 import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -27,9 +32,10 @@ sys.path.insert(0, SCRIPTS_DIR)
 
 import confined  # noqa: E402
 import elicitation  # noqa: E402
+import run_all_evals  # noqa: E402
 import run_task_evals  # noqa: E402
 import run_triggering  # noqa: E402
-from concurrent.futures import ThreadPoolExecutor  # noqa: E402
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor  # noqa: E402
 
 _REAL_POPEN = subprocess.Popen
 
@@ -96,12 +102,14 @@ class ConfinedTestCase(unittest.TestCase):
         runs, env = self.tmp / "runs", self.tmp / "env"
         runs.mkdir()
         env.mkdir(mode=0o700)
+        resolv = self.tmp / "resolv.conf"
+        resolv.write_text("nameserver 10.9.0.2\n")
         self.patches = [
             mock.patch.object(confined, "RUNS_ROOT", runs),
             mock.patch.object(confined, "ENV_DIR", env),
             mock.patch.object(confined, "LOCK_FILE", env / "launch.lock"),
             mock.patch.object(confined, "_public_ipv4", ["203.0.113.7"]),
-            mock.patch.object(confined, "_resolver", "10.9.0.2"),
+            mock.patch.object(confined, "RESOLV_CONF", resolv),
         ]
         for p in self.patches:
             p.start()
@@ -169,6 +177,34 @@ class StageTests(ConfinedTestCase):
         with self.assertRaisesRegex(confined.ConfinedError, "symlink"):
             confined.stage_writable_copy(src / "scripts" / "creds", self.tmp / "dest-f")
 
+    def test_link_at_or_above_the_staged_root_is_refused(self):
+        # Each shape git can check out: files itself, files/shared,
+        # files/eval-<id> (stage_fixture_files) and skills/<name> (stage_run).
+        outside = self.tmp / "outside"
+        (outside / "shared").mkdir(parents=True)
+        (outside / "shared" / "creds").write_text("HOST-SECRET")
+        evals = self.tmp / "evals"
+        shapes = {
+            "files": (evals / "a", "files", outside),
+            "shared": (evals / "b", "files/shared", outside / "shared"),
+            "eval-id": (evals / "c", "files/eval-1", outside / "shared"),
+        }
+        for label, (skill_eval_dir, rel, target) in shapes.items():
+            link = skill_eval_dir / rel
+            link.parent.mkdir(parents=True)
+            link.symlink_to(target)
+            sandbox = self.tmp / f"sb-{label}"
+            sandbox.mkdir()
+            with self.assertRaisesRegex(confined.ConfinedError, "symlink", msg=label):
+                run_task_evals.stage_fixture_files(sandbox, skill_eval_dir, 1, ["creds"])
+            self.assertEqual(list(sandbox.iterdir()), [], label)
+        skill_link = self.tmp / "skills" / "demo"
+        skill_link.parent.mkdir()
+        skill_link.symlink_to(self.make_skill())
+        with self.assertRaisesRegex(confined.ConfinedError, "symlink"):
+            confined.stage_run("demo", skill_link)
+        self.assertEqual(list(confined.RUNS_ROOT.iterdir()), [])
+
     def test_unsafe_eval_id_is_refused_before_any_path(self):
         files = self.tmp / "skill-evals" / "files" / "shared"
         files.mkdir(parents=True)
@@ -178,6 +214,22 @@ class StageTests(ConfinedTestCase):
         with self.assertRaisesRegex(confined.ConfinedError, "bad eval id"):
             run_task_evals.stage_fixture_files(sandbox, self.tmp / "skill-evals", "../up", ["a.txt"])
         self.assertEqual(list(sandbox.iterdir()), [])
+
+    def test_run_skill_refuses_a_bad_eval_id_before_any_path(self):
+        evals = self.tmp / "evals"
+        (evals / "demo").mkdir(parents=True)
+        (evals / "demo" / "evals.json").write_text(
+            '{"evals": [{"id": "../../escape", "prompt": "p", "expectations": ["e"]}]}')
+        (self.tmp / "skills").mkdir()
+        shutil.copytree(self.make_skill(), self.tmp / "skills" / "demo")
+        with mock.patch("subprocess.Popen", side_effect=AssertionError("direct Popen")), \
+             mock.patch.object(run_task_evals, "EVALS_ROOT", evals), \
+             mock.patch.object(run_task_evals, "REPO_ROOT", self.tmp), \
+             mock.patch.object(confined, "launch_confined", side_effect=AssertionError("launch")):
+            out = run_task_evals.run_skill("demo", model="m", runs=1, subject_timeout=60,
+                                           grader_timeout=60)
+        self.assertIn("bad eval ids", out.get("error", ""), out)
+        self.assertFalse((evals / "demo" / "workspace").exists())
 
     def test_cleanup_unit_failure_is_recorded(self):
         fake = FakeHost(cleanup_rc=2)
@@ -390,13 +442,14 @@ class LaunchSiteTests(ConfinedTestCase):
         run_dir = self.tmp / "grader-run"
         run_dir.mkdir()
         seen, stack = self.launches(fake_proc([INIT]))
+        left = []
         with stack:
             out = run_task_evals.run_grader(
                 expectations=["e"], transcript_path=transcript, outputs_dir=outputs,
-                run_dir=run_dir, model="m", timeout=60,
+                run_dir=run_dir, model="m", timeout=60, left_out=left,
             )
         self.assertIn("error", out)
-        self.assertEqual(out["cleanup_left"], [])
+        self.assertEqual(left, [])
         self.assert_confined(seen, 1)
 
 
@@ -417,7 +470,7 @@ NOISY = ("import sys; sys.stderr.write('x' * 400000); sys.stderr.flush(); "
 class NoisyStderrTests(ConfinedTestCase):
     """A unit that writes more stderr than a pipe holds must not stall the
     run. The fake launch starts a Python child that writes 400 kB to stderr,
-    then one stdout line; never claude."""
+    then one stdout line; subprocess.Popen raises, so never claude."""
 
     def launches(self):
         seen = []
@@ -436,6 +489,8 @@ class NoisyStderrTests(ConfinedTestCase):
                 proc.wait()
 
         stack = contextlib.ExitStack()
+        stack.enter_context(mock.patch("subprocess.Popen",
+                                       side_effect=AssertionError("direct Popen")))
         stack.enter_context(mock.patch.object(confined, "launch_confined", fake_launch))
         stack.enter_context(mock.patch.object(confined, "cleanup_run", return_value=[]))
         stack.enter_context(mock.patch.object(confined, "read_back", return_value=[]))
@@ -465,7 +520,7 @@ class NoisyStderrTests(ConfinedTestCase):
         with stack:
             out = run_task_evals.run_grader(
                 expectations=["e"], transcript_path=transcript, outputs_dir=outputs,
-                run_dir=run_dir, model="m", timeout=8,
+                run_dir=run_dir, model="m", timeout=8, left_out=[],
             )
         self.assertFalse(out.get("timed_out"), out)
         self.assertTrue(out.get("stderr", "").endswith("x" * 100), out.get("stderr", "")[-20:])
@@ -518,6 +573,88 @@ class TriggeringFailureTests(ConfinedTestCase):
         boom = mock.Mock(side_effect=confined.ConfinedError("role session mint failed"))
         with self.assertRaisesRegex(confined.ConfinedError, "mint failed"):
             self.eval_with(boom)
+
+    def test_failed_mint_starts_no_queued_job_on_the_real_pool(self):
+        # The real ProcessPoolExecutor, forked so the fake query below (and
+        # the Popen and launch guards) reach the workers: no launch, no Popen.
+        started = self.tmp / "started"
+
+        def fake_query(query, *a):
+            with open(started, "a") as f:
+                f.write(query + "\n")
+            if query == "q0":
+                raise confined.ConfinedError("role session mint failed")
+            time.sleep(0.3)
+            return {"triggered": False, "invalid": False, "init_skills": []}
+
+        pool = functools.partial(ProcessPoolExecutor,
+                                 mp_context=multiprocessing.get_context("fork"))
+        queries = [{"query": f"q{i}", "should_trigger": False} for i in range(20)]
+        with mock.patch("subprocess.Popen", side_effect=AssertionError("direct Popen")), \
+             mock.patch.object(confined, "launch_confined", side_effect=AssertionError("launch")), \
+             mock.patch.object(run_triggering, "ProcessPoolExecutor", pool), \
+             mock.patch.object(run_triggering, "run_single_query", fake_query):
+            with self.assertRaisesRegex(confined.ConfinedError, "mint failed"):
+                run_triggering.run_eval(queries, "s", "", self.tmp, 2, 90, 1, 0.5, None)
+        # Only q0 and at most the one job running beside it start. The old
+        # `with` exit started all 20.
+        names = started.read_text().split()
+        self.assertIn("q0", names)
+        self.assertLessEqual(set(names), {"q0", "q1"}, names)
+
+
+class RunErrorMetricsTests(unittest.TestCase):
+    def test_run_errors_are_left_out_of_the_skill_scores(self):
+        # q1 passes, q2 passes, q3 leaks; q4 and q5 never ran (invalid).
+        answers = {"q1": True, "q2": False, "q3": True}
+
+        def single_query(query, *a):
+            if query in answers:
+                return {"triggered": answers[query], "invalid": False, "init_skills": []}
+            return {"triggered": False, "invalid": True, "invalid_reason": "no stream",
+                    "init_skills": None}
+
+        triggering = [{"query": "q1", "should_trigger": True}] + [
+            {"query": q, "should_trigger": False} for q in ("q2", "q3", "q4", "q5")]
+        with mock.patch.object(run_triggering, "ProcessPoolExecutor", ThreadPoolExecutor), \
+             mock.patch.object(run_triggering, "run_single_query", single_query):
+            raw = run_triggering.run_eval(triggering, "s", "", Path("."), 1, 90, 1, 0.5, None)
+        m = run_all_evals.enrich_metrics(raw, triggering, {}, [], {})
+        self.assertEqual((m["overall"]["passed"], m["overall"]["total"]), (2, 5))
+        for t in m["threshold_sweep"].values():
+            self.assertEqual((t["passed"], t["total"]), (2, 3))
+        self.assertEqual(m["leakage"], {"other": {"total": 2, "leaked": 1}})
+        self.assertEqual(m["mean_trigger_rate_negative"], 0.5)
+        self.assertEqual(m["overall"]["run_errors"], 2)
+
+
+class PublicIpTests(unittest.TestCase):
+    """IMDS is mocked: urlopen never reaches the network."""
+
+    def setUp(self):
+        p = mock.patch.object(confined, "_public_ipv4", None)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_imds_failure_raises(self):
+        with mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("down")):
+            with self.assertRaises(confined.ConfinedError):
+                confined.public_ipv4()
+
+    def test_404_is_no_public_ipv4(self):
+        token = mock.Mock()
+        token.read.return_value = b"tok"
+        err = urllib.error.HTTPError("u", 404, "nf", {}, io.BytesIO(b""))
+        with mock.patch("urllib.request.urlopen", side_effect=[token, err]):
+            self.assertEqual(confined.public_ipv4(), [])
+
+    def test_other_http_error_raises(self):
+        token = mock.Mock()
+        token.read.return_value = b"tok"
+        err = urllib.error.HTTPError("u", 500, "err", {}, io.BytesIO(b""))
+        with mock.patch("urllib.request.urlopen", side_effect=[token, err]):
+            with self.assertRaises(confined.ConfinedError):
+                confined.public_ipv4()
 
 
 class ReadBackTests(unittest.TestCase):
