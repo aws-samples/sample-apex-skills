@@ -188,8 +188,9 @@ Or ask explicitly for a Well-Architected review, naming the cluster and region:
 > "Do a WAFR of my EKS cluster `my-cluster` in `us-west-2` using profile `my-profile`"
 
 The skill binds to that one cluster, collects live data once, scores the five pillars and writes the
-report to `eks-war-<CLUSTER>/report.html` in the current directory. Treat the whole `eks-war-<CLUSTER>/`
-work directory as internal: it holds the collected cluster data, not just the report.
+report to `eks-war-<CLUSTER>/report.html` in the current directory. The whole `eks-war-<CLUSTER>/`
+work directory, not just the report, holds every container's literal env values and arguments: treat it
+as credential material, keep it out of version control and delete it after the review.
 
 ## Workflow
 
