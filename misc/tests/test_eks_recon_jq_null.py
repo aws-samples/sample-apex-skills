@@ -19,10 +19,6 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-NOT_FOUND = {
-    "amp": "aps-workspaces: not found in the ConfigMaps read",
-    "search": "opensearch/elasticsearch: not found in the ConfigMaps read",
-}
 
 
 def load_queries(root=ROOT):
@@ -82,12 +78,12 @@ def fixture_cases():
             "ns": "test", "domain_filters": container.get("args", [])[1:] if populated else [],
         }]
         for key in ("amp", "search"):
-            yield f"{key}_{state}", key, {"items": [config]}, ([{"namespace": "test", "name": "config"}] if populated else [NOT_FOUND[key]])
+            yield f"{key}_{state}", key, {"items": [config]}, ([{"namespace": "test", "name": "config"}] if populated else [])
 
     for key, value in (("amp", "aps-workspaces"), ("search", "opensearch"), ("search", "elasticsearch")):
         match = {"metadata": {"namespace": "test", "name": "later"}, "data": {"url": value}}
         yield f"{key}_{value}_after_missing", key, {"items": [{"metadata": {"name": "empty"}}, match]}, [{"namespace": "test", "name": "later"}]
-        yield f"{key}_{value}_nonmatch", key, {"items": [{**match, "data": {"url": "unrelated"}}]}, [NOT_FOUND[key]]
+        yield f"{key}_{value}_nonmatch", key, {"items": [{**match, "data": {"url": "unrelated"}}]}, []
         yield f"{key}_{value}_multiple_matches", key, {"items": [{**match, "data": {
             "first": value, "second": value,
         }}]}, [{"namespace": "test", "name": "later"}] * 2
