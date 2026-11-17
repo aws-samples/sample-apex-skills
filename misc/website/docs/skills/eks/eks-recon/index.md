@@ -490,7 +490,7 @@ When all subagents complete:
 The upgrade workflow can invoke eks-recon to gather Phase 1 context:
 
 ```
-1. Run eks-recon modules: cluster-basics, compute, iac, addons
+1. Run eks-recon modules: compute, iac, addons (cluster basics always runs)
 2. Extract:
    - cluster.version -> Current version
    - compute.strategy -> Determines upgrade approach
@@ -503,7 +503,7 @@ The upgrade workflow can invoke eks-recon to gather Phase 1 context:
 The design workflow can use eks-recon for existing clusters:
 
 ```
-1. Run eks-recon modules: all
+1. Run eks-recon with modules omitted (all modules)
 2. Pre-populate questionnaire from detected values
 3. Ask user: "I detected Karpenter + Terraform + ArgoCD. Correct?"
 4. Only ask questions for undetected values

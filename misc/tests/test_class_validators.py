@@ -22,7 +22,16 @@ import sys
 import tempfile
 import unittest
 
-import yaml
+try:
+    import jsonschema
+    import yaml
+    MISSING = None if "date-time" in jsonschema.FormatChecker().checkers else "jsonschema's format-nongpl extra"
+except ImportError as e:
+    MISSING = e.name
+if MISSING:
+    print(f"skipped: {MISSING} is not installed; install jsonschema and pyyaml:"
+          " pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'")
+    sys.exit(0)
 
 sys.dont_write_bytecode = True
 
@@ -256,6 +265,9 @@ class ArtifactChecks(Tmp):
                 d = self.skill(case["id"], front)
                 if case["artifact"] == "tf":
                     artifact = os.path.dirname(self.write(f"{case['id']}-tf/main.tf", 'terraform {}\n'))
+                elif case["artifact"] == "emptydir":
+                    artifact = os.path.join(self.tmp, f"{case['id']}-empty")
+                    os.makedirs(artifact)
                 else:
                     artifact = self.write(f"{case['id']}.yaml", output_case(OUTPUTS[case["artifact"]]))
                 args = ["--skill-dir", d, artifact]

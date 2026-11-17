@@ -1326,6 +1326,22 @@
    "artifact": "tf",
    "expect": 1,
    "message": "terraform validate -no-color exited 1"
+  },
+  {
+   "id": "O9",
+   "what": "declared terraform and checkov checks on a folder with no .tf file cannot run",
+   "declared": [
+    "terraform-fmt",
+    "terraform-validate",
+    "checkov"
+   ],
+   "fake_tools": {
+    "terraform": 0,
+    "checkov": 0
+   },
+   "artifact": "emptydir",
+   "expect": 2,
+   "message": "no .tf file in"
   }
  ],
  "handwritten_outputs": [

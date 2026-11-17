@@ -20,7 +20,8 @@ assertions; `markdownlint` is not supported):
                       terraform validate -no-color
   checkov             checkov -d . --framework terraform --compact --quiet
 The terraform and checkov checks run in the artifact folder (or the folder
-holding the artifact file). An unknown id, or a check whose tool is not on
+holding the artifact file), which must hold a .tf file, else the check
+cannot run (exit 2). An unknown id, or a check whose tool is not on
 PATH, never passes. The eval runner (misc/evals/scripts/artifact_validation.py)
 runs the same tools with other flags and timeouts: terraform fmt, init and
 validate at 120 s with `validate -json`, checkov at 300 s with `--output
@@ -73,6 +74,8 @@ def structural(skill_dir, artifact):
 
 def run_commands(check, artifact):
     cwd = artifact if os.path.isdir(artifact) else os.path.dirname(os.path.abspath(artifact))
+    if not any(n.endswith(".tf") and os.path.isfile(os.path.join(cwd, n)) for n in os.listdir(cwd)):
+        raise CheckError(f"no .tf file in {cwd}")
     for cmd in COMMANDS[check]:
         if not shutil.which(cmd[0]):
             raise CheckError(f"{check}: {cmd[0]} is not on PATH")

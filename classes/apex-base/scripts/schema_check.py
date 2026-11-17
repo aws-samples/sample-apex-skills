@@ -5,6 +5,9 @@
 # ///
 """Check a JSON or YAML document against a JSON Schema (apex-base class tool).
 
+A library, not a command: it has no command line of its own and prints
+nothing when run. Run the tools that import it.
+
 The shared loader and checker the class validators import:
 validate_input.py (apex-base), validate_output.py and k_run_diff.py (script)
 and run_artifact_checks.py (operator).
@@ -132,7 +135,17 @@ def validate(instance, schema):
         errors = list(validator.iter_errors(instance))
     except ref_errors.Unresolvable as e:
         raise CheckError(f"schema: $ref does not resolve: {e}")
-    return sorted(f"{e.json_path}: {e.message}" for e in errors)
+    return sorted(f"{e.json_path}: {e.message}{_quote_hint(e)}" for e in errors)
+
+
+def _quote_hint(e):
+    """A hint for a value YAML read as a number, boolean or date where the schema wants a string."""
+    import datetime  # noqa: PLC0415
+    wants = e.validator_value if isinstance(e.validator_value, list) else [e.validator_value]
+    if e.validator == "type" and "string" in wants and isinstance(
+            e.instance, (int, float, bool, datetime.date)):
+        return f" (YAML read it as {type(e.instance).__name__}; quote it)"
+    return ""
 
 
 def load_schema(path):
@@ -142,13 +155,18 @@ def load_schema(path):
 
 
 def check_files(schema_path, files, out=sys.stdout):
-    """Validate each file; print one result line per file. Return the exit code."""
+    """Validate each file; print one result line per file. Return the worst exit code."""
     schema = load_schema(schema_path)
     rc = 0
     for f in files:
-        errors = validate(load(f), schema)
+        try:
+            errors = validate(load(f), schema)
+        except CheckError as e:
+            rc = 2
+            print(f"cannot check: {e}", file=sys.stderr)
+            continue
         if errors:
-            rc = 1
+            rc = max(rc, 1)
             print(f"FAIL {f} against {schema_path}", file=out)
             for e in errors:
                 print(f"  {e}", file=out)

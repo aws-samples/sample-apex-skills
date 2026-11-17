@@ -19,6 +19,7 @@
       "minLength": 1
     },
     "modules": {
+      "description": "Module keys to run; omitted means all. Cluster basics always runs and is not listed.",
       "type": "array",
       "minItems": 1,
       "items": {
