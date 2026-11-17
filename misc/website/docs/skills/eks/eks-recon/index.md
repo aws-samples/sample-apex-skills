@@ -412,20 +412,7 @@ When running full reconnaissance, delegate each module to a specialized subagent
 
 ### Subagent Files
 
-Each module has a corresponding subagent prompt in `agents/`:
-
-| Subagent | File | Purpose |
-|----------|------|---------|
-| Compute | `agents/compute-recon.md` | Detect compute strategy |
-| Networking | `agents/networking-recon.md` | Detect network config |
-| Security | `agents/security-recon.md` | Detect security posture, secrets, webhooks |
-| Add-ons | `agents/addons-recon.md` | Detect installed components |
-| Observability | `agents/observability-recon.md` | Detect monitoring/logging |
-| Storage | `agents/storage-recon.md` | Detect CSI, StorageClasses, PVCs |
-| Workloads | `agents/workloads-recon.md` | Detect running workloads |
-| IaC | `agents/iac-recon.md` | Detect IaC tooling |
-| CI/CD | `agents/cicd-recon.md` | Detect deployment pipelines |
-| Cluster Insights | `agents/cluster-insights-recon.md` | Collect EKS-reported insights (raw findings) |
+Each module's subagent prompt is the Agent file in [Modules and Reference Loading](#modules-and-reference-loading).
 
 ### Orchestration Steps
 
