@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
-# dependencies = ["pyyaml>=6,<7"]
+# requires-python = ">=3.10"
+# dependencies = ["jsonschema[format-nongpl]>=4.26,<5", "pyyaml>=6,<7"]
 # ///
 """Check a JSON or YAML document against a JSON Schema (apex-base class tool).
 
@@ -9,15 +9,10 @@ The shared loader and checker the class validators import:
 validate_input.py (apex-base), validate_output.py and k_run_diff.py (script)
 and run_artifact_checks.py (operator).
 
-The checker is standard library only and covers the subset of JSON Schema
-draft 2020-12 that APEX schemas use: type, const, enum, required,
-properties, additionalProperties, items, minItems, minLength, maxLength,
-pattern, format (date-time only, asserted), anyOf, oneOf, local $ref into
-$defs, and the annotations $schema, $id, $comment, title, description,
-examples and default. A schema that uses any other keyword is refused
-(exit 2), so an unsupported rule never passes silently. YAML is read with
-PyYAML's safe loader (pyyaml, the one package the repo's CI already
-installs); a duplicate mapping key is refused.
+The checker is the jsonschema package's Draft 2020-12 validator, with its
+format checker, so `format` is asserted (the format-nongpl extra brings the
+date-time checker). YAML is read with PyYAML's safe loader; a duplicate
+mapping key is refused.
 
 Usage:
   schema_check.py --schema <schema.json> <file>...
@@ -25,24 +20,13 @@ Usage:
 
 Exit codes: 0 every file validates; 1 a file does not validate;
 2 the check could not run (missing or unreadable file, empty document,
-parse error, unsupported schema). Nothing ever exits 0 on absent input.
+parse error, an invalid schema or a $ref that does not resolve, jsonschema
+not installed, a schema nested too deep). Nothing ever exits 0 on absent input.
 """
 import argparse
 import json
 import os
-import re
 import sys
-
-DRAFT = "https://json-schema.org/draft/2020-12/schema"
-ANNOTATIONS = {"$schema", "$id", "$comment", "title", "description", "examples", "default"}
-ASSERTIONS = {
-    "type", "const", "enum", "required", "properties", "additionalProperties",
-    "items", "minItems", "minLength", "maxLength", "pattern", "format",
-    "anyOf", "oneOf", "$ref", "$defs",
-}
-TYPES = {"null", "boolean", "object", "array", "number", "integer", "string"}
-DATE_TIME = re.compile(
-    r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$")
 
 
 class CheckError(Exception):
@@ -55,6 +39,15 @@ def _yaml():
     except ImportError:
         raise CheckError("PyYAML is not installed (pip install 'pyyaml>=6,<7')")
     return yaml
+
+
+def _jsonschema():
+    try:
+        import jsonschema  # noqa: PLC0415
+        import referencing.exceptions  # noqa: PLC0415 (installed with jsonschema)
+    except ImportError:
+        raise CheckError("jsonschema is not installed (pip install 'jsonschema[format-nongpl]>=4.26,<5')")
+    return jsonschema, referencing.exceptions
 
 
 def _no_dup_pairs(pairs):
@@ -113,140 +106,24 @@ def load(path):
     return loads(text, path)
 
 
-def check_schema(schema, where="#"):
-    """Refuse a schema that uses a keyword this checker does not implement."""
-    if isinstance(schema, bool):
-        return
-    if not isinstance(schema, dict):
-        raise CheckError(f"schema {where}: must be an object or a boolean")
-    if where == "#" and schema.get("$schema", DRAFT) != DRAFT:
-        raise CheckError(f"schema: $schema must be {DRAFT}")
-    for key, val in schema.items():
-        if key in ANNOTATIONS:
-            continue
-        if key not in ASSERTIONS:
-            raise CheckError(f"schema {where}: unsupported keyword {key!r}")
-        if key in ("properties", "$defs"):
-            for name, sub in val.items():
-                check_schema(sub, f"{where}/{key}/{name}")
-        elif key in ("anyOf", "oneOf"):
-            if not isinstance(val, list) or not val:
-                raise CheckError(f"schema {where}/{key}: must be a non-empty list")
-            for i, sub in enumerate(val):
-                check_schema(sub, f"{where}/{key}/{i}")
-        elif key in ("items", "additionalProperties"):
-            check_schema(val, f"{where}/{key}")
-        elif key == "type":
-            names = val if isinstance(val, list) else [val]
-            if not names or any(n not in TYPES for n in names):
-                raise CheckError(f"schema {where}/type: unknown type {val!r}")
-        elif key == "format" and val != "date-time":
-            raise CheckError(f"schema {where}: unsupported format {val!r}")
-        elif key == "$ref" and not (isinstance(val, str) and val.startswith("#/")):
-            raise CheckError(f"schema {where}: only local $ref ('#/...') is supported")
-        elif key == "pattern":
-            try:
-                re.compile(val)
-            except re.error as e:
-                raise CheckError(f"schema {where}/pattern: {e}")
+def check_schema(schema):
+    """Refuse a schema that is not valid Draft 2020-12."""
+    jsonschema, _ = _jsonschema()
+    try:
+        jsonschema.Draft202012Validator.check_schema(schema)
+    except jsonschema.exceptions.SchemaError as e:
+        raise CheckError(f"schema is not valid Draft 2020-12: {e.message}")
 
 
-def _type_name(value):
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return "boolean"
-    if isinstance(value, int):
-        return "integer"
-    if isinstance(value, float):
-        return "number"
-    if isinstance(value, str):
-        return "string"
-    if isinstance(value, list):
-        return "array"
-    if isinstance(value, dict):
-        return "object"
-    return type(value).__name__  # e.g. a YAML timestamp loads as datetime
-
-
-def _is_type(value, name):
-    actual = _type_name(value)
-    return actual == name or (name == "number" and actual == "integer")
-
-
-def _resolve(root, ref):
-    node = root
-    for part in ref[2:].split("/"):
-        part = part.replace("~1", "/").replace("~0", "~")
-        if not isinstance(node, dict) or part not in node:
-            raise CheckError(f"schema: $ref {ref} does not resolve")
-        node = node[part]
-    return node
-
-
-def _equal(a, b):
-    return _type_name(a) == _type_name(b) and a == b
-
-
-def validate(instance, schema, root=None, path="$"):
+def validate(instance, schema):
     """Return a list of 'path: message' errors; empty means valid."""
-    root = schema if root is None else root
-    if schema is True:
-        return []
-    if schema is False:
-        return [f"{path}: not allowed here"]
-    errors = []
-    if "$ref" in schema:
-        errors += validate(instance, _resolve(root, schema["$ref"]), root, path)
-    if "type" in schema:
-        names = schema["type"] if isinstance(schema["type"], list) else [schema["type"]]
-        if not any(_is_type(instance, n) for n in names):
-            return errors + [f"{path}: expected {' or '.join(names)}, got {_type_name(instance)}"]
-    if "const" in schema and not _equal(instance, schema["const"]):
-        errors.append(f"{path}: must equal {json.dumps(schema['const'])}")
-    if "enum" in schema and not any(_equal(instance, e) for e in schema["enum"]):
-        errors.append(f"{path}: {json.dumps(instance, default=str)} is not one of {json.dumps(schema['enum'])}")
-    if isinstance(instance, str):
-        if len(instance) < schema.get("minLength", 0):
-            errors.append(f"{path}: shorter than {schema['minLength']} characters")
-        if "maxLength" in schema and len(instance) > schema["maxLength"]:
-            errors.append(f"{path}: longer than {schema['maxLength']} characters")
-        if "pattern" in schema and not re.search(schema["pattern"], instance):
-            errors.append(f"{path}: does not match pattern {schema['pattern']}")
-        if schema.get("format") == "date-time" and not DATE_TIME.match(instance):
-            errors.append(f"{path}: not an RFC 3339 date-time")
-    if isinstance(instance, dict):
-        for key in schema.get("required", []):
-            if key not in instance:
-                errors.append(f"{path}: missing required key {key!r}")
-        props = schema.get("properties", {})
-        extra = schema.get("additionalProperties", True)
-        for key, val in instance.items():
-            sub = f"{path}.{key}"
-            if key in props:
-                errors += validate(val, props[key], root, sub)
-            elif extra is False:
-                errors.append(f"{path}: unexpected key {key!r}")
-            elif isinstance(extra, dict):
-                errors += validate(val, extra, root, sub)
-    if isinstance(instance, list):
-        if len(instance) < schema.get("minItems", 0):
-            errors.append(f"{path}: fewer than {schema['minItems']} items")
-        if "items" in schema:
-            for i, val in enumerate(instance):
-                errors += validate(val, schema["items"], root, f"{path}[{i}]")
-    for key in ("anyOf", "oneOf"):
-        if key not in schema:
-            continue
-        results = [validate(instance, sub, root, path) for sub in schema[key]]
-        passed = sum(1 for r in results if not r)
-        if passed == 0:
-            best = min(results, key=len)
-            errors.append(f"{path}: matches none of the {len(results)} {key} alternatives; nearest fails on:")
-            errors += ["  " + e for e in best]
-        elif key == "oneOf" and passed > 1:
-            errors.append(f"{path}: matches {passed} oneOf alternatives, expected exactly 1")
-    return errors
+    jsonschema, ref_errors = _jsonschema()
+    validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+    try:
+        errors = list(validator.iter_errors(instance))
+    except ref_errors.Unresolvable as e:
+        raise CheckError(f"schema: $ref does not resolve: {e}")
+    return sorted(f"{e.json_path}: {e.message}" for e in errors)
 
 
 def load_schema(path):
@@ -342,13 +219,16 @@ def run_declared(key, argv, script_file, inline_json=False):
     except CheckError as e:
         print(f"cannot check: {e}", file=sys.stderr)
         return 2
+    except RecursionError:
+        print("cannot check: the schema or the document is nested too deep", file=sys.stderr)
+        return 2
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--schema", help="the JSON Schema to check the files against")
-    g.add_argument("--check-schema", action="store_true", help="only check that each file is a supported schema")
+    g.add_argument("--check-schema", action="store_true", help="only check that each file is a valid Draft 2020-12 schema")
     p.add_argument("files", nargs="+")
     args = p.parse_args(argv)
     try:
@@ -360,6 +240,9 @@ def main(argv=None):
         return check_files(args.schema, args.files)
     except CheckError as e:
         print(f"cannot check: {e}", file=sys.stderr)
+        return 2
+    except RecursionError:
+        print("cannot check: the schema or the document is nested too deep", file=sys.stderr)
         return 2
 
 

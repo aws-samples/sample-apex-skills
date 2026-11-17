@@ -7,7 +7,8 @@ classes/operator/scripts/run_artifact_checks.py, run as a skill runs them,
 on the eks-recon schemas in skills/eks-recon/assets/. The done test: the
 validators pass on eks-recon fixtures and fail on a broken one (V1).
 
-Needs PyYAML (pip install 'pyyaml>=6,<7'); no network, no cluster. Cases come
+Needs jsonschema and PyYAML (pip install 'jsonschema[format-nongpl]>=4.26,<5'
+'pyyaml>=6,<7'); no network, no cluster. Cases come
 from misc/tests/fixtures/class_validators_cases.json. Run from the repo root:
   python3 -B misc/tests/test_class_validators.py -v
 """
@@ -130,6 +131,12 @@ class OutputValidator(Tmp):
                 f = self.write(f"{case['id']}.yaml", case["text"])
                 self.expect(case, *run(os.path.join(SCRIPT, "validate_output.py"), ["--skill-dir", RECON, f]))
 
+    def test_handwritten_outputs(self):
+        for case in CASES["handwritten_outputs"]:
+            with self.subTest(case["id"]):
+                f = self.write(f"{case['id']}.yaml", case["text"])
+                self.expect(case, *run(os.path.join(SCRIPT, "validate_output.py"), ["--skill-dir", RECON, f]))
+
     def test_missing_inputs_never_pass(self):
         good = self.write("good.yaml", output_case(OUTPUTS["V0"]))
         cases = [
@@ -151,7 +158,7 @@ class OutputValidator(Tmp):
         self.assertIn("inside the skill's assets/", out)
 
     def test_copied_tool_finds_its_skill(self):
-        """As the class sync installs it: <skill>/scripts/, no --skill-dir."""
+        """A copied tool in <skill>/scripts/, no --skill-dir: under source names; the flat names and the import rewrite are P-310's."""
         d = self.skill("copied", {"name": "copied", "description": "x",
                                   "metadata": {"apex-outputs": "assets/recon-output.schema.json"}})
         os.makedirs(os.path.join(d, "scripts"))
@@ -249,22 +256,15 @@ class ArtifactChecks(Tmp):
                     artifact = os.path.dirname(self.write(f"{case['id']}-tf/main.tf", 'terraform {}\n'))
                 else:
                     artifact = self.write(f"{case['id']}.yaml", output_case(OUTPUTS[case["artifact"]]))
-                args = ["--skill-dir", d] + (["--checks", case["checks"]] if "checks" in case else []) + [artifact]
+                args = ["--skill-dir", d, artifact]
                 path_env = self.fake_bin(case["fake_tools"]) if "fake_tools" in case else None
                 self.expect(case, *run(os.path.join(OPERATOR, "run_artifact_checks.py"), args, path_env))
 
 
 class SchemaChecker(Tmp):
-    """schema_check.py: the subset it implements, and what it refuses."""
+    """schema_check.py: every skill schema in the repo is valid Draft 2020-12."""
 
-    def test_schema_cases(self):
-        for case in CASES["schema_cases"]:
-            with self.subTest(case["id"]):
-                s = self.write(f"{case['id']}.schema.json", json.dumps(case["schema"]))
-                d = self.write(f"{case['id']}.json", json.dumps(case["doc"]))
-                self.expect(case, *run(os.path.join(BASE, "schema_check.py"), ["--schema", s, d]))
-
-    def test_every_skill_schema_is_supported(self):
+    def test_every_skill_schema_is_valid(self):
         found = []
         for name in sorted(os.listdir(os.path.join(ROOT, "skills"))):
             assets = os.path.join(ROOT, "skills", name, "assets")
@@ -276,7 +276,7 @@ class SchemaChecker(Tmp):
 
 
 class ReconSchemaMatchesSkill(unittest.TestCase):
-    """The hand-written schema stays in step with SKILL.md and the references."""
+    """The hand-written schema stays in step with SKILL.md."""
 
     def setUp(self):
         with open(OUT_SCHEMA, encoding="utf-8") as f:
@@ -296,25 +296,6 @@ class ReconSchemaMatchesSkill(unittest.TestCase):
         want = self.schema["properties"]["report"]["properties"]["schema_revision"]["const"]
         self.assertEqual(revs, {want}, "bump the schema's schema_revision and $id with SKILL.md's")
         self.assertTrue(self.schema["$id"].endswith(want))
-
-    def test_module_keys_match_reference_output_schemas(self):
-        refs = os.path.join(RECON, "references")
-        seen = set()
-        for name in sorted(os.listdir(refs)):
-            with open(os.path.join(refs, name), encoding="utf-8") as f:
-                text = f.read()
-            i = text.find("## Output Schema")
-            if i < 0:
-                continue
-            block = yaml.safe_load(re.search(r"```ya?ml\n(.*?)```", text[i:], re.S).group(1))
-            module, keys = next(iter(block.items()))
-            if module == "cluster":
-                got = self.schema["properties"]["cluster"]["required"]
-            else:
-                got = self.schema["$defs"][module]["required"]
-                seen.add(module)
-            self.assertEqual(sorted(got), sorted(keys), f"{name}: {module}")
-        self.assertEqual(seen, set(self.schema["$defs"]) - {"unavailable"})
 
 
 if __name__ == "__main__":

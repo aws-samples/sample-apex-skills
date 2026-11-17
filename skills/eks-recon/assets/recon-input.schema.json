@@ -16,7 +16,7 @@
     },
     "region": {
       "type": "string",
-      "pattern": "^[a-z]{2}(-[a-z]+)+-[0-9]+$"
+      "minLength": 1
     },
     "modules": {
       "type": "array",

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
-# dependencies = ["pyyaml>=6,<7"]
+# requires-python = ">=3.10"
+# dependencies = ["jsonschema[format-nongpl]>=4.26,<5", "pyyaml>=6,<7"]
 # ///
 """Run an Operator skill's declared artifact checks (operator class).
 
@@ -11,7 +11,9 @@ of check ids), and the artifact must pass them before it is handed over.
 CI runs this on fixture artifacts; at run time the skill runs it on its own
 artifact, the same way it runs a schema check.
 
-Check ids (the names misc/evals/<skill>/.skilleval.yaml uses today):
+Check ids (named after the ids in misc/evals/<skill>/.skilleval.yaml;
+`structural` here is the output-schema check, not the eval's file
+assertions; `markdownlint` is not supported):
   structural          the artifact file validates against the skill's
                       declared output schema (metadata.apex-outputs)
   terraform-fmt       terraform fmt -check -recursive .
@@ -20,13 +22,19 @@ Check ids (the names misc/evals/<skill>/.skilleval.yaml uses today):
   checkov             checkov -d . --framework terraform --compact --quiet
 The terraform and checkov checks run in the artifact folder (or the folder
 holding the artifact file). An unknown id, or a check whose tool is not on
-PATH, never passes.
+PATH, never passes. The eval runner (misc/evals/scripts/artifact_validation.py)
+runs the same tools with other flags and timeouts: terraform fmt, init and
+validate at 120 s with `validate -json`, checkov at 300 s with `--output
+json`. They differ because the eval parses JSON for its score, while this
+tool reads the exit code and shows the tool's own text, with one 300 s
+timeout for every command.
 
 Usage:
-  run_artifact_checks.py [--skill-dir <skill>] [--checks id,id] <artifact>
+  run_artifact_checks.py [--skill-dir <skill>] <artifact>
 
---checks replaces the declared list (for CI fixtures). A skill that declares
-no checks passes: it produces no artifact to check.
+The checks are the ones the skill declares; there is no override. A skill
+that declares none gets no check: "no artifact checks declared; nothing
+checked" (exit 0) is not a pass of any check.
 It imports the apex-base class tool schema_check (the class sync rewrites the
 import to the flat copy's name). In this repo, run it with
 PYTHONPATH=classes/apex-base/scripts.
@@ -38,8 +46,12 @@ import shutil
 import subprocess
 import sys
 
-import schema_check
-from schema_check import CheckError
+try:
+    import schema_check
+except ImportError:
+    print("cannot check: the apex-base class tool schema_check is not installed beside this tool", file=sys.stderr)
+    sys.exit(2)
+from schema_check import CheckError  # noqa: E402
 
 TIMEOUT = 300
 COMMANDS = {
@@ -71,7 +83,7 @@ def run_commands(check, artifact):
         except subprocess.TimeoutExpired:
             raise CheckError(f"{check}: {' '.join(cmd)} timed out after {TIMEOUT}s")
         if p.returncode != 0:
-            detail = (p.stdout.strip() or p.stderr.strip())[:800]
+            detail = p.stdout.strip() or p.stderr.strip()
             return 1, f"{' '.join(cmd)} exited {p.returncode}\n{detail}"
     return 0, "passed"
 
@@ -86,19 +98,13 @@ def declared_checks(skill_dir):
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--skill-dir", help="skill folder (default: the folder this copied tool sits in)")
-    p.add_argument("--checks", help="comma-separated check ids, instead of the declared list")
     p.add_argument("artifact")
     args = p.parse_args(argv)
     try:
         skill_dir = args.skill_dir or schema_check.default_skill_dir(__file__)
         if not skill_dir:
             raise CheckError("give --skill-dir")
-        if args.checks is not None:
-            checks = [c.strip() for c in args.checks.split(",") if c.strip()]
-            if not checks:
-                raise CheckError("--checks names no check")
-        else:
-            checks = declared_checks(skill_dir)
+        checks = declared_checks(skill_dir)
         unknown = [c for c in checks if c not in KNOWN]
         if unknown:
             raise CheckError(f"unknown check id(s) {', '.join(unknown)}; known: {', '.join(KNOWN)}")
@@ -108,7 +114,7 @@ def main(argv=None):
         print(f"cannot check: {e}", file=sys.stderr)
         return 2
     if not checks:
-        print("ok no artifact checks declared")
+        print("no artifact checks declared; nothing checked")
         return 0
     rc = 0
     for check in checks:

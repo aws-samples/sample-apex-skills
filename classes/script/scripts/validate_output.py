@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
-# dependencies = ["pyyaml>=6,<7"]
+# requires-python = ">=3.10"
+# dependencies = ["jsonschema[format-nongpl]>=4.26,<5", "pyyaml>=6,<7"]
 # ///
 """Check a Script skill's output against its declared output schema (script, piece 3).
 
@@ -21,7 +21,11 @@ Exit codes: 0 valid; 1 invalid (do not hand it on); 2 the check could not run.
 """
 import sys
 
-import schema_check
+try:
+    import schema_check
+except ImportError:
+    print("cannot check: the apex-base class tool schema_check is not installed beside this tool", file=sys.stderr)
+    sys.exit(2)
 
 if __name__ == "__main__":
     sys.exit(schema_check.run_declared("apex-outputs", sys.argv[1:], __file__))

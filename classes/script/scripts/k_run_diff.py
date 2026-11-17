@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
-# requires-python = ">=3.9"
-# dependencies = ["pyyaml>=6,<7"]
+# requires-python = ">=3.10"
+# dependencies = ["jsonschema[format-nongpl]>=4.26,<5", "pyyaml>=6,<7"]
 # ///
 """The Script class's k-run diff: the same input gives the same answer on every run.
 
@@ -32,10 +32,12 @@ import json
 import os
 import sys
 
-import schema_check
-from schema_check import CheckError
-
-MAX_SHOWN = 20
+try:
+    import schema_check
+except ImportError:
+    print("cannot check: the apex-base class tool schema_check is not installed beside this tool", file=sys.stderr)
+    sys.exit(2)
+from schema_check import CheckError  # noqa: E402
 
 
 def load_rule(path):
@@ -135,10 +137,8 @@ def main(argv=None):
         if found:
             rc = 1
             print(f"FAIL run {run} ({args.files[run - 1]}) differs from run 1 ({args.files[0]}):")
-            for line in found[:MAX_SHOWN]:
+            for line in found:
                 print(f"  {line}")
-            if len(found) > MAX_SHOWN:
-                print(f"  ... and {len(found) - MAX_SHOWN} more")
     if rc == 0:
         print(f"ok the same answer in all {len(docs)} runs (ignoring {len(ignore)} listed paths)")
     return rc

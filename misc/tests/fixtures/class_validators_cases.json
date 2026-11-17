@@ -1,5 +1,5 @@
 {
- "_about": "Cases for misc/tests/test_class_validators.py. recon_report is a valid eks-recon YAML artifact (SKILL.md Step 4b envelope, module keys from references/<module>.md Output Schema); each output case applies its mutations to a copy (set or delete at a dot path), writes it as YAML and expects the validators' exit code (0 valid, 1 invalid, 2 cannot check). V1 is the done test's broken fixture.",
+ "_about": "Cases for misc/tests/test_class_validators.py. recon_report is a valid eks-recon YAML artifact (SKILL.md Step 4b envelope, module keys from references/<module>.md Output Schema); each output case applies its mutations to a copy (set or delete at a dot path), writes it as YAML and expects the validators' exit code (0 valid, 1 invalid, 2 cannot check). V1 is the done test's broken fixture. handwritten_outputs are YAML texts written as a user would write them, not dumped from recon_report.",
  "recon_report": {
   "report": {
    "schema_revision": "eks-recon/2026-11-11",
@@ -246,10 +246,13 @@
     }
    },
    "iam_for_pods": {
-    "model": "pod_identity",
+    "model": "Pod Identity",
     "pod_identity": {
      "detected": true,
-     "associations": 2
+     "associations": {
+      "count": 2,
+      "list": null
+     }
     },
     "irsa": {
      "detected": false
@@ -285,7 +288,7 @@
    "image_security": {
     "ecr_used": true,
     "private_registries": [],
-    "admission_policies": []
+    "admission_policies": null
    },
    "admission_webhooks": {
     "validating": {
@@ -300,7 +303,7 @@
     "cluster_role_bindings": 55,
     "roles": 12,
     "role_bindings": 14,
-    "wildcard_roles": 3,
+    "wildcard_roles": [],
     "cluster_admin_bindings": [
      {
       "name": "cluster-admin",
@@ -544,8 +547,12 @@
    "priority_classes": {
     "count": 2,
     "list": [
-     "system-cluster-critical",
-     "system-node-critical"
+     {
+      "name": "system-cluster-critical"
+     },
+     {
+      "name": "system-node-critical"
+     }
     ]
    },
    "vpas": {
@@ -644,10 +651,8 @@
    ],
    "confidence": "high",
    "evidence": {
-    "type": "tags",
-    "details": [
-     "terraform-aws-modules tag on the cluster"
-    ]
+    "type": "cluster_tags",
+    "details": "terraform-aws-modules tag on the cluster"
    },
    "workspace": {
     "terraform": {
@@ -703,7 +708,7 @@
     }
    },
    "gitops": {
-    "tool": "ArgoCD",
+    "tool": "argocd",
     "status": "detected",
     "detected": true,
     "tools_detected": [
@@ -760,7 +765,7 @@
     }
    ],
    "expect": 1,
-   "message": "missing required key 'generated_at'"
+   "message": "$.report: 'generated_at' is a required property"
   },
   {
    "id": "V2",
@@ -773,7 +778,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.cluster.version: expected string or null, got number"
+   "message": "$.cluster.version: 1.31 is not of type 'string', 'null'"
   },
   {
    "id": "V2b",
@@ -783,7 +788,7 @@
     "generated_at: 2026-11-17T02:15:00Z"
    ],
    "expect": 1,
-   "message": "got datetime"
+   "message": "$.report.generated_at: datetime.datetime(2026, 11, 17, 2, 15, tzinfo=datetime.timezone.utc) is not of type 'string'"
   },
   {
    "id": "V2c",
@@ -796,7 +801,7 @@
     }
    ],
    "expect": 1,
-   "message": "not an RFC 3339 date-time"
+   "message": "$.report.generated_at: 'yesterday' is not a 'date-time'"
   },
   {
    "id": "V3",
@@ -826,7 +831,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.storage: matches none"
+   "message": "$.storage: 'reason' is a required property"
   },
   {
    "id": "V4",
@@ -861,7 +866,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.workloads.ingresses: expected object, got null"
+   "message": "$.workloads.ingresses: None is not of type 'object'"
   },
   {
    "id": "V4c",
@@ -900,7 +905,7 @@
     }
    ],
    "expect": 1,
-   "message": "missing required key 'schema_revision'"
+   "message": "$.report: 'schema_revision' is a required property"
   },
   {
    "id": "V5b",
@@ -913,7 +918,7 @@
     }
    ],
    "expect": 1,
-   "message": "must equal"
+   "message": "$.report.schema_revision: 'eks-recon/2026-11-11' was expected"
   },
   {
    "id": "V7",
@@ -926,7 +931,7 @@
     }
    ],
    "expect": 1,
-   "message": "unexpected key 'computer'"
+   "message": "$: Additional properties are not allowed ('computer' was unexpected)"
   },
   {
    "id": "V8",
@@ -938,7 +943,7 @@
     }
    ],
    "expect": 1,
-   "message": "missing required key 'karpenter'"
+   "message": "$.compute: 'karpenter' is a required property"
   },
   {
    "id": "V9",
@@ -950,7 +955,7 @@
     }
    ],
    "expect": 1,
-   "message": "missing required key 'cluster'"
+   "message": "$: 'cluster' is a required property"
   },
   {
    "id": "V10",
@@ -975,6 +980,32 @@
     "cluster"
    ],
    "expect": 0
+  },
+  {
+   "id": "V12",
+   "what": "compute.strategy as a number",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "compute.strategy",
+     "value": 42
+    }
+   ],
+   "expect": 1,
+   "message": "$.compute.strategy: 42 is not one of"
+  },
+  {
+   "id": "V13",
+   "what": "workloads.deployments.count as a string",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "workloads.deployments.count",
+     "value": "seven"
+    }
+   ],
+   "expect": 1,
+   "message": "$.workloads.deployments.count: 'seven' is not of type 'integer', 'null'"
   }
  ],
  "unreadable_outputs": [
@@ -1030,7 +1061,7 @@
     "cluster_name": "demo-cluster"
    },
    "expect": 1,
-   "message": "missing required key 'region'"
+   "message": "$: 'region' is a required property"
   },
   {
    "id": "I2",
@@ -1040,7 +1071,7 @@
     "region": "us-west-2"
    },
    "expect": 1,
-   "message": "$.cluster_name: does not match pattern"
+   "message": "$.cluster_name: '-demo' does not match"
   },
   {
    "id": "I3",
@@ -1051,7 +1082,7 @@
     "namespace": "shop"
    },
    "expect": 1,
-   "message": "unexpected key 'namespace'"
+   "message": "$: Additional properties are not allowed ('namespace' was unexpected)"
   },
   {
    "id": "I4",
@@ -1068,13 +1099,22 @@
   },
   {
    "id": "I5",
-   "what": "a region typo",
+   "what": "an empty region",
    "input": {
     "cluster_name": "demo-cluster",
-    "region": "us-west2"
+    "region": ""
    },
    "expect": 1,
-   "message": "$.region: does not match pattern"
+   "message": "$.region: '' should be non-empty"
+  },
+  {
+   "id": "I6",
+   "what": "a region outside the commercial partition (AWS European Sovereign Cloud)",
+   "input": {
+    "cluster_name": "demo-cluster",
+    "region": "eusc-de-east-1"
+   },
+   "expect": 0
   }
  ],
  "krun_cases": [
@@ -1177,23 +1217,29 @@
  "artifact_cases": [
   {
    "id": "O0",
-   "what": "structural on the valid report, declared on the command line",
-   "checks": "structural",
+   "what": "structural on the valid report, declared in the frontmatter",
+   "declared": [
+    "structural"
+   ],
    "artifact": "V0",
    "expect": 0
   },
   {
    "id": "O1",
    "what": "structural on the broken report",
-   "checks": "structural",
+   "declared": [
+    "structural"
+   ],
    "artifact": "V1",
    "expect": 1,
-   "message": "missing required key 'generated_at'"
+   "message": "$.report: 'generated_at' is a required property"
   },
   {
    "id": "O2",
    "what": "a check id no runner knows",
-   "checks": "terraform-lint",
+   "declared": [
+    "terraform-lint"
+   ],
    "artifact": "V0",
    "expect": 2,
    "message": "unknown check id(s) terraform-lint"
@@ -1204,7 +1250,7 @@
    "declared": null,
    "artifact": "V0",
    "expect": 0,
-   "message": "no artifact checks declared"
+   "message": "no artifact checks declared; nothing checked"
   },
   {
    "id": "O4",
@@ -1264,89 +1310,19 @@
    "message": "terraform validate -no-color exited 1"
   }
  ],
- "schema_cases": [
+ "handwritten_outputs": [
   {
-   "id": "S1",
-   "what": "a keyword the checker does not implement is refused",
-   "schema": {
-    "type": "object",
-    "patternProperties": {
-     "^x": {}
-    }
-   },
-   "doc": {},
-   "expect": 2,
-   "message": "unsupported keyword 'patternProperties'"
-  },
-  {
-   "id": "S2",
-   "what": "another draft is refused",
-   "schema": {
-    "$schema": "http://json-schema.org/draft-07/schema#"
-   },
-   "doc": {},
-   "expect": 2,
-   "message": "$schema must be"
-  },
-  {
-   "id": "S3",
-   "what": "oneOf with two matches fails",
-   "schema": {
-    "oneOf": [
-     {
-      "type": "integer"
-     },
-     {
-      "type": "number"
-     }
-    ]
-   },
-   "doc": 3,
-   "expect": 1,
-   "message": "matches 2 oneOf alternatives"
-  },
-  {
-   "id": "S4",
-   "what": "a boolean is not an integer",
-   "schema": {
-    "type": "integer"
-   },
-   "doc": true,
-   "expect": 1,
-   "message": "expected integer, got boolean"
-  },
-  {
-   "id": "S5",
-   "what": "an unresolved $ref cannot be checked",
-   "schema": {
-    "$ref": "#/$defs/missing"
-   },
-   "doc": {},
-   "expect": 2,
-   "message": "does not resolve"
-  },
-  {
-   "id": "S6",
-   "what": "a supported schema passes its document",
-   "schema": {
-    "type": "object",
-    "required": [
-     "a"
-    ],
-    "properties": {
-     "a": {
-      "enum": [
-       1,
-       2
-      ]
-     }
-    },
-    "additionalProperties": false
-   },
-   "doc": {
-    "a": 2
-   },
+   "id": "H0",
+   "what": "a hand-written targeted run (report and cluster), generated_at quoted",
+   "text": "report:\n  schema_revision: eks-recon/2026-11-11\n  generated_at: \"2026-11-17T02:15:00Z\"\n  unconfirmed_paths: []\ncluster:\n  name: demo-cluster\n  region: us-west-2\n  version: '1.33'\n  platform_version: eks.9\n  endpoint: https://0123456789ABCDEF.gr7.us-west-2.eks.amazonaws.com\n  arn: arn:aws:eks:us-west-2:111122223333:cluster/demo-cluster\n  status: ACTIVE\n  created_at: '2025-06-01T10:00:00Z'\n  tags:\n    team: platform\n",
    "expect": 0
+  },
+  {
+   "id": "H1",
+   "what": "the same artifact with generated_at unquoted, which YAML loads as a timestamp (SKILL.md: quote it)",
+   "text": "report:\n  schema_revision: eks-recon/2026-11-11\n  generated_at: 2026-11-17T02:15:00Z\n  unconfirmed_paths: []\ncluster:\n  name: demo-cluster\n  region: us-west-2\n  version: '1.33'\n  platform_version: eks.9\n  endpoint: https://0123456789ABCDEF.gr7.us-west-2.eks.amazonaws.com\n  arn: arn:aws:eks:us-west-2:111122223333:cluster/demo-cluster\n  status: ACTIVE\n  created_at: '2025-06-01T10:00:00Z'\n  tags:\n    team: platform\n",
+   "expect": 1,
+   "message": "$.report.generated_at:"
   }
  ]
 }

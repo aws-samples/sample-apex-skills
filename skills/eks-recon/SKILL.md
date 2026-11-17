@@ -143,6 +143,8 @@ Load only the references needed for the user's request — this keeps context fo
 | CI/CD | GitHub Actions, GitLab CI, Jenkins, ArgoCD, Flux, GitOps, pipelines | [cicd.md](references/cicd.md) | [cicd-recon.md](agents/cicd-recon.md) |
 | Cluster Insights | EKS-reported upgrade-readiness & configuration insights (raw findings) | [cluster-insights.md](references/cluster-insights.md) | [cluster-insights-recon.md](agents/cluster-insights-recon.md) |
 
+In the input schema (`assets/recon-input.schema.json`), `modules` names the YAML module keys (`compute`, `networking`, `security`, `addons`, `observability`, `workloads`, `storage`, `iac`, `cicd`, `cluster_insights`): a request such as "modules: all" omits `modules`, and cluster basics is never listed, since it always runs.
+
 ---
 
 ## Quick Detection Reference
@@ -203,7 +205,7 @@ Optional:
 When a prior report is supplied, load [report-comparison.md](references/report-comparison.md)
 and read the prior artifact before generating outputs. After collecting the current
 facts, append the comparison to the Markdown report using that contract. Without a
-prior report, omit the Changes since section. Once the cluster name and region are resolved, and before any cluster read, check the inputs against `assets/recon-input.schema.json` (`metadata.apex-inputs`): where `scripts/apex_base_validate_input.py` is installed, run `python3 scripts/apex_base_validate_input.py --json '{"cluster_name": "<cluster>", "region": "<region>"}'` (add `modules`, `prior_report` or `output_prefix` when given) and do not start on a failure.
+prior report, omit the Changes since section.
 
 **Auto-discovery when cluster name is not explicit:**
 
@@ -309,7 +311,8 @@ caveats do not qualify broader wording elsewhere.
 
 The YAML is a **secondary, point-in-time facts snapshot**, not a versioned API.
 Workflows may use its facts as context; that intended use does not establish a
-versioned schema hand-off. Preserve the canonical reference shapes for inspection, export and existing workflow guidance. Its envelope and module keys are checked by `assets/recon-output.schema.json` (`metadata.apex-outputs`): where `scripts/script_validate_output.py` is installed, run `python3 scripts/script_validate_output.py <output-prefix>.yaml` before you hand the YAML on, and fix the YAML until it passes; if the check cannot run (exit 2), say so in Coverage.
+versioned schema hand-off. Preserve the canonical reference shapes for inspection,
+export and existing workflow guidance.
 
 **Assembly rules (inline and subagent execution):**
 
@@ -339,7 +342,7 @@ versioned schema hand-off. Preserve the canonical reference shapes for inspectio
 Assemble one top-level key per module, each emitted **verbatim in the canonical shape defined by that module's `references/<module>.md` "## Output Schema"**, plus the shared `cluster:` block and the `cluster_detail:` block (both from `references/cluster-basics.md`). Unavailable modules become `<module>: {unavailable: true, reason: "<short reason>"}`.
 
 Include a `report` metadata block alongside the canonical module blocks in every
-new YAML artifact. Capture `generated_at` from the actual UTC clock once for this
+new YAML artifact. Capture `generated_at` (quoted) from the actual UTC clock once for this
 report (reuse the filename's clock reading where applicable). Set `schema_revision`
 to `eks-recon/2026-11-11`, identifying the fact definitions used here, not a promised
 versioned API. Update this marker when fact types, value sets or meanings change,

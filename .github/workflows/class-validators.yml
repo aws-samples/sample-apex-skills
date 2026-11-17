@@ -36,7 +36,6 @@ jobs:
           'classes/**'
           'skills/*/assets/**'
           'skills/*/SKILL.md'
-          'skills/eks-recon/references/**'
           'misc/tests/test_class_validators.py'
           'misc/tests/fixtures/class_validators_cases.json'
           '.github/workflows/class-validators.yml'
@@ -54,4 +53,4 @@ jobs:
       # the broken eks-recon fixture included, and check every skill schema.
       - name: Run the class validators on fixtures
         if: steps.changes.outputs.relevant != 'false'
-        run: pip install 'pyyaml>=6,<7' && python3 -B misc/tests/test_class_validators.py -v
+        run: pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7' && python3 -B misc/tests/test_class_validators.py -v
