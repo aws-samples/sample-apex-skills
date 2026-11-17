@@ -142,11 +142,14 @@ Check for AMP when you need managed Prometheus with automatic scaling and AWS in
 
 ```bash
 # Check for ADOT or Prometheus remote write config
-kubectl get configmap -A -l 'owner!=helm' -o json | jq -r '
+# On a failed read kubectl's error prints on stderr: report it unconfirmed, not "not found".
+out=$(kubectl get configmap -A -l 'owner!=helm' -o json) && printf '%s' "$out" | jq -r '
   .items[] |
   select((.data // {}) | to_entries | .[] | .value | contains("aps-workspaces")) |
-  {namespace: .metadata.namespace, name: .metadata.name}'
+  {namespace: .metadata.namespace, name: .metadata.name}' \
+  || echo "aps-workspaces: unconfirmed (configmap read or parse failed, see the error above)"
 ```
+On the unconfirmed line, add `observability.metrics.prometheus.type` to `report.unconfirmed_paths` and give the error in Coverage.
 
 **Example output (AMP configured):**
 ```json
@@ -327,9 +330,16 @@ kubectl get daemonset -A -l "app.kubernetes.io/name=fluent-bit" 2>/dev/null
 kubectl get daemonset -A -l "app=fluentd" 2>/dev/null
 
 # Check Fluent Bit ConfigMap for destinations
-kubectl get configmap -n amazon-cloudwatch fluent-bit-config -o yaml 2>/dev/null | \
-  grep -E "cloudwatch|opensearch|s3|kinesis" || true
+# On a failed read kubectl's error prints on stderr: report it unconfirmed, not "not found".
+# The name is printed first so a ConfigMap with no data is not read as absent; the grep
+# reads the name and the data only, not the metadata.
+if out=$(kubectl get configmap -n amazon-cloudwatch fluent-bit-config -o jsonpath='{.metadata.name}{"\n"}{.data}' --ignore-not-found); then
+  if [ -z "$out" ]; then echo "fluent-bit-config: not found in amazon-cloudwatch"
+  else printf '%s\n' "$out" | grep -E "cloudwatch|opensearch|s3|kinesis|[Nn]ame:?[[:space:]]+(es|elasticsearch)([^[:alnum:]_-]|$)" \
+    || echo "fluent-bit-config: no cloudwatch, opensearch, elasticsearch, s3 or kinesis destination found"; fi
+else echo "fluent-bit-config: unconfirmed (configmap read failed, see the error above)"; fi
 ```
+An `es` or `elasticsearch` output (Fluent Bit's Elasticsearch plugin, which also sends to Amazon OpenSearch Service) sets `log_destinations.opensearch`, since the schema has no Elasticsearch field. A not-found here covers only the `fluent-bit-config` ConfigMap in `amazon-cloudwatch` (the CloudWatch Observability add-on's): set `log_destinations` to `null`, not `false`, and state that scope in Coverage. On the unconfirmed line, add `observability.logging.log_destinations` to `report.unconfirmed_paths` and give the error in Coverage.
 
 **Example output (Fluent Bit detected):**
 ```
@@ -340,11 +350,14 @@ amazon-cloudwatch  fluent-bit   3         3         3       60d
 **OpenSearch / Elasticsearch:**
 ```bash
 # Check for OpenSearch endpoint in configs
-kubectl get configmap -A -l 'owner!=helm' -o json | jq -r '
+# On a failed read kubectl's error prints on stderr: report it unconfirmed, not "not found".
+out=$(kubectl get configmap -A -l 'owner!=helm' -o json) && printf '%s' "$out" | jq -r '
   .items[] |
   select((.data // {}) | to_entries | .[] | .value | contains("opensearch") or contains("elasticsearch")) |
-  {namespace: .metadata.namespace, name: .metadata.name}'
+  {namespace: .metadata.namespace, name: .metadata.name}' \
+  || echo "opensearch/elasticsearch: unconfirmed (configmap read or parse failed, see the error above)"
 ```
+On the unconfirmed line, add `observability.logging.log_destinations.opensearch` to `report.unconfirmed_paths` and give the error in Coverage.
 
 **Loki:**
 ```bash
