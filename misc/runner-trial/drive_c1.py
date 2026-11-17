@@ -15,8 +15,10 @@ Default: a dry run that prints the planned runs and makes no model call.
 --spend-limit-usd (finite, above 0) and --credential-note (recorded, not
 enforced), and stops before the next run once the subjects' recorded cost
 reaches the limit. The stop counts only the subjects' recorded cost: grader
-calls, T6 query runs and a run that times out or crashes add nothing, and the
-run that crosses the limit completes. The limit is per invocation.
+calls, T6 query runs and a run that times out or crashes before its first
+result event add nothing; on Claude Code older than 2.1.277, T5's earlier
+turns add nothing; and the run that crosses the limit completes. The limit is
+per invocation.
 
 Do not run --paid on the trial host: every subject can reach the host's AWS
 credentials (cases.md, Credentials and permissions).
@@ -128,14 +130,19 @@ def pinned_paths(case: dict) -> list[str]:
 
 
 def check_pin(cases: list[dict]) -> list[str]:
-    """Paths that differ from PIN or hold untracked files (git, no model call)."""
+    """Paths that differ from PIN or hold untracked or ignored files (git, no model call).
+
+    An ignored file is staged into the subject's sandbox too, so it counts;
+    __pycache__/ is Python's bytecode cache, holds no case text and is left out.
+    """
     changed = []
     for case in cases:
         for p in pinned_paths(case):
             r = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--quiet", PIN, "--", p])
-            st = subprocess.run(["git", "-C", str(REPO_ROOT), "status", "--porcelain", "--", p],
+            st = subprocess.run(["git", "-C", str(REPO_ROOT), "status", "--porcelain", "--ignored", "--", p],
                                 capture_output=True, text=True)
-            if (r.returncode != 0 or st.returncode != 0 or st.stdout.strip()) and p not in changed:
+            extra = [l for l in st.stdout.splitlines() if "__pycache__/" not in l]
+            if (r.returncode != 0 or st.returncode != 0 or extra) and p not in changed:
                 changed.append(p)
     return changed
 
@@ -245,7 +252,7 @@ def last_result(events_path: Path) -> tuple[dict, int]:
     return (results[-1] if results else {}), len(results)
 
 
-def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model: str) -> tuple[bool, str]:
+def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model: str) -> tuple[bool | None, str]:
     kind, value = case["grade"]
     outputs, transcript = Path(subj["outputs_dir"]), Path(subj["transcript_path"])
     if kind in ("suite", "text"):

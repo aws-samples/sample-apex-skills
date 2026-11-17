@@ -2,7 +2,7 @@
 
 No model call, no claude process, no cluster or AWS access. The git reads
 (the case-text pin and the old skill extract) are mocked too, so a shallow
-clone runs these tests.
+clone runs these tests; PinCheck runs check_pin on a throwaway git repo.
 Run: python3 -B -m unittest misc.tests.test_drive_c1 -v
 """
 import contextlib
@@ -236,6 +236,16 @@ class FixedBranches(unittest.TestCase):
         self.assertTrue(all(r["status"] == "error" for r in recs))
         self.assertEqual(summary["cases"]["T4"]["with_skill"]["pass"], 0)
 
+    def test_grader_with_extra_expectations_is_not_a_pass(self):
+        runner = fake_runner([])
+        runner.run_grader = lambda **kw: {"expectations": [{"text": e, "passed": True}
+                                                           for e in kw["expectations"] + ["extra"]]}
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, recs, summary = paid(d, ["T4"], runner)
+        self.assertEqual(rc, 0)
+        self.assertTrue(all(r["status"] == "error" for r in recs))
+        self.assertEqual(summary["cases"]["T4"]["with_skill"]["pass"], 0)
+
     def test_non_empty_out_is_refused(self):
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / "runs.jsonl").write_text("{}\n")
@@ -252,6 +262,47 @@ class FixedBranches(unittest.TestCase):
                                   capture_output=True, check=True).stdout
             self.assertEqual((d / "SKILL.md").read_bytes(), want)
         self.assertFalse(d.exists())
+
+
+class PinCheck(unittest.TestCase):
+    """check_pin, unmocked, on a throwaway repo holding T1's case file and skill."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.git = lambda *a: subprocess.run(["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@t",
+                                              *a], capture_output=True, text=True, check=True).stdout.strip()
+        (self.root / "misc/evals/eks-security").mkdir(parents=True)
+        (self.root / "misc/evals/eks-security/evals.json").write_text("{}")
+        (self.root / "skills/eks-security/references").mkdir(parents=True)
+        (self.root / "skills/eks-security/SKILL.md").write_text("s")
+        (self.root / ".gitignore").write_text("*.log\n__pycache__/\n")
+        self.git("init", "-q")
+        self.git("add", ".")
+        self.git("commit", "-q", "-m", "pin")
+        patches = [mock.patch.object(drive_c1, "REPO_ROOT", self.root),
+                   mock.patch.object(drive_c1, "PIN", self.git("rev-parse", "HEAD"))]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        self.addCleanup(self.tmp.cleanup)
+        self.t1 = [c for c in drive_c1.CASES if c["id"] == "T1"]
+
+    def test_clean_tree_passes(self):
+        self.assertEqual(drive_c1.check_pin(self.t1), [])
+
+    def test_untracked_file_in_the_skill_refuses(self):
+        (self.root / "skills/eks-security/references/new.md").write_text("n")
+        self.assertEqual(drive_c1.check_pin(self.t1), ["skills/eks-security"])
+
+    def test_ignored_file_in_the_skill_refuses(self):
+        (self.root / "skills/eks-security/references/cheat.log").write_text("c")
+        self.assertEqual(drive_c1.check_pin(self.t1), ["skills/eks-security"])
+
+    def test_pycache_in_the_skill_passes(self):
+        (self.root / "skills/eks-security/__pycache__").mkdir()
+        (self.root / "skills/eks-security/__pycache__/x.pyc").write_bytes(b"c")
+        self.assertEqual(drive_c1.check_pin(self.t1), [])
 
 
 if __name__ == "__main__":
