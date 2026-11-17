@@ -1,0 +1,1226 @@
+{
+ "_about": "Fixture trees for misc/tests/test_sync_classes.py. Each case starts from a base tree (a classes/ folder and member skills, built in a temp dir), applies `files` (null deletes a path), runs a write when `presync` is set, applies `mutate`, then runs misc/sync-classes.py in each mode of `run` and checks `expect`. `unchanged` means no file in the tree changed during the runs. Case ids follow the P-310 sketch's fixture table (F0 to F17).",
+ "bases": {
+  "std": {
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\n",
+    "classes/apex-base/rules.md": "# Base rules\n\n- **apex.alpha**: Alpha rule.\n- **apex.beta**: Beta rule.\n",
+    "classes/apex-base/references/apex-base-harness.md": "# Harness\n\nHarness notes.\n",
+    "classes/apex-base/references/notes.md": "# Notes\n\nShared notes.\n",
+    "classes/apex-base/scripts/schema_check.py": "#!/usr/bin/env python3\n# /// script\n# requires-python = \">=3.9\"\n# dependencies = [\"pyyaml>=6,<7\"]\n# ///\n\"\"\"Shared schema check.\"\"\"\n\n\nclass CheckError(Exception):\n    pass\n\n\ndef run():\n    return 0\n",
+    "classes/apex-base/scripts/helper.sh": "#!/usr/bin/env bash\n# requires: jq\nhelper() { echo helped; }\n",
+    "classes/apex-base/checks/rule-ids.txt": "run from classes/ by CI; never copied\n",
+    "classes/platform/class.yaml": "name: platform\nparents: [apex-base]\n",
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\n",
+    "classes/operator/rules.md": "# Operator rules\n\n- **operator.confirm**: Confirm before change.\n",
+    "classes/script/class.yaml": "name: script\nparents: [operator]\n",
+    "classes/script/rules.md": "# Script rules\n\n- **script.same**: Same output.\n",
+    "classes/script/scripts/validate_output.py": "#!/usr/bin/env python3\n# /// script\n# dependencies = [\"pyyaml>=6,<7\"]\n# ///\n\"\"\"Validate output. Its docstring may name schema_check.py.\"\"\"\nimport sys\n\nimport schema_check\nfrom schema_check import CheckError\n\nprint(schema_check.run(), CheckError.__name__, len(sys.argv))\n",
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\nsource \"$(dirname \"$0\")/helper.sh\"\nhelper\n",
+    "classes/service/class.yaml": "name: service\nparents: [apex-base]\n",
+    "classes/service-eks/class.yaml": "name: service-eks\nparents: [service]\n",
+    "classes/service-eks/references/context.md": "# EKS context\n\nContext notes.\n",
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"A demo member skill.\"\nmetadata:\n  apex-classes: \"service-eks script\"\n---\n\n# Demo\n\nThe skill's own text.\n",
+    "skills/plain/SKILL.md": "---\nname: plain\ndescription: \"A skill that joins no class.\"\n---\n\n# Plain\n\nOwn text only.\n"
+   },
+   "executable": [
+    "classes/apex-base/scripts/helper.sh",
+    "classes/script/scripts/run.sh"
+   ]
+  }
+ },
+ "cases": [
+  {
+   "id": "F0",
+   "about": "A clean synced tree passes --check, and a second write run changes nothing",
+   "presync": true,
+   "run": [
+    "check",
+    "write"
+   ],
+   "expect": {
+    "rc": 0,
+    "output": [
+     "1 member skill(s) (demo)"
+    ],
+    "unchanged": true,
+    "files": {
+     "skills/demo/scripts/script_validate_output.py": [
+      "#!/usr/bin/env python3\n# generated from classes/script/scripts/validate_output.py, do not edit\n",
+      "import apex_base_schema_check as schema_check\n",
+      "from apex_base_schema_check import CheckError\n",
+      "# dependencies = [\"pyyaml>=6,<7\"]\n",
+      "may name schema_check.py"
+     ],
+     "skills/demo/scripts/script_run.sh": [
+      "# generated from classes/script/scripts/run.sh, do not edit\n",
+      "source \"$(dirname \"$0\")/apex_base_helper.sh\"\n"
+     ],
+     "skills/demo/scripts/apex_base_helper.sh": [
+      "# requires: jq\n"
+     ],
+     "skills/demo/references/apex-base-harness.md": [
+      "<!-- generated from classes/apex-base/references/apex-base-harness.md, do not edit -->\n# Harness\n"
+     ],
+     "skills/demo/references/apex-base-notes.md": [
+      "<!-- generated from classes/apex-base/references/notes.md, do not edit -->\n# Notes\n"
+     ],
+     "skills/demo/references/service-eks-context.md": [
+      "<!-- generated from classes/service-eks/references/context.md, do not edit -->\n"
+     ],
+     "skills/demo/SKILL.md": [
+      "---\n\n<!-- APEX_CLASSES_START -->\n<!-- generated from classes/apex-base/rules.md, do not edit -->\n",
+      "<!-- APEX_CLASSES_END -->\n\n# Demo\n"
+     ]
+    },
+    "absent": [
+     "skills/plain/references",
+     "skills/plain/scripts",
+     "skills/demo/checks",
+     "skills/demo/references/apex-base-apex-base-harness.md"
+    ],
+    "same_as_base": [
+     "skills/plain/SKILL.md"
+    ],
+    "executable": [
+     "skills/demo/scripts/apex_base_helper.sh"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F0-real-shape",
+   "about": "No member skill (the real tree today): both modes exit 0 and write nothing",
+   "files": {
+    "skills/demo": null
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "output": [
+     "0 member skill(s) (none)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F0-python-ok",
+   "about": "An importlib call with a constant non-class module name passes",
+   "files": {
+    "classes/script/scripts/ok.py": "import importlib\n\njson = importlib.import_module(\"json\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0
+   },
+   "base": "std"
+  },
+  {
+   "id": "F1",
+   "about": "Two classes in one chain both define rule id apex.alpha",
+   "files": {
+    "classes/operator/rules.md": "# Operator rules\n\n- **apex.alpha**: Again.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "duplicate rule id apex.alpha from classes/apex-base and classes/operator"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F2-reference",
+   "about": "service/eks-context.md and service-eks/context.md both give references/service-eks-context.md",
+   "files": {
+    "classes/service/references/eks-context.md": "# Other\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "duplicate target path references/service-eks-context.md"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F2-script",
+   "about": "service/eks_check.py and service-eks/check.py both give scripts/service_eks_check.py",
+   "files": {
+    "classes/service/scripts/eks_check.py": "X = 1\n",
+    "classes/service-eks/scripts/check.py": "Y = 2\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "duplicate target path scripts/service_eks_check.py"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-not-rewritten",
+   "about": "A copy whose class import was put back to the class name",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/script_validate_output.py",
+     "replace": [
+      "import apex_base_schema_check as schema_check\n",
+      "import schema_check\n"
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "script_validate_output.py: import of schema_check not rewritten to the flat name"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-imported-file-missing",
+   "about": "The copy of an imported class file was removed",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/apex_base_schema_check.py",
+     "delete": true
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/scripts/apex_base_schema_check.py: missing; imported by skills/demo/scripts/script_validate_output.py"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-outside-chain-python",
+   "about": "A service-eks script imports a Script class file, which is not in its own chain",
+   "files": {
+    "classes/service-eks/scripts/probe.py": "import validate_output\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service-eks/scripts/probe.py:1: an import of validate_output, a class file outside this class's chain"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-outside-chain-shell",
+   "about": "A service-eks shell script sources a Script class file",
+   "files": {
+    "classes/service-eks/scripts/probe.sh": "#!/usr/bin/env bash\nsource run.sh\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service-eks/scripts/probe.sh:2: sources run.sh, a class file outside this class's chain"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-ambiguous",
+   "about": "Two classes in one script's chain ship a module of the same name",
+   "files": {
+    "classes/operator/scripts/schema_check.py": "Z = 3\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "schema_check.py is in two classes of its chain"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3b-python",
+   "about": "A Python copy lost its PEP 723 dependency line",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/script_validate_output.py",
+     "replace": [
+      "# dependencies = [\"pyyaml>=6,<7\"]\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "script_validate_output.py: declared dependencies missing: # dependencies = [\"pyyaml>=6,<7\"]"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3b-shell",
+   "about": "A shell copy lost its requires line",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/apex_base_helper.sh",
+     "replace": [
+      "# requires: jq\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex_base_helper.sh: declared dependencies missing: # requires: jq"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-computed-importlib",
+   "about": "importlib.import_module with a computed name",
+   "files": {
+    "classes/script/scripts/dyn.py": "import importlib\n\nmod = importlib.import_module(\"schema_\" + \"check\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/dyn.py:3: a dynamic import (import_module)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-dunder-import",
+   "about": "__import__ of a class module",
+   "files": {
+    "classes/script/scripts/dyn.py": "mod = __import__(\"schema_check\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "a dynamic import (__import__)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-path-string",
+   "about": "A string path to a class file",
+   "files": {
+    "classes/script/scripts/dyn.py": "import runpy\n\nrunpy.run_path(\"schema_check.py\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/dyn.py:3:"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-path-constant",
+   "about": "A path constant naming a class file",
+   "files": {
+    "classes/script/scripts/dyn.py": "TOOL = \"lib/schema_check.py\"\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "a path to the class file schema_check.py"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-dotted",
+   "about": "A dotted import of a class module",
+   "files": {
+    "classes/script/scripts/dyn.py": "import schema_check.sub\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "a dotted import of schema_check.sub"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-relative",
+   "about": "A relative import in a class script",
+   "files": {
+    "classes/script/scripts/dyn.py": "from . import schema_check\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "a relative import"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-shared-line",
+   "about": "A class import that shares its line with another statement",
+   "files": {
+    "classes/script/scripts/dyn.py": "import os; import schema_check\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "an import that shares its line or spans lines"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-shell-computed",
+   "about": "A shell source of a computed file name",
+   "files": {
+    "classes/script/scripts/dyn.sh": "#!/usr/bin/env bash\nsource \"$LIB/$NAME\"\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/dyn.sh:2: a sourced file with a computed name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-dotdot-path",
+   "about": "A class reference links into ../apex/",
+   "files": {
+    "classes/apex-base/references/notes.md": "# Notes\n\nSee [the router](../apex/SKILL.md).\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/apex-base/references/notes.md:3: copied class text points to the apex skill (a path into ../apex/)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-skills-path",
+   "about": "A class rule names a path into skills/apex/",
+   "files": {
+    "classes/operator/rules.md": "- **operator.confirm**: Read skills/apex/runbooks first.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/operator/rules.md:1: copied class text points to the apex skill (a path into skills/apex/)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-bare-path",
+   "about": "A class reference names apex/runbooks/",
+   "files": {
+    "classes/service-eks/references/context.md": "Use apex/runbooks/eks.md.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "(a path into apex/)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-slash-command",
+   "about": "A class reference tells the user to type /apex",
+   "files": {
+    "classes/apex-base/references/apex-base-harness.md": "Type `/apex <request>`.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "(the /apex or $apex command)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-dollar-command",
+   "about": "A class script comment names the $apex command",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\n# then run $apex\nsource \"$(dirname \"$0\")/helper.sh\"\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/run.sh:2: copied class text points to the apex skill"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5b",
+   "about": "A rule id label, the skill's name and another skill's command are not pointers",
+   "files": {
+    "classes/apex-base/rules.md": "- **apex.alpha**: Follow apex.mcp-first; the `apex` skill routes by name; /apex-new-skill is another skill.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0
+   },
+   "base": "std"
+  },
+  {
+   "id": "F6-header-missing",
+   "about": "A copy lost its generated-from header",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base-notes.md",
+     "replace": [
+      "<!-- generated from classes/apex-base/references/notes.md, do not edit -->\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-notes.md: header missing or wrong; expected: <!-- generated from classes/apex-base/references/notes.md, do not edit -->"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F6-header-wrong",
+   "about": "A copy's header names the wrong class file",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base-notes.md",
+     "replace": [
+      "classes/apex-base/references/notes.md",
+      "classes/apex-base/references/other.md"
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-notes.md: header missing or wrong"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F6-script-header",
+   "about": "A script copy lost its header under the shebang",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/script_validate_output.py",
+     "replace": [
+      "# generated from classes/script/scripts/validate_output.py, do not edit\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "script_validate_output.py: header missing or wrong"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F7",
+   "about": "A copy hand-edited under a correct header",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base-notes.md",
+     "replace": [
+      "Shared notes.",
+      "Edited by hand."
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-notes.md: differs from classes/apex-base/references/notes.md (a hand edit, or a class change not synced)"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F7-mode",
+   "about": "A script copy lost the executable bit its class file has",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/apex_base_helper.sh",
+     "chmod": "644"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex_base_helper.sh: executable bit differs from classes/apex-base/scripts/helper.sh"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F8-reference",
+   "about": "A class reference edited without re-running the sync",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "classes/apex-base/references/notes.md",
+     "replace": [
+      "Shared notes.",
+      "New shared notes."
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-notes.md: differs from classes/apex-base/references/notes.md"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F8-rules",
+   "about": "A class rule edited without re-running the sync",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "classes/script/rules.md",
+     "replace": [
+      "Same output.",
+      "Same output, every run."
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/SKILL.md: marker block differs from the class rules"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F8-new-class-file",
+   "about": "A class file added without re-running the sync",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "classes/service-eks/references/limits.md",
+     "write": "# Limits\n"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/references/service-eks-limits.md: missing"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F8-repaired",
+   "about": "A write run repairs a stale copy, then --check passes",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "classes/apex-base/references/notes.md",
+     "replace": [
+      "Shared notes.",
+      "New shared notes."
+     ]
+    }
+   ],
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/references/apex-base-notes.md": [
+      "New shared notes."
+     ]
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F9-two-blocks",
+   "about": "SKILL.md with two marker blocks",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/SKILL.md",
+     "append": "\n<!-- APEX_CLASSES_START -->\nextra\n<!-- APEX_CLASSES_END -->\n"
+    }
+   ],
+   "run": [
+    "check",
+    "write"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/SKILL.md: more than one marker block"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F9-hand-edit",
+   "about": "A marker block edited by hand",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/SKILL.md",
+     "replace": [
+      "Alpha rule.",
+      "Alpha rule, loosened."
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/SKILL.md: marker block differs from the class rules"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F9-damaged-marker",
+   "about": "A marker line with trailing text",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/SKILL.md",
+     "replace": [
+      "<!-- APEX_CLASSES_END -->\n",
+      "<!-- APEX_CLASSES_END --> \n"
+     ]
+    }
+   ],
+   "run": [
+    "check",
+    "write"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "damaged marker line"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F9-unpaired",
+   "about": "A start marker with no end marker",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/SKILL.md",
+     "replace": [
+      "<!-- APEX_CLASSES_END -->\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check",
+    "write"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "marker block start and end do not pair"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F10",
+   "about": "A class copy written under a nested name",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base/notes.md",
+     "write": "<!-- generated from classes/apex-base/references/notes.md, do not edit -->\n# Notes\n"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/references/apex-base/notes.md: a class copy under a non-flat name"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F10-nested-source",
+   "about": "A nested class reference is copied under one flat name",
+   "files": {
+    "classes/service-eks/references/eks/limits.md": "# Limits\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/references/service-eks-eks-limits.md": [
+      "<!-- generated from classes/service-eks/references/eks/limits.md, do not edit -->\n"
+     ]
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F11",
+   "about": "service-eks script resolves parents first, each class once, in the order apex-base, platform, operator, script, service, service-eks",
+   "files": {
+    "classes/platform/rules.md": "- **platform.p**: P.\n",
+    "classes/service/rules.md": "- **service.s**: S.\n",
+    "classes/service-eks/rules.md": "- **service-eks.e**: E.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "order": {
+     "path": "skills/demo/SKILL.md",
+     "items": [
+      "<!-- APEX_CLASSES_START -->",
+      "classes/apex-base/rules.md",
+      "classes/platform/rules.md",
+      "classes/operator/rules.md",
+      "classes/script/rules.md",
+      "classes/service/rules.md",
+      "classes/service-eks/rules.md",
+      "<!-- APEX_CLASSES_END -->",
+      "# Demo"
+     ]
+    },
+    "count": {
+     "path": "skills/demo/SKILL.md",
+     "text": "classes/apex-base/rules.md",
+     "n": 1
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F15",
+   "kind": "update-pages",
+   "about": "The CI step's update-pages.sh --check fails on a skill with no SKILL_META line",
+   "skill": "zz-no-meta-skill",
+   "expect": {
+    "rc": 1,
+    "output": [
+     "ERROR: skills/zz-no-meta-skill has no SKILL_META line in misc/update-pages.sh"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-no-classes",
+   "about": "classes/ absent",
+   "files": {
+    "classes": null
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "error: classes/ not found"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-no-class-yaml",
+   "about": "A class folder with no class.yaml",
+   "files": {
+    "classes/extra/rules.md": "- **extra.x**: X.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/extra/class.yaml: missing"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-bad-yaml",
+   "about": "A class.yaml that does not parse",
+   "files": {
+    "classes/service/class.yaml": "name: [service\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service/class.yaml: unreadable"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-no-name",
+   "about": "A class.yaml with no name",
+   "files": {
+    "classes/service/class.yaml": "parents: [apex-base]\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service/class.yaml: name must be 'service'"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-bad-parents",
+   "about": "A class.yaml whose parents is not a list",
+   "files": {
+    "classes/service/class.yaml": "name: service\nparents: apex-base\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service/class.yaml: parents must be a list"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-unknown-entry",
+   "about": "A class folder entry the sync does not know (schemas/ ships nothing in step 3)",
+   "files": {
+    "classes/apex-base/schemas/x.json": "{}\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/apex-base/schemas: not a class entry the sync knows"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-non-md-reference",
+   "about": "A class reference that is not markdown",
+   "files": {
+    "classes/apex-base/references/data.json": "{}\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/apex-base/references/data.json: a class reference must be a .md file"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-bad-declaration",
+   "about": "metadata.apex-classes given as a list, not a string",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: [script]\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "metadata.apex-classes must be a space-separated string"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-unknown-class",
+   "about": "A skill declares a class not under classes/",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"service-eks nope\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo: declares class 'nope', which is not under classes/"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-cycle",
+   "about": "Two classes are each other's parent",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: [script]\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "class cycle:"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-unknown-parent",
+   "about": "A class names a parent not under classes/",
+   "files": {
+    "classes/platform/class.yaml": "name: platform\nparents: [ghost]\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "parent 'ghost' is not under classes/"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-declared-twice",
+   "about": "A skill declares the same class twice",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"script script\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo: a class is declared twice"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  }
+ ]
+}
