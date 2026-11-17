@@ -12,7 +12,7 @@ APEX organizes content into four directories, each serving a distinct purpose in
 sample-apex-skills/
 ├── skills/             → 📚 WHAT the agent knows (domain knowledge)
 │   └── apex/runbooks/  →   🎯 HOW the agent runs an engagement (guided procedures, routed by the apex skill)
-├── classes/            → Shared rules; the class sync (planned) copies them into each skill
+├── classes/            → Shared rules; the class sync copies them into each member skill
 ├── devops-agent/       → Non-executable ports for AWS DevOps Agent
 └── examples/           → 🏗️ HOW to try it (hands-on exercises)
 ```

@@ -17,11 +17,11 @@ generators:
     note: "reads the git index (git ls-files): git add new files first"
   - run: "python3 misc/sync-classes.py"
     check: "python3 misc/sync-classes.py --check"
-    status: planned
+    status: exists
 
 # Hand-kept, not generated.
 hand_kept:
   - "misc/website/src/components/skillCatalog.ts (LINES)"
   - "misc/website/src/components/skillSearch.ts (PORTS)"
 
-add_a_skill: "CONTRIBUTING.md, Creating a New Skill, steps 1-7; then run the class sync (planned)"
+add_a_skill: "CONTRIBUTING.md, Creating a New Skill, steps 1-7; then run the class sync (python3 misc/sync-classes.py)"
