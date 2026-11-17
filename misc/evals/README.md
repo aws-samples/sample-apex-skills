@@ -59,6 +59,26 @@ Composite scoring combines all layers via configurable weights in `.skilleval.ya
 
 Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The scored and coverage layers stay maintainer-run and out of CI for now, pending proper eval automation.
 
+### Step 0: Host setup (once per host)
+
+Every `claude -p` the runners start (subject, each multi-turn turn, grader) runs in its own transient systemd unit as the system user `apex-eval`, with an empty `/home`, no cluster credential and a fresh Bedrock-only role session per launch (`scripts/confined.py`). Before the first run:
+
+1. Install the boundary, as root from a normal shell (the runners never run it): `sudo bash misc/evals/setup/install-eval-boundary.sh`. It adds the `apex-eval` user, `/var/lib/apex-eval` and a root-owned copy of your `claude` under `/opt/apex-eval/bin`. After a `claude` upgrade, rerun it with `--refresh-bin`; `--uninstall` undoes it.
+2. Give the user who runs the evals passwordless sudo for `sudo -n true`, `sudo -n systemd-run` and `sudo -n systemctl kill`. The install script does not grant it, and the runners refuse to start without it.
+3. Create the role the units use, `apex-eval-bedrock-invoke`, from `setup/eval-bedrock-invoke-trust.json` and `setup/eval-bedrock-invoke-permissions.json`. Its ARN is `ROLE_ARN` in `scripts/confined.py`, so every run is Bedrock-only and billed to that one account.
+4. Write `~/.apex-eval/aws-config` (the install script does not create it) with a profile `apex-eval-admin` whose credentials may call `sts:AssumeRole` on that role, for example through `credential_process`:
+
+   ```ini
+   [profile apex-eval-admin]
+   region = us-west-2
+   credential_process = <command that prints a credential_process JSON for that principal>
+   ```
+
+   The runner reads only this file (never `~/.aws`), mints each unit's session from it, and passes the session to the unit in a 0600 env file, never in argv.
+5. `/etc/resolv.conf` must name a nameserver the unit can reach: the runner allows only the first IPv4 `nameserver` there and refuses a loopback one.
+
+Launches run one at a time on the whole host (a host-wide lock), read-back and cleanup units included, so `NUM_WORKERS` and `task-all-parallel` only queue them, and a run set takes as long as its launches added together. Prompts marked `live_only` are always off: no unit gets a cluster credential, and `--include-live-only` is refused.
+
 ### Step 1 — Run evals
 
 ```bash
@@ -200,19 +220,19 @@ misc/evals/<skill>/
 └── README.md             # scope, sibling disambiguation, live-MCP caveats
 ```
 
-## Model & provider configuration
+## Model configuration
+
+Runs reach Bedrock only (Step 0), so `MODEL` is a Bedrock inference-profile ID.
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PROVIDER` | `bedrock` | `bedrock` or `anthropic` |
-| `MODEL` | provider-aware | `bedrock` → `global.anthropic.claude-opus-4-6-v1`; `anthropic` → `claude-opus-4-6-v1` |
+| `MODEL` | `global.anthropic.claude-opus-4-6-v1` | Bedrock inference-profile ID |
 | `RUNS_PER_QUERY` | `3` | ≥3 for meaningful confidence intervals |
-| `NUM_WORKERS` | `10` | Parallelism for triggering runs |
+| `NUM_WORKERS` | `10` | Triggering worker processes; launches still run one at a time (Step 0), so workers only queue them |
 | `RUNS_PER_PROMPT` | `1` | Task eval runs per prompt (3 for stddev) |
 
 ```bash
 make triggering-all                                     # default: Bedrock Opus
-make triggering-all PROVIDER=anthropic                  # Anthropic API
 make triggering-eks-best-practices RUNS_PER_QUERY=1     # cheap iteration
 ```
 

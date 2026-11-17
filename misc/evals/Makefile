@@ -21,24 +21,13 @@ REPO_ROOT      := $(abspath $(CURDIR)/../..)
 SKILLS         := $(shell find $(EVALS_ROOT) -maxdepth 1 -mindepth 1 -type d ! -name 'workspace' ! -name '_template' ! -name 'scripts' ! -name 'history' ! -name 'setup' ! -name '.*' -printf '%f\n' | sort)
 SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 
-# ---------- model / provider configuration ------------------------------------
-# PROVIDER selects how `claude -p` reaches a model:
-#   bedrock    (default) — sets CLAUDE_CODE_USE_BEDROCK=1 and uses a Bedrock
-#                          inference-profile ID. Required on AWS-only setups.
-#   anthropic            — uses the Anthropic API. Expects ANTHROPIC_API_KEY
-#                          to be exported in the caller's environment.
-# Override per invocation: `make triggering-all PROVIDER=anthropic MODEL=claude-opus-4-6-v1`.
-# Defaults for MODEL are provider-aware; explicit MODEL= always wins.
-PROVIDER       ?= bedrock
-
-ifeq ($(PROVIDER),bedrock)
-  MODEL        ?= global.anthropic.claude-opus-4-6-v1
-  export CLAUDE_CODE_USE_BEDROCK := 1
-else ifeq ($(PROVIDER),anthropic)
-  MODEL        ?= claude-opus-4-6-v1
-else
-  $(error PROVIDER must be 'bedrock' or 'anthropic', got '$(PROVIDER)')
-endif
+# ---------- model configuration -----------------------------------------------
+# Every confined launch reaches Bedrock with its own role session (the unit's
+# env file sets CLAUDE_CODE_USE_BEDROCK=1), so MODEL is a Bedrock
+# inference-profile ID. PROVIDER is fixed; run_all_evals.py records it.
+override PROVIDER := bedrock
+MODEL          ?= global.anthropic.claude-opus-4-6-v1
+export CLAUDE_CODE_USE_BEDROCK := 1
 
 NUM_WORKERS    ?= 10
 RUNS_PER_QUERY ?= 3
@@ -101,7 +90,7 @@ help:
 	@echo "  check-evals-coverage                          verify every skills/*/ has a misc/evals/*/ entry"
 	@echo "  hygiene                                       pre-flight every misc/evals/*/ (no model calls)"
 	@echo ""
-	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
+	@echo "Overrides: MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
 	@echo "           RUNS_PER_PROMPT, WORKSPACE, BENCHMARK_DIR"
 	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
 	@echo "           RUNS_PER_PROMPT=$(RUNS_PER_PROMPT)"

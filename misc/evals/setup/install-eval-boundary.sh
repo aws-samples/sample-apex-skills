@@ -17,13 +17,17 @@
 # different binary (default: the target of ~<you>/.local/bin/claude).
 #
 # It adds no firewall rule (each unit gets its own IP filter at launch) and
-# installs no package. The runners need passwordless `sudo -n systemd-run` and
-# `sudo -n systemctl kill` for <you>; this script does not grant that.
+# installs no package. The runners need passwordless `sudo -n true` (their
+# start check), `sudo -n systemd-run` and `sudo -n systemctl kill` for <you>;
+# this script does not grant that. An existing apex-eval user is reused only
+# when its only group is apex-eval; --uninstall removes the user only if this
+# script created it.
 set -euo pipefail
 
 EVAL_USER=apex-eval
 STATE_ROOT=/var/lib/apex-eval
 OPT_ROOT=/opt/apex-eval
+CREATED_MARK="${STATE_ROOT}/.user-created-by-install"
 
 log() { printf '[install-eval-boundary] %s\n' "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
@@ -35,7 +39,7 @@ while [[ $# -gt 0 ]]; do
     --uninstall) mode=uninstall ;;
     --refresh-bin) mode=refresh ;;
     --claude) [[ $# -ge 2 ]] || die "--claude needs a path"; claude_src="$2"; shift ;;
-    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
   shift
@@ -56,11 +60,15 @@ copy_claude() {
 
 case "${mode}" in
   uninstall)
-    if id "${EVAL_USER}" >/dev/null 2>&1; then
-      userdel "${EVAL_USER}"
-      log "removed user ${EVAL_USER}"
+    if [[ -f "${CREATED_MARK}" ]]; then
+      if id "${EVAL_USER}" >/dev/null 2>&1; then
+        userdel "${EVAL_USER}"
+        log "removed user ${EVAL_USER}"
+      fi
+      if getent group "${EVAL_USER}" >/dev/null; then groupdel "${EVAL_USER}"; fi
+    else
+      log "kept user ${EVAL_USER}: this script did not create it"
     fi
-    getent group "${EVAL_USER}" >/dev/null && groupdel "${EVAL_USER}"
     rm -rf "${STATE_ROOT}" "${OPT_ROOT}"
     log "removed ${STATE_ROOT} and ${OPT_ROOT}"
     ;;
@@ -71,16 +79,24 @@ case "${mode}" in
   install)
     command -v systemd-run >/dev/null || die "systemd-run not found"
     # 1. The user the units run as.
+    created=0
     if ! id "${EVAL_USER}" >/dev/null 2>&1; then
       useradd --system --user-group --home-dir "${STATE_ROOT}" --no-create-home \
         --shell /sbin/nologin "${EVAL_USER}"
+      created=1
       log "added system user ${EVAL_USER}"
+    elif [[ "$(id -nG "${EVAL_USER}")" != "${EVAL_USER}" ]]; then
+      # systemd gives a unit every group of its user.
+      die "user ${EVAL_USER} exists with groups '$(id -nG "${EVAL_USER}")'; only ${EVAL_USER} is allowed"
     fi
     if id -nG "${owner}" | tr ' ' '\n' | grep -qx "${EVAL_USER}"; then
       die "${owner} is in group ${EVAL_USER}; remove it (it could then read unit files)"
     fi
     # 2. Run and env directories.
     install -d -o root -g root -m 0755 "${STATE_ROOT}"
+    if [[ "${created}" -eq 1 ]]; then
+      install -o root -g root -m 0644 /dev/null "${CREATED_MARK}"
+    fi
     install -d -o "${owner}" -g "${EVAL_USER}" -m 2770 "${STATE_ROOT}/runs"
     install -d -o "${owner}" -g "$(id -gn "${owner}")" -m 0700 "${STATE_ROOT}/env"
     log "made ${STATE_ROOT}/runs (2770) and ${STATE_ROOT}/env (0700)"

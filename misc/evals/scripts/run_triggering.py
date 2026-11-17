@@ -12,8 +12,9 @@ Design (PLAN §1.5.2):
 
   stage_skill_sandbox(skill_name, repo_skill_dir) yields a confined.Run
   (runs/<id>/{home,sandbox} under /var/lib/apex-eval). A copy of the repo
-  skill dir, read-only to the subject, sits at
-  `home/.claude/skills/<skill_name>/` and nothing else is staged. No host
+  skill dir sits at `home/.claude/skills/<skill_name>/` (user scope) and
+  nothing else is staged; the subject can read its files but not change
+  them, and can rename the skills dir (an accepted residual). No host
   credentials are linked in: each launch gets its own Bedrock-only role
   session (confined.py). The run root is removed in the `finally:` block.
 
@@ -76,8 +77,8 @@ BUILTIN_SKILLS = frozenset({
 def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
     """Yield a confined.Run with exactly one skill staged and a clean HOME.
 
-    home/.claude/skills/<skill_name>/   copy of repo_skill_dir, read-only
-                                        to the subject
+    home/.claude/skills/<skill_name>/   copy of repo_skill_dir; its files
+                                        are read-only to the subject
 
     No ~/.aws or other host credential is linked in. The run root is
     removed when the block exits, including on exception. Phase 2's task
@@ -140,6 +141,7 @@ def parse_stream_for_trigger(
           "invalid": bool,
           "invalid_reason": str | None,
           "init_skills": list[str] | None,
+          "exit_code": int | None,   # None when killed here (match or timeout)
         }
 
     Returns as soon as the Skill tool_use is observed (kills the process),
@@ -150,6 +152,7 @@ def parse_stream_for_trigger(
         "invalid": False,
         "invalid_reason": None,
         "init_skills": None,
+        "exit_code": None,
     }
     buffer = ""
     pending_block: dict | None = None  # {"type": "tool_use", "name": "...", "input_json": "..."}
@@ -170,6 +173,7 @@ def parse_stream_for_trigger(
             if time.time() - start > timeout:
                 break
             if process.poll() is not None:
+                out["exit_code"] = process.returncode
                 # Drain remaining output.
                 rest = process.stdout.read() if process.stdout else b""
                 if rest:
@@ -186,6 +190,9 @@ def parse_stream_for_trigger(
                 continue
             chunk = os.read(process.stdout.fileno(), 8192)
             if not chunk:
+                # EOF: the client exits right after; read its exit code.
+                with contextlib.suppress(subprocess.TimeoutExpired):
+                    out["exit_code"] = process.wait(timeout=5)
                 break
             buffer += chunk.decode("utf-8", errors="replace")
 
@@ -309,7 +316,9 @@ def run_single_query(
 ) -> dict:
     """Run one `claude -p` invocation in a fresh sandbox. Returns the result
     dict from parse_stream_for_trigger (triggered / invalid / init_skills).
-    Caller maps `triggered` to a pass/fail count.
+    Caller maps `triggered` to a pass/fail count. A unit that sent no
+    system/init event, or exited non-zero on its own, is invalid, never a
+    not-triggered pass.
     """
     with stage_skill_sandbox(skill_name, repo_skill_dir) as run:
         args = [
@@ -323,9 +332,20 @@ def run_single_query(
             args.extend(["--model", model])
 
         with confined.launch_confined(
-            run, confined.claude_argv(args), "bedrock", timeout
+            run, confined.claude_argv(args), "bedrock", timeout,
+            stderr=subprocess.DEVNULL,
         ) as process:
-            return parse_stream_for_trigger(process, skill_name, timeout=timeout)
+            result = parse_stream_for_trigger(process, skill_name, timeout=timeout)
+    if not result.get("triggered") and not result.get("invalid"):
+        if result.get("init_skills") is None:
+            result["invalid"] = True
+            result["invalid_reason"] = f"no stream from the unit (exit {result.get('exit_code')})"
+        elif result.get("exit_code") not in (None, 0):
+            result["invalid"] = True
+            result["invalid_reason"] = f"unit exited {result['exit_code']}"
+    if run.left:
+        result["cleanup_left"] = run.left
+    return result
 
 
 # ---------- top-level aggregation ---------------------------------------------
@@ -409,6 +429,9 @@ def _worker(args: tuple) -> tuple[str, dict]:
     query, skill_name, repo_skill_dir, model, timeout = args
     try:
         result = run_single_query(query, skill_name, Path(repo_skill_dir), model, timeout)
+    except confined.ConfinedError:
+        # A failed mint or launch stops the run (run_eval re-raises it).
+        raise
     except Exception as e:  # noqa: BLE001
         result = {
             "triggered": False,
@@ -440,19 +463,27 @@ def run_eval(
 
     triggers_by_query: dict[str, list[bool]] = {}
     invalids_by_query: dict[str, list[dict]] = {}
+    left_by_query: dict[str, list[str]] = {}
 
     with ProcessPoolExecutor(max_workers=num_workers) as ex:
         futures = [ex.submit(_worker, j) for j in jobs]
         for fut in as_completed(futures):
-            query, result = fut.result()
-            triggers_by_query.setdefault(query, []).append(bool(result["triggered"]))
+            try:
+                query, result = fut.result()
+            except confined.ConfinedError:
+                ex.shutdown(wait=False, cancel_futures=True)
+                raise
+            left_by_query.setdefault(query, []).extend(result.get("cleanup_left") or [])
             if result.get("invalid"):
+                # An invalid run is not scored as a trigger or a non-trigger.
                 invalids_by_query.setdefault(query, []).append(
                     {
                         "reason": result.get("invalid_reason"),
                         "init_skills": result.get("init_skills"),
                     }
                 )
+                continue
+            triggers_by_query.setdefault(query, []).append(bool(result["triggered"]))
 
     results: list[dict] = []
     item_by_query = {item["query"]: item for item in eval_set}
@@ -473,10 +504,13 @@ def run_eval(
             "trigger_rate": rate,
             "triggers": trigger_count,
             "runs": runs,
-            "pass": did_pass,
+            # A query with an invalid run is a run error, never a pass.
+            "pass": did_pass and query not in invalids_by_query,
         }
         if query in invalids_by_query:
             row["invalid_runs"] = invalids_by_query[query]
+        if left_by_query.get(query):
+            row["cleanup_left"] = left_by_query[query]
         results.append(row)
 
     passed = sum(1 for r in results if r["pass"])
@@ -527,17 +561,21 @@ def main() -> int:
               f"runs={args.runs_per_query} workers={args.num_workers} model={args.model}",
               file=sys.stderr)
 
-    output = run_eval(
-        eval_set=eval_set,
-        skill_name=name,
-        description=description,
-        repo_skill_dir=skill_dir,
-        num_workers=args.num_workers,
-        timeout=args.timeout,
-        runs_per_query=args.runs_per_query,
-        trigger_threshold=args.trigger_threshold,
-        model=args.model,
-    )
+    try:
+        output = run_eval(
+            eval_set=eval_set,
+            skill_name=name,
+            description=description,
+            repo_skill_dir=skill_dir,
+            num_workers=args.num_workers,
+            timeout=args.timeout,
+            runs_per_query=args.runs_per_query,
+            trigger_threshold=args.trigger_threshold,
+            model=args.model,
+        )
+    except confined.ConfinedError as e:
+        print(f"error: run stopped: {e}", file=sys.stderr)
+        return 1
 
     if args.verbose:
         s = output["summary"]

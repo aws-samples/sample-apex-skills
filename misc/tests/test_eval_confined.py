@@ -26,7 +26,10 @@ SCRIPTS_DIR = os.path.join(MISC_DIR, "evals", "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 import confined  # noqa: E402
+import elicitation  # noqa: E402
+import run_task_evals  # noqa: E402
 import run_triggering  # noqa: E402
+from concurrent.futures import ThreadPoolExecutor  # noqa: E402
 
 _REAL_POPEN = subprocess.Popen
 
@@ -48,8 +51,9 @@ class _Done:
 class FakeHost:
     """Records every subprocess call and answers like an idle host."""
 
-    def __init__(self, active_units="", mint_rc=0, mint_err=""):
+    def __init__(self, active_units="", mint_rc=0, mint_err="", cleanup_rc=0):
         self.calls = []
+        self.cleanup_rc = cleanup_rc
         self.popen_argv = None
         self.env_file_at_start = None
         self.active_units = active_units
@@ -82,7 +86,7 @@ class FakeHost:
         proc = mock.Mock()
         proc.poll.return_value = 0
         proc.communicate.return_value = (b"", b"")
-        proc.returncode = 0
+        proc.returncode = self.cleanup_rc if inner[:1] == ["/usr/bin/find"] else 0
         return proc
 
 
@@ -97,6 +101,7 @@ class ConfinedTestCase(unittest.TestCase):
             mock.patch.object(confined, "ENV_DIR", env),
             mock.patch.object(confined, "LOCK_FILE", env / "launch.lock"),
             mock.patch.object(confined, "_public_ipv4", ["203.0.113.7"]),
+            mock.patch.object(confined, "_resolver", "10.9.0.2"),
         ]
         for p in self.patches:
             p.start()
@@ -126,15 +131,23 @@ class StageTests(ConfinedTestCase):
 
     def test_skill_is_a_readonly_copy_and_no_host_aws_link(self):
         # Must fail on the old stage_skill_sandbox, which symlinked the skill
-        # dir and ~/.aws into the subject's sandbox and HOME.
+        # dir and ~/.aws (when present) into the subject's sandbox and HOME,
+        # so the host HOME here has a ~/.aws.
+        host_home = self.tmp / "host-home"
+        (host_home / ".aws").mkdir(parents=True)
+        (host_home / ".aws" / "credentials").write_text("HOST-AWS-SECRET\n")
         fake = FakeHost()
-        with self.patched(fake):
+        with self.patched(fake), mock.patch.dict(os.environ, {"HOME": str(host_home)}):
             with run_triggering.stage_skill_sandbox("demo", self.make_skill()) as run:
                 staged = run.home / ".claude" / "skills" / "demo"
                 self.assertTrue(staged.is_dir())
                 self.assertFalse(staged.is_symlink())
                 self.assertFalse((run.home / ".aws").exists())
                 self.assertFalse((run.home / ".aws").is_symlink())
+                for p in run.root.rglob("*"):
+                    self.assertFalse(p.is_symlink(), p)
+                    if p.is_file():
+                        self.assertNotIn("HOST-AWS-SECRET", p.read_text(errors="replace"), p)
                 for p in [staged, *staged.rglob("*")]:
                     self.assertFalse(p.stat().st_mode & stat.S_IWGRP, p)
                     self.assertFalse(p.stat().st_mode & stat.S_IWOTH, p)
@@ -144,6 +157,34 @@ class StageTests(ConfinedTestCase):
         self.assertFalse(root.exists())
         cleanup = [c for c in fake.calls if c[:1] == ["sudo"]]
         self.assertTrue(cleanup, "cleanup unit was not started")
+
+    def test_symlink_in_staged_tree_is_refused(self):
+        src = self.make_skill()
+        secret = self.tmp / "outside-secret"
+        secret.write_text("x")
+        (src / "scripts" / "creds").symlink_to(secret)
+        with self.assertRaisesRegex(confined.ConfinedError, "symlink"):
+            confined.stage_readonly_copy(src, self.tmp / "dest-ro")
+        self.assertFalse((self.tmp / "dest-ro").exists())
+        with self.assertRaisesRegex(confined.ConfinedError, "symlink"):
+            confined.stage_writable_copy(src / "scripts" / "creds", self.tmp / "dest-f")
+
+    def test_unsafe_eval_id_is_refused_before_any_path(self):
+        files = self.tmp / "skill-evals" / "files" / "shared"
+        files.mkdir(parents=True)
+        (files / "a.txt").write_text("a")
+        sandbox = self.tmp / "sb"
+        sandbox.mkdir()
+        with self.assertRaisesRegex(confined.ConfinedError, "bad eval id"):
+            run_task_evals.stage_fixture_files(sandbox, self.tmp / "skill-evals", "../up", ["a.txt"])
+        self.assertEqual(list(sandbox.iterdir()), [])
+
+    def test_cleanup_unit_failure_is_recorded(self):
+        fake = FakeHost(cleanup_rc=2)
+        with self.patched(fake):
+            with run_triggering.stage_empty_sandbox() as run:
+                pass
+        self.assertIn("cleanup unit exited 2", run.left)
 
     def test_writable_copy_is_group_writable(self):
         src = self.make_skill()
@@ -229,6 +270,12 @@ class LaunchTests(ConfinedTestCase):
         with self.assertRaisesRegex(confined.ConfinedError, "include-live-only"):
             confined.preflight(600, include_live_only=True)
 
+    def test_unit_has_private_dev_shm(self):
+        run = confined.Run("r5", confined.RUNS_ROOT / "r5")
+        argv = confined.systemd_run_argv(run, "apex-eval-r5", ["/bin/true"], 60)
+        self.assertIn("TemporaryFileSystem=/dev/shm", argv)
+        self.assertIn("IPAddressAllow=10.9.0.2", argv)
+
     def test_triggering_query_goes_through_launch_confined(self):
         seen = {}
 
@@ -251,6 +298,155 @@ class LaunchTests(ConfinedTestCase):
         self.assertEqual(out, {"triggered": True})
         self.assertEqual(seen["argv"][0], str(confined.CLAUDE_BIN))
         self.assertEqual(seen["policy_kind"], "bedrock")
+
+
+def fake_proc(lines=(), returncode=0):
+    """A finished systemd-run client whose stdout is `lines`. The stream
+    readers read a finished client's output as one tail, so each fake
+    stream that must parse is one line."""
+    proc = mock.Mock()
+    proc.poll.return_value = returncode
+    proc.wait.return_value = returncode
+    proc.returncode = returncode
+    proc.stdout = io.BytesIO("".join(line + "\n" for line in lines).encode())
+    proc.stderr = io.BytesIO(b"")
+    return proc
+
+
+INIT = '{"type":"system","subtype":"init","skills":[]}'
+ASK = ('{"type":"assistant","message":{"content":[{"type":"tool_use",'
+       '"name":"AskUserQuestion","input":{"questions":[{"question":"Which region?"}]}}]}}')
+
+
+class LaunchSiteTests(ConfinedTestCase):
+    """Every claude launch goes through launch_confined. subprocess.Popen
+    raises for the whole test, so no real claude can start."""
+
+    def launches(self, *procs):
+        seen = []
+        queue = list(procs)
+
+        @contextlib.contextmanager
+        def fake_launch(run, argv, policy_kind, timeout, **kw):
+            seen.append({"argv": argv, "policy_kind": policy_kind, **kw})
+            yield queue.pop(0)
+
+        stack = contextlib.ExitStack()
+        stack.enter_context(mock.patch("subprocess.Popen",
+                                       side_effect=AssertionError("direct Popen")))
+        stack.enter_context(mock.patch.object(confined, "launch_confined", fake_launch))
+        stack.enter_context(mock.patch.object(confined, "cleanup_run", return_value=[]))
+        stack.enter_context(mock.patch.object(confined, "read_back", return_value=[]))
+        return seen, stack
+
+    def subject(self, elicit=None):
+        skill = self.tmp / "skill"
+        skill.mkdir(exist_ok=True)
+        (skill / "SKILL.md").write_text("---\nname: skill\n---\n")
+        return run_task_evals.run_subject(
+            prompt="p", skill_name="skill", repo_skill_dir=skill, with_skill=True,
+            model="m", timeout=60, run_dir=self.tmp / "run",
+            elicitation=elicitation.ElicitationConfig.from_dict(elicit),
+        )
+
+    def assert_confined(self, seen, n):
+        self.assertEqual(len(seen), n)
+        for call in seen:
+            self.assertEqual(call["argv"][0], str(confined.CLAUDE_BIN))
+            self.assertEqual(call["policy_kind"], "bedrock")
+
+    def test_single_shot_subject(self):
+        seen, stack = self.launches(fake_proc([INIT]))
+        with stack:
+            out = self.subject()
+        self.assertTrue(out["ok"], out)
+        self.assert_confined(seen, 1)
+
+    def test_each_elicitation_turn(self):
+        seen, stack = self.launches(fake_proc([ASK]), fake_proc([INIT]))
+        elicit = {"strategy": "canned-multiturn", "max_turns": 3,
+                  "turns": [{"question_match": "region", "answer": "us-west-2"}]}
+        with stack:
+            out = self.subject(elicit)
+        self.assertTrue(out["ok"], out)
+        self.assert_confined(seen, 2)
+        self.assertEqual([c["unit_suffix"] for c in seen], ["t1", "t2"])
+
+    def test_failed_turn_fails_the_subject(self):
+        seen, stack = self.launches(fake_proc([ASK], returncode=1), fake_proc([INIT]))
+        elicit = {"strategy": "canned-multiturn", "max_turns": 3,
+                  "turns": [{"question_match": "region", "answer": "us-west-2"}]}
+        with stack:
+            out = self.subject(elicit)
+        self.assertFalse(out["ok"])
+        self.assertIn("turn 1 exited 1", out["reason"])
+        self.assertEqual(len(seen), 1)
+
+    def test_grader(self):
+        transcript = self.tmp / "transcript.md"
+        transcript.write_text("t")
+        outputs = self.tmp / "outputs"
+        outputs.mkdir()
+        run_dir = self.tmp / "grader-run"
+        run_dir.mkdir()
+        seen, stack = self.launches(fake_proc([INIT]))
+        with stack:
+            out = run_task_evals.run_grader(
+                expectations=["e"], transcript_path=transcript, outputs_dir=outputs,
+                run_dir=run_dir, model="m", timeout=60,
+            )
+        self.assertIn("error", out)
+        self.assertEqual(out["cleanup_left"], [])
+        self.assert_confined(seen, 1)
+
+
+class TriggeringFailureTests(ConfinedTestCase):
+    def query(self, proc):
+        @contextlib.contextmanager
+        def fake_launch(run, argv, policy_kind, timeout, **kw):
+            yield proc
+
+        skill = self.tmp / "s"
+        skill.mkdir(exist_ok=True)
+        (skill / "SKILL.md").write_text("x")
+        with mock.patch("subprocess.Popen", side_effect=AssertionError("direct Popen")), \
+             mock.patch.object(confined, "launch_confined", fake_launch), \
+             mock.patch.object(confined, "cleanup_run", return_value=[]):
+            return run_triggering.run_single_query("q", "s", skill, None, 90)
+
+    def test_unit_that_never_starts_is_invalid(self):
+        out = self.query(fake_proc([], returncode=1))
+        self.assertTrue(out["invalid"])
+        self.assertIn("no stream", out["invalid_reason"])
+
+    def test_unit_that_exits_non_zero_is_invalid(self):
+        out = self.query(fake_proc([INIT], returncode=1))
+        self.assertTrue(out["invalid"])
+        self.assertIn("exited 1", out["invalid_reason"])
+
+    def test_clean_negative_is_not_invalid(self):
+        out = self.query(fake_proc([INIT]))
+        self.assertFalse(out["invalid"])
+        self.assertFalse(out["triggered"])
+
+    def eval_with(self, single_query):
+        with mock.patch.object(run_triggering, "ProcessPoolExecutor", ThreadPoolExecutor), \
+             mock.patch.object(run_triggering, "run_single_query", single_query):
+            return run_triggering.run_eval(
+                [{"query": "q", "should_trigger": False}], "s", "", self.tmp, 1, 90, 1, 0.5, None,
+            )
+
+    def test_invalid_run_never_passes_a_negative(self):
+        out = self.eval_with(mock.Mock(return_value={
+            "triggered": False, "invalid": True, "invalid_reason": "no stream", "init_skills": None,
+        }))
+        self.assertFalse(out["results"][0]["pass"])
+        self.assertEqual(out["results"][0]["runs"], 0)
+
+    def test_failed_mint_stops_the_run(self):
+        boom = mock.Mock(side_effect=confined.ConfinedError("role session mint failed"))
+        with self.assertRaisesRegex(confined.ConfinedError, "mint failed"):
+            self.eval_with(boom)
 
 
 class ReadBackTests(unittest.TestCase):

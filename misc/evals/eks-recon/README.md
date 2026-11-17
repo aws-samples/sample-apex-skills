@@ -24,7 +24,7 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 
 ## Live-cluster caveat
 
-The two live-cluster prompts (IDs 1–2) in `evals.json` describe realistic recon tasks against whichever EKS cluster the sandbox is pointed at via `KUBECONFIG` + AWS creds. They carry `"live_only": true` and the task runner skips them unless `--include-live-only` is passed along with a read-only `KUBECONFIG` and a scoped AWS session (Describe/List/Get only). The sandbox denies writes at the API-server level, not via convention, so running these evals is safe against a real cluster.
+The two live-cluster prompts (IDs 1 and 2) in `evals.json` describe realistic recon tasks against a live EKS cluster. They carry `"live_only": true`, and live-only prompts are off and cannot be turned on: every subject runs in a confined unit with a Bedrock-only role session and no cluster credential, and the task runner refuses `--include-live-only`.
 
 The `triggering.json` evals (run via `run_triggering.py`) are unaffected — they test description-fit only and never invoke cluster tooling.
 
@@ -73,8 +73,8 @@ not from live AWS observations. Absent fields in these fixtures are unknown.
 
 Run `python3 misc/evals/scripts/run_task_evals.py --skill eks-recon --runs 1 --model <configured-model>`
 from the repository root in the runner's POSIX environment (Python + PyYAML, Make,
-and authenticated Claude Code). Without `--include-live-only`, only these offline
-cases run. Structural assertions check output paths and representative delta rows;
+and the host setup in misc/evals/README.md, Step 0). Only these offline cases run:
+live-only prompts are off and cannot be turned on. Structural assertions check output paths and representative delta rows;
 the expectations also require semantic inspection of complete deltas, current YAML
 facts, coverage, and byte-for-byte prior preservation. The runner snapshots input
 fixtures too: validate `reports/delta.*`, not any matching YAML in the output tree.

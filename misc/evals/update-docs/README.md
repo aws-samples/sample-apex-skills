@@ -22,7 +22,7 @@ The discriminator: "audit / sync / check / update the docs" triggers `update-doc
 
 ## Live-MCP caveat
 
-Neither `evals.json` task needs a live cluster, MCP server, or AWS credentials. Both scenarios can be graded from response text alone — the skill reads repo state via filesystem and git, not via MCP tools. No `"live_only": true` markers; runnable offline.
+Neither `evals.json` task needs a live cluster, MCP server, or AWS credentials. Both scenarios can be graded from response text alone: the skill reads repo state via filesystem and git, not via MCP tools. Both still carry `"live_only": true`, so the task runner skips them: live-only prompts are off and cannot be turned on. Dropping the marker would let them run offline like any other prompt.
 
 ## How to run
 

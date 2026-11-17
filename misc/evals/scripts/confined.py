@@ -14,14 +14,17 @@ What the unit gets:
     `aws sts assume-role` into the Bedrock-only role ROLE_ARN, through the
     profile PARENT_PROFILE in PARENT_AWS_CONFIG (whose credential_process
     returns the payer account's admin session; that session never enters a
-    unit). The keys go into an env file (0600, in a 0700 ec2-user dir) that
-    PID 1 reads at unit start, never into argv. The file is deleted when the
-    launch ends.
+    unit). The keys go into an env file (0600, in the invoking user's 0700
+    dir) that PID 1 reads at unit start, never into argv. The file is deleted
+    when the launch ends.
   - Files: an empty /home, /root and /run/user, a private /tmp, /var/tmp and
-    /dev/shm, its own run root only (read-only, with home/ and sandbox/
-    writable), and a root-owned copy of claude under /opt/apex-eval/bin.
-  - Network: no loopback, link-local (instance metadata), private ranges or
-    the instance's public IPv4; the VPC resolver and public addresses only.
+    /dev/shm, its own run root from the runs tree (read-only, with home/ and
+    sandbox/ writable), and a root-owned copy of claude under
+    /opt/apex-eval/bin. /etc, /usr and the rest of /var stay readable
+    (ProtectSystem=strict makes them read-only, not hidden).
+  - Network: no loopback, link-local (instance metadata), the IP_DENY ranges
+    or the instance's public IPv4; the host's resolver (from
+    /etc/resolv.conf) and every address outside those ranges.
 
 Launches run one at a time (a host-wide flock), because every unit runs as
 the same uid and could otherwise read another unit's environment through
@@ -47,8 +50,9 @@ import shutil
 import subprocess
 import tarfile
 import time
+import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 ROLE_ARN = "arn:aws:iam::338034595106:role/apex-eval-bedrock-invoke"
@@ -65,11 +69,14 @@ OPT_ROOT = Path("/opt/apex-eval")
 CLAUDE_BIN = OPT_ROOT / "bin" / "claude"
 UNIT_PATH = f"{OPT_ROOT}/bin:/usr/local/bin:/usr/bin"
 
-# The VPC resolver is the one private address a unit may reach.
-RESOLVER = "10.0.0.2"
+# The host's resolver is the one private address a unit may reach.
+RESOLV_CONF = Path("/etc/resolv.conf")
+# Loopback, link-local and multicast, RFC 1918, RFC 6598 shared space and
+# IPv6 unique local addresses.
 IP_DENY = [
     "localhost", "link-local", "multicast",
-    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fd00::/8",
+    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10",
+    "fd00::/8",
 ]
 # Hidden on top of ProtectHome; "-" skips a path the host does not have.
 INACCESSIBLE = ["-/var/lib/conduwuit", "-/var/log"]
@@ -97,6 +104,8 @@ class Run:
 
     run_id: str
     root: Path
+    # Paths cleanup_run could not remove, for the run's results.
+    left: list[str] = field(default_factory=list)
 
     @property
     def home(self) -> Path:
@@ -164,10 +173,10 @@ _public_ipv4: list[str] | None = None
 
 def public_ipv4() -> list[str]:
     """The instance's own public IPv4, read by the parent (IMDSv2), so a unit
-    cannot reach host services through it. Empty when there is none."""
+    cannot reach host services through it. Empty when IMDS answers 404 (no
+    public IPv4); any other failure raises, so the deny never goes missing."""
     global _public_ipv4
     if _public_ipv4 is None:
-        _public_ipv4 = []
         base = "http://169.254.169.254/latest"
         try:
             req = urllib.request.Request(
@@ -179,12 +188,41 @@ def public_ipv4() -> list[str]:
                 f"{base}/meta-data/public-ipv4",
                 headers={"X-aws-ec2-metadata-token": token},
             )
-            ip = urllib.request.urlopen(req, timeout=2).read().decode().strip()
-            if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip):
-                _public_ipv4 = [ip]
-        except OSError:
-            pass
+            try:
+                ip = urllib.request.urlopen(req, timeout=2).read().decode().strip()
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    raise
+                ip = None
+        except Exception as e:  # noqa: BLE001
+            raise ConfinedError(f"cannot read the public IPv4 from IMDS: {e!r}") from None
+        if ip is not None and not re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", ip):
+            raise ConfinedError(f"IMDS public-ipv4 is not an IPv4 address: {ip[:40]!r}")
+        _public_ipv4 = [ip] if ip else []
     return _public_ipv4
+
+
+_resolver: str | None = None
+
+
+def resolver() -> str:
+    """The first IPv4 nameserver in /etc/resolv.conf, read by the parent. A
+    loopback one (a local stub) is refused: a unit cannot reach loopback."""
+    global _resolver
+    if _resolver is None:
+        try:
+            text = RESOLV_CONF.read_text()
+        except OSError as e:
+            raise ConfinedError(f"cannot read {RESOLV_CONF}: {e.strerror}") from None
+        found = re.findall(r"^\s*nameserver\s+(\d{1,3}(?:\.\d{1,3}){3})\s*$", text, re.M)
+        if not found:
+            raise ConfinedError(f"no IPv4 nameserver in {RESOLV_CONF}")
+        if found[0].startswith("127."):
+            raise ConfinedError(
+                f"{RESOLV_CONF} names loopback {found[0]}, which a unit cannot reach"
+            )
+        _resolver = found[0]
+    return _resolver
 
 
 # ---------- credentials -------------------------------------------------------
@@ -265,8 +303,8 @@ def staging_umask(mask: int):
 
 def stage_run(skill_name: str | None = None, repo_skill_dir: Path | None = None) -> Run:
     """Make runs/<id>/{home,sandbox} (group-writable, setgid from runs/) and,
-    for a with-skill run, copy the skill to home/.claude/skills/<name>
-    read-only to the unit. Pair with cleanup_run()."""
+    for a with-skill run, copy the skill to home/.claude/skills/<name>, its
+    files read-only to the unit. Pair with cleanup_run()."""
     run_id = new_run_id()
     run = Run(run_id, RUNS_ROOT / run_id)
     with staging_umask(0o007):
@@ -275,7 +313,12 @@ def stage_run(skill_name: str | None = None, repo_skill_dir: Path | None = None)
         run.sandbox.mkdir()
         (run.home / ".claude").mkdir()
     if skill_name is not None and repo_skill_dir is not None:
-        stage_readonly_copy(Path(repo_skill_dir), run.home / ".claude" / "skills" / skill_name)
+        try:
+            stage_readonly_copy(Path(repo_skill_dir), run.home / ".claude" / "skills" / skill_name)
+        except BaseException:
+            # Nothing has run in the unit yet, so the parent owns every path.
+            shutil.rmtree(run.root, ignore_errors=True)
+            raise
     return run
 
 
@@ -292,22 +335,27 @@ def stage_writable_copy(src: Path, dest: Path) -> None:
 def _stage_copy(src: Path, dest: Path, *, group_write: bool) -> None:
     # Source modes are not kept (a 0664 checkout would make a read-only
     # copy group-writable): dirs 0750/0770, files 0640/0660, exec bit kept.
+    # A link is refused, never copied: copytree(symlinks=False) would copy
+    # its target, which may be outside the repo (~/.aws/credentials).
     group = 0o070 if group_write else 0o050
     with staging_umask(0o007 if group_write else 0o027):
         dest.parent.mkdir(parents=True, exist_ok=True)
         if src.is_dir():
             src = src.resolve()
+            pairs = [(src, dest)]
+            for dirpath, dirnames, filenames in os.walk(src):
+                for name in [*dirnames, *filenames]:
+                    s = Path(dirpath) / name
+                    if s.is_symlink():
+                        raise ConfinedError(f"refusing to stage a symlink: {s}")
+                    pairs.append((s, dest / s.relative_to(src)))
             shutil.copytree(
                 src, dest, symlinks=False,
                 copy_function=shutil.copyfile, dirs_exist_ok=group_write,
             )
-            # copytree(symlinks=False) copies link targets, so walk the same way.
-            pairs = [(src, dest)]
-            for dirpath, dirnames, filenames in os.walk(src, followlinks=True):
-                for name in [*dirnames, *filenames]:
-                    s = Path(dirpath) / name
-                    pairs.append((s, dest / s.relative_to(src)))
         else:
+            if src.is_symlink():
+                raise ConfinedError(f"refusing to stage a symlink: {src}")
             shutil.copyfile(src, dest)
             pairs = [(src, dest)]
     for s, d in pairs:
@@ -323,8 +371,8 @@ def _stage_copy(src: Path, dest: Path, *, group_write: bool) -> None:
 def cleanup_run(run: Run) -> list[str]:
     """Delete a run root. The unit's files belong to apex-eval, so a cleanup
     unit (no AWS keys) deletes them; the parent then removes the empty dirs.
-    Returns the paths left over, for the results."""
-    left: list[str] = []
+    Returns the paths left over, for the results, and keeps them in run.left."""
+    left = run.left
     # Give group write back to what the parent staged read-only (the skill
     # copy, a grader's input/), wherever the unit moved it. Dirs the unit
     # made are not readable by the parent, and os.walk skips them.
@@ -346,6 +394,8 @@ def cleanup_run(run: Run) -> list[str]:
             unit_suffix="cleanup",
         ) as proc:
             proc.communicate()
+        if proc.returncode != 0:
+            left.append(f"cleanup unit exited {proc.returncode}")
     except ConfinedError as e:
         left.append(f"cleanup unit failed: {e}")
     for p in (run.home, run.sandbox, run.root):
@@ -381,9 +431,11 @@ def systemd_run_argv(run: Run, unit: str, argv: list[str], timeout: int) -> list
         "ProtectHome=tmpfs",
         "PrivateTmp=yes",
         "PrivateDevices=yes",
+        # PrivateDevices keeps the host's /dev/shm; this makes it private.
+        "TemporaryFileSystem=/dev/shm",
         "NoNewPrivileges=yes",
         "UMask=0007",
-        f"IPAddressAllow={RESOLVER}",
+        f"IPAddressAllow={resolver()}",
         f"IPAddressDeny={deny}",
         f"RuntimeMaxSec={timeout + RUNTIME_SLACK}",
     ]
@@ -399,9 +451,12 @@ def systemd_run_argv(run: Run, unit: str, argv: list[str], timeout: int) -> list
 
 def _active_units() -> list[str]:
     r = subprocess.run(
-        ["systemctl", "list-units", "--state=active", "--no-legend", "--plain", "apex-eval-*"],
+        ["systemctl", "list-units", "--state=active,activating,deactivating",
+         "--no-legend", "--plain", "apex-eval-*"],
         capture_output=True, text=True,
     )
+    if r.returncode != 0:
+        raise ConfinedError(f"systemctl list-units failed: {r.stderr.strip()[-200:]}")
     return [line.split()[0] for line in r.stdout.splitlines() if line.strip()]
 
 
@@ -430,10 +485,13 @@ def launch_confined(
     timeout: int,
     unit_suffix: str | None = None,
     session_suffix: str | None = None,
+    stderr=subprocess.PIPE,
 ):
     """Start argv in a confined unit and yield the local systemd-run client
     (stdout is the unit's stdout). policy_kind "bedrock" mints a role session
-    into the env file; "none" gives the unit no AWS keys.
+    into the env file; "none" gives the unit no AWS keys. A caller that never
+    reads stderr passes stderr=subprocess.DEVNULL, so the unit cannot block
+    on a full pipe.
 
     On exit, whatever happened, the unit is killed if still running and
     waited on, the env file is deleted and the host lock is released. Callers
@@ -458,7 +516,7 @@ def launch_confined(
             systemd_run_argv(run, unit, argv, timeout),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=stderr,
         )
         yield proc
     finally:

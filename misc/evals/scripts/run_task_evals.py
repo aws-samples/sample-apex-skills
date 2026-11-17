@@ -380,6 +380,8 @@ def stage_fixture_files(
     staged: dict[str, str] = {}
     if not files:
         return staged
+    if not confined._ID_RE.match(str(eval_id)):
+        raise confined.ConfinedError(f"bad eval id {eval_id!r}")
 
     files_root = skill_eval_dir / "files"
     if not files_root.is_dir():
@@ -481,7 +483,7 @@ def run_subject(
                 "--permission-mode", "bypassPermissions",
                 "--model", model,
             ]
-            events, timed_out, _ = run_multiturn_subject(
+            events, timed_out, _, turn_error = run_multiturn_subject(
                 initial_prompt=prompt,
                 elicitation=elicitation,
                 args_base=args_base,
@@ -489,6 +491,7 @@ def run_subject(
                 timeout_per_turn=timeout,
             )
             stderr = b""
+            returncode = None
         else:
             args = [
                 "-p", prompt,
@@ -509,6 +512,8 @@ def run_subject(
                     except Exception:
                         stderr = b""
                 process.wait()
+            turn_error = None
+            returncode = process.returncode
 
         snapshot_sandbox_outputs(run, outputs_dir, staged)
 
@@ -540,29 +545,27 @@ def run_subject(
     }
     (run_dir / "timing.json").write_text(json.dumps(timing, indent=2))
 
-    if timed_out:
-        return {
-            "transcript_path": str(transcript_path),
-            "outputs_dir": str(outputs_dir),
-            "ok": False,
-            "reason": f"subject timed out after {timeout}s",
-            "stderr": stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
-        }
-    if not (elicitation.strategy == "canned-multiturn" and elicitation.turns):
-        if process.returncode != 0:
-            return {
-                "transcript_path": str(transcript_path),
-                "outputs_dir": str(outputs_dir),
-                "ok": False,
-                "reason": f"subject exited {process.returncode}",
-                "stderr": stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
-            }
-    return {
+    result = {
         "transcript_path": str(transcript_path),
         "outputs_dir": str(outputs_dir),
         "ok": True,
         "reason": None,
+        "cleanup_left": run.left,
     }
+    if timed_out:
+        reason = f"subject timed out after {timeout}s"
+    elif turn_error:
+        reason = f"subject {turn_error}"
+    elif returncode not in (None, 0):
+        reason = f"subject exited {returncode}"
+    else:
+        return result
+    result.update(
+        ok=False,
+        reason=reason,
+        stderr=stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
+    )
+    return result
 
 
 # ---------- grader run --------------------------------------------------------
@@ -594,7 +597,19 @@ def _build_grader_prompt(grader_spec: str, expectations: list[str]) -> str:
     )
 
 
-def run_grader(
+def run_grader(**kwargs) -> dict:
+    """Invoke the grader as a separate `claude -p` subprocess. The grader
+    writes grading.json to run_dir. Returns the parsed grading dict on
+    success, else {"error": ...}; either way "cleanup_left" lists what the
+    grader run's cleanup left behind.
+    """
+    left: list[str] = []
+    grading = _run_grader(**kwargs, left_out=left)
+    grading["cleanup_left"] = left
+    return grading
+
+
+def _run_grader(
     *,
     expectations: list[str],
     transcript_path: Path,
@@ -602,11 +617,8 @@ def run_grader(
     run_dir: Path,
     model: str,
     timeout: int,
+    left_out: list[str],
 ) -> dict:
-    """Invoke the grader as a separate `claude -p` subprocess. The grader
-    writes grading.json to run_dir. Returns the parsed grading dict on
-    success, else {"error": ...}.
-    """
     grader_spec = GRADER_MD.read_text()
     prompt = _build_grader_prompt(grader_spec, expectations)
 
@@ -642,6 +654,7 @@ def run_grader(
             written = Path(tmp) / GRADER_RESULT
             if written.is_file():
                 shutil.copyfile(written, grading_path)
+    left_out.extend(run.left)
 
     if not grading_path.exists():
         # Fallback: maybe the grader emitted the JSON inline. Sweep the
@@ -761,9 +774,9 @@ def run_skill(
     *,
     model: str,
     runs: int,
-    include_live_only: bool,
     subject_timeout: int | None,
     grader_timeout: int,
+    claude_version: str | None = None,
 ) -> dict:
     skill_eval_dir = EVALS_ROOT / skill
     skill_repo_dir = REPO_ROOT / "skills" / skill
@@ -784,8 +797,10 @@ def run_skill(
 
     evals_data = json.loads(evals_json.read_text())
     prompts = evals_data.get("evals") or []
-    if not include_live_only:
-        prompts = [p for p in prompts if not p.get("live_only")]
+    prompts = [p for p in prompts if not p.get("live_only")]
+    bad_ids = [p.get("id") for p in prompts if not confined._ID_RE.match(str(p.get("id")))]
+    if bad_ids:
+        return {"skill": skill, "error": f"bad eval ids {bad_ids!r}"}
     if not prompts:
         return {"skill": skill, "skipped": "no fixture-free prompts (all are live_only)"}
 
@@ -835,6 +850,11 @@ def run_skill(
                     eval_id=eval_id,
                     fixture_files=p.get("files"),
                 )
+                confined_info = {
+                    "claude_version": claude_version,
+                    "subject_cleanup_left": subj.get("cleanup_left") or [],
+                }
+                (run_dir / "confined.json").write_text(json.dumps(confined_info, indent=2))
                 if not subj["ok"]:
                     print(
                         f"[task]   subject failed: {subj.get('reason')}",
@@ -920,6 +940,8 @@ def run_skill(
                     model=model,
                     timeout=grader_timeout,
                 )
+                confined_info["grader_cleanup_left"] = grading.get("cleanup_left") or []
+                (run_dir / "confined.json").write_text(json.dumps(confined_info, indent=2))
                 if "error" in grading:
                     print(f"[task]   grader failed: {grading['error']}", file=sys.stderr)
                     (run_dir / "grading.json").write_text(
@@ -967,6 +989,7 @@ def run_skill(
         "delta": round(delta, 4),
         "eval_ids": [p["id"] for p in prompts],
         "token_usage": aggregate_token_usage(runs_dir),
+        "claude_version": claude_version,
     }
     append_history(skill, entry)
 
@@ -1028,9 +1051,9 @@ def main() -> int:
             skill,
             model=model,
             runs=args.runs,
-            include_live_only=args.include_live_only,
             subject_timeout=args.subject_timeout,
             grader_timeout=args.grader_timeout,
+            claude_version=claude_version,
         )
         result["confined_claude_version"] = claude_version
         outcomes.append(result)
