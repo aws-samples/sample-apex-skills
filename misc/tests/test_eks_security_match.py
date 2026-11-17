@@ -696,6 +696,29 @@ class RenderReport(TmpCase):
         self.assertNotIn("Read the advisory and the installed version by hand", md)
 
 
+class ControlChars(TmpCase):
+    """NUL and other C0 control characters and DEL in report text become a space; whitespace still collapses."""
+    render, fixture, RD = RenderReport.render, RenderReport.fixture, RenderReport.RD
+
+    def test_s_replaces_control_chars(self):
+        import render_report
+        self.assertEqual(render_report.s("nul\x00here"), "nul here")
+        self.assertEqual(render_report.s("a\x00b \x07c\x1bd\x7fe"), "a b c d e")
+        self.assertEqual(render_report.s("plain text, unchanged: v1.2.3 (ok)"), "plain text, unchanged: v1.2.3 (ok)")
+        self.assertEqual(render_report.s("tab\there\nnew  line\r\nend "), "tab here new line end")
+
+    def test_nul_never_reaches_md_or_html(self):
+        fd, inv = self.fixture()
+        fd["sources"][0]["title"] = "nul\x00here"
+        fd["findings"][1]["reason"] = "nul\x00here"
+        fd["findings"][0]["fixed"] = "nul\x00here"
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        for text in (md, ht):
+            self.assertNotIn("\x00", text)
+            self.assertIn("nul here", text)
+
+
 # ------------------------------------------------------------------ collectors: read-only guard
 
 RULES = CASES["collect"]["rules"]

@@ -61,6 +61,7 @@ UNKNOWN_ACTION = {
                   "from its platform version) and compare by hand"}
 _TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+=-]{0,199}$")
 _MD_SPECIAL = re.compile(r"([\\`*_\[\]#|~])")
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")  # C0 controls and DEL: a space, so tab and newline collapse as before
 
 
 class InputError(Exception):
@@ -78,7 +79,7 @@ def s(v):
         return ", ".join(s(x) for x in v)
     if isinstance(v, dict):
         return json.dumps(v, sort_keys=True)
-    return " ".join(str(v).split())
+    return " ".join(_CONTROL.sub(" ", str(v)).split())
 
 
 def tok(v, placeholder):
