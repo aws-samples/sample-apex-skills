@@ -34,7 +34,7 @@ A customer may start at any stage. The router's Day 0, Day 1 and Day 2 stages (i
 ## Consequences
 
 - No skill changes in this record; the base class gets no stage rule.
-- The router's hand-off table holds the hand-offs; it does not name the stages yet. They are added when routing moves into the router's class, and this record holds the order until then.
+- The router's hand-off table holds the hand-offs and does not name the five stages; this record holds the stage order.
 - A skill copied out alone loses the journey but keeps its own job, which [ADR 0003](0003-standalone-skills-are-a-weaker-tradeoff.md) already accepts.
 - Nothing refuses a later stage before an earlier one: a customer can ask for a build without a recon, and the build skill gathers what it needs.
 
