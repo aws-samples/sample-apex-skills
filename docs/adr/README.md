@@ -9,6 +9,7 @@ Each record captures one decision: the context, what we decided, and what follow
 | [0003](0003-standalone-skills-are-a-weaker-tradeoff.md) | A standalone skill is an accepted, weaker trade-off | Accepted |
 | [0004](0004-naming.md) | One entry skill, and standalone knowledge and solution skills | Accepted |
 | [0005](0005-skill-classes.md) | Skills share through build-time classes | Accepted |
+| [0006](0006-five-stage-engagement.md) | The five stages are the router's journey, not a rule in each skill | Accepted |
 
 ## Format
 
