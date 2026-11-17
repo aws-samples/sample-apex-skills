@@ -34,7 +34,7 @@ Order matters. Run the generators only after the skill's files are staged, each 
 ls misc/website/docs/skills/*/<name>/index.md
 ```
 
-Then stage what they produced, by path: list it with `git status --porcelain` and add each line you expect. Anything in that list you did not expect (a file outside the generator outputs, a stray report) stays unstaged: find out why it changed first.
+Then stage what they produced, by path: list it with `git status --porcelain -uall` and add each line you expect. Anything in that list you did not expect (a file outside the generator outputs, a stray report) stays unstaged: find out why it changed first.
 
 ## Checks
 
@@ -44,10 +44,10 @@ Run each; each must exit 0. The first three and the two test commands are among 
 |---|---|
 | `python3 misc/validate-frontmatter.py` | Every `skills/*/SKILL.md` and `devops-agent/*/SKILL.md`: front matter is a YAML mapping; `name` and `description` present; `description` at most 1024 characters; only `name`, `description`, `license`, `metadata`, `allowed-tools` keys; no anchors or aliases; block under 64KB; nesting depth at most 8; description equals the `skills.json` entry (a missing entry is only a warning, so run `update-pages.sh` to add it). |
 | `./misc/update-all-references.sh --check` | Regenerates the marker blocks, then fails on any `git diff` in `README.md`, `skills/README.md`, `devops-agent/README.md`. |
-| `./misc/update-pages.sh --check` | Regenerates wrappers and manifests, then fails on any diff or any untracked generated file under `misc/website/docs/` or `misc/website/static/manifests/`. Unstaged new wrappers count as untracked: stage them first. |
+| `./misc/update-pages.sh --check` | Regenerates wrappers and manifests, then fails on any diff or any untracked generated file under `misc/website/docs/` or `misc/website/static/manifests/`. Unstaged new wrappers count as untracked: stage them first. It also fails on a skill with no `SKILL_META` line. |
 | `python3 -B misc/tests/test_reference_markers.py -v` | The reference marker blocks. |
 | `node --experimental-strip-types --test misc/website/src/components/skillSearch.test.ts` | The skill finder's search, which reads the catalogue entry step 5 adds. |
-| `python3 misc/evals/scripts/check_hygiene.py` | Every eval set under `misc/evals/`: front matter via `quick_validate.py`, 8+ positives and 8+ negatives in `triggering.json`, 2+ prompts with 3+ expectations each in `evals.json`, every negative attributed in SIBLING_MAP. Per skill: `cd misc/evals && make init-evals-finalize SKILL=<name>`. |
+| `python3 misc/evals/scripts/check_hygiene.py` | Every eval set under `misc/evals/`: front matter via `quick_validate.py`, 8+ positives and 8+ negatives in `triggering.json`, 2+ prompts with 3+ expectations each in `evals.json`, every negative attributed in SIBLING_MAP. Per skill: `cd misc/evals && make init-evals-finalize SKILL=<name>`. It passes a skill with no eval set (the per-skill form fails it) and a `<REPLACE: ...>` placeholder left in a filled file (neither form fails it): see [evals.md](evals.md), section 6. |
 | `python3 skills/skill-creator/scripts/quick_validate.py skills/<name>` | Name is kebab-case, at most 64 characters; description at most 1024 characters with no `<` or `>`; allowed keys. |
 | Each class check with status `exists` in the `checks` of the skill's classes and their parents | What the class says it checks. |
 
@@ -55,7 +55,7 @@ Run each; each must exit 0. The first three and the two test commands are among 
 
 ## Optional: package the skill
 
-CONTRIBUTING.md's manual path ends with "Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`". That form exits 1 with `ModuleNotFoundError` and writes nothing: the script imports `scripts.quick_validate`. Run it as a module from `skills/skill-creator`, with an output directory outside the repo (with none, it writes the `.skill` into `skills/skill-creator/`, a vendored folder), and never commit the `.skill` file:
+CONTRIBUTING.md's manual path ends with packaging the skill. Run `package_skill.py` as a module from `skills/skill-creator` (it imports `scripts.quick_validate`, so run by file path it exits 1 with `ModuleNotFoundError`), with an output directory outside the repo (with none, it writes the `.skill` into `skills/skill-creator/`, a vendored folder), and never commit the `.skill` file:
 
 ```bash
 (cd skills/skill-creator && python3 -m scripts.package_skill ../<name> "$(mktemp -d)")

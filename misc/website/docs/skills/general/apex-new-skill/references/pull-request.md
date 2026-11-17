@@ -32,10 +32,10 @@ git switch -c feat/<name>-skill upstream/main
 
 Before a new skill, search open and recently merged pull requests and issues for the same idea (the first list in that section). For a new service prefix, the issue comes first: draft its title and body, hand them to the contributor to open, and stop until a maintainer answers.
 
-Commit by explicit path. Never `git add -A` or `git add .`: stage each file `git status --porcelain` lists, by name, once you know why it changed (SKILL.md, step 5).
+Commit by explicit path. Never `git add -A` or `git add .`: stage each file `git status --porcelain -uall` lists, by name, once you know why it changed (SKILL.md, step 5).
 
 ```bash
-git status --porcelain        # only the paths you meant; nothing else staged
+git status --porcelain -uall  # only the paths you meant; nothing else staged
 git commit -m "feat(skills): add <name> skill"
 git push -u origin feat/<name>-skill   # only after the contributor says yes
 ```
@@ -46,7 +46,7 @@ Keep the pull request to the new skill and its obligations: the skill folder, it
 
 ## The pull request
 
-The contributor opens it from the fork's branch against `aws-samples/sample-apex-skills` `main`, in the GitHub web interface or with `gh pr create --repo aws-samples/sample-apex-skills --base main`. Answer the template in `.github/pull_request_template.md`: its "If this PR adds or changes a skill" checklist opens with "Walked the new-skill steps in `CONTRIBUTING.md`": tick it, since this skill walks them. The rest asks for valid front matter, the `triggering.json` set, the sibling-map updates, and that you ran the `update-docs` skill and committed the result.
+The contributor opens it from the fork's branch against `aws-samples/sample-apex-skills` `main`, in the GitHub web interface or with `gh pr create --repo aws-samples/sample-apex-skills --base main`. Answer the template in `.github/pull_request_template.md`: its "If this PR adds or changes a skill" checklist opens with "Walked the new-skill steps in `CONTRIBUTING.md`": tick it once CONTRIBUTING steps 1 to 6 are done, with any skipped step named in the body with its reason. The rest asks for valid front matter, the `triggering.json` set, the sibling-map updates, and that you ran the `update-docs` skill and committed the result.
 
 In the body: what the skill does, who it is for, its classes, its siblings and how they differ, the check commands you ran with their results (and each planned check named as not run), and the `## Fact check` section from SKILL.md step 7. No internal or customer details: the body is public too.
 

@@ -98,10 +98,10 @@
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "SIBLING_MAP",
+          "pattern": "(?-i:SIBLING_MAP)|\\bsibling maps?\\b",
           "context": "Must name the sibling-map block the hygiene check parses",
           "source": "skills/apex-new-skill/references/evals.md, section 4",
-          "flags": ""
+          "flags": "i"
         },
         {
           "type": "must-contain-one-of",

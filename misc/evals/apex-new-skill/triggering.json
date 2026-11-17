@@ -16,7 +16,7 @@
   {"query": "Help me tighten my skill's description so it triggers more reliably, and run the description optimization loop on it.", "should_trigger": false},
   {"query": "Benchmark my skill with and without the skill loaded and show me the variance analysis across runs.", "should_trigger": false},
   {"query": "Edit skills/terraform-skill/SKILL.md to add a section on our Terraform module naming conventions.", "should_trigger": false},
-  {"query": "Write an ADR in docs/adr/ recording why the router moved into a class. It changes no skill.", "should_trigger": false},
+  {"query": "Write an ADR in docs/adr/ recording why the installer installs the newest v1.x.y release tag. It changes no skill and no class.", "should_trigger": false},
   {"query": "I edited the description of eks-recon. Sync every README marker block and Docusaurus wrapper that still shows the old text.", "should_trigger": false},
   {"query": "Design the architecture for a new production EKS cluster for a regulated workload, with ADRs and diagrams.", "should_trigger": false},
   {"query": "How do I open a pull request on GitHub for a bug fix in my Django project?", "should_trigger": false},

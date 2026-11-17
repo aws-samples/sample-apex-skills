@@ -1,6 +1,6 @@
 ---
 name: apex-new-skill
-description: "Adds a new skill, or a class change, to the APEX skills repository (aws-samples/sample-apex-skills) end to end: reads the repo's classes and class tree to pick the skill's classes, writes SKILL.md front matter, drafts its SKILL_META line, authors the eval set and sibling-map updates, regenerates the docs with the repo's generators, runs the checks CI runs, drafts the ADR, the design-doc note and the fact check, asks before drafting a blog, then prepares the branch, explicit-path commit and pull request. Use when someone wants to contribute, add, onboard or submit a new skill to this repo, change a class under classes/, asks how to open a pull request for a new skill, or needs to retrofit a skill that landed without its eval set. Not for using the APEX skills on an EKS or ECS workload (use the matching skill), not for drafting or tuning skill content in general (skill-creator does that, and this skill points at it), and not for editing vendored skills synced from upstream."
+description: "Adds a new skill, or a class change, to the APEX skills repository (aws-samples/sample-apex-skills) end to end: reads the repo's classes and class tree to pick the skill's classes, writes SKILL.md front matter, drafts its SKILL_META line, authors the eval set and sibling-map updates, regenerates the docs with the repo's generators, runs the checks CI runs, drafts the ADR, the design-doc note and the fact check, asks before drafting a blog, then prepares the branch, explicit-path commit and pull request. Use when someone wants to contribute, add, onboard or submit a new skill to this repo, change a class under classes/, asks how to open a pull request for a new skill, or needs to retrofit a skill that landed without its eval set. Not for using the APEX skills on an EKS or ECS workload (use the matching skill), not for drafting or tuning skill content in general (use skill-creator), not for a doc sync alone (use update-docs), and not for editing vendored skills synced from upstream."
 ---
 
 # Add a skill or a class change to the APEX repo
@@ -32,16 +32,16 @@ Before step 1, read these and keep what they say for the rest of the run:
 3. **The Steward class** (`classes/steward/class.yaml`): `generators` (each `run`, then each `check`), `hand_kept` (files edited by hand, not generated) and `add_a_skill` (the CONTRIBUTING.md steps this skill walks).
 4. **The README groups.** `README_GROUPS` in `misc/update-skills-references.sh`: the headings a skill can be listed under.
 
-A `status: planned` generator or check is not built yet: name it to the contributor as not run, and do not run it. Today CI runs apex-base's frontmatter-lint (`misc/validate-frontmatter.py`) on every skill; no other class check runs by membership.
+A `status: planned` generator or check is not built yet: name it to the contributor as not run, and do not run it.
 
 ## Mode
 
 - `skills/<name>/SKILL.md` does not exist: greenfield. Run every step.
-- It exists but has no `misc/evals/<name>/` or stale generated docs: retrofit. Skip step 3 and treat the existing skill as the spec; do not rewrite it unless the contributor asks.
-- The change is to a file under `classes/` and adds no skill: class change. Run step 2's survey only for the class's members (if no skill declares the class yet, say so; the class.yaml comments name intended members), then steps 5 to 8; the class sync is planned: name it as not run.
-- Only an eval scaffold asked for: point at `make init-evals SKILL=<name>` (`misc/evals/README.md`) and stop.
+- It exists but has no `misc/evals/<name>/`: retrofit. Skip step 3 and treat the existing skill as the spec; do not rewrite it unless the contributor asks. Skip step 1's classes question and write no `metadata.apex-classes`: an existing skill joins its classes later, in a pull request of its own.
+- The change is to a file under `classes/` and adds no skill: class change. Run step 2's survey only for the class's members (if no skill declares the class yet, say so; where its class.yaml comment names intended members, survey those, else say none are named), then step 5's generators (no staging, no wrapper check) and steps 6 to 8; while the class sync's status is `planned`, name it as not run.
+- Only an eval scaffold asked for: point at `cd misc/evals && make init-evals SKILL=<name>` (`misc/evals/README.md`) and stop.
 
-Say which mode applies in one line, then ask the step 1 questions in a single turn.
+Say which mode applies in one line; in greenfield and retrofit modes, then ask the step 1 questions in a single turn.
 
 ## Step 1: Scope
 
@@ -52,7 +52,7 @@ Ask for whatever the contributor has not already said:
 3. **Five prompts it should trigger on**, phrased the way a real user types them.
 4. **Kind**: knowledge (reference material), solution (a guided procedure plus its knowledge), setup (one-time configuration) or discovery (reads live state, reports facts).
 5. **Target service**: EKS, ECS, another AWS service, or repo meta-tooling.
-6. **Classes**: offer only classes with a `classes/<name>/class.yaml`; from those, offer the ones that fit the kind and the target service, each with its one-line purpose from the class table. Each class brings its parents; list them too.
+6. **Classes**: offer only classes with a `classes/<name>/class.yaml`; from those, offer the ones that fit the kind and the target service, each with its one-line purpose from the class table. Each class brings its parents; list them in the restate, not the front matter.
 
 Restate the answers and the mode, and get a yes before writing files. Push back on a fuzzy scope ("a security skill"): a narrow scope gives a sharp description and a clean eval set.
 
@@ -74,7 +74,7 @@ skills/<name>/
 └── assets/          # optional: files used in output (templates, etc.)
 ```
 
-- Front matter: `name` and `description`, plus `metadata.apex-classes` when the contributor picked classes in step 1 (for example `metadata: { apex-classes: "service script" }`; each name is the `name:` of a `classes/*/class.yaml`). No `license:` (rule 4). The validator allows `name`, `description`, `license`, `metadata`, `allowed-tools`; anything else fails CI.
+- Front matter: `name` and `description`, plus `metadata.apex-classes` when the contributor picked classes in step 1 (for example `metadata: { apex-classes: "service script" }`; each name is the `name:` of a `classes/*/class.yaml`; name only the leaf classes, since their parents follow). No `license:` (rule 4). The validator allows `name`, `description`, `license`, `metadata`, `allowed-tools`; anything else fails CI.
 - Body: CONTRIBUTING.md keeps SKILL.md to "the essentials (~500 lines max)"; move depth into `references/*.md` and link each file from SKILL.md by relative path (`references/topic.md`), so the skill works from any install location.
 - A phased procedure the skill runs (STOP gates, user checkpoints) lives in its own `references/`, linked from SKILL.md. A customer runbook that chains skills is written by hand: CONTRIBUTING.md, "Creating a New Runbook".
 - Source every threshold, limit and version claim in `references/` to an authoritative page (AWS docs, upstream project docs). Step 7's fact check lists them.
@@ -92,8 +92,8 @@ CONTRIBUTING.md's pre-PR checklist requires "`misc/evals/<name>/triggering.json`
 
 ## Step 5: The SKILL_META line, the catalogues and the generators
 
-1. **Draft the `SKILL_META` line** in `misc/update-pages.sh`, in the table between `SKILL_META="$(cat <<'META'` and `META`, in folder order. One line, tab-separated: `<folder>`, the page title (`<Name>: <what it does>`, as the other lines read), a summary under 160 characters in words taken from the skill's own SKILL.md, and the group, one of the `README_GROUPS` headings. A skill with no line fails `misc/update-skills-references.sh`. Show the line to the contributor before you write it.
-2. **Catalogues:** CONTRIBUTING.md, Creating a New Skill, step 6: the routing row in `skills/apex/SKILL.md` (this skill's own row lands with the router rework), and each file the Steward class lists under `hand_kept`.
+1. **Draft the `SKILL_META` line** in `misc/update-pages.sh`, in the table between `SKILL_META="$(cat <<'META'` and `META`, in folder order. One line, tab-separated: `<folder>`, the page title (`<Name>: <what it does>`, as the other lines read), a summary under 160 characters in words taken from the skill's own SKILL.md, and the group, one of the `README_GROUPS` headings. A skill with no line fails `misc/update-skills-references.sh` and `./misc/update-pages.sh --check`. Show the line to the contributor before you write it.
+2. **Catalogues:** CONTRIBUTING.md, Creating a New Skill, step 6: the routing row in `skills/apex/SKILL.md`, the skill's `LINES` entry in `misc/website/src/components/skillCatalog.ts`, and its name in `PORTS` in `misc/website/src/components/skillSearch.ts` only when it has a `devops-agent/<name>/` port (the Steward class lists both files under `hand_kept`).
 3. **Generators:** `misc/update-pages.sh` lists sources with `git ls-files`, so stage the new skill first, each file by name. Show the contributor the list, then add what they confirm:
 
 ```bash
@@ -107,7 +107,7 @@ Then run each Steward `generators` entry's `run` command whose status is `exists
 ls misc/website/docs/skills/*/<name>/index.md   # must exist; if not, the skill was not staged
 ```
 
-Then stage each generated path `git status --porcelain` lists, by name. What each generator touches and the failure modes: [references/repo-checks.md](references/repo-checks.md).
+Then stage each generated path `git status --porcelain -uall` lists, by name. What each generator touches and the failure modes: [references/repo-checks.md](references/repo-checks.md).
 
 After the generators, check hand-written prose for stale skill lists or counts (CONTRIBUTING.md, "Keeping skill docs in sync after changes", asks you to run the `update-docs` skill for this).
 
@@ -120,7 +120,7 @@ DevOps Agent port: whenever you create or update a skill, check in this order:
 
 ## Step 6: Run the checks
 
-Run every check in [references/repo-checks.md](references/repo-checks.md), section "Checks", plus each Steward generator's `check` command and each class check with status `exists` for the skill's classes. Fix until each exits 0; a failure in a file this change did not touch is reported to the contributor, not fixed here. These are among the commands the `docs-sync` and `evals` CI jobs run.
+Run every check in [references/repo-checks.md](references/repo-checks.md), section "Checks", plus each Steward generator's `check` command and each class check with status `exists` for the skill's classes and their parents. Fix until each exits 0; a failure in a file this change did not touch is reported to the contributor, not fixed here. These are among the commands the `docs-sync` and `evals` CI jobs run.
 
 ## Step 7: Record the decision
 
@@ -138,12 +138,12 @@ Follow [references/pull-request.md](references/pull-request.md): fork, branch of
 
 ## Before hand-off
 
-Each item passes or fails:
+Each item passes or fails, or, in a class change, is marked not applicable:
 
 - [ ] Scope and classes restated and confirmed (step 1); siblings listed with rationale, non-siblings named (step 2).
-- [ ] `skills/<name>/SKILL.md` passes `quick_validate.py`; no `license:` field; description at most 1024 characters with a "when not" clause; `metadata.apex-classes` names only classes under `classes/`.
+- [ ] `skills/<name>/SKILL.md` passes `quick_validate.py`; no `license:` field; description at most 1024 characters with a "when not" clause; `metadata.apex-classes` names only leaf classes under `classes/`.
 - [ ] `misc/evals/<name>/` has `triggering.json` (8+ positives, 8+ negatives) and `evals.json` (2+ prompts, 3+ expectations each); each sibling's eval set updated in the same pull request.
-- [ ] The `SKILL_META` line is in `misc/update-pages.sh`; the catalogues are updated; generators run after staging; wrapper `index.md` exists; all checks exit 0, and each planned generator or check is named as not run.
+- [ ] The `SKILL_META` line is in `misc/update-pages.sh`; the catalogues are updated; generators run after staging; wrapper `index.md` exists; all checks exit 0, or each failure in a file this change did not touch is reported, and each planned generator or check is named as not run.
 - [ ] The ADR, the design-doc note and the fact check are drafted; the blog was asked about, and drafted only on a yes.
-- [ ] Every staged path was named explicitly; `git status --porcelain` shows nothing unintended.
+- [ ] Every staged path was named explicitly; `git status --porcelain -uall` shows nothing unintended.
 - [ ] No internal or customer content.
