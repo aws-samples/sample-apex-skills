@@ -3,7 +3,7 @@
 
 Covers skills/eks-security/assets/: advisory_check.py (version and range helpers, record
 validation), advisory_fetch.py (saved feed responses through --input), match.py (verdicts,
-priority, coverage gate, exit codes), render_report.py (escaping, footer, origin) and
+priority, coverage gate, exit codes), render_report.py (escaping, control characters, footer, origin) and
 collect.sh (read-only command guard, run against fake aws and kubectl on PATH).
 
 Stdlib only, no network, no cluster. All data comes from
@@ -704,19 +704,20 @@ class ControlChars(TmpCase):
         import render_report
         self.assertEqual(render_report.s("nul\x00here"), "nul here")
         self.assertEqual(render_report.s("a\x00b \x07c\x1bd\x7fe"), "a b c d e")
+        self.assertEqual(render_report.s("red \x1b[31mtext"), "red [31mtext")
         self.assertEqual(render_report.s("plain text, unchanged: v1.2.3 (ok)"), "plain text, unchanged: v1.2.3 (ok)")
         self.assertEqual(render_report.s("tab\there\nnew  line\r\nend "), "tab here new line end")
 
     def test_nul_never_reaches_md_or_html(self):
         fd, inv = self.fixture()
-        fd["sources"][0]["title"] = "nul\x00here"
+        fd["sources"][0]["title"] = "nul\x00here and \x07bell"
         fd["findings"][1]["reason"] = "nul\x00here"
         fd["findings"][0]["fixed"] = "nul\x00here"
         rc, md, ht, log = self.render(fd, inv)
         self.assertEqual(rc, 0, log)
         for text in (md, ht):
-            self.assertNotIn("\x00", text)
-            self.assertIn("nul here", text)
+            self.assertIsNone(re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", text))
+            self.assertIn("nul here and bell", text)
 
 
 # ------------------------------------------------------------------ collectors: read-only guard
