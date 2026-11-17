@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -61,7 +62,7 @@ from parse_trajectory import (
 )
 from process_assertions import evaluate
 from artifact_validation import validate_run as validate_artifacts
-from elicitation import ElicitationConfig, run_multiturn_subject
+from elicitation import ElicitationConfig, _append_event, run_multiturn_subject
 from skilleval_config import load_config as load_skilleval_config
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
@@ -113,16 +114,10 @@ def drain_stream(
         while "\n" in buffer:
             line, buffer = buffer.split("\n", 1)
             if line.strip():
-                try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    pass
+                _append_event(events, line)
 
     if buffer.strip():
-        try:
-            events.append(json.loads(buffer))
-        except json.JSONDecodeError:
-            pass
+        _append_event(events, buffer)
     return events, timed_out
 
 
@@ -182,7 +177,8 @@ def format_transcript(events: list[dict], prompt: str, skill_name: str | None) -
                     lines.append("")
         elif etype == "user":
             msg = evt.get("message") or {}
-            for c in msg.get("content") or []:
+            blocks = msg.get("content")
+            for c in blocks if isinstance(blocks, list) else []:
                 if c.get("type") == "tool_result":
                     content = c.get("content")
                     if isinstance(content, list):
@@ -231,7 +227,8 @@ def compute_metrics(events: list[dict], transcript_text: str, outputs_dir: Path)
                 steps += 1
         elif evt.get("type") == "user":
             msg = evt.get("message") or {}
-            for c in msg.get("content") or []:
+            blocks = msg.get("content")
+            for c in blocks if isinstance(blocks, list) else []:
                 if c.get("type") == "tool_result" and c.get("is_error"):
                     errors += 1
 
@@ -359,7 +356,7 @@ def stage_fixture_files(
     skill_eval_dir: Path,
     eval_id: int | str,
     files: list[str] | None,
-) -> None:
+) -> dict[str, str]:
     """Copy fixture files into the sandbox before the subject runs.
 
     Convention:
@@ -372,31 +369,54 @@ def stage_fixture_files(
     Only stages files if:
       1. The eval case declares a non-empty "files" array, AND
       2. The <skill_eval_dir>/files/ directory actually exists on disk.
+
+    Returns each staged file's sandbox-relative POSIX path mapped to the
+    sha256 of its staged bytes; empty when nothing was staged.
+    snapshot_sandbox_outputs uses it to leave staged files out.
     """
+    staged: dict[str, str] = {}
     if not files:
-        return
+        return staged
 
     files_root = skill_eval_dir / "files"
     if not files_root.is_dir():
-        return
+        return staged
 
-    # Stage shared/ first (base layer)
-    shared_dir = files_root / "shared"
-    if shared_dir.is_dir():
-        shutil.copytree(shared_dir, sandbox, symlinks=False, dirs_exist_ok=True)
+    # Stage shared/ first (base layer), then the eval-specific overlay (can
+    # override shared files).
+    sources = [files_root / "shared", files_root / f"eval-{eval_id}"]
+    for source in sources:
+        if source.is_dir():
+            shutil.copytree(source, sandbox, symlinks=False, dirs_exist_ok=True)
 
-    # Stage eval-specific overlay (can override shared files)
-    eval_specific_dir = files_root / f"eval-{eval_id}"
-    if eval_specific_dir.is_dir():
-        shutil.copytree(eval_specific_dir, sandbox, symlinks=False, dirs_exist_ok=True)
+    for source in sources:
+        if not source.is_dir():
+            continue
+        for path in source.rglob("*"):
+            if path.is_file():
+                rel = path.relative_to(source).as_posix()
+                staged[rel] = _sha256(sandbox / rel)
+    return staged
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 # ---------- sandbox snapshot --------------------------------------------------
 
 
-def snapshot_sandbox_outputs(sandbox: Path, outputs_dir: Path) -> None:
+def snapshot_sandbox_outputs(
+    sandbox: Path,
+    outputs_dir: Path,
+    staged: dict[str, str] | None = None,
+) -> None:
     """Copy any files the subject created inside the sandbox (excluding the
     staged .claude/ dir) into outputs_dir so the grader can inspect them.
+
+    `staged` is stage_fixture_files' return. A staged file still byte-identical
+    to what was staged is then removed from outputs_dir, so a check on outputs
+    cannot pass on fixture text alone. A staged file the subject edited is kept.
     """
     outputs_dir.mkdir(parents=True, exist_ok=True)
     for item in sandbox.iterdir():
@@ -407,6 +427,10 @@ def snapshot_sandbox_outputs(sandbox: Path, outputs_dir: Path) -> None:
             shutil.copytree(item, dest, symlinks=False, dirs_exist_ok=True)
         elif item.is_file():
             shutil.copy2(item, dest)
+    for rel, digest in (staged or {}).items():
+        out = outputs_dir / rel
+        if out.is_file() and _sha256(out) == digest:
+            out.unlink()
 
 
 # ---------- subject run -------------------------------------------------------
@@ -447,8 +471,9 @@ def run_subject(
 
     with ctx as (sandbox, home):
         # Stage fixture files into the sandbox before running the subject.
+        staged: dict[str, str] = {}
         if skill_eval_dir and eval_id is not None and fixture_files:
-            stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
+            staged = stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
 
         env = build_subprocess_env(home, extra=extra_env)
 
@@ -495,7 +520,7 @@ def run_subject(
                 except Exception:
                     stderr = b""
 
-        snapshot_sandbox_outputs(sandbox, outputs_dir)
+        snapshot_sandbox_outputs(sandbox, outputs_dir, staged)
 
     end_iso = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     wall = time.time() - t0
