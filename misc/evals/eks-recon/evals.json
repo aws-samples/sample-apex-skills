@@ -297,7 +297,10 @@
         "Does not report report metadata as changed facts.",
         "Leaves prior.yaml unmodified: it still holds the retired node group, the role/retired access principal and the reader-v1 Pod Identity role.",
         "Retains current facts in YAML.",
-        "The YAML has no historical delta inside its module blocks."
+        "The YAML has no historical delta inside its module blocks.",
+        "Preserves current security.image_security.admission_policies: true in the YAML.",
+        "Lists security.image_security.admission_policies under Comparison coverage because the selector semantics changed across revisions.",
+        "Other confirmed security deltas still appear."
       ],
       "files": [
         "eval-3/prior.yaml",
@@ -389,7 +392,7 @@
           {
             "type": "contains",
             "file": "reports/delta.yaml",
-            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-11-11[\\\"\\x27]?[ \\t]*$"
           },
           {
             "type": "contains",
@@ -400,6 +403,21 @@
             "type": "contains",
             "file": "reports/delta.yaml",
             "pattern": "(?m)^  unconfirmed_paths:"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.yaml",
+            "pattern": "(?m)^    admission_policies:[ \\t]*true[ \\t]*$"
+          },
+          {
+            "type": "contains",
+            "file": "reports/delta.md",
+            "pattern": "(?is)### Comparison coverage.*security\\.image_security\\.admission_policies"
+          },
+          {
+            "type": "not-contains",
+            "file": "reports/delta.md",
+            "pattern": "(?im)^\\|[ \\t]*(?:Added|Removed|Changed)[ \\t]*\\|[^|\\n]*admission_policies"
           },
           {
             "type": "not-contains",
@@ -489,7 +507,7 @@
           {
             "type": "contains",
             "file": "reports/delta.yaml",
-            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-11-11[\\\"\\x27]?[ \\t]*$"
           },
           {
             "type": "contains",
@@ -580,7 +598,7 @@
           {
             "type": "contains",
             "file": "reports/delta.yaml",
-            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-11-11[\\\"\\x27]?[ \\t]*$"
           },
           {
             "type": "contains",
@@ -653,7 +671,7 @@
           {
             "type": "contains",
             "file": "reports/delta.yaml",
-            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-10-31[\\\"\\x27]?[ \\t]*$"
+            "pattern": "(?m)^  schema_revision:[ \\t]*[\\\"\\x27]?eks-recon/2026-11-11[\\\"\\x27]?[ \\t]*$"
           },
           {
             "type": "contains",

@@ -79,6 +79,11 @@ Coverage takes precedence over a difference:
   In particular, legacy `cicd.gitops.tool: none` is not equivalent to the newer
   `not_observed` or `unconfirmed`; exclude the legacy GitOps result scope when its
   observation semantics cannot be established. Missing newer fields remain unknown.
+  Two reports marked `eks-recon/2026-11-11` use the same
+  `security.image_security.admission_policies` selector definitions. The earlier
+  `eks-recon/2026-10-31` definitions differ from these. For other pairs, use the
+  documented definitions for their revisions to establish equivalence. List
+  differing or unknown selector definitions under Comparison coverage.
 - Compare scope-dependent GitOps results only when the inspected resource kinds,
   namespaces and signal rules are known equivalent in both runs (from the supplied
   reports or accompanying coverage records). An empty `unconfirmed_paths` list or

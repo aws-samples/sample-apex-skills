@@ -69,7 +69,7 @@ Checking whether an exposure was exploited (GuardDuty findings, CloudTrail and a
 
 ## Step 3: Contain at once (proposed only)
 
-Every item is printed for the team to review and apply. Why each control works and the full quarantine and identity patterns: eks-best-practices, references/security-operations.md, section "Responding to a Security Event". This step reads what applies to this cluster and prints the proposals for it.
+Every item is printed for the team to review and apply. Why each control works and the full quarantine and identity patterns: the eks-best-practices skill, its guidance on responding to a security event. This step reads what applies to this cluster and prints the proposals for it.
 
 **Keep the pod in place.** The pod stays in its ReplicaSet, so a rollout or scale-down can delete it with its evidence. Propose pausing rollouts (`kubectl rollout pause deploy/<name> -n <ns>`) until the evidence is taken. `rollout pause` exists for Deployments only; for other controllers, and for an HPA (`behavior.scaleDown.selectPolicy: Disabled`) or Karpenter (`karpenter.sh/do-not-disrupt: "true"` on the pod), propose holding scale in source control. Do not change the pod's app labels: the ReplicaSet would replace it. Scaling the workload to zero is a containment option once the step 4 snapshot is taken; before that it deletes the pod and its evidence.
 

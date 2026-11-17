@@ -107,7 +107,7 @@ Rehearse these levers in the game day so the team knows which flag to pull and w
 
 ## Pre-Event Readiness Checklist
 
-Descriptive — **what "ready" looks like before a surge event.** This is a planning aid, not a scored audit: there are no pass/fail gates, no colour ratings, and no recovery-time targets here (for a live operational assessment with ratings, that is [eks-operation-review](../../eks-operation-review/index.md)'s lane; for upgrade readiness, [eks-upgrade-check](../../eks-upgrade-check/index.md)).
+Descriptive: **what "ready" looks like before a surge event.** This is a planning aid, not a scored audit: there are no pass/fail gates, no colour ratings, and no recovery-time targets here (for a live operational assessment with ratings, that is the `eks-operation-review` skill's lane; for upgrade readiness, the `eks-upgrade-check` skill).
 
 - **Scheduled floors** set to pre-scale pods ahead of each known trigger, holding across the whole event window (not per-trough).
 - **Reactive autoscaling** configured as a top-up layer on top of the floor.

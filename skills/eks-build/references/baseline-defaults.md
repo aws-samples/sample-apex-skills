@@ -119,7 +119,7 @@ spec:
   weight: 50
 ```
 
-Multi-arch nodes need multi-arch images: with `arm64` in the NodePool, each workload image must be a manifest list (OCI image index) that covers `linux/amd64` and `linux/arm64` (two native builds joined, or one `buildx` build for both platforms), so a pod scheduled onto a Graviton node pulls the arm64 binary, or the workload must be pinned with a `kubernetes.io/arch` nodeSelector. See [graviton-migration multi-arch pipelines](../../graviton-migration/references/multi-arch-pipelines.md).
+Multi-arch nodes need multi-arch images: with `arm64` in the NodePool, each workload image must be a manifest list (OCI image index) that covers `linux/amd64` and `linux/arm64` (two native builds joined, or one `buildx` build for both platforms), so a pod scheduled onto a Graviton node pulls the arm64 binary, or the workload must be pinned with a `kubernetes.io/arch` nodeSelector. See the `graviton-migration` skill's multi-arch pipelines reference.
 
 EC2NodeClass defaults:
 

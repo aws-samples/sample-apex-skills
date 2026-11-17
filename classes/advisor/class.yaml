@@ -1,0 +1,13 @@
+# Advisor / Knowledge: skills that advise and ship nothing that runs.
+# Built because its four members (eks-best-practices, eks-genai,
+# eks-platform-engineering, ecs-genai) share that: no tools/ or scripts/,
+# and in SKILL.md no shell fence and no aws command line (read at
+# sample-apex-skills 9157fe03).
+
+name: advisor
+parents: [platform]
+
+checks:
+  - id: no-shipped-runnables
+    what: "The member ships no tools/ or scripts/; its SKILL.md holds no shell fence or command line to run; every line in references/ that changes a cluster or account (read by hand, not by a verb regex: a line counts when it holds a command, in a fence or a code span, that it tells the reader to run, and the command changes a cluster, an account, a cluster host or the Git repository a cluster syncs from; a line that only names, describes or forbids a command does not) is marked customer-run, in one of three forms: the marker on the line above a fence, at the end of the line, or on a blockquote line above a quoted fence. `aws eks update-kubeconfig` is exempt (apex.read-only-unless-confirmed)"
+    status: planned

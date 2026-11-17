@@ -89,11 +89,13 @@ Run the steps in this order. Every attempted action is recorded per the [Executi
 
 (Requirement 17.4 — read the conventions BEFORE generating, and make the generated code conform.)
 
-The repository ships a dedicated Terraform authoring skill. **Before generating any Terraform, read:**
+The repository ships a dedicated Terraform authoring skill, `terraform-skill`. **Before generating any Terraform, load the `terraform-skill` skill and read:**
 
-- [terraform-skill/SKILL.md](../../../general/terraform-skill/index.md) — the convention summary (naming, block ordering, file layout, version management),
-- [terraform-skill/references/code-patterns.md](../../../general/terraform-skill/references/code-patterns.md) — the full block-ordering rules, variable/output structure, `count` vs `for_each` decision rules, and version-constraint syntax,
-- [terraform-skill/references/module-patterns.md](../../../general/terraform-skill/references/module-patterns.md) — variable/output contracts and naming conventions.
+- its SKILL.md: the convention summary (naming, block ordering, file layout, version management),
+- its code patterns reference: the full block-ordering rules, variable/output structure, `count` vs `for_each` decision rules, and version-constraint syntax,
+- its module patterns reference: variable/output contracts and naming conventions.
+
+If `terraform-skill` is not installed, tell the user, and use the summary below.
 
 The generated Windows_Environment_Terraform conforms to at least the following (summarized here for orientation; the terraform-skill files are the authoritative source — where this summary and the live files disagree, the live files win):
 

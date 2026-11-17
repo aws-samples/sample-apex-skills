@@ -1,0 +1,66 @@
+# APEX Skills: the base class every APEX skill will inherit, once the class
+# sync lands.
+# A class is authored here and never installed alone. A class sync script
+# (misc/sync-classes.py, not built yet) will copy rules.md into each member
+# skill's SKILL.md marker block and references/ into the skill's references/
+# as flat references/<class>-<file>.md names (a file already named
+# <class>-... keeps its name), each headed "generated from
+# classes/<class>/<file>, do not edit".
+# A skill joins a class through its own frontmatter
+# (metadata.apex-classes), so this file lists no members.
+
+name: apex-base
+parents: []
+
+# Members whose text today conflicts with a rule here, and who changes it
+# (read at sample-apex-skills origin/main 7efa0776):
+# - eks-recon reads Secret objects for Helm releases (`helm list` and the
+#   owner=helm Secret fallback, references/addons.md, agents/addons-recon.md)
+#   and the Prometheus config (references/observability.md); it moves to
+#   the Helm annotations apex.no-secrets names and to ConfigMap and
+#   Prometheus custom-resource reads, in the eks-recon rebuild, after
+#   the current owner's work on eks-recon lands.
+# - eks-ingress-migration (owner-held) uses `helm list`
+#   (references/report-generation.md, and its devops-agent copy): its owner
+#   changes it; no issue yet (searched 2026-11-16).
+# - The apex eks-upgrade-check runbook lists `helm list` as a read; it goes
+#   with the runbook absorption.
+# - eks-operation-review (owner-held, vendored) needs the EKS MCP
+#   Server and reads Secret key names in check 3.1
+#   (references/access-identity.md): its owner changes it. Issue 189
+#   (open, checked on 2026-11-16) tracks the MCP hard-halt; its Secret item
+#   keeps the names-only read, so the Secret clause has no issue yet.
+# - The router's runbooks hold 22 `../../../<skill>/` paths, against
+#   apex.no-path-into-another-skill; they go with the runbook absorption.
+# - eks-platform-engineering pauses an ArgoCD sync "only after the user confirms" (SKILL.md, Guardrails), short of apex.read-only-unless-confirmed; it changes in step 5.
+# The router's `helm list` is replaced in this piece (skills/apex/SKILL.md,
+# shared rule 1).
+
+# Deterministic checks one CI script runs on every member.
+# status "exists" names today's command; "planned" is not built yet.
+checks:
+  - id: frontmatter-lint
+    what: "Parseable frontmatter; description present and <= 1024 chars"
+    status: exists
+    run: "python3 misc/validate-frontmatter.py"
+  - id: rule-ids-in-marker-block
+    what: "Every rule id in rules.md appears in the member's SKILL.md marker block. This proves the copy landed, not behaviour"
+    status: planned
+  - id: no-path-into-another-skill
+    what: "A path grep: no link or path from a member into another skill's folder"
+    status: planned
+  - id: shared-trigger-evals
+    what: "The class's shared trigger evals run against each member"
+    status: planned
+  - id: read-only-and-no-secrets-evals
+    what: "Read-only and no-Secrets are tested by evals, since a text check proves only that the rule's text landed"
+    status: planned
+  - id: metadata-version-bumped
+    what: "A required metadata.version, bumped on every change to a skill's instructions, scripts or references"
+    status: planned
+  - id: skill-md-under-500-lines
+    what: "SKILL.md under 500 lines"
+    status: planned
+  - id: relative-links-resolve
+    what: "The relative link check"
+    status: planned

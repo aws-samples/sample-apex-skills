@@ -16,11 +16,11 @@ Each skill is a self-contained folder of instructions, scripts, and references t
 | ----------- | -------------------------------------------------------------------- |
 | `skills/`   | Reusable domain knowledge (the agent's brain)                        |
 | `skills/apex/` | The APEX router skill and its runbooks: phased procedures that combine skills (the SA's playbook) |
-| `rules/`    | Project-level agent rules — verification, source-checking, guardrails |
+| `classes/`  | The shared rules; the class sync (planned) copies them into each skill |
 | `examples/` | Hands-on labs to try APEX against real workloads                     |
 | `misc/`     | Maintenance scripts, evaluations, and this docs site                 |
 
-> **Key principle:** Skills provide the knowledge. Runbooks provide the structure. Rules provide the guardrails.
+> **Key principle:** Skills provide the knowledge. Runbooks provide the structure. Classes provide the guardrails.
 
 ## Where to go next
 
