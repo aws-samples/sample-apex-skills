@@ -7,10 +7,6 @@
 name: advisor
 parents: [platform]
 
-# eks-platform-engineering's one assistant rule (SKILL.md, Guardrails)
-# pauses an ArgoCD sync only when the user explicitly asks, which is
-# advisor.no-side-effects as written.
-
 checks:
   - id: no-shipped-runnables
     what: "The member ships no tools/ or scripts/; its SKILL.md holds no shell fence or command line to run; every line in references/ that changes a cluster or account (read by hand, not by a verb regex: a line counts when it holds a command, in a fence or a code span, that it tells the reader to run, and the command changes a cluster, an account, a cluster host or the Git repository a cluster syncs from; a line that only names, describes or forbids a command does not) is marked customer-run, in one of three forms: the marker on the line above a fence, at the end of the line, or on a blockquote line above a quoted fence. `aws eks update-kubeconfig` is exempt (apex.read-only-unless-confirmed)"

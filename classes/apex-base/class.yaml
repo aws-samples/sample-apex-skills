@@ -32,6 +32,7 @@ parents: []
 #   keeps the names-only read, so the Secret clause has no issue yet.
 # - The router's runbooks hold 22 `../../../<skill>/` paths, against
 #   apex.no-path-into-another-skill; they go with the runbook absorption.
+# - eks-platform-engineering pauses an ArgoCD sync "only after the user confirms" (SKILL.md, Guardrails), short of apex.read-only-unless-confirmed; it changes in step 5.
 # The router's `helm list` is replaced in this piece (skills/apex/SKILL.md,
 # shared rule 1).
 
