@@ -839,6 +839,29 @@
    "base": "std"
   },
   {
+   "id": "F6-skill-owned",
+   "about": "A skill's own file sits at a class copy's path: the report says to rename or move it, since a sync run overwrites it",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base-harness.md",
+     "write": "# my own harness notes\n"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-harness.md: header missing or wrong",
+     "if this is the skill's own file, not a class copy, rename or move it first: a sync run overwrites it"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
    "id": "F7",
    "about": "A copy hand-edited under a correct header",
    "presync": true,
@@ -1074,6 +1097,28 @@
     "rc": 1,
     "output": [
      "skills/demo/references/apex-base/notes.md: a class copy under a non-flat name"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F10-delete-hint",
+   "about": "A nested class copy: the report says to delete it by hand, since the sync never deletes",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base/notes.md",
+     "write": "<!-- generated from classes/apex-base/references/notes.md, do not edit -->\n# Notes\n"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/references/apex-base/notes.md: a class copy under a non-flat name",
+     "the sync does not delete files: delete it by hand"
     ]
    },
    "base": "std"
@@ -1370,6 +1415,81 @@
     "rc": 1,
     "output": [
      "skills/demo: the declared class order contradicts the classes' parents"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-key-typo",
+   "about": "A misspelled apex-classes key is refused, not read as no membership",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-class: \"script\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/SKILL.md: metadata key 'apex-class' is not apex-classes"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-other-apex-key",
+   "about": "Another apex- metadata key beside apex-classes is not read as a typo",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"script\"\n  apex-inputs: \"in.schema.json\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "output": [
+     "1 member skill(s) (demo)"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-parent-first",
+   "about": "A class listed before its own child is refused",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"operator script\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo: declares 'operator' beside 'script', which already has it as a parent; declare leaf classes only"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-parent-after",
+   "about": "A class listed after its own child is refused the same way",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"script operator\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo: declares 'operator' beside 'script', which already has it as a parent; declare leaf classes only"
     ],
     "unchanged": true
    },

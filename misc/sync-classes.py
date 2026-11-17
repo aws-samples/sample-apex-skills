@@ -4,15 +4,16 @@
 A skill joins classes through its own SKILL.md frontmatter:
 
     metadata:
-      apex-classes: "service-eks script"
+      apex-classes: "service script"
 
-(a space-separated list of leaf classes). A skill with no such line is not a
-member, and this script never writes into it. For each member skill the
-script:
+(a space-separated list of leaf classes, the folder names under classes/;
+listing a class beside its own parent is refused). A skill with no such
+line is not a member, and this script never writes into it. For each
+member skill the script:
 
   1. resolves the skill's classes parents first, each class once (the C3
-     order, reversed: "service-eks script" gives apex-base, platform,
-     operator, script, service, service-eks);
+     order, reversed: "service script" gives apex-base, platform,
+     operator, script, service);
   2. fails when two classes in that chain give the same rule id or the same
      target path;
   3. copies each class's rules.md into one marker block in SKILL.md, right
@@ -75,6 +76,7 @@ Requires PyYAML (pip install 'pyyaml>=6,<7').
 
 import argparse
 import ast
+import difflib
 import io
 import os
 import re
@@ -197,6 +199,13 @@ def resolve_chain(declared, classes, who):
     for c in declared:
         if c not in classes:
             raise SyncError(f"{who}: declares class {c!r}, which is not under classes/")
+    for c in declared:
+        for d in declared:
+            if c in linearize(d, classes)[1:]:
+                raise SyncError(
+                    f"{who}: declares {c!r} beside {d!r}, which already has it as a parent; "
+                    "declare leaf classes only"
+                )
     lin = [who] + c3_merge([linearize(c, classes) for c in declared] + [list(declared)], who)
     return list(reversed(lin[1:]))
 
@@ -236,6 +245,13 @@ def member_skills(root, classes):
         except FrontmatterError as exc:
             raise SyncError(f"skills/{skill}/SKILL.md: {exc}") from exc
         meta = data.get("metadata")
+        if isinstance(meta, dict):
+            for key in meta:
+                if key != "apex-classes" and difflib.get_close_matches(str(key), ["apex-classes"], cutoff=0.8):
+                    raise SyncError(
+                        f"skills/{skill}/SKILL.md: metadata key {key!r} is not apex-classes; "
+                        "fix the spelling, or the skill joins no class"
+                    )
         value = meta.get("apex-classes") if isinstance(meta, dict) else None
         if value is None:
             continue
@@ -682,7 +698,11 @@ def check(root, expected):
         disk_lines = disk.splitlines()
         got_header = disk_lines[1 if disk.startswith("#!") else 0] if disk_lines else ""
         if got_header != want_header:
-            problems.append(f"{e['path']}: header missing or wrong; expected: {want_header}")
+            why = f"header missing or wrong; expected: {want_header}"
+            if not any("generated from classes/" in h for h in disk_lines[:2]):
+                why += ("; if this is the skill's own file, not a class copy, rename or move it "
+                        "first: a sync run overwrites it")
+            problems.append(f"{e['path']}: {why}")
             continue
         missing = [d for d in e["decl"] if d not in disk_lines]
         if missing:
@@ -707,7 +727,8 @@ def check(root, expected):
                         continue
                     if any("generated from classes/" in h for h in head):
                         rel = os.path.relpath(full, root).replace(os.sep, "/")
-                        problems.append(f"{rel}: a class copy under a non-flat name; copies go flat in {sub}/")
+                        problems.append(f"{rel}: a class copy under a non-flat name; copies go flat in "
+                                        f"{sub}/, and the sync does not delete files: delete it by hand")
     return problems
 
 

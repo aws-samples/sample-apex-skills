@@ -33,7 +33,7 @@ Usage:
 The checks are the ones the skill declares; there is no override. A skill
 that declares none gets no check: "no artifact checks declared; nothing
 checked" (exit 0) is not a pass of any check.
-It imports the apex-base class tool schema_check (the class sync (planned)
+It imports the apex-base class tool schema_check (the class sync
 rewrites the import to the flat copy's name). In this repo, run it with
 PYTHONPATH=classes/apex-base/scripts.
 Exit codes: 0 every check passed; 1 a check failed; 2 a check could not run
