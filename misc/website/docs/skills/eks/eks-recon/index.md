@@ -412,7 +412,7 @@ When running full reconnaissance, delegate each module to a specialized subagent
 
 ### Subagent Files
 
-Each module's subagent prompt is the Agent file in [Modules and Reference Loading](#modules-and-reference-loading).
+Each module's subagent prompt is its Agent file in [Modules and Reference Loading](#modules-and-reference-loading); Cluster Basics has none.
 
 ### Orchestration Steps
 

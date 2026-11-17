@@ -214,7 +214,7 @@ Workflows may use its facts as context; that intended use does not establish a
 versioned schema hand-off. Preserve the canonical reference shapes for inspection,
 export and existing workflow guidance.
 
-**Assembly rules (inline and subagent execution):**
+**Assembly rules:**
 
 - Use cluster-basics for the shared `cluster:` block; deduplicate matching module
   blocks. For the same target, preserve module facts and record differing values
@@ -222,10 +222,10 @@ export and existing workflow guidance.
   Compare identity using target context (such as cluster ARN); a cosmetic endpoint
   difference such as a trailing `/` is not another cluster. If a module identifies another target cluster,
   retain its key as `{unavailable: true, reason: "cluster context mismatch"}`.
-- On full recon, collect `cluster_detail:` directly from cluster-basics, which has
-  no subagent. Targeted queries may omit unrelated detail.
+- On full recon, collect `cluster_detail:` directly from cluster-basics.
+  Targeted queries may omit unrelated detail.
 - If a selected module returns no usable result, retain its key with
-  `unavailable: true` and a short `reason` in either mode. Partial reads retain
+  `unavailable: true` and a short `reason`. Partial reads retain
   known facts alongside Coverage gaps. Unselected modules are out of scope.
 - For partial modules, retain observed facts and every schema-defined object/key,
   even when all its values are unreadable: use `ingresses: {count: null, list: null}`,
