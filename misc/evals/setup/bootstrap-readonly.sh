@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Bootstrap the read-only artefacts for misc/evals/ task-axis runs and the
-# "Read-only operating profile" recipe (misc/website/docs/read-only-operating-profile.md).
+# Bootstrap the read-only artefacts for the "Read-only operating profile"
+# recipe (misc/website/docs/read-only-operating-profile.md). The eval runners
+# do not use them: their confined subjects get no cluster credential.
 #
 # What this creates:
 #   1. In the cluster pointed at by your current KUBECONFIG:
@@ -9,9 +10,9 @@
 #        - Secret kube-system/evals-readonly-token (SA-bound token)
 #   2. In misc/evals/.secrets/ (gitignored):
 #        - kubeconfig.readonly   — auths as the SA; read-only
-#        - readonly-session-policy.json — IAM session policy the runner
-#                                         uses when minting an STS federation
-#                                         token for the subject subprocess
+#        - readonly-session-policy.json: IAM session policy the recipe
+#                                         passes when minting an STS
+#                                         federation token
 #
 # Both outputs are generated from the checked-in declarative sources under
 # misc/evals/setup/ — no secret material is ever committed.
@@ -94,8 +95,8 @@ EOF
 chmod 600 "${KUBECONFIG_OUT}"
 log "wrote ${KUBECONFIG_OUT}"
 
-# The session policy is static — copy it into .secrets/ so the Makefile
-# defaults find it in the same place as the kubeconfig. Copying instead of
+# The session policy is static: copy it into .secrets/ so the recipe
+# finds it in the same place as the kubeconfig. Copying instead of
 # symlinking keeps the .secrets/ directory self-contained if someone moves
 # the repo.
 POLICY_OUT="${SECRETS_DIR}/readonly-session-policy.json"
@@ -130,4 +131,4 @@ if ! aws sts get-federation-token \
 fi
 
 log "done. both artefacts are in ${SECRETS_DIR}/ (gitignored)."
-log "you can now run: make task-eks-recon INCLUDE_LIVE_ONLY=1 (or task-eks-operation-review)"
+log "hand the agent KUBECONFIG=${KUBECONFIG_OUT} and a session minted with ${POLICY_OUT} (see the recipe)"

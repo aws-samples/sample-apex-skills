@@ -10,16 +10,18 @@ postmortem of the reverted wrapper attempt.
 
 Design (PLAN §1.5.2):
 
-  stage_skill_sandbox(skill_name, repo_skill_dir) yields a (sandbox, home)
-  pair. `sandbox/.claude/skills/<skill_name>/` symlinks at the repo skill
-  dir and nothing else. `home/.aws/` symlinks at the caller's ~/.aws when
-  present, so Bedrock creds reach the subprocess. No state on disk outside
-  these two mktemp dirs; both are removed in the `finally:` block.
+  stage_skill_sandbox(skill_name, repo_skill_dir) yields a confined.Run
+  (runs/<id>/{home,sandbox} under /var/lib/apex-eval). A copy of the repo
+  skill dir, read-only to the subject, sits at
+  `home/.claude/skills/<skill_name>/` and nothing else is staged. No host
+  credentials are linked in: each launch gets its own Bedrock-only role
+  session (confined.py). The run root is removed in the `finally:` block.
 
-  run_single_query(...) launches `claude -p` with `cwd=sandbox`, `HOME=home`,
-  `CLAUDECODE` stripped, streams stream-json, and watches for a Skill
-  tool_use whose input names the canonical skill. Kills the subprocess on
-  first match so negatives don't burn the full response-generation budget.
+  run_single_query(...) launches `claude -p` through
+  confined.launch_confined (a systemd unit as user apex-eval, cwd=sandbox,
+  HOME=home), streams stream-json, and watches for a Skill tool_use whose
+  input names the canonical skill. Kills the unit on first match so
+  negatives don't burn the full response-generation budget.
 
   main() mirrors run_eval.py's CLI and output schema so misc/evals/
   run_all_evals.py keeps parsing the stdout JSON blob without changes.
@@ -37,13 +39,13 @@ import json
 import os
 import re
 import select
-import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
+
+import confined
 
 try:  # PyYAML is present in this eval env (siblings import it unconditionally),
     import yaml  # but keep the stdlib-only regex fallback below so this runner
@@ -72,62 +74,39 @@ BUILTIN_SKILLS = frozenset({
 
 @contextlib.contextmanager
 def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
-    """Yield (sandbox, home) with exactly one skill staged and a clean HOME.
+    """Yield a confined.Run with exactly one skill staged and a clean HOME.
 
-    sandbox/.claude/skills/<skill_name>/   symlink -> repo_skill_dir
-    home/.aws/                             symlink -> ~/.aws (if present)
+    home/.claude/skills/<skill_name>/   copy of repo_skill_dir, read-only
+                                        to the subject
 
-    Both dirs are mktemp'd; both are removed when the block exits, including
-    on exception. Safe against Ctrl-C during the run. Callers may also use
-    this from Phase 2's task runner — `with_skill` config points here;
-    `without_skill` config should use stage_empty_sandbox() below.
+    No ~/.aws or other host credential is linked in. The run root is
+    removed when the block exits, including on exception. Phase 2's task
+    runner uses this for the `with_skill` config; `without_skill` uses
+    stage_empty_sandbox() below.
     """
-    sandbox = Path(tempfile.mkdtemp(prefix="evals-sandbox-"))
-    clean_home = Path(tempfile.mkdtemp(prefix="evals-home-"))
+    run = confined.stage_run(skill_name, repo_skill_dir)
     try:
-        skills_dir = sandbox / ".claude" / "skills"
-        skills_dir.mkdir(parents=True)
-        (skills_dir / skill_name).symlink_to(repo_skill_dir.resolve())
-
-        host_aws = Path.home() / ".aws"
-        if host_aws.exists():
-            (clean_home / ".aws").symlink_to(host_aws)
-
-        yield sandbox, clean_home
+        yield run
     finally:
-        shutil.rmtree(sandbox, ignore_errors=True)
-        shutil.rmtree(clean_home, ignore_errors=True)
+        _report_leftovers(confined.cleanup_run(run))
 
 
 @contextlib.contextmanager
 def stage_empty_sandbox():
-    """Yield (sandbox, home) with no skills staged — the `without_skill`
-    config for Phase 2's task-axis runner. Same HOME isolation as
-    stage_skill_sandbox (clean HOME with ~/.aws symlinked through), but
-    no `.claude/` dir at all so the subject subprocess sees zero skills.
+    """Yield a confined.Run with no skills staged: the `without_skill`
+    config for Phase 2's task-axis runner, and the grader. Same isolation
+    as stage_skill_sandbox, so the subject subprocess sees zero skills.
     """
-    sandbox = Path(tempfile.mkdtemp(prefix="evals-sandbox-"))
-    clean_home = Path(tempfile.mkdtemp(prefix="evals-home-"))
+    run = confined.stage_run()
     try:
-        host_aws = Path.home() / ".aws"
-        if host_aws.exists():
-            (clean_home / ".aws").symlink_to(host_aws)
-        yield sandbox, clean_home
+        yield run
     finally:
-        shutil.rmtree(sandbox, ignore_errors=True)
-        shutil.rmtree(clean_home, ignore_errors=True)
+        _report_leftovers(confined.cleanup_run(run))
 
 
-def build_subprocess_env(home: Path, extra: dict[str, str] | None = None) -> dict[str, str]:
-    """Build the env dict for a `claude -p` subprocess. Strips CLAUDECODE so
-    a session-local parent doesn't confuse the child, sets HOME to the clean
-    temp dir, and merges caller-supplied overrides (KUBECONFIG, AWS_* for the
-    read-only session policy, etc.)."""
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-    env["HOME"] = str(home)
-    if extra:
-        env.update(extra)
-    return env
+def _report_leftovers(left: list[str]) -> None:
+    for item in left:
+        print(f"[confined] not removed: {item}", file=sys.stderr)
 
 
 # ---------- stream parser -----------------------------------------------------
@@ -332,11 +311,8 @@ def run_single_query(
     dict from parse_stream_for_trigger (triggered / invalid / init_skills).
     Caller maps `triggered` to a pass/fail count.
     """
-    with stage_skill_sandbox(skill_name, repo_skill_dir) as (sandbox, home):
-        env = build_subprocess_env(home)
-
-        cmd = [
-            "claude",
+    with stage_skill_sandbox(skill_name, repo_skill_dir) as run:
+        args = [
             "-p", query,
             "--output-format", "stream-json",
             "--verbose",
@@ -344,16 +320,12 @@ def run_single_query(
             "--permission-mode", "bypassPermissions",
         ]
         if model:
-            cmd.extend(["--model", model])
+            args.extend(["--model", model])
 
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            cwd=str(sandbox),
-            env=env,
-        )
-        return parse_stream_for_trigger(process, skill_name, timeout=timeout)
+        with confined.launch_confined(
+            run, confined.claude_argv(args), "bedrock", timeout
+        ) as process:
+            return parse_stream_for_trigger(process, skill_name, timeout=timeout)
 
 
 # ---------- top-level aggregation ---------------------------------------------
@@ -544,6 +516,12 @@ def main() -> int:
 
     name, description = read_skill_meta(skill_dir)
 
+    try:
+        claude_version = confined.preflight(args.timeout)
+    except confined.ConfinedError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
     if args.verbose:
         print(f"[run_triggering] skill={name} prompts={len(eval_set)} "
               f"runs={args.runs_per_query} workers={args.num_workers} model={args.model}",
@@ -570,6 +548,7 @@ def main() -> int:
             print(f"  [{tag}] rate={rate} expected={r['should_trigger']}: {r['query'][:70]}",
                   file=sys.stderr)
 
+    output["confined_claude_version"] = claude_version
     print(json.dumps(output, indent=2))
     return 0
 

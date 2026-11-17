@@ -171,6 +171,7 @@ jobs:
           'misc/safe_frontmatter.py'
           'misc/tests/test_parse_trajectory_tokens.py'
           'misc/tests/test_eval_runner_robust.py'
+          'misc/tests/test_eval_confined.py'
           'misc/tests/test_safe_frontmatter.py'
           '.github/workflows/evals.yml'
           '.github/scripts/ci-gate.sh'
@@ -180,4 +181,4 @@ jobs:
           python-version: '3.x'
       - name: Run offline eval script and frontmatter parser checks
         if: steps.changes.outputs.relevant != 'false'
-        run: pip install 'pyyaml>=6,<7' && python3 -B misc/tests/test_parse_trajectory_tokens.py -v && python3 -B misc/tests/test_eval_runner_robust.py -v && python3 -B misc/tests/test_safe_frontmatter.py -v
+        run: pip install 'pyyaml>=6,<7' && python3 -B misc/tests/test_parse_trajectory_tokens.py -v && python3 -B misc/tests/test_eval_runner_robust.py -v && python3 -B misc/tests/test_eval_confined.py -v && python3 -B misc/tests/test_safe_frontmatter.py -v

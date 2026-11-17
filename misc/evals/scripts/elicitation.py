@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import confined
+
 
 @dataclass
 class CannedTurn:
@@ -150,19 +152,31 @@ def drain_stream_for_events(
     return events, timed_out
 
 
+def _run_turn(
+    run: confined.Run, args: list[str], turn: int, timeout: int
+) -> tuple[list[dict], bool]:
+    """One turn is its own confined unit with its own role session; HOME
+    (the run's home/) stays the same, so --resume finds the session."""
+    with confined.launch_confined(
+        run, confined.claude_argv(args), "bedrock", timeout,
+        unit_suffix=f"t{turn}", session_suffix=f"t{turn}",
+    ) as process:
+        return drain_stream_for_events(process, timeout)
+
+
 def run_multiturn_subject(
     *,
     initial_prompt: str,
     elicitation: ElicitationConfig,
-    cmd_base: list[str],
-    cwd: str,
-    env: dict[str, str],
+    args_base: list[str],
+    run: confined.Run,
     timeout_per_turn: int,
 ) -> tuple[list[dict], bool, str | None]:
     """Run a canned-multiturn session.
 
     Runs the initial prompt, detects questions, matches canned answers,
     and resumes the session until no more questions match or max_turns is hit.
+    args_base is the claude argument list without the binary or prompt.
 
     Returns (all_events, timed_out, session_id).
     """
@@ -171,11 +185,8 @@ def run_multiturn_subject(
     timed_out = False
 
     # First turn
-    cmd = cmd_base + ["-p", initial_prompt, "--session-id", session_id]
-    process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env
-    )
-    events, timed_out = drain_stream_for_events(process, timeout_per_turn)
+    args = args_base + ["-p", initial_prompt, "--session-id", session_id]
+    events, timed_out = _run_turn(run, args, 1, timeout_per_turn)
     all_events.extend(events)
 
     if timed_out:
@@ -193,11 +204,8 @@ def run_multiturn_subject(
             break
 
         turns_used += 1
-        cmd = cmd_base + ["-p", answer, "--resume", session_id]
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env
-        )
-        events, timed_out = drain_stream_for_events(process, timeout_per_turn)
+        args = args_base + ["-p", answer, "--resume", session_id]
+        events, timed_out = _run_turn(run, args, turns_used, timeout_per_turn)
         all_events.extend(events)
 
         if timed_out:
