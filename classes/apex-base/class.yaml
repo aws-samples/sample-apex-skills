@@ -31,12 +31,16 @@ parents: []
 # - The router's runbooks hold 16 `../../../<skill>/` paths, against
 #   apex.no-path-into-another-skill, all in the vendored eks-operation-review
 #   runbook (aws-samples/sample-apex-skills#520).
+# - eks-operation-review (owner-held, vendored) points into the router's
+#   runbook (SKILL.md:18, UPSTREAM.md:20), against
+#   apex.no-path-into-another-skill: its owner changes it.
 # - eks-platform-engineering pauses an ArgoCD sync "only after the user confirms" (SKILL.md, Guardrails), short of apex.read-only-unless-confirmed; it changes in step 5.
 # The router's `helm list` is replaced in this piece (skills/apex/SKILL.md,
 # shared rule 1).
 
 # Deterministic checks one CI script runs on every member.
 # status "exists" names today's command; "planned" is not built yet.
+# An optional `timeout` (seconds, default 120, at most 3600) bounds one run.
 checks:
   - id: frontmatter-lint
     what: "Parseable frontmatter; name equals the folder name; description present and <= 1024 chars"

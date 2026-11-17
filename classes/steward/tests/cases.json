@@ -75,6 +75,21 @@
     ]
   },
   {
+    "name": "ab-fm fail: U+2028 before --- does not end the frontmatter early",
+    "files": {
+      "skills/zz/SKILL.md": "---\nname: zz\ndescription: d ---\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-fm.py",
+      "skills/zz"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-FM FAIL skills/zz/SKILL.md frontmatter is not valid YAML"
+    ]
+  },
+  {
     "name": "ab-rule pass",
     "files": {
       "skills/demo/SKILL.md": "---\nname: demo\ndescription: A demo skill for tests.\n---\n<!-- APEX_CLASSES_START -->\n- **apex.one**: one.\n- **apex.two**: two.\n<!-- APEX_CLASSES_END -->\n# Demo\n",
@@ -192,6 +207,42 @@
     "exit": 1,
     "stdout_has": [
       "AB-PATH FAIL devops-agent/demo/references/notes.md:1 path into skills/demo"
+    ]
+  },
+  {
+    "name": "ab-path fail: a folder before the ../ run is resolved too",
+    "files": {
+      "skills/zz/SKILL.md": "---\nname: zz\ndescription: d\n---\n",
+      "skills/zz/references/a.md": "See references/../../../eks-genai/SKILL.md.\n",
+      "skills/eks-genai/SKILL.md": "---\nname: eks-genai\ndescription: d\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-path.py",
+      "skills/zz"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-PATH FAIL skills/zz/references/a.md:1 path into skills/eks-genai"
+    ]
+  },
+  {
+    "name": "ab-path fail: run from inside the skill folder, same result as from the root",
+    "files": {
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\n---\n",
+      "skills/other/SKILL.md": "---\nname: other\ndescription: d\n---\n",
+      "skills/demo/references/a.md": "See [other](../../other/SKILL.md).\n"
+    },
+    "cmd": [
+      "sh",
+      "-c",
+      "cd skills/demo && exec \"$0\" \"$1\" .",
+      "{python}",
+      "{repo}/classes/apex-base/checks/ab-path.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "AB-PATH FAIL references/a.md:1 path into ../other"
     ]
   },
   {
@@ -638,6 +689,159 @@
     ]
   },
   {
+    "name": "hook-test fail: ask expected, hook prints deny",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import json, sys\nsys.stdin.read()\nprint(json.dumps({'hookSpecificOutput': {'permissionDecision': 'deny'}}))\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"decision\": \"ask\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST FAIL demo-hook/kiro-shell expected decision ask",
+      "1 hook tests, 1 failed, 0 errors"
+    ]
+  },
+  {
+    "name": "hook-test fail: none expected, hook prints to stdout",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nprint('hello')\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"decision\": \"none\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST FAIL demo-hook/kiro-shell expected decision none",
+      "1 hook tests, 1 failed, 0 errors"
+    ]
+  },
+  {
+    "name": "hook-test fail: stdout lacks the expected text",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nprint('hello')\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"stdout_contains\": \"Secret\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST FAIL demo-hook/kiro-shell stdout lacks 'Secret'",
+      "1 hook tests, 1 failed, 0 errors"
+    ]
+  },
+  {
+    "name": "hook-test error: timeout is a string",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"timeout\": \"10\"}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST ERROR demo-hook/kiro-shell 'timeout' must be a positive number of seconds, at most 3600",
+      "1 hook tests, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "hook-test error: timeout is a boolean",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"timeout\": true}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST ERROR demo-hook/kiro-shell 'timeout' must be a positive number of seconds, at most 3600",
+      "1 hook tests, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "hook-test error: timeout is not finite",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"timeout\": 1e400}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST ERROR demo-hook/kiro-shell 'timeout' must be a positive number of seconds, at most 3600",
+      "1 hook tests, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "hook-test error: exit is a boolean",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": true}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST ERROR demo-hook/kiro-shell expected file needs an integer 'exit'",
+      "1 hook tests, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "hook-test error: decision is not a string",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"decision\": 1}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST ERROR demo-hook/kiro-shell 'decision' must be a string",
+      "1 hook tests, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "hook-test error: stdout_contains is not a string",
+    "files": {
+      "classes/demo/hooks/demo-hook/demo_hook.py": "import sys\nsys.stdin.read()\nsys.exit(0)\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.event.json": "{\"hook_event_name\": \"PreToolUse\", \"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}\n",
+      "classes/demo/hooks/demo-hook/tests/kiro-shell.expected.json": "{\"exit\": 0, \"stdout_contains\": 1}"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_hook_tests.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "HOOK-TEST ERROR demo-hook/kiro-shell 'stdout_contains' must be a string",
+      "1 hook tests, 0 failed, 1 errors"
+    ]
+  },
+  {
     "name": "runner pass: parent and child, parents first, planned not counted",
     "files": {
       "classes/parent/class.yaml": "name: parent\nparents: []\nchecks:\n  - id: p\n    status: exists\n    run: \"python3 classes/parent/p.py\"\n",
@@ -828,6 +1032,149 @@
     ]
   },
   {
+    "name": "runner error: timeout is a string",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    timeout: \"5\"\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import sys\nprint('B PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "b ERROR skills/demo class base: timeout must be a positive number of seconds, at most 3600",
+      "1 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner error: timeout is a boolean",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    timeout: true\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import sys\nprint('B PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "b ERROR skills/demo class base: timeout must be a positive number of seconds, at most 3600",
+      "1 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner error: timeout is not finite",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    timeout: .inf\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import sys\nprint('B PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "b ERROR skills/demo class base: timeout must be a positive number of seconds, at most 3600",
+      "1 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner error: FAIL as the last word is not a FAIL line",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import sys\nprint('x reason FAIL')\nprint('boom', file=sys.stderr)\nsys.exit(1)\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "b ERROR skills/demo exit 1 with no FAIL line: boom",
+      "1 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner error: a two-class cycle",
+    "files": {
+      "classes/a/class.yaml": "name: a\nparents: [b]\n",
+      "classes/b/class.yaml": "name: b\nparents: [a]\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"a\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "runner ERROR skills/demo class cycle at 'a'",
+      "0 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner error: parents is not a list",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: other\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "runner ERROR skills/demo classes/base/class.yaml: 'parents' must be a list",
+      "0 checks on 1 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner error: U+2028 before --- does not end the frontmatter early",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import sys\nprint('B PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\n",
+      "skills/zz/SKILL.md": "---\nname: zz\nmetadata:\n  apex-classes: \"base\"\ndescription: d ---\n---\n"
+    },
+    "cmd": [
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "runner ERROR skills/zz frontmatter is not valid YAML",
+      "0 checks on 0 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "runner: run from a subfolder, same result as from the root",
+    "files": {
+      "classes/base/class.yaml": "name: base\nparents: []\nchecks:\n  - id: b\n    status: exists\n    run: \"python3 classes/base/b.py\"\n",
+      "classes/base/b.py": "import sys\nprint('B PASS SKILL ok'.replace('SKILL', sys.argv[-1]))\n",
+      "skills/demo/SKILL.md": "---\nname: demo\ndescription: d\nmetadata:\n  apex-classes: \"base\"\n---\n"
+    },
+    "cmd": [
+      "sh",
+      "-c",
+      "cd skills/demo && exec \"$0\" \"$1\"",
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py"
+    ],
+    "exit": 0,
+    "commits": [
+      {
+        "files": {}
+      }
+    ],
+    "stdout_has": [
+      "B PASS skills/demo ok",
+      "1 checks on 1 skills, 0 failed, 0 errors"
+    ]
+  },
+  {
     "name": "runner: in the class folder it runs run_hook_tests.py beside it",
     "files": {
       "classes/steward/scripts/run_hook_tests.py": "print('HOOK-STUB class-folder name')\n",
@@ -873,6 +1220,65 @@
     ],
     "stdout_lacks": [
       "HOOK-STUB class-folder name"
+    ]
+  },
+  {
+    "name": "runner error: no hook-test runner beside it",
+    "files": {
+      "skills/plain/SKILL.md": "---\nname: plain\ndescription: d\n---\n"
+    },
+    "cmd": [
+      "sh",
+      "-c",
+      "mkdir -p misc classes/steward/scripts && cp \"$2\" misc/ && cp \"$1\" classes/steward/scripts/run_checks.py && exec \"$0\" classes/steward/scripts/run_checks.py",
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "{repo}/misc/safe_frontmatter.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "runner ERROR classes/steward/scripts/run_hook_tests.py no hook-test runner",
+      "0 checks on 0 skills, 0 failed, 1 errors"
+    ]
+  },
+  {
+    "name": "self-test fails a case whose in-order lines come out in another order",
+    "files": {
+      "classes/steward/tests/cases.json": "[\n  {\n    \"name\": \"inner\",\n    \"cmd\": [\n      \"{python}\",\n      \"-c\",\n      \"print('a'); print('b')\"\n    ],\n    \"exit\": 0,\n    \"stdout_in_order\": [\n      \"b\",\n      \"a\"\n    ]\n  }\n]\n"
+    },
+    "cmd": [
+      "sh",
+      "-c",
+      "mkdir -p misc classes/steward/scripts && cp \"$2\" misc/ && cp \"$1\" classes/steward/scripts/run_checks.py && exec \"$0\" classes/steward/scripts/run_checks.py --self-test",
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "{repo}/misc/safe_frontmatter.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "SELF-TEST FAIL inner",
+      "  lines out of order: ['b', 'a']",
+      "1 cases, 1 failed"
+    ]
+  },
+  {
+    "name": "self-test fails a case with an in-order line missing",
+    "files": {
+      "classes/steward/tests/cases.json": "[\n  {\n    \"name\": \"inner\",\n    \"cmd\": [\n      \"{python}\",\n      \"-c\",\n      \"print('a')\"\n    ],\n    \"exit\": 0,\n    \"stdout_in_order\": [\n      \"a\",\n      \"c\"\n    ]\n  }\n]\n"
+    },
+    "cmd": [
+      "sh",
+      "-c",
+      "mkdir -p misc classes/steward/scripts && cp \"$2\" misc/ && cp \"$1\" classes/steward/scripts/run_checks.py && exec \"$0\" classes/steward/scripts/run_checks.py --self-test",
+      "{python}",
+      "{repo}/classes/steward/scripts/run_checks.py",
+      "{repo}/misc/safe_frontmatter.py"
+    ],
+    "exit": 1,
+    "stdout_has": [
+      "SELF-TEST FAIL inner",
+      "  missing in-order line(s) ['c']",
+      "1 cases, 1 failed"
     ]
   }
 ]

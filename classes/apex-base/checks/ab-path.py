@@ -4,8 +4,8 @@
 
 Usage: ab-path.py <skill dir>
 
-Run from the repo root. Reads every text file of the skill and resolves
-each relative path that climbs with `../` from the file's folder. A path
+Reads every text file of the skill and resolves each relative path that
+climbs with `../`, the whole path from the file's folder. A path
 that lands inside another skill's folder (any skills/<name>/ or
 devops-agent/<name>/ that holds a SKILL.md, such as `../../eks-genai/SKILL.md`
 from skills/x/references/ or `../../../skills/eks-recon/x.md` from
@@ -24,7 +24,7 @@ import re
 import sys
 
 CHECK = "AB-PATH"
-CLIMB = re.compile(r"(?<![A-Za-z0-9_.-])((?:\.\./)+)([A-Za-z0-9._/-]*)")
+CLIMB = re.compile(r"(?<![A-Za-z0-9_./-])((?:[A-Za-z0-9._-]+/)*\.\./[A-Za-z0-9._/-]*)")
 SKILL_GLOBS = ("skills/*/SKILL.md", "devops-agent/*/SKILL.md")
 
 
@@ -37,7 +37,8 @@ def skill_files(skill_dir):
 
 def other_skills(skill_dir):
     own = os.path.realpath(skill_dir)
-    found = (os.path.realpath(os.path.dirname(p)) for g in SKILL_GLOBS for p in glob.glob(g))
+    root = os.path.dirname(os.path.dirname(own))
+    found = (os.path.realpath(os.path.dirname(p)) for g in SKILL_GLOBS for p in glob.glob(os.path.join(root, g)))
     return sorted(d for d in found if d != own)
 
 
@@ -50,7 +51,7 @@ def hits(others, path):
         return
     for number, line in enumerate(lines, 1):
         for m in CLIMB.finditer(line):
-            target = os.path.normpath(os.path.join(here, m.group(1), m.group(2)))
+            target = os.path.normpath(os.path.join(here, m.group(1)))
             for other in others:
                 if target == other or target.startswith(other + os.sep):
                     yield number, os.path.relpath(other)

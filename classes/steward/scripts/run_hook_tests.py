@@ -12,7 +12,7 @@ has `<harness>-<case>.expected.json` beside it:
 
 `exit` (an integer) is required; the rest are optional: `decision` and the
 `*_contains` fields are strings, `args` a list of strings, `timeout` a
-positive number of seconds. A field of the wrong type is ERROR. The hook script is
+positive number of seconds, at most 3600. A field of the wrong type is ERROR. The hook script is
 classes/<c>/hooks/<hook>/<hook, with - as _>.py (secret-deny/secret_deny.py),
 run with `args` and the event on stdin, from the repo root. Decisions:
 `block` is exit 2 with non-empty stderr, `none` exit 0 with empty stdout,
@@ -33,6 +33,7 @@ import sys
 
 HARNESSES = ("claude-code", "codex", "kiro")
 DEFAULT_TIMEOUT = 10
+MAX_TIMEOUT = 3600
 
 
 def decided(decision, rc, stdout, stderr):
@@ -74,8 +75,8 @@ def run_one(event_path):
     if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
         return "ERROR", "'args' must be a list of strings"
     timeout = expected.get("timeout", DEFAULT_TIMEOUT)
-    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
-        return "ERROR", "'timeout' must be a positive number of seconds"
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= MAX_TIMEOUT:
+        return "ERROR", f"'timeout' must be a positive number of seconds, at most {MAX_TIMEOUT}"
     for key in ("decision", "stdout_contains", "stderr_contains"):
         if key in expected and not isinstance(expected[key], str):
             return "ERROR", f"'{key}' must be a string"

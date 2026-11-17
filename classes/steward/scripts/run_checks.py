@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Admission-check runner: run every class.yaml check on every member skill.
 
-Usage, from the repo root:
+Usage, from the repo root or any folder in its git checkout (the runner
+moves to the top level first):
     run_checks.py [--report <class>]
     run_checks.py --self-test
 
@@ -12,7 +13,8 @@ walks the class chain, parents first and each class once, and runs each
 
   - status `exists`: its `run` command, from the repo root, with the skill
     folder as the last argument. Exit 0 is a pass, 1 a fail, anything else
-    (or a run past the entry's `timeout`, default 120 seconds) an error. An
+    (or a run past the entry's `timeout`, default 120 seconds, at most 3600)
+    an error. An
     exit 1 that printed no FAIL line is an error too.
   - status `planned`: not built yet, so never counted as a pass; named in a
     PLANNED line.
@@ -23,6 +25,8 @@ passes through; the runner adds `<id> ERROR <skill> <reason>` lines for
 errors. Then it prints `<n> checks on <m> skills, <f> failed, <e> errors`
 (plus `, <p> planned` when any are), runs the hook unit tests
 (run_hook_tests.py) unless --report, and exits 1 when any check or hook test failed or errored, else 0.
+A class.yaml `parents` that is not a list, or a missing hook-test runner, is
+an ERROR line.
 The hook-test runner is the file beside this one whose name is this file's
 with "checks" changed to "hook_tests": run_hook_tests.py in the class
 folder, steward_run_hook_tests.py in a member skill's synced copy.
@@ -31,7 +35,8 @@ folder, steward_run_hook_tests.py in a member skill's synced copy.
 output lists what would fail if every skill joined it, and always exits 0.
 
 --self-test runs the cases in classes/steward/tests/cases.json (outside
-scripts/, which the class sync copies flat into members): each one
+scripts/, which the planned class sync (draft PR 529) copies flat into
+members): each one
 builds a temp tree (a git repo when it has commits), runs a command there and
 asserts its exit code and literal output lines (present, absent, in order).
 """
@@ -53,6 +58,7 @@ import yaml  # noqa: E402
 from safe_frontmatter import FrontmatterError, load_frontmatter  # noqa: E402
 
 CHECK_TIMEOUT = 120
+MAX_TIMEOUT = 3600
 SKILL_GLOBS = ("skills/*/SKILL.md", "devops-agent/*/SKILL.md")
 
 
@@ -113,7 +119,10 @@ def chain(names, cache):
         if name in visiting:
             raise ClassError(f"class cycle at '{name}'")
         visiting.add(name)
-        for parent in load_class(name, cache).get("parents") or []:
+        parents = load_class(name, cache).get("parents") or []
+        if not isinstance(parents, list):
+            raise ClassError(f"classes/{name}/class.yaml: 'parents' must be a list")
+        for parent in parents:
             visit(parent)
         visiting.discard(name)
         order.append(name)
@@ -139,9 +148,11 @@ def run_member(skill_dir, classes, cache, counts):
                 print(f"{check_id} ERROR {skill_dir} class {cls}: status '{status}' needs a run command string")
                 continue
             timeout = entry.get("timeout", CHECK_TIMEOUT)
-            if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
+            if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) \
+                    or not 0 < timeout <= MAX_TIMEOUT:
                 counts["errors"] += 1
-                print(f"{check_id} ERROR {skill_dir} class {cls}: timeout must be a positive number of seconds")
+                print(f"{check_id} ERROR {skill_dir} class {cls}: timeout must be a positive number "
+                      f"of seconds, at most {MAX_TIMEOUT}")
                 continue
             try:
                 r = subprocess.run([*shlex.split(run), skill_dir], capture_output=True,
@@ -167,7 +178,17 @@ def run_member(skill_dir, classes, cache, counts):
                 print(f"{check_id} ERROR {skill_dir} exit {r.returncode}: {last}")
 
 
+def repo_top():
+    """The git top level of the current folder, or the current folder outside git."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    except OSError:
+        return "."
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else "."
+
+
 def run_all(report=None):
+    os.chdir(repo_top())
     cache = {}
     counts = {"checks": 0, "failed": 0, "errors": 0, "planned": 0}
     members = 0
@@ -182,6 +203,10 @@ def run_all(report=None):
         except (ClassError, FrontmatterError, yaml.YAMLError, OSError, UnicodeDecodeError) as e:
             counts["errors"] += 1
             print(f"runner ERROR {skill_dir} {e}")
+    hook_tests = os.path.join(HERE, os.path.basename(__file__).replace("checks", "hook_tests"))
+    if not report and not os.path.isfile(hook_tests):
+        counts["errors"] += 1
+        print(f"runner ERROR {os.path.relpath(hook_tests)} no hook-test runner")
     summary = (f"{counts['checks']} checks on {members} skills, "
                f"{counts['failed']} failed, {counts['errors']} errors")
     if counts["planned"]:
@@ -192,9 +217,10 @@ def run_all(report=None):
     if report:
         return 0
     rc = 1 if counts["failed"] or counts["errors"] else 0
+    if not os.path.isfile(hook_tests):
+        return rc
     sys.stdout.flush()
-    hook_tests = os.path.basename(__file__).replace("checks", "hook_tests")
-    r = subprocess.run([sys.executable, os.path.join(HERE, hook_tests)])
+    r = subprocess.run([sys.executable, hook_tests])
     return 1 if r.returncode != 0 else rc
 
 
