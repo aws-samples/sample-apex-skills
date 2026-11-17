@@ -43,7 +43,8 @@ git add skills/<name>/ misc/evals/<name>/ misc/update-pages.sh
 git add docs/adr/<NNNN>-<slug>.md docs/adr/README.md docs/design/skill-design.md
 git add misc/evals/<sibling>/README.md misc/evals/<sibling>/triggering.json   # one pair per sibling
 git add README.md skills/README.md misc/website/docs/skills/index.md \
-  misc/website/static/manifests/skills.json misc/website/docs/skills/<group>/<name>/
+  misc/website/static/manifests/skills.json misc/website/static/llms.txt \
+  misc/website/docs/skills/<group>/<name>/   # plus misc/website/docs/skills/<group>/index.md for eks- and ecs- skills
 git status --porcelain        # only the paths you meant; nothing else staged
 git commit -m "feat(skills): add <name> skill"
 git push -u origin feat/<name>-skill

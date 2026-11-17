@@ -26,7 +26,7 @@ The list to run is the Steward class's `generators` in `classes/steward/class.ya
 | Command | Rebuilds | Reads sources from |
 |---|---|---|
 | `./misc/update-all-references.sh` | Marker blocks in `README.md` (Skills and Examples reference), the detail block in `skills/README.md`, `devops-agent/README.md`. It runs `misc/update-skills-references.sh` and its siblings; that script fails (exit 1) on a skill with no `SKILL_META` line, no summary or a group not in `README_GROUPS`. | The filesystem (`skills/*/SKILL.md` front matter) and the `SKILL_META` table in `misc/update-pages.sh` |
-| `./misc/update-pages.sh` | Website wrappers `misc/website/docs/skills/<group>/<name>/index.md` (and one per `.md` under the skill), the card grid `misc/website/docs/skills/index.md`, `misc/website/static/manifests/skills.json` and `misc/website/static/llms.txt` | `git ls-files`, so only staged or committed files |
+| `./misc/update-pages.sh` | Website wrappers `misc/website/docs/skills/<group>/<name>/index.md` (and one per `.md` under the skill), the group page `misc/website/docs/skills/<group>/index.md` for `eks` and `ecs`, the card grid `misc/website/docs/skills/index.md`, `misc/website/static/manifests/skills.json` and `misc/website/static/llms.txt` | `git ls-files`, so only staged or committed files |
 
 `<group>` is `eks` for `eks-*` names, `ecs` for `ecs-*`, else `general`.
 
@@ -40,7 +40,8 @@ Then stage what they produced, by path. List it with `git status --porcelain` an
 
 ```bash
 git add README.md skills/README.md misc/website/docs/skills/index.md \
-  misc/website/static/manifests/skills.json misc/website/docs/skills/general/<name>/
+  misc/website/static/manifests/skills.json misc/website/static/llms.txt \
+  misc/website/docs/skills/general/<name>/
 ```
 
 Anything in that list you did not expect (a file outside the generator outputs, a stray report) stays unstaged: find out why it changed first.
