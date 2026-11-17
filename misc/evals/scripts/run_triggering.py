@@ -249,6 +249,8 @@ def _handle_line(
         evt = json.loads(line)
     except json.JSONDecodeError:
         return pending_block
+    if not isinstance(evt, dict):
+        return pending_block
 
     etype = evt.get("type")
 

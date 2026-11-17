@@ -42,7 +42,7 @@ def extract_assistant_text(events_path: Path) -> str:
                 evt = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if evt.get("type") != "assistant":
+            if not isinstance(evt, dict) or evt.get("type") != "assistant":
                 continue
             msg = evt.get("message", {})
             for block in msg.get("content", []):
