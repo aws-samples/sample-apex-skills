@@ -1,0 +1,17 @@
+# Script: a skill whose own scripts do the task and give a typed result.
+# Determinism and the OS matrix stay here; typed input and checked output
+# sit in Operator.
+
+name: script
+parents: [operator]
+
+checks:
+  - id: output-schema-fixtures
+    what: "Schema validation of fixtures"
+    status: planned
+  - id: k-run-diff
+    what: "Same input, same output across k runs"
+    status: planned
+  - id: os-matrix-ci
+    what: "The skill's scripts run in CI on Linux, macOS and Windows"
+    status: planned

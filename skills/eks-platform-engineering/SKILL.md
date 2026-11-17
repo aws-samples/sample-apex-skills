@@ -85,7 +85,7 @@ Self-service is only safe if the guardrails are built **into** the golden path, 
 - **Least-privilege IAM, Pod Security Admission, and ingress conventions** — encoded once in the platform's application abstraction (the kro composition or, on KubeVela, the OAM traits), so every app inherits them by default instead of each team getting them right by hand.
 - **Git is the default change path, for people and assistants alike**: an assistant holding `kubectl` must be told that a `kubectl patch`/`edit`/`scale` on an ArgoCD self-heal resource is reverted on the next sync; it proposes the change in Git, and pauses sync (a scoped, recorded break-glass window) only after the user confirms (see [references/gitops-delivery.md](references/gitops-delivery.md)).
 
-The platform team owns these controls; app teams get them for free. For the cluster-level depth behind each one, use `eks-best-practices` (its `security.md` and `security-supply-chain.md` references).
+The platform team owns these controls; app teams get them for free. For the cluster-level depth behind each one, use the `eks-best-practices` skill (its security and supply-chain guidance).
 
 ## Application Modeling — the developer-facing abstraction
 

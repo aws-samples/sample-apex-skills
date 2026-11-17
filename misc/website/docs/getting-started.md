@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Getting Started
-description: "How to install APEX skills in Claude Code, Kiro CLI, Codex, AWS DevOps Agent or another Agent Skills harness, verify them and add the agent rules."
+description: "How to install APEX skills in Claude Code, Kiro CLI, Codex, AWS DevOps Agent or another Agent Skills harness, and verify them."
 ---
 
 # Getting Started
@@ -109,24 +109,6 @@ In your harness, run:
 ```
 
 You should see the EKS reconnaissance skill prompt for cluster context.
-
-## Add Agent Rules (recommended)
-
-We provide a [`rules/AGENTS.md`](https://github.com/aws-samples/sample-apex-skills/tree/main/rules) file with recommended rules for agents using APEX skills — skill discovery, upstream source verification, and safety guardrails.
-
-Add the contents to your project's existing agent configuration:
-
-| Tool | Where to add |
-|------|-------------|
-| Claude Code | Append to your project's `CLAUDE.md` |
-| Cursor | Add to `.cursor/rules/apex.mdc` |
-| Codex | Append to your project's `AGENTS.md` |
-| Kiro | Add to `.kiro/steering/apex-rules.md` |
-| Gemini CLI | Append to your project's `GEMINI.md` |
-
-Claude Code (v2.1.277 or later; v2.1.281 or later in some sessions, such as on Amazon Bedrock or with telemetry disabled), Codex and Kiro also read a root `AGENTS.md`: you can append these rules there. Claude Code reads `AGENTS.md` only when no `CLAUDE.md` is in the working directory or above, so if you have a `CLAUDE.md`, append there or import with `@AGENTS.md`.
-
-See [`rules/AGENTS.md`](https://github.com/aws-samples/sample-apex-skills/blob/main/rules/AGENTS.md) for the full content.
 
 ## Next steps
 
