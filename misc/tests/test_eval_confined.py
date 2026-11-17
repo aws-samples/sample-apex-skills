@@ -400,6 +400,77 @@ class LaunchSiteTests(ConfinedTestCase):
         self.assert_confined(seen, 1)
 
 
+class StreamTailTests(unittest.TestCase):
+    """A client that has already exited leaves its last lines as one tail."""
+
+    def test_task_and_turn_readers_keep_every_tail_line(self):
+        for drain in (run_task_evals.drain_stream, elicitation.drain_stream_for_events):
+            events, timed_out = drain(fake_proc([INIT, ASK, '{"type":"result"}']), 10)
+            self.assertFalse(timed_out)
+            self.assertEqual([e["type"] for e in events], ["system", "assistant", "result"], drain)
+
+
+NOISY = ("import sys; sys.stderr.write('x' * 400000); sys.stderr.flush(); "
+         "print('{\"type\":\"system\",\"subtype\":\"init\",\"skills\":[]}')")
+
+
+class NoisyStderrTests(ConfinedTestCase):
+    """A unit that writes more stderr than a pipe holds must not stall the
+    run. The fake launch starts a Python child that writes 400 kB to stderr,
+    then one stdout line; never claude."""
+
+    def launches(self):
+        seen = []
+
+        @contextlib.contextmanager
+        def fake_launch(run, argv, policy_kind, timeout, **kw):
+            seen.append(argv)
+            proc = _REAL_POPEN([sys.executable, "-c", NOISY], stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE,
+                               stderr=kw.get("stderr", subprocess.PIPE))
+            try:
+                yield proc
+            finally:
+                if proc.poll() is None:
+                    proc.kill()
+                proc.wait()
+
+        stack = contextlib.ExitStack()
+        stack.enter_context(mock.patch.object(confined, "launch_confined", fake_launch))
+        stack.enter_context(mock.patch.object(confined, "cleanup_run", return_value=[]))
+        stack.enter_context(mock.patch.object(confined, "read_back", return_value=[]))
+        return seen, stack
+
+    def test_subject_does_not_stall(self):
+        skill = self.tmp / "skill"
+        skill.mkdir()
+        (skill / "SKILL.md").write_text("---\nname: skill\n---\n")
+        seen, stack = self.launches()
+        with stack:
+            out = run_task_evals.run_subject(
+                prompt="p", skill_name="skill", repo_skill_dir=skill, with_skill=True,
+                model="m", timeout=8, run_dir=self.tmp / "run",
+            )
+        self.assertTrue(out["ok"], out.get("reason"))
+        self.assertEqual(len(seen), 1)
+
+    def test_grader_does_not_stall(self):
+        transcript = self.tmp / "transcript.md"
+        transcript.write_text("t")
+        outputs = self.tmp / "outputs"
+        outputs.mkdir()
+        run_dir = self.tmp / "grader-run"
+        run_dir.mkdir()
+        seen, stack = self.launches()
+        with stack:
+            out = run_task_evals.run_grader(
+                expectations=["e"], transcript_path=transcript, outputs_dir=outputs,
+                run_dir=run_dir, model="m", timeout=8,
+            )
+        self.assertFalse(out.get("timed_out"), out)
+        self.assertTrue(out.get("stderr", "").endswith("x" * 100), out.get("stderr", "")[-20:])
+
+
 class TriggeringFailureTests(ConfinedTestCase):
     def query(self, proc):
         @contextlib.contextmanager

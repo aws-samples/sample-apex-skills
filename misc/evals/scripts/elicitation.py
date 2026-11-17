@@ -147,8 +147,10 @@ def drain_stream_for_events(
             if line.strip():
                 _append_event(events, line)
 
-    if buffer.strip():
-        _append_event(events, buffer)
+    # A client that already exited leaves its last lines as one tail.
+    for line in buffer.split("\n"):
+        if line.strip():
+            _append_event(events, line)
     return events, timed_out
 
 
@@ -161,6 +163,7 @@ def _run_turn(
     with confined.launch_confined(
         run, confined.claude_argv(args), "bedrock", timeout,
         unit_suffix=f"t{turn}", session_suffix=f"t{turn}",
+        stderr=subprocess.DEVNULL,
     ) as process:
         events, timed_out = drain_stream_for_events(process, timeout)
         return events, timed_out, process.poll()

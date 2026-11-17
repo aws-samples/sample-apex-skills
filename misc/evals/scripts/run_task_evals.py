@@ -119,8 +119,10 @@ def drain_stream(
             if line.strip():
                 _append_event(events, line)
 
-    if buffer.strip():
-        _append_event(events, buffer)
+    # A client that already exited leaves its last lines as one tail.
+    for line in buffer.split("\n"):
+        if line.strip():
+            _append_event(events, line)
     return events, timed_out
 
 
@@ -501,17 +503,15 @@ def run_subject(
                 "--permission-mode", "bypassPermissions",
                 "--model", model,
             ]
-            with confined.launch_confined(
-                run, confined.claude_argv(args), "bedrock", timeout
+            # stderr goes to a file, so a noisy subject cannot fill a pipe
+            # nobody reads while stdout is drained.
+            with tempfile.TemporaryFile() as err, confined.launch_confined(
+                run, confined.claude_argv(args), "bedrock", timeout, stderr=err
             ) as process:
                 events, timed_out = drain_stream(process, timeout=timeout)
-                stderr = b""
-                if process.stderr:
-                    try:
-                        stderr = process.stderr.read() or b""
-                    except Exception:
-                        stderr = b""
                 process.wait()
+                err.seek(0)
+                stderr = err.read()
             turn_error = None
             returncode = process.returncode
 
@@ -638,16 +638,13 @@ def _run_grader(
             "--permission-mode", "bypassPermissions",
             "--model", model,
         ]
-        with confined.launch_confined(
-            run, confined.claude_argv(args), "bedrock", timeout
+        with tempfile.TemporaryFile() as err, confined.launch_confined(
+            run, confined.claude_argv(args), "bedrock", timeout, stderr=err
         ) as process:
             events, timed_out = drain_stream(process, timeout=timeout)
-            stderr = b""
-            if process.stderr:
-                try:
-                    stderr = process.stderr.read() or b""
-                except Exception:
-                    stderr = b""
+            process.wait()
+            err.seek(0)
+            stderr = err.read()
         with tempfile.TemporaryDirectory(prefix="evals-grader-") as tmp:
             for item in confined.read_back(run, Path(tmp)):
                 print(f"[task]   grader read-back dropped: {item}", file=sys.stderr)
