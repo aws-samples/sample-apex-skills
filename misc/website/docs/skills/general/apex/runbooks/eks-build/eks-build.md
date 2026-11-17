@@ -322,7 +322,7 @@ Before presenting the generated project, verify:
 | AZs | 3 |
 | Instance type | m6i.xlarge |
 | Node count | min 2, max 10, desired 3 |
-| Node scaling | Cluster Autoscaler (Karpenter is the eks-design default; Auto Mode the least-operations choice) |
+| Node scaling | Cluster Autoscaler (Karpenter is the eks-design and eks-best-practices default; Auto Mode the least-operations choice) |
 | AMI | AL2023_x86_64_STANDARD |
 | Registry | ECR |
 | Auth model | Pod Identity (IRSA for Helm add-ons via eks-blueprints-addons) |

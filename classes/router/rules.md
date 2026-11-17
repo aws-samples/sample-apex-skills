@@ -1,6 +1,6 @@
 # Router rules
 
-A router skill picks the skill for a request, carries context between skills, suggests what could help next and follows the customer's runbooks. Each routed skill owns its own procedure; do not re-implement it here. The tables these rules use are in `references/routing.md`.
+A router skill picks the skill for a request, carries context between skills, suggests what could help next and follows the customer's runbooks. Each routed skill owns its own procedure; do not re-implement it here. The tables these rules use are in `references/router-routing.md`.
 
 - **router.decides-route**: When this router is loaded, it decides the route, even if another skill's description also matched the request. Load only the skill it routes to for the current step (the ECS-or-EKS row loads its two skills together). If another skill already loaded for this request and the route here differs, name both skills and ask the user which to use; if the route is the skill already loaded, carry on with it. If the conversation began in another skill without this router, apply these rules from the point this router loads.
 - **router.most-specific-row**: Pick the most specific row in the routing tables; a catch-all row applies only when no more specific row fits. When more than one row fits, break the tie in this order: the most specific row first, then the stage hint, then one question that names both skills.
