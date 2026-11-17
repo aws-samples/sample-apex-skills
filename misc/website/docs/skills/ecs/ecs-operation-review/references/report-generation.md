@@ -60,7 +60,7 @@ Every entry includes the finding ID and name (e.g., "04.1 - Deployment Circuit B
 **Ordering within Critical AND Important** (blast radius — apply the same category order to both tables):
 1. **Security first** - plaintext secrets, over-broad task roles, privileged containers, GuardDuty Runtime Monitoring off on Fargate, public ingress direct to tasks.
 2. **Availability next** - no circuit breaker/rollback, single-AZ or single-replica critical services, AZ rebalancing off, missing health-check grace period, missing service autoscaling, managed termination protection off.
-3. **Cost last** - no retention policy, resilience-only Spot flags (dollar work -> `ecs-cost-intelligence`).
+3. **Cost last** - no retention policy, resilience-only Spot flags.
 
 Within each category, order estate/cluster-wide before single-service. In the **Important** table this ordering (plus the Impact column) keeps availability AMBERs (single-replica, AZ rebalancing off) visibly above capped hygiene items (missing tags, runbook gaps) — do not interleave them.
 

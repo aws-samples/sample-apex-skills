@@ -28,8 +28,7 @@ import type {CatalogSkill} from './skillCatalog';
 
 const ROUTE_AWAY = /\b(do not use|not for|skip for|route elsewhere|use instead)\b/i;
 const SKILL_TOKEN = /\b[a-z0-9]+(-[a-z0-9]+)+\b/g;
-// "for cost/TCO use ecs-cost-intelligence" (ecs-operation-review) routes to a
-// skill that does not ship yet.
+// "for cost posture use ecs-architect" (ecs-operation-review) names another skill.
 const ROUTE_TO = /\buse [a-z0-9]+(-[a-z0-9]+)+\b/;
 // Query words only. "skills" stems to "skill"; the rest are the filler of a
 // task sentence such as "how do i upgrade my cluster".

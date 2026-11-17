@@ -31,7 +31,7 @@ Discover everything about an ECS environment. Run this skill to gather comprehen
 - You need to understand the ECS setup before giving guidance
 
 **Do NOT use this skill for:**
-- **Cost scoring or efficiency analysis** — belongs to `ecs-cost-intelligence` (once available)
+- **Cost scoring or efficiency analysis** — not covered by an APEX skill; cost posture as a design criterion is `ecs-architect`'s
 - **Security auditing or compliance scoring** — belongs to `ecs-security`
 - **Best-practices evaluation or maturity ratings** — belongs to `ecs-operation-review`
 - **Migration planning (replatform/refactor onto ECS)** — belongs to `ecs-modernize`
@@ -387,18 +387,6 @@ deployment:
 ---
 
 ## Integration with Other Workflows
-
-### Cost Intelligence Workflow
-
-The cost intelligence workflow can invoke ecs-recon to gather baseline context:
-
-```
-1. Run ecs-recon modules: overview, compute, autoscaling
-2. Extract:
-   - Cluster capacity providers → cost model
-   - Service task counts → utilization baseline
-   - Auto scaling config → scaling efficiency
-```
 
 ### Security Audit Workflow
 
