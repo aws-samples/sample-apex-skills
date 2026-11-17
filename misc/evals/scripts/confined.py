@@ -35,8 +35,8 @@ the same uid and could otherwise read another unit's environment through
 (`tar`, which never follows links) and deletes them through a cleanup unit.
 
 The host steps (user, directories, the claude copy) are done once by
-misc/evals/setup/install-eval-boundary.sh; the role and its two policies are
-misc/evals/setup/eval-bedrock-invoke-*.json.
+misc/evals/setup/install-eval-boundary.sh; a documented example of the role's
+two policies is misc/evals/setup/eval-bedrock-invoke-*.json.
 """
 
 from __future__ import annotations
@@ -87,8 +87,8 @@ IP_DENY = [
 ]
 # Hidden on top of ProtectHome; "-" skips a path the host does not have.
 INACCESSIBLE = ["-/var/log"]
-# This host's own paths to hide as well: one absolute path per line, "#"
-# comments. Absent means none.
+# This host's own paths to hide as well: one absolute path per line. Absent
+# means none.
 HOST_HIDDEN_FILE = Path.home() / ".apex-eval" / "inaccessible-paths"
 
 # Role chaining caps a session at one hour, and AssumeRole takes 900 s at least.
@@ -245,14 +245,15 @@ def inaccessible_paths() -> list[str]:
         text = HOST_HIDDEN_FILE.read_text()
     except FileNotFoundError:
         return list(INACCESSIBLE)
-    except OSError as e:
-        raise ConfinedError(f"cannot read {HOST_HIDDEN_FILE}: {e.strerror}") from None
+    except (OSError, UnicodeDecodeError) as e:
+        raise ConfinedError(f"cannot read {HOST_HIDDEN_FILE}: {e}") from None
     extra = []
     for line in text.splitlines():
         path = line.strip()
-        if not path or path.startswith("#"):
+        if not path:
             continue
-        if not path.startswith("/") or re.search(r"[\s\"'\\]", path):
+        if (not path.startswith("/") or not path.strip("/") or ".." in path.split("/")
+                or re.search(r"[\s\"'\\\x00]", path)):
             raise ConfinedError(f"{HOST_HIDDEN_FILE}: not a plain absolute path: {path[:80]!r}")
         extra.append(f"-{path}")
     return INACCESSIBLE + extra
@@ -268,6 +269,13 @@ def _parent_aws_env() -> dict:
     env["AWS_CONFIG_FILE"] = str(PARENT_AWS_CONFIG)
     env["AWS_SHARED_CREDENTIALS_FILE"] = os.devnull
     return env
+
+
+def _signin_hint(err: str) -> str:
+    if "custom-process" in err or "credential_process" in err:
+        return (f" (the {PARENT_PROFILE} profile's credential_process failed; "
+                "renew its sign-in, then rerun)")
+    return ""
 
 
 _account: str | None = None
@@ -288,7 +296,7 @@ def role_arn() -> str:
         if r.returncode != 0 or not re.fullmatch(r"\d{12}", account):
             detail = (r.stderr.strip() or account)[-200:]
             raise ConfinedError(
-                f"cannot read the account of profile {PARENT_PROFILE} "
+                f"cannot read the account of profile {PARENT_PROFILE}{_signin_hint(r.stderr)} "
                 f"(aws sts get-caller-identity): {detail}")
         _account = account
     return f"arn:aws:iam::{_account}:role/{ROLE_NAME}"
@@ -313,11 +321,7 @@ def mint_role_session(session_name: str, timeout: int) -> dict:
     r = subprocess.run(cmd, capture_output=True, text=True, env=_parent_aws_env())
     if r.returncode != 0:
         err = r.stderr.strip()
-        hint = ""
-        if "custom-process" in err or "credential_process" in err:
-            hint = (f" (the {PARENT_PROFILE} profile's credential_process failed; "
-                    "renew its sign-in, then rerun)")
-        raise ConfinedError(f"role session mint failed{hint}: {err[-300:]}")
+        raise ConfinedError(f"role session mint failed{_signin_hint(err)}: {err[-300:]}")
     return json.loads(r.stdout)["Credentials"]
 
 

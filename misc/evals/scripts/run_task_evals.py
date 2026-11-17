@@ -28,9 +28,12 @@ Grader caching is *intentional*-not-supported — every invocation pays the
 grader call so we can detect grader drift.
 
 Exit codes:
-  0  all runs completed, benchmark generated
-  1  subject or grader subprocess failure we couldn't recover from
-  2  invalid inputs (missing evals.json, no fixture-free prompts, etc.)
+  0  every skill ran (benchmark generated) or was skipped (no fixture-free
+     prompts)
+  1  a skill returned an error (missing evals.json, bad eval ids, ...), or
+     the run stopped on a ConfinedError (a failed mint or launch)
+  2  the start checks refused the run (confined.preflight), or --skill
+     names no known skill
 """
 
 from __future__ import annotations
@@ -1050,7 +1053,8 @@ def main() -> int:
                 claude_version=claude_version,
             )
         except confined.ConfinedError as e:
-            # A failed mint or launch stops the run, as in run_triggering.
+            # Any ConfinedError (a failed mint or launch, a refused fixture,
+            # a failed read-back) stops the run, as in run_triggering.
             print(f"error: run stopped: {e}", file=sys.stderr)
             return 1
         result["confined_claude_version"] = claude_version

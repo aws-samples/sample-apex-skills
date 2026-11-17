@@ -363,12 +363,16 @@ class LaunchTests(ConfinedTestCase):
             return next(a for a in argv if a.startswith("InaccessiblePaths="))
 
         self.assertEqual(hidden(), "InaccessiblePaths=-/var/log")
-        confined.HOST_HIDDEN_FILE.write_text("# this host\n/var/lib/other\n\n")
+        confined.HOST_HIDDEN_FILE.write_text("/var/lib/other\n\n")
         self.assertEqual(hidden(), "InaccessiblePaths=-/var/log -/var/lib/other")
-        for bad in ("var/lib/x\n", "/var/lib/a b\n"):
+        for bad in ("var/lib/x\n", "/var/lib/a b\n", "# x\n", "/\n", "/var/../etc\n",
+                    "/var/x\0y\n"):
             confined.HOST_HIDDEN_FILE.write_text(bad)
             with self.assertRaisesRegex(confined.ConfinedError, "plain absolute path"):
                 hidden()
+        confined.HOST_HIDDEN_FILE.write_bytes(b"/var/\xff\n")
+        with self.assertRaisesRegex(confined.ConfinedError, "cannot read"):
+            hidden()
 
     def test_triggering_query_goes_through_launch_confined(self):
         seen = {}
@@ -501,6 +505,28 @@ class LaunchSiteTests(ConfinedTestCase):
         self.assertEqual(left, [])
         self.assert_confined(seen, 1)
 
+    def test_cleanup_left_reaches_the_subject_and_grader_results(self):
+        def cleanup(run):
+            run.left.append("left by cleanup")
+            return run.left
+
+        transcript = self.tmp / "transcript.md"
+        transcript.write_text("t")
+        outputs = self.tmp / "outputs"
+        outputs.mkdir()
+        run_dir = self.tmp / "grader-run"
+        run_dir.mkdir()
+        seen, stack = self.launches(fake_proc([INIT]), fake_proc([INIT]))
+        left = []
+        with stack, mock.patch.object(confined, "cleanup_run", side_effect=cleanup):
+            out = self.subject()
+            run_task_evals.run_grader(
+                expectations=["e"], transcript_path=transcript, outputs_dir=outputs,
+                run_dir=run_dir, model="m", timeout=60, left_out=left,
+            )
+        self.assertEqual(out["cleanup_left"], ["left by cleanup"])
+        self.assertEqual(left, ["left by cleanup"])
+
 
 class StreamTailTests(unittest.TestCase):
     """A client that has already exited leaves its last lines as one tail."""
@@ -574,9 +600,35 @@ class NoisyStderrTests(ConfinedTestCase):
         self.assertFalse(out.get("timed_out"), out)
         self.assertTrue(out.get("stderr", "").endswith("x" * 100), out.get("stderr", "")[-20:])
 
+    def test_triggering_query_does_not_stall(self):
+        skill = self.tmp / "s"
+        skill.mkdir()
+        (skill / "SKILL.md").write_text("x")
+        seen, stack = self.launches()
+        with stack:
+            out = run_triggering.run_single_query("q", "s", skill, None, 8)
+        self.assertFalse(out["invalid"], out)
+        self.assertEqual(len(seen), 1)
+
+    def test_multiturn_turn_does_not_stall(self):
+        skill = self.tmp / "skill"
+        skill.mkdir()
+        (skill / "SKILL.md").write_text("---\nname: skill\n---\n")
+        seen, stack = self.launches()
+        elicit = {"strategy": "canned-multiturn", "max_turns": 3,
+                  "turns": [{"question_match": "region", "answer": "us-west-2"}]}
+        with stack:
+            out = run_task_evals.run_subject(
+                prompt="p", skill_name="skill", repo_skill_dir=skill, with_skill=True,
+                model="m", timeout=8, run_dir=self.tmp / "run",
+                elicitation=elicitation.ElicitationConfig.from_dict(elicit),
+            )
+        self.assertTrue(out["ok"], out.get("reason"))
+        self.assertEqual(len(seen), 1)
+
 
 class TriggeringFailureTests(ConfinedTestCase):
-    def query(self, proc):
+    def query(self, proc, cleanup=lambda run: []):
         @contextlib.contextmanager
         def fake_launch(run, argv, policy_kind, timeout, **kw):
             yield proc
@@ -586,7 +638,7 @@ class TriggeringFailureTests(ConfinedTestCase):
         (skill / "SKILL.md").write_text("x")
         with mock.patch("subprocess.Popen", side_effect=AssertionError("direct Popen")), \
              mock.patch.object(confined, "launch_confined", fake_launch), \
-             mock.patch.object(confined, "cleanup_run", return_value=[]):
+             mock.patch.object(confined, "cleanup_run", side_effect=cleanup):
             return run_triggering.run_single_query("q", "s", skill, None, 90)
 
     def test_unit_that_never_starts_is_invalid(self):
@@ -603,6 +655,19 @@ class TriggeringFailureTests(ConfinedTestCase):
         out = self.query(fake_proc([INIT]))
         self.assertFalse(out["invalid"])
         self.assertFalse(out["triggered"])
+
+    def test_cleanup_left_reaches_the_result_and_the_row(self):
+        def cleanup(run):
+            run.left.append("left by cleanup")
+            return run.left
+
+        out = self.query(fake_proc([INIT]), cleanup=cleanup)
+        self.assertEqual(out["cleanup_left"], ["left by cleanup"])
+        rows = self.eval_with(mock.Mock(return_value={
+            "triggered": False, "invalid": False, "init_skills": [],
+            "cleanup_left": ["left by cleanup"],
+        }))
+        self.assertEqual(rows["results"][0]["cleanup_left"], ["left by cleanup"])
 
     def eval_with(self, single_query):
         with mock.patch.object(run_triggering, "ProcessPoolExecutor", ThreadPoolExecutor), \
@@ -766,7 +831,7 @@ class PreflightTests(ConfinedTestCase):
         # The base class's patch restores these when the test ends.
         confined._account = None
 
-    def host(self, account="123456789012\n", rc=0):
+    def host(self, account="123456789012\n", rc=0, err="ExpiredToken"):
         fake = FakeHost()
         base = fake.run
 
@@ -774,7 +839,7 @@ class PreflightTests(ConfinedTestCase):
             if argv[:3] == ["aws", "sts", "get-caller-identity"]:
                 fake.calls.append(list(argv))
                 fake.identity_env = kw.get("env")
-                return _Done(returncode=rc, stdout=account, stderr="ExpiredToken" if rc else "")
+                return _Done(returncode=rc, stdout=account, stderr=err if rc else "")
             return base(argv, **kw)
 
         fake.run = run
@@ -782,11 +847,15 @@ class PreflightTests(ConfinedTestCase):
 
     def test_reads_the_account_at_run_time(self):
         fake = self.host()
-        with self.patched(fake):
+        caller = {"AWS_PROFILE": "caller", "AWS_ACCESS_KEY_ID": "caller-key"}
+        with self.patched(fake), mock.patch.dict(os.environ, caller):
             confined.preflight(600)
         ident = next(c for c in fake.calls if c[:3] == ["aws", "sts", "get-caller-identity"])
         self.assertEqual(ident[ident.index("--profile") + 1], confined.PARENT_PROFILE)
         self.assertEqual(fake.identity_env["AWS_CONFIG_FILE"], str(confined.PARENT_AWS_CONFIG))
+        self.assertEqual({k: v for k, v in fake.identity_env.items() if k.startswith("AWS_")},
+                         {"AWS_CONFIG_FILE": str(confined.PARENT_AWS_CONFIG),
+                          "AWS_SHARED_CREDENTIALS_FILE": os.devnull})
         self.assertEqual(confined.role_arn(),
                          f"arn:aws:iam::123456789012:role/{confined.ROLE_NAME}")
         self.assertFalse(any(c[:3] == ["aws", "sts", "assume-role"] for c in fake.calls))
@@ -799,6 +868,24 @@ class PreflightTests(ConfinedTestCase):
                  self.assertRaisesRegex(confined.ConfinedError, "cannot read the account"):
                 confined.preflight(600)
             self.assertFalse(any(c[:3] == ["aws", "sts", "assume-role"] for c in fake.calls))
+
+    def test_failed_account_read_fails_closed_and_names_the_sign_in(self):
+        # rc 1 with a 12-digit stdout still fails; an expired credential_process
+        # gets the renew hint. (mint_role_session's session-name check at
+        # fullmatch stays untested: its names are built here, evals-<run id>.)
+        fake = self.host(rc=1, err="Error when retrieving credentials from custom-process")
+        with self.patched(fake), \
+             self.assertRaisesRegex(confined.ConfinedError, "renew its sign-in"):
+            confined.preflight(600)
+        self.assertFalse(any(c[:3] == ["aws", "sts", "assume-role"] for c in fake.calls))
+
+    def test_bad_host_file_stops_preflight_before_any_mint(self):
+        confined.HOST_HIDDEN_FILE.write_text("var/lib/x\n")
+        fake = self.host()
+        with self.patched(fake), \
+             self.assertRaisesRegex(confined.ConfinedError, "plain absolute path"):
+            confined.preflight(600)
+        self.assertFalse(any(c[:3] == ["aws", "sts", "assume-role"] for c in fake.calls))
 
     def test_no_aws_cli_is_refused(self):
         with mock.patch.object(confined.shutil, "which", return_value=None), \
@@ -877,6 +964,17 @@ class TriggerStreamTests(unittest.TestCase):
         self.assertIn("timed out", out["invalid_reason"])
         self.assertIsNotNone(p.poll())
 
+    def test_client_alive_after_eof_is_invalid(self):
+        # stdout closes, then the client lives past the 5 s wait and exits 1.
+        code = (f"import os, time; print({INIT!r}, flush=True); os.close(1); "
+                "time.sleep(7); os._exit(1)")
+        p = _REAL_POPEN([sys.executable, "-c", code], stdin=subprocess.DEVNULL,
+                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        out = run_triggering.parse_stream_for_trigger(p, "s", timeout=30)
+        p.stdout.close()
+        self.assertTrue(out["invalid"], out)
+        self.assertIn("no exit code", out["invalid_reason"])
+
     def test_every_tail_line_is_read_and_the_pending_block_carried(self):
         skill_use = json.dumps({"type": "assistant", "message": {"content": [
             {"type": "tool_use", "name": "Skill", "input": {"skill": "s"}}]}})
@@ -907,6 +1005,86 @@ class TaskMainTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("run stopped: role session mint failed", err.getvalue())
         self.assertEqual(run_skill.call_count, 1)
+        self.assertEqual(run_skill.call_args.kwargs["claude_version"], "2.0.0")
+
+
+class RunSkillRecordTests(ConfinedTestCase):
+    """run_skill with the subject, grader and benchmark mocked."""
+
+    def test_live_only_dropped_and_version_and_cleanup_recorded(self):
+        evals = self.tmp / "evals"
+        (evals / "demo").mkdir(parents=True)
+        (evals / "demo" / "evals.json").write_text(json.dumps({"evals": [
+            {"id": 1, "prompt": "needs a cluster", "expectations": ["e"], "live_only": True},
+            {"id": 2, "prompt": "offline", "expectations": ["e"]},
+        ]}))
+        (self.tmp / "skills" / "demo").mkdir(parents=True)
+        (self.tmp / "skills" / "demo" / "SKILL.md").write_text(
+            "---\nname: demo\ndescription: d\n---\n")
+        prompts = []
+
+        def subject(**kw):
+            prompts.append(kw["prompt"])
+            kw["run_dir"].mkdir(parents=True)
+            return {"ok": True, "transcript_path": str(self.tmp / "t"),
+                    "outputs_dir": str(self.tmp / "o"), "cleanup_left": ["subject left"]}
+
+        def grader(**kw):
+            kw["left_out"].append("grader left")
+            return {"summary": {}}
+
+        def benchmark(skill, runs_dir):
+            (runs_dir / "benchmark.json").write_text("{}")
+
+        with mock.patch("subprocess.Popen", side_effect=AssertionError("direct Popen")), \
+             mock.patch.object(confined, "launch_confined", side_effect=AssertionError("launch")), \
+             mock.patch.multiple(
+                 run_task_evals, EVALS_ROOT=evals, REPO_ROOT=self.tmp,
+                 HISTORY_DIR=self.tmp / "history", run_subject=subject, run_grader=grader,
+                 run_benchmark=benchmark, update_latest_symlink=mock.Mock()):
+            out = run_task_evals.run_skill("demo", model="m", runs=1, subject_timeout=60,
+                                           grader_timeout=60, claude_version="2.0.0")
+        self.assertEqual(prompts, ["offline", "offline"])
+        infos = [json.loads(p.read_text()) for p in Path(out["runs_dir"]).rglob("confined.json")]
+        self.assertEqual(len(infos), 2)
+        for info in infos:
+            self.assertEqual(info, {"claude_version": "2.0.0",
+                                    "subject_cleanup_left": ["subject left"],
+                                    "grader_cleanup_left": ["grader left"]})
+        row = json.loads((self.tmp / "history" / "demo.jsonl").read_text())
+        self.assertEqual(row["claude_version"], "2.0.0")
+
+
+class AllEvalsHistoryTests(unittest.TestCase):
+    def test_history_row_records_the_confined_claude_version(self):
+        append = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "s").mkdir()
+            (Path(tmp) / "s" / "triggering.json").write_text("[]")
+            (Path(tmp) / "s" / "README.md").write_text("")
+            with mock.patch("subprocess.Popen", side_effect=AssertionError("direct Popen")), \
+                 mock.patch.multiple(
+                     run_all_evals, EVALS_ROOT=Path(tmp), append_history=append,
+                     hygiene_check=mock.Mock(return_value=mock.Mock(warnings=[])),
+                     parse_sibling_map=mock.Mock(return_value=["x"]),
+                     build_index_to_sibling=mock.Mock(return_value=({}, [], [])),
+                     read_history=mock.Mock(return_value=[]),
+                     load_task_benchmark=mock.Mock(return_value=None),
+                     previous_task_mean=mock.Mock(return_value=None),
+                     build_snapshot=mock.Mock(return_value={"started_at": "t"}),
+                     run_triggering=mock.Mock(return_value=(0, "{}", "")),
+                     extract_run_eval_json=mock.Mock(
+                         return_value={"confined_claude_version": "2.0.0"}),
+                     enrich_metrics=mock.Mock(return_value={}),
+                     persist_artifacts=mock.Mock(return_value=Path(tmp)),
+                     history_compact_entry=mock.Mock(return_value={}),
+                     compute_from_workspace=mock.Mock(return_value=None),
+                     load_config=mock.Mock()):
+                run_all_evals.process_skill(
+                    "s", model_flag=None, runs_flag=None, workers_flag=None,
+                    skip_triggering=False, resolved_model="m", resolved_provider="bedrock",
+                    resolved_runs=1)
+        self.assertEqual(append.call_args.args[1]["claude_version"], "2.0.0")
 
 
 if __name__ == "__main__":

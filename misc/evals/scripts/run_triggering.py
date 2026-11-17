@@ -190,8 +190,12 @@ def parse_stream_for_trigger(
             chunk = os.read(process.stdout.fileno(), 8192)
             if not chunk:
                 # EOF: the client exits right after; read its exit code.
-                with contextlib.suppress(subprocess.TimeoutExpired):
+                try:
                     out["exit_code"] = process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # An unknown exit is a run error, never a clean result.
+                    if not out["invalid"]:
+                        _emit_invalid("no exit code 5s after EOF")
                 break
             buffer += chunk.decode("utf-8", errors="replace")
 
