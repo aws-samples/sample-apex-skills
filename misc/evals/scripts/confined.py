@@ -90,6 +90,9 @@ INACCESSIBLE = ["-/var/log"]
 # This host's own paths to hide as well: one absolute path per line. Absent
 # means none.
 HOST_HIDDEN_FILE = Path.home() / ".apex-eval" / "inaccessible-paths"
+# The account the parent profile must resolve to: one 12-digit id, written
+# by the operator on this host. Required: role_arn() refuses any other.
+HOST_ACCOUNT_FILE = Path.home() / ".apex-eval" / "expected-account"
 
 # Role chaining caps a session at one hour, and AssumeRole takes 900 s at least.
 SESSION_MIN, SESSION_MAX, SESSION_SLACK = 900, 3600, 300
@@ -283,10 +286,12 @@ _account: str | None = None
 
 def role_arn() -> str:
     """The role's ARN in the parent profile's own account. The account is
-    read once per process with `aws sts get-caller-identity`; any failure
-    raises, so no launch runs on a guessed account."""
+    read once per process with `aws sts get-caller-identity` and must equal
+    HOST_ACCOUNT_FILE; any failure raises, so no launch runs on a guessed or
+    unexpected account."""
     global _account
     if _account is None:
+        expected = expected_account()
         r = subprocess.run(
             ["aws", "sts", "get-caller-identity", "--profile", PARENT_PROFILE,
              "--region", AWS_REGION, "--query", "Account", "--output", "text"],
@@ -298,8 +303,27 @@ def role_arn() -> str:
             raise ConfinedError(
                 f"cannot read the account of profile {PARENT_PROFILE}{_signin_hint(r.stderr)} "
                 f"(aws sts get-caller-identity): {detail}")
+        if account != expected:
+            raise ConfinedError(
+                f"profile {PARENT_PROFILE} resolves to account {account}, not the "
+                f"{expected} in {HOST_ACCOUNT_FILE}")
         _account = account
     return f"arn:aws:iam::{_account}:role/{ROLE_NAME}"
+
+
+def expected_account() -> str:
+    """The one 12-digit account id in HOST_ACCOUNT_FILE. Absent, unreadable
+    or any other content raises."""
+    try:
+        text = HOST_ACCOUNT_FILE.read_text()
+    except (OSError, UnicodeDecodeError) as e:
+        raise ConfinedError(
+            f"cannot read {HOST_ACCOUNT_FILE} (write the eval account id there, "
+            f"misc/evals/README.md Step 0): {e}") from None
+    account = text.strip()
+    if not re.fullmatch(r"\d{12}", account):
+        raise ConfinedError(f"{HOST_ACCOUNT_FILE}: not one 12-digit account id")
+    return account
 
 
 def mint_role_session(session_name: str, timeout: int) -> dict:

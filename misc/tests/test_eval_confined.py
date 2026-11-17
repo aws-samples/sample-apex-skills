@@ -114,6 +114,7 @@ class ConfinedTestCase(unittest.TestCase):
             # The AWS documentation's example account id.
             mock.patch.object(confined, "_account", "123456789012"),
             mock.patch.object(confined, "HOST_HIDDEN_FILE", self.tmp / "inaccessible-paths"),
+            mock.patch.object(confined, "HOST_ACCOUNT_FILE", self.tmp / "expected-account"),
         ]
         for p in self.patches:
             p.start()
@@ -830,6 +831,7 @@ class PreflightTests(ConfinedTestCase):
             self.addCleanup(p.stop)
         # The base class's patch restores these when the test ends.
         confined._account = None
+        confined.HOST_ACCOUNT_FILE.write_text("123456789012\n")
 
     def host(self, account="123456789012\n", rc=0, err="ExpiredToken"):
         fake = FakeHost()
@@ -878,6 +880,25 @@ class PreflightTests(ConfinedTestCase):
              self.assertRaisesRegex(confined.ConfinedError, "renew its sign-in"):
             confined.preflight(600)
         self.assertFalse(any(c[:3] == ["aws", "sts", "assume-role"] for c in fake.calls))
+
+    def test_expected_account_file_is_required_and_must_match(self):
+        # Absent, malformed and another account each stop preflight before
+        # any assume-role; the match case is test_reads_the_account_at_run_time.
+        cases = [(None, "cannot read .*expected-account"),
+                 ("12345678901\n", "not one 12-digit account id"),
+                 ("123456789012\n111122223333\n", "not one 12-digit account id"),
+                 ("111122223333\n", "resolves to account 123456789012, not the 111122223333")]
+        for content, msg in cases:
+            confined._account = None
+            if content is None:
+                confined.HOST_ACCOUNT_FILE.unlink(missing_ok=True)
+            else:
+                confined.HOST_ACCOUNT_FILE.write_text(content)
+            fake = self.host()
+            with self.subTest(content=content), self.patched(fake), \
+                 self.assertRaisesRegex(confined.ConfinedError, msg):
+                confined.preflight(600)
+            self.assertFalse(any(c[:3] == ["aws", "sts", "assume-role"] for c in fake.calls))
 
     def test_bad_host_file_stops_preflight_before_any_mint(self):
         confined.HOST_HIDDEN_FILE.write_text("var/lib/x\n")
