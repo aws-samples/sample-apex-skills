@@ -1,0 +1,1352 @@
+{
+ "_about": "Cases for misc/tests/test_class_validators.py. recon_report is a valid eks-recon YAML artifact (SKILL.md Step 4b envelope, module keys from references/<module>.md Output Schema); each output case applies its mutations to a copy (set or delete at a dot path), writes it as YAML and expects the validators' exit code (0 valid, 1 invalid, 2 cannot check). V1 is the done test's broken fixture.",
+ "recon_report": {
+  "report": {
+   "schema_revision": "eks-recon/2026-11-11",
+   "generated_at": "2026-11-17T02:15:00Z",
+   "unconfirmed_paths": []
+  },
+  "cluster": {
+   "name": "demo-cluster",
+   "region": "us-west-2",
+   "version": "1.33",
+   "platform_version": "eks.9",
+   "endpoint": "https://0123456789ABCDEF.gr7.us-west-2.eks.amazonaws.com",
+   "arn": "arn:aws:eks:us-west-2:111122223333:cluster/demo-cluster",
+   "status": "ACTIVE",
+   "created_at": "2025-06-01T10:00:00Z",
+   "tags": {
+    "team": "platform"
+   }
+  },
+  "cluster_detail": {
+   "upgrade_policy": {
+    "support_type": "STANDARD"
+   },
+   "zonal_shift": {
+    "enabled": false
+   },
+   "certificate_authority": {
+    "present": true
+   },
+   "health": {
+    "issues": []
+   },
+   "encryption_config": {
+    "detected": true,
+    "kms_key_arn": "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab",
+    "resources": [
+     "secrets"
+    ]
+   }
+  },
+  "compute": {
+   "strategy": "Karpenter",
+   "auto_mode": {
+    "enabled": false,
+    "node_pools": null,
+    "node_role_arn": null
+   },
+   "karpenter": {
+    "detected": true,
+    "version": "1.5.0",
+    "api_version": "karpenter.sh/v1",
+    "nodepools": 1,
+    "nodepool_names": [
+     "default"
+    ],
+    "ec2_node_classes": {
+     "count": 1,
+     "names": [
+      "default"
+     ]
+    },
+    "node_classes": {
+     "count": 0,
+     "names": []
+    }
+   },
+   "mng": {
+    "detected": true,
+    "count": 1,
+    "groups": [
+     {
+      "name": "system",
+      "instance_types": [
+       "m6i.large"
+      ],
+      "desired": 2
+     }
+    ]
+   },
+   "fargate": {
+    "detected": false,
+    "profiles": 0,
+    "profile_names": [],
+    "profile_details": []
+   },
+   "self_managed": {
+    "detected": false,
+    "node_count": 0
+   },
+   "nodes": [
+    {
+     "name": "ip-10-0-1-10.us-west-2.compute.internal",
+     "instance_type": "m6i.large",
+     "capacity_type": "ON_DEMAND",
+     "zone": "us-west-2a",
+     "os": "linux",
+     "arch": "amd64",
+     "kubelet_version": "v1.33.1-eks-1a2b3c4",
+     "os_image": "Amazon Linux 2023.7.20250609"
+    }
+   ],
+   "nodes_windows_present": false
+  },
+  "networking": {
+   "vpc_id": "vpc-0abc1234def567890",
+   "subnet_ids": [
+    "subnet-0a1",
+    "subnet-0b2"
+   ],
+   "cluster_security_group_id": "sg-0c1d2e3f",
+   "security_groups": {
+    "count": 0,
+    "list": []
+   },
+   "ip_family": "ipv4",
+   "service_cidr": "172.20.0.0/16",
+   "endpoint_access": {
+    "public": true,
+    "private": true,
+    "public_cidrs": [
+     "0.0.0.0/0"
+    ]
+   },
+   "subnets": {
+    "count": 2,
+    "list": [
+     {
+      "id": "subnet-0a1",
+      "az": "us-west-2a",
+      "cidr": "10.0.1.0/24",
+      "free": 240
+     },
+     {
+      "id": "subnet-0b2",
+      "az": "us-west-2b",
+      "cidr": "10.0.2.0/24",
+      "free": 238
+     }
+    ]
+   },
+   "vpc_secondary_cidrs": [],
+   "node_subnets": {
+    "count": 1,
+    "list": [
+     {
+      "id": "subnet-0a1",
+      "az": "us-west-2a",
+      "node_count": 1,
+      "in_cluster_subnet_list": true
+     }
+    ]
+   },
+   "cni": {
+    "type": "vpc-cni",
+    "vpc_cni": {
+     "version": "v1.19.5-eksbuild.1",
+     "prefix_delegation": false
+    }
+   },
+   "kube_proxy": {
+    "present": true,
+    "mode": "iptables"
+   },
+   "ingress": {
+    "controllers": [
+     {
+      "name": "aws-load-balancer-controller",
+      "namespace": "kube-system"
+     }
+    ],
+    "classes": {
+     "count": 1,
+     "names": [
+      "alb"
+     ]
+    },
+    "gateway_api": {
+     "crds_present": false
+    }
+   },
+   "load_balancers": {
+    "services": {
+     "count": 0
+    },
+    "target_group_bindings": {
+     "count": 0
+    },
+    "aws_load_balancers": {
+     "count": 1
+    }
+   },
+   "service_mesh": {
+    "type": null,
+    "istio": {
+     "detected": false
+    },
+    "appmesh": {
+     "detected": false
+    },
+    "linkerd": {
+     "detected": false
+    }
+   },
+   "dns": {
+    "coredns": {
+     "replicas": 2
+    },
+    "nodelocal_dns": {
+     "detected": false
+    }
+   },
+   "network_policies": {
+    "count": 0,
+    "namespaces_with_policies": {
+     "count": 0,
+     "list": []
+    },
+    "calico": {
+     "detected": false
+    },
+    "cilium": {
+     "detected": false
+    },
+    "aws_cluster_network_policies": 0,
+    "aws_application_network_policies": 0
+   },
+   "external_dns": {
+    "detected": false,
+    "domain_filters": []
+   }
+  },
+  "security": {
+   "authentication": {
+    "mode": "API_AND_CONFIG_MAP",
+    "access_entries": {
+     "count": 2
+    },
+    "aws_auth_configmap": {
+     "present": true
+    },
+    "oidc": {
+     "issuer": "https://oidc.eks.us-west-2.amazonaws.com/id/0123456789ABCDEF",
+     "provider_exists": true
+    }
+   },
+   "iam_for_pods": {
+    "model": "pod_identity",
+    "pod_identity": {
+     "detected": true,
+     "associations": 2
+    },
+    "irsa": {
+     "detected": false
+    }
+   },
+   "pod_security": {
+    "psa_enabled": true,
+    "enforcement": {
+     "restricted": 0,
+     "baseline": 1,
+     "privileged": 0
+    }
+   },
+   "policy_engines": {
+    "kyverno": {
+     "detected": false
+    },
+    "opa_gatekeeper": {
+     "detected": false
+    }
+   },
+   "secrets": {
+    "kms_encryption": {
+     "enabled": true
+    },
+    "external_secrets_operator": {
+     "detected": false
+    },
+    "secrets_store_csi": {
+     "detected": false
+    }
+   },
+   "image_security": {
+    "ecr_used": true,
+    "private_registries": [],
+    "admission_policies": []
+   },
+   "admission_webhooks": {
+    "validating": {
+     "count": 2
+    },
+    "mutating": {
+     "count": 3
+    }
+   },
+   "rbac": {
+    "cluster_roles": 70,
+    "cluster_role_bindings": 55,
+    "roles": 12,
+    "role_bindings": 14,
+    "wildcard_roles": 3,
+    "cluster_admin_bindings": [
+     {
+      "name": "cluster-admin",
+      "subjects": [
+       "system:masters"
+      ]
+     }
+    ]
+   }
+  },
+  "addons": {
+   "eks_managed": {
+    "count": 3,
+    "list": [
+     {
+      "name": "vpc-cni",
+      "version": "v1.19.5-eksbuild.1"
+     },
+     {
+      "name": "coredns",
+      "version": "v1.11.4-eksbuild.14"
+     },
+     {
+      "name": "kube-proxy",
+      "version": "v1.33.0-eksbuild.2"
+     }
+    ]
+   },
+   "core_components": {
+    "vpc_cni": {
+     "managed": true
+    },
+    "coredns": {
+     "managed": true
+    },
+    "kube_proxy": {
+     "managed": true
+    }
+   },
+   "helm_releases": {
+    "count": 1,
+    "list": [
+     {
+      "name": "karpenter",
+      "namespace": "kube-system"
+     }
+    ]
+   },
+   "platform_components": {
+    "aws_load_balancer_controller": {
+     "detected": true
+    },
+    "external_dns": {
+     "detected": false
+    },
+    "cert_manager": {
+     "detected": false
+    },
+    "metrics_server": {
+     "detected": true
+    },
+    "external_secrets": {
+     "detected": false
+    },
+    "secrets_store_csi": {
+     "detected": false
+    },
+    "cluster_autoscaler": {
+     "detected": false
+    }
+   },
+   "crds": {
+    "count": 24,
+    "notable": [
+     "nodepools.karpenter.sh",
+     "ec2nodeclasses.karpenter.k8s.aws"
+    ]
+   }
+  },
+  "observability": {
+   "metrics": {
+    "container_insights": {
+     "enabled": false
+    },
+    "prometheus": {
+     "detected": false
+    },
+    "grafana": {
+     "detected": false
+    },
+    "alertmanager": {
+     "detected": false
+    },
+    "scrape_configs": {
+     "count": 0
+    },
+    "remote_write_targets": [],
+    "other_tools": {
+     "datadog": false
+    }
+   },
+   "logging": {
+    "control_plane": {
+     "enabled_types": [
+      "api",
+      "audit"
+     ]
+    },
+    "application": {
+     "fluent_bit": false
+    },
+    "log_destinations": {
+     "cloudwatch": true
+    }
+   },
+   "tracing": {
+    "tool": null,
+    "otel": {
+     "detected": false
+    },
+    "xray": {
+     "detected": false
+    },
+    "jaeger": {
+     "detected": false
+    },
+    "tempo": {
+     "detected": false
+    }
+   },
+   "apm": {
+    "application_signals": {
+     "enabled": false
+    },
+    "auto_instrumentation": {
+     "detected": false
+    }
+   }
+  },
+  "workloads": {
+   "summary": {
+    "deployments": 6,
+    "statefulsets": 0,
+    "daemonsets": 3,
+    "cronjobs": 1,
+    "jobs": 0,
+    "services": 5,
+    "ingresses": 1,
+    "hpas": 0,
+    "pdbs": 1,
+    "namespaces_with_workloads": 3
+   },
+   "by_namespace": [
+    {
+     "namespace": "kube-system",
+     "deployments": 4
+    },
+    {
+     "namespace": "shop",
+     "deployments": 2
+    }
+   ],
+   "deployments": {
+    "count": 6,
+    "list": [
+     {
+      "namespace": "shop",
+      "name": "web",
+      "replicas": 2,
+      "ready": 2
+     }
+    ]
+   },
+   "statefulsets": {
+    "count": 0,
+    "list": []
+   },
+   "daemonsets": {
+    "count": 3,
+    "list": [
+     {
+      "namespace": "kube-system",
+      "name": "aws-node",
+      "desired": 1,
+      "ready": 1
+     }
+    ]
+   },
+   "cronjobs": {
+    "count": 1,
+    "list": [
+     {
+      "namespace": "shop",
+      "name": "report",
+      "schedule": "0 2 * * *",
+      "suspend": false,
+      "last_schedule": "2026-11-17T02:00:00Z"
+     }
+    ]
+   },
+   "jobs": {
+    "count": 0,
+    "list": []
+   },
+   "services": {
+    "count": 5,
+    "by_type": {
+     "ClusterIP": 5
+    },
+    "list": [
+     {
+      "namespace": "shop",
+      "name": "web",
+      "type": "ClusterIP"
+     }
+    ]
+   },
+   "ingresses": {
+    "count": 1,
+    "list": [
+     {
+      "namespace": "shop",
+      "name": "web",
+      "class": "alb"
+     }
+    ]
+   },
+   "hpas": {
+    "count": 0,
+    "list": []
+   },
+   "pdbs": {
+    "count": 1,
+    "list": [
+     {
+      "namespace": "shop",
+      "name": "web"
+     }
+    ]
+   },
+   "priority_classes": {
+    "count": 2,
+    "list": [
+     "system-cluster-critical",
+     "system-node-critical"
+    ]
+   },
+   "vpas": {
+    "detected": false,
+    "count": 0,
+    "list": []
+   },
+   "api_versions_in_use": [
+    "apps/v1",
+    "batch/v1",
+    "networking.k8s.io/v1"
+   ],
+   "images": {
+    "unique": {
+     "count": 2,
+     "list": [
+      "public.ecr.aws/nginx/nginx:1.27",
+      "111122223333.dkr.ecr.us-west-2.amazonaws.com/report:1.4"
+     ]
+    },
+    "by_registry": [
+     {
+      "registry": "public.ecr.aws",
+      "count": 1
+     },
+     {
+      "registry": "111122223333.dkr.ecr.us-west-2.amazonaws.com",
+      "count": 1
+     }
+    ]
+   }
+  },
+  "storage": {
+   "csi_drivers": {
+    "ebs": {
+     "detected": true
+    },
+    "efs": {
+     "detected": false
+    },
+    "s3": {
+     "detected": false
+    },
+    "fsx": {
+     "detected": false
+    },
+    "other": {
+     "list": []
+    }
+   },
+   "storage_classes": {
+    "count": 1,
+    "default": "gp3",
+    "list": [
+     {
+      "name": "gp3",
+      "provisioner": "ebs.csi.aws.com"
+     }
+    ]
+   },
+   "pvs": {
+    "count": 0,
+    "total_capacity": null,
+    "by_status": {},
+    "list": []
+   },
+   "pvcs": {
+    "count": 0,
+    "by_storage_class": [],
+    "by_status": {}
+   },
+   "snapshots": {
+    "snapshot_crds_present": false,
+    "controller_installed": false,
+    "controller_version": null,
+    "snapshot_classes": {
+     "count": 0
+    },
+    "volume_snapshots": 0
+   },
+   "backup_tooling": {
+    "velero": {
+     "detected": false
+    },
+    "aws_backup": {
+     "detected": false
+    },
+    "kasten": {
+     "detected": false
+    }
+   }
+  },
+  "iac": {
+   "tools_detected": [
+    "Terraform"
+   ],
+   "confidence": "high",
+   "evidence": {
+    "type": "tags",
+    "details": [
+     "terraform-aws-modules tag on the cluster"
+    ]
+   },
+   "workspace": {
+    "terraform": {
+     "detected": true
+    },
+    "cloudformation": {
+     "detected": false
+    },
+    "cdk": {
+     "detected": false
+    },
+    "eksctl": {
+     "detected": false
+    },
+    "pulumi": {
+     "detected": false
+    },
+    "crossplane": {
+     "detected": false
+    },
+    "ack": {
+     "detected": false
+    }
+   },
+   "tags": {
+    "terraform_managed": true,
+    "eksctl_created": false,
+    "cfn_stack_id": null
+   }
+  },
+  "cicd": {
+   "workspace": {
+    "tools": {
+     "count": 1
+    },
+    "github_actions": {
+     "detected": true
+    },
+    "gitlab_ci": {
+     "detected": false
+    },
+    "jenkins": {
+     "detected": false
+    },
+    "circleci": {
+     "detected": false
+    },
+    "codepipeline": {
+     "detected": false
+    },
+    "atlantis": {
+     "detected": false
+    }
+   },
+   "gitops": {
+    "tool": "ArgoCD",
+    "status": "detected",
+    "detected": true,
+    "tools_detected": [
+     "ArgoCD"
+    ],
+    "evidence": [
+     "argocd namespace with argocd-server"
+    ],
+    "argocd": {
+     "version": "v3.0.6"
+    },
+    "flux": {
+     "detected": false
+    }
+   },
+   "other_tools": {
+    "spinnaker": {
+     "detected": false
+    },
+    "tekton": {
+     "detected": false
+    }
+   }
+  },
+  "cluster_insights": {
+   "count": 1,
+   "list": [
+    {
+     "id": "a1b2c3d4",
+     "name": "Kubelet version skew",
+     "category": "UPGRADE_READINESS",
+     "status": "PASSING",
+     "kubernetes_version": "1.34",
+     "last_refresh_time": "2026-11-17T01:58:00Z",
+     "description": "Checks kubelet versions against the control plane."
+    }
+   ]
+  }
+ },
+ "output_cases": [
+  {
+   "id": "V0",
+   "what": "the full report",
+   "mutations": [],
+   "expect": 0
+  },
+  {
+   "id": "V1",
+   "what": "done test broken fixture: report.generated_at removed",
+   "mutations": [
+    {
+     "op": "delete",
+     "path": "report.generated_at"
+    }
+   ],
+   "expect": 1,
+   "message": "missing required key 'generated_at'"
+  },
+  {
+   "id": "V2",
+   "what": "cluster.version as a number",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "cluster.version",
+     "value": 1.31
+    }
+   ],
+   "expect": 1,
+   "message": "$.cluster.version: expected string or null, got number"
+  },
+  {
+   "id": "V2b",
+   "what": "generated_at unquoted in YAML loads as a timestamp",
+   "yaml_replace": [
+    "generated_at: '2026-11-17T02:15:00Z'",
+    "generated_at: 2026-11-17T02:15:00Z"
+   ],
+   "expect": 1,
+   "message": "got datetime"
+  },
+  {
+   "id": "V2c",
+   "what": "generated_at not a date-time",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "report.generated_at",
+     "value": "yesterday"
+    }
+   ],
+   "expect": 1,
+   "message": "not an RFC 3339 date-time"
+  },
+  {
+   "id": "V3",
+   "what": "an unavailable module",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "storage",
+     "value": {
+      "unavailable": true,
+      "reason": "MCP 401 and kubectl not configured"
+     }
+    }
+   ],
+   "expect": 0
+  },
+  {
+   "id": "V3b",
+   "what": "an unavailable module with no reason",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "storage",
+     "value": {
+      "unavailable": true
+     }
+    }
+   ],
+   "expect": 1,
+   "message": "$.storage: matches none"
+  },
+  {
+   "id": "V4",
+   "what": "a partial module keeps its object with null leaves",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "workloads.ingresses",
+     "value": {
+      "count": null,
+      "list": null
+     }
+    },
+    {
+     "op": "set",
+     "path": "report.unconfirmed_paths",
+     "value": [
+      "workloads.ingresses"
+     ]
+    }
+   ],
+   "expect": 0
+  },
+  {
+   "id": "V4b",
+   "what": "ingresses: null for an object",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "workloads.ingresses",
+     "value": null
+    }
+   ],
+   "expect": 1,
+   "message": "$.workloads.ingresses: expected object, got null"
+  },
+  {
+   "id": "V4c",
+   "what": "node_subnets: null, which networking.md prescribes when the node list is unobtainable",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "networking.node_subnets",
+     "value": null
+    }
+   ],
+   "expect": 0
+  },
+  {
+   "id": "V4d",
+   "what": "helm_releases unconfirmed form, which addons.md prescribes",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "addons.helm_releases",
+     "value": {
+      "unconfirmed": true,
+      "reason": "helm CLI absent and secret fallback unavailable"
+     }
+    }
+   ],
+   "expect": 0
+  },
+  {
+   "id": "V5",
+   "what": "no schema_revision",
+   "mutations": [
+    {
+     "op": "delete",
+     "path": "report.schema_revision"
+    }
+   ],
+   "expect": 1,
+   "message": "missing required key 'schema_revision'"
+  },
+  {
+   "id": "V5b",
+   "what": "an older schema_revision",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "report.schema_revision",
+     "value": "eks-recon/2026-10-31"
+    }
+   ],
+   "expect": 1,
+   "message": "must equal"
+  },
+  {
+   "id": "V7",
+   "what": "an unknown top-level key",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "computer",
+     "value": {}
+    }
+   ],
+   "expect": 1,
+   "message": "unexpected key 'computer'"
+  },
+  {
+   "id": "V8",
+   "what": "a module missing a schema key",
+   "mutations": [
+    {
+     "op": "delete",
+     "path": "compute.karpenter"
+    }
+   ],
+   "expect": 1,
+   "message": "missing required key 'karpenter'"
+  },
+  {
+   "id": "V9",
+   "what": "no cluster block",
+   "mutations": [
+    {
+     "op": "delete",
+     "path": "cluster"
+    }
+   ],
+   "expect": 1,
+   "message": "missing required key 'cluster'"
+  },
+  {
+   "id": "V10",
+   "what": "a non-string unconfirmed path",
+   "mutations": [
+    {
+     "op": "set",
+     "path": "report.unconfirmed_paths",
+     "value": [
+      3
+     ]
+    }
+   ],
+   "expect": 1,
+   "message": "$.report.unconfirmed_paths[0]"
+  },
+  {
+   "id": "V11",
+   "what": "a targeted run: report and cluster only",
+   "keep_only": [
+    "report",
+    "cluster"
+   ],
+   "expect": 0
+  }
+ ],
+ "unreadable_outputs": [
+  {
+   "id": "V6b",
+   "what": "an empty output file",
+   "text": "",
+   "expect": 2,
+   "message": "empty document"
+  },
+  {
+   "id": "V6c",
+   "what": "unparseable YAML",
+   "text": "report: [unclosed\n",
+   "expect": 2,
+   "message": "not valid YAML"
+  },
+  {
+   "id": "V6d",
+   "what": "a duplicate key",
+   "text": "report: {}\nreport: {}\n",
+   "expect": 2,
+   "message": "duplicate key 'report'"
+  }
+ ],
+ "input_cases": [
+  {
+   "id": "I0",
+   "input": {
+    "cluster_name": "demo-cluster",
+    "region": "us-west-2"
+   },
+   "expect": 0
+  },
+  {
+   "id": "I0b",
+   "input": {
+    "cluster_name": "prod_eks-01",
+    "region": "us-gov-west-1",
+    "modules": [
+     "compute",
+     "iac"
+    ],
+    "prior_report": "reports/prior.yaml",
+    "output_prefix": "reports/today"
+   },
+   "expect": 0
+  },
+  {
+   "id": "I1",
+   "what": "no region",
+   "input": {
+    "cluster_name": "demo-cluster"
+   },
+   "expect": 1,
+   "message": "missing required key 'region'"
+  },
+  {
+   "id": "I2",
+   "what": "a name EKS refuses",
+   "input": {
+    "cluster_name": "-demo",
+    "region": "us-west-2"
+   },
+   "expect": 1,
+   "message": "$.cluster_name: does not match pattern"
+  },
+  {
+   "id": "I3",
+   "what": "an unknown input",
+   "input": {
+    "cluster_name": "demo-cluster",
+    "region": "us-west-2",
+    "namespace": "shop"
+   },
+   "expect": 1,
+   "message": "unexpected key 'namespace'"
+  },
+  {
+   "id": "I4",
+   "what": "an unknown module",
+   "input": {
+    "cluster_name": "demo-cluster",
+    "region": "us-west-2",
+    "modules": [
+     "kompute"
+    ]
+   },
+   "expect": 1,
+   "message": "is not one of"
+  },
+  {
+   "id": "I5",
+   "what": "a region typo",
+   "input": {
+    "cluster_name": "demo-cluster",
+    "region": "us-west2"
+   },
+   "expect": 1,
+   "message": "$.region: does not match pattern"
+  }
+ ],
+ "krun_cases": [
+  {
+   "id": "K0",
+   "what": "identical runs",
+   "runs": [
+    [],
+    [],
+    []
+   ],
+   "k": 3,
+   "expect": 0
+  },
+  {
+   "id": "K1",
+   "what": "one run counts a different number of deployments",
+   "runs": [
+    [],
+    [],
+    [
+     {
+      "op": "set",
+      "path": "workloads.deployments.count",
+      "value": 7
+     }
+    ]
+   ],
+   "k": 3,
+   "expect": 1,
+   "message": "$.workloads.deployments.count: 6 against 7"
+  },
+  {
+   "id": "K2",
+   "what": "runs differ only in the clock fields the rule drops",
+   "runs": [
+    [],
+    [
+     {
+      "op": "set",
+      "path": "report.generated_at",
+      "value": "2026-11-17T03:00:00Z"
+     },
+     {
+      "op": "set",
+      "path": "cluster_insights.list.0.last_refresh_time",
+      "value": "2026-11-17T02:58:00Z"
+     },
+     {
+      "op": "set",
+      "path": "workloads.cronjobs.list.0.last_schedule",
+      "value": "2026-11-18T02:00:00Z"
+     }
+    ],
+    []
+   ],
+   "k": 3,
+   "expect": 0
+  },
+  {
+   "id": "K3",
+   "what": "fewer files than k",
+   "runs": [
+    [],
+    []
+   ],
+   "k": 3,
+   "expect": 2,
+   "message": "2 run outputs given, the check needs 3"
+  },
+  {
+   "id": "K4",
+   "what": "a module present in one run only",
+   "runs": [
+    [],
+    [
+     {
+      "op": "delete",
+      "path": "storage"
+     }
+    ]
+   ],
+   "k": 2,
+   "expect": 1,
+   "message": "$.storage: present in only one run"
+  },
+  {
+   "id": "K5",
+   "what": "the skill's own rule, k 10, with only 3 runs",
+   "runs": [
+    [],
+    [],
+    []
+   ],
+   "use_skill_rule": true,
+   "expect": 2,
+   "message": "the check needs 10"
+  }
+ ],
+ "artifact_cases": [
+  {
+   "id": "O0",
+   "what": "structural on the valid report, declared on the command line",
+   "checks": "structural",
+   "artifact": "V0",
+   "expect": 0
+  },
+  {
+   "id": "O1",
+   "what": "structural on the broken report",
+   "checks": "structural",
+   "artifact": "V1",
+   "expect": 1,
+   "message": "missing required key 'generated_at'"
+  },
+  {
+   "id": "O2",
+   "what": "a check id no runner knows",
+   "checks": "terraform-lint",
+   "artifact": "V0",
+   "expect": 2,
+   "message": "unknown check id(s) terraform-lint"
+  },
+  {
+   "id": "O3",
+   "what": "a skill with no declared checks",
+   "declared": null,
+   "artifact": "V0",
+   "expect": 0,
+   "message": "no artifact checks declared"
+  },
+  {
+   "id": "O4",
+   "what": "declared terraform-fmt passes with the tool's exit 0",
+   "declared": [
+    "terraform-fmt"
+   ],
+   "fake_tools": {
+    "terraform": 0
+   },
+   "artifact": "tf",
+   "expect": 0
+  },
+  {
+   "id": "O5",
+   "what": "declared terraform-fmt fails with the tool's exit 3",
+   "declared": [
+    "terraform-fmt"
+   ],
+   "fake_tools": {
+    "terraform": 3
+   },
+   "artifact": "tf",
+   "expect": 1,
+   "message": "terraform fmt -check -recursive . exited 3"
+  },
+  {
+   "id": "O6",
+   "what": "a declared check whose tool is not on PATH never passes",
+   "declared": [
+    "checkov"
+   ],
+   "fake_tools": {},
+   "artifact": "tf",
+   "expect": 2,
+   "message": "checkov is not on PATH"
+  },
+  {
+   "id": "O7",
+   "what": "a declaration that is not a list",
+   "declared": "structural",
+   "artifact": "V0",
+   "expect": 2,
+   "message": "must be a list of check ids"
+  },
+  {
+   "id": "O8",
+   "what": "terraform-validate runs init then validate, and fails on validate",
+   "declared": [
+    "terraform-validate"
+   ],
+   "fake_tools": {
+    "terraform": "validate"
+   },
+   "artifact": "tf",
+   "expect": 1,
+   "message": "terraform validate -no-color exited 1"
+  }
+ ],
+ "schema_cases": [
+  {
+   "id": "S1",
+   "what": "a keyword the checker does not implement is refused",
+   "schema": {
+    "type": "object",
+    "patternProperties": {
+     "^x": {}
+    }
+   },
+   "doc": {},
+   "expect": 2,
+   "message": "unsupported keyword 'patternProperties'"
+  },
+  {
+   "id": "S2",
+   "what": "another draft is refused",
+   "schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#"
+   },
+   "doc": {},
+   "expect": 2,
+   "message": "$schema must be"
+  },
+  {
+   "id": "S3",
+   "what": "oneOf with two matches fails",
+   "schema": {
+    "oneOf": [
+     {
+      "type": "integer"
+     },
+     {
+      "type": "number"
+     }
+    ]
+   },
+   "doc": 3,
+   "expect": 1,
+   "message": "matches 2 oneOf alternatives"
+  },
+  {
+   "id": "S4",
+   "what": "a boolean is not an integer",
+   "schema": {
+    "type": "integer"
+   },
+   "doc": true,
+   "expect": 1,
+   "message": "expected integer, got boolean"
+  },
+  {
+   "id": "S5",
+   "what": "an unresolved $ref cannot be checked",
+   "schema": {
+    "$ref": "#/$defs/missing"
+   },
+   "doc": {},
+   "expect": 2,
+   "message": "does not resolve"
+  },
+  {
+   "id": "S6",
+   "what": "a supported schema passes its document",
+   "schema": {
+    "type": "object",
+    "required": [
+     "a"
+    ],
+    "properties": {
+     "a": {
+      "enum": [
+       1,
+       2
+      ]
+     }
+    },
+    "additionalProperties": false
+   },
+   "doc": {
+    "a": 2
+   },
+   "expect": 0
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sample-apex-skills:eks-recon:recon-input",
+  "title": "eks-recon input",
+  "description": "The inputs of SKILL.md Step 1, checked once the cluster name and region are resolved and before any cluster read. modules omitted means all modules; cluster basics always runs.",
+  "type": "object",
+  "required": ["cluster_name", "region"],
+  "additionalProperties": false,
+  "properties": {
+    "cluster_name": {
+      "$comment": "EKS CreateCluster name rule: 1 to 100 characters, pattern ^[0-9A-Za-z][A-Za-z0-9\\-_]* (Amazon EKS API Reference, CreateCluster, checked on 2026-11-17)",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "pattern": "^[0-9A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "region": {
+      "type": "string",
+      "pattern": "^[a-z]{2}(-[a-z]+)+-[0-9]+$"
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": ["compute", "networking", "security", "addons", "observability", "workloads", "storage", "iac", "cicd", "cluster_insights"]
+      }
+    },
+    "prior_report": {
+      "description": "Path to an earlier recon YAML artifact; never auto-selected.",
+      "type": "string",
+      "minLength": 1
+    },
+    "output_prefix": {
+      "description": "Output path prefix without an extension.",
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

@@ -1,0 +1,57 @@
+name: class-validators
+
+on:
+  # No paths filter on pull_request: a required check whose workflow is
+  # skipped by a paths filter stays Pending and blocks the merge. The job
+  # runs on every pull request and skips its real work when no watched path
+  # changed (see .github/scripts/ci-gate.sh).
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: class-validators-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  class-validators:
+    name: class validators on fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Load-bearing: at depth 1 ci-gate.sh cannot find the base commit, so it
+          # reports relevant=true on every pull request (fails safe, saves nothing).
+          fetch-depth: 0
+      - name: Decide whether this change needs the check
+        id: changes
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          bash .github/scripts/ci-gate.sh changed
+          'classes/**'
+          'skills/*/assets/**'
+          'skills/*/SKILL.md'
+          'skills/eks-recon/references/**'
+          'misc/tests/test_class_validators.py'
+          'misc/tests/fixtures/class_validators_cases.json'
+          '.github/workflows/class-validators.yml'
+          '.github/scripts/ci-gate.sh'
+      - name: No-op (no watched path changed)
+        if: steps.changes.outputs.relevant == 'false'
+        run: echo "No change to classes/ or skill schemas; class validator check not needed."
+      # Anything but an explicit 'false' runs the real check.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: steps.changes.outputs.relevant != 'false'
+        with:
+          python-version: '3.x'
+      # The tests run every validator (input, output, k-run diff, artifact
+      # checks) on the fixtures in misc/tests/fixtures/class_validators_cases.json,
+      # the broken eks-recon fixture included, and check every skill schema.
+      - name: Run the class validators on fixtures
+        if: steps.changes.outputs.relevant != 'false'
+        run: pip install 'pyyaml>=6,<7' && python3 -B misc/tests/test_class_validators.py -v

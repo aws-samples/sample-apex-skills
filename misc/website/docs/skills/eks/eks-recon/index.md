@@ -210,7 +210,7 @@ Optional:
 When a prior report is supplied, load [report-comparison.md](references/report-comparison.md)
 and read the prior artifact before generating outputs. After collecting the current
 facts, append the comparison to the Markdown report using that contract. Without a
-prior report, omit the Changes since section.
+prior report, omit the Changes since section. Once the cluster name and region are resolved, and before any cluster read, check the inputs against `assets/recon-input.schema.json` (`metadata.apex-inputs`): where `scripts/apex_base_validate_input.py` is installed, run `python3 scripts/apex_base_validate_input.py --json '{"cluster_name": "<cluster>", "region": "<region>"}'` (add `modules`, `prior_report` or `output_prefix` when given) and do not start on a failure.
 
 **Auto-discovery when cluster name is not explicit:**
 
@@ -316,8 +316,7 @@ caveats do not qualify broader wording elsewhere.
 
 The YAML is a **secondary, point-in-time facts snapshot**, not a versioned API.
 Workflows may use its facts as context; that intended use does not establish a
-versioned schema hand-off. Preserve the canonical reference shapes for inspection,
-export and existing workflow guidance.
+versioned schema hand-off. Preserve the canonical reference shapes for inspection, export and existing workflow guidance. Its envelope and module keys are checked by `assets/recon-output.schema.json` (`metadata.apex-outputs`): where `scripts/script_validate_output.py` is installed, run `python3 scripts/script_validate_output.py <output-prefix>.yaml` before you hand the YAML on, and fix the YAML until it passes; if the check cannot run (exit 2), say so in Coverage.
 
 **Assembly rules (inline and subagent execution):**
 

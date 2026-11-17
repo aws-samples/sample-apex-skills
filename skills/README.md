@@ -264,6 +264,14 @@ EKS cluster reconnaissance and environment discovery — reports the raw FACTS o
 |--------|-------------|
 | [gitops_signals.py](./eks-recon/scripts/gitops_signals.py) | Gitops signals |
 
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [recon-input.schema.json](./eks-recon/assets/recon-input.schema.json) | Recon input.schema |
+| [recon-output.schema.json](./eks-recon/assets/recon-output.schema.json) | Recon output.schema |
+| [same-answer.yaml](./eks-recon/assets/same-answer.yaml) | Same answer |
+
 **Agents:**
 
 | File | Description |

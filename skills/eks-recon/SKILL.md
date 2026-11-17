@@ -1,6 +1,7 @@
 ---
 name: eks-recon
 description: "EKS cluster reconnaissance and environment discovery — reports the raw FACTS of a cluster and its environment. Detects compute (Karpenter, MNG, Auto Mode, Fargate, nodes/AMI), networking (VPC/CNI, subnets, load balancers, DNS), security facts (auth mode, IRSA/Pod Identity, RBAC, encryption), add-ons/Helm, observability, workloads (Deployments, StatefulSets, PDBs, HPAs), storage (CSI, StorageClasses, PVs, backup tooling), IaC (Terraform, CDK, eksctl), CI/CD (Actions, ArgoCD, Flux), and cluster insights. Use to discover or document the current state of an EKS cluster — 'what am I running', 'tell me about my setup', 'what version am I on', inventory before an upgrade/migration/design. Reports facts only; it does not score, rate, plan, or recommend, and overlapping facts with other skills is fine. Route elsewhere for a JUDGMENT or ARTIFACT: readiness scoring/deprecated-API checks (eks-upgrade-check), GREEN/AMBER/RED audits (eks-operation-review), design docs/diagrams (eks-design)."
+metadata: {apex-inputs: assets/recon-input.schema.json, apex-outputs: assets/recon-output.schema.json}
 ---
 
 # EKS Reconnaissance
@@ -202,7 +203,7 @@ Optional:
 When a prior report is supplied, load [report-comparison.md](references/report-comparison.md)
 and read the prior artifact before generating outputs. After collecting the current
 facts, append the comparison to the Markdown report using that contract. Without a
-prior report, omit the Changes since section.
+prior report, omit the Changes since section. Once the cluster name and region are resolved, and before any cluster read, check the inputs against `assets/recon-input.schema.json` (`metadata.apex-inputs`): where `scripts/apex_base_validate_input.py` is installed, run `python3 scripts/apex_base_validate_input.py --json '{"cluster_name": "<cluster>", "region": "<region>"}'` (add `modules`, `prior_report` or `output_prefix` when given) and do not start on a failure.
 
 **Auto-discovery when cluster name is not explicit:**
 
@@ -308,8 +309,7 @@ caveats do not qualify broader wording elsewhere.
 
 The YAML is a **secondary, point-in-time facts snapshot**, not a versioned API.
 Workflows may use its facts as context; that intended use does not establish a
-versioned schema hand-off. Preserve the canonical reference shapes for inspection,
-export and existing workflow guidance.
+versioned schema hand-off. Preserve the canonical reference shapes for inspection, export and existing workflow guidance. Its envelope and module keys are checked by `assets/recon-output.schema.json` (`metadata.apex-outputs`): where `scripts/script_validate_output.py` is installed, run `python3 scripts/script_validate_output.py <output-prefix>.yaml` before you hand the YAML on, and fix the YAML until it passes; if the check cannot run (exit 2), say so in Coverage.
 
 **Assembly rules (inline and subagent execution):**
 

@@ -1,0 +1,630 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sample-apex-skills:eks-recon:recon-output:eks-recon/2026-11-11",
+  "title": "eks-recon YAML facts snapshot",
+  "description": "Checks the report block, the shared cluster block, cluster_detail and, for each module that ran, its top-level keys (an object key stays an object even when its facts are unreadable). Deeper shapes are the references' Output Schema sections (SKILL.md Step 4b). report.schema_revision must equal the value SKILL.md sets; change both together.",
+  "type": "object",
+  "required": [
+    "report",
+    "cluster"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "report": {
+      "type": "object",
+      "required": [
+        "schema_revision",
+        "generated_at",
+        "unconfirmed_paths"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_revision": {
+          "const": "eks-recon/2026-11-11"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "unconfirmed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "cluster": {
+      "type": "object",
+      "required": [
+        "name",
+        "region",
+        "version",
+        "platform_version",
+        "endpoint",
+        "arn",
+        "status",
+        "created_at",
+        "tags"
+      ],
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "platform_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "endpoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "arn": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "cluster_detail": {
+      "type": "object",
+      "required": [
+        "upgrade_policy",
+        "zonal_shift",
+        "certificate_authority",
+        "health",
+        "encryption_config"
+      ],
+      "properties": {
+        "upgrade_policy": {
+          "type": "object"
+        },
+        "zonal_shift": {
+          "type": "object"
+        },
+        "certificate_authority": {
+          "type": "object"
+        },
+        "health": {
+          "type": "object"
+        },
+        "encryption_config": {
+          "type": "object"
+        }
+      }
+    },
+    "compute": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/compute"
+        }
+      ]
+    },
+    "networking": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/networking"
+        }
+      ]
+    },
+    "security": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/security"
+        }
+      ]
+    },
+    "addons": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/addons"
+        }
+      ]
+    },
+    "observability": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/observability"
+        }
+      ]
+    },
+    "workloads": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/workloads"
+        }
+      ]
+    },
+    "storage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/storage"
+        }
+      ]
+    },
+    "iac": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/iac"
+        }
+      ]
+    },
+    "cicd": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/cicd"
+        }
+      ]
+    },
+    "cluster_insights": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/unavailable"
+        },
+        {
+          "$ref": "#/$defs/cluster_insights"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "unavailable": {
+      "description": "A selected module that returned no usable result (SKILL.md Step 4b).",
+      "type": "object",
+      "required": [
+        "unavailable",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "unavailable": {
+          "const": true
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "compute": {
+      "type": "object",
+      "required": [
+        "strategy",
+        "auto_mode",
+        "karpenter",
+        "mng",
+        "fargate",
+        "self_managed",
+        "nodes",
+        "nodes_windows_present"
+      ],
+      "properties": {
+        "strategy": {},
+        "auto_mode": {
+          "type": "object"
+        },
+        "karpenter": {
+          "type": "object"
+        },
+        "mng": {
+          "type": "object"
+        },
+        "fargate": {
+          "type": "object"
+        },
+        "self_managed": {
+          "type": "object"
+        },
+        "nodes": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "nodes_windows_present": {}
+      }
+    },
+    "networking": {
+      "type": "object",
+      "required": [
+        "vpc_id",
+        "subnet_ids",
+        "cluster_security_group_id",
+        "security_groups",
+        "ip_family",
+        "service_cidr",
+        "endpoint_access",
+        "subnets",
+        "vpc_secondary_cidrs",
+        "node_subnets",
+        "cni",
+        "kube_proxy",
+        "ingress",
+        "load_balancers",
+        "service_mesh",
+        "dns",
+        "network_policies",
+        "external_dns"
+      ],
+      "properties": {
+        "vpc_id": {},
+        "subnet_ids": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "cluster_security_group_id": {},
+        "security_groups": {
+          "type": "object"
+        },
+        "ip_family": {},
+        "service_cidr": {},
+        "endpoint_access": {
+          "type": "object"
+        },
+        "subnets": {
+          "type": "object"
+        },
+        "vpc_secondary_cidrs": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "node_subnets": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "cni": {
+          "type": "object"
+        },
+        "kube_proxy": {
+          "type": "object"
+        },
+        "ingress": {
+          "type": "object"
+        },
+        "load_balancers": {
+          "type": "object"
+        },
+        "service_mesh": {
+          "type": "object"
+        },
+        "dns": {
+          "type": "object"
+        },
+        "network_policies": {
+          "type": "object"
+        },
+        "external_dns": {
+          "type": "object"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": [
+        "authentication",
+        "iam_for_pods",
+        "pod_security",
+        "policy_engines",
+        "secrets",
+        "image_security",
+        "admission_webhooks",
+        "rbac"
+      ],
+      "properties": {
+        "authentication": {
+          "type": "object"
+        },
+        "iam_for_pods": {
+          "type": "object"
+        },
+        "pod_security": {
+          "type": "object"
+        },
+        "policy_engines": {
+          "type": "object"
+        },
+        "secrets": {
+          "type": "object"
+        },
+        "image_security": {
+          "type": "object"
+        },
+        "admission_webhooks": {
+          "type": "object"
+        },
+        "rbac": {
+          "type": "object"
+        }
+      }
+    },
+    "addons": {
+      "type": "object",
+      "required": [
+        "eks_managed",
+        "core_components",
+        "helm_releases",
+        "platform_components",
+        "crds"
+      ],
+      "properties": {
+        "eks_managed": {
+          "type": "object"
+        },
+        "core_components": {
+          "type": "object"
+        },
+        "helm_releases": {
+          "type": "object"
+        },
+        "platform_components": {
+          "type": "object"
+        },
+        "crds": {
+          "type": "object"
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "required": [
+        "metrics",
+        "logging",
+        "tracing",
+        "apm"
+      ],
+      "properties": {
+        "metrics": {
+          "type": "object"
+        },
+        "logging": {
+          "type": "object"
+        },
+        "tracing": {
+          "type": "object"
+        },
+        "apm": {
+          "type": "object"
+        }
+      }
+    },
+    "workloads": {
+      "type": "object",
+      "required": [
+        "summary",
+        "by_namespace",
+        "deployments",
+        "statefulsets",
+        "daemonsets",
+        "cronjobs",
+        "jobs",
+        "services",
+        "ingresses",
+        "hpas",
+        "pdbs",
+        "priority_classes",
+        "vpas",
+        "api_versions_in_use",
+        "images"
+      ],
+      "properties": {
+        "summary": {
+          "type": "object"
+        },
+        "by_namespace": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "deployments": {
+          "type": "object"
+        },
+        "statefulsets": {
+          "type": "object"
+        },
+        "daemonsets": {
+          "type": "object"
+        },
+        "cronjobs": {
+          "type": "object"
+        },
+        "jobs": {
+          "type": "object"
+        },
+        "services": {
+          "type": "object"
+        },
+        "ingresses": {
+          "type": "object"
+        },
+        "hpas": {
+          "type": "object"
+        },
+        "pdbs": {
+          "type": "object"
+        },
+        "priority_classes": {
+          "type": "object"
+        },
+        "vpas": {
+          "type": "object"
+        },
+        "api_versions_in_use": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "images": {
+          "type": "object"
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "required": [
+        "csi_drivers",
+        "storage_classes",
+        "pvs",
+        "pvcs",
+        "snapshots",
+        "backup_tooling"
+      ],
+      "properties": {
+        "csi_drivers": {
+          "type": "object"
+        },
+        "storage_classes": {
+          "type": "object"
+        },
+        "pvs": {
+          "type": "object"
+        },
+        "pvcs": {
+          "type": "object"
+        },
+        "snapshots": {
+          "type": "object"
+        },
+        "backup_tooling": {
+          "type": "object"
+        }
+      }
+    },
+    "iac": {
+      "type": "object",
+      "required": [
+        "tools_detected",
+        "confidence",
+        "evidence",
+        "workspace",
+        "tags"
+      ],
+      "properties": {
+        "tools_detected": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "confidence": {},
+        "evidence": {
+          "type": "object"
+        },
+        "workspace": {
+          "type": "object"
+        },
+        "tags": {
+          "type": "object"
+        }
+      }
+    },
+    "cicd": {
+      "type": "object",
+      "required": [
+        "workspace",
+        "gitops",
+        "other_tools"
+      ],
+      "properties": {
+        "workspace": {
+          "type": "object"
+        },
+        "gitops": {
+          "type": "object"
+        },
+        "other_tools": {
+          "type": "object"
+        }
+      }
+    },
+    "cluster_insights": {
+      "type": "object",
+      "required": [
+        "count",
+        "list"
+      ],
+      "properties": {
+        "count": {},
+        "list": {
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

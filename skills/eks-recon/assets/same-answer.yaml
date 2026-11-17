@@ -1,0 +1,15 @@
+# The "same answer" rule for eks-recon's k-run diff (Script class,
+# script.same-output): 10 runs of eks-recon on one cluster give the same
+# answer all 10 times. Read by k_run_diff.py on the runs' YAML artifacts.
+#
+# Compared: every field of the YAML artifact except the paths below, values
+# and counts exactly, lists in order. File names never enter the comparison,
+# so the timestamped default output name needs no rule.
+# Dropped: the clock readings, which change between runs with no change to
+# the cluster. The runs assume no workload change in between; a count that
+# churns on a quiet cluster is added here with its reason.
+k: 10
+ignore:
+  - report.generated_at                       # SKILL.md Step 4b: the actual UTC clock reading
+  - cluster_insights.list[].last_refresh_time # references/cluster-insights.md: when EKS last refreshed the insight
+  - workloads.cronjobs.list[].last_schedule   # references/workloads.md: status.lastScheduleTime
