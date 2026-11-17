@@ -23,15 +23,14 @@ parents: []
 # - eks-ingress-migration (owner-held) uses `helm list`
 #   (references/report-generation.md, and its devops-agent copy): its owner
 #   changes it; no issue yet (searched 2026-11-16).
-# - The apex eks-upgrade-check runbook lists `helm list` as a read; it goes
-#   with the runbook absorption.
 # - eks-operation-review (owner-held, vendored) needs the EKS MCP
 #   Server and reads Secret key names in check 3.1
 #   (references/access-identity.md): its owner changes it. Issue 189
 #   (open, checked on 2026-11-16) tracks the MCP hard-halt; its Secret item
 #   keeps the names-only read, so the Secret clause has no issue yet.
-# - The router's runbooks hold 22 `../../../<skill>/` paths, against
-#   apex.no-path-into-another-skill; they go with the runbook absorption.
+# - The router's runbooks hold 16 `../../../<skill>/` paths, against
+#   apex.no-path-into-another-skill, all in the vendored eks-operation-review
+#   runbook (aws-samples/sample-apex-skills#520).
 # - eks-platform-engineering pauses an ArgoCD sync "only after the user confirms" (SKILL.md, Guardrails), short of apex.read-only-unless-confirmed; it changes in step 5.
 # The router's `helm list` is replaced in this piece (skills/apex/SKILL.md,
 # shared rule 1).

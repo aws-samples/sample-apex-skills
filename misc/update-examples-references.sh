@@ -133,6 +133,7 @@ build_table() {
     if [[ -n "$workflow" ]]; then
       local wf_name
       wf_name="$(basename "$workflow" .md)"
+      if [[ "$wf_name" == SKILL ]]; then wf_name="$(basename "$(dirname "$workflow")")"; fi
       workflow_cell="[$wf_name]($workflow)"
     else
       workflow_cell="--"
@@ -182,6 +183,7 @@ build_examples_detail() {
     if [[ -n "$workflow" ]]; then
       local wf_name
       wf_name="$(basename "$workflow" .md)"
+      if [[ "$wf_name" == SKILL ]]; then wf_name="$(basename "$(dirname "$workflow")")"; fi
       echo ""
       echo "**Workflow:** [$wf_name](../$workflow)"
     fi

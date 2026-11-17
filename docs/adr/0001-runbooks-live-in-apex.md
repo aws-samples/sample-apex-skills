@@ -1,6 +1,6 @@
 # ADR 0001: Runbooks live in one place under the apex skill
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR 0007](0007-runbooks-absorbed-into-classes.md)
 - **Date**: 2026-10-23
 
 ## Context

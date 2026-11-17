@@ -11,8 +11,8 @@ APEX organizes content into four directories, each serving a distinct purpose in
 ```
 sample-apex-skills/
 ├── skills/             → 📚 WHAT the agent knows (domain knowledge)
-│   └── apex/runbooks/  →   🎯 HOW the agent runs an engagement (guided procedures, routed by the apex skill)
-├── classes/            → Shared rules; the class sync copies them into each member skill
+│   └── apex/runbooks/  →   🎯 HOW a customer chains skills (customer runbooks and two examples, routed by the apex skill)
+├── classes/            → Shared rules and references; the class sync copies them into each member skill
 ├── devops-agent/       → Non-executable ports for AWS DevOps Agent
 └── examples/           → 🏗️ HOW to try it (hands-on exercises)
 ```
@@ -28,7 +28,7 @@ sample-apex-skills/
 ### Characteristics
 
 - **Reusable across workflows** — the same `eks-best-practices` skill is used whether the agent is designing a new cluster, reviewing an existing architecture, planning an upgrade, or troubleshooting an issue
-- **Stateless** — no conversation flow, no "ask the user this, then do that." Pure knowledge.
+- **Stateless**: no flow across skills. A skill holds its own questions and STOP gates; chaining skills is a runbook's job.
 - **Triggered by description match** — the agent reads the `description` field in SKILL.md frontmatter and decides whether to activate the skill based on the user's request
 - **Progressive disclosure** — SKILL.md contains the essentials (~500 lines max), `references/` contains deep-dive material loaded only when needed
 
@@ -60,15 +60,16 @@ skills/{skill-name}/
 | Reference tables | Upgrade sequence rules (control plane → add-ons → data plane) |
 | Code patterns | Terraform module patterns and naming conventions |
 | Quick wins | Cost optimization table (Graviton, Spot, consolidation) |
+| The skill's own conversation flow | Its phase questions, STOP gates and quality checklist, in SKILL.md or `references/` |
 
 ### What Does NOT Belong in Skills
 
 | ❌ Does not belong | Why | Where it goes |
 |-------------------|-----|---------------|
-| "Ask the user these 8 phases of questions" | That's a conversation flow | `skills/apex/runbooks/<skill>/` |
+| "Run this skill, then load the next one" | That chains skills | `skills/apex/runbooks/` (a customer runbook) |
 | A Terraform module that deploys a cluster | That's runnable infrastructure | `examples/` |
 | A deploy.sh script that sets up a demo | That's a hands-on exercise | `examples/` |
-| Checkpoint templates with STOP gates | That's agent behavior control | `skills/apex/runbooks/<skill>/` |
+| Gate and mode conventions every skill shares | That's class material | `classes/platform/references/runbook-guidance.md` |
 
 ### Current Skills
 
@@ -78,16 +79,25 @@ See the auto-generated skill list under [Pick a skill by what you are doing](REA
 
 ## `skills/apex/runbooks/`: Runbooks
 
-**Purpose:** Guided procedures that control how the agent runs an engagement for one skill: sequencing steps, gathering requirements, enforcing checkpoints, and validating output.
+**Purpose:** The customer's own procedures that chain APEX skills: which skills to run, in what order, what context to carry from one to the next, and the customer's own gates. The folder ships two examples to copy. See [ADR 0007](docs/adr/0007-runbooks-absorbed-into-classes.md).
 
-**Think of a runbook as:** A senior SA's playbook: not what they know (that's skills), but how they run an engagement. The structured questionnaire they follow, the checkpoints they enforce, the quality gates they apply before delivering recommendations.
+**Think of a runbook as:** A team's playbook for an engagement that spans skills, for example a design that hands over to a build. What each skill knows, and how it asks its own questions, stays in the skill.
 
 ### Characteristics
 
-- **Defines interaction patterns**: questionnaires, step-by-step procedures, STOP gates, checkpoint templates
-- **References skills for knowledge**: a runbook says "use the `eks-best-practices` skill's decision frameworks" but does not duplicate the knowledge
-- **One skill per folder**: each runbook lives in `skills/apex/runbooks/<skill>/` and is followed with that skill
-- **Routed by the apex skill**: [`skills/apex/SKILL.md`](skills/apex/SKILL.md) detects intent, picks the skill and, when `runbooks/<skill>/` has a runbook for the task, follows it. Only the apex skill points at runbooks; other skills' SKILL.md files do not, except the vendored `eks-operation-review`, whose sync script points it at `../apex/runbooks/eks-operation-review/eks-operation-review.md` (the one recorded exception; see its UPSTREAM.md). Start with `/apex`.
+- **Chains skills**: names each skill by its name and says the order; it does not copy a skill's knowledge or its questions
+- **Written by the customer**: start from one of the two examples, `example-eks-design-to-build.md` and `example-eks-recon-to-operation-review.md`
+- **Routed by the apex skill**: [`skills/apex/SKILL.md`](skills/apex/SKILL.md) detects intent, picks the skill and follows a runbook the user names, or a skill's own runbook until that skill's rebuild. Only the apex skill points at runbooks; other skills' SKILL.md files do not, except the vendored `eks-operation-review`, whose sync script points it at `../apex/runbooks/eks-operation-review/eks-operation-review.md` (the one recorded exception; see its UPSTREAM.md). Start with `/apex`.
+- **Tightens only**: a runbook may only tighten a safety rule (`apex.tighten-only` in [`classes/apex-base/rules.md`](classes/apex-base/rules.md)), and overrides a skill only by naming what it overrides and why.
+
+### Where engagement text goes
+
+| Text | Where it goes |
+|------|---------------|
+| One skill's own questions, STOP gates, checklist and defaults | That skill's SKILL.md or `references/` |
+| Conventions every Advisor and Operator skill shares (modes, phases, gates, self-check before presenting) | `classes/platform/references/runbook-guidance.md` |
+| Intent routing, hand-offs and next-skill suggestions | `classes/router/` (today also the apex skill's routing tables) |
+| A procedure that chains skills for one customer | `skills/apex/runbooks/` |
 
 ### Structure
 
@@ -95,34 +105,35 @@ See the auto-generated skill list under [Pick a skill by what you are doing](REA
 skills/apex/
 ├── SKILL.md                                   # Router: intent detection, routing, shared rules, hand-offs
 └── runbooks/
-    ├── eks-build/eks-build.md                 # Day 1: Cluster build and provisioning
-    ├── eks-design/design.md                   # Day 0: Architecture questionnaire + quality check
-    ├── eks-genai/eks-genai.md                 # Day 1: GenAI and LLM workloads
-    ├── eks-operation-review/eks-operation-review.md  # Day 2: Operational health review
-    ├── eks-platform-engineering/eks-platform-engineering.md  # Day 1: Internal Developer Platform
-    ├── eks-security/eks-security.md           # Day 1/2: Hardening and compliance
-    └── eks-upgrade-check/eks-upgrade-check.md # Day 2: Upgrade readiness assessment
+    ├── example-eks-design-to-build.md         # Example: a Day 0 design hands over to a Day 1 build
+    ├── example-eks-recon-to-operation-review.md  # Example: recon feeds a Day 2 operational review
+    ├── eks-build/eks-build.md                 # Per-skill: moves into eks-build in step 4
+    ├── eks-design/design.md                   # Per-skill: moves into eks-design in step 4
+    ├── eks-genai/eks-genai.md                 # Per-skill: moves into eks-genai in step 5
+    ├── eks-operation-review/eks-operation-review.md  # Vendored: moves through its owner's issue
+    ├── eks-platform-engineering/eks-platform-engineering.md  # Per-skill: moves in step 5
+    └── eks-security/eks-security.md           # Per-skill: moves in step 5
 ```
 
-### Why Router + Runbooks (Not Monolithic)
+The per-skill runbooks keep their skill-level text until that skill's rebuild moves it into the skill. After that the folder holds only customer runbooks and the two examples.
 
-1. **Context efficiency**: the agent loads only the relevant runbook, not all of them
-2. **Independent iteration**: improve the upgrade runbook without touching design
-3. **Clear ownership**: different SAs can own different runbooks
+### Why Skills and Classes Hold the Procedure
+
+1. **One surface**: a skill's procedure sits with its knowledge, so a change lands in one place
+2. **Standalone use**: a skill copied out alone keeps its own guided engagement
+3. **Shared once**: conventions all members share are written once, in a class
 4. **Shared context**: the apex skill carries context between skills (design decisions inform upgrade planning)
 
 ### What Belongs in a Runbook
 
 | ✅ Belongs | Example |
 |-----------|---------|
-| Questionnaires | The 8-phase design questionnaire (Phase 1: Project Context → Phase 8: Confirm & Generate) |
-| Pre-flight checklists | Upgrade pre-flight with STOP gates ("STOP if blocking PDBs found") |
-| Quality gates | Scoring rubric (80% threshold across Well-Architected pillars) |
-| Checkpoint templates | "✅ Step N complete. Validation: ... Ready for Step N+1?" |
-| Mandatory warnings | "Once the control plane is upgraded, you CANNOT roll it back" |
-| Conditional branches | "Terraform detected? → Terraform path. CLI-managed? → CLI path." |
+| Skill order | "Run `eks-design`, then `eks-build` with the design's decisions" |
+| Context to carry | "Carry the compute and add-on choices into the build; do not ask them again" |
+| Customer gates | "Stop for the change board's sign-off before the build" |
+| A tighter safety rule | "Print the Terraform plan only; never run apply" |
 
-Intent routing ("user says 'upgrade my cluster' → `eks-upgrade-check`") belongs in the apex skill's routing tables, not in a runbook.
+Intent routing ("user says 'upgrade my cluster' → `eks-upgrade-check`") belongs in the router class and the apex skill's routing tables, not in a runbook.
 
 ### What Does NOT Belong in a Runbook
 
@@ -130,11 +141,13 @@ Intent routing ("user says 'upgrade my cluster' → `eks-upgrade-check`") belong
 |-------------------|-----|---------------|
 | EKS best practices content | That's domain knowledge | `skills/` |
 | Terraform code patterns | That's domain knowledge | `skills/` |
+| One skill's questionnaire or STOP gates | That's the skill's own procedure | `skills/<name>/` |
+| Conventions every skill shares | That's class material | `classes/platform/references/runbook-guidance.md` |
 | A deployable Terraform module | That's runnable infrastructure | `examples/` |
 
 ### The Key Test
 
-If you removed all runbooks, would the agent still *know* the right answers? **Yes**: skills provide the knowledge. But the agent wouldn't know *how to run the engagement*: it wouldn't follow the questionnaire, enforce checkpoints, or validate output quality.
+If you removed all runbooks, would the agent still *know* the right answers and run each skill's own engagement? **Yes**, once each skill's rebuild has moved its procedure in. But it would not know *your* engagement: which skills you chain, in what order, what to carry between them, and where your team must sign off.
 
 ---
 
@@ -148,10 +161,10 @@ If you removed all runbooks, would the agent still *know* the right answers? **Y
 
 - **Runnable** — `deploy.sh` creates infrastructure, `destroy.sh` tears it down
 - **Self-contained** — each example includes everything needed to run the exercise
-- **Demonstrates a runbook**: each example maps to a runbook (e.g., an example demonstrating `skills/apex/runbooks/eks-design/design.md`)
+- **Demonstrates a skill or a runbook**: each example maps to the skill or runbook it exercises (e.g., an example demonstrating `skills/eks-upgrade-check/SKILL.md`)
 - **Contains planted issues** — realistic problems for the agent to discover and fix
 - **Documents test results** — conversation logs showing how the agent performed, with issue tables and fix tracking
-- **Used for iteration**: test results drive improvements to runbooks (test-01 → fix the runbook → test-02)
+- **Used for iteration**: test results drive improvements to skills and runbooks (test-01 → fix the skill or runbook → test-02)
 
 ### Structure
 
@@ -174,13 +187,13 @@ Each example's `README.md` must include YAML frontmatter:
 ---
 name: EKS Upgrade Readiness
 description: Assess cluster upgrade readiness across 8 dimensions with a scored report.
-workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
+workflow: skills/eks-upgrade-check/SKILL.md
 ---
 ```
 
 - `name` — short label (required)
 - `description` — one-line summary (required)
-- `workflow`: which runbook this example demonstrates (optional)
+- `workflow`: which skill or runbook this example demonstrates (optional)
 
 ### What Belongs in Examples
 
@@ -197,7 +210,7 @@ workflow: skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md
 | ❌ Does not belong | Why | Where it goes |
 |-------------------|-----|---------------|
 | Best practices documentation | That's domain knowledge | `skills/` |
-| Conversation flow definitions | That's agent orchestration | `skills/apex/runbooks/` |
+| Conversation flow definitions | That's agent orchestration | The skill, a class or `skills/apex/runbooks/` (see Where engagement text goes) |
 | Generic reference material | That's skill reference content | `skills/{name}/references/` |
 
 ---
@@ -239,8 +252,8 @@ When adding new content to the repo, follow this flowchart:
                                   │                   │
                                   ▼                   ▼
                         ┌──────────────────┐  ┌─────────────────────┐
-                        │ skills/apex/     │  │ Is it runnable       │
-                        │ runbooks/<skill>/│  │ infrastructure or a  │
+                        │ skill, class or  │  │ Is it runnable       │
+                        │ apex/runbooks/   │  │ infrastructure or a  │
                         └──────────────────┘  │ hands-on exercise?   │
                                               │                     │
                                               │ (Terraform, deploy  │
@@ -271,6 +284,8 @@ When adding new content to the repo, follow this flowchart:
                                                                       └──────────────┘
 ```
 
+For the interaction branch, put each piece of text where the table under [Where engagement text goes](#where-engagement-text-goes) says.
+
 ---
 
 ## Creating a New Skill
@@ -300,13 +315,16 @@ Adding, renaming, or removing a skill — or editing a SKILL.md frontmatter desc
 
 ## Creating a New Runbook
 
-1. Create `skills/apex/runbooks/<skill>/<name>.md`, in the folder of the skill it runs with (every runbook is named after its folder except `eks-design/design.md`)
-2. Add a header naming the lifecycle and the skill: `> **Lifecycle:** Day <n>` and `> **Skill:** <skill>`
-3. Do not add a routing table: the apex skill's tables route (five of the moved runbooks, eks-build, eks-design, eks-genai, eks-platform-engineering and eks-security, still carry one; a later change removes them; the eks-upgrade-check runbook keeps a `## Routing` section on scope; the eks-operation-review runbook is upstream's workflow file, copied by `misc/sync-eks-operation-review-skill.sh` and fitted to the apex layout (edit 5 in `skills/eks-operation-review/UPSTREAM.md`), so it has neither the header of step 2 nor a routing section)
-4. Structure as phases with numbered checklists and STOP gates
-5. Check that a routing row in `skills/apex/SKILL.md` sends the request to that skill
-6. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
-7. Test with a real scenario and document results in `examples/`
+A runbook is your own procedure that chains APEX skills. Write one from an example:
+
+1. Copy `skills/apex/runbooks/example-eks-design-to-build.md` or `skills/apex/runbooks/example-eks-recon-to-operation-review.md` to `skills/apex/runbooks/<name>.md`, and keep its frontmatter (`name`, `description`)
+2. List the skills in the order you run them, each by its name, never by a path into its folder (`apex.no-path-into-another-skill`)
+3. At each hand-off, say what context to carry forward, so the next skill does not ask it again
+4. Add your own gates (an approval, a change window) where the engagement must stop for the user
+5. Tighten only: a runbook may only tighten a safety rule (`apex.tighten-only`). It can add a gate or narrow what runs, never drop a confirm step or the read-only rule. To override a skill, name what you override and why
+6. Do not add a routing table, one skill's own questions or domain knowledge: the apex skill routes, and each skill asks its own questions
+7. Run `./misc/update-all-references.sh` and `./misc/update-pages.sh` to update `skills/README.md` and the site. `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
+8. Test with a real scenario and document results in `examples/`
 
 ## Keeping docs in sync (auto-generated catalogues)
 
@@ -349,7 +367,7 @@ For `skills/` each description must also match the generated `skills.json` manif
 3. Add `scripts/deploy.sh` and `scripts/destroy.sh`
 4. Add planted issues in `manifests/` or infrastructure code
 5. Run the exercise with APEX and document results in `tests/`
-6. Use test results to iterate on the corresponding runbook
+6. Use test results to iterate on the corresponding skill or runbook
 7. Run `misc/update-examples-references.sh` to update the README
 
 ## Writing a Blog Post
