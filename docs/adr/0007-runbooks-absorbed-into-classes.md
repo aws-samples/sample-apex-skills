@@ -29,8 +29,8 @@ We have no runbook that chains several skills, and that is the kind a customer s
 
 **Two held issues settled here.**
 
-- aws-samples/sample-apex-skills#245: the eks-build runbook keeps its generated baseline, managed node groups with Cluster Autoscaler, and says in the question that Karpenter is the eks-design and eks-best-practices default and EKS Auto Mode the least-operations choice. The [EKS Best Practices Guide](https://github.com/aws/aws-eks-best-practices) says in `latest/bpg/scalability/data-plane.adoc`: "We recommend customers use Karpenter when possible."; Auto Mode is in `latest/bpg/autoscaling/auto-mode.adoc` (both read at mainline edc514fa on 2026-11-17). Settled from the Guide: eks-build's generated default becomes Karpenter, with EKS Auto Mode named as the least-operations choice; the eks-build skill changes in its step 4 rebuild. Until then the eks-build runbook generates managed node groups with Cluster Autoscaler.
-- aws-samples/sample-apex-skills#171: the Terraform upgrade workflow is an apex/runbooks entry, built in step 5; a scheduled runbook is the one exception to the in-session definition above.
+- aws-samples/sample-apex-skills#245: the eks-build runbook keeps its generated baseline, managed node groups with Cluster Autoscaler, and says in the question that Karpenter is the eks-design and eks-best-practices default and EKS Auto Mode the least-operations choice. The [EKS Best Practices Guide](https://github.com/aws/aws-eks-best-practices) says in `latest/bpg/scalability/data-plane.adoc`: "We recommend customers use Karpenter when possible."; and in `latest/bpg/autoscaling/auto-mode.adoc:35` that Auto Mode suits users who "need to minimize operational burden around Kubernetes" (both read at mainline edc514fa on 2026-11-17). Settled from the Guide: eks-build's generated default becomes Karpenter, with EKS Auto Mode named as the least-operations choice; the eks-build skill changes in its step 4 rebuild.
+- aws-samples/sample-apex-skills#171: the Terraform upgrade workflow is an apex/runbooks entry, built in step 5.
 
 ## Consequences
 
