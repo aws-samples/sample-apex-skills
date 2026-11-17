@@ -157,7 +157,7 @@ def check(args):
                     "STOP: the caller on context %r is missing permission, or the check failed, for %d read(s) this "
                     "skill needs:\n%s\nNo cluster read was made. For a denied read, ask the cluster admin to "
                     "grant these verbs on these resources (an access entry on an API or API_AND_CONFIG_MAP "
-                    "cluster, for example with AmazonEKSViewPolicy; the aws-auth ConfigMap on CONFIG_MAP). For a "
+                    "cluster; the aws-auth ConfigMap on CONFIG_MAP). For a "
                     "failed check, fix the credentials or the network first. Then run the preflight again."
                     % (ctx, len(missing), "\n".join(lines)),
                     recorded_context=recorded, missing=missing)
