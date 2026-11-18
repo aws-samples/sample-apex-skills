@@ -5,6 +5,9 @@ Every case lives in misc/tests/fixtures/sync_classes_cases.json. Each one
 builds its own classes/ folder and member skills in a temp tree, so no case
 reads or writes the real skills/. The failure cases follow the P-310 fixture
 table (F1 to F17); F0, F5b and F11 are the passing controls.
+ClassTextNoMember, below the fixture cases, checks that the class-text
+checks run with no member skill, and runs --check (which writes nothing)
+on this repo, so its classes/ must pass.
 
 Needs PyYAML (pip install 'pyyaml>=6,<7'). Run from the repo root:
 
@@ -167,6 +170,37 @@ def _make(case):
 
 for _case in DATA["cases"]:
     setattr(SyncCase, "test_" + _case["id"].replace("-", "_"), _make(_case))
+
+
+class ClassTextNoMember(unittest.TestCase):
+    """The class-text checks run on every class, with no member skill."""
+
+    def tree(self, extra=None):
+        tmp = tempfile.mkdtemp(prefix="sync-classes-nomember-")
+        self.addCleanup(shutil.rmtree, tmp)
+        for rel, text in DATA["bases"]["std"]["files"].items():
+            if not rel.startswith("skills/"):
+                write_file(tmp, rel, text)
+        write_file(tmp, "skills/plain/SKILL.md", "---\nname: plain\ndescription: Not a member.\n---\n\n# Plain\n")
+        for rel, text in (extra or {}).items():
+            write_file(tmp, rel, text)
+        return tmp
+
+    def test_bad_pointer_fails(self):
+        tmp = self.tree({"classes/operator/rules.md": "# Operator\n\n- **operator.bad**: read skills/apex/SKILL.md first.\n"})
+        rc, out = run_sync(tmp, "check")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("classes/operator/rules.md:3: copied class text points to the apex skill "
+                      "(a path into skills/apex/)", out)
+
+    def test_clean_passes(self):
+        rc, out = run_sync(self.tree(), "check")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("--check OK: 0 member skill(s) (none)", out)
+
+    def test_repo_classes_pass(self):
+        rc, out = run_sync(ROOT, "check")
+        self.assertEqual(rc, 0, out)
 
 
 if __name__ == "__main__":
