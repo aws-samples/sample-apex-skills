@@ -9,10 +9,15 @@ One tool for the report and conversion files of the skills we own. A skill
 moves to it in its own rebuild step; until then each skill keeps its own
 report file. Stdlib only, offline.
 
-Usage:
+Usage (from a skill folder where the class sync copied this tool to
+scripts/apex_base_report.py):
   report.py <template> <input>... --out <file> [--out <file>]
 
-Templates (each keeps that skill's own page, byte for byte):
+Templates (each writes that skill's own page byte for byte on its normal
+report; on other input the one link and control layer below applies, so
+ecs-operation-review no longer links relative paths or rewrites unsafe
+links to #, eks-cost-intelligence links upper-case schemes, and control
+characters become a space):
   ecs-operation-review    one markdown report in, --out <file>.html
   eks-cost-intelligence   one markdown report in, --out <file>.html
   eks-security            findings JSON (optional inventory JSON), posture
@@ -36,11 +41,9 @@ Every input value is data. Before a page is built:
 The tool masks nothing and adds no text: a masking line the skill's report
 text carries (apex.report-masking) reaches the page as it was written.
 
-Nothing is written when an input is missing, unreadable, empty or not
-UTF-8 text, when an input is not the kind the template takes, or when an
---out names an input or another --out. An output is written with mode 0600
-and never through a symlink at its path; when one output cannot be written,
-the outputs this run wrote are removed.
+eks-security's outputs are created with mode 0600 and not through a
+symlink at the output path; the two converters write as their old tools
+did.
 
 Exit: 0 written; 2 usage, input or output error (one line on stderr, no
 traceback); 3 eks-security only: written, but findings or posture coverage
@@ -767,7 +770,7 @@ def cost_convert(md_content: str) -> str:
         if line.strip().startswith("```"):
             if in_code_block:
                 escaped = html.escape("\n".join(code_lines))
-                lang_attr = f' class="language-{code_lang}"' if code_lang else ""
+                lang_attr = f' class="language-{html.escape(code_lang, quote=True)}"' if code_lang else ""
                 html_parts.append(f"<pre><code{lang_attr}>{escaped}</code></pre>")
                 in_code_block = False
                 code_lines = []
@@ -1279,8 +1282,6 @@ def read_text(path):
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         raise ReportError("%s: not UTF-8 text" % path)
-    if not text.strip():
-        raise ReportError("%s: empty input" % path)
     return text
 
 
@@ -1306,14 +1307,7 @@ def read_security(paths):
     return docs
 
 
-def same_file(a, b):
-    try:
-        return os.path.samefile(a, b)
-    except OSError:
-        return os.path.realpath(a) == os.path.realpath(b)
-
-
-def plan_outputs(template, inputs, outs):
+def plan_outputs(template, outs):
     by_suffix = {}
     for out in outs:
         suffix = os.path.splitext(out)[1].lower()
@@ -1321,20 +1315,21 @@ def plan_outputs(template, inputs, outs):
             raise ReportError("--out %s: %s writes %s only" % (out, template, " and ".join(TEMPLATES[template])))
         if suffix in by_suffix:
             raise ReportError("--out %s: a second %s output" % (out, suffix))
-        for other in list(inputs) + list(by_suffix.values()):
-            if same_file(out, other):
-                raise ReportError("--out %s: names %s, an input or another output" % (out, other))
         by_suffix[suffix] = out
     return by_suffix
 
 
-def write(path, text):
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+def write(path, text, template):
+    """eks-security keeps render_report.py's write(); the converters write as their old tools did."""
     try:
-        fd = os.open(path, flags, 0o600)
+        if template == "eks-security":
+            flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+            f = os.fdopen(os.open(path, flags, 0o600), "w", encoding="utf-8")
+        else:
+            f = open(path, "w", encoding="utf-8")
     except OSError as e:
         raise ReportError("--out %s: not writable: %s" % (path, e.strerror or e))
-    with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+    with f:
         f.write(text)
 
 
@@ -1355,7 +1350,7 @@ def parser():
 
 def run(argv):
     a = parser().parse_args(argv)
-    outs = plan_outputs(a.template, a.inputs, a.out)
+    outs = plan_outputs(a.template, a.out)
     complete = True
     if a.template == "eks-security":
         pages, complete = security_pages(read_security(a.inputs))
@@ -1366,18 +1361,8 @@ def run(argv):
         page = ecs_page if a.template == "ecs-operation-review" else cost_page
         stem = os.path.splitext(os.path.basename(path))[0]
         pages = page(read_markdown(path), stem)
-    written = []
-    try:
-        for suffix, out in outs.items():
-            write(out, pages[suffix])
-            written.append(out)
-    except ReportError:
-        for out in written:
-            try:
-                os.unlink(out)
-            except OSError:
-                pass
-        raise
+    for suffix, out in outs.items():
+        write(out, pages[suffix], a.template)
     return 0 if complete else 3
 
 

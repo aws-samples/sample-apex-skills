@@ -9,7 +9,7 @@ Every case lives in misc/tests/fixtures/report_tool_cases.json:
   and CR, DEL and C1 characters, placeholder-shaped strings), plus the
   masking line passing through as written;
 - errors: each error exits 2 with one stderr line and no traceback, and
-  writes nothing;
+  writes none of the files the case names in absent;
 - gate: eks-security below its coverage gate writes both pages, exit 3;
 - class copy: misc/sync-classes.py copies the tool into a member skill of
   a temp tree (needs PyYAML, skipped without it), and the copy writes the
@@ -80,7 +80,8 @@ class Normal(unittest.TestCase):
                     with open(path, "rb") as fh:
                         got = fh.read()
                     self.assertEqual(got, want.encode("utf-8"), name)
-                    self.assertEqual(os.stat(path).st_mode & 0o777, 0o600, name)
+                    if case["template"] == "eks-security":
+                        self.assertEqual(os.stat(path).st_mode & 0o777, 0o600, name)
 
 
 class Hostile(unittest.TestCase):

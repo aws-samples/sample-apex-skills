@@ -1,5 +1,5 @@
 {
- "_about": "Cases for misc/tests/test_report_tool.py, the tests of the shared report tool classes/apex-base/scripts/report.py. `normal`: each skill's normal report, input and expected output, compared byte for byte; the expected files are each skill's own report tool's output at aws-samples/sample-apex-skills 854031dc (ecs-operation-review and eks-cost-intelligence tools/report_to_html.py, eks-security assets/render_report.py), on inputs built from each skill's report template and eks-security's test fixture. `hostile`: the hostile-input suite; a markdown case is one input run through each named template, an eks-security case puts `value` in three findings fields of sec-1 (sources[0].title, findings[1].reason, findings[0].fixed); `contains` and `absent` are substrings of the written pages (for eks-security, per suffix in `contains`, and in every page for `absent`). eks-security folds each whitespace run in a value to one space, its own page rule, so a control character made a space reads as one space there. `errors`: each builds `files` in a temp dir ({d} in `args`), runs the tool and expects exit `rc`, one stderr line holding `stderr`, no traceback, and no file named in `absent`. `gate`: sec-1 with coverage.complete false writes both pages and exits 3.",
+ "_about": "Cases for misc/tests/test_report_tool.py, the tests of the shared report tool classes/apex-base/scripts/report.py. `normal`: each skill's normal report, input and expected output, compared byte for byte; the expected files are each skill's own report tool's output at aws-samples/sample-apex-skills 854031dc (ecs-operation-review and eks-cost-intelligence tools/report_to_html.py, eks-security assets/render_report.py), on inputs built from each skill's report template and eks-security's test fixture. A change to an old tool before its skill's rebuild refreshes that skill's baseline here. `hostile`: the hostile-input suite; a markdown case is one input run through each named template, an eks-security case puts `value` in three findings fields of sec-1 (sources[0].title, findings[1].reason, findings[0].fixed); `contains` and `absent` are substrings of the written pages (for eks-security, per suffix in `contains`, and in every page for `absent`). eks-security folds each whitespace run in a value to one space, its own page rule, so a control character made a space reads as one space there. `errors`: each builds `files` in a temp dir ({d} in `args`), runs the tool and expects exit `rc`, one stderr line holding `stderr`, no traceback, and no file named in `absent`. `gate`: sec-1 with coverage.complete false writes both pages and exits 3.",
  "normal": [
   {
    "id": "ecs-1-full",
@@ -508,6 +508,21 @@
    ]
   },
   {
+   "id": "H17",
+   "about": "Quote injection in a code fence's language (the old eks-cost-intelligence tool wrote it into class unescaped)",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\n```x\" onmouseover=\"alert(1)\ncode\n```\n",
+   "contains": [
+    "<pre><code class=\"language-x"
+   ],
+   "absent": [
+    "\" onmouseover=\""
+   ]
+  },
+  {
    "id": "M1",
    "about": "The apex.report-masking line in the report text reaches the page as written",
    "templates": [
@@ -556,26 +571,6 @@
    ]
   },
   {
-   "id": "H10-operation",
-   "about": "Input file empty (0 bytes)",
-   "files": {
-    "in.md": {
-     "text": ""
-    }
-   },
-   "args": [
-    "ecs-operation-review",
-    "{d}/in.md",
-    "--out",
-    "{d}/o.html"
-   ],
-   "rc": 2,
-   "stderr": ": empty input",
-   "absent": [
-    "o.html"
-   ]
-  },
-  {
    "id": "H11-operation",
    "about": "Input not UTF-8 (bytes ff fe inside a line)",
    "files": {
@@ -612,26 +607,6 @@
    ]
   },
   {
-   "id": "H10-cost",
-   "about": "Input file empty (0 bytes)",
-   "files": {
-    "in.md": {
-     "text": ""
-    }
-   },
-   "args": [
-    "eks-cost-intelligence",
-    "{d}/in.md",
-    "--out",
-    "{d}/o.html"
-   ],
-   "rc": 2,
-   "stderr": ": empty input",
-   "absent": [
-    "o.html"
-   ]
-  },
-  {
    "id": "H11-cost",
    "about": "Input not UTF-8 (bytes ff fe inside a line)",
    "files": {
@@ -663,26 +638,6 @@
    ],
    "rc": 2,
    "stderr": ": not readable: No such file or directory",
-   "absent": [
-    "o.md"
-   ]
-  },
-  {
-   "id": "H10-security",
-   "about": "Input file empty (0 bytes)",
-   "files": {
-    "in.json": {
-     "text": ""
-    }
-   },
-   "args": [
-    "eks-security",
-    "{d}/in.json",
-    "--out",
-    "{d}/o.md"
-   ],
-   "rc": 2,
-   "stderr": ": empty input",
    "absent": [
     "o.md"
    ]
@@ -768,44 +723,26 @@
   },
   {
    "id": "E4",
-   "about": "Output path is a symlink: never written through",
+   "about": "eks-security output path is a symlink: never written through",
    "files": {
-    "in.md": {
-     "text": "# R\n"
+    "p.json": {
+     "text": "{\"schema\": \"eks-security/posture@1\"}"
     },
-    "target.html": {
+    "target.md": {
      "text": "keep\n"
     },
-    "o.html": {
-     "symlink": "target.html"
+    "o.md": {
+     "symlink": "target.md"
     }
    },
    "args": [
-    "ecs-operation-review",
-    "{d}/in.md",
+    "eks-security",
+    "{d}/p.json",
     "--out",
-    "{d}/o.html"
+    "{d}/o.md"
    ],
    "rc": 2,
    "stderr": ": not writable: ",
-   "absent": []
-  },
-  {
-   "id": "E5",
-   "about": "--out names the input",
-   "files": {
-    "in.html": {
-     "text": "# R\n"
-    }
-   },
-   "args": [
-    "ecs-operation-review",
-    "{d}/in.html",
-    "--out",
-    "{d}/in.html"
-   ],
-   "rc": 2,
-   "stderr": ": names ",
    "absent": []
   },
   {
@@ -1014,28 +951,6 @@
    ],
    "rc": 2,
    "stderr": ": a second findings input",
-   "absent": [
-    "o.md"
-   ]
-  },
-  {
-   "id": "E16",
-   "about": "The second output fails: the first is removed",
-   "files": {
-    "p.json": {
-     "text": "{\"schema\": \"eks-security/posture@1\"}"
-    }
-   },
-   "args": [
-    "eks-security",
-    "{d}/p.json",
-    "--out",
-    "{d}/o.md",
-    "--out",
-    "{d}/nope/o.html"
-   ],
-   "rc": 2,
-   "stderr": ": not writable: No such file or directory",
    "absent": [
     "o.md"
    ]
