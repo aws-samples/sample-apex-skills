@@ -5,10 +5,10 @@
 # ///
 """apex-base secret deny: a PreToolUse hook that blocks reading Kubernetes Secrets.
 
-Backs apex.no-secrets (classes/apex-base/rules.md). Once the plugin is enabled
-the hook runs; its own switch, the plugin's userConfig boolean apex_no_secrets,
-turns it off only when false is saved for it (an unset variable reads as on,
-below); the plugin's
+Backs apex.no-secrets (classes/apex-base/rules.md). Each hook is off until you
+turn on its option in /config (default off). Its own switch is the plugin's
+userConfig boolean apex_no_secrets, default false as the class.yaml `hooks:`
+entry's `enabled`; the plugin's
 hooks.json, which runs this script, comes with the class sync. A guardrail, not
 a guarantee: it reads the command text, so a script, an alias or text built at
 run time passes.

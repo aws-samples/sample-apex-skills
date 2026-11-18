@@ -7,10 +7,11 @@
 
 Backs advisor.no-side-effects (--mode block: every write) and
 operator.confirm-before-change (--mode ask: the user confirms each write).
-Once the plugin is enabled each hook runs. Each id has its own switch, the
+Each hook is off until you turn on its option in /config (default off).
+Each id has its own switch, the
 plugin's userConfig booleans operator_confirm_before_change and
-advisor_no_side_effects, which turns it off only when false is saved for it
-(an unset variable reads as on, below); the plugin's hooks.json, which runs this script, comes with the
+advisor_no_side_effects, default false as each class.yaml `hooks:` entry's
+`enabled`; the plugin's hooks.json, which runs this script, comes with the
 class sync. A guardrail, not a guarantee: it reads the command text, so a
 script, an alias or text built at run time passes. RBAC, the stage helper and the PR merge stay the real gate.
 
