@@ -5,9 +5,10 @@
 # ///
 """apex-base secret deny: a PreToolUse hook that blocks reading Kubernetes Secrets.
 
-Backs apex.no-secrets (classes/apex-base/rules.md). Opt-in: off until the plugin
-is enabled. Its own switch is the plugin's userConfig boolean apex_no_secrets,
-default false as the class.yaml `hooks:` entry's `enabled`; the plugin's
+Backs apex.no-secrets (classes/apex-base/rules.md). Each hook is off until you
+turn on its option in /config (default off). Its own switch is the plugin's
+userConfig boolean apex_no_secrets, default false as the class.yaml `hooks:`
+entry's `enabled`; the plugin's
 hooks.json, which runs this script, comes with the class sync. A guardrail, not
 a guarantee: it reads the command text, so a script, an alias or text built at
 run time passes.
@@ -22,7 +23,7 @@ false, in any case, surrounding whitespace stripped: false is off, no decision
 (exit 0, no output) whatever the event. Any other value, an empty one included,
 blocks (exit 2, one stderr line naming the variable and the value). On Codex
 no CLAUDE_PLUGIN_OPTION_* reaches the script (Codex's hooks docs name none), so
-the hook runs unless disabled in Codex's /hooks.
+the hook runs once trusted in Codex's /hooks, unless disabled there.
 
 Claude Code, Codex and Kiro all send `tool_name` and `tool_input`; a shell call
 carries `tool_input.command`. It blocks (exit 2, the reason on stderr):
@@ -30,9 +31,11 @@ carries `tool_input.command`. It blocks (exit 2, the reason on stderr):
   .version.group suffix, alone, as secret/<name> or in a comma list, in every
   output form; apply view-last-applied of a Secret; get --raw on a /secrets path.
 - helm list, ls, history, hist, status and every helm get (Helm keeps release
-  records in Secrets), helm install or upgrade with --dry-run=server and no
-  --hide-secret, and helm template with --dry-run=server (a chart's lookup then
-  reads the cluster; helm template has no --hide-secret).
+  records in Secrets), helm install or upgrade with --dry-run=server, and helm
+  template with --dry-run=server, =none or =false (each lets a chart's lookup
+  read the cluster: helm v3.16.2 pkg/action/install.go:254). --hide-secret is
+  no exemption: it hides only rendered kind Secret v1 manifests
+  (pkg/action/action.go:203), not a looked-up value rendered elsewhere.
 - EKS MCP Server tools, matched by name suffix whatever the server key:
   read_k8s_resource and list_k8s_resources of kind Secret, and
   manage_k8s_resource with operation read of kind Secret.
@@ -251,9 +254,8 @@ def helm_reads_secret(args):
     if pos[0] in ("list", "ls", "history", "hist", "status", "get"):
         return True
     if pos[0] == "template":
-        return dry_run(args) == "server"
-    return pos[0] in ("install", "upgrade") and dry_run(args) == "server" \
-        and "--hide-secret" not in args
+        return dry_run(args) in ("server", "none", "false")
+    return pos[0] in ("install", "upgrade") and dry_run(args) == "server"
 
 
 def shell_reason(command):

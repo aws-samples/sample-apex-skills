@@ -7,7 +7,8 @@
 
 Backs advisor.no-side-effects (--mode block: every write) and
 operator.confirm-before-change (--mode ask: the user confirms each write).
-Opt-in: off until the plugin is enabled. Each id has its own switch, the
+Each hook is off until you turn on its option in /config (default off).
+Each id has its own switch, the
 plugin's userConfig booleans operator_confirm_before_change and
 advisor_no_side_effects, default false as each class.yaml `hooks:` entry's
 `enabled`; the plugin's hooks.json, which runs this script, comes with the
@@ -26,7 +27,8 @@ surrounding whitespace stripped: false is off, no decision (exit 0, no output)
 whatever the event. Any other value, an empty one included, blocks (exit 2,
 one stderr line naming the variable and the value). On Codex no
 CLAUDE_PLUGIN_OPTION_* reaches the script (Codex's hooks docs name none), so a
-hook runs unless disabled in Codex's /hooks, and ask mode blocks.
+hook runs once trusted in Codex's /hooks, unless disabled there, and ask mode
+blocks.
 
 A write is (kubectl, helm and terraform: only the commands listed below are
 writes; eksctl and aws: every command but the reads listed):
@@ -55,11 +57,11 @@ kubeconfig setup apex.read-only-unless-confirmed allows.
 Output: block is exit 2 with the reason on stderr. Ask prints Claude Code's
 permissionDecision "ask" JSON on exit 0, only for an event with
 permission_mode and no turn_id (Claude Code's shape). Codex has no PreToolUse
-ask. Kiro CLI 3.4.0 adds a PreToolUse allow, ask or deny decision in V3
-sessions (kiro.dev/changelog/cli/3-4/, read 2026-11-17, page text md5
-843462d317d5e7ab0d915343480b0bd9); that page gives neither the decision's
-output shape nor an event field that tells a Kiro CLI event from a Kiro IDE
-event, and says nothing of Kiro IDE. So this script prints no Kiro ask, and on
+ask. Kiro CLI 3.4.0+ documents an ask decision (JSON on stdout, exit 0), but
+no event field tells a Kiro CLI event from a Kiro IDE event, and Kiro IDE
+reads only the exit code, where exit 0 lets the call run
+(https://kiro.dev/docs/hooks/types.md, read 2026-11-18, page text md5
+935594ac4a80154cfe0d2085f57c7bab); so this script prints no Kiro ask, and on
 Codex and Kiro ask mode blocks. No write gets no decision (exit 0, no output);
 an event it cannot read gets no decision too, with nothing on stdout and one
 stderr line.
