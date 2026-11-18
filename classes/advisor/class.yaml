@@ -11,3 +11,18 @@ checks:
   - id: no-shipped-runnables
     what: "The member ships no tools/ or scripts/; its SKILL.md holds no shell fence or command line to run; every line in references/ that changes a cluster or account (read by hand, not by a verb regex: a line counts when it holds a command, in a fence or a code span, that it tells the reader to run, and the command changes a cluster, an account, a cluster host or the Git repository a cluster syncs from; a line that only names, describes or forbids a command does not) is marked customer-run, in one of three forms: the marker on the line above a fence, at the end of the line, or on a blockquote line above a quoted fence. `aws eks update-kubeconfig` is exempt (apex.read-only-unless-confirmed)"
     status: planned
+
+# Opt-in PreToolUse hooks; the fields are described in apex-base/class.yaml.
+# This entry runs operator's script in block mode, and is switched on and off
+# apart from operator's ask-mode entry.
+hooks:
+  - id: advisor.no-side-effects
+    what: "Block every cloud or cluster write, by the same match as operator's mutation guard"
+    event: PreToolUse
+    script: ../operator/hooks/mutation-guard/mutation_guard.py
+    mode: block
+    enabled: false
+    matchers:
+      claude-code: "^(Bash|use_aws|mcp__.*)$"
+      codex: "^(Bash|use_aws|mcp__.*)$"
+      kiro: "^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$"
