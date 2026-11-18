@@ -3,7 +3,12 @@
   "decision": "block",
   "args": [
     "--mode",
-    "block"
+    "block",
+    "--id",
+    "advisor.no-side-effects"
   ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_ADVISOR_NO_SIDE_EFFECTS": "true"
+  },
   "stderr_contains": "advisor.no-side-effects"
 }
