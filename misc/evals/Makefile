@@ -25,8 +25,10 @@ SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 # PROVIDER selects how `claude -p` reaches a model:
 #   bedrock    (default) — sets CLAUDE_CODE_USE_BEDROCK=1 and uses a Bedrock
 #                          inference-profile ID. Required on AWS-only setups.
-#   anthropic            — uses the Anthropic API. Expects ANTHROPIC_API_KEY
-#                          to be exported in the caller's environment.
+#   anthropic            : the eval runners refuse it. They start only with
+#                          CLAUDE_CODE_USE_BEDROCK=1, and every run, this one
+#                          included, needs ~/.apex-eval and the eval role
+#                          (misc/evals/README.md, "Model & provider configuration").
 # Override per invocation: `make triggering-all PROVIDER=anthropic MODEL=claude-opus-4-6-v1`.
 # Defaults for MODEL are provider-aware; explicit MODEL= always wins.
 PROVIDER       ?= bedrock
@@ -60,14 +62,12 @@ TASK_T       := $(addprefix task-,$(SKILLS))
 
 # Task-axis defaults (PLAN §2). RUNS_PER_PROMPT=1 is cheap dev; bump to 3
 # for stddev. INCLUDE_LIVE_ONLY=1 enables prompts that require a real
-# cluster (eks-recon, eks-operation-review). KUBECONFIG and AWS_SESSION_POLICY feed
-# the sandbox so those live prompts run against a read-only scope.
+# cluster (eks-recon, eks-operation-review). KUBECONFIG_RO feeds the sandbox a
+# read-only kubeconfig; their AWS access is only what the eval role grants.
 RUNS_PER_PROMPT   ?= 1
 INCLUDE_LIVE_ONLY ?= 0
 READONLY_SECRETS  := $(EVALS_ROOT)/.secrets
 KUBECONFIG_RO     ?= $(READONLY_SECRETS)/kubeconfig.readonly
-AWS_POLICY_RO     ?= $(READONLY_SECRETS)/readonly-session-policy.json
-AWS_REGION        ?= us-west-2
 
 PROCESS_T    := $(addprefix process-,$(SKILLS))
 ARTIFACT_T   := $(addprefix artifact-,$(SKILLS))
@@ -106,9 +106,10 @@ help:
 	@echo "  hygiene                                       pre-flight every misc/evals/*/ (no model calls)"
 	@echo ""
 	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
-	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, AWS_POLICY_RO, WORKSPACE, BENCHMARK_DIR"
+	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, WORKSPACE, BENCHMARK_DIR"
 	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
 	@echo "           RUNS_PER_PROMPT=$(RUNS_PER_PROMPT) INCLUDE_LIVE_ONLY=$(INCLUDE_LIVE_ONLY)"
+	@echo "Eval runs need ~/.apex-eval (aws-config, expected-account) and the eval role: see README.md"
 
 list-skills:
 	@echo $(SKILLS)
@@ -245,8 +246,8 @@ init-evals-finalize:
 # misc/evals/history/<skill>.jsonl.
 #
 # Live-cluster prompts (live_only=true in evals.json) are skipped unless
-# INCLUDE_LIVE_ONLY=1. When enabled, the runner also needs a read-only
-# kubeconfig + an AWS session-policy file to scope what the subject can see.
+# INCLUDE_LIVE_ONLY=1. When enabled, the runner also takes a read-only
+# kubeconfig; the subject's AWS access is the eval-role session only.
 $(TASK_T): task-%:
 	@test -f $(call evals_json,$*) || \
 	  { echo "missing: $(call evals_json,$*)"; exit 1; }
@@ -255,9 +256,6 @@ $(TASK_T): task-%:
 	   extra="$$extra --include-live-only" ; \
 	   if [ -f "$(KUBECONFIG_RO)" ]; then \
 	     extra="$$extra --kubeconfig $(KUBECONFIG_RO)" ; \
-	   fi ; \
-	   if [ -f "$(AWS_POLICY_RO)" ]; then \
-	     extra="$$extra --aws-session-policy $(AWS_POLICY_RO) --aws-region $(AWS_REGION)" ; \
 	   fi ; \
 	 fi ; \
 	 python3 $(EVALS_ROOT)/scripts/run_task_evals.py \

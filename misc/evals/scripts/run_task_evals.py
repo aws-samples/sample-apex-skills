@@ -9,7 +9,12 @@ for k in 1..--runs:
      clean HOME, plus an optional KUBECONFIG. The only AWS credentials the
      subject and the grader get are the eval-role session that
      run_triggering.mint_eval_role_credentials mints and checks before the
-     first run; the host's ~/.aws and AWS_* variables never reach them.
+     first run; the host's ~/.aws and AWS_* variables are no longer handed
+     to them in their environment or HOME. They still run as your OS user,
+     so they can read your files and the runner's environment by path; run
+     them as another OS user or in a container for a hard fence
+     (misc/website/docs/read-only-operating-profile.md). The
+     --aws-session-policy, --aws-region and --aws-duration flags are removed.
   2. Run `claude -p <prompt>` streaming stream-json. Write
        transcript.md, events.jsonl, outputs/, timing.json, metrics.json
      under:
@@ -49,7 +54,6 @@ from pathlib import Path
 from typing import Any
 
 from run_triggering import (
-    EVAL_SESSION_MARGIN,
     EvalCredentialError,
     build_subprocess_env,
     eval_aws_env,
@@ -481,7 +485,8 @@ def run_subject(
         if skill_eval_dir and eval_id is not None and fixture_files:
             staged = stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
 
-        env = build_subprocess_env(home, extra=extra_env, aws_env=eval_aws_env(timeout))
+        def subject_env() -> dict[str, str]:
+            return build_subprocess_env(home, extra=extra_env, aws_env=eval_aws_env(timeout))
 
         if elicitation.strategy == "canned-multiturn" and elicitation.turns:
             cmd_base = [
@@ -497,7 +502,7 @@ def run_subject(
                 elicitation=elicitation,
                 cmd_base=cmd_base,
                 cwd=str(sandbox),
-                env=env,
+                env_for_turn=subject_env,
                 timeout_per_turn=timeout,
             )
             stderr = b""
@@ -516,7 +521,7 @@ def run_subject(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(sandbox),
-                env=env,
+                env=subject_env(),
             )
             events, timed_out = drain_stream(process, timeout=timeout)
             stderr = b""
@@ -1014,12 +1019,6 @@ def main() -> int:
     parser.add_argument("--grader-timeout", type=int, default=600)
     parser.add_argument("--kubeconfig", default=None,
                         help="KUBECONFIG path exported into the subject subprocess")
-    parser.add_argument("--aws-session-policy", default=None,
-                        help="Removed: the runner refuses it. It minted a federation token "
-                             "from the host's own keys; AWS access is the eval role only.")
-    parser.add_argument("--aws-region", default=None,
-                        help="Removed: the runner refuses it. The region is the one set for "
-                             "profile apex-eval-admin in ~/.apex-eval/aws-config.")
     args = parser.parse_args()
 
     skills = discover_skills()
@@ -1038,19 +1037,13 @@ def main() -> int:
             print(f"kubeconfig not found: {kcp}", file=sys.stderr)
             return 2
         extra_env["KUBECONFIG"] = str(kcp)
-    if args.aws_session_policy or args.aws_region:
-        print(
-            "error: --aws-session-policy and --aws-region are removed. The subject's only "
-            "AWS access is the eval-role session (profile apex-eval-admin in "
-            "~/.apex-eval/aws-config), never the host's keys.",
-            file=sys.stderr,
-        )
-        return 2
-    longest = max(args.subject_timeout or 0, args.grader_timeout)
+    subject_timeouts = (
+        [args.subject_timeout] if args.subject_timeout is not None
+        else [load_skilleval_config(s).timeout for s in skills]
+    )
+    longest = max([*subject_timeouts, args.grader_timeout])
     try:
-        set_eval_credentials(
-            mint_eval_role_credentials(min_seconds=longest + EVAL_SESSION_MARGIN)
-        )
+        set_eval_credentials(mint_eval_role_credentials(timeout=longest))
     except EvalCredentialError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

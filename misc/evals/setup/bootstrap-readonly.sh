@@ -9,9 +9,11 @@
 #        - Secret kube-system/evals-readonly-token (SA-bound token)
 #   2. In misc/evals/.secrets/ (gitignored):
 #        - kubeconfig.readonly   — auths as the SA; read-only
-#        - readonly-session-policy.json — IAM session policy the runner
-#                                         uses when minting an STS federation
-#                                         token for the subject subprocess
+#        - readonly-session-policy.json: IAM session policy for the read-only
+#                                         operating profile's own federation
+#                                         token (its section 2). The eval runner
+#                                         does not use it: the subject's AWS
+#                                         access is the eval role only
 #
 # Both outputs are generated from the checked-in declarative sources under
 # misc/evals/setup/ — no secret material is ever committed.
@@ -94,8 +96,8 @@ EOF
 chmod 600 "${KUBECONFIG_OUT}"
 log "wrote ${KUBECONFIG_OUT}"
 
-# The session policy is static — copy it into .secrets/ so the Makefile
-# defaults find it in the same place as the kubeconfig. Copying instead of
+# The session policy is static: copy it into .secrets/ so the read-only
+# operating profile's section 2 command finds it beside the kubeconfig. Copying instead of
 # symlinking keeps the .secrets/ directory self-contained if someone moves
 # the repo.
 POLICY_OUT="${SECRETS_DIR}/readonly-session-policy.json"
@@ -130,4 +132,4 @@ if ! aws sts get-federation-token \
 fi
 
 log "done. both artefacts are in ${SECRETS_DIR}/ (gitignored)."
-log "you can now run: make task-eks-recon INCLUDE_LIVE_ONLY=1 (or task-eks-operation-review)"
+log "with the eval role set up (misc/evals/README.md), you can now run: make task-eks-recon INCLUDE_LIVE_ONLY=1 (or task-eks-operation-review)"

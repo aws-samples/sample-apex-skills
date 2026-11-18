@@ -204,7 +204,7 @@ misc/evals/<skill>/
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PROVIDER` | `bedrock` | `bedrock` or `anthropic` |
+| `PROVIDER` | `bedrock` | `bedrock` only in practice: the eval runners refuse to start unless `CLAUDE_CODE_USE_BEDROCK=1`, and every run needs the eval-role setup below |
 | `MODEL` | provider-aware | `bedrock` → `global.anthropic.claude-opus-4-6-v1`; `anthropic` → `claude-opus-4-6-v1` |
 | `RUNS_PER_QUERY` | `3` | ≥3 for meaningful confidence intervals |
 | `NUM_WORKERS` | `10` | Parallelism for triggering runs |
@@ -212,9 +212,19 @@ misc/evals/<skill>/
 
 ```bash
 make triggering-all                                     # default: Bedrock Opus
-make triggering-all PROVIDER=anthropic                  # Anthropic API
 make triggering-eks-best-practices RUNS_PER_QUERY=1     # cheap iteration
 ```
+
+### Eval-role setup (`~/.apex-eval`)
+
+Every eval run gets its AWS access from a short-lived session of one IAM role used only for evals, never from your own keys. Before the first model call the runner assumes that role and checks the session with `sts get-caller-identity`. If anything below is missing or wrong it refuses to start, with no fallback.
+
+- `~/.apex-eval/aws-config`: an AWS CLI config file with a `[profile apex-eval-admin]` section. It sets `region` (the Region the evals call Bedrock in) and a `credential_process` line that prints credentials allowed to assume the eval role, such as your organisation's sign-in helper.
+- `~/.apex-eval/expected-account`: the 12-digit id of the eval account, on one line. The runner builds the role ARN from it and refuses a session in any other account.
+- Role `apex-eval-bedrock-invoke` in that account. Its trust policy lets the `apex-eval-admin` identity assume it. Its permissions allow `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` on the models and inference profiles you run. Live-cluster evals get only what this role grants.
+- `CLAUDE_CODE_USE_BEDROCK=1` (the Makefile sets it for `PROVIDER=bedrock`), so `claude -p` sends its model calls through Bedrock on that session.
+
+AWS caps a role-chained session at one hour, so a subject or grader timeout plus 120 seconds must fit in 3600 seconds.
 
 ## Adding evals for a new skill
 
