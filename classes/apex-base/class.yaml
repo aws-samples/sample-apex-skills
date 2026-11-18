@@ -81,7 +81,7 @@ evals:
     status: planned
 
 # Opt-in PreToolUse hooks. Each entry is one hook with its own switch
-# (`enabled`, off as shipped) and its own `mode`; the class sync writes each
+# (`enabled`, false as shipped: Kiro's switch and the option's default) and its own `mode`; the class sync writes each
 # entry into the plugin (plugins/apex/hooks/hooks.json, kiro/apex-hooks.json).
 # `id` is the entry's stable key: it names the rule the hook backs and the
 # entry's switch, so it does not change. In hooks.json each command is shell

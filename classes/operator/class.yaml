@@ -17,8 +17,9 @@ checks:
     status: planned
 
 # Opt-in PreToolUse hooks; the fields are described in apex-base/class.yaml.
-# Codex has no PreToolUse ask, and Kiro documents one only for Kiro CLI 3.4.0
-# or later; the script prints no Kiro ask, so on both an ask-mode hook blocks.
+# Codex parses an ask but fails open on it, and Kiro documents one only for
+# Kiro CLI 3.4.0 or later; the script prints neither an ask, so on both an
+# ask-mode hook blocks.
 hooks:
   - id: operator.confirm-before-change
     what: "Ask the user before a cloud or cluster write: kubectl, helm, terraform, eksctl and aws writes, EKS MCP Server write tools and structured AWS calls"

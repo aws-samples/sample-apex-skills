@@ -7,11 +7,10 @@
 
 Backs advisor.no-side-effects (--mode block: every write) and
 operator.confirm-before-change (--mode ask: the user confirms each write).
-Each hook is off until you turn on its option in /config (default off).
-Each id has its own switch, the
+Once the plugin is enabled each hook runs. Each id has its own switch, the
 plugin's userConfig booleans operator_confirm_before_change and
-advisor_no_side_effects, default false as each class.yaml `hooks:` entry's
-`enabled`; the plugin's hooks.json, which runs this script, comes with the
+advisor_no_side_effects, which turns it off only when false is saved for it
+(an unset variable reads as on, below); the plugin's hooks.json, which runs this script, comes with the
 class sync. A guardrail, not a guarantee: it reads the command text, so a
 script, an alias or text built at run time passes. RBAC, the stage helper and the PR merge stay the real gate.
 
@@ -56,8 +55,9 @@ kubeconfig setup apex.read-only-unless-confirmed allows.
 
 Output: block is exit 2 with the reason on stderr. Ask prints Claude Code's
 permissionDecision "ask" JSON on exit 0, only for an event with
-permission_mode and no turn_id (Claude Code's shape). Codex has no PreToolUse
-ask. Kiro CLI 3.4.0+ documents an ask decision (JSON on stdout, exit 0), but
+permission_mode and no turn_id (Claude Code's shape). Codex events carry
+turn_id, and Codex parses an ask but fails open on it (the tool runs), so the
+script prints it no ask. Kiro CLI 3.4.0+ documents an ask decision (JSON on stdout, exit 0), but
 no event field tells a Kiro CLI event from a Kiro IDE event, and Kiro IDE
 reads only the exit code, where exit 0 lets the call run
 (https://kiro.dev/docs/hooks/types.md, read 2026-11-18, page text md5

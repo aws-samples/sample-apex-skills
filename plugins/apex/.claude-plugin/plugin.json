@@ -1,7 +1,7 @@
 {
   "name": "apex",
   "version": "0.1.0",
-  "description": "APEX guard hooks for Claude Code and Codex: a secret deny that blocks Kubernetes Secret reads through kubectl, helm and the EKS MCP Server (exec, cp, attach and debug into a pod are the mutation guard's), and a mutation guard that asks before (operator) or blocks (advisor) cloud and cluster writes. The hooks are not in this release yet; they come with the class sync. Each hook is off until you turn on its option in /config (default off). On Codex no CLAUDE_PLUGIN_OPTION_* reaches the scripts, so a hook runs once trusted in Codex's /hooks, unless disabled there, and ask mode blocks. Each hook backs a rule the APEX skills already state.",
+  "description": "APEX guard hooks for Claude Code and Codex: a secret deny that blocks Kubernetes Secret reads through kubectl, helm and the EKS MCP Server (exec, cp, attach and debug into a pod are the mutation guard's), and a mutation guard that asks before (operator) or blocks (advisor) cloud and cluster writes. The hooks are not in this release yet; they come with the class sync. Once the plugin is enabled, each hook runs; a saved false for its option in /config turns it off. On Codex no CLAUDE_PLUGIN_OPTION_* reaches the scripts, so a hook runs once trusted in Codex's /hooks, unless disabled there, and ask mode blocks. Each hook backs a rule the APEX skills already state.",
   "author": {
     "name": "aws-samples"
   },
