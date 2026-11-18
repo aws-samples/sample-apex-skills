@@ -1,0 +1,10 @@
+{
+  "exit": 0,
+  "decision": "none",
+  "args": [
+    "--mode",
+    "block",
+    "--id",
+    "advisor.no-side-effects"
+  ]
+}

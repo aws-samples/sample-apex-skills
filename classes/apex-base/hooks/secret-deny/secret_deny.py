@@ -18,12 +18,14 @@ Usage: secret_deny.py --mode block [--id apex.no-secrets]
 
 The off switch is the environment variable CLAUDE_PLUGIN_OPTION_<KEY>, KEY the
 --id with every . and - as _, uppercased (CLAUDE_PLUGIN_OPTION_APEX_NO_SECRETS;
-Claude Code exports one per plugin option). Absent, or no --id: on. true or
+Claude Code exports one per plugin option). Absent: off. No --id: on. true or
 false, in any case, surrounding whitespace stripped: false is off, no decision
 (exit 0, no output) whatever the event. Any other value, an empty one included,
-blocks (exit 2, one stderr line naming the variable and the value). On Codex
-no CLAUDE_PLUGIN_OPTION_* reaches the script (Codex's hooks docs name none), so
-the hook runs once trusted in Codex's /hooks, unless disabled there.
+blocks (exit 2, one stderr line naming the variable and the value). Codex
+exports no CLAUDE_PLUGIN_OPTION_* but gives each hook the environment Codex
+starts with, so on Codex the hook runs once that variable is true there
+(CLAUDE_PLUGIN_OPTION_APEX_NO_SECRETS=true codex) and the hook is trusted in
+Codex's /hooks.
 
 Claude Code, Codex and Kiro all send `tool_name` and `tool_input`; a shell call
 carries `tool_input.command`. It blocks (exit 2, the reason on stderr):
@@ -279,12 +281,14 @@ def mcp_reason(name, tool_input):
 
 
 def switch_off(hook_id):
-    """True when the hook's switch reads false; ValueError for a value not true or false."""
+    """True when the hook's switch is absent or reads false; ValueError for any other value."""
     if not hook_id:
         return False
     name = "CLAUDE_PLUGIN_OPTION_" + re.sub(r"[.-]", "_", hook_id).upper()
     value = os.environ.get(name)
-    if value is None or value.strip().lower() == "true":
+    if value is None:
+        return True
+    if value.strip().lower() == "true":
         return False
     if value.strip().lower() == "false":
         return True

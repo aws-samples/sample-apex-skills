@@ -1,0 +1,14 @@
+{
+  "exit": 2,
+  "decision": "block",
+  "stderr_contains": "advisor.no-side-effects",
+  "args": [
+    "--mode",
+    "block",
+    "--id",
+    "advisor.no-side-effects"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_ADVISOR_NO_SIDE_EFFECTS": "True"
+  }
+}

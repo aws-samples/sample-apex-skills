@@ -90,8 +90,10 @@ evals:
 # with every . and - as _ (apex_no_secrets), default `enabled`; Claude Code
 # exports it to the hook as CLAUDE_PLUGIN_OPTION_<KEY>, uppercased
 # (CLAUDE_PLUGIN_OPTION_APEX_NO_SECRETS). The script reads that variable:
-# absent, on; true or false in any case; false exits 0 with no decision; any
-# other value blocks. Kiro takes each entry's own "enabled". `script` is
+# absent, off; true or false in any case; false exits 0 with no decision; any
+# other value blocks. On Codex the user sets it to true in the environment
+# Codex starts with. Kiro takes each entry's own "enabled", so its commands
+# carry no --id. `script` is
 # relative to this folder. `matchers` holds one tool-name pattern per harness.
 # A hook backs the rule its `id` names; it is a guardrail, not a guarantee.
 hooks:

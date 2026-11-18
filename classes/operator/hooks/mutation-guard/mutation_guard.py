@@ -22,13 +22,14 @@ One script backs two ids, so the command names its id. The off switch is the
 environment variable CLAUDE_PLUGIN_OPTION_<KEY>, KEY the --id with every . and
 - as _, uppercased (CLAUDE_PLUGIN_OPTION_OPERATOR_CONFIRM_BEFORE_CHANGE,
 CLAUDE_PLUGIN_OPTION_ADVISOR_NO_SIDE_EFFECTS; Claude Code exports one per
-plugin option). Absent, or no --id: on. true or false, in any case,
+plugin option). Absent: off. No --id: on. true or false, in any case,
 surrounding whitespace stripped: false is off, no decision (exit 0, no output)
 whatever the event. Any other value, an empty one included, blocks (exit 2,
-one stderr line naming the variable and the value). On Codex no
-CLAUDE_PLUGIN_OPTION_* reaches the script (Codex's hooks docs name none), so a
-hook runs once trusted in Codex's /hooks, unless disabled there, and ask mode
-blocks.
+one stderr line naming the variable and the value). Codex exports no
+CLAUDE_PLUGIN_OPTION_* but gives each hook the environment Codex starts with,
+so on Codex a hook runs once its variable is true there
+(CLAUDE_PLUGIN_OPTION_ADVISOR_NO_SIDE_EFFECTS=true codex) and the hook is
+trusted in Codex's /hooks; ask mode blocks there.
 
 A write is (kubectl, helm and terraform: only the commands listed below are
 writes; eksctl and aws: every command but the reads listed):
@@ -340,12 +341,14 @@ def mcp_reason(name, tool_input):
 
 
 def switch_off(hook_id):
-    """True when the hook's switch reads false; ValueError for a value not true or false."""
+    """True when the hook's switch is absent or reads false; ValueError for any other value."""
     if not hook_id:
         return False
     name = "CLAUDE_PLUGIN_OPTION_" + re.sub(r"[.-]", "_", hook_id).upper()
     value = os.environ.get(name)
-    if value is None or value.strip().lower() == "true":
+    if value is None:
+        return True
+    if value.strip().lower() == "true":
         return False
     if value.strip().lower() == "false":
         return True
