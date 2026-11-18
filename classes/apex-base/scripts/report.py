@@ -16,8 +16,8 @@ scripts/apex_base_report.py):
 Templates (each writes that skill's own page byte for byte on its normal
 report; on other input the one link and control layer below applies, so
 ecs-operation-review no longer links relative paths or rewrites unsafe
-links to #, eks-cost-intelligence links upper-case schemes, and control
-characters become a space):
+links to #, eks-cost-intelligence links upper-case schemes and escapes a
+code fence's language, and control characters become a space):
   ecs-operation-review    one markdown report in, --out <file>.html
   eks-cost-intelligence   one markdown report in, --out <file>.html
   eks-security            findings JSON (optional inventory JSON), posture
