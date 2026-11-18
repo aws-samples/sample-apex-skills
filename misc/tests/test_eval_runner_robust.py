@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Tests for eval runner input handling: event lines that are not JSON
 objects, user messages with string content, tool calls with no input, the
-tool-args-schema check, fixture files leaking into the graded outputs, and
-validators that pass with nothing to check.
+tool-args-schema check, fixture files leaking into the graded outputs,
+validators that pass with nothing to check, and the eval-role credentials
+(no host ~/.aws in the subject's HOME, parent AWS_* dropped, refusal on a
+wrong account, a missing expected-account file or a sign-in failure).
 
-No test calls a model or starts a `claude` process. The two stream readers
-are fed by a child Python process that only prints fixed lines.
+No test calls a model, starts a `claude` process or reaches AWS. The two
+stream readers are fed by a child Python process that only prints fixed
+lines; the credential tests put a fake `aws` first on PATH.
 
 Run directly with:
 
@@ -16,6 +19,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -41,6 +45,8 @@ from run_task_evals import (  # noqa: E402
     snapshot_sandbox_outputs,
     stage_fixture_files,
 )
+import run_task_evals  # noqa: E402
+import run_triggering  # noqa: E402
 from run_triggering import _handle_line  # noqa: E402
 
 
@@ -285,6 +291,198 @@ class NothingToCheckIsNotAPass(unittest.TestCase):
         # The rate reads 0%; the verdict and the exit code are unchanged.
         self.assertIn("TOTAL: 0/0 (0%) PASS", err.getvalue())
         self.assertEqual(rc, 0)
+
+
+# A fake `aws` for the credential tests: it records each call (argv and the
+# env names it was given) to $FAKE_AWS_LOG and answers by $FAKE_AWS_MODE.
+FAKE_AWS = r"""#!PYTHON
+import datetime, json, os, sys
+args = sys.argv[1:]
+with open(os.environ["FAKE_AWS_LOG"], "a") as f:
+    f.write(json.dumps({"args": args, "env": {k: v for k, v in os.environ.items()
+                                              if k.startswith("AWS_")}}) + "\n")
+mode = os.environ.get("FAKE_AWS_MODE", "ok")
+if args[:2] == ["sts", "assume-role"]:
+    if mode == "ada_fail":
+        sys.stderr.write("Error when retrieving credentials from custom-process: "
+                         "AEA verification failed: used_too_late\n")
+        sys.exit(255)
+    exp = (datetime.datetime.now(datetime.timezone.utc)
+           + datetime.timedelta(seconds=int(os.environ.get("FAKE_AWS_TTL", "3600"))))
+    print(json.dumps({"Credentials": {
+        "AccessKeyId": "ASIAROLEKEY", "SecretAccessKey": "role-secret",
+        "SessionToken": "role-token", "Expiration": exp.strftime("%Y-%m-%dT%H:%M:%SZ")}}))
+elif args[:2] == ["sts", "get-caller-identity"]:
+    account = "999999999999" if mode == "wrong_account" else "123456789012"
+    role = "Admin" if mode == "wrong_role" else "apex-eval-bedrock-invoke"
+    print(json.dumps({"Account": account,
+                      "Arn": "arn:aws:sts::%s:assumed-role/%s/s" % (account, role)}))
+else:
+    sys.exit(97)
+""".replace("#!PYTHON", "#!" + sys.executable)
+
+ACCOUNT = "123456789012"  # the AWS documentation placeholder account
+ROLE_KEYS = {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+             "AWS_REGION", "AWS_DEFAULT_REGION", "AWS_EC2_METADATA_DISABLED"}
+
+
+class EvalRoleCredentials(unittest.TestCase):
+    """The subject's AWS access is the eval-role session only."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="evals-cred-test-"))
+        self.home = self.tmp / "home"
+        (self.home / ".aws").mkdir(parents=True)
+        (self.home / ".aws" / "credentials").write_text("[default]\nhost-key\n")
+        self.cfg = self.home / ".apex-eval"
+        self.cfg.mkdir()
+        (self.cfg / "aws-config").write_text(
+            "[profile apex-eval-admin]\ncredential_process = ada credentials print\n"
+            "region = us-west-2\n")
+        (self.cfg / "expected-account").write_text(ACCOUNT + "\n")
+        bin_dir = self.tmp / "bin"
+        bin_dir.mkdir()
+        (bin_dir / "aws").write_text(FAKE_AWS)
+        (bin_dir / "aws").chmod(0o755)
+        self.claude_log = self.tmp / "claude.log"
+        (bin_dir / "claude").write_text(
+            f"#!/bin/sh\necho \"$@\" >> {self.claude_log}\nexit 97\n")
+        (bin_dir / "claude").chmod(0o755)
+        self.log = self.tmp / "aws.log"
+        self.env = mock.patch.dict(os.environ, {
+            "HOME": str(self.home),
+            "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+            "FAKE_AWS_LOG": str(self.log),
+            "AWS_ACCESS_KEY_ID": "AKIAHOSTKEY",
+            "AWS_SECRET_ACCESS_KEY": "host-secret",
+            "AWS_PROFILE": "default",
+            "AWS_BEARER_TOKEN_BEDROCK": "host-bedrock-key",
+        })
+        self.env.start()
+        run_triggering._eval_credentials = None
+
+    def tearDown(self):
+        run_triggering._eval_credentials = None
+        self.env.stop()
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def calls(self):
+        if not self.log.exists():
+            return []
+        return [json.loads(line) for line in self.log.read_text().splitlines()]
+
+    def test_clean_home_has_no_host_aws_link(self):
+        skill = self.tmp / "skill"
+        skill.mkdir()
+        for ctx in (run_triggering.stage_skill_sandbox("s", skill),
+                    run_triggering.stage_empty_sandbox()):
+            with ctx as (_sandbox, home):
+                self.assertFalse(os.path.lexists(home / ".aws"))
+                self.assertEqual(list(home.iterdir()), [])
+
+    def test_parent_aws_variables_never_reach_the_subject(self):
+        role = {"AWS_ACCESS_KEY_ID": "ASIAROLEKEY", "AWS_SECRET_ACCESS_KEY": "role-secret",
+                "AWS_SESSION_TOKEN": "role-token", "AWS_REGION": "us-west-2"}
+        env = run_triggering.build_subprocess_env(
+            self.tmp, extra={"KUBECONFIG": "/k"}, aws_env=role)
+        self.assertEqual({k: v for k, v in env.items() if k.startswith("AWS_")}, role)
+        self.assertEqual(env["KUBECONFIG"], "/k")
+        self.assertEqual(env["HOME"], str(self.tmp))
+
+    def test_aws_variables_in_extra_are_refused(self):
+        with self.assertRaises(ValueError):
+            run_triggering.build_subprocess_env(
+                self.tmp, extra={"AWS_ACCESS_KEY_ID": "x"}, aws_env={})
+
+    def test_session_is_the_eval_role_and_checked(self):
+        creds = run_triggering.mint_eval_role_credentials(min_seconds=600)
+        self.assertEqual(set(creds.env), ROLE_KEYS)
+        self.assertEqual(creds.env["AWS_ACCESS_KEY_ID"], "ASIAROLEKEY")
+        self.assertEqual(creds.env["AWS_REGION"], "us-west-2")
+        self.assertNotIn("role-secret", repr(creds))
+        assume, ident = self.calls()
+        self.assertEqual(assume["args"][:2], ["sts", "assume-role"])
+        args = assume["args"]
+        self.assertEqual(args[args.index("--profile") + 1], "apex-eval-admin")
+        self.assertEqual(args[args.index("--role-arn") + 1],
+                         f"arn:aws:iam::{ACCOUNT}:role/apex-eval-bedrock-invoke")
+        self.assertLessEqual(int(args[args.index("--duration-seconds") + 1]), 3600)
+        self.assertEqual(assume["env"], {
+            "AWS_CONFIG_FILE": str(self.cfg / "aws-config"),
+            "AWS_SHARED_CREDENTIALS_FILE": os.devnull,
+            "AWS_EC2_METADATA_DISABLED": "true"})
+        self.assertEqual(ident["args"][:2], ["sts", "get-caller-identity"])
+        self.assertEqual(ident["env"]["AWS_ACCESS_KEY_ID"], "ASIAROLEKEY")
+        self.assertEqual(ident["env"]["AWS_CONFIG_FILE"], os.devnull)
+
+    def test_wrong_account_is_refused(self):
+        os.environ["FAKE_AWS_MODE"] = "wrong_account"
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "expected-account"):
+            run_triggering.mint_eval_role_credentials()
+
+    def test_wrong_role_is_refused(self):
+        os.environ["FAKE_AWS_MODE"] = "wrong_role"
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "refusing"):
+            run_triggering.mint_eval_role_credentials()
+
+    def test_missing_expected_account_is_refused_before_any_aws_call(self):
+        (self.cfg / "expected-account").unlink()
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "expected-account"):
+            run_triggering.mint_eval_role_credentials()
+        self.assertEqual(self.calls(), [])
+
+    def test_sign_in_failure_says_run_mwinit(self):
+        os.environ["FAKE_AWS_MODE"] = "ada_fail"
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "mwinit"):
+            run_triggering.mint_eval_role_credentials()
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_no_session_means_no_subject_env(self):
+        with self.assertRaises(run_triggering.EvalCredentialError):
+            run_triggering.eval_aws_env(600)
+
+    def test_session_refreshed_before_it_would_expire(self):
+        os.environ["FAKE_AWS_TTL"] = "300"
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "too soon"):
+            run_triggering.mint_eval_role_credentials(min_seconds=600)
+        run_triggering.set_eval_credentials(run_triggering.mint_eval_role_credentials())
+        os.environ["FAKE_AWS_TTL"] = "3600"
+        before = len(self.calls())
+        env = run_triggering.eval_aws_env(600)
+        self.assertEqual(set(env), ROLE_KEYS)
+        self.assertEqual(len(self.calls()), before + 2)
+
+    def test_task_runner_refuses_host_federation_flags(self):
+        for flag in (["--aws-session-policy", "/p.json"], ["--aws-region", "us-east-1"]):
+            err = io.StringIO()
+            with mock.patch.object(sys, "argv", ["run_task_evals.py", *flag]), \
+                    contextlib.redirect_stderr(err):
+                self.assertEqual(run_task_evals.main(), 2)
+            self.assertIn("eval-role", err.getvalue())
+        self.assertEqual(self.calls(), [])
+
+    def test_runners_refuse_to_start_without_a_session(self):
+        os.environ["FAKE_AWS_MODE"] = "ada_fail"
+        repo = Path(MISC_DIR).parent
+        eval_set = self.tmp / "triggering.json"
+        eval_set.write_text(json.dumps([{"query": "q", "should_trigger": True}]))
+        argvs = [
+            (run_task_evals, ["run_task_evals.py", "--skill", "eks-recon"]),
+            (run_triggering, ["run_triggering.py", "--eval-set", str(eval_set),
+                              "--skill-path", str(repo / "skills" / "eks-recon")]),
+        ]
+        for module, argv in argvs:
+            err = io.StringIO()
+            with mock.patch.object(sys, "argv", argv), contextlib.redirect_stderr(err):
+                self.assertEqual(module.main(), 2)
+            self.assertIn("mwinit", err.getvalue())
+        self.assertFalse(self.claude_log.exists())
+
+    def test_runner_scripts_hold_no_account_id(self):
+        for name in ("run_triggering.py", "run_task_evals.py"):
+            text = Path(SCRIPTS_DIR, name).read_text()
+            self.assertEqual(re.findall(r"(?<!\d)\d{12}(?!\d)", text), [], name)
 
 
 if __name__ == "__main__":

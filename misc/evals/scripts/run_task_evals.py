@@ -6,9 +6,10 @@ unless --include-live-only), for each config in {with_skill, without_skill},
 for k in 1..--runs:
 
   1. Stage a sandbox (stage_skill_sandbox or stage_empty_sandbox) with a
-     clean HOME, plus optional KUBECONFIG and read-only AWS session creds
-     exported into the subprocess env so skills that touch real clusters
-     can do so *safely* (reads only, API-server- and IAM-enforced).
+     clean HOME, plus an optional KUBECONFIG. The only AWS credentials the
+     subject and the grader get are the eval-role session that
+     run_triggering.mint_eval_role_credentials mints and checks before the
+     first run; the host's ~/.aws and AWS_* variables never reach them.
   2. Run `claude -p <prompt>` streaming stream-json. Write
        transcript.md, events.jsonl, outputs/, timing.json, metrics.json
      under:
@@ -48,7 +49,12 @@ from pathlib import Path
 from typing import Any
 
 from run_triggering import (
+    EVAL_SESSION_MARGIN,
+    EvalCredentialError,
     build_subprocess_env,
+    eval_aws_env,
+    mint_eval_role_credentials,
+    set_eval_credentials,
     stage_empty_sandbox,
     stage_skill_sandbox,
     read_skill_meta,
@@ -475,7 +481,7 @@ def run_subject(
         if skill_eval_dir and eval_id is not None and fixture_files:
             staged = stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
 
-        env = build_subprocess_env(home, extra=extra_env)
+        env = build_subprocess_env(home, extra=extra_env, aws_env=eval_aws_env(timeout))
 
         if elicitation.strategy == "canned-multiturn" and elicitation.turns:
             cmd_base = [
@@ -627,7 +633,7 @@ def run_grader(
         grading_path.unlink()
 
     with stage_empty_sandbox() as (sandbox, home):
-        env = build_subprocess_env(home)
+        env = build_subprocess_env(home, aws_env=eval_aws_env(timeout))
         cmd = [
             "claude",
             "-p", prompt,
@@ -738,28 +744,6 @@ def append_history(skill: str, entry: dict) -> None:
         for row in rows:
             f.write(json.dumps(row, separators=(",", ":"), sort_keys=True))
             f.write("\n")
-
-
-# ---------- AWS read-only session --------------------------------------------
-
-
-def mint_federation_token(
-    policy_file: Path, name: str, duration: int, tags: dict[str, str]
-) -> dict:
-    """Run `aws sts get-federation-token` with a session policy and session tags."""
-    cmd = [
-        "aws", "sts", "get-federation-token",
-        "--name", name,
-        "--policy", f"file://{policy_file}",
-        "--duration-seconds", str(duration),
-        "--output", "json",
-        "--tags", *(f"Key={k},Value={v}" for k, v in tags.items()),
-    ]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        hint = "; if the error names sts:TagSession, add it to the IAM user's policy"
-        raise RuntimeError(f"get-federation-token failed: {r.stderr.strip()}{hint}")
-    return json.loads(r.stdout)["Credentials"]
 
 
 # ---------- benchmark --------------------------------------------------------
@@ -1031,13 +1015,11 @@ def main() -> int:
     parser.add_argument("--kubeconfig", default=None,
                         help="KUBECONFIG path exported into the subject subprocess")
     parser.add_argument("--aws-session-policy", default=None,
-                        help="Path to an IAM session policy JSON. When set, mints an STS "
-                             "federation token scoped by the policy and exports its creds "
-                             "into the subject subprocess.")
-    parser.add_argument("--aws-duration", type=int, default=7200,
-                        help="STS federation-token lifetime in seconds (default 2h). "
-                             "Long enough for a full task-axis run across 2 prompts × 2 configs.")
-    parser.add_argument("--aws-region", default="us-west-2")
+                        help="Removed: the runner refuses it. It minted a federation token "
+                             "from the host's own keys; AWS access is the eval role only.")
+    parser.add_argument("--aws-region", default=None,
+                        help="Removed: the runner refuses it. The region is the one set for "
+                             "profile apex-eval-admin in ~/.apex-eval/aws-config.")
     args = parser.parse_args()
 
     skills = discover_skills()
@@ -1056,37 +1038,40 @@ def main() -> int:
             print(f"kubeconfig not found: {kcp}", file=sys.stderr)
             return 2
         extra_env["KUBECONFIG"] = str(kcp)
-    if args.aws_session_policy:
-        policy = Path(args.aws_session_policy).resolve()
-        if not policy.exists():
-            print(f"aws session policy not found: {policy}", file=sys.stderr)
-            return 2
-        run_id = f"{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}-{os.getpid()}"
-        creds = mint_federation_token(
-            policy, name=f"evals-readonly-{os.getpid()}", duration=args.aws_duration,
-            tags={"apex-run": run_id},
-        )
-        extra_env["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
-        extra_env["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
-        extra_env["AWS_SESSION_TOKEN"] = creds["SessionToken"]
-        extra_env["AWS_DEFAULT_REGION"] = args.aws_region
+    if args.aws_session_policy or args.aws_region:
         print(
-            f"[task] minted read-only AWS session (exp {creds['Expiration']}, apex-run={run_id})",
+            "error: --aws-session-policy and --aws-region are removed. The subject's only "
+            "AWS access is the eval-role session (profile apex-eval-admin in "
+            "~/.apex-eval/aws-config), never the host's keys.",
             file=sys.stderr,
         )
+        return 2
+    longest = max(args.subject_timeout or 0, args.grader_timeout)
+    try:
+        set_eval_credentials(
+            mint_eval_role_credentials(min_seconds=longest + EVAL_SESSION_MARGIN)
+        )
+    except EvalCredentialError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    print("[task] eval-role session checked against ~/.apex-eval/expected-account", file=sys.stderr)
 
     outcomes = []
     for skill in skills:
         print(f"[task] === {skill} ===", file=sys.stderr)
-        result = run_skill(
-            skill,
-            model=model,
-            runs=args.runs,
-            include_live_only=args.include_live_only,
-            subject_timeout=args.subject_timeout,
-            grader_timeout=args.grader_timeout,
-            extra_env=extra_env or None,
-        )
+        try:
+            result = run_skill(
+                skill,
+                model=model,
+                runs=args.runs,
+                include_live_only=args.include_live_only,
+                subject_timeout=args.subject_timeout,
+                grader_timeout=args.grader_timeout,
+                extra_env=extra_env or None,
+            )
+        except EvalCredentialError as e:
+            print(f"error: {skill}: eval-role session refresh failed, stopping: {e}", file=sys.stderr)
+            return 2
         outcomes.append(result)
         if "error" in result:
             print(f"[task] {skill}: ERROR {result['error']}", file=sys.stderr)
