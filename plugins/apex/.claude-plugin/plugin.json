@@ -1,0 +1,11 @@
+{
+  "name": "apex",
+  "version": "0.1.0",
+  "description": "APEX guard hooks for Claude Code and Codex: a secret deny that blocks Kubernetes Secret reads, and a mutation guard that asks before (operator) or blocks (advisor) cloud and cluster writes. Off by default; each hook backs a rule the APEX skills already state.",
+  "author": {
+    "name": "aws-samples"
+  },
+  "license": "MIT-0",
+  "repository": "https://github.com/aws-samples/sample-apex-skills",
+  "defaultEnabled": false
+}

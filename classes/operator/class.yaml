@@ -15,3 +15,17 @@ checks:
   - id: declared-artifact-checks
     what: "The declared checks run on fixture artifacts in CI"
     status: planned
+
+# Opt-in PreToolUse hooks; the fields are described in apex-base/class.yaml.
+# Codex and Kiro have no PreToolUse ask, so there an ask-mode hook blocks.
+hooks:
+  - id: operator.confirm-before-change
+    what: "Ask the user before a cloud or cluster write: kubectl, helm, terraform, eksctl and aws writes, EKS MCP Server write tools and structured AWS calls"
+    event: PreToolUse
+    script: hooks/mutation-guard/mutation_guard.py
+    mode: ask
+    enabled: false
+    matchers:
+      claude-code: "^(Bash|use_aws|mcp__.*)$"
+      codex: "^(Bash|use_aws|mcp__.*)$"
+      kiro: "^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$"
