@@ -9,7 +9,11 @@ Backs apex.no-secrets (classes/apex-base/rules.md). Opt-in: the class.yaml hooks
 entry ships with `enabled: false`. A guardrail, not a guarantee: it reads the
 command text, so a script, an alias or text built at run time passes.
 
-Usage: secret_deny.py --mode block   (one PreToolUse event as JSON on stdin)
+Usage: secret_deny.py --mode block [--enabled true|false]
+       (one PreToolUse event as JSON on stdin)
+
+--enabled false is the hook's off switch: no decision (exit 0, no output),
+whatever the event. With no --enabled the hook is on.
 
 Claude Code, Codex and Kiro all send `tool_name` and `tool_input`; a shell call
 carries `tool_input.command`. It blocks (exit 2, the reason on stderr):
@@ -258,7 +262,10 @@ def mcp_reason(name, tool_input):
 def main(argv):
     parser = argparse.ArgumentParser(description="Block Kubernetes Secret reads (PreToolUse).")
     parser.add_argument("--mode", choices=["block"], default="block")
-    parser.parse_args(argv)
+    parser.add_argument("--enabled", type=str.lower, choices=["true", "false"], default="true")
+    if parser.parse_args(argv).enabled == "false":
+        sys.stdin.read()
+        return 0
     try:
         event = json.load(sys.stdin)
     except ValueError:

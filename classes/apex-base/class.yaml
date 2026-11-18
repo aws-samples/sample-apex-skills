@@ -82,10 +82,15 @@ evals:
 
 # Opt-in PreToolUse hooks. Each entry is one hook with its own switch
 # (`enabled`, off as shipped) and its own `mode`; the class sync writes each
-# entry into the plugin (plugins/apex/hooks/hooks.json, kiro/apex-hooks.json)
-# and runs `script` (relative to this folder) with `--mode <mode>`.
-# `matchers` holds one tool-name pattern per harness. A hook backs the rule
-# its `id` names; it is a guardrail, not a guarantee.
+# entry into the plugin (plugins/apex/hooks/hooks.json, kiro/apex-hooks.json).
+# `id` is the entry's stable key: it names the rule the hook backs and the
+# entry's switch, so it does not change. In hooks.json each command is exec
+# form, command `python3` with args ["${CLAUDE_PLUGIN_ROOT}/hooks/<class>/
+# <hook>/<file>", "--mode", "<mode>", "--enabled", "<on or off>"], since a
+# shell-form command cannot take a user setting. `script` is relative to this
+# folder. `--enabled false` makes the script exit 0 with no decision; with no
+# `--enabled` it is on. `matchers` holds one tool-name pattern per harness.
+# A hook backs the rule its `id` names; it is a guardrail, not a guarantee.
 hooks:
   - id: apex.no-secrets
     what: "Block Kubernetes Secret reads: kubectl and helm reads, and EKS MCP Server reads of kind Secret. AWS Secrets Manager is the aws-core plugin's hook"

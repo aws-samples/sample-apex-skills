@@ -12,7 +12,11 @@ not a guarantee: it reads the command text, so a script, an alias or text
 built at run time passes. RBAC, the stage helper and the PR merge stay the
 real gate.
 
-Usage: mutation_guard.py --mode ask|block   (one PreToolUse event as JSON on stdin)
+Usage: mutation_guard.py --mode ask|block [--enabled true|false]
+       (one PreToolUse event as JSON on stdin)
+
+--enabled false is the hook's off switch: no decision (exit 0, no output),
+whatever the event. With no --enabled the hook is on.
 
 A write is:
 - kubectl apply, create, delete, edit, patch, replace, set, expose, run, scale,
@@ -314,7 +318,12 @@ def mcp_reason(name, tool_input):
 def main(argv):
     parser = argparse.ArgumentParser(description="Stop cloud and cluster writes (PreToolUse).")
     parser.add_argument("--mode", choices=["ask", "block"], required=True)
-    mode = parser.parse_args(argv).mode
+    parser.add_argument("--enabled", type=str.lower, choices=["true", "false"], default="true")
+    args = parser.parse_args(argv)
+    if args.enabled == "false":
+        sys.stdin.read()
+        return 0
+    mode = args.mode
     try:
         event = json.load(sys.stdin)
     except ValueError:
