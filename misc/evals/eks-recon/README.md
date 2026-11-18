@@ -24,7 +24,7 @@ These artifacts exercise the `eks-recon` skill, whose job is read-only discovery
 
 ## Live-cluster caveat
 
-The two live-cluster prompts (IDs 1–2) in `evals.json` describe realistic recon tasks against whichever EKS cluster the sandbox is pointed at via `KUBECONFIG` + AWS creds. They carry `"live_only": true` and the task runner skips them unless `--include-live-only` is passed along with a read-only `KUBECONFIG` and a scoped AWS session (Describe/List/Get only). The sandbox denies writes at the API-server level, not via convention, so running these evals is safe against a real cluster.
+The two live-cluster prompts (IDs 1–2) in `evals.json` describe realistic recon tasks against whichever EKS cluster the sandbox is pointed at via `KUBECONFIG` + the eval-role session. They carry `"live_only": true` and the task runner skips them unless `--include-live-only` is passed along with a read-only `KUBECONFIG`. The only AWS credentials handed to the subject are the eval-role session (`misc/evals/README.md`). The sandbox denies writes at the API-server level, not via convention, so running these evals is safe against a real cluster within what the eval role grants.
 
 The `triggering.json` evals (run via `run_triggering.py`) are unaffected — they test description-fit only and never invoke cluster tooling.
 

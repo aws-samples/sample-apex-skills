@@ -12,9 +12,23 @@ Design (PLAN §1.5.2):
 
   stage_skill_sandbox(skill_name, repo_skill_dir) yields a (sandbox, home)
   pair. `sandbox/.claude/skills/<skill_name>/` symlinks at the repo skill
-  dir and nothing else. `home/.aws/` symlinks at the caller's ~/.aws when
-  present, so Bedrock creds reach the subprocess. No state on disk outside
+  dir and nothing else. HOME holds no ~/.aws: the host's AWS keys are no
+  longer handed to the subprocess in its environment or HOME; it gets the
+  eval-role credentials below. The subprocess still runs as your OS user, so
+  it can read your files and the runner's environment by path; run it as
+  another OS user or in a container for a hard fence
+  (misc/website/docs/read-only-operating-profile.md). No state on disk outside
   these two mktemp dirs; both are removed in the `finally:` block.
+
+  mint_eval_role_credentials() assumes role apex-eval-bedrock-invoke in the
+  account named by ~/.apex-eval/expected-account, through profile
+  apex-eval-admin of ~/.apex-eval/aws-config, then checks the new session
+  with sts get-caller-identity. The runner refuses to start when any step
+  fails; there is no fallback credential. Only those role credentials and
+  the profile's region reach `claude -p`; every AWS_* variable of the parent
+  is dropped. The runner also refuses to start unless
+  CLAUDE_CODE_USE_BEDROCK=1, and drops SUBJECT_DROPPED_VARS from the subject's
+  env, so the model call goes through Bedrock on that session.
 
   run_single_query(...) launches `claude -p` with `cwd=sandbox`, `HOME=home`,
   `CLAUDECODE` stripped, streams stream-json, and watches for a Skill
@@ -23,6 +37,8 @@ Design (PLAN §1.5.2):
 
   main() mirrors run_eval.py's CLI and output schema so misc/evals/
   run_all_evals.py keeps parsing the stdout JSON blob without changes.
+  It exits 2 when the eval-role session is refused at start or a refresh
+  fails mid-run.
 
 Both helpers are importable — Phase 2's task-axis runner reuses
 `stage_skill_sandbox` (+ a no-skill variant for the `without_skill` config)
@@ -33,6 +49,8 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import dataclasses
+import datetime
 import json
 import os
 import re
@@ -75,7 +93,8 @@ def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
     """Yield (sandbox, home) with exactly one skill staged and a clean HOME.
 
     sandbox/.claude/skills/<skill_name>/   symlink -> repo_skill_dir
-    home/.aws/                             symlink -> ~/.aws (if present)
+
+    HOME is empty: no link to the host's ~/.aws.
 
     Both dirs are mktemp'd; both are removed when the block exits, including
     on exception. Safe against Ctrl-C during the run. Callers may also use
@@ -88,11 +107,6 @@ def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
         skills_dir = sandbox / ".claude" / "skills"
         skills_dir.mkdir(parents=True)
         (skills_dir / skill_name).symlink_to(repo_skill_dir.resolve())
-
-        host_aws = Path.home() / ".aws"
-        if host_aws.exists():
-            (clean_home / ".aws").symlink_to(host_aws)
-
         yield sandbox, clean_home
     finally:
         shutil.rmtree(sandbox, ignore_errors=True)
@@ -103,31 +117,272 @@ def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
 def stage_empty_sandbox():
     """Yield (sandbox, home) with no skills staged — the `without_skill`
     config for Phase 2's task-axis runner. Same HOME isolation as
-    stage_skill_sandbox (clean HOME with ~/.aws symlinked through), but
-    no `.claude/` dir at all so the subject subprocess sees zero skills.
+    stage_skill_sandbox (an empty clean HOME, no ~/.aws), but no
+    `.claude/` dir at all so the subject subprocess sees zero skills.
     """
     sandbox = Path(tempfile.mkdtemp(prefix="evals-sandbox-"))
     clean_home = Path(tempfile.mkdtemp(prefix="evals-home-"))
     try:
-        host_aws = Path.home() / ".aws"
-        if host_aws.exists():
-            (clean_home / ".aws").symlink_to(host_aws)
         yield sandbox, clean_home
     finally:
         shutil.rmtree(sandbox, ignore_errors=True)
         shutil.rmtree(clean_home, ignore_errors=True)
 
 
-def build_subprocess_env(home: Path, extra: dict[str, str] | None = None) -> dict[str, str]:
+def build_subprocess_env(
+    home: Path,
+    extra: dict[str, str] | None = None,
+    *,
+    aws_env: dict[str, str],
+) -> dict[str, str]:
     """Build the env dict for a `claude -p` subprocess. Strips CLAUDECODE so
-    a session-local parent doesn't confuse the child, sets HOME to the clean
-    temp dir, and merges caller-supplied overrides (KUBECONFIG, AWS_* for the
-    read-only session policy, etc.)."""
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    a session-local parent doesn't confuse the child, drops every AWS_*
+    variable of the parent (keys, AWS_PROFILE, config paths, Bedrock API
+    keys) and SUBJECT_DROPPED_VARS, sets HOME to the clean temp dir, merges
+    caller-supplied overrides (KUBECONFIG, etc.) and then `aws_env`, the
+    eval-role credentials from EvalCredentials.env. `extra` may not carry
+    AWS_* names."""
+    bad = sorted(k for k in (extra or {}) if k.startswith("AWS_"))
+    if bad:
+        raise ValueError(f"AWS variables reach the subject only as eval-role credentials: {bad}")
+    env = {
+        k: v for k, v in os.environ.items()
+        if k != "CLAUDECODE" and not k.startswith("AWS_") and k not in SUBJECT_DROPPED_VARS
+    }
     env["HOME"] = str(home)
     if extra:
         env.update(extra)
+    env.update(aws_env)
     return env
+
+
+# ---------- eval-role credentials ---------------------------------------------
+
+
+EVAL_ROLE_NAME = "apex-eval-bedrock-invoke"
+EVAL_ADMIN_PROFILE = "apex-eval-admin"
+SETUP_HINT = 'see "Eval-role setup (`~/.apex-eval`)" in misc/evals/README.md'
+# The admin profile is expected to be an assumed role, so this assume-role is
+# role chaining, which AWS caps at one hour (a longer DurationSeconds fails).
+EVAL_SESSION_SECONDS = 3600
+# Spare seconds a session must have left past a subprocess's timeout.
+EVAL_SESSION_MARGIN = 120
+# Never passed to the subject: each could send its model calls somewhere
+# other than Bedrock on the eval-role session.
+SUBJECT_DROPPED_VARS = frozenset({
+    "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+    "ANTHROPIC_BEDROCK_BASE_URL", "CLAUDE_CODE_SKIP_BEDROCK_AUTH", "CLAUDE_CONFIG_DIR",
+})
+
+
+class EvalCredentialError(RuntimeError):
+    """The eval-role credentials could not be obtained or did not check out."""
+
+
+def eval_config_dir() -> Path:
+    """~/.apex-eval: aws-config (profile apex-eval-admin) and expected-account."""
+    return Path.home() / ".apex-eval"
+
+
+def _read_expected_account(cfg: Path) -> str:
+    path = cfg / "expected-account"
+    try:
+        account = path.read_text().strip()
+    except (OSError, UnicodeDecodeError) as e:
+        why = e.strerror if isinstance(e, OSError) else "not UTF-8"
+        raise EvalCredentialError(
+            f"cannot read {path} ({why}); it must hold the eval account id; {SETUP_HINT}"
+        ) from e
+    if not re.fullmatch(r"[0-9]{12}", account):
+        raise EvalCredentialError(f"{path} must hold one 12-digit account id; {SETUP_HINT}")
+    return account
+
+
+def _read_profile_region(cfg: Path) -> str:
+    import configparser
+
+    path = cfg / "aws-config"
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        read = parser.read(path)
+    except (configparser.Error, UnicodeDecodeError) as e:
+        raise EvalCredentialError(f"cannot parse {path}: {e}; {SETUP_HINT}") from e
+    if not read:
+        raise EvalCredentialError(f"cannot read {path}; {SETUP_HINT}")
+    section = f"profile {EVAL_ADMIN_PROFILE}"
+    if not parser.has_section(section):
+        raise EvalCredentialError(f"{path} has no [{section}] section; {SETUP_HINT}")
+    region = parser.get(section, "region", fallback="").strip()
+    if not region:
+        raise EvalCredentialError(f"[{section}] in {path} sets no region; {SETUP_HINT}")
+    return region
+
+
+def _aws_call_env(**overrides: str) -> dict[str, str]:
+    """Env for the runner's own `aws` calls: the parent's env minus every
+    AWS_* variable, with no shared credentials file and no instance-metadata
+    lookup. The CLI's other credential providers (such as ~/.boto and the
+    container provider) stay; the get-caller-identity check bounds them."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("AWS_")}
+    env["AWS_SHARED_CREDENTIALS_FILE"] = os.devnull
+    env["AWS_EC2_METADATA_DISABLED"] = "true"
+    env.update(overrides)
+    return env
+
+
+def _last_line(text: str) -> str:
+    lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+    return lines[-1] if lines else "no error text"
+
+
+@dataclasses.dataclass(frozen=True)
+class EvalCredentials:
+    """One eval-role session: `env` is what the subject gets, `expires_at`
+    the session's end as epoch seconds. Held in memory only."""
+
+    env: dict[str, str]
+    expires_at: float
+
+    def __repr__(self) -> str:  # keep keys out of tracebacks and logs
+        return f"EvalCredentials(expires_at={self.expires_at:.0f})"
+
+    def fresh(self, timeout: int) -> "EvalCredentials":
+        """Self when it outlasts a `timeout`-second subprocess by
+        EVAL_SESSION_MARGIN, else a new session."""
+        if time.time() + timeout + EVAL_SESSION_MARGIN < self.expires_at:
+            return self
+        return mint_eval_role_credentials(timeout=timeout)
+
+
+def _run_aws(argv: list[str], timeout: int, env: dict[str, str]) -> subprocess.CompletedProcess:
+    """Run one `aws` call; a missing `aws` or a timeout is an
+    EvalCredentialError whose text holds no argv (it names the role ARN)."""
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, timeout=timeout, env=env)
+    except subprocess.TimeoutExpired:
+        raise EvalCredentialError(f"aws {argv[1]} {argv[2]} timed out after {timeout}s") from None
+    except OSError as e:
+        raise EvalCredentialError(f"cannot run aws ({e.strerror})") from None
+    except UnicodeDecodeError:
+        raise EvalCredentialError(f"aws {argv[1]} {argv[2]} printed output that is not UTF-8") from None
+
+
+def mint_eval_role_credentials(
+    timeout: int = 0, source: str = "the subprocess timeout"
+) -> EvalCredentials:
+    """Assume the eval role and prove the session's account before use.
+    The session must outlast a `timeout`-second subprocess by
+    EVAL_SESSION_MARGIN; `source` names where that timeout was set.
+
+    Raises EvalCredentialError, with what to fix, when the model would not
+    go through Bedrock, the config files are missing or wrong, the admin
+    profile's sign-in fails, the assume-role fails, or get-caller-identity
+    names another account or role.
+    """
+    if os.environ.get("CLAUDE_CODE_USE_BEDROCK") != "1":
+        raise EvalCredentialError(
+            "CLAUDE_CODE_USE_BEDROCK=1 is not set, so `claude -p` would not send its "
+            "model calls through Bedrock on the eval-role session; refusing to run"
+        )
+    other = sorted(k for k in os.environ
+                   if k.startswith("CLAUDE_CODE_USE_") and k != "CLAUDE_CODE_USE_BEDROCK")
+    if other:
+        raise EvalCredentialError(
+            f"{', '.join(other)} set beside CLAUDE_CODE_USE_BEDROCK, so the model route is "
+            "not proven to be Bedrock; unset it and retry"
+        )
+    # Same `>=` as the check on the new session below, so a timeout that
+    # passes here cannot fail there only by the cap.
+    if timeout + EVAL_SESSION_MARGIN >= EVAL_SESSION_SECONDS:
+        raise EvalCredentialError(
+            f"{source} is {timeout}s; with {EVAL_SESSION_MARGIN}s spare it must stay under the "
+            f"{EVAL_SESSION_SECONDS}s eval-role session (AWS caps a role-chained session "
+            f"at one hour); lower {source}"
+        )
+    cfg = eval_config_dir()
+    account = _read_expected_account(cfg)
+    region = _read_profile_region(cfg)
+    role_arn = f"arn:aws:iam::{account}:role/{EVAL_ROLE_NAME}"
+
+    r = _run_aws(
+        [
+            "aws", "sts", "assume-role",
+            "--profile", EVAL_ADMIN_PROFILE,
+            "--role-arn", role_arn,
+            "--role-session-name", f"apex-eval-{os.getpid()}",
+            "--duration-seconds", str(EVAL_SESSION_SECONDS),
+            "--region", region,
+            "--output", "json",
+        ],
+        180, _aws_call_env(AWS_CONFIG_FILE=str(cfg / "aws-config")),
+    )
+    if r.returncode != 0:
+        raise EvalCredentialError(
+            f"could not assume {EVAL_ROLE_NAME} through profile {EVAL_ADMIN_PROFILE} "
+            f"of {cfg / 'aws-config'}. If this is a sign-in error, sign in again "
+            f"for that profile and retry. aws exited {r.returncode}: {_last_line(r.stderr)}"
+        )
+    try:
+        creds = json.loads(r.stdout)["Credentials"]
+        role_env = {
+            "AWS_ACCESS_KEY_ID": creds["AccessKeyId"],
+            "AWS_SECRET_ACCESS_KEY": creds["SecretAccessKey"],
+            "AWS_SESSION_TOKEN": creds["SessionToken"],
+        }
+        expires_at = datetime.datetime.fromisoformat(
+            creds["Expiration"].replace("Z", "+00:00")
+        ).timestamp()
+    except (ValueError, KeyError, TypeError, AttributeError) as e:
+        raise EvalCredentialError(f"assume-role returned no usable credentials ({e!r})") from e
+    region_env = {"AWS_REGION": region, "AWS_DEFAULT_REGION": region}
+
+    r = _run_aws(
+        ["aws", "sts", "get-caller-identity", "--output", "json"],
+        60, _aws_call_env(AWS_CONFIG_FILE=os.devnull, **role_env, **region_env),
+    )
+    if r.returncode != 0:
+        raise EvalCredentialError(
+            f"get-caller-identity failed with the eval-role session (aws exited "
+            f"{r.returncode}): {_last_line(r.stderr)}"
+        )
+    try:
+        ident = json.loads(r.stdout)
+        arn, got_account = str(ident.get("Arn", "")), ident.get("Account")
+    except (ValueError, AttributeError) as e:
+        raise EvalCredentialError("get-caller-identity returned no JSON object") from e
+    if got_account != account or f":assumed-role/{EVAL_ROLE_NAME}/" not in arn:
+        raise EvalCredentialError(
+            f"the eval-role session is {arn or 'unknown'}, not role {EVAL_ROLE_NAME} "
+            f"in the account in {cfg / 'expected-account'}; refusing to run"
+        )
+    if time.time() + timeout + EVAL_SESSION_MARGIN >= expires_at:
+        raise EvalCredentialError(
+            f"the new eval-role session expires too soon for {source} ({timeout}s)"
+        )
+    return EvalCredentials(
+        env={**role_env, **region_env, "AWS_EC2_METADATA_DISABLED": "true"},
+        expires_at=expires_at,
+    )
+
+
+_eval_credentials: EvalCredentials | None = None
+
+
+def set_eval_credentials(creds: EvalCredentials) -> None:
+    """Hold `creds` for this process unless a later session is already held."""
+    global _eval_credentials
+    if _eval_credentials is None or creds.expires_at > _eval_credentials.expires_at:
+        _eval_credentials = creds
+
+
+def eval_aws_env(timeout: int) -> dict[str, str]:
+    """The subject's AWS env for a subprocess that may run `timeout` seconds,
+    refreshing the held session when it would expire first."""
+    global _eval_credentials
+    if _eval_credentials is None:
+        raise EvalCredentialError("no eval-role session; the runner mints one before any run")
+    _eval_credentials = _eval_credentials.fresh(timeout)
+    return dict(_eval_credentials.env)
 
 
 # ---------- stream parser -----------------------------------------------------
@@ -333,7 +588,7 @@ def run_single_query(
     Caller maps `triggered` to a pass/fail count.
     """
     with stage_skill_sandbox(skill_name, repo_skill_dir) as (sandbox, home):
-        env = build_subprocess_env(home)
+        env = build_subprocess_env(home, aws_env=eval_aws_env(timeout))
 
         cmd = [
             "claude",
@@ -434,9 +689,12 @@ def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
 
 
 def _worker(args: tuple) -> tuple[str, dict]:
-    query, skill_name, repo_skill_dir, model, timeout = args
+    query, skill_name, repo_skill_dir, model, timeout, creds = args
+    set_eval_credentials(creds)
     try:
         result = run_single_query(query, skill_name, Path(repo_skill_dir), model, timeout)
+    except EvalCredentialError:
+        raise  # a failed refresh stops the run; it is never an invalid run that can pass
     except Exception as e:  # noqa: BLE001
         result = {
             "triggered": False,
@@ -457,14 +715,16 @@ def run_eval(
     runs_per_query: int,
     trigger_threshold: float,
     model: str | None,
+    creds: EvalCredentials,
 ) -> dict:
     """Execute every (query × run_idx) pair; aggregate into run_eval.py's
-    output schema so downstream parsers don't need to change.
+    output schema so downstream parsers don't need to change. Each worker
+    starts from `creds` and refreshes it when a query would outlive it.
     """
     jobs = []
     for item in eval_set:
         for _ in range(runs_per_query):
-            jobs.append((item["query"], skill_name, str(repo_skill_dir), model, timeout))
+            jobs.append((item["query"], skill_name, str(repo_skill_dir), model, timeout, creds))
 
     triggers_by_query: dict[str, list[bool]] = {}
     invalids_by_query: dict[str, list[dict]] = {}
@@ -472,7 +732,12 @@ def run_eval(
     with ProcessPoolExecutor(max_workers=num_workers) as ex:
         futures = [ex.submit(_worker, j) for j in jobs]
         for fut in as_completed(futures):
-            query, result = fut.result()
+            try:
+                query, result = fut.result()
+            except EvalCredentialError:
+                for f in futures:
+                    f.cancel()
+                raise
             triggers_by_query.setdefault(query, []).append(bool(result["triggered"]))
             if result.get("invalid"):
                 invalids_by_query.setdefault(query, []).append(
@@ -544,22 +809,33 @@ def main() -> int:
 
     name, description = read_skill_meta(skill_dir)
 
+    try:
+        creds = mint_eval_role_credentials(timeout=args.timeout, source="--timeout")
+    except EvalCredentialError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
     if args.verbose:
         print(f"[run_triggering] skill={name} prompts={len(eval_set)} "
               f"runs={args.runs_per_query} workers={args.num_workers} model={args.model}",
               file=sys.stderr)
 
-    output = run_eval(
-        eval_set=eval_set,
-        skill_name=name,
-        description=description,
-        repo_skill_dir=skill_dir,
-        num_workers=args.num_workers,
-        timeout=args.timeout,
-        runs_per_query=args.runs_per_query,
-        trigger_threshold=args.trigger_threshold,
-        model=args.model,
-    )
+    try:
+        output = run_eval(
+            eval_set=eval_set,
+            skill_name=name,
+            description=description,
+            repo_skill_dir=skill_dir,
+            num_workers=args.num_workers,
+            timeout=args.timeout,
+            runs_per_query=args.runs_per_query,
+            trigger_threshold=args.trigger_threshold,
+            model=args.model,
+            creds=creds,
+        )
+    except EvalCredentialError as e:
+        print(f"error: eval-role session refresh failed, stopping: {e}", file=sys.stderr)
+        return 2
 
     if args.verbose:
         s = output["summary"]
