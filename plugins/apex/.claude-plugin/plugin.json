@@ -1,11 +1,31 @@
 {
   "name": "apex",
   "version": "0.1.0",
-  "description": "APEX guard hooks for Claude Code and Codex: a secret deny that blocks Kubernetes Secret reads, and a mutation guard that asks before (operator) or blocks (advisor) cloud and cluster writes. Off by default; each hook backs a rule the APEX skills already state.",
+  "description": "APEX guard hooks for Claude Code and Codex: a secret deny that blocks Kubernetes Secret reads through kubectl, helm and the EKS MCP Server (exec, cp, attach and debug into a pod are the mutation guard's), and a mutation guard that asks before (operator) or blocks (advisor) cloud and cluster writes. The hooks are not in this release yet; they come with the class sync. Disabled until you enable the plugin; once enabled, a hook runs unless its CLAUDE_PLUGIN_OPTION_<KEY> is false. On Codex no CLAUDE_PLUGIN_OPTION_* reaches the scripts, so a hook runs unless disabled in Codex's /hooks, and ask mode blocks. Each hook backs a rule the APEX skills already state.",
   "author": {
     "name": "aws-samples"
   },
   "license": "MIT-0",
   "repository": "https://github.com/aws-samples/sample-apex-skills",
-  "defaultEnabled": false
+  "defaultEnabled": false,
+  "userConfig": {
+    "apex_no_secrets": {
+      "type": "boolean",
+      "title": "Secret deny (apex.no-secrets)",
+      "description": "Block Kubernetes Secret reads through kubectl, helm and the EKS MCP Server",
+      "default": false
+    },
+    "operator_confirm_before_change": {
+      "type": "boolean",
+      "title": "Mutation guard, ask (operator.confirm-before-change)",
+      "description": "Ask before a cloud or cluster write",
+      "default": false
+    },
+    "advisor_no_side_effects": {
+      "type": "boolean",
+      "title": "Mutation guard, block (advisor.no-side-effects)",
+      "description": "Block every cloud or cluster write",
+      "default": false
+    }
+  }
 }

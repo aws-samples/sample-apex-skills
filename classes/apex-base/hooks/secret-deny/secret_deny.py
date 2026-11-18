@@ -5,10 +5,12 @@
 # ///
 """apex-base secret deny: a PreToolUse hook that blocks reading Kubernetes Secrets.
 
-Backs apex.no-secrets (classes/apex-base/rules.md). Opt-in: the class.yaml hooks
-entry ships with `enabled: false`, the Kiro default and the plugin's userConfig
-default. A guardrail, not a guarantee: it reads the command text, so a script,
-an alias or text built at run time passes.
+Backs apex.no-secrets (classes/apex-base/rules.md). Opt-in: off until the plugin
+is enabled. Its own switch is the plugin's userConfig boolean apex_no_secrets,
+default false as the class.yaml `hooks:` entry's `enabled`; the plugin's
+hooks.json, which runs this script, comes with the class sync. A guardrail, not
+a guarantee: it reads the command text, so a script, an alias or text built at
+run time passes.
 
 Usage: secret_deny.py --mode block [--id apex.no-secrets]
        (one PreToolUse event as JSON on stdin)
@@ -18,7 +20,9 @@ The off switch is the environment variable CLAUDE_PLUGIN_OPTION_<KEY>, KEY the
 Claude Code exports one per plugin option). Absent, or no --id: on. true or
 false, in any case, surrounding whitespace stripped: false is off, no decision
 (exit 0, no output) whatever the event. Any other value, an empty one included,
-blocks (exit 2, one stderr line naming the variable and the value).
+blocks (exit 2, one stderr line naming the variable and the value). On Codex
+no CLAUDE_PLUGIN_OPTION_* reaches the script (Codex's hooks docs name none), so
+the hook runs unless disabled in Codex's /hooks.
 
 Claude Code, Codex and Kiro all send `tool_name` and `tool_input`; a shell call
 carries `tool_input.command`. It blocks (exit 2, the reason on stderr):
@@ -26,13 +30,15 @@ carries `tool_input.command`. It blocks (exit 2, the reason on stderr):
   .version.group suffix, alone, as secret/<name> or in a comma list, in every
   output form; apply view-last-applied of a Secret; get --raw on a /secrets path.
 - helm list, ls, history, hist, status and every helm get (Helm keeps release
-  records in Secrets), and helm install or upgrade with --dry-run=server and no
-  --hide-secret.
+  records in Secrets), helm install or upgrade with --dry-run=server and no
+  --hide-secret, and helm template with --dry-run=server (a chart's lookup then
+  reads the cluster; helm template has no --hide-secret).
 - EKS MCP Server tools, matched by name suffix whatever the server key:
   read_k8s_resource and list_k8s_resources of kind Secret, and
   manage_k8s_resource with operation read of kind Secret.
-Anything else, an event it cannot read included, gets no decision (exit 0, no
-output). AWS Secrets Manager is the aws-core plugin's hook, not this one.
+Anything else gets no decision (exit 0, no output); an event it cannot read
+gets no decision too, with nothing on stdout and one stderr line. AWS Secrets
+Manager is the aws-core plugin's hook (aws/agent-toolkit-for-aws), not this one.
 """
 
 import argparse
@@ -175,14 +181,17 @@ def positionals(args, takes_value):
 
 
 def dry_run(args):
-    """The --dry-run value (client, server, none), "client" for a bare flag, else None."""
+    """The last --dry-run value (client, server, none), "client" for a bare flag, else None.
+
+    The last one counts, as kubectl and helm read a repeated flag."""
+    value = None
     for k, a in enumerate(args):
         if a.startswith("--dry-run="):
-            return a.split("=", 1)[1]
-        if a == "--dry-run":
+            value = a.split("=", 1)[1]
+        elif a == "--dry-run":
             nxt = args[k + 1] if k + 1 < len(args) else ""
-            return nxt if nxt in ("client", "server", "none") else "client"
-    return None
+            value = nxt if nxt in ("client", "server", "none") else "client"
+    return value
 
 
 KUBECTL_VALUE_FLAGS = {
@@ -241,6 +250,8 @@ def helm_reads_secret(args):
         return False
     if pos[0] in ("list", "ls", "history", "hist", "status", "get"):
         return True
+    if pos[0] == "template":
+        return dry_run(args) == "server"
     return pos[0] in ("install", "upgrade") and dry_run(args) == "server" \
         and "--hide-secret" not in args
 

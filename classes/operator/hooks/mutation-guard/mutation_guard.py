@@ -7,10 +7,12 @@
 
 Backs advisor.no-side-effects (--mode block: every write) and
 operator.confirm-before-change (--mode ask: the user confirms each write).
-Opt-in: each class.yaml hooks entry ships with `enabled: false`, the Kiro
-default and the plugin's userConfig default. A guardrail, not a guarantee: it
-reads the command text, so a script, an alias or text built at run time
-passes. RBAC, the stage helper and the PR merge stay the real gate.
+Opt-in: off until the plugin is enabled. Each id has its own switch, the
+plugin's userConfig booleans operator_confirm_before_change and
+advisor_no_side_effects, default false as each class.yaml `hooks:` entry's
+`enabled`; the plugin's hooks.json, which runs this script, comes with the
+class sync. A guardrail, not a guarantee: it reads the command text, so a
+script, an alias or text built at run time passes. RBAC, the stage helper and the PR merge stay the real gate.
 
 Usage: mutation_guard.py --mode ask|block [--id <class.yaml hooks id>]
        (one PreToolUse event as JSON on stdin)
@@ -22,18 +24,21 @@ CLAUDE_PLUGIN_OPTION_ADVISOR_NO_SIDE_EFFECTS; Claude Code exports one per
 plugin option). Absent, or no --id: on. true or false, in any case,
 surrounding whitespace stripped: false is off, no decision (exit 0, no output)
 whatever the event. Any other value, an empty one included, blocks (exit 2,
-one stderr line naming the variable and the value).
+one stderr line naming the variable and the value). On Codex no
+CLAUDE_PLUGIN_OPTION_* reaches the script (Codex's hooks docs name none), so a
+hook runs unless disabled in Codex's /hooks, and ask mode blocks.
 
-A write is:
+A write is (kubectl, helm and terraform: only the commands listed below are
+writes; eksctl and aws: every command but the reads listed):
 - kubectl apply, create, delete, edit, patch, replace, set, expose, run, scale,
   autoscale, label, annotate, taint, cordon, uncordon, drain, exec, cp, attach,
   debug; certificate approve|deny; rollout restart|undo|pause|resume; auth
   reconcile; config set, set-cluster, set-context, set-credentials, unset,
   delete-cluster, delete-context, delete-user, rename-context. With
-  --dry-run=client or =server it is not a write.
+  --dry-run=client or =server it is not a write (the last --dry-run counts).
 - helm install, upgrade, uninstall (del, delete, un), rollback, test, push;
-  any helm --dry-run is not a write.
-- terraform apply, destroy, import, refresh, taint, untaint, force-unlock, test,
+  helm --dry-run, --dry-run=client or =server is not a write.
+- terraform (not OpenTofu's `tofu`) apply, destroy, import, refresh, taint, untaint, force-unlock, test,
   state mv|push|replace-provider|rm, workspace new|delete.
 - eksctl, every command but get, info, version, help and completion.
 - aws, every operation but describe-*, list-*, get-*, batch-get-*, search-*,
@@ -50,10 +55,14 @@ kubeconfig setup apex.read-only-unless-confirmed allows.
 Output: block is exit 2 with the reason on stderr. Ask prints Claude Code's
 permissionDecision "ask" JSON on exit 0, only for an event with
 permission_mode and no turn_id (Claude Code's shape). Codex has no PreToolUse
-ask, and Kiro documents one only for Kiro CLI 3.4.0 or later (a JSON decision
-on exit 0), not for Kiro IDE; this script prints no Kiro ask, so on Codex and
-Kiro ask mode blocks. No write, or an event it cannot read, gets no decision
-(exit 0, no output).
+ask. Kiro CLI 3.4.0 adds a PreToolUse allow, ask or deny decision in V3
+sessions (kiro.dev/changelog/cli/3-4/, read 2026-11-17, page text md5
+843462d317d5e7ab0d915343480b0bd9); that page gives neither the decision's
+output shape nor an event field that tells a Kiro CLI event from a Kiro IDE
+event, and says nothing of Kiro IDE. So this script prints no Kiro ask, and on
+Codex and Kiro ask mode blocks. No write gets no decision (exit 0, no output);
+an event it cannot read gets no decision too, with nothing on stdout and one
+stderr line.
 """
 
 import argparse
@@ -194,14 +203,17 @@ def positionals(args, takes_value):
 
 
 def dry_run(args):
-    """The --dry-run value (client, server, none), "client" for a bare flag, else None."""
+    """The last --dry-run value (client, server, none), "client" for a bare flag, else None.
+
+    The last one counts, as kubectl and helm read a repeated flag."""
+    value = None
     for k, a in enumerate(args):
         if a.startswith("--dry-run="):
-            return a.split("=", 1)[1]
-        if a == "--dry-run":
+            value = a.split("=", 1)[1]
+        elif a == "--dry-run":
             nxt = args[k + 1] if k + 1 < len(args) else ""
-            return nxt if nxt in ("client", "server", "none") else "client"
-    return None
+            value = nxt if nxt in ("client", "server", "none") else "client"
+    return value
 
 
 KUBECTL_VALUE_FLAGS = {
@@ -267,7 +279,7 @@ def kubectl_writes(args):
 
 def helm_writes(args):
     pos = positionals(args, HELM_VALUE_FLAGS)
-    return bool(pos) and pos[0] in HELM_WRITES and dry_run(args) is None
+    return bool(pos) and pos[0] in HELM_WRITES and dry_run(args) not in ("client", "server")
 
 
 def terraform_writes(args):
