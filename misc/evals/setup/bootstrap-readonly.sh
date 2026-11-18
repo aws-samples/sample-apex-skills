@@ -64,7 +64,6 @@ TOKEN="$(kubectl get secret -n kube-system evals-readonly-token -o jsonpath='{.d
 # Cluster endpoint + CA — pulled from whatever cluster the current kubeconfig
 # has as current-context. Works for EKS, GKE, AKS, or any other
 # kubeconfig-accessible cluster; nothing here is EKS-specific.
-CLUSTER_NAME="$(kubectl config view --minify -o jsonpath='{.contexts[0].context.cluster}')"
 CLUSTER_API="$(kubectl config view --minify --flatten -o jsonpath='{.clusters[0].cluster.server}')"
 CA_DATA="$(kubectl config view --minify --flatten -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')"
 
