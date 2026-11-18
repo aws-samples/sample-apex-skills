@@ -17,7 +17,7 @@ The profile has three layers. The first two are the guardrail only when the agen
 | IAM session policy | [`misc/evals/setup/readonly-session-policy.json`](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/evals/setup/readonly-session-policy.json) | Scopes a temporary STS session to read calls (`Describe*`, `List*`, `Get*` and log filtering) on EKS, EC2, CloudFormation, Auto Scaling, ELB, CloudWatch and Logs, plus Bedrock model invocation |
 | Claude Code hook | [`misc/evals/setup/deny-write-hook.example.sh`](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/evals/setup/deny-write-hook.example.sh) | Denies Bash commands such as `kubectl apply` or `aws ... delete-*` before they run |
 
-The kit started as the read-only sandbox for the repo's live-cluster evals. The eval runner now uses only its kubeconfig; the subject's AWS access is an eval-role session (`misc/evals/README.md`).
+The kit started as the read-only sandbox for the repo's live-cluster evals. The eval runner now uses only its kubeconfig; the only AWS credentials handed to the subject are an eval-role session (`misc/evals/README.md`), and it still runs as your OS user.
 
 ## 1. Create the read-only kubeconfig
 

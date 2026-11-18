@@ -37,6 +37,8 @@ Design (PLAN §1.5.2):
 
   main() mirrors run_eval.py's CLI and output schema so misc/evals/
   run_all_evals.py keeps parsing the stdout JSON blob without changes.
+  It exits 2 when the eval-role session is refused at start or a refresh
+  fails mid-run.
 
 Both helpers are importable — Phase 2's task-axis runner reuses
 `stage_skill_sandbox` (+ a no-skill variant for the `without_skill` config)
@@ -260,12 +262,16 @@ def _run_aws(argv: list[str], timeout: int, env: dict[str, str]) -> subprocess.C
         raise EvalCredentialError(f"aws {argv[1]} {argv[2]} timed out after {timeout}s") from None
     except OSError as e:
         raise EvalCredentialError(f"cannot run aws ({e.strerror})") from None
+    except UnicodeDecodeError:
+        raise EvalCredentialError(f"aws {argv[1]} {argv[2]} printed output that is not UTF-8") from None
 
 
-def mint_eval_role_credentials(timeout: int = 0) -> EvalCredentials:
+def mint_eval_role_credentials(
+    timeout: int = 0, source: str = "the subprocess timeout"
+) -> EvalCredentials:
     """Assume the eval role and prove the session's account before use.
     The session must outlast a `timeout`-second subprocess by
-    EVAL_SESSION_MARGIN.
+    EVAL_SESSION_MARGIN; `source` names where that timeout was set.
 
     Raises EvalCredentialError, with what to fix, when the model would not
     go through Bedrock, the config files are missing or wrong, the admin
@@ -277,11 +283,20 @@ def mint_eval_role_credentials(timeout: int = 0) -> EvalCredentials:
             "CLAUDE_CODE_USE_BEDROCK=1 is not set, so `claude -p` would not send its "
             "model calls through Bedrock on the eval-role session; refusing to run"
         )
-    if timeout + EVAL_SESSION_MARGIN > EVAL_SESSION_SECONDS:
+    other = sorted(k for k in os.environ
+                   if k.startswith("CLAUDE_CODE_USE_") and k != "CLAUDE_CODE_USE_BEDROCK")
+    if other:
         raise EvalCredentialError(
-            f"a {timeout}s timeout plus {EVAL_SESSION_MARGIN}s spare does not fit in the "
+            f"{', '.join(other)} set beside CLAUDE_CODE_USE_BEDROCK, so the model route is "
+            "not proven to be Bedrock; unset it and retry"
+        )
+    # Same `>=` as the check on the new session below, so a timeout that
+    # passes here cannot fail there only by the cap.
+    if timeout + EVAL_SESSION_MARGIN >= EVAL_SESSION_SECONDS:
+        raise EvalCredentialError(
+            f"{source} is {timeout}s; with {EVAL_SESSION_MARGIN}s spare it must stay under the "
             f"{EVAL_SESSION_SECONDS}s eval-role session (AWS caps a role-chained session "
-            "at one hour); lower the timeout"
+            f"at one hour); lower {source}"
         )
     cfg = eval_config_dir()
     account = _read_expected_account(cfg)
@@ -339,7 +354,9 @@ def mint_eval_role_credentials(timeout: int = 0) -> EvalCredentials:
             f"in the account in {cfg / 'expected-account'}; refusing to run"
         )
     if time.time() + timeout + EVAL_SESSION_MARGIN >= expires_at:
-        raise EvalCredentialError("the new eval-role session expires too soon")
+        raise EvalCredentialError(
+            f"the new eval-role session expires too soon for {source} ({timeout}s)"
+        )
     return EvalCredentials(
         env={**role_env, **region_env, "AWS_EC2_METADATA_DISABLED": "true"},
         expires_at=expires_at,
@@ -791,7 +808,7 @@ def main() -> int:
     name, description = read_skill_meta(skill_dir)
 
     try:
-        creds = mint_eval_role_credentials(timeout=args.timeout)
+        creds = mint_eval_role_credentials(timeout=args.timeout, source="--timeout")
     except EvalCredentialError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

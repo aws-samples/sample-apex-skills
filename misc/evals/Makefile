@@ -25,11 +25,10 @@ SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 # PROVIDER selects how `claude -p` reaches a model:
 #   bedrock    (default) — sets CLAUDE_CODE_USE_BEDROCK=1 and uses a Bedrock
 #                          inference-profile ID. Required on AWS-only setups.
-#   anthropic            : the eval runners refuse it. They start only with
-#                          CLAUDE_CODE_USE_BEDROCK=1, and every run, this one
-#                          included, needs ~/.apex-eval and the eval role
-#                          (misc/evals/README.md, "Model & provider configuration").
-# Override per invocation: `make triggering-all PROVIDER=anthropic MODEL=claude-opus-4-6-v1`.
+#   anthropic            : not supported: every eval run needs
+#                          CLAUDE_CODE_USE_BEDROCK=1 and goes to Bedrock in the
+#                          eval account (misc/evals/README.md, "Eval-role setup").
+# Override per invocation: `make triggering-all MODEL=<Bedrock model or inference-profile ID>`.
 # Defaults for MODEL are provider-aware; explicit MODEL= always wins.
 PROVIDER       ?= bedrock
 
@@ -63,7 +62,8 @@ TASK_T       := $(addprefix task-,$(SKILLS))
 # Task-axis defaults (PLAN §2). RUNS_PER_PROMPT=1 is cheap dev; bump to 3
 # for stddev. INCLUDE_LIVE_ONLY=1 enables prompts that require a real
 # cluster (eks-recon, eks-operation-review). KUBECONFIG_RO feeds the sandbox a
-# read-only kubeconfig; their AWS access is only what the eval role grants.
+# read-only kubeconfig; the only AWS credentials handed to the subject are the
+# eval-role session.
 RUNS_PER_PROMPT   ?= 1
 INCLUDE_LIVE_ONLY ?= 0
 READONLY_SECRETS  := $(EVALS_ROOT)/.secrets
@@ -105,7 +105,7 @@ help:
 	@echo "  check-evals-coverage                          verify every skills/*/ has a misc/evals/*/ entry"
 	@echo "  hygiene                                       pre-flight every misc/evals/*/ (no model calls)"
 	@echo ""
-	@echo "Overrides: PROVIDER (bedrock|anthropic), MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
+	@echo "Overrides: PROVIDER (bedrock), MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
 	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, WORKSPACE, BENCHMARK_DIR"
 	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
 	@echo "           RUNS_PER_PROMPT=$(RUNS_PER_PROMPT) INCLUDE_LIVE_ONLY=$(INCLUDE_LIVE_ONLY)"
@@ -247,7 +247,8 @@ init-evals-finalize:
 #
 # Live-cluster prompts (live_only=true in evals.json) are skipped unless
 # INCLUDE_LIVE_ONLY=1. When enabled, the runner also takes a read-only
-# kubeconfig; the subject's AWS access is the eval-role session only.
+# kubeconfig; the only AWS credentials handed to the subject are the
+# eval-role session.
 $(TASK_T): task-%:
 	@test -f $(call evals_json,$*) || \
 	  { echo "missing: $(call evals_json,$*)"; exit 1; }

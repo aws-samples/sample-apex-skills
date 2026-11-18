@@ -12,8 +12,9 @@
 #        - readonly-session-policy.json: IAM session policy for the read-only
 #                                         operating profile's own federation
 #                                         token (its section 2). The eval runner
-#                                         does not use it: the subject's AWS
-#                                         access is the eval role only
+#                                         does not use it: the only AWS
+#                                         credentials handed to the subject are
+#                                         the eval-role session
 #
 # Both outputs are generated from the checked-in declarative sources under
 # misc/evals/setup/ — no secret material is ever committed.
@@ -120,6 +121,10 @@ if KUBECONFIG="${KUBECONFIG_OUT}" kubectl auth can-i list secrets --all-namespac
   die "readonly kubeconfig is allowed to LIST secrets; another binding grants this ServiceAccount or its groups secrets"
 fi
 
+log "kubeconfig ready. With the eval role set up (misc/evals/README.md), you can now run: make task-eks-recon INCLUDE_LIVE_ONLY=1 (or task-eks-operation-review)"
+
+# The check below is for the read-only operating profile's own federation
+# token (its section 2) only; the eval runner does not use it.
 # The apex-run session tag labels the minted session in CloudTrail.
 log "verifying AWS federation-token minting..."
 if ! aws sts get-federation-token \
@@ -132,4 +137,3 @@ if ! aws sts get-federation-token \
 fi
 
 log "done. both artefacts are in ${SECRETS_DIR}/ (gitignored)."
-log "with the eval role set up (misc/evals/README.md), you can now run: make task-eks-recon INCLUDE_LIVE_ONLY=1 (or task-eks-operation-review)"

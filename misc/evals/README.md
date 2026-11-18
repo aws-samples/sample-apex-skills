@@ -204,8 +204,8 @@ misc/evals/<skill>/
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PROVIDER` | `bedrock` | `bedrock` only in practice: the eval runners refuse to start unless `CLAUDE_CODE_USE_BEDROCK=1`, and every run needs the eval-role setup below |
-| `MODEL` | provider-aware | `bedrock` → `global.anthropic.claude-opus-4-6-v1`; `anthropic` → `claude-opus-4-6-v1` |
+| `PROVIDER` | `bedrock` | `bedrock`. `PROVIDER=anthropic` is not supported: every run needs `CLAUDE_CODE_USE_BEDROCK=1` and goes to Bedrock in the eval account (setup below) |
+| `MODEL` | `global.anthropic.claude-opus-4-6-v1` | A Bedrock model or inference-profile ID |
 | `RUNS_PER_QUERY` | `3` | ≥3 for meaningful confidence intervals |
 | `NUM_WORKERS` | `10` | Parallelism for triggering runs |
 | `RUNS_PER_PROMPT` | `1` | Task eval runs per prompt (3 for stddev) |
@@ -217,11 +217,11 @@ make triggering-eks-best-practices RUNS_PER_QUERY=1     # cheap iteration
 
 ### Eval-role setup (`~/.apex-eval`)
 
-Every eval run gets its AWS access from a short-lived session of one IAM role used only for evals, never from your own keys. Before the first model call the runner assumes that role and checks the session with `sts get-caller-identity`. If anything below is missing or wrong it refuses to start, with no fallback.
+Every eval run gets its AWS access from a short-lived session of one IAM role used only for evals, never from your own keys. The subject still runs as your OS user, so it can read your files and the runner's environment by path; run it as another OS user or in a container for a hard fence. Before the first model call the runner assumes that role and checks the session with `sts get-caller-identity`. If anything below is missing or wrong it refuses to start, with no fallback.
 
 - `~/.apex-eval/aws-config`: an AWS CLI config file with a `[profile apex-eval-admin]` section. It sets `region` (the Region the evals call Bedrock in) and a `credential_process` line that prints credentials allowed to assume the eval role, such as your organisation's sign-in helper.
 - `~/.apex-eval/expected-account`: the 12-digit id of the eval account, on one line. The runner builds the role ARN from it and refuses a session in any other account.
-- Role `apex-eval-bedrock-invoke` in that account. Its trust policy lets the `apex-eval-admin` identity assume it. Its permissions allow `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` on the models and inference profiles you run. Live-cluster evals get only what this role grants.
+- Role `apex-eval-bedrock-invoke` in that account. Its trust policy trusts the IAM principal that profile `apex-eval-admin` signs in as (its role ARN). Its permissions allow `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream`. For a global inference profile, such as the default model, allow the profile ARN, the model in your Region and `arn:aws:bedrock:::foundation-model/<model>` (Amazon Bedrock User Guide, [Global cross-Region inference](https://docs.aws.amazon.com/bedrock/latest/userguide/global-cross-region-inference.html)). Claude Code's [Amazon Bedrock IAM configuration](https://code.claude.com/docs/en/amazon-bedrock#iam-configuration) also lists `bedrock:ListInferenceProfiles`, `bedrock:GetInferenceProfile` and two `aws-marketplace` subscription actions. Live-cluster evals get only what this role grants.
 - `CLAUDE_CODE_USE_BEDROCK=1` (the Makefile sets it for `PROVIDER=bedrock`), so `claude -p` sends its model calls through Bedrock on that session.
 
 AWS caps a role-chained session at one hour, so a subject or grader timeout plus 120 seconds must fit in 3600 seconds.

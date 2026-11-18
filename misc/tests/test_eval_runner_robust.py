@@ -304,6 +304,12 @@ with open(os.environ["FAKE_AWS_LOG"], "a") as f:
     f.write(json.dumps({"args": args, "env": {k: v for k, v in os.environ.items()
                                               if k.startswith("AWS_")}}) + "\n")
 mode = os.environ.get("FAKE_AWS_MODE", "ok")
+with open(os.environ["FAKE_AWS_LOG"]) as f:
+    assumes = sum('"assume-role"' in line for line in f) - (args[:2] == ["sts", "assume-role"])
+if args[:2] == ["sts", "assume-role"] and (
+        mode == "bad_utf8" or (mode == "bad_utf8_refresh" and assumes >= 1)):
+    sys.stdout.buffer.write(b"\xff\xfe not utf-8\n")
+    sys.exit(0)
 if args[:2] == ["sts", "assume-role"]:
     if mode == "signin_fail":
         sys.stderr.write("Error when retrieving credentials from custom-process: "
@@ -532,6 +538,69 @@ class EvalRoleCredentials(unittest.TestCase):
         self.assertFalse(timed_out)
         self.assertEqual(len(events), 3)
         self.assertEqual(len(calls), 3)
+
+    def test_other_provider_switches_are_refused_at_start(self):
+        os.environ["CLAUDE_CODE_USE_VERTEX"] = "1"
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "CLAUDE_CODE_USE_VERTEX"):
+            run_triggering.mint_eval_role_credentials()
+        self.assertEqual(self.calls(), [])
+
+    def test_non_utf8_aws_output_is_a_refusal(self):
+        os.environ["FAKE_AWS_MODE"] = "bad_utf8"
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "not UTF-8"):
+            run_triggering.mint_eval_role_credentials()
+        self.log.unlink()
+        os.environ["FAKE_AWS_MODE"] = "bad_utf8_refresh"
+        os.environ["FAKE_AWS_TTL"] = "300"
+        run_triggering.set_eval_credentials(run_triggering.mint_eval_role_credentials())
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "not UTF-8"):
+            run_triggering.eval_aws_env(600)
+
+    def test_timeout_at_the_cap_is_refused_at_start_naming_its_source(self):
+        (_, argv), = [a for a in self.runner_argvs() if a[0] is run_triggering]
+        err = io.StringIO()
+        with mock.patch.object(sys, "argv", argv + ["--timeout", "3480"]), \
+                contextlib.redirect_stderr(err):
+            self.assertEqual(run_triggering.main(), 2)
+        self.assertIn("--timeout is 3480s", err.getvalue())
+        self.assertEqual(self.calls(), [])
+        os.environ["FAKE_AWS_TTL"] = "3610"
+        run_triggering.mint_eval_role_credentials(timeout=3479, source="--timeout")
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_skilleval_timeout_counts_in_the_task_runner_start_check(self):
+        import types
+        err = io.StringIO()
+        with mock.patch.object(sys, "argv", ["run_task_evals.py", "--skill", "eks-recon"]), \
+                mock.patch.object(run_task_evals, "load_skilleval_config",
+                                  return_value=types.SimpleNamespace(timeout=3500)), \
+                contextlib.redirect_stderr(err):
+            self.assertEqual(run_task_evals.main(), 2)
+        self.assertIn("eks-recon/.skilleval.yaml is 3500s", err.getvalue())
+        self.assertEqual(self.calls(), [])
+
+    def test_run_subject_gives_each_turn_the_eval_role_env(self):
+        claude_log = self.tmp / "claude-env.log"
+        (self.tmp / "bin" / "claude").write_text(
+            "#!" + sys.executable + "\nimport json, os\n"
+            "open(os.environ['FAKE_CLAUDE_LOG'], 'a').write("
+            "os.environ.get('AWS_ACCESS_KEY_ID', '-') + '\\n')\n"
+            "print(json.dumps({'type': 'assistant', 'message': {'content': [{'type': 'tool_use', "
+            "'name': 'AskUserQuestion', 'input': {'questions': [{'question': 'which region?'}]}}]}}))\n")
+        os.environ["FAKE_CLAUDE_LOG"] = str(claude_log)
+        role = {"AWS_ACCESS_KEY_ID": "ASIAROLEKEY"}
+        multi = elicitation.ElicitationConfig.from_dict({
+            "strategy": "canned-multiturn", "max_turns": 3,
+            "turns": [{"question_match": "region", "answer": "us-west-2"}]})
+        for config, turns in ((multi, 3), (None, 1)):
+            claude_log.unlink(missing_ok=True)
+            with mock.patch.object(run_task_evals, "eval_aws_env", return_value=role) as aws_env:
+                run_task_evals.run_subject(
+                    prompt="p", skill_name="s", repo_skill_dir=self.tmp, with_skill=False,
+                    model="m", timeout=30, run_dir=self.tmp / f"run-{turns}", extra_env=None,
+                    elicitation=config)
+            self.assertEqual(aws_env.call_count, turns)
+            self.assertEqual(claude_log.read_text().split(), ["ASIAROLEKEY"] * turns)
 
     def test_missing_aws_cli_and_config_are_refusals(self):
         os.environ["PATH"] = str(self.tmp / "no-such-dir")

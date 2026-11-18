@@ -33,7 +33,8 @@ grader call so we can detect grader drift.
 Exit codes:
   0  all runs completed, benchmark generated
   1  subject or grader subprocess failure we couldn't recover from
-  2  invalid inputs (missing evals.json, no fixture-free prompts, etc.)
+  2  invalid inputs (missing evals.json, no fixture-free prompts, etc.), or
+     the eval-role session refused at start or failed to refresh mid-run
 """
 
 from __future__ import annotations
@@ -1037,13 +1038,13 @@ def main() -> int:
             print(f"kubeconfig not found: {kcp}", file=sys.stderr)
             return 2
         extra_env["KUBECONFIG"] = str(kcp)
-    subject_timeouts = (
-        [args.subject_timeout] if args.subject_timeout is not None
-        else [load_skilleval_config(s).timeout for s in skills]
+    timeouts = [(args.grader_timeout, "--grader-timeout")] + (
+        [(args.subject_timeout, "--subject-timeout")] if args.subject_timeout is not None
+        else [(load_skilleval_config(s).timeout, f"{s}/.skilleval.yaml") for s in skills]
     )
-    longest = max([*subject_timeouts, args.grader_timeout])
+    longest, source = max(timeouts, key=lambda t: t[0])
     try:
-        set_eval_credentials(mint_eval_role_credentials(timeout=longest))
+        set_eval_credentials(mint_eval_role_credentials(timeout=longest, source=source))
     except EvalCredentialError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
