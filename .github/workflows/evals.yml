@@ -181,3 +181,29 @@ jobs:
       - name: Run offline eval script and frontmatter parser checks
         if: steps.changes.outputs.relevant != 'false'
         run: pip install 'pyyaml>=6,<7' && python3 -B misc/tests/test_parse_trajectory_tokens.py -v && python3 -B misc/tests/test_eval_runner_robust.py -v && python3 -B misc/tests/test_safe_frontmatter.py -v
+
+  service-eks-preflight:
+    name: service-eks preflight regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Decide whether this change needs the check
+        id: changes
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          bash .github/scripts/ci-gate.sh changed
+          'classes/service-eks/**'
+          'skills/**'
+          'misc/tests/test_service_eks_preflight.py'
+          '.github/workflows/evals.yml'
+          '.github/scripts/ci-gate.sh'
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: steps.changes.outputs.relevant != 'false'
+        with:
+          python-version: '3.x'
+      - name: Run offline service-eks preflight checks
+        if: steps.changes.outputs.relevant != 'false'
+        run: python3 -B misc/tests/test_service_eks_preflight.py -v
