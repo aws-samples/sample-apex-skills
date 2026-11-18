@@ -69,9 +69,10 @@ generated file one folder down is still reported, because copies are always
 flat, so a nested one is wrong whatever its class; a top-level one could be
 the copy of a removed class, which only the orphan scan would tell.
 
-The class-text checks (steps 2 and 7, and the shape of a class's
-references/ and scripts/) run on every class in both modes, whether or not
-a skill is a member: each class is checked with its own parents. A clash
+The class-text checks (steps 2 and 7, the shape of a class's references/
+and scripts/, and its parent order: no cycle and one consistent order) run
+on every class in both modes, whether or not a skill is a member: each
+class is checked with its own parents. A clash
 between two classes that no class chain joins is found only when a skill
 declares both.
 

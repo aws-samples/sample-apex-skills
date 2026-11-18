@@ -3,11 +3,10 @@
 
 Every case lives in misc/tests/fixtures/sync_classes_cases.json. Each one
 builds its own classes/ folder and member skills in a temp tree, so no case
-reads or writes the real skills/. The failure cases follow the P-310 fixture
-table (F1 to F17); F0, F5b and F11 are the passing controls.
+reads or writes the real skills/. The failure cases are F1 to F17; F0,
+F5b and F11 are the passing controls.
 ClassTextNoMember, below the fixture cases, checks that the class-text
-checks run with no member skill, and runs --check (which writes nothing)
-on this repo, so its classes/ must pass.
+checks run with no member skill.
 
 Needs PyYAML (pip install 'pyyaml>=6,<7'). Run from the repo root:
 
@@ -198,9 +197,24 @@ class ClassTextNoMember(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertIn("--check OK: 0 member skill(s) (none)", out)
 
-    def test_repo_classes_pass(self):
-        rc, out = run_sync(ROOT, "check")
-        self.assertEqual(rc, 0, out)
+    def test_dup_rule_id_fails(self):
+        tmp = self.tree({"classes/operator/rules.md": "# Operator\n\n- **apex.alpha**: Repeats a parent's rule.\n"})
+        rc, out = run_sync(tmp, "check")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("classes/operator: duplicate rule id apex.alpha from classes/apex-base "
+                      "and classes/operator", out)
+
+    def test_dup_target_fails(self):
+        tmp = self.tree({
+            "classes/a/class.yaml": "name: a\nparents: [apex-base]\n",
+            "classes/a/references/b-x.md": "# X\n",
+            "classes/a-b/class.yaml": "name: a-b\nparents: [a]\n",
+            "classes/a-b/references/x.md": "# X\n",
+        })
+        rc, out = run_sync(tmp, "check")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("classes/a-b: duplicate target path references/a-b-x.md from "
+                      "classes/a/references/b-x.md and classes/a-b/references/x.md", out)
 
 
 if __name__ == "__main__":

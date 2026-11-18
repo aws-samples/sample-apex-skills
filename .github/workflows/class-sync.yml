@@ -58,10 +58,9 @@ jobs:
       - name: Class copies match classes/
         id: sync
         if: steps.changes.outputs.relevant != 'false'
-        # Only skills that declare metadata.apex-classes are checked; a skill
-        # joins in its own rebuild step, so today no skill is a member. With no
-        # member, --check reads class.yaml and each skill's frontmatter; class
-        # rules, references and scripts are not read.
+        # The class-text checks run on every class, member or not. The skill
+        # checks cover only skills that declare metadata.apex-classes; a skill
+        # joins in its own rebuild step, so today no skill is a member.
         run: python3 misc/sync-classes.py --check
       - name: Skill pages are in sync
         if: steps.changes.outputs.relevant != 'false'
