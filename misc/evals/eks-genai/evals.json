@@ -3,13 +3,20 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "We're a product team with EKS already running non-AI workloads, and we want to self-host an open LLM (Llama 3 8B class) for a product feature. Target ~100-500ms TTFT, balanced cost posture, no strong hardware preference. Lay out the full GenAI-on-EKS stack — hardware, scheduler, serving framework, storage, observability, and the gateway — plus a 30/60/90 build path.",
+      "prompt": "We're a product team with EKS already running non-AI workloads, and we want to self-host an open LLM (Llama 3 8B class) for a product feature. Target ~100-500ms TTFT, balanced cost posture, no strong hardware preference. Lay out the full GenAI-on-EKS stack: hardware, scheduler, serving framework, storage, observability, and the gateway, plus a 30/60/90 build path.",
       "expectations": [
-        "Recommends NVIDIA GPU (g6 or g6e) as the time-to-value default and explicitly flags AWS Neuron / Inferentia2 as a phase-2 cost-optimization option rather than reflexively picking GPU only. TODO: human review",
-        "Specifies Karpenter as the autoscaler with the NVIDIA device plugin and an EKS-optimized accelerated AMI (Bottlerocket/AL2023). TODO: human review",
-        "Recommends vLLM as the inference engine (optionally fronted by Ray Serve for autoscaling) with an OpenAI-compatible API. TODO: human review",
-        "Covers model-weight storage via Mountpoint for S3 CSI and observability via DCGM Exporter + Prometheus/Grafana including a token-latency (TTFT) metric. TODO: human review",
-        "Includes the security baseline — EKS Pod Identity/IRSA for pod credentials (never static keys) and a LiteLLM gateway for the OpenAI-compatible endpoint. TODO: human review"
+        "Recommends NVIDIA GPU (g6 or g6e) as the time-to-value default.",
+        "Explicitly flags AWS Neuron / Inferentia2 as a phase-2 cost-optimization option rather than reflexively picking GPU only.",
+        "Specifies Karpenter as the autoscaler.",
+        "Specifies the NVIDIA device plugin.",
+        "Specifies an EKS-optimized accelerated AMI (Bottlerocket/AL2023).",
+        "Recommends vLLM as the inference engine (optionally fronted by Ray Serve for autoscaling).",
+        "Recommends that vLLM expose an OpenAI-compatible API.",
+        "Covers model-weight storage via Mountpoint for S3 CSI.",
+        "Covers observability via DCGM Exporter + Prometheus/Grafana.",
+        "Covers observability including a token-latency (TTFT) metric.",
+        "Includes the security baseline: EKS Pod Identity/IRSA for pod credentials (never static keys).",
+        "Recommends an AI gateway in front of the OpenAI-compatible endpoint: LiteLLM as the default, or Envoy AI Gateway where L7 routing at ingress is the need."
       ],
       "files": []
     },
@@ -17,11 +24,24 @@
       "id": 2,
       "prompt": "We need to fine-tune a 70B Transformer model on Amazon EKS, distributed across multiple nodes. We're cost-first, with an existing PyTorch + Hugging Face stack. Should we use GPU or Neuron? How do we handle EFA networking, checkpointing, and Spot safely?",
       "expectations": [
-        "Recommends AWS Neuron (Trn2/Trn1) as the cost-leader for Transformer-family training, with NVIDIA p5/H100 as the fallback, and mentions EC2 Capacity Blocks for ML for guaranteed capacity. TODO: human review",
-        "Specifies Karpenter with the Neuron device plugin for Neuron compute (DRA is supported on static-capacity node groups while the device plugin covers Auto Mode / dynamic Karpenter provisioning; the NVIDIA device plugin is the compute plugin on the GPU path), plus the EFA device plugin as a networking complement on both the GPU and Neuron paths for multi-node NCCL/MPI. TODO: human review",
-        "Calls out EFA networking with NUMA pinning (single-numa-node) + static CPU manager and NCCL/MPI in the container image for multi-node training. TODO: human review",
-        "Recommends FSx for Lustre in the same AZ as the compute nodes with an S3 Data Repository Association for durable checkpoint offload. TODO: human review",
-        "States that Spot is acceptable for training only with checkpoint/resume logic, and includes the security baseline (Pod Identity, private subnets). TODO: human review"
+        "Recommends AWS Neuron (Trn2/Trn1) as the cost-leader for Transformer-family training.",
+        "Recommends NVIDIA p5/H100 as the fallback.",
+        "Mentions EC2 Capacity Blocks for ML for guaranteed capacity.",
+        "Specifies Karpenter for Neuron compute.",
+        "Specifies the Neuron device plugin for Neuron compute.",
+        "States that the Neuron device plugin runs on Karpenter and on EKS Auto Mode.",
+        "States that the Neuron DRA driver runs on static-capacity Karpenter NodePools, managed and self-managed nodes, not on EKS Auto Mode.",
+        "Names the NVIDIA device plugin, or the NVIDIA DRA driver, as the compute device manager on the GPU path.",
+        "Specifies the EFA device plugin as a networking complement on the GPU path for multi-node NCCL/MPI.",
+        "Specifies the EFA device plugin as a networking complement on the Neuron path for multi-node NCCL/MPI.",
+        "Calls out EFA networking with NUMA pinning (single-numa-node) for multi-node training.",
+        "Calls out the static CPU manager for multi-node training.",
+        "Calls out NCCL/MPI in the container image for multi-node training.",
+        "Recommends FSx for Lustre in the same AZ as the compute nodes.",
+        "Recommends an S3 Data Repository Association for durable checkpoint offload.",
+        "States that Spot is acceptable for training only with checkpoint/resume logic.",
+        "Includes Pod Identity in the security baseline.",
+        "Includes private subnets in the security baseline."
       ],
       "files": []
     }
