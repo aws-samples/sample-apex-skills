@@ -86,7 +86,9 @@ def stage_skill_sandbox(skill_name: str, repo_skill_dir: Path):
 
     sandbox/.claude/skills/<skill_name>/   symlink -> repo_skill_dir
 
-    HOME is empty: no link to the host's ~/.aws. Both dirs are mktemp'd; both are removed when the block exits, including
+    HOME is empty: no link to the host's ~/.aws.
+
+    Both dirs are mktemp'd; both are removed when the block exits, including
     on exception. Safe against Ctrl-C during the run. Callers may also use
     this from Phase 2's task runner — `with_skill` config points here;
     `without_skill` config should use stage_empty_sandbox() below.
