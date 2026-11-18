@@ -31,35 +31,51 @@ parents: []
 # - The router's runbooks hold 16 `../../../<skill>/` paths, against
 #   apex.no-path-into-another-skill, all in the vendored eks-operation-review
 #   runbook (aws-samples/sample-apex-skills#520).
+# - eks-operation-review (owner-held, vendored) points into the router's
+#   runbook (SKILL.md:18, UPSTREAM.md:20), against
+#   apex.no-path-into-another-skill: its owner changes it.
 # - eks-platform-engineering pauses an ArgoCD sync "only after the user confirms" (SKILL.md, Guardrails), short of apex.read-only-unless-confirmed; it changes in step 5.
 # The router's `helm list` is replaced in this piece (skills/apex/SKILL.md,
 # shared rule 1).
 
 # Deterministic checks one CI script runs on every member.
 # status "exists" names today's command; "planned" is not built yet.
+# An optional `timeout` (seconds, default 120, at most 3600) bounds one run.
 checks:
   - id: frontmatter-lint
-    what: "Parseable frontmatter; description present and <= 1024 chars"
+    what: "Parseable frontmatter; name equals the folder name; description present and <= 1024 chars"
     status: exists
-    run: "python3 misc/validate-frontmatter.py"
+    run: "python3 classes/apex-base/checks/ab-fm.py"
   - id: rule-ids-in-marker-block
     what: "Every rule id in rules.md appears in the member's SKILL.md marker block. This proves the copy landed, not behaviour"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-rule.py"
   - id: no-path-into-another-skill
     what: "A path grep: no link or path from a member into another skill's folder"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-path.py"
+  - id: metadata-version-bumped
+    what: "A required metadata.version, bumped on every change to a skill's instructions, scripts or references"
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-ver.py"
+  - id: skill-md-under-500-lines
+    what: "SKILL.md under 500 lines"
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-size.py"
+  - id: relative-links-resolve
+    what: "The relative link check"
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-link.py"
+
+# Model-backed evals, kept out of the CI checks list above. A record only:
+# no runner reads this list yet. Same fields.
+evals:
   - id: shared-trigger-evals
     what: "The class's shared trigger evals run against each member"
     status: planned
   - id: read-only-and-no-secrets-evals
     what: "Read-only and no-Secrets are tested by evals, since a text check proves only that the rule's text landed"
     status: planned
-  - id: metadata-version-bumped
-    what: "A required metadata.version, bumped on every change to a skill's instructions, scripts or references"
-    status: planned
-  - id: skill-md-under-500-lines
-    what: "SKILL.md under 500 lines"
-    status: planned
-  - id: relative-links-resolve
-    what: "The relative link check"
+  - id: shared-injection-eval
+    what: "The shared injection case runs against each member: nothing a skill reads is an instruction"
     status: planned
