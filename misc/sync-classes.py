@@ -67,9 +67,14 @@ level of a member's references/ or scripts/, and the copies and marker block
 left in a skill that drops metadata.apex-classes or sets it empty. A
 generated file one folder down is still reported, because copies are always
 flat, so a nested one is wrong whatever its class; a top-level one could be
-the copy of a removed class, which only the orphan scan would tell. With no
-member skill, --check reads class.yaml and each skill's frontmatter; class
-rules, references and scripts are not read.
+the copy of a removed class, which only the orphan scan would tell.
+
+The class-text checks (steps 2 and 7, the shape of a class's references/
+and scripts/, and its parent order: no cycle and one consistent order) run
+on every class in both modes, whether or not a skill is a member: each
+class is checked with its own parents. A clash
+between two classes that no class chain joins is found only when a skill
+declares both.
 
 Requires PyYAML (pip install 'pyyaml>=6,<7').
 """
@@ -186,7 +191,9 @@ def c3_merge(seqs, who):
         else:
             raise SyncError(
                 f"{who}: the declared class order contradicts the classes' parents "
-                "(or a class is listed twice); declare leaf classes only, each once"
+                "(or a class is listed twice); in a skill, declare leaf classes only, "
+                "each once; in a class.yaml, list parents in an order that agrees "
+                "with their own parents"
             )
         out.append(head)
         seqs = [[x for x in s if x != head] for s in seqs]
@@ -584,42 +591,51 @@ def declarations(text):
 # ------------------------------------------------------------------ plan
 
 
+def chain_parts(chain, loaded, who):
+    """Fail on a rule id or target path given twice in `chain`; return its rules blocks."""
+    rule_ids, targets = {}, {}
+    parts = []
+    for c in chain:
+        rules, refs, scripts = loaded[c]
+        if rules is not None:
+            for line in rules.splitlines():
+                m = RULE_LINE.match(line)
+                if not m:
+                    continue
+                rid = m.group(1)
+                if rid in rule_ids:
+                    raise SyncError(
+                        f"{who}: duplicate rule id {rid} from classes/{rule_ids[rid]} "
+                        f"and classes/{c}"
+                    )
+                rule_ids[rid] = c
+            parts.append(f"{header_line(f'classes/{c}/rules.md', 'md')}\n{rules.strip()}\n")
+        for item in refs + scripts:
+            t = item["target"]
+            if t in targets:
+                raise SyncError(
+                    f"{who}: duplicate target path {t} from {targets[t]} and {item['src']}"
+                )
+            targets[t] = item["src"]
+    return parts
+
+
 def build_plan(root):
     """Return (members, expected files) or raise SyncError."""
     classes = load_classes(root)
+    # The class-text checks run on every class, member skill or not: each
+    # class's files (the apex pointer rule) and its chain (rule id and target
+    # clashes). They read only classes/.
+    loaded = {c: class_files(root, c) for c in classes}
+    for c in classes:
+        chain_parts(list(reversed(linearize(c, classes))), loaded, f"classes/{c}")
     members = member_skills(root, classes)
-    loaded, expected = {}, []
+    expected = []
     for skill, declared in members:
         who = f"skills/{skill}"
         chain = resolve_chain(declared, classes, who)
-        for c in chain:
-            if c not in loaded:
-                loaded[c] = class_files(root, c)
         scripts_by_class = {c: loaded[c][2] for c in chain}
-        rule_ids, targets = {}, {}
-        parts = []
-        for c in chain:
-            rules, refs, scripts = loaded[c]
-            if rules is not None:
-                for line in rules.splitlines():
-                    m = RULE_LINE.match(line)
-                    if not m:
-                        continue
-                    rid = m.group(1)
-                    if rid in rule_ids:
-                        raise SyncError(
-                            f"{who}: duplicate rule id {rid} from classes/{rule_ids[rid]} "
-                            f"and classes/{c}"
-                        )
-                    rule_ids[rid] = c
-                parts.append(f"{header_line(f'classes/{c}/rules.md', 'md')}\n{rules.strip()}\n")
-            for item in refs + scripts:
-                t = item["target"]
-                if t in targets:
-                    raise SyncError(
-                        f"{who}: duplicate target path {t} from {targets[t]} and {item['src']}"
-                    )
-                targets[t] = item["src"]
+        parts = chain_parts(chain, loaded, who)
         for c in chain:
             _, refs, scripts = loaded[c]
             for r in refs:
