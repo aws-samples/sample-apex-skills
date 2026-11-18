@@ -235,7 +235,7 @@ def mint_eval_role_credentials(min_seconds: int = 0) -> EvalCredentials:
     """Assume the eval role and prove the session's account before use.
 
     Raises EvalCredentialError, with what to fix, when the config files are
-    missing or wrong, the admin profile cannot sign in (ada, Midway), the
+    missing or wrong, the admin profile's sign-in fails, the
     assume-role fails, or get-caller-identity names another account or role.
     """
     if min_seconds + EVAL_SESSION_MARGIN > EVAL_SESSION_SECONDS:
@@ -264,8 +264,8 @@ def mint_eval_role_credentials(min_seconds: int = 0) -> EvalCredentials:
     if r.returncode != 0:
         raise EvalCredentialError(
             f"could not assume {EVAL_ROLE_NAME} through profile {EVAL_ADMIN_PROFILE} "
-            f"of {cfg / 'aws-config'}. If this is a Midway or ada sign-in error, "
-            f"run mwinit and retry. aws said: {_last_line(r.stderr)}"
+            f"of {cfg / 'aws-config'}. If this is a sign-in error, sign in again "
+            f"for that profile and retry. aws said: {_last_line(r.stderr)}"
         )
     try:
         creds = json.loads(r.stdout)["Credentials"]

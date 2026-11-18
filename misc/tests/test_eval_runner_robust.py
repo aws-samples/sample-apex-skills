@@ -337,7 +337,7 @@ class EvalRoleCredentials(unittest.TestCase):
         self.cfg = self.home / ".apex-eval"
         self.cfg.mkdir()
         (self.cfg / "aws-config").write_text(
-            "[profile apex-eval-admin]\ncredential_process = ada credentials print\n"
+            "[profile apex-eval-admin]\ncredential_process = sign-in-helper print\n"
             "region = us-west-2\n")
         (self.cfg / "expected-account").write_text(ACCOUNT + "\n")
         bin_dir = self.tmp / "bin"
@@ -432,9 +432,9 @@ class EvalRoleCredentials(unittest.TestCase):
             run_triggering.mint_eval_role_credentials()
         self.assertEqual(self.calls(), [])
 
-    def test_sign_in_failure_says_run_mwinit(self):
+    def test_sign_in_failure_says_sign_in_again(self):
         os.environ["FAKE_AWS_MODE"] = "ada_fail"
-        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "mwinit"):
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "sign in again"):
             run_triggering.mint_eval_role_credentials()
         self.assertEqual(len(self.calls()), 1)
 
@@ -476,7 +476,7 @@ class EvalRoleCredentials(unittest.TestCase):
             err = io.StringIO()
             with mock.patch.object(sys, "argv", argv), contextlib.redirect_stderr(err):
                 self.assertEqual(module.main(), 2)
-            self.assertIn("mwinit", err.getvalue())
+            self.assertIn("sign in again", err.getvalue())
         self.assertFalse(self.claude_log.exists())
 
     def test_runner_scripts_hold_no_account_id(self):
