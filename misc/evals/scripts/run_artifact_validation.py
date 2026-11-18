@@ -133,7 +133,7 @@ def main() -> int:
         return 2
 
     total = total_passed + total_failed
-    rate = total_passed / total if total else 1.0
+    rate = total_passed / total if total else 0.0
     print(
         f"[artifact] {args.skill} TOTAL: {total_passed}/{total} "
         f"({rate:.0%}) {'PASS' if not any_failed else 'FAIL'}",

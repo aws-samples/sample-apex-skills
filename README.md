@@ -18,7 +18,7 @@
 ## What APEX is
 
 - **Skills**: what your agent knows. 28 skills, written to the [Agent Skills standard](https://agentskills.io/), that design, build, review, upgrade and secure Amazon EKS and Amazon ECS estates.
-- **The `/apex` router** (installed from `main`, below): one entry point. Type `/apex` with your request and it picks the right skill and, when there is one, that skill's runbook.
+- **The `/apex` router** (installed from `main`, below): one entry point. Type `/apex` with your request and it picks the right skill, or follows a runbook you name: your own procedure that chains skills.
 - **DevOps Agent ports**: 6 Day 2 skills repackaged for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/).
 
 Domain knowledge by AWS Solutions Architects, TAMs and ProServe. 5 skills are vendored from upstream projects; see [Provenance](#provenance).
@@ -60,7 +60,7 @@ git clone https://github.com/aws-samples/sample-apex-skills.git
 mkdir -p ~/.agents/skills && cp -r sample-apex-skills/skills/* ~/.agents/skills/
 ```
 
-In Codex the router is `$apex`. `/apex` in Kiro CLI was tested on 2.35.1 (2026-10-28); 1.27.0 rejected it. Other harnesses, and the optional agent guardrails in [rules/AGENTS.md](rules/AGENTS.md): [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/).
+In Codex the router is `$apex`. `/apex` in Kiro CLI was tested on 2.35.1 (2026-10-28); 1.27.0 rejected it. Other harnesses: [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/). [classes/](classes/) holds the shared rules; the class sync (`misc/sync-classes.py`) copies them into each skill that joins a class.
 
 ## See it work
 
@@ -76,7 +76,7 @@ The [EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check
 flowchart LR
   U[You] --> H[Agent harness<br/>Claude Code, Kiro CLI, Codex]
   H --> R["/apex router"]
-  R --> S[Skill + runbook]
+  R --> S[Skill]
   S --> T["AWS CLI, kubectl or MCP servers,<br/>when the skill needs them"]
   T --> O[Report or code]
 ```
@@ -103,7 +103,7 @@ Choose an architecture before you build.
 
 | Skill | What it does |
 |---|---|
-| [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/) | Choose the ECS compute model and launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing |
+| [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/) | Choose the ECS compute model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, plus capacity providers and task sizing |
 | [ecs-observability](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/) | ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens |
 | [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/) | Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices |
 
@@ -152,7 +152,7 @@ Check exposure, harden and prepare for audits.
 | Skill | What it does |
 |---|---|
 | [ecs-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-security/) | ECS security and compliance: task and execution roles, iam:PassRole, trust policies, secrets injection and shared responsibility on Fargate and EC2 |
-| [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/) | Read-only scripted reviews of a live EKS cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing |
+| [eks-security](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-security/) | Read-only scripted reviews of a live cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing |
 
 ### Set up and extend
 
@@ -160,6 +160,7 @@ Connect tools, write your own skills, keep docs in sync.
 
 | Skill | What it does |
 |---|---|
+| [apex-new-skill](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex-new-skill/) | Add a new skill or a class change to the APEX repo: classes, SKILL_META line, eval set, generators, CI checks, ADR, design-doc note and pull request |
 | [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) | Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills |
 | [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/) | Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check |
 | [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/) | Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy |
@@ -174,7 +175,7 @@ Connect tools, write your own skills, keep docs in sync.
 | Example | Description | Workflow |
 |---------|-------------|----------|
 | **[Liberty to ECS Modernization](examples/ecs-modernize/liberty-to-ecs/)** | Assess a Java 8 / WebSphere Liberty application carrying planted modernization blockers, score it with the APEX ecs-modernize skill, then execute both migration paths on ECS — Replatform as-is onto ECS on EC2 and Rearchitect onto Fargate — and re-assess to see the Fit_Score rise from the Replatform band into the Rearchitect band. | -- |
-| **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](skills/apex/runbooks/eks-upgrade-check/eks-upgrade-check.md) |
+| **[EKS Upgrade Readiness Check](examples/eks-upgrades/in-place-karpenter-check/)** | Deploy an EKS 1.32 cluster with Karpenter v1.0.2 and planted upgrade issues, then run the APEX EKS upgrade-check skill to produce a scored readiness report showing NOT READY status. | [eks-upgrade-check](skills/eks-upgrade-check/SKILL.md) |
 <!-- EXAMPLES_REFERENCE_END -->
 
 ## DevOps Agent

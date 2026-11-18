@@ -1,0 +1,7 @@
+# Guided: solution skills where a script does not fit (eks-design, eks-build).
+# They inherit the artifact checks from Operator; the class sync
+# (misc/sync-classes.py) fails on the same rule id from two classes, so this
+# class adds none.
+
+name: guided
+parents: [operator]

@@ -379,7 +379,8 @@ aws eks describe-cluster --name <cluster-name> --region <region> \
 Inventory container image sourcing facts:
 - **ECR usage**: whether images pull from ECR (private `*.dkr.ecr.*` or `public.ecr.aws`)
 - **Private registries**: the distinct registry hosts in use
-- **Admission policies**: whether Kyverno/Gatekeeper rules target Pods (image-related admission control exists)
+- **Admission policies**: whether Kyverno `ClusterPolicy` and Gatekeeper constraint
+  selectors include Pods. Namespaced Kyverno `Policy` resources are outside this check.
 
 **ECR usage:**
 ```bash
@@ -404,16 +405,51 @@ kubectl get pods -A -o json | jq -r '
 public.ecr.aws/aws-observability/aws-otel-collector:v0.35.0
 ```
 
-**Image Policy Enforcement:**
+**Pod admission policy selectors:**
 ```bash
-# Check for image policies in Kyverno
-kubectl get clusterpolicies.kyverno.io -o json 2>/dev/null | \
-  jq -r '.items[] | select(.spec.rules[]?.match.resources.kinds[]? == "Pod") | .metadata.name'
+# Kyverno ClusterPolicies
+(set -o pipefail
+ kubectl get clusterpolicies.kyverno.io -o json | jq -r '
+   def pod_kind: any(.kinds[]?; . == "Pod" or . == "*");
+   .items[]
+   | select(any(.spec.rules[]?.match;
+       if (.any // [] | length) > 0 then any(.any[].resources; pod_kind)
+       elif (.all // [] | length) > 0 then all(.all[].resources; pod_kind)
+       else .resources | pod_kind
+       end))
+   | .metadata.name')
 
-# Check for Gatekeeper image constraints
-kubectl get constraints -o json 2>/dev/null | \
-  jq -r '.items[] | select(.spec.match.kinds[]?.kinds[]? == "Pod") | .metadata.name'
+# Gatekeeper constraints
+(set -o pipefail
+ kubectl get constraints -o json | jq -r '
+   def allows($value): length == 0 or any(.[]; . == $value or . == "*");
+   .items[]
+   | (.spec.match // {}) as $match
+   | select($match.scope != "Cluster" and (
+       ($match.kinds // [] | length == 0)
+       or any($match.kinds[]?;
+         (.apiGroups // [] | allows("")) and (.kinds // [] | allows("Pod")))))
+   | .metadata.name')
 ```
+
+Run the queries separately and check each exit status. A kubectl discovery error
+saying `the server doesn't have a resource type` for the requested resource means
+it is absent when discovery succeeded. Treat `Forbidden`, discovery failures, and
+other errors as incomplete reads, even when they produce no names.
+
+These selectors show kind eligibility. Kyverno `spec.admission: false`,
+Gatekeeper `spec.match.source`, exclusions, namespace or label filters, rule bodies,
+and enforcement mode can further restrict what happens to a Pod.
+
+Set `admission_policies: true` when a selector matches. Before reporting `false`,
+confirm complete inventories or resource absence and inspect every entry in the
+Kyverno `kinds` lists on the applicable match path. Count a kind as a confirmed
+nonmatch only if it is a plain, exact name for another kind (such as `Service`).
+Qualified or pattern spellings such as `v1/Pod`, `*/Pod`, and `Po*` are not matched
+by jq and leave the result inconclusive unless another policy matches. When there is no
+confirmed match and a read or selector is inconclusive, use `null`, mark
+`security.image_security.admission_policies` as `unconfirmed` in Coverage with
+the reason, and list the path in `report.unconfirmed_paths`.
 
 ### 7. RBAC Summary
 
@@ -552,7 +588,7 @@ security:
   image_security:
     ecr_used: bool                  # any pod image pulls from ECR (private or public)
     private_registries: list        # distinct registry hosts across all pod images
-    admission_policies: bool        # Kyverno/Gatekeeper rules targeting Pods exist
+    admission_policies: bool|null   # Pod selector match, confirmed no match, or unconfirmed
 
   admission_webhooks:
     validating:

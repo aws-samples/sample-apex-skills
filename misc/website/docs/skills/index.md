@@ -21,13 +21,13 @@ description: "Browse every APEX skill: AWS skills for AI agents doing platform e
 - [**eks-operation-review**](./eks/eks-operation-review/index.md): EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, with prioritized recommendations and deprecated-API review with no target version
 - [**eks-platform-engineering**](./eks/eks-platform-engineering/index.md): Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 - [**eks-recon**](./eks/eks-recon/index.md): EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts
-- [**eks-security**](./eks/eks-security/index.md): Read-only scripted reviews of a live EKS cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing
+- [**eks-security**](./eks/eks-security/index.md): Read-only scripted reviews of a live cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing
 - [**eks-upgrade-check**](./eks/eks-upgrade-check/index.md): Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks
 - [**eks-well-architected-review**](./eks/eks-well-architected-review/index.md): Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only) across five pillars; run only on an explicit WAFR request
 
 ## [ECS skills](./ecs/index.md)
 
-- [**ecs-architect**](./ecs/ecs-architect/index.md): Choose the ECS compute model and launch type for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, capacity providers and task sizing
+- [**ecs-architect**](./ecs/ecs-architect/index.md): Choose the ECS compute model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, plus capacity providers and task sizing
 - [**ecs-build**](./ecs/ecs-build/index.md): Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances
 - [**ecs-devops**](./ecs/ecs-devops/index.md): Deploy and release to ECS: blue/green and canary deployments, CI/CD pipelines and rollbacks
 - [**ecs-genai**](./ecs/ecs-genai/index.md): GPU, ML and GenAI workloads on ECS: GPU instances, Inferentia, Trainium and Neuron, launch type choice, training and model inference
@@ -40,6 +40,7 @@ description: "Browse every APEX skill: AWS skills for AI agents doing platform e
 ## General
 
 - [**apex**](./general/apex/index.md): Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills
+- [**apex-new-skill**](./general/apex-new-skill/index.md): Add a new skill or a class change to the APEX repo: classes, SKILL_META line, eval set, generators, CI checks, ADR, design-doc note and pull request
 - [**dotnet-aws-ecs**](./general/dotnet-aws-ecs/index.md): Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide
 - [**graviton-migration**](./general/graviton-migration/index.md): Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS
 - [**skill-creator**](./general/skill-creator/index.md): Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy

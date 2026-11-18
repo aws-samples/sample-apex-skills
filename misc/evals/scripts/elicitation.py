@@ -97,6 +97,17 @@ def extract_session_id(events: list[dict]) -> str | None:
     return None
 
 
+def _append_event(events: list[dict], line: str) -> None:
+    """Append one stream-json line if it parses to a JSON object; a line that
+    is not JSON, or parses to a list, string, number or null, is dropped."""
+    try:
+        evt = json.loads(line)
+    except json.JSONDecodeError:
+        return
+    if isinstance(evt, dict):
+        events.append(evt)
+
+
 def drain_stream_for_events(
     process: subprocess.Popen,
     timeout: float,
@@ -132,16 +143,10 @@ def drain_stream_for_events(
         while "\n" in buffer:
             line, buffer = buffer.split("\n", 1)
             if line.strip():
-                try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    pass
+                _append_event(events, line)
 
     if buffer.strip():
-        try:
-            events.append(json.loads(buffer))
-        except json.JSONDecodeError:
-            pass
+        _append_event(events, buffer)
     return events, timed_out
 
 

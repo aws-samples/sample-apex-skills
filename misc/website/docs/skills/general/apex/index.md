@@ -104,7 +104,7 @@ Use the stage only as a hint: to break a tie between two equally specific rows (
 | Create or improve a skill, run its evals, tune its description | `skill-creator`, then the new-skill steps in CONTRIBUTING.md (sibling map, triggering.json, catalogues) |
 | Update, sync or check the repo docs after a skill change | `update-docs` |
 
-An ask to author a runbook gets no row: say that runbooks live in this skill's `runbooks/<skill>/` folders and are written by hand (CONTRIBUTING.md, Creating a New Runbook), then ask one clarifying question rather than routing to a catch-all.
+An ask to author a runbook gets no row: say that a runbook is the customer's own procedure that chains skills, written by hand from the dummy examples in this skill's `runbooks/` folder (CONTRIBUTING.md, Creating a New Runbook), then ask one clarifying question rather than routing to a catch-all.
 
 ## Hand-offs and next skills
 
@@ -112,7 +112,7 @@ This table is the one next-skill map. Carry the listed context forward when one 
 
 | after | natural next skills | context to pass |
 |---|---|---|
-| `eks-design` | `eks-build`, `eks-security` | the design's decisions: compute strategy (Karpenter, MNG, Auto Mode; design Phase 5 Q20), add-on management (Terraform, ArgoCD; Q22), upgrade strategy (in-place, blue-green; Q25), constraints (air-gapped, compliance; Phase 3) |
+| `eks-design` | `eks-build`, `eks-security` | the design's decisions: compute strategy (Karpenter, MNG, Auto Mode), add-on management (Terraform, ArgoCD), upgrade strategy (in-place, blue-green), constraints (air-gapped, compliance) |
 | `eks-best-practices` | `eks-design`, `eks-build` | the options weighed and the choice made |
 | `eks-build` | `eks-security`, `eks-operation-review` | cluster name, compute strategy, add-on management |
 | `eks-recon` | `eks-upgrade-check`, `eks-operation-review`, `eks-cost-intelligence` | the recon report: EKS version, compute strategy, add-on inventory |
@@ -128,7 +128,7 @@ This table is the one next-skill map. Carry the listed context forward when one 
 
 **Suggest next skills** only after a skill this router routed to has finished, and only when a natural next step exists: one line, 1 to 3 skills from the row above that fit the customer's stage, each with a few words on why, for example "Next, if useful: `eks-build` to turn this design into Terraform, or `eks-security` to harden it before go-live." Never load or run a suggested skill until the user asks. When nothing fits, suggest nothing.
 
-After `eks-upgrade-check`, take the band from the report; the score range of each band and the hard-blocker cap are in that skill's Readiness Score section, not here (the partial-assessment cap is in its Step 0 Pre-flight and `references/report-generation.md`; a partial assessment never prints READY, so carry its Unassessed caveat forward):
+After `eks-upgrade-check`, present its report with a one-paragraph summary of the blockers (if any) and the overall readiness rating, then take the band from the report; the score range of each band and the hard-blocker cap are in that skill's Readiness Score section, not here (the partial-assessment cap is in its Step 0 Pre-flight and `references/report-generation.md`; a partial assessment never prints READY, so carry its Unassessed caveat forward):
 
 | band | next step |
 |---|---|
@@ -148,7 +148,7 @@ Separately, if a RED finding is on the cluster version (extended support or unsu
 
 ## Runbooks
 
-A runbook is one skill's procedure for a task. Runbooks live in this skill's folder, one folder per skill: `runbooks/<skill>/<file>.md` (a skill may also call its own reference procedures runbooks). When a request routes to a skill and `runbooks/<skill>/` has a runbook for the task, follow it with that skill; if not, use the skill alone. Name a runbook only after you have found its file. For work that spans several skills, chain them by the routing tables and the hand-off table above.
+A runbook is the customer's own procedure that chains skills: which skills, in what order, what to carry between them and the customer's own gates. Runbooks live in this skill's `runbooks/` folder; `example-eks-design-to-build.md` and `example-eks-recon-to-operation-review.md` there are dummy examples to copy and adapt, followed only when the user names one. Follow a runbook step by step: one skill per step, the context the hand-off table lists carried between steps, each skill's own rules applied; a runbook may only tighten a safety rule, never loosen one. While a skill's own procedure still sits in `runbooks/<skill>/` (until that skill's rebuild moves it into the skill), follow it with that skill when a request routes there and the folder has a runbook for the task; if not, use the skill alone. Name a runbook only after you have found its file. For work that spans several skills with no runbook, chain them by the routing tables and the hand-off table above.
 
 ## Shared rules
 
@@ -156,13 +156,13 @@ These rules apply to every run this router starts, alongside the routed skill's 
 
 | # | rule |
 |---|---|
-| 1 | Assessment, audit and recon runs are read-only against the account and cluster: read verbs only (for example `aws ... describe-*` and `list-*`, `kubectl get`, `kubectl auth can-i`, `helm list`, MCP reads (read tools only, even when the server runs with `--allow-write`)) and a report. Local kubeconfig setup the skill prescribes (`aws eks update-kubeconfig`) is allowed; it writes the local kubeconfig (default `~/.kube/config`) and switches its current-context, so first record the user's current context (`kubectl config current-context`) and, when the run ends, switch back to it (`kubectl config use-context <that context>`); if there was no current context, tell the user at the end which context is now set. Remediation snippets in a report are for the user to run: never execute them during the assessment. A skill's own read-only rule may be stricter; it wins. The user decides what to do with the findings. |
+| 1 | Assessment, audit and recon runs are read-only against the account and cluster: read verbs only (for example `aws ... describe-*` and `list-*`, `kubectl get`, `kubectl auth can-i`, MCP reads (read tools only, even when the server runs with `--allow-write`)) and a report. Find Helm releases from the `meta.helm.sh/release-name` and `meta.helm.sh/release-namespace` annotations on a release's resources (Helm 3.2 and later; `kubectl get`), not `helm list`, which reads Helm's release Secrets by default (rule 5); the annotations give the release name and namespace only, so report chart version, revision and status as not read. Local kubeconfig setup the skill prescribes (`aws eks update-kubeconfig`) is allowed; it writes the local kubeconfig (default `~/.kube/config`) and switches its current-context, so first record the user's current context (`kubectl config current-context`) and, when the run ends, switch back to it (`kubectl config use-context <that context>`); if there was no current context, tell the user at the end which context is now set. Remediation snippets in a report are for the user to run: never execute them during the assessment. A skill's own read-only rule may be stricter; it wins. The user decides what to do with the findings. |
 | 2 | MCP is opt-in; APEX ships no project-root `.mcp.json`. If the user wants live cluster reads and the Amazon EKS MCP Server tools fail or are missing, ask whether they are willing and interested to install the EKS MCP Server: if yes, load `eks-mcp-server`; if no, fall back to kubectl and the AWS CLI, except for `eks-operation-review`, which needs the EKS MCP server and stops at its pre-flight (its runbook, Pre-flight "Verify MCP connectivity"). For the Arm migration MCP server, use `graviton-migration`. `eks-upgrade-check` and `eks-cost-intelligence` run on AWS CLI and kubectl by default (MCP optional); `eks-recon` falls back to them with the user's permission and `eks-ingress-migration` where possible; `eks-well-architected-review` uses only them; `eks-operation-review` needs the EKS MCP server configured. |
-| 4 | Never create, change or delete anything in the user's AWS account or cluster without explicit user confirmation first (for example tagging a resource, node drain, cluster delete, force eviction). |
-| 5 | Never output secrets, credentials or kubeconfig contents. |
+| 4 | Never create, change or delete anything in the user's AWS account or cluster on your own (for example tagging a resource, node drain, cluster delete, force eviction): run such a command only when the user explicitly asks for it, after you show the exact command and what it changes and the user says yes. |
+| 5 | Never read Kubernetes Secrets or other secret values, and never output secrets, credentials or kubeconfig contents. |
 | 6 | Use ASCII only in AWS resource names and descriptions; use hyphens, not em dashes. |
-| 7 | When configured, prefer the AWS MCP Server and the EKS MCP Server over the AWS CLI and kubectl. |
-| 8 | Check for a relevant AWS or APEX skill first; prefer skill guidance over general knowledge. |
+| 7 | Use MCP where possible and fall back to the AWS CLI and kubectl, step by step: for each step, use the named MCP server when it is configured and has a tool for that step; else use the AWS CLI and kubectl. One named server per service: the AWS MCP Server; the managed Amazon EKS MCP Server (preview); the managed Amazon ECS MCP Server (preview; the local one is legacy and stays out), whose read tools all but one take a cluster name (`get_task_definition_deletion_blockers` takes a task definition ARN) and none lists clusters, so finding the clusters is an AWS CLI step (Amazon ECS MCP Server tool configurations, https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-mcp-tool-configurations.html, checked on 2026-11-16); the Arm migration MCP server for Graviton work. FIPS- or FedRAMP-bound work keeps the AWS CLI and kubectl, since, as of 2026-11-16, AWS documents no FIPS endpoint for the AWS MCP Server or the managed Amazon EKS MCP Server. |
+| 8 | Check for a relevant AWS or APEX skill first; prefer skill guidance over general knowledge. For EKS or ECS work, load the skill named exactly `apex` first; the `/apex:*` commands of a v1 install, such as `apex:eks`, are not it. |
 | 9 | Unsure of an AWS or EKS detail (API parameters, permissions, limits, add-on versions, controller behavior): check the AWS docs or the current release's upstream repo (Karpenter, VPC CNI, AWS Load Balancer Controller, CoreDNS, EKS AMI, terraform-aws-eks), never guess; if you cannot confirm it, say so. |
 | 10 | Prefer IaC (Terraform with `terraform-aws-modules/terraform-aws-eks`, AWS CDK or CloudFormation) over direct CLI commands. |
 | 11 | Follow AWS Well-Architected Framework principles. |

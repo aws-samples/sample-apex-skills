@@ -15,16 +15,16 @@ Each skill is a self-contained folder of instructions, scripts, and references t
 | Directory   | Purpose                                                              |
 | ----------- | -------------------------------------------------------------------- |
 | `skills/`   | Reusable domain knowledge (the agent's brain)                        |
-| `skills/apex/` | The APEX router skill and its runbooks: phased procedures that combine skills (the SA's playbook) |
-| `rules/`    | Project-level agent rules — verification, source-checking, guardrails |
+| `skills/apex/` | The APEX router skill, its per-skill runbooks until each skill's rebuild, and your runbooks: your own procedures that chain skills |
+| `classes/`  | The shared rules; the class sync copies them into each member skill |
 | `examples/` | Hands-on labs to try APEX against real workloads                     |
 | `misc/`     | Maintenance scripts, evaluations, and this docs site                 |
 
-> **Key principle:** Skills provide the knowledge. Runbooks provide the structure. Rules provide the guardrails.
+> **Key principle:** Skills provide the knowledge. Runbooks chain skills into your own procedures. Classes provide the guardrails.
 
 ## Where to go next
 
 - [Getting Started](./getting-started.md) — install APEX in Claude Code or Kiro CLI.
 - [Skills](./skills/index.md) — browse the catalog.
-- [APEX router](./skills/general/apex/index.md): routes a request to the right skill and holds the runbooks, phased procedures that combine skills.
+- [APEX router](./skills/general/apex/index.md): routes a request to the right skill and follows your runbooks, your own procedures that chain skills.
 - [Contributing](./contributing/index.md) — add or improve a skill.

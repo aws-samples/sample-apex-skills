@@ -264,6 +264,14 @@ EKS cluster reconnaissance and environment discovery — reports the raw FACTS o
 |--------|-------------|
 | [gitops_signals.py](./eks-recon/scripts/gitops_signals.py) | Gitops signals |
 
+**Assets:**
+
+| Asset | Description |
+|-------|-------------|
+| [recon-input.schema.json](./eks-recon/assets/recon-input.schema.json) | Recon input.schema |
+| [recon-output.schema.json](./eks-recon/assets/recon-output.schema.json) | Recon output.schema |
+| [same-answer.yaml](./eks-recon/assets/same-answer.yaml) | Same answer |
+
 **Agents:**
 
 | File | Description |
@@ -586,7 +594,7 @@ Security and compliance guidance for Amazon ECS — "ECS was unable to assume th
 
 ### [apex](./apex/)
 
-APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison) and its runbook, if any. Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, and no account or cluster change without confirmation.
+APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or APEX skills request, even one that names a single skill or that another APEX skill's description also matches: once loaded, it decides the route. Reads the request and workspace, asks only what the route still needs, infers the customer's stage (Day 0 Design, Day 1 Build, Day 2 Operate), then loads the skill that fits (two for an ECS-or-EKS comparison). Groups skills into stage families per platform, carries context between skills, and after the routed skill finishes suggests 1 to 3 next skills when a natural next step exists, never running them. Holds the shared APEX rules: read-only assessments, opt-in MCP, and no account or cluster change unless the user explicitly asks for it.
 
 **Runbooks:**
 
@@ -598,7 +606,22 @@ APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or
 | [eks-operation-review/](./apex/runbooks/eks-operation-review/) | Eks operation review |
 | [eks-platform-engineering/](./apex/runbooks/eks-platform-engineering/) | Eks platform engineering |
 | [eks-security/](./apex/runbooks/eks-security/) | Eks security |
-| [eks-upgrade-check/](./apex/runbooks/eks-upgrade-check/) | Eks upgrade check |
+| [example-eks-design-to-build.md](./apex/runbooks/example-eks-design-to-build.md) | Example eks design to build |
+| [example-eks-recon-to-operation-review.md](./apex/runbooks/example-eks-recon-to-operation-review.md) | Example eks recon to operation review |
+
+---
+
+### [apex-new-skill](./apex-new-skill/)
+
+Adds a new skill, or a class change, to the APEX skills repository (aws-samples/sample-apex-skills) end to end: reads the repo's classes and class tree to pick the skill's classes, writes SKILL.md front matter, drafts its SKILL_META line, authors the eval set and sibling-map updates, regenerates the docs with the repo's generators, runs the checks CI runs, drafts the ADR, the design-doc note and the fact check, asks before drafting a blog, then prepares the branch, explicit-path commit and pull request. Use when someone wants to contribute, add, onboard or submit a new skill to this repo, change a class under classes/, asks how to open a pull request for a new skill, or needs to retrofit a skill that landed without its eval set. Not for using the APEX skills on an EKS or ECS workload (use the matching skill), not for drafting or tuning skill content in general (use skill-creator), not for a doc sync alone (use update-docs), and not for editing vendored skills synced from upstream.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [evals.md](./apex-new-skill/references/evals.md) | Evals |
+| [pull-request.md](./apex-new-skill/references/pull-request.md) | Pull request |
+| [repo-checks.md](./apex-new-skill/references/repo-checks.md) | Repo checks |
 
 ---
 
