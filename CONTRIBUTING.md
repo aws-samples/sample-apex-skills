@@ -298,7 +298,7 @@ Steps:
 4. Scaffold `misc/evals/<name>/` with `cd misc/evals && make init-evals SKILL=<name> [SIBLINGS="a,b"]` (see misc/evals/README.md), then expand `triggering.json` to ≥16 prompts (≥8 positives, ≥8 near-miss negatives).
 5. Update every neighbour's sibling map and triggering.json using `python misc/evals/scripts/update_sibling_map.py`, one call per neighbour. A neighbour shares vocabulary or domain; zero neighbours is valid; skill-creator and terraform-skill are upstream-synced and excluded, and `apex` (the router, which has no eval folder) is excluded too.
 6. Fan out: add the routing row in [`skills/apex/SKILL.md`](skills/apex/SKILL.md) and any hand-written catalogue (the skill's `LINES` entry in `misc/website/src/components/skillCatalog.ts`, without which it shows under "Set up and extend"; a new AWS DevOps Agent port also needs its name in `PORTS` in `misc/website/src/components/skillSearch.ts`), then run `./misc/update-all-references.sh` (it regenerates `skills/README.md` and the README tables; never edit those blocks by hand) and `./misc/update-pages.sh`, after adding the skill's `SKILL_META` line in `misc/update-pages.sh` (title, summary under 160 characters, and group: one of the README headings in `README_GROUPS` in `misc/update-skills-references.sh`). `git add` the new files first: `update-pages.sh` reads the git index (`git ls-files`) and skips untracked files.
-7. Package: `python skills/skill-creator/scripts/package_skill.py skills/<name>`.
+7. Package: `(cd skills/skill-creator && python3 -m scripts.package_skill ../<name> "$(mktemp -d)")`, run as a module (it imports `scripts.quick_validate`) with an output directory outside the repo; never commit the `.skill` file.
 
 ### Pre-PR checklist for new skills
 
