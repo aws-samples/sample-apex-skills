@@ -182,6 +182,18 @@
 #   NS3 steering off with some, not all, leftover entries edited: the line counts the edited ones
 #   UR1 --uninstall after a --claude-only install names the Kiro paths the record lacks and leaves them
 #   UF1 --uninstall with a plain file at ~/.apex-skills: says it is not a git clone, no rm -rf line
+#   KH1 --kiro-hooks: the scripts and the filled hook file are installed and recorded; the hook runs
+#   KH2 --kiro-hooks --project: the command names .kiro/apex-hooks, runs from the project root, and
+#       after a move
+#   KH3 --update with no --kiro-hooks refreshes an installed hook script
+#   KH4 a hook the user turned on in the installed file is kept by --update (exit 3, listed)
+#   KH5 --kiro-hooks never overwrites a hook file the installer did not write (exit 3, listed)
+#   KH6 --uninstall removes the hook copies and their empty folders, keeps a user file and an
+#       edited hook file
+#   KH7 without --kiro-hooks a Kiro install writes no hooks
+#   KH8 --kiro-hooks with --claude-only or --uninstall exits 2
+#   KH9 --kiro-hooks on a release with no Kiro hook file warns and writes nothing
+#   KH10 --kiro-hooks refuses a global scripts folder whose path holds a $
 #   T1  harness self-test: an installer that never exits is killed at RUN_TIMEOUT
 #   T2  harness self-test: the frontmatter check rejects unclosed, empty and inclusion-less frontmatter
 set -u
@@ -3125,6 +3137,170 @@ expect_rc 3
 expect_stderr "Kept 1 path(s) the installer created that were changed since"
 expect_no_out "not created by this installer"
 [ "$(cat "$km1_b")" = "my own notes" ] || err "the replaced copy was written again"
+finish_case
+
+# ---------------------------------------------------------------- kiro hooks
+# A clone of ORIGIN whose main also holds plugins/apex/: this checkout's two hook
+# scripts and a stand-in for the Kiro hook file the class sync will write. The
+# cases install it with --branch main, the only ref that has it.
+kh_origin() { # <dest>
+  git clone -q "$ORIGIN" "$1"
+  mkdir -p "$1/plugins/apex/kiro" "$1/plugins/apex/hooks/apex-base/secret-deny" "$1/plugins/apex/hooks/operator/mutation-guard"
+  cp "$REPO_ROOT/classes/apex-base/hooks/secret-deny/secret_deny.py" "$1/plugins/apex/hooks/apex-base/secret-deny/"
+  cp "$REPO_ROOT/classes/operator/hooks/mutation-guard/mutation_guard.py" "$1/plugins/apex/hooks/operator/mutation-guard/"
+  echo '{"description":"generated","hooks":{}}' > "$1/plugins/apex/hooks/hooks.json"
+  cat > "$1/plugins/apex/kiro/apex-hooks.json" <<'EOF'
+{"version": "v1", "hooks": [
+ {"name": "apex.no-secrets", "description": "generated", "trigger": "PreToolUse", "matcher": "^(execute_bash|mcp_.*)$",
+  "action": {"type": "command", "command": "python3 \"__APEX_HOOKS_DIR__/apex-base/secret-deny/secret_deny.py\" --mode block"}, "enabled": false},
+ {"name": "advisor.no-side-effects", "description": "generated", "trigger": "PreToolUse", "matcher": "^(execute_bash|mcp_.*)$",
+  "action": {"type": "command", "command": "python3 \"__APEX_HOOKS_DIR__/operator/mutation-guard/mutation_guard.py\" --mode block"}, "enabled": false}]}
+EOF
+  "${GITC[@]}" -C "$1" add plugins
+  "${GITC[@]}" -C "$1" commit -q -m "fixture plugins/apex"
+}
+kh_run() { RUN_ENV="APEX_SKILLS_REPO_URL=file://$KH_ORIGIN" run_cli --branch main "$@"; }
+kh_cmd() { node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).hooks[+process.argv[2]].action.command)' "$1" "$2"; }
+KH_EVENT='{"session_id":"s1","hook_event_name":"PreToolUse","cwd":"/w","tool_name":"execute_bash","tool_input":{"command":"kubectl get secret db -o yaml"}}'
+# The exit code of hook <idx> of <file>, run as Kiro runs it: sh -c in <cwd>, the event on stdin.
+# Exit 2 counts as the hook's block only with the hook's message on stderr (python3 also exits 2
+# when it cannot open the script).
+kh_fire() { # <file> <idx> <cwd>
+  local e="$WORK/$CASE/fire.err" rc
+  (cd "$3" && printf '%s' "$KH_EVENT" | sh -c "$(kh_cmd "$1" "$2")" >/dev/null 2> "$e"); rc=$?
+  if [ "$rc" -eq 2 ] && ! /usr/bin/grep -q 'Blocked by the APEX' "$e"; then echo "2 without the hook's message"; else echo "$rc"; fi
+}
+KH_PY="$(command -v python3 || true)"
+
+new_case KH1 "--kiro-hooks: the scripts and the filled hook file are installed and recorded; the hook runs"
+KH_ORIGIN="$WORK/KH1/origin"; kh_origin "$KH_ORIGIN"
+mkdir -p "$H/.kiro"
+kh_run --kiro-only --kiro-hooks
+expect_rc 0
+kh1_f="$H/.kiro/hooks/apex-hooks.json"
+for f in "$kh1_f" "$H/.kiro/apex-hooks/apex-base/secret-deny/secret_deny.py" "$H/.kiro/apex-hooks/operator/mutation-guard/mutation_guard.py"; do
+  [ -f "$f" ] || err "$f was not installed"
+done
+[ ! -e "$H/.kiro/apex-hooks/hooks.json" ] || err "plugins/apex/hooks/hooks.json was copied as a script"
+[ "$(kh_cmd "$kh1_f" 0)" = "python3 \"$H/.kiro/apex-hooks/apex-base/secret-deny/secret_deny.py\" --mode block" ] || err "the global command is not the absolute path: $(kh_cmd "$kh1_f" 0)"
+if /usr/bin/grep -q __APEX_HOOKS_DIR__ "$kh1_f"; then err "the placeholder is left in $kh1_f"; fi
+[ "$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).hooks.every((h) => h.enabled === false))' "$kh1_f")" = true ] || err "an enabled value changed"
+[ "$(mfq "$(manifest_of)" 'Object.keys(Object.values(m.bases)[0].areas["kiro-hooks"] || {}).length')" = 3 ] || err "the manifest does not record 3 kiro-hooks entries"
+if [ -n "$KH_PY" ]; then
+  [ "$(kh_fire "$kh1_f" 0 "$WORK")" = 2 ] || err "the installed secret deny did not block a Secret read"
+  [ "$(kh_fire "$kh1_f" 1 "$WORK")" = 0 ] || err "the installed mutation guard did not pass a Secret read"
+else
+  echo "    no python3: the hook run checks are skipped"
+fi
+finish_case
+
+new_case KH2 "--kiro-hooks --project: the command names .kiro/apex-hooks, runs from the project root, and after a move"
+KH_ORIGIN="$WORK/KH2/origin"; kh_origin "$KH_ORIGIN"
+mkdir -p "$H/.kiro"
+kh2_p="$WORK/KH2/proj"; mkdir -p "$kh2_p"
+RUN_CWD="$kh2_p" kh_run --kiro-only --kiro-hooks --project
+expect_rc 0
+[ "$(kh_cmd "$kh2_p/.kiro/hooks/apex-hooks.json" 0)" = 'python3 ".kiro/apex-hooks/apex-base/secret-deny/secret_deny.py" --mode block' ] || err "the --project command is not the relative path"
+if [ -n "$KH_PY" ]; then
+  [ "$(kh_fire "$kh2_p/.kiro/hooks/apex-hooks.json" 0 "$kh2_p")" = 2 ] || err "the hook did not block from the project root"
+  mv "$kh2_p" "$WORK/KH2/proj-moved"
+  [ "$(kh_fire "$WORK/KH2/proj-moved/.kiro/hooks/apex-hooks.json" 0 "$WORK/KH2/proj-moved")" = 2 ] || err "the hook did not block after the project moved"
+else
+  echo "    no python3: the hook run checks are skipped"
+fi
+finish_case
+
+new_case KH3 "--update with no --kiro-hooks refreshes an installed hook script"
+KH_ORIGIN="$WORK/KH3/origin"; kh_origin "$KH_ORIGIN"
+mkdir -p "$H/.kiro"
+kh_run --kiro-only --kiro-hooks
+expect_rc 0
+echo '# changed upstream' >> "$KH_ORIGIN/plugins/apex/hooks/apex-base/secret-deny/secret_deny.py"
+"${GITC[@]}" -C "$KH_ORIGIN" commit -q -am "fixture script change"
+kh_run --update
+expect_rc 0
+[ "$(tail -n 1 "$H/.kiro/apex-hooks/apex-base/secret-deny/secret_deny.py")" = '# changed upstream' ] || err "--update did not refresh the script"
+finish_case
+
+new_case KH4 "a hook the user turned on in the installed file is kept by --update (exit 3, listed)"
+KH_ORIGIN="$WORK/KH4/origin"; kh_origin "$KH_ORIGIN"
+mkdir -p "$H/.kiro"
+kh_run --kiro-only --kiro-hooks
+expect_rc 0
+kh4_f="$H/.kiro/hooks/apex-hooks.json"
+node -e 'const fs = require("fs"); const f = process.argv[1]; const d = JSON.parse(fs.readFileSync(f, "utf8")); d.hooks[0].enabled = true; fs.writeFileSync(f, JSON.stringify(d));' "$kh4_f"
+kh_run --update
+expect_rc 3
+expect_stderr "$kh4_f"
+[ "$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).hooks[0].enabled)' "$kh4_f")" = true ] || err "the user's enabled: true was written over"
+finish_case
+
+new_case KH5 "--kiro-hooks never overwrites a hook file the installer did not write (exit 3, listed)"
+KH_ORIGIN="$WORK/KH5/origin"; kh_origin "$KH_ORIGIN"
+mkdir -p "$H/.kiro/hooks"
+echo '{"mine":1}' > "$H/.kiro/hooks/apex-hooks.json"
+kh_run --kiro-only --kiro-hooks
+expect_rc 3
+expect_stderr "$H/.kiro/hooks/apex-hooks.json"
+[ "$(cat "$H/.kiro/hooks/apex-hooks.json")" = '{"mine":1}' ] || err "the user's hook file was overwritten"
+finish_case
+
+new_case KH6 "--uninstall removes the hook copies and their empty folders, keeps a user file and an edited hook file"
+KH_ORIGIN="$WORK/KH6/origin"; kh_origin "$KH_ORIGIN"
+mkdir -p "$H/.kiro"
+kh_run --kiro-only --kiro-hooks
+expect_rc 0
+echo '{}' > "$H/.kiro/hooks/user.json"
+run_cli --uninstall
+expect_rc 0
+[ ! -e "$H/.kiro/hooks/apex-hooks.json" ] || err "--uninstall left the hook file"
+[ ! -e "$H/.kiro/apex-hooks" ] || err "--uninstall left .kiro/apex-hooks"
+[ -f "$H/.kiro/hooks/user.json" ] || err "--uninstall removed the user's hook file"
+# phase 2, a fresh HOME: an edited hook file is kept, the scripts go
+H="$WORK/KH6/home2"
+mkdir -p "$H/.kiro"
+kh_run --kiro-only --kiro-hooks
+expect_rc 0
+node -e 'const fs = require("fs"); const f = process.argv[1]; const d = JSON.parse(fs.readFileSync(f, "utf8")); d.hooks[0].enabled = true; fs.writeFileSync(f, JSON.stringify(d));' "$H/.kiro/hooks/apex-hooks.json"
+run_cli --uninstall
+expect_rc 3
+[ -f "$H/.kiro/hooks/apex-hooks.json" ] || err "--uninstall removed the edited hook file"
+[ ! -e "$H/.kiro/apex-hooks/apex-base/secret-deny/secret_deny.py" ] || err "--uninstall left a hook script"
+finish_case
+
+new_case KH7 "without --kiro-hooks a Kiro install writes no hooks"
+KH_ORIGIN="$WORK/KH7/origin"; kh_origin "$KH_ORIGIN"
+mkdir -p "$H/.kiro"
+kh_run --kiro-only
+expect_rc 0
+[ ! -e "$H/.kiro/hooks" ] || err ".kiro/hooks was created"
+[ ! -e "$H/.kiro/apex-hooks" ] || err ".kiro/apex-hooks was created"
+finish_case
+
+new_case KH8 "--kiro-hooks with --claude-only or --uninstall exits 2"
+mkdir -p "$H/.kiro"
+run_cli --kiro-hooks --claude-only
+expect_rc 2
+run_cli --kiro-hooks --uninstall
+expect_rc 2
+finish_case
+
+new_case KH9 "--kiro-hooks on a release with no Kiro hook file warns and writes nothing"
+mkdir -p "$H/.kiro"
+run_cli --branch main --kiro-only --kiro-hooks
+expect_rc 0
+expect_stderr "No Kiro hook file"
+[ ! -e "$H/.kiro/hooks" ] || err ".kiro/hooks was created"
+finish_case
+
+new_case KH10 "--kiro-hooks refuses a global scripts folder whose path holds a \$"
+KH_ORIGIN="$WORK/KH10/origin"; kh_origin "$KH_ORIGIN"
+H="$WORK/KH10/h\$x"
+mkdir -p "$H/.kiro"
+kh_run --kiro-only --kiro-hooks
+expect_rc 0
+expect_stderr "cannot carry safely"
+[ ! -e "$H/.kiro/hooks/apex-hooks.json" ] || err "a hook file was written"
 finish_case
 
 new_case T1 "harness self-test: an installer that never exits is killed at RUN_TIMEOUT"
