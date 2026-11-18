@@ -1,0 +1,8 @@
+{
+  "exit": 0,
+  "decision": "none",
+  "args": [
+    "--mode",
+    "block"
+  ]
+}

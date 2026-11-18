@@ -1,0 +1,9 @@
+{
+  "exit": 0,
+  "decision": "ask",
+  "args": [
+    "--mode",
+    "ask"
+  ],
+  "stdout_contains": "operator.confirm-before-change"
+}

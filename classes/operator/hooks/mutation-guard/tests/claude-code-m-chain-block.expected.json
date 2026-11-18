@@ -1,0 +1,9 @@
+{
+  "exit": 2,
+  "decision": "block",
+  "args": [
+    "--mode",
+    "block"
+  ],
+  "stderr_contains": "advisor.no-side-effects"
+}

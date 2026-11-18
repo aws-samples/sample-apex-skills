@@ -1,0 +1,13 @@
+{
+  "session_id": "s1",
+  "hook_event_name": "PreToolUse",
+  "cwd": "/w",
+  "tool_name": "run_command",
+  "tool_input": {
+    "command": "helm upgrade x ./chart",
+    "description": "Run helm upgrade x ./chart",
+    "cwd": null,
+    "run_in_background": false,
+    "timeout": null
+  }
+}
