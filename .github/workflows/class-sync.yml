@@ -39,6 +39,8 @@ jobs:
           'misc/safe_frontmatter.py'
           'misc/tests/test_sync_classes.py'
           'misc/tests/fixtures/sync_classes_cases.json'
+          'misc/tests/test_report_tool.py'
+          'misc/tests/fixtures/report_tool_cases.json'
           '.github/workflows/class-sync.yml'
           '.github/scripts/ci-gate.sh'
       - name: No-op (no watched path changed)
@@ -55,6 +57,9 @@ jobs:
       - name: Test the class sync
         if: steps.changes.outputs.relevant != 'false'
         run: python3 -B misc/tests/test_sync_classes.py -v
+      - name: Test the shared report tool
+        if: steps.changes.outputs.relevant != 'false'
+        run: python3 -B misc/tests/test_report_tool.py -v
       - name: Class copies match classes/
         id: sync
         if: steps.changes.outputs.relevant != 'false'
