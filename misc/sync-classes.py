@@ -191,7 +191,9 @@ def c3_merge(seqs, who):
         else:
             raise SyncError(
                 f"{who}: the declared class order contradicts the classes' parents "
-                "(or a class is listed twice); declare leaf classes only, each once"
+                "(or a class is listed twice); in a skill, declare leaf classes only, "
+                "each once; in a class.yaml, list parents in an order that agrees "
+                "with their own parents"
             )
         out.append(head)
         seqs = [[x for x in s if x != head] for s in seqs]

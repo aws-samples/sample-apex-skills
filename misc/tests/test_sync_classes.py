@@ -3,8 +3,8 @@
 
 Every case lives in misc/tests/fixtures/sync_classes_cases.json. Each one
 builds its own classes/ folder and member skills in a temp tree, so no case
-reads or writes the real skills/. The failure cases are F1 to F17; F0,
-F5b and F11 are the passing controls.
+reads or writes the real skills/. Cases that expect rc 0 are the passing
+controls; the rest must fail.
 ClassTextNoMember, below the fixture cases, checks that the class-text
 checks run with no member skill.
 
