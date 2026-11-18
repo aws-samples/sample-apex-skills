@@ -315,12 +315,16 @@ if args[:2] == ["sts", "assume-role"]:
         sys.stderr.write("Error when retrieving credentials from custom-process: "
                          "the sign-in has expired\n")
         sys.exit(255)
+    if mode == "assume_silent_fail":
+        sys.exit(3)
     exp = (datetime.datetime.now(datetime.timezone.utc)
            + datetime.timedelta(seconds=int(os.environ.get("FAKE_AWS_TTL", "3600"))))
     print(json.dumps({"Credentials": {
         "AccessKeyId": "ASIAROLEKEY", "SecretAccessKey": "role-secret",
         "SessionToken": "role-token", "Expiration": exp.strftime("%Y-%m-%dT%H:%M:%SZ")}}))
 elif args[:2] == ["sts", "get-caller-identity"]:
+    if mode == "gci_silent_fail":
+        sys.exit(4)
     account = "999999999999" if mode == "wrong_account" else "123456789012"
     role = "Admin" if mode == "wrong_role" else "apex-eval-bedrock-invoke"
     print(json.dumps({"Account": account,
@@ -446,6 +450,39 @@ class EvalRoleCredentials(unittest.TestCase):
         with self.assertRaisesRegex(run_triggering.EvalCredentialError, "sign in again"):
             run_triggering.mint_eval_role_credentials()
         self.assertEqual(len(self.calls()), 1)
+
+    def test_aws_failure_with_no_stderr_names_the_exit_code(self):
+        for mode, code in (("assume_silent_fail", 3), ("gci_silent_fail", 4)):
+            with self.subTest(mode=mode):
+                os.environ["FAKE_AWS_MODE"] = mode
+                with self.assertRaisesRegex(run_triggering.EvalCredentialError,
+                                            rf"aws exited {code}\)?: no error text"):
+                    run_triggering.mint_eval_role_credentials()
+
+    def test_config_file_refusals_point_at_the_setup_section(self):
+        cases = {
+            "expected-account": ("expected-account", "not-an-id\n"),
+            "expected-account missing": ("expected-account", None),
+            "aws-config no section": ("aws-config", "[default]\nregion = us-west-2\n"),
+            "aws-config no region": ("aws-config", "[profile apex-eval-admin]\n"),
+            "aws-config missing": ("aws-config", None),
+        }
+        for name, (fname, text) in cases.items():
+            with self.subTest(name):
+                saved = {f: (self.cfg / f).read_text()
+                         for f in ("expected-account", "aws-config")}
+                try:
+                    if text is None:
+                        (self.cfg / fname).unlink()
+                    else:
+                        (self.cfg / fname).write_text(text)
+                    with self.assertRaisesRegex(run_triggering.EvalCredentialError,
+                                                r"Eval-role setup \(`~/\.apex-eval`\)"):
+                        run_triggering.mint_eval_role_credentials()
+                finally:
+                    for f, t in saved.items():
+                        (self.cfg / f).write_text(t)
+        self.assertEqual(self.calls(), [])
 
     def test_no_session_means_no_subject_env(self):
         with self.assertRaises(run_triggering.EvalCredentialError):

@@ -161,6 +161,7 @@ def build_subprocess_env(
 
 EVAL_ROLE_NAME = "apex-eval-bedrock-invoke"
 EVAL_ADMIN_PROFILE = "apex-eval-admin"
+SETUP_HINT = 'see "Eval-role setup (`~/.apex-eval`)" in misc/evals/README.md'
 # The admin profile is expected to be an assumed role, so this assume-role is
 # role chaining, which AWS caps at one hour (a longer DurationSeconds fails).
 EVAL_SESSION_SECONDS = 3600
@@ -190,10 +191,10 @@ def _read_expected_account(cfg: Path) -> str:
     except (OSError, UnicodeDecodeError) as e:
         why = e.strerror if isinstance(e, OSError) else "not UTF-8"
         raise EvalCredentialError(
-            f"cannot read {path} ({why}); it must hold the eval account id"
+            f"cannot read {path} ({why}); it must hold the eval account id; {SETUP_HINT}"
         ) from e
     if not re.fullmatch(r"[0-9]{12}", account):
-        raise EvalCredentialError(f"{path} must hold one 12-digit account id")
+        raise EvalCredentialError(f"{path} must hold one 12-digit account id; {SETUP_HINT}")
     return account
 
 
@@ -205,15 +206,15 @@ def _read_profile_region(cfg: Path) -> str:
     try:
         read = parser.read(path)
     except (configparser.Error, UnicodeDecodeError) as e:
-        raise EvalCredentialError(f"cannot parse {path}: {e}") from e
+        raise EvalCredentialError(f"cannot parse {path}: {e}; {SETUP_HINT}") from e
     if not read:
-        raise EvalCredentialError(f"cannot read {path}")
+        raise EvalCredentialError(f"cannot read {path}; {SETUP_HINT}")
     section = f"profile {EVAL_ADMIN_PROFILE}"
     if not parser.has_section(section):
-        raise EvalCredentialError(f"{path} has no [{section}] section")
+        raise EvalCredentialError(f"{path} has no [{section}] section; {SETUP_HINT}")
     region = parser.get(section, "region", fallback="").strip()
     if not region:
-        raise EvalCredentialError(f"[{section}] in {path} sets no region")
+        raise EvalCredentialError(f"[{section}] in {path} sets no region; {SETUP_HINT}")
     return region
 
 
@@ -319,7 +320,7 @@ def mint_eval_role_credentials(
         raise EvalCredentialError(
             f"could not assume {EVAL_ROLE_NAME} through profile {EVAL_ADMIN_PROFILE} "
             f"of {cfg / 'aws-config'}. If this is a sign-in error, sign in again "
-            f"for that profile and retry. aws said: {_last_line(r.stderr)}"
+            f"for that profile and retry. aws exited {r.returncode}: {_last_line(r.stderr)}"
         )
     try:
         creds = json.loads(r.stdout)["Credentials"]
@@ -341,7 +342,8 @@ def mint_eval_role_credentials(
     )
     if r.returncode != 0:
         raise EvalCredentialError(
-            f"get-caller-identity failed with the eval-role session: {_last_line(r.stderr)}"
+            f"get-caller-identity failed with the eval-role session (aws exited "
+            f"{r.returncode}): {_last_line(r.stderr)}"
         )
     try:
         ident = json.loads(r.stdout)

@@ -22,7 +22,9 @@
 # Idempotent: re-running leaves the SA, bindings and token unchanged and picks
 # up a new cluster endpoint. To rotate the token:
 # `kubectl -n kube-system delete secret evals-readonly-token`, then re-run this
-# script. Exit non-zero on any step so CI wrappers can gate on it.
+# script. Exit non-zero on any step so CI wrappers can gate on it, except the
+# final federation-token check, which only warns: the kubeconfig is usable
+# without it.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -133,7 +135,7 @@ if ! aws sts get-federation-token \
        --duration-seconds 900 \
        --tags "Key=apex-run,Value=$(date -u +%Y%m%dT%H%M%SZ)-$$" \
        --output text --query Credentials.AccessKeyId >/dev/null 2>&1; then
-  die "aws sts get-federation-token failed; it needs IAM-user long-term credentials with sts:GetFederationToken (a role or Identity Center session cannot call it) and sts:TagSession; the kubeconfig above is written and usable"
+  log "WARNING: aws sts get-federation-token failed. The read-only operating profile's own token (its section 2) needs IAM-user long-term credentials with sts:GetFederationToken (a role or Identity Center session cannot call it) and sts:TagSession. The kubeconfig and the session policy are written and the kubeconfig is usable, evals included."
 fi
 
-log "done. both artefacts are in ${SECRETS_DIR}/ (gitignored)."
+log "done. ${KUBECONFIG_OUT} and ${POLICY_OUT} are written (gitignored)."
