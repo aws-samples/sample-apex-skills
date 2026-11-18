@@ -7,16 +7,22 @@
 
 Backs advisor.no-side-effects (--mode block: every write) and
 operator.confirm-before-change (--mode ask: the user confirms each write).
-Opt-in: each class.yaml hooks entry ships with `enabled: false`. A guardrail,
-not a guarantee: it reads the command text, so a script, an alias or text
-built at run time passes. RBAC, the stage helper and the PR merge stay the
-real gate.
+Opt-in: each class.yaml hooks entry ships with `enabled: false`, the Kiro
+default and the plugin's userConfig default. A guardrail, not a guarantee: it
+reads the command text, so a script, an alias or text built at run time
+passes. RBAC, the stage helper and the PR merge stay the real gate.
 
-Usage: mutation_guard.py --mode ask|block [--enabled true|false]
+Usage: mutation_guard.py --mode ask|block [--id <class.yaml hooks id>]
        (one PreToolUse event as JSON on stdin)
 
---enabled false is the hook's off switch: no decision (exit 0, no output),
-whatever the event. With no --enabled the hook is on.
+One script backs two ids, so the command names its id. The off switch is the
+environment variable CLAUDE_PLUGIN_OPTION_<KEY>, KEY the --id with every . and
+- as _, uppercased (CLAUDE_PLUGIN_OPTION_OPERATOR_CONFIRM_BEFORE_CHANGE,
+CLAUDE_PLUGIN_OPTION_ADVISOR_NO_SIDE_EFFECTS; Claude Code exports one per
+plugin option). Absent, or no --id: on. true or false, in any case,
+surrounding whitespace stripped: false is off, no decision (exit 0, no output)
+whatever the event. Any other value, an empty one included, blocks (exit 2,
+one stderr line naming the variable and the value).
 
 A write is:
 - kubectl apply, create, delete, edit, patch, replace, set, expose, run, scale,
@@ -43,13 +49,16 @@ kubeconfig setup apex.read-only-unless-confirmed allows.
 
 Output: block is exit 2 with the reason on stderr. Ask prints Claude Code's
 permissionDecision "ask" JSON on exit 0, only for an event with
-permission_mode and no turn_id (Claude Code's shape); Codex and Kiro have no
-PreToolUse ask, so there ask mode blocks. No write, or an event it cannot
-read, gets no decision (exit 0, no output).
+permission_mode and no turn_id (Claude Code's shape). Codex has no PreToolUse
+ask, and Kiro documents one only for Kiro CLI 3.4.0 or later (a JSON decision
+on exit 0), not for Kiro IDE; this script prints no Kiro ask, so on Codex and
+Kiro ask mode blocks. No write, or an event it cannot read, gets no decision
+(exit 0, no output).
 """
 
 import argparse
 import json
+import os
 import re
 import shlex
 import sys
@@ -315,12 +324,31 @@ def mcp_reason(name, tool_input):
     return None
 
 
+def switch_off(hook_id):
+    """True when the hook's switch reads false; ValueError for a value not true or false."""
+    if not hook_id:
+        return False
+    name = "CLAUDE_PLUGIN_OPTION_" + re.sub(r"[.-]", "_", hook_id).upper()
+    value = os.environ.get(name)
+    if value is None or value.strip().lower() == "true":
+        return False
+    if value.strip().lower() == "false":
+        return True
+    raise ValueError(f"apex hook: {name} must be true or false, got {value!r}")
+
+
 def main(argv):
     parser = argparse.ArgumentParser(description="Stop cloud and cluster writes (PreToolUse).")
     parser.add_argument("--mode", choices=["ask", "block"], required=True)
-    parser.add_argument("--enabled", type=str.lower, choices=["true", "false"], default="true")
+    parser.add_argument("--id")
     args = parser.parse_args(argv)
-    if args.enabled == "false":
+    try:
+        off = switch_off(args.id)
+    except ValueError as e:
+        sys.stdin.read()
+        print(e, file=sys.stderr)
+        return 2
+    if off:
         sys.stdin.read()
         return 0
     mode = args.mode

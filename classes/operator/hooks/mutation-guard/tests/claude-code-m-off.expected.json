@@ -4,7 +4,10 @@
   "args": [
     "--mode",
     "ask",
-    "--enabled",
-    "false"
-  ]
+    "--id",
+    "operator.confirm-before-change"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_OPERATOR_CONFIRM_BEFORE_CHANGE": " FALSE "
+  }
 }

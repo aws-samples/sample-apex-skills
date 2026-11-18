@@ -1,0 +1,11 @@
+{
+  "exit": 2,
+  "decision": "block",
+  "stderr_contains": "Secret",
+  "args": [
+    "--mode",
+    "block",
+    "--id",
+    "apex.no-secrets"
+  ]
+}

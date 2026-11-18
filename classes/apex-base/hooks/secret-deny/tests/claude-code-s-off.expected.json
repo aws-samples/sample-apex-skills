@@ -4,7 +4,10 @@
   "args": [
     "--mode",
     "block",
-    "--enabled",
-    "false"
-  ]
+    "--id",
+    "apex.no-secrets"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_APEX_NO_SECRETS": "false"
+  }
 }

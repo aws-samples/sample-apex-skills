@@ -6,14 +6,19 @@
 """apex-base secret deny: a PreToolUse hook that blocks reading Kubernetes Secrets.
 
 Backs apex.no-secrets (classes/apex-base/rules.md). Opt-in: the class.yaml hooks
-entry ships with `enabled: false`. A guardrail, not a guarantee: it reads the
-command text, so a script, an alias or text built at run time passes.
+entry ships with `enabled: false`, the Kiro default and the plugin's userConfig
+default. A guardrail, not a guarantee: it reads the command text, so a script,
+an alias or text built at run time passes.
 
-Usage: secret_deny.py --mode block [--enabled true|false]
+Usage: secret_deny.py --mode block [--id apex.no-secrets]
        (one PreToolUse event as JSON on stdin)
 
---enabled false is the hook's off switch: no decision (exit 0, no output),
-whatever the event. With no --enabled the hook is on.
+The off switch is the environment variable CLAUDE_PLUGIN_OPTION_<KEY>, KEY the
+--id with every . and - as _, uppercased (CLAUDE_PLUGIN_OPTION_APEX_NO_SECRETS;
+Claude Code exports one per plugin option). Absent, or no --id: on. true or
+false, in any case, surrounding whitespace stripped: false is off, no decision
+(exit 0, no output) whatever the event. Any other value, an empty one included,
+blocks (exit 2, one stderr line naming the variable and the value).
 
 Claude Code, Codex and Kiro all send `tool_name` and `tool_input`; a shell call
 carries `tool_input.command`. It blocks (exit 2, the reason on stderr):
@@ -32,6 +37,7 @@ output). AWS Secrets Manager is the aws-core plugin's hook, not this one.
 
 import argparse
 import json
+import os
 import re
 import shlex
 import sys
@@ -259,11 +265,31 @@ def mcp_reason(name, tool_input):
     return None
 
 
+def switch_off(hook_id):
+    """True when the hook's switch reads false; ValueError for a value not true or false."""
+    if not hook_id:
+        return False
+    name = "CLAUDE_PLUGIN_OPTION_" + re.sub(r"[.-]", "_", hook_id).upper()
+    value = os.environ.get(name)
+    if value is None or value.strip().lower() == "true":
+        return False
+    if value.strip().lower() == "false":
+        return True
+    raise ValueError(f"apex hook: {name} must be true or false, got {value!r}")
+
+
 def main(argv):
     parser = argparse.ArgumentParser(description="Block Kubernetes Secret reads (PreToolUse).")
     parser.add_argument("--mode", choices=["block"], default="block")
-    parser.add_argument("--enabled", type=str.lower, choices=["true", "false"], default="true")
-    if parser.parse_args(argv).enabled == "false":
+    parser.add_argument("--id")
+    args = parser.parse_args(argv)
+    try:
+        off = switch_off(args.id)
+    except ValueError as e:
+        sys.stdin.read()
+        print(e, file=sys.stderr)
+        return 2
+    if off:
         sys.stdin.read()
         return 0
     try:
