@@ -15,7 +15,7 @@ scripts/apex_base_validate_input.py, the skill folder is found by itself):
   validate_input.py [--skill-dir <skill>] --json '{"cluster_name": "c1", "region": "us-west-2"}'
   validate_input.py [--skill-dir <skill>] <input.json|input.yaml>...
 
-It imports the apex-base class tool schema_check (the class sync (planned)
+It imports the apex-base class tool schema_check (the class sync
 rewrites the import to the flat copy's name). In this repo, run it with
 PYTHONPATH=classes/apex-base/scripts.
 Exit codes: 0 valid; 1 invalid (do not start the task); 2 the check could not run.

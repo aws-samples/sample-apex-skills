@@ -1,7 +1,7 @@
-# APEX Skills: the base class every APEX skill will inherit, once the class
-# sync lands.
-# A class is authored here and never installed alone. A class sync script
-# (misc/sync-classes.py, not built yet) will copy rules.md into each member
+# APEX Skills: the base class every APEX skill inherits once it joins a class
+# (metadata.apex-classes in its SKILL.md frontmatter).
+# A class is authored here and never installed alone. The class sync script
+# (misc/sync-classes.py) copies rules.md into each member
 # skill's SKILL.md marker block and references/ into the skill's references/
 # as flat references/<class>-<file>.md names (a file already named
 # <class>-... keeps its name), each headed "generated from

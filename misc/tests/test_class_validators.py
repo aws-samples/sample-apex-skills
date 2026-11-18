@@ -169,7 +169,7 @@ class OutputValidator(Tmp):
         self.assertIn("inside the skill's assets/", out)
 
     def test_copied_tool_finds_its_skill(self):
-        """A copied tool in <skill>/scripts/, no --skill-dir, under source names; the flat names and the import rewrite come with the class sync (planned)."""
+        """A copied tool in <skill>/scripts/, no --skill-dir, under source names; the flat names and the import rewrite come with the class sync (misc/sync-classes.py)."""
         d = self.skill("copied", {"name": "copied", "description": "x",
                                   "metadata": {"apex-outputs": "assets/recon-output.schema.json"}})
         os.makedirs(os.path.join(d, "scripts"))

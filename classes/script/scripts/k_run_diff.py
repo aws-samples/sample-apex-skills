@@ -19,7 +19,7 @@ same-answer.yaml:
 Usage:
   k_run_diff.py [--skill-dir <skill>] [--k <n>] <run-output>...
 
-It imports the apex-base class tool schema_check (the class sync (planned)
+It imports the apex-base class tool schema_check (the class sync
 rewrites the import to the flat copy's name). In this repo, run it with
 PYTHONPATH=classes/apex-base/scripts.
 Exit codes: 0 the same answer in every run; 1 a run differs; 2 the check

@@ -16,7 +16,7 @@ Each skill is a self-contained folder of instructions, scripts, and references t
 | ----------- | -------------------------------------------------------------------- |
 | `skills/`   | Reusable domain knowledge (the agent's brain)                        |
 | `skills/apex/` | The APEX router skill, its per-skill runbooks until each skill's rebuild, and your runbooks: your own procedures that chain skills |
-| `classes/`  | The shared rules; the class sync (planned) copies them into each skill |
+| `classes/`  | The shared rules; the class sync copies them into each member skill |
 | `examples/` | Hands-on labs to try APEX against real workloads                     |
 | `misc/`     | Maintenance scripts, evaluations, and this docs site                 |
 
