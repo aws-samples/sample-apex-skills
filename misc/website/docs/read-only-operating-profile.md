@@ -27,7 +27,7 @@ Point `kubectl` at the target cluster with credentials that can create RBAC obje
 ./misc/evals/setup/bootstrap-readonly.sh
 ```
 
-It applies `readonly-rbac.yaml` (ServiceAccount `kube-system/evals-readonly`, its ClusterRole and binding, and a token Secret), then writes `misc/evals/.secrets/kubeconfig.readonly` (gitignored, mode 600). Before it finishes, it checks that the new kubeconfig can list nodes, spot-checks with `kubectl auth can-i` that it cannot create pods or list Secrets (it stops only on a `yes` answer, so a can-i error passes), and checks that your AWS identity can mint a federation token (IAM-user credentials only).
+It applies `readonly-rbac.yaml` (ServiceAccount `kube-system/evals-readonly`, its ClusterRole and binding, and a token Secret), then writes `misc/evals/.secrets/kubeconfig.readonly` (gitignored, mode 600). Before it finishes, it checks that the new kubeconfig can list nodes, spot-checks with `kubectl auth can-i` that it cannot create pods or list Secrets (it stops only on a `yes` answer, so a can-i error passes), and checks that your AWS identity can mint a federation token (IAM-user credentials only; a failure only warns, and the kubeconfig is still written).
 
 Hand the agent that kubeconfig:
 

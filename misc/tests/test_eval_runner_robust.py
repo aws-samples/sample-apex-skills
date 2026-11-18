@@ -465,6 +465,7 @@ class EvalRoleCredentials(unittest.TestCase):
             "expected-account missing": ("expected-account", None),
             "aws-config no section": ("aws-config", "[default]\nregion = us-west-2\n"),
             "aws-config no region": ("aws-config", "[profile apex-eval-admin]\n"),
+            "aws-config unparsable": ("aws-config", "region = us-west-2\n"),
             "aws-config missing": ("aws-config", None),
         }
         for name, (fname, text) in cases.items():
