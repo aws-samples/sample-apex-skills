@@ -59,6 +59,7 @@ import io
 import json
 import math
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -401,14 +402,18 @@ def assume_profile_role(profile: str, config_file: str | None, seconds: int) -> 
 
 
 @contextlib.contextmanager
-def live_kubeconfig(kubeconfig: str, timeout: int):
-    """Yield the kubeconfig path a live subject gets. A kubeconfig whose
-    current user runs `aws` with AWS_PROFILE in its exec env reaches its role
-    through the host's keys, which the subject's empty HOME lacks: the driver
-    assumes that role once for this run and writes a kubeconfig whose exec
-    carries only that session (no profile, no config file, no host path) into
-    a private temp dir, removed when the run ends. Any other kubeconfig
-    (token, certificate, or one that does not parse) is passed as is."""
+def live_env(kubeconfig: str, timeout: int):
+    """Yield the extra env a live subject gets. A kubeconfig whose current
+    user runs `aws` with AWS_PROFILE in its exec env reaches its role through
+    the host's keys, which the subject's empty HOME lacks: the driver assumes
+    that role once for this run and writes, into a private temp dir removed
+    when the run ends, a kubeconfig whose exec carries only that session (no
+    profile, no config file, no host path) and `bin/aws`, a shim that runs
+    the real aws on the same session. PATH puts the shim first, so the
+    subject's own `aws eks ...` reads reach the cluster's account while the
+    subject's AWS_* env stays the eval-role session for its model calls. Any
+    other kubeconfig (token, certificate, or one that does not parse) is
+    passed as is, with no shim."""
     import yaml
     try:
         cfg = yaml.safe_load(Path(kubeconfig).read_text())
@@ -418,22 +423,25 @@ def live_kubeconfig(kubeconfig: str, timeout: int):
         ex = user["user"]["exec"]
         exec_env = {e["name"]: e["value"] for e in ex.get("env") or []}
     except (yaml.YAMLError, OSError, KeyError, TypeError, StopIteration):
-        yield kubeconfig
+        yield {"KUBECONFIG": kubeconfig}
         return
     if ex.get("command") != "aws" or "AWS_PROFILE" not in exec_env:
-        yield kubeconfig
+        yield {"KUBECONFIG": kubeconfig}
         return
+    real_aws = shutil.which("aws")
+    if not real_aws:
+        raise LiveSessionError("no aws on PATH for the subject's cluster session")
     if "--profile" in (ex.get("args") or []):
         raise LiveSessionError("the kubeconfig's exec passes --profile; set the profile in its env instead")
     creds = assume_profile_role(exec_env["AWS_PROFILE"], exec_env.get("AWS_CONFIG_FILE"), LIVE_SESSION_SECONDS)
     expires = datetime.datetime.fromisoformat(str(creds["Expiration"]).replace("Z", "+00:00")).timestamp()
     if time.time() + timeout + LIVE_SESSION_MARGIN >= expires:
         raise LiveSessionError(f"the cluster session expires before a {timeout}s run ends")
+    session = (("AWS_ACCESS_KEY_ID", creds["AccessKeyId"]), ("AWS_SECRET_ACCESS_KEY", creds["SecretAccessKey"]),
+               ("AWS_SESSION_TOKEN", creds["SessionToken"]), ("AWS_CONFIG_FILE", os.devnull),
+               ("AWS_SHARED_CREDENTIALS_FILE", os.devnull), ("AWS_EC2_METADATA_DISABLED", "true"))
     new_exec = {k: v for k, v in ex.items() if k != "env"}
-    new_exec["env"] = [{"name": k, "value": v} for k, v in (
-        ("AWS_ACCESS_KEY_ID", creds["AccessKeyId"]), ("AWS_SECRET_ACCESS_KEY", creds["SecretAccessKey"]),
-        ("AWS_SESSION_TOKEN", creds["SessionToken"]), ("AWS_CONFIG_FILE", os.devnull),
-        ("AWS_SHARED_CREDENTIALS_FILE", os.devnull), ("AWS_EC2_METADATA_DISABLED", "true"))]
+    new_exec["env"] = [{"name": k, "value": v} for k, v in session]
     out = {"apiVersion": "v1", "kind": "Config", "current-context": cfg["current-context"],
            "clusters": [cluster], "contexts": [{"name": cfg["current-context"], "context": ctx}],
            "users": [{"name": user["name"], "user": {"exec": new_exec}}]}
@@ -443,7 +451,13 @@ def live_kubeconfig(kubeconfig: str, timeout: int):
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "w") as f:
             json.dump(out, f)
-        yield str(path)
+        bin_dir = Path(tmp) / "bin"
+        bin_dir.mkdir(mode=0o700)
+        shim = " ".join(f"{k}={shlex.quote(v)}" for k, v in session)
+        fd = os.open(bin_dir / "aws", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o700)
+        with os.fdopen(fd, "w") as f:
+            f.write(f"#!/bin/sh\nexec env -u AWS_PROFILE -u AWS_DEFAULT_PROFILE {shim} {shlex.quote(real_aws)} \"$@\"\n")
+        yield {"KUBECONFIG": str(path), "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -474,8 +488,8 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
     from elicitation import ElicitationConfig
     timeout = runner.subject_timeout(case["skill"])
     try:
-        # Only live_kubeconfig raises LiveSessionError, before its yield.
-        with (live_kubeconfig(kubeconfig, timeout) if case.get("live") else contextlib.nullcontext()) as kc, \
+        # Only live_env raises LiveSessionError, before its yield.
+        with (live_env(kubeconfig, timeout) if case.get("live") else contextlib.nullcontext()) as live, \
                 (archived(OLD, f"skills/{case['skill']}") if item["arm"] == "old_skill"
                  else contextlib.nullcontext(root)) as tree:
             skill_dir = tree / "skills" / case["skill"]
@@ -483,7 +497,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
             subj = runner.run_subject(
                 prompt=spec["prompt"], skill_name=name, repo_skill_dir=skill_dir,
                 with_skill=item["arm"] != "without_skill", model=model, timeout=timeout,
-                run_dir=run_dir, extra_env=({"KUBECONFIG": kc} if case.get("live") else None),
+                run_dir=run_dir, extra_env=live,
                 elicitation=ElicitationConfig.from_dict(spec.get("elicitation")),
                 skill_eval_dir=root / "misc" / "evals" / case["skill"],
                 eval_id=case["eval_id"], fixture_files=spec.get("files"))

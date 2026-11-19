@@ -342,15 +342,31 @@ class LiveSession(unittest.TestCase):
         inner = runner.run_subject
 
         def run_subject(**kw):
-            kc = Path(kw["extra_env"]["KUBECONFIG"])
-            seen.append((kc, kc.read_text(), kc.stat().st_mode & 0o777, kc.parent.stat().st_mode & 0o777))
+            extra = kw["extra_env"]
+            kc = Path(extra["KUBECONFIG"])
+            shim = kc.parent / "bin" / "aws"
+            ran = subprocess.run([str(shim), "eks", "list-clusters"], capture_output=True, text=True, env={
+                "PATH": extra["PATH"], "AWS_ACCESS_KEY_ID": "AKIAEVALROLE", "AWS_PROFILE": "host-admin"}).stdout \
+                if shim.exists() else None
+            seen.append(SimpleNamespace(
+                kc=kc, text=kc.read_text(), mode=kc.stat().st_mode & 0o777, dir_mode=kc.parent.stat().st_mode & 0o777,
+                extra=dict(extra), shim=shim, shim_text=shim.read_text() if shim.exists() else None,
+                shim_mode=shim.stat().st_mode & 0o777 if shim.exists() else None,
+                bin_mode=shim.parent.stat().st_mode & 0o777 if shim.exists() else None, ran=ran))
             return inner(**kw)
         runner.run_subject = run_subject
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
             host_cfg = str(Path.home() / ".aws" / "config-host")
             kc = Path(k) / "kc"
             kc.write_text(HOST_KUBECONFIG % host_cfg)
-            with mock.patch.object(drive_c1, "assume_profile_role", assume, create=True):
+            fake = Path(k) / "fakebin"
+            fake.mkdir()
+            (fake / "aws").write_text('#!/bin/sh\necho "key=$AWS_ACCESS_KEY_ID profile=${AWS_PROFILE-unset} '
+                                      'cfg=$AWS_CONFIG_FILE args=$*"\n')
+            (fake / "aws").chmod(0o700)
+            path = f"{fake}{os.pathsep}{os.environ.get('PATH', '')}"
+            with mock.patch.object(drive_c1, "assume_profile_role", assume, create=True), \
+                    mock.patch.dict(os.environ, {"PATH": path}):
                 rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc))
         return rc, recs, seen, host_cfg
 
@@ -360,14 +376,28 @@ class LiveSession(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(len(seen), 6)
         self.assertEqual(asked, [("k6-ro", host_cfg, 3600)] * 6)   # one session per live run
-        for path, text, mode, dir_mode in seen:
+        for s in seen:
             for bad in (".aws", host_cfg, "AWS_PROFILE", "k6-ro", "host-admin"):
-                self.assertNotIn(bad, text)
-            self.assertEqual((mode, dir_mode), (0o600, 0o700))
-            env = {e["name"]: e["value"] for e in json.loads(text)["users"][0]["user"]["exec"]["env"]}
+                self.assertNotIn(bad, s.text)
+            self.assertEqual((s.mode, s.dir_mode), (0o600, 0o700))
+            env = {e["name"]: e["value"] for e in json.loads(s.text)["users"][0]["user"]["exec"]["env"]}
             self.assertEqual(env["AWS_SESSION_TOKEN"], "tok")
             self.assertEqual((env["AWS_CONFIG_FILE"], env["AWS_SHARED_CREDENTIALS_FILE"]), (os.devnull, os.devnull))
-            self.assertFalse(path.parent.exists())   # removed when the run ended
+            self.assertFalse(s.kc.parent.exists())   # removed when the run ended
+
+    def test_subject_aws_calls_go_through_the_session_shim(self):
+        rc, recs, seen, host_cfg = self.run_t7(lambda p, c, s: session())
+        self.assertEqual((rc, len(seen)), (0, 6))
+        for s in seen:
+            # PATH is the shim dir first; no AWS_* in the extra env, so the eval-role session stays the subject's
+            self.assertEqual(sorted(s.extra), ["KUBECONFIG", "PATH"])
+            self.assertEqual(s.extra["PATH"].split(os.pathsep)[0], str(s.shim.parent))
+            self.assertEqual((s.shim_mode, s.bin_mode), (0o700, 0o700))
+            for bad in (".aws", host_cfg, "k6-ro"):
+                self.assertNotIn(bad, s.shim_text)
+            # the shim replaces the subject's eval-role keys and drops its profile, for aws only
+            self.assertEqual(s.ran.strip(), f"key=ASIATEST profile=unset cfg={os.devnull} args=eks list-clusters")
+            self.assertFalse(s.shim.parent.exists())
         self.assertTrue(all(r["status"] == "ran" for r in recs))
 
     def test_failed_or_short_session_reads_cannot_run(self):
