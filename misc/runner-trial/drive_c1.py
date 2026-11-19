@@ -22,23 +22,31 @@ earlier turn that exited abnormally, T5's earlier turns add nothing; and the
 run that crosses the limit completes. The limit is per invocation.
 
 Paid runs use a separate eval account through the eval role
-apex-eval-bedrock-invoke (misc/evals/README.md, Eval-role setup). That role
-does not exist yet, so --paid cannot run until it is created. The subject
-still runs as your OS user and can read your files by path (cases.md,
-Credentials and permissions).
+apex-eval-bedrock-invoke (misc/evals/README.md, Eval-role setup); see
+cases.md, Credentials and permissions, for the eval role's status. The
+subject still runs as your OS user and can read your files by path (same
+section).
 
 Output (--out): runs.jsonl, one line per run (case, arm, run, status, pass,
 tokens, duration_ms, wall_seconds, total_cost_usd, reason), summary.json
 (pass count per case and arm, for score-sheet.md S1 and S2, plus a T6
-"both_queries" cell counting runs k where both query arms passed at run k),
-and each run's runner files under <case>/<arm>/run-<k>/. S2 reads `pass`
-over `ran`, and n/a when `ran` is 0: "cannot run", "not run" (spend stop) and
-"error" runs count in `runs` but not in `ran`.
+"both_queries" cell counting runs k where both query arms passed at run k,
+and runner_head, the git HEAD of the checkout whose runner ran), and each
+run's runner files under <case>/<arm>/run-<k>/. S2 reads `pass` over `runs`
+(an 'error' run counts as a failed run, as the shipped runner does); n/a only
+when every run is 'cannot run' or 'not run'. An error the driver does not
+catch (an OSError, an unreadable timing.json) ends the invocation:
+runs.jsonl holds the runs before it and summary.json is not written.
+
+events_to_spans converts one run's events.jsonl into the span input of the
+AgentCore Evaluations Evaluate API, for C3; it is a pure function and no
+paid path calls it.
 """
 from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import io
 import json
 import math
@@ -117,7 +125,7 @@ def load_runner() -> SimpleNamespace:
         EvalCredentialError=run_triggering.EvalCredentialError,
         subject_timeout=lambda skill: skilleval_config.load_config(skill).timeout,
         default_model=lambda: (run_task_evals._resolve_makefile_default("MODEL")
-                               or "global.anthropic.claude-opus-4-6-v1"),  # run_task_evals.py:1025
+                               or "global.anthropic.claude-opus-4-6-v1"),  # run_task_evals.py:1032 @528dde41
     )
 
 
@@ -177,34 +185,26 @@ def check_specs(cases: list[dict], root: Path) -> dict:
 
 
 def plan_runs(cases: list[dict]) -> list[dict]:
-    """Every (case, arm, run) with the exact runner call it makes."""
-    plan = []
-    for case in cases:
-        kind, value = case["grade"]
-        for arm in case["arms"]:
-            if kind == "trigger":
-                idx, should = value[arm]
-                call = (f"run_triggering.run_single_query(query=triggering.json[{idx}], "
-                        f"skill_name='{case['skill']}', repo_skill_dir=skills/{case['skill']} at {PIN}, "
-                        f"timeout={TRIGGER_TIMEOUT}); pass if triggered is {should}")
-            else:
-                skill_dir = f"skills/{case['skill']} at {OLD if arm == 'old_skill' else PIN}"
-                call = (f"run_task_evals.run_subject(prompt=evals.json id {case['eval_id']}, "
-                        f"skill_name='{case['skill']}', repo_skill_dir={skill_dir}, "
-                        f"with_skill={arm != 'without_skill'}"
-                        f"{', extra_env KUBECONFIG' if case.get('live') else ''})")
-                if kind == "suite":
-                    call += f"; run_task_evals.run_grader(expectations=the suite's lines with {value})"
-                elif kind == "text":
-                    call += "; run_task_evals.run_grader(expectations=[the case's pass condition])"
-                elif kind == "artifact":
-                    call += f"; artifact_validation.validate_run(outputs, {{{value[0]}: [the {value[1]} {value[2]!r} entry]}})"
-                else:
-                    call += (f"; resumed (2+ result events) and knowledge_assertions.evaluate("
-                             f"final text, [knowledge_assertions[{value}]])")
-            for k in range(1, RUNS + 1):
-                plan.append({"case": case["id"], "arm": arm, "run": k, "call": call})
-    return plan
+    """Every (case, arm, run) and the skill revision it reads (PIN or OLD)."""
+    return [{"case": case["id"], "arm": arm, "run": k, "rev": "OLD" if arm == "old_skill" else "PIN"}
+            for case in cases for arm in case["arms"] for k in range(1, RUNS + 1)]
+
+
+def check_commits() -> str | None:
+    """None when PIN and OLD are both commits in this clone, else the refusal text (git, no model call)."""
+    for label, rev in (("PIN", PIN), ("OLD", OLD)):
+        r = subprocess.run(["git", "-C", str(REPO_ROOT), "cat-file", "-e", f"{rev}^{{commit}}"], capture_output=True)
+        if r.returncode != 0:
+            return f"--paid refused: {label} commit {rev} is not in this clone (fetch it first)"
+    return None
+
+
+def runner_head() -> str:
+    """git rev-parse HEAD of the checkout this driver and its runner run from."""
+    r = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise GitError(f"git rev-parse HEAD failed: {r.stderr.strip()}")
+    return r.stdout.strip()
 
 
 @contextlib.contextmanager
@@ -217,7 +217,7 @@ def archived(rev: str, *paths: str):
         if r.returncode != 0:
             raise GitError(f"git archive {rev} failed: {r.stderr.decode(errors='replace').strip()}")
         with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tar:
-            # filter= needs tarfile.data_filter; /usr/bin/python3 3.9.16 here has none
+            # filter= (PEP 706) is missing from older interpreters such as Python 3.9.16, so feature-detect it
             tar.extractall(tmp, **({"filter": "data"} if hasattr(tarfile, "data_filter") else {}))
         yield tmp
     finally:
@@ -234,6 +234,89 @@ def last_result(events_path: Path) -> tuple[dict, int]:
                 if evt.get("type") == "result":
                     results.append(evt)
     return (results[-1] if results else {}), len(results)
+
+
+OI_SCOPE = "openinference.instrumentation.claude_agent_sdk"
+
+
+def _span_id(session_id: str, *parts: object, n: int = 16) -> str:
+    return hashlib.sha256("/".join(map(str, (session_id, *parts))).encode()).hexdigest()[:n]
+
+
+def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[dict]:
+    """Convert one run's events.jsonl (Claude Code stream-json events, as
+    misc/evals/scripts/parse_trajectory.py reads them) into the spans for the
+    AgentCore Evaluations Evaluate API: evaluationInput={"sessionSpans": spans}.
+    Pure function: no AWS call, no file read.
+
+    Only what C3's evaluators read (cost-estimate.md, C3) is converted.
+    Builtin.GoalSuccessRate (session) and Builtin.Correctness (trace) read the
+    user prompt and agent response of each turn; Builtin.TrajectoryAnyOrderMatch
+    reads the tool names. Each turn, the events up to and including a result
+    event, is one trace: an AGENT span (input.value = prompts[i] when given,
+    output.value = the result event's `result`) and one TOOL span per tool_use
+    (tool.name, tool.id, input.value = the input as JSON, output.value = the
+    matching tool_result content, paired by tool_use_id). Tool calls after the
+    last result event are a turn that did not finish: its AGENT span has no
+    output.value and status ERROR. A line that is not a JSON object is skipped.
+    IDs are derived from session_id, so the output is deterministic.
+
+    Shape and attributes from the Claude Agent SDK page, unified telemetry
+    (https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/supported-frameworks-claude-agent-sdk.html,
+    read 2026-11-19): scope `openinference.instrumentation.claude_agent_sdk`,
+    "Invoke agent | `openinference.span.kind` = `AGENT`", "Execute tool |
+    `openinference.span.kind` = `TOOL`", "User prompt and agent response: from
+    `input.value` and `output.value` on the invoke agent span", "Tool call: the
+    tool name from `tool.name`, the tool call ID from `tool.id`, the arguments
+    from `input.value`, and the result from `output.value`". Whether Evaluate
+    scores spans never ingested into CloudWatch is untested (score-sheet.md, C3).
+    """
+    turns, cur = [], {"tools": [], "result": None}
+    for evt in events:
+        if not isinstance(evt, dict):
+            continue
+        msg = evt.get("message")
+        content = msg.get("content") if isinstance(msg, dict) else None
+        blocks = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
+        if evt.get("type") == "assistant":
+            cur["tools"] += [{"name": b.get("name", ""), "id": b.get("id"), "input": b.get("input"), "result": None,
+                              "error": False} for b in blocks if b.get("type") == "tool_use"]
+        elif evt.get("type") == "user":
+            for b in blocks:
+                if b.get("type") == "tool_result":
+                    for t in cur["tools"]:
+                        if t["id"] is not None and t["id"] == b.get("tool_use_id"):
+                            c = b.get("content")
+                            t["result"], t["error"] = (c if isinstance(c, str) else json.dumps(c)), b.get("is_error") is True
+        elif evt.get("type") == "result":
+            cur["result"] = evt
+            turns.append(cur)
+            cur = {"tools": [], "result": None}
+    if cur["tools"]:
+        turns.append(cur)
+    spans = []
+    for i, turn in enumerate(turns):
+        trace_id, agent_id = _span_id(session_id, "trace", i, n=32), _span_id(session_id, "agent", i)
+        attrs = {"openinference.span.kind": "AGENT", "session.id": session_id}
+        if i < len(prompts):
+            attrs["input.value"] = prompts[i]
+        res = turn["result"]
+        if res is not None and isinstance(res.get("result"), str):
+            attrs["output.value"] = res["result"]
+        ok = res is not None and not res.get("is_error")
+        spans.append({"traceId": trace_id, "spanId": agent_id, "name": "ClaudeCode.turn", "kind": "INTERNAL",
+                      "scope": {"name": OI_SCOPE}, "attributes": attrs, "status": {"code": "OK" if ok else "ERROR"}})
+        for j, t in enumerate(turn["tools"]):
+            tattrs = {"openinference.span.kind": "TOOL", "tool.name": t["name"], "session.id": session_id,
+                      "input.value": json.dumps(t["input"])}
+            if t["id"] is not None:
+                tattrs["tool.id"] = t["id"]
+            if t["result"] is not None:
+                tattrs["output.value"] = t["result"]
+            spans.append({"traceId": trace_id, "spanId": _span_id(session_id, "tool", i, j), "parentSpanId": agent_id,
+                          "name": t["name"], "kind": "INTERNAL", "scope": {"name": OI_SCOPE}, "attributes": tattrs,
+                          "status": {"code": "ERROR" if t["error"] else "OK"}})
+    return spans
 
 
 def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model: str,
@@ -313,7 +396,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
 
 
 def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit: float,
-            kubeconfig: str | None, root: Path) -> dict:
+            kubeconfig: str | None, root: Path, head: str) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     by_id = {c["id"]: c for c in cases}
     specs = check_specs(cases, root)
@@ -333,7 +416,7 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
             log.flush()
             print(f"[c1] {rec['case']} {rec['arm']} run-{rec['run']}: {rec['status']} pass={rec['pass']} "
                   f"subject spend ${spent:.2f} of ${spend_limit}", file=sys.stderr)
-    summary = {"model": model, "pin": PIN, "old": OLD,
+    summary = {"model": model, "pin": PIN, "old": OLD, "runner_head": head,
                "spend_limit_usd": spend_limit, "subject_cost_usd": round(spent, 4), "cases": {}}
     for rec in records:
         cell = summary["cases"].setdefault(rec["case"], {}).setdefault(
@@ -368,7 +451,6 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
     p.add_argument("--spend-limit-usd", type=float, help="the maintainers' spend limit for C1, per invocation "
                                                          "(required with --paid)")
     p.add_argument("--kubeconfig", help="read-only kubeconfig for T7 (without it T7 reads 'cannot run')")
-    p.add_argument("--model", help="subject and grader model (default: the runner's)")
     args = p.parse_args(argv)
 
     unknown = [c for c in (args.case or []) if c not in CASE_IDS]
@@ -396,7 +478,7 @@ def drive(args: argparse.Namespace, cases: list[dict], root: Path, runner: Simpl
     if not args.paid:
         plan = plan_runs(cases)
         for item in plan:
-            print(f"{item['case']} {item['arm']} run-{item['run']}: {item['call']}")
+            print(f"{item['case']} {item['arm']} run-{item['run']} {item['rev']} {PIN if item['rev'] == 'PIN' else OLD}")
         print(f"dry run: {len(plan)} runs planned, no model call made")
         return 0
 
@@ -415,14 +497,19 @@ def drive(args: argparse.Namespace, cases: list[dict], root: Path, runner: Simpl
             print(f"kubeconfig not found: {kcp}", file=sys.stderr)
             return 2
         kubeconfig = str(kcp)
+    refused = check_commits()
+    if refused:
+        print(refused, file=sys.stderr)
+        return 2
+    head = runner_head()
     runner = runner or load_runner()
     # The session must outlast the longest subprocess, as run_task_evals.py main checks.
     timeouts = [(GRADER_TIMEOUT, "the grader timeout"), (TRIGGER_TIMEOUT, "the triggering timeout")] + [
         (runner.subject_timeout(c["skill"]), f"{c['skill']}/.skilleval.yaml") for c in cases if c["grade"][0] != "trigger"]
     try:
         runner.start_eval_session(*max(timeouts, key=lambda t: t[0]))
-        summary = execute(runner, cases, args.out, model=args.model or runner.default_model(),
-                          spend_limit=limit, kubeconfig=kubeconfig, root=root)
+        summary = execute(runner, cases, args.out, model=runner.default_model(),
+                          spend_limit=limit, kubeconfig=kubeconfig, root=root, head=head)
     except runner.EvalCredentialError as e:
         print(f"eval-role session refused or failed to refresh, stopping: {e}", file=sys.stderr)
         return 2

@@ -89,8 +89,8 @@ class DryRunPlan(unittest.TestCase):
         self.assertEqual(counts, {"T1": 9, "T2": 9, "T3": 9, "T4": 9, "T5": 6, "T6": 6, "T7": 6})
         self.assertIn("dry run: 54 runs planned, no model call made", out)
         self.assertTrue(all("old_skill" not in l for l in lines if l.split()[0] in ("T5", "T6", "T7")))
-        self.assertIn("run_task_evals.run_subject(", out)
-        self.assertIn("run_triggering.run_single_query(", out)
+        self.assertIn(f"T1 old_skill run-1 OLD {drive_c1.OLD}\n", out)
+        self.assertIn(f"T6 with_skill_q3 run-3 PIN {drive_c1.PIN}\n", out)
 
     def test_unknown_case_id_is_refused(self):
         rc, _, err = run_main(["--case", "T9"])
@@ -276,6 +276,161 @@ class FixedBranches(unittest.TestCase):
             rc = drive_c1.main(["--case", "T1"])
         self.assertEqual(rc, 2)
         self.assertIn("git read failed: git archive", err.getvalue())
+
+
+class FailingPaths(unittest.TestCase):
+    """Each pass rule must be able to read False (or error), not only True."""
+
+    def test_one_failed_grader_expectation_fails_the_run(self):
+        runner = fake_runner([])
+        runner.run_grader = lambda **kw: {"expectations": [{"text": e, "passed": i == 0}
+                                                           for i, e in enumerate(kw["expectations"])]}
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
+            (Path(k) / "kc").write_text("k")
+            rc, _, recs, summary = paid(d, ["T7"], runner, "--kubeconfig", str(Path(k) / "kc"))
+        self.assertEqual(rc, 0)
+        self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs))
+        self.assertTrue(all(r["reason"] == "grader 1/4" for r in recs))
+        self.assertEqual(summary["cases"]["T7"]["with_skill"]["pass"], 0)
+
+    def test_artifact_fail_is_not_a_pass(self):
+        for res in ({"structural_passed": 1, "structural_failed": 1}, {"structural_passed": 0, "structural_failed": 0}):
+            runner = fake_runner([])
+            runner.validate_run = lambda res=res, **kw: SimpleNamespace(validators_passed=0, validators_failed=0, **res)
+            with tempfile.TemporaryDirectory() as d:
+                rc, _, recs, _ = paid(d, ["T2"], runner)
+            self.assertEqual(rc, 0)
+            self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs), res)
+
+    def test_knowledge_assertion_fail_is_not_a_pass(self):
+        runner = fake_runner([])
+        runner.evaluate_knowledge = lambda text, assertions: SimpleNamespace(passed=0, failed=1)
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, recs, _ = paid(d, ["T5"], runner)
+        self.assertEqual(rc, 0)
+        self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs))
+
+    def test_multiturn_not_resumed_is_not_a_pass(self):
+        runner = fake_runner([])
+        real = runner.run_subject
+
+        def one_turn(**kw):
+            subj = real(**kw)
+            (kw["run_dir"] / "events.jsonl").write_text(json.dumps({"type": "result", "result": "Pattern 2a"}) + "\n")
+            return subj
+        runner.run_subject = one_turn
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, recs, _ = paid(d, ["T5"], runner)
+        self.assertEqual(rc, 0)
+        self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs))
+
+    def test_subject_failure_counts_in_runs(self):
+        runner, n = fake_runner([]), []
+        real = runner.run_subject
+
+        def flaky(**kw):
+            subj = real(**kw)
+            n.append(1)
+            return subj if len(n) % 3 == 1 else {**subj, "ok": False, "reason": "timeout"}
+        runner.run_subject = flaky
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, recs, summary = paid(d, ["T4"], runner)
+        self.assertEqual(rc, 0)
+        cell = summary["cases"]["T4"]["with_skill"]
+        self.assertEqual(cell["statuses"], ["ran", "error", "error"])
+        self.assertEqual([r["pass"] for r in recs[:3]], [True, None, None])
+        self.assertEqual(recs[1]["reason"], "subject: timeout")
+        # MF-1: S2 reads pass over runs, so an error run is a failed run: 1/3, not 1/1
+        self.assertEqual((cell["pass"], cell["runs"]), (1, 3))
+
+    def test_invalid_trigger_is_an_error(self):
+        runner = fake_runner([])
+        runner.run_single_query = lambda *a: {"triggered": True, "invalid": True, "invalid_reason": "no init"}
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, recs, _ = paid(d, ["T6"], runner)
+        self.assertEqual(rc, 0)
+        self.assertTrue(all(r["status"] == "error" and r["pass"] is None and r["reason"] == "invalid: no init"
+                            for r in recs))
+
+
+class RunRecord(unittest.TestCase):
+    def test_summary_records_runner_head(self):
+        head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True,
+                              check=True).stdout.strip()
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, _, summary = paid(d, ["T4"], fake_runner([]))
+        self.assertEqual(rc, 0)
+        self.assertEqual(summary["runner_head"], head)
+
+    def test_missing_old_commit_is_refused_before_the_session(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(drive_c1, "OLD", "0" * 40):
+            rc, err, _, _ = paid(d, ["T1"], fake_runner(calls))
+            self.assertEqual(list(Path(d).iterdir()), [])
+        self.assertEqual(rc, 2)
+        self.assertIn(f"--paid refused: OLD commit {'0' * 40} is not in this clone", err)
+        self.assertEqual(calls, [])
+
+
+EVENTS = [
+    {"type": "system", "subtype": "init"},
+    {"type": "assistant", "message": {"content": [
+        {"type": "text", "text": "Reading."},
+        {"type": "tool_use", "id": "tu1", "name": "Read", "input": {"file_path": "a.tf"}},
+        {"type": "tool_use", "id": "tu2", "name": "Bash", "input": {"command": "ls"}}]}},
+    {"type": "user", "message": {"content": [
+        {"type": "tool_result", "tool_use_id": "tu2", "content": [{"type": "text", "text": "x"}], "is_error": True},
+        {"type": "tool_result", "tool_use_id": "tu1", "content": "body"}]}},
+    {"type": "result", "result": "Turn one done"},
+    "not an object",
+    {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "tu3", "name": "Skill", "input": None}]}},
+    {"type": "result", "result": "Turn two done", "is_error": True},
+]
+
+
+class Spans(unittest.TestCase):
+    def test_events_to_spans(self):
+        spans = drive_c1.events_to_spans(EVENTS, ["first prompt", "second prompt"], "s1")
+        sid = lambda *p, n=16: drive_c1._span_id("s1", *p, n=n)
+        scope = {"name": "openinference.instrumentation.claude_agent_sdk"}
+        t0, t1 = sid("trace", 0, n=32), sid("trace", 1, n=32)
+        self.assertEqual(spans, [
+            {"traceId": t0, "spanId": sid("agent", 0), "name": "ClaudeCode.turn", "kind": "INTERNAL", "scope": scope,
+             "attributes": {"openinference.span.kind": "AGENT", "session.id": "s1", "input.value": "first prompt",
+                            "output.value": "Turn one done"}, "status": {"code": "OK"}},
+            {"traceId": t0, "spanId": sid("tool", 0, 0), "parentSpanId": sid("agent", 0), "name": "Read",
+             "kind": "INTERNAL", "scope": scope,
+             "attributes": {"openinference.span.kind": "TOOL", "tool.name": "Read", "session.id": "s1",
+                            "input.value": '{"file_path": "a.tf"}', "tool.id": "tu1", "output.value": "body"},
+             "status": {"code": "OK"}},
+            {"traceId": t0, "spanId": sid("tool", 0, 1), "parentSpanId": sid("agent", 0), "name": "Bash",
+             "kind": "INTERNAL", "scope": scope,
+             "attributes": {"openinference.span.kind": "TOOL", "tool.name": "Bash", "session.id": "s1",
+                            "input.value": '{"command": "ls"}', "tool.id": "tu2",
+                            "output.value": '[{"type": "text", "text": "x"}]'}, "status": {"code": "ERROR"}},
+            {"traceId": t1, "spanId": sid("agent", 1), "name": "ClaudeCode.turn", "kind": "INTERNAL", "scope": scope,
+             "attributes": {"openinference.span.kind": "AGENT", "session.id": "s1", "input.value": "second prompt",
+                            "output.value": "Turn two done"}, "status": {"code": "ERROR"}},
+            {"traceId": t1, "spanId": sid("tool", 1, 0), "parentSpanId": sid("agent", 1), "name": "Skill",
+             "kind": "INTERNAL", "scope": scope,
+             "attributes": {"openinference.span.kind": "TOOL", "tool.name": "Skill", "session.id": "s1",
+                            "input.value": "null", "tool.id": "tu3"}, "status": {"code": "OK"}},
+        ])
+        self.assertEqual(len({s["spanId"] for s in spans}), 5)
+        self.assertEqual((len(t0), len(spans[0]["spanId"])), (32, 16))
+
+    def test_empty_and_malformed_events(self):
+        self.assertEqual(drive_c1.events_to_spans([], ["p"], "s"), [])
+        junk = [None, 3, "x", [], {"type": "assistant", "message": "not a dict"},
+                {"type": "assistant", "message": {"content": "text"}}, {"type": "user", "message": {"content": [1]}}]
+        self.assertEqual(drive_c1.events_to_spans(junk, [], "s"), [])
+
+    def test_unfinished_turn_reads_error(self):
+        spans = drive_c1.events_to_spans(EVENTS[:3], [], "s")
+        self.assertEqual([s["attributes"]["openinference.span.kind"] for s in spans], ["AGENT", "TOOL", "TOOL"])
+        self.assertEqual(spans[0]["status"], {"code": "ERROR"})
+        self.assertNotIn("output.value", spans[0]["attributes"])
+        self.assertNotIn("input.value", spans[0]["attributes"])
 
 
 if __name__ == "__main__":

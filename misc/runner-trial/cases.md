@@ -50,7 +50,7 @@ Only T4's pass condition rests on an EKS fact (below); the others use fixture da
 - Positive (index 3): "I added the eks-mcp config to my mcp.json but when I restart Claude Code no EKS tools show up. What's wrong?" It is a troubleshooting request, not a setup keyword match.
 - Near-miss negative (index 18): "Set up the arm migration mcp (arm-mcp) so I can scan this repo for arm64 readiness before moving to Graviton." It names an MCP server set-up, and the skill's description routes the Arm migration MCP server to graviton-migration, so it is the closest negative in the file.
 - Fixtures: none.
-- Pass, per run: the positive query loads eks-mcp-server and the negative does not; S2 counts those runs out of 3.
+- Pass, per run: the positive query loads eks-mcp-server and the negative does not; S2 counts those runs out of 3. A query run that times out or whose process dies keeps triggered and invalid both false, as the runner reads it (misc/evals/scripts/run_triggering.py:170-192 at 7efa0776), so such a run of the negative query counts as a correct negative.
 - Runs: 2 queries x 3, with the skill only. The without-skill arm cannot load an absent skill.
 
 ### T7: a live read-only run, repeated for the same-answer rule
@@ -63,7 +63,7 @@ Only T4's pass condition rests on an EKS fact (below); the others use fixture da
 
 Cites in this section are at main 528dde41. The runner gives the subject and the grader an empty HOME, with no link to the host's ~/.aws, and drops every AWS_* variable of the parent (misc/evals/scripts/run_triggering.py:92 `stage_skill_sandbox`, :117 `stage_empty_sandbox`, :132 `build_subprocess_env`). The only AWS credentials they get are a session of role `apex-eval-bedrock-invoke` in a separate eval account. Before the first run the runner assumes that role through profile `apex-eval-admin` of `~/.apex-eval/aws-config` and checks the session with `sts get-caller-identity` against `~/.apex-eval/expected-account`; it refuses to start, with no fallback, when any of that is missing or wrong (run_triggering.py:270 `mint_eval_role_credentials`; misc/evals/README.md:218, Eval-role setup). The C1 driver makes the same check before its first paid run. The subject runs with `--permission-mode bypassPermissions` (misc/evals/scripts/run_task_evals.py:498 and :517) as your OS user, so it can still read your files by path; misc/evals/README.md:220 names another OS user or a container as the hard fence.
 
-The eval role does not exist yet, so no case can run until it is created in the eval account.
+Role status, 2026-11-19: the eval role does not exist yet, so no case can run until it is created in the eval account.
 
 | Case | What the case needs from AWS | What the subject gets |
 |---|---|---|
