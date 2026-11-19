@@ -63,7 +63,9 @@ trusted. An entry with a
 missing or malformed field, a mode its script does not accept (the choices
 of the script's one add_argument("--mode", choices=[...]) call, read from
 its source; a script where they cannot be read is refused too), a script
-without one add_argument("--id") call that is not required (hooks.json
+without one add_argument("--id") call that is not required (the sync reads only
+the count of --id calls and a literal required= keyword, not the argument's
+other options or a ** keyword; hooks.json
 passes --id, the Kiro command does not), differing
 claude-code and codex matchers, an id given twice, two ids with one
 userConfig key (compared in upper case) or two entries with one event,
